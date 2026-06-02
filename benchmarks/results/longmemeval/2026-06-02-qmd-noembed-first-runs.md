@@ -105,8 +105,18 @@ e01b8e2f -> gold answer_5ca6cd28, retrieved none
 - Keep recall visible/manual by default; do not introduce hidden prompt injection.
 - Keep wrapup CLI-mediated for now. Existing dogfood memories were useful for recalling durable QMD-only decisions, while benchmark-reporting recall had no prior note and should be captured in public task/changelog docs instead.
 
+### Typed samples (`limit 10` each)
+
+| question_type | hit@1 | hit@5 | hit@10 | MRR | all_evidence@10 | latency p50/p95 ms | failures@10 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| multi-session | 0.5000 | 0.9000 | 0.9000 | 0.6367 | 0.6000 | 1661 / 1747 | 4 |
+| single-session-preference | 0.3000 | 0.4000 | 0.6000 | 0.3643 | 0.6000 | 1676 / 1704 | 4 |
+| temporal-reasoning | 0.4000 | 0.7000 | 0.7000 | 0.5250 | 0.4000 | 1689 / 1726 | 6 |
+| knowledge-update | 0.9000 | 1.0000 | 1.0000 | 0.9200 | 0.7000 | 1330 / 1676 | 3 |
+| single-session-assistant | 0.2000 | 0.3000 | 0.3000 | 0.2250 | 0.3000 | 1748 / 1933 | 7 |
+
 ## Next Comparison Targets
 
-- Run larger typed samples across every `question_type`.
+- Inspect typed failure reports and tune for all-evidence aggregation, preferences, temporal cues, and assistant-answer questions.
 - Compare no-embed vs embed on a fixed typed sample.
 - Decide whether benchmark scaling needs reusable workspaces or cached QMD indexes.
