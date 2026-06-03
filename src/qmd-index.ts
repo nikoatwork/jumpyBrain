@@ -67,7 +67,7 @@ export async function searchQmdIndex(root: string, query: string, limit: number)
     let lineEnd = candidate.lineEnd ?? lineStart;
     let snippet = boundedSnippet(cleanQmdSnippet(candidate.snippet ?? ""));
 
-    if (lineStart < document.bodyStartLine || looksLikeFrontmatterOnly(snippet)) {
+    if (lineStart < document.bodyStartLine || looksLikeUnhelpfulSnippet(snippet)) {
       const repaired = await snippetFromOriginalBody(document, query);
       lineStart = repaired.lineStart;
       lineEnd = repaired.lineEnd;
@@ -142,14 +142,23 @@ async function rebuildQmdCliCollection(root: string): Promise<void> {
   runQmd(root, ["collection", "add", root, "--name", COLLECTION, "--mask", "**/*.md"]);
   runQmd(root, ["update"]);
 
-  if (truthy(process.env.JUMPYBRAIN_QMD_EMBED)) {
+  if (truthy(process.env.JUMPYBRAIN_QMD_EMBED) || qmdRetrievalMode() === "vsearch") {
     runQmd(root, ["embed"]);
   }
+}
+
+type QmdRetrievalMode = "merged" | "search" | "query" | "vsearch";
+
+function qmdRetrievalMode(): QmdRetrievalMode {
+  const value = String(process.env.JUMPYBRAIN_QMD_MODE ?? "merged").toLowerCase();
+  if (value === "search" || value === "query" || value === "vsearch") return value;
+  return "merged";
 }
 
 async function searchWithQmdCli(root: string, query: string, limit: number): Promise<Candidate[]> {
   const merged = new Map<string, Candidate>();
   const lexQueries = qmdLexQueries(query);
+  const mode = qmdRetrievalMode();
 
   const addRows = (rows: Array<{ file?: string; score?: number; snippet?: string; line?: number }>, weight: number) => {
     rows.forEach((item, rank) => {
@@ -171,28 +180,47 @@ async function searchWithQmdCli(root: string, query: string, limit: number): Pro
     });
   };
 
-  for (const lexQuery of lexQueries.slice(0, 6)) {
-    try {
-      const result = runQmd(root, ["search", lexQuery, "--json", "-n", String(limit)]);
-      addRows(parseQmdJsonRows(result.stdout), 1);
-    } catch {
-      // Keep benchmark/search runs alive when one QMD lexical query emits malformed JSON or fails.
+  if (mode === "search" || mode === "merged") {
+    for (const lexQuery of lexQueries.slice(0, 8)) {
+      try {
+        const result = runQmd(root, ["search", lexQuery, "--json", "-n", String(limit)]);
+        addRows(parseQmdJsonRows(result.stdout), 1);
+      } catch {
+        // Keep benchmark/search runs alive when one QMD lexical query emits malformed JSON or fails.
+      }
     }
   }
 
-  try {
-    const qmdQuery = [...lexQueries.slice(0, 6).map((lexQuery) => `lex: ${lexQuery}`), `vec: ${query}`].join("\n");
-    const result = runQmd(root, ["query", qmdQuery, "--json", "-n", String(limit), "--no-rerank"]);
-    addRows(parseQmdJsonRows(result.stdout), 0.9);
-  } catch {
-    // QMD vector/query mode can fail when embeddings are unavailable; BM25 QMD search above is still real QMD retrieval.
+  if (mode === "query" || mode === "merged") {
+    try {
+      const queryLines = lexQueries.slice(0, 8).map((lexQuery) => `lex: ${lexQuery}`);
+      if (mode === "merged") queryLines.push(`vec: ${query}`);
+      const result = runQmd(root, ["query", queryLines.join("\n"), "--json", "-n", String(limit), "--no-rerank"]);
+      addRows(parseQmdJsonRows(result.stdout), mode === "query" ? 1 : 0.9);
+    } catch {
+      // QMD vector/query mode can fail when embeddings are unavailable; BM25 QMD search above is still real QMD retrieval.
+    }
+  }
+
+  if (mode === "vsearch") {
+    for (let attempt = 0; attempt < 2 && merged.size === 0; attempt += 1) {
+      try {
+        const result = runQmd(root, ["vsearch", query, "--json", "-n", String(limit)]);
+        addRows(parseQmdJsonRows(result.stdout), 1);
+      } catch {
+        // Keep explicit embedding comparison runs alive when one workspace cannot vector search.
+      }
+    }
   }
 
   return [...merged.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 function parseQmdJsonRows(stdout: string): Array<{ file?: string; score?: number; snippet?: string; line?: number }> {
-  const parsed = JSON.parse(stdout);
+  const start = stdout.indexOf("[");
+  const end = stdout.lastIndexOf("]");
+  const jsonText = start >= 0 && end >= start ? stdout.slice(start, end + 1) : stdout;
+  const parsed = JSON.parse(jsonText);
   return Array.isArray(parsed) ? parsed : [];
 }
 
@@ -252,9 +280,7 @@ async function snippetFromOriginalBody(document: IndexedDocument, query: string)
   const text = await readFile(document.absolutePath, "utf8");
   const lines = text.split(/\r?\n/);
   const bodyIndex = Math.max(0, document.bodyStartLine - 1);
-  const tokens = tokenize(query);
-  const hitIndex = lines.findIndex((line, index) => index >= bodyIndex && tokens.some((token) => line.toLowerCase().includes(token)));
-  const center = hitIndex >= 0 ? hitIndex : bodyIndex;
+  const center = bestBodyLineIndex(lines, bodyIndex, query);
   return neighborSnippetFromLines(lines, bodyIndex, center + 1, center + 1);
 }
 
@@ -267,7 +293,7 @@ async function neighborSnippetFromOriginal(document: IndexedDocument, lineStart:
 
 function neighborSnippetFromLines(lines: string[], bodyIndex: number, lineStart: number, lineEnd: number): { lineStart: number; lineEnd: number; snippet: string } {
   const start = Math.max(bodyIndex, lineStart - 2);
-  const end = Math.min(lines.length - 1, lineEnd);
+  const end = Math.min(lines.length - 1, lineEnd + 6);
   return {
     lineStart: start + 1,
     lineEnd: end + 1,
@@ -275,40 +301,127 @@ function neighborSnippetFromLines(lines: string[], bodyIndex: number, lineStart:
   };
 }
 
+function bestBodyLineIndex(lines: string[], bodyIndex: number, query: string): number {
+  const terms = expandedQueryTerms(query);
+  const phrases = salientAdjacentQueries(query).slice(0, 8);
+  let bestIndex = bodyIndex;
+  let bestScore = 0;
+
+  for (let index = bodyIndex; index < lines.length; index += 1) {
+    const line = lines[index].toLowerCase();
+    let score = 0;
+    for (const term of terms) {
+      if (line.includes(term)) score += queryTermWeight(term);
+    }
+    for (const phrase of phrases) {
+      if (line.includes(phrase)) score += 4;
+    }
+    if (/^#{1,6}\s/.test(lines[index])) score *= 0.5;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  }
+
+  return bestIndex;
+}
+
+function looksLikeUnhelpfulSnippet(snippet: string): boolean {
+  const trimmed = snippet.trim();
+  if (!trimmed) return true;
+  if (looksLikeFrontmatterOnly(trimmed)) return true;
+  if (/##\s+Assistant\s*$/.test(trimmed)) return true;
+
+  const withoutHeadings = trimmed
+    .split(/\s*#{1,6}\s+[A-Za-z][^#]*?/)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return withoutHeadings.length === 0;
+}
+
 function looksLikeFrontmatterOnly(snippet: string): boolean {
-  return /(^|\s)(source|question_id|session_id|date):\s/.test(snippet) && !snippet.includes("#");
+  return /(^|\s)(source|question_id|session_id|date|question_type):\s/.test(snippet) && !/\b(User|Assistant|Note)\b/i.test(snippet);
 }
 
 function qmdLexQueries(value: string): string[] {
-  const expanded = new Set<string>();
-  for (const token of tokenize(value)) {
-    expanded.add(token);
-    if (token.length > 4 && token.endsWith("s")) expanded.add(token.slice(0, -1));
+  const terms = expandedQueryTerms(value);
+  const queries = new Set<string>();
+
+  for (const phrase of salientAdjacentQueries(value).slice(0, 8)) {
+    queries.add(phrase);
   }
 
-  const terms = [...expanded];
-  const queries = new Set<string>();
   if (terms.length > 0) queries.add(terms.join(" "));
 
-  const salient = terms.filter((term) => term.length >= 5).slice(0, 8);
+  const salient = terms
+    .filter((term) => term.length >= 5)
+    .sort((left, right) => queryTermWeight(right) - queryTermWeight(left) || left.localeCompare(right))
+    .slice(0, 8);
   for (let left = 0; left < salient.length; left += 1) {
     for (let right = left + 1; right < salient.length; right += 1) {
       queries.add(`${salient[left]} ${salient[right]}`);
-      if (queries.size >= 12) return [...queries];
+      if (queries.size >= 16) return [...queries];
     }
   }
 
   return queries.size > 0 ? [...queries] : [value];
 }
 
+function expandedQueryTerms(value: string): string[] {
+  const expanded = new Set<string>();
+  for (const token of tokenize(value)) {
+    expanded.add(token);
+    if (token.length > 4 && token.endsWith("ies")) expanded.add(`${token.slice(0, -3)}y`);
+    else if (token.length > 4 && token.endsWith("s")) expanded.add(token.slice(0, -1));
+  }
+  return [...expanded];
+}
+
+function salientAdjacentQueries(value: string): string[] {
+  const terms = tokenize(value);
+  const phrases = new Map<string, number>();
+  for (let index = 0; index < terms.length - 1; index += 1) {
+    const left = terms[index];
+    const right = terms[index + 1];
+    const phrase = `${left} ${right}`;
+    const score = queryTermWeight(left) + queryTermWeight(right) + index / Math.max(1, terms.length) * 0.25;
+    phrases.set(phrase, Math.max(phrases.get(phrase) ?? 0, score));
+  }
+
+  return [...phrases.entries()]
+    .sort(([leftPhrase, leftScore], [rightPhrase, rightScore]) => rightScore - leftScore || leftPhrase.localeCompare(rightPhrase))
+    .map(([phrase]) => phrase);
+}
+
+function queryTermWeight(term: string): number {
+  if (LOW_VALUE_QUERY_TERMS.has(term)) return 0.2;
+  if (term.length >= 8) return 3;
+  if (term.length >= 5) return 2;
+  return 1;
+}
+
+export const qmdIndexInternalsForTests = {
+  normalizeQmdLookupPath,
+  qmdLexQueries,
+  qmdRetrievalMode,
+  looksLikeUnhelpfulSnippet,
+};
+
 function tokenize(value: string): string[] {
   return value
     .toLowerCase()
     .split(/[^a-z0-9._/-]+/)
+    .map((token) => token.replace(/^[._/-]+|[._/-]+$/g, ""))
     .filter((token) => token.length > 1 && !STOPWORDS.has(token));
 }
 
-const STOPWORDS = new Set(["the", "and", "for", "with", "that", "this", "where", "what", "who", "which", "did", "does", "into", "from", "have", "has", "was", "were", "are"]);
+const STOPWORDS = new Set([
+  "the", "and", "for", "with", "that", "this", "where", "what", "who", "which", "did", "does", "into", "from", "have", "has", "had", "was", "were", "are",
+  "about", "again", "any", "as", "at", "back", "been", "can", "chat", "check", "checking", "conversation", "could", "current", "do", "earlier", "get", "going", "got", "he", "her", "his", "i", "in", "is", "it", "me", "my", "of", "on", "our", "previous", "remember", "remind", "she", "some", "their", "time", "to", "told", "upcoming", "ve", "wanted", "would", "you", "your",
+]);
+
+const LOW_VALUE_QUERY_TERMS = new Set(["advice", "day", "days", "events", "first", "getting", "happened", "helped", "last", "months", "order", "passed", "pick", "results", "since", "suggest", "weeks"]);
 
 function exactBoost(query: string, text: string): number {
   const lower = text.toLowerCase();
@@ -328,7 +441,7 @@ function temporalBoostFor(query: string, metadata: Record<string, unknown>, stat
   const time = documentTime(metadata);
   if (!stats || time === undefined) return 0;
   const tokens = new Set(tokenize(query));
-  const wantsRecent = ["recent", "latest", "newest", "current", "last", "after"].some((token) => tokens.has(token));
+  const wantsRecent = ["recent", "latest", "newest", "after"].some((token) => tokens.has(token));
   const wantsOld = ["oldest", "first", "earliest", "before"].some((token) => tokens.has(token));
   if (!wantsRecent && !wantsOld) return 0;
   if (stats.max === stats.min) return 0.05;

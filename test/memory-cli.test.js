@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parseFrontmatter } from "../dist/markdown-store.js";
+import { qmdIndexInternalsForTests } from "../dist/qmd-index.js";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..");
@@ -41,6 +42,42 @@ test("frontmatter parsing supports manual memory metadata", () => {
   assert.deepEqual(parsed.frontmatter.tags, ["qmd", "memory"]);
   assert.equal(parsed.frontmatter.confidence, 0.8);
   assert.equal(parsed.bodyStartLine, 7);
+});
+
+test("QMD helper logic keeps benchmark query and path repair deterministic", () => {
+  assert.equal(
+    qmdIndexInternalsForTests.normalizeQmdLookupPath("Sessions/Answer_ShareGPT_5Lzox6N_0.md"),
+    "sessions/answer-sharegpt-5lzox6n-0.md",
+  );
+
+  const assistantQueries = qmdIndexInternalsForTests.qmdLexQueries(
+    "I'm checking our previous chat about the shift rotation sheet for GM social media agents. Can you remind me what was the rotation for Admon on a Sunday?",
+  );
+  assert.ok(assistantQueries.slice(0, 8).includes("admon sunday"));
+  assert.ok(assistantQueries.slice(0, 8).includes("shift rotation"));
+
+  const temporalQueries = qmdIndexInternalsForTests.qmdLexQueries(
+    "Which three events happened in the order from first to last: the day I helped my friend prepare the nursery, the day I helped my cousin pick out stuff for her baby shower, and the day I ordered a customized phone case for my friend's birthday?",
+  );
+  assert.ok(temporalQueries.slice(0, 8).includes("prepare nursery"));
+  assert.ok(temporalQueries.slice(0, 8).includes("baby shower"));
+  assert.ok(temporalQueries.slice(0, 8).includes("phone case"));
+
+  assert.equal(qmdIndexInternalsForTests.looksLikeUnhelpfulSnippet("## User Could you suggest a hotel? ## Assistant"), true);
+  assert.equal(qmdIndexInternalsForTests.looksLikeUnhelpfulSnippet("For a romantic dinner, I would recommend Roscioli."), false);
+
+  const originalMode = process.env.JUMPYBRAIN_QMD_MODE;
+  try {
+    process.env.JUMPYBRAIN_QMD_MODE = "query";
+    assert.equal(qmdIndexInternalsForTests.qmdRetrievalMode(), "query");
+    process.env.JUMPYBRAIN_QMD_MODE = "vsearch";
+    assert.equal(qmdIndexInternalsForTests.qmdRetrievalMode(), "vsearch");
+    process.env.JUMPYBRAIN_QMD_MODE = "unknown";
+    assert.equal(qmdIndexInternalsForTests.qmdRetrievalMode(), "merged");
+  } finally {
+    if (originalMode === undefined) delete process.env.JUMPYBRAIN_QMD_MODE;
+    else process.env.JUMPYBRAIN_QMD_MODE = originalMode;
+  }
 });
 
 test("CLI index stores original Markdown document metadata, not derived chunks", async () => {
