@@ -2,7 +2,8 @@
 import { readFileSync } from "node:fs";
 import { formatHumanResults } from "./cli/formatting.js";
 import { indexMemory, searchMemory } from "./retrieval/index.js";
-import { writeMemoryNote } from "./writing/index.js";
+import { writeMemoryNote, writeSessionWrapup } from "./writing/index.js";
+import type { SearchResult } from "./types.js";
 
 interface Args {
   _: string[];
@@ -56,7 +57,37 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
     return;
   }
 
+  if (command === "wrapup") {
+    const root = stringArg(args, "root");
+    const title = stringArg(args, "title");
+    const topic = stringArg(args, "topic", false).trim();
+    const limit = numberArg(args, "limit", 5);
+    const body = readStdin();
+    const relatedMemory = topic ? await recallRelatedMemory(root, topic, limit) : { skipped: true as const, reason: "--topic not provided" };
+    const result = await writeSessionWrapup(root, { title, body, tags: stringListArg(args, "tag"), recallTopic: topic || undefined });
+
+    if (args.json) {
+      console.log(JSON.stringify({ ...result, relatedMemory }, null, 2));
+    } else {
+      if (topic && !relatedMemory.skipped) {
+        console.log(`Related memory preflight for: ${topic}\n`);
+        console.log(formatHumanResults(relatedMemory.results));
+        console.log("");
+      } else {
+        console.log("Related memory preflight skipped: --topic not provided.\n");
+      }
+      console.log(`Wrote session wrapup: ${result.file}\n`);
+      console.log(result.body);
+    }
+    return;
+  }
+
   throw new Error(`Unknown command '${command}'.\n\n${usage()}`);
+}
+
+async function recallRelatedMemory(root: string, topic: string, limit: number): Promise<{ skipped: false; query: string; results: SearchResult[] }> {
+  const result = await searchMemory(root, topic, limit);
+  return { skipped: false, query: result.query, results: result.results };
 }
 
 function parseArgs(argv: string[]): Args {
@@ -127,6 +158,7 @@ function usage(): string {
     "  jumpybrain search --root <memory-root> --query \"...\" --limit 10 --json",
     "  jumpybrain recall --root <memory-root> --topic \"...\" --limit 5",
     "  jumpybrain note --root <memory-root> --type finding --title \"...\" --stdin",
+    "  jumpybrain wrapup --root <memory-root> --title \"...\" --topic \"...\" --stdin",
   ].join("\n");
 }
 

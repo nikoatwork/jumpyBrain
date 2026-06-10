@@ -26,6 +26,33 @@ function runCli(args, options = {}) {
   return result;
 }
 
+function runCliFailure(args, options = {}) {
+  const result = spawnSync(process.execPath, [cliPath, ...args], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    env: { ...process.env, ...options.env },
+    input: options.input,
+  });
+
+  assert.notEqual(result.status, 0, `CLI unexpectedly succeeded\nargs: ${args.join(" ")}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  return result;
+}
+
+const validWrapup = [
+  "## Findings",
+  "- The canonical layer should stay backend-agnostic.",
+  "",
+  "## Decisions",
+  "- Keep wrapup writing behind the writing module.",
+  "",
+  "## Conflicts / Corrections",
+  "- None captured.",
+  "",
+  "## Open Questions",
+  "- Should wrapup recall become mandatory after dogfood usage?",
+  "",
+].join("\n");
+
 test("frontmatter parsing supports manual memory metadata", () => {
   const parsed = parseFrontmatter([
     "---",
@@ -174,6 +201,66 @@ test("CLI note writes editable Markdown memory", async () => {
     assert.match(markdown, /type: "decision"/);
     assert.match(markdown, /# Use QMD first/);
     assert.match(markdown, /Markdown remains canonical/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("CLI wrapup writes one editable session file with strict sections", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
+  try {
+    const result = runCli(["wrapup", "--root", tempRoot, "--title", "Boundary refactor wrapup", "--json"], {
+      input: validWrapup,
+    });
+    const payload = JSON.parse(result.stdout);
+    assert.match(payload.file, /^sessions\/\d{4}-\d{2}-\d{2}-boundary-refactor-wrapup/);
+    assert.equal(payload.validation.valid, true);
+    assert.equal(payload.relatedMemory.skipped, true);
+    assert.match(payload.body, /^# Boundary refactor wrapup/);
+    assert.match(payload.body, /## Findings/);
+    assert.match(payload.body, /## Open Questions/);
+
+    const markdown = await readFile(path.join(tempRoot, payload.file), "utf8");
+    assert.match(markdown, /type: "session"/);
+    assert.match(markdown, /source: "jumpybrain-wrapup"/);
+    assert.match(markdown, /confidence: "agent-drafted"/);
+    assert.match(markdown, /review: "user-review-recommended"/);
+    assert.match(markdown, /# Boundary refactor wrapup/);
+    assert.match(markdown, /## Conflicts \/ Corrections/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("CLI wrapup rejects missing required sections without writing", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
+  try {
+    const result = runCliFailure(["wrapup", "--root", tempRoot, "--title", "Bad wrapup"], {
+      input: [
+        "## Findings",
+        "- Useful fact.",
+        "",
+        "## Decisions",
+        "- Useful decision.",
+      ].join("\n"),
+    });
+    assert.match(result.stderr, /Invalid wrapup Markdown/);
+    assert.match(result.stderr, /## Conflicts \/ Corrections/);
+    assert.equal(existsSync(path.join(tempRoot, "sessions")), false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("CLI wrapup with duplicate title does not overwrite existing files", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
+  try {
+    const first = JSON.parse(runCli(["wrapup", "--root", tempRoot, "--title", "Same title", "--json"], { input: validWrapup }).stdout);
+    const second = JSON.parse(runCli(["wrapup", "--root", tempRoot, "--title", "Same title", "--json"], { input: validWrapup }).stdout);
+
+    assert.notEqual(first.file, second.file);
+    assert.equal(existsSync(path.join(tempRoot, first.file)), true);
+    assert.equal(existsSync(path.join(tempRoot, second.file)), true);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
