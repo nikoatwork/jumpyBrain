@@ -1,4 +1,5 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -21,9 +22,10 @@ function parseArgs(argv) {
 
 function usage() {
   return [
-    "Usage: run-retrieval.ts --data <longmemeval_s_cleaned.json> --workspace-root <dir> --out <results.jsonl> [--limit N] [--question-id ID] [--question-type TYPE] [--k 10] [--resume]",
+    "Usage: run-memsearch.ts --data <longmemeval_s_cleaned.json> --workspace-root <dir> --out <results.jsonl> [--limit N] [--question-id ID] [--question-type TYPE] [--k 10] [--resume]",
     "",
-    "Materializes one Markdown memory workspace per selected question, runs jumpybrain index/search, and writes retrieval JSONL.",
+    "Materializes one Markdown memory workspace per selected question, indexes/searches it with the optional memsearch CLI, and writes normalized retrieval JSONL.",
+    "Defaults to local no-paid-call mode: --provider onnx with per-question Milvus Lite state.",
   ].join("\n");
 }
 
@@ -33,6 +35,11 @@ function slug(value) {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "") || "unknown";
+}
+
+function safeCollection(value) {
+  const cleaned = String(value).toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+  return `lme_${cleaned || "unknown"}`.slice(0, 200);
 }
 
 function frontmatterValue(value) {
@@ -136,14 +143,120 @@ async function materializeItem(item, workspaceRoot) {
   return workspaceDir;
 }
 
-function runCli(args) {
-  const result = spawnSync(process.execPath, ["dist/cli.js", ...args], {
+async function markdownFiles(root) {
+  const entries = await readdir(root, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const fullPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...await markdownFiles(fullPath));
+    } else if (entry.isFile() && /\.md(?:own)?$/i.test(entry.name)) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+function parseFrontmatterValue(raw) {
+  const trimmed = raw.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return trimmed.replace(/^['"]|['"]$/g, "");
+  }
+}
+
+async function buildSessionMap(workspace) {
+  const map = new Map();
+  for (const file of await markdownFiles(workspace)) {
+    const markdown = await readFile(file, "utf8");
+    const match = markdown.match(/^---\n([\s\S]*?)\n---/);
+    const sessionMatch = match?.[1]?.match(/^session_id:\s*(.+)$/m);
+    const sessionId = sessionMatch ? String(parseFrontmatterValue(sessionMatch[1])) : undefined;
+    if (!sessionId) continue;
+    map.set(path.resolve(file), sessionId);
+    map.set(path.relative(process.cwd(), file), sessionId);
+    map.set(path.relative(workspace, file), sessionId);
+  }
+  return map;
+}
+
+function runCli(bin, args, options = {}) {
+  return spawnSync(bin, args, {
     cwd: process.cwd(),
     encoding: "utf8",
     env: process.env,
-    maxBuffer: 20 * 1024 * 1024,
+    maxBuffer: 50 * 1024 * 1024,
+    ...options,
   });
-  return result;
+}
+
+function preflight(bin) {
+  const result = runCli(bin, ["--version"]);
+  if (result.error && result.error.message.includes("ENOENT")) {
+    return `memsearch CLI not found. Install optional deps with: uv tool install \"memsearch[onnx]\" or pip install \"memsearch[onnx]\"`;
+  }
+  if (result.status !== 0) {
+    return `memsearch preflight failed: ${result.stderr || result.stdout || result.error?.message || "unknown error"}`;
+  }
+  return undefined;
+}
+
+function memsearchArgs(baseArgs, options) {
+  const args = [...baseArgs];
+  if (options.provider) args.push("--provider", options.provider);
+  if (options.model) args.push("--model", options.model);
+  if (options.collection) args.push("--collection", options.collection);
+  if (options.milvusUri) args.push("--milvus-uri", options.milvusUri);
+  if (options.milvusToken) args.push("--milvus-token", options.milvusToken);
+  return args;
+}
+
+function parseMemsearchJson(stdout) {
+  const parsed = JSON.parse(stdout);
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(parsed.results)) return parsed.results;
+  return [];
+}
+
+function relativeFile(source) {
+  if (!source) return undefined;
+  const resolved = path.resolve(String(source));
+  return path.relative(process.cwd(), resolved);
+}
+
+function sessionIdForSource(source, sessionMap) {
+  if (!source) return undefined;
+  const resolved = path.resolve(String(source));
+  return sessionMap.get(resolved) ?? sessionMap.get(String(source)) ?? sessionMap.get(path.relative(process.cwd(), resolved));
+}
+
+function normalizeHit(hit, index, sessionMap) {
+  const source = hit.source ?? hit.file ?? hit.path;
+  const snippet = String(hit.content ?? hit.snippet ?? hit.text ?? "");
+  const sessionId = sessionIdForSource(source, sessionMap);
+  return {
+    id: hit.chunk_hash ?? hit.id ?? `memsearch-${index + 1}`,
+    score: typeof hit.score === "number" ? hit.score : Number(hit.score ?? 0),
+    snippet,
+    path: relativeFile(source),
+    file: relativeFile(source),
+    session_id: sessionId,
+    provenance: {
+      file: relativeFile(source),
+      session_id: sessionId,
+      heading: hit.heading,
+      lineStart: hit.start_line,
+      lineEnd: hit.end_line,
+      chunk_hash: hit.chunk_hash,
+    },
+    metadata: {
+      adapter: "memsearch",
+      heading: hit.heading,
+      heading_level: hit.heading_level,
+      chunk_hash: hit.chunk_hash,
+    },
+  };
 }
 
 function returnedChars(results) {
@@ -157,6 +270,12 @@ export async function main(argv = process.argv.slice(2)) {
   const workspaceRoot = args["workspace-root"];
   const outPath = args.out;
   const k = Number(args.k || args.limitResults || 10);
+  const provider = String(args.provider || "onnx");
+  const model = args.model ? String(args.model) : undefined;
+  const bin = String(args["memsearch-bin"] || "memsearch");
+  const stateRoot = path.resolve(String(args["state-root"] || path.join(".bench-tmp", "longmemeval", "memsearch-state")));
+  const sharedMilvusUri = args["milvus-uri"] ? path.resolve(String(args["milvus-uri"])) : undefined;
+  const milvusToken = args["milvus-token"] ? String(args["milvus-token"]) : undefined;
 
   if (!dataPath || !workspaceRoot || !outPath) {
     console.error(usage());
@@ -174,12 +293,14 @@ export async function main(argv = process.argv.slice(2)) {
   const absoluteOut = path.resolve(String(outPath));
   await mkdir(absoluteWorkspaceRoot, { recursive: true });
   await mkdir(path.dirname(absoluteOut), { recursive: true });
+  await mkdir(stateRoot, { recursive: true });
 
-  const existingRows = args.resume
+  const existingRows = args.resume && existsSync(absoluteOut)
     ? await readFile(absoluteOut, "utf8").then(readExistingJsonl).catch(() => [])
     : [];
   const existingByQuestionId = new Map(existingRows.map((row) => [String(row.question_id), row]));
   const lines = existingRows.map((row) => JSON.stringify(row));
+  const preflightError = preflight(bin);
 
   for (let index = 0; index < selected.length; index += 1) {
     const item = selected[index];
@@ -190,37 +311,53 @@ export async function main(argv = process.argv.slice(2)) {
     }
 
     const workspace = await materializeItem(item, absoluteWorkspaceRoot);
+    const sessionMap = await buildSessionMap(workspace);
+    const collection = safeCollection(questionId);
+    const perQuestionState = path.join(stateRoot, slug(questionId));
+    await mkdir(perQuestionState, { recursive: true });
+    const milvusUri = sharedMilvusUri || path.join(perQuestionState, "milvus.db");
+    await mkdir(path.dirname(milvusUri), { recursive: true });
     const started = performance.now();
 
-    let indexResult = runCli(["index", "--root", workspace]);
-    let searchResult;
     let results = [];
-    let error;
+    let error = preflightError;
 
-    if (indexResult.status === 0) {
-      searchResult = runCli(["search", "--root", workspace, "--query", String(item.question), "--limit", String(k), "--json"]);
-      if (searchResult.status === 0) {
-        try {
-          results = JSON.parse(searchResult.stdout).results ?? [];
-        } catch (parseError) {
-          error = `search JSON parse failed: ${parseError.message}`;
+    if (!error) {
+      const options = { provider, model, collection, milvusUri, milvusToken };
+      const indexArgs = memsearchArgs(["index", workspace, "--force"], options);
+      const indexResult = runCli(bin, indexArgs);
+      if (indexResult.status === 0) {
+        const searchArgs = memsearchArgs(["search", String(item.question), "--top-k", String(k), "--json-output"], options);
+        const searchResult = runCli(bin, searchArgs);
+        if (searchResult.status === 0) {
+          try {
+            results = parseMemsearchJson(searchResult.stdout).map((hit, hitIndex) => normalizeHit(hit, hitIndex, sessionMap));
+          } catch (parseError) {
+            error = `search JSON parse failed: ${parseError.message}\nstdout:\n${searchResult.stdout.slice(0, 2000)}`;
+          }
+        } else {
+          error = `search failed: ${searchResult.stderr || searchResult.stdout}`;
         }
       } else {
-        error = `search failed: ${searchResult.stderr || searchResult.stdout}`;
+        error = `index failed: ${indexResult.stderr || indexResult.stdout}`;
       }
-    } else {
-      error = `index failed: ${indexResult.stderr || indexResult.stdout}`;
     }
 
     const latencyMs = Math.round(performance.now() - started);
     lines.push(JSON.stringify({
       question_id: questionId,
       question_type: item.question_type ?? "unknown",
-      adapter: "jumpybrain",
+      adapter: "memsearch",
       workspace: path.relative(process.cwd(), workspace),
       latency_ms: latencyMs,
       returned_chars: returnedChars(results),
       cli_error: error,
+      memsearch: {
+        provider,
+        model,
+        collection,
+        milvus_uri: path.relative(process.cwd(), milvusUri),
+      },
       results,
     }));
 
@@ -228,5 +365,5 @@ export async function main(argv = process.argv.slice(2)) {
   }
 
   await writeFile(absoluteOut, `${lines.join("\n")}\n`, "utf8");
-  console.log(JSON.stringify({ out: path.relative(process.cwd(), absoluteOut), count: selected.length }, null, 2));
+  console.log(JSON.stringify({ out: path.relative(process.cwd(), absoluteOut), count: selected.length, adapter: "memsearch" }, null, 2));
 }

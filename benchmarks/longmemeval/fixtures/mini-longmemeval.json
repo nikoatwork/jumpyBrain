@@ -1,0 +1,137 @@
+[
+  {
+    "question_id": "q-single-release-notes",
+    "question_type": "single-session",
+    "question": "Where did Mira decide to store the release notes?",
+    "haystack_session_ids": ["s-alpha", "s-distractor-a"],
+    "haystack_dates": ["2026-01-05", "2026-01-06"],
+    "haystack_sessions": [
+      {
+        "session_id": "s-alpha",
+        "date": "2026-01-05",
+        "has_answer": true,
+        "turns": [
+          {
+            "role": "user",
+            "content": "We need a durable place for release notes so agents can find them later."
+          },
+          {
+            "role": "assistant",
+            "content": "Mira decided to store the release notes in docs/releases/q2.md."
+          }
+        ]
+      },
+      {
+        "session_id": "s-distractor-a",
+        "date": "2026-01-06",
+        "has_answer": false,
+        "turns": [
+          {
+            "role": "user",
+            "content": "Should meeting notes live beside benchmark notes?"
+          },
+          {
+            "role": "assistant",
+            "content": "Keep meeting notes in docs/meetings/ so they do not get confused with releases."
+          }
+        ]
+      }
+    ],
+    "answer_session_ids": ["s-alpha"]
+  },
+  {
+    "question_id": "q-multi-safeguards",
+    "question_type": "multi-session",
+    "question": "Which two safeguards did the team choose for benchmark hygiene?",
+    "haystack_session_ids": ["s-bravo", "s-charlie", "s-distractor-b"],
+    "haystack_dates": ["2026-01-07", "2026-01-08", "2026-01-09"],
+    "haystack_sessions": [
+      {
+        "session_id": "s-bravo",
+        "date": "2026-01-07",
+        "has_answer": true,
+        "turns": [
+          {
+            "role": "user",
+            "content": "What is the first safeguard for benchmark data?"
+          },
+          {
+            "role": "assistant",
+            "content": "The first safeguard is to keep external benchmark data in benchdata/ and out of git."
+          }
+        ]
+      },
+      {
+        "session_id": "s-charlie",
+        "date": "2026-01-08",
+        "has_answer": true,
+        "turns": [
+          {
+            "role": "user",
+            "content": "What about raw run outputs?"
+          },
+          {
+            "role": "assistant",
+            "content": "The second safeguard is to keep raw benchmark outputs under bench-results/ unless explicitly approved."
+          }
+        ]
+      },
+      {
+        "session_id": "s-distractor-b",
+        "date": "2026-01-09",
+        "has_answer": false,
+        "turns": [
+          {
+            "role": "user",
+            "content": "Can benchmark fixtures be committed?"
+          },
+          {
+            "role": "assistant",
+            "content": "Tiny synthetic fixtures can be committed when they contain no external dataset text."
+          }
+        ]
+      }
+    ],
+    "answer_session_ids": ["s-bravo", "s-charlie"]
+  },
+  {
+    "question_id": "q-miss-owner",
+    "question_type": "single-session",
+    "question": "Who owns the fixture fake benchmark run?",
+    "haystack_session_ids": ["s-delta", "s-distractor-c"],
+    "haystack_dates": ["2026-01-10", "2026-01-11"],
+    "haystack_sessions": [
+      {
+        "session_id": "s-delta",
+        "date": "2026-01-10",
+        "has_answer": true,
+        "turns": [
+          {
+            "role": "user",
+            "content": "Assign an owner for the fixture fake benchmark run."
+          },
+          {
+            "role": "assistant",
+            "content": "Rin owns the fixture fake benchmark run."
+          }
+        ]
+      },
+      {
+        "session_id": "s-distractor-c",
+        "date": "2026-01-11",
+        "has_answer": false,
+        "turns": [
+          {
+            "role": "user",
+            "content": "Who owns the markdown formatting checklist?"
+          },
+          {
+            "role": "assistant",
+            "content": "Vale owns the markdown formatting checklist."
+          }
+        ]
+      }
+    ],
+    "answer_session_ids": ["s-delta"]
+  }
+]

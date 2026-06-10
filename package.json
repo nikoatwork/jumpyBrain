@@ -1,0 +1,31 @@
+{
+  "name": "jumpybrain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Markdown-native memory for coding agents.",
+  "bin": {
+    "jumpybrain": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
+    "test": "npm run build && node --test",
+    "validate": "npm test",
+    "benchmark:longmemeval:materialize:fixture": "node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/materialize.ts --fixture benchmarks/longmemeval/fixtures/mini-longmemeval.json --out .bench-tmp/longmemeval/workspaces",
+    "benchmark:longmemeval:fake-run": "node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/fake-run.ts --fixture benchmarks/longmemeval/fixtures/mini-longmemeval.json --workspace-root .bench-tmp/longmemeval/workspaces --out bench-results/longmemeval/fixture-fake.jsonl",
+    "benchmark:longmemeval:score:fixture": "node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/score.ts --fixture benchmarks/longmemeval/fixtures/mini-longmemeval.json --run bench-results/longmemeval/fixture-fake.jsonl --summary-json bench-results/longmemeval/fixture-fake.summary.json",
+    "benchmark:longmemeval:fixture": "npm run benchmark:longmemeval:materialize:fixture && npm run benchmark:longmemeval:fake-run && npm run benchmark:longmemeval:score:fixture",
+    "bench:longmemeval:download": "node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/download.ts",
+    "bench:longmemeval:run": "npm run build && node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/run-retrieval.ts --data benchdata/longmemeval/longmemeval_s_cleaned.json --workspace-root .bench-tmp/longmemeval/real-workspaces --out bench-results/longmemeval/real-run.jsonl",
+    "bench:longmemeval:run:memsearch": "node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/run-memsearch.ts --data benchdata/longmemeval/longmemeval_s_cleaned.json --workspace-root .bench-tmp/longmemeval/memsearch-workspaces --out bench-results/longmemeval/memsearch-run.jsonl",
+    "bench:longmemeval:score": "node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/score.ts --fixture benchdata/longmemeval/longmemeval_s_cleaned.json --run bench-results/longmemeval/real-run.jsonl --summary-json bench-results/longmemeval/real-run.summary.json"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
+  }
+}

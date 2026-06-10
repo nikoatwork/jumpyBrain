@@ -1,0 +1,11 @@
+# Dependencies and build output
+node_modules/
+dist/
+
+# Local dogfood memory
+.dogfood-memory/
+
+# Benchmark data and generated outputs
+benchdata/
+bench-results/
+.bench-tmp/

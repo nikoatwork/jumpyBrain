@@ -68,10 +68,10 @@ It prints overall metrics and per-`question_type` breakdowns. Pass `--summary-js
 The scorer accepts one JSON object per question with either `results` or `retrieved_session_ids`:
 
 ```json
-{"question_id":"q-single-release-notes","results":[{"session_id":"s-alpha","path":"...","snippet":"..."}]}
+{"question_id":"q-single-release-notes","question_type":"single-session-user","adapter":"jumpybrain","latency_ms":123,"returned_chars":456,"results":[{"session_id":"s-alpha","path":"...","snippet":"..."}]}
 ```
 
-`results[].session_id` is the primary provenance field. `results[].provenance.session_id` is accepted as a fallback.
+Required comparison fields are `question_id`, `question_type`, `adapter`, `latency_ms`, `returned_chars`, and `results`; `cli_error` is optional and should explain dependency/runtime skips. `results[].session_id` is the primary provenance field. `results[].provenance.session_id` is accepted as a fallback. Keep snippets and file/line provenance when available so failure reports remain inspectable.
 
 ## jumpyBrain CLI contract
 
@@ -120,6 +120,70 @@ npm run bench:longmemeval:score -- --question-type multi-session --limit 5 \
 ```
 
 Use `--resume` on `bench:longmemeval:run` to skip question ids already present in the output JSONL.
+
+## Optional memsearch comparison
+
+The memsearch comparison is optional and is not part of `npm test` or `npm run validate`. It indexes the same materialized LongMemEval-S Markdown session workspaces and performs retrieval only; it does not run capture, summarization, `memsearch compact`, or paid LLM calls.
+
+Current upstream memsearch docs recommend installing the CLI with local ONNX embeddings:
+
+```bash
+# Optional dependency, outside normal jumpyBrain tests
+uv tool install "memsearch[onnx]"
+# or
+python -m pip install "memsearch[onnx]"
+```
+
+The adapter defaults to local no-paid-call mode: `--provider onnx`, Milvus Lite, and isolated per-question state under `.bench-tmp/longmemeval/memsearch-state/`. If the CLI or provider extras are absent, rows are written with `adapter: "memsearch"`, empty results, and `cli_error` so scoring/skips are explicit.
+
+Local ONNX indexing can saturate CPU on large LongMemEval workspaces. Prefer one type/item at a time and throttle runs on laptops:
+
+```bash
+export OMP_NUM_THREADS=2
+export OPENBLAS_NUM_THREADS=2
+export VECLIB_MAXIMUM_THREADS=2
+export MKL_NUM_THREADS=2
+export NUMEXPR_NUM_THREADS=2
+```
+
+Then prefix the runner with `nice -n 10` if desired. The first local smoke observed good retrieval but high per-workspace indexing latency, so avoid long loops unless runtime is acceptable.
+
+Smoke commands:
+
+```bash
+MEMSEARCH_BIN="memsearch" # or .bench-tmp/memsearch-venv/bin/memsearch
+
+node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/run-memsearch.ts \
+  --data benchdata/longmemeval/longmemeval_s_cleaned.json \
+  --workspace-root .bench-tmp/longmemeval/memsearch-single-session-user-l3 \
+  --out bench-results/longmemeval/memsearch-single-session-user-l3.jsonl \
+  --question-type single-session-user --limit 3 --k 10 --memsearch-bin "$MEMSEARCH_BIN"
+node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/score.ts \
+  --fixture benchdata/longmemeval/longmemeval_s_cleaned.json \
+  --run bench-results/longmemeval/memsearch-single-session-user-l3.jsonl \
+  --summary-json bench-results/longmemeval/memsearch-single-session-user-l3.summary.json \
+  --failure-report bench-results/longmemeval/memsearch-single-session-user-l3.failures.json \
+  --question-type single-session-user --limit 3
+```
+
+Typed comparison pattern:
+
+```bash
+TYPE=multi-session
+node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/run-memsearch.ts \
+  --data benchdata/longmemeval/longmemeval_s_cleaned.json \
+  --workspace-root ".bench-tmp/longmemeval/memsearch-${TYPE}-l10" \
+  --out "bench-results/longmemeval/memsearch-${TYPE}-l10.jsonl" \
+  --question-type "$TYPE" --limit 10 --k 10 --memsearch-bin "$MEMSEARCH_BIN"
+node benchmarks/longmemeval/run-script.mjs benchmarks/longmemeval/score.ts \
+  --fixture benchdata/longmemeval/longmemeval_s_cleaned.json \
+  --run "bench-results/longmemeval/memsearch-${TYPE}-l10.jsonl" \
+  --summary-json "bench-results/longmemeval/memsearch-${TYPE}-l10.summary.json" \
+  --failure-report "bench-results/longmemeval/memsearch-${TYPE}-l10.failures.json" \
+  --question-type "$TYPE" --limit 10
+```
+
+Compare memsearch summaries with the existing jumpyBrain typed summaries in `bench-results/longmemeval/type-*-l10.summary.json`. LongMemEval-S remains a retrieval pressure test for source/session recovery and all-evidence loading; it does not prove downstream agent-context packet usefulness, noise, or answer quality.
 
 ## Comparing runs
 
