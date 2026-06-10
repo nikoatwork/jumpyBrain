@@ -47,6 +47,31 @@ export interface SearchOptions {
   mode?: "search" | "recall";
 }
 
+export interface IndexMemoryResult {
+  root: string;
+  documents: number;
+  qmdCollection: string;
+}
+
+export interface SearchMemoryResult {
+  root: string;
+  query: string;
+  results: SearchResult[];
+}
+
+export type MemoryNoteType = "note" | "session" | "finding" | "decision" | "preference";
+
+export interface MemoryNoteDraft {
+  type: string;
+  title: string;
+  body: string;
+  tags?: string[];
+}
+
+export interface MemoryWriteResult {
+  file: string;
+}
+
 export interface IndexedDocument {
   absolutePath: string;
   relativePath: string;

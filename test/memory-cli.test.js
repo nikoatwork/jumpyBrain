@@ -7,8 +7,8 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { parseFrontmatter } from "../dist/markdown-store.js";
-import { qmdIndexInternalsForTests } from "../dist/qmd-index.js";
+import { parseFrontmatter } from "../dist/canonical/markdown-store.js";
+import { qmdIndexInternalsForTests } from "../dist/retrieval/qmd-driver.js";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..");

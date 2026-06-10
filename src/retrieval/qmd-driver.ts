@@ -1,8 +1,8 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { withSessionAliases } from "./provenance.js";
-import type { IndexManifest, IndexedDocument, MarkdownDocument, SearchResult } from "./types.js";
+import { withSessionAliases } from "../canonical/provenance.js";
+import type { IndexManifest, IndexedDocument, MarkdownDocument, SearchResult } from "../types.js";
 
 const INDEX_VERSION = 1;
 const COLLECTION = "jumpybrain";
@@ -147,11 +147,11 @@ async function rebuildQmdCliCollection(root: string): Promise<void> {
   }
 }
 
-type QmdRetrievalMode = "merged" | "search" | "query" | "vsearch";
+type QmdRetrievalMode = "merged" | "search" | "query" | "native" | "vsearch";
 
 function qmdRetrievalMode(): QmdRetrievalMode {
   const value = String(process.env.JUMPYBRAIN_QMD_MODE ?? "merged").toLowerCase();
-  if (value === "search" || value === "query" || value === "vsearch") return value;
+  if (value === "search" || value === "query" || value === "native" || value === "vsearch") return value;
   return "merged";
 }
 
@@ -199,6 +199,17 @@ async function searchWithQmdCli(root: string, query: string, limit: number): Pro
       addRows(parseQmdJsonRows(result.stdout), mode === "query" ? 1 : 0.9);
     } catch {
       // QMD vector/query mode can fail when embeddings are unavailable; BM25 QMD search above is still real QMD retrieval.
+    }
+  }
+
+  if (mode === "native") {
+    for (let attempt = 0; attempt < 2 && merged.size === 0; attempt += 1) {
+      try {
+        const result = runQmd(root, ["query", query, "--json", "-n", String(limit)]);
+        addRows(parseQmdJsonRows(result.stdout), 1);
+      } catch {
+        // Keep explicit QMD native-query comparison runs alive when local reranking/expansion cannot run.
+      }
     }
   }
 
