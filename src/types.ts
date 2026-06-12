@@ -5,9 +5,7 @@ export type Frontmatter = Record<string, FrontmatterValue>;
 export interface MarkdownDocument {
   absolutePath: string;
   relativePath: string;
-  content: string;
   frontmatter: Frontmatter;
-  body: string;
   bodyStartLine: number;
 }
 
@@ -41,12 +39,6 @@ export interface SearchResult {
   scoreBreakdown?: ScoreBreakdown;
 }
 
-export interface SearchOptions {
-  limit: number;
-  json?: boolean;
-  mode?: "search" | "recall";
-}
-
 export interface IndexMemoryResult {
   root: string;
   documents: number;
@@ -60,6 +52,10 @@ export interface SearchMemoryResult {
 }
 
 export type MemoryNoteType = "note" | "session" | "finding" | "decision" | "preference";
+
+export type MemoryConfidence = "user-reviewed" | "agent-drafted";
+
+export type MemoryReviewStatus = "user-review-recommended";
 
 export interface MemoryNoteDraft {
   type: string;

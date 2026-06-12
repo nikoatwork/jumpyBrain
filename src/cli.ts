@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { formatHumanResults } from "./cli/formatting.js";
-import { indexMemory, searchMemory } from "./retrieval/index.js";
-import { writeMemoryNote, writeSessionWrapup } from "./writing/index.js";
-import type { SearchResult } from "./types.js";
+import { indexMemory, searchMemory, writeMemoryNote, writeSessionWrapup } from "./index.js";
+import type { SearchResult } from "./index.js";
 
 interface Args {
   _: string[];
@@ -157,8 +156,8 @@ function usage(): string {
     "  jumpybrain index --root <memory-root>",
     "  jumpybrain search --root <memory-root> --query \"...\" --limit 10 --json",
     "  jumpybrain recall --root <memory-root> --topic \"...\" --limit 5",
-    "  jumpybrain note --root <memory-root> --type finding --title \"...\" --stdin",
-    "  jumpybrain wrapup --root <memory-root> --title \"...\" --topic \"...\" --stdin",
+    "  cat note.md | jumpybrain note --root <memory-root> --type finding --title \"...\"",
+    "  cat wrapup.md | jumpybrain wrapup --root <memory-root> --title \"...\" --topic \"...\"",
   ].join("\n");
 }
 

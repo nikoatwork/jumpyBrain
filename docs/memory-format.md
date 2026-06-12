@@ -16,7 +16,7 @@ memory-root/
 
 ## Frontmatter
 
-Supported fields are intentionally simple:
+Supported fields are intentionally simple. Canonical jumpyBrain writers use these fields only:
 
 ```md
 ---
@@ -36,6 +36,14 @@ Durable note text here.
 ```
 
 Useful `type` values: `note`, `session`, `finding`, `decision`, `preference`.
+
+Schema notes:
+
+- `session_id` is the canonical session identifier field. `sessionId` is accepted as a compatibility alias during provenance mapping.
+- `confidence` is a small string status for writer provenance: `user-reviewed` for manual notes and `agent-drafted` for wrapups. Imported benchmark/manual files may still contain numeric confidence; retrieval treats that as a legacy strength hint.
+- `review` is optional and currently uses `user-review-recommended` for agent-drafted wrapups.
+- `tags` should be a simple string array.
+- The frontmatter parser is intentionally tiny; prefer JSON-style arrays and quoted strings over broad YAML features.
 
 ## Session wrapup format
 

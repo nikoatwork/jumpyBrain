@@ -93,18 +93,11 @@ test("QMD helper logic keeps benchmark query and path repair deterministic", () 
   assert.equal(qmdIndexInternalsForTests.looksLikeUnhelpfulSnippet("## User Could you suggest a hotel? ## Assistant"), true);
   assert.equal(qmdIndexInternalsForTests.looksLikeUnhelpfulSnippet("For a romantic dinner, I would recommend Roscioli."), false);
 
-  const originalMode = process.env.JUMPYBRAIN_QMD_MODE;
-  try {
-    process.env.JUMPYBRAIN_QMD_MODE = "query";
-    assert.equal(qmdIndexInternalsForTests.qmdRetrievalMode(), "query");
-    process.env.JUMPYBRAIN_QMD_MODE = "vsearch";
-    assert.equal(qmdIndexInternalsForTests.qmdRetrievalMode(), "vsearch");
-    process.env.JUMPYBRAIN_QMD_MODE = "unknown";
-    assert.equal(qmdIndexInternalsForTests.qmdRetrievalMode(), "merged");
-  } finally {
-    if (originalMode === undefined) delete process.env.JUMPYBRAIN_QMD_MODE;
-    else process.env.JUMPYBRAIN_QMD_MODE = originalMode;
-  }
+  assert.deepEqual(Object.keys(qmdIndexInternalsForTests).sort(), [
+    "looksLikeUnhelpfulSnippet",
+    "normalizeQmdLookupPath",
+    "qmdLexQueries",
+  ]);
 });
 
 test("CLI index stores original Markdown document metadata, not derived chunks", async () => {
@@ -201,6 +194,28 @@ test("CLI note writes editable Markdown memory", async () => {
     assert.match(markdown, /type: "decision"/);
     assert.match(markdown, /# Use QMD first/);
     assert.match(markdown, /Markdown remains canonical/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("CLI note rejects empty stdin body", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
+  try {
+    const result = runCliFailure(["note", "--root", tempRoot, "--type", "decision", "--title", "Empty"], { input: "\n" });
+    assert.match(result.stderr, /Memory note body is empty/);
+    assert.equal(existsSync(path.join(tempRoot, "decisions")), false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("CLI search reports missing index clearly", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
+  try {
+    const result = runCliFailure(["search", "--root", tempRoot, "--query", "anything"]);
+    assert.match(result.stderr, /Memory index not found/);
+    assert.match(result.stderr, /jumpybrain index --root/);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

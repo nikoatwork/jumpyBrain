@@ -61,9 +61,7 @@ export async function readMarkdownDocument(root: string, absolutePath: string): 
   return {
     absolutePath,
     relativePath: normalizeRelative(root, absolutePath),
-    content,
     frontmatter: parsed.frontmatter,
-    body: parsed.body,
     bodyStartLine: parsed.bodyStartLine,
   };
 }
