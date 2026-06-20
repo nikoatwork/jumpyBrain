@@ -78,7 +78,39 @@ export interface IndexedDocument {
 export interface IndexManifest {
   version: 1;
   root: string;
+  sourceRoot?: string;
   generatedAt: string;
   qmdCollection: string;
   documents: IndexedDocument[];
+}
+
+export interface MemoryRootConfig {
+  schemaVersion: number;
+  canonical: "markdown";
+  derivedDir: ".jumpybrain";
+  memoryDirs: string[];
+  indexRoot?: string;
+  createdAt: string;
+  createdBy: {
+    package: string;
+    version: string;
+  };
+}
+
+export interface MemoryRootInitResult {
+  root: string;
+  configFile: string;
+  schemaVersion: number;
+  configCreated: boolean;
+  memoryDirs: string[];
+  gitignoreUpdated: boolean;
+}
+
+export interface MemoryRootStatus {
+  root: string;
+  initialized: boolean;
+  compatible: boolean;
+  configFile?: string;
+  schemaVersion?: number;
+  message?: string;
 }

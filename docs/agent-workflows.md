@@ -1,5 +1,23 @@
 # Agent Workflows
 
+## Agent MD hint
+
+Put a short hint like this in `AGENTS.md`, `CLAUDE.md`, Codex instructions, Cloth instructions, or another agent-readable project file:
+
+```text
+If jumpybrain is installed and the task may benefit from project memory, use visible recall before acting:
+
+jumpybrain run memory:recall --topic "<current task/topic>" --limit 5
+
+Use explicit, bounded recall/search only. Do not silently inject memory, and do not memorize secrets, credentials, raw chat noise, or vague status updates. At session end, consider a strict wrapup via `jumpybrain run memory:wrapup` if durable findings, decisions, conflicts, or open questions were created.
+```
+
+The CLI can print a copyable version:
+
+```bash
+jumpybrain instructions
+```
+
 ## Recall before sparring/research
 
 Run a visible prior-knowledge scan before deep work:

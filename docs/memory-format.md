@@ -6,6 +6,7 @@ Markdown is canonical. You can write these files manually in Obsidian or any cod
 
 ```text
 memory-root/
+  jumpybrain.json     # committed setup/schema metadata
   notes/
   sessions/
   findings/
@@ -13,6 +14,16 @@ memory-root/
   preferences/
   .jumpybrain/        # derived/rebuildable; do not edit
 ```
+
+Create this layout with:
+
+```bash
+jumpybrain init --root ./memory
+```
+
+`jumpybrain.json` lets future CLIs detect incompatible memory-root schema changes before writing or indexing. Markdown files remain the canonical memory content.
+
+For repo dogfooding, `jumpybrain.json` may include an optional relative `indexRoot`, such as `".."`, so the derived search index can cover workspace Markdown while new memory notes are still written under `memory/`.
 
 ## Frontmatter
 

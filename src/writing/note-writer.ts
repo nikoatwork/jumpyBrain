@@ -1,5 +1,6 @@
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../canonical/markdown-store.js";
+import { assertCompatibleMemoryRoot } from "../setup/index.js";
 import type { MemoryNoteDraft, MemoryNoteType, MemoryWriteResult } from "../types.js";
 import { renderMarkdownDocument, slug, writeUniqueMarkdownFile } from "./markdown-file.js";
 import { MEMORY_CONFIDENCE, VALID_MEMORY_TYPES } from "./metadata.js";
@@ -8,6 +9,7 @@ const VALID_TYPES = new Set<MemoryNoteType>(VALID_MEMORY_TYPES);
 
 export async function writeMemoryNote(rootArg: string, options: MemoryNoteDraft): Promise<MemoryWriteResult> {
   const root = await resolveMemoryRoot(rootArg);
+  await assertCompatibleMemoryRoot(root);
   const type = normalizeType(options.type);
   const title = options.title?.trim() || "Untitled memory";
   const body = options.body.trim();

@@ -30,3 +30,9 @@ agent host hooks / transcripts
 ## Validation preference
 
 Every MVP should have deterministic tests that do not require paid model calls.
+
+## Task/changelog hygiene
+
+- Treat active task lists in `tasks/todo/` as the canonical source of truth for in-progress planning and operational notes.
+- Do not update `tasks/CHANGELOG.md` for granular task-list edits, benchmark run intentions, or minor planning notes.
+- Update `tasks/CHANGELOG.md` when finalizing/archiving a task list, recording a completed result/decision, or making a structural repository/product change.

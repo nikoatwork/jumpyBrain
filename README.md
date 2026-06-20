@@ -1,88 +1,84 @@
+<p align="center">
+  <img src="docs/assets/jumpyBrain.png" alt="jumpyBrain logo" width="220" />
+</p>
+
 # jumpyBrain
 
-Markdown-native memory for coding agents.
+**Local Markdown memory for coding agents.**
 
-## Direction
+jumpyBrain gives AI coding assistants a project memory they can search without hiding knowledge in a vendor account, chat history, or opaque database.
 
-jumpyBrain is intended to be a standalone TypeScript/npm package inspired by memsearch-style architecture:
+## Who is it for?
 
-- install once as a CLI/package
-- wire agent hosts through adapters, hooks, MCP, or skills
-- store canonical memories as repo/workspace-local Markdown
-- keep indexes and recall state rebuildable
-- expose explicit search/expand first
-- make automatic prompt injection opt-in and bounded
+- People who use AI coding agents across many sessions
+- Teams that want project memory to live with the repo
+- Developers who want searchable history without automatic prompt injection
+- Non-technical owners who want decisions, context, and handoffs in readable files
 
-## Prerequisite
+## What does it do?
 
-Install QMD first:
+jumpyBrain turns project knowledge into a memory folder your agent can search before it acts.
+
+It is built for:
+
+- architecture decisions and project conventions
+- session summaries and handoffs
+- solved bugs and repeated gotchas
+- benchmark results and tradeoffs
+- uncertainty that should not be flattened into fake confidence
+
+Markdown is the source of truth, so humans can read, edit, review, and commit memory like any other project file.
+
+## How does it work?
+
+```text
+agent sessions
+  -> capture useful notes
+  -> save Markdown memories
+  -> build a rebuildable search index
+  -> recall relevant context on demand
+  -> show provenance back to the source file
+```
+
+By default, jumpyBrain favors **explicit recall**. The agent searches memory when asked or when a workflow calls for it; automatic prompt injection should stay opt-in and bounded.
+
+## Why trust it?
+
+The goal is repeatable proof, not vibes. Benchmark results will live here as they become available.
+
+| Benchmark | What it measures | Status | Result |
+| --- | --- | --- | --- |
+| LongMemEval-style recall | Finds relevant long-term context | In progress | TBD |
+| Markdown provenance checks | Returns answers with source files/lines | Planned | TBD |
+| Rebuild determinism | Recreates indexes from Markdown only | Planned | TBD |
+| Agent workflow evals | Improves coding-session continuity | Planned | TBD |
+
+## Current shape
+
+- standalone TypeScript/npm package
+- repo/workspace-local Markdown memories
+- rebuildable indexes and recall state
+- QMD-backed Markdown search
+- CLI-first workflows for indexing, search, recall, and wrapups
+
+## Quick start
 
 ```bash
 npm install -g @tobilu/qmd
 qmd --version
+
+jumpybrain init --root ./memory
+jumpybrain instructions
+jumpybrain run memory:index
+jumpybrain run memory:recall --topic "<current topic>" --limit 5
+jumpybrain search --root ./memory --query "<question>" --limit 10 --json
+cat wrapup.md | jumpybrain wrapup --root ./memory --title "Session wrapup" --topic "current session"
 ```
-
-## First CLI contract
-
-```bash
-jumpybrain index --root <memory-root>
-jumpybrain search --root <memory-root> --query "<question>" --limit 10 --json
-jumpybrain recall --root <memory-root> --topic "<current topic>" --limit 5
-cat wrapup.md | jumpybrain wrapup --root <memory-root> --title "Session wrapup" --topic "current session"
-```
-
-`--root` is canonical for the memory root.
-
-Search JSON returns:
-
-```json
-{
-  "root": "/absolute/memory-root",
-  "query": "...",
-  "mode": "search",
-  "results": [
-    {
-      "id": "chunk-...",
-      "score": 1.0,
-      "snippet": "bounded text",
-      "provenance": {
-        "file": "sessions/example.md",
-        "lineStart": 8,
-        "lineEnd": 12,
-        "sessionId": "s-alpha",
-        "session_id": "s-alpha",
-        "metadata": {}
-      },
-      "scoreBreakdown": {}
-    }
-  ]
-}
-```
-
-## Indexing
-
-Markdown files are canonical. The derived manifest, QMD cache, and QMD config live under:
-
-```text
-<memory-root>/.jumpybrain/
-```
-
-This directory is rebuildable and safe to delete.
-
-jumpyBrain owns Markdown discovery, frontmatter parsing, CLI output, and provenance mapping. QMD indexes the original Markdown files directly and owns production retrieval chunking/snippets. QMD is required; there is no local retrieval fallback. Set `JUMPYBRAIN_QMD_EMBED=1` during indexing to ask QMD to generate vector embeddings when your local QMD runtime is ready.
 
 ## Docs
 
-- Installation: `docs/install.md`
-- Memory format: `docs/memory-format.md`
-- Agent workflows: `docs/agent-workflows.md`
-
-## Seed docs
-
-- Research: `tasks/research/2026-05-29-jumpybrain-architecture.md`
-- Strategy: `tasks/strategy.md`
-- Completed task history: `tasks/done/`
-
-## Relationship to jumpyGoatHq
-
-jumpyGoatHq should eventually consume jumpyBrain as an integration/adapter. jumpyBrain should not depend on jumpyGoatHq internals.
+- Installation: [`docs/install.md`](docs/install.md)
+- Memory format: [`docs/memory-format.md`](docs/memory-format.md)
+- Agent workflows: [`docs/agent-workflows.md`](docs/agent-workflows.md)
+- Technical CLI/indexing details: [`docs/technical.md`](docs/technical.md)
+- Local CLI builds/versioning: [`docs/local-cli-builds.md`](docs/local-cli-builds.md)

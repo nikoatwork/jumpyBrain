@@ -12,15 +12,16 @@ export function manifestPath(root: string): string {
   return path.join(derivedRoot(root), "index.json");
 }
 
-export async function rebuildQmdCliCollection(root: string, options: { embed: boolean }): Promise<void> {
+export async function rebuildQmdCliCollection(root: string, options: { embed: boolean; sourceRoot?: string }): Promise<void> {
   const derived = derivedRoot(root);
+  const sourceRoot = options.sourceRoot ?? root;
   await rm(path.join(derived, "qmd-cache"), { recursive: true, force: true });
   await rm(path.join(derived, "qmd-config"), { recursive: true, force: true });
   await mkdir(path.join(derived, "qmd-cache"), { recursive: true });
   await mkdir(path.join(derived, "qmd-config"), { recursive: true });
   await mkdir(path.join(derived, "qmd-home"), { recursive: true });
 
-  runQmd(root, ["collection", "add", root, "--name", QMD_COLLECTION, "--mask", "**/*.md"]);
+  runQmd(root, ["collection", "add", sourceRoot, "--name", QMD_COLLECTION, "--mask", "**/*.md"]);
   runQmd(root, ["update"]);
 
   if (options.embed) runQmd(root, ["embed"]);

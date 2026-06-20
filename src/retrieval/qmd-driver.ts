@@ -25,19 +25,20 @@ export { derivedRoot, manifestPath } from "./qmd-cli.js";
 
 const INDEX_VERSION = 1;
 
-export async function buildQmdIndex(root: string, documents: MarkdownDocument[]): Promise<IndexManifest> {
+export async function buildQmdIndex(root: string, documents: MarkdownDocument[], options: { sourceRoot?: string } = {}): Promise<IndexManifest> {
   await mkdir(derivedRoot(root), { recursive: true });
 
   const manifest: IndexManifest = {
     version: INDEX_VERSION,
     root,
+    sourceRoot: options.sourceRoot && options.sourceRoot !== root ? options.sourceRoot : undefined,
     generatedAt: new Date().toISOString(),
     qmdCollection: "jumpybrain",
     documents: documents.map(toIndexedDocument),
   };
 
   await writeFile(manifestPath(root), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  await rebuildQmdCliCollection(root, { embed: truthy(process.env.JUMPYBRAIN_QMD_EMBED) });
+  await rebuildQmdCliCollection(root, { embed: truthy(process.env.JUMPYBRAIN_QMD_EMBED), sourceRoot: options.sourceRoot });
 
   return manifest;
 }
@@ -59,7 +60,8 @@ export async function searchQmdIndex(root: string, query: string, limit: number)
   const manifest = await loadManifest(root);
   const candidates = await searchWithQmdCli(root, query, Math.max(limit * 4, 20));
   const documents = documentsByQmdPath(manifest.documents);
-  const temporalStats = dateStats(manifest.documents);
+  const candidateDocuments = matchedCandidateDocuments(candidates, documents);
+  const temporalStats = dateStats(candidateDocuments);
   const seen = new Set<string>();
   const results: SearchResult[] = [];
 
@@ -111,6 +113,16 @@ function documentsByQmdPath(documents: IndexedDocument[]): Map<string, IndexedDo
     byFile.set(normalizeQmdLookupPath(document.relativePath), document);
   }
   return byFile;
+}
+
+function matchedCandidateDocuments(candidates: Array<{ file?: string }>, documents: Map<string, IndexedDocument>): IndexedDocument[] {
+  const matched = new Map<string, IndexedDocument>();
+  for (const candidate of candidates) {
+    if (!candidate.file) continue;
+    const document = documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file));
+    if (document) matched.set(document.relativePath, document);
+  }
+  return [...matched.values()];
 }
 
 async function resultSnippet(
@@ -192,4 +204,6 @@ export const qmdIndexInternalsForTests = {
   normalizeQmdLookupPath,
   qmdLexQueries,
   looksLikeUnhelpfulSnippet,
+  dateStats,
+  temporalBoostFor,
 };

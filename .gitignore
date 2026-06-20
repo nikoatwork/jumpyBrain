@@ -1,9 +1,13 @@
 # Dependencies and build output
 node_modules/
 dist/
+.local-pack/
 
 # Local dogfood memory
 .dogfood-memory/
+
+# Local task tracking
+/tasks/
 
 # Benchmark data and generated outputs
 benchdata/

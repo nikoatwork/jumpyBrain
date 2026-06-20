@@ -1,5 +1,6 @@
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../canonical/markdown-store.js";
+import { assertCompatibleMemoryRoot } from "../setup/index.js";
 import type { MemoryWriteResult } from "../types.js";
 import { renderMarkdownDocument, slug, writeUniqueMarkdownFile } from "./markdown-file.js";
 import { MEMORY_CONFIDENCE, MEMORY_REVIEW } from "./metadata.js";
@@ -35,6 +36,7 @@ export interface WrapupWriteResult extends MemoryWriteResult {
 
 export async function writeSessionWrapup(rootArg: string, draft: WrapupDraft): Promise<WrapupWriteResult> {
   const root = await resolveMemoryRoot(rootArg);
+  await assertCompatibleMemoryRoot(root);
   const title = draft.title?.trim() || "Session wrapup";
   const sourceBody = draft.body.trim();
   const validation = validateWrapupBody(sourceBody);

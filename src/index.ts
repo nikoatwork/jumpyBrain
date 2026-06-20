@@ -1,4 +1,5 @@
 export { indexMemory, searchMemory } from "./retrieval/index.js";
+export { findMemoryRoot, initializeMemoryRoot, memoryRootStatus, resolveIndexRoot } from "./setup/index.js";
 export { writeMemoryNote, writeSessionWrapup } from "./writing/index.js";
 export type {
   Frontmatter,
@@ -8,6 +9,9 @@ export type {
   MemoryNoteDraft,
   MemoryNoteType,
   MemoryReviewStatus,
+  MemoryRootConfig,
+  MemoryRootInitResult,
+  MemoryRootStatus,
   MemoryWriteResult,
   Provenance,
   ScoreBreakdown,

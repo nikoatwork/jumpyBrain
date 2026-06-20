@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -16,7 +16,7 @@ const cliPath = path.join(repoRoot, "dist/cli.js");
 
 function runCli(args, options = {}) {
   const result = spawnSync(process.execPath, [cliPath, ...args], {
-    cwd: repoRoot,
+    cwd: options.cwd ?? repoRoot,
     encoding: "utf8",
     env: { ...process.env, ...options.env },
     input: options.input,
@@ -28,7 +28,7 @@ function runCli(args, options = {}) {
 
 function runCliFailure(args, options = {}) {
   const result = spawnSync(process.execPath, [cliPath, ...args], {
-    cwd: repoRoot,
+    cwd: options.cwd ?? repoRoot,
     encoding: "utf8",
     env: { ...process.env, ...options.env },
     input: options.input,
@@ -52,6 +52,19 @@ const validWrapup = [
   "- Should wrapup recall become mandatory after dogfood usage?",
   "",
 ].join("\n");
+
+test("CLI reports package version", async () => {
+  const expected = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8")).version;
+  const result = runCli(["--version"]);
+  assert.equal(result.stdout.trim(), expected);
+});
+
+test("CLI prints copyable agent memory instructions", () => {
+  const result = runCli(["instructions"]);
+  assert.match(result.stdout, /jumpyBrain memory hint/);
+  assert.match(result.stdout, /memory:recall/);
+  assert.match(result.stdout, /Do not memorize secrets/);
+});
 
 test("frontmatter parsing supports manual memory metadata", () => {
   const parsed = parseFrontmatter([
@@ -90,14 +103,140 @@ test("QMD helper logic keeps benchmark query and path repair deterministic", () 
   assert.ok(temporalQueries.slice(0, 8).includes("baby shower"));
   assert.ok(temporalQueries.slice(0, 8).includes("phone case"));
 
+  const datedTemporalQueries = qmdIndexInternalsForTests.qmdLexQueries(
+    "changes after 2026-06-02 about query generation and wrapup memory",
+  ).slice(0, 8).join("\n");
+  assert.match(datedTemporalQueries, /query generation/);
+  assert.match(datedTemporalQueries, /wrapup memory/);
+
   assert.equal(qmdIndexInternalsForTests.looksLikeUnhelpfulSnippet("## User Could you suggest a hotel? ## Assistant"), true);
   assert.equal(qmdIndexInternalsForTests.looksLikeUnhelpfulSnippet("For a romantic dinner, I would recommend Roscioli."), false);
 
   assert.deepEqual(Object.keys(qmdIndexInternalsForTests).sort(), [
+    "dateStats",
     "looksLikeUnhelpfulSnippet",
     "normalizeQmdLookupPath",
     "qmdLexQueries",
+    "temporalBoostFor",
   ]);
+});
+
+test("temporal helper boosts dated candidates deterministically", () => {
+  const docs = [
+    documentWithDate("sessions/old.md", { date: "2026-06-01" }),
+    documentWithDate("sessions/mid.md", { date: "2026-06-05" }),
+    documentWithDate("sessions/new.md", { date: "2026-06-10" }),
+  ];
+  const stats = qmdIndexInternalsForTests.dateStats(docs);
+
+  const latestOld = qmdIndexInternalsForTests.temporalBoostFor("latest QMD decision", docs[0].frontmatter, stats);
+  const latestNew = qmdIndexInternalsForTests.temporalBoostFor("latest QMD decision", docs[2].frontmatter, stats);
+  assert.ok(latestNew > latestOld);
+  assert.equal(latestNew, 0.12);
+
+  const firstOld = qmdIndexInternalsForTests.temporalBoostFor("first QMD decision", docs[0].frontmatter, stats);
+  const firstNew = qmdIndexInternalsForTests.temporalBoostFor("first QMD decision", docs[2].frontmatter, stats);
+  assert.ok(firstOld > firstNew);
+  assert.equal(firstOld, 0.12);
+
+  const afterMid = qmdIndexInternalsForTests.temporalBoostFor("changes after 2026-06-02 about query generation", docs[1].frontmatter, stats);
+  const afterOld = qmdIndexInternalsForTests.temporalBoostFor("changes after 2026-06-02 about query generation", docs[0].frontmatter, stats);
+  assert.ok(afterMid > 0);
+  assert.equal(afterOld, 0);
+
+  const beforeMid = qmdIndexInternalsForTests.temporalBoostFor("what happened before 2026-06-10 with wrapup memory", docs[1].frontmatter, stats);
+  const beforeNew = qmdIndexInternalsForTests.temporalBoostFor("what happened before 2026-06-10 with wrapup memory", docs[2].frontmatter, stats);
+  assert.ok(beforeMid > 0);
+  assert.equal(beforeNew, 0);
+
+  assert.equal(qmdIndexInternalsForTests.temporalBoostFor("latest QMD decision", { date: "not-a-date" }, stats), 0);
+  assert.equal(qmdIndexInternalsForTests.temporalBoostFor("latest QMD decision", {}, stats), 0);
+  assert.equal(qmdIndexInternalsForTests.temporalBoostFor("after the refactor QMD decision", docs[2].frontmatter, stats), 0);
+});
+
+function documentWithDate(relativePath, frontmatter) {
+  return {
+    absolutePath: `/tmp/${relativePath}`,
+    relativePath,
+    frontmatter,
+    bodyStartLine: 1,
+  };
+}
+
+test("CLI run memory recipes discover the repo memory root", async () => {
+  const tempParent = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-run-"));
+  const tempRoot = path.join(tempParent, "memory");
+  const nested = path.join(tempParent, "nested", "workspace");
+  try {
+    await mkdir(nested, { recursive: true });
+    runCli(["init", "--root", tempRoot]);
+    const configPath = path.join(tempRoot, "jumpybrain.json");
+    const config = JSON.parse(await readFile(configPath, "utf8"));
+    config.indexRoot = "..";
+    await writeFile(configPath, JSON.stringify(config, null, 2));
+    await mkdir(path.join(tempParent, "docs"));
+    await writeFile(path.join(tempParent, "docs", "workspace.md"), "# Workspace doc\n\nThe workspace-only clue is blue-otter.\n");
+
+    runCli(["run", "memory:note", "--type", "decision", "--title", "Discovered memory root"], {
+      cwd: nested,
+      input: "Agents can run jumpybrain recipes from nested workspaces.\n",
+    });
+    runCli(["run", "memory:index"], { cwd: nested });
+
+    const recall = runCli(["run", "memory:recall", "--topic", "nested workspace recipes", "--limit", "3"], { cwd: nested });
+    assert.match(recall.stdout, /Prior memory scan/);
+    assert.match(recall.stdout, /Discovered memory root|nested workspaces/i);
+
+    const workspaceRecall = runCli(["run", "memory:recall", "--topic", "blue otter workspace-only clue", "--limit", "3"], { cwd: nested });
+    assert.match(workspaceRecall.stdout, /docs\/workspace\.md/);
+    assert.match(workspaceRecall.stdout, /blue-otter/);
+
+    const status = JSON.parse(runCli(["run", "memory:status", "--json"], { cwd: nested }).stdout);
+    assert.equal(status.root, await realpath(tempRoot));
+    assert.equal(status.compatible, true);
+  } finally {
+    await rm(tempParent, { recursive: true, force: true });
+  }
+});
+
+test("CLI init creates a stable, compatible memory root", async () => {
+  const tempParent = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-init-"));
+  const tempRoot = path.join(tempParent, "memory");
+  try {
+    const result = runCli(["init", "--root", tempRoot, "--json"]);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.configFile, "jumpybrain.json");
+    assert.equal(payload.schemaVersion, 1);
+    assert.equal(payload.configCreated, true);
+    assert.deepEqual(payload.memoryDirs, ["notes", "sessions", "findings", "decisions", "preferences"]);
+
+    const config = JSON.parse(await readFile(path.join(tempRoot, "jumpybrain.json"), "utf8"));
+    assert.equal(config.canonical, "markdown");
+    assert.equal(config.derivedDir, ".jumpybrain");
+    assert.match(await readFile(path.join(tempRoot, ".gitignore"), "utf8"), /\.jumpybrain\//);
+
+    const status = JSON.parse(runCli(["status", "--root", tempRoot, "--json"]).stdout);
+    assert.equal(status.initialized, true);
+    assert.equal(status.compatible, true);
+    assert.equal(status.schemaVersion, 1);
+  } finally {
+    await rm(tempParent, { recursive: true, force: true });
+  }
+});
+
+test("CLI refuses writes when memory root schema is newer than the CLI", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
+  try {
+    await writeFile(path.join(tempRoot, "jumpybrain.json"), JSON.stringify({ schemaVersion: 999, canonical: "markdown", derivedDir: ".jumpybrain" }));
+    const result = runCliFailure(["note", "--root", tempRoot, "--type", "decision", "--title", "Future schema"], {
+      input: "This should not be written.\n",
+    });
+    assert.match(result.stderr, /schema v999/);
+    assert.match(result.stderr, /Update the CLI/);
+    assert.equal(existsSync(path.join(tempRoot, "decisions")), false);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test("CLI index stores original Markdown document metadata, not derived chunks", async () => {

@@ -27,13 +27,25 @@ After linking, the CLI should be available as:
 jumpybrain --help
 ```
 
-## Basic use
-
-Pick a folder that will hold your canonical Markdown memories:
+For dogfooding in another repo, prefer a versioned local tarball over `npm link`:
 
 ```bash
-mkdir -p ./memory
+npm run cli:release:local
+npm run cli:install:local -- /path/to/first-repo
 ```
+
+See [`local-cli-builds.md`](local-cli-builds.md).
+
+## Basic use
+
+Pick and initialize a folder that will hold your canonical Markdown memories:
+
+```bash
+jumpybrain init --root ./memory
+jumpybrain status --root ./memory
+```
+
+`init` creates the standard Markdown directories, writes a small committed `jumpybrain.json` setup file, and ensures derived `.jumpybrain/` state is ignored. By default, indexing covers the memory root recursively. For repo-wide dogfooding, set `"indexRoot": ".."` in `memory/jumpybrain.json` to index workspace Markdown while keeping new notes in `memory/`.
 
 Write notes manually, or use the CLI:
 
@@ -53,6 +65,13 @@ Then search/recall:
 ```bash
 jumpybrain search --root ./memory --query "memory storage rule"
 jumpybrain recall --root ./memory --topic "memory storage" --limit 5
+```
+
+When running inside a repo initialized with `memory/jumpybrain.json`, you can use recipe shortcuts that discover the memory root:
+
+```bash
+jumpybrain run memory:index
+jumpybrain run memory:recall --topic "memory storage" --limit 5
 ```
 
 If you add or edit Markdown memory files, run `jumpybrain index --root ./memory` again.
