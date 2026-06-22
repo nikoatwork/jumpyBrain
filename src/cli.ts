@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { formatHumanResults } from "./cli/formatting.js";
-import { findMemoryRoot, indexMemory, initializeMemoryRoot, memoryRootStatus, searchMemory, writeMemoryNote, writeSessionWrapup } from "./index.js";
+import { findMemoryRoot, indexMemory, initializeMemoryRoot, memoryRootStatus, processMemory, searchMemory, writeMemoryNote, writeSessionWrapup } from "./index.js";
 import { packageVersion } from "./package-info.js";
 import type { SearchResult } from "./index.js";
 
@@ -74,7 +74,8 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
     const root = stringArg(args, "root");
     const query = stringArg(args, command === "recall" ? "topic" : "query", command === "recall" ? stringArg(args, "query", false) : undefined);
     const limit = numberArg(args, "limit", command === "recall" ? 5 : 10);
-    const result = await searchMemory(root, query, limit);
+    const depth = stringArg(args, "depth", "normal");
+    const result = await searchMemory(root, query, limit, { depth });
 
     if (args.json) {
       console.log(JSON.stringify({ ...result, mode: command }, null, 2));
@@ -83,6 +84,27 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
         console.log(`Prior memory scan for: ${query}\n`);
       }
       console.log(formatHumanResults(result.results));
+    }
+    return;
+  }
+
+  if (command === "process") {
+    const root = stringArg(args, "root");
+    const mode = stringArg(args, "mode");
+    const result = await processMemory(root, {
+      mode,
+      apply: Boolean(args.apply),
+      topic: stringArg(args, "topic", false).trim() || undefined,
+      since: stringArg(args, "since", false).trim() || undefined,
+      limit: numberArg(args, "limit", 0) || undefined,
+    });
+    if (args.json) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`Processed memory: ${result.mode}${result.topic ? ` topic=${result.topic}` : ""}`);
+      console.log(`Applied: ${result.applied ? "yes" : "no"}`);
+      for (const file of result.files) console.log(`File: ${file}`);
+      for (const line of result.summary) console.log(`- ${line}`);
     }
     return;
   }
@@ -156,11 +178,31 @@ async function runRecipe(args: Args): Promise<void> {
   if (recipe === "memory:search" || recipe === "memory:recall") {
     const query = stringArg(args, recipe === "memory:recall" ? "topic" : "query", recipe === "memory:recall" ? stringArg(args, "query", false) : undefined);
     const limit = numberArg(args, "limit", recipe === "memory:recall" ? 5 : 10);
-    const result = await searchMemory(root, query, limit);
+    const depth = stringArg(args, "depth", "normal");
+    const result = await searchMemory(root, query, limit, { depth });
     if (args.json) console.log(JSON.stringify({ ...result, mode: recipe }, null, 2));
     else {
       if (recipe === "memory:recall") console.log(`Prior memory scan for: ${query}\n`);
       console.log(formatHumanResults(result.results));
+    }
+    return;
+  }
+
+  if (recipe === "memory:process") {
+    const mode = stringArg(args, "mode");
+    const result = await processMemory(root, {
+      mode,
+      apply: Boolean(args.apply),
+      topic: stringArg(args, "topic", false).trim() || undefined,
+      since: stringArg(args, "since", false).trim() || undefined,
+      limit: numberArg(args, "limit", 0) || undefined,
+    });
+    if (args.json) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log(`Processed memory: ${result.mode}${result.topic ? ` topic=${result.topic}` : ""}`);
+      console.log(`Applied: ${result.applied ? "yes" : "no"}`);
+      for (const file of result.files) console.log(`File: ${file}`);
+      for (const line of result.summary) console.log(`- ${line}`);
     }
     return;
   }
@@ -280,6 +322,7 @@ function agentInstructions(): string {
     "- Prefer explicit, bounded recall; do not silently inject memory into prompts.",
     "- If this repo has memory/jumpybrain.json, run: jumpybrain run memory:recall --topic \"<current task/topic>\" --limit 5",
     "- For a specific question, run: jumpybrain run memory:search --query \"<question>\" --limit 10 --json",
+    "- Use --depth shallow|normal|deep to shape recall from compressed pages/decisions toward raw session evidence.",
     "- If recipes cannot discover the root, pass --root <memory-root> to recall/search/index/wrapup.",
     "- After adding or editing Markdown memory, run: jumpybrain run memory:index",
     "- At session end, recall likely duplicates/conflicts, then pipe a strict wrapup with sections: ## Findings, ## Decisions, ## Conflicts / Corrections, ## Open Questions",
@@ -297,8 +340,9 @@ function usage(): string {
     "  jumpybrain init --root <memory-root>",
     "  jumpybrain status --root <memory-root> --json",
     "  jumpybrain index --root <memory-root>",
-    "  jumpybrain search --root <memory-root> --query \"...\" --limit 10 --json",
-    "  jumpybrain recall --root <memory-root> --topic \"...\" --limit 5",
+    "  jumpybrain search --root <memory-root> --query \"...\" --limit 10 --depth normal --json",
+    "  jumpybrain recall --root <memory-root> --topic \"...\" --limit 5 --depth shallow",
+    "  jumpybrain process --root <memory-root> --mode lint|synthesize --topic \"...\" --apply",
     "  cat note.md | jumpybrain note --root <memory-root> --type finding --title \"...\"",
     "  cat wrapup.md | jumpybrain wrapup --root <memory-root> --title \"...\" --topic \"...\"",
   ].join("\n");
@@ -309,8 +353,9 @@ function runUsage(): string {
     "Usage:",
     "  jumpybrain run memory:status [--root <memory-root>] [--json]",
     "  jumpybrain run memory:index [--root <memory-root>]",
-    "  jumpybrain run memory:recall --topic \"...\" [--root <memory-root>] [--limit 5]",
-    "  jumpybrain run memory:search --query \"...\" [--root <memory-root>] [--limit 10] [--json]",
+    "  jumpybrain run memory:recall --topic \"...\" [--root <memory-root>] [--limit 5] [--depth shallow|normal|deep]",
+    "  jumpybrain run memory:search --query \"...\" [--root <memory-root>] [--limit 10] [--depth shallow|normal|deep] [--json]",
+    "  jumpybrain run memory:process --mode lint|synthesize --topic \"...\" [--root <memory-root>] --apply",
     "  cat note.md | jumpybrain run memory:note --type finding --title \"...\" [--root <memory-root>]",
     "  cat wrapup.md | jumpybrain run memory:wrapup --title \"...\" --topic \"...\" [--root <memory-root>]",
   ].join("\n");

@@ -35,7 +35,29 @@ Agents should show compact hits with provenance before using them. This gives li
 jumpybrain search --root <memory-root> --query "Where did we decide to store release notes?" --limit 10 --json
 ```
 
+Use retrieval depth to shape how much raw evidence should compete with compressed/current memory:
+
+```bash
+jumpybrain recall --root <memory-root> --topic "sales process" --depth shallow
+jumpybrain recall --root <memory-root> --topic "sales process" --depth deep
+```
+
+`shallow` favors topical pages and decisions. `normal` is balanced. `deep` allows raw sessions to surface as supporting evidence.
+
 JSON results include `id`, `score`, `snippet`, `provenance`, and `scoreBreakdown`.
+
+## Continuous memory work
+
+`jumpybrain process` performs maintenance over existing memory. The first modes are separate:
+
+```bash
+jumpybrain process --root <memory-root> --mode lint --topic "shared memory" --apply
+jumpybrain process --root <memory-root> --mode synthesize --topic "shared memory" --apply
+```
+
+`synthesize` creates or updates `pages/<topic>.md` from existing canonical memory plus QMD-related context when an index exists. `lint` writes a deterministic support report under `.jumpybrain/reports/` for stale pages, missing provenance, duplicate titles, declared conflicts, and open questions that appear answered elsewhere. Processing requires `--apply` before mutating files.
+
+For hosted/shared deployments, scheduled processing should run inside the server against the server-local memory root. Agents should use the CLI as the interface; direct hosted API calls are not the intended workflow.
 
 ## End-of-session wrapup
 

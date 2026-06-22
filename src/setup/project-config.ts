@@ -7,7 +7,7 @@ import type { MemoryRootConfig, MemoryRootInitResult, MemoryRootStatus } from ".
 export const CURRENT_MEMORY_SCHEMA_VERSION = 1;
 export const MEMORY_CONFIG_FILE = "jumpybrain.json";
 export const DERIVED_DIR = ".jumpybrain";
-export const DEFAULT_MEMORY_DIRS = ["notes", "sessions", "findings", "decisions", "preferences"] as const;
+export const DEFAULT_MEMORY_DIRS = ["notes", "sessions", "findings", "decisions", "preferences", "pages"] as const;
 
 interface LoadedConfig {
   config: MemoryRootConfig;

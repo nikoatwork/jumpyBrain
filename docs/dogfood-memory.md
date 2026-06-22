@@ -9,7 +9,8 @@ This repo can use a local, gitignored memory root for dogfooding jumpyBrain whil
   findings/
   decisions/
   preferences/
-  .jumpybrain/   # derived/rebuildable index state
+  pages/
+  .jumpybrain/   # derived/rebuildable index/report state
 ```
 
 `.dogfood-memory/` is intentionally ignored by git.
@@ -32,7 +33,13 @@ npm run build
 node dist/cli.js index --root .dogfood-memory
 
 # Visible prior-knowledge scan.
-node dist/cli.js recall --root .dogfood-memory --topic "QMD memory architecture" --limit 5
+node dist/cli.js recall --root .dogfood-memory --topic "QMD memory architecture" --limit 5 --depth normal
+
+# Local memory processing over one topic.
+node dist/cli.js process --root .dogfood-memory --mode lint --topic "QMD memory architecture" --apply
+node dist/cli.js process --root .dogfood-memory --mode synthesize --topic "QMD memory architecture" --apply
+node dist/cli.js index --root .dogfood-memory
+node dist/cli.js recall --root .dogfood-memory --topic "QMD memory architecture" --limit 5 --depth shallow
 
 # End-of-session wrapup: run visible recall first, then write strict sections.
 node dist/cli.js recall --root .dogfood-memory --topic "Session wrapup" --limit 5

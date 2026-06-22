@@ -1,6 +1,6 @@
 import type { MemoryConfidence, MemoryNoteType, MemoryReviewStatus } from "../types.js";
 
-export const VALID_MEMORY_TYPES = ["note", "session", "finding", "decision", "preference"] as const satisfies readonly MemoryNoteType[];
+export const VALID_MEMORY_TYPES = ["note", "session", "finding", "decision", "preference", "page"] as const satisfies readonly MemoryNoteType[];
 
 export const MEMORY_CONFIDENCE = {
   userReviewed: "user-reviewed",

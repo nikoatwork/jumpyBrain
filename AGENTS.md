@@ -33,6 +33,8 @@ agent host hooks / transcripts
 - The CLI is the supported interface for hosted memory; agents/tools should call the CLI rather than talking to the hosted API directly.
 - Internal maintenance work, including future processing/linting/synthesis jobs, should run inside the app/server against the local memory root.
 - API or CLI triggers for server-side processing can be added later; scheduled processing can start as a local cron-style server job.
+- Use `pages/` for topical/current-state synthesized memory; avoid “wiki” terminology in product docs.
+- Retrieval depth is explicit and shapeable: `shallow` should favor compressed memory such as pages/decisions, while `deep` may surface raw sessions as evidence.
 
 ## Validation preference
 

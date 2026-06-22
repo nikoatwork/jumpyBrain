@@ -59,7 +59,7 @@ The goal is repeatable proof, not vibes. Benchmark results will live here as the
 - repo/workspace-local Markdown memories
 - rebuildable indexes and recall state
 - QMD-backed Markdown search
-- CLI-first workflows for indexing, search, recall, and wrapups
+- CLI-first workflows for indexing, search, recall, wrapups, and local memory processing
 
 ## Local and hosted shape
 
@@ -78,8 +78,9 @@ qmd --version
 jumpybrain init --root ./memory
 jumpybrain instructions
 jumpybrain run memory:index
-jumpybrain run memory:recall --topic "<current topic>" --limit 5
-jumpybrain search --root ./memory --query "<question>" --limit 10 --json
+jumpybrain run memory:recall --topic "<current topic>" --limit 5 --depth normal
+jumpybrain search --root ./memory --query "<question>" --limit 10 --depth normal --json
+jumpybrain process --root ./memory --mode synthesize --topic "<topic>" --apply
 cat wrapup.md | jumpybrain wrapup --root ./memory --title "Session wrapup" --topic "current session"
 ```
 

@@ -1,3 +1,4 @@
+export { processMemory } from "./processing/index.js";
 export { indexMemory, searchMemory } from "./retrieval/index.js";
 export { findMemoryRoot, initializeMemoryRoot, memoryRootStatus, resolveIndexRoot } from "./setup/index.js";
 export { writeMemoryNote, writeSessionWrapup } from "./writing/index.js";
@@ -13,6 +14,11 @@ export type {
   MemoryRootInitResult,
   MemoryRootStatus,
   MemoryWriteResult,
+  ProcessMemoryOptions,
+  ProcessMemoryResult,
+  ProcessMode,
+  RetrievalDepth,
+  SearchMemoryOptions,
   Provenance,
   ScoreBreakdown,
   SearchMemoryResult,

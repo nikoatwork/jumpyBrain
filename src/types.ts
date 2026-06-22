@@ -18,6 +18,8 @@ export interface Provenance {
   metadata?: Frontmatter;
 }
 
+export type RetrievalDepth = "shallow" | "normal" | "deep";
+
 export interface ScoreBreakdown {
   qmdScore: number;
   exactMatchBoost: number;
@@ -25,6 +27,8 @@ export interface ScoreBreakdown {
   temporalRelevance?: number;
   memoryStrength?: number;
   provenanceConfidence?: number;
+  depthPolicyBoost?: number;
+  retrievalDepth?: RetrievalDepth;
   finalScore: number;
   driver: string;
 }
@@ -48,10 +52,15 @@ export interface IndexMemoryResult {
 export interface SearchMemoryResult {
   root: string;
   query: string;
+  depth?: RetrievalDepth;
   results: SearchResult[];
 }
 
-export type MemoryNoteType = "note" | "session" | "finding" | "decision" | "preference";
+export interface SearchMemoryOptions {
+  depth?: RetrievalDepth | string;
+}
+
+export type MemoryNoteType = "note" | "session" | "finding" | "decision" | "preference" | "page";
 
 export type MemoryConfidence = "user-reviewed" | "agent-drafted";
 
@@ -66,6 +75,25 @@ export interface MemoryNoteDraft {
 
 export interface MemoryWriteResult {
   file: string;
+}
+
+export type ProcessMode = "lint" | "synthesize";
+
+export interface ProcessMemoryOptions {
+  mode: ProcessMode | string;
+  apply?: boolean;
+  topic?: string;
+  since?: string;
+  limit?: number;
+}
+
+export interface ProcessMemoryResult {
+  root: string;
+  mode: ProcessMode;
+  applied: boolean;
+  topic?: string;
+  files: string[];
+  summary: string[];
 }
 
 export interface IndexedDocument {

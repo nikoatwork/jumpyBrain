@@ -208,7 +208,7 @@ test("CLI init creates a stable, compatible memory root", async () => {
     assert.equal(payload.configFile, "jumpybrain.json");
     assert.equal(payload.schemaVersion, 1);
     assert.equal(payload.configCreated, true);
-    assert.deepEqual(payload.memoryDirs, ["notes", "sessions", "findings", "decisions", "preferences"]);
+    assert.deepEqual(payload.memoryDirs, ["notes", "sessions", "findings", "decisions", "preferences", "pages"]);
 
     const config = JSON.parse(await readFile(path.join(tempRoot, "jumpybrain.json"), "utf8"));
     assert.equal(config.canonical, "markdown");
@@ -307,14 +307,143 @@ test("CLI index/search/recall returns real QMD provenance-rich memory results", 
     assert.equal(payload.results[0].provenance.session_id, "s-alpha");
     assert.match(payload.results[0].snippet, /release notes/);
     assert.equal(payload.results[0].provenance.file, "sessions/a.md");
-    assert.equal(payload.results[0].scoreBreakdown.driver, "qmd-cli");
+    assert.match(payload.results[0].scoreBreakdown.driver, /^qmd-cli:/);
     assert.equal(typeof payload.results[0].scoreBreakdown.temporalRelevance, "number");
     assert.equal(typeof payload.results[0].scoreBreakdown.memoryStrength, "number");
     assert.equal(typeof payload.results[0].scoreBreakdown.provenanceConfidence, "number");
+    assert.equal(typeof payload.results[0].scoreBreakdown.depthPolicyBoost, "number");
+    assert.equal(payload.results[0].scoreBreakdown.retrievalDepth, "normal");
 
     const recall = runCli(["recall", "--root", tempRoot, "--topic", "release notes", "--limit", "2"]);
     assert.match(recall.stdout, /Prior memory scan/);
     assert.match(recall.stdout, /sessions\/a.md/);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("CLI process synthesizes a topical page and recall depth can retrieve it", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-process-"));
+  try {
+    runCli(["init", "--root", tempRoot]);
+    await writeFile(path.join(tempRoot, "decisions", "memory-work.md"), [
+      "---",
+      'type: "decision"',
+      'title: "Memory work uses pages"',
+      'created_at: "2026-06-20T00:00:00.000Z"',
+      "---",
+      "",
+      "# Memory work uses pages",
+      "",
+      "Memory work should synthesize topical pages from sessions and decisions using the silver-raven retrieval depth marker.",
+      "",
+    ].join("\n"));
+    await writeFile(path.join(tempRoot, "sessions", "memory-work.md"), [
+      "---",
+      'type: "session"',
+      'session_id: "s-memory-work"',
+      'created_at: "2026-06-21T00:00:00.000Z"',
+      "---",
+      "",
+      "# Memory work session",
+      "",
+      "We discussed silver-raven retrieval depth and the need to treat sessions as raw evidence.",
+      "",
+    ].join("\n"));
+
+    const withoutApply = runCliFailure(["process", "--root", tempRoot, "--mode", "synthesize", "--topic", "memory work"]);
+    assert.match(withoutApply.stderr, /--apply/);
+
+    const process = JSON.parse(runCli(["process", "--root", tempRoot, "--mode", "synthesize", "--topic", "memory work", "--apply", "--json"]).stdout);
+    assert.equal(process.mode, "synthesize");
+    assert.deepEqual(process.files, ["pages/memory-work.md"]);
+    const page = await readFile(path.join(tempRoot, "pages", "memory-work.md"), "utf8");
+    assert.match(page, /type: "page"/);
+    assert.match(page, /## Source memories/);
+    assert.match(page, /silver-raven retrieval depth/);
+
+    runCli(["index", "--root", tempRoot]);
+    const shallow = JSON.parse(runCli(["recall", "--root", tempRoot, "--topic", "silver-raven retrieval depth", "--depth", "shallow", "--limit", "5", "--json"]).stdout);
+    assert.equal(shallow.depth, "shallow");
+    assert.equal(shallow.results[0].provenance.file, "pages/memory-work.md");
+    assert.equal(shallow.results[0].scoreBreakdown.retrievalDepth, "shallow");
+
+    const deep = JSON.parse(runCli(["recall", "--root", tempRoot, "--topic", "silver-raven retrieval depth raw evidence", "--depth", "deep", "--limit", "5", "--json"]).stdout);
+    assert.equal(deep.depth, "deep");
+    assert.ok(deep.results.some((result) => result.provenance.file.startsWith("sessions/")));
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
+test("CLI process validates mode and writes a deterministic support report", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-lint-"));
+  try {
+    await mkdir(path.join(tempRoot, "pages"), { recursive: true });
+    await writeFile(path.join(tempRoot, "pages", "sales.md"), [
+      "---",
+      'type: "page"',
+      'title: "Sales"',
+      'topic: "sales"',
+      'updated_at: "2026-06-01T00:00:00.000Z"',
+      "---",
+      "",
+      "# Sales",
+      "",
+      "This page has no source section.",
+      "",
+    ].join("\n"));
+    await mkdir(path.join(tempRoot, "decisions"), { recursive: true });
+    await mkdir(path.join(tempRoot, "findings"), { recursive: true });
+    await mkdir(path.join(tempRoot, "sessions"), { recursive: true });
+    await writeFile(path.join(tempRoot, "decisions", "sales-price-book.md"), [
+      "---",
+      'type: "decision"',
+      'title: "Sales price book resolved"',
+      'created_at: "2026-06-02T00:00:00.000Z"',
+      "---",
+      "",
+      "# Sales price book resolved",
+      "",
+      "Resolved sales price book question: decision is to keep the sales price book in pages.",
+      "",
+    ].join("\n"));
+    await writeFile(path.join(tempRoot, "findings", "sales-conflict.md"), [
+      "---",
+      'type: "finding"',
+      'title: "Sales conflict"',
+      'conflicts_with: ["decisions/sales-price-book.md"]',
+      "---",
+      "",
+      "# Sales conflict",
+      "",
+      "This sales finding intentionally declares a conflict for deterministic lint coverage.",
+      "",
+    ].join("\n"));
+    await writeFile(path.join(tempRoot, "sessions", "sales-open-question.md"), [
+      "---",
+      'type: "session"',
+      'title: "Sales open question"',
+      "---",
+      "",
+      "# Sales open question",
+      "",
+      "## Open Questions",
+      "- Should sales price book stay in pages?",
+      "",
+    ].join("\n"));
+
+    const badMode = runCliFailure(["process", "--root", tempRoot, "--mode", "compress", "--apply"]);
+    assert.match(badMode.stderr, /Invalid --mode/);
+
+    const result = JSON.parse(runCli(["process", "--root", tempRoot, "--mode", "lint", "--topic", "sales", "--apply", "--json"]).stdout);
+    assert.equal(result.mode, "lint");
+    assert.equal(result.files.length, 1);
+    assert.match(result.files[0], /^\.jumpybrain\/reports\/lint-/);
+    const report = await readFile(path.join(tempRoot, result.files[0]), "utf8");
+    assert.match(report, /missing an explicit Source memories section/);
+    assert.match(report, /Conflict: `findings\/sales-conflict\.md` declares a conflict with `decisions\/sales-price-book\.md`/);
+    assert.match(report, /Open question in `sessions\/sales-open-question\.md` may be answered by `decisions\/sales-price-book\.md`/);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

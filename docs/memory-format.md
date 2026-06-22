@@ -12,6 +12,7 @@ memory-root/
   findings/
   decisions/
   preferences/
+  pages/              # topical/current-state synthesized memory
   .jumpybrain/        # derived/rebuildable; do not edit
 ```
 
@@ -46,7 +47,7 @@ tags: ["memory", "qmd"]
 Durable note text here.
 ```
 
-Useful `type` values: `note`, `session`, `finding`, `decision`, `preference`.
+Useful `type` values: `note`, `session`, `finding`, `decision`, `preference`, `page`.
 
 Schema notes:
 
@@ -55,6 +56,12 @@ Schema notes:
 - `review` is optional and currently uses `user-review-recommended` for agent-drafted wrapups.
 - `tags` should be a simple string array.
 - The frontmatter parser is intentionally tiny; prefer JSON-style arrays and quoted strings over broad YAML features.
+
+## Topical pages
+
+`pages/*.md` files are topical, current-state memory. They are meant to compress lower-level memories such as sessions, findings, and decisions into a page an agent can read first before digging into raw evidence.
+
+A generated page uses `type: "page"`, `source: "jumpybrain-process"`, `topic`, timestamps, and source references in the body. Pages are canonical Markdown and are indexed like other memory files.
 
 ## Session wrapup format
 

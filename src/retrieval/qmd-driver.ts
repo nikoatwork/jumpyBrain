@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { withSessionAliases } from "../canonical/provenance.js";
-import type { IndexManifest, IndexedDocument, MarkdownDocument, SearchResult } from "../types.js";
+import type { IndexManifest, IndexedDocument, MarkdownDocument, RetrievalDepth, SearchResult } from "../types.js";
 import { derivedRoot, manifestPath, normalizeQmdLookupPath, rebuildQmdCliCollection } from "./qmd-cli.js";
 import { qmdLexQueries, searchWithQmdCli } from "./qmd-query.js";
 import {
@@ -13,6 +13,7 @@ import {
   round,
   temporalBoostFor,
 } from "./qmd-ranking.js";
+import { depthPolicyFor, normalizeRetrievalDepth } from "./depth-policy.js";
 import {
   boundedSnippet,
   cleanQmdSnippet,
@@ -56,9 +57,10 @@ export async function loadManifest(root: string): Promise<IndexManifest> {
   }
 }
 
-export async function searchQmdIndex(root: string, query: string, limit: number): Promise<SearchResult[]> {
+export async function searchQmdIndex(root: string, query: string, limit: number, options: { depth?: RetrievalDepth } = {}): Promise<SearchResult[]> {
+  const depth = normalizeRetrievalDepth(options.depth);
   const manifest = await loadManifest(root);
-  const candidates = await searchWithQmdCli(root, query, Math.max(limit * 4, 20));
+  const candidates = await searchWithQmdCli(root, query, Math.max(limit * 8, 40));
   const documents = documentsByQmdPath(manifest.documents);
   const candidateDocuments = matchedCandidateDocuments(candidates, documents);
   const temporalStats = dateStats(candidateDocuments);
@@ -82,6 +84,7 @@ export async function searchQmdIndex(root: string, query: string, limit: number)
 
     results.push(toSearchResult({
       candidateScore: candidate.score,
+      depth,
       document,
       id,
       lineStart: repaired.lineStart,
@@ -150,6 +153,7 @@ async function resultSnippet(
 
 function toSearchResult(options: {
   candidateScore: number;
+  depth: RetrievalDepth;
   document: IndexedDocument;
   id: string;
   lineStart: number;
@@ -170,7 +174,8 @@ function toSearchResult(options: {
   const memoryStrength = memoryStrengthBoost(options.document.frontmatter);
   const provenanceConfidence = provenanceConfidenceBoost(provenance);
   const qmdScore = clampScore(options.candidateScore);
-  const finalScore = qmdScore + exactMatchBoost + metadataBoost + temporalRelevance + memoryStrength + provenanceConfidence;
+  const depthPolicy = depthPolicyFor(options.document, options.depth);
+  const finalScore = qmdScore + exactMatchBoost + metadataBoost + temporalRelevance + memoryStrength + provenanceConfidence + depthPolicy.boost;
 
   return {
     id: options.id,
@@ -186,8 +191,10 @@ function toSearchResult(options: {
       temporalRelevance: round(temporalRelevance),
       memoryStrength: round(memoryStrength),
       provenanceConfidence: round(provenanceConfidence),
+      depthPolicyBoost: round(depthPolicy.boost),
+      retrievalDepth: options.depth,
       finalScore: round(finalScore),
-      driver: "qmd-cli",
+      driver: `qmd-cli:${depthPolicy.bucket}`,
     },
   };
 }
