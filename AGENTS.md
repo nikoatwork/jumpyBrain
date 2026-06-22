@@ -6,7 +6,6 @@ Build a small, local-first, Markdown-native memory package for coding agents.
 
 ## Hard constraints
 
-- Keep the core package independent from jumpyGoatHq.
 - Markdown memory files are canonical.
 - Indexes, embeddings, SQLite state, and recall counters are derived/rebuildable.
 - Avoid automatic prompt injection by default.
@@ -26,6 +25,14 @@ agent host hooks / transcripts
   -> search -> expand -> provenance
   -> optional generated hot cache
 ```
+
+## Local / hosted boundary
+
+- The local Markdown/QMD engine is the app.
+- A hosted/shared deployment runs the same app against a server-local memory root.
+- The CLI is the supported interface for hosted memory; agents/tools should call the CLI rather than talking to the hosted API directly.
+- Internal maintenance work, including future processing/linting/synthesis jobs, should run inside the app/server against the local memory root.
+- API or CLI triggers for server-side processing can be added later; scheduled processing can start as a local cron-style server job.
 
 ## Validation preference
 

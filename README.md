@@ -61,6 +61,14 @@ The goal is repeatable proof, not vibes. Benchmark results will live here as the
 - QMD-backed Markdown search
 - CLI-first workflows for indexing, search, recall, and wrapups
 
+## Local and hosted shape
+
+The local Markdown/QMD engine is the app. A hosted/shared deployment runs the same app against a server-local memory root.
+
+The CLI is the supported interface for hosted memory. Agents and other tools should call the CLI rather than talking to the hosted API directly.
+
+Internal maintenance work, such as future memory processing/linting/synthesis jobs, should run inside the app/server against the local memory root. API or CLI triggers can be added later, but scheduled server-side processing can start as a local cron-style job.
+
 ## Quick start
 
 ```bash
