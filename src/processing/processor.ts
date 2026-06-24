@@ -4,7 +4,7 @@ import path from "node:path";
 import { normalizeRelative, parseFrontmatter, readMarkdownDocuments, resolveMemoryRoot } from "../canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot, DERIVED_DIR } from "../setup/index.js";
 import type { Frontmatter, MarkdownDocument, ProcessMemoryOptions, ProcessMemoryResult, ProcessMode } from "../types.js";
-import { searchQmdIndex } from "../retrieval/qmd-driver.js";
+import { searchQmdIndex } from "../qmd/index.js";
 import { renderMarkdownDocument, slug } from "../writing/markdown-file.js";
 import { MEMORY_CONFIDENCE } from "../writing/metadata.js";
 

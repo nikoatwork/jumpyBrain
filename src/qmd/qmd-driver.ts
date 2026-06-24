@@ -13,7 +13,7 @@ import {
   round,
   temporalBoostFor,
 } from "./qmd-ranking.js";
-import { depthPolicyFor, normalizeRetrievalDepth } from "./depth-policy.js";
+import { depthPolicyFor, normalizeRetrievalDepth } from "../retrieval/depth-policy.js";
 import {
   boundedSnippet,
   cleanQmdSnippet,

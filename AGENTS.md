@@ -29,6 +29,7 @@ agent host hooks / transcripts
 ## Local / hosted boundary
 
 - `src/core/index.ts` is the backend-agnostic barrel for canonical Markdown, setup, writing, types, and QMD-independent helpers; do not export QMD-backed index/search/process operations or import CLI/QMD adapter code from core.
+- QMD adapter internals live under `src/qmd/`; use its barrel from local runtime/retrieval composition instead of importing old `src/retrieval/qmd-*` paths.
 - The local Markdown/QMD engine is the app.
 - A hosted/shared deployment runs the same app against a server-local memory root.
 - The CLI is the supported interface for hosted memory; agents/tools should call the CLI rather than talking to the hosted API directly.

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parseFrontmatter } from "../dist/canonical/markdown-store.js";
-import { qmdIndexInternalsForTests } from "../dist/retrieval/qmd-driver.js";
+import { qmdIndexInternalsForTests } from "../dist/qmd/index.js";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..");
