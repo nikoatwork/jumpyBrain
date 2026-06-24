@@ -2,22 +2,33 @@
   <img src="docs/assets/jumpyBrain.png" alt="jumpyBrain logo" width="220" />
 </p>
 
-# jumpyBrain
+# jumpyBrain - Sovereign Company Brain
 
-**Local Markdown memory for coding agents.**
+**shared team memory instead of manually sending markdown files around**
 
-jumpyBrain gives AI coding assistants a project memory they can search without hiding knowledge in a vendor account, chat history, or opaque database.
+jumpyBrain gives AI coding assistants a shared memory. Let you Claude Code, Codex etc. "remember" important decisions or findings in your teams memory.
+Just by typing ```@jumpyBrain remember that we do not like pinapple on pizza. Company policy!```
+The whole team (their Claude/Codex) will recall this decision when planning the team event. Automatically.
 
 ## Who is it for?
 
+**Teams who want to own their company brain**.
+
 - People who use AI coding agents across many sessions
-- Teams that want project memory to live with the repo
-- Developers who want searchable history without automatic prompt injection
+- Teams that want project memory to live with the repo or a shared server-local memory root
 - Non-technical owners who want decisions, context, and handoffs in readable files
+
+## Who is it not for?
+
+Anthropic and OpenAi are both working on memory. They will want to own this infrastructure.
+jumpyBrain wants you to own your company brain, so that you remain harness and model provider agnostic.
+
+If that Sovereignity is not a priority for you, jumpyBrain is not for you.
+
 
 ## What does it do?
 
-jumpyBrain turns project knowledge into a memory folder your agent can search before it acts.
+jumpyBrain turns project knowledge into a Markdown memory root your agent can search before it acts. That memory root can live inside a repo/workspace for local use, or on a server for hosted/shared use.
 
 It is built for:
 
@@ -27,7 +38,7 @@ It is built for:
 - benchmark results and tradeoffs
 - uncertainty that should not be flattened into fake confidence
 
-Markdown is the source of truth, so humans can read, edit, review, and commit memory like any other project file.
+Markdown is the source of truth, so humans can read, edit, review, and commit memory like any other project file. In hosted deployments, the server still works against ordinary Markdown files on its local filesystem; indexes and caches remain rebuildable derived state.
 
 ## How does it work?
 
@@ -40,7 +51,26 @@ agent sessions
   -> show provenance back to the source file
 ```
 
-By default, jumpyBrain favors **explicit recall**. The agent searches memory when asked or when a workflow calls for it; automatic prompt injection should stay opt-in and bounded.
+Local mode:
+
+```text
+repo/workspace
+  -> ./memory/*.md
+  -> ./memory/.jumpybrain/ derived index
+  -> jumpybrain CLI
+```
+
+Hosted/shared mode:
+
+```text
+agents / teammates
+  -> jumpybrain CLI
+  -> hosted jumpyBrain deployment
+  -> server-local Markdown memory root
+  -> server-local derived index
+```
+
+By default, jumpyBrain favors **explicit recall**. The agent searches memory when asked or when a workflow calls for it; automatic prompt injection should stay opt-in and bounded in both local and hosted deployments.
 
 ## Why trust it?
 
@@ -56,20 +86,23 @@ The goal is repeatable proof, not vibes. Benchmark results will live here as the
 ## Current shape
 
 - standalone TypeScript/npm package
-- repo/workspace-local Markdown memories
+- repo/workspace-local Markdown memories for local use
+- server-local Markdown memories for hosted/shared use
 - rebuildable indexes and recall state
 - QMD-backed Markdown search
-- CLI-first workflows for indexing, search, recall, wrapups, and local memory processing
+- CLI-first workflows for indexing, search, recall, wrapups, and memory processing
 
-## Local and hosted shape
+## Local-first, but hostable
 
-The local Markdown/QMD engine is the app. A hosted/shared deployment runs the same app against a server-local memory root.
+jumpyBrain is local-first, not local-only. The local Markdown/QMD engine is the app; a hosted/shared deployment runs the same app against a server-local memory root.
 
-The CLI is the supported interface for hosted memory. Agents and other tools should call the CLI rather than talking to the hosted API directly.
+The supported interface for hosted memory is still the CLI. Agents and other tools should call the CLI rather than depending on an internal hosted API contract. This keeps the local and hosted workflows aligned: initialize or target a memory root, index it, search/recall with provenance, and write reviewed Markdown notes or wrapups.
 
-Internal maintenance work, such as future memory processing/linting/synthesis jobs, should run inside the app/server against the local memory root. API or CLI triggers can be added later, but scheduled server-side processing can start as a local cron-style job.
+Internal maintenance work, such as memory processing/linting/synthesis jobs, should run inside the app/server against that server-local Markdown root. API or CLI triggers can be added later, but scheduled server-side processing can start as a local cron-style job.
 
-## Quick start
+Hosted/shared memory is therefore a deployment shape, not a different storage model: Markdown remains canonical, derived state remains rebuildable, and retrieval stays explicit and provenance-backed.
+
+## Quick start: local memory
 
 ```bash
 npm install -g @tobilu/qmd
@@ -83,6 +116,18 @@ jumpybrain search --root ./memory --query "<question>" --limit 10 --depth normal
 jumpybrain process --root ./memory --mode synthesize --topic "<topic>" --apply
 cat wrapup.md | jumpybrain wrapup --root ./memory --title "Session wrapup" --topic "current session"
 ```
+
+## Hosted/shared usage
+
+The hosted path is intentionally CLI-first. A hosted deployment should expose a way for the `jumpybrain` CLI to operate on a server-local memory root while preserving the same commands and output shapes used locally.
+
+Today, treat hosted/shared operation as an integration/deployment boundary:
+
+- keep the hosted memory root as ordinary Markdown on the server
+- rebuild indexes from Markdown rather than treating cache files as canonical
+- use CLI commands for agent workflows instead of binding agents to internal APIs
+- run lint/synthesis/maintenance inside the hosted app/server against its local root
+- keep automatic context injection opt-in and bounded
 
 ## Docs
 
