@@ -44,6 +44,7 @@ agent host hooks / transcripts
 ## Validation preference
 
 Every MVP should have deterministic tests that do not require paid model calls.
+- Architecture boundary tests should enforce source import graphs directly so CLI/runtime/server/QMD seams fail clearly when collapsed.
 
 ## Task/changelog hygiene
 
