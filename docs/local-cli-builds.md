@@ -18,7 +18,16 @@ Or do all three:
 npm run cli:release:local
 ```
 
-This creates `.local-pack/jumpybrain-<version>.tgz` and `.local-pack/latest.json`.
+This creates `.local-pack/jumpybrain-<version>.tgz` and `.local-pack/latest.json`. The pack script runs `npm pack --json`, inspects the actual tarball with `tar -tf`, and verifies the built package contains the CLI plus current modular runtime files, including:
+
+- `dist/cli.js`
+- `dist/cli/local-transport.js`
+- `dist/core/index.js`
+- `dist/runtime/index.js`
+- `dist/qmd/index.js`
+- `dist/server/index.js`
+
+It also rejects stale pre-refactor files such as `dist/retrieval/qmd-driver.js`.
 
 ## Install into a dogfood repo
 
@@ -27,6 +36,8 @@ From the jumpyBrain repo:
 ```bash
 npm run cli:install:local -- /path/to/first-repo
 ```
+
+The install script reads `.local-pack/latest.json`, installs the verified tarball as a dev dependency, and checks that `node_modules/.bin/jumpybrain` plus the required runtime files were installed.
 
 Or from the target repo, use the command printed by `cli:pack`:
 
@@ -52,4 +63,4 @@ npx jumpybrain run memory:recall --topic "<current task/topic>" --limit 5
 3. In the dogfood repo, install the new tarball.
 4. Run `npx jumpybrain status --root <memory-root>` before writing or recalling memory.
 
-Avoid reusing the same package version for different tarball contents; npm and lockfiles behave better when every dogfood build has a unique version.
+Avoid reusing the same package version for different tarball contents; npm and lockfiles behave better when every dogfood build has a unique version. Generated `.local-pack/` tarballs and metadata are local build artifacts and should not be committed.

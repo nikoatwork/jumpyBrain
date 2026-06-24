@@ -89,10 +89,11 @@ The goal is repeatable proof, not vibes. Benchmark results will live here as the
 - repo/workspace-local Markdown memories for local use
 - server-local Markdown memories for hosted/shared use
 - rebuildable indexes and recall state
-- QMD-backed Markdown recall behind the runtime/search layer
+- QMD-backed Markdown recall behind a runtime/QMD adapter layer
+- internal `core`, `runtime`, `qmd`, `cli`, and `server` module boundaries to keep Markdown semantics, local runtime composition, QMD ownership, command parsing, and server-local composition separate
 - CLI-first workflows for remembering, recalling, wrapups, and memory processing
 
-The near-term distribution goal is not a collection of user-installed packages. The CLI is the user-facing boundary; shared memory/runtime logic stays inside the app so it can run either locally or on a server.
+The near-term distribution goal is not a collection of user-installed packages. The CLI is the user-facing boundary; shared memory/runtime logic stays inside the app so it can run either locally or on a server-local memory root.
 
 ## Local-first, but hostable
 
@@ -123,7 +124,7 @@ cat wrapup.md | jumpybrain wrapup --root ./memory --title "Session wrapup" --top
 
 The hosted path is intentionally CLI-first. A hosted deployment should expose a way for the `jumpybrain` CLI to operate on a server-local memory root while preserving the same commands and output shapes used locally.
 
-For now, think in terms of install/deploy paths rather than many npm packages: a local user installs/runs the CLI plus runtime on their machine, a hosted client installs the CLI and points it at a server, and a VPS/server deployment runs the same memory runtime against server-local Markdown.
+For now, think in terms of install/deploy paths rather than many npm packages: a local user installs/runs the CLI plus runtime on their machine, a future hosted client installs the CLI and points it at a server, and a VPS/server deployment composes the same memory runtime against server-local Markdown.
 
 Today, treat hosted/shared operation as an integration/deployment boundary:
 
