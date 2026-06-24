@@ -1,6 +1,8 @@
 # jumpyBrain targets architecture sketch
 
-This colocated design note is the working sketch for `local` and `remote` memory targets. It should be reviewed before implementation code lands here.
+Status: reviewed during the CLI/runtime split planning. This remains a design sketch, not an implementation directory contract. It is useful as the start of the remote-target/client spec, but target configuration is deferred until after the CLI boundary and runtime adapter boundaries are clear.
+
+This colocated design note is the working sketch for `local` and `remote` memory targets. It should be reviewed again before implementation code lands here.
 
 ## Intent
 
@@ -112,21 +114,24 @@ sequenceDiagram
 ## Proposed module boundaries
 
 ```text
-src/cli.ts
-  -> src/targets/*            # command-level local/remote target orchestration
-     -> src/client/*          # remote HTTP client only
-     -> src/index.ts          # existing local public API
+CLI boundary
+  -> local transport/runtime adapter    # local commands against a filesystem memory root
+  -> remote transport/client adapter    # future commands against a hosted server URL
 
-src/server/*                  # HTTP server, auth, request validation, server config
-  -> src/index.ts or direct public local APIs
-  -> src/canonical/* / src/writing/* / src/retrieval/* only through approved seams
+runtime app
+  -> core/domain modules                # Markdown memory semantics, setup, writing, processing, result shapes
+  -> QMD adapter                        # QMD process/cache/index/search ownership
 
-src/canonical/*               # no imports from targets/client/server
-src/writing/*                 # no imports from targets/client/server/retrieval
-src/retrieval/*               # no imports from targets/client/server/writing
+server boundary
+  -> runtime app                        # server-local Markdown root and derived QMD state
+  -> remote API/auth/request validation # when hosted HTTP exists
+
+core/domain modules                     # no imports from CLI, targets/client, server, or QMD adapter internals
+QMD adapter                             # no imports from CLI or server command parsing
+server boundary                         # no imports from CLI command parsing
 ```
 
-The server is an adapter around the existing local memory engine. It must not become the owner of canonical memory semantics.
+The server is an adapter around the same runtime used locally. It must not become the owner of canonical memory semantics, and the CLI must not become the owner of QMD process/cache behavior.
 
 ## Complexity audit
 
@@ -286,10 +291,11 @@ Lean V1 recommendation:
 
 ## Current recommended lean path
 
-1. Add `src/targets` with a tiny local target wrapper first.
-2. Keep remote target selection URL-only and environment-secret based.
-3. Add a small server with auth, status, recall, remember/wrapup create, and explicit `POST /memories/all/index`.
-4. Use atomic append-only Markdown file creation plus minimal idempotency support state.
-5. Mark the index dirty after writes; refresh through cron or CLI calls to the reindex API.
-6. Expose HTTP endpoints under `/memories/all/...` for the single V1 shared memory.
-7. Keep all support state under `.jumpybrain/` and keep canonical Markdown clean.
+1. Finish the CLI/runtime split so command parsing, runtime composition, and QMD ownership are separate.
+2. Add a tiny local transport/runtime adapter first.
+3. Keep remote target selection URL-only and environment-secret based.
+4. Add a small server with auth, status, recall, remember/wrapup create, and explicit `POST /memories/all/index`.
+5. Use atomic append-only Markdown file creation plus minimal idempotency support state.
+6. Mark the index dirty after writes; refresh through cron or CLI calls to the reindex API.
+7. Expose HTTP endpoints under `/memories/all/...` for the single V1 shared memory.
+8. Keep all support state under `.jumpybrain/` and keep canonical Markdown clean.

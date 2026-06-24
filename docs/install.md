@@ -1,5 +1,15 @@
 # Installation
 
+## Install paths
+
+jumpyBrain is being structured around three install/deploy paths, while still keeping one memory system:
+
+1. **Local runtime install:** run the `jumpybrain` CLI on the same machine as a local Markdown memory root. This path needs the runtime/search adapter locally because indexing and recall happen on that machine.
+2. **Hosted client install:** run the `jumpybrain` CLI as a thin client pointed at a deployed jumpyBrain server. This path should not need local QMD once remote targets are implemented, because indexing and recall happen on the server.
+3. **Server deploy:** clone or install the jumpyBrain runtime on a VPS/server and run it against a server-local Markdown memory root. This path owns QMD, derived indexes, maintenance jobs, and any future API/daemon.
+
+Today, the source install below is the working path for local use and server-side experimentation. The package layout is intentionally not split into many user-installed npm packages yet.
+
 ## Prerequisites
 
 jumpyBrain is intentionally QMD-first. Install QMD before using `remember`, `recall`, or maintenance indexing:

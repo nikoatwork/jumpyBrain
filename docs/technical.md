@@ -4,7 +4,22 @@ This page keeps implementation-oriented details out of the README.
 
 ## Architecture boundary
 
-jumpyBrain is intended to be a standalone package. Other products can consume it through integrations or adapters, but the core package should not depend on external product internals.
+jumpyBrain is one memory system with two deployment artifacts in mind:
+
+- a lean `jumpybrain` CLI boundary for agents and humans;
+- a runtime app that can run either on a developer machine or on a VPS/server against a server-local memory root.
+
+The repo may use internal modules named `core`, `runtime`, `qmd`, `server`, or similar to keep responsibilities clear. Those are implementation boundaries, not packages users should install manually. In particular, `core` means shared business logic for Markdown memory semantics, setup compatibility, writing, processing, and result shapes. It should be consumed by local and server runtimes through normal source/module imports, not exposed as a separate user-facing install step.
+
+QMD is owned by the runtime/search adapter boundary. CLI command parsing should not shell out to QMD or manage QMD cache/config paths directly. Local mode and server mode both execute the same runtime concepts: canonical Markdown files live at the selected memory root, while QMD indexes/cache files remain derived state under `.jumpybrain/`.
+
+The intended install paths are:
+
+- local runtime install: install/run the CLI plus local runtime on the same machine as the memory root;
+- hosted client install: install only the CLI and point it at a deployed jumpyBrain server;
+- server deploy: clone or install the runtime app on a VPS/server and run it against a server-local Markdown memory root.
+
+Other products can consume jumpyBrain through integrations or adapters, but jumpyBrain should not depend on external product internals.
 
 ## CLI contract
 
