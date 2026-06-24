@@ -1,7 +1,7 @@
 export { processMemory } from "./processing/index.js";
 export { indexMemory, searchMemory } from "./retrieval/index.js";
 export { findMemoryRoot, initializeMemoryRoot, memoryRootStatus, resolveIndexRoot } from "./setup/index.js";
-export { writeMemoryNote, writeSessionWrapup } from "./writing/index.js";
+export { rememberMemory, writeSessionWrapup } from "./writing/index.js";
 export type {
   Frontmatter,
   FrontmatterValue,

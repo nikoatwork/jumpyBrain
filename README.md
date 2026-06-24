@@ -28,7 +28,7 @@ If that Sovereignity is not a priority for you, jumpyBrain is not for you.
 
 ## What does it do?
 
-jumpyBrain turns project knowledge into a Markdown memory root your agent can search before it acts. That memory root can live inside a repo/workspace for local use, or on a server for hosted/shared use.
+jumpyBrain turns project knowledge into a Markdown memory root your agent can recall before it acts. That memory root can live inside a repo/workspace for local use, or on a server for hosted/shared use.
 
 It is built for:
 
@@ -44,9 +44,9 @@ Markdown is the source of truth, so humans can read, edit, review, and commit me
 
 ```text
 agent sessions
-  -> capture useful notes
+  -> remember useful context
   -> save Markdown memories
-  -> build a rebuildable search index
+  -> build a rebuildable recall index
   -> recall relevant context on demand
   -> show provenance back to the source file
 ```
@@ -70,7 +70,7 @@ agents / teammates
   -> server-local derived index
 ```
 
-By default, jumpyBrain favors **explicit recall**. The agent searches memory when asked or when a workflow calls for it; automatic prompt injection should stay opt-in and bounded in both local and hosted deployments.
+By default, jumpyBrain favors **explicit recall**. Remember writes durable memory; recall reads relevant memory when asked or when a workflow calls for it. Automatic prompt injection should stay opt-in and bounded in both local and hosted deployments.
 
 ## Why trust it?
 
@@ -89,14 +89,14 @@ The goal is repeatable proof, not vibes. Benchmark results will live here as the
 - repo/workspace-local Markdown memories for local use
 - server-local Markdown memories for hosted/shared use
 - rebuildable indexes and recall state
-- QMD-backed Markdown search
-- CLI-first workflows for indexing, search, recall, wrapups, and memory processing
+- QMD-backed Markdown recall
+- CLI-first workflows for remembering, recalling, wrapups, and memory processing
 
 ## Local-first, but hostable
 
 jumpyBrain is local-first, not local-only. The local Markdown/QMD engine is the app; a hosted/shared deployment runs the same app against a server-local memory root.
 
-The supported interface for hosted memory is still the CLI. Agents and other tools should call the CLI rather than depending on an internal hosted API contract. This keeps the local and hosted workflows aligned: initialize or target a memory root, index it, search/recall with provenance, and write reviewed Markdown notes or wrapups.
+The supported interface for hosted memory is still the CLI. Agents and other tools should call the CLI rather than depending on an internal hosted API contract. This keeps the local and hosted workflows aligned: initialize or target a memory root, remember durable Markdown memory, and recall it with provenance.
 
 Internal maintenance work, such as memory processing/linting/synthesis jobs, should run inside the app/server against that server-local Markdown root. API or CLI triggers can be added later, but scheduled server-side processing can start as a local cron-style job.
 
@@ -110,9 +110,9 @@ qmd --version
 
 jumpybrain init --root ./memory
 jumpybrain instructions
-jumpybrain run memory:index
+echo "Remember writes; recall reads." | jumpybrain remember --root ./memory --type decision --title "CLI language"
 jumpybrain run memory:recall --topic "<current topic>" --limit 5 --depth normal
-jumpybrain search --root ./memory --query "<question>" --limit 10 --depth normal --json
+jumpybrain recall --root ./memory --query "<question>" --limit 10 --depth normal --json
 jumpybrain process --root ./memory --mode synthesize --topic "<topic>" --apply
 cat wrapup.md | jumpybrain wrapup --root ./memory --title "Session wrapup" --topic "current session"
 ```

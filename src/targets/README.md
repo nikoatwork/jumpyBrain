@@ -42,7 +42,7 @@ The target adapter is a CLI composition seam, not a new canonical data model. Lo
 
 ```mermaid
 flowchart TD
-  CLI[jumpybrain search/recall/note/wrapup]
+  CLI[jumpybrain remember/recall/wrapup]
   LocalTarget[Local target adapter]
   Writing[src/writing]
   Retrieval[src/retrieval]
@@ -177,15 +177,15 @@ Decision: the CLI generates this header automatically for remote create requests
 
 ### 3. Write-to-index timing can surprise users
 
-Risk: if a remote write succeeds but search does not see it immediately, teammates may think memory is broken. If every write reindexes synchronously, the write path may become slow and fragile.
+Risk: if a remote write succeeds but recall does not see it immediately, teammates may think memory is broken. If every write reindexes synchronously, the write path may become slow and fragile.
 
 Lean V1 options:
 
-- explicit indexing: writes are fast; users/agents run `index` before recall, matching local behavior;
+- explicit indexing: writes are fast; operators run maintenance indexing before recall;
 - asynchronous/debounced reindex: write succeeds, server marks index dirty, a background process catches up;
 - cron-driven reindex: simplest ops model for a VPS; cron calls the index endpoint periodically.
 
-Decision: remote writes must not block on indexing. The write API returns success once the canonical Markdown file is created and idempotency state is recorded. Reindexing is exposed as an authenticated API endpoint, `POST /memories/all/index`, so it can be called manually by the CLI or periodically by cron. This mirrors the rest of remote jumpyBrain: the API is the control plane, and clients/ops automation hit the API rather than touching server files directly. In-process async/debounced indexing is deferred unless cron/manual indexing proves insufficient. Search/status responses should be able to report that the index may be stale.
+Decision: remote writes must not block on indexing. The write API returns success once the canonical Markdown file is created and idempotency state is recorded. Reindexing is exposed as an authenticated API endpoint, `POST /memories/all/index`, so it can be called manually by the CLI or periodically by cron. This mirrors the rest of remote jumpyBrain: the API is the control plane, and clients/ops automation hit the API rather than touching server files directly. In-process async/debounced indexing is deferred unless cron/manual indexing proves insufficient. Recall/status responses should be able to report that the index may be stale.
 
 ### 4. Server deployment must not break local-first usage
 
@@ -200,7 +200,7 @@ Lean V1 recommendation:
 
 ### 5. Remote API can accidentally create a new schema
 
-Risk: HTTP request/response types diverge from existing `SearchMemoryResult`, `MemoryWriteResult`, and `IndexMemoryResult`.
+Risk: HTTP request/response types diverge from existing retrieval result, memory write, and index result shapes.
 
 Lean V1 recommendation:
 
@@ -269,26 +269,26 @@ Lean V1 recommendation:
 - There is one shared remote memory namespace.
 - Remote writes are append-only file creates with file-level IDs.
 - No block IDs, hidden Markdown comments, patch queues, CRDTs, or collaborative editing in V1.
-- The server owns remote indexing/search; the CLI does not maintain a normal remote mirror.
+- The server owns remote indexing/recall; the CLI does not maintain a normal remote mirror.
 - API-key auth is enough for the first self-hosted version.
 - Remote target selection is URL-only in V1; avoid named targets/registries.
 - Remote writes do not synchronously trigger indexing in V1; authenticated `POST /memories/all/index` is the reindex API and can be called by the CLI or cron.
 - Idempotency is included early as minimal support state under `.jumpybrain/remote/`.
 - Remote create requests use a CLI-generated `Idempotency-Key` HTTP header; users do not provide it manually, and the server rejects create requests without it.
 - Remote-created files do not record authors/API-key labels yet.
-- Future-proof HTTP paths use a collection segment such as `/memories/all/search`, with `all` as the V1 shared memory collection.
+- Future-proof HTTP paths use a collection segment such as `/memories/all/recall`, with `all` as the V1 shared memory collection.
 
 ## Decisions still open before coding
 
 1. Server command shape: separate binary/command such as `jumpybrain-server`, or `jumpybrain serve`? Owner has no strong preference.
-2. Stale-index response shape for `status`, `search`, and write responses.
+2. Stale-index response shape for `status`, `recall`, and write responses.
 
 
 ## Current recommended lean path
 
 1. Add `src/targets` with a tiny local target wrapper first.
 2. Keep remote target selection URL-only and environment-secret based.
-3. Add a small server with auth, status, search/recall, note/wrapup create, and explicit `POST /memories/all/index`.
+3. Add a small server with auth, status, recall, remember/wrapup create, and explicit `POST /memories/all/index`.
 4. Use atomic append-only Markdown file creation plus minimal idempotency support state.
 5. Mark the index dirty after writes; refresh through cron or CLI calls to the reindex API.
 6. Expose HTTP endpoints under `/memories/all/...` for the single V1 shared memory.

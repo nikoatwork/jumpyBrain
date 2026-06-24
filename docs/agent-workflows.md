@@ -9,7 +9,7 @@ If jumpybrain is installed and the task may benefit from project memory, use vis
 
 jumpybrain run memory:recall --topic "<current task/topic>" --limit 5
 
-Use explicit, bounded recall/search only. Do not silently inject memory, and do not memorize secrets, credentials, raw chat noise, or vague status updates. At session end, consider a strict wrapup via `jumpybrain run memory:wrapup` if durable findings, decisions, conflicts, or open questions were created.
+Use explicit, bounded recall only. Remember writes memory; recall reads memory. Do not silently inject memory, and do not memorize secrets, credentials, raw chat noise, or vague status updates. At session end, consider a strict wrapup via `jumpybrain run memory:wrapup` if durable findings, decisions, conflicts, or open questions were created.
 ```
 
 The CLI can print a copyable version:
@@ -23,16 +23,15 @@ jumpybrain instructions
 Run a visible prior-knowledge scan before deep work:
 
 ```bash
-jumpybrain index --root <memory-root>
 jumpybrain recall --root <memory-root> --topic "QMD memory architecture" --limit 5
 ```
 
 Agents should show compact hits with provenance before using them. This gives lightweight implicit retrieval without hidden prompt injection.
 
-## Explicit search
+## Specific-question recall
 
 ```bash
-jumpybrain search --root <memory-root> --query "Where did we decide to store release notes?" --limit 10 --json
+jumpybrain recall --root <memory-root> --query "Where did we decide to store release notes?" --limit 10 --json
 ```
 
 Use retrieval depth to shape how much raw evidence should compete with compressed/current memory:

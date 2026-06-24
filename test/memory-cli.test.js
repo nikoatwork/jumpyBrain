@@ -177,7 +177,7 @@ test("CLI run memory recipes discover the repo memory root", async () => {
     await mkdir(path.join(tempParent, "docs"));
     await writeFile(path.join(tempParent, "docs", "workspace.md"), "# Workspace doc\n\nThe workspace-only clue is blue-otter.\n");
 
-    runCli(["run", "memory:note", "--type", "decision", "--title", "Discovered memory root"], {
+    runCli(["run", "memory:remember", "--type", "decision", "--title", "Discovered memory root"], {
       cwd: nested,
       input: "Agents can run jumpybrain recipes from nested workspaces.\n",
     });
@@ -228,7 +228,7 @@ test("CLI refuses writes when memory root schema is newer than the CLI", async (
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
   try {
     await writeFile(path.join(tempRoot, "jumpybrain.json"), JSON.stringify({ schemaVersion: 999, canonical: "markdown", derivedDir: ".jumpybrain" }));
-    const result = runCliFailure(["note", "--root", tempRoot, "--type", "decision", "--title", "Future schema"], {
+    const result = runCliFailure(["remember", "--root", tempRoot, "--type", "decision", "--title", "Future schema"], {
       input: "This should not be written.\n",
     });
     assert.match(result.stderr, /schema v999/);
@@ -270,7 +270,7 @@ test("CLI index stores original Markdown document metadata, not derived chunks",
   }
 });
 
-test("CLI index/search/recall returns real QMD provenance-rich memory results", async () => {
+test("CLI index/recall returns real QMD provenance-rich memory results", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
   try {
     await mkdir(path.join(tempRoot, "sessions"));
@@ -302,8 +302,8 @@ test("CLI index/search/recall returns real QMD provenance-rich memory results", 
     await rm(path.join(tempRoot, ".jumpybrain"), { recursive: true, force: true });
     runCli(["index", "--root", tempRoot]);
 
-    const search = runCli(["search", "--root", tempRoot, "--query", "Where did Mira store release notes?", "--limit", "5", "--json"]);
-    const payload = JSON.parse(search.stdout);
+    const specificRecall = runCli(["recall", "--root", tempRoot, "--query", "Where did Mira store release notes?", "--limit", "5", "--json"]);
+    const payload = JSON.parse(specificRecall.stdout);
     assert.equal(payload.results[0].provenance.session_id, "s-alpha");
     assert.match(payload.results[0].snippet, /release notes/);
     assert.equal(payload.results[0].provenance.file, "sessions/a.md");
@@ -449,39 +449,58 @@ test("CLI process validates mode and writes a deterministic support report", asy
   }
 });
 
-test("CLI note writes editable Markdown memory", async () => {
+test("CLI remember writes editable Markdown memory and updates the index", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
   try {
-    const result = runCli(["note", "--root", tempRoot, "--type", "decision", "--title", "Use QMD first", "--json"], {
+    const result = runCli(["remember", "--root", tempRoot, "--type", "decision", "--title", "Use QMD first", "--tag", "qmd", "--json"], {
       input: "QMD is the first retrieval primitive; Markdown remains canonical.\n",
     });
     const payload = JSON.parse(result.stdout);
     assert.match(payload.file, /^decisions\/\d{4}-\d{2}-\d{2}-use-qmd-first/);
+    assert.equal(payload.indexed, true);
 
     const markdown = await readFile(path.join(tempRoot, payload.file), "utf8");
     assert.match(markdown, /type: "decision"/);
+    assert.match(markdown, /source: "jumpybrain-remember"/);
+    assert.match(markdown, /tags: \["qmd"\]/);
     assert.match(markdown, /# Use QMD first/);
     assert.match(markdown, /Markdown remains canonical/);
+    assert.equal(existsSync(path.join(tempRoot, ".jumpybrain", "index.json")), true);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
 
-test("CLI note rejects empty stdin body", async () => {
+test("CLI remember rejects empty stdin body", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
   try {
-    const result = runCliFailure(["note", "--root", tempRoot, "--type", "decision", "--title", "Empty"], { input: "\n" });
-    assert.match(result.stderr, /Memory note body is empty/);
+    const result = runCliFailure(["remember", "--root", tempRoot, "--type", "decision", "--title", "Empty"], { input: "\n" });
+    assert.match(result.stderr, /Memory body is empty/);
     assert.equal(existsSync(path.join(tempRoot, "decisions")), false);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
 
-test("CLI search reports missing index clearly", async () => {
+test("CLI note commands report remember migration", async () => {
+  const topLevel = runCliFailure(["note", "--root", "/tmp/memory", "--type", "decision", "--title", "Old"], { input: "body\n" });
+  assert.match(topLevel.stderr, /renamed to `jumpybrain remember`/);
+
+  const tempParent = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-run-"));
+  const tempRoot = path.join(tempParent, "memory");
+  try {
+    runCli(["init", "--root", tempRoot]);
+    const oldRecipe = runCliFailure(["run", "memory:note", "--root", tempRoot, "--type", "decision", "--title", "Old"], { input: "body\n" });
+    assert.match(oldRecipe.stderr, /renamed to `jumpybrain run memory:remember`/);
+  } finally {
+    await rm(tempParent, { recursive: true, force: true });
+  }
+});
+
+test("CLI recall reports missing index clearly", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
   try {
-    const result = runCliFailure(["search", "--root", tempRoot, "--query", "anything"]);
+    const result = runCliFailure(["recall", "--root", tempRoot, "--query", "anything"]);
     assert.match(result.stderr, /Memory index not found/);
     assert.match(result.stderr, /jumpybrain index --root/);
   } finally {

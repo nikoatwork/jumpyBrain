@@ -12,8 +12,8 @@ jumpyBrain is intended to be a standalone package. Other products can consume it
 jumpybrain instructions
 jumpybrain init --root <memory-root>
 jumpybrain status --root <memory-root> --json
-jumpybrain index --root <memory-root>
-jumpybrain search --root <memory-root> --query "<question>" --limit 10 --depth normal --json
+cat memory.md | jumpybrain remember --root <memory-root> --type finding --title "<title>"
+jumpybrain recall --root <memory-root> --query "<question>" --limit 10 --depth normal --json
 jumpybrain recall --root <memory-root> --topic "<current topic>" --limit 5 --depth shallow
 jumpybrain process --root <memory-root> --mode lint --topic "<topic>" --apply
 jumpybrain process --root <memory-root> --mode synthesize --topic "<topic>" --apply
@@ -22,13 +22,13 @@ cat wrapup.md | jumpybrain wrapup --root <memory-root> --title "Session wrapup" 
 
 `--root` is canonical for the memory root.
 
-Search JSON returns:
+Recall JSON returns:
 
 ```json
 {
   "root": "/absolute/memory-root",
   "query": "...",
-  "mode": "search",
+  "mode": "recall",
   "results": [
     {
       "id": "chunk-...",
@@ -57,7 +57,7 @@ Search JSON returns:
 
 ## Retrieval depth
 
-`search` and `recall` accept `--depth shallow|normal|deep`.
+`recall` accepts `--depth shallow|normal|deep`.
 
 Depth is a jumpyBrain policy layer applied after QMD returns candidates from the full index. The policy currently reranks by file/frontmatter bucket: `shallow` prefers compressed/current memory such as pages and decisions, `normal` balances pages/decisions with evidence, and `deep` lets raw sessions surface with little or no penalty. The policy is implemented as a shapeable function so future memory directories can be included or excluded without changing the command concept.
 

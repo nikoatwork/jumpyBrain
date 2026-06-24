@@ -24,7 +24,7 @@ jumpybrain init --root ./memory
 
 `jumpybrain.json` lets future CLIs detect incompatible memory-root schema changes before writing or indexing. Markdown files remain the canonical memory content.
 
-For repo dogfooding, `jumpybrain.json` may include an optional relative `indexRoot`, such as `".."`, so the derived search index can cover workspace Markdown while new memory notes are still written under `memory/`.
+For repo dogfooding, `jumpybrain.json` may include an optional relative `indexRoot`, such as `".."`, so the derived recall index can cover workspace Markdown while new memories are still written under `memory/`.
 
 ## Frontmatter
 
@@ -44,15 +44,15 @@ tags: ["memory", "qmd"]
 
 # QMD should be the first index primitive
 
-Durable note text here.
+Durable memory text here.
 ```
 
-Useful `type` values: `note`, `session`, `finding`, `decision`, `preference`, `page`.
+Useful `type` values: `note`, `session`, `finding`, `decision`, `preference`, `page`. `note` remains a memory type; the CLI write command is `remember`.
 
 Schema notes:
 
 - `session_id` is the canonical session identifier field. `sessionId` is accepted as a compatibility alias during provenance mapping.
-- `confidence` is a small string status for writer provenance: `user-reviewed` for manual notes and `agent-drafted` for wrapups. Imported benchmark/manual files may still contain numeric confidence; retrieval treats that as a legacy strength hint.
+- `confidence` is a small string status for writer provenance: `user-reviewed` for manual memories and `agent-drafted` for wrapups. Imported benchmark/manual files may still contain numeric confidence; retrieval treats that as a legacy strength hint.
 - `review` is optional and currently uses `user-review-recommended` for agent-drafted wrapups.
 - `tags` should be a simple string array.
 - The frontmatter parser is intentionally tiny; prefer JSON-style arrays and quoted strings over broad YAML features.
@@ -72,7 +72,7 @@ A generated page uses `type: "page"`, `source: "jumpybrain-process"`, `topic`, t
 - Specific durable findings from the visible session.
 
 ## Decisions
-- Decisions and rationale that should be easy to search later.
+- Decisions and rationale that should be easy to recall later.
 
 ## Conflicts / Corrections
 - Duplicates, superseded assumptions, or conflicts noticed during recall.

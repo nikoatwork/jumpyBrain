@@ -66,7 +66,7 @@ async function synthesizeMemory(root: string, options: ProcessMemoryOptions): Pr
     files: [relative],
     summary: [
       `Updated topical page ${relative} from ${sources.length} source memor${sources.length === 1 ? "y" : "ies"}.`,
-      "Run jumpybrain index before expecting search/recall to see applied processing changes.",
+      "Run jumpybrain index before expecting recall to see applied processing changes.",
     ],
   };
 }

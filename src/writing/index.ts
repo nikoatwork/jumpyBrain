@@ -1,2 +1,2 @@
-export * from "./note-writer.js";
+export * from "./remember-writer.js";
 export * from "./wrapup-writer.js";

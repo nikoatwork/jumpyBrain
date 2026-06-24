@@ -7,19 +7,19 @@ import { MEMORY_CONFIDENCE, VALID_MEMORY_TYPES } from "./metadata.js";
 
 const VALID_TYPES = new Set<MemoryNoteType>(VALID_MEMORY_TYPES);
 
-export async function writeMemoryNote(rootArg: string, options: MemoryNoteDraft): Promise<MemoryWriteResult> {
+export async function rememberMemory(rootArg: string, options: MemoryNoteDraft): Promise<MemoryWriteResult> {
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
   const type = normalizeType(options.type);
   const title = options.title?.trim() || "Untitled memory";
   const body = options.body.trim();
-  if (!body) throw new Error("Memory note body is empty. Pipe Markdown content on stdin.");
+  if (!body) throw new Error("Memory body is empty. Pipe Markdown content on stdin.");
   const now = new Date().toISOString();
   const dir = path.join(root, directoryForType(type));
   const markdown = renderMarkdownDocument([
     ["type", type],
     ["title", title],
-    ["source", "jumpybrain-note"],
+    ["source", "jumpybrain-remember"],
     ["created_at", now],
     ["updated_at", now],
     ["confidence", MEMORY_CONFIDENCE.userReviewed],

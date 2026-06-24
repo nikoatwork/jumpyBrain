@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-jumpyBrain is intentionally QMD-first. Install QMD before using `index`, `search`, or `recall`:
+jumpyBrain is intentionally QMD-first. Install QMD before using `remember`, `recall`, or maintenance indexing:
 
 ```bash
 npm install -g @tobilu/qmd
@@ -45,36 +45,31 @@ jumpybrain init --root ./memory
 jumpybrain status --root ./memory
 ```
 
-`init` creates the standard Markdown directories, writes a small committed `jumpybrain.json` setup file, and ensures derived `.jumpybrain/` state is ignored. By default, indexing covers the memory root recursively. For repo-wide dogfooding, set `"indexRoot": ".."` in `memory/jumpybrain.json` to index workspace Markdown while keeping new notes in `memory/`.
+`init` creates the standard Markdown directories, writes a small committed `jumpybrain.json` setup file, and ensures derived `.jumpybrain/` state is ignored. By default, indexing covers the memory root recursively. For repo-wide dogfooding, set `"indexRoot": ".."` in `memory/jumpybrain.json` to index workspace Markdown while keeping new memories in `memory/`.
 
-Write notes manually, or use the CLI:
+Remember writes memory; recall reads memory. Write memories manually, or use the CLI:
 
 ```bash
 echo "Markdown remains canonical; indexes are rebuildable." \
-  | jumpybrain note --root ./memory --type decision --title "Memory storage rule"
+  | jumpybrain remember --root ./memory --type decision --title "Memory storage rule"
 ```
 
-Build the derived QMD index before searching:
+`remember` updates the derived QMD index after writing. Then recall memory by topic or specific question:
 
 ```bash
-jumpybrain index --root ./memory
-```
-
-Then search/recall:
-
-```bash
-jumpybrain search --root ./memory --query "memory storage rule"
 jumpybrain recall --root ./memory --topic "memory storage" --limit 5
+jumpybrain recall --root ./memory --query "Where is the memory storage rule?" --limit 5 --json
 ```
 
 When running inside a repo initialized with `memory/jumpybrain.json`, you can use recipe shortcuts that discover the memory root:
 
 ```bash
-jumpybrain run memory:index
+echo "Markdown remains canonical; indexes are rebuildable." \
+  | jumpybrain run memory:remember --type decision --title "Memory storage rule"
 jumpybrain run memory:recall --topic "memory storage" --limit 5
 ```
 
-If you add or edit Markdown memory files, run `jumpybrain index --root ./memory` again.
+If you manually add or edit Markdown memory files, run `jumpybrain index --root ./memory` again.
 
 ## QMD behavior
 
