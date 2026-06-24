@@ -28,6 +28,11 @@ agent host hooks / transcripts
 
 ## Local / hosted boundary
 
+- `src/core/index.ts` is the backend-agnostic barrel for canonical Markdown, setup, writing, types, and QMD-independent helpers; do not export QMD-backed index/search/process operations or import CLI/QMD adapter code from core.
+- QMD adapter internals live under `src/qmd/`; use its barrel from local runtime/retrieval composition instead of importing old `src/retrieval/qmd-*` paths.
+- `src/runtime/index.ts` composes the local app surface from core plus QMD-backed retrieval/processing; package-level `src/index.ts` should re-export this runtime surface without importing CLI command parsing.
+- `src/server/index.ts` is the minimal server boundary; compose runtime operations against a server-local Markdown root there, but do not import CLI command parsing or implement HTTP/auth concerns in that boundary.
+- CLI command parsing in `src/cli.ts` should call runtime operations through `src/cli/local-transport.ts`; do not import `src/qmd/` directly from CLI modules.
 - The local Markdown/QMD engine is the app.
 - A hosted/shared deployment runs the same app against a server-local memory root.
 - The CLI is the supported interface for hosted memory; agents/tools should call the CLI rather than talking to the hosted API directly.
@@ -39,6 +44,9 @@ agent host hooks / transcripts
 ## Validation preference
 
 Every MVP should have deterministic tests that do not require paid model calls.
+- Architecture boundary tests should enforce source import graphs directly so CLI/runtime/server/QMD seams fail clearly when collapsed.
+- LongMemEval benchmark scripts run through `benchmarks/longmemeval/run-script.mjs`, which copies `.ts` files before importing them; scripts that need app APIs should load built modules from `dist/` via the repository cwd rather than relying on source-relative imports.
+- Local CLI packaging scripts validate packed `dist/` contents against `scripts/local-pack-manifest.mjs`; update that manifest when adding required runtime entrypoints or retiring stale built paths.
 
 ## Task/changelog hygiene
 

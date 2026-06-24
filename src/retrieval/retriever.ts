@@ -1,6 +1,6 @@
 import { readMarkdownDocuments, resolveMemoryRoot } from "../canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot, resolveIndexRoot } from "../setup/index.js";
-import { buildQmdIndex, searchQmdIndex } from "./qmd-driver.js";
+import { buildQmdIndex, searchQmdIndex } from "../qmd/index.js";
 import { normalizeRetrievalDepth } from "./depth-policy.js";
 import type { IndexMemoryResult, SearchMemoryOptions, SearchMemoryResult } from "../types.js";
 

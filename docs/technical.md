@@ -4,20 +4,52 @@ This page keeps implementation-oriented details out of the README.
 
 ## Architecture boundary
 
-jumpyBrain is one memory system with two deployment artifacts in mind:
+jumpyBrain is one memory system with a lean CLI boundary and an internal runtime app that can be composed locally or in a server process against a server-local Markdown memory root. The current module layout is:
 
-- a lean `jumpybrain` CLI boundary for agents and humans;
-- a runtime app that can run either on a developer machine or on a VPS/server against a server-local memory root.
+```text
+src/index.ts
+  -> src/runtime/index.ts                         # package-level runtime surface
 
-The repo may use internal modules named `core`, `runtime`, `qmd`, `server`, or similar to keep responsibilities clear. Those are implementation boundaries, not packages users should install manually. In particular, `core` means shared business logic for Markdown memory semantics, setup compatibility, writing, processing, and result shapes. It should be consumed by local and server runtimes through normal source/module imports, not exposed as a separate user-facing install step.
+src/cli.ts
+  -> src/cli/local-transport.ts                   # CLI command parsing -> local runtime seam
+    -> src/runtime/index.ts
+
+src/server/index.ts
+  -> src/runtime/index.ts                         # server-local runtime composition, no HTTP/auth yet
+
+src/runtime/index.ts
+  -> src/core/index.ts                            # backend-agnostic Markdown/setup/writing/types
+  -> src/retrieval/index.ts                       # QMD-backed index/search composition
+  -> src/processing/index.ts                      # memory processing over canonical Markdown
+
+src/retrieval/index.ts / src/processing/index.ts
+  -> src/qmd/index.ts                             # QMD adapter barrel
+
+src/core/index.ts
+  -> src/types.ts
+  -> src/canonical/*
+  -> src/setup/*
+  -> src/writing/*
+  -> src/retrieval/depth-policy.ts                # QMD-independent retrieval policy
+```
+
+These are source boundaries inside one package, not separate user-installed npm packages. The package entrypoint `src/index.ts` is intentionally a thin re-export of `src/runtime/index.ts`.
+
+Boundary rules enforced by deterministic tests:
+
+- `src/core/index.ts` stays backend-agnostic. It exports types, canonical Markdown helpers, setup, writing, and QMD-independent depth policy helpers only; it must not import CLI command parsing, server code, targets/client code, or QMD adapter internals.
+- QMD adapter internals live under `src/qmd/` and are imported through `src/qmd/index.ts` from retrieval/processing/runtime composition. Stale `src/retrieval/qmd-*` module paths should not reappear.
+- `src/runtime/index.ts` composes core plus QMD-backed retrieval/processing and must not import CLI command parsing.
+- `src/cli.ts` handles arguments, stdin/stdout, and output shapes. It calls local operations through `src/cli/local-transport.ts`; CLI modules must not import `src/qmd/` directly.
+- `src/server/index.ts` composes runtime calls around one server-local Markdown memory root. It intentionally does not implement HTTP, auth, daemon lifecycle, or CLI command parsing.
 
 QMD is owned by the runtime/search adapter boundary. CLI command parsing should not shell out to QMD or manage QMD cache/config paths directly. Local mode and server mode both execute the same runtime concepts: canonical Markdown files live at the selected memory root, while QMD indexes/cache files remain derived state under `.jumpybrain/`.
 
 The intended install paths are:
 
 - local runtime install: install/run the CLI plus local runtime on the same machine as the memory root;
-- hosted client install: install only the CLI and point it at a deployed jumpyBrain server;
-- server deploy: clone or install the runtime app on a VPS/server and run it against a server-local Markdown memory root.
+- future hosted client install: install the CLI and point it at a deployed jumpyBrain server once remote targets exist;
+- server deploy/experimentation: clone or install the runtime app on a VPS/server and compose it against a server-local Markdown memory root.
 
 Other products can consume jumpyBrain through integrations or adapters, but jumpyBrain should not depend on external product internals.
 

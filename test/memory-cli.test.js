@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parseFrontmatter } from "../dist/canonical/markdown-store.js";
-import { qmdIndexInternalsForTests } from "../dist/retrieval/qmd-driver.js";
+import { qmdIndexInternalsForTests } from "../dist/qmd/index.js";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..");
@@ -64,6 +64,17 @@ test("CLI prints copyable agent memory instructions", () => {
   assert.match(result.stdout, /jumpyBrain memory hint/);
   assert.match(result.stdout, /memory:recall/);
   assert.match(result.stdout, /Do not memorize secrets/);
+});
+
+test("CLI command parsing uses the local transport boundary", async () => {
+  const cliSource = await readFile(path.join(repoRoot, "src", "cli.ts"), "utf8");
+  const transportSource = await readFile(path.join(repoRoot, "src", "cli", "local-transport.ts"), "utf8");
+
+  assert.match(cliSource, /from "\.\/cli\/local-transport\.js"/);
+  assert.doesNotMatch(cliSource, /from "\.\/index\.js"/);
+  assert.doesNotMatch(cliSource, /from "\.\/qmd\//);
+  assert.match(transportSource, /from "\.\.\/runtime\/index\.js"/);
+  assert.doesNotMatch(transportSource, /from "\.\.\/qmd\//);
 });
 
 test("frontmatter parsing supports manual memory metadata", () => {

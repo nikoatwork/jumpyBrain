@@ -8,7 +8,9 @@ jumpyBrain is being structured around three install/deploy paths, while still ke
 2. **Hosted client install:** run the `jumpybrain` CLI as a thin client pointed at a deployed jumpyBrain server. This path should not need local QMD once remote targets are implemented, because indexing and recall happen on the server.
 3. **Server deploy:** clone or install the jumpyBrain runtime on a VPS/server and run it against a server-local Markdown memory root. This path owns QMD, derived indexes, maintenance jobs, and any future API/daemon.
 
-Today, the source install below is the working path for local use and server-side experimentation. The package layout is intentionally not split into many user-installed npm packages yet.
+Today, the source install below is the working path for local use and server-side experimentation. The package layout is intentionally not split into many user-installed npm packages yet: the built tarball contains the CLI plus internal runtime, core, QMD adapter, and server boundary modules.
+
+Remote targets and a hosted HTTP daemon are not implemented in the current CLI. The server boundary is a small module for composing the runtime against a server-local Markdown root; use it as a development seam, not as a production API contract.
 
 ## Prerequisites
 
@@ -44,7 +46,7 @@ npm run cli:release:local
 npm run cli:install:local -- /path/to/first-repo
 ```
 
-See [`local-cli-builds.md`](local-cli-builds.md). A normal npm install path can replace this section after an npm release exists.
+`cli:release:local` runs the project validation gate before packing. The pack/install scripts verify that required built CLI/runtime files are present and stale pre-refactor QMD retrieval paths are absent. See [`local-cli-builds.md`](local-cli-builds.md). A normal npm install path can replace this section after an npm release exists.
 
 ## Basic use
 
