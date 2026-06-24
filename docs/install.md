@@ -11,9 +11,9 @@ qmd --version
 
 QMD currently requires a recent Node runtime. This package declares Node `>=22` to match that dependency.
 
-## Current local/dev install
+## Install from source
 
-This package is not published yet. From the repo root:
+jumpyBrain is not published to npm yet. Clone the repo, then from the repo root:
 
 ```bash
 npm install
@@ -27,14 +27,14 @@ After linking, the CLI should be available as:
 jumpybrain --help
 ```
 
-For dogfooding in another repo, prefer a versioned local tarball over `npm link`:
+For local dogfooding in another repo, prefer a versioned local tarball over `npm link`:
 
 ```bash
 npm run cli:release:local
 npm run cli:install:local -- /path/to/first-repo
 ```
 
-See [`local-cli-builds.md`](local-cli-builds.md).
+See [`local-cli-builds.md`](local-cli-builds.md). A normal npm install path can replace this section after an npm release exists.
 
 ## Basic use
 
