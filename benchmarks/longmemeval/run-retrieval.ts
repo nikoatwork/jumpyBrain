@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { pathToFileURL } from "node:url";
 
 function parseArgs(argv) {
   const args = {};
@@ -23,7 +23,7 @@ function usage() {
   return [
     "Usage: run-retrieval.ts --data <longmemeval_s_cleaned.json> --workspace-root <dir> --out <results.jsonl> [--limit N] [--question-id ID] [--question-type TYPE] [--k 10] [--resume]",
     "",
-    "Materializes one Markdown memory workspace per selected question, runs jumpybrain index/search, and writes retrieval JSONL.",
+    "Materializes one Markdown memory workspace per selected question, runs the jumpyBrain runtime index/search APIs, and writes retrieval JSONL.",
   ].join("\n");
 }
 
@@ -136,14 +136,12 @@ async function materializeItem(item, workspaceRoot) {
   return workspaceDir;
 }
 
-function runCli(args) {
-  const result = spawnSync(process.execPath, ["dist/cli.js", ...args], {
-    cwd: process.cwd(),
-    encoding: "utf8",
-    env: process.env,
-    maxBuffer: 20 * 1024 * 1024,
-  });
-  return result;
+async function loadRuntime() {
+  return import(pathToFileURL(path.resolve("dist/runtime/index.js")).href);
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function returnedChars(results) {
@@ -180,6 +178,7 @@ export async function main(argv = process.argv.slice(2)) {
     : [];
   const existingByQuestionId = new Map(existingRows.map((row) => [String(row.question_id), row]));
   const lines = existingRows.map((row) => JSON.stringify(row));
+  const runtime = await loadRuntime();
 
   for (let index = 0; index < selected.length; index += 1) {
     const item = selected[index];
@@ -192,24 +191,21 @@ export async function main(argv = process.argv.slice(2)) {
     const workspace = await materializeItem(item, absoluteWorkspaceRoot);
     const started = performance.now();
 
-    let indexResult = runCli(["index", "--root", workspace]);
-    let searchResult;
     let results = [];
     let error;
 
-    if (indexResult.status === 0) {
-      searchResult = runCli(["search", "--root", workspace, "--query", String(item.question), "--limit", String(k), "--json"]);
-      if (searchResult.status === 0) {
-        try {
-          results = JSON.parse(searchResult.stdout).results ?? [];
-        } catch (parseError) {
-          error = `search JSON parse failed: ${parseError.message}`;
-        }
-      } else {
-        error = `search failed: ${searchResult.stderr || searchResult.stdout}`;
+    try {
+      await runtime.indexMemory(workspace);
+    } catch (indexError) {
+      error = `index failed: ${errorMessage(indexError)}`;
+    }
+
+    if (!error) {
+      try {
+        results = (await runtime.searchMemory(workspace, String(item.question), k)).results ?? [];
+      } catch (searchError) {
+        error = `search failed: ${errorMessage(searchError)}`;
       }
-    } else {
-      error = `index failed: ${indexResult.stderr || indexResult.stdout}`;
     }
 
     const latencyMs = Math.round(performance.now() - started);

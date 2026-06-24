@@ -45,6 +45,7 @@ agent host hooks / transcripts
 
 Every MVP should have deterministic tests that do not require paid model calls.
 - Architecture boundary tests should enforce source import graphs directly so CLI/runtime/server/QMD seams fail clearly when collapsed.
+- LongMemEval benchmark scripts run through `benchmarks/longmemeval/run-script.mjs`, which copies `.ts` files before importing them; scripts that need app APIs should load built modules from `dist/` via the repository cwd rather than relying on source-relative imports.
 
 ## Task/changelog hygiene
 
