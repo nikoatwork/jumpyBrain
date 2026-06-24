@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { formatHumanResults } from "./cli/formatting.js";
-import { findMemoryRoot, indexMemory, initializeMemoryRoot, memoryRootStatus, processMemory, rememberMemory, searchMemory, writeSessionWrapup } from "./index.js";
+import { createLocalMemoryTransport } from "./cli/local-transport.js";
 import { packageVersion } from "./package-info.js";
-import type { SearchResult } from "./index.js";
+import type { SearchResult } from "./cli/local-transport.js";
 
 interface Args {
   _: string[];
   [key: string]: string | boolean | string[];
 }
+
+const localMemory = createLocalMemoryTransport();
 
 async function main(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
@@ -36,7 +38,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
 
   if (command === "init") {
     const root = stringArg(args, "root");
-    const result = await initializeMemoryRoot(root, { force: Boolean(args.force) });
+    const result = await localMemory.initializeMemoryRoot(root, { force: Boolean(args.force) });
     if (args.json) {
       console.log(JSON.stringify(result, null, 2));
     } else {
@@ -50,7 +52,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
 
   if (command === "status") {
     const root = stringArg(args, "root");
-    const result = await memoryRootStatus(root);
+    const result = await localMemory.memoryRootStatus(root);
     if (args.json) {
       console.log(JSON.stringify(result, null, 2));
     } else {
@@ -65,7 +67,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
 
   if (command === "index") {
     const root = stringArg(args, "root");
-    const result = await indexMemory(root);
+    const result = await localMemory.indexMemory(root);
     console.log(`Indexed ${result.documents} Markdown documents into QMD collection '${result.qmdCollection}' from ${result.root}`);
     return;
   }
@@ -75,7 +77,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
     const query = stringArg(args, command === "recall" ? "topic" : "query", command === "recall" ? stringArg(args, "query", false) : undefined);
     const limit = numberArg(args, "limit", command === "recall" ? 5 : 10);
     const depth = stringArg(args, "depth", "normal");
-    const result = await searchMemory(root, query, limit, { depth });
+    const result = await localMemory.searchMemory(root, query, limit, { depth });
 
     if (args.json) {
       console.log(JSON.stringify({ ...result, mode: command }, null, 2));
@@ -91,7 +93,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   if (command === "process") {
     const root = stringArg(args, "root");
     const mode = stringArg(args, "mode");
-    const result = await processMemory(root, {
+    const result = await localMemory.processMemory(root, {
       mode,
       apply: Boolean(args.apply),
       topic: stringArg(args, "topic", false).trim() || undefined,
@@ -131,7 +133,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
     const limit = numberArg(args, "limit", 5);
     const body = readStdin();
     const relatedMemory = topic ? await recallRelatedMemory(root, topic, limit) : { skipped: true as const, reason: "--topic not provided" };
-    const result = await writeSessionWrapup(root, { title, body, tags: stringListArg(args, "tag"), recallTopic: topic || undefined });
+    const result = await localMemory.writeSessionWrapup(root, { title, body, tags: stringListArg(args, "tag"), recallTopic: topic || undefined });
 
     if (args.json) {
       console.log(JSON.stringify({ ...result, relatedMemory }, null, 2));
@@ -161,7 +163,7 @@ async function runRecipe(args: Args): Promise<void> {
   const root = await recipeRoot(args);
 
   if (recipe === "memory:status") {
-    const result = await memoryRootStatus(root);
+    const result = await localMemory.memoryRootStatus(root);
     if (args.json) console.log(JSON.stringify(result, null, 2));
     else {
       console.log(`Memory root: ${result.root}`);
@@ -174,7 +176,7 @@ async function runRecipe(args: Args): Promise<void> {
   }
 
   if (recipe === "memory:index") {
-    const result = await indexMemory(root);
+    const result = await localMemory.indexMemory(root);
     console.log(`Indexed ${result.documents} Markdown documents into QMD collection '${result.qmdCollection}' from ${result.root}`);
     return;
   }
@@ -183,7 +185,7 @@ async function runRecipe(args: Args): Promise<void> {
     const query = stringArg(args, recipe === "memory:recall" ? "topic" : "query", recipe === "memory:recall" ? stringArg(args, "query", false) : undefined);
     const limit = numberArg(args, "limit", recipe === "memory:recall" ? 5 : 10);
     const depth = stringArg(args, "depth", "normal");
-    const result = await searchMemory(root, query, limit, { depth });
+    const result = await localMemory.searchMemory(root, query, limit, { depth });
     if (args.json) console.log(JSON.stringify({ ...result, mode: recipe }, null, 2));
     else {
       if (recipe === "memory:recall") console.log(`Prior memory scan for: ${query}\n`);
@@ -194,7 +196,7 @@ async function runRecipe(args: Args): Promise<void> {
 
   if (recipe === "memory:process") {
     const mode = stringArg(args, "mode");
-    const result = await processMemory(root, {
+    const result = await localMemory.processMemory(root, {
       mode,
       apply: Boolean(args.apply),
       topic: stringArg(args, "topic", false).trim() || undefined,
@@ -224,7 +226,7 @@ async function runRecipe(args: Args): Promise<void> {
     const limit = numberArg(args, "limit", 5);
     const body = readStdin();
     const relatedMemory = topic ? await recallRelatedMemory(root, topic, limit) : { skipped: true as const, reason: "--topic not provided" };
-    const result = await writeSessionWrapup(root, { title, body, tags: stringListArg(args, "tag"), recallTopic: topic || undefined });
+    const result = await localMemory.writeSessionWrapup(root, { title, body, tags: stringListArg(args, "tag"), recallTopic: topic || undefined });
     if (args.json) console.log(JSON.stringify({ ...result, relatedMemory }, null, 2));
     else {
       if (topic && !relatedMemory.skipped) {
@@ -245,11 +247,11 @@ async function runRecipe(args: Args): Promise<void> {
 
 async function recipeRoot(args: Args): Promise<string> {
   const explicit = stringArg(args, "root", false).trim();
-  return explicit ? explicit : findMemoryRoot();
+  return explicit ? explicit : localMemory.findMemoryRoot();
 }
 
 async function recallRelatedMemory(root: string, topic: string, limit: number): Promise<{ skipped: false; query: string; results: SearchResult[] }> {
-  const result = await searchMemory(root, topic, limit);
+  const result = await localMemory.searchMemory(root, topic, limit);
   return { skipped: false, query: result.query, results: result.results };
 }
 
@@ -257,8 +259,8 @@ async function rememberFromStdin(root: string, args: Args): Promise<{ file: stri
   const type = stringArg(args, "type", "note");
   const title = stringArg(args, "title");
   const body = readStdin();
-  const result = await rememberMemory(root, { type, title, body, tags: stringListArg(args, "tag") });
-  await indexMemory(root);
+  const result = await localMemory.rememberMemory(root, { type, title, body, tags: stringListArg(args, "tag") });
+  await localMemory.indexMemory(root);
   return { ...result, indexed: true };
 }
 
