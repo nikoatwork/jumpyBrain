@@ -1,6 +1,6 @@
 # Local CLI builds and versioning
 
-Use local tarball installs for dogfooding instead of relying only on `npm link`. Each tarball has a package version, and the test repo can pin that exact CLI in its lockfile until you intentionally upgrade.
+This is a maintainer/dogfood workflow. New users should use the installer in [`install.md`](install.md). Use local tarball installs for dogfooding instead of relying only on `npm link`. Each tarball has a package version, and the test repo can pin that exact CLI in its lockfile until you intentionally upgrade.
 
 ## Build a versioned local CLI
 

@@ -38,6 +38,7 @@ These are source boundaries inside one package, not separate user-installed npm 
 
 Boundary rules enforced by deterministic tests:
 
+- Property tests run in normal `npm test` with fixed `fast-check` settings from `test/property-helpers.js`. They are limited to pure architecture-edge contracts such as Markdown/frontmatter rendering, slug/path normalization, CLI target selection, retrieval-depth policy, pure QMD path helpers, and package manifest validation. They must not spawn QMD or exercise paid/model-dependent behavior.
 - `src/core/index.ts` stays backend-agnostic. It exports types, canonical Markdown helpers, setup, writing, and QMD-independent depth policy helpers only; it must not import CLI command parsing, server code, targets/client code, or QMD adapter internals.
 - QMD adapter internals live under `src/qmd/` and are imported through `src/qmd/index.ts` from retrieval/processing/runtime composition. Stale `src/retrieval/qmd-*` module paths should not reappear.
 - `src/runtime/index.ts` composes core plus QMD-backed retrieval/processing and must not import CLI command parsing.
@@ -48,7 +49,7 @@ QMD is owned by the runtime/search adapter boundary. CLI command parsing should 
 
 The intended install paths are:
 
-- local runtime install: install/run the CLI plus local runtime on the same machine as the memory root;
+- local runtime install: use the installer script to place the CLI/runtime under `~/.jumpybrain` by default and run on the same machine as the memory root;
 - future hosted client install: install the CLI and point it at a deployed jumpyBrain server once remote targets exist;
 - server deploy/experimentation: clone or install the runtime app on a VPS/server and compose it against a server-local Markdown memory root.
 
@@ -58,6 +59,7 @@ Other products can consume jumpyBrain through integrations or adapters, but jump
 
 ```bash
 jumpybrain instructions
+jumpybrain doctor [--root <memory-root>] [--json]
 jumpybrain init --root <memory-root>
 jumpybrain status --root <memory-root> --json
 cat memory.md | jumpybrain remember --root <memory-root> --type finding --title "<title>"
@@ -130,4 +132,10 @@ This directory is rebuildable and safe to delete.
 
 jumpyBrain owns Markdown discovery, frontmatter parsing, CLI output, and provenance mapping. QMD indexes the original Markdown files directly and owns production retrieval chunking/snippets.
 
-QMD is required; there is no local retrieval fallback. Set `JUMPYBRAIN_QMD_EMBED=1` during indexing to ask QMD to generate vector embeddings when your local QMD runtime is ready.
+QMD is required; there is no local retrieval fallback. Runtime resolution order is:
+
+1. `JUMPYBRAIN_QMD_BIN`
+2. package-local/bundled `node_modules/.bin/qmd` when present
+3. `qmd` on `PATH`
+
+Set `JUMPYBRAIN_QMD_EMBED=1` during indexing to ask QMD to generate vector embeddings when your local QMD runtime is ready.

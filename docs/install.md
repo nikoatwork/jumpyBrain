@@ -1,97 +1,145 @@
 # Installation
 
-## Install paths
+## Fast path: installer script
 
-jumpyBrain is being structured around three install/deploy paths, while still keeping one memory system:
+jumpyBrain is not published to npm yet. The current public install path is a shell installer that clones/builds the app locally, initializes memory, verifies QMD, and installs detected agent integrations.
 
-1. **Local runtime install:** run the `jumpybrain` CLI on the same machine as a local Markdown memory root. This path needs the runtime/search adapter locally because indexing and recall happen on that machine.
-2. **Hosted client install:** run the `jumpybrain` CLI as a thin client pointed at a deployed jumpyBrain server. This path should not need local QMD once remote targets are implemented, because indexing and recall happen on the server.
-3. **Server deploy:** clone or install the jumpyBrain runtime on a VPS/server and run it against a server-local Markdown memory root. This path owns QMD, derived indexes, maintenance jobs, and any future API/daemon.
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/main/install.sh | bash
+```
 
-Today, the source install below is the working path for local use and server-side experimentation. The package layout is intentionally not split into many user-installed npm packages yet: the built tarball contains the CLI plus internal runtime, core, QMD adapter, and server boundary modules.
+Default behavior:
 
-Remote targets and a hosted HTTP daemon are not implemented in the current CLI. The CLI has a target-selection seam and may recognize remote target flags as explicit placeholders, but local commands still require `--root` or `run memory:*` discovery. The server boundary is a small module for composing the runtime against a server-local Markdown root; use it as a development seam, not as a production API contract.
+- installs the app under `~/.jumpybrain/app`
+- creates a CLI shim at `~/.jumpybrain/bin/jumpybrain`
+- initializes machine-global Markdown memory at `~/.jumpybrain/memory`
+- verifies or installs QMD for local indexing/recall
+- installs all detected integrations:
+  - Codex: `~/.agents/skills/jumpybrain-memory/SKILL.md`
+  - Claude Code: `~/.claude/skills/jumpybrain-memory/SKILL.md`
+  - Pi: `~/.pi/agent/extensions/jumpybrain-memory.ts`
 
-## Prerequisites
+Add the bin directory to your shell if you want `jumpybrain` everywhere:
 
-jumpyBrain is intentionally QMD-first. Install QMD before using `remember`, `recall`, or maintenance indexing:
+```bash
+export PATH="$HOME/.jumpybrain/bin:$PATH"
+```
+
+Then verify:
+
+```bash
+~/.jumpybrain/bin/jumpybrain doctor
+~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "what should I remember?" --limit 5
+```
+
+### Project-local install
+
+Use project scope when you want memory and skills in the current repository instead of global locations:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/main/install.sh | bash -s -- --scope project --integrations all
+```
+
+Project scope creates `./memory` and installs project-local integrations:
+
+- Codex/Pi portable skill: `.agents/skills/jumpybrain-memory/SKILL.md`
+- Claude Code skill: `.claude/skills/jumpybrain-memory/SKILL.md`
+- Pi extension: `.pi/extensions/jumpybrain-memory.ts`
+
+### Installer options
+
+```text
+--scope global|project       Default: global
+--memory-root <path>         Override the memory root
+--integrations auto|all|none Default: auto; auto installs detected harnesses
+--ref <git-ref>              Install from a branch/tag/commit ref
+--source <path-or-git-url>   Install from a local checkout or alternate git URL
+--install-root <path>        Default: ~/.jumpybrain
+--dry-run                    Print planned actions
+```
+
+Use `--integrations all` to install every integration regardless of detection. Use `--integrations none` for CLI-only setup.
+
+## Uninstall
+
+Uninstall removes installer-owned app, shim, manifest, and integration files. It preserves Markdown memory by default.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/main/uninstall.sh | bash
+```
+
+To intentionally remove the configured jumpyBrain memory root as well:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/main/uninstall.sh | bash -s -- --delete-memory
+```
+
+`--delete-memory` refuses broad/unowned paths and requires a `jumpybrain.json` memory config.
+
+## Prerequisites and QMD behavior
+
+jumpyBrain is intentionally QMD-first. The installer verifies `qmd --version`; if QMD is missing it tries:
 
 ```bash
 npm install -g @tobilu/qmd
-qmd --version
 ```
 
-QMD currently requires a recent Node runtime. This package declares Node `>=22` to match that dependency.
+If your npm global install location is not writable or not on `PATH`, install QMD manually or set:
 
-## Install from source
+```bash
+export JUMPYBRAIN_QMD_BIN=/path/to/qmd
+```
 
-jumpyBrain is not published to npm yet. Clone the repo, then from the repo root:
+Resolution order for local/server runtime use:
+
+1. `JUMPYBRAIN_QMD_BIN`
+2. bundled/package-local `node_modules/.bin/qmd` when present
+3. `qmd` on `PATH`
+
+QMD-derived files live under `<memory-root>/.jumpybrain/` and can be rebuilt from canonical Markdown.
+
+## Basic use
+
+Remember writes memory; recall reads memory:
+
+```bash
+~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "current task" --limit 5
+printf '%s\n' "Markdown remains canonical; indexes are rebuildable." \
+  | ~/.jumpybrain/bin/jumpybrain remember --root ~/.jumpybrain/memory --type decision --title "Memory storage rule"
+~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --query "Where is the memory storage rule?" --limit 5 --json
+```
+
+When running inside a repo initialized with `memory/jumpybrain.json`, agents can use recipe shortcuts that discover the root:
+
+```bash
+jumpybrain run memory:recall --topic "memory storage" --limit 5
+```
+
+If you manually add or edit Markdown memory files, run:
+
+```bash
+jumpybrain index --root <memory-root>
+```
+
+## Source install for contributors
+
+For development from a checkout:
 
 ```bash
 npm install
 npm run build
 npm link
-```
-
-After linking, the CLI should be available as:
-
-```bash
 jumpybrain --help
 ```
 
-For local dogfooding in another repo, prefer a versioned local tarball over `npm link`:
+For dogfooding in another repo, maintainer local tarball workflows are documented in [`local-cli-builds.md`](local-cli-builds.md).
 
-```bash
-npm run cli:release:local
-npm run cli:install:local -- /path/to/first-repo
-```
+## Install/deploy paths
 
-`cli:release:local` runs the project validation gate before packing. The pack/install scripts verify that required built CLI/runtime files are present and stale pre-refactor QMD retrieval paths are absent. See [`local-cli-builds.md`](local-cli-builds.md). A normal npm install path can replace this section after an npm release exists.
+jumpyBrain is structured around three paths while keeping one memory system:
 
-## Basic use
+1. **Local runtime install:** current installer path; CLI and runtime run on the same machine as a local Markdown memory root.
+2. **Hosted client install:** future thin CLI client pointed at a deployed jumpyBrain server. Remote targets are recognized in the CLI but not implemented yet.
+3. **Server deploy:** future/self-hosted runtime on a VPS/server against a server-local Markdown memory root.
 
-Pick and initialize a folder that will hold your canonical Markdown memories:
-
-```bash
-jumpybrain init --root ./memory
-jumpybrain status --root ./memory
-```
-
-`init` creates the standard Markdown directories, writes a small committed `jumpybrain.json` setup file, and ensures derived `.jumpybrain/` state is ignored. By default, indexing covers the memory root recursively. For repo-wide dogfooding, set `"indexRoot": ".."` in `memory/jumpybrain.json` to index workspace Markdown while keeping new memories in `memory/`.
-
-Remember writes memory; recall reads memory. Write memories manually, or use the CLI:
-
-```bash
-echo "Markdown remains canonical; indexes are rebuildable." \
-  | jumpybrain remember --root ./memory --type decision --title "Memory storage rule"
-```
-
-`remember` updates the derived QMD index after writing. Then recall memory by topic or specific question:
-
-```bash
-jumpybrain recall --root ./memory --topic "memory storage" --limit 5
-jumpybrain recall --root ./memory --query "Where is the memory storage rule?" --limit 5 --json
-```
-
-When running inside a repo initialized with `memory/jumpybrain.json`, you can use recipe shortcuts that discover the memory root:
-
-```bash
-echo "Markdown remains canonical; indexes are rebuildable." \
-  | jumpybrain run memory:remember --type decision --title "Memory storage rule"
-jumpybrain run memory:recall --topic "memory storage" --limit 5
-```
-
-If you manually add or edit Markdown memory files, run `jumpybrain index --root ./memory` again.
-
-## QMD behavior
-
-- QMD is required. There is no local keyword fallback.
-- jumpyBrain creates isolated, rebuildable QMD config/cache files under `<memory-root>/.jumpybrain/`.
-- QMD indexes the original Markdown memory files directly and owns retrieval chunking/snippets.
-- Markdown memory files remain canonical and editable by hand.
-
-If your local QMD runtime supports embeddings, indexing can ask QMD to embed with:
-
-```bash
-JUMPYBRAIN_QMD_EMBED=1 jumpybrain index --root ./memory
-```
+Markdown remains canonical in all paths; indexes and support state remain derived/rebuildable.

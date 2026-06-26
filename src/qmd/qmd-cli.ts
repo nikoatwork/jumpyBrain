@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const QMD_COLLECTION = "jumpybrain";
 
@@ -27,9 +29,20 @@ export async function rebuildQmdCliCollection(root: string, options: { embed: bo
   if (options.embed) runQmd(root, ["embed"]);
 }
 
+export function resolveQmdBinary(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = env.JUMPYBRAIN_QMD_BIN?.trim();
+  if (configured) return configured;
+
+  const bundled = bundledQmdBinary();
+  if (bundled) return bundled;
+
+  return "qmd";
+}
+
 export function runQmd(root: string, args: string[]): { stdout: string; stderr: string } {
   const derived = derivedRoot(root);
-  const result = spawnSync("qmd", args, {
+  const qmdBin = resolveQmdBinary();
+  const result = spawnSync(qmdBin, args, {
     cwd: root,
     encoding: "utf8",
     maxBuffer: 20 * 1024 * 1024,
@@ -43,14 +56,23 @@ export function runQmd(root: string, args: string[]): { stdout: string; stderr: 
   });
 
   if (result.error && result.error.message.includes("ENOENT")) {
-    throw new Error("qmd CLI is required. Install with: npm install -g @tobilu/qmd");
+    throw new Error("qmd CLI is required for local/server jumpyBrain runtime indexing and recall. Install with `npm install -g @tobilu/qmd`, ensure `qmd` is on PATH, or set JUMPYBRAIN_QMD_BIN to the qmd executable.");
   }
 
   if (result.status !== 0) {
-    throw new Error(`qmd ${args.join(" ")} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+    throw new Error(`${qmdBin} ${args.join(" ")} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
   }
 
   return { stdout: result.stdout, stderr: result.stderr };
+}
+
+function bundledQmdBinary(): string | undefined {
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.resolve(moduleDir, "..", "..", "node_modules", ".bin", process.platform === "win32" ? "qmd.cmd" : "qmd"),
+    path.resolve(moduleDir, "..", "node_modules", ".bin", process.platform === "win32" ? "qmd.cmd" : "qmd"),
+  ];
+  return candidates.find((candidate) => existsSync(candidate));
 }
 
 export function qmdVirtualPathToRelative(file: string): string | undefined {

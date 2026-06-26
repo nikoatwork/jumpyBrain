@@ -27,7 +27,13 @@
   "files": [
     "dist",
     "README.md",
-    "docs"
+    "docs",
+    "skills",
+    "integrations",
+    "install.sh",
+    "uninstall.sh",
+    "scripts/public-install.mjs",
+    "scripts/public-uninstall.mjs"
   ],
   "engines": {
     "node": ">=22"

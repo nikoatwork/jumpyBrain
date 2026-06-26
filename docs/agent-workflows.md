@@ -1,13 +1,25 @@
 # Agent Workflows
 
+## Installed integrations
+
+The installer sets up harness-specific integration files without editing broad global instruction files:
+
+- **Codex:** portable Agent Skill at `~/.agents/skills/jumpybrain-memory/SKILL.md` for global installs, or `.agents/skills/jumpybrain-memory/SKILL.md` for project installs.
+- **Claude Code:** Agent Skill at `~/.claude/skills/jumpybrain-memory/SKILL.md` for global installs, or `.claude/skills/jumpybrain-memory/SKILL.md` for project installs.
+- **Pi:** TypeScript extension at `~/.pi/agent/extensions/jumpybrain-memory.ts` for global installs, or `.pi/extensions/jumpybrain-memory.ts` for project installs. The extension exposes recall/search/remember/wrapup/index tools plus `/memory-*` slash commands.
+
+Restart or reload the agent if it was already running while the installer wrote these files.
+
 ## Agent MD hint
 
-Put a short hint like this in `AGENTS.md`, `CLAUDE.md`, Codex instructions, Cloth instructions, or another agent-readable project file:
+If you do not use the installer skills/extensions, put a short hint like this in `AGENTS.md`, `CLAUDE.md`, Codex instructions, Cloth instructions, or another agent-readable project file:
 
 ```text
 If jumpybrain is installed and the task may benefit from project memory, use visible recall before acting:
 
 jumpybrain run memory:recall --topic "<current task/topic>" --limit 5
+# or for the default global install:
+~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "<current task/topic>" --limit 5
 
 Use explicit, bounded recall only. Remember writes memory; recall reads memory. Do not silently inject memory, and do not memorize secrets, credentials, raw chat noise, or vague status updates. At session end, consider a strict wrapup via `jumpybrain run memory:wrapup` if durable findings, decisions, conflicts, or open questions were created.
 ```
@@ -17,6 +29,14 @@ The CLI can print a copyable version:
 ```bash
 jumpybrain instructions
 ```
+
+## Troubleshooting integration loading
+
+- Run `~/.jumpybrain/bin/jumpybrain doctor --json` to verify CLI, Node, QMD, memory root, and global integration files.
+- Codex and Claude Code may need a restart to notice newly created skill directories.
+- Pi global extensions in `~/.pi/agent/extensions/` can be reloaded with `/reload` when supported; otherwise restart Pi.
+- If the agent cannot find `jumpybrain`, use the absolute CLI path printed by the installer or add `~/.jumpybrain/bin` to `PATH`.
+- If recall fails because QMD is missing, install QMD or set `JUMPYBRAIN_QMD_BIN=/path/to/qmd`.
 
 ## Recall before sparring/research
 

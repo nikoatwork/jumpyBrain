@@ -25,6 +25,34 @@ jumpyBrain wants you to own your company brain, so that you remain harness and m
 
 If that Sovereignity is not a priority for you, jumpyBrain is not for you.
 
+## Try it in minutes
+
+jumpyBrain is not published to npm yet. Use the installer to set up a machine-global memory root, the local CLI, QMD, and detected Codex / Claude Code / Pi integrations:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/main/install.sh | bash
+```
+
+Project-local setup is available when you want memory and skills in the current repo instead:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/main/install.sh | bash -s -- --scope project --integrations all
+```
+
+Uninstall removes the CLI/integration files but preserves Markdown memory by default:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/main/uninstall.sh | bash
+# add --delete-memory only if you intentionally want to remove the configured memory root too
+```
+
+Then try:
+
+```bash
+~/.jumpybrain/bin/jumpybrain doctor
+~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "what should I remember?" --limit 5
+```
+
 
 ## What does it do?
 
