@@ -11,6 +11,7 @@ src/index.ts
   -> src/runtime/index.ts                         # package-level runtime surface
 
 src/cli.ts
+  -> src/cli/targets.ts                           # local/remote target selection; remote is placeholder-only today
   -> src/cli/local-transport.ts                   # CLI command parsing -> local runtime seam
     -> src/runtime/index.ts
 
@@ -40,7 +41,7 @@ Boundary rules enforced by deterministic tests:
 - `src/core/index.ts` stays backend-agnostic. It exports types, canonical Markdown helpers, setup, writing, and QMD-independent depth policy helpers only; it must not import CLI command parsing, server code, targets/client code, or QMD adapter internals.
 - QMD adapter internals live under `src/qmd/` and are imported through `src/qmd/index.ts` from retrieval/processing/runtime composition. Stale `src/retrieval/qmd-*` module paths should not reappear.
 - `src/runtime/index.ts` composes core plus QMD-backed retrieval/processing and must not import CLI command parsing.
-- `src/cli.ts` handles arguments, stdin/stdout, and output shapes. It calls local operations through `src/cli/local-transport.ts`; CLI modules must not import `src/qmd/` directly.
+- `src/cli.ts` handles arguments, stdin/stdout, and output shapes. It resolves command targets through `src/cli/targets.ts`, calls local operations through `src/cli/local-transport.ts`, and currently returns an explicit placeholder error for remote target flags. CLI modules must not import `src/qmd/` directly.
 - `src/server/index.ts` composes runtime calls around one server-local Markdown memory root. It intentionally does not implement HTTP, auth, daemon lifecycle, or CLI command parsing.
 
 QMD is owned by the runtime/search adapter boundary. CLI command parsing should not shell out to QMD or manage QMD cache/config paths directly. Local mode and server mode both execute the same runtime concepts: canonical Markdown files live at the selected memory root, while QMD indexes/cache files remain derived state under `.jumpybrain/`.

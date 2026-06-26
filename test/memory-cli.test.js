@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parseFrontmatter } from "../dist/canonical/markdown-store.js";
+import { resolveCliTarget } from "../dist/cli/targets.js";
 import { qmdIndexInternalsForTests } from "../dist/qmd/index.js";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -66,15 +67,30 @@ test("CLI prints copyable agent memory instructions", () => {
   assert.match(result.stdout, /Do not memorize secrets/);
 });
 
-test("CLI command parsing uses the local transport boundary", async () => {
+test("CLI command parsing uses local transport and target-selection boundaries", async () => {
   const cliSource = await readFile(path.join(repoRoot, "src", "cli.ts"), "utf8");
   const transportSource = await readFile(path.join(repoRoot, "src", "cli", "local-transport.ts"), "utf8");
 
   assert.match(cliSource, /from "\.\/cli\/local-transport\.js"/);
+  assert.match(cliSource, /from "\.\/cli\/targets\.js"/);
   assert.doesNotMatch(cliSource, /from "\.\/index\.js"/);
   assert.doesNotMatch(cliSource, /from "\.\/qmd\//);
   assert.match(transportSource, /from "\.\.\/runtime\/index\.js"/);
   assert.doesNotMatch(transportSource, /from "\.\.\/qmd\//);
+});
+
+test("CLI target selection preserves local roots and recognizes remote placeholders", () => {
+  assert.deepEqual(resolveCliTarget({ root: "./memory" }), { kind: "local", root: "./memory" });
+  assert.deepEqual(resolveCliTarget({}, { allowDiscovery: true }), { kind: "local" });
+  assert.deepEqual(resolveCliTarget({ "target-url": "https://brain.example" }), { kind: "remote", url: "https://brain.example" });
+  assert.throws(() => resolveCliTarget({}), /--root is required/);
+});
+
+test("CLI remote target placeholder fails clearly before local root handling", () => {
+  const result = runCliFailure(["status", "--target-url", "https://brain.example"]);
+  assert.match(result.stderr, /Remote jumpyBrain target/);
+  assert.match(result.stderr, /not implemented yet/);
+  assert.doesNotMatch(result.stderr, /--root is required/);
 });
 
 test("frontmatter parsing supports manual memory metadata", () => {

@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { formatHumanResults } from "./cli/formatting.js";
 import { createLocalMemoryTransport } from "./cli/local-transport.js";
+import { requireLocalRoot } from "./cli/targets.js";
 import { packageVersion } from "./package-info.js";
 import type { SearchResult } from "./cli/local-transport.js";
 
@@ -37,7 +38,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   if (command === "init") {
-    const root = stringArg(args, "root");
+    const root = requireLocalRoot(args);
     const result = await localMemory.initializeMemoryRoot(root, { force: Boolean(args.force) });
     if (args.json) {
       console.log(JSON.stringify(result, null, 2));
@@ -51,7 +52,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   if (command === "status") {
-    const root = stringArg(args, "root");
+    const root = requireLocalRoot(args);
     const result = await localMemory.memoryRootStatus(root);
     if (args.json) {
       console.log(JSON.stringify(result, null, 2));
@@ -66,14 +67,14 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   if (command === "index") {
-    const root = stringArg(args, "root");
+    const root = requireLocalRoot(args);
     const result = await localMemory.indexMemory(root);
     console.log(`Indexed ${result.documents} Markdown documents into QMD collection '${result.qmdCollection}' from ${result.root}`);
     return;
   }
 
   if (command === "search" || command === "recall") {
-    const root = stringArg(args, "root");
+    const root = requireLocalRoot(args);
     const query = stringArg(args, command === "recall" ? "topic" : "query", command === "recall" ? stringArg(args, "query", false) : undefined);
     const limit = numberArg(args, "limit", command === "recall" ? 5 : 10);
     const depth = stringArg(args, "depth", "normal");
@@ -91,7 +92,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   if (command === "process") {
-    const root = stringArg(args, "root");
+    const root = requireLocalRoot(args);
     const mode = stringArg(args, "mode");
     const result = await localMemory.processMemory(root, {
       mode,
@@ -112,7 +113,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   if (command === "remember") {
-    const root = stringArg(args, "root");
+    const root = requireLocalRoot(args);
     const result = await rememberFromStdin(root, args);
     if (args.json) {
       console.log(JSON.stringify(result, null, 2));
@@ -127,7 +128,7 @@ async function main(argv = process.argv.slice(2)): Promise<void> {
   }
 
   if (command === "wrapup") {
-    const root = stringArg(args, "root");
+    const root = requireLocalRoot(args);
     const title = stringArg(args, "title");
     const topic = stringArg(args, "topic", false).trim();
     const limit = numberArg(args, "limit", 5);
@@ -246,7 +247,7 @@ async function runRecipe(args: Args): Promise<void> {
 }
 
 async function recipeRoot(args: Args): Promise<string> {
-  const explicit = stringArg(args, "root", false).trim();
+  const explicit = requireLocalRoot(args, { allowDiscovery: true });
   return explicit ? explicit : localMemory.findMemoryRoot();
 }
 

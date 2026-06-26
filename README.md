@@ -124,7 +124,7 @@ cat wrapup.md | jumpybrain wrapup --root ./memory --title "Session wrapup" --top
 
 The hosted path is intentionally CLI-first. A hosted deployment should expose a way for the `jumpybrain` CLI to operate on a server-local memory root while preserving the same commands and output shapes used locally.
 
-For now, think in terms of install/deploy paths rather than many npm packages: a local user installs/runs the CLI plus runtime on their machine, a future hosted client installs the CLI and points it at a server, and a VPS/server deployment composes the same memory runtime against server-local Markdown.
+For now, think in terms of install/deploy paths rather than many npm packages: a local user installs/runs the CLI plus runtime on their machine, a future hosted client installs the CLI and points it at a server, and a VPS/server deployment composes the same memory runtime against server-local Markdown. Remote target commands are not implemented yet; current usable commands are local `--root` commands and `run memory:*` discovery.
 
 Today, treat hosted/shared operation as an integration/deployment boundary:
 
