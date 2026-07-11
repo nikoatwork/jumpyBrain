@@ -1,0 +1,13 @@
+.git
+node_modules
+dist
+.local-pack
+.jumpybrain
+.env
+.env.*
+AGENTS.md
+AGENTS.local.md
+tasks
+memory
+*.tgz
+.DS_Store

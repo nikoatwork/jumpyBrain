@@ -1,0 +1,26 @@
+# Dependencies and build output
+node_modules/
+dist/
+.local-pack/
+
+# Local secrets and machine-specific config
+.env
+.env.*
+!.env.example
+AGENTS.md
+AGENTS.local.md
+.pi/
+*.pem
+*.p12
+*.pfx
+*.key
+
+# Local dogfood memory
+.dogfood-memory/
+.jumpybrain/
+/jumpybrain.json
+
+# Task tracking is intentionally tracked in git.
+
+# Local machine helper scripts
+scripts/*.local.sh
