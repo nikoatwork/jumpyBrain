@@ -6,9 +6,10 @@ import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { normalizeRemoteTargetOrigin } from "../scripts/remote-target-origin.mjs";
+import { normalizeRemoteTargetOrigin as normalizeInstallerRemoteTargetOrigin } from "../scripts/remote-target-origin.mjs";
 import {
   loadRemoteAccessPolicy,
+  normalizeRemoteTargetOrigin,
   remoteAccessPolicyConfigPath,
   validateRemoteAccessPolicyConfig,
 } from "../dist/cli/remote-access-policy.js";
@@ -17,18 +18,21 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const cliPath = path.join(repoRoot, "dist", "cli.js");
 const policyError = /JUMPYBRAIN_REMOTE_TARGET_READ_ONLY/;
 
-test("remote target origin normalization uses effective HTTP origin identity", () => {
+test("remote target origin normalization uses effective HTTP origin identity and matches the installer helper", () => {
   const equivalent = [
     "HTTPS://Memory.Example.COM",
     "https://memory.example.com:443/",
     "https://memory.example.com/some/path?tenant=one#fragment",
   ];
-  assert.deepEqual(equivalent.map(normalizeRemoteTargetOrigin), equivalent.map(() => "https://memory.example.com"));
-  assert.equal(normalizeRemoteTargetOrigin("http://memory.example.com:80/path"), "http://memory.example.com");
-  assert.equal(normalizeRemoteTargetOrigin("https://memory.example.com:8443"), "https://memory.example.com:8443");
-  assert.throws(() => normalizeRemoteTargetOrigin("ssh://memory.example.com"), /HTTP or HTTPS/);
-  assert.throws(() => normalizeRemoteTargetOrigin("https://user:secret@memory.example.com"), /embedded credentials/);
-  assert.throws(() => normalizeRemoteTargetOrigin("not a URL"), /Invalid remote target URL/);
+  const normalizers = [normalizeRemoteTargetOrigin, normalizeInstallerRemoteTargetOrigin];
+  for (const normalize of normalizers) {
+    assert.deepEqual(equivalent.map(normalize), equivalent.map(() => "https://memory.example.com"));
+    assert.equal(normalize("http://memory.example.com:80/path"), "http://memory.example.com");
+    assert.equal(normalize("https://memory.example.com:8443"), "https://memory.example.com:8443");
+    assert.throws(() => normalize("ssh://memory.example.com"), /HTTP or HTTPS/);
+    assert.throws(() => normalize("https://user:secret@memory.example.com"), /embedded credentials/);
+    assert.throws(() => normalize("not a URL"), /Invalid remote target URL/);
+  }
 });
 
 test("policy config validation is strict and canonicalizes entries", () => {

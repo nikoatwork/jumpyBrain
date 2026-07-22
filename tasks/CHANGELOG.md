@@ -1,5 +1,11 @@
 # Task Changelog
 
+## 2026-07-22 — Docker build source boundary restored
+
+- Removed the CLI runtime's import of `scripts/remote-target-origin.mjs`, which was available in a full local checkout but absent from the Docker build stage that intentionally copies only `src/`.
+- Kept HTTP(S) origin normalization inside `src/cli/remote-access-policy.ts`, documented the boundary, and added parity coverage against the standalone installer helper so the Docker/runtime source graph remains self-contained without behavior drift.
+- Reproduced the Docker build context in an isolated directory containing only `package*.json`, `tsconfig.json`, and `src/`; `npm ci` and `npm run build` pass. A direct Docker build was unavailable because the local Docker daemon was not running.
+
 ## 2026-07-22 — Graph inline Markdown editing completed
 
 - Added dependency-free, document-level Markdown body editing to the `/graph` slide-in panel with accessible pointer/keyboard activation, read-only collapsed frontmatter, auto-sizing textarea styling, 750 ms and blur autosave, mobile credential access, and explicit `Editing`, `Saving…`, `Saved`, and retryable `Save failed` feedback.

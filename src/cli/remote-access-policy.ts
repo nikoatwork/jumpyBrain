@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { normalizeRemoteTargetOrigin } from "../../scripts/remote-target-origin.mjs";
 import type { ParsedCliArgs } from "./args.js";
 import { resolveCliTarget } from "./targets.js";
 
@@ -17,6 +16,34 @@ export interface RemoteAccessPolicyConfig {
 
 export interface RemoteAccessPolicyEnvironment {
   JUMPYBRAIN_CLI_CONFIG?: string;
+}
+
+/**
+ * Normalize a remote URL to the HTTP(S) origin used by the device-local CLI
+ * policy. Keep this behavior aligned with the standalone installer helper in
+ * scripts/remote-target-origin.mjs; tests enforce parity without making source
+ * modules depend on repository scripts.
+ */
+export function normalizeRemoteTargetOrigin(value: string): string {
+  if (value.trim().length === 0) {
+    throw new Error("Remote target URL must be a non-empty HTTP(S) URL.");
+  }
+
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch (error) {
+    throw new Error(`Invalid remote target URL ${JSON.stringify(value)}.`, { cause: error });
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`Remote target URL must use HTTP or HTTPS: ${JSON.stringify(value)}.`);
+  }
+  if (url.username || url.password) {
+    throw new Error(`Remote target URL must not contain embedded credentials: ${JSON.stringify(value)}.`);
+  }
+
+  return url.origin;
 }
 
 const READ_COMMANDS = new Set(["status", "tree", "overview", "search", "recall", "show"]);
