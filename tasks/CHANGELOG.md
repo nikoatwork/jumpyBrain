@@ -1,5 +1,13 @@
 # Task Changelog
 
+## 2026-07-22 — Graph inline Markdown editing completed
+
+- Added dependency-free, document-level Markdown body editing to the `/graph` slide-in panel with accessible pointer/keyboard activation, read-only collapsed frontmatter, auto-sizing textarea styling, 750 ms and blur autosave, mobile credential access, and explicit `Editing`, `Saving…`, `Saved`, and retryable `Save failed` feedback.
+- Reused the existing authenticated whole-document GET/PUT contract with `If-Match`; serialized in-flight/queued saves, guarded selection and reconciliation races, retained failed drafts across blocked navigation, warned on unload, and added one bounded, clearly marked temporary last-write-wins retry for `412` conflicts.
+- Kept browser behavior in the HTTP adapter and canonical Markdown/protected-frontmatter policy in existing core/app seams; updated source architecture, co-located HTTP-server docs, protocol/help text, and public-sandbox expectations without adding PATCH, block storage, a frontend framework, or editor dependencies.
+- Added deterministic codec/state/transport/error/navigation coverage plus a disposable-root Playwright smoke that persisted edits at desktop and mobile viewports with no console errors; `npm test`, `npm run smoke:graph-editor`, `npm run cli:pack`, and `git diff --check` pass.
+- Archived the completed task as `tasks/done/2026-07-22_tasks-graph-inline-markdown-editing.md`.
+
 ## 2026-07-11 — Open-source security/docs audit and `0.1.0` release completed
 
 - Revoked the historically published demo credential, verified it returns `401`, and validated authenticated status/tree/recall against the configured production global memory.

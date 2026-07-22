@@ -37,43 +37,83 @@ function loadPageRenderer() {
   return ctx.renderMarkdown;
 }
 
-function loadPageDocumentOpener(fetchImpl, panelOpen = false) {
-  const html = graphPageHtml("testnonce");
-  const script = html.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
-  const elements = new Map();
-  const fetches = [];
-  const statuses = [];
-  let opened = false;
-  let closed = false;
-  const ctx = {
-    state: { noteToken: 0 },
-    document: { body: { classList: { contains: () => panelOpen } } },
-    $: (id) => {
-      if (!elements.has(id)) elements.set(id, { textContent: "", innerHTML: "" });
-      return elements.get(id);
-    },
-    apiKeyInput: { value: "secret" },
-    openPanel: () => { opened = true; },
-    closePanel: () => { closed = true; },
-    setStatus: (...args) => { statuses.push(args); },
-    renderMarkdown: (content) => `rendered:${content}`,
-    fetch: async (url, options) => {
-      fetches.push({ url, options });
-      return fetchImpl(url, options);
-    },
-  };
+function pageScript() {
+  return graphPageHtml("testnonce").match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
+}
+
+function loadPageEditorRuntime() {
+  const script = pageScript();
+  const ctx = {};
   vm.createContext(ctx);
   vm.runInContext([
-    extractFunction(script, "isValidMemoryDocumentId"),
-    extractFunction(script, "openPanelForNode"),
+    extractFunction(script, "createDocumentEditor"),
+    extractFunction(script, "splitEditableDocument"),
+    extractFunction(script, "composeEditableDocument"),
   ].join("\n"), ctx);
+  return ctx;
+}
+
+function createManualClock() {
+  let now = 0;
+  let nextId = 1;
+  const timers = new Map();
   return {
-    openPanelForNode: ctx.openPanelForNode,
-    fetches,
-    statuses,
-    get opened() { return opened; },
-    get closed() { return closed; },
+    setTimer(callback, delay) {
+      const id = nextId++;
+      timers.set(id, { callback, at: now + delay });
+      return id;
+    },
+    clearTimer(id) { timers.delete(id); },
+    advance(ms) {
+      now += ms;
+      const ready = [...timers.entries()].filter(([, timer]) => timer.at <= now).sort((a, b) => a[1].at - b[1].at);
+      for (const [id, timer] of ready) {
+        timers.delete(id);
+        timer.callback();
+      }
+    },
+    get pending() { return timers.size; },
   };
+}
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+}
+
+function createEditorHarness(overrides = {}) {
+  const runtime = loadPageEditorRuntime();
+  const clock = createManualClock();
+  const writes = [];
+  const reads = [];
+  let current = true;
+  const initialContent = overrides.content ?? '---\ntitle: "Alpha"\n---\n# Alpha\n';
+  const editor = runtime.createDocumentEditor({
+    generation: 1,
+    nodeId: "pages/alpha.md",
+    documentId: "mem_a0000000-0000-4000-8000-000000000001",
+    debounceMs: 750,
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+    splitDocument: runtime.splitEditableDocument,
+    composeDocument: runtime.composeEditableDocument,
+    readDocument: async (id) => {
+      reads.push(id);
+      if (overrides.readDocument) return overrides.readDocument(id, reads.length);
+      return { content: initialContent, contentHash: "sha256:reconciled" };
+    },
+    writeDocument: async (id, content, hash) => {
+      writes.push({ id, content, hash });
+      if (overrides.writeDocument) return overrides.writeDocument(id, content, hash, writes.length);
+      return { newContentHash: "sha256:saved-" + writes.length };
+    },
+    isCurrent: () => current,
+    onChange: () => undefined,
+  });
+  editor.hydrate({ content: initialContent, contentHash: "sha256:initial" });
+  return { runtime, clock, editor, writes, reads, setCurrent(value) { current = value; } };
 }
 
 async function writeGraphFixture(root) {
@@ -224,7 +264,7 @@ test("graph page slide-in panel markup: fixed aside removed, panel scaffolded an
   // Slide-in panel exists and starts closed.
   assert.match(html, /<aside id="note-panel"[^>]*data-closed[^>]*data-testid="graph-note-panel"/);
   // Required testids present.
-  for (const testid of ["graph-note-close", "graph-note-title", "graph-note-content"]) {
+  for (const testid of ["graph-note-close", "graph-note-title", "graph-note-content", "graph-note-edit", "graph-note-editor", "graph-note-save-state", "graph-note-retry"]) {
     assert.equal(html.includes(`data-testid="${testid}"`), true, `${testid} must be present`);
   }
   // Indicators moved into header (not in a removed aside).
@@ -252,68 +292,251 @@ test("graph page uses the light forest design system and structured exploration 
   assert.match(html, /prefers-reduced-motion/);
 });
 
-test("graph page wires node click to slide-in: unresolved guard, re-click close, document fetch URL", () => {
+test("graph page keeps editing in the HTTP shell with accessible reader/editor transitions", () => {
   const html = graphPageHtml("testnonce");
-  const script = html.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
-  // Unresolved nodes do not open the panel.
+  const script = pageScript();
   assert.match(script, /node\.nodeKind === "unresolved"/);
-  assert.match(script, /unresolved link:/);
-  // Re-clicking the active node while open closes the panel.
   assert.match(script, /state\.selected === node\.id/);
-  assert.match(script, /closePanel\(\)/);
-  // Document fetch uses only documentId (the mem_<uuid>) and reuses the Bearer header.
-  assert.match(script, /const docId = node\.documentId/);
-  assert.match(script, /\/memories\/all\/documents\/" \+ encodeURIComponent\(docId\)/);
-  assert.match(script, /Authorization: "Bearer " \+ apiKey/);
-  // Loading + error handling present.
-  assert.match(script, /loading/);
-  assert.match(script, /setStatus\("error"/);
-  // Escape closes the panel.
+  assert.match(script, /requestEditorNavigation/);
   assert.match(script, /event\.key === "Escape"/);
+  assert.match(script, /beforeunload/);
+  assert.match(script, /temporary last-write-wins/);
+  assert.match(html, /id="note-save-state"[^>]*role="status"[^>]*aria-live="polite"/);
+  assert.match(html, /id="note-editor"[^>]*aria-label="Markdown note body"/);
+  assert.match(html, /@media \(max-width: 680px\)[\s\S]*#note-editor/);
+  assert.match(html, /@media \(max-width: 680px\)[\s\S]*\.key-field input \{ width: 124px/);
+  assert.doesNotMatch(html, /\.product-name, \.key-field \{ display: none/);
+  assert.match(script, /keydown[\s\S]*event\.target\.closest\("a, button, summary, details, input, textarea"\)/);
+  assert.match(html, /Select a node to read or edit its Markdown/);
 });
 
-test("graph page fetches a document by valid documentId while the graph node id remains a filepath", async () => {
+test("graph page keeps unresolved and missing-ID nodes non-editable", () => {
+  const script = pageScript();
+  const ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(extractFunction(script, "isValidMemoryDocumentId"), ctx);
+  assert.equal(ctx.isValidMemoryDocumentId("mem_a0000000-0000-4000-8000-000000000001"), true);
+  for (const value of [undefined, "pages/alpha.md", "mem_not-a-uuid"]) assert.equal(ctx.isValidMemoryDocumentId(value), false);
+  assert.match(script, /if \(node\.nodeKind === "unresolved"\)[\s\S]*setStatus\("unresolved link:/);
+  assert.match(script, /if \(!isValidMemoryDocumentId\(node\.documentId\)\)[\s\S]*missing a valid memory ID/);
+});
+
+test("graph document transport centralizes optional Bearer auth and PUT preconditions", async () => {
+  const script = pageScript();
+  const requests = [];
+  const ctx = {
+    apiKeyInput: { value: "secret" },
+    fetch: async (url, options) => {
+      requests.push({ url, options });
+      return { ok: true, status: 200, json: async () => ({ newContentHash: "sha256:new" }) };
+    },
+  };
+  vm.createContext(ctx);
+  vm.runInContext([
+    extractFunction(script, "graphFetch"),
+    extractFunction(script, "graphJson"),
+    extractFunction(script, "documentUrl"),
+    extractFunction(script, "writeGraphDocument"),
+  ].join("\n"), ctx);
+
   const documentId = "mem_a0000000-0000-4000-8000-000000000001";
-  const opener = loadPageDocumentOpener(async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({ title: "Alpha", file: "pages/alpha.md", content: "# Alpha" }),
-  }));
+  await ctx.writeGraphDocument(documentId, "# Changed\n", "sha256:old");
+  assert.equal(requests[0].url, `/memories/all/documents/${documentId}`);
+  assert.equal(requests[0].options.method, "PUT");
+  assert.equal(requests[0].options.headers.Authorization, "Bearer secret");
+  assert.equal(requests[0].options.headers["Content-Type"], "application/json");
+  assert.equal(requests[0].options.headers["If-Match"], "sha256:old");
+  assert.deepEqual(JSON.parse(requests[0].options.body), { content: "# Changed\n" });
 
-  await opener.openPanelForNode({
-    id: "pages/alpha.md",
-    documentId,
-    nodeKind: "document",
-    title: "Alpha",
-    file: "pages/alpha.md",
-  });
-
-  assert.equal(opener.fetches.length, 1);
-  assert.equal(opener.fetches[0].url, `/memories/all/documents/${documentId}`);
-  assert.equal(opener.fetches[0].options.headers.Authorization, "Bearer secret");
-  assert.equal(opener.opened, true);
-  assert.deepEqual(opener.statuses.map(([status]) => status), ["loading", "loaded"]);
+  ctx.apiKeyInput.value = "";
+  await ctx.graphFetch("/memories/all/graph.json");
+  assert.equal("Authorization" in requests[1].options.headers, false);
 });
 
-test("graph page reports missing or invalid documentId without fetching the document", async () => {
-  for (const documentId of [undefined, "pages/alpha.md", "mem_not-a-uuid"]) {
-    const opener = loadPageDocumentOpener(async () => {
-      throw new Error("fetch must not be called");
-    }, true);
+test("graph editor document codec isolates read-only frontmatter and preserves body line structure", () => {
+  const { splitEditableDocument, composeEditableDocument } = loadPageEditorRuntime();
+  const exact = '---\r\ntitle: "Alpha"\r\n---\r\n\r\n# Alpha\r\n\r\n```text\r\n---\r\n```';
+  const parts = splitEditableDocument(exact);
+  assert.equal(parts.frontmatterPrefix, '---\r\ntitle: "Alpha"\r\n---\r\n');
+  assert.equal(parts.body, '\n# Alpha\n\n```text\n---\n```');
+  assert.equal(parts.newline, "\r\n");
+  assert.equal(parts.trailingNewline, false);
+  assert.equal(composeEditableDocument(parts.frontmatterPrefix, parts.body, parts.newline), exact);
 
-    await opener.openPanelForNode({
-      id: "pages/alpha.md",
-      documentId,
-      nodeKind: "document",
-      title: "Alpha",
-      file: "pages/alpha.md",
+  const trailing = splitEditableDocument("---\ntitle: T\n---\nbody\n\n");
+  assert.equal(trailing.body, "body\n\n");
+  assert.equal(trailing.trailingNewline, true);
+  assert.equal(composeEditableDocument(trailing.frontmatterPrefix, trailing.body, trailing.newline), "---\ntitle: T\n---\nbody\n\n");
+});
+
+test("graph editor debounces a burst for 750 ms and sends only the newest body", async () => {
+  const harness = createEditorHarness();
+  harness.editor.setEditing(true);
+  harness.editor.input("first");
+  harness.editor.input("second");
+  harness.editor.input("newest\n");
+  assert.equal(harness.clock.pending, 1);
+  harness.clock.advance(749);
+  assert.equal(harness.writes.length, 0);
+  harness.clock.advance(1);
+  await harness.editor.flush();
+  assert.equal(harness.writes.length, 1);
+  assert.equal(harness.writes[0].hash, "sha256:initial");
+  assert.match(harness.writes[0].content, /---\nnewest\n$/);
+  assert.equal(harness.editor.state.contentHash, "sha256:saved-1");
+  assert.equal(harness.editor.state.dirty, false);
+});
+
+test("graph editor skips unchanged content and reconciles canonical frontmatter after a save", async () => {
+  const canonical = '---\ntitle: "Alpha"\nupdated_at: "canonical"\n---\nchanged body\n';
+  const harness = createEditorHarness({ readDocument: async () => ({ content: canonical, contentHash: "sha256:canonical" }) });
+  const originalBody = harness.editor.state.draft;
+  harness.editor.input(originalBody);
+  await harness.editor.flush();
+  assert.equal(harness.writes.length, 0);
+
+  harness.editor.setEditing(true);
+  harness.editor.input("changed body\n");
+  await harness.editor.startSave();
+  harness.editor.setEditing(false);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(harness.reads.length, 1);
+  assert.match(harness.editor.state.frontmatterPrefix, /updated_at: "canonical"/);
+  assert.equal(harness.editor.state.draft, "changed body\n");
+  assert.equal(harness.editor.state.contentHash, "sha256:canonical");
+});
+
+test("graph editor serializes input during a save and advances successive content hashes", async () => {
+  const first = deferred();
+  const harness = createEditorHarness({
+    writeDocument: async (_id, _content, _hash, count) => count === 1 ? first.promise : { newContentHash: "sha256:second" },
+  });
+  harness.editor.setEditing(true);
+  harness.editor.input("draft one");
+  const saving = harness.editor.startSave();
+  assert.equal(harness.writes.length, 1);
+  harness.editor.input("draft two");
+  assert.equal(harness.writes.length, 1, "a second PUT must not run in parallel");
+  first.resolve({ newContentHash: "sha256:first" });
+  await saving;
+  assert.equal(harness.writes.length, 2);
+  assert.equal(harness.writes[1].hash, "sha256:first");
+  assert.match(harness.writes[1].content, /draft two$/);
+  assert.equal(harness.editor.state.draft, "draft two");
+  assert.equal(harness.editor.state.dirty, false);
+});
+
+test("graph editor performs one temporary last-write-wins retry with latest frontmatter", async () => {
+  const latest = '---\ntitle: "Server title"\nupdated_at: "later"\n---\nserver body\n';
+  const harness = createEditorHarness({
+    readDocument: async () => ({ content: latest, contentHash: "sha256:latest" }),
+    writeDocument: async (_id, _content, _hash, count) => {
+      if (count === 1) throw Object.assign(new Error("stale"), { status: 412 });
+      return { newContentHash: "sha256:retried" };
+    },
+  });
+  harness.editor.setEditing(true);
+  harness.editor.input("local body\n");
+  await harness.editor.startSave();
+  assert.equal(harness.writes.length, 2);
+  assert.equal(harness.writes[1].hash, "sha256:latest");
+  assert.match(harness.writes[1].content, /^---\ntitle: "Server title"\nupdated_at: "later"\n---\nlocal body\n$/);
+  assert.equal(harness.editor.state.contentHash, "sha256:retried");
+  assert.equal(harness.editor.state.dirty, false);
+});
+
+test("graph editor stops after save failures, retains drafts, and requires manual retry", async () => {
+  for (const failure of [new Error("network down"), ...[401, 403, 413, 422, 429, 500].map((status) => Object.assign(new Error("HTTP " + status), { status }))]) {
+    let failing = true;
+    const harness = createEditorHarness({
+      writeDocument: async () => {
+        if (failing) throw failure;
+        return { newContentHash: "sha256:retried" };
+      },
     });
-
-    assert.equal(opener.fetches.length, 0);
-    assert.equal(opener.opened, false);
-    assert.equal(opener.closed, true);
-    assert.deepEqual(opener.statuses, [["This document is missing a valid memory ID."]]);
+    harness.editor.setEditing(true);
+    harness.editor.input("unsaved local draft");
+    await harness.editor.startSave();
+    assert.equal(harness.editor.state.saveStatus, "failed");
+    assert.equal(harness.editor.state.dirty, true);
+    harness.editor.input("newer unsaved local draft");
+    harness.clock.advance(2000);
+    assert.equal(harness.writes.length, 1, "failed saves must not auto-loop");
+    failing = false;
+    await harness.editor.retry();
+    assert.equal(harness.writes.length, 2);
+    assert.equal(harness.editor.state.saveStatus, "saved");
+    assert.equal(harness.editor.state.dirty, false);
   }
+});
+
+test("graph navigation waits for a save and keeps a failed draft reachable", async () => {
+  const pending = deferred();
+  const harness = createEditorHarness({ writeDocument: async () => pending.promise });
+  harness.editor.input("pending navigation draft");
+  const ctx = { state: { editor: harness.editor } };
+  vm.createContext(ctx);
+  vm.runInContext(extractFunction(pageScript(), "requestEditorNavigation"), ctx);
+  let navigated = false;
+  const firstNavigation = ctx.requestEditorNavigation(() => { navigated = true; });
+  assert.equal(harness.editor.state.navigationPending, true);
+  assert.equal(await ctx.requestEditorNavigation(() => { throw new Error("second navigation must be blocked"); }), false);
+  pending.resolve({ newContentHash: "sha256:navigated" });
+  assert.equal(await firstNavigation, true);
+  assert.equal(navigated, true);
+
+  const failed = createEditorHarness({ writeDocument: async () => { throw new Error("offline"); } });
+  failed.editor.input("reachable failed draft");
+  const failedCtx = { state: { editor: failed.editor } };
+  vm.createContext(failedCtx);
+  vm.runInContext(extractFunction(pageScript(), "requestEditorNavigation"), failedCtx);
+  let failedNavigation = false;
+  assert.equal(await failedCtx.requestEditorNavigation(() => { failedNavigation = true; }), false);
+  assert.equal(failedNavigation, false);
+  assert.equal(failed.editor.state.navigationPending, false);
+  assert.equal(failed.editor.state.draft, "reachable failed draft");
+  assert.equal(failed.editor.state.saveStatus, "failed");
+});
+
+test("graph page warns on unload only while a draft or save is pending", () => {
+  let pending = false;
+  const ctx = { state: { editor: { hasPending: () => pending } } };
+  vm.createContext(ctx);
+  vm.runInContext(extractFunction(pageScript(), "protectPendingEditorUnload"), ctx);
+  const cleanEvent = { prevented: false, preventDefault() { this.prevented = true; } };
+  ctx.protectPendingEditorUnload(cleanEvent);
+  assert.equal(cleanEvent.prevented, false);
+  assert.equal("returnValue" in cleanEvent, false);
+
+  pending = true;
+  const dirtyEvent = { prevented: false, preventDefault() { this.prevented = true; } };
+  ctx.protectPendingEditorUnload(dirtyEvent);
+  assert.equal(dirtyEvent.prevented, true);
+  assert.equal(dirtyEvent.returnValue, "");
+});
+
+test("graph editor bounds repeated conflicts and ignores a late save after cancellation", async () => {
+  const conflictHarness = createEditorHarness({
+    readDocument: async () => ({ content: '---\ntitle: "Latest"\n---\nserver', contentHash: "sha256:latest" }),
+    writeDocument: async () => { throw Object.assign(new Error("stale"), { status: 412 }); },
+  });
+  conflictHarness.editor.setEditing(true);
+  conflictHarness.editor.input("local");
+  await conflictHarness.editor.startSave();
+  assert.equal(conflictHarness.writes.length, 2, "only the initial PUT and one retry are allowed");
+  assert.equal(conflictHarness.editor.state.saveStatus, "failed");
+  assert.equal(conflictHarness.editor.state.draft, "local");
+
+  const pending = deferred();
+  const staleHarness = createEditorHarness({ writeDocument: async () => pending.promise });
+  staleHarness.editor.setEditing(true);
+  staleHarness.editor.input("document A draft");
+  const save = staleHarness.editor.startSave();
+  staleHarness.editor.cancel();
+  pending.resolve({ newContentHash: "sha256:late" });
+  await save;
+  assert.equal(staleHarness.editor.state.contentHash, "sha256:initial");
+  assert.equal(staleHarness.editor.state.draft, "document A draft");
 });
 
 test("inline dependency-free Markdown renderer escapes HTML and renders the core subset", () => {
@@ -337,7 +560,7 @@ test("inline dependency-free Markdown renderer escapes HTML and renders the core
   assert.equal(renderMarkdown("a\n---\nb"), "<p>a</p><hr/><p>b</p>");
   // Frontmatter rendered as a muted metadata block above the body.
   const fm = renderMarkdown('---\ntitle: "T"\n---\n# H');
-  assert.match(fm, /^<details class="frontmatter"><summary>frontmatter<\/summary><pre>title: &quot;T&quot;<\/pre><\/details><h1>H<\/h1>$/);
+  assert.match(fm, /^<details class="note-frontmatter"><summary>frontmatter<\/summary><pre>title: &quot;T&quot;<\/pre><\/details><h1>H<\/h1>$/);
 });
 
 test("inline Markdown renderer keeps code-block content uninterpreted and inline code safe", () => {

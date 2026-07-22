@@ -44,9 +44,9 @@ export function graphPageHtml(nonce: string): string {
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body { margin: 0; overflow: hidden; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--cream-100); color: var(--ink); -webkit-font-smoothing: antialiased; }
-    button, input { font: inherit; }
+    button, input, textarea { font: inherit; }
     button { cursor: pointer; }
-    button:focus-visible, input:focus-visible { outline: 3px solid rgba(76, 130, 107, .24); outline-offset: 2px; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, #note-content:focus-visible { outline: 3px solid rgba(76, 130, 107, .24); outline-offset: 2px; }
     [hidden] { display: none !important; }
 
     /* Reusable application shell. */
@@ -146,8 +146,20 @@ export function graphPageHtml(nonce: string): string {
     .panel-head h2 { margin: 0; overflow: hidden; color: var(--forest-950); font: 700 22px/1.2 ui-serif, Georgia, Cambria, "Times New Roman", serif; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
     .panel-meta { margin: 6px 0 0; color: var(--ink-faint); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #note-close { margin-top: 2px; }
+    .panel-edit-bar { min-height: 45px; display: flex; align-items: center; gap: 10px; padding: 7px 24px; border-bottom: 1px solid var(--line); background: rgba(247,244,233,.55); }
+    .panel-edit-bar .button { height: 30px; padding-inline: 11px; }
+    .edit-button { margin-right: auto; border-color: var(--line); background: var(--white); color: var(--forest-800); }
+    .save-state { min-width: 70px; color: var(--ink-faint); font-size: 11px; font-weight: 700; text-align: right; }
+    .save-state[data-state="saving"] { color: var(--gold); }
+    .save-state[data-state="failed"] { color: #8b4434; }
+    .retry-button { border-color: rgba(186,105,83,.28); background: #fff8f4; color: #8b4434; }
     #note-content { overflow: auto; flex: 1; padding: 24px clamp(24px, 4vw, 52px) 60px; color: #30463a; font: 15px/1.72 ui-serif, Georgia, Cambria, "Times New Roman", serif; word-wrap: break-word; overflow-wrap: anywhere; scrollbar-color: var(--sage-300) transparent; }
+    #note-content.is-editable { cursor: text; }
     #note-content > :first-child { margin-top: 0; }
+    #note-editor-wrap { min-height: 0; overflow: auto; flex: 1; padding: 20px clamp(18px, 3vw, 40px) 60px; scrollbar-color: var(--sage-300) transparent; }
+    #note-editor-frontmatter { margin-bottom: 14px; }
+    #note-editor { display: block; width: 100%; min-height: 280px; padding: 16px; resize: none; overflow-x: auto; border: 1px solid var(--sage-300); border-radius: var(--radius-md); background: var(--white); color: var(--ink); box-shadow: inset 0 1px 2px rgba(23,55,43,.05); font: 14px/1.62 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; white-space: pre; }
+    #note-editor:focus { border-color: var(--forest-600); box-shadow: 0 0 0 3px rgba(76,130,107,.1); outline: 0; }
     #note-content h1, #note-content h2, #note-content h3, #note-content h4 { color: var(--forest-950); line-height: 1.25; margin: 1.55em 0 .5em; letter-spacing: -.018em; }
     #note-content h1 { font-size: 1.7rem; }
     #note-content h2 { padding-bottom: .25em; border-bottom: 1px solid var(--line); font-size: 1.35rem; }
@@ -163,9 +175,9 @@ export function graphPageHtml(nonce: string): string {
     #note-content pre code { padding: 0; border: 0; background: none; color: inherit; }
     #note-content blockquote { margin: 1em 0; padding: .25em 1em; border-left: 3px solid var(--gold); background: linear-gradient(90deg, rgba(184,137,69,.08), transparent); color: var(--ink-soft); }
     #note-content hr { margin: 1.6em 0; border: 0; border-top: 1px solid var(--line-strong); }
-    #note-content .frontmatter { margin: 0 0 1.25em; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(233,238,226,.45); }
-    #note-content .frontmatter summary { padding: 8px 11px; color: var(--ink-faint); cursor: pointer; font: 700 10px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
-    #note-content .frontmatter pre { margin: 0 8px 8px; color: var(--cream-200); font-size: .75em; }
+    .note-frontmatter { margin: 0 0 1.25em; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(233,238,226,.45); }
+    .note-frontmatter summary { padding: 8px 11px; color: var(--ink-faint); cursor: pointer; font: 700 10px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+    .note-frontmatter pre { margin: 0 8px 8px; padding: 14px 16px; overflow: auto; border-radius: var(--radius-sm); background: var(--forest-950); color: var(--cream-200); font: .75em/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 
     @media (max-width: 980px) {
       .topbar { padding-inline: 16px; }
@@ -178,7 +190,9 @@ export function graphPageHtml(nonce: string): string {
     }
     @media (max-width: 680px) {
       :root { --panel-width: 100vw; }
-      .product-name, .key-field { display: none; }
+      .brand-copy { display: none; }
+      .header-actions { gap: 6px; }
+      .key-field input { width: 124px; }
       .topbar { min-height: 60px; padding-block: 10px; }
       .brand-mark { width: 36px; height: 36px; }
       .toolbar { min-height: 58px; }
@@ -188,6 +202,10 @@ export function graphPageHtml(nonce: string): string {
       .node.show-label:not(:hover):not(:focus):not(.selected) text { opacity: 0; }
       .canvas-intro p, .helper { display: none; }
       .canvas-intro h2 { font-size: 17px; }
+      .panel-head { padding: 18px 18px 14px; }
+      .panel-edit-bar { padding-inline: 18px; }
+      #note-content, #note-editor-wrap { padding-inline: 18px; }
+      #note-editor { min-height: 220px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
@@ -252,7 +270,7 @@ export function graphPageHtml(nonce: string): string {
       <div class="canvas-intro">
         <p class="eyebrow">Knowledge landscape</p>
         <h2>Explore your memory</h2>
-        <p>Select a node to read the source. Drag to move, scroll to zoom.</p>
+        <p>Select a node to read or edit its Markdown. Saved body changes appear in the map after Refresh map.</p>
       </div>
       <div class="legend" aria-label="Graph legend">
         <span class="legend-item"><i class="legend-dot"></i>Memory</span>
@@ -285,13 +303,22 @@ export function graphPageHtml(nonce: string): string {
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
       </div>
+      <div class="panel-edit-bar">
+        <button id="note-edit" data-testid="graph-note-edit" class="button edit-button" hidden>Edit Markdown</button>
+        <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" data-state="idle" role="status" aria-live="polite"></span>
+        <button id="note-retry" data-testid="graph-note-retry" class="button retry-button" hidden>Retry save</button>
+      </div>
       <div id="note-content" data-testid="graph-note-content"></div>
+      <div id="note-editor-wrap" hidden>
+        <div id="note-editor-frontmatter"></div>
+        <textarea id="note-editor" data-testid="graph-note-editor" aria-label="Markdown note body" spellcheck="true"></textarea>
+      </div>
     </div>
   </aside>
 </main>
 <script nonce="${nonce}">
 const $ = (id) => document.getElementById(id);
-const state = { graph: null, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null };
+const state = { graph: null, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const apiKeyInput = $("api-key");
 const hashKey = new URLSearchParams(location.hash.replace(/^#/, "")).get("apiKey");
 apiKeyInput.value = hashKey || localStorage.getItem("jumpybrain.graph.apiKey") || "";
@@ -301,14 +328,40 @@ $("reload").addEventListener("click", loadGraph);
 for (const id of ["query", "focus", "depth", "include-unresolved", "include-orphans"]) $(id).addEventListener("change", loadGraph);
 for (const id of ["query", "focus"]) $(id).addEventListener("keydown", (event) => { if (event.key === "Enter") loadGraph(); });
 apiKeyInput.addEventListener("change", () => localStorage.setItem("jumpybrain.graph.apiKey", apiKeyInput.value));
-$("note-close").addEventListener("click", closePanel);
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && document.body.classList.contains("panel-open")) {
-    closePanel();
-    state.selected = null;
-    document.querySelectorAll(".node.selected").forEach((el) => el.classList.remove("selected"));
+$("note-close").addEventListener("click", () => requestClosePanel());
+$("note-edit").addEventListener("click", enterEditing);
+$("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
+$("note-content").addEventListener("click", (event) => {
+  if (!state.editor || !state.editor.state.loaded || event.target.closest("a, button, summary, details, input, textarea")) return;
+  enterEditing();
+});
+$("note-content").addEventListener("keydown", (event) => {
+  if (event.target.closest("a, button, summary, details, input, textarea")) return;
+  if ((event.key === "Enter" || event.key === " ") && state.editor && state.editor.state.loaded) {
+    event.preventDefault();
+    enterEditing();
   }
 });
+$("note-editor").addEventListener("input", () => {
+  if (!state.editor) return;
+  state.editor.input($("note-editor").value);
+  autoSizeNoteEditor();
+});
+$("note-editor").addEventListener("blur", () => {
+  if (!state.editor) return;
+  state.editor.setEditing(false);
+  state.editor.flush();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && document.body.classList.contains("panel-open")) requestClosePanel();
+});
+window.addEventListener("beforeunload", protectPendingEditorUnload);
+
+function protectPendingEditorUnload(event) {
+  if (!state.editor || !state.editor.hasPending()) return;
+  event.preventDefault();
+  event.returnValue = "";
+}
 
 function graphUrl() {
   const params = new URLSearchParams();
@@ -320,6 +373,43 @@ function graphUrl() {
   params.set("includeUnresolved", $("include-unresolved").checked ? "1" : "0");
   params.set("includeOrphans", $("include-orphans").checked ? "1" : "0");
   return "/memories/all/graph.json?" + params.toString();
+}
+
+function graphFetch(url, options) {
+  const requestOptions = Object.assign({}, options || {});
+  requestOptions.headers = Object.assign({}, requestOptions.headers || {});
+  const apiKey = apiKeyInput.value.trim();
+  if (apiKey) requestOptions.headers.Authorization = "Bearer " + apiKey;
+  return fetch(url, requestOptions);
+}
+
+async function graphJson(url, options) {
+  const response = await graphFetch(url, options);
+  let payload;
+  try { payload = await response.json(); } catch { payload = null; }
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || "Request failed with HTTP " + response.status);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
+}
+
+function documentUrl(documentId) {
+  return "/memories/all/documents/" + encodeURIComponent(documentId);
+}
+
+function readGraphDocument(documentId) {
+  return graphJson(documentUrl(documentId));
+}
+
+function writeGraphDocument(documentId, content, contentHash) {
+  return graphJson(documentUrl(documentId), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "If-Match": contentHash },
+    body: JSON.stringify({ content }),
+  });
 }
 
 function setStatus(text, isError, errorText) {
@@ -341,9 +431,7 @@ async function loadGraph() {
   const apiKey = apiKeyInput.value.trim();
   if (apiKey) localStorage.setItem("jumpybrain.graph.apiKey", apiKey);
   try {
-    const response = await fetch(graphUrl(), { headers: apiKey ? { Authorization: "Bearer " + apiKey } : {} });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload?.error?.message || "Graph request failed with HTTP " + response.status);
+    const payload = await graphJson(graphUrl());
     state.graph = payload;
     render(payload);
     setStatus("loaded");
@@ -425,59 +513,409 @@ function nodeColor(node) {
   return ({ page: "#285b45", decision: "#ad8243", finding: "#6f824e", preference: "#886b59", session: "#6f8874", note: "#477560" })[node.type] || "#39705a";
 }
 
-function selectNode(node, element) {
+function createDocumentEditor(options) {
+  const editorState = {
+    generation: options.generation,
+    selectionToken: options.generation,
+    nodeId: options.nodeId,
+    documentId: options.documentId,
+    exactContent: "",
+    contentHash: "",
+    frontmatterPrefix: "",
+    newline: "\\n",
+    trailingNewline: false,
+    savedBody: "",
+    draft: "",
+    dirty: false,
+    draftRevision: 0,
+    saveTimer: null,
+    saveInFlight: null,
+    saveQueued: false,
+    saveStatus: "idle",
+    saveError: "",
+    loaded: false,
+    editing: false,
+    navigationPending: false,
+    autoSaveBlocked: false,
+    reconcileToken: 0,
+    cancelled: false,
+  };
+
+  const emit = () => { if (!editorState.cancelled) options.onChange(editorState); };
+  const clearSaveTimer = () => {
+    if (editorState.saveTimer !== null) options.clearTimer(editorState.saveTimer);
+    editorState.saveTimer = null;
+  };
+  const isCurrent = () => !editorState.cancelled && options.isCurrent(editorState.generation, editorState.documentId);
+
+  function hydrate(payload) {
+    const parts = options.splitDocument(String(payload.content || ""));
+    editorState.exactContent = String(payload.content || "");
+    editorState.contentHash = String(payload.contentHash || "");
+    editorState.frontmatterPrefix = parts.frontmatterPrefix;
+    editorState.newline = parts.newline;
+    editorState.trailingNewline = parts.trailingNewline;
+    editorState.savedBody = parts.body;
+    editorState.draft = parts.body;
+    editorState.dirty = false;
+    editorState.draftRevision = 0;
+    editorState.saveStatus = "idle";
+    editorState.saveError = "";
+    editorState.loaded = true;
+    editorState.autoSaveBlocked = false;
+    emit();
+  }
+
+  function scheduleSave() {
+    clearSaveTimer();
+    if (!editorState.dirty || editorState.autoSaveBlocked || editorState.saveInFlight || !isCurrent()) return;
+    editorState.saveTimer = options.setTimer(() => {
+      editorState.saveTimer = null;
+      startSave();
+    }, options.debounceMs);
+  }
+
+  function input(value) {
+    if (!editorState.loaded || editorState.cancelled) return;
+    editorState.draft = String(value).replace(/\\r\\n/g, "\\n");
+    editorState.trailingNewline = /\\n$/.test(editorState.draft);
+    editorState.draftRevision += 1;
+    editorState.dirty = editorState.draft !== editorState.savedBody;
+    if (editorState.saveInFlight) editorState.saveQueued = true;
+    if (editorState.autoSaveBlocked) {
+      editorState.saveStatus = "failed";
+    } else {
+      editorState.saveStatus = editorState.saveInFlight ? "saving" : "editing";
+      scheduleSave();
+    }
+    emit();
+  }
+
+  function setEditing(value) {
+    const endedEditing = editorState.editing && !value;
+    editorState.editing = Boolean(value);
+    if (editorState.editing && editorState.saveStatus !== "saving" && editorState.saveStatus !== "failed" && editorState.saveStatus !== "saved") editorState.saveStatus = "editing";
+    if (!editorState.editing && !editorState.dirty && editorState.saveStatus === "editing") editorState.saveStatus = "idle";
+    emit();
+    if (endedEditing && editorState.saveStatus === "saved" && !editorState.dirty && !editorState.saveInFlight && !editorState.navigationPending) reconcile();
+  }
+
+  function setNavigationPending(value) {
+    editorState.navigationPending = Boolean(value);
+    emit();
+  }
+
+  async function attemptSave() {
+    let body = editorState.draft;
+    let revision = editorState.draftRevision;
+    let content = options.composeDocument(editorState.frontmatterPrefix, body, editorState.newline);
+    try {
+      const payload = await options.writeDocument(editorState.documentId, content, editorState.contentHash);
+      return { payload, body, revision, content };
+    } catch (error) {
+      if (!isCurrent() || Number(error && error.status) !== 412) throw error;
+
+      // TODO(temporary last-write-wins): replace this one-retry overwrite with visible conflict/merge UX.
+      const latest = await options.readDocument(editorState.documentId);
+      if (!isCurrent()) throw new Error("Document selection changed during conflict refresh.");
+      const latestParts = options.splitDocument(String(latest.content || ""));
+      editorState.exactContent = String(latest.content || "");
+      editorState.frontmatterPrefix = latestParts.frontmatterPrefix;
+      editorState.newline = latestParts.newline;
+      editorState.contentHash = String(latest.contentHash || "");
+      body = editorState.draft;
+      revision = editorState.draftRevision;
+      content = options.composeDocument(editorState.frontmatterPrefix, body, editorState.newline);
+      const payload = await options.writeDocument(editorState.documentId, content, editorState.contentHash);
+      return { payload, body, revision, content };
+    }
+  }
+
+  async function runSaveLoop() {
+    while (editorState.dirty && isCurrent()) {
+      editorState.saveQueued = false;
+      editorState.saveStatus = "saving";
+      editorState.saveError = "";
+      emit();
+      let result;
+      try {
+        result = await attemptSave();
+      } catch (error) {
+        if (!isCurrent()) return false;
+        editorState.saveStatus = "failed";
+        editorState.saveError = String(error && error.message ? error.message : error);
+        editorState.autoSaveBlocked = true;
+        editorState.saveQueued = false;
+        emit();
+        return false;
+      }
+      if (!isCurrent()) return false;
+      if (!result.payload || typeof result.payload.newContentHash !== "string") {
+        editorState.saveStatus = "failed";
+        editorState.saveError = "Save response did not include a new content hash.";
+        editorState.autoSaveBlocked = true;
+        emit();
+        return false;
+      }
+      editorState.contentHash = result.payload.newContentHash;
+      editorState.exactContent = result.content;
+      editorState.savedBody = result.body;
+      editorState.dirty = editorState.draft !== editorState.savedBody;
+      editorState.trailingNewline = /\\n$/.test(editorState.draft);
+      editorState.saveStatus = "saved";
+      editorState.saveError = "";
+      editorState.autoSaveBlocked = false;
+      emit();
+    }
+    return !editorState.dirty && isCurrent();
+  }
+
+  function startSave() {
+    clearSaveTimer();
+    if (!editorState.dirty || editorState.autoSaveBlocked || !isCurrent()) return editorState.saveInFlight || Promise.resolve(!editorState.dirty);
+    if (editorState.saveInFlight) {
+      editorState.saveQueued = true;
+      emit();
+      return editorState.saveInFlight;
+    }
+    const operation = runSaveLoop();
+    editorState.saveInFlight = operation;
+    operation.then((saved) => {
+      if (editorState.saveInFlight !== operation) return;
+      editorState.saveInFlight = null;
+      emit();
+      if (saved && !editorState.editing && !editorState.navigationPending) reconcile();
+    });
+    return operation;
+  }
+
+  async function flush() {
+    clearSaveTimer();
+    if (editorState.autoSaveBlocked && editorState.dirty) return false;
+    if (editorState.dirty && !editorState.saveInFlight) startSave();
+    if (editorState.saveInFlight) await editorState.saveInFlight;
+    return !editorState.dirty && editorState.saveStatus !== "failed";
+  }
+
+  function retry() {
+    if (!editorState.dirty || !isCurrent()) return Promise.resolve(true);
+    editorState.autoSaveBlocked = false;
+    editorState.saveError = "";
+    return startSave();
+  }
+
+  async function reconcile() {
+    if (!isCurrent() || editorState.dirty || editorState.editing || editorState.saveInFlight || editorState.navigationPending) return;
+    const token = ++editorState.reconcileToken;
+    const revision = editorState.draftRevision;
+    try {
+      const latest = await options.readDocument(editorState.documentId);
+      if (!isCurrent() || token !== editorState.reconcileToken || revision !== editorState.draftRevision || editorState.dirty || editorState.editing || editorState.saveInFlight || editorState.navigationPending) return;
+      const parts = options.splitDocument(String(latest.content || ""));
+      editorState.exactContent = String(latest.content || "");
+      editorState.contentHash = String(latest.contentHash || editorState.contentHash);
+      editorState.frontmatterPrefix = parts.frontmatterPrefix;
+      editorState.newline = parts.newline;
+      editorState.trailingNewline = parts.trailingNewline;
+      editorState.savedBody = parts.body;
+      editorState.draft = parts.body;
+      editorState.saveStatus = "saved";
+      emit();
+    } catch {
+      // The confirmed PUT remains saved; a later document GET can reconcile canonical frontmatter.
+    }
+  }
+
+  function hasPending() {
+    return editorState.dirty || Boolean(editorState.saveInFlight);
+  }
+
+  function cancel() {
+    clearSaveTimer();
+    editorState.cancelled = true;
+    editorState.reconcileToken += 1;
+  }
+
+  return { state: editorState, hydrate, input, setEditing, setNavigationPending, startSave, flush, retry, reconcile, hasPending, cancel };
+}
+
+function splitEditableDocument(content) {
+  const exact = String(content || "");
+  const newline = exact.includes("\\r\\n") ? "\\r\\n" : "\\n";
+  const frontmatter = exact.match(/^---(?:\\r\\n|\\n)[\\s\\S]*?(?:\\r\\n|\\n)---(?:(?:\\r\\n|\\n)|$)/);
+  const frontmatterPrefix = frontmatter ? frontmatter[0] : "";
+  const rawBody = exact.slice(frontmatterPrefix.length);
+  return {
+    frontmatterPrefix,
+    body: rawBody.replace(/\\r\\n/g, "\\n"),
+    newline,
+    trailingNewline: /(?:\\r\\n|\\n)$/.test(rawBody),
+  };
+}
+
+function composeEditableDocument(frontmatterPrefix, body, newline) {
+  const normalizedBody = String(body || "").replace(/\\r\\n/g, "\\n");
+  return String(frontmatterPrefix || "") + (newline === "\\r\\n" ? normalizedBody.replace(/\\n/g, "\\r\\n") : normalizedBody);
+}
+
+async function selectNode(node) {
   const alreadyOpen = document.body.classList.contains("panel-open");
   if (state.selected === node.id && alreadyOpen) {
-    closePanel();
-    state.selected = null;
-    document.querySelectorAll(".node.selected").forEach((el) => el.classList.remove("selected"));
+    await requestEditorNavigation(() => {
+      state.selected = null;
+      markSelectedNode(null);
+      closePanelNow();
+    });
     return;
   }
-  document.querySelectorAll(".node.selected").forEach((el) => el.classList.remove("selected"));
-  element.classList.add("selected");
-  state.selected = node.id;
+
   if (node.nodeKind === "unresolved") {
-    if (alreadyOpen) closePanel();
-    setStatus("unresolved link: " + (node.title || node.id));
+    await requestEditorNavigation(() => {
+      state.selected = node.id;
+      markSelectedNode(node.id);
+      if (alreadyOpen) closePanelNow();
+      setStatus("unresolved link: " + (node.title || node.id));
+    });
     return;
   }
-  openPanelForNode(node);
+
+  if (!isValidMemoryDocumentId(node.documentId)) {
+    await requestEditorNavigation(() => {
+      state.selected = node.id;
+      markSelectedNode(node.id);
+      if (alreadyOpen) closePanelNow();
+      setStatus("This document is missing a valid memory ID.");
+    });
+    return;
+  }
+
+  await requestEditorNavigation(async () => {
+    state.selected = node.id;
+    markSelectedNode(node.id);
+    await openPanelForNode(node);
+  });
+}
+
+function markSelectedNode(nodeId) {
+  document.querySelectorAll(".node.selected").forEach((el) => el.classList.remove("selected"));
+  if (!nodeId) return;
+  document.querySelectorAll(".node").forEach((el) => {
+    if (el.getAttribute("data-node-id") === nodeId) el.classList.add("selected");
+  });
+}
+
+async function requestEditorNavigation(action) {
+  const editor = state.editor;
+  if (!editor || !editor.hasPending()) {
+    await action();
+    return true;
+  }
+  if (editor.state.navigationPending) return false;
+  editor.setNavigationPending(true);
+  const saved = await editor.flush();
+  if (state.editor !== editor) return false;
+  if (!saved) {
+    editor.setNavigationPending(false);
+    return false;
+  }
+  await action();
+  return true;
+}
+
+function requestClosePanel() {
+  return requestEditorNavigation(() => {
+    state.selected = null;
+    markSelectedNode(null);
+    closePanelNow();
+  });
 }
 
 async function openPanelForNode(node) {
   const wasOpen = document.body.classList.contains("panel-open");
   const token = ++state.noteToken;
+  if (state.editor) state.editor.cancel();
   const docId = node.documentId;
-  if (!isValidMemoryDocumentId(docId)) {
-    if (wasOpen) closePanel();
-    setStatus("This document is missing a valid memory ID.");
-    return;
-  }
+  const editor = createDocumentEditor({
+    generation: token,
+    nodeId: node.id,
+    documentId: docId,
+    debounceMs: 750,
+    setTimer: (callback, delay) => window.setTimeout(callback, delay),
+    clearTimer: (timer) => window.clearTimeout(timer),
+    splitDocument: splitEditableDocument,
+    composeDocument: composeEditableDocument,
+    readDocument: readGraphDocument,
+    writeDocument: writeGraphDocument,
+    isCurrent: (generation, documentId) => state.noteToken === generation && state.editor === editor && editor.state.documentId === documentId,
+    onChange: syncEditorUi,
+  });
+  state.editor = editor;
   $("note-title").textContent = node.title || node.file || node.id;
   $("note-file").textContent = node.file || node.type || "Markdown memory";
   $("note-content").textContent = "loading\u2026";
+  syncEditorUi(editor.state);
   if (!wasOpen) openPanel();
   setStatus("loading");
-  const url = "/memories/all/documents/" + encodeURIComponent(docId);
-  const apiKey = apiKeyInput.value.trim();
   try {
-    const response = await fetch(url, { headers: apiKey ? { Authorization: "Bearer " + apiKey } : {} });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload?.error?.message || "Document request failed with HTTP " + response.status);
-    if (token !== state.noteToken) return;
+    const payload = await readGraphDocument(docId);
+    if (token !== state.noteToken || state.editor !== editor) return;
+    if (typeof payload.content !== "string" || typeof payload.contentHash !== "string") throw new Error("Document response is missing editable content or contentHash.");
     $("note-title").textContent = payload.title || node.title || node.file || node.id;
     $("note-file").textContent = payload.file || node.file || payload.type || "Markdown memory";
-    $("note-content").innerHTML = renderMarkdown(payload.content || "");
+    editor.hydrate(payload);
     setStatus("loaded");
   } catch (error) {
-    if (token !== state.noteToken) return;
-    closePanel();
+    if (token !== state.noteToken || state.editor !== editor) return;
+    closePanelNow();
     setStatus("error", true, String(error && error.message ? error.message : error));
   }
 }
 
 function isValidMemoryDocumentId(value) {
   return typeof value === "string" && ${MEMORY_DOCUMENT_ID_PATTERN}.test(value);
+}
+
+function enterEditing() {
+  if (!state.editor || !state.editor.state.loaded || state.editor.state.navigationPending) return;
+  $("note-editor").value = state.editor.state.draft;
+  state.editor.setEditing(true);
+  autoSizeNoteEditor();
+  $("note-editor").focus();
+}
+
+function autoSizeNoteEditor() {
+  const textarea = $("note-editor");
+  textarea.style.height = "0px";
+  textarea.style.height = Math.max(280, textarea.scrollHeight) + "px";
+}
+
+function syncEditorUi(editorState) {
+  if (!state.editor || state.editor.state !== editorState) return;
+  const loaded = editorState.loaded;
+  $("note-edit").hidden = !loaded || editorState.editing;
+  $("note-edit").disabled = editorState.navigationPending;
+  $("note-retry").hidden = editorState.saveStatus !== "failed";
+  $("note-retry").disabled = editorState.navigationPending;
+  $("note-content").hidden = editorState.editing;
+  $("note-content").classList.toggle("is-editable", loaded && !editorState.editing);
+  $("note-content").tabIndex = loaded && !editorState.editing ? 0 : -1;
+  $("note-editor-wrap").hidden = !editorState.editing;
+  $("note-editor").disabled = editorState.navigationPending;
+  if (loaded) {
+    const editableContent = composeEditableDocument(editorState.frontmatterPrefix, editorState.draft, editorState.newline);
+    if (!editorState.editing) $("note-content").innerHTML = renderMarkdown(editableContent);
+    $("note-editor-frontmatter").innerHTML = renderMarkdown(editorState.frontmatterPrefix);
+    if (editorState.editing && $("note-editor").value !== editorState.draft) $("note-editor").value = editorState.draft;
+  }
+  const feedback = editorState.saveStatus === "saving" ? "Saving\u2026"
+    : editorState.saveStatus === "failed" ? "Save failed"
+      : editorState.saveStatus === "saved" ? "Saved"
+        : editorState.editing ? "Editing" : "";
+  $("note-save-state").textContent = feedback;
+  $("note-save-state").setAttribute("data-state", editorState.saveStatus);
+  $("note-save-state").title = editorState.saveError || "";
+  if (feedback) $("note-save-state").setAttribute("aria-label", feedback + (editorState.saveError ? ": " + editorState.saveError : ""));
+  else $("note-save-state").removeAttribute("aria-label");
 }
 
 function openPanel() {
@@ -489,10 +927,18 @@ function openPanel() {
   if (closeBtn && typeof closeBtn.focus === "function") closeBtn.focus();
 }
 
-function closePanel() {
+function closePanelNow() {
+  state.noteToken += 1;
+  if (state.editor) state.editor.cancel();
+  state.editor = null;
   document.body.classList.remove("panel-open");
   $("note-panel").setAttribute("data-closed", "");
   $("note-panel").setAttribute("aria-hidden", "true");
+  $("note-edit").hidden = true;
+  $("note-retry").hidden = true;
+  $("note-save-state").textContent = "";
+  $("note-editor-wrap").hidden = true;
+  $("note-content").hidden = false;
   queueGraphLayout(340);
 }
 
@@ -559,7 +1005,7 @@ function renderMarkdown(md) {
   }
   closeList(); flushPara();
   let fmHtml = "";
-  if (frontmatter) fmHtml = "<details class=\\"frontmatter\\"><summary>frontmatter</summary><pre>" + escapeHtml(frontmatter) + "</pre></details>";
+  if (frontmatter) fmHtml = "<details class=\\"note-frontmatter\\"><summary>frontmatter</summary><pre>" + escapeHtml(frontmatter) + "</pre></details>";
   return fmHtml + html;
 }
 

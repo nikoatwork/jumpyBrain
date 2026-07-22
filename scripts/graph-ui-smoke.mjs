@@ -2,6 +2,7 @@
 //   npx --package=playwright node scripts/graph-ui-smoke.mjs
 // Env: JUMPYBRAIN_GRAPH_SMOKE_URL, JUMPYBRAIN_GRAPH_SMOKE_API_KEY
 import assert from "node:assert/strict";
+import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
 
 const url = process.env.JUMPYBRAIN_GRAPH_SMOKE_URL;
 const apiKey = process.env.JUMPYBRAIN_GRAPH_SMOKE_API_KEY;
@@ -13,10 +14,9 @@ if (!url || !apiKey) {
 
 let chromium;
 try {
-  const require = (await import("node:module")).default.createRequire(import.meta.url);
-  chromium = require("playwright").chromium;
-} catch {
-  console.error("playwright is not installed. Run: npx playwright install chromium");
+  chromium = await loadPlaywrightChromium();
+} catch (error) {
+  console.error(error.message);
   process.exit(2);
 }
 

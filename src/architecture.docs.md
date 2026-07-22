@@ -59,7 +59,7 @@ core canonical link extraction, normalization, lookup, and target resolution
   -> app/local-memory graph assembly and local overview connection summaries
   -> runtime graphMemory public local API
   -> app/server-memory remote-safe graph packet
-  -> HTTP server graph shell and JSON protocol routes
+  -> HTTP server graph shell, client-side document reader/editor, and JSON protocol routes
 ```
 
-Core owns link semantics but not graph presentation. App code assembles document nodes and edges, then removes local-root details for remote packets. Runtime exposes the local operation. The HTTP adapter owns query parsing, authentication, JSON responses, and the content-free browser shell.
+Core owns link semantics but not graph presentation. App code assembles document nodes and edges, then removes local-root details for remote packets. Runtime exposes the local operation. The HTTP adapter owns query parsing, authentication, JSON responses, and the content-free browser shell, including dependency-free reader/editor state that composes the existing document GET/PUT protocol. Browser editing must not move canonical Markdown, protected-frontmatter, or optimistic-concurrency policy out of core/app seams.

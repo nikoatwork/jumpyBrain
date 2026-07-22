@@ -289,7 +289,13 @@ Remote overview output must never expose the server's absolute filesystem root o
 
 ### `GET /graph`
 
-Unauthenticated static browser shell for visualizing the graph. The page itself is content-free and prompts for an API key, then fetches authenticated graph data from `/memories/all/graph.json` with `Authorization: Bearer <api-key>`. For local-only smoke testing, the API key can be supplied in the URL fragment as `/graph#apiKey=<key>`; fragments are not sent to the server.
+Unauthenticated static browser shell for visualizing and editing graph notes. The page itself is content-free and prompts for an API key, then fetches graph/document data with `Authorization: Bearer <api-key>`. For local-only smoke testing, the API key can be supplied in the URL fragment as `/graph#apiKey=<key>`; fragments are not sent to the server.
+
+Selecting an ID-bearing canonical document opens its rendered Markdown. Click the body or use **Edit Markdown** to edit the body in a plain-text textarea; leading frontmatter remains collapsed and read-only. The browser autosaves after 750 ms of inactivity and on blur, displays `Saving…`, `Saved`, or `Save failed`, and retains failed drafts for manual retry. Each save reconstructs the whole document and uses the existing authenticated `PUT /memories/all/documents/:id` contract with `If-Match`; no PATCH or block-storage model is involved. The backend may canonicalize protected frontmatter independently.
+
+V1 uses a temporary last-write-wins policy: after one `412 precondition_failed`, the browser fetches the latest document, preserves its frontmatter, reapplies the local body, and retries once. A second conflict stops with `Save failed`; visible merge/conflict UX is deferred. Graph nodes, titles, and links remain the loaded snapshot after a body save, so use **Refresh map** to display body-derived graph changes.
+
+The resettable public demo is intended to be a writable sandbox for anyone the deployment currently admits. Unauthenticated browser writes, rate limits, and reseeding are deployment hardening concerns rather than alternate editor or storage behavior.
 
 ### `GET /memories/all/graph.json`
 
@@ -314,7 +320,9 @@ Response nodes use root-relative file IDs for Markdown documents plus virtual `u
 - `JUMPYBRAIN_GRAPH_SMOKE_URL` — base URL of the running jumpyBrain server (e.g. `http://localhost:5173`).
 - `JUMPYBRAIN_GRAPH_SMOKE_API_KEY` — a valid server API key; passed to the page via the `#apiKey=` fragment (not sent to the server).
 
-The script verifies the graph loads, renders SVG nodes/edges, and that a text-filter reload keeps the graph ready. On failure it writes `scripts/graph-ui-smoke-failure.png`.
+The script verifies the graph loads, renders SVG nodes/edges, and that a text-filter reload keeps the graph ready. It does not edit an arbitrary live note. On failure it writes `scripts/graph-ui-smoke-failure.png`.
+
+`npm run smoke:graph-editor` starts an isolated server over a disposable memory root, edits one known ID-bearing fixture through desktop and mobile browser viewports, waits for autosave, and rereads the persisted Markdown. Use this smoke for writable editor validation; it never targets a live memory root.
 
 ### `POST /memories/all/search`
 
