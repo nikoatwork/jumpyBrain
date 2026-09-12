@@ -56,7 +56,21 @@ JUMPYBRAIN_API_KEY='<same-private-secret>' \
 
 `GET /health` is intentionally unauthenticated and contains no memory content. Every `/memories/all/...` endpoint requires a bearer key.
 
-## 4. Connect an installed CLI
+## 4. Use the minimal web editor
+
+Open the server root in a browser:
+
+```text
+https://memory.example.com/
+```
+
+The home is intentionally almost empty. Press **Cmd+K** on macOS or **Ctrl+K** elsewhere (or use the visible search invitation on touch devices), enter the same private API key when prompted, and search indexed note titles and bodies. Choosing a result opens a reloadable `/?note=mem_<uuid>` URL with a full-page raw Markdown body editor. Titles, metadata, and frontmatter are read-only; body changes autosave through the authenticated document `GET`/`PUT` protocol. Never put the API key in the note query string or a shared link.
+
+`/graph` remains available as a secondary explicit-link map. Neither the almost-empty home nor the HTML shell embeds note content or credentials, and the browser UI adds no frontend runtime dependency or separate deployment service.
+
+Autosave and search indexing are separate: a saved document marks the derived index stale, and new text may not appear in search until indexing succeeds (checks run every five minutes by default; that is not a freshness guarantee). The current conflict behavior is intentionally bounded last-write-wins debt: after one stale-hash response the browser reapplies the local body over fresh protected frontmatter and retries once; another conflict stops and requires an explicit retry.
+
+## 5. Connect an installed CLI
 
 Keep the client key in the CLI process environment and provide the server base URL:
 
@@ -70,7 +84,7 @@ jumpybrain recall --target-url https://memory.example.com --topic "current proje
 
 An installer-created CLI can mark a remote origin read-only in device-local `cli-config.json`. That is accidental-write protection, not server authorization. Enforce access at the server or reverse proxy.
 
-## 5. Verify the deployment
+## 6. Verify the deployment
 
 ```bash
 curl -fsS https://memory.example.com/health

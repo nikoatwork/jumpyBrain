@@ -31,7 +31,8 @@ export async function routeRequest(context: { request: IncomingMessage; response
     return;
   }
 
-  if (request.method === "GET" && (url.pathname === "/graph" || url.pathname === "/graph/")) {
+  const browserShellPath = url.pathname === "/" || url.pathname === "/graph" || url.pathname === "/graph/";
+  if (request.method === "GET" && browserShellPath) {
     const nonce = randomBytes(16).toString("base64url");
     const contentSecurityPolicy = `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
     writeHtml(response, 200, graphPageHtml(nonce), {
@@ -41,8 +42,9 @@ export async function routeRequest(context: { request: IncomingMessage; response
     return;
   }
 
-  if (url.pathname === "/graph" || url.pathname === "/graph/") {
-    writeJson(response, 405, errorResponse("method_not_allowed", "Use GET for /graph."));
+  if (browserShellPath) {
+    const route = url.pathname === "/" ? "/" : "/graph";
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${route}.`));
     return;
   }
 

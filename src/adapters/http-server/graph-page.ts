@@ -1,4 +1,5 @@
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
+import { notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
 
 export function graphPageHtml(nonce: string): string {
   if (!/^[A-Za-z0-9_-]+$/.test(nonce)) throw new Error("graph page nonce must be base64url-safe");
@@ -7,7 +8,7 @@ export function graphPageHtml(nonce: string): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>jumpyBrain Graph</title>
+  <title>jumpyBrain</title>
   <style nonce="${nonce}">
     /* jumpyBrain UI foundation: shared color, type, spacing, radius and elevation tokens. */
     :root {
@@ -39,14 +40,13 @@ export function graphPageHtml(nonce: string): string {
       --radius-md: 12px;
       --radius-lg: 18px;
       --ease: cubic-bezier(.2, .8, .2, 1);
-      --panel-width: clamp(390px, 38vw, 620px);
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body { margin: 0; overflow: hidden; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--cream-100); color: var(--ink); -webkit-font-smoothing: antialiased; }
     button, input, textarea { font: inherit; }
     button { cursor: pointer; }
-    button:focus-visible, input:focus-visible, textarea:focus-visible, #note-content:focus-visible { outline: 3px solid rgba(76, 130, 107, .24); outline-offset: 2px; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid rgba(76, 130, 107, .24); outline-offset: 2px; }
     [hidden] { display: none !important; }
 
     /* Reusable application shell. */
@@ -62,9 +62,6 @@ export function graphPageHtml(nonce: string): string {
     .view-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--sage-200); border-radius: 999px; background: var(--sage-100); color: var(--forest-800); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
     .brand-copy p { margin: 3px 0 0; color: var(--ink-faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-    .key-field { position: relative; display: flex; align-items: center; }
-    .key-field svg { position: absolute; left: 11px; width: 14px; height: 14px; color: var(--ink-faint); pointer-events: none; }
-    .key-field input { width: 174px; padding-left: 32px; }
     .status-pill { min-width: 78px; max-width: 220px; height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; overflow: hidden; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.66); color: var(--ink-soft); font-size: 12px; font-weight: 650; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
     .status-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--sage-500); box-shadow: 0 0 0 3px rgba(129,156,122,.14); }
     .status-pill[data-state="loading"]::before { background: var(--gold); animation: pulse 1s ease-in-out infinite; }
@@ -101,7 +98,7 @@ export function graphPageHtml(nonce: string): string {
     .icon-button { width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(255,255,255,.72); color: var(--forest-800); }
     .icon-button:hover { border-color: var(--line-strong); background: var(--white); }
 
-    main { display: flex; height: calc(100vh - 131px); min-height: 0; }
+    main { display: flex; min-height: 0; }
     #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--cream-100); transition: flex-basis .32s var(--ease); }
     #graph { width: 100%; height: 100%; cursor: grab; background-color: var(--cream-100); background-image: radial-gradient(circle at 52% 47%, rgba(255,255,255,.95) 0, rgba(253,252,247,.45) 32%, rgba(233,238,226,.36) 72%), radial-gradient(rgba(32,70,54,.12) .7px, transparent .7px); background-size: 100% 100%, 19px 19px; }
     #graph:active { cursor: grabbing; }
@@ -138,47 +135,6 @@ export function graphPageHtml(nonce: string): string {
     .node:hover circle, .node.selected circle { stroke: var(--gold); stroke-width: 4; filter: drop-shadow(0 3px 6px rgba(23,55,43,.26)); }
     .node.selected text { fill: var(--forest-950); font-weight: 760; }
 
-    #note-panel { flex: 0 0 0; width: 0; min-width: 0; overflow: hidden; border-left: 1px solid var(--line); background: var(--cream-50); box-shadow: -16px 0 38px rgba(23,55,43,0); transition: flex-basis .32s var(--ease), width .32s var(--ease), box-shadow .32s ease; }
-    body.panel-open #note-panel { flex-basis: var(--panel-width); width: var(--panel-width); box-shadow: -16px 0 38px rgba(23,55,43,.08); }
-    .panel-inner { display: flex; flex-direction: column; height: 100%; width: var(--panel-width); transform: translateX(100%); opacity: .5; transition: transform .32s var(--ease), opacity .24s ease; }
-    body.panel-open .panel-inner { transform: translateX(0); opacity: 1; }
-    .panel-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 16px; padding: 24px 24px 18px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, rgba(233,238,226,.68), rgba(253,252,247,0)); }
-    .panel-head h2 { margin: 0; overflow: hidden; color: var(--forest-950); font: 700 22px/1.2 ui-serif, Georgia, Cambria, "Times New Roman", serif; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
-    .panel-meta { margin: 6px 0 0; color: var(--ink-faint); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    #note-close { margin-top: 2px; }
-    .panel-edit-bar { min-height: 45px; display: flex; align-items: center; gap: 10px; padding: 7px 24px; border-bottom: 1px solid var(--line); background: rgba(247,244,233,.55); }
-    .panel-edit-bar .button { height: 30px; padding-inline: 11px; }
-    .edit-button { margin-right: auto; border-color: var(--line); background: var(--white); color: var(--forest-800); }
-    .save-state { min-width: 70px; color: var(--ink-faint); font-size: 11px; font-weight: 700; text-align: right; }
-    .save-state[data-state="saving"] { color: var(--gold); }
-    .save-state[data-state="failed"] { color: #8b4434; }
-    .retry-button { border-color: rgba(186,105,83,.28); background: #fff8f4; color: #8b4434; }
-    #note-content { overflow: auto; flex: 1; padding: 24px clamp(24px, 4vw, 52px) 60px; color: #30463a; font: 15px/1.72 ui-serif, Georgia, Cambria, "Times New Roman", serif; word-wrap: break-word; overflow-wrap: anywhere; scrollbar-color: var(--sage-300) transparent; }
-    #note-content.is-editable { cursor: text; }
-    #note-content > :first-child { margin-top: 0; }
-    #note-editor-wrap { min-height: 0; overflow: auto; flex: 1; padding: 20px clamp(18px, 3vw, 40px) 60px; scrollbar-color: var(--sage-300) transparent; }
-    #note-editor-frontmatter { margin-bottom: 14px; }
-    #note-editor { display: block; width: 100%; min-height: 280px; padding: 16px; resize: none; overflow-x: auto; border: 1px solid var(--sage-300); border-radius: var(--radius-md); background: var(--white); color: var(--ink); box-shadow: inset 0 1px 2px rgba(23,55,43,.05); font: 14px/1.62 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; white-space: pre; }
-    #note-editor:focus { border-color: var(--forest-600); box-shadow: 0 0 0 3px rgba(76,130,107,.1); outline: 0; }
-    #note-content h1, #note-content h2, #note-content h3, #note-content h4 { color: var(--forest-950); line-height: 1.25; margin: 1.55em 0 .5em; letter-spacing: -.018em; }
-    #note-content h1 { font-size: 1.7rem; }
-    #note-content h2 { padding-bottom: .25em; border-bottom: 1px solid var(--line); font-size: 1.35rem; }
-    #note-content h3 { font-size: 1.12rem; }
-    #note-content h4, #note-content h5, #note-content h6 { font-size: .95rem; color: var(--ink-soft); }
-    #note-content p { margin: .75em 0; }
-    #note-content ul, #note-content ol { margin: .7em 0; padding-left: 1.45rem; }
-    #note-content li { margin: .28em 0; padding-left: .16em; }
-    #note-content li::marker { color: var(--forest-600); }
-    #note-content a { color: var(--forest-700); text-decoration-color: var(--sage-300); text-underline-offset: 3px; }
-    #note-content code { padding: .15em .35em; border: 1px solid var(--line); border-radius: 5px; background: var(--sage-100); color: var(--forest-900); font: .82em/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-    #note-content pre { margin: 1em 0; padding: 14px 16px; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--forest-950); color: var(--cream-100); box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
-    #note-content pre code { padding: 0; border: 0; background: none; color: inherit; }
-    #note-content blockquote { margin: 1em 0; padding: .25em 1em; border-left: 3px solid var(--gold); background: linear-gradient(90deg, rgba(184,137,69,.08), transparent); color: var(--ink-soft); }
-    #note-content hr { margin: 1.6em 0; border: 0; border-top: 1px solid var(--line-strong); }
-    .note-frontmatter { margin: 0 0 1.25em; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(233,238,226,.45); }
-    .note-frontmatter summary { padding: 8px 11px; color: var(--ink-faint); cursor: pointer; font: 700 10px/1.4 ui-sans-serif, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
-    .note-frontmatter pre { margin: 0 8px 8px; padding: 14px 16px; overflow: auto; border-radius: var(--radius-sm); background: var(--forest-950); color: var(--cream-200); font: .75em/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-
     @media (max-width: 980px) {
       .topbar { padding-inline: 16px; }
       .brand-copy p { display: none; }
@@ -186,34 +142,26 @@ export function graphPageHtml(nonce: string): string {
       #query { width: 220px; }
       #focus { width: 200px; }
       .legend { display: none; }
-      main { height: calc(100vh - 131px); }
     }
     @media (max-width: 680px) {
-      :root { --panel-width: 100vw; }
       .brand-copy { display: none; }
       .header-actions { gap: 6px; }
-      .key-field input { width: 124px; }
       .topbar { min-height: 60px; padding-block: 10px; }
       .brand-mark { width: 36px; height: 36px; }
       .toolbar { min-height: 58px; }
-      main { height: calc(100vh - 119px); }
-      #note-panel { position: absolute; z-index: 20; inset: 119px 0 0 auto; border-left: 0; }
-      body.panel-open #note-panel { width: 100vw; }
       .node.show-label:not(:hover):not(:focus):not(.selected) text { opacity: 0; }
       .canvas-intro p, .helper { display: none; }
       .canvas-intro h2 { font-size: 17px; }
-      .panel-head { padding: 18px 18px 14px; }
-      .panel-edit-bar { padding-inline: 18px; }
-      #note-content, #note-editor-wrap { padding-inline: 18px; }
-      #note-editor { min-height: 220px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
+    ${notesStyles}
   </style>
 </head>
-<body>
-<header>
+<body data-view="home">
+${notesMarkup}
+<header id="graph-header">
   <div class="topbar">
     <div class="brand">
       <div class="brand-mark" aria-hidden="true">
@@ -228,19 +176,15 @@ export function graphPageHtml(nonce: string): string {
       </div>
     </div>
     <div class="header-actions">
-      <label class="key-field" aria-label="API key">
-        <svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="12" r="3.5" stroke="currentColor" stroke-width="1.8"/><path d="m11.5 12 7.5 0m-2.5 0v2.5m-2.5-2.5v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <input id="api-key" data-testid="api-key" type="password" placeholder="Access key" autocomplete="off" />
-      </label>
       <span id="status" data-testid="graph-status" class="status-pill" data-state="ready">ready</span>
     </div>
   </div>
   <div class="toolbar" aria-label="Graph filters">
     <div class="toolbar-group">
       <label class="field">
-        <span class="field-label">Search</span>
+        <span class="field-label">Filter map</span>
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <input id="query" data-testid="graph-query" placeholder="Find text or topic…" />
+        <input id="query" data-testid="graph-query" placeholder="Filter titles or tags…" />
       </label>
       <label class="field">
         <span class="field-label">Focus</span>
@@ -270,7 +214,7 @@ export function graphPageHtml(nonce: string): string {
       <div class="canvas-intro">
         <p class="eyebrow">Knowledge landscape</p>
         <h2>Explore your memory</h2>
-        <p>Select a node to read or edit its Markdown. Saved body changes appear in the map after Refresh map.</p>
+        <p>Select a note to open its full-page Markdown editor. Refresh map to see saved link changes.</p>
       </div>
       <div class="legend" aria-label="Graph legend">
         <span class="legend-item"><i class="legend-dot"></i>Memory</span>
@@ -289,71 +233,33 @@ export function graphPageHtml(nonce: string): string {
         <button id="zoom-in" class="icon-button" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" fill="none"><path d="M12 7v10m-5-5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </div>
     </div>
-    <span class="helper">Scroll to zoom · Drag to pan · Esc to close</span>
+    <span class="helper">Scroll to zoom · Drag to pan</span>
   </section>
-  <aside id="note-panel" data-closed data-testid="graph-note-panel" aria-hidden="true">
-    <div class="panel-inner">
-      <div class="panel-head">
-        <div>
-          <p class="eyebrow">Memory note</p>
-          <h2 id="note-title" data-testid="graph-note-title"></h2>
-          <p id="note-file" class="panel-meta"></p>
-        </div>
-        <button id="note-close" data-testid="graph-note-close" class="icon-button" aria-label="Close note" title="Close note">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </button>
-      </div>
-      <div class="panel-edit-bar">
-        <button id="note-edit" data-testid="graph-note-edit" class="button edit-button" hidden>Edit Markdown</button>
-        <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" data-state="idle" role="status" aria-live="polite"></span>
-        <button id="note-retry" data-testid="graph-note-retry" class="button retry-button" hidden>Retry save</button>
-      </div>
-      <div id="note-content" data-testid="graph-note-content"></div>
-      <div id="note-editor-wrap" hidden>
-        <div id="note-editor-frontmatter"></div>
-        <textarea id="note-editor" data-testid="graph-note-editor" aria-label="Markdown note body" spellcheck="true"></textarea>
-      </div>
-    </div>
-  </aside>
+  ${notesViews}
 </main>
 <script nonce="${nonce}">
 const $ = (id) => document.getElementById(id);
-const state = { graph: null, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
+const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const apiKeyInput = $("api-key");
 const hashKey = new URLSearchParams(location.hash.replace(/^#/, "")).get("apiKey");
-apiKeyInput.value = hashKey || localStorage.getItem("jumpybrain.graph.apiKey") || "";
-if (hashKey) history.replaceState(null, "", location.pathname + location.search);
+try { apiKeyInput.value = localStorage.getItem("jumpybrain.graph.apiKey") || ""; } catch { /* Browser storage may be disabled. */ }
+if (hashKey) {
+  apiKeyInput.value = hashKey;
+  try { localStorage.setItem("jumpybrain.graph.apiKey", hashKey); } catch { /* Session-only access. */ }
+  history.replaceState(history.state, "", location.pathname + location.search);
+}
 
 $("reload").addEventListener("click", loadGraph);
 for (const id of ["query", "focus", "depth", "include-unresolved", "include-orphans"]) $(id).addEventListener("change", loadGraph);
 for (const id of ["query", "focus"]) $(id).addEventListener("keydown", (event) => { if (event.key === "Enter") loadGraph(); });
-apiKeyInput.addEventListener("change", () => localStorage.setItem("jumpybrain.graph.apiKey", apiKeyInput.value));
-$("note-close").addEventListener("click", () => requestClosePanel());
-$("note-edit").addEventListener("click", enterEditing);
 $("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
-$("note-content").addEventListener("click", (event) => {
-  if (!state.editor || !state.editor.state.loaded || event.target.closest("a, button, summary, details, input, textarea")) return;
-  enterEditing();
-});
-$("note-content").addEventListener("keydown", (event) => {
-  if (event.target.closest("a, button, summary, details, input, textarea")) return;
-  if ((event.key === "Enter" || event.key === " ") && state.editor && state.editor.state.loaded) {
-    event.preventDefault();
-    enterEditing();
-  }
-});
 $("note-editor").addEventListener("input", () => {
   if (!state.editor) return;
   state.editor.input($("note-editor").value);
   autoSizeNoteEditor();
 });
 $("note-editor").addEventListener("blur", () => {
-  if (!state.editor) return;
-  state.editor.setEditing(false);
-  state.editor.flush();
-});
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && document.body.classList.contains("panel-open")) requestClosePanel();
+  if (state.editor) state.editor.flush();
 });
 window.addEventListener("beforeunload", protectPendingEditorUnload);
 
@@ -425,27 +331,28 @@ function setStatus(text, isError, errorText) {
 }
 
 async function loadGraph() {
+  const token = ++state.graphToken;
   setStatus("loading");
   $("ready").hidden = true;
   $("reload").disabled = true;
-  const apiKey = apiKeyInput.value.trim();
-  if (apiKey) localStorage.setItem("jumpybrain.graph.apiKey", apiKey);
   try {
     const payload = await graphJson(graphUrl());
+    if (token !== state.graphToken) return;
     state.graph = payload;
-    render(payload);
+    if (state.view === "graph") render(payload);
     setStatus("loaded");
     $("ready").hidden = false;
     window.__jumpyBrainGraphReady = true;
   } catch (error) {
+    if (token !== state.graphToken) return;
     setStatus("error", true, String(error && error.message ? error.message : error));
     window.__jumpyBrainGraphReady = false;
   } finally {
-    $("reload").disabled = false;
+    if (token === state.graphToken) $("reload").disabled = false;
   }
 }
 
-function render(graph) {
+function render(graph, preserveView) {
   const svg = $("graph");
   const viewport = $("viewport");
   viewport.replaceChildren();
@@ -503,8 +410,7 @@ function render(graph) {
     g.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectNode(node, g); } });
     viewport.append(g);
   }
-  state.pan = { x: 0, y: 0 };
-  state.scale = 1;
+  if (!preserveView) { state.pan = { x: 0, y: 0 }; state.scale = 1; }
   updateViewport();
 }
 
@@ -537,6 +443,7 @@ function createDocumentEditor(options) {
     editing: false,
     navigationPending: false,
     autoSaveBlocked: false,
+    unconfirmedSave: false,
     reconcileToken: 0,
     cancelled: false,
   };
@@ -563,6 +470,7 @@ function createDocumentEditor(options) {
     editorState.saveError = "";
     editorState.loaded = true;
     editorState.autoSaveBlocked = false;
+    editorState.unconfirmedSave = false;
     emit();
   }
 
@@ -580,7 +488,7 @@ function createDocumentEditor(options) {
     editorState.draft = String(value).replace(/\\r\\n/g, "\\n");
     editorState.trailingNewline = /\\n$/.test(editorState.draft);
     editorState.draftRevision += 1;
-    editorState.dirty = editorState.draft !== editorState.savedBody;
+    editorState.dirty = editorState.draft !== editorState.savedBody || editorState.unconfirmedSave;
     if (editorState.saveInFlight) editorState.saveQueued = true;
     if (editorState.autoSaveBlocked) {
       editorState.saveStatus = "failed";
@@ -645,6 +553,10 @@ function createDocumentEditor(options) {
         editorState.saveStatus = "failed";
         editorState.saveError = String(error && error.message ? error.message : error);
         editorState.autoSaveBlocked = true;
+        // A failed response may hide a committed write. Even undoing to the previous
+        // body needs an explicit retry before we can confirm persistence or leave.
+        editorState.unconfirmedSave = true;
+        editorState.dirty = true;
         editorState.saveQueued = false;
         emit();
         return false;
@@ -654,17 +566,21 @@ function createDocumentEditor(options) {
         editorState.saveStatus = "failed";
         editorState.saveError = "Save response did not include a new content hash.";
         editorState.autoSaveBlocked = true;
+        editorState.unconfirmedSave = true;
+        editorState.dirty = true;
         emit();
         return false;
       }
       editorState.contentHash = result.payload.newContentHash;
       editorState.exactContent = result.content;
       editorState.savedBody = result.body;
+      editorState.unconfirmedSave = false;
       editorState.dirty = editorState.draft !== editorState.savedBody;
       editorState.trailingNewline = /\\n$/.test(editorState.draft);
       editorState.saveStatus = "saved";
       editorState.saveError = "";
       editorState.autoSaveBlocked = false;
+      if (options.onSaved) options.onSaved(result.payload);
       emit();
     }
     return !editorState.dirty && isCurrent();
@@ -684,7 +600,7 @@ function createDocumentEditor(options) {
       if (editorState.saveInFlight !== operation) return;
       editorState.saveInFlight = null;
       emit();
-      if (saved && !editorState.editing && !editorState.navigationPending) reconcile();
+      if (saved && (!editorState.editing || options.persistentEditing) && !editorState.navigationPending) reconcile();
     });
     return operation;
   }
@@ -705,13 +621,16 @@ function createDocumentEditor(options) {
   }
 
   async function reconcile() {
-    if (!isCurrent() || editorState.dirty || editorState.editing || editorState.saveInFlight || editorState.navigationPending) return;
+    if (!isCurrent() || editorState.dirty || (editorState.editing && !options.persistentEditing) || editorState.saveInFlight || editorState.navigationPending) return;
     const token = ++editorState.reconcileToken;
     const revision = editorState.draftRevision;
     try {
       const latest = await options.readDocument(editorState.documentId);
-      if (!isCurrent() || token !== editorState.reconcileToken || revision !== editorState.draftRevision || editorState.dirty || editorState.editing || editorState.saveInFlight || editorState.navigationPending) return;
+      if (!isCurrent() || token !== editorState.reconcileToken || revision !== editorState.draftRevision || editorState.dirty || (editorState.editing && !options.persistentEditing) || editorState.saveInFlight || editorState.navigationPending) return;
       const parts = options.splitDocument(String(latest.content || ""));
+      // A persistent editor must never replace its body/caret with another writer's version.
+      // Leave its previous hash intact so the next write goes through the explicit conflict policy.
+      if (options.persistentEditing && parts.body !== editorState.draft) return;
       editorState.exactContent = String(latest.content || "");
       editorState.contentHash = String(latest.contentHash || editorState.contentHash);
       editorState.frontmatterPrefix = parts.frontmatterPrefix;
@@ -759,54 +678,20 @@ function composeEditableDocument(frontmatterPrefix, body, newline) {
 }
 
 async function selectNode(node) {
-  const alreadyOpen = document.body.classList.contains("panel-open");
-  if (state.selected === node.id && alreadyOpen) {
-    await requestEditorNavigation(() => {
-      state.selected = null;
-      markSelectedNode(null);
-      closePanelNow();
-    });
-    return;
-  }
-
   if (node.nodeKind === "unresolved") {
-    await requestEditorNavigation(() => {
-      state.selected = node.id;
-      markSelectedNode(node.id);
-      if (alreadyOpen) closePanelNow();
-      setStatus("unresolved link: " + (node.title || node.id));
-    });
+    setStatus("unresolved link: " + (node.title || node.id));
     return;
   }
-
   if (!isValidMemoryDocumentId(node.documentId)) {
-    await requestEditorNavigation(() => {
-      state.selected = node.id;
-      markSelectedNode(node.id);
-      if (alreadyOpen) closePanelNow();
-      setStatus("This document is missing a valid memory ID.");
-    });
+    setStatus("This document is missing a valid memory ID.");
     return;
   }
-
-  await requestEditorNavigation(async () => {
-    state.selected = node.id;
-    markSelectedNode(node.id);
-    await openPanelForNode(node);
-  });
-}
-
-function markSelectedNode(nodeId) {
-  document.querySelectorAll(".node.selected").forEach((el) => el.classList.remove("selected"));
-  if (!nodeId) return;
-  document.querySelectorAll(".node").forEach((el) => {
-    if (el.getAttribute("data-node-id") === nodeId) el.classList.add("selected");
-  });
+  if (await navigation.navigate("/?note=" + encodeURIComponent(node.documentId))) state.selected = node.id;
 }
 
 async function requestEditorNavigation(action) {
   const editor = state.editor;
-  if (!editor || !editor.hasPending()) {
+  if (!editor) {
     await action();
     return true;
   }
@@ -819,133 +704,27 @@ async function requestEditorNavigation(action) {
     return false;
   }
   await action();
+  // Keep the editor read-only until the approved route is applied, including history replay.
   return true;
-}
-
-function requestClosePanel() {
-  return requestEditorNavigation(() => {
-    state.selected = null;
-    markSelectedNode(null);
-    closePanelNow();
-  });
-}
-
-async function openPanelForNode(node) {
-  const wasOpen = document.body.classList.contains("panel-open");
-  const token = ++state.noteToken;
-  if (state.editor) state.editor.cancel();
-  const docId = node.documentId;
-  const editor = createDocumentEditor({
-    generation: token,
-    nodeId: node.id,
-    documentId: docId,
-    debounceMs: 750,
-    setTimer: (callback, delay) => window.setTimeout(callback, delay),
-    clearTimer: (timer) => window.clearTimeout(timer),
-    splitDocument: splitEditableDocument,
-    composeDocument: composeEditableDocument,
-    readDocument: readGraphDocument,
-    writeDocument: writeGraphDocument,
-    isCurrent: (generation, documentId) => state.noteToken === generation && state.editor === editor && editor.state.documentId === documentId,
-    onChange: syncEditorUi,
-  });
-  state.editor = editor;
-  $("note-title").textContent = node.title || node.file || node.id;
-  $("note-file").textContent = node.file || node.type || "Markdown memory";
-  $("note-content").textContent = "loading\u2026";
-  syncEditorUi(editor.state);
-  if (!wasOpen) openPanel();
-  setStatus("loading");
-  try {
-    const payload = await readGraphDocument(docId);
-    if (token !== state.noteToken || state.editor !== editor) return;
-    if (typeof payload.content !== "string" || typeof payload.contentHash !== "string") throw new Error("Document response is missing editable content or contentHash.");
-    $("note-title").textContent = payload.title || node.title || node.file || node.id;
-    $("note-file").textContent = payload.file || node.file || payload.type || "Markdown memory";
-    editor.hydrate(payload);
-    setStatus("loaded");
-  } catch (error) {
-    if (token !== state.noteToken || state.editor !== editor) return;
-    closePanelNow();
-    setStatus("error", true, String(error && error.message ? error.message : error));
-  }
 }
 
 function isValidMemoryDocumentId(value) {
   return typeof value === "string" && ${MEMORY_DOCUMENT_ID_PATTERN}.test(value);
 }
 
-function enterEditing() {
-  if (!state.editor || !state.editor.state.loaded || state.editor.state.navigationPending) return;
-  $("note-editor").value = state.editor.state.draft;
-  state.editor.setEditing(true);
-  autoSizeNoteEditor();
-  $("note-editor").focus();
-}
-
 function autoSizeNoteEditor() {
   const textarea = $("note-editor");
+  const panel = $("note-panel");
+  const scroll = panel.scrollTop;
   textarea.style.height = "0px";
   textarea.style.height = Math.max(280, textarea.scrollHeight) + "px";
-}
-
-function syncEditorUi(editorState) {
-  if (!state.editor || state.editor.state !== editorState) return;
-  const loaded = editorState.loaded;
-  $("note-edit").hidden = !loaded || editorState.editing;
-  $("note-edit").disabled = editorState.navigationPending;
-  $("note-retry").hidden = editorState.saveStatus !== "failed";
-  $("note-retry").disabled = editorState.navigationPending;
-  $("note-content").hidden = editorState.editing;
-  $("note-content").classList.toggle("is-editable", loaded && !editorState.editing);
-  $("note-content").tabIndex = loaded && !editorState.editing ? 0 : -1;
-  $("note-editor-wrap").hidden = !editorState.editing;
-  $("note-editor").disabled = editorState.navigationPending;
-  if (loaded) {
-    const editableContent = composeEditableDocument(editorState.frontmatterPrefix, editorState.draft, editorState.newline);
-    if (!editorState.editing) $("note-content").innerHTML = renderMarkdown(editableContent);
-    $("note-editor-frontmatter").innerHTML = renderMarkdown(editorState.frontmatterPrefix);
-    if (editorState.editing && $("note-editor").value !== editorState.draft) $("note-editor").value = editorState.draft;
-  }
-  const feedback = editorState.saveStatus === "saving" ? "Saving\u2026"
-    : editorState.saveStatus === "failed" ? "Save failed"
-      : editorState.saveStatus === "saved" ? "Saved"
-        : editorState.editing ? "Editing" : "";
-  $("note-save-state").textContent = feedback;
-  $("note-save-state").setAttribute("data-state", editorState.saveStatus);
-  $("note-save-state").title = editorState.saveError || "";
-  if (feedback) $("note-save-state").setAttribute("aria-label", feedback + (editorState.saveError ? ": " + editorState.saveError : ""));
-  else $("note-save-state").removeAttribute("aria-label");
-}
-
-function openPanel() {
-  document.body.classList.add("panel-open");
-  $("note-panel").removeAttribute("data-closed");
-  $("note-panel").setAttribute("aria-hidden", "false");
-  queueGraphLayout(340);
-  const closeBtn = $("note-close");
-  if (closeBtn && typeof closeBtn.focus === "function") closeBtn.focus();
-}
-
-function closePanelNow() {
-  state.noteToken += 1;
-  if (state.editor) state.editor.cancel();
-  state.editor = null;
-  document.body.classList.remove("panel-open");
-  $("note-panel").setAttribute("data-closed", "");
-  $("note-panel").setAttribute("aria-hidden", "true");
-  $("note-edit").hidden = true;
-  $("note-retry").hidden = true;
-  $("note-save-state").textContent = "";
-  $("note-editor-wrap").hidden = true;
-  $("note-content").hidden = false;
-  queueGraphLayout(340);
+  panel.scrollTop = scroll;
 }
 
 function queueGraphLayout(delay) {
-  if (!state.graph) return;
+  if (!state.graph || state.view !== "graph") return;
   if (state.layoutTimer) window.clearTimeout(state.layoutTimer);
-  state.layoutTimer = window.setTimeout(() => { state.layoutTimer = null; render(state.graph); }, delay || 0);
+  state.layoutTimer = window.setTimeout(() => { state.layoutTimer = null; if (state.view === "graph") render(state.graph, true); }, delay || 0);
 }
 
 function escapeHtml(value) { return String(value || "").replace(/[&<>\"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -1017,10 +796,10 @@ svg.addEventListener("pointerup", () => { state.dragging = null; });
 $("zoom-in").addEventListener("click", () => { state.scale = Math.min(4, state.scale * 1.2); updateViewport(); });
 $("zoom-out").addEventListener("click", () => { state.scale = Math.max(.2, state.scale / 1.2); updateViewport(); });
 $("reset-view").addEventListener("click", () => { state.pan = { x: 0, y: 0 }; state.scale = 1; updateViewport(); });
-window.addEventListener("resize", () => queueGraphLayout(80));
+window.addEventListener("resize", () => { queueGraphLayout(80); if (state.view === "note") autoSizeNoteEditor(); });
 function updateViewport() { $("viewport").setAttribute("transform", "translate(" + state.pan.x + " " + state.pan.y + ") scale(" + state.scale + ")"); }
 
-loadGraph();
+${notesScript}
 </script>
 </body>
 </html>`;

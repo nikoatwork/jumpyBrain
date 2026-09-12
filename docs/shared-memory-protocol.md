@@ -287,13 +287,19 @@ Response:
 
 Remote overview output must never expose the server's absolute filesystem root or memory body content. Connection stats are an explicit-link graph only; they are not marketed as an embedding mesh.
 
-### `GET /graph`
+### `GET /` and `GET /graph`
 
-Unauthenticated static browser shell for visualizing and editing graph notes. The page itself is content-free and prompts for an API key, then fetches graph/document data with `Authorization: Bearer <api-key>`. For local-only smoke testing, the API key can be supplied in the URL fragment as `/graph#apiKey=<key>`; fragments are not sent to the server.
+These unauthenticated browser entrypoints serve the same content-free, nonce-CSP-protected HTML shell. The shell contains no API key, filesystem path, note title, metadata, or body. It has no frontend runtime dependencies: the Node package serves dependency-free HTML, CSS, and JavaScript without a separate frontend service or asset deployment.
 
-Selecting an ID-bearing canonical document opens its rendered Markdown. Click the body or use **Edit Markdown** to edit the body in a plain-text textarea; leading frontmatter remains collapsed and read-only. The browser autosaves after 750 ms of inactivity and on blur, displays `Saving…`, `Saved`, or `Save failed`, and retains failed drafts for manual retry. Each save reconstructs the whole document and uses the existing authenticated `PUT /memories/all/documents/:id` contract with `If-Match`; no PATCH or block-storage model is involved. The backend may canonicalize protected frontmatter independently.
+`/` is the primary entrance. It is intentionally almost empty and invites the user to press **Cmd+K** on macOS or **Ctrl+K** elsewhere. Typing a non-empty query sends a debounced, authenticated `POST /memories/all/search` across the indexed canonical collection, including notes, pages, and sessions. Search can match titles or bodies. Result navigation must use the validated canonical document ID in `provenance.metadata.id`, not the distinct QMD search-hit `id`.
 
-V1 uses a temporary last-write-wins policy: after one `412 precondition_failed`, the browser fetches the latest document, preserves its frontmatter, reapplies the local body, and retries once. A second conflict stops with `Save failed`; visible merge/conflict UX is deferred. Graph nodes, titles, and links remain the loaded snapshot after a body save, so use **Refresh map** to display body-derived graph changes.
+Selecting a result opens `/?note=mem_<uuid>` as a reloadable, full-page raw Markdown body editor. The title and document metadata are read-only, leading frontmatter remains outside the textarea, and the browser uses authenticated `GET` and `PUT /memories/all/documents/:id` requests. API keys must never appear in `?note=` or other query parameters or generated note links. The shell prompts for the API key and reuses it only for authenticated data requests; for local-only smoke testing it may be supplied in the URL fragment as `/#apiKey=<key>` or `/graph#apiKey=<key>`, because fragments are not sent to the server.
+
+The editor autosaves after 750 ms of inactivity and on blur, displays understated `Saving…`, `Saved`, `Save failed`, or retry feedback, and retains failed drafts for manual retry. Each save reconstructs the whole document and uses `If-Match`; there is no PATCH, title-editing, metadata-editing, or block-storage model. A successful save marks the derived search index stale rather than synchronously rebuilding it, so recently saved body content may remain absent from search until indexing succeeds (the default check interval is five minutes, not a freshness guarantee). Search responses expose index freshness; confirmed local writes also mark the open palette stale, so an older search response cannot imply that `Saved` means indexed.
+
+V1 retains the bounded temporary last-write-wins debt: after one `412 precondition_failed`, the browser fetches the latest document, preserves its frontmatter, reapplies the local body, and retries once. A second conflict stops with `Save failed`; visible merge/conflict UX is deferred.
+
+`/graph` and `/graph/` remain compatible secondary entrypoints for the optional explicit-link map. Graph nodes, titles, and links are a loaded snapshot after a body save, so refresh the map to display body-derived graph changes. The graph is not fetched or laid out merely by arriving at the almost-empty home or directly opening a note URL.
 
 The resettable public demo is intended to be a writable sandbox for anyone the deployment currently admits. Unauthenticated browser writes, rate limits, and reseeding are deployment hardening concerns rather than alternate editor or storage behavior.
 
@@ -320,9 +326,11 @@ Response nodes use root-relative file IDs for Markdown documents plus virtual `u
 - `JUMPYBRAIN_GRAPH_SMOKE_URL` — base URL of the running jumpyBrain server (e.g. `http://localhost:5173`).
 - `JUMPYBRAIN_GRAPH_SMOKE_API_KEY` — a valid server API key; passed to the page via the `#apiKey=` fragment (not sent to the server).
 
-The script verifies the graph loads, renders SVG nodes/edges, and that a text-filter reload keeps the graph ready. It does not edit an arbitrary live note. On failure it writes `scripts/graph-ui-smoke-failure.png`.
+The script verifies the graph loads, renders SVG nodes/edges, filters metadata, and opens a valid canonical node full-page without writing. Optional `JUMPYBRAIN_GRAPH_SMOKE_NODE_ID` chooses a specific root-relative graph node. On failure it writes `scripts/graph-ui-smoke-failure.png`.
 
-`npm run smoke:graph-editor` starts an isolated server over a disposable memory root, edits one known ID-bearing fixture through desktop and mobile browser viewports, waits for autosave, and rereads the persisted Markdown. Use this smoke for writable editor validation; it never targets a live memory root.
+`npm run smoke:graph-editor` starts an isolated server over a disposable memory root and real QMD index. Desktop and mobile flows exercise empty-home entry, title/body search, full-page editing, persistence, caret/scroll stability, modal focus, durable URLs, Back/Forward, stale-index feedback, failed-save/undo recovery, and mobile authentication recovery. It also runs the read-only graph smoke against that same fixture server. It never writes to a live memory root. Set `JUMPYBRAIN_SMOKE_SCREENSHOT_DIR` to an output directory to retain fixture screenshots for visual review.
+
+Browser Back/Forward restores the current history entry before a pending-save flush and replays the traversal only on success. Failed drafts remain reachable with Retry. After an unconfirmed write, even undoing to the previously saved body still requires Retry: a failed network response may hide a committed server write. Closing search preserves textarea focus, caret, and scroll; title/frontmatter are never interpreted as browser HTML.
 
 ### `POST /memories/all/search`
 
@@ -348,9 +356,26 @@ Response mirrors `SearchMemoryResult` and adds remote/index metadata:
   "query": "release notes",
   "depth": "normal",
   "index": { "stale": false },
-  "results": []
+  "results": [
+    {
+      "id": "qmd-c2VhcmNoLWhpdC1pZGVudGl0eQ",
+      "score": 0.82,
+      "snippet": "Release notes are stored in the canonical page.",
+      "provenance": {
+        "file": "pages/releases.md",
+        "lineStart": 10,
+        "lineEnd": 10,
+        "metadata": {
+          "id": "mem_550e8400-e29b-41d4-a716-446655440000",
+          "title": "Release notes"
+        }
+      }
+    }
+  ]
 }
 ```
+
+Search runs against the real derived index across every canonical memory bucket; retrieval depth shapes ranking rather than limiting search to graph nodes or `notes/`. Indexed frontmatter enables title-only matches, while canonical Markdown enables body matches. A result's top-level `id` identifies the QMD hit and may represent a passage, so it is deliberately distinct from the canonical document ID. Document readers/editors must validate and use `provenance.metadata.id`; if that field is absent or invalid, the result is searchable evidence but cannot safely become an ID-addressed editor link.
 
 ### `POST /memories/all/recall`
 

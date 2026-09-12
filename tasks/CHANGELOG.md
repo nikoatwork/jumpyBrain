@@ -1,5 +1,17 @@
 # Task Changelog
 
+## 2026-09-12 — Minimal notes web editor task archived
+
+- Archived the completed, validated editor task with user approval as `tasks/done/2026-09-12_tasks-minimal-notes-web-editor.md`.
+
+## 2026-09-10 — Minimal notes web editor implemented and validated
+
+- Added the almost-empty `/` entrance, accessible Cmd/Ctrl+K title/body search, and reloadable full-page raw Markdown note editing at `/?note=<canonical-id>`. `/graph` stays secondary; graph nodes open the same editor. No new runtime dependencies, frontend service, canonical storage model, or search/write APIs.
+- Reused authenticated GET/PUT, If-Match, 750 ms/blur autosave, sequential saves, and bounded temporary last-write-wins behavior. Added persistent caret/scroll-safe editing, guarded Back/Forward restoration/replay, modal focus handling, mobile credential/retry flows, and honest search freshness across local writes.
+- Independent review and regression checks fixed unconfirmed-save/undo retry deadlock, stale-search response races, connection-dialog/history behavior, unavailable-hit crowding, and modal Tab wrapping. Updated architecture, protocol, and shared-server usage docs.
+- Validated with `npm test` (217 pass), real-QMD disposable desktop/mobile Chromium browser smokes plus the graph regression smoke, `npm run cli:pack`, an extracted-package server shell smoke, and `git diff --check`. Browser screenshots reviewed; no live memory was edited. Safari/Firefox and physical-device QA remain unverified.
+- Completed task: `tasks/done/2026-09-12_tasks-minimal-notes-web-editor.md` (archived on 2026-09-12).
+
 ## 2026-07-22 — Docker build source boundary restored
 
 - Removed the CLI runtime's import of `scripts/remote-target-origin.mjs`, which was available in a full local checkout but absent from the Docker build stage that intentionally copies only `src/`.

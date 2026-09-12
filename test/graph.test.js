@@ -95,6 +95,7 @@ function createEditorHarness(overrides = {}) {
     nodeId: "pages/alpha.md",
     documentId: "mem_a0000000-0000-4000-8000-000000000001",
     debounceMs: 750,
+    persistentEditing: overrides.persistentEditing,
     setTimer: clock.setTimer,
     clearTimer: clock.clearTimer,
     splitDocument: runtime.splitEditableDocument,
@@ -256,25 +257,22 @@ test("local graph handles aliases, anchors, duplicate basenames, and session doc
   }
 });
 
-test("graph page slide-in panel markup: fixed aside removed, panel scaffolded and closed by default", () => {
+test("notes shell replaces the slide-in with an empty home and full-page raw editor", () => {
   const html = graphPageHtml("testnonce");
-  // Fixed aside (Details/stats/ready/error/details) is gone entirely.
-  assert.equal(html.includes("graph-details"), false, "graph-details fixed aside must be removed");
-  assert.equal(html.includes("<h2>Details</h2>"), false, "Details aside heading must be removed");
-  // Slide-in panel exists and starts closed.
-  assert.match(html, /<aside id="note-panel"[^>]*data-closed[^>]*data-testid="graph-note-panel"/);
-  // Required testids present.
-  for (const testid of ["graph-note-close", "graph-note-title", "graph-note-content", "graph-note-edit", "graph-note-editor", "graph-note-save-state", "graph-note-retry"]) {
+  assert.match(html, /<body data-view="home">/);
+  assert.match(html, /id="home-search"[^>]*aria-label="Search notes"/);
+  assert.match(html, /to enter your <strong>jumpyBrain/);
+  assert.match(html, /<section id="note-panel"[^>]*hidden>/);
+  for (const testid of ["graph-note-title", "graph-note-editor", "graph-note-save-state", "graph-note-retry"]) {
     assert.equal(html.includes(`data-testid="${testid}"`), true, `${testid} must be present`);
   }
-  // Indicators moved into header (not in a removed aside).
-  assert.match(html, /<header>[\s\S]*?data-testid="graph-ready"[\s\S]*?<\/header>/);
-  assert.match(html, /<header>[\s\S]*?data-testid="graph-error"[\s\S]*?<\/header>/);
-  // Panel is not in the open state by default.
-  assert.equal(html.includes('class="panel-open"'), false, "body must not start with panel-open");
-  assert.equal(html.includes("body.panel-open #note-panel"), true, "panel-open CSS rule must exist");
-  // Graph section takes full width by default (no fixed 20rem right column).
-  assert.equal(html.includes("grid-template-columns: minmax(0, 1fr) 20rem"), false, "fixed 20rem grid column must be removed");
+  for (const obsolete of ["graph-note-close", "graph-note-content", "graph-note-edit\"", "panel-open", "panel-inner"]) {
+    assert.equal(html.includes(obsolete), false, `${obsolete} must not remain`);
+  }
+  assert.match(html, /<header id="graph-header">[\s\S]*?data-testid="graph-ready"[\s\S]*?<\/header>/);
+  assert.match(html, /id="note-search" aria-label="Search notes"/);
+  assert.match(html, /role="combobox"[^>]*aria-controls="search-results"/);
+  assert.match(html, /<ul id="search-results" role="listbox"/);
 });
 
 test("graph page uses the light forest design system and structured exploration controls", () => {
@@ -288,26 +286,27 @@ test("graph page uses the light forest design system and structured exploration 
   assert.match(html, /class="canvas-tools" aria-label="Graph view controls"/);
   assert.match(html, /class="legend" aria-label="Graph legend"/);
   assert.match(html, /id="reset-view"/);
-  assert.match(html, /window\.addEventListener\("resize", \(\) => queueGraphLayout\(80\)\)/);
+  assert.match(html, /window\.addEventListener\("resize", \(\) => \{ queueGraphLayout\(80\)/);
   assert.match(html, /prefers-reduced-motion/);
 });
 
-test("graph page keeps editing in the HTTP shell with accessible reader/editor transitions", () => {
+test("notes editing stays in the HTTP shell with persistent raw editing and native dialogs", () => {
   const html = graphPageHtml("testnonce");
   const script = pageScript();
   assert.match(script, /node\.nodeKind === "unresolved"/);
-  assert.match(script, /state\.selected === node\.id/);
+  assert.match(script, /navigation\.navigate\("\/\?note="/);
   assert.match(script, /requestEditorNavigation/);
-  assert.match(script, /event\.key === "Escape"/);
+  assert.match(script, /searchDialog\.addEventListener\("cancel"/);
   assert.match(script, /beforeunload/);
   assert.match(script, /temporary last-write-wins/);
   assert.match(html, /id="note-save-state"[^>]*role="status"[^>]*aria-live="polite"/);
   assert.match(html, /id="note-editor"[^>]*aria-label="Markdown note body"/);
   assert.match(html, /@media \(max-width: 680px\)[\s\S]*#note-editor/);
-  assert.match(html, /@media \(max-width: 680px\)[\s\S]*\.key-field input \{ width: 124px/);
-  assert.doesNotMatch(html, /\.product-name, \.key-field \{ display: none/);
-  assert.match(script, /keydown[\s\S]*event\.target\.closest\("a, button, summary, details, input, textarea"\)/);
-  assert.match(html, /Select a node to read or edit its Markdown/);
+  assert.match(html, /id="open-connection"[^>]*aria-label="Connection settings"/);
+  assert.match(html, /id="connection" aria-labelledby="connection-title"/);
+  assert.match(script, /persistentEditing: true/);
+  assert.doesNotMatch(script, /state\.editor\.setEditing\(false\)/);
+  assert.match(html, /Select a note to open its full-page Markdown editor/);
 });
 
 test("graph page keeps unresolved and missing-ID nodes non-editable", () => {
@@ -406,6 +405,38 @@ test("graph editor skips unchanged content and reconciles canonical frontmatter 
   assert.equal(harness.editor.state.contentHash, "sha256:canonical");
 });
 
+test("persistent raw editing reconciles metadata without replacing concurrent body drafts", async () => {
+  const pending = deferred();
+  const harness = createEditorHarness({ persistentEditing: true, readDocument: () => pending.promise });
+  harness.editor.setEditing(true);
+  harness.editor.input("saved body");
+  await harness.editor.startSave();
+  assert.equal(harness.reads.length, 1, "persistent editing still reconciles after an idle save");
+  harness.editor.input("newer local body");
+  pending.resolve({ content: '---\nupdated_at: "canonical"\n---\nsaved body', contentHash: "sha256:canonical" });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(harness.editor.state.draft, "newer local body");
+  assert.equal(harness.editor.state.contentHash, "sha256:saved-1");
+  assert.equal(harness.editor.state.editing, true);
+
+  const canonical = createEditorHarness({ persistentEditing: true, readDocument: async () => ({ content: '---\nupdated_at: "canonical"\n---\nsaved body', contentHash: "sha256:canonical" }) });
+  canonical.editor.setEditing(true);
+  canonical.editor.input("saved body");
+  await canonical.editor.startSave();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(canonical.editor.state.frontmatterPrefix, /canonical/);
+  assert.equal(canonical.editor.state.contentHash, "sha256:canonical");
+  assert.equal(canonical.editor.state.draft, "saved body");
+
+  const remote = createEditorHarness({ persistentEditing: true, readDocument: async () => ({ content: "another writer changed the body", contentHash: "sha256:remote" }) });
+  remote.editor.setEditing(true);
+  remote.editor.input("saved body");
+  await remote.editor.startSave();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(remote.editor.state.draft, "saved body", "keep active textarea body stable");
+  assert.equal(remote.editor.state.contentHash, "sha256:saved-1", "different body must retain stale precondition for explicit conflict path");
+});
+
 test("graph editor serializes input during a save and advances successive content hashes", async () => {
   const first = deferred();
   const harness = createEditorHarness({
@@ -468,6 +499,27 @@ test("graph editor stops after save failures, retains drafts, and requires manua
     assert.equal(harness.editor.state.saveStatus, "saved");
     assert.equal(harness.editor.state.dirty, false);
   }
+});
+
+test("undoing to the original body after an unconfirmed save stays retryable and guarded", async () => {
+  let failing = true;
+  const harness = createEditorHarness({ writeDocument: async () => {
+    if (failing) throw new Error("response lost after a possibly committed write");
+    return { newContentHash: "sha256:confirmed" };
+  } });
+  harness.editor.setEditing(true);
+  const original = harness.editor.state.draft;
+  harness.editor.input("attempted change");
+  await harness.editor.startSave();
+  harness.editor.input(original);
+  assert.equal(harness.editor.hasPending(), true, "uncertain server state still needs unload protection");
+  assert.equal(await harness.editor.flush(), false);
+  failing = false;
+  assert.equal(await harness.editor.retry(), true);
+  assert.match(harness.writes.at(-1).content, /# Alpha\n$/);
+  assert.equal(harness.editor.hasPending(), false);
+  assert.equal(harness.editor.state.saveStatus, "saved");
+  assert.equal(await harness.editor.flush(), true);
 });
 
 test("graph navigation waits for a save and keeps a failed draft reachable", async () => {

@@ -71,6 +71,83 @@ test("remote HTTP health is unauthenticated and content-free", async () => {
   }
 });
 
+test("remote HTTP root and note URLs serve the content-free nonce shell", async () => {
+  const serverModule = await loadServerModule();
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-http-shell-"));
+  const memory = serverModule.createServerMemoryRuntime({ root: tempRoot });
+  await memory.initializeMemoryRoot();
+
+  const id = "mem_91000000-0000-4000-8000-000000000001";
+  const privateTitle = "Private shell fixture title Zinnia";
+  const privateBody = "Private shell fixture body Juniper must never enter HTML.";
+  const apiKey = "shell-api-key-must-not-enter-html";
+  await writeFile(path.join(tempRoot, "notes", "private-shell-fixture.md"), [
+    "---",
+    `id: ${JSON.stringify(id)}`,
+    'type: "note"',
+    `title: ${JSON.stringify(privateTitle)}`,
+    "---",
+    privateBody,
+    "",
+  ].join("\n"), "utf8");
+
+  const started = await serverModule.startJumpyBrainHttpServer({ root: tempRoot, apiKeys: [apiKey], port: 0, autoIndex: false });
+  try {
+    const root = await fetch(`${started.url}/`);
+    const rootHtml = await root.text();
+    assert.equal(root.status, 200);
+    assert.match(root.headers.get("content-type"), /text\/html/);
+    assert.equal(root.headers.get("x-content-type-options"), "nosniff");
+    assert.match(root.headers.get("content-security-policy"), /default-src 'none'/);
+    assert.match(root.headers.get("content-security-policy"), /script-src 'nonce-[A-Za-z0-9_-]+'/);
+    assert.match(root.headers.get("content-security-policy"), /style-src 'nonce-[A-Za-z0-9_-]+'/);
+    assert.match(root.headers.get("content-security-policy"), /connect-src 'self'/);
+    assert.match(root.headers.get("content-security-policy"), /frame-ancestors 'none'/);
+    assert.doesNotMatch(root.headers.get("content-security-policy"), /unsafe-inline/);
+    assert.match(rootHtml, /<script nonce="[A-Za-z0-9_-]+">/);
+    assert.match(rootHtml, /<style nonce="[A-Za-z0-9_-]+">/);
+    const rootNonce = rootHtml.match(/<script nonce="([A-Za-z0-9_-]+)">/)[1];
+    assert.equal(root.headers.get("content-security-policy").includes(`nonce-${rootNonce}`), true);
+
+    const note = await fetch(`${started.url}/?note=${encodeURIComponent(id)}`);
+    const noteHtml = await note.text();
+    assert.equal(note.status, 200);
+    assert.match(note.headers.get("content-type"), /text\/html/);
+    assert.match(note.headers.get("content-security-policy"), /script-src 'nonce-/);
+
+    const graph = await fetch(`${started.url}/graph`);
+    const graphHtml = await graph.text();
+    assert.equal(graph.status, 200);
+    const graphSlash = await fetch(`${started.url}/graph/`);
+    assert.equal(graphSlash.status, 200);
+    await graphSlash.text();
+
+    const normalizeNonce = (html) => html.replaceAll(/nonce="[A-Za-z0-9_-]+"/g, 'nonce="<nonce>"');
+    assert.equal(normalizeNonce(noteHtml), normalizeNonce(rootHtml));
+    assert.equal(normalizeNonce(graphHtml), normalizeNonce(rootHtml));
+
+    for (const html of [rootHtml, noteHtml, graphHtml]) {
+      assert.equal(html.includes(privateTitle), false);
+      assert.equal(html.includes(privateBody), false);
+      assert.equal(html.includes(apiKey), false);
+      assert.equal(html.includes(tempRoot), false);
+      assert.equal(html.includes(id), false);
+    }
+    assert.equal(note.headers.get("content-security-policy").includes(apiKey), false);
+
+    const rootMethod = await fetch(`${started.url}/`, { method: "POST" });
+    assert.equal(rootMethod.status, 405);
+    assert.equal((await json(rootMethod)).error.code, "method_not_allowed");
+
+    const graphMethod = await fetch(`${started.url}/graph/`, { method: "PUT" });
+    assert.equal(graphMethod.status, 405);
+    assert.equal((await json(graphMethod)).error.code, "method_not_allowed");
+  } finally {
+    await started.close();
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test("remote HTTP status requires a bearer API key", async () => {
   const serverModule = await loadServerModule();
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-http-auth-"));
@@ -303,11 +380,59 @@ test("remote HTTP document update requires If-Match and preserves protected meta
   }
 });
 
-test("remote HTTP index, search, and recall return CLI-compatible remote packets", async () => {
+test("remote HTTP indexed search covers title and body matches across canonical buckets", async () => {
   const serverModule = await loadServerModule();
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-http-retrieval-"));
   const memory = serverModule.createServerMemoryRuntime({ root: tempRoot });
   await memory.initializeMemoryRoot();
+
+  const fixtures = [
+    {
+      bucket: "notes",
+      file: "note-search.md",
+      id: "mem_93000000-0000-4000-8000-000000000001",
+      type: "note",
+      title: "Asterquill notebook",
+      titleQuery: "Asterquill",
+      body: "The copperlantern marker appears only in this note body.",
+      bodyQuery: "copperlantern",
+    },
+    {
+      bucket: "pages",
+      file: "page-search.md",
+      id: "mem_93000000-0000-4000-8000-000000000002",
+      type: "page",
+      title: "Bramblevault overview",
+      titleQuery: "Bramblevault",
+      body: "The silvercompass marker appears only in this page body.",
+      bodyQuery: "silvercompass",
+    },
+    {
+      bucket: "sessions",
+      file: "session-search.md",
+      id: "mem_93000000-0000-4000-8000-000000000003",
+      type: "session",
+      sessionId: "s-search-contract",
+      title: "Cinderharbor wrapup",
+      titleQuery: "Cinderharbor",
+      body: "The velvetanchor marker appears only in this session body.",
+      bodyQuery: "velvetanchor",
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    await writeFile(path.join(tempRoot, fixture.bucket, fixture.file), [
+      "---",
+      `id: ${JSON.stringify(fixture.id)}`,
+      `type: ${JSON.stringify(fixture.type)}`,
+      `title: ${JSON.stringify(fixture.title)}`,
+      ...(fixture.sessionId ? [`session_id: ${JSON.stringify(fixture.sessionId)}`] : []),
+      "---",
+      "",
+      fixture.body,
+      "",
+    ].join("\n"), "utf8");
+  }
   await writeFile(path.join(tempRoot, "sessions", "alpha.md"), [
     "---",
     'session_id: "s-alpha"',
@@ -318,16 +443,17 @@ test("remote HTTP index, search, and recall return CLI-compatible remote packets
     "",
     "Mira decided to store the release notes in docs/releases/q2.md.",
     "",
-  ].join("\n"));
+  ].join("\n"), "utf8");
+  const expectedDocumentCount = fixtures.length + 1;
 
-  const started = await serverModule.startJumpyBrainHttpServer({ root: tempRoot, apiKeys: ["secret"], port: 0 });
+  const started = await serverModule.startJumpyBrainHttpServer({ root: tempRoot, apiKeys: ["secret"], port: 0, autoIndex: false });
   try {
     const headers = { Authorization: "Bearer secret", "Content-Type": "application/json" };
     const index = await fetch(`${started.url}/memories/all/index`, { method: "POST", headers, body: "{}" });
     const indexPayload = await json(index);
     assert.equal(index.status, 200);
     assert.equal(indexPayload.root, "remote:all");
-    assert.equal(indexPayload.documents, 1);
+    assert.equal(indexPayload.documents, expectedDocumentCount);
     assert.equal(indexPayload.index.stale, false);
     assert.equal(typeof indexPayload.index.lastIndexedAt, "string");
 
@@ -335,35 +461,67 @@ test("remote HTTP index, search, and recall return CLI-compatible remote packets
     const rebuilt = await fetch(`${started.url}/memories/all/index`, { method: "POST", headers, body: "{}" });
     const rebuiltPayload = await json(rebuilt);
     assert.equal(rebuilt.status, 200);
-    assert.equal(rebuiltPayload.documents, 1);
+    assert.equal(rebuiltPayload.documents, expectedDocumentCount);
     assert.equal(rebuiltPayload.index.stale, false);
 
-    const search = await fetch(`${started.url}/memories/all/search`, {
+    for (const fixture of fixtures) {
+      for (const [field, query] of [["title", fixture.titleQuery], ["body", fixture.bodyQuery]]) {
+        const response = await fetch(`${started.url}/memories/all/search`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ query, limit: 5, depth: "normal" }),
+        });
+        const payload = await json(response);
+        assert.equal(response.status, 200, `${fixture.bucket} ${field} query failed: ${JSON.stringify(payload)}`);
+        assert.equal(payload.memory, "all");
+        assert.equal(payload.target, "remote");
+        assert.equal(payload.root, "remote:all");
+        assert.equal(payload.query, query);
+        assert.equal(payload.depth, "normal");
+        assert.equal(payload.index.stale, false);
+
+        const hit = payload.results.find((result) => result.provenance.file === `${fixture.bucket}/${fixture.file}`);
+        assert.ok(hit, `${field}-only query ${JSON.stringify(query)} did not find ${fixture.bucket}/${fixture.file}`);
+        assert.match(hit.id, /^qmd-/);
+        assert.equal(hit.provenance.metadata.id, fixture.id);
+        assert.notEqual(hit.id, hit.provenance.metadata.id);
+      }
+    }
+
+    const naturalSearch = await fetch(`${started.url}/memories/all/search`, {
       method: "POST",
       headers,
       body: JSON.stringify({ query: "Where did Mira store release notes?", limit: 5, depth: "normal" }),
     });
-    const searchPayload = await json(search);
-    assert.equal(search.status, 200);
-    assert.equal(searchPayload.memory, "all");
-    assert.equal(searchPayload.target, "remote");
-    assert.equal(searchPayload.root, "remote:all");
-    assert.equal(searchPayload.query, "Where did Mira store release notes?");
-    assert.equal(searchPayload.index.stale, false);
-    assert.equal(searchPayload.results[0].provenance.file, "sessions/alpha.md");
-    assert.match(searchPayload.results[0].snippet, /release notes/);
+    const naturalSearchPayload = await json(naturalSearch);
+    assert.equal(naturalSearch.status, 200);
+    assert.equal(naturalSearchPayload.results[0].provenance.file, "sessions/alpha.md");
+    assert.match(naturalSearchPayload.results[0].snippet, /release notes/);
+
+    const legacyRecall = await fetch(`${started.url}/memories/all/recall`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ topic: "release notes", limit: 5 }),
+    });
+    const legacyRecallPayload = await json(legacyRecall);
+    assert.equal(legacyRecall.status, 200);
+    assert.equal(legacyRecallPayload.mode, "recall");
+    assert.equal(legacyRecallPayload.query, "release notes");
+    assert.equal(legacyRecallPayload.results[0].provenance.session_id, "s-alpha");
 
     const recall = await fetch(`${started.url}/memories/all/recall`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ topic: "release notes", limit: 5 }),
+      body: JSON.stringify({ topic: "velvetanchor", limit: 5, depth: "normal" }),
     });
     const recallPayload = await json(recall);
     assert.equal(recall.status, 200);
     assert.equal(recallPayload.mode, "recall");
     assert.equal(recallPayload.root, "remote:all");
-    assert.equal(recallPayload.query, "release notes");
-    assert.equal(recallPayload.results[0].provenance.session_id, "s-alpha");
+    assert.equal(recallPayload.query, "velvetanchor");
+    const sessionHit = recallPayload.results.find((result) => result.provenance.file === "sessions/session-search.md");
+    assert.equal(sessionHit.provenance.session_id, "s-search-contract");
+    assert.equal(sessionHit.provenance.metadata.id, fixtures[2].id);
   } finally {
     await started.close();
     await rm(tempRoot, { recursive: true, force: true });
@@ -448,7 +606,7 @@ test("remote HTTP graph JSON requires auth and returns remote-safe explicit link
     assert.match(page.headers.get("content-security-policy"), /script-src 'nonce-/);
     assert.match(page.headers.get("content-security-policy"), /frame-ancestors 'none'/);
     const html = await page.text();
-    assert.match(html, /jumpyBrain Graph/);
+    assert.match(html, /<title>jumpyBrain<\/title>/);
     // Inline script/style must be gated by a nonce; no un-nonce inline handlers.
     assert.doesNotMatch(html, /<script>(?![^<]*<\/script>)/);
     assert.match(html, /<script nonce="/);
