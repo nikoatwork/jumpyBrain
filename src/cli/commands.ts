@@ -5,6 +5,7 @@ import { dreamCli } from "./dream.js";
 import { agentInstructions } from "./instructions.js";
 import { createLocalMemoryTransport } from "./local-transport.js";
 import { runMemoryCommand, type MemoryCommand } from "./memory-commands.js";
+import { migrateCli } from "./migrate.js";
 import { runRecipe } from "./recipes.js";
 import { enforceRemoteAccessPolicy } from "./remote-access-policy.js";
 import { serveCli } from "./serve.js";
@@ -17,6 +18,12 @@ const localMemory = createLocalMemoryTransport();
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
   const command = args._[0];
+
+  // Local-only migration must reject remote flags before policy or credentials.
+  if (command === "migrate") {
+    await migrateCli(args, localMemory);
+    return;
+  }
 
   if (command === "version" || command === "-v" || args.version || args.v) {
     console.log(await packageVersion());

@@ -4,6 +4,14 @@ const distDirPrefix = (...segments) => `${distFile(...segments)}/`;
 
 export const requiredLocalPackFiles = Object.freeze([
   "package/package.json",
+  "package/docs/logseq-migration.md",
+  ...moduleFiles("cli", "migrate"),
+  ...moduleFiles("app", "migration", "index"),
+  ...moduleFiles("app", "migration", "discovery"),
+  ...moduleFiles("app", "migration", "filesystem"),
+  ...moduleFiles("app", "migration", "transaction"),
+  ...moduleFiles("core", "migration", "index"),
+  ...moduleFiles("core", "migration", "types"),
   "package/scripts/remote-target-origin.mjs",
   distFile("cli.js"),
   distFile("index.js"),

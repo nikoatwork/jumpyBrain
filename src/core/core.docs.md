@@ -4,6 +4,7 @@
 
 - Own backend-agnostic core submodules for canonical Markdown scanning/parsing, protected document-update merge policy, memory-root setup/status, provenance helpers, retrieval-depth policy, and pure dream cursor/limit/path policy.
 - Re-export backend-agnostic public memory APIs from core submodules, protected edit policy, pure writing policy, and only curated core-safe shared types.
+- Decode valid JSON double-quoted frontmatter strings (including escaped quotes/backslashes); retain forgiving quote stripping for non-JSON/legacy quotes. This scalar policy does not change canonical body line-ending normalization; import envelopes verify raw body bytes separately.
 - Keep Markdown memory files canonical and treat indexes, caches, and SQLite/QMD state as rebuildable derived data.
 - Provide the import surface that application/runtime code can depend on without choosing a retrieval backend.
 

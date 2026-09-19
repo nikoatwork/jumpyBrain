@@ -250,6 +250,22 @@ test("writing workflow orchestration lives in app use cases while core keeps pur
   );
 });
 
+test("Logseq migration keeps pure policy, transactional app workflow, and CLI transport separate", async () => {
+  const policyImports = await importsIn("core/migration");
+  assertNoImportEdges(policyImports,
+    edge => /^(?:node:)?(?:fs|path|child_process)(?:\/|$)/.test(edge.specifier) || (edge.target !== undefined && !edge.target.startsWith("src/core/") && edge.target !== "src/types.ts"),
+    "migration policy stays pure and independent of filesystem orchestration");
+  const appImports = await importsIn("app/migration");
+  assertNoImportEdges(appImports,
+    edge => edge.target !== undefined && !edge.target.startsWith("src/app/migration/") && !edge.target.startsWith("src/core/"),
+    "migration app composes filesystem and core without CLI, HTTP, or QMD");
+  const cli = await readFile(path.join(srcRoot, "cli/migrate.ts"), "utf8");
+  assert.match(cli, /localMemory\.migrateLogseq\(/);
+  const runtime = await readFile(path.join(srcRoot, "runtime/index.ts"), "utf8");
+  assert.match(runtime, /export \{ migrateLogseq \} from "\.\.\/app\/migration\/index\.js"/);
+  assert.doesNotMatch(runtime, /migrateLogseqWithHooks|applyTransaction/);
+});
+
 test("local memory and processing orchestration lives in app use cases", async () => {
   const requiredAppUseCaseFiles = [
     "src/app/local-memory/index.ts",

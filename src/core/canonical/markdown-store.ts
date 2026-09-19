@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { open, readdir, readFile, realpath, rename, unlink } from "node:fs/promises";
+import { lstat, open, readdir, readFile, realpath, rename, unlink } from "node:fs/promises";
 import path from "node:path";
 import { mergeMemoryDocumentUpdate } from "../document-update.js";
 import { isValidMemoryDocumentId } from "../document-id.js";
@@ -209,10 +209,26 @@ function memoryTypeForPath(relativePath: string, frontmatter: Frontmatter): Memo
   return "note";
 }
 
+function isLogseqOutputPath(relative: string): boolean {
+  const parts = relative.split("/");
+  return (parts[0] === "notes" || parts[0] === "sessions") &&
+    parts.every((part) => !!part && !part.startsWith("."));
+}
+
+async function isImportedLogseqDocument(root: string, absolute: string): Promise<boolean> {
+  const relative = normalizeRelative(root, absolute);
+  if (!isLogseqOutputPath(relative)) return false;
+  const { frontmatter } = await readMarkdownDocument(root, absolute);
+  const journal = relative.startsWith("sessions/");
+  const sourcePath = `${journal ? "journals" : "pages"}/${relative.slice(relative.indexOf("/") + 1)}`;
+  return frontmatter.source === "logseq-migration" && isValidMemoryDocumentId(frontmatter.id) &&
+    frontmatter.type === (journal ? "session" : "note") && frontmatter.source_path === sourcePath;
+}
+
 async function walkMarkdownFiles(root: string, starts: string[], options: { ignoreMissingStart?: boolean } = {}): Promise<string[]> {
   const results: string[] = [];
 
-  async function walk(dir: string): Promise<void> {
+  async function walk(dir: string, importsOnly = false): Promise<void> {
     let entries;
     try {
       entries = await readdir(dir, { withFileTypes: true });
@@ -223,19 +239,33 @@ async function walkMarkdownFiles(root: string, starts: string[], options: { igno
 
     entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
-      if (IGNORED_DIRS.has(entry.name)) continue;
       const absolute = path.join(dir, entry.name);
+      const relative = normalizeRelative(root, absolute);
+      const ignored = IGNORED_DIRS.has(entry.name);
       if (entry.isDirectory()) {
-        await walk(absolute);
+        // Reopen only nonhidden migration paths, and retain exclusion state for descendants.
+        if ((ignored || importsOnly) && !isLogseqOutputPath(relative)) continue;
+        await walk(absolute, importsOnly || ignored);
         continue;
       }
-      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
-      const relative = normalizeRelative(root, absolute);
-      if (!IGNORED_FILE_PATTERNS.some((pattern) => pattern.test(relative))) results.push(absolute);
+      if (ignored || !entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
+      const excluded = importsOnly || IGNORED_FILE_PATTERNS.some((pattern) => pattern.test(relative));
+      if (!excluded || await isImportedLogseqDocument(root, absolute)) results.push(absolute);
     }
   }
 
-  for (const start of starts) await walk(start);
+  for (const start of starts) {
+    if (options.ignoreMissingStart) {
+      // Bucket entrypoints must obey the same no-symlink rule as recursive entries.
+      try {
+        if ((await lstat(start)).isSymbolicLink()) continue;
+      } catch (error) {
+        if ((error as { code?: string }).code === "ENOENT") continue;
+        throw error;
+      }
+    }
+    await walk(start);
+  }
   return results;
 }
 

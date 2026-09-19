@@ -28,7 +28,7 @@ For repo dogfooding, `jumpybrain.json` may include an optional relative `indexRo
 
 ## Frontmatter
 
-Supported fields are intentionally simple. Canonical jumpyBrain writers use these fields only:
+Supported fields are intentionally simple. A typical canonical jumpyBrain document uses:
 
 ```md
 ---
@@ -58,6 +58,14 @@ Schema notes:
 - `review` is optional and currently uses `user-review-recommended` for agent-drafted wrapups.
 - `tags` should be a simple string array.
 - The frontmatter parser is intentionally tiny; prefer JSON-style arrays and quoted strings over broad YAML features.
+
+## Imported Logseq documents
+
+[`migrate logseq`](logseq-migration.md) maps classic Logseq `pages/<relative>.md` to `notes/<relative>.md` (`type: "note"`) and `journals/<relative>.md` to `sessions/<relative>.md` (`type: "session"`). Imported journals are not wrapup documents and do not require wrapup sections. Imported Logseq pages are not synthesized jumpyBrain pages.
+
+A new frontmatter envelope supplies file identity, filename-derived title, `source: "logseq-migration"`, source-relative provenance, timestamps, and an optional supported journal date. The complete original file is then preserved as exact body bytes, including any source frontmatter, Logseq block properties/IDs, macros, links, line endings, and final-newline state. No imported content is asserted to be user-reviewed. Assets are omitted and textual links are not rewritten.
+
+Manifest-backed reimports preserve valid mapped document IDs and creation timestamps, but **replace destination-only edits** by default and remove exact tracked outputs for disappeared sources. This is separate from the optimistic document-edit contract below. The checksum manifest is operational ownership/audit data, not canonical memory; retain it for safe removal reconciliation. Unlike a rebuildable index, deleting it loses prior-import ownership history and cannot safely authorize deletion of arbitrary earlier imports.
 
 ## Topical pages
 

@@ -5,6 +5,8 @@
 - Keep `src/cli.ts` as the executable shim; command dispatch lives in `src/cli/commands.ts` and `run` recipes live in `src/cli/recipes.ts`.
 - Parse command-line arguments and stdin, select local or remote targets, and preserve stable user-facing command names, flags, JSON modes, and text output.
 - Own the target-aware `dream` CLI workflow for local `--root` and remote `--target-url`: request/status/complete/abandon batches, apply manifests, write full context with `--out`, print local-agent instructions, and keep memory contents out of default compact stdout.
+- Own `migrate logseq` in `migrate.ts`: strict source/root and boolean flags, body-free human summaries or the unchanged app JSON result, safely quoted apply/index hints, and explicit separate indexing. Dispatch this local-only command before remote policy/credentials; reject either remote target flag even when malformed or combined with local flags.
+- Keep migration argument strictness scoped in `args.ts` so legacy commands retain their existing parsing behavior.
 - Delegate local work through `src/cli/local-transport.ts` to the runtime/app seam.
 - Delegate remote work through the HTTP client adapter while keeping API keys and URLs at the CLI boundary.
 - Own target selection: `--root` selects local memory, `--target-url`/`--remote-url` selects the single remote V1 namespace, and remote API keys come only from `JUMPYBRAIN_API_KEY` in the CLI environment rather than adapters or local config.

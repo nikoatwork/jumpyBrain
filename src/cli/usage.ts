@@ -9,6 +9,7 @@ export function usage(): string {
     "  jumpybrain run memory:remember --type finding --title \"...\"",
     "  jumpybrain run memory:recall --topic \"...\" --limit 5",
     "  jumpybrain init --root <memory-root>",
+    "  jumpybrain migrate logseq --source <vault> --root <memory-root> [--apply] [--fail-on-conflict] [--json]",
     "  jumpybrain status --root <memory-root> --json",
     "  jumpybrain tree --root <memory-root> [--connections] [--show-files] [--limit 25] [--json]",
     "  jumpybrain recall --root <memory-root> --topic \"...\" --limit 5 --depth shallow",

@@ -7,6 +7,7 @@ import type {
   DreamCreateRequest,
   DreamStatus,
   IndexMemoryResult,
+  LogseqMigrationResult,
   MemoryNoteDraft,
   MemoryOverviewOptions,
   MemoryOverviewResult,
@@ -27,6 +28,7 @@ import type {
 export type { SearchResult };
 
 export interface LocalMemoryTransport {
+  migrateLogseq(source: string, root: string, options?: { apply?: boolean; failOnConflict?: boolean }): Promise<LogseqMigrationResult>;
   initializeMemoryRoot(rootArg: string, options?: { force?: boolean }): Promise<MemoryRootInitResult>;
   memoryRootStatus(rootArg: string): Promise<MemoryRootStatus>;
   findMemoryRoot(startArg?: string): Promise<string>;
@@ -47,6 +49,7 @@ export interface LocalMemoryTransport {
 
 export function createLocalMemoryTransport(): LocalMemoryTransport {
   return {
+    migrateLogseq: runtime.migrateLogseq,
     initializeMemoryRoot: runtime.initializeMemoryRoot,
     memoryRootStatus: runtime.memoryRootStatus,
     findMemoryRoot: runtime.findMemoryRoot,

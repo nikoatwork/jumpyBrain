@@ -1,5 +1,13 @@
 # Task Changelog
 
+## 2026-09-19 — Rerunnable Logseq migration
+
+- Added packaged local `migrate logseq` with dry-run default, lossless Markdown bodies, pages-to-notes/journals-to-sessions mapping, stable identities, source-wins updates, optional conflict rejection, and identity-checked removal reconciliation. Assets/config/backups remain untouched and omitted.
+- Added strict path/root/manifest validation, atomic replacement, transactional failure rollback, and private fail-closed recovery receipts. Durable ownership manifests stay outside rebuildable derived state; crash recovery is manual and indexing is explicit.
+- Fixed quoted metadata round-tripping and narrowly admitted validated imports through legacy canonical-discovery exclusions without admitting ordinary excluded files.
+- Validated 275 tests, package contents, offline-installed CLI reruns, disposable-vault checksum/identity/reconciliation tests, and real-QMD tree/search/recall. Authorized local import created 1,476 documents, preserved five existing memories and the source tree, indexed 1,481 documents, and reran with zero mutations. No private note content retained in repository fixtures or reports.
+- Completed task: `tasks/done/2026-09-19_tasks-logseq-to-jumpybrain-migration.md`. Existing frozen companion/global CLI installations were not replaced; they need a runtime refresh for the new command and discovery fix.
+
 ## 2026-09-19 — Daily Markdown capture and page references
 
 - Added dated New note creation from home/editor, Cmd/Ctrl+N with Cmd/Ctrl+Shift+Enter fallback, authenticated idempotent retry, duplicate-input suppression, and guarded navigation. Blank remote `note` bodies are supported; other content validation remains unchanged.

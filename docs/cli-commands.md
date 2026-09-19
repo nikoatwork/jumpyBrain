@@ -61,6 +61,16 @@ The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local adv
 | `jumpybrain tree --target-url <url> [--connections] [--show-files] [--limit <n>] [--json]` | Show the same memory overview for a hosted/shared memory server. Requires `JUMPYBRAIN_API_KEY`. |
 | `jumpybrain overview ...` | Alias for `jumpybrain tree ...`. |
 
+## Logseq migration (local only)
+
+```bash
+jumpybrain migrate logseq --source <vault> --root <memory-root> [--apply] [--fail-on-conflict] [--json]
+```
+
+Default is a non-mutating dry-run. Import classic Logseq `pages/**/*.md` into `notes/` and `journals/**/*.md` into `sessions/`, preserving source body bytes under a new frontmatter envelope. `--apply` explicitly writes the destination; the source stays untouched. Reruns overwrite mapped destination edits by default and delete missing-source outputs owned by the prior manifest. `--fail-on-conflict` provides a conservative destination-conflict check, not a merge.
+
+Both paths are required; booleans accept bare flags or explicit `true`/`false`, not arbitrary strings. Remote flags are rejected before policy/credentials/network. JSON returns the app plan/result (counts, relative mappings/hashes, warnings/errors, manifest, `dryRun`, `applied`, `indexed: false`) without bodies. After successful apply, run `jumpybrain index --root <memory-root>` separately. See [Logseq migration](logseq-migration.md) for limitations, asset omissions, manifest ownership, and safe reruns.
+
 ## Reading and retrieving memory
 
 | Command | Human explanation |

@@ -29,3 +29,6 @@ import type { MemoryRootInitResult } from "../core/index.js";
 export async function initializeMemoryRoot(rootArg: string, options: { force?: boolean } = {}): Promise<MemoryRootInitResult> {
   return initializeCoreMemoryRoot(rootArg, { ...options, packageVersion: await packageVersion() });
 }
+
+export { migrateLogseq } from "../app/migration/index.js";
+export type { LogseqMigrationResult } from "../app/migration/index.js";
