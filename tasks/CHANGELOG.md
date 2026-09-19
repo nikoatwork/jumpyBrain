@@ -1,5 +1,11 @@
 # Task Changelog
 
+## 2026-09-19 — Experimental macOS menu-bar companion
+
+- Added an optional, self-contained `integrations/macos-companion/` prototype: native status/menu controls, Chrome editor launch, user-login startup, owned server lifecycle, and CLI-driven search indexing. No core memory APIs or public installer behavior changed.
+- Included local build/install/uninstall scripts, disposable native lifecycle tests, and documentation separating publishable source from machine-specific app bundles and private runtime state.
+- Validated native startup/auth/search, duplicate-instance and busy-port refusal, graceful shutdown, orphan cleanup, and unchanged canonical Markdown; existing disposable editor/autosave browser smokes pass. Actual logout/login and broader macOS distribution remain unverified.
+
 ## 2026-09-12 — Minimal notes web editor task archived
 
 - Archived the completed, validated editor task with user approval as `tasks/done/2026-09-12_tasks-minimal-notes-web-editor.md`.
