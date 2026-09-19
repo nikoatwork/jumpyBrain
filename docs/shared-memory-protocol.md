@@ -140,6 +140,8 @@ Remote create endpoints require:
 Idempotency-Key: <client-generated-key>
 ```
 
+The browser's New note flow retains the exact request and key for retries of an unconfirmed creation within the current tab. This does not provide reload/crash recovery. Canonical creation and idempotency-receipt persistence are separate writes; a server crash between them can still permit a duplicate on retry.
+
 The CLI generates a new key for each create-command invocation. The current CLI has no automatic retry loop. The server can deduplicate repeated delivery of that same HTTP request and key, but a separately invoked manual retry receives a new key and is not deduplicated against the first invocation. Users do not provide idempotency keys manually.
 
 Store records under `.jumpybrain/remote/idempotency/<sha256-key>.json` without storing the raw key:
@@ -293,7 +295,11 @@ These unauthenticated browser entrypoints serve the same content-free, nonce-CSP
 
 `/` is the primary entrance. It is intentionally almost empty and invites the user to press **Cmd+K** on macOS or **Ctrl+K** elsewhere. Typing a non-empty query sends a debounced, authenticated `POST /memories/all/search` across the indexed canonical collection, including notes, pages, and sessions. Search can match titles or bodies. Result navigation must use the validated canonical document ID in `provenance.metadata.id`, not the distinct QMD search-hit `id`.
 
+**New note** on home/editor, **Cmd/Ctrl+N** (if the browser delivers it), or **Cmd/Ctrl+Shift+Enter** creates a separate dated note using the existing authenticated idempotent notes POST. The browser-local `YYYY-MM-DD HH:mm:ss.SSS` title is also emitted as a heading by the app writer; creation is immediate and the editor focuses after that heading. A failed current save blocks creation. Repeated key events and double clicks are suppressed, and unconfirmed creates retain the same request/key for Retry new note within the tab. Browser-reserved shortcuts, reload recovery, and crash-atomic receipt storage are not guaranteed.
+
 Selecting a result opens `/?note=mem_<uuid>` as a reloadable, full-page raw Markdown body editor. The title and document metadata are read-only, leading frontmatter remains outside the textarea, and the browser uses authenticated `GET` and `PUT /memories/all/documents/:id` requests. API keys must never appear in `?note=` or other query parameters or generated note links. The shell prompts for the API key and reuses it only for authenticated data requests; for local-only smoke testing it may be supplied in the URL fragment as `/#apiKey=<key>` or `/graph#apiKey=<key>`, because fragments are not sent to the server.
+
+Typing `[[` or choosing **Insert page reference** opens the same search dialog in insertion mode. Selection inserts literal `[[Exact Page Title]]` into the saved range with native textarea undo and no target mutation/navigation. Escape is non-destructive; stale drafts, unsafe/missing titles, and duplicate titles within the result set block insertion with visible feedback. This is not global uniqueness validation or a new title-resolution API: the existing canonical graph resolver is filename-based, so a title reference may remain unresolved. If a browser cannot perform native undo-preserving insertion, leave the draft untouched and explain manual insertion instead. The home/editor/picker share neutral cream surfaces, charcoal text, and visible keyboard focus/error feedback.
 
 The editor autosaves after 750 ms of inactivity and on blur, displays understated `Saving…`, `Saved`, `Save failed`, or retry feedback, and retains failed drafts for manual retry. Each save reconstructs the whole document and uses `If-Match`; there is no PATCH, title-editing, metadata-editing, or block-storage model. A successful save marks the derived search index stale rather than synchronously rebuilding it, so recently saved body content may remain absent from search until indexing succeeds (the default check interval is five minutes, not a freshness guarantee). Search responses expose index freshness; confirmed local writes also mark the open palette stale, so an older search response cannot imply that `Saved` means indexed.
 
@@ -320,6 +326,8 @@ Query parameters:
 Response nodes use root-relative file IDs for Markdown documents plus virtual `unresolved:<target>` IDs for missing link targets. Edges are directed explicit links; backlinks are derived by reversing these edges. This endpoint is intentionally not an embedding or semantic-similarity map.
 
 ### Graph UI smoke validation
+
+`npm run smoke:daily-capture` runs disposable-root Chromium desktop/mobile checks for dated creation, auth, lost-response retries, duplicate suppression, reference insertion/native undo, autosave failures, and saved-note discovery after explicit indexing. `JUMPYBRAIN_SMOKE_SCREENSHOT_DIR` optionally retains screenshots. Automated key events verify app handling, not delivery by every headed browser/OS; Safari, Firefox, physical devices, and OS-level shortcut reservations require separate QA.
 
 `npm run smoke:graph` runs a Playwright browser smoke test against a live server's `/graph` page. It requires Playwright's Chromium (`npx playwright install chromium`) and two environment variables:
 
@@ -421,7 +429,7 @@ Request:
 }
 ```
 
-Allowed `type` values: `note`, `finding`, `decision`, and `preference`. Session files should be written through `/wrapups` in V1.
+Allowed `type` values: `note`, `finding`, `decision`, and `preference`. Session files should be written through `/wrapups` in V1. Remote `note` creation accepts an empty/whitespace-only body for quick capture; the canonical writer still emits a title heading. Findings, decisions, preferences, wrapups, and local CLI note writes retain non-empty-content validation.
 
 Response:
 

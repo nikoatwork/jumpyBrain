@@ -20,7 +20,12 @@ export const notesStyles = String.raw`
     .note-column { width: min(100%, 800px); margin: 0 auto; padding: clamp(24px, 5vh, 64px) 32px 100px; }
     #note-title { margin: 0 0 20px; color: var(--forest-950); font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
     #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: transparent; color: var(--ink); box-shadow: none; font: 15px/1.8 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
-    #note-editor:focus-visible { outline: 1px solid var(--line-strong); outline-offset: 8px; }
+    #note-editor:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 8px; }
+    .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
+    .capture-feedback[data-error="true"] { color: #8b4434; }
+    #home-new { justify-self: center; }
+    #insert-reference { margin: 0 0 12px -10px; font-size: 12px; }
+    button:disabled { cursor: wait; opacity: .65; }
     .save-state { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
     .save-state[data-state="failed"], #note-message[data-error="true"] { color: #8b4434; }
     #note-message { color: var(--ink-soft); white-space: pre-wrap; }
@@ -29,11 +34,11 @@ export const notesStyles = String.raw`
     .note-frontmatter summary { cursor: pointer; width: fit-content; }
     .note-frontmatter pre { white-space: pre-wrap; overflow-wrap: anywhere; }
     dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--cream-50); color: var(--ink); box-shadow: var(--shadow-lg); }
-    dialog::backdrop { background: rgba(23,55,43,.18); }
+    dialog::backdrop { background: rgba(45,43,39,.18); }
     #note-search { margin-top: min(15vh, 100px); }
     .dialog-head { display: flex; align-items: center; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line); }
     #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: 16px; }
-    #note-search-input:focus-visible { outline: 2px solid var(--line-strong); }
+    #note-search-input:focus-visible { outline: 2px solid var(--forest-600); }
     #search-results { list-style: none; padding: 6px; margin: 0; max-height: 45dvh; overflow: auto; }
     .search-result { padding: 12px; border-radius: 8px; cursor: pointer; }
     .search-result[aria-selected="true"] { background: var(--sage-100); }
@@ -69,10 +74,12 @@ export const notesMarkup = String.raw`
   <a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain</a>
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
+  <button id="new-note" class="quiet-button" title="New note: Cmd/Ctrl+N, or Cmd/Ctrl+Shift+Enter if reserved by your browser">New note</button>
   <button id="open-search" class="quiet-button" aria-label="Search notes">Search <kbd class="shortcut"></kbd></button>
   <a id="graph-link" class="quiet-button" href="/graph">Graph</a>
   <button id="open-connection" class="quiet-button" aria-label="Connection settings">Connect</button>
 </nav>
+<p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">
   <div class="dialog-head">
     <input id="note-search-input" aria-label="Search titles and contents" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="search-results" autocomplete="off" placeholder="Search your memory…" />
@@ -81,6 +88,7 @@ export const notesMarkup = String.raw`
   <ul id="search-results" role="listbox" aria-label="Matching notes"></ul>
   <div class="search-footer">
     <p id="search-message" role="status" aria-live="polite">Search titles and contents.</p>
+    <p id="reference-help" hidden>Insert a literal [[Page Title]] reference, not a unique-ID link. Duplicate titles may be ambiguous; graph resolution still uses filenames.</p>
     <p id="search-freshness" hidden>Recent edits may not appear until the search index refreshes.</p>
     <button id="search-retry" class="quiet-button" hidden>Retry search</button>
     <button id="search-connect" class="quiet-button" hidden>Connect</button>
@@ -100,12 +108,14 @@ export const notesMarkup = String.raw`
 export const notesViews = String.raw`
   <section id="home" class="home" aria-label="Your jumpyBrain">
     <button id="home-search" class="home-prompt" aria-label="Search notes"><kbd class="shortcut">⌘K</kbd> to enter your <strong>jumpyBrain</strong></button>
+    <button id="home-new" class="quiet-button">New note for today <kbd class="new-shortcut"></kbd></button>
   </section>
   <section id="note-panel" data-testid="graph-note-panel" aria-label="Note editor" hidden>
     <div class="note-column">
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
+      <button id="insert-reference" class="quiet-button" hidden>[[ ]] Insert page reference</button>
       <textarea id="note-editor" data-testid="graph-note-editor" aria-label="Markdown note body" spellcheck="true" wrap="soft" hidden></textarea>
       <details id="note-metadata" class="note-frontmatter" hidden>
         <summary>Metadata · read only</summary>
@@ -127,7 +137,7 @@ function normalizeNoteResults(results) {
     const key = documentId || file || String(hit.id);
     if (seen.has(key)) return [];
     seen.add(key);
-    return [{ documentId, file, title: String(metadata.title || file.split("/").pop() || "Untitled"), snippet: String(hit.snippet || "") }];
+    return [{ documentId, file, title: String(metadata.title || file.split("/").pop() || "Untitled"), referenceTitle: typeof metadata.title === "string" ? metadata.title : null, snippet: String(hit.snippet || "") }];
   });
   // Prefer usable notes without hiding unavailable legacy documents altogether.
   return [...normalized.filter((result) => result.documentId), ...normalized.filter((result) => !result.documentId)].slice(0, 12);
@@ -157,6 +167,7 @@ function createNoteSearch(options) {
     cancel();
     const token = generation;
     search.query = value.trim();
+    search.feedback = "";
     search.results = [];
     search.selected = -1;
     search.stale = localStale;
@@ -196,6 +207,7 @@ function createNoteSearch(options) {
     if (!available.length) return;
     const position = available.indexOf(search.selected);
     search.selected = available[(position + delta + available.length) % available.length];
+    search.feedback = "";
     options.onChange(search);
   }
   return { state: search, query, cancel, move, markStale };
@@ -219,19 +231,29 @@ function createPageNavigation(options) {
     }
     return restoring.promise;
   }
-  async function navigate(url) {
-    if (busy || url === current.url) return false;
+  async function navigate(destination) {
+    if (busy || destination === current.url) return false;
     busy = true;
+    let applied = false;
     try {
       const allowed = await options.beforeLeave();
       await restore();
       if (!allowed) return false;
+      // Creation runs only after saving the current draft, under the same history lock.
+      const url = typeof destination === "function" ? await destination() : destination;
+      await restore();
       current = { url, index: current.index + 1 };
       position = current.index;
       options.push(current);
       options.show(url);
+      applied = true;
       return true;
-    } finally { busy = false; }
+    } finally {
+      // A rejected create may race Back/Forward too: restore before unlocking editing.
+      await restore();
+      busy = false;
+      if (!applied && options.resume) options.resume();
+    }
   }
   async function pop(entry) {
     position = entry.index;
@@ -263,6 +285,53 @@ function createPageNavigation(options) {
   return { navigate, pop };
 }
 
+function datedNoteDraft(date) {
+  const pad = (value, width = 2) => String(value).padStart(width, "0");
+  const day = date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
+  const time = pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds()) + "." + pad(date.getMilliseconds(), 3);
+  return { type: "note", title: day + " " + time, body: "" };
+}
+
+// Keep the exact request/key after a lost response; retry must not create another note.
+function createNoteCapture(options) {
+  let attempt = null;
+  let pending = null;
+  function create() {
+    if (pending) return pending;
+    if (!attempt) attempt = { key: options.key(), draft: datedNoteDraft(options.now()), result: null };
+    if (attempt.result) return Promise.resolve(attempt.result);
+    pending = (async () => {
+      const result = await options.write(attempt.draft, attempt.key);
+      if (!isValidMemoryDocumentId(result?.id)) throw new Error("Invalid note creation response.");
+      attempt.result = result;
+      return result;
+    })().finally(() => { pending = null; });
+    return pending;
+  }
+  return { create, complete() { attempt = null; } };
+}
+
+function pageReferenceRange(value, start, end) {
+  const opening = value.lastIndexOf("[[", start);
+  if (opening >= 0 && start >= opening + 2 && !/[\[\]\r\n]/.test(value.slice(opening + 2, start)) && value[opening - 1] !== "\\") {
+    const closing = value.indexOf("]]", end);
+    const replaceEnd = closing >= end && !/[\[\]\r\n]/.test(value.slice(end, closing)) ? closing + 2 : end;
+    return { start: opening, end: replaceEnd, query: value.slice(opening + 2, start), value };
+  }
+  return { start, end, query: value.slice(start, end), value };
+}
+
+function pageReferenceError(result, results) {
+  const title = result.referenceTitle;
+  if (typeof title !== "string" || !title.trim() || title !== title.trim() || /[\[\]\x00-\x1f\x7f|#\\/]/.test(title)) {
+    return "This note has no safe exact page title for [[references]]. Choose another note.";
+  }
+  if (results.some((other) => other.documentId !== result.documentId && other.referenceTitle?.trim().toLowerCase() === title.toLowerCase())) {
+    return "Several results share this title. A title-only reference cannot distinguish them; choose another title.";
+  }
+  return "";
+}
+
 const searchDialog = $("note-search");
 const connectionDialog = $("connection");
 function wrapDialogFocus(event) {
@@ -279,11 +348,14 @@ for (const dialog of [searchDialog, connectionDialog]) dialog.addEventListener("
 let searchOrigin = null;
 let searchSelection = null;
 let searchDocument = null;
+let referenceSelection = null;
+let searchMode = "navigate";
 let selectingResult = false;
 let reopenSearch = false;
 let previousKey = "";
 const shortcut = /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘K" : "Ctrl+K";
 for (const element of document.querySelectorAll(".shortcut")) element.textContent = shortcut;
+for (const element of document.querySelectorAll(".new-shortcut")) element.textContent = shortcut.replace("K", "N");
 const noteSearch = createNoteSearch({
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
@@ -295,12 +367,20 @@ const noteSearch = createNoteSearch({
   onChange: renderNoteSearch,
 });
 
-function openSearch() {
+function openSearch(mode = "navigate", range = null) {
   if (searchDialog.open || connectionDialog.open) return;
+  searchMode = mode === "insert" ? "insert" : "navigate";
+  referenceSelection = range;
+  $("reference-help").hidden = searchMode !== "insert";
+  searchDialog.setAttribute("aria-label", searchMode === "insert" ? "Insert page reference" : "Search notes");
   searchOrigin = document.activeElement;
   searchDocument = state.editor;
   const editor = $("note-editor");
   searchSelection = { start: editor.selectionStart, end: editor.selectionEnd, direction: editor.selectionDirection, scroll: $("note-panel").scrollTop };
+  if (searchMode === "insert") {
+    searchOrigin = editor;
+    $("note-search-input").value = range.query;
+  }
   searchDialog.showModal();
   $("note-search-input").focus();
   $("note-search-input").select();
@@ -341,7 +421,8 @@ function renderNoteSearch(search) {
     $("note-search-input").setAttribute("aria-activedescendant", id);
     $(id).scrollIntoView({ block: "nearest" });
   }
-  $("search-message").textContent = search.message;
+  $("search-message").textContent = search.feedback || (searchMode === "insert" && search.status === "ready" && search.selected >= 0
+    ? "↑ ↓ to choose · Enter to insert reference" : search.message);
   $("search-results").setAttribute("aria-busy", String(search.status === "loading"));
   $("search-freshness").hidden = !search.stale;
   $("search-retry").hidden = search.status !== "error";
@@ -351,6 +432,7 @@ function renderNoteSearch(search) {
 async function chooseSearchResult(index) {
   const result = noteSearch.state.results[index];
   if (!result?.documentId || selectingResult) return;
+  if (searchMode === "insert") { insertPageReference(result); return; }
   selectingResult = true;
   closeSearch();
   try { await navigation.navigate("/?note=" + encodeURIComponent(result.documentId)); }
@@ -371,6 +453,11 @@ $("note-search-input").addEventListener("keydown", (event) => {
 });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));
 document.addEventListener("keydown", (event) => {
+  if (!event.isComposing && !event.repeat && !event.altKey && (event.metaKey || event.ctrlKey)
+      && ((!event.shiftKey && event.key.toLowerCase() === "n") || (event.shiftKey && event.key === "Enter"))) {
+    if (!searchDialog.open && !connectionDialog.open) { event.preventDefault(); newNote(); }
+    return;
+  }
   if (!event.isComposing && !event.altKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     if (searchDialog.open) closeSearch(); else openSearch();
@@ -396,7 +483,7 @@ $("connection-form").addEventListener("submit", (event) => {
   event.preventDefault();
   try { localStorage.setItem("jumpybrain.graph.apiKey", apiKeyInput.value); } catch { /* Session-only access still works. */ }
   connectionDialog.close();
-  if (reopenSearch) openSearch();
+  if (reopenSearch) openSearch(searchMode, referenceSelection);
   else if (state.view === "note" && !state.editor?.state.loaded) showNote(new URL(location.href).searchParams.get("note"));
   else if (state.view === "graph") loadGraph();
 });
@@ -407,6 +494,7 @@ history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", initialEntry.u
 const navigation = createPageNavigation({
   initial: initialEntry,
   beforeLeave: () => requestEditorNavigation(() => {}),
+  resume: () => state.editor?.setNavigationPending(false),
   go: (delta) => history.go(delta),
   push: (entry) => history.pushState({ jumpyBrainIndex: entry.index }, "", entry.url),
   show: showPage,
@@ -437,7 +525,7 @@ function showPage(url) {
   $("open-search").hidden = state.view === "home";
   $("graph-link").hidden = state.view === "graph";
   $("error").hidden = true;
-  if (state.view === "note") { showNote(documentId); return; }
+  if (state.view === "note") { showNote(documentId, documentId === newNoteId); newNoteId = null; return; }
   state.noteToken++;
   if (state.editor) state.editor.cancel();
   state.editor = null;
@@ -449,7 +537,7 @@ function showPage(url) {
   } else $("home-search").focus();
 }
 
-async function showNote(documentId) {
+async function showNote(documentId, focusEnd = false) {
   const token = ++state.noteToken;
   if (state.editor) state.editor.cancel();
   state.editor = null;
@@ -459,6 +547,7 @@ async function showNote(documentId) {
   $("note-metadata").hidden = true;
   $("note-metadata").open = false;
   $("note-retry").hidden = true;
+  $("insert-reference").hidden = true;
   $("note-save-state").textContent = "";
   $("note-load-retry").hidden = true;
   $("note-message").hidden = false;
@@ -489,6 +578,7 @@ async function showNote(documentId) {
     editor.hydrate(payload);
     editor.setEditing(true);
     autoSizeNoteEditor();
+    if (focusEnd) $("note-editor").setSelectionRange($("note-editor").value.length, $("note-editor").value.length);
     if (!searchDialog.open && !connectionDialog.open) $("note-editor").focus({ preventScroll: true });
   } catch (error) {
     if (token !== state.noteToken || state.editor !== editor) return;
@@ -513,6 +603,8 @@ function syncEditorUi(editorState) {
   $("note-editor").hidden = !editorState.loaded;
   // readOnly, not disabled: keep focus and caret while a navigation save is pending.
   $("note-editor").readOnly = editorState.navigationPending;
+  $("insert-reference").hidden = !editorState.loaded;
+  $("insert-reference").disabled = editorState.navigationPending;
   if (editorState.loaded) {
     if ($("note-editor").value !== editorState.draft) $("note-editor").value = editorState.draft;
     $("note-frontmatter").textContent = editorState.frontmatterPrefix;
@@ -525,6 +617,88 @@ function syncEditorUi(editorState) {
   $("note-save-state").dataset.state = editorState.saveStatus;
   $("note-save-state").title = editorState.saveError || "";
   $("note-save-state").setAttribute("aria-label", feedback + (editorState.saveError ? ": " + editorState.saveError : ""));
+}
+
+const noteCapture = createNoteCapture({
+  now: () => new Date(),
+  key: () => [...crypto.getRandomValues(new Uint8Array(16))].map((byte) => byte.toString(16).padStart(2, "0")).join(""),
+  write: (draft, key) => graphJson("/memories/all/notes", {
+    method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify(draft),
+  }),
+});
+let creatingNote = false;
+let newNoteId = null;
+async function newNote() {
+  if (creatingNote || searchDialog.open || connectionDialog.open) return;
+  creatingNote = true;
+  for (const id of ["new-note", "home-new"]) $(id).disabled = true;
+  const message = $("capture-message");
+  message.hidden = false;
+  message.dataset.error = "false";
+  message.textContent = "Creating today's note…";
+  try {
+    const opened = await navigation.navigate(async () => {
+      const result = await noteCapture.create();
+      noteSearch.markStale();
+      newNoteId = result.id;
+      return "/?note=" + encodeURIComponent(result.id);
+    });
+    if (!opened) throw new Error("navigation_blocked");
+    noteCapture.complete();
+    message.hidden = true;
+    $("new-note").textContent = "New note";
+  } catch (error) {
+    message.dataset.error = "true";
+    message.textContent = Number(error.status) === 401 || Number(error.status) === 403
+      ? "Connect with an access key, then retry New note."
+      : error.message === "navigation_blocked"
+        ? "Could not leave the current note. Retry any failed save, then try New note again."
+        : "Could not confirm note creation. Check your connection and retry New note; the same request will be reused.";
+    $("new-note").textContent = "Retry new note";
+  } finally {
+    creatingNote = false;
+    for (const id of ["new-note", "home-new"]) $(id).disabled = false;
+  }
+}
+for (const id of ["new-note", "home-new"]) $(id).addEventListener("click", (event) => { if (event.detail < 2) newNote(); });
+
+function openReferenceSearch() {
+  const editor = $("note-editor");
+  if (!state.editor?.state.loaded || editor.readOnly) return;
+  openSearch("insert", pageReferenceRange(editor.value, editor.selectionStart, editor.selectionEnd));
+}
+$("insert-reference").addEventListener("click", openReferenceSearch);
+$("note-editor").addEventListener("input", (event) => {
+  const editor = event.target;
+  if (!event.isComposing && event.inputType === "insertText" && event.data === "["
+      && editor.value.slice(editor.selectionStart - 2, editor.selectionStart) === "[["
+      && editor.value[editor.selectionStart - 3] !== "\\") openReferenceSearch();
+});
+function insertPageReference(result) {
+  const editor = $("note-editor");
+  const range = referenceSelection;
+  if (!range || state.editor !== searchDocument || !state.editor?.state.loaded || editor.readOnly || editor.value !== range.value) {
+    noteSearch.state.feedback = "The draft changed. Close this picker and insert the reference again.";
+    renderNoteSearch(noteSearch.state);
+    return;
+  }
+  const problem = pageReferenceError(result, noteSearch.state.results);
+  if (problem) { noteSearch.state.feedback = problem; renderNoteSearch(noteSearch.state); return; }
+  closeSearch();
+  editor.focus({ preventScroll: true });
+  editor.setSelectionRange(range.start, range.end);
+  const text = "[[" + result.referenceTitle + "]]";
+  // insertText participates in the native textarea undo history, unlike assigning .value.
+  // Leave the draft untouched if the browser cannot provide this operation.
+  if (!document.execCommand("insertText", false, text)) {
+    editor.setSelectionRange(searchSelection.start, searchSelection.end, searchSelection.direction);
+    $("capture-message").hidden = false;
+    $("capture-message").dataset.error = "true";
+    $("capture-message").textContent = "Your browser could not insert a reference. Type " + text + " in the Markdown body.";
+    return;
+  }
+  state.editor.input(editor.value);
+  autoSizeNoteEditor();
 }
 
 showPage(initialEntry.url);

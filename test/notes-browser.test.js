@@ -150,7 +150,7 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   }
   const elements = new Map();
   const $ = (id) => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
-  const { renderNoteSearch } = runtime(["renderNoteSearch"], { $, document: { createElement: element }, chooseSearchResult() {} });
+  const { renderNoteSearch } = runtime(["renderNoteSearch"], { $, document: { createElement: element }, chooseSearchResult() {}, searchMode: "navigate" });
   const malicious = '<script>alert("x")</script>';
   renderNoteSearch({ results: [{ documentId: docA, title: malicious, snippet: malicious, file: malicious }], selected: 0, status: "ready", message: "ready", stale: true });
   const row = $("search-results").children[0];

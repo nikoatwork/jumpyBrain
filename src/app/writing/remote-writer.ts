@@ -42,7 +42,7 @@ export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemory
   const type = normalizeRemoteNoteType(draft.type);
   const title = draft.title?.trim() || "Untitled memory";
   const body = draft.body.trim();
-  if (!body) throw new Error("Memory body is empty.");
+  if (!body && type !== "note") throw new Error("Memory body is empty.");
 
   const id = generateMemoryDocumentId();
   const now = new Date().toISOString();

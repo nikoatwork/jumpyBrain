@@ -15,6 +15,7 @@
     "validate": "npm test",
     "smoke:graph": "npx --package=playwright node scripts/graph-ui-smoke.mjs",
     "smoke:graph-editor": "npm run build && npx --package=playwright node scripts/graph-editor-smoke.mjs",
+    "smoke:daily-capture": "npm run build && npx --package=playwright node scripts/daily-capture-smoke.mjs",
     "guard:staged": "node scripts/precommit-guard.mjs",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "cli:version": "node scripts/version-local.mjs",

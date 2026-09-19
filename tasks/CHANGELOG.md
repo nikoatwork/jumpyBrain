@@ -1,5 +1,13 @@
 # Task Changelog
 
+## 2026-09-19 — Daily Markdown capture and page references
+
+- Added dated New note creation from home/editor, Cmd/Ctrl+N with Cmd/Ctrl+Shift+Enter fallback, authenticated idempotent retry, duplicate-input suppression, and guarded navigation. Blank remote `note` bodies are supported; other content validation remains unchanged.
+- Reused search for literal `[[Exact Page Title]]` insertion with caret preservation, native undo, cancellation, title safety/visible-ambiguity checks, and autosave. Global unique titles, title editing, clickable references, and title-based graph resolution remain deferred.
+- Refreshed ordinary UI chrome to neutral cream/charcoal. Fixed failed-creation history restoration and no-op edit save feedback while preserving existing search-click/autosave safeguards.
+- Validated 235 passing tests in the isolated commit snapshot (236 with the pre-existing search-click regression), 15 disposable desktop/mobile daily-capture scenarios, existing editor/graph browser regressions, screenshot review, packaging, extracted-package creation/readback, and diff checks. Browser-reserved shortcuts, physical-device/Safari/Firefox QA, offline drafts, and crash-atomic creation receipts remain explicit limitations.
+- Completed task: `tasks/done/2026-09-19_tasks-daily-markdown-capture-and-page-references.md`.
+
 ## 2026-09-19 — Experimental macOS menu-bar companion
 
 - Added an optional, self-contained `integrations/macos-companion/` prototype: native status/menu controls, Chrome editor launch, user-login startup, owned server lifecycle, and CLI-driven search indexing. No core memory APIs or public installer behavior changed.
