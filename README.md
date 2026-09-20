@@ -50,7 +50,7 @@ The [demo homepage](https://demojumpybrain.juttu.co/) also provides copyable `re
 - **Use the agent you want.** Claude, Codex, Pi, and other agents can work from the same shared context.
 - **Stop repeating yourself.** Remember a decision once instead of explaining it again in every chat and tool.
 - **Keep context current.** New findings and decisions become available to the rest of the team through search and recall.
-- **Turn notes into knowledge.** The explicit Dreaming workflow helps an agent consolidate scattered memories into clearer, current topic pages for you to review.
+- **Turn notes into knowledge.** The optional [how-to-dream skill](skills/how-to-dream/SKILL.md) helps an agent connect bounded UTC evidence windows into concise topic pages, preserving dates and source notes. Relevant dream maps are preferred in normal/shallow recall; deep recall keeps raw evidence accessible.
 - **Own the brain.** Memory stays in readable Markdown files on your machine or on infrastructure you control.
 
 ## Use it with your own work
@@ -97,6 +97,7 @@ To host a shared brain, start with the [operator quickstart](docs/cloud-shared-m
 - [Installation and updates](docs/install.md)
 - [macOS app (beta)](integrations/macos-companion/README.md)
 - [Using jumpyBrain with agents](docs/agent-workflows.md)
+- [Optional how-to-dream skill installation](docs/install.md#optional-how-to-dream-skill)
 - [CLI command reference](docs/cli-commands.md)
 - [Shared-memory operator quickstart](docs/cloud-shared-memory.md)
 - [Shared-memory protocol and API reference](docs/shared-memory-protocol.md)

@@ -1,7 +1,7 @@
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
-import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, renderMarkdownDocument, slug, validateWrapupBody, VALID_MEMORY_TYPES, wrapupValidationMessage, type WrapupValidation } from "../../core/writing/index.js";
+import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, renderMarkdownDocument, slug, validateWrapupBody, VALID_MEMORY_TYPES, wrapupValidationMessage, type WrapupValidation } from "../../core/writing/index.js";
 import type { MemoryNoteDraft, MemoryNoteType, MemoryWriteResult } from "../../types.js";
 import { writeUniqueMarkdownFile } from "./filesystem.js";
 
@@ -34,11 +34,13 @@ export async function rememberMemory(rootArg: string, options: MemoryNoteDraft):
   const markdown = renderMarkdownDocument([
     ["id", id],
     ["type", type],
+    ["dream", normalizeDreamMarker(options.dream)],
     ["title", title],
     ["source", "jumpybrain-remember"],
     ["created_at", now],
     ["updated_at", now],
-    ["confidence", MEMORY_CONFIDENCE.userReviewed],
+    ["confidence", options.dream === true ? MEMORY_CONFIDENCE.agentDrafted : MEMORY_CONFIDENCE.userReviewed],
+    ["review", options.dream === true ? MEMORY_REVIEW.userReviewRecommended : undefined],
     ["tags", options.tags ?? []],
   ], [`# ${title}`, "", body].join("\n"));
 

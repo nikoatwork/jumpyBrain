@@ -6,7 +6,9 @@
 - Export local `migrateLogseq(source, root, { apply?, failOnConflict? })` and `LogseqMigrationResult` from the app migration seam. Migration is dry-run-first, never indexes, and does not expose a remote writer.
 - Keep the package entrypoint able to re-export one runtime surface without importing CLI command parsing.
 - Preserve local and server use of the same Markdown memory semantics against a selected memory root.
-- Keep the stable public runtime surface local-first: memory-root setup/status, local remember/wrapup, index/search/overview, `graphMemory`, processing, document show/update, local dream batch operations, and curated result types.
+- Keep the stable public runtime surface local-first: memory-root setup/status, local remember/wrapup, index/search/overview, `graphMemory`, processing, document show/update, read-only `getDreamWindow` and legacy dream batch operations, and curated result types.
+
+- Export `DreamWindow`, its request/range/file/date-basis contracts, and `DreamWorkflowConfig` alongside `getDreamWindow({ root, request?, config?, now? })`. Windows use resolved inclusive UTC dates, optional source IDs, bounded body contexts, and request-local offsets; they never write or consult dream completion state. Legacy batch exports remain operational for compatibility.
 
 ## Non-responsibilities
 

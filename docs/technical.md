@@ -31,7 +31,7 @@ src/runtime/index.ts
   -> src/app/writing/index.ts                     # local write workflow use cases
   -> src/app/local-memory/index.ts                # QMD-backed index/search plus document read/update use cases
   -> src/app/processing/index.ts                  # memory processing app use cases
-  -> src/app/dream/index.ts                       # shared local/remote dream state workflow
+  -> src/app/dream/index.ts                       # stateless dream windows and legacy batch compatibility
   -> src/adapters/package-info/index.ts           # host package version injection for setup
 
 src/app/writing/index.ts
@@ -59,7 +59,7 @@ src/core/index.ts
   -> src/core/memory-root/*
   -> src/core/provenance.ts
   -> src/core/retrieval-policy/*                  # QMD-independent retrieval policy
-  -> src/core/dream/*                             # pure dream cursor/limit/path policy
+  -> src/core/dream/*                             # pure UTC window/date/limit policy plus legacy batches
   -> src/core/writing/*                           # pure write policy only
 ```
 
@@ -108,11 +108,10 @@ jumpybrain show --root <memory-root> --id <mem_id> [--json]
 cat revised.md | jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> [--json]
 JUMPYBRAIN_API_KEY=... jumpybrain show --target-url https://memory.example.com --id <mem_id> [--json]
 cat revised.md | JUMPYBRAIN_API_KEY=... jumpybrain update --target-url https://memory.example.com --id <mem_id> --if-match <contentHash> [--json]
-jumpybrain dream --root <memory-root> [--out dream-batch.json] [--json]
-jumpybrain dream --root <memory-root> --status|--complete <batch-id>|--abandon <batch-id>
-jumpybrain dream --root <memory-root> --apply-manifest dream-manifest.json
-JUMPYBRAIN_API_KEY=... jumpybrain dream --target-url https://memory.example.com [--out dream-batch.json] [--json]
-JUMPYBRAIN_API_KEY=... jumpybrain dream --target-url https://memory.example.com --status|--complete <batch-id>|--abandon <batch-id>
+jumpybrain dream --root <memory-root> --from t-0d --days 3 --out packet.json
+jumpybrain dream --root <memory-root> --from 2022-05-01 --days 3 --date-basis evidence --json
+JUMPYBRAIN_API_KEY=... jumpybrain dream --target-url https://memory.example.com --from t-1d --days 3 --json
+jumpybrain remember --root <memory-root> --type page --dream --title "Topic map" < body.md
 jumpybrain process --root <memory-root> --mode lint --topic "<topic>" --apply
 jumpybrain process --root <memory-root> --mode synthesize --topic "<topic>" --apply
 jumpybrain process --root <memory-root> --mode ensure-ids --apply
@@ -125,7 +124,13 @@ Remote read-only policy belongs entirely to the CLI boundary. Dispatch parses ar
 
 `tree`/`overview` scans canonical Markdown metadata plus derived index manifest state. With `--connections`, it extracts explicit Markdown links and Obsidian-style wiki links as labeled edges, reports unresolved links/orphans/top hubs, and does not return memory body content. Remote overview routes use `root: "remote:all"` and relative file paths only.
 
-`dream` works against local roots and hosted/shared targets with the same CLI flags. It selects a bounded batch of changed canonical Markdown contexts, prints local-agent instructions, and leaves consolidation edits to the user's local agent/model through existing `show`/`update` flows or `--apply-manifest`. Local state lives under `.jumpybrain/dream/state.json` and `.jumpybrain/dream/batches/`; remote server state remains under `.jumpybrain/remote/dream-state.json` and `.jumpybrain/remote/dream-batches/`. Dream state stores metadata only and never stores full memory bodies, schedules dreaming, or calls an AI provider. Batch retrieval/resume does not advance the cursor; `--complete` does, and `--abandon` does not.
+`dream` reads stateless UTC calendar windows of canonical Markdown through the same local/remote app seams. Default `--from t-0d --days 3 --date-basis evidence` includes today and the previous two UTC dates; the anchor is newest, while packet `window.from` is oldest and `window.to` newest. Core resolves dates/limits and evidence-date precedence (frontmatter `date`, dated journal filename, creation metadata, mtime); the app assembles bounded bodies with warnings, hashes, missing-ID path provenance, and truncation. `modified` explicitly selects mtime. Dream-marked pages are excluded as primary evidence; related pages remain available via recall/show.
+
+The authenticated remote route is `GET /memories/all/dream/window`. Reads neither stamp IDs nor write dream state. Optional `nextOffset` is request-local continuation, not a stored queue: concurrent edits can shift pages, so no exact coverage is promised. Pin continuation to the resolved newest date. Clients fail clearly against old servers without this endpoint; no batch fallback occurs.
+
+The agent, not the app, synthesizes through `remember --type page --dream` (body only), or optimistic `show`/`update` (full Markdown), then indexes after successful edits. No provider calls, scheduling, or completion transaction are introduced. Ordinary dreaming preserves source/human-authored notes by instruction, not ACL. Global/team/remote writes require explicit authorization.
+
+CLI batch flags `--status`, `--complete`, `--abandon`, `--force`, and `--apply-manifest` fail with deprecation guidance. Legacy runtime/HTTP batch APIs remain compatible; existing metadata-only state under `.jumpybrain/dream/` or `.jumpybrain/remote/` is untouched and ignored by window reads.
 
 Recall JSON returns:
 
@@ -164,7 +169,9 @@ Recall JSON returns:
 
 `recall` accepts `--depth shallow|normal|deep`.
 
-Depth is a jumpyBrain policy layer applied after QMD returns candidates from the full index. The policy currently reranks by file/frontmatter bucket: `shallow` prefers compressed/current memory such as pages and decisions, `normal` balances pages/decisions with evidence, and `deep` lets raw sessions surface with little or no penalty. The policy is implemented as a shapeable function so future memory directories can be included or excluded without changing the command concept.
+Depth is a jumpyBrain policy layer: `shallow` favors compressed pages/decisions, `normal` balances maps with evidence, and `deep` keeps raw evidence accessible. Strict boolean `dream: true` adds a relevance-gated normal/shallow preference, explained in score breakdown and provenance; deep and explicit source/historical queries omit it. An unrelated map must not win on its marker alone. Dream creation/update timestamps do not make its historical claims recent.
+
+The QMD adapter supplements ordinary candidates with a bounded lexical dream-candidate collection, merged/deduplicated before ranking; it does not load every page body per query. Reindex after marker/content edits or an upgrade to populate that derived collection. Everyday retrieval reduces repeated map chunks and near-identical echoes without hiding distinct raw details; deep retains evidence. No dream pages is a valid root, not a retrieval failure.
 
 ## Processing
 

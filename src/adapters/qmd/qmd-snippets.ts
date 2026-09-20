@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { open } from "node:fs/promises";
 import type { IndexedDocument } from "../../types.js";
 import { expandedQueryTerms, queryTermWeight, salientAdjacentQueries } from "./qmd-query.js";
 
@@ -17,17 +17,17 @@ export function cleanQmdSnippet(snippet: string): string {
 }
 
 export async function snippetFromOriginalBody(document: IndexedDocument, query: string): Promise<SnippetRepair> {
-  const text = await readFile(document.absolutePath, "utf8");
-  const lines = text.split(/\r?\n/);
+  const lines = await boundedOriginalLines(document.absolutePath);
   const bodyIndex = Math.max(0, document.bodyStartLine - 1);
+  if (bodyIndex >= lines.length) return { lineStart: document.bodyStartLine, lineEnd: document.bodyStartLine, snippet: "" };
   const center = bestBodyLineIndex(lines, bodyIndex, query);
   return neighborSnippetFromLines(lines, bodyIndex, center + 1, center + 1);
 }
 
 export async function neighborSnippetFromOriginal(document: IndexedDocument, lineStart: number, lineEnd: number | undefined): Promise<SnippetRepair> {
-  const text = await readFile(document.absolutePath, "utf8");
-  const lines = text.split(/\r?\n/);
+  const lines = await boundedOriginalLines(document.absolutePath);
   const bodyIndex = Math.max(0, document.bodyStartLine - 1);
+  if (lineStart > lines.length) return { lineStart, lineEnd: lineEnd ?? lineStart, snippet: "" };
   return neighborSnippetFromLines(lines, bodyIndex, lineStart, lineEnd ?? lineStart);
 }
 
@@ -88,4 +88,20 @@ export function boundedSnippet(text: string, maxLength = 500): string {
   const compact = text.replace(/\s+/g, " ").trim();
   if (compact.length <= maxLength) return compact;
   return `${compact.slice(0, maxLength)}…`;
+}
+
+// Repair is best-effort, not an unbounded full-document read. QMD's own snippet
+// remains usable for hits beyond this prefix; callers can explicitly expand it.
+async function boundedOriginalLines(file: string): Promise<string[]> {
+  const maximumBytes = 128 * 1024;
+  const handle = await open(file, "r");
+  try {
+    const buffer = Buffer.alloc(maximumBytes + 1);
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
+    const lines = buffer.subarray(0, Math.min(bytesRead, maximumBytes)).toString("utf8").split(/\r?\n/);
+    if (bytesRead > maximumBytes) lines.pop(); // Never quote a partial trailing line.
+    return lines;
+  } finally {
+    await handle.close();
+  }
 }

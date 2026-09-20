@@ -1,11 +1,15 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import path from "node:path";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { withSessionAliases } from "../../core/provenance.js";
-import type { IndexManifest, IndexedDocument, MarkdownDocument, RetrievalDepth, SearchResult } from "../../types.js";
-import { derivedRoot, manifestPath, normalizeQmdLookupPath, rebuildQmdCliCollection } from "./qmd-cli.js";
+import type { IndexManifest, IndexedDocument, MarkdownDocument, RetrievalDepth, ScoreBreakdown, SearchResult } from "../../types.js";
+import { QMD_DREAM_COLLECTION, derivedRoot, manifestPath, normalizeQmdLookupPath, rebuildQmdCliCollection } from "./qmd-cli.js";
 import { qmdLexQueries, searchWithQmdCli } from "./qmd-query.js";
 import {
   clampScore,
   dateStats,
+  diversifyResults,
+  dreamRelevance,
   exactBoost,
   memoryStrengthBoost,
   metadataBoostFor,
@@ -13,7 +17,7 @@ import {
   round,
   temporalBoostFor,
 } from "./qmd-ranking.js";
-import { depthPolicyFor, normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
+import { depthPolicyFor, dreamBoostFor, isDreamDocument, isSourceFocusedQuery, normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
 import {
   boundedSnippet,
   cleanQmdSnippet,
@@ -26,28 +30,34 @@ export { derivedRoot, manifestPath } from "./qmd-cli.js";
 
 const INDEX_VERSION = 1;
 
+export interface QmdManifest extends IndexManifest {
+  dreamCollection?: typeof QMD_DREAM_COLLECTION;
+}
+
 export async function buildQmdIndex(root: string, documents: MarkdownDocument[], options: { sourceRoot?: string } = {}): Promise<IndexManifest> {
   await mkdir(derivedRoot(root), { recursive: true });
 
-  const manifest: IndexManifest = {
+  const dreamRoot = await stageDreamDocuments(root, documents);
+  const manifest: QmdManifest = {
     version: INDEX_VERSION,
     root,
     sourceRoot: options.sourceRoot && options.sourceRoot !== root ? options.sourceRoot : undefined,
     generatedAt: new Date().toISOString(),
     qmdCollection: "jumpybrain",
+    dreamCollection: dreamRoot ? QMD_DREAM_COLLECTION : undefined,
     documents: documents.map(toIndexedDocument),
   };
 
   await writeFile(manifestPath(root), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  await rebuildQmdCliCollection(root, { embed: truthy(process.env.JUMPYBRAIN_QMD_EMBED), sourceRoot: options.sourceRoot });
+  await rebuildQmdCliCollection(root, { embed: truthy(process.env.JUMPYBRAIN_QMD_EMBED), sourceRoot: options.sourceRoot, dreamRoot });
 
   return manifest;
 }
 
-export async function loadManifest(root: string): Promise<IndexManifest> {
+export async function loadManifest(root: string): Promise<QmdManifest> {
   try {
     const raw = await readFile(manifestPath(root), "utf8");
-    return JSON.parse(raw) as IndexManifest;
+    return JSON.parse(raw) as QmdManifest;
   } catch (error) {
     const fileError = error as NodeJS.ErrnoException;
     if (fileError.code === "ENOENT") {
@@ -60,8 +70,17 @@ export async function loadManifest(root: string): Promise<IndexManifest> {
 export async function searchQmdIndex(root: string, query: string, limit: number, options: { depth?: RetrievalDepth } = {}): Promise<SearchResult[]> {
   const depth = normalizeRetrievalDepth(options.depth);
   const manifest = await loadManifest(root);
-  const candidates = await searchWithQmdCli(root, query, Math.max(limit * 8, 40));
+  if (!Number.isFinite(limit) || limit <= 0) return [];
   const documents = documentsByQmdPath(manifest.documents);
+  const candidates = await searchWithQmdCli(root, query, Math.min(160, Math.max(limit * 8, 40)));
+  if (depth !== "deep" && manifest.dreamCollection === QMD_DREAM_COLLECTION) {
+    const supplemental = await searchWithQmdCli(root, query, Math.min(24, Math.max(8, limit * 2)), { dreamsOnly: true });
+    candidates.push(...supplemental.filter((candidate) => {
+      const document = candidate.file && (documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file)));
+      return document && isDreamDocument(document);
+    }));
+  }
+  candidates.sort((a, b) => b.score - a.score);
   const candidateDocuments = matchedCandidateDocuments(candidates, documents);
   const temporalStats = dateStats(candidateDocuments);
   const seen = new Set<string>();
@@ -78,7 +97,9 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
       snippet: candidate.snippet ?? "",
     });
 
-    const id = `qmd-${stableResultId(candidate.file, repaired.lineStart, repaired.snippet)}`;
+    if (!repaired.snippet) continue;
+    if (candidate.dreamSupplement && dreamRelevance(query, repaired.snippet, document.frontmatter, clampScore(candidate.score)) === 0) continue;
+    const id = `qmd-${stableResultId(document.relativePath, repaired.lineStart, repaired.snippet)}`;
     if (seen.has(id)) continue;
     seen.add(id);
 
@@ -95,9 +116,23 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
     }));
   }
 
-  return results
-    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
-    .slice(0, limit);
+  return diversifyResults(results.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)), isSourceFocusedQuery(query) ? "deep" : depth).slice(0, limit);
+}
+
+/** Copies are derived snapshots; all result provenance still addresses originals. */
+async function stageDreamDocuments(root: string, documents: MarkdownDocument[]): Promise<string | undefined> {
+  const staging = path.join(derivedRoot(root), "qmd-dreams");
+  await rm(staging, { recursive: true, force: true });
+  const dreams = documents.filter(isDreamDocument);
+  if (!dreams.length) return undefined;
+  for (const document of dreams) {
+    const destination = path.resolve(staging, document.relativePath);
+    const relative = path.relative(path.resolve(staging), destination);
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Invalid dream document path");
+    await mkdir(path.dirname(destination), { recursive: true });
+    await copyFile(document.absolutePath, destination);
+  }
+  return staging;
 }
 
 function toIndexedDocument(document: MarkdownDocument): IndexedDocument {
@@ -143,9 +178,11 @@ async function resultSnippet(
 
   if (snippet.length < 180) {
     const expanded = await neighborSnippetFromOriginal(document, lineStart, lineEnd);
-    lineStart = expanded.lineStart;
-    lineEnd = expanded.lineEnd;
-    snippet = expanded.snippet;
+    if (expanded.snippet) {
+      lineStart = expanded.lineStart;
+      lineEnd = expanded.lineEnd;
+      snippet = expanded.snippet;
+    }
   }
 
   return { lineStart, lineEnd, snippet };
@@ -175,7 +212,14 @@ function toSearchResult(options: {
   const provenanceConfidence = provenanceConfidenceBoost(provenance);
   const qmdScore = clampScore(options.candidateScore);
   const depthPolicy = depthPolicyFor(options.document, options.depth);
-  const finalScore = qmdScore + exactMatchBoost + metadataBoost + temporalRelevance + memoryStrength + provenanceConfidence + depthPolicy.boost;
+  // A dream's write time is not the date of the claims it summarizes. Explicit
+  // source/date requests also bypass the large shallow page preference for maps.
+  if (isDreamDocument(options.document) && isSourceFocusedQuery(options.query)) {
+    depthPolicy.boost = Math.min(0.1, depthPolicy.boost);
+  }
+  const dreamBoost = dreamBoostFor(options.document, options.depth, options.query,
+    dreamRelevance(options.query, options.snippet, options.document.frontmatter, qmdScore));
+  const finalScore = qmdScore + exactMatchBoost + metadataBoost + temporalRelevance + memoryStrength + provenanceConfidence + depthPolicy.boost + dreamBoost;
 
   return {
     id: options.id,
@@ -192,15 +236,16 @@ function toSearchResult(options: {
       memoryStrength: round(memoryStrength),
       provenanceConfidence: round(provenanceConfidence),
       depthPolicyBoost: round(depthPolicy.boost),
+      dreamBoost: round(dreamBoost),
       retrievalDepth: options.depth,
       finalScore: round(finalScore),
       driver: `qmd-cli:${depthPolicy.bucket}`,
-    },
+    } satisfies ScoreBreakdown,
   };
 }
 
 function stableResultId(file: string, lineStart: number, snippet: string): string {
-  return Buffer.from(`${file}:${lineStart}:${snippet}`).toString("base64url").slice(0, 24);
+  return createHash("sha256").update(`${file}:${lineStart}:${snippet}`).digest("hex").slice(0, 24);
 }
 
 function truthy(value: string | undefined): boolean {

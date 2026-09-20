@@ -7,6 +7,8 @@ import type {
   DreamCompleteResult,
   DreamCreateRequest,
   DreamStatus,
+  DreamWindow,
+  DreamWindowRequest,
   IndexMemoryResult,
   MemoryDocumentReadResult,
   MemoryDocumentUpdateResult,
@@ -47,6 +49,7 @@ export interface RemoteMemoryTransport {
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions & { mode?: "search" | "recall" }): Promise<SearchMemoryResult & Record<string, unknown>>;
   readMemoryDocument(id: string): Promise<MemoryDocumentReadResult & Record<string, unknown>>;
   updateMemoryDocument(id: string, content: string, options: { ifMatch: string }): Promise<MemoryDocumentUpdateResult & Record<string, unknown>>;
+  getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
   getDreamStatus(): Promise<DreamStatus & Record<string, unknown>>;
   createDreamBatch(request?: DreamCreateRequest): Promise<DreamBatch & Record<string, unknown>>;
   getDreamBatch(batchId: string): Promise<DreamBatch & Record<string, unknown>>;
@@ -110,6 +113,22 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       headers: { "If-Match": updateOptions.ifMatch },
       body: JSON.stringify({ content }),
     }) as Promise<MemoryDocumentUpdateResult & Record<string, unknown>>,
+    getDreamWindow: async (windowRequest = {}) => {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(windowRequest)) {
+        if (value !== undefined) params.set(key, String(value));
+      }
+      try {
+        const packet = await request(`${HTTP_MEMORY_ROUTES.dreamWindow}?${params}`);
+        if (!packet.window || !Array.isArray(packet.files) || !Array.isArray(packet.instructions)) throw new Error("Remote server returned an unsupported dream window response. Upgrade the server; no legacy batch was created.");
+        return packet as unknown as DreamWindow;
+      } catch (error) {
+        if (error instanceof RemoteMemoryError && [404, 405].includes(error.status)) {
+          throw new Error("Remote server does not support stateless dream windows. Upgrade the server; no legacy batch was created.", { cause: error });
+        }
+        throw error;
+      }
+    },
     getDreamStatus: () => request(HTTP_MEMORY_ROUTES.dreamStatus) as Promise<DreamStatus & Record<string, unknown>>,
     createDreamBatch: (dreamRequest = {}) => request(HTTP_MEMORY_ROUTES.dreamBatches, {
       method: "POST",

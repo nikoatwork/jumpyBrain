@@ -60,3 +60,24 @@ function documentBucket(document: IndexedDocument): string {
   if (firstSegment === "notes") return "note";
   return firstSegment || "unknown";
 }
+
+/** Only a parsed YAML boolean activates dreaming; links and quoted scalars do not. */
+export function isDreamDocument(document: { frontmatter: Record<string, unknown> }): boolean {
+  return document.frontmatter.dream === true;
+}
+
+/** Explicit evidence/detail requests should not be displaced by maps-first policy. */
+export function isSourceFocusedQuery(query: string): boolean {
+  return /\b(?:source|sources|raw|original|verbatim|exact|quote|quoted|historical|history|journal|journals|session|sessions)\b|\b(?:19|20)\d{2}\b|["“][^"”]+["”]|\b[\w./-]+\.md\b/i.test(query);
+}
+
+/**
+ * The dream preference is a target TOTAL depth preference, not another full page
+ * bonus. Relevance (0..1) gates the incremental contribution; deep adds none.
+ */
+export function dreamBoostFor(document: IndexedDocument, depth: RetrievalDepth, query: string, relevance: number): number {
+  if (!isDreamDocument(document) || depth === "deep" || isSourceFocusedQuery(query)) return 0;
+  if (!Number.isFinite(relevance) || relevance <= 0) return 0;
+  const target = depth === "shallow" ? 1 : 0.55;
+  return Math.max(0, target - depthPolicyFor(document, depth).boost) * Math.min(1, relevance);
+}

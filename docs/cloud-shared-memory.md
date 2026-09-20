@@ -1,6 +1,6 @@
 # Run your own shared brain
 
-This quickstart runs one authenticated jumpyBrain server against a dedicated, persistent Markdown memory root. For route schemas, response shapes, idempotency, graph transport, dream state, and V1 constraints, use the [shared-memory protocol reference](shared-memory-protocol.md).
+This quickstart runs one authenticated jumpyBrain server against a dedicated, persistent Markdown memory root. For route schemas, response shapes, idempotency, graph transport, dream windows/legacy state, and V1 constraints, use the [shared-memory protocol reference](shared-memory-protocol.md).
 
 ## Prerequisites
 

@@ -64,6 +64,23 @@ Project scope creates `./memory` and installs project-local integrations:
 - Claude Code skill: `.claude/skills/jumpybrain-memory/SKILL.md`
 - Pi extension: `.pi/extensions/jumpybrain-memory.ts`
 
+### Optional how-to-dream skill
+
+The [how-to-dream skill](../skills/how-to-dream/SKILL.md) is included under `skills/` in the source checkout, managed runtime, and local package tarball. The installer still installs only the existing memory skill/extension; it does **not** silently enable dreaming or install this optional skill.
+
+To opt in, choose a source checkout (or extracted package) as `SOURCE`, and the skill directory supported by your agent as `DEST`. For example, from a checkout, install project-local for Codex:
+
+```bash
+SOURCE="$PWD"
+DEST="$PWD/.agents/skills"
+mkdir -p "$DEST/how-to-dream"
+cp -i "$SOURCE/skills/how-to-dream/SKILL.md" "$DEST/how-to-dream/SKILL.md"
+```
+
+For the default managed runtime, use `SOURCE="$HOME/.jumpybrain/app"` (custom installs: `<install-root>/app`). For global Codex use `DEST="$HOME/.agents/skills"`; Claude Code uses project `.claude/skills` or global `$HOME/.claude/skills`. For other agents, use their documented skill directory or load the shipped file explicitly. Restart/reload the agent after copying. No template substitution is needed: the skill discovers the CLI/root from PATH, environment, or confirmed integration configuration.
+
+This is an explicit manual copy, not installer-managed ownership. Review before replacing an existing file; refresh the copy manually after updates, and remove only your copied `how-to-dream/SKILL.md` when uninstalling it. The regular updater/uninstaller does not manage that copy. Installation grants no memory-write permission: global/team/remote writes still require explicit authorization.
+
 ### Installer options
 
 ```text

@@ -6,6 +6,8 @@ import type {
   DreamCompleteResult,
   DreamCreateRequest,
   DreamStatus,
+  DreamWindow,
+  DreamWindowRequest,
   IndexMemoryResult,
   LogseqMigrationResult,
   MemoryNoteDraft,
@@ -38,6 +40,7 @@ export interface LocalMemoryTransport {
   processMemory(rootArg: string, options: ProcessMemoryOptions): Promise<ProcessMemoryResult>;
   readMemoryDocument(rootArg: string, id: string): Promise<MemoryDocumentReadResult>;
   updateMemoryDocument(rootArg: string, id: string, content: string, options?: { ifMatch?: string; contentHash?: string }): Promise<MemoryDocumentUpdateResult>;
+  getDreamWindow(rootArg: string, request?: DreamWindowRequest): Promise<DreamWindow>;
   getDreamStatus(rootArg: string): Promise<DreamStatus>;
   createDreamBatch(rootArg: string, request?: DreamCreateRequest): Promise<DreamBatch>;
   getDreamBatch(rootArg: string, batchId: string): Promise<DreamBatch>;
@@ -59,6 +62,7 @@ export function createLocalMemoryTransport(): LocalMemoryTransport {
     processMemory: runtime.processMemory,
     readMemoryDocument: runtime.readMemoryDocument,
     updateMemoryDocument: runtime.updateMemoryDocument,
+    getDreamWindow: (rootArg, request) => runtime.getDreamWindow({ root: rootArg, request }),
     getDreamStatus: (rootArg) => runtime.getDreamStatus({ root: rootArg }),
     createDreamBatch: (rootArg, request) => runtime.createDreamBatch({ root: rootArg, request }),
     getDreamBatch: (rootArg, batchId) => runtime.getDreamBatch({ root: rootArg, batchId }),

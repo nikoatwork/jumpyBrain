@@ -2,6 +2,7 @@ import {
   abandonDreamBatch as abandonSharedDreamBatch,
   createDreamBatch as createSharedDreamBatch,
   DreamStateError,
+  getDreamWindow as getSharedDreamWindow,
   getDreamBatch as getSharedDreamBatch,
   getDreamStatus as getSharedDreamStatus,
   completeDreamBatch as completeSharedDreamBatch,
@@ -9,11 +10,15 @@ import {
   REMOTE_DREAM_STATE_RELATIVE_PATH,
   REMOTE_DREAM_WORKFLOW,
 } from "../dream/index.js";
-import type { DreamAbandonResult, DreamBatch, DreamCompleteRequest, DreamCompleteResult, DreamCreateRequest, DreamStatus } from "../../types.js";
+import type { DreamWindow, DreamWindowRequest, DreamAbandonResult, DreamBatch, DreamCompleteRequest, DreamCompleteResult, DreamCreateRequest, DreamStatus } from "../../types.js";
 
 export const DREAM_STATE_RELATIVE_PATH = REMOTE_DREAM_STATE_RELATIVE_PATH;
 export const DREAM_BATCHES_RELATIVE_DIR = REMOTE_DREAM_BATCHES_RELATIVE_DIR;
 export { DreamStateError };
+
+export async function getDreamWindow(options: { root: string; request?: DreamWindowRequest }): Promise<DreamWindow> {
+  return getSharedDreamWindow({ ...options, config: REMOTE_DREAM_WORKFLOW });
+}
 
 export async function getDreamStatus(options: { root: string }): Promise<DreamStatus> {
   return getSharedDreamStatus({ root: options.root, config: REMOTE_DREAM_WORKFLOW });

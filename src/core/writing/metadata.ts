@@ -11,3 +11,9 @@ export const MEMORY_CONFIDENCE = {
 export const MEMORY_REVIEW = {
   userReviewRecommended: "user-review-recommended",
 } as const satisfies Record<string, MemoryReviewStatus>;
+
+// Creation accepts typed metadata, not truthy strings from untrusted callers.
+export function normalizeDreamMarker(value: unknown): boolean | undefined {
+  if (value === undefined || typeof value === "boolean") return value;
+  throw new Error("dream must be a boolean.");
+}

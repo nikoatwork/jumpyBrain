@@ -1,10 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { isDreamDocument } from "../../core/retrieval-policy/index.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import { hashMemoryDocumentContent, listCanonicalMemoryMarkdownFiles, normalizeRelative, parseFrontmatter, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import {
+  boundedDreamFrontmatter,
   compareDreamBatchFiles,
+  compareDreamWindowFiles,
+  DREAM_WINDOW_INSTRUCTIONS,
+  DREAM_WINDOW_WARNINGS,
+  resolveDreamWindow,
+  selectDreamEvidenceDate,
+  truncateDreamWindowContent,
   DEFAULT_DREAM_LIMITS,
   DREAM_BATCH_TTL_DAYS,
   DREAM_INSTRUCTIONS,
@@ -38,6 +46,9 @@ import type {
   DreamLimits,
   DreamState,
   DreamStatus,
+  DreamWindow,
+  DreamWindowFileContext,
+  DreamWindowRequest,
   Frontmatter,
   MemoryDocumentTargetKind,
   MemoryDocumentTargetMetadata,
@@ -77,6 +88,102 @@ export class DreamStateError extends Error {
     super(message);
     this.name = "DreamStateError";
   }
+}
+
+/** Read-only, stateless source context. Deliberately never reads legacy dream state. */
+export async function getDreamWindow(options: {
+  root: string;
+  request?: DreamWindowRequest;
+  config?: DreamWorkflowConfig;
+  now?: Date;
+}): Promise<DreamWindow> {
+  const config = options.config ?? LOCAL_DREAM_WORKFLOW;
+  const resolved = resolveDreamWindow(options.request, options.now);
+  const { window, offset, limits } = resolved;
+  const root = await compatibleRoot(options.root);
+  const target = targetMetadata(config, root);
+  const warnings = [...DREAM_WINDOW_WARNINGS, ...resolved.warnings];
+  let omittedWarnings = 0;
+  const warnScan = (message: string) => {
+    if (warnings.length < 100) warnings.push(message);
+    else omittedWarnings += 1;
+  };
+  const candidates: Array<Omit<DreamWindowFileContext, "content" | "returnedBytes" | "truncated"> & { absolutePath: string }> = [];
+  for (const absolutePath of (await listCanonicalMemoryMarkdownFiles(root)).sort()) {
+    const file = normalizeRelative(root, absolutePath);
+    let bytes: Buffer;
+    let mtimeMs: number;
+    try {
+      mtimeMs = (await stat(absolutePath)).mtimeMs;
+      bytes = await readFile(absolutePath);
+    } catch {
+      warnScan(`${file}: could not read canonical evidence; the scan may be incomplete.`);
+      continue;
+    }
+    const { frontmatter } = parseFrontmatter(bytes.toString("utf8"));
+    if (isDreamDocument({ frontmatter })) continue;
+    const evidence = selectDreamEvidenceDate({ file, frontmatter, mtimeMs, dateBasis: window.dateBasis });
+    // Include fallback diagnostics even outside the window: malformed dates may hide historical evidence.
+    evidence.warnings.forEach(warnScan);
+    if (evidence.date < window.from || evidence.date > window.to) continue;
+    candidates.push({
+      absolutePath,
+      root: target.root,
+      ...(typeof frontmatter.id === "string" && frontmatter.id.trim() ? { id: frontmatter.id } : {}),
+      file,
+      type: memoryTypeForDreamPath(file, frontmatter),
+      title: typeof frontmatter.title === "string" ? frontmatter.title : "",
+      frontmatter,
+      contentHash: hashMemoryDocumentContent(bytes),
+      byteLength: bytes.byteLength,
+      date: evidence.date,
+      dateBasis: evidence.dateBasis,
+      mtime: new Date(mtimeMs).toISOString(),
+    });
+  }
+  candidates.sort(compareDreamWindowFiles);
+  const files: DreamWindowFileContext[] = [];
+  let remainingBytes = limits.maxTotalBytes;
+  let nextOffset = offset;
+  for (const candidate of candidates.slice(offset, offset + limits.maxFiles)) {
+    if (remainingBytes <= 0) break;
+    nextOffset += 1;
+    const { absolutePath, ...metadata } = candidate;
+    let bytes: Buffer;
+    try {
+      bytes = await readFile(absolutePath);
+    } catch {
+      warnings.push(`${metadata.file}: no longer readable; omitted from this packet.`);
+      continue;
+    }
+    if (hashMemoryDocumentContent(bytes) !== metadata.contentHash) {
+      warnings.push(`${metadata.file}: changed during this scan; omitted. Repeat the window to review current evidence.`);
+      continue;
+    }
+    const totalBudgetIsLimiting = remainingBytes <= limits.bytesPerFile;
+    const prefix = truncateDreamWindowContent(bytes, Math.min(limits.bytesPerFile, remainingBytes));
+    remainingBytes -= prefix.byteLength;
+    const truncated = prefix.byteLength < bytes.byteLength;
+    if (truncated) warnings.push(`${metadata.file}: content truncated to ${prefix.byteLength} of ${bytes.byteLength} bytes; read the full source before editing or claiming review.`);
+    if (!metadata.id) warnings.push(`${metadata.file}: missing document ID; returned with path provenance only. No ID was assigned.`);
+    const bounded = boundedDreamFrontmatter(metadata.frontmatter);
+    const id = metadata.id && Buffer.byteLength(metadata.id, "utf8") <= 512 ? metadata.id : undefined;
+    const title = Buffer.byteLength(metadata.title, "utf8") <= 1024 ? metadata.title : "";
+    if (bounded.omitted || id !== metadata.id || title !== metadata.title) warnings.push(`${metadata.file}: oversized packet metadata omitted; read full canonical content for complete frontmatter.`);
+    files.push({ ...metadata, id, title, frontmatter: bounded.frontmatter, content: prefix.toString("utf8"), returnedBytes: prefix.byteLength, truncated });
+    // A UTF-8 boundary can leave 1–3 unusable bytes; do not spend those on an almost-empty next context.
+    if (truncated && totalBudgetIsLimiting) break;
+  }
+  const hasMore = nextOffset < candidates.length;
+  if (hasMore) warnings.push(`Packet limits left ${candidates.length - nextOffset} matching file(s) unread; continue with offset ${nextOffset} and resolved anchor ${window.to}.`);
+  if (offset > candidates.length) warnings.push(`offset ${offset} is beyond the ${candidates.length} matching file(s); returning an empty packet.`);
+  if (omittedWarnings) warnings.push(`${omittedWarnings} additional diagnostics omitted (warning budget reached).`);
+  return {
+    ...target, window, files, hasMore,
+    ...(hasMore ? { nextOffset } : {}),
+    offset, totalFiles: candidates.length, limits, warnings,
+    instructions: [...DREAM_WINDOW_INSTRUCTIONS],
+  };
 }
 
 export async function getDreamStatus(options: { root: string; config?: DreamWorkflowConfig }): Promise<DreamStatus> {

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-09-20 — Stateless dreaming and maps-first retrieval
+
+- Added stateless historical dream windows, a reusable how-to-dream skill, editable dream-marked pages, and relevance-aware retrieval preference while retaining source evidence and legacy APIs.
+
 ## 2026-09-19 — Unified installed updates
 
 - Unified the CLI and optional macOS companion on one managed runtime, with quit-before-update migration, paired rollback, serialized installation, and preserved memory/settings; development checkouts remain separate.

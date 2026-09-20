@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const QMD_COLLECTION = "jumpybrain";
+export const QMD_DREAM_COLLECTION = "jumpybrain-dreams";
 
 export function derivedRoot(root: string): string {
   return path.join(root, ".jumpybrain");
@@ -14,7 +15,7 @@ export function manifestPath(root: string): string {
   return path.join(derivedRoot(root), "index.json");
 }
 
-export async function rebuildQmdCliCollection(root: string, options: { embed: boolean; sourceRoot?: string }): Promise<void> {
+export async function rebuildQmdCliCollection(root: string, options: { embed: boolean; sourceRoot?: string; dreamRoot?: string }): Promise<void> {
   const derived = derivedRoot(root);
   const sourceRoot = options.sourceRoot ?? root;
   await rm(path.join(derived, "qmd-cache"), { recursive: true, force: true });
@@ -24,6 +25,9 @@ export async function rebuildQmdCliCollection(root: string, options: { embed: bo
   await mkdir(path.join(derived, "qmd-home"), { recursive: true });
 
   runQmd(root, ["collection", "add", sourceRoot, "--name", QMD_COLLECTION, "--mask", "**/*.md"]);
+  if (options.dreamRoot) {
+    runQmd(root, ["collection", "add", options.dreamRoot, "--name", QMD_DREAM_COLLECTION, "--mask", "**/*.md"]);
+  }
   runQmd(root, ["update"]);
 
   if (options.embed) runQmd(root, ["embed"]);
@@ -75,8 +79,8 @@ function bundledQmdBinary(): string | undefined {
   return candidates.find((candidate) => existsSync(candidate));
 }
 
-export function qmdVirtualPathToRelative(file: string): string | undefined {
-  const prefix = `qmd://${QMD_COLLECTION}/`;
+export function qmdVirtualPathToRelative(file: string, collection = QMD_COLLECTION): string | undefined {
+  const prefix = `qmd://${collection}/`;
   if (!file.startsWith(prefix)) return undefined;
   return decodeURIComponent(file.slice(prefix.length));
 }

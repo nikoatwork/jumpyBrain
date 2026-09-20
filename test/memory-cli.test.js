@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, realpath, readdir, rm, stat, writeFile, mkdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, realpath, readdir, rm, stat, utimes, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -95,98 +96,186 @@ test("CLI remote target requires API key before local root handling", () => {
   assert.doesNotMatch(result.stderr, /--root is required/);
 });
 
-test("CLI local dream supports create status apply-manifest complete and cursor exclusion", async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-cli-local-dream-"));
+test("CLI dream deprecates every batch flag without touching legacy state or reading manifests", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-cli-dream-deprecated-"));
   try {
-    const resolvedRoot = await realpath(tempRoot);
     runCli(["init", "--root", tempRoot]);
-    const remembered = JSON.parse(runCli(["remember", "--root", tempRoot, "--type", "finding", "--title", "Local dream fruit", "--json"], {
-      input: "Local dream should consolidate the mango note.",
-    }).stdout);
-    const overflow = JSON.parse(runCli(["remember", "--root", tempRoot, "--type", "finding", "--title", "Local dream overflow", "--json"], {
-      input: "Local dream overflow should remain pending after the first apply.",
-    }).stdout);
-
-    const status = JSON.parse(runCli(["dream", "--root", tempRoot, "--status", "--json"]).stdout);
-    assert.equal(status.target, "local");
-    assert.equal(status.root, resolvedRoot);
-    assert.equal(status.available, true);
-
-    const localOut = path.join(tempRoot, "local-dream-batch.json");
-    const batch = JSON.parse(runCli(["dream", "--root", tempRoot, "--out", localOut, "--max-files", "1", "--json"]).stdout);
-    assert.deepEqual(JSON.parse(await readFile(localOut, "utf8")).batchId, batch.batchId);
-    assert.equal(batch.target, "local");
-    assert.equal(batch.root, resolvedRoot);
-    assert.equal(batch.files.length, 1);
-    const completedId = batch.files[0].id;
-    const pendingId = completedId === remembered.id ? overflow.id : remembered.id;
-    assert.ok([remembered.id, overflow.id].includes(completedId));
-    assert.equal(existsSync(path.join(tempRoot, ".jumpybrain", "dream", "state.json")), true);
-
-    const shown = JSON.parse(runCli(["show", "--root", tempRoot, "--id", completedId, "--json"]).stdout);
-    const revisedPath = path.join(tempRoot, "local-dream-revised.md");
-    await writeFile(revisedPath, `${shown.content}\n\nLocal dream applied marker.\n`, "utf8");
-    const manifestPath = path.join(tempRoot, "local-dream-manifest.json");
-    await writeFile(manifestPath, JSON.stringify({
-      version: 1,
-      batchId: batch.batchId,
-      summary: "local dream applied",
-      updates: [{ id: completedId, ifMatch: shown.contentHash, contentFile: path.basename(revisedPath) }],
-    }, null, 2), "utf8");
-
-    const completed = JSON.parse(runCli(["dream", "--root", tempRoot, "--apply-manifest", manifestPath, "--json"]).stdout);
-    assert.equal(completed.target, "local");
-    assert.equal(completed.status, "completed");
-    assert.deepEqual(completed.updatedDocumentIds, [completedId]);
-
-    const after = JSON.parse(runCli(["show", "--root", tempRoot, "--id", completedId, "--json"]).stdout);
-    assert.match(after.content, /Local dream applied marker/);
-
-    const next = JSON.parse(runCli(["dream", "--root", tempRoot, "--json"]).stdout);
-    assert.equal(next.target, "local");
-    assert.equal(next.files.some((file) => file.id === completedId), false);
-    assert.equal(next.files.some((file) => file.id === pendingId), true);
+    await mkdir(path.join(tempRoot, ".jumpybrain", "dream"), { recursive: true });
+    await writeFile(path.join(tempRoot, ".jumpybrain", "dream", "state.json"), "legacy state left untouched\n");
+    const before = await filesystemSnapshot(tempRoot);
+    for (const flags of [
+      ["--status"], ["--complete", "dream_old"], ["--abandon", "dream_old"], ["--force"],
+      ["--apply-manifest", path.join(tempRoot, "missing.json")], ["--summary", "old summary"],
+    ]) {
+      for (const target of [["--root", tempRoot], ["--target-url", "https://dream-test.invalid"]]) {
+        const failure = runCliFailure(["dream", ...target, ...flags], {
+          env: { JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_CLI_CONFIG: path.join(tempRoot, "no-policy.json") },
+        });
+        assert.match(failure.stderr, new RegExp(`dream ${flags[0]} is deprecated`));
+        assert.match(failure.stderr, /stateless UTC windows/);
+        assert.match(failure.stderr, /No completion is needed/);
+        assert.match(failure.stderr, /remember\/update, then index/);
+        assert.doesNotMatch(failure.stderr, /ENOENT|API_KEY is required|fetch failed/);
+      }
+    }
+    assert.deepEqual(await filesystemSnapshot(tempRoot), before);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
 
-test("CLI local dream apply-manifest rejects stale hashes and unsafe content paths", async () => {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-cli-local-dream-stale-"));
+test("CLI dream window flags bound read-only evidence and ignore legacy state", async () => {
+  const tempParent = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-cli-dream-window-"));
+  const tempRoot = path.join(tempParent, "memory");
+  const out = path.join(tempParent, "window.json");
+  const args = ["dream", "--root", tempRoot, "--from", "2022-04-23", "--days", "3"];
   try {
     runCli(["init", "--root", tempRoot]);
-    const remembered = JSON.parse(runCli(["remember", "--root", tempRoot, "--type", "finding", "--title", "Local stale dream", "--json"], {
-      input: "Local dream stale apply should remain open.",
+    for (const day of [21, 22, 23]) {
+      const file = path.join(tempRoot, "sessions", `2022-04-${day}.md`);
+      await writeFile(file, `---\ndate: 2022-04-${day}\n---\n# Imported evidence\n${"Synthetic historical observation. ".repeat(100)}\n`);
+      await utimes(file, new Date("2026-06-01T12:00:00Z"), new Date("2026-06-01T12:00:00Z"));
+    }
+    await writeFile(path.join(tempRoot, "pages", "prior-dream.md"), "---\ndream: true\ndate: 2022-04-22\n---\nPrior dream is context, not fresh evidence.\n");
+    // Deliberately unreadable as JSON: window requests must not even consult old batch state.
+    for (const file of ["dream/state.json", "remote/dream-state.json"]) {
+      const absolute = path.join(tempRoot, ".jumpybrain", file);
+      await mkdir(path.dirname(absolute), { recursive: true });
+      await writeFile(absolute, "untouched legacy state\n");
+    }
+    const before = await filesystemSnapshot(tempRoot);
+    const human = runCli([...args, "--max-files", "1", "--bytes-per-file", "128", "--out", out]);
+    assert.match(human.stdout, /2022-04-21 through 2022-04-23 \(inclusive, UTC\)/);
+    assert.match(human.stdout, /--from 2022-04-23 --days 3 --date-basis evidence --offset 1/);
+    assert.match(human.stdout, /no ID; truncated/);
+    const first = JSON.parse(await readFile(out, "utf8"));
+    assert.equal(first.totalFiles, 3);
+    assert.equal(first.files.length, 1);
+    assert.equal(first.files[0].dateBasis, "date");
+    assert.equal(first.files[0].truncated, true);
+    assert.equal(first.files[0].returnedBytes, 128);
+    assert.equal(Buffer.byteLength(first.files[0].content), 128);
+    assert.equal(first.files[0].contentHash, contentHash(await readFile(path.join(tempRoot, first.files[0].file))));
+    assert.equal(first.hasMore, true);
+    assert.equal(first.nextOffset, 1);
+    assert.match(first.warnings.join("\n"), /unread/);
+    const next = JSON.parse(runCli([...args, "--offset", "1", "--max-total-bytes", "256", "--json"]).stdout);
+    assert.equal(next.files[0].file, "sessions/2022-04-22.md");
+    assert.ok(next.files.reduce((sum, file) => sum + file.returnedBytes, 0) <= 256);
+    assert.equal(next.nextOffset, 2);
+    const overflow = JSON.parse(runCli([...args, "--offset", "99", "--json"]).stdout);
+    assert.deepEqual(overflow.files, []);
+    assert.equal(overflow.hasMore, false);
+    assert.match(overflow.warnings.join("\n"), /beyond/);
+    const modified = JSON.parse(runCli(["dream", "--root", tempRoot, "--from", "2026-06-01", "--days", "1", "--date-basis", "modified", "--json"]).stdout);
+    assert.equal(modified.files.length, 3);
+    assert.ok(modified.files.every((file) => file.dateBasis === "modified" && file.date === "2026-06-01"));
+    const empty = JSON.parse(runCli(["dream", "--root", tempRoot, "--from", "1999-01-01", "--days", "1", "--json"]).stdout);
+    assert.deepEqual(empty.files, []);
+    assert.equal(empty.totalFiles, 0);
+    for (const flags of [
+      ["--from", "2022-02-30"], ["--from", "yesterday"], ["--days", "0"], ["--days", "1.5"],
+      ["--offset", "-1"], ["--date-basis", "updated"], ["--max-files"], ["--json", "maybe"],
+      ["--unknown"], ["--from", "2022-04-22", "--from", "2022-04-23"],
+    ]) {
+      runCliFailure(["dream", "--root", tempRoot, ...flags]);
+    }
+    assert.deepEqual(await filesystemSnapshot(tempRoot), before);
+  } finally {
+    await rm(tempParent, { recursive: true, force: true });
+  }
+});
+
+test("CLI dream overlapping windows reuse a dream page and preserve original evidence", async () => {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-cli-dream-workflow-"));
+  const sourceFiles = ["sessions/2022-04-21.md", "sessions/2022-04-22.md", "sessions/2022-04-23.md"];
+  const hashes = async () => Promise.all(sourceFiles.map(async (file) => [file, contentHash(await readFile(path.join(tempRoot, file)))]));
+  const windowArgs = ["dream", "--root", tempRoot, "--days", "2", "--json"];
+  try {
+    runCli(["init", "--root", tempRoot]);
+    for (const [i, file] of sourceFiles.entries()) {
+      // Deliberately no IDs: reading and indexing evidence must not stamp them.
+      await writeFile(path.join(tempRoot, file), `---\ntype: session\ndate: 2022-04-${21 + i}\n---\n# Harbor migration evidence ${i + 1}\n\n${[
+        "Harbor migration links fleet scheduling with cargo routing. The first trial needs a weather check.",
+        "Harbor migration crew readiness requires a safety review; the historical trial is not a current commitment.",
+        "Harbor migration rollback used checkpoint amber-otter-73 after a berth assignment failed.",
+      ][i]}\n`);
+    }
+    const originalHashes = await hashes();
+    const beforeRead = await filesystemSnapshot(tempRoot);
+    const first = JSON.parse(runCli([...windowArgs, "--from", "2022-04-22"]).stdout);
+    assert.deepEqual(first.window, { from: "2022-04-21", to: "2022-04-22", timezone: "UTC", dateBasis: "evidence" });
+    assert.deepEqual(first.files.map((file) => file.file), sourceFiles.slice(0, 2));
+    assert.ok(first.files.every((file) => file.id === undefined && file.dateBasis === "date"));
+    assert.deepEqual(first.files.map((file) => [file.file, file.contentHash]), originalHashes.slice(0, 2));
+    assert.match(first.warnings.join("\n"), /missing document ID.*No ID was assigned/);
+    assert.equal(first.batchId, undefined);
+    assert.equal(first.status, undefined);
+    assert.deepEqual(JSON.parse(runCli([...windowArgs, "--from", "2022-04-22"]).stdout), first);
+    assert.deepEqual(await filesystemSnapshot(tempRoot), beforeRead, "dream reads cannot write canonical or support state");
+
+    const created = JSON.parse(runCli(["remember", "--root", tempRoot, "--type", "page", "--dream", "--title", "Harbor migration map", "--json"], {
+      input: "Harbor migration connects fleet scheduling, cargo routing and crew readiness. These April 2022 observations do not establish current commitments.\n\n## Source memories\n- [Trial](../sessions/2022-04-21.md)\n- [Safety](../sessions/2022-04-22.md)\n",
     }).stdout);
-    const shown = JSON.parse(runCli(["show", "--root", tempRoot, "--id", remembered.id, "--json"]).stdout);
-    const batch = JSON.parse(runCli(["dream", "--root", tempRoot, "--json"]).stdout);
-    const revisedPath = path.join(tempRoot, "local-stale-revised.md");
-    await writeFile(revisedPath, shown.content, "utf8");
-    const staleManifest = path.join(tempRoot, "local-stale-manifest.json");
-    await writeFile(staleManifest, JSON.stringify({
-      version: 1,
-      batchId: batch.batchId,
-      updates: [{ id: remembered.id, ifMatch: "sha256:0000", contentFile: path.basename(revisedPath) }],
-    }, null, 2), "utf8");
+    assert.match(created.file, /^pages\//);
+    assert.match(created.id, /^mem_/);
+    runCli(["index", "--root", tempRoot]);
+    const recall = JSON.parse(runCli(["recall", "--root", tempRoot, "--topic", "harbor migration", "--json"]).stdout);
+    const hit = recall.results.find((result) => result.provenance.file === created.file);
+    assert.ok(hit, "the existing dream page must be discoverable before another synthesis");
+    assert.equal(hit.provenance.metadata.dream, true);
+    assert.ok(hit.scoreBreakdown.dreamBoost > 0);
+    assert.equal(hit.scoreBreakdown.retrievalDepth, "normal");
 
-    const staleApply = runCliFailure(["dream", "--root", tempRoot, "--apply-manifest", staleManifest]);
-    assert.match(staleApply.stderr, /content hash is stale/i);
-    const stillOpen = JSON.parse(runCli(["dream", "--root", tempRoot, "--status", "--json"]).stdout);
-    assert.equal(stillOpen.openBatch.batchId, batch.batchId);
+    const beforeOverlap = await filesystemSnapshot(tempRoot);
+    const overlap = JSON.parse(runCli([...windowArgs, "--from", "2022-04-23"]).stdout);
+    assert.deepEqual(overlap.files.map((file) => file.file), sourceFiles.slice(1));
+    assert.deepEqual(overlap.files.map((file) => [file.file, file.contentHash]), originalHashes.slice(1));
+    assert.deepEqual(JSON.parse(runCli([...windowArgs, "--from", "2022-04-23"]).stdout), overlap);
+    assert.deepEqual(await filesystemSnapshot(tempRoot), beforeOverlap);
 
-    const unsafeManifest = path.join(tempRoot, "local-unsafe-manifest.json");
-    await writeFile(unsafeManifest, JSON.stringify({
-      version: 1,
-      batchId: batch.batchId,
-      updates: [{ id: remembered.id, ifMatch: shown.contentHash, contentFile: "../escape.md" }],
-    }, null, 2), "utf8");
-    const unsafeApply = runCliFailure(["dream", "--root", tempRoot, "--apply-manifest", unsafeManifest]);
-    assert.match(unsafeApply.stderr, /must not contain '\.\.'/);
-    runCli(["dream", "--root", tempRoot, "--abandon", batch.batchId]);
+    const shown = JSON.parse(runCli(["show", "--root", tempRoot, "--id", created.id, "--json"]).stdout);
+    assert.equal(shown.frontmatter.dream, true);
+    const update = JSON.parse(runCli(["update", "--root", tempRoot, "--id", shown.id, "--if-match", shown.contentHash, "--json"], {
+      input: `${shown.content}\nThe April 23 rollback adds checkpoint amber-otter-73; see [rollback evidence](../sessions/2022-04-23.md).\n`,
+    }).stdout);
+    assert.equal(update.id, created.id);
+    assert.equal(update.file, created.file);
+    assert.notEqual(update.newContentHash, shown.contentHash);
+    assert.equal(update.index.stale, true);
+    const stale = runCliFailure(["update", "--root", tempRoot, "--id", shown.id, "--if-match", shown.contentHash], { input: shown.content });
+    assert.match(stale.stderr, /content hash is stale/i);
+    const after = JSON.parse(runCli(["show", "--root", tempRoot, "--id", created.id, "--json"]).stdout);
+    assert.equal(after.contentHash, update.newContentHash);
+    assert.equal(after.frontmatter.dream, true);
+    assert.equal(after.frontmatter.type, "page");
+    assert.match(after.content, /2022-04-21\.md/);
+    assert.match(after.content, /2022-04-23\.md/);
+    assert.deepEqual((await readdir(path.join(tempRoot, "pages"))).filter((file) => file.endsWith(".md")), [path.basename(created.file)]);
+
+    runCli(["index", "--root", tempRoot]);
+    const manifest = JSON.parse(await readFile(path.join(tempRoot, ".jumpybrain", "index.json"), "utf8"));
+    const indexedPage = manifest.documents.find((doc) => doc.relativePath === created.file);
+    assert.equal(indexedPage.frontmatter.id, created.id);
+    assert.equal(indexedPage.frontmatter.dream, true);
+    const refreshed = JSON.parse(runCli(["recall", "--root", tempRoot, "--topic", "harbor migration amber otter", "--depth", "shallow", "--json" ]).stdout);
+    const refreshedPage = refreshed.results.find((result) => result.provenance.file === created.file);
+    assert.ok(refreshedPage);
+    assert.equal(refreshedPage.provenance.metadata.dream, true);
+    assert.match(refreshedPage.snippet, /amber-otter-73/);
+    const deep = JSON.parse(runCli(["recall", "--root", tempRoot, "--topic", "amber otter checkpoint rollback", "--depth", "deep", "--json"]).stdout);
+    assert.ok(deep.results.some((result) => result.provenance.file === sourceFiles[2]));
+    assert.deepEqual(await hashes(), originalHashes);
+    assert.equal(existsSync(path.join(tempRoot, ".jumpybrain", "dream")), false);
+    assert.equal(existsSync(path.join(tempRoot, ".jumpybrain", "remote", "dream-state.json")), false);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+function contentHash(content) {
+  return `sha256:${createHash("sha256").update(content).digest("hex")}`;
+}
 
 test("CLI remote target smoke covers status remember wrapup index search and recall", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-cli-remote-"));
@@ -207,25 +296,25 @@ test("CLI remote target smoke covers status remember wrapup index search and rec
     assert.match(rememberedPayload.id, /^mem_/);
     assert.match(rememberedPayload.file, /^findings\//);
 
-    const dreamStatus = runCli(["dream", ...target, "--status", "--json"], { env });
-    assert.equal(JSON.parse(dreamStatus.stdout).available, true);
-    const dreamOut = path.join(tempRoot, "dream-batch.json");
+    const dreamOut = path.join(tempRoot, "dream-window.json");
+    const beforeDream = await filesystemSnapshot(tempRoot, [".jumpybrain/logs"]);
     const dream = runCli(["dream", ...target, "--out", dreamOut], { env });
-    assert.match(dream.stdout, /Remote dream batch:/);
-    assert.match(dream.stdout, /untrusted context/i);
-    assert.match(dream.stdout, /only --complete advances dream state/);
+    assert.match(dream.stdout, /Remote dream window:/);
+    assert.match(dream.stdout, /inclusive, UTC/);
+    assert.match(dream.stdout, /untrusted/i);
+    assert.match(dream.stdout, /no completion step needed/i);
     const dreamPayload = JSON.parse(await readFile(dreamOut, "utf8"));
-    assert.match(dreamPayload.batchId, /^dream_/);
+    assert.equal(dreamPayload.root, "remote:all");
+    assert.equal(dreamPayload.batchId, undefined);
     assert.ok(dreamPayload.files.some((file) => file.id === rememberedPayload.id));
-    const localDream = runCli(["dream", "--root", tempRoot, "--json"], { env });
-    const localDreamPayload = JSON.parse(localDream.stdout);
+    assert.equal(JSON.stringify(dreamPayload).includes(tempRoot), false);
+    const localDreamPayload = JSON.parse(runCli(["dream", "--root", tempRoot, "--json"], { env }).stdout);
     assert.equal(localDreamPayload.target, "local");
     assert.equal(localDreamPayload.root, await realpath(tempRoot));
-    assert.match(localDreamPayload.batchId, /^dream_/);
-    runCli(["dream", "--root", tempRoot, "--abandon", localDreamPayload.batchId], { env });
-    const completedDream = JSON.parse(runCli(["dream", ...target, "--complete", dreamPayload.batchId, "--summary", "CLI reviewed", "--json"], { env }).stdout);
-    assert.equal(completedDream.status, "completed");
-    assert.equal(completedDream.root, "remote:all");
+    assert.deepEqual(localDreamPayload.window, dreamPayload.window);
+    assert.deepEqual(localDreamPayload.files.map(({ root, ...file }) => file), dreamPayload.files.map(({ root, ...file }) => file));
+    assert.deepEqual(JSON.parse(runCli(["dream", ...target, "--json"], { env }).stdout), dreamPayload);
+    assert.deepEqual(await filesystemSnapshot(tempRoot, [".jumpybrain/logs", "dream-window.json"]), beforeDream);
 
     const indexed = runCli(["index", ...target], { env });
     assert.match(indexed.stdout, /remote:all/);
@@ -301,23 +390,6 @@ test("CLI remote target smoke covers status remember wrapup index search and rec
     assert.match(stale.stderr, /content hash is stale/i);
     assert.match(stale.stderr, /Re-run `jumpybrain show --id/);
 
-    const applyDreamOut = path.join(tempRoot, "dream-apply-batch.json");
-    const applyDream = JSON.parse(runCli(["dream", ...target, "--out", applyDreamOut, "--json"], { env }).stdout);
-    assert.ok(applyDream.files.some((file) => file.id === rememberedPayload.id));
-    const manifestContent = path.join(tempRoot, "dream-revised.md");
-    await writeFile(manifestContent, afterShow.content, "utf8");
-    const manifestPath = path.join(tempRoot, "dream-manifest.json");
-    await writeFile(manifestPath, JSON.stringify({
-      version: 1,
-      batchId: applyDream.batchId,
-      summary: "stale apply should fail",
-      updates: [{ id: rememberedPayload.id, ifMatch: shownPayload.contentHash, contentFile: path.basename(manifestContent) }],
-    }, null, 2), "utf8");
-    const staleApply = runCliFailure(["dream", ...target, "--apply-manifest", manifestPath], { env });
-    assert.match(staleApply.stderr, /content hash is stale/i);
-    const stillOpen = JSON.parse(runCli(["dream", ...target, "--status", "--json"], { env }).stdout);
-    assert.equal(stillOpen.openBatch.batchId, applyDream.batchId);
-    runCli(["dream", ...target, "--abandon", applyDream.batchId], { env });
   } finally {
     started.child.kill("SIGTERM");
     await started.closed;
@@ -349,7 +421,14 @@ test("read-only remote integration allows reads and sends no mutation requests",
     assert.ok(JSON.parse(runCli(["search", ...target, "--query", "retrieval marker", "--json"], { env }).stdout).results.length > 0);
     assert.ok(JSON.parse(runCli(["recall", ...target, "--topic", "retrieval marker", "--json"], { env }).stdout).results.length > 0);
     assert.equal(JSON.parse(runCli(["show", ...target, "--id", remembered.id, "--json"], { env }).stdout).id, remembered.id);
-    assert.equal(JSON.parse(runCli(["dream", ...target, "--status", "--json"], { env }).stdout).target, "remote");
+    const beforeDream = await filesystemSnapshot(tempRoot, [".jumpybrain/logs", path.basename(policyPath)]);
+    const packet = JSON.parse(runCli(["dream", ...target, "--json"], { env }).stdout);
+    assert.equal(packet.target, "remote");
+    assert.ok(packet.files.some((file) => file.id === remembered.id));
+    assert.deepEqual(await filesystemSnapshot(tempRoot, [".jumpybrain/logs", path.basename(policyPath)]), beforeDream);
+    const deprecatedStatus = runCliFailure(["dream", ...target, "--status"], { env });
+    assert.match(deprecatedStatus.stderr, /--status is deprecated/);
+    assert.doesNotMatch(deprecatedStatus.stderr, /JUMPYBRAIN_REMOTE_TARGET_READ_ONLY/);
 
     await waitForServerLog(tempRoot, (text) => countRequests(text) >= 7);
     const logBefore = await serverLogText(tempRoot);
@@ -360,7 +439,7 @@ test("read-only remote integration allows reads and sends no mutation requests",
       { args: ["wrapup", ...target, "--title", "blocked", "--topic", "marker"], input: validWrapup },
       { args: ["update", ...target, "--id", remembered.id, "--if-match", "sha256:blocked"], input: "blocked update" },
       { args: ["index", ...target] },
-      { args: ["dream", ...target] },
+      { args: ["dream", ...target, "--force"] },
       { args: ["dream", ...target, "--complete", "dream_blocked"] },
       { args: ["dream", ...target, "--abandon", "dream_blocked"] },
       { args: ["dream", ...target, "--apply-manifest", path.join(tempRoot, "missing-manifest.json")] },

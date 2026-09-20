@@ -6,7 +6,7 @@
 - Return remote-safe packets that preserve public HTTP/CLI JSON shapes without exposing the server filesystem root; document reads/updates rewrite local-root metadata to `target: "remote"`, `memory: "all"`, and `root: "remote:all"`.
 - Document updates reuse the local protected whole-document update seam, require a content-hash precondition, and mark the remote index stale after successful replacement.
 - Provide non-HTTP seams that tests and protocol adapters can call directly, including remote-safe graph packets that do not expose server filesystem paths.
-- Expose remote dream seams that use remote-safe metadata (`target: "remote"`, `root: "remote:all"`) and state paths under `.jumpybrain/remote/` while delegating workflow mechanics to `src/app/dream/`.
+- Expose read-only stateless dream windows with remote-safe metadata (`target: "remote"`, `root: "remote:all"`) through `src/app/dream/`, without reading or writing legacy state. Keep old batch APIs operational with state paths under `.jumpybrain/remote/` for compatibility.
 
 ## Non-responsibilities
 

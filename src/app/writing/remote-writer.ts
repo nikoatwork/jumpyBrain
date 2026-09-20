@@ -1,17 +1,18 @@
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
-import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, renderMarkdownDocument, slug, validateWrapupBody, type WrapupValidation } from "../../core/writing/index.js";
+import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, renderMarkdownDocument, slug, validateWrapupBody, type WrapupValidation } from "../../core/writing/index.js";
 import type { MemoryNoteType } from "../../types.js";
 import { writeUniqueMarkdownFile } from "./filesystem.js";
 
-export type RemoteMemoryNoteType = "note" | "finding" | "decision" | "preference";
+export type RemoteMemoryNoteType = "note" | "finding" | "decision" | "preference" | "page";
 
 export interface RemoteMemoryNoteDraft {
   type: string;
   title: string;
   body: string;
   tags?: string[];
+  dream?: boolean;
 }
 
 export interface RemoteWrapupDraft {
@@ -34,7 +35,7 @@ export interface RemoteWrapupWriteResult extends RemoteMemoryWriteResult {
   validation: WrapupValidation;
 }
 
-const VALID_REMOTE_NOTE_TYPES = new Set<RemoteMemoryNoteType>(["note", "finding", "decision", "preference"]);
+const VALID_REMOTE_NOTE_TYPES = new Set<RemoteMemoryNoteType>(["note", "finding", "decision", "preference", "page"]);
 
 export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemoryNoteDraft): Promise<RemoteMemoryWriteResult> {
   const root = await resolveMemoryRoot(rootArg);
@@ -49,11 +50,13 @@ export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemory
   const markdown = renderMarkdownDocument([
     ["id", id],
     ["type", type],
+    ["dream", normalizeDreamMarker(draft.dream)],
     ["title", title],
     ["source", "jumpybrain-remote"],
     ["created_at", now],
     ["updated_at", now],
-    ["confidence", MEMORY_CONFIDENCE.userReviewed],
+    ["confidence", draft.dream === true ? MEMORY_CONFIDENCE.agentDrafted : MEMORY_CONFIDENCE.userReviewed],
+    ["review", draft.dream === true ? MEMORY_REVIEW.userReviewRecommended : undefined],
     ["tags", draft.tags ?? []],
   ], [`# ${title}`, "", body].join("\n"));
 

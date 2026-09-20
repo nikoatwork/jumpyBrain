@@ -14,7 +14,7 @@
 - Start and stop the Node HTTP server used by the opt-in `serve` command.
 - Call app/server-memory seams for server-local status, index, graph, search/recall, document reads/updates, writes, idempotency, dream batches, and auto-index state while hiding server filesystem paths from remote clients.
 - Keep document update handling protocol-only: parse JSON and `If-Match`, run the update inside the shared write queue, map precondition errors to HTTP status codes, and log only method/path/status/id/file/stale/error-code metadata.
-- Keep dream route handling thin: parse JSON/caps/batch IDs, run state transitions inside the shared write queue, delegate selection/state to app/server-memory, and log only route/status/batch/file-count/error-code metadata.
+- Keep dream route handling thin: authenticated GET `/memories/all/dream/window` validates query options and delegates read-only selection without the write queue. It never records dream state. Retain legacy batch routes/state transitions inside the shared write queue for compatibility, and log only route/status/batch/file-count/error-code metadata. Note creation accepts optional strict boolean `dream` metadata (including type page) through normal writing seams.
 - Share route literals with the HTTP client through `src/adapters/http-protocol.ts`; keep future route splits behind this adapter surface.
 
 ## Non-responsibilities

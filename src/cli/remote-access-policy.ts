@@ -121,8 +121,9 @@ export function validateRemoteAccessPolicyConfig(value: unknown): RemoteAccessPo
 export function isReadInvocation(args: ParsedCliArgs): boolean {
   const command = semanticCommand(args);
   if (command === "dream") {
-    if (args["apply-manifest"] || args.complete || args.abandon) return false;
-    return Boolean(args.status);
+    // Deprecated mutations remain blocked before input/credentials; normal windows are read-only.
+    if (args["apply-manifest"] || args.complete || args.abandon || args.force) return false;
+    return true;
   }
   return READ_COMMANDS.has(command);
 }

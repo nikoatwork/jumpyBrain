@@ -22,7 +22,7 @@ Create this layout with:
 jumpybrain init --root ./memory
 ```
 
-`jumpybrain.json` lets future CLIs detect incompatible memory-root schema changes before writing or indexing. Markdown files remain the canonical memory content. Derived state under `.jumpybrain/`, including local dream state, remote index state, and remote dream state/batch metadata, is operational support data rather than memory.
+`jumpybrain.json` lets future CLIs detect incompatible memory-root schema changes before writing or indexing. Markdown files remain the canonical memory content. Derived state under `.jumpybrain/`, including remote index state and legacy dream batch metadata, is operational support data rather than memory. Stateless dream windows do not create or modify dream state.
 
 For repo dogfooding, `jumpybrain.json` may include an optional relative `indexRoot`, such as `".."`, so the derived recall index can cover workspace Markdown while new memories are still written under `memory/`.
 
@@ -73,6 +73,18 @@ Manifest-backed reimports preserve valid mapped document IDs and creation timest
 
 A generated page uses `id`, `type: "page"`, `source: "jumpybrain-process"`, `topic`, timestamps, and source references in the body. New generated pages receive a standard `mem_<uuid>` ID, and later synthesis runs preserve an existing page ID. Pages are canonical Markdown and are indexed like other memory files.
 
+### Dream pages
+
+Dream outputs normally live in `pages/` with `type: "page"` and the strict YAML boolean `dream: true`. Classification is independent of directory; strings such as `"true"`/`"false"` and ordinary `[[dream]]` navigation links do not activate it. The marker is neither an ACL nor a truth guarantee.
+
+Create with `jumpybrain remember --root <memory-root> --type page --dream --title "Topic map" < body.md` (body only). New dream outputs carry `confidence: "agent-drafted"` and `review: "user-review-recommended"`, not an assertion of user review. Later use `show --id ... --json` and `update --id ... --if-match ...` with full Markdown. Stable IDs and normal timestamps stay intact; updates preserve an omitted dream marker, while explicit boolean `dream: false` removes classification. Index after edits to refresh retrieval, including its bounded lexical dream-candidate collection.
+
+Keep pages concise, with dated claims, uncertainty/contradictions, and readable source IDs/relative links. A simple body line such as `Evidence period: 2022-04-29 … 2022-05-01 (UTC)` records evidence age without changing creation time. Preserve prior useful evidence; a summary does not independently corroborate its sources. Source notes/journals and non-dream human-authored pages should remain untouched during ordinary dreaming, by workflow convention rather than new write restrictions.
+
+Normal/shallow retrieval prefers relevant dream maps; deep and explicit source/historical queries omit the dream boost. New page timestamps must not make old claims appear current. Roots without dream pages still retrieve ordinary pages and source evidence.
+
+Dream source windows exclude dream-marked pages; use recall/show for related context outside the window. Default evidence dates prefer valid frontmatter `date`, a recognized dated journal filename, valid `created_at`/`createdAt`, then mtime with fallback warnings—not migration `updated_at`. Modified-date windows explicitly select mtime instead. Missing-ID sources are returned with paths without stamping IDs; editing still requires normal document identity checks.
+
 ## Document edit contract
 
 Document editing is ID-addressed. A document ID identifies the stable Markdown file; it is not a block ID, line ID, title slug, or path alias. Existing canonical files that predate IDs can be stamped by the explicit `process --mode ensure-ids --apply` maintenance operation.
@@ -109,5 +121,5 @@ Remote wrapups use the same strict body sections and add remote file metadata (`
 ## Rules
 
 - Do not put secrets, credentials, tokens, or transient chat noise in memory.
-- Derived QMD/index files plus local/remote dream state under `.jumpybrain/` can be deleted and rebuilt or repaired from canonical Markdown where possible. Local dream support state lives under `.jumpybrain/dream/state.json` and `.jumpybrain/dream/batches/`; remote dream support state lives under `.jumpybrain/remote/`. Dream state must not be treated as canonical memory and must not store full memory bodies.
+- Derived QMD/index files under `.jumpybrain/` can be rebuilt. Legacy batch APIs retain metadata-only state under `.jumpybrain/dream/` (local) or `.jumpybrain/remote/` (remote); new dream windows ignore and leave it untouched. No dreamed flags, completion ledger, or exact-coverage record is added to Markdown.
 - Provenance comes from file path, line ranges, session id, and frontmatter.

@@ -7,6 +7,11 @@ export type {
   DreamCompleteResult,
   DreamCreateRequest,
   DreamStatus,
+  DreamWindow,
+  DreamWindowRequest,
+  DreamWindowRange,
+  DreamWindowFileContext,
+  DreamWindowFileDateBasis,
   IndexMemoryResult,
   MemoryGraphOptions,
   MemoryGraphResult,
@@ -20,7 +25,7 @@ export type {
 } from "../types.js";
 export { processMemory } from "../app/processing/index.js";
 export { ensureMemoryDocumentIds, graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../app/local-memory/index.js";
-export { abandonDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, completeDreamBatch } from "../app/dream/index.js";
+export { getDreamWindow, abandonDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, completeDreamBatch } from "../app/dream/index.js";
 
 import { packageVersion } from "../adapters/package-info/index.js";
 import { initializeMemoryRoot as initializeCoreMemoryRoot } from "../core/index.js";
@@ -32,3 +37,5 @@ export async function initializeMemoryRoot(rootArg: string, options: { force?: b
 
 export { migrateLogseq } from "../app/migration/index.js";
 export type { LogseqMigrationResult } from "../app/migration/index.js";
+
+export type { DreamWorkflowConfig } from "../app/dream/index.js";

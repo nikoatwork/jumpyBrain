@@ -4,7 +4,8 @@
 
 - Keep `src/cli.ts` as the executable shim; command dispatch lives in `src/cli/commands.ts` and `run` recipes live in `src/cli/recipes.ts`.
 - Parse command-line arguments and stdin, select local or remote targets, and preserve stable user-facing command names, flags, JSON modes, and text output.
-- Own the target-aware `dream` CLI workflow for local `--root` and remote `--target-url`: request/status/complete/abandon batches, apply manifests, write full context with `--out`, print local-agent instructions, and keep memory contents out of default compact stdout.
+- Own target-aware stateless `dream` windows for local `--root` and remote `--target-url`: validate `--from`, `--days`, `--date-basis`, offsets/budgets, write private full-context packets with `--out`, and keep bodies out of compact stdout. Legacy lifecycle/apply flags fail with deprecation guidance before credentials/files; legacy runtime/HTTP batch APIs remain available. Plain dream is a read-only operation even on protected targets; old mutation flags stay blocked by access policy.
+- `remember --type page --dream` creates a dream-marked page using body-only stdin, through the existing local/remote write seams. Existing `show`/hash-checked `update` and explicit `index` maintain it. Source preservation is agent-skill guidance, not a new write restriction.
 - Own `migrate logseq` in `migrate.ts`: strict source/root and boolean flags, body-free human summaries or the unchanged app JSON result, safely quoted apply/index hints, and explicit separate indexing. Dispatch this local-only command before remote policy/credentials; reject either remote target flag even when malformed or combined with local flags.
 - Keep migration argument strictness scoped in `args.ts` so legacy commands retain their existing parsing behavior.
 - Delegate local work through `src/cli/local-transport.ts` to the runtime/app seam.

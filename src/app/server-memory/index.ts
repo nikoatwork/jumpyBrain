@@ -10,6 +10,8 @@ import type {
   DreamCompleteResult,
   DreamCreateRequest,
   DreamStatus,
+  DreamWindow,
+  DreamWindowRequest,
   IndexMemoryResult,
   MemoryDocumentContentHash,
   MemoryDocumentReadResult,
@@ -31,7 +33,7 @@ import type {
 import { createRemoteIndexRunner, type RemoteIndexRunner } from "./auto-index.js";
 import { withIdempotency, type IdempotencyResult } from "./idempotency.js";
 import { markRemoteIndexStale, readRemoteIndexState, type RemoteIndexState } from "./state.js";
-import { abandonDreamBatch as abandonServerDreamBatch, createDreamBatch as createServerDreamBatch, getDreamBatch as getServerDreamBatch, getDreamStatus as getServerDreamStatus, completeDreamBatch as completeServerDreamBatch } from "./dream.js";
+import { getDreamWindow as getServerDreamWindow, abandonDreamBatch as abandonServerDreamBatch, createDreamBatch as createServerDreamBatch, getDreamBatch as getServerDreamBatch, getDreamStatus as getServerDreamStatus, completeDreamBatch as completeServerDreamBatch } from "./dream.js";
 
 export { DreamStateError, DREAM_BATCHES_RELATIVE_DIR, DREAM_STATE_RELATIVE_PATH } from "./dream.js";
 
@@ -53,6 +55,7 @@ export interface ServerMemoryRuntime {
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions): Promise<SearchMemoryResult>;
   readMemoryDocument(id: string): Promise<RemoteMemoryDocumentReadPacket>;
   updateMemoryDocument(id: string, content: string, options: ServerMemoryDocumentUpdateOptions): Promise<RemoteMemoryDocumentUpdatePacket>;
+  getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
   getDreamStatus(): Promise<DreamStatus>;
   createDreamBatch(request?: DreamCreateRequest): Promise<DreamBatch>;
   getDreamBatch(batchId: string): Promise<DreamBatch>;
@@ -139,6 +142,7 @@ export function createServerMemoryRuntime(options: ServerMemoryRuntimeOptions): 
     searchMemory: (query, limit, searchOptions) => searchMemory(root, query, limit, searchOptions),
     readMemoryDocument: (id) => readServerMemoryDocument({ root, id }),
     updateMemoryDocument: (id, content, updateOptions) => updateServerMemoryDocument({ root, id, content, ...updateOptions }),
+    getDreamWindow: (request) => getDreamWindow({ root, request }),
     getDreamStatus: () => getDreamStatus({ root }),
     createDreamBatch: (request) => createDreamBatch({ root, request }),
     getDreamBatch: (batchId) => getDreamBatch({ root, batchId }),
@@ -229,6 +233,10 @@ export async function updateServerMemoryDocument(options: {
     indexed: false,
     index,
   };
+}
+
+export async function getDreamWindow(options: { root: string; request?: DreamWindowRequest }): Promise<DreamWindow> {
+  return getServerDreamWindow(options);
 }
 
 export async function getDreamStatus(options: { root: string }): Promise<DreamStatus> {

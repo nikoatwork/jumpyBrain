@@ -3,10 +3,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPath, isMemoryRoute } from "../http-protocol.js";
 import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
-import { abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
+import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
 import type { RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
 import { graphPageHtml } from "./graph-page.js";
-import type { MemoryConnectionEdgeKind } from "../../types.js";
+import type { DreamWindowRequest, MemoryConnectionEdgeKind } from "../../types.js";
 
 interface JsonError {
   error: {
@@ -61,6 +61,23 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
   if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.status) {
     writeJson(response, 200, await serverMemoryStatus(root));
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.dreamWindow) {
+    if (request.method !== "GET") {
+      writeJson(response, 405, errorResponse("method_not_allowed", "Use GET for stateless dream windows."));
+      return;
+    }
+    try {
+      const packet = await getDreamWindow({ root, request: dreamWindowRequest(url) });
+      logger.info("remote_dream_window_success", { path: url.pathname, status: 200, file_count: packet.files.length, has_more: packet.hasMore });
+      writeJson(response, 200, packet);
+    } catch (error) {
+      const mapped = dreamErrorResponse(error, "Remote dream window failed.");
+      logger.warn("remote_dream_window_failure", { path: url.pathname, status: mapped.statusCode, error_code: mapped.body.error.code });
+      writeJson(response, mapped.statusCode, mapped.body);
+    }
     return;
   }
 
@@ -372,6 +389,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
               kind: "note",
               draft: {
                 type: stringField(parsedBody, "type"),
+                dream: optionalBooleanField(parsedBody, "dream"),
                 title: stringField(parsedBody, "title"),
                 body: stringField(parsedBody, "body"),
                 tags: tagsField(parsedBody),
@@ -485,7 +503,8 @@ function isJsonError(value: unknown): value is { statusCode: number; body: JsonE
 }
 
 function dreamErrorResponse(error: unknown, fallback: string): { statusCode: number; body: JsonError } {
-  if (error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string" && typeof (error as { message?: unknown }).message === "string") {
+  const publicCodes = new Set(["missing_batch", "invalid_batch_id", "invalid_file", "validation_failed", "invalid_state", "corrupt_batch"]);
+  if (error && typeof error === "object" && publicCodes.has(String((error as { code?: unknown }).code)) && typeof (error as { message?: unknown }).message === "string") {
     const code = (error as { code: string }).code;
     const statusCode = code === "missing_batch" ? 404
       : code === "invalid_batch_id" || code === "invalid_file" || code === "validation_failed" ? 400
@@ -645,6 +664,23 @@ function optionalPositiveIntegerField(body: Record<string, unknown>, key: string
   const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
   if (!Number.isInteger(parsed) || parsed <= 0) throw { code: "validation_failed", message: `${key} must be a positive integer.` };
   return parsed;
+}
+
+function dreamWindowRequest(url: URL): DreamWindowRequest {
+  const allowed = new Set(["from", "days", "dateBasis", "offset", "maxFiles", "bytesPerFile", "maxTotalBytes"]);
+  const request: Record<string, string | number> = {};
+  for (const [key, value] of url.searchParams) {
+    if (!allowed.has(key) || Object.hasOwn(request, key)) throw { code: "validation_failed", message: `Unknown or repeated dream parameter: ${key}.` };
+    if (!value.trim()) throw { code: "validation_failed", message: `${key} requires a value.` };
+    request[key] = key === "from" || key === "dateBasis" ? value : Number(value);
+  }
+  return request as DreamWindowRequest;
+}
+
+function optionalBooleanField(body: Record<string, unknown>, key: string): boolean | undefined {
+  if (body[key] === undefined) return undefined;
+  if (typeof body[key] !== "boolean") throw new Error(`${key} must be a boolean.`);
+  return body[key];
 }
 
 function booleanField(body: Record<string, unknown>, key: string): boolean {

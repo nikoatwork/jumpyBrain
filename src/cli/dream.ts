@@ -1,172 +1,68 @@
-import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
-import type { RemoteMemoryTransport } from "../adapters/http-client/index.js";
-import type { DreamAbandonResult, DreamBatch, DreamCompleteRequest, DreamCompleteResult, DreamCreateRequest, DreamStatus } from "../types.js";
-import { numberArg, stringArg, type ParsedCliArgs } from "./args.js";
+import { writeFile } from "node:fs/promises";
+import type { DreamWindow, DreamWindowRequest } from "../types.js";
+import type { ParsedCliArgs } from "./args.js";
 import type { LocalMemoryTransport } from "./local-transport.js";
-import { commandMemoryTarget, type CommandMemoryTarget } from "./memory-target.js";
+import { commandMemoryTarget } from "./memory-target.js";
 
-type DreamTransport = {
-  kind: "local" | "remote";
-  root?: string;
-  getDreamStatus(): Promise<DreamStatus>;
-  createDreamBatch(request?: DreamCreateRequest): Promise<DreamBatch>;
-  completeDreamBatch(request: DreamCompleteRequest): Promise<DreamCompleteResult>;
-  abandonDreamBatch(batchId: string, summary?: string): Promise<DreamAbandonResult>;
-  updateMemoryDocument(id: string, content: string, options: { ifMatch?: string; contentHash?: string }): Promise<unknown>;
-};
+const LEGACY_FLAGS = ["status", "complete", "abandon", "force", "apply-manifest", "summary"];
+const VALUE_FLAGS = ["root", "target-url", "remote-url", "from", "days", "date-basis", "offset", "max-files", "bytes-per-file", "max-total-bytes", "out"];
 
 export async function dreamCli(args: ParsedCliArgs, localMemory: LocalMemoryTransport): Promise<void> {
+  for (const flag of LEGACY_FLAGS) {
+    if (args[flag] !== undefined) throw new Error(`dream --${flag} is deprecated. Dream now reads stateless UTC windows: dream --from t-0d --days 3 --out dream-window.json. No completion is needed. Apply edits with remember/update, then index. Legacy batch data is untouched; legacy runtime/HTTP APIs remain available for compatibility.`);
+  }
+  for (const key of Object.keys(args)) {
+    if (key !== "_" && key !== "json" && !VALUE_FLAGS.includes(key)) throw new Error(`Unknown dream flag --${key}.`);
+  }
+  if (args._.length !== 1) throw new Error("dream accepts flags, not positional arguments. Use --from t-1d --days 3.");
+  for (const key of VALUE_FLAGS) optionalValue(args, key);
+  if (args.json !== undefined && args.json !== true && args.json !== "true" && args.json !== "false") throw new Error("--json must be a boolean flag or true/false.");
+  const request: DreamWindowRequest = {
+    from: optionalValue(args, "from"),
+    days: optionalInteger(args, "days"),
+    dateBasis: optionalValue(args, "date-basis") as DreamWindowRequest["dateBasis"],
+    offset: optionalInteger(args, "offset", true),
+    maxFiles: optionalInteger(args, "max-files"),
+    bytesPerFile: optionalInteger(args, "bytes-per-file"),
+    maxTotalBytes: optionalInteger(args, "max-total-bytes"),
+  };
   const target = await commandMemoryTarget(args, localMemory);
-  const dream = dreamTransport(target, localMemory);
-
-  if (args["apply-manifest"]) {
-    const result = await applyDreamManifest(dream, stringArg(args, "apply-manifest"));
-    if (args.json) console.log(JSON.stringify(result, null, 2));
-    else console.log(formatCompleteResult(result));
-    return;
-  }
-
-  if (args.status) {
-    const status = await dream.getDreamStatus();
-    if (args.json) console.log(JSON.stringify(status, null, 2));
-    else console.log(formatDreamStatus(status));
-    return;
-  }
-
-  if (args.complete) {
-    const batchId = stringArg(args, "complete");
-    const result = await dream.completeDreamBatch({ batchId, summary: stringArg(args, "summary", false) || undefined });
-    if (args.json) console.log(JSON.stringify(result, null, 2));
-    else console.log(formatCompleteResult(result));
-    return;
-  }
-
-  if (args.abandon) {
-    const result = await dream.abandonDreamBatch(stringArg(args, "abandon"), stringArg(args, "summary", false) || undefined);
-    if (args.json) console.log(JSON.stringify(result, null, 2));
-    else console.log(formatAbandonResult(result));
-    return;
-  }
-
-  const batch = await dream.createDreamBatch({
-    maxFiles: numberArg(args, "max-files", 0) || undefined,
-    bytesPerFile: numberArg(args, "bytes-per-file", 0) || undefined,
-    maxTotalBytes: numberArg(args, "max-total-bytes", 0) || undefined,
-    force: Boolean(args.force),
-  });
-
-  const out = stringArg(args, "out", false).trim();
-  if (out) await writeFile(out, `${JSON.stringify(batch, null, 2)}\n`, "utf8");
-
-  if (args.json) console.log(JSON.stringify(batch, null, 2));
-  else console.log(formatDreamBatch(batch, out || undefined));
+  const packet = target.kind === "remote"
+    ? await target.memory.getDreamWindow(request)
+    : await localMemory.getDreamWindow(target.root, request);
+  const out = optionalValue(args, "out");
+  if (out) await writeFile(out, `${JSON.stringify(packet, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  if (args.json === true || args.json === "true") console.log(JSON.stringify(packet, null, 2));
+  else console.log(formatDreamWindow(packet, out));
 }
 
-function dreamTransport(target: CommandMemoryTarget, localMemory: LocalMemoryTransport): DreamTransport {
-  if (target.kind === "remote") return remoteDreamTransport(target.memory);
-  const root = target.root;
-  return {
-    kind: "local",
-    root,
-    getDreamStatus: () => localMemory.getDreamStatus(root),
-    createDreamBatch: (request) => localMemory.createDreamBatch(root, request),
-    completeDreamBatch: (request) => localMemory.completeDreamBatch(root, request),
-    abandonDreamBatch: (batchId, summary) => localMemory.abandonDreamBatch(root, batchId, summary),
-    updateMemoryDocument: (id, content, options) => localMemory.updateMemoryDocument(root, id, content, options),
-  };
+function optionalValue(args: ParsedCliArgs, key: string): string | undefined {
+  const value = args[key];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim()) throw new Error(`--${key} requires one non-empty value and must not be repeated.`);
+  return value;
 }
 
-function remoteDreamTransport(memory: RemoteMemoryTransport): DreamTransport {
-  return {
-    kind: "remote",
-    getDreamStatus: () => memory.getDreamStatus(),
-    createDreamBatch: (request) => memory.createDreamBatch(request),
-    completeDreamBatch: (request) => memory.completeDreamBatch(request),
-    abandonDreamBatch: (batchId, summary) => memory.abandonDreamBatch(batchId, summary),
-    updateMemoryDocument: (id, content, options) => memory.updateMemoryDocument(id, content, { ifMatch: options.ifMatch ?? options.contentHash ?? "" }),
-  };
+function optionalInteger(args: ParsedCliArgs, key: string, zero = false): number | undefined {
+  const raw = optionalValue(args, key);
+  if (raw === undefined) return undefined;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < (zero ? 0 : 1)) throw new Error(`--${key} must be a ${zero ? "non-negative" : "positive"} safe integer.`);
+  return value;
 }
 
-async function applyDreamManifest(memory: DreamTransport, manifestPath: string): Promise<DreamCompleteResult> {
-  const absoluteManifest = path.resolve(manifestPath);
-  const manifest = JSON.parse(await readFile(absoluteManifest, "utf8")) as {
-    batchId?: string;
-    summary?: string;
-    updates?: Array<{ id?: string; ifMatch?: string; contentFile?: string }>;
-    skippedDocumentIds?: string[];
-  };
-  if (!manifest.batchId) throw new Error("Dream apply manifest requires batchId.");
-  const updates = Array.isArray(manifest.updates) ? manifest.updates : [];
-  const updatedDocumentIds: string[] = [];
-  for (const update of updates) {
-    if (!update.id || !update.ifMatch || !update.contentFile) throw new Error("Each dream apply update requires id, ifMatch, and contentFile.");
-    if (path.isAbsolute(update.contentFile) || update.contentFile.split(/[\\/]+/).includes("..")) {
-      throw new Error("Dream apply contentFile paths must be relative to the manifest and must not contain '..'.");
-    }
-    const contentPath = path.resolve(path.dirname(absoluteManifest), update.contentFile);
-    const content = await readFile(contentPath, "utf8");
-    await memory.updateMemoryDocument(update.id, content, { ifMatch: update.ifMatch });
-    updatedDocumentIds.push(update.id);
-  }
-  return memory.completeDreamBatch({
-    batchId: manifest.batchId,
-    summary: manifest.summary,
-    updatedDocumentIds,
-    skippedDocumentIds: Array.isArray(manifest.skippedDocumentIds) ? manifest.skippedDocumentIds.map(String) : [],
-  });
-}
-
-function formatDreamStatus(status: DreamStatus): string {
-  const label = targetLabel(status.target);
+function formatDreamWindow(packet: DreamWindow, out?: string): string {
+  const days = Math.round((Date.parse(packet.window.to) - Date.parse(packet.window.from)) / 86400000) + 1;
   const lines = [
-    `${label} dream status`,
-    `Root: ${status.root}`,
-    `Available: ${status.available ? "yes" : "no"}`,
-    `Open batch: ${status.openBatch ? `${status.openBatch.batchId} (${status.openBatch.fileCount} files${status.openBatch.hasMore ? ", more pending" : ""})` : "none"}`,
-    `Last completed: ${status.lastCompletedBatch ? status.lastCompletedBatch.batchId : "none"}`,
-    `Defaults: maxFiles=${status.defaults.maxFiles}, bytesPerFile=${status.defaults.bytesPerFile}, maxTotalBytes=${status.defaults.maxTotalBytes}, lookbackHours=${status.defaults.lookbackHours}`,
+    `${packet.target === "remote" ? "Remote" : "Local"} dream window: ${packet.window.from} through ${packet.window.to} (inclusive, UTC)`,
+    `Root: ${packet.root}`,
+    `Date basis: ${packet.window.dateBasis}`,
+    `Files: ${packet.files.length} returned / ${packet.totalFiles} matching; offset ${packet.offset}`,
+    "Read-only context. No dreamed state recorded; no completion step needed.",
+    out ? `Full context written to: ${out}` : "Use --out dream-window.json or --json to read full context.",
   ];
+  for (const file of packet.files) lines.push(`- ${file.file} (${file.date}; ${file.dateBasis}; ${file.id ?? "no ID"}${file.truncated ? "; truncated" : ""})`);
+  if (packet.hasMore) lines.push(`More evidence: repeat with --from ${packet.window.to} --days ${days} --date-basis ${packet.window.dateBasis} --offset ${packet.nextOffset} and the same target/limits.`);
+  lines.push("", "Agent instructions:", ...packet.instructions.map((text) => `- ${text}`), "", "Warnings:", ...packet.warnings.map((text) => `- ${text}`));
   return lines.join("\n");
-}
-
-function formatDreamBatch(batch: DreamBatch, out?: string): string {
-  const label = targetLabel(batch.target);
-  const lines = [
-    `${label} dream batch: ${batch.batchId}${batch.resumed ? " (resumed open batch)" : ""}`,
-    `Root: ${batch.root}`,
-    `Status: ${batch.status}`,
-    `Files: ${batch.files.length}${batch.hasMore ? " (more pending)" : ""}`,
-    `Cursor: retrieving this batch does not mark it dreamt; only --complete advances dream state.`,
-  ];
-  if (out) lines.push(`Full context written to: ${out}`);
-  else lines.push("Tip: use --out dream-batch.json for full context without filling stdout.");
-  for (const file of batch.files) lines.push(`- ${file.file} (${file.id}, ${file.contentHash}${file.truncated ? ", truncated" : ""})`);
-  lines.push("", "Local-agent instructions:");
-  for (const instruction of batch.instructions) lines.push(`- ${instruction}`);
-  lines.push("", "Warnings:");
-  for (const warning of batch.warnings) lines.push(`- ${warning}`);
-  lines.push("", `When done: jumpybrain dream ${completionTargetHint(batch)} --complete ${batch.batchId} --summary "..."`);
-  return lines.join("\n");
-}
-
-function formatCompleteResult(result: DreamCompleteResult): string {
-  return [
-    `Completed dream batch: ${result.batchId}`,
-    `Cursor advanced: ${result.advancedCursor ? `${result.advancedCursor.mtime} ${result.advancedCursor.file}` : "none"}`,
-    `Updated documents: ${result.updatedDocumentIds.length}`,
-    `Skipped documents: ${result.skippedDocumentIds.length}`,
-  ].join("\n");
-}
-
-function formatAbandonResult(result: DreamAbandonResult): string {
-  return [`Abandoned dream batch: ${result.batchId}`, "Cursor advanced: no"].join("\n");
-}
-
-function targetLabel(target: "local" | "remote"): string {
-  return target === "remote" ? "Remote" : "Local";
-}
-
-function completionTargetHint(batch: DreamBatch): string {
-  return batch.target === "remote" ? "--target-url <url>" : `--root ${JSON.stringify(batch.root)}`;
 }

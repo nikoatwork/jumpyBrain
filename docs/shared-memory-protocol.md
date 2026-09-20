@@ -1,6 +1,6 @@
 # Shared-memory protocol and implementation reference
 
-For operator setup, start with the [shared-memory quickstart](cloud-shared-memory.md). This document is the implementer reference for storage layout, HTTP routes, response shapes, idempotency, graph transport, dream state, errors, and V1 constraints.
+For operator setup, start with the [shared-memory quickstart](cloud-shared-memory.md). This document is the implementer reference for storage layout, HTTP routes, response shapes, idempotency, graph transport, dream windows/legacy state, errors, and V1 constraints.
 
 Cloud/shared memory keeps the normal jumpyBrain model: Markdown files are canonical, and indexes/support state are rebuildable. The remote server is a small self-hostable HTTP process over one server-local memory root.
 
@@ -76,14 +76,14 @@ remote-memory/
     qmd/                 # QMD/index/cache derived state when used
     remote/
       index-state.json
-      dream-state.json
-      dream-batches/
+      dream-state.json   # legacy batch APIs only
+      dream-batches/     # legacy batch APIs only
         dream_<uuid>.json
       idempotency/
         <sha256-key>.json
 ```
 
-Only Markdown under canonical memory directories is memory. `.jumpybrain/remote/` is support/derived state and can be rebuilt or repaired from canonical Markdown where possible. Dream state stores metadata only; full memory bodies are returned only in bounded authenticated batch-context responses.
+Only Markdown under canonical memory directories is memory. `.jumpybrain/remote/` is support/derived state and can be rebuilt or repaired from canonical Markdown where possible. Legacy dream state stores metadata only. Stateless dream window reads ignore it and do not create or modify support state; bounded authenticated context responses carry bodies.
 
 ## Remote-created Markdown frontmatter
 
@@ -429,7 +429,7 @@ Request:
 }
 ```
 
-Allowed `type` values: `note`, `finding`, `decision`, and `preference`. Session files should be written through `/wrapups` in V1. Remote `note` creation accepts an empty/whitespace-only body for quick capture; the canonical writer still emits a title heading. Findings, decisions, preferences, wrapups, and local CLI note writes retain non-empty-content validation.
+Allowed `type` values: `note`, `finding`, `decision`, `preference`, and `page`. An optional boolean `dream: true` in the request marks a dream output (the CLI uses `remember --type page --dream` with body-only stdin). Strings are not boolean markers. Session files should be written through `/wrapups` in V1. Remote `note` creation accepts an empty/whitespace-only body for quick capture; the canonical writer still emits a title heading. Findings, decisions, preferences, wrapups, and local CLI note writes retain non-empty-content validation.
 
 Response:
 
@@ -445,21 +445,37 @@ Response:
 }
 ```
 
-### Remote dream consolidation
+### `GET /memories/all/dream/window`
 
-Dreaming is an explicit CLI-driven consolidation workflow for hosted/shared memory. The server uses the same app dream workflow as local `--root` dreaming, configured for remote-safe output and `.jumpybrain/remote/` state paths. The server does not run AI, call model providers, schedule dreaming, or apply generated edits. It tracks one open batch per memory root, chooses changed canonical Markdown from `notes/`, `sessions/`, `findings/`, `decisions/`, `preferences/`, and `pages/`, and returns bounded remote-safe contexts.
-
-CLI flow:
+Authenticated, stateless, read-only UTC calendar-window context. The same app operation serves local roots and remote targets; it neither writes source IDs nor creates/updates dream support state. It does not call models, schedule dreaming, or apply edits. Agents use the CLI rather than HTTP directly:
 
 ```bash
-JUMPYBRAIN_API_KEY=client-key jumpybrain dream --target-url https://memory.example.com --out dream-batch.json
-# local agent reviews dream-batch.json, edits docs with show/update or --apply-manifest, then:
-JUMPYBRAIN_API_KEY=client-key jumpybrain dream --target-url https://memory.example.com --complete dream_<uuid> --summary "Reviewed links and synthesis"
+JUMPYBRAIN_API_KEY=client-key jumpybrain dream --target-url https://memory.example.com --from t-1d --days 3 --out packet.json
 ```
 
-Cursor semantics are explicit: retrieving or resuming a batch does not advance the dream cursor. Completion advances to the selected batch high-water cursor; abandonment does not. When more files exist than the batch cap, the next batch starts after the completed high-water file so overflow files are not skipped.
+Query parameters:
 
-Dream endpoints:
+| Parameter | Meaning |
+| --- | --- |
+| `from` | Newest inclusive UTC date: `t-Nd` or `YYYY-MM-DD`; default `t-0d`. |
+| `days` | Positive bounded calendar-day count; default 3. `t-1d` with 3 means T-1, T-2, T-3. |
+| `dateBasis` | `evidence` (default) or `modified`. |
+| `offset` | Nonnegative request-local file offset; default 0. |
+| `maxFiles`, `bytesPerFile`, `maxTotalBytes` | Bounded file/content budgets, shared with local selection; not total JSON wire bytes. Frontmatter is separately capped at 4 KiB per file, IDs at 512 bytes, titles at 1 KiB; oversized fields are omitted with warnings. |
+
+Relative dates resolve once per request in UTC. Evidence dates prefer valid frontmatter `date`, a recognized dated journal filename, valid `created_at`/`createdAt`, then mtime. Return fallback/malformed-date warnings; migration `updated_at` is not evidence age. Modified mode selects filesystem mtime. Dream-marked pages are excluded from primary sources; recall/show can retrieve related dream context outside the window.
+
+Responses use `root: "remote:all"` and relative file paths, never server filesystem roots. `window` contains resolved `from` (oldest), `to` (newest), `timezone: "UTC"`, and `dateBasis`. Files include optional IDs, content hashes, selected dates/date bases, bounded content, byte counts, and truncation flags. Missing IDs remain path-addressed evidence without implicit stamping.
+
+The packet also includes `offset`, `totalFiles`, `hasMore`, optional `nextOffset`, limits, warnings, and instructions; there is no `complete` field or acknowledgment step. `totalFiles` describes matching evidence in this scan, not reviewed coverage. Empty windows are valid. Continue with the same bounds and an absolute anchor from `window.to`; concurrent edits can shift offsets, so packets are not snapshots or exact coverage proofs. Historical windows cannot discover every later edit.
+
+Create outputs via the normal notes endpoint (`type: "page"`, boolean `dream: true`) or use optimistic document updates. Require explicit permission for global/team/remote writes, including indexing; use the same CLI target throughout. Leave source/human-authored pages intact by workflow convention, not new ACLs. Index after edits to refresh ordinary retrieval and the bounded lexical dream-candidate collection.
+
+Servers without this endpoint fail clearly in new clients. There is no automatic fallback to batch creation or other support-state writes.
+
+### Legacy dream batch compatibility
+
+Legacy runtime/HTTP APIs remain available for existing callers, with unchanged metadata-only state under `.jumpybrain/remote/`:
 
 - `GET /memories/all/dream/status`
 - `POST /memories/all/dream/batches` with optional `maxFiles`, `bytesPerFile`, `maxTotalBytes`, and `force`
@@ -467,7 +483,9 @@ Dream endpoints:
 - `POST /memories/all/dream/batches/:batchId/complete`
 - `POST /memories/all/dream/batches/:batchId/abandon`
 
-Batch/status responses use `root: "remote:all"`, relative files only, warnings that memory is untrusted context, and metadata such as IDs, hashes, mtimes, truncation flags, and cursors. Status and stored batch metadata do not include memory bodies.
+These retain open-batch/cursor semantics: retrieval does not advance the cursor, completion advances the batch high-water cursor, and abandonment does not. Batch/status responses use remote-safe roots and relative files; stored metadata never includes full bodies. Window reads ignore and leave all legacy state untouched.
+
+The new CLI no longer invokes these workflows: `--status`, `--complete`, `--abandon`, `--force`, and `--apply-manifest` fail with deprecation guidance. Use window reads and explicit create/update/index commands instead.
 
 ### `POST /memories/all/wrapups`
 
@@ -583,6 +601,7 @@ Update semantics:
 - Stale `If-Match` returns `412 precondition_failed`; safe details may include `id`, root-relative `file`, and current `contentHash` but never memory body content.
 - Non-JSON requests return `415 unsupported_media_type`; malformed JSON or missing/invalid `content` returns `400 bad_request` or `422 validation_failed` depending on parse versus validation failure.
 - The server preserves protected metadata from the existing file (`id`, canonical `type`, `created_at`, `source`, and similar structural fields), refreshes `updated_at`, keeps the same root-relative `file`, writes atomically on the server-local filesystem, and marks the remote index stale.
+- Omitted dream markers are preserved; explicit boolean `dream: false` removes classification. The marker does not change authorization or protected identity metadata.
 - Remote update does not require `Idempotency-Key` in the MVP contract; concurrency is guarded by `If-Match`.
 
 Successful response:

@@ -28,6 +28,7 @@ export interface ScoreBreakdown {
   memoryStrength?: number;
   provenanceConfidence?: number;
   depthPolicyBoost?: number;
+  dreamBoost?: number;
   retrievalDepth?: RetrievalDepth;
   finalScore: number;
   driver: string;
@@ -215,6 +216,7 @@ export type MemoryConfidence = "user-reviewed" | "agent-drafted";
 export type MemoryReviewStatus = "user-review-recommended";
 
 export interface MemoryNoteDraft {
+  dream?: boolean;
   type: string;
   title: string;
   body: string;
@@ -506,4 +508,60 @@ export interface MemoryRootStatus {
   configFile?: string;
   schemaVersion?: number;
   message?: string;
+}
+
+
+/** Stateless UTC calendar-window request; no completion or coverage state is recorded. */
+export interface DreamWindowRequest {
+  from?: string;
+  days?: number;
+  dateBasis?: "evidence" | "modified";
+  offset?: number;
+  maxFiles?: number;
+  bytesPerFile?: number;
+  maxTotalBytes?: number;
+}
+
+export interface DreamWindowRange {
+  /** Oldest inclusive calendar day, YYYY-MM-DD. */
+  from: string;
+  /** Anchor inclusive calendar day, YYYY-MM-DD. */
+  to: string;
+  timezone: "UTC";
+  dateBasis: "evidence" | "modified";
+}
+
+export type DreamWindowFileDateBasis = "date" | "filename" | "created_at" | "createdAt" | "mtime" | "modified";
+
+export interface DreamWindowFileContext {
+  root: string;
+  /** Missing IDs are allowed for read-only evidence, not silently assigned. */
+  id?: string;
+  file: string;
+  type: MemoryNoteType;
+  title: string;
+  frontmatter: Frontmatter;
+  content: string;
+  /** Hash of the complete original file, even when content is truncated. */
+  contentHash: MemoryDocumentContentHash;
+  byteLength: number;
+  returnedBytes: number;
+  truncated: boolean;
+  date: string;
+  dateBasis: DreamWindowFileDateBasis;
+  mtime: string;
+}
+
+export interface DreamWindow extends MemoryDocumentTargetMetadata {
+  window: DreamWindowRange;
+  files: DreamWindowFileContext[];
+  hasMore: boolean;
+  /** Continue with this offset and the same resolved anchor/window; edits can shift offsets. */
+  nextOffset?: number;
+  offset: number;
+  /** Matching primary evidence files in this scan, not proof of complete review. */
+  totalFiles: number;
+  limits: DreamLimits;
+  warnings: string[];
+  instructions: string[];
 }

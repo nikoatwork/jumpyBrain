@@ -1,4 +1,5 @@
-import type { IndexedDocument, SearchResult } from "../../types.js";
+import { isDreamDocument } from "../../core/retrieval-policy/index.js";
+import type { IndexedDocument, RetrievalDepth, SearchResult } from "../../types.js";
 import { tokenize } from "./qmd-query.js";
 
 export function exactBoost(query: string, text: string): number {
@@ -71,7 +72,9 @@ export function dateStats(documents: IndexedDocument[]): { min: number; max: num
 export function documentTime(metadata: Record<string, unknown>): number | undefined {
   // Prefer an explicit event/session date when present; note and wrapup memories that
   // only have write timestamps still order by updated_at/created_at.
-  const value = metadata.date ?? metadata.updated_at ?? metadata.created_at;
+  // A newly synthesized map is not new evidence. Without an explicit evidence
+  // date it has no temporal ranking signal (including in candidate date stats).
+  const value = metadata.dream === true ? metadata.date : metadata.date ?? metadata.updated_at ?? metadata.created_at;
   return parseIsoLikeTime(value);
 }
 
@@ -128,4 +131,55 @@ export function clampScore(score: number): number {
 
 export function round(value: number): number {
   return Math.round(value * 10000) / 10000;
+}
+
+/** Require real lexical overlap as well as QMD relevance before preferring maps. */
+export function dreamRelevance(query: string, snippet: string, metadata: Record<string, unknown>, qmdScore: number): number {
+  const terms = [...new Set(tokenize(query))];
+  if (!terms.length || qmdScore < 0.15) return 0;
+  const words = new Set(tokenize(`${metadata.title ?? ""} ${snippet}`));
+  const coverage = terms.filter((term) => words.has(term)).length / terms.length;
+  return coverage < 0.5 ? 0 : coverage * Math.min(1, qmdScore / 0.5);
+}
+
+/**
+ * Keep one chunk per map in everyday context, and omit near-verbatim echoes only
+ * when a map is involved. Merely citing a source never suppresses that source.
+ * Deep retrieval retains distinct chunks, including raw details from one file.
+ */
+export function diversifyResults(results: SearchResult[], depth: RetrievalDepth): SearchResult[] {
+  if (depth === "deep") return results;
+  const selected: SearchResult[] = [];
+  const mapFiles = new Set<string>();
+  for (const result of results) {
+    const dream = isDreamDocument({ frontmatter: result.provenance.metadata ?? {} });
+    if (dream && mapFiles.has(result.provenance.file)) continue;
+    if (selected.some((other) => {
+      const otherDream = other.provenance.metadata?.dream === true;
+      if (!dream && !otherDream) return false;
+      if (!nearIdentical(result.snippet, other.snippet)) return false;
+      if (dream && otherDream) return true;
+      // A new code, number, name, or detail in raw evidence is enough to keep it.
+      // Only omit a source echo if it contributes no new tokens to the map.
+      const rawWords = diversityTokens(dream ? other.snippet : result.snippet);
+      const mapWords = diversityTokens(dream ? result.snippet : other.snippet);
+      return [...rawWords].every((word) => mapWords.has(word));
+    })) continue;
+    selected.push(result);
+    if (dream) mapFiles.add(result.provenance.file);
+  }
+  return selected;
+}
+
+function nearIdentical(left: string, right: string): boolean {
+  const a = diversityTokens(left);
+  const b = diversityTokens(right);
+  // Short phrases and shared headings are not sufficient evidence of duplication.
+  if (Math.min(a.size, b.size) < 8) return false;
+  const overlap = [...a].filter((term) => b.has(term)).length;
+  return overlap / (a.size + b.size - overlap) >= 0.85;
+}
+
+function diversityTokens(text: string): Set<string> {
+  return new Set(text.toLowerCase().match(/[a-z0-9][a-z0-9._/-]*/g) ?? []);
 }

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { normalizeRemoteTargetOrigin as normalizeInstallerRemoteTargetOrigin } from "../scripts/remote-target-origin.mjs";
 import {
+  isReadInvocation,
   loadRemoteAccessPolicy,
   normalizeRemoteTargetOrigin,
   remoteAccessPolicyConfigPath,
@@ -93,7 +94,7 @@ test("read-only target command matrix allows retrieval and blocks mutations befo
     const env = { JUMPYBRAIN_CLI_CONFIG: configPath, JUMPYBRAIN_API_KEY: "" };
     const reads = [
       ["status"], ["tree"], ["overview"], ["search", "--query", "x"], ["recall", "--topic", "x"],
-      ["show", "--id", "mem_test"], ["dream", "--status"],
+      ["show", "--id", "mem_test"], ["dream"], ["dream", "--from", "2022-04-22", "--days", "2"],
       ["run", "memory:status"], ["run", "memory:tree"], ["run", "memory:overview"],
       ["run", "memory:search", "--query", "x"], ["run", "memory:recall", "--topic", "x"],
       ["run", "memory:show", "--id", "mem_test"],
@@ -105,9 +106,17 @@ test("read-only target command matrix allows retrieval and blocks mutations befo
       assert.match(result.stderr, /JUMPYBRAIN_API_KEY is required/, args.join(" "));
     }
 
+    for (const flag of ["--status", "--summary"]) {
+      const result = runCli(["dream", flag, "true", "--target-url", target], env);
+      assert.notEqual(result.status, 0);
+      assert.doesNotMatch(result.stderr, policyError);
+      assert.match(result.stderr, new RegExp(`${flag} is deprecated`));
+      assert.doesNotMatch(result.stderr, /JUMPYBRAIN_API_KEY is required/);
+    }
+
     const mutations = [
       ["index"], ["remember"], ["wrapup", "--title", "x"], ["update", "--id", "mem_test", "--if-match", "sha256:x"], ["process", "--mode", "lint"],
-      ["dream"], ["dream", "--complete", "dream_test"], ["dream", "--abandon", "dream_test"],
+      ["dream", "--force"], ["dream", "--complete", "dream_test"], ["dream", "--abandon", "dream_test"],
       ["dream", "--apply-manifest", path.join(temp, "missing.json")],
       ["dream", "--status", "--complete", "dream_test"], ["dream", "--status", "--abandon", "dream_test"],
       ["run", "memory:index"], ["run", "memory:remember"], ["run", "memory:wrapup", "--title", "x"],
@@ -137,3 +146,13 @@ function runCli(args, env, input) {
     input,
   });
 }
+
+test("dream window policy is read-only but legacy mutation flags still fail closed", () => {
+  for (const flags of [{}, { from: "t-1d", days: "3" }, { status: true }, { summary: "legacy" }]) {
+    assert.equal(isReadInvocation({ _: ["dream"], ...flags }), true);
+  }
+  for (const flag of ["complete", "abandon", "force", "apply-manifest"]) {
+    assert.equal(isReadInvocation({ _: ["dream"], [flag]: true }), false);
+    assert.equal(isReadInvocation({ _: ["dream"], status: true, [flag]: true }), false);
+  }
+});

@@ -24,10 +24,10 @@ For a target marked read-only during installation, the CLI permits only this exp
 | Allowed | Blocked |
 | --- | --- |
 | `status`, `tree`/`overview`, `search`, `recall`, `show` | `index`, `remember`, `wrapup`, document `update`, and remote `process` |
-| `dream --status` | Default dream create/resume, `--complete`, `--abandon`, and `--apply-manifest` |
+| `dream` (stateless window read) | Deprecated batch mutation flags remain rejected |
 | Matching `run memory:status/tree/overview/search/recall/show` recipes | Matching mutation recipes and future unclassified remote operations |
 
-Mutation flags take precedence for policy classification, so adding `--status` does not make `dream --complete`, `--abandon`, or `--apply-manifest` writable. Rejection occurs before credentials, stdin/files, wrapup recall, idempotency creation, or HTTP transport. Local roots and unlisted remote origins keep their existing behavior.
+Legacy dream flags fail with deprecation guidance; they cannot turn a window read into a batch mutation. Rejection occurs before credentials, stdin/files, wrapup recall, idempotency creation, or HTTP transport. Local roots and unlisted remote origins keep their existing behavior.
 
 The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local advisory safety guard; server-side authorization is still required for security.
 
@@ -87,14 +87,14 @@ Both paths are required; booleans accept bare flags or explicit `true`/`false`, 
 Retrieval depth changes what kind of memory is favored:
 
 - `--depth shallow` favors compressed/current memory such as pages and decisions.
-- `--depth normal` balances current memory with evidence.
-- `--depth deep` allows more raw session evidence to surface.
+- `--depth normal` balances current memory with evidence. Both normal and shallow prefer relevant `dream: true` maps, with a bounded supplemental lexical candidate collection; reindex to refresh it.
+- `--depth deep` allows more raw session evidence to surface without the dream boost. Explicit source/historical queries also omit that boost. Unrelated dream pages must not dominate; roots without dream pages retain ordinary retrieval.
 
 ## Writing and editing memory
 
 | Command | Human explanation |
 | --- | --- |
-| `cat memory.md \| jumpybrain remember --root <memory-root> --type <type> --title "..." [--tag <tag>] [--json]` | Store a new durable memory from stdin. Common types are `note`, `finding`, `decision`, and `preference`. Local writes are indexed automatically. |
+| `cat memory.md \| jumpybrain remember --root <memory-root> --type <type> --title "..." [--tag <tag>] [--json]` | Store a new durable memory from stdin. Types include `note`, `finding`, `decision`, `preference`, and `page`; add `--dream` for a dream-marked page. Local writes are indexed automatically. |
 | `cat memory.md \| jumpybrain remember --target-url <url> --type <type> --title "..." [--tag <tag>] [--json]` | Store a new durable memory on a hosted/shared server. Requires `JUMPYBRAIN_API_KEY`. Remote writes mark the server index stale until the next index run. |
 | `cat wrapup.md \| jumpybrain wrapup --root <memory-root> --title "..." [--topic "..."] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup from stdin. If `--topic` is provided, jumpyBrain first recalls related memory and prints it before writing. |
 | `cat wrapup.md \| jumpybrain wrapup --target-url <url> --title "..." [--topic "..."] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup to hosted/shared memory. Requires `JUMPYBRAIN_API_KEY`. |
@@ -120,29 +120,42 @@ Deprecated forms:
 
 ## Dreaming / consolidation workflow
 
-`dream` gives a local agent a bounded batch of changed memory documents to review, link, and consolidate. It does not call an AI provider by itself.
+`dream` is a stateless, read-only request for bounded evidence, not an AI call, stored queue, or completion transaction. Use the optional [how-to-dream skill](../skills/how-to-dream/SKILL.md) for the review loop.
 
-| Command | Human explanation |
-| --- | --- |
-| `jumpybrain dream --root <memory-root> [--out dream-batch.json] [--json]` | Create or resume a local dream batch of changed Markdown memory context. Use `--out` to write full context to a JSON file. |
-| `jumpybrain dream --target-url <url> [--out dream-batch.json] [--json]` | Create or resume a dream batch from hosted/shared memory. Requires `JUMPYBRAIN_API_KEY`. |
-| `jumpybrain dream --root <memory-root> --status [--json]` | Show local dream cursor and open-batch status. |
-| `jumpybrain dream --target-url <url> --status [--json]` | Show remote dream status. Requires `JUMPYBRAIN_API_KEY`. |
-| `jumpybrain dream --root <memory-root> --complete <batch-id> [--summary "..."] [--json]` | Mark a local dream batch complete after edits were applied or intentionally skipped; this advances the dream cursor. |
-| `jumpybrain dream --target-url <url> --complete <batch-id> [--summary "..."] [--json]` | Mark a remote dream batch complete. Requires `JUMPYBRAIN_API_KEY`. |
-| `jumpybrain dream --root <memory-root> --abandon <batch-id> [--summary "..."] [--json]` | Clear a local open dream batch without advancing the cursor. |
-| `jumpybrain dream --target-url <url> --abandon <batch-id> [--summary "..."] [--json]` | Clear a remote open dream batch without advancing the cursor. Requires `JUMPYBRAIN_API_KEY`. |
-| `jumpybrain dream --root <memory-root> --apply-manifest dream-manifest.json [--json]` | Apply a reviewed manifest of document updates, then complete the dream batch. |
-| `jumpybrain dream --target-url <url> --apply-manifest dream-manifest.json [--json]` | Apply a reviewed dream manifest to hosted/shared memory, then complete the batch. Requires `JUMPYBRAIN_API_KEY`. |
-
-Optional dream batch sizing flags:
+```bash
+jumpybrain dream --root <memory-root> --from t-0d --days 3 --out packet.json
+jumpybrain dream --root <memory-root> --from t-1d --days 3 --json
+jumpybrain dream --root <memory-root> --from 2022-05-01 --days 3 --json
+jumpybrain dream --target-url <url> --from t-0d --days 3 --json
+```
 
 | Flag | Meaning |
 | --- | --- |
-| `--max-files <n>` | Limit how many files are included in a batch. |
-| `--bytes-per-file <n>` | Limit bytes of content per file in a batch. |
-| `--max-total-bytes <n>` | Limit total content bytes in a batch. |
-| `--force` | Force creation behavior where supported by the dream workflow. |
+| `--from t-Nd\|YYYY-MM-DD` | Newest included UTC date; default `t-0d` (today). |
+| `--days <n>` | Positive bounded number of inclusive calendar dates; default 3. `t-1d --days 3` means T-1, T-2, T-3. |
+| `--date-basis evidence\|modified` | Default `evidence`: valid frontmatter `date`, dated journal filename, valid `created_at`/`createdAt`, then mtime. `modified` selects filesystem modification dates instead. |
+| `--offset <n>` | Nonnegative request-local continuation offset; default 0. |
+| `--max-files <n>` | Bound included files. |
+| `--bytes-per-file <n>` | Bound each returned body. |
+| `--max-total-bytes <n>` | Bound total returned body bytes. |
+| `--out <path>` / `--json` | Write a JSON packet to a client-side file / print JSON. Keep private packets out of version control. |
+
+Relative dates resolve once per request in UTC. Packet `window` contains `from` (oldest), `to` (newest), `timezone: "UTC"`, and `dateBasis`; CLI `--from` is the newest anchor, not packet `window.from`. For `nextOffset`, repeat the same bounds with `--offset` and use `window.to` as an absolute anchor. Concurrent edits may shift offsets: this is not a snapshot or exact coverage claim.
+
+Inspect warnings, fallback date bases, missing IDs/path provenance, truncation, and overflow. Empty windows are valid; historical windows cannot find every later edit. Migration `updated_at` is not used as an evidence date. Dream-marked pages are excluded as primary sources; recall/search/show finds related pages outside the window. No source IDs or support state are written, and repeated calls may return the same evidence.
+
+After authorized review, create a page from **body only**, or show then update an existing dream page with **full Markdown**:
+
+```bash
+jumpybrain remember --root <memory-root> --type page --dream --title "Topic map" < body.md
+jumpybrain show --root <memory-root> --id <mem_id> --json
+jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> < revised.md
+jumpybrain index --root <memory-root>
+```
+
+Updates preserve an omitted dream marker; explicit boolean `dream: false` removes it. Keep source/human-authored pages intact in ordinary dreaming (workflow guidance, not an ACL). Use the same `--target-url` for remote reads/writes/indexing and require explicit remote-write authorization.
+
+**Legacy compatibility:** CLI `--status`, `--complete`, `--abandon`, `--force`, and `--apply-manifest` fail with deprecation guidance. There is no completion step. Legacy runtime/HTTP batch APIs remain for compatibility and old state is untouched, but default CLI dreaming ignores it. Servers lacking the window endpoint fail clearly; the client never falls back to batch creation.
 
 ## `run memory:*` recipe commands
 

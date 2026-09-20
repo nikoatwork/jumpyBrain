@@ -1,4 +1,4 @@
-import { qmdVirtualPathToRelative, runQmd } from "./qmd-cli.js";
+import { QMD_COLLECTION, QMD_DREAM_COLLECTION, qmdVirtualPathToRelative, runQmd } from "./qmd-cli.js";
 
 export interface QmdCandidate {
   file?: string;
@@ -6,9 +6,13 @@ export interface QmdCandidate {
   lineEnd?: number;
   snippet?: string;
   score: number;
+  dreamSupplement?: boolean;
 }
 
-export async function searchWithQmdCli(root: string, query: string, limit: number): Promise<QmdCandidate[]> {
+export async function searchWithQmdCli(root: string, query: string, limit: number, options: { dreamsOnly?: boolean } = {}): Promise<QmdCandidate[]> {
+  const collection = options.dreamsOnly ? QMD_DREAM_COLLECTION : QMD_COLLECTION;
+  // Supplemental retrieval stays lexical: at most two processes and 24 rows each.
+  limit = Math.max(1, Math.min(options.dreamsOnly ? 24 : 160, limit));
   const merged = new Map<string, QmdCandidate>();
   const lexQueries = qmdLexQueries(query);
 
@@ -16,9 +20,12 @@ export async function searchWithQmdCli(root: string, query: string, limit: numbe
     rows.forEach((item, rank) => {
       const snippetRange = lineRangeFromSnippet(item.snippet ?? "");
       const lineStart = item.line ?? snippetRange?.lineStart;
-      const file = qmdVirtualPathToRelative(item.file ?? "");
+      const file = qmdVirtualPathToRelative(item.file ?? "", collection);
       if (!file) return;
-      const score = Math.max(Number(item.score ?? 0), 1 / (rank + 1)) * weight;
+      // QMD can round BM25 scores to zero, so retain a rank fallback. A tiny
+      // dream collection earns at most half the ordinary rank fallback; the
+      // driver additionally requires query overlap before admitting supplements.
+      const score = Math.max(Number(item.score ?? 0), (options.dreamsOnly ? 0.5 : 1) / (rank + 1)) * weight;
       const key = `${file}:${lineStart ?? 0}:${item.snippet ?? ""}`;
       const candidate = {
         file,
@@ -26,24 +33,25 @@ export async function searchWithQmdCli(root: string, query: string, limit: numbe
         lineEnd: snippetRange?.lineEnd ?? lineStart,
         snippet: item.snippet,
         score,
+        dreamSupplement: options.dreamsOnly,
       };
       const existing = merged.get(key);
       if (!existing || candidate.score > existing.score) merged.set(key, candidate);
     });
   };
 
-  for (const lexQuery of lexQueries.slice(0, 8)) {
+  for (const lexQuery of lexQueries.slice(0, options.dreamsOnly ? 2 : 8)) {
     try {
-      const result = runQmd(root, ["search", lexQuery, "--json", "-n", String(limit)]);
+      const result = runQmd(root, ["search", lexQuery, "--json", "-n", String(limit), "-c", collection]);
       addRows(parseQmdJsonRows(result.stdout), 1);
     } catch {
       // Keep search runs alive when one QMD lexical query emits malformed JSON or fails.
     }
   }
 
-  try {
+  if (!options.dreamsOnly) try {
     const queryLines = [...lexQueries.slice(0, 8).map((lexQuery) => `lex: ${lexQuery}`), `vec: ${query}`];
-    const result = runQmd(root, ["query", queryLines.join("\n"), "--json", "-n", String(limit), "--no-rerank"]);
+    const result = runQmd(root, ["query", queryLines.join("\n"), "--json", "-n", String(limit), "--no-rerank", "-c", collection]);
     addRows(parseQmdJsonRows(result.stdout), 0.9);
   } catch {
     // QMD query mode can fail when embeddings are unavailable; BM25 QMD search above is still real QMD retrieval.

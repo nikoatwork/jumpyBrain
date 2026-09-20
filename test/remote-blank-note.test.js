@@ -61,10 +61,10 @@ test("repeated blank remote notes with the same title create distinct documents"
   }
 });
 
-test("blank remote findings, decisions, preferences and wrapups remain invalid", async (t) => {
+test("blank remote findings, decisions, preferences, pages and wrapups remain invalid", async (t) => {
   const root = await disposableRoot(t);
   for (const body of ["", " \n\t "]) {
-    for (const type of ["finding", "decision", "preference"]) {
+    for (const type of ["finding", "decision", "preference", "page"]) {
       await assert.rejects(writeRemoteMemoryNote(root, { type, title: "Empty", body }), {
         message: "Memory body is empty.",
       });
@@ -72,7 +72,7 @@ test("blank remote findings, decisions, preferences and wrapups remain invalid",
     await assert.rejects(writeRemoteSessionWrapup(root, { title: "Empty wrapup", body }), {
       message: "Invalid wrapup Markdown.",
     });
-    for (const type of ["session", "page", "unknown"]) {
+    for (const type of ["session", "unknown"]) {
       await assert.rejects(writeRemoteMemoryNote(root, { type, title: "Empty", body }), /Invalid remote memory type/);
     }
   }

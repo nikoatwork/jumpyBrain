@@ -41,6 +41,10 @@ printf '%s\n' "<durable finding, decision, or preference>" \
 
 Good memory types: `finding`, `decision`, `preference`, `note`.
 
+## Optional dreaming
+
+When asked to connect notes or refresh topical synthesis, use the optional [how-to-dream skill](../how-to-dream/SKILL.md) if installed. It reads bounded UTC evidence windows, preserves source notes, and creates/updates dream pages only when useful. No completion ledger is required. It is not installed automatically: see the [explicit installation instructions](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install.md#optional-how-to-dream-skill). Global/team/remote writes still require explicit permission.
+
 ## End-of-session wrapup
 
 If durable findings, decisions, conflicts/corrections, or open questions were created, first recall likely duplicates/conflicts, then write strict Markdown sections:
