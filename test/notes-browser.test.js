@@ -47,6 +47,18 @@ function searchHarness() {
   return { search, timers, requests, run() { for (const [id, run] of timers) { timers.delete(id); run(); } } };
 }
 
+test("note view uses white borderless proportional editing with an accessible name field", () => {
+  const html = graphPageHtml("testnonce");
+  assert.match(html, /body\[data-view="note"\] \{ background: #fff;/);
+  const editorStyle = html.match(/#note-editor \{[^}]+\}/)[0];
+  assert.match(editorStyle, /background: #fff/);
+  assert.match(editorStyle, /border: 0/);
+  assert.match(editorStyle, /ui-sans-serif/);
+  assert.doesNotMatch(editorStyle, /monospace/);
+  assert.match(html, /#note-editor:focus[^}]+outline: none/);
+  assert.match(html, /id="note-name" aria-label="Page name" aria-describedby="note-save-error"/);
+});
+
 test("note result identity uses canonical metadata IDs, deduplicates hits, and retains unavailable rows", () => {
   const { normalizeNoteResults } = runtime(["isValidMemoryDocumentId", "normalizeNoteResults"]);
   const results = normalizeNoteResults([

@@ -301,6 +301,7 @@ async function graphJson(url, options) {
   if (!response.ok) {
     const error = new Error(payload?.error?.message || "Request failed with HTTP " + response.status);
     error.status = response.status;
+    error.code = payload?.error?.code;
     error.payload = payload;
     throw error;
   }
@@ -436,6 +437,8 @@ function createDocumentEditor(options) {
     newline: "\\n",
     trailingNewline: false,
     savedBody: "",
+    savedTitle: "",
+    title: "",
     draft: "",
     dirty: false,
     draftRevision: 0,
@@ -468,6 +471,8 @@ function createDocumentEditor(options) {
     editorState.newline = parts.newline;
     editorState.trailingNewline = parts.trailingNewline;
     editorState.savedBody = parts.body;
+    editorState.savedTitle = String(payload.title || "");
+    editorState.title = editorState.savedTitle;
     editorState.draft = parts.body;
     editorState.dirty = false;
     editorState.draftRevision = 0;
@@ -493,7 +498,7 @@ function createDocumentEditor(options) {
     editorState.draft = String(value).replace(/\\r\\n/g, "\\n");
     editorState.trailingNewline = /\\n$/.test(editorState.draft);
     editorState.draftRevision += 1;
-    editorState.dirty = editorState.draft !== editorState.savedBody || editorState.unconfirmedSave;
+    editorState.dirty = editorState.draft !== editorState.savedBody || editorState.title !== editorState.savedTitle || editorState.unconfirmedSave;
     if (editorState.saveInFlight) editorState.saveQueued = true;
     if (editorState.autoSaveBlocked) {
       editorState.saveStatus = "failed";
@@ -502,6 +507,25 @@ function createDocumentEditor(options) {
       scheduleSave();
     }
     emit();
+  }
+
+  function inputTitle(value) {
+    if (!editorState.loaded || editorState.cancelled) return;
+    editorState.title = String(value);
+    // A rejected duplicate did not write anything; a corrected name can autosave.
+    if (["duplicate_title", "invalid_title"].includes(editorState.saveErrorCode)) {
+      editorState.autoSaveBlocked = false;
+      editorState.saveError = "";
+      editorState.saveErrorCode = "";
+    }
+    input(editorState.draft);
+  }
+
+  function composeDraft(body, title) {
+    const prefix = title !== editorState.savedTitle
+      ? withEditableTitle(editorState.frontmatterPrefix, title, editorState.newline)
+      : editorState.frontmatterPrefix;
+    return options.composeDocument(prefix, body, editorState.newline);
   }
 
   function setEditing(value) {
@@ -521,10 +545,11 @@ function createDocumentEditor(options) {
   async function attemptSave() {
     let body = editorState.draft;
     let revision = editorState.draftRevision;
-    let content = options.composeDocument(editorState.frontmatterPrefix, body, editorState.newline);
+    let title = editorState.title;
+    let content = composeDraft(body, title);
     try {
       const payload = await options.writeDocument(editorState.documentId, content, editorState.contentHash);
-      return { payload, body, revision, content };
+      return { payload, body, title, revision, content };
     } catch (error) {
       if (!isCurrent() || Number(error && error.status) !== 412) throw error;
 
@@ -535,12 +560,18 @@ function createDocumentEditor(options) {
       editorState.exactContent = String(latest.content || "");
       editorState.frontmatterPrefix = latestParts.frontmatterPrefix;
       editorState.newline = latestParts.newline;
+      // Refresh the title baseline too. After a lost response, undoing a rename
+      // still has to overwrite the possibly committed title, not silently keep it.
+      const retainTitleDraft = editorState.title !== editorState.savedTitle || editorState.unconfirmedSave;
+      if (typeof latest.title === "string") editorState.savedTitle = latest.title;
+      if (!retainTitleDraft) editorState.title = editorState.savedTitle;
       editorState.contentHash = String(latest.contentHash || "");
       body = editorState.draft;
       revision = editorState.draftRevision;
-      content = options.composeDocument(editorState.frontmatterPrefix, body, editorState.newline);
+      title = editorState.title;
+      content = composeDraft(body, title);
       const payload = await options.writeDocument(editorState.documentId, content, editorState.contentHash);
-      return { payload, body, revision, content };
+      return { payload, body, title, revision, content };
     }
   }
 
@@ -557,10 +588,11 @@ function createDocumentEditor(options) {
         if (!isCurrent()) return false;
         editorState.saveStatus = "failed";
         editorState.saveError = String(error && error.message ? error.message : error);
+        editorState.saveErrorCode = error && error.code;
         editorState.autoSaveBlocked = true;
         // A failed response may hide a committed write. Even undoing to the previous
         // body needs an explicit retry before we can confirm persistence or leave.
-        editorState.unconfirmedSave = true;
+        editorState.unconfirmedSave = editorState.unconfirmedSave || !["duplicate_title", "invalid_title"].includes(editorState.saveErrorCode);
         editorState.dirty = true;
         editorState.saveQueued = false;
         emit();
@@ -579,8 +611,10 @@ function createDocumentEditor(options) {
       editorState.contentHash = result.payload.newContentHash;
       editorState.exactContent = result.content;
       editorState.savedBody = result.body;
+      editorState.savedTitle = result.title;
+      editorState.frontmatterPrefix = options.splitDocument(result.content).frontmatterPrefix;
       editorState.unconfirmedSave = false;
-      editorState.dirty = editorState.draft !== editorState.savedBody;
+      editorState.dirty = editorState.draft !== editorState.savedBody || editorState.title !== editorState.savedTitle;
       editorState.trailingNewline = /\\n$/.test(editorState.draft);
       editorState.saveStatus = "saved";
       editorState.saveError = "";
@@ -642,6 +676,7 @@ function createDocumentEditor(options) {
       editorState.newline = parts.newline;
       editorState.trailingNewline = parts.trailingNewline;
       editorState.savedBody = parts.body;
+      if (typeof latest.title === "string") editorState.title = editorState.savedTitle = latest.title;
       editorState.draft = parts.body;
       editorState.saveStatus = "saved";
       emit();
@@ -660,7 +695,7 @@ function createDocumentEditor(options) {
     editorState.reconcileToken += 1;
   }
 
-  return { state: editorState, hydrate, input, setEditing, setNavigationPending, startSave, flush, retry, reconcile, hasPending, cancel };
+  return { state: editorState, hydrate, input, inputTitle, setEditing, setNavigationPending, startSave, flush, retry, reconcile, hasPending, cancel };
 }
 
 function splitEditableDocument(content) {

@@ -162,6 +162,28 @@ export async function replaceCanonicalMemoryDocumentById(
   const oldContentHash = hashMemoryDocumentContent(oldBytes);
   const merged = mergeMemoryDocumentUpdate(oldBytes.toString("utf8"), submittedContent, { updatedAt: options.updatedAt });
 
+  // Compare the merged metadata against canonical files, never the derived index.
+  // Equivalent titles are not renames: legacy duplicates must remain body-editable.
+  const oldTitle = normalizedDocumentTitle(parseFrontmatter(oldBytes.toString("utf8")).frontmatter.title);
+  const newTitle = normalizedDocumentTitle(merged.frontmatter.title);
+  if (newTitle && newTitle !== oldTitle) {
+    const conflicts: string[] = [];
+    for (const absolutePath of await listCanonicalMemoryMarkdownFiles(location.root)) {
+      if (absolutePath === location.absolutePath) continue;
+      const document = await readMarkdownDocument(location.root, absolutePath);
+      if (normalizedDocumentTitle(document.frontmatter.title) === newTitle) {
+        conflicts.push(document.relativePath);
+      }
+    }
+    if (conflicts.length > 0) {
+      throw new MemoryDocumentLookupError(
+        "duplicate_title",
+        "Another memory document already uses this title. Choose a different title.",
+        { id, file: location.file, files: conflicts },
+      );
+    }
+  }
+
   await atomicWriteUtf8File(location.absolutePath, merged.content);
   const newBytes = await readFile(location.absolutePath);
   const target = options.target ?? "local";
@@ -177,6 +199,10 @@ export async function replaceCanonicalMemoryDocumentById(
     indexed: false,
     index: { stale: true, indexed: false },
   };
+}
+
+function normalizedDocumentTitle(value: unknown): string {
+  return typeof value === "string" ? value.normalize("NFKC").trim().toLowerCase().normalize("NFC") : "";
 }
 
 export function hashMemoryDocumentContent(content: Buffer | string): MemoryDocumentContentHash {

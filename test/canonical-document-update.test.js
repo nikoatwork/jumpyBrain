@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -140,4 +140,79 @@ test("document replacement atomically updates every canonical memory type withou
     assert.equal(update.newContentHash, after.contentHash);
     assert.match(update.newContentHash, /^sha256:[0-9a-f]{64}$/);
   }
+});
+
+
+test("renames reject normalized duplicate titles in every canonical bucket, including files without IDs", async (t) => {
+  const root = await tempRoot();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const id = "mem_62000000-0000-4000-8000-000000000001";
+  const original = markdown({ id, title: "Original title" });
+  const file = await writeMarkdown(root, "notes/editable.md", original);
+  const before = await readCanonicalMemoryDocumentById(root, id);
+
+  for (const [bucket] of BUCKET_CASES) {
+    // No ID/type required: legacy canonical Markdown still owns its title.
+    const conflictFile = `${bucket}/nested/conflicting.md`;
+    const conflict = await writeMarkdown(root, conflictFile, '---\ntitle: " Café ＰＡＧＥ "\n---\nLegacy body.\n');
+    const submitted = markdown({ id, title: "  CAFE\u0301 page  ", body: "Must not be saved." });
+    await assert.rejects(replaceCanonicalMemoryDocumentById(root, id, submitted), (error) => {
+      assert.equal(error.code, "duplicate_title");
+      assert.equal(error.message, "Another memory document already uses this title. Choose a different title.");
+      assert.deepEqual(error.details, { id, file: "notes/editable.md", files: [conflictFile] });
+      return true;
+    });
+    assert.equal(await readFile(file, "utf8"), original);
+    assert.equal((await readCanonicalMemoryDocumentById(root, id)).contentHash, before.contentHash);
+    assert.equal((await readdir(path.dirname(file))).some((name) => name.endsWith(".tmp")), false);
+    await rm(conflict);
+  }
+});
+
+test("unchanged and equivalent legacy duplicate titles permit body edits and unique renames", async (t) => {
+  const root = await tempRoot();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const id = "mem_62000000-0000-4000-8000-000000000002";
+  await writeMarkdown(root, "notes/editable.md", markdown({ id, title: "Café page" }));
+  await writeMarkdown(root, "pages/legacy.md", '---\ntitle: "CAFÉ PAGE"\n---\nLegacy.\n');
+
+  for (const title of ["Café page", "  CAFE\u0301 ＰＡＧＥ  ", "A unique new title"]) {
+    await replaceCanonicalMemoryDocumentById(root, id, markdown({ id, title, body: `Edited body ${title}` }));
+    const after = await readCanonicalMemoryDocumentById(root, id);
+    assert.equal(after.title, title);
+    assert.match(after.content, /Edited body/);
+  }
+});
+
+test("rename scan excludes the current file and noncanonical Markdown and reads fresh metadata", async (t) => {
+  const root = await tempRoot();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const id = "mem_62000000-0000-4000-8000-000000000003";
+  await writeMarkdown(root, "notes/editable.md", markdown({ id, title: "Original" }));
+  const target = "Destination";
+  for (const file of ["README.md", "tasks/todo/plan.md", ".jumpybrain/cached.md", "notes/node_modules/dependency.md", "pages/answer_session_ids.md"]) {
+    await writeMarkdown(root, file, `---\ntitle: "${target}"\n---\nIgnored.\n`);
+  }
+  await replaceCanonicalMemoryDocumentById(root, id, markdown({ id, title: target }));
+  await replaceCanonicalMemoryDocumentById(root, id, markdown({ id, title: target.toUpperCase(), body: "Self is not a conflict." }));
+
+  const occupied = await writeMarkdown(root, "pages/occupied.md", '---\ntitle: "Occupied"\n---\n');
+  const submitted = markdown({ id, title: "occupied" });
+  await assert.rejects(replaceCanonicalMemoryDocumentById(root, id, submitted), { code: "duplicate_title" });
+  // No reindex/restart: a direct canonical metadata edit immediately frees the title.
+  await writeFile(occupied, '---\ntitle: "Now free"\n---\n', "utf8");
+  await replaceCanonicalMemoryDocumentById(root, id, submitted);
+  assert.equal((await readCanonicalMemoryDocumentById(root, id)).title, "occupied");
+});
+
+test("missing and empty titles do not become duplicate-title conflicts", async (t) => {
+  const root = await tempRoot();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const id = "mem_62000000-0000-4000-8000-000000000004";
+  await writeMarkdown(root, "notes/editable.md", markdown({ id, title: "Original" }));
+  await writeMarkdown(root, "pages/untitled.md", "Body only.\n");
+  await writeMarkdown(root, "pages/blank.md", '---\ntitle: " "\n---\n');
+  await replaceCanonicalMemoryDocumentById(root, id, markdown({ id, title: "  " }));
+  await replaceCanonicalMemoryDocumentById(root, id, "Body-only submission.\n");
+  assert.equal((await readCanonicalMemoryDocumentById(root, id)).title, "");
 });

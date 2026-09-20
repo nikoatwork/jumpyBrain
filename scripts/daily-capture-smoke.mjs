@@ -47,7 +47,7 @@ try {
     await run(`${label}-dirty-save-guard`, (page) => validateDirtyGuard(page, label), mobile);
     await run(`${label}-auth-retry`, (page) => validateAuthRetry(page, label), mobile);
   }
-  await run("desktop-keyboard-shortcuts", validateShortcuts);
+  await run("desktop-button-only-capture", validateButtonOnlyCapture);
   await run("desktop-capture-search-roundtrip", validateSearchRoundtrip);
   console.log(`daily capture browser smoke: ${failures.length ? `FAIL (${failures.length})` : "PASS"}`);
   if (failures.length) process.exitCode = 1;
@@ -163,9 +163,7 @@ async function validateCreation(page, label) {
     await page.locator("#home-new").dblclick();
     await page.waitForFunction(() => document.querySelector("#home-new").disabled);
     assert.equal(await page.locator("#new-note").isDisabled(), true);
-    await page.keyboard.press("Control+n");
-    await page.keyboard.press("Control+Shift+Enter");
-    assert.equal(requests.length, 1, "double click and shortcuts while creating must issue one POST");
+    assert.equal(requests.length, 1, "double click while creating must issue one POST");
   } finally { release(); }
   const received = await response;
   assert.equal(received.status(), 200);
@@ -257,32 +255,33 @@ async function validateLostResponse(page, label) {
   assert.equal((await noteFiles()).length, before.length + 1, "lost-response retry must not duplicate Markdown");
 }
 
-async function validateShortcuts(page) {
+async function validateButtonOnlyCapture(page) {
   await home(page);
   const requests = observeCreates(page);
-  for (const combination of ["Control+n", "Meta+n", "Control+Shift+Enter", "Meta+Shift+Enter"]) {
-    const keys = combination.split("+");
-    const key = keys.pop();
+  // Synthetic events verify handlers without opening actual browser windows.
+  const intercepted = await page.evaluate(() => {
+    const events = [
+      { key: "n", ctrlKey: true }, { key: "n", metaKey: true },
+      { key: "Enter", ctrlKey: true, shiftKey: true }, { key: "Enter", metaKey: true, shiftKey: true },
+    ];
+    return events.map((keys) => {
+      const event = new KeyboardEvent("keydown", { ...keys, bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+  });
+  assert.deepEqual(intercepted, [false, false, false, false]);
+  await page.waitForTimeout(250);
+  assert.equal(requests.length, 0, "keyboard shortcuts must not create notes");
+  for (const selector of ["#home-new", "#new-note"]) {
     const before = requests.length;
-    const response = page.waitForResponse((r) => new URL(r.url()).pathname === "/memories/all/notes");
-    for (const modifier of keys) await page.keyboard.down(modifier);
-    await page.keyboard.down(key);
-    const received = await response;
-    assert.equal(received.status(), 200);
-    await opened(page, (await received.json()).id);
-    // A held key remains repeat=true even after the first POST has completed.
-    await page.keyboard.down(key);
-    await page.keyboard.down(key);
-    await page.keyboard.up(key);
-    for (const modifier of keys.reverse()) await page.keyboard.up(modifier);
-    await page.waitForTimeout(250);
-    assert.equal(requests.length, before + 1, `${combination} repeat must not create extra notes`);
-    // Explicit second-click detail also tests suppression after a fast completed POST.
+    await create(page, selector);
+    assert.equal(requests.length, before + 1, "each button creates a note");
     await page.locator("#new-note").dispatchEvent("click", { detail: 2 });
     await page.waitForTimeout(100);
     assert.equal(requests.length, before + 1, "late second click must remain suppressed");
   }
-  assert.equal(new Set(requests.map((request) => request.key)).size, 4, "independent captures get fresh keys");
+  assert.equal(new Set(requests.map((request) => request.key)).size, 2, "independent captures get fresh keys");
 }
 
 async function validateReferences(page, label) {

@@ -446,6 +446,7 @@ export type MemoryDocumentEditErrorCode =
   | "invalid_id"
   | "missing_id"
   | "duplicate_id"
+  | "duplicate_title"
   | "precondition_required"
   | "precondition_failed"
   | "validation_failed"

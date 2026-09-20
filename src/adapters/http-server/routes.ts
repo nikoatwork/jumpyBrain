@@ -518,7 +518,7 @@ function documentUpdateErrorResponse(error: unknown): { statusCode: number; body
 function documentUpdateStatusCode(code: string): number {
   if (code === "invalid_id") return 400;
   if (code === "missing_id") return 404;
-  if (code === "duplicate_id") return 409;
+  if (code === "duplicate_id" || code === "duplicate_title") return 409;
   if (code === "precondition_failed") return 412;
   if (code === "precondition_required") return 428;
   if (code === "unsupported_media_type") return 415;

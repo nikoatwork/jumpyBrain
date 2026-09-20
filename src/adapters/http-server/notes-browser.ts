@@ -2,6 +2,7 @@
 // String.raw keeps browser JavaScript readable without a bundler or runtime dependency.
 export const notesStyles = String.raw`
     body { background: var(--cream-50); display: flex; flex-direction: column; height: 100dvh; }
+    body[data-view="note"] { background: #fff; }
     .app-nav { min-height: 60px; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 24px; }
     #graph-header { flex: 0 0 auto; }
     .app-nav .home-link { margin-right: auto; font-weight: 650; }
@@ -19,8 +20,10 @@ export const notesStyles = String.raw`
     #note-panel { width: 100%; min-width: 0; overflow: auto; scrollbar-color: var(--sage-300) transparent; }
     .note-column { width: min(100%, 800px); margin: 0 auto; padding: clamp(24px, 5vh, 64px) 32px 100px; }
     #note-title { margin: 0 0 20px; color: var(--forest-950); font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
-    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: transparent; color: var(--ink); box-shadow: none; font: 15px/1.8 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
-    #note-editor:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 8px; }
+    #note-name { display: block; width: 100%; height: auto; margin: 0 0 20px; padding: 0; border: 0; border-radius: 0; background: #fff; color: var(--forest-950); box-shadow: none; font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; }
+    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: #fff; color: var(--ink); box-shadow: none; font: 16px/1.8 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
+    #note-save-error { color: #8b4434; font-size: 13px; }
     .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
     .capture-feedback[data-error="true"] { color: #8b4434; }
     #home-new { justify-self: center; }
@@ -74,7 +77,7 @@ export const notesMarkup = String.raw`
   <a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain</a>
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
-  <button id="new-note" class="quiet-button" title="New note: Cmd/Ctrl+N, or Cmd/Ctrl+Shift+Enter if reserved by your browser">New note</button>
+  <button id="new-note" class="quiet-button">New note</button>
   <button id="open-search" class="quiet-button" aria-label="Search notes">Search <kbd class="shortcut"></kbd></button>
   <a id="graph-link" class="quiet-button" href="/graph">Graph</a>
   <button id="open-connection" class="quiet-button" aria-label="Connection settings">Connect</button>
@@ -108,11 +111,13 @@ export const notesMarkup = String.raw`
 export const notesViews = String.raw`
   <section id="home" class="home" aria-label="Your jumpyBrain">
     <button id="home-search" class="home-prompt" aria-label="Search notes"><kbd class="shortcut">⌘K</kbd> to enter your <strong>jumpyBrain</strong></button>
-    <button id="home-new" class="quiet-button">New note for today <kbd class="new-shortcut"></kbd></button>
+    <button id="home-new" class="quiet-button">New note for today</button>
   </section>
   <section id="note-panel" data-testid="graph-note-panel" aria-label="Note editor" hidden>
     <div class="note-column">
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
+      <input id="note-name" aria-label="Page name" aria-describedby="note-save-error" autocomplete="off" hidden />
+      <p id="note-save-error" role="status" aria-live="polite" hidden></p>
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
       <button id="insert-reference" class="quiet-button" hidden>[[ ]] Insert page reference</button>
@@ -127,6 +132,21 @@ export const notesViews = String.raw`
 `;
 
 export const notesScript = String.raw`
+// Title metadata is separate from the raw Markdown body; renaming never rewrites links or headings.
+function withEditableTitle(prefix, title, newline) {
+  if (!title.trim() || /[\x00-\x1f\x7f]/.test(title)) {
+    const error = new Error("Enter a non-empty page name without control characters.");
+    error.code = "invalid_title";
+    throw error;
+  }
+  const lines = prefix.replace(/\r\n/g, "\n").split("\n");
+  if (!prefix) return ["---", "title: " + JSON.stringify(title), "---", ""].join(newline);
+  // Canonical frontmatter uses one value per line. Remove all title entries, then add one.
+  const filtered = lines.filter((line) => !/^title\s*:/.test(line));
+  filtered.splice(1, 0, "title: " + JSON.stringify(title));
+  return filtered.join(newline);
+}
+
 // Search and navigation controllers have injected effects for deterministic tests.
 function normalizeNoteResults(results) {
   const seen = new Set();
@@ -355,7 +375,6 @@ let reopenSearch = false;
 let previousKey = "";
 const shortcut = /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘K" : "Ctrl+K";
 for (const element of document.querySelectorAll(".shortcut")) element.textContent = shortcut;
-for (const element of document.querySelectorAll(".new-shortcut")) element.textContent = shortcut.replace("K", "N");
 const noteSearch = createNoteSearch({
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
@@ -470,17 +489,13 @@ $("note-search-input").addEventListener("keydown", (event) => {
   if (event.key === "Enter") { event.preventDefault(); chooseSearchResult(noteSearch.state.results[noteSearch.state.selected]); }
 });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));
-document.addEventListener("keydown", (event) => {
-  if (!event.isComposing && !event.repeat && !event.altKey && (event.metaKey || event.ctrlKey)
-      && ((!event.shiftKey && event.key.toLowerCase() === "n") || (event.shiftKey && event.key === "Enter"))) {
-    if (!searchDialog.open && !connectionDialog.open) { event.preventDefault(); newNote(); }
-    return;
-  }
+function handleNoteShortcut(event) {
   if (!event.isComposing && !event.altKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     if (searchDialog.open) closeSearch(); else openSearch();
   }
-});
+}
+document.addEventListener("keydown", handleNoteShortcut);
 
 function openConnection(fromSearch) {
   previousKey = apiKeyInput.value;
@@ -560,6 +575,9 @@ async function showNote(documentId, focusEnd = false) {
   if (state.editor) state.editor.cancel();
   state.editor = null;
   $("note-title").textContent = "";
+  $("note-title").hidden = false;
+  $("note-name").hidden = true;
+  $("note-save-error").hidden = true;
   $("note-editor").hidden = true;
   $("note-editor").value = "";
   $("note-metadata").hidden = true;
@@ -613,17 +631,28 @@ function noteLoadError(message) {
   $("note-title").textContent = "Note unavailable";
 }
 $("note-load-retry").addEventListener("click", () => showNote(new URL(location.href).searchParams.get("note")));
+$("note-name").addEventListener("input", () => state.editor?.inputTitle($("note-name").value));
+$("note-name").addEventListener("blur", () => state.editor?.flush());
 
 function syncEditorUi(editorState) {
   if (!state.editor || state.editor.state !== editorState) return;
   $("note-retry").hidden = editorState.saveStatus !== "failed";
   $("note-retry").disabled = editorState.navigationPending;
   $("note-editor").hidden = !editorState.loaded;
+  $("note-name").hidden = !editorState.loaded;
+  $("note-title").hidden = editorState.loaded;
+  $("note-name").readOnly = editorState.navigationPending;
+  $("note-name").setAttribute("aria-invalid", String(editorState.saveStatus === "failed"));
+  $("note-save-error").hidden = editorState.saveStatus !== "failed";
+  $("note-save-error").textContent = editorState.saveError || "";
   // readOnly, not disabled: keep focus and caret while a navigation save is pending.
   $("note-editor").readOnly = editorState.navigationPending;
   $("insert-reference").hidden = !editorState.loaded;
   $("insert-reference").disabled = editorState.navigationPending;
   if (editorState.loaded) {
+    if ($("note-name").value !== editorState.title) $("note-name").value = editorState.title;
+    $("note-title").textContent = editorState.title || "Untitled";
+    document.title = (editorState.title || "Untitled") + " · jumpyBrain";
     if ($("note-editor").value !== editorState.draft) $("note-editor").value = editorState.draft;
     $("note-frontmatter").textContent = editorState.frontmatterPrefix;
     $("note-metadata").hidden = false;

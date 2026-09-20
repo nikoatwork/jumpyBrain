@@ -46,6 +46,7 @@ function loadPageEditorRuntime() {
   const ctx = {};
   vm.createContext(ctx);
   vm.runInContext([
+    extractFunction(script, "withEditableTitle"),
     extractFunction(script, "createDocumentEditor"),
     extractFunction(script, "splitEditableDocument"),
     extractFunction(script, "composeEditableDocument"),
@@ -113,7 +114,7 @@ function createEditorHarness(overrides = {}) {
     isCurrent: () => current,
     onChange: () => undefined,
   });
-  editor.hydrate({ content: initialContent, contentHash: "sha256:initial" });
+  editor.hydrate({ content: initialContent, contentHash: "sha256:initial", title: "Alpha" });
   return { runtime, clock, editor, writes, reads, setCurrent(value) { current = value; } };
 }
 
@@ -366,6 +367,88 @@ test("graph editor document codec isolates read-only frontmatter and preserves b
   assert.equal(trailing.body, "body\n\n");
   assert.equal(trailing.trailingNewline, true);
   assert.equal(composeEditableDocument(trailing.frontmatterPrefix, trailing.body, trailing.newline), "---\ntitle: T\n---\nbody\n\n");
+});
+
+test("page renames serialize title metadata, preserve body, and retain duplicate drafts for correction", async () => {
+  const h = createEditorHarness({
+    writeDocument: async (_id, content, _hash, count) => {
+      if (count === 1) throw Object.assign(new Error("Another memory document already uses this title. Choose a different title."), { status: 409, code: "duplicate_title" });
+      return { newContentHash: "sha256:renamed" };
+    },
+  });
+  h.editor.setEditing(true);
+  h.editor.inputTitle("Taken");
+  assert.equal(await h.editor.flush(), false);
+  assert.equal(h.writes.length, 1, "duplicates must not enter the 412 overwrite retry");
+  assert.equal(h.editor.state.title, "Taken");
+  assert.match(h.editor.state.saveError, /already uses this title/);
+  assert.equal(h.editor.hasPending(), true);
+  assert.equal(h.editor.state.unconfirmedSave, false);
+  h.editor.inputTitle('Unique "page"');
+  assert.equal(await h.editor.flush(), true, "correcting the name resumes autosave");
+  assert.match(h.writes[1].content, /title: "Unique \\"page\\""/);
+  assert.equal(h.runtime.splitEditableDocument(h.writes[1].content).body, "# Alpha\n");
+  assert.equal(h.editor.state.savedTitle, 'Unique "page"');
+  h.editor.input("Updated body\n");
+  await h.editor.flush();
+  assert.ok(h.writes[2].content.includes('title: "Unique \\"page\\""'), "later body saves retain the renamed title");
+});
+
+test("undoing a rename after a lost response restores the title through a conflict retry", async () => {
+  const h = createEditorHarness({
+    readDocument: async () => ({ title: "Beta", content: '---\ntitle: "Beta"\n---\n# Alpha\n', contentHash: "sha256:committed-beta" }),
+    writeDocument: async (_id, _content, _hash, count) => {
+      if (count === 1) throw new Error("Lost response after commit");
+      if (count === 2) throw Object.assign(new Error("Stale hash"), { status: 412 });
+      return { newContentHash: "sha256:restored-alpha" };
+    },
+  });
+  h.editor.setEditing(true);
+  h.editor.inputTitle("Beta");
+  assert.equal(await h.editor.flush(), false);
+  h.editor.inputTitle("Alpha");
+  assert.equal(h.editor.hasPending(), true);
+  assert.equal(await h.editor.retry(), true);
+  assert.match(h.writes[2].content, /title: "Alpha"/);
+  assert.equal(h.writes[2].hash, "sha256:committed-beta");
+  assert.equal(h.editor.state.savedTitle, "Alpha");
+  assert.equal(h.editor.hasPending(), false);
+});
+
+test("a body-only conflict retry preserves a concurrently renamed title", async () => {
+  const h = createEditorHarness({
+    readDocument: async () => ({ title: "Remote title", content: '---\ntitle: "Remote title"\n---\n# Alpha\n', contentHash: "sha256:remote" }),
+    writeDocument: async (_id, _content, _hash, count) => {
+      if (count === 1) throw Object.assign(new Error("Stale hash"), { status: 412 });
+      return { newContentHash: "sha256:merged" };
+    },
+  });
+  h.editor.setEditing(true);
+  h.editor.input("Updated body");
+  assert.equal(await h.editor.flush(), true);
+  assert.match(h.writes[1].content, /title: "Remote title"/);
+  assert.equal(h.editor.state.title, "Remote title");
+});
+
+test("empty page names never write, and undoing a rename is a no-op", async () => {
+  const h = createEditorHarness();
+  h.editor.setEditing(true);
+  h.editor.inputTitle("Other");
+  h.editor.inputTitle("Alpha");
+  assert.equal(await h.editor.flush(), true);
+  assert.equal(h.writes.length, 0);
+  h.editor.inputTitle("  ");
+  assert.equal(await h.editor.flush(), false);
+  assert.equal(h.writes.length, 0);
+  h.editor.inputTitle("Valid");
+  assert.equal(await h.editor.flush(), true);
+  assert.equal(h.writes.length, 1);
+});
+
+test("title codec safely replaces metadata while preserving newline style", () => {
+  const { withEditableTitle } = loadPageEditorRuntime();
+  assert.equal(withEditableTitle('---\r\nid: "id"\r\ntitle: "Old"\r\n---\r\n', "New", "\r\n"), '---\r\ntitle: "New"\r\nid: "id"\r\n---\r\n');
+  assert.throws(() => withEditableTitle("", "bad\nname", "\n"), /page name/);
 });
 
 test("graph editor debounces a burst for 750 ms and sends only the newest body", async () => {

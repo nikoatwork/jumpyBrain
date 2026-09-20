@@ -119,3 +119,25 @@ test("runtime ID-stamping delegates to the local maintenance operation", async (
     await rm(root, { recursive: true, force: true });
   }
 });
+
+
+test("runtime rejects duplicate-title renames after hash preconditions without changing canonical content", async () => {
+  const runtime = await importRuntime();
+  const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-runtime-title-"));
+  const id = "mem_70000000-0000-4000-8000-000000000002";
+  try {
+    await runtime.initializeMemoryRoot(root);
+    const original = editableMarkdown({ id });
+    const file = await writeMarkdown(root, "notes/runtime.md", original);
+    await writeMarkdown(root, "pages/occupied.md", '---\ntitle: "Occupied title"\n---\nLegacy page without an ID.\n');
+    const before = await runtime.readMemoryDocument(root, id);
+    const revised = editableMarkdown({ id, title: "  OCCUPIED TITLE  ", body: "Rejected edit." });
+    await assertRejectsWithCode(runtime.updateMemoryDocument(root, id, revised), "precondition_required");
+    await assertRejectsWithCode(runtime.updateMemoryDocument(root, id, revised, { ifMatch: "sha256:stale" }), "precondition_failed");
+    await assertRejectsWithCode(runtime.updateMemoryDocument(root, id, revised, { ifMatch: before.contentHash }), "duplicate_title");
+    assert.equal(await readFile(file, "utf8"), original);
+    assert.deepEqual(await runtime.readMemoryDocument(root, id), before);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

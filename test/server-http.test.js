@@ -912,3 +912,67 @@ test("remote HTTP dream endpoints are authenticated, remote-safe, and complete c
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+
+test("remote queued renames reject canonical duplicate titles with 409 without a write or stale-index side effect", async () => {
+  const serverModule = await loadServerModule();
+  const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-http-title-conflict-"));
+  const memory = serverModule.createServerMemoryRuntime({ root });
+  await memory.initializeMemoryRoot();
+  const ids = ["mem_93000000-0000-4000-8000-000000000001", "mem_93000000-0000-4000-8000-000000000002"];
+  const titles = ["Private title Alpha", "Private title Beta"];
+  const originals = ids.map((id, i) => `---\nid: "${id}"\ntype: "note"\ntitle: "${titles[i]}"\n---\nPrivate original body ${i}.\n`);
+  for (let i = 0; i < ids.length; i++) {
+    await writeFile(path.join(root, "notes", `title-${i}.md`), originals[i], "utf8");
+  }
+  await serverModule.markRemoteIndexFresh(root, { root, documents: 2, qmdCollection: "jumpybrain" }, "2026-07-04T11:01:00.000Z");
+  const started = await serverModule.startJumpyBrainHttpServer({ root, apiKeys: ["secret"], port: 0, autoIndex: false });
+  try {
+    const headers = { Authorization: "Bearer secret", "Content-Type": "application/json" };
+    const urls = ids.map((id) => `${started.url}/memories/all/documents/${id}`);
+    const before = await Promise.all(urls.map(async (url) => json(await fetch(url, { headers }))));
+    const statusUrl = `${started.url}/memories/all/status`;
+    const statusBefore = await json(await fetch(statusUrl, { headers }));
+    assert.equal(statusBefore.index.stale, false);
+    const put = (i, title) => fetch(urls[i], {
+      method: "PUT",
+      headers: { ...headers, "If-Match": before[i].contentHash },
+      body: JSON.stringify({ content: originals[i].replace(titles[i], title) }),
+    });
+
+    // Canonical Markdown exists but no real search index was built.
+    const rejected = await put(1, "  PRIVATE TITLE ALPHA  ");
+    assert.equal(rejected.status, 409);
+    const conflict = await json(rejected);
+    assert.deepEqual(conflict, {
+      error: {
+        code: "duplicate_title",
+        message: "Another memory document already uses this title. Choose a different title.",
+        details: { id: ids[1], file: "notes/title-1.md", files: ["notes/title-0.md"] },
+      },
+    });
+    assert.equal(JSON.stringify(conflict).includes(root), false);
+    assert.deepEqual(await json(await fetch(urls[1], { headers })), before[1]);
+    assert.deepEqual((await json(await fetch(statusUrl, { headers }))).index, statusBefore.index);
+
+    // Distinct IDs/hashes compete for the same new title. The queued loser must
+    // see the winner's canonical write even while the search index is stale.
+    const responses = await Promise.all([put(0, "Shared private destination"), put(1, " SHARED PRIVATE DESTINATION ")]);
+    assert.deepEqual(responses.map((response) => response.status).sort(), [200, 409]);
+    const payloads = await Promise.all(responses.map(json));
+    const loser = responses.findIndex((response) => response.status === 409);
+    const winner = 1 - loser;
+    assert.equal(payloads[loser].error.code, "duplicate_title");
+    assert.deepEqual(payloads[loser].error.details.files, [`notes/title-${winner}.md`]);
+    assert.equal(payloads[winner].index.stale, true);
+    assert.equal(await readFile(path.join(root, "notes", `title-${loser}.md`), "utf8"), originals[loser]);
+    assert.equal((await json(await fetch(urls[loser], { headers }))).contentHash, before[loser].contentHash);
+
+    const log = await readServerLog(root, (content) => /error_code=duplicate_title/.test(content));
+    assert.doesNotMatch(log, /Private title|PRIVATE TITLE|Shared private|SHARED PRIVATE|Private original body/);
+    assert.equal(log.includes(root), false);
+  } finally {
+    await started.close();
+    await rm(root, { recursive: true, force: true });
+  }
+});

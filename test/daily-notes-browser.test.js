@@ -36,6 +36,28 @@ test("entire inline browser script parses and daily controls are available", () 
   for (const control of ["home-new", "new-note", "insert-reference", "capture-message", "reference-help"]) assert.match(html, new RegExp('id="' + control + '"'));
 });
 
+test("new notes are button-only and browser shortcuts remain untouched", () => {
+  let opened = 0;
+  const { handleNoteShortcut } = runtime(["handleNoteShortcut"], {
+    searchDialog: { open: false },
+    openSearch() { opened++; },
+    closeSearch() { throw new Error("unexpected search close"); },
+    newNote() { throw new Error("new notes must be created through buttons"); },
+  });
+  for (const modifier of ["ctrlKey", "metaKey"]) {
+    for (const [key, shiftKey] of [["n", false], ["N", true], ["Enter", true]]) {
+      handleNoteShortcut({ key, shiftKey, [modifier]: true, preventDefault() { throw new Error("browser shortcut intercepted"); } });
+    }
+    let prevented = false;
+    handleNoteShortcut({ key: "k", [modifier]: true, preventDefault() { prevented = true; } });
+    assert.equal(prevented, true, "search shortcut still works");
+  }
+  assert.equal(opened, 2);
+  const html = graphPageHtml("dailytest");
+  assert.doesNotMatch(html, /new-shortcut|Cmd\/Ctrl\+N|Cmd\/Ctrl\+Shift\+Enter/);
+  assert.match(script, /\["new-note", "home-new"\].*addEventListener\("click"/);
+});
+
 test("dated capture uses local calendar getters across midnight, not UTC", () => {
   const { datedNoteDraft } = runtime(["datedNoteDraft"]);
   const before = new Date(2026, 8, 19, 23, 59, 59, 999);
