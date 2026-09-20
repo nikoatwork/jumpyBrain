@@ -400,27 +400,34 @@ function closeSearch(restoreFocus = true) {
 
 function renderNoteSearch(search) {
   const list = $("search-results");
-  list.replaceChildren();
-  search.results.forEach((result, index) => {
-    const item = document.createElement("li");
-    item.id = "search-result-" + index;
-    item.className = "search-result";
-    item.setAttribute("role", "option");
-    item.setAttribute("aria-selected", String(index === search.selected));
-    item.setAttribute("aria-disabled", String(!result.documentId));
-    const title = document.createElement("strong"); title.textContent = result.title;
-    const snippet = document.createElement("span"); snippet.textContent = result.snippet;
-    const context = document.createElement("small"); context.textContent = result.file + (result.documentId ? "" : " · Unavailable: missing memory ID");
-    item.append(title, snippet, context);
-    item.addEventListener("click", () => chooseSearchResult(index));
-    list.append(item);
-  });
+  // A save can update freshness between pointerdown and pointerup. Keep the
+  // actual click targets mounted unless the result collection changes.
+  if (list.noteResults !== search.results) {
+    list.noteResults = search.results;
+    list.noteSelected = null;
+    list.replaceChildren();
+    search.results.forEach((result, index) => {
+      const item = document.createElement("li");
+      item.id = "search-result-" + index;
+      item.className = "search-result";
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-disabled", String(!result.documentId));
+      const title = document.createElement("strong"); title.textContent = result.title;
+      const snippet = document.createElement("span"); snippet.textContent = result.snippet;
+      const context = document.createElement("small"); context.textContent = result.file + (result.documentId ? "" : " · Unavailable: missing memory ID");
+      item.append(title, snippet, context);
+      item.addEventListener("click", () => chooseSearchResult(result));
+      list.append(item);
+    });
+  }
+  [...list.children].forEach((item, index) => item.setAttribute("aria-selected", String(index === search.selected)));
   $("note-search-input").removeAttribute("aria-activedescendant");
   if (search.selected >= 0) {
     const id = "search-result-" + search.selected;
     $("note-search-input").setAttribute("aria-activedescendant", id);
-    $(id).scrollIntoView({ block: "nearest" });
+    if (list.noteSelected !== search.selected) $(id).scrollIntoView({ block: "nearest" });
   }
+  list.noteSelected = search.selected;
   $("search-message").textContent = search.feedback || (searchMode === "insert" && search.status === "ready" && search.selected >= 0
     ? "↑ ↓ to choose · Enter to insert reference" : search.message);
   $("search-results").setAttribute("aria-busy", String(search.status === "loading"));
@@ -429,14 +436,25 @@ function renderNoteSearch(search) {
   $("search-connect").hidden = search.status !== "auth";
 }
 
-async function chooseSearchResult(index) {
-  const result = noteSearch.state.results[index];
+async function chooseSearchResult(result) {
   if (!result?.documentId || selectingResult) return;
   if (searchMode === "insert") { insertPageReference(result); return; }
+  const url = "/?note=" + encodeURIComponent(result.documentId);
+  if (url === shellUrl()) { closeSearch(); return; }
   selectingResult = true;
-  closeSearch();
-  try { await navigation.navigate("/?note=" + encodeURIComponent(result.documentId)); }
-  finally { selectingResult = false; }
+  noteSearch.cancel();
+  $("search-message").textContent = "Opening note…";
+  try {
+    // showPage closes the dialog only after the save guard approves navigation.
+    // A rejected navigation must explain why instead of swallowing the click.
+    if (!await navigation.navigate(url)) {
+      $("search-message").textContent = state.editor?.state.saveStatus === "failed"
+        ? "Save failed. Close search and retry saving your current note before opening another."
+        : "Navigation is busy. Try opening the note again.";
+    }
+  } catch {
+    $("search-message").textContent = "Could not open this note. Please try again.";
+  } finally { selectingResult = false; }
 }
 
 $("open-search").addEventListener("click", openSearch);
@@ -449,7 +467,7 @@ $("note-search-input").addEventListener("compositionend", (event) => noteSearch.
 $("note-search-input").addEventListener("keydown", (event) => {
   if (event.isComposing) return;
   if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); noteSearch.move(event.key === "ArrowDown" ? 1 : -1); }
-  if (event.key === "Enter") { event.preventDefault(); chooseSearchResult(noteSearch.state.selected); }
+  if (event.key === "Enter") { event.preventDefault(); chooseSearchResult(noteSearch.state.results[noteSearch.state.selected]); }
 });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));
 document.addEventListener("keydown", (event) => {

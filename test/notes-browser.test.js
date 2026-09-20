@@ -152,11 +152,58 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   const $ = (id) => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   const { renderNoteSearch } = runtime(["renderNoteSearch"], { $, document: { createElement: element }, chooseSearchResult() {}, searchMode: "navigate" });
   const malicious = '<script>alert("x")</script>';
-  renderNoteSearch({ results: [{ documentId: docA, title: malicious, snippet: malicious, file: malicious }], selected: 0, status: "ready", message: "ready", stale: true });
+  const search = { results: [{ documentId: docA, title: malicious, snippet: malicious, file: malicious }], selected: 0, status: "ready", message: "ready", stale: true };
+  renderNoteSearch(search);
   const row = $("search-results").children[0];
   assert.deepEqual(row.children.map((child) => child.textContent), [malicious, malicious, malicious]);
   assert.equal(row.attrs["aria-selected"], "true");
   assert.equal($("search-freshness").hidden, false);
+  search.stale = false;
+  renderNoteSearch(search);
+  assert.equal($("search-results").children[0], row, "freshness updates must preserve the mouse/touch target");
+  search.selected = -1;
+  renderNoteSearch(search);
+  assert.equal($("search-results").children[0], row, "selection updates must not replace result rows either");
+  assert.equal(row.attrs["aria-selected"], "false");
+  search.results = [{ documentId: docB, title: "Beta", snippet: "new", file: "notes/beta.md" }];
+  renderNoteSearch(search);
+  assert.notEqual($("search-results").children[0], row, "a new query's results should replace old rows");
+});
+
+test("choosing a result navigates to its detail URL and explains save-guard rejection", async () => {
+  const pending = deferred();
+  const message = { textContent: "" };
+  const calls = [];
+  let closes = 0;
+  const context = runtime(["chooseSearchResult"], {
+    selectingResult: false,
+    searchMode: "navigate",
+    $: () => message,
+    shellUrl: () => "/?note=" + docA,
+    closeSearch: () => closes++,
+    noteSearch: { cancel() {} },
+    state: { editor: { state: { saveStatus: "failed" } } },
+    navigation: { navigate(url) { calls.push(url); return pending.promise; } },
+  });
+  const opening = context.chooseSearchResult({ documentId: docB });
+  assert.deepEqual(calls, ["/?note=" + docB]);
+  assert.equal(closes, 0, "keep search visible until navigation has been approved");
+  assert.equal(message.textContent, "Opening note…");
+  await context.chooseSearchResult({ documentId: docB });
+  assert.equal(calls.length, 1, "double-click must not request a second navigation");
+  pending.resolve(false);
+  await opening;
+  assert.match(message.textContent, /Save failed.*retry saving/);
+  assert.equal(context.selectingResult, false);
+  assert.equal(closes, 0);
+  await context.chooseSearchResult({ documentId: docA });
+  assert.equal(closes, 1, "choosing the current note just dismisses search");
+  await context.chooseSearchResult({ documentId: null });
+  assert.equal(calls.length, 1);
+  context.navigation.navigate = async (url) => { calls.push(url); return true; };
+  await context.chooseSearchResult({ documentId: docB });
+  assert.equal(calls.length, 2, "selection can be retried after a rejected navigation");
+  assert.equal(context.selectingResult, false);
 });
 
 function navigationHarness(beforeLeave = async () => true) {

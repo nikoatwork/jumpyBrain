@@ -63,6 +63,7 @@ try {
 
   await validateDesktop();
   await validateMobile();
+  await validateSearchClicks();
   await runGraphSmoke();
 
   const desktopMarkdown = await readFile(path.join(root, fixtures.desktop.file), "utf8");
@@ -77,6 +78,52 @@ try {
   if (browser) await browser.close();
   if (server) await server.close();
   await rm(root, { recursive: true, force: true });
+}
+
+async function validateSearchClicks() {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 820 } });
+  const page = await context.newPage();
+  let releaseSave;
+  try {
+    await openEmptyHome(page, "click");
+    await page.locator("#home-search").click();
+    await searchAndOpen(page, fixtures.desktop, { choose: "click" });
+    await assertFullPageEditor(page, fixtures.desktop);
+
+    let saveStarted;
+    const started = new Promise((resolve) => { saveStarted = resolve; });
+    const release = new Promise((resolve) => { releaseSave = resolve; });
+    await page.route(`**/memories/all/documents/${fixtures.desktop.id}`, async (route) => {
+      if (route.request().method() === "PUT") {
+        saveStarted();
+        await release;
+      }
+      await route.continue();
+    });
+    const editor = page.getByTestId("graph-note-editor");
+    await editor.fill(appendLine(await editor.inputValue(), "Saved while choosing another search result."));
+    await page.locator("#open-search").click();
+    await started;
+    await page.locator("#note-search-input").fill(fixtures.mobile.query);
+    const result = page.locator("#search-results [role='option']").filter({ hasText: fixtures.mobile.title }).first();
+    await result.waitFor({ state: "visible", timeout: 15_000 });
+    const box = await result.boundingBox();
+    await page.mouse.move(box.x + 20, box.y + 20);
+    await page.mouse.down();
+    // Reproduce a freshness update between pointerdown and click: it must not
+    // remove the row or detach its click handler while the gesture is in flight.
+    releaseSave();
+    releaseSave = null;
+    await waitForSaveState(page, "Saved");
+    await page.mouse.up();
+    await page.waitForURL((url) => url.searchParams.get("note") === fixtures.mobile.id, { timeout: 5_000 });
+    await assertFullPageEditor(page, fixtures.mobile);
+    assert.equal(await page.locator("#note-search").isVisible(), false);
+    console.log("  ok - mouse result click opens details, including autosave during click");
+  } finally {
+    if (releaseSave) releaseSave();
+    await context.close();
+  }
 }
 
 async function validateDesktop() {
@@ -382,6 +429,7 @@ async function searchAndOpen(page, fixture, { choose }) {
   assert.match(await result.innerText(), new RegExp(fixture.title));
   await capture(page, `notes-search-${choose}.png`);
   if (choose === "tap") await result.tap();
+  else if (choose === "click") await result.click();
   else await page.keyboard.press("Enter");
   await page.waitForURL((value) => value.pathname === "/" && value.searchParams.get("note") === fixture.id, { timeout: 15_000 });
 }
