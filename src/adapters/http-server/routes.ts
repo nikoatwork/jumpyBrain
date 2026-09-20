@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPath, isMemoryRoute } from "../http-protocol.js";
 import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
-import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
+import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, recentServerMemory, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
 import type { RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
 import { graphPageHtml } from "./graph-page.js";
 import type { DreamWindowRequest, MemoryConnectionEdgeKind } from "../../types.js";
@@ -61,6 +61,19 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
   if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.status) {
     writeJson(response, 200, await serverMemoryStatus(root));
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.recent) {
+    if (request.method !== "GET") {
+      writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${HTTP_MEMORY_ROUTES.recent}.`));
+      return;
+    }
+    try {
+      writeJson(response, 200, await recentServerMemory({ root }));
+    } catch {
+      writeJson(response, 500, errorResponse("recent_failed", "Remote recent notes failed."));
+    }
     return;
   }
 

@@ -47,6 +47,36 @@ function searchHarness() {
   return { search, timers, requests, run() { for (const [id, run] of timers) { timers.delete(id); run(); } } };
 }
 
+test("recent notes cancel stale loads and recover from auth, network, and malformed responses", async () => {
+  const requests = [], changes = [];
+  const { createRecentNotes } = runtime(["isValidMemoryDocumentId", "createRecentNotes"]);
+  const recent = createRecentNotes({
+    abortController: () => new AbortController(),
+    fetch: (signal) => { const request = { signal, ...deferred() }; requests.push(request); return request.promise; },
+    onChange: (value) => changes.push(value),
+  });
+  recent.load(); recent.load();
+  assert.equal(requests[0].signal.aborted, true);
+  requests[1].resolve({ notes: [{ id: docB, title: "Latest" }, { id: "invalid" }] }); await tick();
+  assert.equal(changes.at(-1).notes.length, 1);
+  assert.equal(changes.at(-1).notes[0].id, docB);
+  requests[0].resolve({ notes: [{ id: docA }] }); await tick();
+  assert.equal(changes.at(-1).notes[0].id, docB);
+  recent.load(); requests[2].reject({ status: 401 }); await tick();
+  assert.equal(changes.at(-1).status, "auth");
+  recent.load(); requests[3].reject(new Error("offline")); await tick();
+  assert.equal(changes.at(-1).status, "error");
+  recent.load(); requests[4].resolve({}); await tick();
+  assert.equal(changes.at(-1).status, "error");
+  recent.load(); requests[5].resolve({ notes: [] }); await tick();
+  assert.equal(changes.at(-1).status, "ready");
+  assert.equal(changes.at(-1).notes.length, 0);
+  recent.load(); recent.cancel();
+  const count = changes.length;
+  requests[6].resolve({ notes: [{ id: docA }] }); await tick();
+  assert.equal(changes.length, count);
+});
+
 test("note view uses white borderless proportional editing with an accessible name field", () => {
   const html = graphPageHtml("testnonce");
   assert.match(html, /body\[data-view="note"\] \{ background: #fff;/);

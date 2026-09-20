@@ -35,6 +35,8 @@ import { withIdempotency, type IdempotencyResult } from "./idempotency.js";
 import { markRemoteIndexStale, readRemoteIndexState, type RemoteIndexState } from "./state.js";
 import { getDreamWindow as getServerDreamWindow, abandonDreamBatch as abandonServerDreamBatch, createDreamBatch as createServerDreamBatch, getDreamBatch as getServerDreamBatch, getDreamStatus as getServerDreamStatus, completeDreamBatch as completeServerDreamBatch } from "./dream.js";
 
+export { recentServerMemory, type RemoteMemoryRecentNote, type RemoteMemoryRecentPacket } from "./recent.js";
+
 export { DreamStateError, DREAM_BATCHES_RELATIVE_DIR, DREAM_STATE_RELATIVE_PATH } from "./dream.js";
 
 export interface ServerMemoryRuntimeOptions {

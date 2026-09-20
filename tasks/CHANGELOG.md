@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-09-20 — Recent notes on web home
+
+- Added a compact eight-note home list ordered by last edit with creation-date fallback, opening directly in the editor and reflecting saves without search indexing.
+
 ## 2026-09-20 — Stateless dreaming and maps-first retrieval
 
 - Added stateless historical dream windows, a reusable how-to-dream skill, editable dream-marked pages, and relevance-aware retrieval preference while retaining source evidence and legacy APIs.

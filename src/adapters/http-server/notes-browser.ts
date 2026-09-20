@@ -9,7 +9,17 @@ export const notesStyles = String.raw`
     .quiet-button { border: 0; border-radius: 6px; padding: 8px 10px; background: transparent; color: var(--ink-soft); text-decoration: none; font: inherit; cursor: pointer; }
     .quiet-button:hover { background: var(--sage-100); color: var(--ink); }
     a:focus-visible, summary:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 3px; }
-    .home { width: 100%; display: grid; place-content: center; padding: 24px; text-align: center; }
+    .home { width: 100%; overflow: auto; padding: clamp(28px, 8vh, 80px) 24px 48px; text-align: center; }
+    .home-prompt { display: block; margin: 0 auto; }
+    .recent-notes { width: min(100%, 560px); margin: 40px auto 0; text-align: left; }
+    .recent-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .recent-heading h2 { margin: 0; font-size: 13px; font-weight: 650; }
+    .recent-heading span, #recent-message { color: var(--ink-soft); font-size: 12px; }
+    #recent-list { list-style: none; margin: 0; padding: 0; }
+    .recent-link { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 10px; margin-inline: -10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+    .recent-link:hover { background: var(--sage-100); }
+    .recent-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .recent-link time { flex-shrink: 0; color: var(--ink-soft); font-size: 12px; }
     .home-prompt { border: 0; background: transparent; color: var(--ink-soft); padding: 24px 8px; border-radius: 8px; font-size: clamp(18px, 3vw, 25px); letter-spacing: -.035em; font-weight: 400; }
     .home-prompt strong { font-weight: 650; color: var(--forest-950); }
     kbd { font: inherit; color: var(--ink); }
@@ -112,6 +122,13 @@ export const notesViews = String.raw`
   <section id="home" class="home" aria-label="Your jumpyBrain">
     <button id="home-search" class="home-prompt" aria-label="Search notes"><kbd class="shortcut">⌘K</kbd> to enter your <strong>jumpyBrain</strong></button>
     <button id="home-new" class="quiet-button">New note for today</button>
+    <section class="recent-notes" aria-labelledby="recent-title">
+      <div class="recent-heading"><h2 id="recent-title">Recent notes</h2><span>Latest first</span></div>
+      <ul id="recent-list" aria-label="Recent notes"></ul>
+      <p id="recent-message" role="status" aria-live="polite"></p>
+      <button id="recent-retry" class="quiet-button" hidden>Retry</button>
+      <button id="recent-connect" class="quiet-button" hidden>Connect</button>
+    </section>
   </section>
   <section id="note-panel" data-testid="graph-note-panel" aria-label="Note editor" hidden>
     <div class="note-column">
@@ -145,6 +162,75 @@ function withEditableTitle(prefix, title, newline) {
   const filtered = lines.filter((line) => !/^title\s*:/.test(line));
   filtered.splice(1, 0, "title: " + JSON.stringify(title));
   return filtered.join(newline);
+}
+
+// Recent notes come from fresh Markdown metadata, not the search index.
+function createRecentNotes(options) {
+  let generation = 0;
+  let request = null;
+  function cancel() {
+    generation++;
+    if (request) request.abort();
+    request = null;
+  }
+  async function load() {
+    cancel();
+    const token = generation;
+    request = options.abortController();
+    options.onChange({ status: "loading", notes: [] });
+    try {
+      const packet = await options.fetch(request.signal);
+      if (token !== generation) return;
+      if (!Array.isArray(packet?.notes)) throw new Error("Invalid recent notes response");
+      options.onChange({ status: "ready", notes: packet.notes.filter((note) => isValidMemoryDocumentId(note?.id)).slice(0, 8) });
+    } catch (error) {
+      if (token !== generation) return;
+      options.onChange({ status: error.status === 401 ? "auth" : "error", notes: [] });
+    } finally {
+      if (token === generation) request = null;
+    }
+  }
+  return { load, cancel };
+}
+
+function renderRecentNotes(recent) {
+  const list = $("recent-list");
+  list.replaceChildren();
+  list.setAttribute("aria-busy", String(recent.status === "loading"));
+  for (const note of recent.notes) {
+    const item = document.createElement("li");
+    const link = document.createElement("a");
+    link.className = "recent-link";
+    link.href = "/?note=" + encodeURIComponent(note.id);
+    const title = document.createElement("span");
+    title.textContent = note.title || note.file || "Untitled";
+    link.title = title.textContent + (note.file ? " · " + note.file : "");
+    link.append(title);
+    const date = note.updatedAt || note.createdAt;
+    if (date && Number.isFinite(Date.parse(date))) {
+      const time = document.createElement("time");
+      time.dateTime = date;
+      // Date-only metadata must not shift a day in the browser's timezone.
+      const value = new Date(date.length === 10 ? date + "T12:00:00" : date);
+      time.textContent = value.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(value.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) });
+      time.title = (note.updatedAt ? "Edited " : "Created ") + value.toLocaleString();
+      link.append(time);
+    }
+    link.addEventListener("click", (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      navigation.navigate("/?note=" + encodeURIComponent(note.id));
+    });
+    item.append(link);
+    list.append(item);
+  }
+  $("recent-message").textContent = recent.status === "loading" ? "Loading recent notes…"
+    : recent.status === "auth" ? "Connect to see your recent notes."
+    : recent.status === "error" ? "Could not load recent notes."
+    : recent.notes.length ? "" : "No notes yet. Create your first note above.";
+  $("recent-message").hidden = recent.status === "ready" && recent.notes.length > 0;
+  $("recent-retry").hidden = recent.status !== "error";
+  $("recent-connect").hidden = recent.status !== "auth";
 }
 
 // Search and navigation controllers have injected effects for deterministic tests.
@@ -386,6 +472,14 @@ const noteSearch = createNoteSearch({
   onChange: renderNoteSearch,
 });
 
+const recentNotes = createRecentNotes({
+  abortController: () => new AbortController(),
+  fetch: (signal) => graphJson("/memories/all/recent", { signal }),
+  onChange: renderRecentNotes,
+});
+$("recent-retry").addEventListener("click", () => recentNotes.load());
+$("recent-connect").addEventListener("click", () => openConnection(false));
+
 function openSearch(mode = "navigate", range = null) {
   if (searchDialog.open || connectionDialog.open) return;
   searchMode = mode === "insert" ? "insert" : "navigate";
@@ -516,6 +610,7 @@ $("connection-form").addEventListener("submit", (event) => {
   event.preventDefault();
   try { localStorage.setItem("jumpybrain.graph.apiKey", apiKeyInput.value); } catch { /* Session-only access still works. */ }
   connectionDialog.close();
+  if (state.view === "home") recentNotes.load();
   if (reopenSearch) openSearch(searchMode, referenceSelection);
   else if (state.view === "note" && !state.editor?.state.loaded) showNote(new URL(location.href).searchParams.get("note"));
   else if (state.view === "graph") loadGraph();
@@ -546,6 +641,7 @@ for (const [id, url] of [["home-link", "/"], ["graph-link", "/graph"]]) {
 }
 
 function showPage(url) {
+  recentNotes.cancel();
   if (searchDialog.open) closeSearch(false);
   if (connectionDialog.open) closeConnection();
   const target = new URL(url, location.origin);
@@ -567,7 +663,10 @@ function showPage(url) {
   if (state.view === "graph") {
     if (!state.graph) loadGraph(); else queueGraphLayout(0);
     $("query").focus();
-  } else $("home-search").focus();
+  } else {
+    $("home-search").focus();
+    recentNotes.load();
+  }
 }
 
 async function showNote(documentId, focusEnd = false) {

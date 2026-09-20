@@ -10,6 +10,7 @@ export const HTTP_MEMORY_ROUTES = {
   search: `${MEMORY_PREFIX}/search`,
   recall: `${MEMORY_PREFIX}/recall`,
   notes: `${MEMORY_PREFIX}/notes`,
+  recent: `${MEMORY_PREFIX}/recent`,
   wrapups: `${MEMORY_PREFIX}/wrapups`,
   dreamWindow: `${MEMORY_PREFIX}/dream/window`,
   dreamStatus: `${MEMORY_PREFIX}/dream/status`,
