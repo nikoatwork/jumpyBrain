@@ -75,6 +75,12 @@ Good shared memories include:
 
 Do not store passwords, credentials, secrets, or private chat noise.
 
+## macOS app (beta)
+
+Prefer a menu-bar app? The [macOS app (beta)](integrations/macos-companion/README.md) runs your local brain and opens its Markdown editor in Chrome. It shares the CLI’s installed runtime and memory, so `jumpybrain update` updates both.
+
+The beta is built locally, not a downloadable app yet. See [requirements and setup](integrations/macos-companion/README.md#install).
+
 ## Local or shared—your choice
 
 Use jumpyBrain privately on one machine, keep memory inside a project, or self-host one shared brain for a team. In every setup:
@@ -89,6 +95,7 @@ To host a shared brain, start with the [operator quickstart](docs/cloud-shared-m
 ## Documentation
 
 - [Installation and updates](docs/install.md)
+- [macOS app (beta)](integrations/macos-companion/README.md)
 - [Using jumpyBrain with agents](docs/agent-workflows.md)
 - [CLI command reference](docs/cli-commands.md)
 - [Shared-memory operator quickstart](docs/cloud-shared-memory.md)

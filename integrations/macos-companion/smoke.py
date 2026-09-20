@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise the native app against disposable memory, never the user's notes."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -12,7 +13,6 @@ import urllib.error
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
-BUILT = HERE / ".build/jumpyBrain.app"
 KEY = "a" * 64
 
 
@@ -47,15 +47,26 @@ def port_free(port):
 
 
 def main():
-    assert BUILT.exists(), "Run install.py --build-only first"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--app", type=Path, required=True, help="App produced by install.py --build-only --output PATH")
+    parser.add_argument("--runtime-root", type=Path, help="Compiled runtime to copy into disposable fixture; default: app configuration")
+    args = parser.parse_args()
+    assert args.app.is_dir(), "Build an app first with install.py --build-only --runtime-root PATH --output PATH"
     with tempfile.TemporaryDirectory(prefix="jumpybrain-companion-smoke-") as tmp:
         root = Path(tmp)
         app = root / "jumpyBrain.app"
-        shutil.copytree(BUILT, app)
+        shutil.copytree(args.app, app)
         resources = app / "Contents/Resources"
         config = json.loads((resources / "Configuration.json").read_text())
         node = config["node"]
-        cli = resources / "runtime/dist/cli.js"
+        runtime = root / "runtime"
+        source_runtime = args.runtime_root or Path(config["runtimeRoot"])
+        # Only compiled runtime assets, never copy installed memory/config/keys.
+        runtime.mkdir()
+        shutil.copytree(source_runtime / "dist", runtime / "dist")
+        shutil.copy2(source_runtime / "package.json", runtime / "package.json")
+        cli = runtime / "dist/cli.js"
+        assert not (resources / "runtime").exists(), "App must not contain a bundled runtime snapshot"
         memory = root / "memory"
         support = root / "support"
         support.mkdir(mode=0o700)
@@ -64,11 +75,15 @@ def main():
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
-        config.update(memoryRoot=str(memory), supportDirectory=str(support),
+        config.update(runtimeRoot=str(runtime), memoryRoot=str(memory), supportDirectory=str(support),
                       launchAgent=str(root / "test-agent.plist"), port=port)
         (resources / "Configuration.json").write_text(json.dumps(config))
         subprocess.run(["codesign", "--force", "--sign", "-", str(app)], check=True, capture_output=True)
-        env = {**os.environ, "JUMPYBRAIN_QMD_BIN": config["qmd"]}
+        fixture_home = root / "home"
+        fixture_home.mkdir()
+        env = {"HOME": str(fixture_home), "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+               "JUMPYBRAIN_QMD_BIN": config["qmd"], "JUMPYBRAIN_NO_UPDATE_CHECK": "1",
+               "JUMPYBRAIN_CLI_CONFIG": str(root / "cli-config.json")}
         subprocess.run([node, str(cli), "init", "--root", str(memory)], check=True, capture_output=True, env=env)
         subprocess.run([node, str(cli), "remember", "--root", str(memory), "--type", "note", "--title", "Companion fixture"],
                        input="CompanionFixture test body.\n", text=True, check=True, capture_output=True, env=env)
@@ -97,7 +112,7 @@ def main():
             assert request(port, "/memories/all/status", True)[0] == 200
             code, body = request(port, "/memories/all/search", True, {"query": "CompanionFixture", "limit": 5})
             assert code == 200 and b"Companion fixture" in body, (code, body)
-            print("PASS: native app + bundled server, home/graph, auth, real indexed search")
+            print("PASS: native app + external disposable runtime, home/graph, auth, real indexed search")
 
             duplicate = start()
             assert duplicate.wait(timeout=5) == 0

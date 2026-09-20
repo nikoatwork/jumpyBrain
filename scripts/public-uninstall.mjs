@@ -18,6 +18,7 @@ async function main(argv = process.argv.slice(2)) {
   const installRoot = path.resolve(expandHome(options.installRoot ?? path.join(home, ".jumpybrain"), home));
   const manifestPath = path.join(installRoot, "install-manifest.json");
   const manifest = await readManifest(manifestPath, { installRoot, home });
+  await assertNoDependentCompanion(home, manifest.appDir);
   if (options.deleteMemory && existsSync(manifest.memoryRoot)) await assertMemoryRootDeletable(manifest.memoryRoot);
   const removed = [];
   const missing = [];
@@ -63,6 +64,21 @@ async function main(argv = process.argv.slice(2)) {
   if (deletedMemory.length > 0) {
     console.log("Memory deleted:");
     for (const item of deletedMemory) console.log(`- ${item}`);
+  }
+}
+
+async function assertNoDependentCompanion(home, appDir) {
+  if (process.platform !== "darwin") return;
+  const configPath = path.join(home, "Applications/jumpyBrain.app/Contents/Resources/Configuration.json");
+  if (!existsSync(configPath)) return;
+  let config;
+  try {
+    config = JSON.parse(await readFile(configPath, "utf8"));
+  } catch {
+    throw new Error("Cannot verify macOS companion runtime ownership. Remove the companion before uninstalling the CLI.");
+  }
+  if (typeof config?.runtimeRoot === "string" && path.resolve(config.runtimeRoot) === appDir) {
+    throw new Error("The macOS companion depends on this installed runtime. Wait for Saved, quit it, and run integrations/macos-companion/uninstall.py from the installed app directory before uninstalling the CLI.");
   }
 }
 

@@ -44,7 +44,7 @@ The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local adv
 | `jumpybrain instructions` | Print copyable instructions that tell coding agents when to recall, remember, and wrap up memory. |
 | `jumpybrain agent-hint` | Alias for `jumpybrain instructions`. |
 | `jumpybrain doctor [--root <memory-root>] [--json]` | Check whether the CLI, Node, QMD, memory root, and installed agent integrations look healthy. |
-| `jumpybrain update [--dry-run] [--install-root <path>]` | Refresh an installer-created jumpyBrain CLI install by rerunning the public installer. `--dry-run` prints the planned update without doing it. |
+| `jumpybrain update [--dry-run] [--install-root <path>]` | Refresh the managed runtime/CLI and its installed macOS companion from the recorded source/ref. Quit the companion after **Saved** first; reopen afterward. `--dry-run` previews without changes. |
 | `jumpybrain serve --root <memory-root> --host <host> --port <port> [--api-key <key>] [--public-base-url <url>] [--init]` | Start a jumpyBrain HTTP server backed by a server-local Markdown memory root. Use `--init` to initialize the root before serving. |
 | `jumpybrain run memory:<recipe> ...` | Run a memory recipe command, usually from an agent integration or workspace-discovered memory root. See the `run memory:*` section below. |
 

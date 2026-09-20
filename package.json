@@ -33,6 +33,7 @@
     "install.sh",
     "uninstall.sh",
     "scripts/public-install.mjs",
+    "scripts/macos-companion.mjs",
     "scripts/remote-target-origin.mjs",
     "scripts/public-uninstall.mjs"
   ],

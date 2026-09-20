@@ -2,7 +2,7 @@
 
 ## Fast path: installer script
 
-jumpyBrain is not published to npm yet. The current public install path is a shell installer that clones/builds the app locally, initializes memory, verifies QMD, and installs detected agent integrations.
+Install the CLI first, then optionally add the [macOS app (beta)](#macos-app-beta). The installer builds jumpyBrain locally and sets up memory, search, and detected agent integrations. jumpyBrain is not published to npm.
 
 Prerequisites:
 
@@ -39,6 +39,16 @@ Then verify:
 ~/.jumpybrain/bin/jumpybrain doctor
 ~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "what should I remember?" --limit 5
 ```
+
+### macOS app (beta)
+
+The optional menu-bar app runs your local brain and opens its Markdown editor in Chrome. After installing the CLI:
+
+```sh
+python3 "$HOME/.jumpybrain/app/integrations/macos-companion/install.py"
+```
+
+Requires macOS 13+, Xcode command-line tools, Python 3.9+, Google Chrome, and the CLI’s Node/QMD dependencies. This is a locally built beta, not a downloadable app. See [the app guide](../integrations/macos-companion/README.md) for controls, custom paths, and limitations.
 
 ### Project-local install
 
@@ -94,7 +104,9 @@ This is an advisory client-side guard against accidental writes, not authorizati
 
 ## Update
 
-Installer-created installs include a manifest at `~/.jumpybrain/install-manifest.json`. Refresh the app and CLI shim from the recorded source/ref while preserving Markdown memory, configuration, derived indexes, and integrations with:
+One command updates the installed CLI and macOS app, if present. Your Markdown memory, settings, and agent integrations stay in place; development checkouts are separate.
+
+**Using the macOS app?** Wait for **Saved** in the editor and **Quit jumpyBrain** from the menu bar first. Reopen the app and reload the editor after updating.
 
 ```bash
 ~/.jumpybrain/bin/jumpybrain update
@@ -106,15 +118,15 @@ Preview the update without writing files:
 ~/.jumpybrain/bin/jumpybrain update --dry-run
 ```
 
-For nonstandard installs, pass `--install-root <path>`. If no installer manifest exists, this command fails safely; source/development installs should update manually with `git pull && npm install && npm run build`, or rerun `install.sh`.
+Updates use the source/ref recorded in `~/.jumpybrain/install-manifest.json`—normally GitHub `master`. The CLI detects custom install locations; use `--install-root <path>` to select another. Rerunning the public installer follows the same update path, without reinitializing memory or rewriting agent integrations.
 
-Re-running the copy-paste `curl ... | bash` installer on a managed installation uses the same app/CLI-only update path. It does not initialize or index memory again and does not rewrite agent integrations. Ambiguous or damaged layouts without a valid installer manifest are refused instead of overwritten.
+**Older macOS installs:** quit the app and rerun the latest public installer once, from outside a source checkout. This migrates the default installation’s bundled server to the shared runtime. See [migration and recovery details](../integrations/macos-companion/README.md#older-installations-and-recovery).
 
-Managed reruns keep the source and ref recorded in the install manifest. Set `JUMPYBRAIN_INSTALL_REF=<ref>` or pass `--ref <ref>` only when you intentionally want to override that ref.
-
-This MVP update path is installer-based only. jumpyBrain is not published to npm and does not use npm self-update or release channels.
+For intentional version changes, pass `--ref <ref>` or set `JUMPYBRAIN_INSTALL_REF`. The downloaded bootstrap uses current `master` independently; `JUMPYBRAIN_INSTALLER_REF` overrides its version. Source/development checkouts instead use `git pull && npm install && npm run build`.
 
 ## Uninstall
+
+If you installed the macOS app, [remove it first](../integrations/macos-companion/README.md#remove); it depends on the shared CLI runtime.
 
 Uninstall requires a valid, supported `install-manifest.json` whose recorded install root and owned paths match the selected root. It fails closed before deleting anything when that ownership proof is missing, malformed, unsupported, or inconsistent. A valid uninstall removes only the recorded app, shim, CLI policy config, manifest, and integration files. It preserves Markdown memory by default.
 

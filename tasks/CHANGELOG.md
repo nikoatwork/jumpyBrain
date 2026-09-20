@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-09-19 — Unified installed updates
+
+- Unified the CLI and optional macOS companion on one managed runtime, with quit-before-update migration, paired rollback, serialized installation, and preserved memory/settings; development checkouts remain separate.
+
 ## 2026-09-19 — Rerunnable Logseq migration
 
 - Added packaged local `migrate logseq` with dry-run default, lossless Markdown bodies, pages-to-notes/journals-to-sessions mapping, stable identities, source-wins updates, optional conflict rejection, and identity-checked removal reconciliation. Assets/config/backups remain untouched and omitted.

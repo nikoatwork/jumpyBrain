@@ -6,6 +6,7 @@ struct Configuration: Decodable {
     let node: String
     let qmd: String
     let memoryRoot: String
+    let runtimeRoot: String
     let supportDirectory: String
     let launchAgent: String
     let label: String
@@ -44,12 +45,16 @@ final class Companion: NSObject, NSApplicationDelegate {
             let url = Bundle.main.url(forResource: "Configuration", withExtension: "json")!
             config = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: url))
             // Lock is NOT inherited by Node. A second app must never adopt/kill another server.
-            lockFD = Darwin.open(config.supportDirectory + "/companion.lock", O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+            lockFD = Darwin.open(config.supportDirectory + "/companion.lock", O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
             guard lockFD >= 0, flock(lockFD, LOCK_EX | LOCK_NB) == 0 else {
                 NSApp.terminate(nil)
                 return
             }
             ownsLock = true
+            guard config.runtimeRoot.hasPrefix("/"),
+                  FileManager.default.fileExists(atPath: config.runtimeRoot + "/dist/cli.js") else {
+                throw NSError(domain: "Companion", code: 2, userInfo: [NSLocalizedDescriptionKey: "Installed runtime is missing. Repair the managed CLI installation before reopening jumpyBrain."])
+            }
             openWhenReady = ProcessInfo.processInfo.arguments.contains("--open-editor")
             apiKey = try String(contentsOfFile: config.supportDirectory + "/api-key", encoding: .utf8)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -172,7 +177,7 @@ final class Companion: NSObject, NSApplicationDelegate {
             return
         }
         let bootstrap = Bundle.main.resourceURL!.appendingPathComponent("server-bootstrap.mjs").path
-        let p = makeProcess([bootstrap, "serve", "--root", config.memoryRoot, "--host", "127.0.0.1", "--port", String(config.port)])
+        let p = makeProcess([bootstrap, config.runtimeRoot, "serve", "--root", config.memoryRoot, "--host", "127.0.0.1", "--port", String(config.port)])
         p.terminationHandler = { [weak self] child in
             DispatchQueue.main.async {
                 guard let self = self, self.server === child else { return }
@@ -271,7 +276,7 @@ final class Companion: NSObject, NSApplicationDelegate {
 
     @objc private func refreshIndex() {
         guard indexer == nil, ready, !stopping else { return }
-        let cli = Bundle.main.resourceURL!.appendingPathComponent("runtime/dist/cli.js").path
+        let cli = URL(fileURLWithPath: config.runtimeRoot).appendingPathComponent("dist/cli.js").path
         // Go through the CLI's HTTP transport so the server serializes indexing
         // with its own auto-indexer and browser writes, instead of racing QMD.
         let p = makeProcess([cli, "index", "--target-url", baseURL])

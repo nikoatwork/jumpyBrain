@@ -2,9 +2,10 @@
 set -eu
 
 REF="${JUMPYBRAIN_INSTALL_REF:-master}"
-RAW_BASE="${JUMPYBRAIN_RAW_BASE:-https://raw.githubusercontent.com/nikoatwork/jumpyBrain/${REF}}"
-SCRIPT_URL="$RAW_BASE/scripts/public-install.mjs"
-ORIGIN_HELPER_URL="$RAW_BASE/scripts/remote-target-origin.mjs"
+# The bootstrap and its dependencies must come from one current installer
+# version; the requested runtime may predate those dependencies.
+INSTALLER_REF="${JUMPYBRAIN_INSTALLER_REF:-master}"
+RAW_BASE="${JUMPYBRAIN_RAW_BASE:-https://raw.githubusercontent.com/nikoatwork/jumpyBrain/${INSTALLER_REF}}"
 
 if [ -n "${JUMPYBRAIN_INSTALL_REF+x}" ]; then
   set -- --ref "$REF" "$@"
@@ -29,15 +30,16 @@ TMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t jumpybrain-install)
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT INT TERM
 
-if command -v curl >/dev/null 2>&1; then
-  curl -fsSL "$SCRIPT_URL" -o "$TMP_DIR/public-install.mjs"
-  curl -fsSL "$ORIGIN_HELPER_URL" -o "$TMP_DIR/remote-target-origin.mjs"
-elif command -v wget >/dev/null 2>&1; then
-  wget -qO "$TMP_DIR/public-install.mjs" "$SCRIPT_URL"
-  wget -qO "$TMP_DIR/remote-target-origin.mjs" "$ORIGIN_HELPER_URL"
-else
-  echo "curl or wget is required to download the jumpyBrain installer." >&2
-  exit 1
-fi
+mkdir -p "$TMP_DIR/scripts" "$TMP_DIR/integrations/macos-companion"
+for FILE in scripts/public-install.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/macos-companion/update.py; do
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$RAW_BASE/$FILE" -o "$TMP_DIR/$FILE"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$TMP_DIR/$FILE" "$RAW_BASE/$FILE"
+  else
+    echo "curl or wget is required to download the jumpyBrain installer." >&2
+    exit 1
+  fi
+done
 
-exec node "$TMP_DIR/public-install.mjs" "$@"
+node "$TMP_DIR/scripts/public-install.mjs" "$@"

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { constants as fsConstants, existsSync } from "node:fs";
-import { access, chmod, cp, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, cp, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeRemoteTargetOrigin } from "./remote-target-origin.mjs";
+import { companionUpdatePlan, checkCompanionUpdate, commitCompanionUpdate } from "./macos-companion.mjs";
 
 const DEFAULT_REPO = "https://github.com/nikoatwork/jumpyBrain.git";
 const MANIFEST_VERSION = 1;
@@ -26,6 +27,17 @@ async function main(argv = process.argv.slice(2)) {
   const home = path.resolve(options.home ?? process.env.HOME ?? os.homedir());
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const installRoot = path.resolve(expandHome(options.installRoot ?? path.join(home, ".jumpybrain"), home));
+  // Serialize staging, native replacement, shim and manifest bookkeeping. Never
+  // remove another invocation's stage, or guess that a stale PID is safe to kill.
+  const releaseLock = options.dryRun ? async () => {} : await lockInstallation(installRoot);
+  try {
+    await installManaged({ options, home, cwd, installRoot });
+  } finally {
+    await releaseLock();
+  }
+}
+
+async function installManaged({ options, home, cwd, installRoot }) {
   const appDir = path.join(installRoot, "app");
   const binDir = path.join(installRoot, "bin");
   const cliPath = path.join(binDir, process.platform === "win32" ? "jumpybrain.cmd" : "jumpybrain");
@@ -33,7 +45,6 @@ async function main(argv = process.argv.slice(2)) {
   const manifestPath = path.join(installRoot, "install-manifest.json");
   const previousManifest = await readInstallManifest(manifestPath, { installRoot, appDir, binDir, cliPath, cliConfigPath });
   assertNoUnmanagedInstall(previousManifest, { installRoot, appDir, binDir, cliPath });
-
   const scope = previousManifest?.scope ?? options.scope;
   const memoryRoot = path.resolve(expandHome(
     previousManifest?.memoryRoot ?? options.memoryRoot ?? (scope === "project" ? path.join(cwd, "memory") : path.join(installRoot, "memory")),
@@ -136,6 +147,18 @@ async function main(argv = process.argv.slice(2)) {
   printSummary(summary);
 }
 
+async function lockInstallation(installRoot) {
+  await mkdir(installRoot, { recursive: true });
+  const lock = path.join(installRoot, ".installer-lock");
+  try {
+    await mkdir(lock, { mode: 0o700 });
+  } catch (error) {
+    if (error.code === "EEXIST") throw new Error(`Another installer/update is active: ${lock}. If a previous installer crashed, verify no update is running before removing this lock directory manually.`);
+    throw error;
+  }
+  return () => rm(lock, { recursive: true });
+}
+
 async function updateExistingInstall({
   options,
   previousManifest,
@@ -158,7 +181,14 @@ async function updateExistingInstall({
   log("Existing managed installation detected");
   log(`Install root: ${installRoot}`);
   log(`Memory root (preserved): ${memoryRoot}`);
-  log("Updating app and CLI only; memory, memory-root config, derived indexes, and integrations will not be changed (CLI policy changes only with explicit target flags)");
+  const companion = companionUpdatePlan({ installRoot, home });
+  log(companion
+    ? "Updating shared runtime, CLI, and installed macOS companion; memory and agent integrations are preserved"
+    : "Updating app and CLI only; memory, memory-root config, derived indexes, and integrations will not be changed (CLI policy changes only with explicit target flags)");
+  if (companion) {
+    log("macOS companion: wait for Saved, Quit from the menu bar before updating, then reopen after success. No automatic restart.");
+    if (!options.dryRun) checkCompanionUpdate(companion);
+  }
   const policyPlan = await planRemoteAccessPolicy(cliConfigPath, options);
   logPolicyPlan(policyPlan);
 
@@ -170,7 +200,7 @@ async function updateExistingInstall({
     return;
   }
 
-  await installApp({ source, ref, appDir, skipBuild: options.skipBuild });
+  await installApp({ source, ref, appDir, skipBuild: options.skipBuild, companion });
   await mkdir(binDir, { recursive: true });
   await writeCliShim({ cliPath, appDir, cliConfigPath });
   await writeRemoteAccessPolicy(policyPlan);
@@ -277,18 +307,12 @@ function ensureNodeVersion() {
   if (!Number.isInteger(major) || major < 22) throw new Error(`Node >=22 is required. Current Node is ${process.version}. Install a recent Node first, then rerun the installer.`);
 }
 
-async function installApp({ source, ref, appDir, skipBuild }) {
-  const stagingDir = `${appDir}.installing`;
-  const backupDir = `${appDir}.previous`;
-  if (!existsSync(appDir) && existsSync(backupDir)) {
-    log("Recovering the previous app after an interrupted update");
-    await rename(backupDir, appDir);
-  } else if (existsSync(appDir)) {
-    await rm(backupDir, { recursive: true, force: true });
-  }
-  await rm(stagingDir, { recursive: true, force: true });
+async function installApp({ source, ref, appDir, skipBuild, companion }) {
   await mkdir(path.dirname(appDir), { recursive: true });
-
+  // Only delete scratch directories created by THIS invocation. Legacy fixed
+  // app.installing/app.previous paths may contain user-configured preserved data.
+  const stagingDir = await mkdtemp(`${appDir}.installing-`);
+  let backupContainer;
   try {
     if (isLocalPath(source)) {
       const sourceRoot = await realpath(source.startsWith("file://") ? fileURLToPath(source) : path.resolve(source));
@@ -299,7 +323,8 @@ async function installApp({ source, ref, appDir, skipBuild }) {
           const relative = path.relative(sourceRoot, src);
           if (!relative) return true;
           const parts = relative.split(path.sep);
-          return ![".git", "node_modules", ".local-pack", ".dogfood-memory", "tasks"].includes(parts[0]);
+          return ![".git", "node_modules", ".local-pack", ".dogfood-memory", ".jumpybrain", "tasks"].includes(parts[0])
+            && !parts.some((part) => part === ".build" || part === "__pycache__");
         },
       });
     } else {
@@ -324,6 +349,13 @@ async function installApp({ source, ref, appDir, skipBuild }) {
       throw new Error("--skip-build was passed but dist/cli.js is missing from the install source.");
     }
 
+    if (companion) {
+      commitCompanionUpdate(companion, stagingDir);
+      return;
+    }
+
+    backupContainer = await mkdtemp(`${appDir}.previous-`);
+    const backupDir = path.join(backupContainer, "app");
     if (existsSync(appDir)) await rename(appDir, backupDir);
     try {
       await rename(stagingDir, appDir);
@@ -331,9 +363,11 @@ async function installApp({ source, ref, appDir, skipBuild }) {
       if (existsSync(backupDir) && !existsSync(appDir)) await rename(backupDir, appDir);
       throw error;
     }
-    await rm(backupDir, { recursive: true, force: true });
+    await rm(backupContainer, { recursive: true, force: true });
   } catch (error) {
     await rm(stagingDir, { recursive: true, force: true });
+    // Keep a backup containing an unrecovered app for manual recovery.
+    if (backupContainer && !existsSync(path.join(backupContainer, "app"))) await rm(backupContainer, { recursive: true, force: true });
     throw error;
   }
 }

@@ -35,13 +35,12 @@ export async function updateCli(args: ParsedCliArgs): Promise<void> {
 
   if (plan.dryRun) {
     printUpdatePlan(plan);
-    return;
+  } else {
+    console.log("Updating jumpyBrain with the installer.");
+    console.log(`Install root: ${plan.installRoot}`);
+    console.log(`Memory root: ${plan.memoryRoot}`);
+    console.log(`Source: ${plan.source}${plan.ref ? ` (${plan.ref})` : ""}`);
   }
-
-  console.log("Updating jumpyBrain with the installer.");
-  console.log(`Install root: ${plan.installRoot}`);
-  console.log(`Memory root: ${plan.memoryRoot}`);
-  console.log(`Source: ${plan.source}${plan.ref ? ` (${plan.ref})` : ""}`);
 
   const result = spawnSync(process.execPath, [plan.installerScript, ...plan.installerArgs], {
     cwd: plan.appRoot,
@@ -67,7 +66,11 @@ interface InstallerUpdatePlan {
 
 export async function installerUpdatePlan(args: ParsedCliArgs): Promise<InstallerUpdatePlan> {
   const home = path.resolve(stringArg(args, "home", process.env.HOME ?? os.homedir()));
-  const installRoot = path.resolve(expandHome(stringArg(args, "install-root", path.join(home, ".jumpybrain")), home));
+  const appRoot = currentAppRoot();
+  const ownInstallRoot = path.dirname(appRoot);
+  const defaultInstallRoot = path.basename(appRoot) === "app" && existsSync(path.join(ownInstallRoot, "install-manifest.json"))
+    ? ownInstallRoot : path.join(home, ".jumpybrain");
+  const installRoot = path.resolve(expandHome(stringArg(args, "install-root", defaultInstallRoot), home));
   const manifestPath = path.join(installRoot, "install-manifest.json");
   if (!existsSync(manifestPath)) {
     throw new Error([
@@ -82,7 +85,6 @@ export async function installerUpdatePlan(args: ParsedCliArgs): Promise<Installe
     throw new Error(`Unsupported installer manifest '${manifest.installer}'. Rerun install.sh manually to refresh this install.`);
   }
 
-  const appRoot = currentAppRoot();
   const installerScript = path.join(appRoot, "scripts", "public-install.mjs");
   if (!existsSync(installerScript)) {
     throw new Error(`Cannot find installer script at ${installerScript}. Rerun install.sh manually to refresh this install.`);
@@ -96,11 +98,13 @@ export async function installerUpdatePlan(args: ParsedCliArgs): Promise<Installe
   const dryRun = Boolean(args["dry-run"]);
   const installerArgs = [
     "--install-root", installRoot,
+    "--home", home,
     "--memory-root", memoryRoot,
     "--scope", scope,
     "--integrations", integrationMode,
     "--source", source,
   ];
+  if (dryRun) installerArgs.push("--dry-run");
   if (ref) installerArgs.push("--ref", ref);
   if (manifest.installerOptions?.skipBuild) installerArgs.push("--skip-build");
   if (manifest.installerOptions?.skipQmdInstall) installerArgs.push("--skip-qmd-install");
