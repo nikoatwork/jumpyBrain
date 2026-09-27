@@ -32,6 +32,8 @@ Click the brain icon in the menu bar:
 - **Refresh Search Index** — refresh search after external file edits.
 - **Open Memory Folder** / **Show Logs**.
 - **Start at Login** — enable or disable next-login startup.
+- **Check for Updates** — refresh the update indicator (also checked at startup and every six hours).
+- **Update jumpyBrain…** — update the CLI and app, then reopen the app. Progress appears in Terminal; Chrome stays open.
 - **Quit jumpyBrain…** — stop the local server, not Chrome. Wait for **Saved** first.
 
 An exclamation icon means the server is starting, stopped, or needs attention. Login startup does not open Chrome automatically. To reopen manually:
@@ -44,13 +46,17 @@ open "$HOME/Applications/jumpyBrain.app"
 
 ## Update
 
-1. Wait for **Saved**, then **Quit jumpyBrain** from the menu bar.
-2. Run `~/.jumpybrain/bin/jumpybrain update`.
-3. Reopen the app and reload the browser editor.
+Choose **Update jumpyBrain…** from the menu bar. There is no additional save/quit confirmation: Terminal starts an independent updater, the app quits, and a successful update reopens it automatically. Chrome stays open and is **not** automatically reloaded. Editing/saving is unavailable while the server is stopped; unsaved or in-flight edits may be lost.
+
+The menu shows **Update available** when the installed Git revision differs from the recorded source/ref. Checks run at startup, every six hours, or via **Check for Updates**, without installing anything. Public HTTPS Git installs with matching origin metadata are supported; local-source installs, missing provenance, private/unsupported sources, and offline failures show **Updates: unable to check**. The Update action still works independently of the indicator. Pinned commits are not treated as tracking a newer branch.
+
+For a terminal-only update, quit the app first, run `~/.jumpybrain/bin/jumpybrain update`, then reopen the app manually. Older companions without the menu action need this one-time update first.
 
 This updates the shared runtime and native app from the CLI’s recorded source/ref, normally GitHub `master`. Memory, key, port, login preference, agent integrations, and remote configuration are preserved. The same native build dependencies are needed for updates; CLI-only installations do not need them.
 
-A running app blocks replacement. There is no forced quit, automatic restart, or background updating. `jumpybrain update --dry-run` previews the update without changing files or requiring a quit.
+A running app still blocks CLI replacement. Only the explicitly clicked menu action authorizes shutdown and automatic reopening; there are no automatic installations. `jumpybrain update --dry-run` previews the update without changing files or requiring a quit.
+
+Terminal must acknowledge the handoff before the app quits. If startup fails, the app stays running. If the updater fails after shutdown, it does not automatically reopen the app: inspect Terminal output and follow its recovery instructions. Logs/results remain under `~/Library/Application Support/jumpyBrain Companion/update-*/` (or the configured support directory); executable handoff files are removed after completion. Completed Terminal windows can be closed.
 
 ## Older installations and recovery
 
@@ -90,7 +96,9 @@ python3 integrations/macos-companion/install.py --build-only \
   --runtime-root "$PWD" --output /tmp/jumpyBrain-test.app
 python3 integrations/macos-companion/smoke.py --app /tmp/jumpyBrain-test.app
 python3 -B integrations/macos-companion/test_update.py
-node --test test/macos-companion-update.test.js
+node --test test/macos-companion-update.test.js test/macos-companion-menu.test.js test/macos-companion-check.test.js
+# GUI session required; briefly opens real Terminal windows with inert fixture updates:
+python3 -B integrations/macos-companion/smoke_menu_update.py
 ```
 
-The smoke uses disposable runtime/memory copies to test health, editor routes, authentication, indexed search, duplicate/busy-port refusal, shutdown, orphan cleanup, and unchanged Markdown. Test menu icons briefly appear. Chrome interaction and actual logout/login remain manual checks. A build-local overlay handles duplicate SwiftBridging maps on affected Apple tools without modifying system files.
+The server smoke uses disposable runtime/memory copies to test health, editor routes, authentication, indexed search, duplicate/busy-port refusal, shutdown, orphan cleanup, and unchanged Markdown. The menu smoke instruments startup in a temporary source copy to invoke the production menu action, then tests a real LaunchAgent → Terminal → independent runner handoff, successful fixture-app reopening, failure without reopening, and cancellation-after-ack without quitting the original app. Its CLI is inert; it does not update your installed app or close Terminal windows. Test menu icons briefly appear. Chrome interaction and actual logout/login remain manual checks. A build-local overlay handles duplicate SwiftBridging maps on affected Apple tools without modifying system files.

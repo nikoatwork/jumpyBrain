@@ -22,6 +22,13 @@ final class Companion: NSObject, NSApplicationDelegate {
     private var restartItem: NSMenuItem!
     private var indexItem: NSMenuItem!
     private var loginItem: NSMenuItem!
+    private var updateItem: NSMenuItem!
+    private var checkUpdateItem: NSMenuItem!
+    private let updateStatus = NSMenuItem(title: "Updates: not checked", action: nil, keyEquivalent: "")
+    private var updateTimer: Timer?
+    private var updateCheck: Process?
+    private var updating = false
+    private var updateHandoffDirectory: URL?
     private var server: Process?
     private var indexer: Process?
     private var output: FileHandle?
@@ -77,6 +84,8 @@ final class Companion: NSObject, NSApplicationDelegate {
             }
             startServer()
             healthTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.checkHealth() }
+            checkForUpdates()
+            updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in self?.checkForUpdates() }
         } catch {
             showError("Could not start jumpyBrain", error.localizedDescription)
             forcedQuit = true
@@ -106,6 +115,11 @@ final class Companion: NSObject, NSApplicationDelegate {
         let build = NSMenuItem(title: "Local build · \(config.revision)", action: nil, keyEquivalent: "")
         build.isEnabled = false
         menu.addItem(build)
+        updateStatus.isEnabled = false
+        menu.addItem(updateStatus)
+        checkUpdateItem = add(menu, "Check for Updates", #selector(checkForUpdates))
+        updateItem = add(menu, "Update jumpyBrain…", #selector(updateApp))
+        menu.addItem(.separator())
         _ = add(menu, "Quit jumpyBrain…", #selector(quit), "q")
         statusItem.menu = menu
         setStatus("Starting…", healthy: false)
@@ -127,9 +141,12 @@ final class Companion: NSObject, NSApplicationDelegate {
         statusItem?.button?.image = NSImage(systemSymbolName: healthy ? "brain" : "exclamationmark.circle", accessibilityDescription: "jumpyBrain: \(text)")
         statusItem?.button?.image?.isTemplate = true
         statusItem?.button?.toolTip = "jumpyBrain — \(text)"
-        openItem?.isEnabled = healthy && !stopping
-        restartItem?.isEnabled = !stopping && indexer == nil
-        indexItem?.isEnabled = healthy && !stopping && indexer == nil
+        openItem?.isEnabled = healthy && !stopping && !updating
+        restartItem?.isEnabled = !stopping && indexer == nil && !updating
+        indexItem?.isEnabled = healthy && !stopping && indexer == nil && !updating
+        updateItem?.isEnabled = !stopping && !updating
+        checkUpdateItem?.isEnabled = !stopping && !updating && updateCheck == nil
+        loginItem?.isEnabled = !stopping && !updating
     }
 
     private func prepareLog() {
@@ -289,8 +306,8 @@ final class Companion: NSObject, NSApplicationDelegate {
                 guard let self = self else { return }
                 self.indexer = nil
                 self.indexItem.title = "Refresh Search Index"
-                self.indexItem.isEnabled = self.ready && !self.stopping
-                self.restartItem.isEnabled = !self.stopping
+                self.indexItem.isEnabled = self.ready && !self.stopping && !self.updating
+                self.restartItem.isEnabled = !self.stopping && !self.updating
                 if child.terminationStatus != 0 && !self.quitting {
                     self.showError("Search refresh failed", "See Show Logs for details. Your Markdown files were not changed by indexing.")
                 }
@@ -303,6 +320,146 @@ final class Companion: NSObject, NSApplicationDelegate {
             restartItem.isEnabled = true
             showError("Could not refresh search", error.localizedDescription)
         }
+    }
+
+    private var installRoot: URL { URL(fileURLWithPath: config.runtimeRoot).deletingLastPathComponent() }
+
+    // Maintenance must not inherit the local server key or remote credentials.
+    private var maintenanceEnvironment: [String: String] {
+        ["HOME": FileManager.default.homeDirectoryForCurrentUser.path,
+         "PATH": "\(URL(fileURLWithPath: config.node).deletingLastPathComponent().path):/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+         "LANG": "en_US.UTF-8"]
+    }
+
+    @objc private func checkForUpdates() {
+        guard updateCheck == nil, !updating, !quitting else { return }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: config.node)
+        p.arguments = [Bundle.main.resourceURL!.appendingPathComponent("update-check.mjs").path, installRoot.path]
+        p.environment = maintenanceEnvironment
+        p.currentDirectoryURL = URL(fileURLWithPath: config.supportDirectory)
+        p.standardInput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        updateCheck = p
+        updateStatus.title = "Checking for updates…"
+        checkUpdateItem.isEnabled = false
+        p.terminationHandler = { [weak self] child in
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            DispatchQueue.main.async {
+                guard let self = self, self.updateCheck === child else { return }
+                self.updateCheck = nil
+                guard !self.updating, !self.quitting else { return }
+                let status = child.terminationStatus == 0 ? json?["status"] as? String : nil
+                self.updateStatus.title = status == "available" ? "Update available" : status == "current" ? "Up to date" : "Updates: unable to check"
+                self.updateItem.title = status == "available" ? "Update jumpyBrain… (available)" : "Update jumpyBrain…"
+                self.checkUpdateItem.isEnabled = !self.stopping
+            }
+        }
+        do { try p.run() } catch {
+            updateCheck = nil
+            updateStatus.title = "Updates: unable to check"
+            checkUpdateItem.isEnabled = true
+        }
+    }
+
+    private func shellQuote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+
+    @objc private func updateApp() {
+        guard !updating, !stopping, !quitting else { return }
+        let fm = FileManager.default
+        let directory = URL(fileURLWithPath: config.supportDirectory).appendingPathComponent("update-" + UUID().uuidString)
+        do {
+            guard fm.fileExists(atPath: installRoot.appendingPathComponent("install-manifest.json").path),
+                  let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
+                throw NSError(domain: "Companion", code: 3, userInfo: [NSLocalizedDescriptionKey: "Updating requires a managed CLI installation and Terminal.app."])
+            }
+            try fm.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+            let helper = directory.appendingPathComponent("menu-update.mjs")
+            try fm.copyItem(at: Bundle.main.resourceURL!.appendingPathComponent("menu-update.mjs"), to: helper)
+            let request: [String: Any] = ["parentPid": ProcessInfo.processInfo.processIdentifier,
+                "installRoot": installRoot.path, "appPath": Bundle.main.bundlePath,
+                "home": fm.homeDirectoryForCurrentUser.path, "node": config.node, "qmd": config.qmd]
+            let requestURL = directory.appendingPathComponent("request.json")
+            try JSONSerialization.data(withJSONObject: request).write(to: requestURL, options: .atomic)
+            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: requestURL.path)
+            let command = directory.appendingPathComponent("update.command")
+            let script = "#!/bin/sh\nexec " + [config.node, helper.path, requestURL.path].map(shellQuote).joined(separator: " ") + "\n"
+            try script.write(to: command, atomically: true, encoding: .utf8)
+            try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: command.path)
+            updating = true
+            updateItem.title = "Starting updater…"
+            setStatus(statusLine.title, healthy: ready)
+            updateHandoffDirectory = directory
+            // Bound the entire handoff, including a stalled LaunchServices callback.
+            waitForUpdater(directory, deadline: Date().addingTimeInterval(20))
+            // Terminal owns the runner, independently of this app's launchd job.
+            NSWorkspace.shared.open([command], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, error in
+                DispatchQueue.main.async {
+                    guard let self = self, !self.quitting, self.updateHandoffDirectory == directory else { return }
+                    if let error = error { self.updateHandoffFailed(directory, error.localizedDescription) }
+                }
+            }
+        } catch { updateHandoffFailed(directory, error.localizedDescription) }
+    }
+
+    private func waitForUpdater(_ directory: URL, deadline: Date) {
+        guard updating, !quitting, updateHandoffDirectory == directory else { return }
+        guard Date() < deadline else {
+            updateHandoffFailed(directory, "Terminal did not acknowledge the update in time. The app is still running; try again.")
+            return
+        }
+        let fm = FileManager.default
+        if fm.fileExists(atPath: directory.appendingPathComponent("cancelled").path) {
+            updateHandoffFailed(directory, "The updater was cancelled. The app is still running.")
+            return
+        }
+        if fm.fileExists(atPath: directory.appendingPathComponent("ready").path) {
+            do {
+                let proceed = directory.appendingPathComponent("proceed")
+                if !fm.fileExists(atPath: proceed.path) {
+                    try "update\n".write(to: proceed, atomically: true, encoding: .utf8)
+                }
+                if let data = try? Data(contentsOf: directory.appendingPathComponent("acknowledged")),
+                   let ack = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                   let pid = ack["pid"] as? Int32, let expires = ack["expires"] as? Double,
+                   pid > 1, expires > Date().timeIntervalSince1970 * 1000, Darwin.kill(pid, 0) == 0 {
+                    // A live runner has acknowledged this attempt. Clicking Update
+                    // is authorization; do not show a second save/quit confirmation.
+                    RunLoop.main.perform {
+                        guard self.updateHandoffDirectory == directory, !self.quitting else { return }
+                        guard !fm.fileExists(atPath: directory.appendingPathComponent("cancelled").path),
+                              expires > Date().timeIntervalSince1970 * 1000, Darwin.kill(pid, 0) == 0 else {
+                            self.updateHandoffFailed(directory, "The updater stopped before shutdown. The app is still running.")
+                            return
+                        }
+                        self.updateHandoffDirectory = nil
+                        self.forcedQuit = true
+                        NSApp.terminate(nil)
+                    }
+                    return
+                }
+            } catch { updateHandoffFailed(directory, error.localizedDescription); return }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in self?.waitForUpdater(directory, deadline: deadline) }
+    }
+
+    private func updateHandoffFailed(_ directory: URL, _ message: String) {
+        updateHandoffDirectory = nil
+        try? "cancelled\n".write(to: directory.appendingPathComponent("cancelled"), atomically: true, encoding: .utf8)
+        try? FileManager.default.removeItem(at: directory.appendingPathComponent("proceed"))
+        // Revocation prevents a late runner from treating a later ordinary quit as
+        // permission to update. Leave claimed directories for timeout diagnostics.
+        if !FileManager.default.fileExists(atPath: directory.appendingPathComponent("claimed").path) {
+            try? FileManager.default.removeItem(at: directory)
+        }
+        updating = false
+        updateItem?.title = "Update jumpyBrain…"
+        if updateCheck == nil { updateStatus.title = "Updates: not checked" }
+        setStatus(statusLine.title, healthy: ready)
+        showError("Could not start update", message)
     }
 
     @objc private func openMemory() { NSWorkspace.shared.open(URL(fileURLWithPath: config.memoryRoot)) }
@@ -371,6 +528,8 @@ final class Companion: NSObject, NSApplicationDelegate {
         }
         quitting = true
         healthTimer?.invalidate()
+        updateTimer?.invalidate()
+        if let check = updateCheck, check.isRunning { check.terminate() }
         stopServer { NSApp.reply(toApplicationShouldTerminate: true) }
         return .terminateLater
     }

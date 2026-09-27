@@ -1,5 +1,9 @@
 # Unified installed updates
 
+## Completion
+
+Finalized on 2026-09-27 after the user confirmed the installed updater is implemented and used daily. The separately tracked menu-bar follow-up is also implemented and verified; its personal deployment remains separate.
+
 ## Goal / decisions
 
 One managed installed runtime serves the CLI and optional macOS companion. Development checkout and canonical memory stay separate. `jumpybrain update` refreshes both installed components from the recorded source/ref. No automatic quitting: wait for Saved, quit the companion, update, reopen. Legacy snapshot companions migrate on the default installation only; other runtime bindings are not adopted.
@@ -11,6 +15,10 @@ One managed installed runtime serves the CLI and optional macOS companion. Devel
 - [x] Test no-companion, legacy migration, managed/custom roots, running-app refusal, build failure and rollback; validate disposable native lifecycle.
 - [x] Document initial setup, unified updates, one-time migration, dependencies and failure boundaries. Shortened setup/app docs and added visible macOS app (beta) links without changing the README's opening copy.
 - [x] User-requested personal installation update: after save/quit confirmation, deployed the verified packaged local build and migrated the companion; future update source remains GitHub master.
+
+## Follow-up
+
+The implemented unified updater is complete and in daily use. The requested menu-bar Update action and optional update-availability indicator are tracked separately in [macOS menu-bar updates](2026-09-27_tasks-macos-menu-updates.md); they do not reopen the completed updater implementation.
 
 ## Relevant files
 

@@ -123,7 +123,7 @@ This is an advisory client-side guard against accidental writes, not authorizati
 
 One command updates the installed CLI and macOS app, if present. Your Markdown memory, settings, and agent integrations stay in place; development checkouts are separate.
 
-**Using the macOS app?** Wait for **Saved** in the editor and **Quit jumpyBrain** from the menu bar first. Reopen the app and reload the editor after updating.
+**Using the macOS app?** Choose **Update jumpyBrain…** in its menu bar: Terminal shows progress, the companion quits without an extra confirmation, and it reopens on success. Chrome stays open; saving is unavailable during the update. The menu also checks for available updates. For the CLI command below (or older apps without the Update item), quit the app first and reopen it manually afterward. See [the app guide](../integrations/macos-companion/README.md#update) for availability-check limits and failure recovery.
 
 ```bash
 ~/.jumpybrain/bin/jumpybrain update

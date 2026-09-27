@@ -16,6 +16,8 @@ export const requiredLocalPackFiles = Object.freeze([
   "package/scripts/macos-companion.mjs",
   "package/integrations/macos-companion/update.py",
   "package/integrations/macos-companion/install.py",
+  "package/integrations/macos-companion/menu-update.mjs",
+  "package/integrations/macos-companion/update-check.mjs",
   distFile("cli.js"),
   distFile("index.js"),
   distFile("cli", "index.js"),

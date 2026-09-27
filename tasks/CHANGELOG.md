@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-09-27 — Menu-bar application updates
+
+- Added macOS menu-bar updates with visible Terminal progress, automatic successful relaunch, and revision-based update availability checks, while leaving browser tabs open.
+
 ## 2026-09-27 — Title-first shared search
 
 - Prioritized exact titles across CLI and Cmd+K search, recovered omitted title matches, and favored newer relevant evidence without treating metadata edits as freshness.

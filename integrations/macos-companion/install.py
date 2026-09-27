@@ -74,7 +74,8 @@ def build_app(runtime, build, config):
     run(compiler, "-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{platform.machine()}-apple-macos13.0",
         "-module-cache-path", build / "module-cache", *compiler_options, "-framework", "AppKit",
         source / "Companion.swift", "-o", macos / "jumpyBrain")
-    shutil.copy2(source / "server-bootstrap.mjs", resources / "server-bootstrap.mjs")
+    for helper in ("server-bootstrap.mjs", "menu-update.mjs", "update-check.mjs"):
+        shutil.copy2(source / helper, resources / helper)
     (resources / "Configuration.json").write_text(json.dumps(config, indent=2) + "\n")
     info = {
         "CFBundleExecutable": "jumpyBrain", "CFBundleIdentifier": LABEL,
