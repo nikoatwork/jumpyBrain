@@ -10,12 +10,13 @@
     "jumpybrain": "dist/cli.js"
   },
   "scripts": {
-    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
+    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node scripts/build-editor.mjs",
     "test": "npm run build && node --test",
     "validate": "npm test",
     "smoke:graph": "npx --package=playwright node scripts/graph-ui-smoke.mjs",
     "smoke:graph-editor": "npm run build && npx --package=playwright node scripts/graph-editor-smoke.mjs",
     "smoke:daily-capture": "npm run build && npx --package=playwright node scripts/daily-capture-smoke.mjs",
+    "smoke:lexical": "npm run build && npx --package=playwright node scripts/lexical-editor-smoke.mjs",
     "guard:staged": "node scripts/precommit-guard.mjs",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "cli:version": "node scripts/version-local.mjs",
@@ -42,8 +43,14 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@lexical/history": "0.51.0",
+    "@lexical/markdown": "0.51.0",
+    "@lexical/rich-text": "0.51.0",
+    "@lexical/selection": "0.51.0",
     "@types/node": "^25.9.1",
+    "esbuild": "0.28.2",
     "fast-check": "^4.8.0",
+    "lexical": "0.51.0",
     "typescript": "^6.0.3"
   }
 }

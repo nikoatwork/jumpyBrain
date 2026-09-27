@@ -109,24 +109,8 @@ test("invalid creation response stays retryable under the original key", async (
   assert.deepEqual(keys, ["stable", "stable"]);
 });
 
-test("reference range replaces partial/completed brackets without eating surrounding Markdown", () => {
-  const { pageReferenceRange } = runtime(["pageReferenceRange"]);
-  const cases = [
-    ["before [[Pa", 11, 11, 7, 11, "Pa"],
-    ["before [[Page]] after", 11, 11, 7, 15, "Pa"],
-    ["before [[Page]] after", 13, 13, 7, 15, "Page"],
-    ["replace this", 0, 7, 0, 7, "replace"],
-    ["before \\[[", 10, 10, 10, 10, ""],
-    ["[[old\nnew", 9, 9, 9, 9, ""],
-  ];
-  for (const [value, start, end, expectedStart, expectedEnd, query] of cases) {
-    const range = pageReferenceRange(value, start, end);
-    assert.equal(range.start, expectedStart, value);
-    assert.equal(range.end, expectedEnd, value);
-    assert.equal(range.query, query, value);
-    assert.equal(range.value, value);
-  }
-});
+// Lexical reference ranges are exercised against real DOM selections by the
+// daily-capture and lexical-editor browser smokes, not a legacy textarea helper.
 
 test("reference titles reject syntax/control characters and known ambiguity, not arbitrary HTML", () => {
   const { pageReferenceError } = runtime(["pageReferenceError"]);
@@ -216,36 +200,44 @@ test("no-op input and undo to a confirmed body report Saved without scheduling a
 
 test("reference insertion rejects changed, closed, and navigation-locked drafts without mutation", () => {
   for (const failure of ["changed", "closed", "locked"]) {
-    const editor = { value: failure === "changed" ? "new draft" : "original", readOnly: failure === "locked" };
-    const originalController = { state: { loaded: true } };
+    const editor = {};
+    const markdown = failure === "changed" ? "new draft" : "original";
+    const richEditor = { getMarkdown: () => markdown, insertReference() { throw new Error("must not mutate"); } };
+    const originalController = { state: { loaded: true, navigationPending: failure === "locked" } };
     const noteSearch = { state: { results: [] } };
     let renders = 0;
     const { insertPageReference } = runtime(["insertPageReference"], {
-      $: () => editor, referenceSelection: { value: "original", start: 0, end: 0 },
+      $: () => editor, richEditor, referenceSelection: { value: "original", selection: {} },
       state: { editor: failure === "closed" ? null : originalController }, searchDocument: originalController,
       noteSearch, renderNoteSearch: () => renders++, closeSearch() { throw new Error("must not close"); },
     });
     insertPageReference({ documentId: id, referenceTitle: "Page" });
     assert.match(noteSearch.state.feedback, /draft changed/);
     assert.equal(renders, 1);
-    assert.equal(editor.value, failure === "changed" ? "new draft" : "original");
+    assert.equal(richEditor.getMarkdown(), failure === "changed" ? "new draft" : "original");
   }
 });
 
-test("unsupported native insertion leaves the draft intact with manual guidance", () => {
-  const editor = { value: "original", readOnly: false, focus() {}, setSelectionRange(start, end) { this.range = [start, end]; } };
+test("rejected rich-editor insertion leaves the draft intact with manual guidance", () => {
+  const editor = { focus() {} };
+  const selection = { anchor: "original selection" };
+  const richEditor = {
+    getMarkdown: () => "original",
+    insertReference(range, text) { assert.equal(range.value, "original"); assert.equal(text, "[[Page]]"); return false; },
+    restoreSelection(value) { this.selection = value; },
+  };
   const message = { dataset: {} };
-  const controller = { state: { loaded: true } };
+  const controller = { state: { loaded: true, navigationPending: false } };
   let closed = 0;
   const { insertPageReference } = runtime(["insertPageReference", "pageReferenceError"], {
     $: (id) => id === "note-editor" ? editor : message,
-    referenceSelection: { value: "original", start: 0, end: 0 }, searchSelection: { start: 3, end: 3 },
+    richEditor, referenceSelection: { value: "original", selection: {} }, searchSelection: { selection },
     state: { editor: controller }, searchDocument: controller,
-    noteSearch: { state: { results: [] } }, closeSearch: () => closed++, document: { execCommand: () => false },
+    noteSearch: { state: { results: [] } }, closeSearch: () => closed++,
   });
   insertPageReference({ documentId: id, referenceTitle: "Page" });
-  assert.equal(editor.value, "original");
-  assert.deepEqual(editor.range, [3, 3]);
+  assert.equal(richEditor.getMarkdown(), "original");
+  assert.equal(richEditor.selection, selection);
   assert.equal(closed, 1);
   assert.match(message.textContent, /Type \[\[Page\]\]/);
   assert.equal(message.hidden, false);

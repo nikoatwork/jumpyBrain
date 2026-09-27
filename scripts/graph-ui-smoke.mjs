@@ -4,6 +4,7 @@
 // Env: JUMPYBRAIN_GRAPH_SMOKE_URL, JUMPYBRAIN_GRAPH_SMOKE_API_KEY,
 //      JUMPYBRAIN_GRAPH_SMOKE_NODE_ID (optional), JUMPYBRAIN_SMOKE_SCREENSHOT_DIR (optional)
 import assert from "node:assert/strict";
+import { editorMarkdown } from "./editor-smoke-helpers.mjs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
@@ -86,8 +87,8 @@ try {
   assert.equal(await page.locator("#graph-link").isVisible(), true);
   assert.equal(await page.locator("#graph-note-close, #graph-note-edit, #graph-note-content").count(), 0,
     "removed slide-in controls should not return");
-  assert.doesNotMatch(await page.getByTestId("graph-note-editor").inputValue(), /^---(?:\r?\n|$)/,
-    "full-page textarea should contain only the raw Markdown body");
+  assert.doesNotMatch(await editorMarkdown(page), /^---(?:\r?\n|$)/,
+    "full-page editor should serialize only the Markdown body");
   console.log(`  ok - canonical node opens full-page note (${selectedNode.id})`);
 
   await page.goBack();
@@ -98,7 +99,7 @@ try {
   if (await unresolved.count()) {
     await unresolved.first().focus();
     await page.keyboard.press("Enter");
-    assert.match(await page.getByTestId("graph-status").innerText(), /unresolved link:/);
+    assert.match(await page.getByTestId("graph-status").innerText(), /unresolved link:/i);
     assert.match(new URL(page.url()).pathname, /^\/graph\/?$/);
     console.log("  ok - unresolved node remains non-navigable");
   }

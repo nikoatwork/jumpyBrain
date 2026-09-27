@@ -2,6 +2,7 @@
 // Build first: npm run build
 // Run: JUMPYBRAIN_SMOKE_SCREENSHOT_DIR=/tmp/daily-capture-shots npx --package=playwright node scripts/daily-capture-smoke.mjs
 import assert from "node:assert/strict";
+import { editorMarkdown, editorEnd, editorSelection, editorAtEnd, selectEditorText, replaceEditorText, appendEditorText, undoEditor } from "./editor-smoke-helpers.mjs";
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -183,15 +184,15 @@ async function validateCreation(page, label) {
   assert.match(markdown, /created_at: ["']?\d{4}-\d{2}-\d{2}T/);
   assert.equal((await noteFiles()).length, before.length + 1);
   const editor = page.locator("#note-editor");
-  assert.equal(await editor.evaluate((element) => document.activeElement === element && element.selectionStart === element.value.length), true,
+  assert.equal(await editor.evaluate((element) => document.activeElement === element) && await editorAtEnd(page), true,
     "new capture focuses the body after the date heading, ready to type");
-  const draft = `${await editor.inputValue()}\nSaved from ${label} daily-capture smoke.\n[[${fixture.title}]]\n`;
-  await editor.fill(draft);
+  const draft = `${await editorMarkdown(page)}\nSaved from ${label} daily-capture smoke.\n[[${fixture.title}]]\n`;
+  await appendEditorText(page, draft.slice((await editorMarkdown(page)).length));
   await saved(page);
   assert.ok((await canonical(result.file)).includes(`Saved from ${label} daily-capture smoke.`));
   await page.reload();
   await opened(page, result.id);
-  assert.equal(await editor.inputValue(), draft, "body survives real PUT and reload");
+  assert.equal(await editorMarkdown(page), draft, "body survives real PUT and reload");
   await layout(page, ["#new-note", "#insert-reference", "#open-search", "#open-connection"]);
   await capture(page, `${label}-editor.png`);
   assert.equal(requests.length, 1);
@@ -200,21 +201,20 @@ async function validateCreation(page, label) {
 async function validateSearchRoundtrip(page) {
   await home(page);
   const result = await create(page);
-  const editor = page.locator("#note-editor");
   const body = "CaptureRoundtripZephyrDaily saved body. ";
-  await editor.fill(body + "[[Luminous Orchard Exact Reference]] tail");
+  await replaceEditorText(page, body + "[[Luminous Orchard Exact Reference]] tail");
   // Insert from the middle of an existing reference, preserving the suffix and native undo.
-  await editor.evaluate((element, offset) => element.setSelectionRange(offset, offset), body.length + 7);
+  await selectEditorText(page, body.length + 7);
   await page.locator("#insert-reference").click();
   await picker(page);
   await searchRealReference(page);
   await page.keyboard.press("Enter");
   await page.locator("#note-search").waitFor({ state: "hidden" });
-  assert.equal(await editor.inputValue(), body + `[[${fixture.title}]] tail`);
+  assert.equal(await editorMarkdown(page), body + `[[${fixture.title}]] tail`);
   await saved(page);
   await page.reload();
   await opened(page, result.id);
-  assert.equal(await editor.inputValue(), body + `[[${fixture.title}]] tail`);
+  assert.equal(await editorMarkdown(page), body + `[[${fixture.title}]] tail`);
   const indexed = await page.request.post(server.url + "/memories/all/index", { headers: { Authorization: `Bearer ${apiKey}` }, data: {} });
   assert.equal(indexed.status(), 200, "explicit server-local index rebuild succeeds");
   await page.locator("#home-link").click();
@@ -225,7 +225,7 @@ async function validateSearchRoundtrip(page) {
   await row.waitFor({ state: "visible" });
   await row.click();
   await opened(page, result.id);
-  assert.equal(await editor.inputValue(), body + `[[${fixture.title}]] tail`, "new note discoverable through normal search after indexing");
+  assert.equal(await editorMarkdown(page), body + `[[${fixture.title}]] tail`, "new note discoverable through normal search after indexing");
 }
 
 async function validateLostResponse(page, label) {
@@ -289,9 +289,9 @@ async function validateReferences(page, label) {
   const result = await create(page);
   const editor = page.locator("#note-editor");
   const baseline = `Daily ${label} reference context: `;
-  await editor.fill(baseline);
+  await replaceEditorText(page, baseline);
   await saved(page);
-  await editor.evaluate((element) => element.setSelectionRange(element.value.length, element.value.length));
+  await editorEnd(page);
   const url = page.url();
   await page.locator("#insert-reference").click();
   await picker(page);
@@ -300,39 +300,39 @@ async function validateReferences(page, label) {
   await capture(page, `${label}-reference-search.png`);
   await page.keyboard.press("Enter");
   await page.locator("#note-search").waitFor({ state: "hidden" });
-  assert.equal(await editor.inputValue(), baseline + `[[${fixture.title}]]`, "button/Enter inserts exact reference");
+  assert.equal(await editorMarkdown(page), baseline + `[[${fixture.title}]]`, "button/Enter inserts exact reference");
   assert.equal(page.url(), url, "insertion must not navigate");
   assert.equal(await editor.evaluate((element) => document.activeElement === element), true);
   await nativeUndo(page);
-  assert.equal(await editor.inputValue(), baseline, "native undo removes button insertion as one operation");
+  assert.equal(await editorMarkdown(page), baseline, "native undo removes button insertion as one operation");
   // Undoing to the already persisted baseline is clean, not a new save.
   assert.notEqual(await page.locator("#note-save-state").innerText(), "Save failed");
 
   // Real per-character browser input, not fill(), exercises the [[ input trigger.
-  await editor.press("End");
+  await editorEnd(page);
   await page.keyboard.type("[[");
   await picker(page);
-  const typed = await editor.inputValue();
+  const typed = await editorMarkdown(page);
   assert.equal(typed, baseline + "[[");
   await page.keyboard.press("Escape");
   await page.locator("#note-search").waitFor({ state: "hidden" });
-  assert.equal(await editor.inputValue(), typed, "cancel keeps typed Markdown intact");
+  assert.equal(await editorMarkdown(page), typed, "cancel keeps typed Markdown intact");
   assert.equal(await editor.evaluate((element) => document.activeElement === element), true);
-  assert.deepEqual(await editor.evaluate((element) => [element.selectionStart, element.selectionEnd]), [typed.length, typed.length]);
+  assert.deepEqual(await editorSelection(page), [typed.length, typed.length]);
   await nativeUndo(page);
   // Opening a modal may split the two typed characters into separate native
   // undo transactions; only the inserted reference must be one transaction.
-  if (await editor.inputValue() === baseline + "[") await nativeUndo(page);
-  assert.equal(await editor.inputValue(), baseline, "typed [[ remains natively undoable after cancellation");
+  if (await editorMarkdown(page) === baseline + "[") await nativeUndo(page);
+  assert.equal(await editorMarkdown(page), baseline, "typed [[ remains natively undoable after cancellation");
   await page.keyboard.type("[[");
   await picker(page);
   await searchRealReference(page);
   await page.keyboard.press("Enter");
   await page.locator("#note-search").waitFor({ state: "hidden" });
-  assert.equal(await editor.inputValue(), baseline + `[[${fixture.title}]]`, "trigger replaces opening brackets, no duplication");
+  assert.equal(await editorMarkdown(page), baseline + `[[${fixture.title}]]`, "trigger replaces opening brackets, no duplication");
   assert.equal(page.url(), url);
   await nativeUndo(page);
-  assert.equal(await editor.inputValue(), baseline + "[[", "undo restores exact pre-insertion trigger text");
+  assert.equal(await editorMarkdown(page), baseline + "[[", "undo restores exact pre-insertion trigger text");
   // Save a final real reference by pointer, then confirm canonical Markdown and reload.
   await page.locator("#insert-reference").click();
   await picker(page);
@@ -342,14 +342,13 @@ async function validateReferences(page, label) {
   assert.ok((await canonical(result.file)).includes(`[[${fixture.title}]]`));
   await page.reload();
   await opened(page, result.id);
-  assert.equal(await editor.inputValue(), baseline + `[[${fixture.title}]]`);
+  assert.equal(await editorMarkdown(page), baseline + `[[${fixture.title}]]`);
 }
 
 async function validateReferenceErrors(page, label) {
   await home(page);
   const result = await create(page);
-  const editor = page.locator("#note-editor");
-  await editor.fill("Preserve this exact draft.");
+  await replaceEditorText(page, "Preserve this exact draft.");
   await saved(page);
   const url = page.url();
   let titles = [];
@@ -371,7 +370,7 @@ async function validateReferenceErrors(page, label) {
     await page.keyboard.press("Enter");
     await page.waitForFunction(() => /Several results share|no safe exact page title/.test(document.querySelector("#search-message").textContent));
     assert.equal(await page.locator("#note-search").isVisible(), true);
-    assert.equal(await editor.inputValue(), "Preserve this exact draft.");
+    assert.equal(await editorMarkdown(page), "Preserve this exact draft.");
     assert.equal(page.url(), url);
     if (index < 2) await capture(page, `${label}-reference-${index === 0 ? "duplicate" : "unsafe"}-error.png`);
     await page.keyboard.press("Escape");
@@ -384,9 +383,8 @@ async function validateDirtyGuard(page, label) {
   await home(page);
   const result = await create(page);
   const requests = observeCreates(page);
-  const editor = page.locator("#note-editor");
   const url = page.url();
-  const baseline = await editor.inputValue();
+  const baseline = await editorMarkdown(page);
   const draft = baseline + "\nDirty draft preserved despite failed save.\n";
   let puts = 0;
   const handler = async (route) => {
@@ -396,13 +394,13 @@ async function validateDirtyGuard(page, label) {
   };
   const pattern = `**/memories/all/documents/${result.id}`;
   await page.route(pattern, handler);
-  await editor.fill(draft);
+  await appendEditorText(page, draft.slice((await editorMarkdown(page)).length));
   await saveState(page, "Save failed");
   await page.locator("#new-note").click();
   await feedback(page, /Could not leave the current note/);
   assert.equal(requests.length, 0, "failed dirty save prevents POST creation");
   assert.equal(page.url(), url);
-  assert.equal(await editor.inputValue(), draft);
+  assert.equal(await editorMarkdown(page), draft);
   assert.ok(puts >= 1);
   assert.ok(!(await canonical(result.file)).includes("Dirty draft preserved"), "failed PUT did not persist draft");
   await layout(page, ["#new-note", "#note-retry", "#insert-reference", "#open-connection"]);
@@ -451,9 +449,7 @@ async function searchRealReference(page) {
   assert.match(await page.locator("#search-message").innerText(), /Enter to insert/);
 }
 async function nativeUndo(page) {
-  // Linux/macOS Chromium mappings differ; execCommand invokes the native undo
-  // stack, and never substitutes programmatic textarea assignment for undo.
-  assert.equal(await page.evaluate(() => document.execCommand("undo")), true, "native textarea undo available");
+  await undoEditor(page);
 }
 async function localDay(page) {
   return page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });

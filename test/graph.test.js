@@ -287,11 +287,11 @@ test("graph page uses the light forest design system and structured exploration 
   assert.match(html, /class="canvas-tools" aria-label="Graph view controls"/);
   assert.match(html, /class="legend" aria-label="Graph legend"/);
   assert.match(html, /id="reset-view"/);
-  assert.match(html, /window\.addEventListener\("resize", \(\) => \{ queueGraphLayout\(80\)/);
+  assert.match(html, /window\.addEventListener\("resize", \(\) => queueGraphLayout\(80\)/);
   assert.match(html, /prefers-reduced-motion/);
 });
 
-test("notes editing stays in the HTTP shell with persistent raw editing and native dialogs", () => {
+test("notes editing stays in the HTTP shell with persistent rich editing and native dialogs", () => {
   const html = graphPageHtml("testnonce");
   const script = pageScript();
   assert.match(script, /node\.nodeKind === "unresolved"/);

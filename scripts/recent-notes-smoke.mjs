@@ -1,6 +1,7 @@
 // Disposable browser test: no QMD, real memory, or stored credentials required.
 // npm run build && npx --package=playwright node scripts/recent-notes-smoke.mjs
 import assert from "node:assert/strict";
+import { replaceEditorText } from "./editor-smoke-helpers.mjs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -46,12 +47,12 @@ try {
     await page.locator(".recent-link").last().click();
     await page.locator("#note-editor").waitFor({ state: "visible" });
     const editedBody = `Edited from recent notes at ${width}px.`;
-    await page.locator("#note-editor").fill(editedBody);
+    await replaceEditorText(page, editedBody);
     await page.locator("#home-link").click();
     await page.waitForFunction(() => document.querySelector(".recent-link span")?.textContent === "Note 3");
     await page.locator(".recent-link").first().focus();
     await page.keyboard.press("Enter");
-    await page.waitForFunction((body) => document.querySelector("#note-editor").value === body, editedBody);
+    await page.waitForFunction((body) => richEditor.getMarkdown() === body, editedBody);
     await page.goBack();
     await page.locator(".recent-link").first().waitFor({ state: "visible" });
     // Failed loads stay small and recover through the visible retry action.

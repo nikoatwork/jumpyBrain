@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-09-27 — WYSIWYG Markdown editing
+
+- Added locally bundled Lexical editing for headings, bold, italic, and page references, preserving autosave and unsupported Markdown as visible literal text.
+
 ## 2026-09-20 — Recent notes on web home
 
 - Added a compact eight-note home list ordered by last edit with creation-date fallback, opening directly in the editor and reflecting saves without search indexing.

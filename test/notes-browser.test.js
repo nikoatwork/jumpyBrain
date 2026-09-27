@@ -329,18 +329,19 @@ test("late document GETs cannot overwrite a new full-page selection", async () =
   const $ = (id) => { if (!elements.has(id)) elements.set(id, { hidden: true, value: "", textContent: "", dataset: {}, focus() {} }); return elements.get(id); };
   const reads = [];
   const state = { noteToken: 0, editor: null };
+  const richEditor = { markdown: "", setMarkdown(value) { this.markdown = value; }, getMarkdown() { return this.markdown; }, focus() {} };
   const context = runtime(["showNote", "isValidMemoryDocumentId", "noteLoadError"], {
-    $, state, document: { title: "" }, window: { setTimeout, clearTimeout },
-    splitEditableDocument() {}, composeEditableDocument() {}, writeGraphDocument() {}, syncEditorUi() {}, autoSizeNoteEditor() {},
+    $, state, richEditor, document: { title: "" }, window: { setTimeout, clearTimeout },
+    splitEditableDocument() {}, composeEditableDocument() {}, writeGraphDocument() {}, syncEditorUi() {},
     searchDialog: { open: false }, connectionDialog: { open: false },
     readGraphDocument(id) { const read = { id, ...deferred() }; reads.push(read); return read.promise; },
-    createDocumentEditor() { return { state: {}, cancel() {}, hydrate(payload) { $("note-editor").value = payload.content; }, setEditing() {} }; },
+    createDocumentEditor() { return { state: {}, cancel() {}, hydrate(payload) { richEditor.setMarkdown(payload.content); }, setEditing() {} }; },
   });
   const first = context.showNote(docA);
   const second = context.showNote(docB);
   reads[1].resolve({ title: "Beta", content: "body B", contentHash: "b" }); await second;
   reads[0].resolve({ title: "Alpha", content: "body A", contentHash: "a" }); await first;
   assert.equal($("note-title").textContent, "Beta");
-  assert.equal($("note-editor").value, "body B");
+  assert.equal(richEditor.getMarkdown(), "body B");
   assert.equal(context.document.title, "Beta · jumpyBrain");
 });

@@ -1,6 +1,7 @@
 // Disposable browser smoke for the minimal notes UI and graph regression.
 // Builds a real QMD index under a temporary root and never mutates a live deployment.
 import assert from "node:assert/strict";
+import { editorMarkdown, editorEnd, editorSelection, editorAtEnd, appendEditorText, undoEditor } from "./editor-smoke-helpers.mjs";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -100,8 +101,7 @@ async function validateSearchClicks() {
       }
       await route.continue();
     });
-    const editor = page.getByTestId("graph-note-editor");
-    await editor.fill(appendLine(await editor.inputValue(), "Saved while choosing another search result."));
+    await appendEditorLine(page, "Saved while choosing another search result.");
     await page.locator("#open-search").click();
     await started;
     await page.locator("#note-search-input").fill(fixtures.mobile.query);
@@ -153,7 +153,7 @@ async function validateDesktop() {
 
     const editor = page.getByTestId("graph-note-editor");
     const panel = page.getByTestId("graph-note-panel");
-    const initialBody = await editor.inputValue();
+    const initialBody = await editorMarkdown(page);
     assert.ok(initialBody.length > 5_000, "desktop fixture should exercise a long document");
 
     // Hold a real PUT until a controlled stale=false search packet has rendered.
@@ -199,16 +199,17 @@ async function validateDesktop() {
 
     const inserted = "\nSaved from desktop notes UI smoke.\n";
     await editor.focus();
-    await editor.evaluate((element) => element.setSelectionRange(element.value.length, element.value.length));
+    await editorEnd(page);
     const scrollBefore = await panel.evaluate((element) => {
       element.scrollTop = element.scrollHeight - element.clientHeight;
       return element.scrollTop;
     });
     assert.ok(scrollBefore > 0, "long note should have an internal scroll range");
     await page.keyboard.insertText(inserted);
-    const caretAfterInput = initialBody.length + inserted.length;
-    assert.deepEqual(await editor.evaluate((element) => [element.selectionStart, element.selectionEnd]), [caretAfterInput, caretAfterInput]);
-    assert.equal(await panel.evaluate((element) => element.scrollTop), scrollBefore, "autosizing should preserve long-note scroll");
+    const caretAfterInput = await editorSelection(page);
+    assert.equal(await editorAtEnd(page), true, "typing leaves a collapsed caret at the end");
+    const scrollAfterInput = await panel.evaluate((element) => element.scrollTop);
+    assert.ok(Math.abs(scrollAfterInput - scrollBefore) < 150, "typing may reveal its caret but must not jump away from the end of a long note");
     await putSeen;
 
     // Explicitly cover Command+K in addition to the Control+K entry path above.
@@ -235,23 +236,23 @@ async function validateDesktop() {
     await assertCanonicalBody(fixture, /Saved from desktop notes UI smoke\./);
 
     // Command+K toggles the modal closed and restores long-document focus,
-    // caret, scroll, and the persistent textarea after save reconciliation.
+    // caret, scroll, and the persistent contenteditable after save reconciliation.
     await page.keyboard.press("Meta+k");
     await page.locator("#note-search").waitFor({ state: "hidden" });
     assert.equal(await editor.evaluate((element) => document.activeElement === element), true, "search close should restore editor focus");
-    assert.deepEqual(await editor.evaluate((element) => [element.selectionStart, element.selectionEnd]), [caretAfterInput, caretAfterInput]);
-    assert.equal(await panel.evaluate((element) => element.scrollTop), scrollBefore, "modal close should restore long-note scroll");
-    assert.equal(await editor.inputValue(), initialBody + inserted, "search and reconcile must not replace the draft");
+    assert.deepEqual(await editorSelection(page), caretAfterInput);
+    assert.equal(await panel.evaluate((element) => element.scrollTop), scrollAfterInput, "modal close should restore long-note scroll");
+    assert.equal(await editorMarkdown(page), initialBody + inserted, "search and reconcile must not replace the draft");
     await page.unroute("**/memories/all/search", searchHandler);
     await page.unroute(documentPattern, delayedPutHandler);
 
     // The note URL is durable and reloads directly into raw-body editing.
-    const savedDraft = await editor.inputValue();
+    const savedDraft = await editorMarkdown(page);
     const noteUrl = `/?note=${encodeURIComponent(fixture.id)}`;
     assert.equal(currentShellUrl(page), noteUrl);
     await page.reload();
     await assertFullPageEditor(page, fixture);
-    assert.equal(await editor.inputValue(), savedDraft);
+    assert.equal(await editorMarkdown(page), savedDraft);
 
     // A history traversal closes Connection and applies the destination view.
     await page.locator("#open-connection").click();
@@ -293,11 +294,12 @@ async function validateDesktop() {
     };
     await page.route(documentPattern, failedPutHandler);
 
-    const failedDraft = appendLine(await editor.inputValue(), "Unconfirmed desktop draft after failed PUT.");
-    await editor.fill(failedDraft);
+    const failedDraft = appendLine(await editorMarkdown(page), "Unconfirmed desktop draft after failed PUT.");
+    await appendEditorLine(page, "Unconfirmed desktop draft after failed PUT.");
+    assert.equal(await editorMarkdown(page), failedDraft);
     await waitForSaveState(page, "Save failed");
     assert.equal(failNextPut, false, "the controlled PUT failure should be consumed");
-    await editor.fill(savedDraft);
+    await undoEditor(page);
     await waitForSaveState(page, "Save failed");
     assert.equal(await page.getByTestId("graph-note-retry").isVisible(), true, "undo must remain explicitly retryable");
 
@@ -310,22 +312,23 @@ async function validateDesktop() {
       const editorElement = document.querySelector('[data-testid="graph-note-editor"]');
       return window.__notesSmokePopUrls?.length >= 2
         && location.pathname + location.search === url
-        && editorElement && !editorElement.readOnly;
+        && editorElement?.isContentEditable;
     }, noteUrl, { timeout: 15_000 });
     assert.ok((await page.evaluate(() => window.__notesSmokePopUrls)).some((url) => url === "/"),
       "failed popstate save should observe its Back target before restoration");
-    assert.equal(await editor.inputValue(), savedDraft, "guarded navigation should retain the unconfirmed body");
+    assert.equal(await editorMarkdown(page), savedDraft, "guarded navigation should retain the unconfirmed body");
     assert.equal(await page.getByTestId("graph-note-retry").isVisible(), true);
 
     await page.getByTestId("graph-note-retry").click();
     await waitForSaveState(page, "Saved");
-    assert.equal(await editor.inputValue(), savedDraft);
+    assert.equal(await editorMarkdown(page), savedDraft);
     const confirmedMarkdown = await readFile(path.join(root, fixture.file), "utf8");
     assert.doesNotMatch(confirmedMarkdown, /Unconfirmed desktop draft after failed PUT\./,
       "Retry after undo should persist the original body, not the failed draft");
 
     const recoveredDraft = appendLine(savedDraft, "Recovered desktop draft after failed PUT.");
-    await editor.fill(recoveredDraft);
+    await appendEditorLine(page, "Recovered desktop draft after failed PUT.");
+    assert.equal(await editorMarkdown(page), recoveredDraft);
     await waitForSaveState(page, "Saved");
     await assertCanonicalBody(fixture, /Recovered desktop draft after failed PUT\./);
     await capture(page, "notes-desktop.png");
@@ -363,11 +366,11 @@ async function validateMobile() {
     await searchAndOpen(page, fixture, { choose: "tap" });
     await assertFullPageEditor(page, fixture);
 
-    const editor = page.getByTestId("graph-note-editor");
     await setConnectionKey(page, "deliberately-wrong-mobile-key");
     allowedAuthFailures += 1;
-    const mobileDraft = appendLine(await editor.inputValue(), "Saved from mobile notes UI smoke.");
-    await editor.fill(mobileDraft);
+    const mobileDraft = appendLine(await editorMarkdown(page), "Saved from mobile notes UI smoke.");
+    await appendEditorLine(page, "Saved from mobile notes UI smoke.");
+    assert.equal(await editorMarkdown(page), mobileDraft);
     await waitForSaveState(page, "Save failed");
     assert.equal(allowedAuthFailures, 0, "mobile save should receive exactly one real auth failure");
     assert.match(await page.getByTestId("graph-note-save-state").getAttribute("aria-label"), /401|Unauthorized|Invalid API key/i);
@@ -380,7 +383,7 @@ async function validateMobile() {
     // Connect is itself one of the wrapped controls; correct credentials and
     // use the explicit Retry to preserve and persist the failed draft.
     await setConnectionKey(page, apiKey);
-    assert.equal(await editor.inputValue(), mobileDraft, "auth recovery should retain the failed draft");
+    assert.equal(await editorMarkdown(page), mobileDraft, "auth recovery should retain the failed draft");
     await page.getByTestId("graph-note-retry").tap();
     await waitForSaveState(page, "Saved");
     await assertCanonicalBody(fixture, /Saved from mobile notes UI smoke\./);
@@ -388,7 +391,7 @@ async function validateMobile() {
 
     await page.reload();
     await assertFullPageEditor(page, fixture);
-    assert.equal(await editor.inputValue(), mobileDraft);
+    assert.equal(await editorMarkdown(page), mobileDraft);
     await capture(page, "notes-mobile.png");
     assert.deepEqual(browserErrors, [], "mobile browser console errors");
     console.log("  ok - mobile failed-save layout/auth/retry/reload");
@@ -437,7 +440,7 @@ async function searchAndOpen(page, fixture, { choose }) {
 async function assertFullPageEditor(page, fixture) {
   await page.getByTestId("graph-note-editor").waitFor({ state: "visible", timeout: 15_000 });
   assert.equal(await page.getByTestId("graph-note-title").innerText(), fixture.title);
-  const body = await page.getByTestId("graph-note-editor").inputValue();
+  const body = await editorMarkdown(page);
   assert.match(body, new RegExp(fixture.marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
   assert.doesNotMatch(body, /^---(?:\r?\n|$)/);
   assert.doesNotMatch(body, new RegExp(`^id:\\s*${fixture.id}`, "m"));
@@ -592,4 +595,12 @@ async function launchBrowser(browserType) {
     if (!String(error?.message || error).includes("Executable doesn't exist")) throw error;
     return browserType.launch({ channel: process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" });
   }
+}
+
+async function appendEditorLine(page, line) {
+  const body = await editorMarkdown(page);
+  // Preserve the loaded rich blocks and their exact Markdown source.
+  const trailing = body.match(/\n*$/)[0].length;
+  assert.ok(trailing <= 2, "fixture has at most two trailing newlines");
+  await appendEditorText(page, "\n".repeat(2 - trailing) + line + "\n");
 }

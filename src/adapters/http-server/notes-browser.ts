@@ -1,5 +1,5 @@
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
-// String.raw keeps browser JavaScript readable without a bundler or runtime dependency.
+// String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
 export const notesStyles = String.raw`
     body { background: var(--cream-50); display: flex; flex-direction: column; height: 100dvh; }
     body[data-view="note"] { background: #fff; }
@@ -32,6 +32,20 @@ export const notesStyles = String.raw`
     #note-title { margin: 0 0 20px; color: var(--forest-950); font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
     #note-name { display: block; width: 100%; height: auto; margin: 0 0 20px; padding: 0; border: 0; border-radius: 0; background: #fff; color: var(--forest-950); box-shadow: none; font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; }
     #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: #fff; color: var(--ink); box-shadow: none; font: 16px/1.8 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #note-editor p { margin: 0; min-height: 1.8em; }
+    #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .45em 0 .2em; line-height: 1.35; font-weight: 650; letter-spacing: -.025em; }
+    #note-editor h1 { font-size: 30px; }
+    #note-editor h2 { font-size: 24px; }
+    #note-editor h3 { font-size: 20px; }
+    #note-editor h4, #note-editor h5, #note-editor h6 { font-size: 18px; }
+    .editor-bold { font-weight: 700; }
+    .editor-italic { font-style: italic; }
+    .markdown-literal, .markdown-reference { text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; }
+    .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
+    .markdown-literal::selection { background: var(--sage-100); }
+    #format-controls { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; margin: 0 0 12px -10px; }
+    #format-controls button { font-size: 12px; }
+    #format-controls #insert-reference { margin: 0; }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
     #note-save-error { color: #8b4434; font-size: 13px; }
     .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
@@ -137,8 +151,16 @@ export const notesViews = String.raw`
       <p id="note-save-error" role="status" aria-live="polite" hidden></p>
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
-      <button id="insert-reference" class="quiet-button" hidden>[[ ]] Insert page reference</button>
-      <textarea id="note-editor" data-testid="graph-note-editor" aria-label="Markdown note body" spellcheck="true" wrap="soft" hidden></textarea>
+      <div id="format-controls" role="group" aria-label="Text formatting" hidden>
+        <button class="quiet-button" data-format="paragraph" aria-label="Normal text">Text</button>
+        <button class="quiet-button" data-format="h1" aria-label="Heading">H1</button>
+        <button class="quiet-button" data-format="h2" aria-label="Subheading">H2</button>
+        <button class="quiet-button" data-format="h3" aria-label="Small heading">H3</button>
+        <button class="quiet-button" data-format="bold" aria-label="Bold"><strong>B</strong></button>
+        <button class="quiet-button" data-format="italic" aria-label="Italic"><em>I</em></button>
+        <button id="insert-reference" class="quiet-button" hidden>[[ ]] Insert page reference</button>
+      </div>
+      <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
       <details id="note-metadata" class="note-frontmatter" hidden>
         <summary>Metadata · read only</summary>
         <p id="note-file"></p>
@@ -417,16 +439,6 @@ function createNoteCapture(options) {
   return { create, complete() { attempt = null; } };
 }
 
-function pageReferenceRange(value, start, end) {
-  const opening = value.lastIndexOf("[[", start);
-  if (opening >= 0 && start >= opening + 2 && !/[\[\]\r\n]/.test(value.slice(opening + 2, start)) && value[opening - 1] !== "\\") {
-    const closing = value.indexOf("]]", end);
-    const replaceEnd = closing >= end && !/[\[\]\r\n]/.test(value.slice(end, closing)) ? closing + 2 : end;
-    return { start: opening, end: replaceEnd, query: value.slice(opening + 2, start), value };
-  }
-  return { start, end, query: value.slice(start, end), value };
-}
-
 function pageReferenceError(result, results) {
   const title = result.referenceTitle;
   if (typeof title !== "string" || !title.trim() || title !== title.trim() || /[\[\]\x00-\x1f\x7f|#\\/]/.test(title)) {
@@ -489,7 +501,7 @@ function openSearch(mode = "navigate", range = null) {
   searchOrigin = document.activeElement;
   searchDocument = state.editor;
   const editor = $("note-editor");
-  searchSelection = { start: editor.selectionStart, end: editor.selectionEnd, direction: editor.selectionDirection, scroll: $("note-panel").scrollTop };
+  searchSelection = { selection: richEditor.captureSelection(), scroll: $("note-panel").scrollTop };
   if (searchMode === "insert") {
     searchOrigin = editor;
     $("note-search-input").value = range.query;
@@ -506,7 +518,7 @@ function closeSearch(restoreFocus = true) {
   if (!restoreFocus) return;
   if (searchOrigin?.isConnected && !searchOrigin.closest("[hidden]")) searchOrigin.focus({ preventScroll: true });
   if (searchOrigin === $("note-editor") && searchDocument === state.editor && searchSelection) {
-    $("note-editor").setSelectionRange(searchSelection.start, searchSelection.end, searchSelection.direction);
+    richEditor.restoreSelection(searchSelection.selection);
     $("note-panel").scrollTop = searchSelection.scroll;
   }
 }
@@ -678,7 +690,8 @@ async function showNote(documentId, focusEnd = false) {
   $("note-name").hidden = true;
   $("note-save-error").hidden = true;
   $("note-editor").hidden = true;
-  $("note-editor").value = "";
+  richEditor.setMarkdown("", true);
+  $("format-controls").hidden = true;
   $("note-metadata").hidden = true;
   $("note-metadata").open = false;
   $("note-retry").hidden = true;
@@ -712,9 +725,7 @@ async function showNote(documentId, focusEnd = false) {
     $("note-message").hidden = true;
     editor.hydrate(payload);
     editor.setEditing(true);
-    autoSizeNoteEditor();
-    if (focusEnd) $("note-editor").setSelectionRange($("note-editor").value.length, $("note-editor").value.length);
-    if (!searchDialog.open && !connectionDialog.open) $("note-editor").focus({ preventScroll: true });
+    if (!searchDialog.open && !connectionDialog.open) richEditor.focus(focusEnd);
   } catch (error) {
     if (token !== state.noteToken || state.editor !== editor) return;
     noteLoadError(Number(error.status) === 404 ? "This note is no longer available. Use Search to find another note."
@@ -744,15 +755,16 @@ function syncEditorUi(editorState) {
   $("note-name").setAttribute("aria-invalid", String(editorState.saveStatus === "failed"));
   $("note-save-error").hidden = editorState.saveStatus !== "failed";
   $("note-save-error").textContent = editorState.saveError || "";
-  // readOnly, not disabled: keep focus and caret while a navigation save is pending.
-  $("note-editor").readOnly = editorState.navigationPending;
+  richEditor.setReadOnly(editorState.navigationPending);
+  $("format-controls").hidden = !editorState.loaded;
+  for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending;
   $("insert-reference").hidden = !editorState.loaded;
   $("insert-reference").disabled = editorState.navigationPending;
   if (editorState.loaded) {
     if ($("note-name").value !== editorState.title) $("note-name").value = editorState.title;
     $("note-title").textContent = editorState.title || "Untitled";
     document.title = (editorState.title || "Untitled") + " · jumpyBrain";
-    if ($("note-editor").value !== editorState.draft) $("note-editor").value = editorState.draft;
+    if (richEditor.getMarkdown() !== editorState.draft) richEditor.setMarkdown(editorState.draft);
     $("note-frontmatter").textContent = editorState.frontmatterPrefix;
     $("note-metadata").hidden = false;
   }
@@ -809,21 +821,17 @@ async function newNote() {
 for (const id of ["new-note", "home-new"]) $(id).addEventListener("click", (event) => { if (event.detail < 2) newNote(); });
 
 function openReferenceSearch() {
-  const editor = $("note-editor");
-  if (!state.editor?.state.loaded || editor.readOnly) return;
-  openSearch("insert", pageReferenceRange(editor.value, editor.selectionStart, editor.selectionEnd));
+  if (!state.editor?.state.loaded || state.editor.state.navigationPending) return;
+  const range = richEditor.referenceRange();
+  if (range) openSearch("insert", range);
 }
 $("insert-reference").addEventListener("click", openReferenceSearch);
-$("note-editor").addEventListener("input", (event) => {
-  const editor = event.target;
-  if (!event.isComposing && event.inputType === "insertText" && event.data === "["
-      && editor.value.slice(editor.selectionStart - 2, editor.selectionStart) === "[["
-      && editor.value[editor.selectionStart - 3] !== "\\") openReferenceSearch();
-});
+$("format-controls").addEventListener("mousedown", (event) => { if (event.target.closest("button")) event.preventDefault(); });
+for (const button of document.querySelectorAll("[data-format]")) button.addEventListener("click", () => richEditor.format(button.dataset.format));
 function insertPageReference(result) {
   const editor = $("note-editor");
   const range = referenceSelection;
-  if (!range || state.editor !== searchDocument || !state.editor?.state.loaded || editor.readOnly || editor.value !== range.value) {
+  if (!range || state.editor !== searchDocument || !state.editor?.state.loaded || state.editor.state.navigationPending || richEditor.getMarkdown() !== range.value) {
     noteSearch.state.feedback = "The draft changed. Close this picker and insert the reference again.";
     renderNoteSearch(noteSearch.state);
     return;
@@ -832,19 +840,15 @@ function insertPageReference(result) {
   if (problem) { noteSearch.state.feedback = problem; renderNoteSearch(noteSearch.state); return; }
   closeSearch();
   editor.focus({ preventScroll: true });
-  editor.setSelectionRange(range.start, range.end);
   const text = "[[" + result.referenceTitle + "]]";
-  // insertText participates in the native textarea undo history, unlike assigning .value.
-  // Leave the draft untouched if the browser cannot provide this operation.
-  if (!document.execCommand("insertText", false, text)) {
-    editor.setSelectionRange(searchSelection.start, searchSelection.end, searchSelection.direction);
+  if (!richEditor.insertReference(range, text)) {
+    richEditor.restoreSelection(searchSelection.selection);
     $("capture-message").hidden = false;
     $("capture-message").dataset.error = "true";
     $("capture-message").textContent = "Your browser could not insert a reference. Type " + text + " in the Markdown body.";
     return;
   }
-  state.editor.input(editor.value);
-  autoSizeNoteEditor();
+  state.editor.input(richEditor.getMarkdown());
 }
 
 showPage(initialEntry.url);

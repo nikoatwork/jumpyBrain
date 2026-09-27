@@ -1,5 +1,8 @@
+import { readFileSync } from "node:fs";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
 import { notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
+
+const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
 
 export function graphPageHtml(nonce: string): string {
   if (!/^[A-Za-z0-9_-]+$/.test(nonce)) throw new Error("graph page nonce must be base64url-safe");
@@ -243,6 +246,7 @@ ${notesMarkup}
   ${notesViews}
 </main>
 <script nonce="${nonce}">
+${lexicalBundle}
 const $ = (id) => document.getElementById(id);
 const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const apiKeyInput = $("api-key");
@@ -258,10 +262,14 @@ $("reload").addEventListener("click", loadGraph);
 for (const id of ["query", "focus", "depth", "include-unresolved", "include-orphans"]) $(id).addEventListener("change", loadGraph);
 for (const id of ["query", "focus"]) $(id).addEventListener("keydown", (event) => { if (event.key === "Enter") loadGraph(); });
 $("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
-$("note-editor").addEventListener("input", () => {
-  if (!state.editor) return;
-  state.editor.input($("note-editor").value);
-  autoSizeNoteEditor();
+const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
+  onChange: (markdown) => state.editor?.input(markdown),
+  onReference: () => openReferenceSearch(),
+  onError: (error) => {
+    $("capture-message").hidden = false;
+    $("capture-message").dataset.error = "true";
+    $("capture-message").textContent = "Editor error. Keep this page open and copy your draft before reloading. " + error.message;
+  },
 });
 $("note-editor").addEventListener("blur", () => {
   if (state.editor) state.editor.flush();
@@ -752,15 +760,6 @@ function isValidMemoryDocumentId(value) {
   return typeof value === "string" && ${MEMORY_DOCUMENT_ID_PATTERN}.test(value);
 }
 
-function autoSizeNoteEditor() {
-  const textarea = $("note-editor");
-  const panel = $("note-panel");
-  const scroll = panel.scrollTop;
-  textarea.style.height = "0px";
-  textarea.style.height = Math.max(280, textarea.scrollHeight) + "px";
-  panel.scrollTop = scroll;
-}
-
 function queueGraphLayout(delay) {
   if (!state.graph || state.view !== "graph") return;
   if (state.layoutTimer) window.clearTimeout(state.layoutTimer);
@@ -836,7 +835,7 @@ svg.addEventListener("pointerup", () => { state.dragging = null; });
 $("zoom-in").addEventListener("click", () => { state.scale = Math.min(4, state.scale * 1.2); updateViewport(); });
 $("zoom-out").addEventListener("click", () => { state.scale = Math.max(.2, state.scale / 1.2); updateViewport(); });
 $("reset-view").addEventListener("click", () => { state.pan = { x: 0, y: 0 }; state.scale = 1; updateViewport(); });
-window.addEventListener("resize", () => { queueGraphLayout(80); if (state.view === "note") autoSizeNoteEditor(); });
+window.addEventListener("resize", () => queueGraphLayout(80));
 function updateViewport() { $("viewport").setAttribute("transform", "translate(" + state.pan.x + " " + state.pan.y + ") scale(" + state.scale + ")"); }
 
 ${notesScript}
