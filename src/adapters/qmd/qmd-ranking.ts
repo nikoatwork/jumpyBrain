@@ -1,6 +1,39 @@
-import { isDreamDocument } from "../../core/retrieval-policy/index.js";
+import path from "node:path";
+import { isDreamDocument, isSourceFocusedQuery } from "../../core/retrieval-policy/index.js";
 import type { IndexedDocument, RetrievalDepth, SearchResult } from "../../types.js";
 import { tokenize } from "./qmd-query.js";
+
+/** Preserve punctuation: C++ and C are different titles. Never infer a body heading. */
+export function normalizeSearchTitle(value: string): string {
+  return value.normalize("NFKC").trim().replace(/\s+/gu, " ").toLowerCase().normalize("NFC");
+}
+
+function searchTitle(document: IndexedDocument): { title: string; fallback: boolean } {
+  const title = document.frontmatter.title;
+  if (typeof title === "string" && title.trim()) return { title, fallback: false };
+  return { title: path.posix.basename(document.relativePath).replace(/\.md$/i, ""), fallback: true };
+}
+
+export function isExactTitleMatch(query: string, document: IndexedDocument): boolean {
+  const { title, fallback } = searchTitle(document);
+  const normalized = normalizeSearchTitle(query);
+  if (!normalized) return false;
+  if (!fallback) return normalized === normalizeSearchTitle(title);
+  // Filename-only notes accept the stem, its .md spelling, and space-separated slugs.
+  return normalizeSearchTitle(normalized.replace(/\.md$/i, "").replace(/[-_]+/g, " "))
+    === normalizeSearchTitle(title.replace(/[-_]+/g, " "));
+}
+
+export function titleMatchBoostFor(query: string, document: IndexedDocument): number {
+  // A separate navigation tier: even a supplement with QMD=0 and the shallow
+  // session penalty outranks the maximum possible non-exact combined score (<3.1).
+  if (isExactTitleMatch(query, document)) return 4;
+  const terms = [...new Set(tokenize(query))];
+  if (!terms.length) return 0;
+  const words = new Set(tokenize(searchTitle(document).title));
+  const coverage = terms.filter((term) => words.has(term)).length / terms.length;
+  return coverage >= 0.5 ? 0.2 * coverage : 0;
+}
 
 export function exactBoost(query: string, text: string): number {
   const lower = text.toLowerCase();
@@ -16,12 +49,12 @@ export function metadataBoostFor(query: string, metadata: Record<string, unknown
   return Math.min(0.15, matches * 0.03);
 }
 
-export function temporalBoostFor(query: string, metadata: Record<string, unknown>, stats: { min: number; max: number } | undefined): number {
+export function temporalBoostFor(query: string, metadata: Record<string, unknown>, stats: { min: number; max: number } | undefined, relevance = 0): number {
   const time = documentTime(metadata);
   if (!stats || time === undefined) return 0;
 
   const intent = temporalIntent(query);
-  const recency = stats.max === stats.min ? 0.5 : (time - stats.min) / (stats.max - stats.min);
+  const recency = stats.max === stats.min ? 0.5 : Math.max(0, Math.min(1, (time - stats.min) / (stats.max - stats.min)));
 
   if (intent.anchorDirection === "after") {
     if (time <= intent.anchorTime) return 0;
@@ -33,9 +66,13 @@ export function temporalBoostFor(query: string, metadata: Record<string, unknown
     return boundedTemporalBoost(0.06 + (1 - recency) * 0.06);
   }
 
-  // Deferred intentionally: relative anchors such as "after the refactor", cross-root
-  // filtering, timelines, and session/file diversity. This layer only reranks the
-  // QMD-matched candidate set with small deterministic boosts.
+  if (!intent.wantsRecent && !intent.wantsOld) {
+    // Do not turn a historical, date-scoped, or unresolved relative-time query
+    // into a request for new evidence. These remain ranking hints, not filters.
+    if (isSourceFocusedQuery(query) || /\b(?:after|before|since|until|during|as of|past|previous|old)\b/i.test(query)) return 0;
+    if (stats.max === stats.min || !Number.isFinite(relevance)) return 0;
+    return 0.18 * recency * Math.max(0, Math.min(1, relevance));
+  }
   if (intent.wantsRecent === intent.wantsOld) return 0;
   if (stats.max === stats.min) return 0.05;
   return boundedTemporalBoost((intent.wantsOld ? 1 - recency : recency) * 0.12);
@@ -70,11 +107,11 @@ export function dateStats(documents: IndexedDocument[]): { min: number; max: num
 }
 
 export function documentTime(metadata: Record<string, unknown>): number | undefined {
-  // Prefer an explicit event/session date when present; note and wrapup memories that
-  // only have write timestamps still order by updated_at/created_at.
-  // A newly synthesized map is not new evidence. Without an explicit evidence
-  // date it has no temporal ranking signal (including in candidate date stats).
-  const value = metadata.dream === true ? metadata.date : metadata.date ?? metadata.updated_at ?? metadata.created_at;
+  // Evidence date wins; otherwise creation dates ordinary notes. updated_at and
+  // filesystem mtime do not date claims: metadata-only edits must not rejuvenate
+  // evidence. Invalid explicit dates stay undated instead of silently falling back.
+  // A synthesized map needs an explicit evidence date, never its write timestamp.
+  const value = metadata.dream === true ? metadata.date : metadata.date ?? metadata.created_at;
   return parseIsoLikeTime(value);
 }
 
@@ -110,7 +147,9 @@ function parseIsoLikeTime(value: unknown): number | undefined {
     return normalized.getUTCFullYear() === year && normalized.getUTCMonth() === month - 1 && normalized.getUTCDate() === day ? time : undefined;
   }
 
-  if (!/^\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}/i.test(text)) return undefined;
+  const timestamp = /^(\d{4}-\d{2}-\d{2})[t ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:z|[+-]\d{2}:?\d{2})?$/i.exec(text);
+  if (!timestamp || parseIsoLikeTime(timestamp[1]) === undefined
+    || Number(timestamp[2]) > 23 || Number(timestamp[3]) > 59 || Number(timestamp[4] ?? 0) > 59) return undefined;
   const normalizedText = /(?:z|[+-]\d{2}:?\d{2})$/i.test(text) ? text : `${text.replace(" ", "T")}Z`;
   const time = Date.parse(normalizedText);
   return Number.isFinite(time) ? time : undefined;

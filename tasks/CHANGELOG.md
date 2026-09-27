@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-09-27 — Title-first shared search
+
+- Prioritized exact titles across CLI and Cmd+K search, recovered omitted title matches, and favored newer relevant evidence without treating metadata edits as freshness.
+
 ## 2026-09-27 — Clearer quick capture
 
 - Made New note the primary home action, added Cmd/Ctrl+Enter capture, and replaced timestamp titles with readable, server-numbered daily names.

@@ -23,6 +23,7 @@ export type RetrievalDepth = "shallow" | "normal" | "deep";
 export interface ScoreBreakdown {
   qmdScore: number;
   exactMatchBoost: number;
+  titleMatchBoost?: number;
   metadataBoost: number;
   temporalRelevance?: number;
   memoryStrength?: number;

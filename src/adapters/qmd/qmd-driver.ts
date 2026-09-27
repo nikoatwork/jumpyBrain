@@ -11,6 +11,8 @@ import {
   diversifyResults,
   dreamRelevance,
   exactBoost,
+  isExactTitleMatch,
+  titleMatchBoostFor,
   memoryStrengthBoost,
   metadataBoostFor,
   provenanceConfidenceBoost,
@@ -80,6 +82,17 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
       return document && isDreamDocument(document);
     }));
   }
+  // Exact navigation candidates come from already-loaded canonical metadata,
+  // independently of QMD's body-heavy cutoff. No extra QMD calls or global reads.
+  const candidateFiles = new Set(candidates.flatMap((candidate) => {
+    const document = candidate.file && (documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file)));
+    return document ? [document.relativePath] : [];
+  }));
+  const titleDocuments = manifest.documents
+    .filter((document) => !candidateFiles.has(document.relativePath) && isExactTitleMatch(query, document))
+    .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+    .slice(0, 24);
+  candidates.push(...titleDocuments.map((document) => ({ file: document.relativePath, score: 0 })));
   candidates.sort((a, b) => b.score - a.score);
   const candidateDocuments = matchedCandidateDocuments(candidates, documents);
   const temporalStats = dateStats(candidateDocuments);
@@ -91,14 +104,22 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
     const document = documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file));
     if (!document) continue;
 
-    const repaired = await resultSnippet(document, query, {
-      lineStart: candidate.lineStart ?? document.bodyStartLine,
-      lineEnd: candidate.lineEnd ?? candidate.lineStart ?? document.bodyStartLine,
-      snippet: candidate.snippet ?? "",
-    });
+    let repaired;
+    try {
+      repaired = await resultSnippet(document, query, {
+        lineStart: candidate.lineStart ?? document.bodyStartLine,
+        lineEnd: candidate.lineEnd ?? candidate.lineStart ?? document.bodyStartLine,
+        snippet: candidate.snippet ?? "",
+      });
+    } catch (error) {
+      // An index can briefly outlive a deleted/renamed canonical note.
+      if (["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) continue;
+      throw error;
+    }
 
-    if (!repaired.snippet) continue;
-    if (candidate.dreamSupplement && dreamRelevance(query, repaired.snippet, document.frontmatter, clampScore(candidate.score)) === 0) continue;
+    const exactTitle = isExactTitleMatch(query, document);
+    if (!repaired.snippet && !exactTitle) continue;
+    if (candidate.dreamSupplement && !exactTitle && dreamRelevance(query, repaired.snippet, document.frontmatter, clampScore(candidate.score)) === 0) continue;
     const id = `qmd-${stableResultId(document.relativePath, repaired.lineStart, repaired.snippet)}`;
     if (seen.has(id)) continue;
     seen.add(id);
@@ -116,7 +137,10 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
     }));
   }
 
-  return diversifyResults(results.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id)), isSourceFocusedQuery(query) ? "deep" : depth).slice(0, limit);
+  return diversifyResults(results.sort((a, b) => b.score - a.score
+    || a.provenance.file.localeCompare(b.provenance.file)
+    || a.provenance.lineStart - b.provenance.lineStart
+    || a.id.localeCompare(b.id)), isSourceFocusedQuery(query) ? "deep" : depth).slice(0, limit);
 }
 
 /** Copies are derived snapshots; all result provenance still addresses originals. */
@@ -206,8 +230,10 @@ function toSearchResult(options: {
     metadata: options.document.frontmatter,
   });
   const exactMatchBoost = exactBoost(options.query, options.snippet);
+  const titleMatchBoost = titleMatchBoostFor(options.query, options.document);
   const metadataBoost = metadataBoostFor(options.query, options.document.frontmatter);
-  const temporalRelevance = temporalBoostFor(options.query, options.document.frontmatter, options.temporalStats);
+  const relevance = dreamRelevance(options.query, options.snippet, options.document.frontmatter, clampScore(options.candidateScore));
+  const temporalRelevance = temporalBoostFor(options.query, options.document.frontmatter, options.temporalStats, relevance);
   const memoryStrength = memoryStrengthBoost(options.document.frontmatter);
   const provenanceConfidence = provenanceConfidenceBoost(provenance);
   const qmdScore = clampScore(options.candidateScore);
@@ -217,9 +243,8 @@ function toSearchResult(options: {
   if (isDreamDocument(options.document) && isSourceFocusedQuery(options.query)) {
     depthPolicy.boost = Math.min(0.1, depthPolicy.boost);
   }
-  const dreamBoost = dreamBoostFor(options.document, options.depth, options.query,
-    dreamRelevance(options.query, options.snippet, options.document.frontmatter, qmdScore));
-  const finalScore = qmdScore + exactMatchBoost + metadataBoost + temporalRelevance + memoryStrength + provenanceConfidence + depthPolicy.boost + dreamBoost;
+  const dreamBoost = dreamBoostFor(options.document, options.depth, options.query, relevance);
+  const finalScore = qmdScore + exactMatchBoost + titleMatchBoost + metadataBoost + temporalRelevance + memoryStrength + provenanceConfidence + depthPolicy.boost + dreamBoost;
 
   return {
     id: options.id,
@@ -231,6 +256,7 @@ function toSearchResult(options: {
     scoreBreakdown: {
       qmdScore: round(qmdScore),
       exactMatchBoost: round(exactMatchBoost),
+      titleMatchBoost: round(titleMatchBoost),
       metadataBoost: round(metadataBoost),
       temporalRelevance: round(temporalRelevance),
       memoryStrength: round(memoryStrength),
