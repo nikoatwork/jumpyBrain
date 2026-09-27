@@ -400,11 +400,12 @@ export async function routeRequest(context: { request: IncomingMessage; response
         write: url.pathname === HTTP_MEMORY_ROUTES.notes
           ? {
               kind: "note",
+              dailyDate: parsedBody.dailyDate,
               draft: {
-                type: stringField(parsedBody, "type"),
+                type: parsedBody.dailyDate === undefined ? stringField(parsedBody, "type") : parsedBody.type,
                 dream: optionalBooleanField(parsedBody, "dream"),
-                title: stringField(parsedBody, "title"),
-                body: stringField(parsedBody, "body"),
+                title: parsedBody.dailyDate === undefined ? stringField(parsedBody, "title") : parsedBody.title,
+                body: parsedBody.dailyDate === undefined ? stringField(parsedBody, "body") : parsedBody.body,
                 tags: tagsField(parsedBody),
               },
             }

@@ -8,7 +8,7 @@
 - CLI creation uses body-only stdin: `jumpybrain remember --root <root> --type page --dream --title "Topic map" < body.md`. `note` is the retired command name, and leading frontmatter in stdin is body text, not creation metadata. Remote callers use the same draft through the notes POST route.
 - Local CLI `remember` indexes immediately; app writers do not. Remote creation and local/remote document updates report stale derived state. After successful edits, run `jumpybrain index` once for the selected root/target before fresh retrieval; there is no dream completion transaction.
 - Keep remote append-only server writes in `remote-writer.ts`; import them directly from server-memory, not through the local writing barrel.
-- Allow blank (including whitespace-only) bodies only for remote `note` creation, supporting browser quick capture through the existing POST workflow. The caller supplies the date/time title; the writer still creates a title heading, unique document ID, and normal metadata. Findings, decisions, preferences, session wrapups, and local CLI writes retain their existing body validation.
+- Allow blank (including whitespace-only) bodies only for remote `note` creation, supporting browser quick capture through the existing POST workflow. The caller supplies the title (server-memory allocates numbered daily titles for browser quick capture); the writer still creates a title heading, unique document ID, and normal metadata. Findings, decisions, preferences, session wrapups, and local CLI writes retain their existing body validation.
 
 ## Non-responsibilities
 

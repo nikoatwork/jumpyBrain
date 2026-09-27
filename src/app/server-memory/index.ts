@@ -2,7 +2,7 @@ import { findMemoryRoot, initializeMemoryRoot, memoryRootStatus } from "../../co
 import { graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
 import { processMemory } from "../processing/index.js";
 import { rememberMemory, writeSessionWrapup, type WrapupDraft, type WrapupWriteResult } from "../writing/index.js";
-import { writeRemoteMemoryNote, writeRemoteSessionWrapup, type RemoteMemoryNoteDraft, type RemoteWrapupDraft } from "../writing/remote-writer.js";
+import { writeRemoteMemoryNote, writeRemoteSessionWrapup, type RemoteWrapupDraft } from "../writing/remote-writer.js";
 import type {
   DreamAbandonResult,
   DreamBatch,
@@ -31,6 +31,7 @@ import type {
   SearchMemoryResult,
 } from "../../types.js";
 import { createRemoteIndexRunner, type RemoteIndexRunner } from "./auto-index.js";
+import { prepareServerNote, type ServerMemoryNoteDraft } from "./daily-note.js";
 import { withIdempotency, type IdempotencyResult } from "./idempotency.js";
 import { markRemoteIndexStale, readRemoteIndexState, type RemoteIndexState } from "./state.js";
 import { getDreamWindow as getServerDreamWindow, abandonDreamBatch as abandonServerDreamBatch, createDreamBatch as createServerDreamBatch, getDreamBatch as getServerDreamBatch, getDreamStatus as getServerDreamStatus, completeDreamBatch as completeServerDreamBatch } from "./dream.js";
@@ -290,7 +291,7 @@ export async function writeServerMemoryWithIdempotency(options: {
   path: string;
   body: Record<string, unknown>;
   write:
-    | { kind: "note"; draft: RemoteMemoryNoteDraft }
+    | { kind: "note"; draft: ServerMemoryNoteDraft; dailyDate?: unknown }
     | { kind: "wrapup"; draft: RemoteWrapupDraft };
 }): Promise<IdempotencyResult<RemoteMemoryWritePacket>> {
   return withIdempotency({
@@ -301,7 +302,7 @@ export async function writeServerMemoryWithIdempotency(options: {
     body: options.body,
     create: async () => {
       const writeResult = options.write.kind === "note"
-        ? await writeRemoteMemoryNote(options.root, options.write.draft)
+        ? await writeRemoteMemoryNote(options.root, await prepareServerNote(options.root, options.write.draft, options.write.dailyDate))
         : await writeRemoteSessionWrapup(options.root, options.write.draft);
       const index = await markRemoteIndexStale(options.root);
       return { memory: "all", target: "remote", ...writeResult, index };

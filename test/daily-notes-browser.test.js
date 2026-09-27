@@ -36,25 +36,37 @@ test("entire inline browser script parses and daily controls are available", () 
   for (const control of ["home-new", "new-note", "insert-reference", "capture-message", "reference-help"]) assert.match(html, new RegExp('id="' + control + '"'));
 });
 
-test("new notes are button-only and browser shortcuts remain untouched", () => {
-  let opened = 0;
+test("Cmd/Ctrl+Enter creates notes while browser shortcuts remain untouched", () => {
+  let opened = 0, created = 0;
+  const searchDialog = { open: false }, connectionDialog = { open: false };
   const { handleNoteShortcut } = runtime(["handleNoteShortcut"], {
-    searchDialog: { open: false },
-    openSearch() { opened++; },
-    closeSearch() { throw new Error("unexpected search close"); },
-    newNote() { throw new Error("new notes must be created through buttons"); },
+    searchDialog, connectionDialog,
+    openSearch() { opened++; }, closeSearch() {}, newNote() { created++; },
   });
+  const untouched = { preventDefault() { throw new Error("reserved/inactive key intercepted"); } };
   for (const modifier of ["ctrlKey", "metaKey"]) {
-    for (const [key, shiftKey] of [["n", false], ["N", true], ["Enter", true]]) {
-      handleNoteShortcut({ key, shiftKey, [modifier]: true, preventDefault() { throw new Error("browser shortcut intercepted"); } });
+    for (const [key, shiftKey] of [["n", false], ["t", false], ["N", true], ["Enter", true]]) {
+      handleNoteShortcut({ key, shiftKey, [modifier]: true, ...untouched });
     }
-    let prevented = false;
-    handleNoteShortcut({ key: "k", [modifier]: true, preventDefault() { prevented = true; } });
-    assert.equal(prevented, true, "search shortcut still works");
+    for (const key of ["k", "Enter"]) {
+      let prevented = false, stopped = false;
+      handleNoteShortcut({ key, [modifier]: true, preventDefault() { prevented = true; }, stopPropagation() { stopped = true; } });
+      assert.equal(prevented, true); assert.equal(stopped, true, "handled chord never reaches editor Enter handling");
+    }
+    for (const flags of [{ isComposing: true }, { altKey: true }, { shiftKey: true }, { defaultPrevented: true }]) {
+      handleNoteShortcut({ key: "Enter", [modifier]: true, ...flags, ...untouched });
+    }
+    handleNoteShortcut({ key: "Enter", [modifier]: true, repeat: true, preventDefault() {}, stopPropagation() {} });
   }
-  assert.equal(opened, 2);
+  for (const dialog of [searchDialog, connectionDialog]) {
+    dialog.open = true;
+    handleNoteShortcut({ key: "Enter", metaKey: true, ...untouched });
+    dialog.open = false;
+  }
+  handleNoteShortcut({ key: "Enter", ...untouched });
+  assert.equal(opened, 2); assert.equal(created, 2, "repeat/composition/dialogs never create extra notes");
   const html = graphPageHtml("dailytest");
-  assert.doesNotMatch(html, /new-shortcut|Cmd\/Ctrl\+N|Cmd\/Ctrl\+Shift\+Enter/);
+  assert.match(html, /class="new-shortcut"/);
   assert.match(script, /\["new-note", "home-new"\].*addEventListener\("click"/);
 });
 
@@ -64,8 +76,9 @@ test("dated capture uses local calendar getters across midnight, not UTC", () =>
   const after = new Date(2026, 8, 20, 0, 0, 0, 1);
   // Trap accidental UTC formatting even on a UTC test host.
   before.toISOString = after.toISOString = () => { throw new Error("must use local date"); };
-  assert.equal(datedNoteDraft(before).title, "2026-09-19 23:59:59.999");
-  assert.equal(datedNoteDraft(after).title, "2026-09-20 00:00:00.001");
+  assert.equal(datedNoteDraft(before).dailyDate, "2026-09-19");
+  assert.equal(datedNoteDraft(after).dailyDate, "2026-09-20");
+  assert.equal(datedNoteDraft(before).title, undefined, "server chooses the numbered title");
   assert.equal(datedNoteDraft(before).body, "");
   assert.equal(datedNoteDraft(before).type, "note");
 });
@@ -95,7 +108,7 @@ test("capture coalesces concurrent creates and retries the identical body/key af
   capture.complete();
   const next = capture.create();
   assert.equal(requests[2].key, "attempt-2");
-  assert.notEqual(requests[2].draft.title, requests[0].draft.title);
+  assert.equal(requests[2].draft.dailyDate, requests[0].draft.dailyDate, "same-day requests get distinct server numbers, not timestamps");
   requests[2].resolve({ id }); await next;
 });
 

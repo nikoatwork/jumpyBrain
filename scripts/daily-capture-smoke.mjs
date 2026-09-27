@@ -48,7 +48,7 @@ try {
     await run(`${label}-dirty-save-guard`, (page) => validateDirtyGuard(page, label), mobile);
     await run(`${label}-auth-retry`, (page) => validateAuthRetry(page, label), mobile);
   }
-  await run("desktop-button-only-capture", validateButtonOnlyCapture);
+  await run("desktop-buttons-and-shortcut-capture", validateCaptureShortcuts);
   await run("desktop-capture-search-roundtrip", validateSearchRoundtrip);
   console.log(`daily capture browser smoke: ${failures.length ? `FAIL (${failures.length})` : "PASS"}`);
   if (failures.length) process.exitCode = 1;
@@ -173,12 +173,14 @@ async function validateCreation(page, label) {
   dates.push(await localDay(page));
   assert.equal(requests[0].auth, `Bearer ${apiKey}`);
   assert.ok(requests[0].key, "authenticated creation carries an idempotency key");
-  assert.deepEqual(Object.keys(requests[0].draft).sort(), ["body", "title", "type"]);
+  assert.deepEqual(Object.keys(requests[0].draft).sort(), ["body", "dailyDate", "type"]);
+  assert.ok(dates.includes(requests[0].draft.dailyDate));
   assert.equal(requests[0].draft.body, "");
   assert.equal(requests[0].draft.type, "note");
-  assert.match(result.title, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/);
+  assert.match(result.title, /^\d{4}-\d{2}-\d{2}_note_[1-9]\d*$/);
   assert.ok(dates.includes(result.title.slice(0, 10)), "title uses browser-local date");
   assert.equal(await page.locator("#note-title").innerText(), result.title);
+  assert.equal(await page.locator("#note-editor h1").innerText(), result.title, "underscores in numbered titles must remain a rendered heading");
   const markdown = await canonical(result.file);
   assert.ok(markdown.includes(result.id));
   assert.match(markdown, /created_at: ["']?\d{4}-\d{2}-\d{2}T/);
@@ -255,7 +257,7 @@ async function validateLostResponse(page, label) {
   assert.equal((await noteFiles()).length, before.length + 1, "lost-response retry must not duplicate Markdown");
 }
 
-async function validateButtonOnlyCapture(page) {
+async function validateCaptureShortcuts(page) {
   await home(page);
   const requests = observeCreates(page);
   // Synthetic events verify handlers without opening actual browser windows.
@@ -272,16 +274,41 @@ async function validateButtonOnlyCapture(page) {
   });
   assert.deepEqual(intercepted, [false, false, false, false]);
   await page.waitForTimeout(250);
-  assert.equal(requests.length, 0, "keyboard shortcuts must not create notes");
+  assert.equal(requests.length, 0, "reserved/shifted shortcuts must not create notes");
+  let previous;
   for (const selector of ["#home-new", "#new-note"]) {
     const before = requests.length;
-    await create(page, selector);
+    previous = await create(page, selector);
     assert.equal(requests.length, before + 1, "each button creates a note");
     await page.locator("#new-note").dispatchEvent("click", { detail: 2 });
     await page.waitForTimeout(100);
     assert.equal(requests.length, before + 1, "late second click must remain suppressed");
   }
   assert.equal(new Set(requests.map((request) => request.key)).size, 2, "independent captures get fresh keys");
+  await appendEditorText(page, "Unsaved before keyboard capture.");
+  const draft = await editorMarkdown(page);
+  const response = page.waitForResponse((r) => new URL(r.url()).pathname === "/memories/all/notes");
+  await page.keyboard.press("Meta+Enter");
+  const created = await (await response).json();
+  await opened(page, created.id);
+  assert.equal(requests.length, 3);
+  assert.ok((await canonical(previous.file)).endsWith(draft), "shortcut saves the old draft without inserting a newline");
+  assert.match(created.title, /^\d{4}-\d{2}-\d{2}_note_[1-9]\d*$/);
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, repeat: true, bubbles: true, cancelable: true })));
+  await page.locator("#open-search").click();
+  await page.locator("#note-search-input").fill("");
+  await page.keyboard.press("Meta+Enter");
+  await page.keyboard.press("Escape");
+  await page.locator("#open-connection").click();
+  await page.evaluate(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true, bubbles: true, cancelable: true })));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  assert.equal(requests.length, 3, "repeats and dialogs do not create notes");
+  await page.locator("#home-link").click();
+  const fromHome = page.waitForResponse((r) => new URL(r.url()).pathname === "/memories/all/notes");
+  await page.keyboard.press("Control+Enter");
+  await opened(page, (await (await fromHome).json()).id);
+  assert.equal(requests.length, 4, "Ctrl+Enter also works from home");
 }
 
 async function validateReferences(page, label) {
@@ -398,7 +425,10 @@ async function validateDirtyGuard(page, label) {
   await saveState(page, "Save failed");
   await page.locator("#new-note").click();
   await feedback(page, /Could not leave the current note/);
-  assert.equal(requests.length, 0, "failed dirty save prevents POST creation");
+  await page.locator("#note-editor").focus();
+  await page.keyboard.press("Control+Enter");
+  await feedback(page, /Could not leave the current note/);
+  assert.equal(requests.length, 0, "failed dirty save prevents button and shortcut creation");
   assert.equal(page.url(), url);
   assert.equal(await editorMarkdown(page), draft);
   assert.ok(puts >= 1);

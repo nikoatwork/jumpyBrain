@@ -69,8 +69,16 @@ export async function replaceEditorText(page, text) {
   });
   const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
   await page.keyboard.press(modifier + "+a");
-  await page.evaluate(() => new Promise(requestAnimationFrame));
-  await page.keyboard.insertText(text);
+  // selectionchange is a separate browser task; one animation frame is not a
+  // reliable barrier under load. Wait until Lexical observes Select All.
+  await page.waitForFunction(() => !document.querySelector("#note-editor").textContent.length || richEditor.captureSelection()?.isCollapsed() === false);
+  // Use the browser paste path rather than CDP insertText: Chromium can report
+  // stale beforeinput target ranges immediately after Select All.
+  await page.locator("#note-editor").evaluate((element, value) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData("text/plain", value);
+    element.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData }));
+  }, text);
 }
 
 export async function appendEditorText(page, text) {

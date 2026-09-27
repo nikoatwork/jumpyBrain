@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-09-27 — Clearer quick capture
+
+- Made New note the primary home action, added Cmd/Ctrl+Enter capture, and replaced timestamp titles with readable, server-numbered daily names.
+
 ## 2026-09-27 — WYSIWYG Markdown editing
 
 - Added locally bundled Lexical editing for headings, bold, italic, and page references, preserving autosave and unsupported Markdown as visible literal text.

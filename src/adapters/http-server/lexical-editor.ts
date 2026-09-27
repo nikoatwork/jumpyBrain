@@ -187,7 +187,7 @@ export function createNoteEditor(element: HTMLElement, options: {
             node = $generateNodesFromMarkdownString(line, syntax, true)[0] || $createParagraphNode();
             // Unmatched delimiters may belong to multiline emphasis or unsupported
             // syntax: leave their whole line literal rather than half-interpreting it.
-            if ($isElementNode(node) && node.getAllTextNodes().some((text) => !(text instanceof PageReferenceNode) && /[*_]/.test(text.getTextContent()))) {
+            if ($isElementNode(node) && node.getAllTextNodes().some((text) => !(text instanceof PageReferenceNode) && /\*|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/u.test(text.getTextContent()))) {
               node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
             }
           }

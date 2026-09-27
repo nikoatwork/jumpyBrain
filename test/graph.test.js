@@ -262,7 +262,8 @@ test("notes shell replaces the slide-in with an empty home and full-page raw edi
   const html = graphPageHtml("testnonce");
   assert.match(html, /<body data-view="home">/);
   assert.match(html, /id="home-search"[^>]*aria-label="Search notes"/);
-  assert.match(html, /to enter your <strong>jumpyBrain/);
+  assert.match(html, /What's on your mind\?/);
+  assert.match(html, /Search your memory/);
   assert.match(html, /<section id="note-panel"[^>]*hidden>/);
   for (const testid of ["graph-note-title", "graph-note-editor", "graph-note-save-state", "graph-note-retry"]) {
     assert.equal(html.includes(`data-testid="${testid}"`), true, `${testid} must be present`);

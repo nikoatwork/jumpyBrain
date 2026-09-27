@@ -46,6 +46,7 @@ export const requiredLocalPackFiles = Object.freeze([
   ...moduleFiles("app", "processing", "ensure-ids"),
   ...moduleFiles("app", "processing", "processor"),
   ...moduleFiles("app", "server-memory", "index"),
+  ...moduleFiles("app", "server-memory", "daily-note"),
   ...moduleFiles("app", "server-memory", "auto-index"),
   ...moduleFiles("app", "server-memory", "dream"),
   ...moduleFiles("app", "server-memory", "state"),

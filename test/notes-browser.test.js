@@ -77,6 +77,16 @@ test("recent notes cancel stale loads and recover from auth, network, and malfor
   assert.equal(changes.length, count);
 });
 
+test("home puts a prominent capture action before secondary search", () => {
+  const html = graphPageHtml("testnonce");
+  assert.ok(html.indexOf('id="home-new"') < html.indexOf('id="home-search"'));
+  assert.match(html, /id="home-new" class="home-action" aria-label="New note"/);
+  assert.match(html, /#home-new \{ background: var\(--ink\);[^}]+color: #fff/);
+  assert.match(html, /#home-search \{[^}]+background: transparent/);
+  assert.match(html, /class="new-shortcut" aria-hidden="true"/);
+  assert.match(html, /setAttribute\("aria-keyshortcuts"/);
+});
+
 test("note view uses white borderless proportional editing with an accessible name field", () => {
   const html = graphPageHtml("testnonce");
   assert.match(html, /body\[data-view="note"\] \{ background: #fff;/);

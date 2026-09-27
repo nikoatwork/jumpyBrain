@@ -10,6 +10,14 @@
 - Provide non-HTTP seams that tests and protocol adapters can call directly, including remote-safe graph packets that do not expose server filesystem paths.
 - Expose read-only stateless dream windows with remote-safe metadata (`target: "remote"`, `root: "remote:all"`) through `src/app/dream/`, without reading or writing legacy state. Keep old batch APIs operational with state paths under `.jumpybrain/remote/` for compatibility.
 
+## Daily quick capture
+
+- Note creation accepts optional `dailyDate` on the server write descriptor only, not the general remote writing draft. It must be a real browser-local `YYYY-MM-DD` date (years 0001–9999), with exactly `type: "note"`, a blank string body, and no explicit title. Invalid types, rollover dates, or conflicting titles are rejected in the app. Without `dailyDate`, explicit-title creation is unchanged.
+- Inside the idempotency create callback, scan fresh canonical Markdown across every bucket at the memory root (not retrieval `indexRoot`), including ID-less documents. Read frontmatter titles, never filenames, headings, QMD, or counters. Match rename normalization: NFKC, trim, lowercase, NFC.
+- Generate `YYYY-MM-DD_note_N`, starting at 1 or one above the maximum matching decimal suffix (including zero-padded imported suffixes). Gaps are not reused while a higher suffix exists; deleted/renamed-away maxima can be reused. Each date has an independent sequence. The existing writer supplies the same title heading. No existing files are renamed or migrated and no persistent counter is added.
+- Allocation and writing share the HTTP server's existing write queue. This prevents collisions among writes through **one server queue**, not across server processes or external filesystem edits. Direct app callers must serialize writes themselves. Existing legacy explicit-title writes may still introduce duplicates.
+- Idempotent replay bypasses allocation and retains the original title/ID/result; the original request body, including `dailyDate`, remains the conflict fingerprint. Changed-body reuse of a key conflicts. Existing idempotency is not a transaction spanning Markdown and its replay record (a crash between them remains a recovery limitation).
+
 ## Non-responsibilities
 
 - Do not parse HTTP requests, authenticate API keys, or choose HTTP status codes.

@@ -10,7 +10,15 @@ export const notesStyles = String.raw`
     .quiet-button:hover { background: var(--sage-100); color: var(--ink); }
     a:focus-visible, summary:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 3px; }
     .home { width: 100%; overflow: auto; padding: clamp(28px, 8vh, 80px) 24px 48px; text-align: center; }
-    .home-prompt { display: block; margin: 0 auto; }
+    .home-actions { width: min(100%, 560px); margin: 0 auto; text-align: left; }
+    .home-actions h1 { margin: 0 0 24px; font-size: clamp(24px, 4vw, 30px); line-height: 1.25; font-weight: 600; letter-spacing: -.035em; }
+    .home-action { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; text-align: left; font-size: 15px; }
+    .home-action-label { flex: 1; }
+    .home-action-icon { width: 20px; height: 20px; flex: 0 0 auto; }
+    #home-new { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
+    #home-new:hover { background: var(--forest-800); }
+    #home-search { margin-top: 10px; background: transparent; color: var(--ink-soft); }
+    #home-search:hover { background: var(--surface-hover); color: var(--ink); }
     .recent-notes { width: min(100%, 560px); margin: 40px auto 0; text-align: left; }
     .recent-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
     .recent-heading h2 { margin: 0; font-size: 13px; font-weight: 650; }
@@ -20,10 +28,9 @@ export const notesStyles = String.raw`
     .recent-link:hover { background: var(--sage-100); }
     .recent-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .recent-link time { flex-shrink: 0; color: var(--ink-soft); font-size: 12px; }
-    .home-prompt { border: 0; background: transparent; color: var(--ink-soft); padding: 24px 8px; border-radius: 8px; font-size: clamp(18px, 3vw, 25px); letter-spacing: -.035em; font-weight: 400; }
-    .home-prompt strong { font-weight: 650; color: var(--forest-950); }
     kbd { font: inherit; color: var(--ink); }
-    .home-prompt kbd { padding: 5px 9px; margin-right: 4px; border: 1px solid var(--line); border-radius: 7px; background: var(--white); }
+    .home-action kbd { flex-shrink: 0; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; font-weight: 400; color: inherit; }
+    #home-new kbd { border-color: rgba(255,255,255,.28); color: rgba(255,255,255,.85); }
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
     body[data-view="graph"] .app-nav { border-bottom: 1px solid var(--line); }
     main, body[data-view="graph"] main { flex: 1; height: auto; min-height: 0; }
@@ -50,7 +57,6 @@ export const notesStyles = String.raw`
     #note-save-error { color: #8b4434; font-size: 13px; }
     .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
     .capture-feedback[data-error="true"] { color: #8b4434; }
-    #home-new { justify-self: center; }
     #insert-reference { margin: 0 0 12px -10px; font-size: 12px; }
     button:disabled { cursor: wait; opacity: .65; }
     .save-state { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
@@ -134,8 +140,17 @@ export const notesMarkup = String.raw`
 
 export const notesViews = String.raw`
   <section id="home" class="home" aria-label="Your jumpyBrain">
-    <button id="home-search" class="home-prompt" aria-label="Search notes"><kbd class="shortcut">⌘K</kbd> to enter your <strong>jumpyBrain</strong></button>
-    <button id="home-new" class="quiet-button">New note for today</button>
+    <div class="home-actions">
+      <h1>What's on your mind?</h1>
+      <button id="home-new" class="home-action" aria-label="New note">
+        <svg class="home-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span class="home-action-label">New note</span><kbd class="new-shortcut" aria-hidden="true"></kbd>
+      </button>
+      <button id="home-search" class="home-action" aria-label="Search notes">
+        <svg class="home-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        <span class="home-action-label">Search your memory</span><kbd class="shortcut" aria-hidden="true"></kbd>
+      </button>
+    </div>
     <section class="recent-notes" aria-labelledby="recent-title">
       <div class="recent-heading"><h2 id="recent-title">Recent notes</h2><span>Latest first</span></div>
       <ul id="recent-list" aria-label="Recent notes"></ul>
@@ -414,10 +429,9 @@ function createPageNavigation(options) {
 }
 
 function datedNoteDraft(date) {
-  const pad = (value, width = 2) => String(value).padStart(width, "0");
+  const pad = (value) => String(value).padStart(2, "0");
   const day = date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
-  const time = pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds()) + "." + pad(date.getMilliseconds(), 3);
-  return { type: "note", title: day + " " + time, body: "" };
+  return { type: "note", dailyDate: day, body: "" };
 }
 
 // Keep the exact request/key after a lost response; retry must not create another note.
@@ -471,8 +485,16 @@ let searchMode = "navigate";
 let selectingResult = false;
 let reopenSearch = false;
 let previousKey = "";
-const shortcut = /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘K" : "Ctrl+K";
+const appleKeyboard = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+const shortcut = appleKeyboard ? "⌘K" : "Ctrl+K";
+const newShortcut = appleKeyboard ? "⌘Enter" : "Ctrl+Enter";
 for (const element of document.querySelectorAll(".shortcut")) element.textContent = shortcut;
+for (const element of document.querySelectorAll(".new-shortcut")) element.textContent = newShortcut;
+for (const id of ["home-new", "new-note"]) {
+  $(id).setAttribute("aria-keyshortcuts", appleKeyboard ? "Meta+Enter" : "Control+Enter");
+  $(id).title = "New note · " + newShortcut;
+}
+for (const id of ["home-search", "open-search"]) $(id).setAttribute("aria-keyshortcuts", appleKeyboard ? "Meta+K" : "Control+K");
 const noteSearch = createNoteSearch({
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
@@ -596,12 +618,21 @@ $("note-search-input").addEventListener("keydown", (event) => {
 });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));
 function handleNoteShortcut(event) {
-  if (!event.isComposing && !event.altKey && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+  if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey)) return;
+  if (event.key.toLowerCase() === "k") {
+    if (connectionDialog.open) return;
     event.preventDefault();
-    if (searchDialog.open) closeSearch(); else openSearch();
+    event.stopPropagation();
+    if (!event.repeat) { if (searchDialog.open) closeSearch(); else openSearch(); }
+  } else if (event.key === "Enter") {
+    if (searchDialog.open || connectionDialog.open) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (!event.repeat) newNote();
   }
 }
-document.addEventListener("keydown", handleNoteShortcut);
+// Capture before Lexical consumes Enter: creating a note must not insert a paragraph.
+document.addEventListener("keydown", handleNoteShortcut, true);
 
 function openConnection(fromSearch) {
   previousKey = apiKeyInput.value;
@@ -676,7 +707,7 @@ function showPage(url) {
     if (!state.graph) loadGraph(); else queueGraphLayout(0);
     $("query").focus();
   } else {
-    $("home-search").focus();
+    $("home-new").focus();
     recentNotes.load();
   }
 }
