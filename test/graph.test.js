@@ -304,7 +304,7 @@ test("notes editing stays in the HTTP shell with persistent rich editing and nat
   assert.match(html, /id="note-save-state"[^>]*role="status"[^>]*aria-live="polite"/);
   assert.match(html, /id="note-editor"[^>]*aria-label="Markdown note body"/);
   assert.match(html, /@media \(max-width: 680px\)[\s\S]*#note-editor/);
-  assert.match(html, /id="open-connection"[^>]*aria-label="Connection settings"/);
+  assert.match(html, /id="open-connection"[^>]*aria-label="Connect · Connection settings"/);
   assert.match(html, /id="connection" aria-labelledby="connection-title"/);
   assert.match(script, /persistentEditing: true/);
   assert.doesNotMatch(script, /state\.editor\.setEditing\(false\)/);
@@ -326,7 +326,8 @@ test("graph document transport centralizes optional Bearer auth and PUT precondi
   const script = pageScript();
   const requests = [];
   const ctx = {
-    apiKeyInput: { value: "secret" },
+    activeApiKey: "secret", credentialRevision: 0, connectionStatus: "checking",
+    renderConnection: () => {},
     fetch: async (url, options) => {
       requests.push({ url, options });
       return { ok: true, status: 200, json: async () => ({ newContentHash: "sha256:new" }) };
@@ -349,7 +350,7 @@ test("graph document transport centralizes optional Bearer auth and PUT precondi
   assert.equal(requests[0].options.headers["If-Match"], "sha256:old");
   assert.deepEqual(JSON.parse(requests[0].options.body), { content: "# Changed\n" });
 
-  ctx.apiKeyInput.value = "";
+  ctx.activeApiKey = "";
   await ctx.graphFetch("/memories/all/graph.json");
   assert.equal("Authorization" in requests[1].options.headers, false);
 });

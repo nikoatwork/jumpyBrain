@@ -258,6 +258,11 @@ if (hashKey) {
   history.replaceState(history.state, "", location.pathname + location.search);
 }
 
+// Keep the committed credential separate from edits in the settings dialog.
+let activeApiKey = apiKeyInput.value.trim();
+let credentialRevision = 0;
+let connectionStatus = activeApiKey ? "checking" : "disconnected";
+
 $("reload").addEventListener("click", loadGraph);
 for (const id of ["query", "focus", "depth", "include-unresolved", "include-orphans"]) $(id).addEventListener("change", loadGraph);
 for (const id of ["query", "focus"]) $(id).addEventListener("keydown", (event) => { if (event.key === "Enter") loadGraph(); });
@@ -294,12 +299,27 @@ function graphUrl() {
   return "/memories/all/graph.json?" + params.toString();
 }
 
-function graphFetch(url, options) {
+async function graphFetch(url, options) {
   const requestOptions = Object.assign({}, options || {});
   requestOptions.headers = Object.assign({}, requestOptions.headers || {});
-  const apiKey = apiKeyInput.value.trim();
-  if (apiKey) requestOptions.headers.Authorization = "Bearer " + apiKey;
-  return fetch(url, requestOptions);
+  const revision = credentialRevision;
+  if (activeApiKey) requestOptions.headers.Authorization = "Bearer " + activeApiKey;
+  try {
+    const response = await fetch(url, requestOptions);
+    if (revision === credentialRevision) {
+      if (response.status === 401 || response.status === 403) connectionStatus = "disconnected";
+      else if (response.ok) connectionStatus = "connected";
+      else if (connectionStatus === "checking") connectionStatus = "unavailable";
+      renderConnection();
+    }
+    return response;
+  } catch (error) {
+    if (revision === credentialRevision && error.name !== "AbortError") {
+      connectionStatus = "unavailable";
+      renderConnection();
+    }
+    throw error;
+  }
 }
 
 async function graphJson(url, options) {

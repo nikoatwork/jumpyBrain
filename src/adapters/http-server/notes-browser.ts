@@ -86,7 +86,9 @@ export const notesStyles = String.raw`
     #connection { padding: 24px; }
     #connection h2 { margin: 0 0 8px; font-size: 20px; }
     #connection p { color: var(--ink-soft); }
-    #connection label { display: block; margin: 20px 0; }
+    #connection label { display: block; margin: 20px 0 8px; }
+    #open-connection[data-state="connected"] { color: var(--forest-800); }
+    .connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
     #api-key { width: 100%; display: block; margin-top: 8px; font-size: 16px; }
     @media (max-width: 680px) {
       .app-nav { padding-inline: 12px; gap: 2px; }
@@ -110,7 +112,7 @@ export const notesMarkup = String.raw`
   <button id="new-note" class="quiet-button">New note</button>
   <button id="open-search" class="quiet-button" aria-label="Search notes">Search <kbd class="shortcut"></kbd></button>
   <a id="graph-link" class="quiet-button" href="/graph">Graph</a>
-  <button id="open-connection" class="quiet-button" aria-label="Connection settings">Connect</button>
+  <button id="open-connection" class="quiet-button" aria-label="Connect · Connection settings" aria-haspopup="dialog">Connect</button>
 </nav>
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">
@@ -132,8 +134,13 @@ export const notesMarkup = String.raw`
     <h2 id="connection-title">Connect to your memory</h2>
     <p>Use the access key for this server. It stays in this browser; only enter it on a server you trust.</p>
     <label>Access key<input id="api-key" data-testid="api-key" type="password" autocomplete="off" /></label>
-    <button class="button button-primary" type="submit">Connect</button>
-    <button id="close-connection" class="quiet-button" type="button">Cancel</button>
+    <button id="toggle-api-key" class="quiet-button" type="button" aria-controls="api-key" aria-pressed="false">Show key</button>
+    <p id="connection-message" role="status" aria-live="polite"></p>
+    <div class="connection-actions">
+      <button id="connection-submit" class="button button-primary" type="submit">Connect</button>
+      <button id="disconnect" class="quiet-button" type="button" hidden>Disconnect</button>
+      <button id="close-connection" class="quiet-button" type="button">Cancel</button>
+    </div>
   </form>
 </dialog>
 `;
@@ -484,7 +491,6 @@ let referenceSelection = null;
 let searchMode = "navigate";
 let selectingResult = false;
 let reopenSearch = false;
-let previousKey = "";
 const appleKeyboard = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
 const shortcut = appleKeyboard ? "⌘K" : "Ctrl+K";
 const newShortcut = appleKeyboard ? "⌘Enter" : "Ctrl+Enter";
@@ -634,8 +640,30 @@ function handleNoteShortcut(event) {
 // Capture before Lexical consumes Enter: creating a note must not insert a paragraph.
 document.addEventListener("keydown", handleNoteShortcut, true);
 
+function renderConnection() {
+  const connected = connectionStatus === "connected";
+  const label = connected ? "Connected" : connectionStatus === "checking" ? "Connecting…" : "Connect";
+  const button = $("open-connection");
+  button.textContent = label;
+  button.dataset.state = connectionStatus;
+  button.setAttribute("aria-label", label + " · Connection settings");
+  $("connection-title").textContent = connected ? "Connection settings" : "Connect to your memory";
+  $("connection-submit").textContent = connected ? "Update key" : "Connect";
+  $("disconnect").hidden = !activeApiKey;
+  $("connection-message").textContent = connected ? "Connected to this server."
+    : connectionStatus === "checking" ? "Checking your connection…"
+    : connectionStatus === "unavailable" ? "Could not reach the server. Retry connecting."
+    : activeApiKey ? "The access key was not accepted. Update it to reconnect." : "Not connected.";
+}
+function maskApiKey() {
+  apiKeyInput.type = "password";
+  $("toggle-api-key").textContent = "Show key";
+  $("toggle-api-key").setAttribute("aria-pressed", "false");
+}
 function openConnection(fromSearch) {
-  previousKey = apiKeyInput.value;
+  apiKeyInput.value = activeApiKey;
+  maskApiKey();
+  renderConnection();
   reopenSearch = fromSearch;
   if (searchDialog.open) closeSearch();
   connectionDialog.showModal();
@@ -644,20 +672,57 @@ function openConnection(fromSearch) {
 $("open-connection").addEventListener("click", () => openConnection(false));
 $("search-connect").addEventListener("click", () => openConnection(true));
 function closeConnection() {
-  apiKeyInput.value = previousKey;
+  apiKeyInput.value = activeApiKey;
+  maskApiKey();
   connectionDialog.close();
 }
 $("close-connection").addEventListener("click", closeConnection);
 connectionDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeConnection(); });
+$("toggle-api-key").addEventListener("click", () => {
+  const reveal = apiKeyInput.type === "password";
+  apiKeyInput.type = reveal ? "text" : "password";
+  $("toggle-api-key").textContent = reveal ? "Hide key" : "Show key";
+  $("toggle-api-key").setAttribute("aria-pressed", String(reveal));
+});
+function setConnectionKey(key) {
+  key = key.trim();
+  activeApiKey = key;
+  credentialRevision++;
+  connectionStatus = activeApiKey ? "checking" : "disconnected";
+  try {
+    if (activeApiKey) localStorage.setItem("jumpybrain.graph.apiKey", activeApiKey);
+    else localStorage.removeItem("jumpybrain.graph.apiKey");
+  } catch { /* Session-only access still works. */ }
+  closeConnection();
+  renderConnection();
+}
 $("connection-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  try { localStorage.setItem("jumpybrain.graph.apiKey", apiKeyInput.value); } catch { /* Session-only access still works. */ }
-  connectionDialog.close();
+  setConnectionKey(apiKeyInput.value);
   if (state.view === "home") recentNotes.load();
   if (reopenSearch) openSearch(searchMode, referenceSelection);
-  else if (state.view === "note" && !state.editor?.state.loaded) showNote(new URL(location.href).searchParams.get("note"));
-  else if (state.view === "graph") loadGraph();
+  if (state.view === "note") {
+    if (!state.editor?.state.loaded) showNote(new URL(location.href).searchParams.get("note"));
+    else graphJson("/memories/all/recent").catch(() => {}); // Verify without replacing an open draft.
+  } else if (state.view === "graph") loadGraph();
 });
+$("disconnect").addEventListener("click", async () => {
+  $("disconnect").disabled = true;
+  try {
+    // Save with the current key before clearing credentials or rendered memory.
+    const disconnected = await navigation.navigate(() => {
+      setConnectionKey("");
+      noteSearch.query("");
+      $("note-search-input").value = "";
+      state.graphToken++;
+      state.graph = null;
+      $("viewport").replaceChildren();
+      return "/";
+    });
+    if (!disconnected) $("connection-message").textContent = "Could not disconnect. Save your pending note and try again.";
+  } finally { $("disconnect").disabled = false; }
+});
+renderConnection();
 
 function shellUrl() { return location.pathname + location.search; }
 const initialEntry = { url: shellUrl(), index: Number.isSafeInteger(history.state?.jumpyBrainIndex) ? history.state.jumpyBrainIndex : 0 };

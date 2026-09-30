@@ -47,6 +47,73 @@ function searchHarness() {
   return { search, timers, requests, run() { for (const [id, run] of timers) { timers.delete(id); run(); } } };
 }
 
+test("connection reflects confirmed auth, ignores old credentials, and preserves auth on application errors", async () => {
+  const requests = [];
+  const context = runtime(["graphFetch"], {
+    activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "checking",
+    apiKeyInput: { value: "unsaved-dialog-edit" },
+    renderConnection: () => {},
+    fetch: (url, options) => { const request = { options, ...deferred() }; requests.push(request); return request.promise; },
+  });
+  const send = async (status) => {
+    const pending = context.graphFetch("/memories/all/recent");
+    requests.at(-1).resolve({ status, ok: status === 200 });
+    await pending;
+  };
+  await send(200);
+  assert.equal(context.connectionStatus, "connected");
+  assert.equal(requests[0].options.headers.Authorization, "Bearer saved-key");
+  await send(409);
+  assert.equal(context.connectionStatus, "connected", "save errors must not imply an auth failure");
+  await send(500);
+  assert.equal(context.connectionStatus, "connected");
+  await send(401);
+  assert.equal(context.connectionStatus, "disconnected");
+  await send(200);
+  await send(403);
+  assert.equal(context.connectionStatus, "disconnected");
+  const stale = context.graphFetch("/memories/all/recent");
+  context.activeApiKey = "";
+  context.credentialRevision++;
+  requests.at(-1).resolve({ status: 200, ok: true });
+  await stale;
+  assert.equal(context.connectionStatus, "disconnected", "late responses cannot reconnect a cleared key");
+  const offline = context.graphFetch("/memories/all/recent");
+  requests.at(-1).reject(new Error("offline"));
+  await assert.rejects(offline);
+  assert.equal(context.connectionStatus, "unavailable");
+});
+
+test("connection settings mask keys, discard canceled edits, and remove persisted credentials", () => {
+  const elements = new Map();
+  const $ = (id) => {
+    if (!elements.has(id)) elements.set(id, { dataset: {}, setAttribute(name, value) { this[name] = value; } });
+    return elements.get(id);
+  };
+  const removed = [];
+  const context = runtime(["renderConnection", "maskApiKey", "closeConnection", "setConnectionKey"], {
+    $, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
+    apiKeyInput: { value: "unsaved-edit", type: "text" },
+    connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) },
+  });
+  context.renderConnection();
+  assert.equal($("open-connection").textContent, "Connected");
+  assert.equal($("disconnect").hidden, false);
+  context.closeConnection();
+  assert.equal(context.apiKeyInput.value, "saved-key");
+  assert.equal(context.apiKeyInput.type, "password");
+  assert.equal($("toggle-api-key")["aria-pressed"], "false");
+  context.setConnectionKey("");
+  assert.equal(context.activeApiKey, "");
+  assert.equal(context.apiKeyInput.value, "");
+  assert.equal(context.credentialRevision, 1);
+  assert.equal($("open-connection").textContent, "Connect");
+  assert.equal($("disconnect").hidden, true);
+  assert.deepEqual(removed, ["jumpybrain.graph.apiKey"]);
+  context.localStorage.removeItem = () => { throw new Error("storage blocked"); };
+  assert.doesNotThrow(() => context.setConnectionKey(""));
+});
+
 test("recent notes cancel stale loads and recover from auth, network, and malformed responses", async () => {
   const requests = [], changes = [];
   const { createRecentNotes } = runtime(["isValidMemoryDocumentId", "createRecentNotes"]);
