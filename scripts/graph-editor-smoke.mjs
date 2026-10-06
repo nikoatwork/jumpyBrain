@@ -349,8 +349,14 @@ async function validateMobile() {
   });
   const page = await context.newPage();
   let allowedAuthFailures = 0;
+  let allowedConnectionChecks = 0;
   const browserErrors = collectBrowserErrors(page, (response) => {
     const request = response.request();
+    if (allowedConnectionChecks > 0 && response.status() === 401 && request.method() === "GET"
+        && new URL(response.url()).pathname === "/memories/all/recent") {
+      allowedConnectionChecks--;
+      return true;
+    }
     const matches = allowedAuthFailures > 0
       && response.status() === 401
       && request.method() === "PUT"
@@ -366,7 +372,12 @@ async function validateMobile() {
     await searchAndOpen(page, fixture, { choose: "tap" });
     await assertFullPageEditor(page, fixture);
 
+    allowedConnectionChecks = 1;
+    const connectionCheck = page.waitForResponse((response) => response.status() === 401
+      && response.request().method() === "GET" && new URL(response.url()).pathname === "/memories/all/recent");
     await setConnectionKey(page, "deliberately-wrong-mobile-key");
+    await connectionCheck;
+    assert.equal(allowedConnectionChecks, 0, "wrong key should fail the explicit connection check once");
     allowedAuthFailures += 1;
     const mobileDraft = appendLine(await editorMarkdown(page), "Saved from mobile notes UI smoke.");
     await appendEditorLine(page, "Saved from mobile notes UI smoke.");

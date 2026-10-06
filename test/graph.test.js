@@ -23,22 +23,44 @@ function extractFunction(src, name) {
   return src.slice(start, j);
 }
 
-function loadPageRenderer() {
-  const html = graphPageHtml("testnonce");
-  const script = html.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
-  const src = [
-    extractFunction(script, "escapeHtml"),
-    extractFunction(script, "inline"),
-    extractFunction(script, "renderMarkdown"),
-  ].join("\n");
-  const ctx = {};
-  vm.createContext(ctx);
-  vm.runInContext(src, ctx);
-  return ctx.renderMarkdown;
-}
-
 function pageScript() {
   return graphPageHtml("testnonce").match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
+}
+
+function loadGraphViewportRuntime({ scale = 1.5, pan = { x: 37, y: -24 }, rect = { left: 120, top: 80, width: 800, height: 600 } } = {}) {
+  const script = pageScript();
+  const listeners = new Map();
+  const transforms = [];
+  const control = (id) => ({
+    addEventListener(type, callback, options) { listeners.set(id + ":" + type, { callback, options }); },
+  });
+  const elements = {
+    graph: { ...control("graph"), getBoundingClientRect: () => rect },
+    viewport: { setAttribute(name, value) { assert.equal(name, "transform"); transforms.push(value); } },
+    "zoom-in": control("zoom-in"),
+    "zoom-out": control("zoom-out"),
+    "reset-view": control("reset-view"),
+  };
+  const ctx = {
+    state: { scale, pan: { ...pan } },
+    $(id) { assert.ok(elements[id], "unexpected DOM dependency: " + id); return elements[id]; },
+  };
+  vm.createContext(ctx);
+  vm.runInContext([
+    extractFunction(script, "zoomGraph"),
+    extractFunction(script, "onGraphWheel"),
+    extractFunction(script, "updateViewport"),
+    script.slice(script.indexOf('const svg = $("graph");\nsvg.addEventListener("wheel"'), script.indexOf('window.addEventListener("resize"')),
+  ].join("\n"), ctx);
+  return { ...ctx, rect, listeners, transforms };
+}
+
+function assertClose(actual, expected) {
+  assert.ok(Math.abs(actual - expected) < 1e-10, `${actual} should be close to ${expected}`);
+}
+
+function graphPointAt(state, x, y) {
+  return { x: (x - state.pan.x) / state.scale, y: (y - state.pan.y) / state.scale };
 }
 
 function loadPageEditorRuntime() {
@@ -277,19 +299,146 @@ test("notes shell replaces the slide-in with an empty home and full-page raw edi
   assert.match(html, /<ul id="search-results" role="listbox"/);
 });
 
-test("graph page uses the light forest design system and structured exploration controls", () => {
+test("graph page uses quiet map controls with native filters and no depth UI", () => {
   const html = graphPageHtml("testnonce");
   assert.match(html, /color-scheme: light/);
-  for (const token of ["--forest-950", "--sage-100", "--cream-50", "--ink-soft", "--radius-md", "--shadow-lg"]) {
+  for (const token of ["--cream-50", "--cream-100", "--ink", "--ink-soft", "--focus-ring", "--radius-md", "--shadow-lg"]) {
     assert.equal(html.includes(token), true, `${token} design token must be present`);
   }
-  assert.match(html, /class="topbar"/);
-  assert.match(html, /class="toolbar" aria-label="Graph filters"/);
+  assert.match(html, /class="toolbar" aria-label="Map controls"/);
+  assert.match(html, /<h1>Memory map<\/h1>/);
+  assert.match(html, /<details id="graph-filters">\s*<summary[^>]*>Filters<\/summary>/);
+  for (const id of ["include-orphans", "include-unresolved"]) {
+    assert.match(html, new RegExp(`id="${id}"[^>]*type="checkbox"[^>]*checked`));
+  }
+  assert.doesNotMatch(html, /class="(?:topbar|legend)"|radial-gradient|id="depth"|data-testid="graph-depth"/);
   assert.match(html, /class="canvas-tools" aria-label="Graph view controls"/);
-  assert.match(html, /class="legend" aria-label="Graph legend"/);
   assert.match(html, /id="reset-view"/);
   assert.match(html, /window\.addEventListener\("resize", \(\) => queueGraphLayout\(80\)/);
   assert.match(html, /prefers-reduced-motion/);
+});
+
+test("pointer zoom preserves the anchored graph point with nonzero pan and SVG rect offsets", () => {
+  for (const rect of [
+    { left: 120, top: 80, width: 800, height: 600 },
+    { left: -40, top: 210, width: 800, height: 600 },
+    { left: -240, top: -180, width: 800, height: 600 }, // Client coordinates of zero are valid anchors.
+  ]) {
+    const h = loadGraphViewportRuntime({ rect });
+    const before = graphPointAt(h.state, 240, 180);
+    h.zoomGraph(2, rect.left + 240, rect.top + 180);
+    assert.equal(h.state.scale, 3);
+    assert.equal(h.state.pan.x, -166);
+    assert.equal(h.state.pan.y, -228);
+    const after = graphPointAt(h.state, 240, 180);
+    assertClose(after.x, before.x);
+    assertClose(after.y, before.y);
+    assert.deepEqual(h.transforms, ["translate(-166 -228) scale(3)"]);
+  }
+});
+
+test("zoom buttons anchor to the SVG center and plus/minus are reversible", () => {
+  const h = loadGraphViewportRuntime();
+  const initial = { scale: h.state.scale, pan: { ...h.state.pan } };
+  const center = { x: h.rect.width / 2, y: h.rect.height / 2 };
+  const before = graphPointAt(h.state, center.x, center.y);
+  for (let i = 0; i < 20; i++) {
+    h.listeners.get("zoom-in:click").callback();
+    assertClose(h.state.scale, initial.scale * 1.2);
+    const after = graphPointAt(h.state, center.x, center.y);
+    assertClose(after.x, before.x);
+    assertClose(after.y, before.y);
+    h.listeners.get("zoom-out:click").callback();
+    assertClose(h.state.scale, initial.scale);
+    assertClose(h.state.pan.x, initial.pan.x);
+    assertClose(h.state.pan.y, initial.pan.y);
+  }
+  assert.equal(h.transforms.length, 40);
+});
+
+test("zoom uses the clamped ratio at both bounds and never drifts at a limit", () => {
+  for (const { scale, factor, limit } of [
+    { scale: 3.8, factor: 1.2, limit: 4 },
+    { scale: .21, factor: .5, limit: .2 },
+  ]) {
+    const h = loadGraphViewportRuntime({ scale });
+    const before = graphPointAt(h.state, 240, 180);
+    const zoom = () => h.zoomGraph(factor, h.rect.left + 240, h.rect.top + 180);
+    zoom();
+    assert.equal(h.state.scale, limit);
+    const after = graphPointAt(h.state, 240, 180);
+    assertClose(after.x, before.x);
+    assertClose(after.y, before.y);
+    const limitedPan = { ...h.state.pan };
+    for (let i = 0; i < 20; i++) zoom();
+    assert.equal(h.state.scale, limit);
+    assertClose(h.state.pan.x, limitedPan.x);
+    assertClose(h.state.pan.y, limitedPan.y);
+  }
+});
+
+test("wheel wiring is non-passive, ignores zero/horizontal scroll, and anchors nonzero scroll", () => {
+  const h = loadGraphViewportRuntime();
+  const wheel = h.listeners.get("graph:wheel");
+  assert.equal(wheel.callback, h.onGraphWheel);
+  assert.equal(wheel.options.passive, false);
+  let prevented = 0;
+  const event = { clientX: 360, clientY: 260, preventDefault() { prevented++; } };
+  for (const deltaX of [0, -100, 100]) wheel.callback({ ...event, deltaX, deltaY: 0 });
+  assert.equal(prevented, 0);
+  assert.equal(h.transforms.length, 0);
+  assert.equal(h.state.scale, 1.5);
+  assert.deepEqual({ ...h.state.pan }, { x: 37, y: -24 });
+  const before = graphPointAt(h.state, 240, 180);
+  for (const deltaY of [-100, 100]) {
+    const scale = h.state.scale;
+    wheel.callback({ ...event, deltaX: 0, deltaY });
+    assertClose(h.state.scale, scale * (deltaY < 0 ? 1.1 : .9));
+    const after = graphPointAt(h.state, 240, 180);
+    assertClose(after.x, before.x);
+    assertClose(after.y, before.y);
+  }
+  assert.equal(prevented, 2);
+  assert.equal(h.transforms.length, 2);
+});
+
+test("graph URL needs no depth control and retains inclusion defaults and encoded filters", () => {
+  const controls = {
+    query: { value: "  " }, focus: { value: "" },
+    "include-unresolved": { checked: true }, "include-orphans": { checked: true },
+  };
+  const ctx = {
+    URLSearchParams,
+    $(id) { assert.ok(controls[id], "unexpected DOM dependency: " + id); return controls[id]; },
+  };
+  vm.createContext(ctx);
+  vm.runInContext(extractFunction(pageScript(), "graphUrl"), ctx);
+  const defaults = new URL(ctx.graphUrl(), "http://localhost");
+  assert.equal(defaults.pathname, "/memories/all/graph.json");
+  assert.deepEqual(Object.fromEntries(defaults.searchParams), { includeUnresolved: "1", includeOrphans: "1" });
+  controls.query.value = "  tag & title  ";
+  controls.focus.value = "  pages/a b.md  ";
+  controls["include-unresolved"].checked = false;
+  controls["include-orphans"].checked = false;
+  assert.deepEqual(Object.fromEntries(new URL(ctx.graphUrl(), "http://localhost").searchParams), {
+    query: "tag & title", focus: "pages/a b.md", includeUnresolved: "0", includeOrphans: "0",
+  });
+});
+
+test("graph focus restoration selects the matching node or falls back to the map filter", () => {
+  const focused = [];
+  const node = (id) => ({
+    getAttribute(name) { assert.equal(name, "data-node-id"); return id; },
+    focus(options) { focused.push({ id, preventScroll: options.preventScroll }); },
+  });
+  const controls = { viewport: { children: [node(null), node("pages/a.md"), node("pages/b.md")] }, query: node("query") };
+  const ctx = { $: (id) => controls[id] };
+  vm.createContext(ctx);
+  vm.runInContext(extractFunction(pageScript(), "focusGraphNode"), ctx);
+  ctx.focusGraphNode("pages/b.md");
+  ctx.focusGraphNode("missing.md");
+  ctx.focusGraphNode(null);
+  assert.deepEqual(focused, [{ id: "pages/b.md", preventScroll: true }, { id: "query", preventScroll: true }, { id: "query", preventScroll: true }]);
 });
 
 test("notes editing stays in the HTTP shell with persistent rich editing and native dialogs", () => {
@@ -308,7 +457,7 @@ test("notes editing stays in the HTTP shell with persistent rich editing and nat
   assert.match(html, /id="connection" aria-labelledby="connection-title"/);
   assert.match(script, /persistentEditing: true/);
   assert.doesNotMatch(script, /state\.editor\.setEditing\(false\)/);
-  assert.match(html, /Select a note to open its full-page Markdown editor/);
+  assert.match(html, /Scroll to zoom · Drag to move · Select a note to open/);
 });
 
 test("graph page keeps unresolved and missing-ID nodes non-editable", () => {
@@ -318,7 +467,7 @@ test("graph page keeps unresolved and missing-ID nodes non-editable", () => {
   vm.runInContext(extractFunction(script, "isValidMemoryDocumentId"), ctx);
   assert.equal(ctx.isValidMemoryDocumentId("mem_a0000000-0000-4000-8000-000000000001"), true);
   for (const value of [undefined, "pages/alpha.md", "mem_not-a-uuid"]) assert.equal(ctx.isValidMemoryDocumentId(value), false);
-  assert.match(script, /if \(node\.nodeKind === "unresolved"\)[\s\S]*setStatus\("unresolved link:/);
+  assert.match(script, /if \(node\.nodeKind === "unresolved"\)[\s\S]*setStatus\("This linked note doesn't exist yet:/);
   assert.match(script, /if \(!isValidMemoryDocumentId\(node\.documentId\)\)[\s\S]*missing a valid memory ID/);
 });
 
@@ -674,40 +823,4 @@ test("graph editor bounds repeated conflicts and ignores a late save after cance
   await save;
   assert.equal(staleHarness.editor.state.contentHash, "sha256:initial");
   assert.equal(staleHarness.editor.state.draft, "document A draft");
-});
-
-test("inline dependency-free Markdown renderer escapes HTML and renders the core subset", () => {
-  const renderMarkdown = loadPageRenderer();
-  // HTML is escaped (no injection).
-  assert.equal(renderMarkdown("<script>alert(1)</script>"), "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
-  assert.equal(renderMarkdown("a < b & c"), "<p>a &lt; b &amp; c</p>");
-  // Headings.
-  assert.equal(renderMarkdown("# T\n## S\n### U"), "<h1>T</h1><h2>S</h2><h3>U</h3>");
-  // Bold / italic / inline code.
-  assert.equal(renderMarkdown("**b** and _i_ and `c`"), "<p><strong>b</strong> and <em>i</em> and <code>c</code></p>");
-  // Links.
-  assert.equal(renderMarkdown("[ex](https://example.com)"), '<p><a href="https://example.com" rel="noopener noreferrer">ex</a></p>');
-  // Lists.
-  assert.equal(renderMarkdown("- a\n- b\n1. x\n2. y"), "<ul><li>a</li><li>b</li></ul><ol><li>x</li><li>y</li></ol>");
-  // Fenced code block (raw content escaped).
-  assert.equal(renderMarkdown("```js\nvar a = 1;\n```"), '<pre><code class="language-js">var a = 1;\n</code></pre>');
-  assert.equal(renderMarkdown("```\n<b>raw</b>\n```"), "<pre><code>&lt;b&gt;raw&lt;/b&gt;\n</code></pre>");
-  // Blockquote + horizontal rule.
-  assert.equal(renderMarkdown("> quoted"), "<blockquote>quoted</blockquote>");
-  assert.equal(renderMarkdown("a\n---\nb"), "<p>a</p><hr/><p>b</p>");
-  // Frontmatter rendered as a muted metadata block above the body.
-  const fm = renderMarkdown('---\ntitle: "T"\n---\n# H');
-  assert.match(fm, /^<details class="note-frontmatter"><summary>frontmatter<\/summary><pre>title: &quot;T&quot;<\/pre><\/details><h1>H<\/h1>$/);
-});
-
-test("inline Markdown renderer keeps code-block content uninterpreted and inline code safe", () => {
-  const renderMarkdown = loadPageRenderer();
-  // Markdown syntax inside a fenced block is not interpreted.
-  assert.equal(renderMarkdown("```\n# not a heading\n**not bold**\n```"), "<pre><code># not a heading\n**not bold**\n</code></pre>");
-  // Inline code content is escaped, not interpreted.
-  assert.equal(renderMarkdown("use `<b>` tag"), "<p>use <code>&lt;b&gt;</code> tag</p>");
-  // Empty content yields empty string.
-  assert.equal(renderMarkdown(""), "");
-  // Body without frontmatter produces no frontmatter block.
-  assert.equal(renderMarkdown("# Just a heading").includes("frontmatter"), false);
 });

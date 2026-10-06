@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-09-30 — Quieter memory map
+
+- Matched the memory map to the home screen, removed depth controls and visual clutter, and anchored zoom while preserving shared note navigation and browser Back.
+
 ## 2026-09-27 — Menu-bar application updates
 
 - Added macOS menu-bar updates with visible Terminal progress, automatic successful relaunch, and revision-based update availability checks, while leaving browser tabs open.

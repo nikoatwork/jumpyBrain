@@ -58,47 +58,29 @@ export function graphPageHtml(nonce: string): string {
     button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
     [hidden] { display: none !important; }
 
-    /* Reusable application shell. */
-    header { position: relative; z-index: 10; background: rgba(252, 250, 246, .94); border-bottom: 1px solid var(--line); box-shadow: 0 1px 0 rgba(255, 255, 255, .8); backdrop-filter: blur(18px); }
-    .topbar { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 24px; }
-    .brand { display: flex; align-items: center; min-width: 0; gap: 12px; }
-    .brand-mark { position: relative; width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; color: var(--cream-50); background: var(--forest-900); border-radius: var(--radius-md); }
-    .brand-mark svg { width: 23px; height: 23px; background: none; cursor: default; }
-    .brand-copy { min-width: 0; }
-    .brand-title-row { display: flex; align-items: center; gap: 9px; }
-    h1 { margin: 0; color: var(--forest-950); font-size: 16px; line-height: 1.2; letter-spacing: -.015em; font-weight: 720; }
-    .product-name { font-weight: 520; color: var(--forest-700); }
-    .view-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 1px solid var(--sage-200); border-radius: 999px; background: var(--sage-100); color: var(--forest-800); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-    .brand-copy p { margin: 3px 0 0; color: var(--ink-faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-    .status-pill { min-width: 78px; max-width: 220px; height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; overflow: hidden; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.66); color: var(--ink-soft); font-size: 12px; font-weight: 650; text-overflow: ellipsis; text-transform: capitalize; white-space: nowrap; }
-    .status-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--sage-500); box-shadow: 0 0 0 3px rgba(130,123,113,.14); }
-    .status-pill[data-state="loading"]::before { background: var(--gold); animation: pulse 1s ease-in-out infinite; }
-    .status-pill[data-state="error"] { color: var(--error-ink); border-color: var(--error-line); background: var(--error-fill); }
-    .status-pill[data-state="error"]::before { background: var(--clay); }
-    @keyframes pulse { 50% { opacity: .38; transform: scale(.78); } }
+    /* Quiet map chrome shares the home screen's foundation. */
+    h1 { margin: 0; color: var(--ink); font-size: 20px; line-height: 1.25; letter-spacing: -.025em; font-weight: 600; }
+    #graph-header { position: relative; z-index: 10; background: var(--cream-50); }
+    .map-heading { flex: 1 0 220px; }
+    .map-heading p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; }
+    .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: 8px 24px; background: var(--cream-50); color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; pointer-events: none; }
 
     /* Reusable controls and toolbar groups. */
     input { height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: rgba(255,255,255,.72); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
     input::placeholder { color: var(--ink-faint); opacity: 1; }
     input:hover { border-color: rgba(48,46,43,.36); background: var(--white); }
     input:focus { border-color: var(--focus-ring); background: var(--white); }
-    .toolbar { min-height: 62px; display: flex; align-items: center; gap: 12px; padding: 10px 24px 12px; border-top: 1px solid rgba(48,46,43,.08); }
-    .toolbar-group { display: flex; align-items: center; gap: 8px; }
-    .toolbar-divider { width: 1px; height: 28px; margin: 0 2px; background: var(--line); }
-    .field { position: relative; display: block; }
-    .field-label { position: absolute; z-index: 1; top: -7px; left: 8px; padding: 0 4px; color: var(--ink-faint); background: var(--cream-50); font-size: 9px; line-height: 14px; font-weight: 760; letter-spacing: .075em; text-transform: uppercase; pointer-events: none; }
-    .field input { height: 38px; }
-    #query { width: min(25vw, 270px); padding-left: 34px; }
-    #focus { width: min(22vw, 230px); }
-    #depth { width: 58px; text-align: center; padding-left: 8px; padding-right: 4px; }
-    .search-icon { position: absolute; z-index: 1; left: 11px; top: 12px; width: 14px; height: 14px; color: var(--ink-faint); pointer-events: none; }
-    .toggle { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--ink-soft); font-size: 12px; font-weight: 620; user-select: none; white-space: nowrap; }
-    .toggle:hover { border-color: var(--line); background: rgba(255,255,255,.48); }
-    .toggle input { appearance: none; width: 30px; height: 18px; padding: 0; margin: 0; border: 0; border-radius: 999px; background: var(--cream-300); box-shadow: inset 0 0 0 1px rgba(48,46,43,.12); position: relative; }
-    .toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--white); box-shadow: 0 1px 3px rgba(48,46,43,.2); transition: transform .18s var(--ease); }
-    .toggle input:checked { background: var(--forest-700); }
-    .toggle input:checked::after { transform: translateX(12px); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 20px 24px; }
+    #query { width: 230px; min-width: 0; background: transparent; border-color: var(--line); }
+    #graph-filters { position: relative; }
+    #graph-filters summary { cursor: pointer; }
+    #graph-filters[open] summary { background: var(--surface-hover); }
+    .map-options { position: absolute; z-index: 1; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--cream-50); box-shadow: var(--shadow-lg); }
+    .map-options label { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ink-soft); font-size: 12px; }
+    .map-options .focus-field { display: block; }
+    #focus { display: block; width: 100%; margin-top: 6px; }
+    .map-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+    .map-options p { margin: 0; color: var(--ink-faint); font-size: 12px; }
     .button { height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 680; font-size: 12px; transition: background .15s ease, border-color .15s ease; }
     .button-primary { background: var(--forest-900); color: var(--cream-50); box-shadow: none; }
     .button-primary:hover { background: var(--forest-800); box-shadow: none; }
@@ -107,59 +89,39 @@ export function graphPageHtml(nonce: string): string {
     .icon-button:hover { border-color: var(--line-strong); background: var(--white); }
 
     main { display: flex; min-height: 0; }
-    #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--cream-100); transition: flex-basis .32s var(--ease); }
-    #graph { width: 100%; height: 100%; cursor: grab; background-color: var(--cream-100); background-image: radial-gradient(circle at 52% 47%, rgba(255,255,255,.95) 0, rgba(252,250,246,.45) 32%, rgba(237,232,223,.36) 72%), radial-gradient(rgba(48,46,43,.12) .7px, transparent .7px); background-size: 100% 100%, 19px 19px; }
+    #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--cream-50); }
+    #graph { display: block; width: 100%; height: 100%; cursor: grab; }
     #graph:active { cursor: grabbing; }
-    .canvas-top { position: absolute; z-index: 2; top: 18px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; pointer-events: none; }
-    .canvas-intro { max-width: 420px; }
-    .eyebrow { margin: 0 0 4px; color: var(--forest-700); font-size: 10px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
-    .canvas-intro h2 { margin: 0; color: var(--forest-950); font-size: 20px; letter-spacing: -.025em; line-height: 1.2; }
-    .canvas-intro p { margin: 5px 0 0; color: var(--ink-faint); font-size: 12px; }
-    .legend { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 999px; background: rgba(252,250,246,.83); box-shadow: var(--shadow-sm); backdrop-filter: blur(10px); }
-    .legend-item { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); font-size: 11px; font-weight: 620; white-space: nowrap; }
-    .legend-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--forest-700); box-shadow: 0 0 0 3px rgba(89,84,77,.1); }
-    .legend-dot.unresolved { background: var(--clay); box-shadow: 0 0 0 3px rgba(163,83,76,.1); }
-    .canvas-bottom { position: absolute; z-index: 2; left: 20px; right: 20px; bottom: 18px; display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; pointer-events: none; }
-    .stats { display: flex; align-items: stretch; gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(252,250,246,.84); box-shadow: var(--shadow-sm); backdrop-filter: blur(10px); }
-    .stat { min-width: 78px; padding: 8px 12px 9px; }
-    .stat + .stat { border-left: 1px solid var(--line); }
-    .stat-label { display: block; color: var(--ink-faint); font-size: 9px; font-weight: 780; letter-spacing: .08em; text-transform: uppercase; }
-    .stat strong { display: block; margin-top: 1px; color: var(--forest-950); font-size: 18px; line-height: 1.15; font-variant-numeric: tabular-nums; }
-    .canvas-tools { display: flex; gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: var(--radius-md); background: rgba(252,250,246,.84); box-shadow: var(--shadow-sm); backdrop-filter: blur(10px); pointer-events: auto; }
+    .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; }
+    .stats { color: var(--ink-soft); font-size: 12px; background: var(--cream-50); }
+    .stats strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+    .canvas-tools { display: flex; gap: 4px; background: var(--cream-50); pointer-events: auto; }
     .canvas-tools .icon-button { border-color: transparent; background: transparent; }
-    .canvas-tools .icon-button:hover { border-color: var(--line); background: rgba(255,255,255,.72); }
-    .helper { position: absolute; z-index: 2; right: 20px; bottom: 70px; color: var(--ink-faint); font-size: 10px; letter-spacing: .01em; }
-    .error { position: fixed; z-index: 50; left: 50%; top: 50%; width: min(420px, calc(100% - 40px)); transform: translate(-50%, -50%); margin: 0; padding: 14px 16px; border: 1px solid var(--error-line); border-radius: var(--radius-md); background: var(--error-fill); box-shadow: var(--shadow-lg); color: var(--error-ink); white-space: pre-wrap; }
-    .muted { color: var(--ink-faint); }
+    .canvas-tools .icon-button:hover { background: var(--surface-hover); }
+    .helper { position: absolute; right: 24px; bottom: 62px; margin: 0; color: var(--ink-faint); font-size: 11px; pointer-events: none; }
+    .error { margin: 0; padding: 0 24px 12px; color: var(--error-ink); font-size: 13px; overflow-wrap: anywhere; }
+    #graph-empty { position: absolute; top: 40%; left: 24px; right: 24px; text-align: center; color: var(--ink-soft); pointer-events: none; }
     .sr-status { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
     .edge { stroke: #aaa298; stroke-opacity: .48; stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke-opacity .15s ease; }
     .edge.markdown-link { stroke: #92897d; }
     .node { cursor: pointer; }
-    .node circle { fill: var(--node-fill, var(--forest-700)); stroke: rgba(255,253,250,.95); stroke-width: 2; filter: drop-shadow(0 2px 3px rgba(48,46,43,.18)); vector-effect: non-scaling-stroke; transition: stroke-width .15s ease, filter .15s ease; }
+    .node circle { fill: var(--node-fill, var(--forest-700)); stroke: var(--cream-50); stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke-width .15s ease; }
     .node.unresolved circle { fill: var(--clay); stroke-dasharray: 3 2; }
     .node text { fill: var(--ink-soft); paint-order: stroke; stroke: rgba(252,250,246,.96); stroke-width: 4px; stroke-linejoin: round; font-size: 11px; font-weight: 640; letter-spacing: -.01em; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
     .node.show-label text, .node:hover text, .node:focus text, .node.selected text { opacity: 1; }
-    .node:hover circle, .node:focus-visible circle, .node.selected circle { stroke: var(--gold); stroke-width: 4; filter: drop-shadow(0 3px 6px rgba(48,46,43,.26)); }
+    .node:hover circle, .node:focus-visible circle, .node.selected circle { stroke: var(--gold); stroke-width: 4; }
     .node.selected text { fill: var(--forest-950); font-weight: 760; }
 
-    @media (max-width: 980px) {
-      .topbar { padding-inline: 16px; }
-      .brand-copy p { display: none; }
-      .toolbar { padding-inline: 16px; overflow-x: auto; }
-      #query { width: 220px; }
-      #focus { width: 200px; }
-      .legend { display: none; }
-    }
     @media (max-width: 680px) {
-      .brand-copy { display: none; }
-      .header-actions { gap: 6px; }
-      .topbar { min-height: 60px; padding-block: 10px; }
-      .brand-mark { width: 36px; height: 36px; }
-      .toolbar { min-height: 58px; }
-      .node.show-label:not(:hover):not(:focus):not(.selected) text { opacity: 0; }
-      .canvas-intro p, .helper { display: none; }
-      .canvas-intro h2 { font-size: 17px; }
+      .toolbar { padding: 12px 16px; gap: 6px; }
+      .map-heading { flex-basis: 100%; margin-bottom: 8px; }
+      #query { flex: 1; width: 120px; }
+      #graph-filters { position: static; }
+      .map-options { right: 16px; top: calc(100% - 4px); }
+      .canvas-bottom { left: 16px; right: 16px; }
+      .helper { left: 16px; right: auto; font-size: 10px; }
+      .graph-feedback, .error { padding-inline: 16px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
@@ -170,70 +132,35 @@ export function graphPageHtml(nonce: string): string {
 <body data-view="home">
 ${notesMarkup}
 <header id="graph-header">
-  <div class="topbar">
-    <div class="brand">
-      <div class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M12 20V10m0 3.5c-3.6 0-6.2-2-6.2-5.5 3.7-.3 6.2 1.6 6.2 5.5Zm0 2.5c3.9 0 6.5-2.1 6.5-5.8-3.9-.3-6.5 1.7-6.5 5.8Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div class="toolbar" aria-label="Map controls">
+    <div class="map-heading">
+      <h1>Memory map</h1>
+      <p>Your notes and how they connect.</p>
+    </div>
+    <input id="query" data-testid="graph-query" aria-label="Filter map by title or tag" placeholder="Filter notes…" />
+    <details id="graph-filters">
+      <summary class="quiet-button">Filters</summary>
+      <div class="map-options">
+        <label class="focus-field">Show connections around<input id="focus" data-testid="graph-focus" placeholder="Note title or file" /></label>
+        <label><input id="include-orphans" data-testid="graph-include-orphans" type="checkbox" checked />Notes without connections</label>
+        <label><input id="include-unresolved" data-testid="graph-include-unresolved" type="checkbox" checked />Links to missing notes</label>
+        <p>Dashed dots are links to notes that don't exist yet.</p>
       </div>
-      <div class="brand-copy">
-        <div class="brand-title-row">
-          <h1><span class="product-name">jumpyBrain / </span>Memory map</h1>
-          <span class="view-badge">Graph</span>
-        </div>
-        <p>Trace the ideas, decisions, and notes that shape your shared memory.</p>
-      </div>
-    </div>
-    <div class="header-actions">
-      <span id="status" data-testid="graph-status" class="status-pill" data-state="ready">ready</span>
-    </div>
+    </details>
+    <button id="reload" data-testid="graph-reload" class="quiet-button" title="Refresh notes and connections">Refresh</button>
   </div>
-  <div class="toolbar" aria-label="Graph filters">
-    <div class="toolbar-group">
-      <label class="field">
-        <span class="field-label">Filter map</span>
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.8"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-        <input id="query" data-testid="graph-query" placeholder="Filter titles or tags…" />
-      </label>
-      <label class="field">
-        <span class="field-label">Focus</span>
-        <input id="focus" data-testid="graph-focus" placeholder="File or note title" />
-      </label>
-      <label class="field">
-        <span class="field-label">Depth</span>
-        <input id="depth" data-testid="graph-depth" type="number" min="1" max="8" value="1" />
-      </label>
-    </div>
-    <span class="toolbar-divider" aria-hidden="true"></span>
-    <div class="toolbar-group">
-      <label class="toggle"><input id="include-unresolved" data-testid="graph-include-unresolved" type="checkbox" checked />Unresolved</label>
-      <label class="toggle"><input id="include-orphans" data-testid="graph-include-orphans" type="checkbox" checked />Orphans</label>
-    </div>
-    <button id="reload" data-testid="graph-reload" class="button button-primary">
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 8a7.5 7.5 0 1 0 .1 7.8M19 8V3.5M19 8h-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Refresh map
-    </button>
-  </div>
-  <p id="ready" data-testid="graph-ready" class="sr-status" aria-live="polite" hidden>Graph loaded.</p>
-  <p id="error" data-testid="graph-error" class="error" hidden></p>
+  <p id="status" data-testid="graph-status" class="graph-feedback" role="status" hidden></p>
+  <p id="ready" data-testid="graph-ready" class="sr-status" aria-live="polite" hidden>Map loaded.</p>
+  <p id="error" data-testid="graph-error" class="error" role="alert" hidden></p>
 </header>
 <main>
-  <section id="graph-wrap">
-    <div class="canvas-top">
-      <div class="canvas-intro">
-        <p class="eyebrow">Knowledge landscape</p>
-        <h2>Explore your memory</h2>
-        <p>Select a note to open its full-page Markdown editor. Refresh map to see saved link changes.</p>
-      </div>
-      <div class="legend" aria-label="Graph legend">
-        <span class="legend-item"><i class="legend-dot"></i>Memory</span>
-        <span class="legend-item"><i class="legend-dot unresolved"></i>Unresolved link</span>
-      </div>
-    </div>
-    <svg id="graph" data-testid="graph-svg" role="img" aria-label="Markdown link graph"><g id="viewport"></g></svg>
+  <section id="graph-wrap" aria-label="Memory map">
+    <svg id="graph" data-testid="graph-svg" role="group" aria-label="Notes and their connections"><g id="viewport"></g></svg>
+    <p id="graph-empty" role="status" hidden></p>
     <div class="canvas-bottom">
-      <span class="stats" data-testid="graph-stats">
-        <span class="stat"><span class="stat-label">Nodes</span><strong id="graph-node-count" data-testid="graph-node-count">0</strong></span>
-        <span class="stat"><span class="stat-label">Links</span><strong id="graph-edge-count" data-testid="graph-edge-count">0</strong></span>
+      <span class="stats" data-testid="graph-stats" aria-label="Shown on this map">
+        <strong id="graph-node-count" data-testid="graph-node-count">0</strong> notes ·
+        <strong id="graph-edge-count" data-testid="graph-edge-count">0</strong> connections
       </span>
       <div class="canvas-tools" aria-label="Graph view controls">
         <button id="zoom-out" class="icon-button" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
@@ -241,7 +168,7 @@ ${notesMarkup}
         <button id="zoom-in" class="icon-button" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" fill="none"><path d="M12 7v10m-5-5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </div>
     </div>
-    <span class="helper">Scroll to zoom · Drag to pan</span>
+    <p class="helper">Scroll to zoom · Drag to move · Select a note to open</p>
   </section>
   ${notesViews}
 </main>
@@ -264,7 +191,17 @@ let credentialRevision = 0;
 let connectionStatus = activeApiKey ? "checking" : "disconnected";
 
 $("reload").addEventListener("click", loadGraph);
-for (const id of ["query", "focus", "depth", "include-unresolved", "include-orphans"]) $(id).addEventListener("change", loadGraph);
+const graphFilters = $("graph-filters");
+document.addEventListener("click", (event) => {
+  if (graphFilters.open && !graphFilters.contains(event.target)) graphFilters.open = false;
+});
+graphFilters.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    graphFilters.open = false;
+    graphFilters.querySelector("summary").focus();
+  }
+});
+for (const id of ["query", "focus", "include-unresolved", "include-orphans"]) $(id).addEventListener("change", loadGraph);
 for (const id of ["query", "focus"]) $(id).addEventListener("keydown", (event) => { if (event.key === "Enter") loadGraph(); });
 $("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
 const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
@@ -293,7 +230,6 @@ function graphUrl() {
   const focus = $("focus").value.trim();
   if (query) params.set("query", query);
   if (focus) params.set("focus", focus);
-  params.set("depth", $("depth").value || "1");
   params.set("includeUnresolved", $("include-unresolved").checked ? "1" : "0");
   params.set("includeOrphans", $("include-orphans").checked ? "1" : "0");
   return "/memories/all/graph.json?" + params.toString();
@@ -354,8 +290,8 @@ function writeGraphDocument(documentId, content, contentHash) {
 
 function setStatus(text, isError, errorText) {
   const status = $("status");
-  status.textContent = text;
-  status.setAttribute("data-state", isError ? "error" : text === "loading" ? "loading" : text === "loaded" ? "loaded" : "ready");
+  status.textContent = text === "loading" ? "Loading map…" : text;
+  status.hidden = Boolean(isError) || text === "loaded" || text === "ready";
   if (isError) {
     $("error").textContent = errorText || text;
     $("error").hidden = false;
@@ -373,8 +309,8 @@ async function loadGraph() {
     const payload = await graphJson(graphUrl());
     if (token !== state.graphToken) return;
     state.graph = payload;
-    if (state.view === "graph") render(payload);
     setStatus("loaded");
+    if (state.view === "graph") render(payload);
     $("ready").hidden = false;
     window.__jumpyBrainGraphReady = true;
   } catch (error) {
@@ -389,9 +325,15 @@ async function loadGraph() {
 function render(graph, preserveView) {
   const svg = $("graph");
   const viewport = $("viewport");
-  viewport.replaceChildren();
-  $("graph-node-count").textContent = graph.nodes.length;
+  $("graph-node-count").textContent = graph.nodes.filter((node) => node.nodeKind === "document").length;
   $("graph-edge-count").textContent = graph.edges.length;
+  $("graph-empty").hidden = graph.nodes.length > 0;
+  $("graph-empty").textContent = $("query").value.trim() || $("focus").value.trim() || !$("include-orphans").checked || !$("include-unresolved").checked
+    ? "No notes match these filters. Try clearing them."
+    : "Your map starts with a note. Choose New note to get started.";
+  const restoreFocus = preserveView && viewport.contains(document.activeElement);
+  const focusedId = restoreFocus ? document.activeElement.getAttribute("data-node-id") : null;
+  viewport.replaceChildren();
   const rect = svg.getBoundingClientRect();
   const cx = rect.width / 2 || 400;
   const cy = rect.height / 2 || 300;
@@ -400,7 +342,7 @@ function render(graph, preserveView) {
   const radiusY = radius;
   const positions = new Map();
   const orderedNodes = [...graph.nodes].sort((a, b) => b.degree - a.degree || String(a.title).localeCompare(String(b.title)));
-  const featuredNodes = new Set(orderedNodes.slice(0, Math.min(18, orderedNodes.length)).map((node) => node.id));
+  const featuredNodes = new Set(orderedNodes.slice(0, rect.width < 680 ? 5 : 12).map((node) => node.id));
   orderedNodes.forEach((node, index) => {
     if (index === 0 && orderedNodes.length > 2) {
       positions.set(node.id, { x: cx, y: cy });
@@ -433,12 +375,20 @@ function render(graph, preserveView) {
     g.setAttribute("aria-label", (node.title || node.file || node.id) + ", " + (node.nodeKind === "unresolved" ? "unresolved link" : "memory note"));
     g.setAttribute("transform", "translate(" + p.x + " " + p.y + ")");
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("r", String(6 + Math.min(node.degree, 12)));
+    const nodeRadius = 6 + Math.min(node.degree, 12);
+    circle.setAttribute("r", String(nodeRadius));
     circle.style.setProperty("--node-fill", nodeColor(node));
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x", "10"); text.setAttribute("y", "4");
-    text.textContent = node.title || node.file || node.id;
-    g.append(circle, text);
+    const labelLeft = p.x > rect.width * .8;
+    text.setAttribute("x", String((nodeRadius + 4) * (labelLeft ? -1 : 1)));
+    text.setAttribute("text-anchor", labelLeft ? "end" : "start");
+    text.setAttribute("y", "4");
+    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
+    title.textContent = node.title || node.file || node.id;
+    const label = Array.from(title.textContent);
+    const maxLabel = rect.width < 680 ? 20 : 36;
+    text.textContent = label.length > maxLabel ? label.slice(0, maxLabel - 1).join("") + "…" : title.textContent;
+    g.append(title, circle, text);
     g.addEventListener("pointerdown", (event) => event.stopPropagation());
     g.addEventListener("click", (event) => { event.stopPropagation(); selectNode(node, g); });
     g.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectNode(node, g); } });
@@ -446,6 +396,12 @@ function render(graph, preserveView) {
   }
   if (!preserveView) { state.pan = { x: 0, y: 0 }; state.scale = 1; }
   updateViewport();
+  if (restoreFocus) focusGraphNode(focusedId);
+}
+
+function focusGraphNode(id) {
+  const node = id && Array.from($("viewport").children).find((element) => element.getAttribute("data-node-id") === id);
+  (node || $("query")).focus({ preventScroll: true });
 }
 
 function nodeColor(node) {
@@ -747,7 +703,7 @@ function composeEditableDocument(frontmatterPrefix, body, newline) {
 
 async function selectNode(node) {
   if (node.nodeKind === "unresolved") {
-    setStatus("unresolved link: " + (node.title || node.id));
+    setStatus("This linked note doesn't exist yet: " + (node.title || node.id));
     return;
   }
   if (!isValidMemoryDocumentId(node.documentId)) {
@@ -780,80 +736,48 @@ function isValidMemoryDocumentId(value) {
   return typeof value === "string" && ${MEMORY_DOCUMENT_ID_PATTERN}.test(value);
 }
 
-function queueGraphLayout(delay) {
+function queueGraphLayout(delay, restoreSelection = false) {
   if (!state.graph || state.view !== "graph") return;
   if (state.layoutTimer) window.clearTimeout(state.layoutTimer);
-  state.layoutTimer = window.setTimeout(() => { state.layoutTimer = null; if (state.view === "graph") render(state.graph, true); }, delay || 0);
+  state.layoutTimer = window.setTimeout(() => {
+    state.layoutTimer = null;
+    if (state.view !== "graph") return;
+    render(state.graph, true);
+    if (restoreSelection) focusGraphNode(state.selected);
+  }, delay || 0);
 }
 
-function escapeHtml(value) { return String(value || "").replace(/[&<>\"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
-
-// Inline dependency-free Markdown renderer. Escapes HTML first, then applies a
-// small subset of Markdown (headings, lists, fenced/inline code, bold/italic,
-// links, blockquotes, horizontal rules, paragraphs). Frontmatter is rendered as
-// a muted <details> metadata block above the body.
-function inline(text) {
-  text = escapeHtml(text);
-  const codes = [];
-  text = text.replace(/\`([^\`]+)\`/g, (_, c) => { codes.push(c); return "\\u0001C" + (codes.length - 1) + "\\u0001"; });
-  text = text.replace(/\\[([^\\]]+)\\]\\(([^)]+)\\)/g, (_, t, u) => "<a href=\\"" + u + "\\" rel=\\"noopener noreferrer\\">" + t + "</a>");
-  text = text.replace(/\\*\\*([^*]+)\\*\\*/g, "<strong>$1</strong>");
-  text = text.replace(/(^|[^*])\\*([^*]+)\\*/g, "$1<em>$2</em>");
-  text = text.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-  text = text.replace(/(^|[^_])_([^_]+)_/g, "$1<em>$2</em>");
-  text = text.replace(/\\u0001C(\\d+)\\u0001/g, (_, i) => "<code>" + codes[+i] + "</code>");
-  return text;
+// SVG has no viewBox: its local units match CSS pixels. Compensate pan using
+// the clamped scale ratio so the chosen graph point stays under the anchor.
+function zoomGraph(factor, clientX, clientY) {
+  const rect = $("graph").getBoundingClientRect();
+  const anchor = {
+    x: clientX === undefined ? rect.width / 2 : clientX - rect.left,
+    y: clientY === undefined ? rect.height / 2 : clientY - rect.top,
+  };
+  const scale = Math.max(.2, Math.min(4, state.scale * factor));
+  const ratio = scale / state.scale;
+  state.pan = {
+    x: anchor.x - (anchor.x - state.pan.x) * ratio,
+    y: anchor.y - (anchor.y - state.pan.y) * ratio,
+  };
+  state.scale = scale;
+  updateViewport();
 }
 
-function renderMarkdown(md) {
-  const fmMatch = String(md || "").match(/^---\\r?\\n([\\s\\S]*?)\\r?\\n---\\r?\\n?/);
-  let frontmatter = "";
-  let body = String(md || "");
-  if (fmMatch) { frontmatter = fmMatch[1]; body = body.slice(fmMatch[0].length); }
-  const codeBlocks = [];
-  body = body.replace(/\`\`\`(\\w*)\\r?\\n([\\s\\S]*?)\`\`\`/g, (_, lang, code) => {
-    const i = codeBlocks.length;
-    codeBlocks.push({ lang: lang || "", code });
-    return "\\u0000CODEBLOCK" + i + "\\u0000";
-  });
-  const lines = body.split(/\\r?\\n/);
-  let html = "";
-  let i = 0;
-  let listType = null;
-  let para = [];
-  const flushPara = () => { if (para.length) { html += "<p>" + inline(para.join(" ")) + "</p>"; para = []; } };
-  const closeList = () => { if (listType) { html += "</" + listType + ">"; listType = null; } };
-  while (i < lines.length) {
-    const line = lines[i];
-    const codeHolder = line.match(/\\u0000CODEBLOCK(\\d+)\\u0000/);
-    if (codeHolder) {
-      closeList(); flushPara();
-      const cb = codeBlocks[+codeHolder[1]];
-      html += "<pre><code" + (cb.lang ? " class=\\"language-" + cb.lang + "\\"" : "") + ">" + escapeHtml(cb.code) + "</code></pre>";
-      i++; continue;
-    }
-    const h = line.match(/^(#{1,6})\\s+(.*)$/);
-    if (h) { closeList(); flushPara(); const lvl = h[1].length; html += "<h" + lvl + ">" + inline(h[2]) + "</h" + lvl + ">"; i++; continue; }
-    if (/^\\s*([-*_])\\1{2,}\\s*$/.test(line)) { closeList(); flushPara(); html += "<hr/>"; i++; continue; }
-    if (/^\\s*>\\s?/.test(line)) { closeList(); flushPara(); const q = line.replace(/^\\s*>\\s?/, ""); html += "<blockquote>" + inline(q) + "</blockquote>"; i++; continue; }
-    if (/^\\s*[-*+]\\s+/.test(line)) { flushPara(); if (listType !== "ul") { closeList(); listType = "ul"; html += "<ul>"; } html += "<li>" + inline(line.replace(/^\\s*[-*+]\\s+/, "")) + "</li>"; i++; continue; }
-    if (/^\\s*\\d+\\.\\s+/.test(line)) { flushPara(); if (listType !== "ol") { closeList(); listType = "ol"; html += "<ol>"; } html += "<li>" + inline(line.replace(/^\\s*\\d+\\.\\s+/, "")) + "</li>"; i++; continue; }
-    if (line.trim() === "") { closeList(); flushPara(); i++; continue; }
-    closeList(); para.push(line.trim()); i++;
-  }
-  closeList(); flushPara();
-  let fmHtml = "";
-  if (frontmatter) fmHtml = "<details class=\\"note-frontmatter\\"><summary>frontmatter</summary><pre>" + escapeHtml(frontmatter) + "</pre></details>";
-  return fmHtml + html;
+function onGraphWheel(event) {
+  if (!event.deltaY) return;
+  event.preventDefault();
+  zoomGraph(event.deltaY < 0 ? 1.1 : .9, event.clientX, event.clientY);
 }
 
 const svg = $("graph");
-svg.addEventListener("wheel", (event) => { event.preventDefault(); state.scale = Math.max(.2, Math.min(4, state.scale * (event.deltaY < 0 ? 1.1 : .9))); updateViewport(); }, { passive: false });
+svg.addEventListener("wheel", onGraphWheel, { passive: false });
 svg.addEventListener("pointerdown", (event) => { state.dragging = { x: event.clientX, y: event.clientY, pan: { ...state.pan } }; svg.setPointerCapture(event.pointerId); });
 svg.addEventListener("pointermove", (event) => { if (!state.dragging) return; state.pan = { x: state.dragging.pan.x + event.clientX - state.dragging.x, y: state.dragging.pan.y + event.clientY - state.dragging.y }; updateViewport(); });
 svg.addEventListener("pointerup", () => { state.dragging = null; });
-$("zoom-in").addEventListener("click", () => { state.scale = Math.min(4, state.scale * 1.2); updateViewport(); });
-$("zoom-out").addEventListener("click", () => { state.scale = Math.max(.2, state.scale / 1.2); updateViewport(); });
+$("zoom-in").addEventListener("click", () => zoomGraph(1.2));
+$("zoom-out").addEventListener("click", () => zoomGraph(1 / 1.2));
 $("reset-view").addEventListener("click", () => { state.pan = { x: 0, y: 0 }; state.scale = 1; updateViewport(); });
 window.addEventListener("resize", () => queueGraphLayout(80));
 function updateViewport() { $("viewport").setAttribute("transform", "translate(" + state.pan.x + " " + state.pan.y + ") scale(" + state.scale + ")"); }

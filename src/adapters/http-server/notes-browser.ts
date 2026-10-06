@@ -96,7 +96,6 @@ export const notesStyles = String.raw`
       #open-search kbd { display: none; }
       #note-save-state { order: 5; margin-left: auto; }
       #note-retry { order: 6; }
-      #graph-header .topbar { display: none; }
       .note-column { padding: 28px 22px 80px; }
       #note-editor { font-size: 16px; }
       .save-state { font-size: 11px; }
@@ -750,6 +749,7 @@ for (const [id, url] of [["home-link", "/"], ["graph-link", "/graph"]]) {
 
 function showPage(url) {
   recentNotes.cancel();
+  $("graph-filters").open = false;
   if (searchDialog.open) closeSearch(false);
   if (connectionDialog.open) closeConnection();
   const target = new URL(url, location.origin);
@@ -769,8 +769,8 @@ function showPage(url) {
   $("note-retry").hidden = true;
   document.title = state.view === "graph" ? "Memory map · jumpyBrain" : "jumpyBrain";
   if (state.view === "graph") {
-    if (!state.graph) loadGraph(); else queueGraphLayout(0);
-    $("query").focus();
+    if (!state.graph) loadGraph(); else queueGraphLayout(0, true);
+    $("query").focus({ preventScroll: true });
   } else {
     $("home-new").focus();
     recentNotes.load();
