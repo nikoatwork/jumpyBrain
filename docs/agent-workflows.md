@@ -155,7 +155,7 @@ jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> < 
 jumpybrain index --root <memory-root>
 ```
 
-Use the same `--target-url` for all remote operations. Read permission does not authorize global/team/remote writes or indexing; ask explicitly first. On stale hashes, re-show and reconcile. Updates preserve omitted dream markers; explicit boolean `dream: false` removes classification.
+Use the same `--target-url` for all remote operations. Read permission does not authorize global/team/remote writes or indexing; obtain explicit authorization first. The memory map's **Consolidate notes (Dream)… → Copy prompt** handoff supplies that authorization when the user submits it: proceed with its bounded dream-page writes/indexing without asking for the same approval again. It is self-contained (no installed skill required), pins three inclusive UTC evidence dates and one remote origin, and excludes source-note edits. Respect actual auth, read-only policies, and harness permissions; stop on missing prerequisites rather than changing targets or bypassing safeguards. Browser credentials are not copied. On stale hashes, re-show and reconcile. Updates preserve omitted dream markers; explicit boolean `dream: false` removes classification.
 
 Report resolved UTC dates/basis, changed IDs/paths, index status, date fallbacks, missing-ID sources, and truncated/unread evidence. Packet `window.from` is oldest and `window.to` newest. Optional `nextOffset` can continue with the same bounds and `window.to` as the absolute anchor, but concurrent edits can shift pagination. There is no exact coverage claim or completion step; overlap is expected.
 

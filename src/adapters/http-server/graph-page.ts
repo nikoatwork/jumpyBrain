@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
 import { notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
+import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
 
@@ -127,16 +128,19 @@ export function graphPageHtml(nonce: string): string {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
     ${notesStyles}
+    ${dreamStyles}
   </style>
 </head>
 <body data-view="home">
 ${notesMarkup}
+${dreamMarkup}
 <header id="graph-header">
   <div class="toolbar" aria-label="Map controls">
     <div class="map-heading">
       <h1>Memory map</h1>
       <p>Your notes and how they connect.</p>
     </div>
+    <button id="open-dream" class="quiet-button" type="button" aria-haspopup="dialog" aria-controls="dream-handoff">Consolidate notes (Dream)…</button>
     <input id="query" data-testid="graph-query" aria-label="Filter map by title or tag" placeholder="Filter notes…" />
     <details id="graph-filters">
       <summary class="quiet-button">Filters</summary>
@@ -782,6 +786,7 @@ $("reset-view").addEventListener("click", () => { state.pan = { x: 0, y: 0 }; st
 window.addEventListener("resize", () => queueGraphLayout(80));
 function updateViewport() { $("viewport").setAttribute("transform", "translate(" + state.pan.x + " " + state.pan.y + ") scale(" + state.scale + ")"); }
 
+${dreamScript}
 ${notesScript}
 </script>
 </body>

@@ -1,6 +1,7 @@
 // Disposable browser smoke for the minimal notes UI and graph regression.
 // Builds a real QMD index under a temporary root and never mutates a live deployment.
 import assert from "node:assert/strict";
+import { validateDreamHandoff } from "./dream-handoff-smoke.mjs";
 import { editorMarkdown, editorEnd, editorSelection, editorAtEnd, appendEditorText, undoEditor } from "./editor-smoke-helpers.mjs";
 import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -65,6 +66,7 @@ try {
   await validateDesktop();
   await validateMobile();
   await validateSearchClicks();
+  await validateDreamHandoff({ browser, url: server.url, apiKey, screenshotDir });
   await runGraphSmoke();
 
   const desktopMarkdown = await readFile(path.join(root, fixtures.desktop.file), "utf8");

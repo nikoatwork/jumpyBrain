@@ -410,7 +410,7 @@ test("late document GETs cannot overwrite a new full-page selection", async () =
   const context = runtime(["showNote", "isValidMemoryDocumentId", "noteLoadError"], {
     $, state, richEditor, document: { title: "" }, window: { setTimeout, clearTimeout },
     splitEditableDocument() {}, composeEditableDocument() {}, writeGraphDocument() {}, syncEditorUi() {},
-    searchDialog: { open: false }, connectionDialog: { open: false },
+    searchDialog: { open: false }, connectionDialog: { open: false }, dreamDialog: { open: false },
     readGraphDocument(id) { const read = { id, ...deferred() }; reads.push(read); return read.promise; },
     createDocumentEditor() { return { state: {}, cancel() {}, hydrate(payload) { richEditor.setMarkdown(payload.content); }, setEditing() {} }; },
   });

@@ -81,7 +81,8 @@ test("public installer installs global memory and detected integrations without 
     assert.equal(manifest.source, repoRoot);
     assert.equal(manifest.ref, null);
     assert.equal(manifest.integrationMode, "auto");
-    assert.equal(manifest.installedVersion, "0.1.0");
+    const sourceVersion = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8")).version;
+    assert.equal(manifest.installedVersion, sourceVersion);
     assert.equal(manifest.integrations.length, 3);
     assert.equal(manifest.cliConfigPath, path.join(installRoot, "cli-config.json"));
     assert.equal(existsSync(manifest.cliConfigPath), false);

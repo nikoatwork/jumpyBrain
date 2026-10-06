@@ -90,7 +90,8 @@ test("CLI update detects its custom install, previews, updates the companion fro
     assert.match(await readFile(path.join(f.root, "app/dist/cli.js"), "utf8"), /fetched new runtime/);
     assert.equal(await readFile(path.join(f.app, "Contents/MacOS/jumpyBrain"), "utf8"), "new native executable\n");
     assert.equal(existsSync(path.join(f.app, "Contents/Resources/runtime")), false);
-    assert.deepEqual(JSON.parse(await readFile(f.configPath, "utf8")), { ...f.config, revision: "0.1.0" });
+    const sourceVersion = JSON.parse(await readFile(path.join(f.source, "package.json"), "utf8")).version;
+    assert.deepEqual(JSON.parse(await readFile(f.configPath, "utf8")), { ...f.config, revision: sourceVersion });
     assert.equal(await readFile(path.join(f.memory, "keep.md"), "utf8"), "# Unchanged canonical fixture\n");
     assert.equal(await readFile(path.join(f.support, "api-key"), "utf8"), `${"a".repeat(64)}\n`);
     assert.equal(existsSync(f.config.launchAgent), false, "disabled login stays disabled");

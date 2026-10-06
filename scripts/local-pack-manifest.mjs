@@ -59,6 +59,7 @@ export const requiredLocalPackFiles = Object.freeze([
   ...moduleFiles("adapters", "http-server", "routes"),
   ...moduleFiles("adapters", "http-server", "graph-page"),
   ...moduleFiles("adapters", "http-server", "notes-browser"),
+  ...moduleFiles("adapters", "http-server", "dream-handoff"),
   distFile("adapters", "http-server", "editor-bundle.js"),
   distFile("adapters", "http-server", "editor-LICENSES.txt"),
   ...moduleFiles("adapters", "http-server", "auto-index"),

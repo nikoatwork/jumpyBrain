@@ -482,7 +482,7 @@ function wrapDialogFocus(event) {
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 }
-for (const dialog of [searchDialog, connectionDialog]) dialog.addEventListener("keydown", wrapDialogFocus);
+for (const dialog of [searchDialog, connectionDialog, dreamDialog]) dialog.addEventListener("keydown", wrapDialogFocus);
 let searchOrigin = null;
 let searchSelection = null;
 let searchDocument = null;
@@ -520,7 +520,7 @@ $("recent-retry").addEventListener("click", () => recentNotes.load());
 $("recent-connect").addEventListener("click", () => openConnection(false));
 
 function openSearch(mode = "navigate", range = null) {
-  if (searchDialog.open || connectionDialog.open) return;
+  if (searchDialog.open || connectionDialog.open || dreamDialog.open) return;
   searchMode = mode === "insert" ? "insert" : "navigate";
   referenceSelection = range;
   $("reference-help").hidden = searchMode !== "insert";
@@ -625,12 +625,12 @@ $("search-retry").addEventListener("click", () => noteSearch.query($("note-searc
 function handleNoteShortcut(event) {
   if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey)) return;
   if (event.key.toLowerCase() === "k") {
-    if (connectionDialog.open) return;
+    if (connectionDialog.open || dreamDialog.open) return;
     event.preventDefault();
     event.stopPropagation();
     if (!event.repeat) { if (searchDialog.open) closeSearch(); else openSearch(); }
   } else if (event.key === "Enter") {
-    if (searchDialog.open || connectionDialog.open) return;
+    if (searchDialog.open || connectionDialog.open || dreamDialog.open) return;
     event.preventDefault();
     event.stopPropagation();
     if (!event.repeat) newNote();
@@ -660,6 +660,7 @@ function maskApiKey() {
   $("toggle-api-key").setAttribute("aria-pressed", "false");
 }
 function openConnection(fromSearch) {
+  if (dreamDialog.open) return;
   apiKeyInput.value = activeApiKey;
   maskApiKey();
   renderConnection();
@@ -735,6 +736,7 @@ const navigation = createPageNavigation({
   show: showPage,
 });
 window.addEventListener("popstate", (event) => {
+  if (dreamDialog.open) closeDreamHandoff(false);
   if (searchDialog.open) closeSearch();
   if (connectionDialog.open) closeConnection();
   navigation.pop({ url: shellUrl(), index: Number.isSafeInteger(event.state?.jumpyBrainIndex) ? event.state.jumpyBrainIndex : 0 });
@@ -748,6 +750,7 @@ for (const [id, url] of [["home-link", "/"], ["graph-link", "/graph"]]) {
 }
 
 function showPage(url) {
+  if (dreamDialog.open) closeDreamHandoff(false);
   recentNotes.cancel();
   $("graph-filters").open = false;
   if (searchDialog.open) closeSearch(false);
@@ -883,7 +886,7 @@ const noteCapture = createNoteCapture({
 let creatingNote = false;
 let newNoteId = null;
 async function newNote() {
-  if (creatingNote || searchDialog.open || connectionDialog.open) return;
+  if (creatingNote || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
   creatingNote = true;
   for (const id of ["new-note", "home-new"]) $(id).disabled = true;
   const message = $("capture-message");

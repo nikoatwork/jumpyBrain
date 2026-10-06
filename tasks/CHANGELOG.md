@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-06 — [v0.2.0](../docs/releases/v0.2.0.md): dreaming from the memory map
+
+- Added a copyable agent prompt for immediate, bounded dream-page consolidation from the map, keeping credentials and model execution outside the browser.
+
 ## 2026-09-30 — Quieter memory map
 
 - Matched the memory map to the home screen, removed depth controls and visual clutter, and anchored zoom while preserving shared note navigation and browser Back.

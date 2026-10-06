@@ -38,9 +38,9 @@ test("entire inline browser script parses and daily controls are available", () 
 
 test("Cmd/Ctrl+Enter creates notes while browser shortcuts remain untouched", () => {
   let opened = 0, created = 0;
-  const searchDialog = { open: false }, connectionDialog = { open: false };
+  const searchDialog = { open: false }, connectionDialog = { open: false }, dreamDialog = { open: false };
   const { handleNoteShortcut } = runtime(["handleNoteShortcut"], {
-    searchDialog, connectionDialog,
+    searchDialog, connectionDialog, dreamDialog,
     openSearch() { opened++; }, closeSearch() {}, newNote() { created++; },
   });
   const untouched = { preventDefault() { throw new Error("reserved/inactive key intercepted"); } };
@@ -58,7 +58,7 @@ test("Cmd/Ctrl+Enter creates notes while browser shortcuts remain untouched", ()
     }
     handleNoteShortcut({ key: "Enter", [modifier]: true, repeat: true, preventDefault() {}, stopPropagation() {} });
   }
-  for (const dialog of [searchDialog, connectionDialog]) {
+  for (const dialog of [searchDialog, connectionDialog, dreamDialog]) {
     dialog.open = true;
     handleNoteShortcut({ key: "Enter", metaKey: true, ...untouched });
     dialog.open = false;
