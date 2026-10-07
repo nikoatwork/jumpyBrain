@@ -1,22 +1,20 @@
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
 export const notesStyles = String.raw`
-    body { background: var(--cream-50); display: flex; flex-direction: column; height: 100dvh; }
-    body[data-view="note"] { background: #fff; }
+    body { display: flex; flex-direction: column; height: 100dvh; }
     .app-nav { min-height: 60px; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 24px; }
     #graph-header { flex: 0 0 auto; }
-    .app-nav .home-link { margin-right: auto; font-weight: 650; }
-    .quiet-button { border: 0; border-radius: 6px; padding: 8px 10px; background: transparent; color: var(--ink-soft); text-decoration: none; font: inherit; cursor: pointer; }
-    .quiet-button:hover { background: var(--sage-100); color: var(--ink); }
-    a:focus-visible, summary:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 3px; }
+    .app-nav .home-link { margin-right: auto; font-weight: 650; background: transparent; color: var(--ink); }
+    .quiet-button { border: 0; border-radius: 6px; padding: 8px 10px; background: var(--control-fill); color: var(--ink-soft); text-decoration: none; font: inherit; cursor: pointer; }
+    .quiet-button:hover { background: var(--surface-hover); color: var(--ink); }
     .home { width: 100%; overflow: auto; padding: clamp(28px, 8vh, 80px) 24px 48px; text-align: center; }
     .home-actions { width: min(100%, 560px); margin: 0 auto; text-align: left; }
     .home-actions h1 { margin: 0 0 24px; font-size: clamp(24px, 4vw, 30px); line-height: 1.25; font-weight: 600; letter-spacing: -.035em; }
     .home-action { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; text-align: left; font-size: 15px; }
     .home-action-label { flex: 1; }
     .home-action-icon { width: 20px; height: 20px; flex: 0 0 auto; }
-    #home-new { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
-    #home-new:hover { background: var(--forest-800); }
+    #home-new { background: var(--control-fill); color: var(--ink); font-weight: 600; }
+    #home-new:hover { background: var(--surface-hover); border-color: var(--line-strong); }
     #home-search { margin-top: 10px; background: transparent; color: var(--ink-soft); }
     #home-search:hover { background: var(--surface-hover); color: var(--ink); }
     .recent-notes { width: min(100%, 560px); margin: 40px auto 0; text-align: left; }
@@ -25,20 +23,19 @@ export const notesStyles = String.raw`
     .recent-heading span, #recent-message { color: var(--ink-soft); font-size: 12px; }
     #recent-list { list-style: none; margin: 0; padding: 0; }
     .recent-link { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 10px; margin-inline: -10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
-    .recent-link:hover { background: var(--sage-100); }
+    .recent-link:hover { background: var(--surface-hover); }
     .recent-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .recent-link time { flex-shrink: 0; color: var(--ink-soft); font-size: 12px; }
     kbd { font: inherit; color: var(--ink); }
     .home-action kbd { flex-shrink: 0; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; font-weight: 400; color: inherit; }
-    #home-new kbd { border-color: rgba(255,255,255,.28); color: rgba(255,255,255,.85); }
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
     body[data-view="graph"] .app-nav { border-bottom: 1px solid var(--line); }
     main, body[data-view="graph"] main { flex: 1; height: auto; min-height: 0; }
-    #note-panel { width: 100%; min-width: 0; overflow: auto; scrollbar-color: var(--sage-300) transparent; }
+    #note-panel { width: 100%; min-width: 0; overflow: auto; scrollbar-color: var(--line-strong) transparent; }
     .note-column { width: min(100%, 800px); margin: 0 auto; padding: clamp(24px, 5vh, 64px) 32px 100px; }
-    #note-title { margin: 0 0 20px; color: var(--forest-950); font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
-    #note-name { display: block; width: 100%; height: auto; margin: 0 0 20px; padding: 0; border: 0; border-radius: 0; background: #fff; color: var(--forest-950); box-shadow: none; font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; }
-    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: #fff; color: var(--ink); box-shadow: none; font: 16px/1.8 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #note-title { margin: 0 0 20px; color: var(--ink); font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
+    #note-name { display: block; width: 100%; height: auto; margin: 0 0 20px; padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; }
+    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 16px/1.8 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
     #note-editor p { margin: 0; min-height: 1.8em; }
     #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .45em 0 .2em; line-height: 1.35; font-weight: 650; letter-spacing: -.025em; }
     #note-editor h1 { font-size: 30px; }
@@ -49,32 +46,32 @@ export const notesStyles = String.raw`
     .editor-italic { font-style: italic; }
     .markdown-literal, .markdown-reference { text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; }
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
-    .markdown-literal::selection { background: var(--sage-100); }
+    .markdown-literal::selection { background: var(--surface-hover); }
     #format-controls { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; margin: 0 0 12px -10px; }
     #format-controls button { font-size: 12px; }
     #format-controls #insert-reference { margin: 0; }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
-    #note-save-error { color: #8b4434; font-size: 13px; }
+    #note-save-error { color: var(--error-ink); font-size: 13px; }
     .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
-    .capture-feedback[data-error="true"] { color: #8b4434; }
+    .capture-feedback[data-error="true"] { color: var(--error-ink); }
     #insert-reference { margin: 0 0 12px -10px; font-size: 12px; }
     button:disabled { cursor: wait; opacity: .65; }
     .save-state { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
-    .save-state[data-state="failed"], #note-message[data-error="true"] { color: #8b4434; }
+    .save-state[data-state="failed"], #note-message[data-error="true"] { color: var(--error-ink); }
     #note-message { color: var(--ink-soft); white-space: pre-wrap; }
     #note-file { margin: 28px 0 8px; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12px; }
     .note-frontmatter { margin-top: 24px; color: var(--ink-soft); font-size: 12px; }
     .note-frontmatter summary { cursor: pointer; width: fit-content; }
     .note-frontmatter pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-    dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--cream-50); color: var(--ink); box-shadow: var(--shadow-lg); }
+    dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
     dialog::backdrop { background: rgba(45,43,39,.18); }
     #note-search { margin-top: min(15vh, 100px); }
     .dialog-head { display: flex; align-items: center; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line); }
     #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: 16px; }
-    #note-search-input:focus-visible { outline: 2px solid var(--forest-600); }
+    #note-search-input:focus-visible { outline: 2px solid var(--focus-ring); }
     #search-results { list-style: none; padding: 6px; margin: 0; max-height: 45dvh; overflow: auto; }
     .search-result { padding: 12px; border-radius: 8px; cursor: pointer; }
-    .search-result[aria-selected="true"] { background: var(--sage-100); }
+    .search-result[aria-selected="true"] { background: var(--surface-hover); }
     .search-result[aria-disabled="true"] { cursor: default; color: var(--ink-soft); }
     .search-result strong, .search-result span, .search-result small { display: block; overflow-wrap: anywhere; }
     .search-result strong { font-size: 14px; font-weight: 650; }
@@ -87,7 +84,7 @@ export const notesStyles = String.raw`
     #connection h2 { margin: 0 0 8px; font-size: 20px; }
     #connection p { color: var(--ink-soft); }
     #connection label { display: block; margin: 20px 0 8px; }
-    #open-connection[data-state="connected"] { color: var(--forest-800); }
+    #open-connection[data-state="connected"] { color: var(--ink); }
     .connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
     #api-key { width: 100%; display: block; margin-top: 8px; font-size: 16px; }
     @media (max-width: 680px) {

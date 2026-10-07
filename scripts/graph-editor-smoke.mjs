@@ -426,7 +426,24 @@ async function openEmptyHome(page, label) {
   assert.deepEqual(dataRequests, [], `${label} home must not request graph or documents`);
   assert.equal(new URL(page.url()).hash, "", "API key fragment should be removed from the visible URL");
   assert.equal(await page.getByTestId("graph-svg").isVisible(), false);
+  await assertSharedPalette(page);
   await capture(page, `notes-${label}-home.png`);
+}
+
+async function assertSharedPalette(page) {
+  // The shell shares these tokens even when a view/dialog is not yet visible.
+  for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "#note-editor", "#note-name", "#note-search", "#connection", "#dream-handoff", "#dream-preview"]) {
+    assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(255, 255, 255)", `${selector} uses the shared white surface`);
+  }
+  for (const selector of ["#home-new", "#new-note", "#zoom-in", "#connection-submit", "#dream-copy"]) {
+    assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(241, 240, 238)", `${selector} uses the shared warm-grey control fill`);
+  }
+  await page.locator("#home-new").focus();
+  assert.equal(await page.locator("#home-new").evaluate((el) => getComputedStyle(el).outlineStyle), "solid", "keyboard focus stays visible");
+  await page.locator("#home-new").hover();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#home-new")).backgroundColor === "rgb(231, 229, 226)");
+  await page.mouse.move(0, 0);
+  await page.locator("#home-new").evaluate((el) => el.blur());
 }
 
 async function expectHome(page) {
@@ -466,6 +483,7 @@ async function setConnectionKey(page, key) {
   await page.locator("#open-connection").tap();
   const dialog = page.locator("#connection");
   await dialog.waitFor({ state: "visible" });
+  await capture(page, "notes-connection.png");
   await page.getByTestId("api-key").fill(key);
   await page.locator("#connection-form button[type='submit']").tap();
   await dialog.waitFor({ state: "hidden" });

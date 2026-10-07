@@ -17,33 +17,28 @@ export function graphPageHtml(nonce: string): string {
     /* jumpyBrain UI foundation: shared color, type, spacing, radius and elevation tokens. */
     :root {
       color-scheme: light;
-      --ink: #302e2b;
-      --ink-soft: #625e58;
-      --ink-faint: #6b655d;
-      --cream-50: #fcfaf6;
-      --cream-100: #f6f3ed;
-      --cream-200: #ede8df;
-      --cream-300: #ddd6cb;
-      --white: #fffdfa;
-      --surface-hover: #eeeae3;
-      --focus-ring: #625b52;
+      --ink: #302f2d;
+      --ink-soft: #62605c;
+      --ink-faint: #706d68;
+      --surface: #ffffff;
+      --control-fill: #f1f0ee;
+      --surface-hover: #e7e5e2;
+      --focus-ring: #625f59;
       --error-ink: #8b3434;
       --error-fill: #fbefed;
       --error-line: #c58c86;
-      --line: rgba(48, 46, 43, .14);
-      --line-strong: rgba(48, 46, 43, .26);
-      /* Compatibility aliases shared with the notes browser; ordinary chrome is neutral. */
-      --forest-950: var(--ink);
-      --forest-900: #37342f;
-      --forest-800: #49453f;
-      --forest-700: #59544d;
-      --forest-600: var(--focus-ring);
-      --sage-500: #827b71;
-      --sage-300: #ccc5ba;
-      --sage-200: var(--cream-300);
-      --sage-100: var(--surface-hover);
-      --gold: var(--focus-ring);
-      --clay: #a3534c;
+      --line: #e4e2df;
+      --line-strong: #cbc8c3;
+      --edge: #b0adaa;
+      --edge-link: #94918d;
+      /* Muted categories are data accents, not application chrome. */
+      --node-page: #626974;
+      --node-decision: #95836a;
+      --node-finding: #82798b;
+      --node-preference: #99817b;
+      --node-session: #91979e;
+      --node-note: #76736e;
+      --node-unresolved: #a46f65;
       --shadow-sm: 0 1px 3px rgba(48, 46, 43, .05);
       --shadow-lg: 0 16px 48px rgba(48, 46, 43, .12), 0 2px 8px rgba(48, 46, 43, .05);
       --radius-sm: 6px;
@@ -53,7 +48,7 @@ export function graphPageHtml(nonce: string): string {
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; }
-    body { margin: 0; overflow: hidden; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--cream-100); color: var(--ink); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; overflow: hidden; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
     button, input, textarea { font: inherit; }
     button { cursor: pointer; }
     button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
@@ -61,58 +56,56 @@ export function graphPageHtml(nonce: string): string {
 
     /* Quiet map chrome shares the home screen's foundation. */
     h1 { margin: 0; color: var(--ink); font-size: 20px; line-height: 1.25; letter-spacing: -.025em; font-weight: 600; }
-    #graph-header { position: relative; z-index: 10; background: var(--cream-50); }
+    #graph-header { position: relative; z-index: 10; background: var(--surface); }
     .map-heading { flex: 1 0 220px; }
     .map-heading p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; }
-    .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: 8px 24px; background: var(--cream-50); color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; pointer-events: none; }
+    .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: 8px 24px; background: var(--surface); color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; pointer-events: none; }
 
     /* Reusable controls and toolbar groups. */
-    input { height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: rgba(255,255,255,.72); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+    input { height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
     input::placeholder { color: var(--ink-faint); opacity: 1; }
-    input:hover { border-color: rgba(48,46,43,.36); background: var(--white); }
-    input:focus { border-color: var(--focus-ring); background: var(--white); }
+    input:hover { border-color: var(--ink-faint); }
+    input:focus { border-color: var(--focus-ring); }
     .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 20px 24px; }
     #query { width: 230px; min-width: 0; background: transparent; border-color: var(--line); }
     #graph-filters { position: relative; }
     #graph-filters summary { cursor: pointer; }
     #graph-filters[open] summary { background: var(--surface-hover); }
-    .map-options { position: absolute; z-index: 1; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--cream-50); box-shadow: var(--shadow-lg); }
+    .map-options { position: absolute; z-index: 1; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-lg); }
     .map-options label { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ink-soft); font-size: 12px; }
     .map-options .focus-field { display: block; }
     #focus { display: block; width: 100%; margin-top: 6px; }
     .map-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
     .map-options p { margin: 0; color: var(--ink-faint); font-size: 12px; }
     .button { height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 680; font-size: 12px; transition: background .15s ease, border-color .15s ease; }
-    .button-primary { background: var(--forest-900); color: var(--cream-50); box-shadow: none; }
-    .button-primary:hover { background: var(--forest-800); box-shadow: none; }
+    .button-primary { background: var(--control-fill); border-color: var(--line); color: var(--ink); box-shadow: none; }
+    .button-primary:hover { background: var(--surface-hover); border-color: var(--line-strong); }
     .button svg, .icon-button svg { width: 15px; height: 15px; }
-    .icon-button { width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: rgba(255,255,255,.72); color: var(--forest-800); }
-    .icon-button:hover { border-color: var(--line-strong); background: var(--white); }
+    .icon-button { width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); }
+    .icon-button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
 
     main { display: flex; min-height: 0; }
-    #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--cream-50); }
+    #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--surface); }
     #graph { display: block; width: 100%; height: 100%; cursor: grab; }
     #graph:active { cursor: grabbing; }
     .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; }
-    .stats { color: var(--ink-soft); font-size: 12px; background: var(--cream-50); }
+    .stats { color: var(--ink-soft); font-size: 12px; background: var(--surface); }
     .stats strong { font-weight: 500; font-variant-numeric: tabular-nums; }
-    .canvas-tools { display: flex; gap: 4px; background: var(--cream-50); pointer-events: auto; }
-    .canvas-tools .icon-button { border-color: transparent; background: transparent; }
-    .canvas-tools .icon-button:hover { background: var(--surface-hover); }
+    .canvas-tools { display: flex; gap: 4px; background: var(--surface); pointer-events: auto; }
     .helper { position: absolute; right: 24px; bottom: 62px; margin: 0; color: var(--ink-faint); font-size: 11px; pointer-events: none; }
     .error { margin: 0; padding: 0 24px 12px; color: var(--error-ink); font-size: 13px; overflow-wrap: anywhere; }
     #graph-empty { position: absolute; top: 40%; left: 24px; right: 24px; text-align: center; color: var(--ink-soft); pointer-events: none; }
     .sr-status { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-    .edge { stroke: #aaa298; stroke-opacity: .48; stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke-opacity .15s ease; }
-    .edge.markdown-link { stroke: #92897d; }
+    .edge { stroke: var(--edge); stroke-opacity: .48; stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke-opacity .15s ease; }
+    .edge.markdown-link { stroke: var(--edge-link); }
     .node { cursor: pointer; }
-    .node circle { fill: var(--node-fill, var(--forest-700)); stroke: var(--cream-50); stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke-width .15s ease; }
-    .node.unresolved circle { fill: var(--clay); stroke-dasharray: 3 2; }
-    .node text { fill: var(--ink-soft); paint-order: stroke; stroke: rgba(252,250,246,.96); stroke-width: 4px; stroke-linejoin: round; font-size: 11px; font-weight: 640; letter-spacing: -.01em; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+    .node circle { fill: var(--node-fill, var(--node-note)); stroke: var(--surface); stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke-width .15s ease; }
+    .node.unresolved circle { fill: var(--node-unresolved); stroke-dasharray: 3 2; }
+    .node text { fill: var(--ink-soft); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; font-size: 11px; font-weight: 640; letter-spacing: -.01em; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
     .node.show-label text, .node:hover text, .node:focus text, .node.selected text { opacity: 1; }
-    .node:hover circle, .node:focus-visible circle, .node.selected circle { stroke: var(--gold); stroke-width: 4; }
-    .node.selected text { fill: var(--forest-950); font-weight: 760; }
+    .node:hover circle, .node:focus-visible circle, .node.selected circle { stroke: var(--focus-ring); stroke-width: 4; }
+    .node.selected text { fill: var(--ink); font-weight: 760; }
 
     @media (max-width: 680px) {
       .toolbar { padding: 12px 16px; gap: 6px; }
@@ -409,8 +402,8 @@ function focusGraphNode(id) {
 }
 
 function nodeColor(node) {
-  if (node.nodeKind === "unresolved") return "#ba6953";
-  return ({ page: "#285b45", decision: "#ad8243", finding: "#6f824e", preference: "#886b59", session: "#6f8874", note: "#477560" })[node.type] || "#39705a";
+  if (node.nodeKind === "unresolved") return "var(--node-unresolved)";
+  return ({ page: "var(--node-page)", decision: "var(--node-decision)", finding: "var(--node-finding)", preference: "var(--node-preference)", session: "var(--node-session)", note: "var(--node-note)" })[node.type] || "var(--node-note)";
 }
 
 function createDocumentEditor(options) {

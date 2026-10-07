@@ -74,7 +74,7 @@ export const dreamStyles = String.raw`
     .dream-scope { padding: 12px; border: 1px solid var(--line); border-radius: 6px; overflow-wrap: anywhere; }
     .dream-scope p { margin: 4px 0 !important; }
     .dream-help { color: var(--ink-soft); font-size: 12px; }
-    #dream-preview { display: block; width: 100%; min-height: 160px; height: 22dvh; margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); color: var(--ink); resize: vertical; font: 12px/1.6 ui-monospace, monospace; }
+    #dream-preview { display: block; width: 100%; min-height: 160px; height: 22dvh; margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); resize: vertical; font: 12px/1.6 ui-monospace, monospace; }
     .dream-actions { display: flex; flex-wrap: wrap; gap: 8px; }
     #dream-feedback { font-size: 13px; margin-bottom: 0 !important; }
     #dream-feedback:empty { display: none; }

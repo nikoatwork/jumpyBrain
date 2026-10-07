@@ -302,7 +302,7 @@ test("notes shell replaces the slide-in with an empty home and full-page raw edi
 test("graph page uses quiet map controls with native filters and no depth UI", () => {
   const html = graphPageHtml("testnonce");
   assert.match(html, /color-scheme: light/);
-  for (const token of ["--cream-50", "--cream-100", "--ink", "--ink-soft", "--focus-ring", "--radius-md", "--shadow-lg"]) {
+  for (const token of ["--surface", "--control-fill", "--surface-hover", "--ink", "--ink-soft", "--focus-ring", "--radius-md", "--shadow-lg"]) {
     assert.equal(html.includes(token), true, `${token} design token must be present`);
   }
   assert.match(html, /class="toolbar" aria-label="Map controls"/);
@@ -316,6 +316,32 @@ test("graph page uses quiet map controls with native filters and no depth UI", (
   assert.match(html, /id="reset-view"/);
   assert.match(html, /window\.addEventListener\("resize", \(\) => queueGraphLayout\(80\)/);
   assert.match(html, /prefers-reduced-motion/);
+});
+
+test("all browser views share white surfaces and warm-grey semantic controls", () => {
+  const html = graphPageHtml("testnonce");
+  const css = html.match(/<style[^>]*>([\s\S]*?)<\/style>/)[1];
+  assert.match(css, /--surface: #ffffff;/);
+  assert.match(css, /--control-fill: #f1f0ee;/);
+  assert.match(css, /--surface-hover: #e7e5e2;/);
+  assert.doesNotMatch(css, /--(?:cream|forest|sage|gold|clay|white)\b/);
+  for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "dialog", "#note-name", "#note-editor", "#dream-preview"]) {
+    const rule = css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
+    assert.match(rule, /background: var\(--surface\)/, selector);
+  }
+  for (const selector of [".button-primary", ".quiet-button", ".icon-button", "#home-new"]) {
+    const rule = css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
+    assert.match(rule, /background: var\(--control-fill\)/, selector);
+  }
+  const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]));
+  defined.add("--node-fill"); // Per-node inline override with a CSS fallback.
+  for (const match of css.matchAll(/var\((--[\w-]+)/g)) {
+    assert.ok(defined.has(match[1]), `undefined design token: ${match[1]}`);
+  }
+  for (const type of ["page", "decision", "finding", "preference", "session", "note", "unresolved"]) {
+    assert.ok(defined.has(`--node-${type}`));
+    assert.ok(html.includes(`"var(--node-${type})"`), `${type} node uses the shared palette`);
+  }
 });
 
 test("pointer zoom preserves the anchored graph point with nonzero pan and SVG rect offsets", () => {
