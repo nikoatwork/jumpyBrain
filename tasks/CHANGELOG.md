@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-07 — Page-reference feasibility finalized
+
+- Finalized [clickable-reference and caret-autocomplete feasibility](done/2026-10-07_tasks-clickable-page-references.md); prototypes remain isolated, with production integration and accessibility validation tracked separately.
+
 ## 2026-10-06 — [v0.2.0](../docs/releases/v0.2.0.md): [dreaming from the memory map](done/2026-10-07_tasks-web-dream-handoff.md)
 
 - Added a copyable agent prompt for immediate, bounded dream-page consolidation from the map, keeping credentials and model execution outside the browser.
