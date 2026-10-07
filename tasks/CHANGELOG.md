@@ -1,6 +1,6 @@
 # Task Changelog
 
-## 2026-10-06 — [v0.2.0](../docs/releases/v0.2.0.md): dreaming from the memory map
+## 2026-10-06 — [v0.2.0](../docs/releases/v0.2.0.md): [dreaming from the memory map](done/2026-10-07_tasks-web-dream-handoff.md)
 
 - Added a copyable agent prompt for immediate, bounded dream-page consolidation from the map, keeping credentials and model execution outside the browser.
 

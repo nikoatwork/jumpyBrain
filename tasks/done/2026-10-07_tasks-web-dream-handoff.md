@@ -1,6 +1,8 @@
 # Dreaming from the memory map
 
-Status: complete and verified (2026-10-06); awaiting archive approval. Deployment is outside this task.
+Status: complete and verified (2026-10-06); finalized and archived with user approval on 2026-10-07. Deployment is outside this task.
+
+Completion: shipped the copy-only, bounded Dream handoff in `44ffada` (v0.2.0), with 412 passing tests and browser/CLI verification recorded below. No implementation work remains in this task.
 
 ## Goal
 
@@ -34,7 +36,7 @@ Add **Consolidate notes (Dream)…** to the memory-map toolbar. It prepares a se
 
 - [Feasibility findings](../../deep-dives/web-dream-handoff/feasibility.md) — evidence and rejected alternatives; this task list owns implementation scope.
 - [Memory map UX refresh](../done/2026-09-30_tasks-memory-map-ux-refresh.md) — completed toolbar cleanup (landed in `7cb03a7` before implementation). Add one quiet action to that design; do not restore removed controls or duplicate navigation.
-- [Public sandbox hardening](tasks-public-sandbox-hardening.md) — Dream restrictions must not be relaxed for this feature.
+- [Public sandbox hardening](../todo/tasks-public-sandbox-hardening.md) — Dream restrictions must not be relaxed for this feature.
 - `src/architecture.docs.md`, `src/adapters/http-server/http-server.docs.md` — ownership and dependency rules.
 - `src/adapters/http-server/graph-page.ts` — graph toolbar, browser assembly, transport, shared save controller.
 - `src/adapters/http-server/notes-browser.ts` — existing dialog, navigation, focus, keyboard-shortcut and history patterns.
@@ -85,7 +87,7 @@ Add **Consolidate notes (Dream)…** to the memory-map toolbar. It prepares a se
 - [x] 6.0 Document the shipped handoff and close the task.
   - [x] 6.1 Update the HTTP adapter docs and the relevant browser/agent-workflow documentation with copy-only behavior, scoped immediate authorization, external credentials, UTC/date-window scope, and no completion tracking.
   - [~] 6.2 No glossary change needed: existing Dream page/window terminology covers the feature.
-  - [x] 6.3 Recorded outcomes below and added a concise implemented user-facing highlight in `tasks/CHANGELOG.md`. Keep this completed list in `todo/` until archive approval. User subsequently requested commit and push; archiving remains unrequested.
+  - [x] 6.3 Recorded outcomes below and added a concise implemented user-facing highlight in `tasks/CHANGELOG.md`. User approved finalization and archiving on 2026-10-07; archived this completed task in `tasks/done/`.
 
 ## Verification and outcomes
 

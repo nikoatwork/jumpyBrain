@@ -2,7 +2,7 @@
 
 Status: research complete; copy-prompt-only handoff with immediate authorized consolidation is implemented. See the task list for verification and remaining environment limitations.
 
-**Canonical plan:** [Dreaming from the memory map](../../tasks/todo/tasks-web-dream-handoff.md). That active task list owns defaults, implementation work, and acceptance criteria.
+**Completed task:** [Dreaming from the memory map](../../tasks/done/2026-10-07_tasks-web-dream-handoff.md). The archived task records defaults, implementation outcomes, verification, and acceptance criteria.
 
 Repository initially inspected: `63462ca`. Research used source inspection, official documentation, and limited local executable/app metadata checks—not an end-to-end launch prototype or observed usability testing. No agent/model requests or memory writes were initiated for this investigation.
 
