@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-08 — Page-reference navigation and inline suggestions
+
+- Added draft-safe title-reference navigation and undoable inline suggestions, reusing canonical lookup and indexed search; [manual device/browser validation remains tracked](todo/tasks-page-reference-manual-qa.md).
+
 ## 2026-10-07 — Page-reference feasibility finalized
 
 - Finalized [clickable-reference and caret-autocomplete feasibility](done/2026-10-07_tasks-clickable-page-references.md); prototypes remain isolated, with production integration and accessibility validation tracked separately.

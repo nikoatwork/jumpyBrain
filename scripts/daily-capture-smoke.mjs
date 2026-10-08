@@ -335,31 +335,43 @@ async function validateReferences(page, label) {
   // Undoing to the already persisted baseline is clean, not a new save.
   assert.notEqual(await page.locator("#note-save-state").innerText(), "Save failed");
 
-  // Real per-character browser input, not fill(), exercises the [[ input trigger.
+  // Real per-character browser input, not fill(), exercises inline [[ autocomplete.
+  const autocomplete = page.locator("[data-reference-autocomplete]");
   await editorEnd(page);
   await page.keyboard.type("[[");
-  await picker(page);
+  await autocomplete.waitFor({ state: "visible" });
+  assert.match(await autocomplete.locator("[role='status']").innerText(), /Type a page title/);
+  assert.equal(await autocomplete.locator("[role='option']").count(), 0, "empty trigger has no suggestions");
+  assert.equal(await page.locator("#note-search").isVisible(), false, "typed [[ must not open the modal");
+  assert.equal(await editor.evaluate((element) => document.activeElement === element), true);
   const typed = await editorMarkdown(page);
   assert.equal(typed, baseline + "[[");
   await page.keyboard.press("Escape");
-  await page.locator("#note-search").waitFor({ state: "hidden" });
+  await autocomplete.waitFor({ state: "hidden" });
   assert.equal(await editorMarkdown(page), typed, "cancel keeps typed Markdown intact");
   assert.equal(await editor.evaluate((element) => document.activeElement === element), true);
   assert.deepEqual(await editorSelection(page), [typed.length, typed.length]);
   await nativeUndo(page);
-  // Opening a modal may split the two typed characters into separate native
-  // undo transactions; only the inserted reference must be one transaction.
+  // Browser typing may split characters into separate native undo transactions;
+  // only the inserted reference must be one transaction.
   if (await editorMarkdown(page) === baseline + "[") await nativeUndo(page);
   assert.equal(await editorMarkdown(page), baseline, "typed [[ remains natively undoable after cancellation");
-  await page.keyboard.type("[[");
-  await picker(page);
-  await searchRealReference(page);
+  await page.keyboard.type(`[[${fixture.query}`);
+  await autocomplete.locator("[role='option'][aria-selected='true']").filter({ hasText: fixture.title }).waitFor({ state: "visible" });
+  assert.match(await autocomplete.locator("[role='status']").innerText(), /Enter to insert/);
+  assert.equal(await page.locator("#note-search").isVisible(), false, "typed query stays inline");
+  assert.equal(await editor.evaluate((element) => document.activeElement === element), true);
+  const queryTrigger = baseline + `[[${fixture.query}`;
+  assert.equal(await editorMarkdown(page), queryTrigger, "query is typed in the editor");
+  await layout(page, ["[data-reference-autocomplete]"]);
+  await capture(page, `${label}-reference-autocomplete.png`);
   await page.keyboard.press("Enter");
-  await page.locator("#note-search").waitFor({ state: "hidden" });
-  assert.equal(await editorMarkdown(page), baseline + `[[${fixture.title}]]`, "trigger replaces opening brackets, no duplication");
+  await autocomplete.waitFor({ state: "hidden" });
+  assert.equal(await editorMarkdown(page), baseline + `[[${fixture.title}]]`, "trigger replaces opening brackets and query, no duplication");
+  assert.equal(await page.locator("#note-search").isVisible(), false);
   assert.equal(page.url(), url);
   await nativeUndo(page);
-  assert.equal(await editorMarkdown(page), baseline + "[[", "undo restores exact pre-insertion trigger text");
+  assert.equal(await editorMarkdown(page), queryTrigger, "undo restores exact pre-insertion query trigger text");
   // Save a final real reference by pointer, then confirm canonical Markdown and reload.
   await page.locator("#insert-reference").click();
   await picker(page);

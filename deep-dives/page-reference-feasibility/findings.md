@@ -1,10 +1,12 @@
 # Page-reference feasibility results
 
+Historical investigation below (baseline `fb22bc1`), not the current product contract. **Integration update, 2026-10-08:** production navigation/autocomplete are implemented and Chromium-tested; the disposable editor/plugin/scanner forks have been removed. Historical smoke entrypoints now forward to production regression runners. See the [completed integration](../../tasks/done/2026-10-08_tasks-page-reference-integration.md) for automated evidence and [manual QA follow-up](../../tasks/todo/tasks-page-reference-manual-qa.md) for remaining gates, and [HTTP adapter docs](../../src/adapters/http-server/http-server.docs.md) for implementation ownership.
+
 ## Recommendation
 
 **Conditional go for a bounded implementation; no-go for shipping these prototypes unchanged.** Normal-click references and caret autocomplete work with vanilla Lexical and the existing search controller. Neither needs a framework, editor replacement, new search engine, or positioning dependency. The work is more than styling: reference recognition, source preservation, live insertion ranges, accessibility, and guarded app integration need explicit ownership.
 
-Production files are unchanged. `editor.ts` is an intentionally disposable fork, not a second supported editor. Baseline: repository commit `fb22bc1`, production editor blob `0f97c0543f4846e270985ee1ea7046a89aa405d4`. If implementation proceeds, port the proven pieces into the owning modules and remove the fork rather than maintaining both.
+At investigation time, production files were unchanged and `editor.ts` was a disposable fork. Baseline: repository commit `fb22bc1`, production editor blob `0f97c0543f4846e270985ee1ea7046a89aa405d4`. Those historical prototypes remain available in Git at `47f8754`; current code and regression runners use only the production editor.
 
 ## What was demonstrated
 
@@ -45,17 +47,15 @@ Before the ordered scan change, the 1,000-line prototype measured 99.9ms hydrati
 
 ## Reproduce
 
-Run from the repository root; fixtures use localhost and fresh OS temporary directories only:
+Current production successors, run from the repository root (localhost/fresh OS temporary fixtures only). These rerun regressions, not the historical baseline/prototype comparisons or their measurements:
 
 ```bash
 npm run build
-npx --package=playwright node deep-dives/page-reference-feasibility/smoke.mjs
-JUMPYBRAIN_PROTOTYPE_BENCH=1 npx --package=playwright node deep-dives/page-reference-feasibility/smoke.mjs
-npx --package=playwright node deep-dives/page-reference-feasibility/autocomplete-smoke.mjs
-node deep-dives/page-reference-feasibility/resolve-probe.mjs
-node --test deep-dives/page-reference-feasibility/reference-ranges-probe.mjs
-./node_modules/.bin/tsc --ignoreConfig --noEmit --strict --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM deep-dives/page-reference-feasibility/editor.ts deep-dives/page-reference-feasibility/autocomplete.ts
-node --test test/architecture-boundaries.test.js test/lexical-bundle.test.js test/notes-browser.test.js test/daily-notes-browser.test.js
+npx --package=playwright node scripts/page-reference-editor-smoke.mjs
+npx --package=playwright node scripts/reference-autocomplete-smoke.mjs
+JUMPYBRAIN_REFERENCE_SMOKE_BENCH=1 npx --package=playwright node scripts/page-reference-smoke.mjs
+JUMPYBRAIN_REFERENCE_EDITOR_BENCH=1 npx --package=playwright node scripts/page-reference-editor-smoke.mjs
+node --test test/reference-ranges.test.js test/canonical-title-resolution.test.js test/server-title-resolution.test.js
 ```
 
-The runners intentionally are not wired into production packaging or `npm` scripts; the pure scanner probe is named outside Node's automatic test-discovery patterns. No real memory roots, credentials, installation, or team memory are used. The [feasibility task is archived](../../tasks/done/2026-10-07_tasks-clickable-page-references.md); [the integration list](../../tasks/todo/tasks-page-reference-integration.md) owns all unfinished rollout gates. Finalizing this investigation does not ship either feature.
+`npm run smoke:page-references` builds and runs all three production browser runners; the scanner regressions are now in normal test discovery. The remaining `resolve-probe.mjs` is historical evidence containing the original research resolver, not a supported runtime. No real memory roots, credentials, installation, or team memory are used. The [feasibility task is archived](../../tasks/done/2026-10-07_tasks-clickable-page-references.md); the completed integration records rollout status and the manual QA follow-up owns remaining gates.

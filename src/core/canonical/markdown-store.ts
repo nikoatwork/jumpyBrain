@@ -147,6 +147,38 @@ export async function readCanonicalMemoryDocumentById(rootArg: string, id: strin
   return result;
 }
 
+export type CanonicalMemoryTitleResolution =
+  | { status: "found"; id: string }
+  | { status: "missing" | "ambiguous" | "unopenable" };
+
+/** Fresh title-only lookup; read-only, but not atomic against filesystem writers. */
+export async function resolveCanonicalMemoryDocumentByTitle(rootArg: string, title: string): Promise<CanonicalMemoryTitleResolution> {
+  const key = normalizedDocumentTitle(title);
+  if (!key) return { status: "missing" };
+  try {
+    const root = await resolveMemoryRoot(rootArg);
+    const matches: MarkdownDocument[] = [];
+    for (const file of await listCanonicalMemoryMarkdownFiles(root)) {
+      const document = await readMarkdownDocument(root, file);
+      // ID-less and invalid-ID matches still make a title ambiguous.
+      if (normalizedDocumentTitle(document.frontmatter.title) === key) matches.push(document);
+    }
+    if (!matches.length) return { status: "missing" };
+    if (matches.length > 1) return { status: "ambiguous" };
+    const match = matches[0]!;
+    const id = match.frontmatter.id;
+    if (typeof id !== "string") return { status: "unopenable" };
+    // Reuse editor ID validation/global duplicate detection at the same root.
+    const opened = await readCanonicalMemoryDocumentById(root, id);
+    if (opened.file !== match.relativePath || opened.frontmatter.id !== id ||
+        normalizedDocumentTitle(opened.title) !== key) return { status: "unopenable" };
+    return { status: "found", id };
+  } catch {
+    // Never expose scan diagnostics or mistake a failed read for a missing title.
+    return { status: "unopenable" };
+  }
+}
+
 export interface ReplaceCanonicalMemoryDocumentOptions extends ReadCanonicalMemoryDocumentOptions {
   updatedAt?: string;
 }
@@ -201,7 +233,7 @@ export async function replaceCanonicalMemoryDocumentById(
   };
 }
 
-function normalizedDocumentTitle(value: unknown): string {
+export function normalizedDocumentTitle(value: unknown): string {
   return typeof value === "string" ? value.normalize("NFKC").trim().toLowerCase().normalize("NFC") : "";
 }
 

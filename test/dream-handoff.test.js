@@ -98,7 +98,7 @@ function browserHarness() {
     return elements.get(id);
   };
   const globals = {
-    $, state: { view: "graph" }, URL, Date,
+    $, state: { view: "graph" }, URL, Date, cancelReferenceInteraction() {},
     location: { origin: "https://brain.example", hash: "#apiKey=NEVER_COPY", search: "?note=PRIVATE_NOTE_SENTINEL" },
     navigator: { clipboard: { async writeText() {} } },
     document: { querySelector() { return $("dream-handoff").open; } },

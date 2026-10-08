@@ -92,7 +92,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   };
   const removed = [];
   const context = runtime(["renderConnection", "maskApiKey", "closeConnection", "setConnectionKey"], {
-    $, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
+    $, cancelReferenceInteraction() {}, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
     apiKeyInput: { value: "unsaved-edit", type: "text" },
     connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) },
   });
@@ -409,6 +409,7 @@ test("late document GETs cannot overwrite a new full-page selection", async () =
   const richEditor = { markdown: "", setMarkdown(value) { this.markdown = value; }, getMarkdown() { return this.markdown; }, focus() {} };
   const context = runtime(["showNote", "isValidMemoryDocumentId", "noteLoadError"], {
     $, state, richEditor, document: { title: "" }, window: { setTimeout, clearTimeout },
+    stagedReferenceNote: null, credentialRevision: 0, cancelReferenceInteraction() {},
     splitEditableDocument() {}, composeEditableDocument() {}, writeGraphDocument() {}, syncEditorUi() {},
     searchDialog: { open: false }, connectionDialog: { open: false }, dreamDialog: { open: false },
     readGraphDocument(id) { const read = { id, ...deferred() }; reads.push(read); return read.promise; },
@@ -421,4 +422,282 @@ test("late document GETs cannot overwrite a new full-page selection", async () =
   assert.equal($("note-title").textContent, "Beta");
   assert.equal(richEditor.getMarkdown(), "body B");
   assert.equal(context.document.title, "Beta · jumpyBrain");
+});
+
+
+// Exercise the real save guard, navigation lock, and editor; only browser/transport
+// boundaries are fake. Deferred I/O and inert timers make every race explicit.
+function referenceHarness({ dirty = true } = {}) {
+  const elements = new Map();
+  const $ = (id) => {
+    if (!elements.has(id)) elements.set(id, {
+      hidden: true, value: "", textContent: "", dataset: {}, open: false,
+      focus() {}, select() {}, setAttribute() {},
+      showModal() { this.open = true; }, close() { this.open = false; },
+    });
+    return elements.get(id);
+  };
+  const writes = [], resolves = [], reads = [], pushes = [], shows = [];
+  const timers = new Map();
+  let timer = 0, dismissed = 0;
+  const window = {
+    setTimeout(run) { timers.set(++timer, run); return timer; },
+    clearTimeout(id) { timers.delete(id); },
+  };
+  const richEditor = {
+    markdown: "", setMarkdown(value) { this.markdown = value; },
+    getMarkdown() { return this.markdown; }, focus() {}, captureSelection() { return {}; },
+  };
+  const state = { noteToken: 1, editor: null };
+  const context = runtime([
+    "activatePageReference", "cancelReferenceInteraction", "referenceMessage",
+    "createPageNavigation", "requestEditorNavigation", "createDocumentEditor",
+    "splitEditableDocument", "composeEditableDocument", "withEditableTitle",
+    "isValidMemoryDocumentId", "showNote", "noteLoadError", "setConnectionKey",
+    "closeConnection", "maskApiKey", "renderConnection", "openConnection", "openSearch",
+  ], {
+    $, state, window, richEditor, AbortController, document: { title: "", activeElement: null },
+    credentialRevision: 0, referenceRequest: null, stagedReferenceNote: null,
+    activeApiKey: "old-key", connectionStatus: "connected", apiKeyInput: $("api-key"),
+    localStorage: { setItem() {}, removeItem() {} }, reopenSearch: false,
+    searchMode: "navigate", referenceSelection: null, searchOrigin: null,
+    searchDocument: null, searchSelection: null,
+    searchDialog: $("note-search"), connectionDialog: $("connection"), dreamDialog: $("dream"),
+    noteSearch: { markStale() {}, query() {} },
+    referenceAutocomplete: { dismiss() { dismissed++; }, markStale() {} },
+    syncEditorUi(editorState) { richEditor.setMarkdown(editorState.draft); },
+    graphJson(url, options) {
+      const request = { url, options, ...deferred() }; resolves.push(request); return request.promise;
+    },
+    readGraphDocument(id, options) {
+      const request = { id, options, ...deferred() }; reads.push(request); return request.promise;
+    },
+    writeGraphDocument(id, content, hash) {
+      const request = { id, content, hash, ...deferred() }; writes.push(request); return request.promise;
+    },
+  });
+  const origin = context.createDocumentEditor({
+    generation: 1, documentId: docA, debounceMs: 750,
+    setTimer: window.setTimeout, clearTimer: window.clearTimeout,
+    splitDocument: context.splitEditableDocument, composeDocument: context.composeEditableDocument,
+    readDocument: context.readGraphDocument, writeDocument: context.writeGraphDocument,
+    isCurrent: () => state.editor === origin,
+    onChange: context.syncEditorUi,
+  });
+  state.editor = origin;
+  origin.hydrate({ content: "Original body", contentHash: "original-hash", title: "Alpha" });
+  origin.setEditing(true);
+  if (dirty) origin.input("Current unsaved draft");
+  context.navigation = context.createPageNavigation({
+    initial: { url: "/?note=" + docA, index: 0 },
+    beforeLeave: () => context.requestEditorNavigation(() => {}),
+    resume: () => state.editor?.setNavigationPending(false),
+    push(entry) { pushes.push(entry); },
+    show(url) { shows.push(context.showNote(new URL(url, "http://test").searchParams.get("note"))); },
+    go() { assert.fail("unexpected history traversal"); },
+  });
+  return {
+    context, $, state, origin, writes, resolves, reads, pushes, shows, richEditor,
+    get dismissed() { return dismissed; },
+    activate(title = "Beta") { return context.activatePageReference(title); },
+    async saved() { writes.at(-1).resolve({ newContentHash: "saved-hash" }); await tick(); },
+    async found() { resolves.at(-1).resolve({ status: "found", id: docB }); await tick(); },
+    payload: { content: "Confirmed target body", contentHash: "target-hash", title: "Beta", frontmatter: { id: docB } },
+  };
+}
+
+function assertRetained(h, draft = "Current unsaved draft") {
+  assert.equal(h.state.editor, h.origin);
+  assert.equal(h.origin.state.draft, draft);
+  assert.equal(h.richEditor.getMarkdown(), draft);
+  assert.equal(h.origin.state.cancelled, false);
+  assert.equal(h.origin.state.navigationPending, false, "failed/canceled navigation restores editing");
+  assert.equal(h.pushes.length, 0);
+  assert.equal(h.context.stagedReferenceNote, null);
+  assert.equal(h.context.referenceRequest, null);
+}
+
+test("page references save first, resolve freshly, preflight, and consume the staged payload without a second GET", async () => {
+  const h = referenceHarness();
+  const opening = h.activate("  Ｂeta  ");
+  assert.equal(h.origin.state.navigationPending, true);
+  assert.equal(h.writes.length, 1);
+  assert.equal(h.writes[0].content, "Current unsaved draft");
+  assert.equal(h.writes[0].hash, "original-hash");
+  assert.equal(h.resolves.length, 0, "resolve must wait for the PUT acknowledgement");
+  await h.saved();
+  assert.equal(h.resolves.length, 1);
+  assert.equal(h.origin.state.dirty, false);
+  assert.equal(h.resolves[0].url, "/memories/all/resolve-title");
+  assert.equal(h.resolves[0].options.method, "POST");
+  assert.deepEqual(JSON.parse(h.resolves[0].options.body), { title: "  Ｂeta  " });
+  assert.equal(h.reads.length, 0);
+  assert.equal(h.pushes.length, 0);
+  await h.found();
+  assert.equal(h.reads.length, 1);
+  assert.equal(h.reads[0].id, docB);
+  assert.equal(h.reads[0].options.signal, h.resolves[0].options.signal);
+  assert.equal(h.pushes.length, 0, "preflight must finish before history/editor replacement");
+  assert.equal(h.state.editor, h.origin);
+  h.reads[0].resolve(h.payload);
+  await opening;
+  await Promise.all(h.shows);
+  assert.equal(h.pushes[0].url, "/?note=" + docB);
+  assert.equal(h.reads.length, 1, "showNote must reuse the validated preflight payload");
+  assert.equal(h.state.editor.state.documentId, docB);
+  assert.equal(h.state.editor.state.exactContent, h.payload.content);
+  assert.equal(h.state.editor.state.contentHash, h.payload.contentHash);
+  assert.equal(h.richEditor.getMarkdown(), h.payload.content);
+  assert.equal(h.origin.state.cancelled, true);
+  assert.equal(h.context.stagedReferenceNote, null);
+  assert.equal(h.context.referenceRequest, null);
+  assert.equal(h.$("reference-message").hidden, true);
+  assert.ok(h.dismissed >= 2);
+});
+
+test("failed saves retain the dirty draft and never resolve a page reference", async () => {
+  const h = referenceHarness();
+  const opening = h.activate();
+  h.writes[0].reject(new Error("Save unavailable"));
+  await opening;
+  assertRetained(h);
+  assert.equal(h.origin.state.dirty, true);
+  assert.equal(h.origin.state.saveStatus, "failed");
+  assert.equal(h.resolves.length, 0);
+  assert.match(h.$("reference-message").textContent, /Save failed/);
+  await h.activate();
+  assert.equal(h.writes.length, 1, "blocked autosave requires explicit retry");
+  assert.equal(h.resolves.length, 0);
+});
+
+test("reference resolve/preflight failures retain the current editor and unlock navigation", async (t) => {
+  const cases = [
+    { name: "missing", result: { status: "missing" }, message: /No page has this title/ },
+    { name: "ambiguous", result: { status: "ambiguous" }, message: /Several pages/ },
+    { name: "invalid ID", result: { status: "found", id: "bad-id" } },
+    { name: "malformed resolve", result: {} },
+    ...[401, 403, 500, 429, undefined].map((status) => ({ name: "resolve " + status, error: { status }, message: status === 401 || status === 403 ? /Connect with an access key/ : undefined })),
+    ...[401, 403, 404, 500, undefined].map((status) => ({ name: "preflight " + status, preflight: true, error: { status }, message: status === 401 || status === 403 ? /Connect with an access key/ : undefined })),
+    { name: "renamed target", preflight: true, patch: { title: "Renamed" } },
+    { name: "wrong identity", preflight: true, patch: { frontmatter: { id: docA } } },
+    { name: "missing identity", preflight: true, patch: { frontmatter: {} } },
+    { name: "invalid body", preflight: true, patch: { content: null } },
+    { name: "missing hash", preflight: true, patch: { contentHash: undefined } },
+    { name: "missing title", preflight: true, patch: { title: undefined } },
+  ];
+  for (const scenario of cases) await t.test(scenario.name, async () => {
+    const h = referenceHarness();
+    const opening = h.activate();
+    await h.saved();
+    if (scenario.preflight) await h.found();
+    const request = scenario.preflight ? h.reads[0] : h.resolves[0];
+    if (scenario.error) request.reject(Object.assign(new Error("private server detail"), scenario.error));
+    else request.resolve(scenario.preflight ? { ...h.payload, ...scenario.patch } : scenario.result);
+    await opening;
+    assertRetained(h);
+    assert.equal(h.reads.length, scenario.preflight ? 1 : 0);
+    assert.match(h.$("reference-message").textContent, scenario.message || /could not be opened/);
+    assert.doesNotMatch(h.$("reference-message").textContent, /private server detail/);
+    assert.equal(h.$("reference-message").dataset.error, "true");
+  });
+});
+
+test("reference activation ignores repeats while saving/resolving/preflighting and permits retry", async () => {
+  const h = referenceHarness();
+  const opening = h.activate();
+  await h.activate("Other");
+  assert.equal(h.writes.length, 1);
+  await h.saved();
+  await h.activate("Other");
+  assert.equal(h.resolves.length, 1);
+  await h.found();
+  await h.activate("Other");
+  assert.equal(h.reads.length, 1);
+  h.reads[0].reject(new Error("offline"));
+  await opening;
+  assertRetained(h);
+  const retry = h.activate();
+  await tick();
+  assert.equal(h.writes.length, 1, "saved draft needs no duplicate PUT");
+  assert.equal(h.resolves.length, 2);
+  await h.found();
+  h.reads[1].resolve(h.payload);
+  await retry;
+  assert.equal(h.pushes.length, 1);
+});
+
+test("credentials and modal openings cancel pending references, including transports that ignore abort", async (t) => {
+  const cancelers = [
+    ["credentials", (h) => h.context.setConnectionKey("new-key")],
+    ["connection modal", (h) => h.context.openConnection(false)],
+    ["search modal", (h) => h.context.openSearch()],
+    ["explicit cancellation", (h) => h.context.cancelReferenceInteraction()],
+  ];
+  for (const phase of ["save", "resolve", "preflight"]) {
+    for (const [name, cancel] of cancelers) await t.test(name + " during " + phase, async () => {
+      const h = referenceHarness();
+      const opening = h.activate();
+      if (phase !== "save") await h.saved();
+      if (phase === "preflight") await h.found();
+      const signal = h.context.referenceRequest.signal;
+      cancel(h);
+      assert.equal(signal.aborted, true);
+      if (phase === "save") await h.saved();
+      if (phase === "resolve") await h.found();
+      if (phase === "preflight") h.reads[0].resolve(h.payload);
+      await opening;
+      assertRetained(h);
+      assert.equal(h.$("reference-message").hidden, true, "canceled responses must not show stale feedback");
+      assert.equal(h.resolves.length, phase === "save" ? 0 : 1);
+      assert.equal(h.reads.length, phase === "preflight" ? 1 : 0);
+    });
+  }
+});
+
+test("reference activation is inert with an unloaded/busy editor or any open modal", async (t) => {
+  for (const blocked of ["unloaded", "busy", "searchDialog", "connectionDialog", "dreamDialog", "no editor"]) {
+    await t.test(blocked, async () => {
+      const h = referenceHarness();
+      if (blocked === "unloaded") h.origin.state.loaded = false;
+      else if (blocked === "busy") h.origin.setNavigationPending(true);
+      else if (blocked === "no editor") h.state.editor = null;
+      else h.context[blocked].open = true;
+      await h.activate();
+      assert.equal(h.writes.length + h.resolves.length + h.reads.length + h.pushes.length, 0);
+      assert.equal(h.context.referenceRequest, null);
+      assert.equal(h.dismissed, 0);
+    });
+  }
+});
+
+test("a changed editor or credential revision invalidates a late reference response independently of abort", async (t) => {
+  for (const change of ["editor", "credentials"]) await t.test(change, async () => {
+    const h = referenceHarness();
+    const opening = h.activate();
+    await h.saved();
+    await h.found();
+    const replacement = { state: { draft: "New current draft" }, setNavigationPending() {} };
+    if (change === "editor") h.state.editor = replacement;
+    else h.context.credentialRevision++;
+    h.reads[0].resolve(h.payload);
+    await opening;
+    assert.equal(h.pushes.length, 0);
+    assert.equal(h.context.stagedReferenceNote, null);
+    assert.equal(h.state.editor, change === "editor" ? replacement : h.origin);
+    assert.equal(h.state.editor.state.draft, change === "editor" ? "New current draft" : "Current unsaved draft");
+  });
+});
+
+test("showNote rejects a staged payload for another document or credential revision", async (t) => {
+  for (const mismatch of ["id", "revision"]) await t.test(mismatch, async () => {
+    const h = referenceHarness({ dirty: false });
+    h.context.stagedReferenceNote = { id: mismatch === "id" ? docA : docB, revision: mismatch === "revision" ? -1 : 0, payload: h.payload };
+    const showing = h.context.showNote(docB);
+    assert.equal(h.reads.length, 1);
+    assert.equal(h.reads[0].id, docB);
+    h.reads[0].resolve({ ...h.payload, content: "Fresh authenticated payload" });
+    await showing;
+    assert.equal(h.richEditor.getMarkdown(), "Fresh authenticated payload");
+    assert.equal(h.context.stagedReferenceNote, null);
+  });
 });

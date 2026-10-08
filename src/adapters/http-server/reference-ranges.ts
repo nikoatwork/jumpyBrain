@@ -1,4 +1,4 @@
-// THROWAWAY FEASIBILITY ONLY: deliberately not a general Markdown parser.
+// Conservative editor-only reference recognition; not a general Markdown parser.
 export type ReferenceRange = { start: number; end: number; title: string };
 
 // Matches the production picker's exact-title safety rules (not graph resolution).

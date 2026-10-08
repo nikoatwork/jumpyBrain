@@ -1,8 +1,13 @@
-// Disposable pure-scanner regressions. No app, Markdown roots, or index required.
+// Pure editor-scanner regressions. No app, Markdown roots, or index required.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { referenceRanges } from "../../dist/adapters/http-server/reference-ranges.js";
+import { build } from "esbuild";
 
+const { outputFiles } = await build({
+  entryPoints: [new URL("../src/adapters/http-server/reference-ranges.ts", import.meta.url).pathname],
+  bundle: true, format: "esm", platform: "node", write: false,
+});
+const { referenceRanges } = await import("data:text/javascript;base64," + Buffer.from(outputFiles[0].text).toString("base64"));
 const titles = (source) => referenceRanges(source).map((range) => range.title);
 
 for (const [name, source, expected] of [

@@ -1,4 +1,4 @@
-import { listCanonicalMemoryMarkdownFiles, readMarkdownDocument, resolveMemoryRoot } from "../../core/canonical/index.js";
+import { listCanonicalMemoryMarkdownFiles, normalizedDocumentTitle, readMarkdownDocument, resolveMemoryRoot } from "../../core/canonical/index.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import type { RemoteMemoryNoteDraft } from "../writing/remote-writer.js";
 
@@ -33,10 +33,8 @@ export async function prepareServerNote(rootArg: string, draft: ServerMemoryNote
   let highest = 0n;
   for (const file of await listCanonicalMemoryMarkdownFiles(root)) {
     const { frontmatter } = await readMarkdownDocument(root, file);
-    // Match core/canonical/markdown-store.ts rename normalization, including ID-less files.
-    const title = typeof frontmatter.title === "string"
-      ? frontmatter.title.normalize("NFKC").trim().toLowerCase().normalize("NFC")
-      : "";
+    // Share rename/title-lookup normalization, including ID-less files.
+    const title = normalizedDocumentTitle(frontmatter.title);
     const match = pattern.exec(title);
     if (match) {
       const number = BigInt(match[1]!);

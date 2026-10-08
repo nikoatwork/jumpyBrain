@@ -786,7 +786,7 @@ test("graph navigation waits for a save and keeps a failed draft reachable", asy
   const pending = deferred();
   const harness = createEditorHarness({ writeDocument: async () => pending.promise });
   harness.editor.input("pending navigation draft");
-  const ctx = { state: { editor: harness.editor } };
+  const ctx = { state: { editor: harness.editor }, referenceAutocomplete: { dismiss() {} } };
   vm.createContext(ctx);
   vm.runInContext(extractFunction(pageScript(), "requestEditorNavigation"), ctx);
   let navigated = false;
@@ -799,7 +799,7 @@ test("graph navigation waits for a save and keeps a failed draft reachable", asy
 
   const failed = createEditorHarness({ writeDocument: async () => { throw new Error("offline"); } });
   failed.editor.input("reachable failed draft");
-  const failedCtx = { state: { editor: failed.editor } };
+  const failedCtx = { state: { editor: failed.editor }, referenceAutocomplete: { dismiss() {} } };
   vm.createContext(failedCtx);
   vm.runInContext(extractFunction(pageScript(), "requestEditorNavigation"), failedCtx);
   let failedNavigation = false;

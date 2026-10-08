@@ -46,6 +46,9 @@ export const notesStyles = String.raw`
     .editor-italic { font-style: italic; }
     .markdown-literal, .markdown-reference { text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; }
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
+    .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+    #reference-message { color: var(--ink-soft); font-size: 13px; }
+    #reference-message[data-error="true"] { color: var(--error-ink); }
     .markdown-literal::selection { background: var(--surface-hover); }
     #format-controls { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; margin: 0 0 12px -10px; }
     #format-controls button { font-size: 12px; }
@@ -167,6 +170,7 @@ export const notesViews = String.raw`
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
       <input id="note-name" aria-label="Page name" aria-describedby="note-save-error" autocomplete="off" hidden />
       <p id="note-save-error" role="status" aria-live="polite" hidden></p>
+      <p id="reference-message" role="status" aria-live="polite" hidden></p>
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
       <div id="format-controls" role="group" aria-label="Text formatting" hidden>
@@ -508,6 +512,81 @@ const noteSearch = createNoteSearch({
   onChange: renderNoteSearch,
 });
 
+const referenceAutocomplete = window.installReferenceAutocomplete($("note-editor"), richEditor, {
+  createSearch: createNoteSearch,
+  fetch: (query, signal) => graphJson("/memories/all/search", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query, limit: 24, depth: "normal" }), signal,
+  }),
+  getSession: () => state.noteToken + ":" + credentialRevision,
+  isEnabled: () => state.view === "note" && state.editor?.state.loaded && !state.editor.state.navigationPending
+    && !searchDialog.open && !connectionDialog.open && !dreamDialog.open,
+  onError: () => referenceMessage("Could not insert this reference. Keep editing or use Insert page reference.", true),
+});
+let referenceRequest = null;
+let stagedReferenceNote = null;
+function referenceMessage(text, error = false) {
+  const message = $("reference-message");
+  message.textContent = text;
+  message.dataset.error = String(error);
+  message.hidden = !text;
+}
+function cancelReferenceInteraction() {
+  referenceAutocomplete.dismiss();
+  if (referenceRequest) referenceRequest.abort();
+  referenceRequest = null;
+  stagedReferenceNote = null;
+  referenceMessage("");
+}
+async function activatePageReference(title) {
+  const origin = state.editor, revision = credentialRevision;
+  if (referenceRequest || !origin?.state.loaded || origin.state.navigationPending
+      || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
+  referenceAutocomplete.dismiss();
+  const request = new AbortController();
+  referenceRequest = request;
+  const current = () => referenceRequest === request && !request.signal.aborted
+    && state.editor === origin && credentialRevision === revision;
+  referenceMessage("Opening page reference…");
+  try {
+    const opened = await navigation.navigate(async () => {
+      // Save first, then resolve freshly (including an unindexed rename of this note).
+      if (!current()) throw new Error("cancelled");
+      const result = await graphJson("/memories/all/resolve-title", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }), signal: request.signal,
+      });
+      if (!current()) throw new Error("cancelled");
+      if (result?.status !== "found" || !isValidMemoryDocumentId(result.id)) {
+        const error = new Error("reference_unavailable");
+        error.outcome = result?.status;
+        throw error;
+      }
+      // A missing/deleted/unreadable target must not replace the current editor.
+      // Reuse this confirmed payload on route apply: no second vulnerable GET.
+      const payload = await readGraphDocument(result.id, { signal: request.signal });
+      if (!current()) throw new Error("cancelled");
+      if (typeof payload?.content !== "string" || typeof payload?.contentHash !== "string"
+          || payload.frontmatter?.id !== result.id || typeof payload.title !== "string"
+          || payload.title.normalize("NFKC").trim().toLowerCase().normalize("NFC") !== title.normalize("NFKC").trim().toLowerCase().normalize("NFC")) {
+        throw new Error("reference_changed");
+      }
+      stagedReferenceNote = { id: result.id, payload, revision };
+      return "/?note=" + encodeURIComponent(result.id);
+    });
+    if (!opened && current()) referenceMessage("Save failed or navigation is busy. Retry saving your current note, then open the reference again.", true);
+  } catch (error) {
+    if (!current()) return;
+    referenceMessage(Number(error.status) === 401 || Number(error.status) === 403
+      ? "Connect with an access key to open this reference. Your draft is retained."
+      : error.outcome === "missing" ? "No page has this title. Your draft is retained."
+      : error.outcome === "ambiguous" ? "Several pages share this title. Your draft is retained."
+      : "This reference could not be opened. It may have changed or be unavailable. Your draft is retained.", true);
+  } finally {
+    if (referenceRequest === request) referenceRequest = null;
+  }
+}
+
 const recentNotes = createRecentNotes({
   abortController: () => new AbortController(),
   fetch: (signal) => graphJson("/memories/all/recent", { signal }),
@@ -518,6 +597,7 @@ $("recent-connect").addEventListener("click", () => openConnection(false));
 
 function openSearch(mode = "navigate", range = null) {
   if (searchDialog.open || connectionDialog.open || dreamDialog.open) return;
+  cancelReferenceInteraction();
   searchMode = mode === "insert" ? "insert" : "navigate";
   referenceSelection = range;
   $("reference-help").hidden = searchMode !== "insert";
@@ -658,6 +738,7 @@ function maskApiKey() {
 }
 function openConnection(fromSearch) {
   if (dreamDialog.open) return;
+  cancelReferenceInteraction();
   apiKeyInput.value = activeApiKey;
   maskApiKey();
   renderConnection();
@@ -682,6 +763,7 @@ $("toggle-api-key").addEventListener("click", () => {
   $("toggle-api-key").setAttribute("aria-pressed", String(reveal));
 });
 function setConnectionKey(key) {
+  cancelReferenceInteraction();
   key = key.trim();
   activeApiKey = key;
   credentialRevision++;
@@ -733,6 +815,7 @@ const navigation = createPageNavigation({
   show: showPage,
 });
 window.addEventListener("popstate", (event) => {
+  cancelReferenceInteraction();
   if (dreamDialog.open) closeDreamHandoff(false);
   if (searchDialog.open) closeSearch();
   if (connectionDialog.open) closeConnection();
@@ -747,6 +830,8 @@ for (const [id, url] of [["home-link", "/"], ["graph-link", "/graph"]]) {
 }
 
 function showPage(url) {
+  referenceAutocomplete.dismiss();
+  referenceMessage("");
   if (dreamDialog.open) closeDreamHandoff(false);
   recentNotes.cancel();
   $("graph-filters").open = false;
@@ -778,6 +863,8 @@ function showPage(url) {
 }
 
 async function showNote(documentId, focusEnd = false) {
+  const staged = stagedReferenceNote;
+  cancelReferenceInteraction();
   const token = ++state.noteToken;
   if (state.editor) state.editor.cancel();
   state.editor = null;
@@ -806,13 +893,14 @@ async function showNote(documentId, focusEnd = false) {
     clearTimer: (timer) => window.clearTimeout(timer),
     splitDocument: splitEditableDocument, composeDocument: composeEditableDocument,
     readDocument: readGraphDocument, writeDocument: writeGraphDocument,
-    onSaved: () => noteSearch.markStale(),
+    onSaved: () => { noteSearch.markStale(); referenceAutocomplete.markStale(); },
     isCurrent: (generation, id) => state.noteToken === generation && state.editor === editor && editor.state.documentId === id,
     onChange: syncEditorUi,
   });
   state.editor = editor;
   try {
-    const payload = await readGraphDocument(documentId);
+    const payload = staged?.id === documentId && staged.revision === credentialRevision
+      ? staged.payload : await readGraphDocument(documentId);
     if (token !== state.noteToken || state.editor !== editor) return;
     if (typeof payload?.content !== "string" || typeof payload?.contentHash !== "string") throw new Error("Invalid document response.");
     $("note-title").textContent = payload.title || payload.file || "Untitled";
@@ -851,6 +939,7 @@ function syncEditorUi(editorState) {
   $("note-name").setAttribute("aria-invalid", String(editorState.saveStatus === "failed"));
   $("note-save-error").hidden = editorState.saveStatus !== "failed";
   $("note-save-error").textContent = editorState.saveError || "";
+  if (editorState.navigationPending || !editorState.loaded) referenceAutocomplete.dismiss();
   richEditor.setReadOnly(editorState.navigationPending);
   $("format-controls").hidden = !editorState.loaded;
   for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending;
@@ -894,6 +983,7 @@ async function newNote() {
     const opened = await navigation.navigate(async () => {
       const result = await noteCapture.create();
       noteSearch.markStale();
+      referenceAutocomplete.markStale();
       newNoteId = result.id;
       return "/?note=" + encodeURIComponent(result.id);
     });

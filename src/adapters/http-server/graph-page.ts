@@ -204,7 +204,7 @@ for (const id of ["query", "focus"]) $(id).addEventListener("keydown", (event) =
 $("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
 const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
   onChange: (markdown) => state.editor?.input(markdown),
-  onReference: () => openReferenceSearch(),
+  onActivateReference: (title) => activatePageReference(title),
   onError: (error) => {
     $("capture-message").hidden = false;
     $("capture-message").dataset.error = "true";
@@ -274,8 +274,8 @@ function documentUrl(documentId) {
   return "/memories/all/documents/" + encodeURIComponent(documentId);
 }
 
-function readGraphDocument(documentId) {
-  return graphJson(documentUrl(documentId));
+function readGraphDocument(documentId, options) {
+  return graphJson(documentUrl(documentId), options);
 }
 
 function writeGraphDocument(documentId, content, contentHash) {
@@ -712,6 +712,7 @@ async function selectNode(node) {
 }
 
 async function requestEditorNavigation(action) {
+  referenceAutocomplete.dismiss();
   const editor = state.editor;
   if (!editor) {
     await action();

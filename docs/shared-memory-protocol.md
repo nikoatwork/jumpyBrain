@@ -299,7 +299,13 @@ The **New note** buttons on home/editor create a separate dated note using the e
 
 Selecting a result opens `/?note=mem_<uuid>` as a reloadable, full-page WYSIWYG Markdown editor. The page name is editable, other document metadata is read-only, leading frontmatter remains outside the rich editor, and the browser uses authenticated `GET` and `PUT /memories/all/documents/:id` requests. API keys must never appear in `?note=` or other query parameters or generated note links. The shell prompts for the API key and reuses it only for authenticated data requests; for local-only smoke testing it may be supplied in the URL fragment as `/#apiKey=<key>` or `/graph#apiKey=<key>`, because fragments are not sent to the server.
 
-Typing `[[` or choosing **Insert page reference** opens the same search dialog in insertion mode. Selection inserts literal `[[Exact Page Title]]` into the saved range with Lexical undo and no target mutation/navigation. Escape is non-destructive; stale drafts, unsafe/missing titles, and duplicate titles within the result set block insertion with visible feedback. This is not global uniqueness validation or a new title-resolution API: the existing canonical graph resolver is filename-based, so a title reference may remain unresolved. Reference spans preserve exact title punctuation, including underscores, without Markdown escaping. Home and picker use neutral cream surfaces; the editor uses a clean white background, no enclosing focus border, and a proportional system font. Navigation retains visible keyboard focus, and save errors appear inline.
+Typing `[[` opens caret-anchored inline suggestions, using independent `createNoteSearch` state over the same authenticated indexed search transport; **Insert page reference** retains the explicit modal picker and Cmd/Ctrl+K retains global navigation search. Both insertion flows preserve exact title punctuation, use Lexical undo, never mutate/navigate targets, and reject unsafe/missing or visibly duplicate titles. Inline acceptance revalidates the current single-leaf range and document/credential session; Escape is non-destructive. Modal/document/credential/read-only transitions cancel pending suggestions; actual saves mark their index feedback stale. Listbox relationships/live announcements and tap-versus-scroll keep the editor focused.
+
+Normal-click or keyboard-activated references pass the save/history guard, then POST to canonical title lookup and prefetch the ID-addressed target. Only a validated target payload replaces the editor; missing/ambiguous/unopenable outcomes, auth/GET failures, or changed targets retain the source draft. Repeated activation is suppressed and modal/credential/history changes invalidate delayed responses. Target prefetch is reused on route apply, not fetched again. Renames/title reuse can break or retarget title links; the existing graph resolver remains filename-based. Drag selection/copy and keyboard editing remain supported; double-click word selection loses to the first normal navigation click.
+
+The bounded recognizer excludes code, escaped/nested/alias/path references and formatted cross-leaf spans from activation. Unfinished autocomplete requires logical block end; explicit insertion can fall back to a collapsed caret without consuming partial formatted siblings. Unclosed inline backticks and unsupported quote/list/indented fence contexts suppress the remaining document. Inert references still retain literal serialization: eligibility cannot add escapes to graph targets. These conservative false negatives are intentional, not full Markdown-dialect support.
+
+Home/editor/dialogs share white surfaces and warm-grey controls, with a borderless proportional-font editor and visible navigation focus/error feedback. Production automated validation covers Chromium desktop/narrow touch, synthetic composition, editor clipboard events, touch scrolling, wrapped-line/scroll/clipping and simulated visual-viewport zoom. Physical IME, mobile keyboard, OS clipboard, real assistive technology, Safari/Firefox and physical pinch zoom remain manual rollout gates.
 
 The editor autosaves after 750 ms of inactivity and on blur, displays understated `Saving…`, `Saved`, `Save failed`, or retry feedback, and retains failed drafts for manual retry. Each save reconstructs the whole document and uses `If-Match`; there is no separate PATCH or block-storage model. Page-name changes update title metadata without rewriting filenames, headings, or references. Renames are checked against canonical Markdown (not the search index), with case/whitespace/Unicode-equivalent duplicate names rejected as `409 duplicate_title`. Existing duplicate names can still receive body-only edits. Correcting a rejected name resumes autosave without losing the draft. A successful save marks the derived search index stale rather than synchronously rebuilding it, so recently saved body content may remain absent from search until indexing succeeds (the default check interval is five minutes, not a freshness guarantee). Search responses expose index freshness; confirmed local writes also mark the open palette stale, so an older search response cannot imply that `Saved` means indexed.
 
@@ -326,6 +332,8 @@ Query parameters:
 Response nodes use root-relative file IDs for Markdown documents plus virtual `unresolved:<target>` IDs for missing link targets. Edges are directed explicit links; backlinks are derived by reversing these edges. This endpoint is intentionally not an embedding or semantic-similarity map.
 
 ### Graph UI smoke validation
+
+`npm run smoke:page-references` builds and runs production editor preservation/context regressions, isolated autocomplete/controller checks with stub transport, and real disposable-root/QMD/server integration (navigation, save failures, cancellation, history, search freshness, insertion and touch scrolling). Set `JUMPYBRAIN_REFERENCE_SMOKE_BENCH=1` for small/large-note app timings, or `JUMPYBRAIN_REFERENCE_EDITOR_BENCH=1` for isolated editor timings. Historical feasibility entrypoints forward to these production runners; no second editor is maintained.
 
 `npm run smoke:lexical` checks formatted heading/emphasis editing, toolbar undo, Markdown preservation (including edits within unsupported blocks), exact reference titles, empty-document history isolation, safe paste, and desktop/mobile layout in a disposable root. It needs no QMD index. Set `JUMPYBRAIN_SMOKE_SCREENSHOT_DIR` to retain screenshots. Unsupported syntax stays literal; edited supported lines may normalize delimiters. This is a deliberately small Markdown subset, not a general rich-document conversion guarantee.
 
@@ -526,6 +534,21 @@ Response:
   "index": { "stale": true }
 }
 ```
+
+### `POST /memories/all/resolve-title`
+
+Authenticated, read-only exact-title lookup used by editor reference navigation. Request: `{ "title": "Exact Page Title" }`. POST keeps titles out of request URLs; no idempotency key is needed. Responses use `Cache-Control: no-store`:
+
+- `200 { "status": "found", "id": "mem_<uuid>" }` — one title match with an openable unique canonical ID.
+- `200 { "status": "missing" }` — no title match (including blank input).
+- `200 { "status": "ambiguous" }` — multiple matching titles, even when a match lacks a valid ID.
+- `200 { "status": "unopenable" }` — unique match lacks a valid/unique ID, fails a reread, or the canonical scan/read fails.
+
+Matching shares rename normalization: NFKC, trim, lowercase, NFC. Each lookup scans canonical Markdown at the editor memory root, not retrieval `indexRoot` or indexed search. There is no filename, heading, path, or fuzzy fallback, no target creation, and no ID stamping. Responses never include candidate lists, titles, paths, bodies, or index state.
+
+Authentication is required before method/body validation. Missing/non-string titles or invalid JSON return 400; unsupported media types return 415; other methods return 405. Root/configuration failures return a generic 500 `resolve_title_failed`, without filesystem diagnostics.
+
+Title scan, ID scan, final read, and later editor GET are separate operations, not an atomic uniqueness guarantee against concurrent writes. Target file/ID/title changes detected during reread produce `unopenable`, but existing scanner policy can skip disappearing directories. Renames can break title references; later title reuse can retarget them. Graph resolution remains filename-based. The browser uses this endpoint only for activation; inline suggestions remain potentially stale indexed search and do not imply canonical title uniqueness.
 
 ### `GET /memories/all/documents/:id`
 

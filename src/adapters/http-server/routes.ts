@@ -3,7 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPath, isMemoryRoute } from "../http-protocol.js";
 import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
-import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, recentServerMemory, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
+import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
 import type { RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
 import { graphPageHtml } from "./graph-page.js";
 import { brainFaviconSvg } from "./favicon.js";
@@ -78,6 +78,32 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
   if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.status) {
     writeJson(response, 200, await serverMemoryStatus(root));
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.resolveTitle) {
+    response.setHeader("cache-control", "no-store");
+    if (request.method !== "POST") {
+      response.setHeader("allow", "POST");
+      writeJson(response, 405, errorResponse("method_not_allowed", `Use POST for ${HTTP_MEMORY_ROUTES.resolveTitle}.`));
+      return;
+    }
+    try {
+      const parsedBody = await parseJsonBody(request);
+      if (isJsonError(parsedBody)) {
+        writeJson(response, parsedBody.statusCode, parsedBody.body);
+        return;
+      }
+      const title = rawStringField(parsedBody, "title");
+      if (title === undefined) {
+        writeJson(response, 400, errorResponse("bad_request", "Title lookup requires a string title field."));
+        return;
+      }
+      writeJson(response, 200, await resolveServerMemoryTitle({ root, title }));
+    } catch {
+      // Configuration/root errors must not reach the outer diagnostic logger.
+      writeJson(response, 500, errorResponse("resolve_title_failed", "Remote title lookup failed."));
+    }
     return;
   }
 
@@ -498,39 +524,44 @@ function ifMatchHeader(request: IncomingMessage): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-async function parseJsonBody(request: IncomingMessage, options: { allowEmpty?: boolean } = {}): Promise<Record<string, unknown> | { statusCode: number; body: JsonError }> {
+class JsonBodyError {
+  constructor(readonly statusCode: number, readonly body: JsonError) {}
+}
+
+async function parseJsonBody(request: IncomingMessage, options: { allowEmpty?: boolean } = {}): Promise<Record<string, unknown> | JsonBodyError> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += buffer.length;
     if (size > 1024 * 1024) {
-      return { statusCode: 400, body: errorResponse("bad_request", "Request body is too large.") };
+      return new JsonBodyError(400, errorResponse("bad_request", "Request body is too large."));
     }
     chunks.push(buffer);
   }
 
   const text = Buffer.concat(chunks).toString("utf8").trim();
-  if (!text) return options.allowEmpty ? {} : { statusCode: 400, body: errorResponse("bad_request", "JSON body is required.") };
+  if (!text) return options.allowEmpty ? {} : new JsonBodyError(400, errorResponse("bad_request", "JSON body is required."));
 
   const contentType = request.headers["content-type"];
   if (contentType && !String(contentType).toLowerCase().includes("application/json")) {
-    return { statusCode: 415, body: errorResponse("unsupported_media_type", "Use application/json.") };
+    return new JsonBodyError(415, errorResponse("unsupported_media_type", "Use application/json."));
   }
 
   try {
     const parsed = JSON.parse(text) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { statusCode: 400, body: errorResponse("bad_request", "JSON body must be an object.") };
+      return new JsonBodyError(400, errorResponse("bad_request", "JSON body must be an object."));
     }
     return parsed as Record<string, unknown>;
   } catch {
-    return { statusCode: 400, body: errorResponse("bad_request", "Malformed JSON body.") };
+    return new JsonBodyError(400, errorResponse("bad_request", "Malformed JSON body."));
   }
 }
 
-function isJsonError(value: unknown): value is { statusCode: number; body: JsonError } {
-  return Boolean(value && typeof value === "object" && "statusCode" in value && "body" in value);
+function isJsonError(value: unknown): value is JsonBodyError {
+  // A JSON request object must never impersonate a parser failure/HTTP response.
+  return value instanceof JsonBodyError;
 }
 
 function dreamErrorResponse(error: unknown, fallback: string): { statusCode: number; body: JsonError } {

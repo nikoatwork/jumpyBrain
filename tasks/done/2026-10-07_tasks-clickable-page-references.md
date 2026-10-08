@@ -7,7 +7,7 @@ Status: feasibility investigation finalized and archived on 2026-10-07. Conditio
 - Prototyped navigation, fresh canonical title lookup, and caret autocomplete without new dependencies or a frontend rewrite.
 - Closed the identified code-context and cross-leaf replacement gaps with conservative fallbacks; latest verification passed 38 scanner tests, 32 navigation/baseline checks, 22 autocomplete checks, and strict prototype typechecking.
 - Finalization verification: `npm test` rebuilt production and passed 413 tests; the renamed standalone scanner probe passed 38 tests and strict prototype typechecking passed again. Renamed the probe to keep it outside default Node test discovery.
-- Remaining implementation, integration, accessibility/device validation, and tradeoff decisions moved to [page-reference integration](../todo/tasks-page-reference-integration.md). Historical partial/unchecked items below are retained as evidence, not claims of completion or an active task queue.
+- Remaining implementation, integration, accessibility/device validation, and tradeoff decisions moved to [page-reference integration](2026-10-08_tasks-page-reference-integration.md). Historical partial/unchecked items below are retained as evidence, not claims of completion or an active task queue.
 
 ## Goal
 
@@ -66,7 +66,7 @@ Make related notes easier to navigate by following `[[Page Title]]` references d
 
 ## Handoff at closure
 
-- [Page-reference integration](../todo/tasks-page-reference-integration.md) now owns the remaining work for both features, not a frontend rewrite. Neither isolated prototype is approved for rollout as-is.
+- [Page-reference integration](2026-10-08_tasks-page-reference-integration.md) now owns the remaining work for both features, not a frontend rewrite. Neither isolated prototype is approved for rollout as-is.
 - Conservative code-context handling and the single-leaf fallback now have passing regressions (2.4), including source preservation. The prototype intentionally suppresses the remainder of a document after unsupported container fences and only autocompletes unfinished triggers at block end. Accept or refine these false-negative tradeoffs before porting the editor pieces; do not imply full Markdown parsing.
 - Next add the shared canonical lookup/authenticated app seam (3.1), then run real save/history integration tests (3.2).
 - Autocomplete can progress independently through complete ARIA, tap-versus-scroll handling, and mandatory editor/session lifecycle wiring. Keep real indexed partial-query quality and physical IME/mobile testing explicit rather than treating stubbed browser checks as completion.

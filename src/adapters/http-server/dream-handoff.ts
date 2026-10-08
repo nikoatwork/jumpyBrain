@@ -111,6 +111,7 @@ const dreamDialog = $("dream-handoff");
 let dreamGeneration = 0;
 function openDreamHandoff() {
   if (state.view !== "graph" || document.querySelector("dialog[open]")) return;
+  cancelReferenceInteraction();
   dreamGeneration++;
   $("dream-preview").value = "";
   $("dream-target").textContent = "";
