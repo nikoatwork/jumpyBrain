@@ -124,7 +124,7 @@ test("remote HTTP root and note URLs serve the content-free nonce shell", async 
 
     const normalizeNonce = (html) => html.replaceAll(/nonce="[A-Za-z0-9_-]+"/g, 'nonce="<nonce>"');
     assert.equal(normalizeNonce(noteHtml), normalizeNonce(rootHtml));
-    assert.equal(normalizeNonce(graphHtml), normalizeNonce(rootHtml));
+    assert.equal(normalizeNonce(graphHtml), normalizeNonce(rootHtml).replace("<title>Notes · jumpyBrain</title>", "<title>Memory map · jumpyBrain</title>"));
 
     for (const html of [rootHtml, noteHtml, graphHtml]) {
       assert.equal(html.includes(privateTitle), false);
@@ -606,7 +606,30 @@ test("remote HTTP graph JSON requires auth and returns remote-safe explicit link
     assert.match(page.headers.get("content-security-policy"), /script-src 'nonce-/);
     assert.match(page.headers.get("content-security-policy"), /frame-ancestors 'none'/);
     const html = await page.text();
-    assert.match(html, /<title>jumpyBrain<\/title>/);
+    assert.match(html, /<title>Memory map · jumpyBrain<\/title>/);
+    assert.match(html, /<link rel="icon" type="image\/svg\+xml" sizes="any" href="\/favicon.svg" \/>/);
+    assert.match(page.headers.get("content-security-policy"), /img-src 'self'/);
+
+    const home = await fetch(`${started.url}/`);
+    assert.match(await home.text(), /<title>Notes · jumpyBrain<\/title>/);
+
+    // Branding is available before authentication and needs no external assets.
+    const favicon = await fetch(`${started.url}/favicon.svg`);
+    assert.equal(favicon.status, 200);
+    assert.equal(favicon.headers.get("content-type"), "image/svg+xml; charset=utf-8");
+    assert.equal(favicon.headers.get("cache-control"), "public, max-age=86400");
+    assert.equal(favicon.headers.get("x-content-type-options"), "nosniff");
+    const svg = await favicon.text();
+    assert.match(svg, /<svg[^>]+viewBox="0 0 64 64"/);
+    assert.match(svg, /<title>jumpyBrain<\/title>/);
+    assert.doesNotMatch(svg, /<script|<image|<foreignObject|href=/i);
+    const iconHead = await fetch(`${started.url}/favicon.svg`, { method: "HEAD" });
+    assert.equal(iconHead.status, 200);
+    assert.equal(iconHead.headers.get("content-type"), favicon.headers.get("content-type"));
+    assert.equal(await iconHead.text(), "");
+    const iconPost = await fetch(`${started.url}/favicon.svg`, { method: "POST" });
+    assert.equal(iconPost.status, 405);
+    assert.equal(iconPost.headers.get("allow"), "GET, HEAD");
     // Inline script/style must be gated by a nonce; no un-nonce inline handlers.
     assert.doesNotMatch(html, /<script>(?![^<]*<\/script>)/);
     assert.match(html, /<script nonce="/);

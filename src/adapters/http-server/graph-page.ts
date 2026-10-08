@@ -5,14 +5,15 @@ import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
 
-export function graphPageHtml(nonce: string): string {
+export function graphPageHtml(nonce: string, view: "home" | "graph" = "home"): string {
   if (!/^[A-Za-z0-9_-]+$/.test(nonce)) throw new Error("graph page nonce must be base64url-safe");
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>jumpyBrain</title>
+  <title>${view === "graph" ? "Memory map" : "Notes"} · jumpyBrain</title>
+  <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
   <style nonce="${nonce}">
     /* jumpyBrain UI foundation: shared color, type, spacing, radius and elevation tokens. */
     :root {

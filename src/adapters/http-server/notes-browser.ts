@@ -767,7 +767,7 @@ function showPage(url) {
   if (state.editor) state.editor.cancel();
   state.editor = null;
   $("note-retry").hidden = true;
-  document.title = state.view === "graph" ? "Memory map · jumpyBrain" : "jumpyBrain";
+  document.title = state.view === "graph" ? "Memory map · jumpyBrain" : "Notes · jumpyBrain";
   if (state.view === "graph") {
     if (!state.graph) loadGraph(); else queueGraphLayout(0, true);
     $("query").focus({ preventScroll: true });

@@ -6,6 +6,7 @@ import { packageVersion } from "../package-info/index.js";
 import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, recentServerMemory, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
 import type { RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
 import { graphPageHtml } from "./graph-page.js";
+import { brainFaviconSvg } from "./favicon.js";
 import type { DreamWindowRequest, MemoryConnectionEdgeKind } from "../../types.js";
 
 interface JsonError {
@@ -31,11 +32,27 @@ export async function routeRequest(context: { request: IncomingMessage; response
     return;
   }
 
+  // Public, content-free branding, just like the browser shell.
+  if (url.pathname === "/favicon.svg") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      response.setHeader("allow", "GET, HEAD");
+      writeJson(response, 405, errorResponse("method_not_allowed", "Use GET or HEAD for /favicon.svg."));
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": "image/svg+xml; charset=utf-8",
+      "cache-control": "public, max-age=86400",
+      "x-content-type-options": "nosniff",
+    });
+    response.end(request.method === "HEAD" ? undefined : brainFaviconSvg);
+    return;
+  }
+
   const browserShellPath = url.pathname === "/" || url.pathname === "/graph" || url.pathname === "/graph/";
   if (request.method === "GET" && browserShellPath) {
     const nonce = randomBytes(16).toString("base64url");
     const contentSecurityPolicy = `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
-    writeHtml(response, 200, graphPageHtml(nonce), {
+    writeHtml(response, 200, graphPageHtml(nonce, url.pathname === "/" ? "home" : "graph"), {
       "content-security-policy": contentSecurityPolicy,
       "x-content-type-options": "nosniff",
     });
