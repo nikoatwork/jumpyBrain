@@ -106,7 +106,7 @@ test("scoped supplemental candidates survive a raw-heavy cutoff, preserve origin
   const map = await put(root, "notes/map.md", "true"); // not restricted to pages/
   const ordinary = await put(root, "pages/ordinary.md", '"false"');
   const docs = [map, ordinary];
-  for (let i = 0; i < 80; i++) docs.push(await put(root, `sessions/raw-${i}.md`, "false"));
+  for (let i = 0; i < 80; i++) docs.push(await put(root, `sessions/raw-${i}.md`, "false", `${prose} Distinct raw port record ${i} has diagnostic code x${i}.`));
   const raw = docs.slice(2).map((doc, i) => row(doc.relativePath, 0.7, `${prose} Distinct raw port record ${i} has diagnostic code x${i}.`));
   const bodyBefore = await readFile(map.absolutePath, "utf8");
   await writeFile(path.join(root, "rows.json"), JSON.stringify({ jumpybrain: raw, "jumpybrain-dreams": [row(map.relativePath, 0)] }));
@@ -134,9 +134,12 @@ test("scoped supplemental candidates survive a raw-heavy cutoff, preserve origin
 
 test("unrelated supplemental maps are rejected, duplicates merge, and deep preserves same-file detail IDs", async () => fixture(async (root) => {
   const map = await put(root, "pages/a-long-shared-prefix-map.md", "true");
-  const unrelated = await put(root, "pages/unrelated.md", "true");
-  const raw = await put(root, "notes/a-long-shared-prefix-raw.md", "false");
-  const details = [row(raw.relativePath, 0.9, prose + " Code AX17 uniquely identifies the first diagnostic.", 5), row(raw.relativePath, 0.8, prose + " Code BY92 uniquely identifies the second diagnostic.", 30)];
+  const unrelated = await put(root, "pages/unrelated.md", "true", "The pastry cookbook provides instructions for flaky apple pies and sugared fruit fillings. ".repeat(3));
+  const first = prose + " Code AX17 uniquely identifies the first diagnostic.";
+  const second = prose + " Code BY92 uniquely identifies the second diagnostic.";
+  // Fake backend excerpts must agree with canonical source content/coordinates.
+  const raw = await put(root, "notes/a-long-shared-prefix-raw.md", "false", first + "\n".repeat(25) + second);
+  const details = [row(raw.relativePath, 0.9, first, 5), row(raw.relativePath, 0.8, second, 30)];
   await writeFile(path.join(root, "rows.json"), JSON.stringify({ jumpybrain: [...details, row(map.relativePath, 0.6)], "jumpybrain-dreams": [row(unrelated.relativePath, 1, "The pastry cookbook provides instructions for flaky apple pies and sugared fruit fillings. ".repeat(3)), row(map.relativePath, 0.6)] }));
   await buildQmdIndex(root, [map, raw, unrelated]);
   const normal = await searchQmdIndex(root, "harbor migration", 10);

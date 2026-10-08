@@ -10,6 +10,7 @@ import {
   dateStats,
   diversifyResults,
   dreamRelevance,
+  groupResultsByFile,
   exactBoost,
   isExactTitleMatch,
   titleMatchBoostFor,
@@ -21,8 +22,7 @@ import {
 } from "./qmd-ranking.js";
 import { depthPolicyFor, dreamBoostFor, isDreamDocument, isSourceFocusedQuery, normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
 import {
-  boundedSnippet,
-  cleanQmdSnippet,
+  excerptFromQmdWindow,
   looksLikeUnhelpfulSnippet,
   neighborSnippetFromOriginal,
   snippetFromOriginalBody,
@@ -137,10 +137,13 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
     }));
   }
 
-  return diversifyResults(results.sort((a, b) => b.score - a.score
+  const ranked = results.sort((a, b) => b.score - a.score
     || a.provenance.file.localeCompare(b.provenance.file)
     || a.provenance.lineStart - b.provenance.lineStart
-    || a.id.localeCompare(b.id)), isSourceFocusedQuery(query) ? "deep" : depth).slice(0, limit);
+    || a.id.localeCompare(b.id));
+  // Explicit evidence requests retain chunk-level limits and all original fields.
+  const diversityDepth = isSourceFocusedQuery(query) ? "deep" : depth;
+  return diversifyResults(groupResultsByFile(ranked, diversityDepth), diversityDepth).slice(0, limit);
 }
 
 /** Copies are derived snapshots; all result provenance still addresses originals. */
@@ -192,24 +195,15 @@ async function resultSnippet(
   query: string,
   candidate: { lineStart: number; lineEnd: number; snippet: string },
 ): Promise<{ lineStart: number; lineEnd: number; snippet: string }> {
-  let lineStart = candidate.lineStart;
-  let lineEnd = candidate.lineEnd;
-  let snippet = boundedSnippet(cleanQmdSnippet(candidate.snippet));
-
-  if (lineStart < document.bodyStartLine || looksLikeUnhelpfulSnippet(snippet)) {
-    return snippetFromOriginalBody(document, query);
+  if (candidate.lineStart < document.bodyStartLine || (!candidate.snippet && candidate.lineStart === document.bodyStartLine)) {
+    const repaired = await snippetFromOriginalBody(document, query);
+    if (repaired.snippet) return repaired;
   }
-
-  if (snippet.length < 180) {
-    const expanded = await neighborSnippetFromOriginal(document, lineStart, lineEnd);
-    if (expanded.snippet) {
-      lineStart = expanded.lineStart;
-      lineEnd = expanded.lineEnd;
-      snippet = expanded.snippet;
-    }
-  }
-
-  return { lineStart, lineEnd, snippet };
+  const expanded = await neighborSnippetFromOriginal(document, candidate.lineStart, candidate.lineEnd, query);
+  if (expanded.snippet) return expanded;
+  // Keep hits beyond the bounded canonical prefix usable. QMD's window start
+  // (not its match-anchor field) owns these fallback source coordinates.
+  return excerptFromQmdWindow(candidate.snippet, candidate.lineStart, query);
 }
 
 function toSearchResult(options: {

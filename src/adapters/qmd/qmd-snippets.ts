@@ -1,5 +1,6 @@
 import { open } from "node:fs/promises";
 import type { IndexedDocument } from "../../types.js";
+import { selectEvidenceExcerpt } from "../../core/retrieval-policy/excerpts.js";
 import { expandedQueryTerms, queryTermWeight, salientAdjacentQueries } from "./qmd-query.js";
 
 export interface SnippetRepair {
@@ -17,53 +18,46 @@ export function cleanQmdSnippet(snippet: string): string {
 }
 
 export async function snippetFromOriginalBody(document: IndexedDocument, query: string): Promise<SnippetRepair> {
-  const lines = await boundedOriginalLines(document.absolutePath);
+  const { lines, truncated } = await boundedOriginalLines(document.absolutePath);
   const bodyIndex = Math.max(0, document.bodyStartLine - 1);
   if (bodyIndex >= lines.length) return { lineStart: document.bodyStartLine, lineEnd: document.bodyStartLine, snippet: "" };
-  const center = bestBodyLineIndex(lines, bodyIndex, query);
-  return neighborSnippetFromLines(lines, bodyIndex, center + 1, center + 1);
+  return selectCanonicalExcerpt(lines, truncated, document.bodyStartLine, document.bodyStartLine, lines.length, query);
 }
 
-export async function neighborSnippetFromOriginal(document: IndexedDocument, lineStart: number, lineEnd: number | undefined): Promise<SnippetRepair> {
-  const lines = await boundedOriginalLines(document.absolutePath);
-  const bodyIndex = Math.max(0, document.bodyStartLine - 1);
-  if (lineStart > lines.length) return { lineStart, lineEnd: lineEnd ?? lineStart, snippet: "" };
-  return neighborSnippetFromLines(lines, bodyIndex, lineStart, lineEnd ?? lineStart);
-}
-
-function neighborSnippetFromLines(lines: string[], bodyIndex: number, lineStart: number, lineEnd: number): SnippetRepair {
-  const start = Math.max(bodyIndex, lineStart - 2);
-  const end = Math.min(lines.length - 1, lineEnd + 6);
-  return {
-    lineStart: start + 1,
-    lineEnd: end + 1,
-    snippet: boundedSnippet(lines.slice(start, end + 1).join("\n")),
-  };
-}
-
-function bestBodyLineIndex(lines: string[], bodyIndex: number, query: string): number {
-  const terms = expandedQueryTerms(query);
-  const phrases = salientAdjacentQueries(query).slice(0, 8);
-  let bestIndex = bodyIndex;
-  let bestScore = 0;
-
-  for (let index = bodyIndex; index < lines.length; index += 1) {
-    const line = lines[index].toLowerCase();
-    let score = 0;
-    for (const term of terms) {
-      if (line.includes(term)) score += queryTermWeight(term);
-    }
-    for (const phrase of phrases) {
-      if (line.includes(phrase)) score += 4;
-    }
-    if (/^#{1,6}\s/.test(lines[index])) score *= 0.5;
-    if (score > bestScore) {
-      bestScore = score;
-      bestIndex = index;
-    }
+export async function neighborSnippetFromOriginal(document: IndexedDocument, lineStart: number, lineEnd: number | undefined, query = ""): Promise<SnippetRepair> {
+  const { lines, truncated } = await boundedOriginalLines(document.absolutePath);
+  if (lineStart > lines.length || (truncated && (lineEnd ?? lineStart) > lines.length)) {
+    return { lineStart, lineEnd: lineEnd ?? lineStart, snippet: "" };
   }
+  return selectCanonicalExcerpt(lines, truncated, document.bodyStartLine, lineStart, lineEnd ?? lineStart, query);
+}
 
-  return bestIndex;
+function selectCanonicalExcerpt(lines: string[], truncated: boolean, bodyStartLine: number, lineStart: number, lineEnd: number, query: string): SnippetRepair {
+  const options = { bodyStartLine, lineStart, lineEnd, terms: excerptTerms(query) };
+  const result = selectEvidenceExcerpt(lines, options);
+  // A prefix's final section is not necessarily the canonical section's end.
+  if (truncated && result.lineEnd >= lines.length) {
+    const marker = " [source continues beyond read bound; expand source]";
+    const bounded = selectEvidenceExcerpt(lines, { ...options, maxChars: 1000 - marker.length });
+    return { ...bounded, snippet: bounded.snippet + marker };
+  }
+  return result;
+}
+
+function excerptTerms(query: string): Array<{ text: string; weight: number }> {
+  return [...expandedQueryTerms(query).map((text) => ({ text, weight: queryTermWeight(text) })),
+    ...salientAdjacentQueries(query).slice(0, 8).map((text) => ({ text, weight: 4 }))];
+}
+
+/** Beyond the canonical read bound, retain backend evidence rather than reading the full file. */
+export function excerptFromQmdWindow(snippet: string, lineStart: number, query: string): SnippetRepair {
+  // Do not trim leading blank lines: they are part of QMD's source coordinates.
+  const lines = snippet.split(/\r?\n/);
+  // Only the first line is a backend envelope. Later @@ lines may be real diff
+  // content and must retain both their text and source coordinates.
+  if (/^@@\s+-\d+,\d+\s+@@/.test(lines[0] ?? "")) lines.shift();
+  const result = selectEvidenceExcerpt(lines, { bodyStartLine: 1, lineStart: 1, lineEnd: lines.length, terms: excerptTerms(query) });
+  return { ...result, lineStart: lineStart + result.lineStart - 1, lineEnd: lineStart + result.lineEnd - 1 };
 }
 
 export function looksLikeUnhelpfulSnippet(snippet: string): boolean {
@@ -84,15 +78,9 @@ function looksLikeFrontmatterOnly(snippet: string): boolean {
   return /(^|\s)(source|question_id|session_id|date|question_type):\s/.test(snippet) && !/\b(User|Assistant|Note)\b/i.test(snippet);
 }
 
-export function boundedSnippet(text: string, maxLength = 500): string {
-  const compact = text.replace(/\s+/g, " ").trim();
-  if (compact.length <= maxLength) return compact;
-  return `${compact.slice(0, maxLength)}…`;
-}
-
 // Repair is best-effort, not an unbounded full-document read. QMD's own snippet
 // remains usable for hits beyond this prefix; callers can explicitly expand it.
-async function boundedOriginalLines(file: string): Promise<string[]> {
+async function boundedOriginalLines(file: string): Promise<{ lines: string[]; truncated: boolean }> {
   const maximumBytes = 128 * 1024;
   const handle = await open(file, "r");
   try {
@@ -100,7 +88,7 @@ async function boundedOriginalLines(file: string): Promise<string[]> {
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
     const lines = buffer.subarray(0, Math.min(bytesRead, maximumBytes)).toString("utf8").split(/\r?\n/);
     if (bytesRead > maximumBytes) lines.pop(); // Never quote a partial trailing line.
-    return lines;
+    return { lines, truncated: bytesRead > maximumBytes };
   } finally {
     await handle.close();
   }

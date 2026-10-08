@@ -182,7 +182,65 @@ export function dreamRelevance(query: string, snippet: string, metadata: Record<
 }
 
 /**
- * Keep one chunk per map in everyday context, and omit near-verbatim echoes only
+ * Ranked canonical files, not chunks, consume ordinary result slots. Keep the
+ * best hit's score/identity and at most two source excerpts (primary + one extra).
+ * Collapse redundant overlapping windows by selecting an existing excerpt,
+ * never by joining text or widening its citation over unread intervening lines.
+ * Deep/source-focused callers retain the original chunk contract.
+ */
+export function groupResultsByFile(results: SearchResult[], depth: RetrievalDepth): SearchResult[] {
+  if (depth === "deep") return results;
+  const files = new Map<string, SearchResult[]>();
+  for (const result of results) {
+    const group = files.get(result.provenance.file);
+    if (group) group.push(result);
+    else files.set(result.provenance.file, [result]);
+  }
+  return [...files.values()].map((hits) => {
+    const distinct: SearchResult[] = [];
+    for (const hit of hits) {
+      const representative = [...distinct.filter((other) => redundantPassages(hit, other)), hit]
+        .sort((a, b) => passageText(b.snippet).length - passageText(a.snippet).length)[0];
+      const redundant = distinct.flatMap((other, index) => redundantPassages(representative, other) ? [index] : []);
+      if (!redundant.length) distinct.push(representative);
+      else {
+        // A containing excerpt can retain a qualification omitted by shorter
+        // windows, including a single wider excerpt subsuming two earlier hits.
+        distinct[redundant[0]] = representative;
+        for (const index of redundant.slice(1).reverse()) distinct.splice(index, 1);
+      }
+    }
+    const primary = distinct[0];
+    return {
+      ...hits[0],
+      snippet: primary.snippet,
+      provenance: primary.provenance,
+      ...(distinct.length > 1 ? { passages: [{ snippet: distinct[1].snippet, provenance: distinct[1].provenance }] } : {}),
+      ...(distinct.length > 2 ? { omittedPassages: distinct.length - 2 } : {}),
+    };
+  });
+}
+
+function passageText(snippet: string): string {
+  // Only presentation whitespace and a trailing truncation marker are ignored;
+  // numbers, punctuation, and negations must not disappear during deduplication.
+  return snippet.trim().replace(/(?:\.\.\.|…)$/, "").replace(/\s+/gu, " ").trim();
+}
+
+function redundantPassages(left: SearchResult, right: SearchResult): boolean {
+  const a = left.provenance;
+  const b = right.provenance;
+  if (a.lineStart > b.lineEnd || b.lineStart > a.lineEnd) return false;
+  const leftText = passageText(left.snippet);
+  const rightText = passageText(right.snippet);
+  // Range overlap alone is insufficient: long/truncated lines or partially
+  // overlapping windows can contain different evidence, including negations.
+  return leftText === rightText || Boolean(leftText && rightText
+    && (leftText.includes(rightText) || rightText.includes(leftText)));
+}
+
+/**
+ * Keep one result per map in everyday context, and omit near-verbatim echoes only
  * when a map is involved. Merely citing a source never suppresses that source.
  * Deep retrieval retains distinct chunks, including raw details from one file.
  */
@@ -196,13 +254,19 @@ export function diversifyResults(results: SearchResult[], depth: RetrievalDepth)
     if (selected.some((other) => {
       const otherDream = other.provenance.metadata?.dream === true;
       if (!dream && !otherDream) return false;
-      if (!nearIdentical(result.snippet, other.snippet)) return false;
-      if (dream && otherDream) return true;
-      // A new code, number, name, or detail in raw evidence is enough to keep it.
-      // Only omit a source echo if it contributes no new tokens to the map.
-      const rawWords = diversityTokens(dream ? other.snippet : result.snippet);
-      const mapWords = diversityTokens(dream ? result.snippet : other.snippet);
-      return [...rawWords].every((word) => mapWords.has(word));
+      // A grouped hit is an echo only when *every* retained passage is an
+      // echo. Unknown omitted evidence also prevents cross-file suppression.
+      if (result.omittedPassages || other.omittedPassages) return false;
+      const incoming = [result, ...(result.passages ?? [])];
+      const existing = [other, ...(other.passages ?? [])];
+      return incoming.every((passage) => existing.some((kept) => {
+        if (!nearIdentical(passage.snippet, kept.snippet)) return false;
+        // Token similarity is only a gate, never proof that evidence is
+        // redundant. Preserve new qualifications in maps as well as raw notes,
+        // even when negation moves without changing the token set.
+        const incomingText = passageText(passage.snippet);
+        return Boolean(incomingText && passageText(kept.snippet).includes(incomingText));
+      }));
     })) continue;
     selected.push(result);
     if (dream) mapFiles.add(result.provenance.file);

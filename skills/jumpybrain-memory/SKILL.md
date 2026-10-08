@@ -30,6 +30,21 @@ __JUMPYBRAIN_CLI__ recall --root "__JUMPYBRAIN_MEMORY_ROOT__" --query "<specific
 
 Use `--depth shallow|normal|deep` when useful. `shallow` favors synthesized pages/decisions; `deep` may surface raw session evidence.
 
+## Use snippets first; expand only gaps
+
+Answer from returned snippets when they provide sufficient evidence, citing each relevant source and line range. Preserve qualifications, conflicts, and uncertainty; a title or memory type does not prove a decision. `Written date` is creation metadata, not an observation date. `Evidence date` is explicit frontmatter `date`, not necessarily the date of every passage in a living document. Missing dates remain unknown; confidence metadata is not a truth guarantee.
+
+When evidence is incomplete, first narrow the recall `--query` to the missing point using the same target. Then expand only the relevant source/nearby reasoning as needed, using a local file-reading tool with the cited path and lines for local memory. Do not require a particular heading or a whole-file read based on memory type. Whole-file reads are appropriate when the question needs broader context.
+
+For ID-addressed expansion (including hosted memory), these commands return the **whole document**, not a line range:
+
+```bash
+__JUMPYBRAIN_CLI__ show --root "__JUMPYBRAIN_MEMORY_ROOT__" --id <mem_id> --json
+__JUMPYBRAIN_CLI__ show --target-url <url> --id <mem_id> --json
+```
+
+Use the file-level ID from `provenance.metadata.id` in recall JSON, not the search/chunk result `id`. Hosted operations require `JUMPYBRAIN_API_KEY` and must stay on the CLI with the same target; do not read server paths or call HTTP directly. If a legacy document has no file-level ID, use narrower hosted recall rather than inventing a `show` ID or stamping IDs without permission. `show` has no range flags.
+
 ## Remember durable context
 
 Only write local/project memory when the user explicitly asks or clearly approves. Only write global/team/remote memory when the user explicitly asks for global/team/remote memory to be updated. Do not memorize secrets, credentials, tokens, raw chat noise, or vague transient status.

@@ -40,6 +40,10 @@ export interface SearchResult {
   score: number;
   snippet: string;
   provenance: Provenance;
+  /** Additional distinct evidence from this file; the primary remains snippet/provenance. */
+  passages?: Array<{ snippet: string; provenance: Provenance }>;
+  /** Distinct candidate passages not returned by the bounded file-level selection. */
+  omittedPassages?: number;
   sessionId?: string;
   session_id?: string;
   scoreBreakdown?: ScoreBreakdown;

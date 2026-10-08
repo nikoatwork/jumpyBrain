@@ -19,7 +19,9 @@ export async function searchWithQmdCli(root: string, query: string, limit: numbe
   const addRows = (rows: Array<{ file?: string; score?: number; snippet?: string; line?: number }>, weight: number) => {
     rows.forEach((item, rank) => {
       const snippetRange = lineRangeFromSnippet(item.snippet ?? "");
-      const lineStart = item.line ?? snippetRange?.lineStart;
+      // JSON line is the match anchor, not necessarily the excerpt start.
+      // The @@ header describes the context window actually returned by QMD.
+      const lineStart = snippetRange?.lineStart ?? item.line;
       const file = qmdVirtualPathToRelative(item.file ?? "", collection);
       if (!file) return;
       // QMD can round BM25 scores to zero, so retain a rank fallback. A tiny
@@ -35,6 +37,9 @@ export async function searchWithQmdCli(root: string, query: string, limit: numbe
         score,
         dreamSupplement: options.dreamsOnly,
       };
+      // Max, not additive RRF: correlated lexical variants must not accumulate
+      // votes. Fixed-pool fusion ablations show specialist/consensus tradeoffs,
+      // not a justified replacement for the calibrated driver score contract.
       const existing = merged.get(key);
       if (!existing || candidate.score > existing.score) merged.set(key, candidate);
     });

@@ -5,12 +5,21 @@
 - Normalize supported retrieval-depth values and expose deterministic depth-policy boosts.
 - Classify canonical Markdown documents by frontmatter type or memory-directory bucket.
 - Stay backend-agnostic so QMD-backed search and future retrieval adapters can apply the same policy.
+- Own pure source-excerpt selection in `excerpts.ts`: supplied lines/window/query terms become bounded evidence and actual line citations, without I/O or backend knowledge.
 
 ## Non-responsibilities
 
 - Do not call QMD, build indexes, read files, or execute search.
 - Do not parse CLI arguments beyond validating the already-selected depth value.
 - Do not depend on runtime, processing, server, or adapter modules.
+
+## Evidence excerpts
+
+Select a matching line within the supplied window, discounting repeated topic/title mentions relative to rarer requested detail. Markdown link labels contribute to matching; original targets remain unchanged in output. Normalize punctuation for matching only. This is excerpt selection, not a document relevance score or a generated claim.
+
+Prefer the enclosing small heading section or a whole paragraph/list item/fenced block; retain nested list qualifications and bounded adjacent context. Heading names are never special-cased. Preserve ancestor scope when its contiguous span fits, otherwise explicitly label omitted ancestor context. Large units use a match-centered, explicitly partial excerpt. Returned ranges address the displayed canonical lines, not the whole retrieval window. Whitespace is compacted, so this is not a lossless Markdown rendering.
+
+The initial per-passage bound is 1,000 characters, including omission markers. This is not a tokenizer contract or universally optimal size. Different sections can still contain relevant reasoning; absence of a partial marker never proves a complete answer. The adapter owns bounded source reads and backend-window fallback. Tests cover arbitrary headings, heading-free prose, long lines, nested lists, fences, scope, link identities, and malformed bracket input.
 
 ## Dream preference
 

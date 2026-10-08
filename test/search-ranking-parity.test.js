@@ -121,8 +121,9 @@ else { console.error('Unexpected QMD operation: ' + args[0]); process.exit(1); }
     const firstById = [...firstHits.values()];
     assert.ok(firstById.length > 12, "fixture must exercise the palette cap");
     const duplicates = valid.filter((hit) => hit.provenance.metadata.id === documentId(2));
-    assert.equal(duplicates.length, 2, "distinct QMD chunks of one canonical note survive backend retrieval");
-    assert.notEqual(duplicates[0].snippet, duplicates[1].snippet);
+    assert.equal(duplicates.length, 1, "normal retrieval spends one result slot per canonical file");
+    assert.equal(duplicates[0].passages.length, 1, "distinct second-source evidence survives in the file-level hit");
+    assert.notEqual(duplicates[0].snippet, duplicates[0].passages[0].snippet);
     const display = normalize(remote.results);
     assert.equal(display.length, 12);
     assert.deepEqual(display, firstById.slice(0, 12).map(displayHit), "usable notes keep backend order and first-hit snippets without client reranking");
@@ -135,7 +136,9 @@ else { console.error('Unexpected QMD operation: ' + args[0]); process.exit(1); }
     assert.ok(display.every((hit) => hit.documentId), "ID-less rows cannot crowd out navigable notes");
     // A smaller response keeps unavailable rows, after all usable notes, even
     // when the unavailable hit precedes them and a duplicate chunk intervenes.
-    const smaller = [legacy, duplicates[0], duplicates[1], firstById.find((hit) => hit.provenance.metadata.id !== documentId(2))];
+    // The browser remains defensive toward duplicate rows from older servers.
+    const duplicate = { ...duplicates[0], ...duplicates[0].passages[0], id: "legacy-second-chunk" };
+    const smaller = [legacy, duplicates[0], duplicate, firstById.find((hit) => hit.provenance.metadata.id !== documentId(2))];
     assert.deepEqual(normalize(smaller), [displayHit(smaller[1]), displayHit(smaller[3]), displayHit(legacy)]);
 
     const calls = (await readFile(path.join(root, "qmd-calls.jsonl"), "utf8")).trim().split("\n").map(JSON.parse);
