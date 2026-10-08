@@ -78,13 +78,15 @@ jumpybrain recall --root <memory-root> --topic "sales process" --depth deep
 
 JSON results include `id`, `score`, `snippet`, `provenance`, and `scoreBreakdown`. Normal/shallow recall/search spend `--limit` slots on distinct files, with up to two source passages per file: the primary fields plus optional `passages` containing independently cited evidence. `omittedPassages`, when present, counts additional candidate passages not shown—not every unseen passage in the file. Deep and explicit source-focused queries retain chunk-level limits.
 
-Excerpts favor matching statements within Markdown boundaries rather than a fixed prefix cut. Each passage is bounded at 1,000 characters; oversized units and omitted ancestor context carry expansion warnings. This is source extraction, not generated claims or proof that all relevant context was returned. Grouping cannot recover files absent from the candidate pool or fix all ranking misses.
+Excerpts favor matching statements within Markdown boundaries rather than a fixed prefix cut. A document's leading heading is a fallback, not the selected match when another line is available in the retrieved window. Each passage is bounded at 1,000 characters; oversized units and omitted ancestor context carry expansion warnings. This is source extraction, not generated claims or proof that all relevant context was returned. Grouping cannot recover files absent from the candidate pool or fix all ranking misses.
 
 ## Snippet-first evidence and selective expansion
 
 Use returned snippets directly when they answer the question, citing each relevant path and line range. Keep qualifications and conflicting passages; neither a title nor a memory type establishes a decision. Do not require a fixed heading, or read every file merely because it is a decision/page/session.
 
 Plain recall/search includes title/type and `Written date` from `created_at` (or legacy `createdAt`). `Evidence date`, when present, is explicit frontmatter `date`; neither label means an observed event date. Missing/invalid dates remain unknown. A document date may not describe later sections or a synthesis evidence period: expand those sources only when that distinction matters. Confidence metadata, if inspected in JSON, is not a truth guarantee.
+
+Plain output abbreviates long link destinations with `…` and a stable identity hint, preserving link labels. These are display hints, not usable replacement URLs. Use `--json` or the cited source for exact destinations; JSON, canonical Markdown, and backtick code retain full addresses.
 
 For incomplete evidence:
 

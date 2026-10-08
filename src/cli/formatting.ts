@@ -1,5 +1,6 @@
 import { stripVTControlCharacters } from "node:util";
 import type { Provenance, SearchResult } from "../types.js";
+import { compactEvidenceLinks } from "./evidence-links.js";
 
 /** Metadata is untrusted display text, never a new output line or terminal command. */
 function metadataText(value: unknown, maxLength: number): string | undefined {
@@ -42,11 +43,17 @@ function resultMetadata(provenance: Provenance): string {
 export function formatHumanResults(results: SearchResult[]): string {
   if (results.length === 0) return "No memory matches found.";
 
-  return results.map((result, index) => {
+  let linksShortened = false;
+  const displaySnippet = (snippet: string) => {
+    const formatted = compactEvidenceLinks(snippet);
+    linksShortened ||= formatted.shortened;
+    return formatted.text;
+  };
+  const output = results.map((result, index) => {
     const lines = [
       `${index + 1}. ${sourceReference(result.provenance)} score=${result.score}`,
       `   ${resultMetadata(result.provenance)}`,
-      `   ${result.snippet}`,
+      `   ${displaySnippet(result.snippet)}`,
     ];
     // Accept additive passages while preserving the legacy representative snippet.
     const passages = result.passages ?? [];
@@ -55,11 +62,12 @@ export function formatHumanResults(results: SearchResult[]): string {
       const key = JSON.stringify([passage.snippet, sourceReference(passage.provenance)]);
       if (seen.has(key)) continue;
       seen.add(key);
-      lines.push(`   Source: ${sourceReference(passage.provenance)}`, `   ${passage.snippet}`);
+      lines.push(`   Source: ${sourceReference(passage.provenance)}`, `   ${displaySnippet(passage.snippet)}`);
     }
     if (Number.isSafeInteger(result.omittedPassages) && result.omittedPassages! > 0) {
       lines.push(`   ${result.omittedPassages} additional candidate passage(s) not shown; narrow the query or expand this source.`);
     }
     return lines.join("\n");
   }).join("\n\n");
+  return output + (linksShortened ? "\n\nLinks abbreviated (…); use --json or the cited source for exact destinations." : "");
 }

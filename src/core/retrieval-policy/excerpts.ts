@@ -39,10 +39,15 @@ export function selectEvidenceExcerpt(lines: string[], options: ExcerptOptions):
   }));
   let center = start;
   let best = -1;
+  const firstBodyLine = lines.findIndex((line, index) => index >= body && line.trim());
+  const mainHeading = structure.headings.has(firstBodyLine) ? firstBodyLine : -1;
+  const titleLines = new Set(mainHeading < 0 ? [] : [mainHeading]);
+  if (mainHeading >= 0 && /^ {0,3}(?:=+|-+)\s*$/u.test(lines[mainHeading + 1] ?? "")) titleLines.add(mainHeading + 1);
+  const hasAlternative = lines.slice(start, end + 1).some((line, offset) => line.trim() && !titleLines.has(start + offset));
   // Choose inside the backend window, not the document's globally best line:
   // otherwise every hit could collapse onto one section and hide qualifications.
   for (let i = start; i <= end; i++) {
-    if (!lines[i].trim()) continue;
+    if (!lines[i].trim() || (hasAlternative && titleLines.has(i))) continue;
     const score = terms.reduce((sum, term, index) => sum + (matches[i - start][index] ? term.weight : 0), 0)
       * (structure.headings.has(i) ? 0.4 : 1);
     if (score > best) { best = score; center = i; }

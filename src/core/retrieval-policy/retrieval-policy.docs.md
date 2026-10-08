@@ -15,7 +15,7 @@
 
 ## Evidence excerpts
 
-Select a matching line within the supplied window, discounting repeated topic/title mentions relative to rarer requested detail. Markdown link labels contribute to matching; original targets remain unchanged in output. Normalize punctuation for matching only. This is excerpt selection, not a document relevance score or a generated claim.
+Select a matching line within the supplied window, discounting repeated topic/title mentions relative to rarer requested detail. A heading at the first nonblank body line (ATX or setext, regardless of level) is the main title: exclude it and its setext underline from match candidates when another nonblank line exists in the window. Title-only windows/notes retain the fallback; do not search unrelated windows. The title can still appear as necessary ancestor context. Markdown link labels contribute to matching; original targets remain unchanged in the structured excerpt (CLI plain-display abbreviation is a separate concern). Normalize punctuation for matching only. This is excerpt selection, not a document relevance score or a generated claim.
 
 Prefer the enclosing small heading section or a whole paragraph/list item/fenced block; retain nested list qualifications and bounded adjacent context. Heading names are never special-cased. Preserve ancestor scope when its contiguous span fits, otherwise explicitly label omitted ancestor context. Large units use a match-centered, explicitly partial excerpt. Returned ranges address the displayed canonical lines, not the whole retrieval window. Whitespace is compacted, so this is not a lossless Markdown rendering.
 
