@@ -78,7 +78,16 @@ export async function updateMemoryDocument(
     );
   }
 
-  return replaceCanonicalMemoryDocumentById(root, id, content, { updatedAt: options.updatedAt });
+  try {
+    return await replaceCanonicalMemoryDocumentById(root, id, content, { ifMatch, updatedAt: options.updatedAt });
+  } catch (error) {
+    // Keep the public precondition error shape for conflicts discovered at publication.
+    if ((error as MemoryDocumentEditError).code === "precondition_failed") {
+      const conflict = error as MemoryDocumentEditError;
+      throw new MemoryDocumentPreconditionError(conflict.code, conflict.message, conflict.details);
+    }
+    throw error;
+  }
 }
 
 export async function ensureMemoryDocumentIds(rootArg: string): Promise<ProcessMemoryResult> {

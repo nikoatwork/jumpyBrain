@@ -1,31 +1,28 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
-import { normalizeRelative, parseFrontmatter, readMarkdownDocuments, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
+import { hashMemoryDocumentContent, listCanonicalMemoryMarkdownFiles, normalizeRelative, parseFrontmatter, readCanonicalMemoryDocumentById, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot, DERIVED_DIR } from "../../core/memory-root/index.js";
-import type { Frontmatter, MarkdownDocument, ProcessMemoryOptions, ProcessMemoryResult, ProcessMode } from "../../types.js";
+import type { Frontmatter, ProcessMemoryOptions, ProcessMemoryResult, ProcessMode, ProcessingLintScope } from "../../types.js";
 import { searchQmdIndex } from "../../adapters/qmd/index.js";
 import { renderMarkdownDocument, slug } from "../../core/writing/markdown-file.js";
 import { generateMemoryDocumentId, isValidMemoryDocumentId, MEMORY_CONFIDENCE } from "../../core/writing/metadata.js";
+import { writeUniqueMarkdownFile } from "../writing/filesystem.js";
+import { updateMemoryDocument } from "../local-memory/index.js";
 import { ensureMemoryIds } from "./ensure-ids.js";
-
-interface SourceDocument extends MarkdownDocument {
-  content: string;
-  body: string;
-}
+import { distinctiveTokens, headingTitle, isPrimarySource, sourceExcerpt, topicMatches, type SourceDocument } from "./evidence.js";
+import { lintDocuments, renderLintReport } from "./lint.js";
 
 const PROCESS_MODES = ["lint", "synthesize", "ensure-ids"] as const satisfies readonly ProcessMode[];
 export async function processMemory(rootArg: string, options: ProcessMemoryOptions): Promise<ProcessMemoryResult> {
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
   const mode = normalizeProcessMode(options.mode);
-  if (!options.apply) throw new Error("jumpybrain process mutates memory/support state. Re-run with --apply to continue.");
-
+  if (options.apply !== true) throw new Error("jumpybrain process mutates memory/support state. Re-run with --apply to continue.");
   if (mode === "synthesize") return synthesizeMemory(root, options);
   if (mode === "ensure-ids") return ensureMemoryIds(root);
   return lintMemory(root, options);
 }
-
 function normalizeProcessMode(value: string): ProcessMode {
   if ((PROCESS_MODES as readonly string[]).includes(value)) return value as ProcessMode;
   throw new Error(`Invalid --mode '${value}'. Use one of: ${PROCESS_MODES.join(", ")}.`);
@@ -34,101 +31,119 @@ function normalizeProcessMode(value: string): ProcessMode {
 async function synthesizeMemory(root: string, options: ProcessMemoryOptions): Promise<ProcessMemoryResult> {
   const topic = options.topic?.trim();
   if (!topic) throw new Error("--topic is required for process --mode synthesize.");
-
+  if (!distinctiveTokens(topic).length) throw new Error("--topic must contain a distinctive topical token.");
   const limit = positiveLimit(options.limit, 8);
-  const documents = await readSourceDocuments(root);
-  const directSources = selectSources(documents, { topic, since: options.since, limit, includePages: false });
-  const sources = await expandSourcesWithQmd(root, documents, directSources, { topic, limit, includePages: false });
-  if (sources.length === 0) throw new Error(`No source memories found for topic ${JSON.stringify(topic)}.`);
-
-  const now = new Date().toISOString();
-  const pagesDir = path.join(root, "pages");
-  await mkdir(pagesDir, { recursive: true });
-  const pageFile = path.join(pagesDir, `${slug(topic, "page")}.md`);
+  const sinceTime = parseSince(options.since);
+  const relative = `pages/${slug(topic, "page")}.md`;
+  const pageFile = path.join(root, relative);
+  // Snapshot BEFORE retrieval: concurrent edits during source discovery must not be overwritten.
+  await assertSafeDestination(root, pageFile);
   const existing = await readExistingPage(pageFile);
-  const pageId = isValidMemoryDocumentId(existing.frontmatter.id) ? existing.frontmatter.id : generateMemoryDocumentId();
-  const markdown = renderMarkdownDocument([
-    ["id", pageId],
-    ["type", "page"],
-    ["title", topic],
-    ["topic", topic],
-    ["source", "jumpybrain-process"],
-    ["created_at", String(existing.frontmatter.created_at ?? now)],
-    ["updated_at", now],
-    ["confidence", MEMORY_CONFIDENCE.agentDrafted],
-    ["tags", topicTags(topic)],
-  ], renderPageBody(topic, sources));
-
-  await writeFile(pageFile, markdown, "utf8");
-  const relative = normalizeRelative(root, pageFile);
-  return {
-    root,
-    mode: "synthesize",
-    applied: true,
-    topic,
-    files: [relative],
-    summary: [
-      `Updated topical page ${relative} from ${sources.length} source memor${sources.length === 1 ? "y" : "ies"}.`,
-      "Run jumpybrain index before expecting recall to see applied processing changes.",
-    ],
+  if (options.ifMatch !== undefined && (!existing || hashMemoryDocumentContent(existing.content) !== options.ifMatch)) {
+    throw new Error("Synthesis destination content hash is stale; re-read before retrying.");
+  }
+  if (existing) {
+    const fm = existing.frontmatter;
+    if (fm.source !== "jumpybrain-process" || fm.dream === true || fm.confidence === MEMORY_CONFIDENCE.userReviewed || fm.type !== "page" || fm.topic !== topic) {
+      throw new Error(`Refusing to overwrite unowned, human/dream, or different-topic page ${relative}. Choose another topic or edit it explicitly.`);
+    }
+    if (!isValidMemoryDocumentId(fm.id)) throw new Error(`Existing process page ${relative} needs a valid ID; run ensure-ids explicitly first.`);
+    const opened = await readCanonicalMemoryDocumentById(root, String(fm.id));
+    if (opened.file !== relative || opened.contentHash !== hashMemoryDocumentContent(existing.content)) throw new Error("Synthesis destination changed during preflight.");
+  }
+  const documents = await readSourceDocuments(root);
+  const direct = selectSources(documents, { topic, sinceTime, limit, includePages: false });
+  const sources = await expandSourcesWithQmd(root, documents, direct, { topic, sinceTime, limit });
+  const excerpts = sources.flatMap(source => { const excerpt = sourceExcerpt(source, topic); return excerpt ? [{ source, excerpt }] : []; });
+  if (!excerpts.length) throw new Error(`No source passages found for topic ${JSON.stringify(topic)} within the requested bounds.`);
+  const body = renderPageBody(topic, excerpts);
+  await assertSafeDestination(root, pageFile);
+  const latest = await readExistingPage(pageFile);
+  if (latest?.content !== existing?.content) throw new Error("Synthesis destination changed after preflight; retry without concurrent writers.");
+  if (existing && existing.body.trim() === body.trim()) {
+    return { root, mode: "synthesize", applied: false, topic, files: [], modifiedCount: 0,
+      summary: [`Extractive source map ${relative} is unchanged; no write or index update needed.`] };
+  }
+  const now = new Date().toISOString();
+  const metadata: Frontmatter = existing ? { ...existing.frontmatter, updated_at: now } : {
+    id: generateMemoryDocumentId(), type: "page", title: topic, topic,
+    source: "jumpybrain-process", created_at: now, updated_at: now,
+    confidence: MEMORY_CONFIDENCE.agentDrafted, tags: distinctiveTokens(topic).slice(0, 8),
   };
+  const markdown = renderMarkdownDocument(Object.entries(metadata), body);
+  let written = pageFile;
+  if (existing) {
+    await updateMemoryDocument(root, String(metadata.id), markdown, { ifMatch: hashMemoryDocumentContent(existing.content), updatedAt: now });
+  } else {
+    // Approved exclusive-create seam: even a last-moment collision never overwrites another page.
+    written = await writeUniqueMarkdownFile(path.dirname(pageFile), path.basename(pageFile, ".md"), markdown);
+  }
+  return { root, mode: "synthesize", applied: true, topic, files: [normalizeRelative(root, written)], modifiedCount: 1,
+    summary: [`Wrote extractive source map ${normalizeRelative(root, written)} from ${excerpts.length} source memories; no semantic reconciliation was performed.`,
+      "Run jumpybrain index before expecting recall to see applied processing changes."] };
 }
 
 async function lintMemory(root: string, options: ProcessMemoryOptions): Promise<ProcessMemoryResult> {
   const documents = await readSourceDocuments(root);
-  const scoped = selectSources(documents, {
-    topic: options.topic?.trim(),
-    since: options.since,
-    limit: positiveLimit(options.limit, 100),
-    includePages: true,
-  });
-  const findings = lintDocuments(scoped, documents);
+  const topic = options.topic?.trim() || undefined;
+  const limit = positiveLimit(options.limit, 100);
+  const sinceTime = parseSince(options.since);
+  const eligible = selectSources(documents, { topic, sinceTime, limit: documents.length, includePages: true });
+  const scoped = eligible.slice(0, limit);
+  const issues = lintDocuments(scoped, documents, document => documentTime(document.frontmatter));
   const now = new Date().toISOString();
+  const runId = `${now.replace(/[:.]/g, "-")}-${randomUUID()}`;
+  const scope: ProcessingLintScope = { total: documents.length, eligible: eligible.length, inspected: scoped.length,
+    candidateDocuments: documents.filter(isPrimarySource).length, topic, since: options.since,
+    sinceTime: sinceTime === undefined ? undefined : new Date(sinceTime).toISOString(), limit };
   const reportDir = path.join(root, DERIVED_DIR, "reports");
-  await mkdir(reportDir, { recursive: true });
-  const reportFile = path.join(reportDir, `lint-${now.slice(0, 10)}-${slug(options.topic ?? "all", "all")}.md`);
-  const markdown = renderLintReport({ topic: options.topic?.trim(), generatedAt: now, findings });
-  await writeFile(reportFile, markdown, "utf8");
+  await assertSafeDestination(root, path.join(reportDir, "report.md"));
+  const markdown = renderLintReport({ runId, generatedAt: now, scope, issues });
+  const reportFile = await writeUniqueMarkdownFile(reportDir, `lint-${runId}-${slug(topic ?? "all", "all")}`, markdown);
   const relative = normalizeRelative(root, reportFile);
-  return {
-    root,
-    mode: "lint",
-    applied: true,
-    topic: options.topic?.trim() || undefined,
-    files: [relative],
-    summary: [`Wrote lint report ${relative} with ${findings.length} finding${findings.length === 1 ? "" : "s"}.`],
-  };
+  return { root, mode: "lint", applied: true, topic, files: [relative], runId, issueCount: issues.length, issues, scope,
+    summary: [`Wrote lint report ${relative} with ${issues.length} finding${issues.length === 1 ? "" : "s"}.`] };
 }
 
 async function readSourceDocuments(root: string): Promise<SourceDocument[]> {
-  const documents = await readMarkdownDocuments(root);
-  return Promise.all(documents.map(async (document) => {
-    const content = await readFile(document.absolutePath, "utf8");
-    return { ...document, content, body: parseFrontmatter(content).body };
+  return Promise.all((await listCanonicalMemoryMarkdownFiles(root)).map(async absolutePath => {
+    const content = await readFile(absolutePath, "utf8");
+    const parsed = parseFrontmatter(content);
+    return { absolutePath, relativePath: normalizeRelative(root, absolutePath), content, body: parsed.body,
+      frontmatter: parsed.frontmatter, bodyStartLine: parsed.bodyStartLine };
   }));
 }
-
-async function readExistingPage(file: string): Promise<{ frontmatter: Frontmatter }> {
-  if (!existsSync(file)) return { frontmatter: {} };
-  const parsed = parseFrontmatter(await readFile(file, "utf8"));
-  return { frontmatter: parsed.frontmatter };
+async function readExistingPage(file: string) {
+  try { const content = await readFile(file, "utf8"); return { content, ...parseFrontmatter(content) }; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw error; }
+}
+/** No symlink/special/hardlink destination; root itself has already been realpathed. */
+async function assertSafeDestination(root: string, file: string): Promise<void> {
+  const relative = path.relative(root, file);
+  if (relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Unsafe processing destination.");
+  let current = root;
+  const parts = relative.split(path.sep);
+  for (let i = 0; i < parts.length; i++) {
+    current = path.join(current, parts[i]!);
+    try {
+      const stat = await lstat(current);
+      if (stat.isSymbolicLink() || (i < parts.length - 1 ? !stat.isDirectory() : !stat.isFile() || stat.nlink !== 1)) {
+        throw new Error("Unsafe processing destination: symlink, special file, or hardlink.");
+      }
+    } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return; throw error; }
+  }
 }
 
-async function expandSourcesWithQmd(
-  root: string,
-  documents: SourceDocument[],
-  initial: SourceDocument[],
-  options: { topic: string; limit: number; includePages: boolean },
-): Promise<SourceDocument[]> {
-  const byPath = new Map(documents.map((document) => [document.relativePath, document]));
-  const selected = new Map(initial.map((document) => [document.relativePath, document]));
-
+async function expandSourcesWithQmd(root: string, documents: SourceDocument[], initial: SourceDocument[], options: { topic: string; sinceTime?: number; limit: number }): Promise<SourceDocument[]> {
+  if (initial.length >= options.limit) return initial;
+  const byPath = new Map(documents.map(document => [document.relativePath, document]));
+  const selected = new Map(initial.map(document => [document.relativePath, document]));
   try {
     const results = await searchQmdIndex(root, options.topic, Math.max(options.limit * 2, 12), { depth: "deep" });
     for (const result of results) {
       const document = byPath.get(result.provenance.file);
-      if (!document) continue;
-      if (!options.includePages && isPage(document)) continue;
+      if (!document || !isPrimarySource(document) || !withinSince(document, options.sinceTime)) continue;
+      if (!sourceExcerpt(document, options.topic)) continue;
       selected.set(document.relativePath, document);
       if (selected.size >= options.limit) break;
     }
@@ -136,221 +151,57 @@ async function expandSourcesWithQmd(
     const message = error instanceof Error ? error.message : String(error);
     if (!message.includes("Memory index not found")) throw error;
   }
-
-  return [...selected.values()]
-    .sort((a, b) => (documentTime(b.frontmatter) ?? 0) - (documentTime(a.frontmatter) ?? 0) || a.relativePath.localeCompare(b.relativePath))
-    .slice(0, options.limit);
+  return [...selected.values()].sort(sourceOrder).slice(0, options.limit);
 }
-
-function selectSources(documents: SourceDocument[], options: { topic?: string; since?: string; limit: number; includePages: boolean }): SourceDocument[] {
-  const sinceTime = parseSince(options.since);
-  const topicTokens = tokenize(options.topic ?? "");
-  return documents
-    .filter((document) => options.includePages || !isPage(document))
-    .filter((document) => !sinceTime || (documentTime(document.frontmatter) ?? 0) >= sinceTime)
-    .filter((document) => topicTokens.length === 0 || topicMatches(document, topicTokens))
-    .sort((a, b) => (documentTime(b.frontmatter) ?? 0) - (documentTime(a.frontmatter) ?? 0) || a.relativePath.localeCompare(b.relativePath))
-    .slice(0, options.limit);
+function selectSources(documents: SourceDocument[], options: { topic?: string; sinceTime?: number; limit: number; includePages: boolean }): SourceDocument[] {
+  const terms = distinctiveTokens(options.topic ?? "");
+  return documents.filter(document => options.includePages || isPrimarySource(document))
+    .filter(document => withinSince(document, options.sinceTime))
+    .filter(document => terms.length === 0 || topicMatches(document, terms))
+    .filter(document => options.includePages || Boolean(sourceExcerpt(document, options.topic ?? "")))
+    .sort(sourceOrder).slice(0, options.limit);
 }
-
-function topicMatches(document: SourceDocument, topicTokens: string[]): boolean {
-  const haystack = [document.relativePath, ...Object.values(document.frontmatter).flat().map(String), document.body].join(" ").toLowerCase();
-  return topicTokens.every((token) => haystack.includes(token));
+function withinSince(document: SourceDocument, sinceTime?: number): boolean {
+  return sinceTime === undefined || (documentTime(document.frontmatter) ?? -Infinity) >= sinceTime;
 }
-
-function isPage(document: SourceDocument): boolean {
-  return document.relativePath.startsWith("pages/") || String(document.frontmatter.type ?? "").toLowerCase() === "page";
+function sourceOrder(a: SourceDocument, b: SourceDocument): number {
+  return (documentTime(b.frontmatter) ?? 0) - (documentTime(a.frontmatter) ?? 0) || a.relativePath.localeCompare(b.relativePath);
 }
-
-function renderPageBody(topic: string, sources: SourceDocument[]): string {
-  const bullets = sources.map((source) => `- ${sourceSummary(source)}`);
-  const sourceLines = sources.map((source) => {
-    const title = String(source.frontmatter.title ?? headingTitle(source.body) ?? source.relativePath);
-    const type = String(source.frontmatter.type ?? "memory");
-    return `- \`${source.relativePath}\` — ${title} (${type})`;
-  });
-
+function renderPageBody(topic: string, excerpts: Array<{ source: SourceDocument; excerpt: NonNullable<ReturnType<typeof sourceExcerpt>> }>): string {
+  const link = (source: SourceDocument) => `../${source.relativePath.split("/").map(component =>
+    encodeURIComponent(component).replace(/[()]/g, character => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)).join("/")}`;
   return [
-    `# ${topic}`,
-    "",
-    "This topical page was synthesized by `jumpybrain process --mode synthesize --apply` from canonical Markdown memory.",
-    "",
-    "## Current understanding",
-    ...bullets,
-    "",
+    `# ${topic}`, "",
+    "This is a deterministic extractive source map, not reviewed synthesis or current truth. Excerpts may omit context; follow original sources before resolving questions or reconciling claims.", "",
+    "## Source excerpts",
+    ...excerpts.flatMap(({ source, excerpt }) => [
+      `### ${String(source.frontmatter.title ?? headingTitle(source.body) ?? source.relativePath)}`, "",
+      `> ${excerpt.snippet.replace(/\n/g, "\n> ")}`, "",
+      `[Original source](${link(source)}) — lines ${excerpt.lineStart}-${excerpt.lineEnd}.`, "",
+    ]),
     "## Source memories",
-    ...sourceLines,
-    "",
+    ...excerpts.map(({ source }) => `- [${source.relativePath}](${link(source)})`), "",
     "## Maintenance",
-    "- Re-run `jumpybrain process --mode synthesize --apply` when new durable memory changes this topic.",
+    "- Generated by `jumpybrain process --mode synthesize --apply`; unchanged excerpts produce no write.",
+    "- Source metadata dates bound selection when --since is supplied; dates are not inferred event chronology. Original evidence remains canonical.",
   ].join("\n");
 }
-
-function sourceSummary(source: SourceDocument): string {
-  const title = String(source.frontmatter.title ?? headingTitle(source.body) ?? source.relativePath);
-  const text = firstUsefulLine(source.body, title);
-  return `**${title}**: ${text} [source: \`${source.relativePath}\`]`;
-}
-
-function firstUsefulLine(body: string, fallback: string): string {
-  const line = body
-    .split(/\r?\n/)
-    .map((value) => value.trim().replace(/^[-*]\s+/, ""))
-    .find((value) => value && !value.startsWith("#") && !value.startsWith("---"));
-  return truncate(line ?? fallback, 240);
-}
-
-function headingTitle(body: string): string | undefined {
-  const heading = body.split(/\r?\n/).find((line) => /^#\s+/.test(line.trim()));
-  return heading?.replace(/^#\s+/, "").trim();
-}
-
-function lintDocuments(scoped: SourceDocument[], allDocuments: SourceDocument[]): string[] {
-  const findings: string[] = [];
-  const pages = scoped.filter(isPage);
-  for (const page of pages) {
-    if (!/##\s+Source memories/i.test(page.body) && !/\[source:\s*`[^`]+`\]/i.test(page.body)) {
-      findings.push(`Page \`${page.relativePath}\` is missing an explicit Source memories section or source references.`);
-    }
-
-    const pageTime = documentTime(page.frontmatter) ?? 0;
-    const tokens = tokenize(String(page.frontmatter.topic ?? page.frontmatter.title ?? headingTitle(page.body) ?? ""));
-    const newerSources = allDocuments
-      .filter((document) => !isPage(document))
-      .filter((document) => (documentTime(document.frontmatter) ?? 0) > pageTime)
-      .filter((document) => tokens.length > 0 && topicMatches(document, tokens));
-    if (newerSources.length > 0) {
-      findings.push(`Page \`${page.relativePath}\` may be stale: ${newerSources.length} newer related source memor${newerSources.length === 1 ? "y" : "ies"} found.`);
-    }
-  }
-
-  const byTitle = new Map<string, SourceDocument[]>();
-  for (const document of scoped) {
-    const type = String(document.frontmatter.type ?? "").toLowerCase();
-    if (type !== "finding" && type !== "decision") continue;
-    const title = String(document.frontmatter.title ?? headingTitle(document.body) ?? "").trim().toLowerCase();
-    if (!title) continue;
-    const normalized = title.replace(/[^a-z0-9]+/g, " ").trim();
-    byTitle.set(normalized, [...(byTitle.get(normalized) ?? []), document]);
-  }
-  for (const [title, documents] of byTitle) {
-    if (documents.length > 1) findings.push(`Possible duplicate ${title}: ${documents.map((document) => `\`${document.relativePath}\``).join(", ")}.`);
-  }
-
-  findings.push(...declaredConflictFindings(scoped, allDocuments));
-  findings.push(...answeredOpenQuestionFindings(scoped, allDocuments));
-
-  if (findings.length === 0) findings.push("No deterministic lint findings found.");
-  return findings;
-}
-
-function declaredConflictFindings(scoped: SourceDocument[], allDocuments: SourceDocument[]): string[] {
-  const knownPaths = new Set(allDocuments.map((document) => document.relativePath));
-  const findings: string[] = [];
-  for (const document of scoped) {
-    for (const target of conflictTargets(document.frontmatter.conflicts_with)) {
-      const existence = knownPaths.has(target) ? "declares a conflict with" : "declares a conflict with missing target";
-      findings.push(`Conflict: \`${document.relativePath}\` ${existence} \`${target}\`.`);
-    }
-  }
-  return findings;
-}
-
-function conflictTargets(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value === "string" && value.trim()) return [value.trim()];
-  return [];
-}
-
-function answeredOpenQuestionFindings(scoped: SourceDocument[], allDocuments: SourceDocument[]): string[] {
-  const findings: string[] = [];
-  for (const document of scoped) {
-    for (const question of openQuestions(document.body)) {
-      const answer = allDocuments.find((candidate) => candidate.relativePath !== document.relativePath && appearsToAnswer(question, candidate));
-      if (answer) findings.push(`Open question in \`${document.relativePath}\` may be answered by \`${answer.relativePath}\`: ${question}`);
-    }
-  }
-  return findings;
-}
-
-function openQuestions(body: string): string[] {
-  const lines = body.split(/\r?\n/);
-  const questions: string[] = [];
-  let inOpenQuestions = false;
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (/^##\s+/.test(line)) {
-      inOpenQuestions = /^##\s+Open Questions\s*$/i.test(line);
-      continue;
-    }
-    if (!inOpenQuestions) continue;
-    const bullet = line.replace(/^[-*]\s+/, "").trim();
-    if (bullet && bullet !== "None captured." && bullet.includes("?")) questions.push(bullet);
-  }
-  return questions;
-}
-
-function appearsToAnswer(question: string, candidate: SourceDocument): boolean {
-  const cues = ["answer", "answered", "decided", "decision", "resolved", "closed"];
-  const haystack = [candidate.relativePath, ...Object.values(candidate.frontmatter).flat().map(String), candidate.body].join(" ").toLowerCase();
-  if (!cues.some((cue) => new RegExp(`\\b${cue}\\b`, "i").test(haystack))) return false;
-  const questionTokens = tokenize(question).filter((token) => !QUESTION_STOPWORDS.has(token));
-  if (questionTokens.length === 0) return false;
-  const matches = questionTokens.filter((token) => haystack.includes(token)).length;
-  return matches >= Math.min(3, questionTokens.length);
-}
-
-const QUESTION_STOPWORDS = new Set(["what", "when", "where", "which", "should", "could", "would", "about", "with", "from", "this", "that", "have", "will"]);
-
-function renderLintReport(options: { topic?: string; generatedAt: string; findings: string[] }): string {
-  return [
-    `# Memory lint report${options.topic ? `: ${options.topic}` : ""}`,
-    "",
-    `Generated at: ${options.generatedAt}`,
-    "",
-    "## Findings",
-    ...options.findings.map((finding) => `- ${finding}`),
-    "",
-    "## Notes",
-    "- This V1 lint pass uses deterministic checks only; agent-assisted semantic checks can be added behind the process seam later.",
-  ].join("\n");
-}
-
 function documentTime(metadata: Frontmatter): number | undefined {
   const value = metadata.updated_at ?? metadata.created_at ?? metadata.date;
   if (value === undefined || value === null || value === "") return undefined;
   const parsed = Date.parse(String(value));
   return Number.isFinite(parsed) ? parsed : undefined;
 }
-
 function parseSince(value: string | undefined): number | undefined {
   if (!value) return undefined;
-  const trimmed = value.trim();
-  const relative = /^(\d+)([dw])$/.exec(trimmed);
-  if (relative) {
-    const amount = Number(relative[1]);
-    const days = relative[2] === "w" ? amount * 7 : amount;
-    return Date.now() - days * 24 * 60 * 60 * 1000;
-  }
-  const absolute = Date.parse(trimmed);
+  const relative = /^(\d+)([dw])$/.exec(value.trim());
+  if (relative) return Date.now() - Number(relative[1]) * (relative[2] === "w" ? 7 : 1) * 86400000;
+  const absolute = Date.parse(value.trim());
   if (Number.isFinite(absolute)) return absolute;
   throw new Error(`Invalid --since '${value}'. Use an ISO date, Nd, or Nw.`);
 }
-
 function positiveLimit(value: number | undefined, fallback: number): number {
   if (value === undefined) return fallback;
   if (!Number.isInteger(value) || value <= 0) throw new Error("--limit must be a positive integer.");
   return value;
-}
-
-function topicTags(topic: string): string[] {
-  return tokenize(topic).slice(0, 8);
-}
-
-function tokenize(value: string): string[] {
-  return [...new Set(value.toLowerCase().match(/[a-z0-9]{3,}/g) ?? [])];
-}
-
-function truncate(value: string, max: number): string {
-  return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }

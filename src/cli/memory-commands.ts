@@ -130,12 +130,29 @@ export async function runMemoryCommand(
   }
 }
 
+function processApplyArg(args: ParsedCliArgs): boolean {
+  // Legacy parseArgs preserves '=' in flag keys; handle Boolean spelling here
+  // without changing parsing for unrelated commands.
+  const equals = Object.keys(args).filter(key => key.startsWith("apply="));
+  if (equals.length > 1 || (equals.length && args.apply !== undefined)) throw new Error("--apply must not be repeated.");
+  let value: unknown = args.apply;
+  if (equals.length) {
+    const key = equals[0]!;
+    if (args[key] !== true) throw new Error("--apply must be a boolean flag or true/false.");
+    value = key.slice("apply=".length);
+  }
+  if (value === undefined || value === false || value === "false") return false;
+  if (value === true || value === "true") return true;
+  throw new Error("--apply must be a boolean flag or true/false.");
+}
+
 function processOptionsFromArgs(args: ParsedCliArgs) {
   return {
     mode: stringArg(args, "mode"),
-    apply: Boolean(args.apply),
+    apply: processApplyArg(args),
     topic: stringArg(args, "topic", false).trim() || undefined,
     since: stringArg(args, "since", false).trim() || undefined,
+    ifMatch: stringArg(args, "if-match", false).trim() || undefined,
     limit: numberArg(args, "limit", 0) || undefined,
   };
 }

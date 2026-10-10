@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { constants, type Stats } from "node:fs";
 import { lstat, open, readdir, readFile, realpath, rename, unlink } from "node:fs/promises";
 import path from "node:path";
 import { mergeMemoryDocumentUpdate } from "../document-update.js";
@@ -181,7 +182,13 @@ export async function resolveCanonicalMemoryDocumentByTitle(rootArg: string, tit
 
 export interface ReplaceCanonicalMemoryDocumentOptions extends ReadCanonicalMemoryDocumentOptions {
   updatedAt?: string;
+  /** Optional for direct core callers; app updates require the prior read token. */
+  ifMatch?: MemoryDocumentContentHash | string;
 }
+
+// Serialize this module's updates (including title checks) by real root. Publication
+// also takes an exclusive filesystem lock so separate cooperating processes fail closed.
+const replacementQueues = new Map<string, Promise<void>>();
 
 export async function replaceCanonicalMemoryDocumentById(
   rootArg: string,
@@ -189,9 +196,33 @@ export async function replaceCanonicalMemoryDocumentById(
   submittedContent: string,
   options: ReplaceCanonicalMemoryDocumentOptions = {},
 ): Promise<MemoryDocumentUpdateResult> {
-  const location = await findCanonicalMemoryDocumentById(rootArg, id);
-  const oldBytes = await readFile(location.absolutePath);
+  if (!isValidMemoryDocumentId(id)) {
+    throw new MemoryDocumentLookupError("invalid_id", `Invalid memory document id '${id}'. Expected mem_<uuid>.`, { id });
+  }
+  const root = await resolveMemoryRoot(rootArg);
+  const previous = replacementQueues.get(root) ?? Promise.resolve();
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => { release = resolve; });
+  replacementQueues.set(root, pending);
+  await previous;
+  try {
+    return await replaceCanonicalMemoryDocument(root, id, submittedContent, options);
+  } finally {
+    release();
+    if (replacementQueues.get(root) === pending) replacementQueues.delete(root);
+  }
+}
+
+async function replaceCanonicalMemoryDocument(
+  root: string, id: string, submittedContent: string, options: ReplaceCanonicalMemoryDocumentOptions,
+): Promise<MemoryDocumentUpdateResult> {
+  const location = await findCanonicalMemoryDocumentById(root, id);
+  const original = await replacementSnapshot(location);
+  const oldBytes = original.bytes;
   const oldContentHash = hashMemoryDocumentContent(oldBytes);
+  if (options.ifMatch !== undefined && options.ifMatch !== oldContentHash) {
+    throw replacementConflict(location, oldContentHash);
+  }
   const merged = mergeMemoryDocumentUpdate(oldBytes.toString("utf8"), submittedContent, { updatedAt: options.updatedAt });
 
   // Compare the merged metadata against canonical files, never the derived index.
@@ -216,8 +247,9 @@ export async function replaceCanonicalMemoryDocumentById(
     }
   }
 
-  await atomicWriteUtf8File(location.absolutePath, merged.content);
-  const newBytes = await readFile(location.absolutePath);
+  await atomicWriteUtf8File(location, merged.content, original, oldContentHash);
+  // Describe the bytes we published, not a subsequent external writer's revision.
+  const newBytes = Buffer.from(merged.content, "utf8");
   const target = options.target ?? "local";
   return {
     root: options.rootLabel ?? location.root,
@@ -327,22 +359,103 @@ async function walkMarkdownFiles(root: string, starts: string[], options: { igno
   return results;
 }
 
-async function atomicWriteUtf8File(file: string, content: string): Promise<void> {
-  const dir = path.dirname(file);
-  const tempFile = path.join(dir, `.${path.basename(file)}.${process.pid}.${randomUUID()}.tmp`);
+interface ReplacementSnapshot {
+  bytes: Buffer;
+  file: Stats;
+  directories: Stats[];
+}
+
+function sameIdentity(a: Stats, b: Stats): boolean {
+  return a.dev === b.dev && a.ino === b.ino;
+}
+
+function replacementConflict(location: CanonicalMemoryDocumentLocation, currentContentHash?: MemoryDocumentContentHash): MemoryDocumentLookupError {
+  return new MemoryDocumentLookupError(
+    "precondition_failed",
+    "Document content hash is stale. Re-read the document before retrying the update.",
+    { id: location.id, file: location.file, ...(currentContentHash ? { currentContentHash } : {}) },
+  );
+}
+
+async function replacementSnapshot(location: CanonicalMemoryDocumentLocation, expected?: ReplacementSnapshot): Promise<ReplacementSnapshot> {
   let handle;
   try {
-    handle = await open(tempFile, "w");
+    const directories: Stats[] = [];
+    let dir = location.root;
+    for (const component of ["", ...path.dirname(location.file).split("/")]) {
+      dir = path.join(dir, component);
+      const stat = await lstat(dir);
+      if (!stat.isDirectory() || stat.isSymbolicLink()) throw replacementConflict(location);
+      directories.push(stat);
+    }
+    if (expected && directories.some((stat, index) => !sameIdentity(stat, expected.directories[index]!))) {
+      throw replacementConflict(location);
+    }
+    const file = await lstat(location.absolutePath);
+    if (!file.isFile() || file.isSymbolicLink() || file.nlink !== 1 || (expected && !sameIdentity(file, expected.file))) {
+      throw replacementConflict(location);
+    }
+    handle = await open(location.absolutePath, constants.O_RDONLY | constants.O_NOFOLLOW);
+    const opened = await handle.stat();
+    if (!sameIdentity(file, opened) || !opened.isFile() || opened.nlink !== 1) throw replacementConflict(location);
+    const bytes = await handle.readFile();
+    if (parseFrontmatter(bytes.toString("utf8")).frontmatter.id !== location.id) throw replacementConflict(location);
+    await handle.close();
+    handle = undefined;
+    // Reads/close are asynchronous too: recheck ancestors again at publication.
+    dir = location.root;
+    for (const [index, component] of ["", ...path.dirname(location.file).split("/")].entries()) {
+      dir = path.join(dir, component);
+      const stat = await lstat(dir);
+      if (!stat.isDirectory() || stat.isSymbolicLink() || !sameIdentity(stat, directories[index]!)) throw replacementConflict(location);
+    }
+    const latest = await lstat(location.absolutePath);
+    if (!sameIdentity(file, latest) || !latest.isFile() || latest.nlink !== 1) throw replacementConflict(location);
+    return { bytes, file, directories };
+  } catch (error) {
+    if (["ENOENT", "ENOTDIR", "ELOOP"].includes((error as NodeJS.ErrnoException).code ?? "")) throw replacementConflict(location);
+    throw error;
+  } finally {
+    if (handle) await handle.close().catch(() => undefined);
+  }
+}
+
+async function atomicWriteUtf8File(location: CanonicalMemoryDocumentLocation, content: string, original: ReplacementSnapshot, oldContentHash: MemoryDocumentContentHash): Promise<void> {
+  const file = location.absolutePath;
+  const dir = path.dirname(file);
+  const tempFile = path.join(dir, `.${path.basename(file)}.${process.pid}.${randomUUID()}.tmp`);
+  const lockFile = path.join(dir, `.${path.basename(file)}.replace.lock`);
+  let handle;
+  let lock;
+  let staged = false;
+  try {
+    handle = await open(tempFile, "wx");
+    staged = true;
     await handle.writeFile(content, "utf8");
     await handle.sync();
     await handle.close();
     handle = undefined;
+    try {
+      lock = await open(lockFile, "wx");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") throw replacementConflict(location);
+      throw error;
+    }
+    // Last asynchronous work before rename: recheck path policy, original inode,
+    // frontmatter ID and bytes. Node/POSIX rename is not a hostile-writer CAS.
+    const latest = await replacementSnapshot(location, original);
+    const latestHash = hashMemoryDocumentContent(latest.bytes);
+    if (latestHash !== oldContentHash) throw replacementConflict(location, latestHash);
     await rename(tempFile, file);
+    staged = false;
     await fsyncDirectoryBestEffort(dir);
-  } catch (error) {
+  } finally {
     if (handle) await handle.close().catch(() => undefined);
-    await unlink(tempFile).catch(() => undefined);
-    throw error;
+    if (staged) await unlink(tempFile).catch(() => undefined);
+    if (lock) {
+      await lock.close().catch(() => undefined);
+      await unlink(lockFile).catch(() => undefined);
+    }
   }
 }
 

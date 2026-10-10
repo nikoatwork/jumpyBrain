@@ -4,6 +4,10 @@
 
 A topical synthesis marked with the YAML boolean `dream: true`, normally under `pages/`. It connects and condenses source evidence, can evolve across dreaming runs, and receives a relevance-aware preference in normal/shallow retrieval. The marker is neither a truth guarantee nor a write permission; `[[dream]]` alone does not classify a document.
 
+## Extractive source map
+
+A process-owned page produced by deterministic `process --mode synthesize`: bounded topic-relevant source excerpts with original citations, not reviewed semantic synthesis or resolved truth. Unlike ordinary dream updates, extraction refuses human/dream destinations and leaves unchanged output byte-identical.
+
 ## Recall passage
 
 A bounded source excerpt with its own file/line provenance, not a generated or independently verified claim. Normal/shallow recall groups passages by canonical file before applying the result limit; deep/source-focused recall retains chunk-level limits. A file-level hit currently contains at most two passages and may report omitted candidate passages.

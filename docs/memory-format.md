@@ -69,9 +69,11 @@ Manifest-backed reimports preserve valid mapped document IDs and creation timest
 
 ## Topical pages
 
-`pages/*.md` files are topical, current-state memory. They are meant to compress lower-level memories such as sessions, findings, and decisions into a page an agent can read first before digging into raw evidence.
+`pages/*.md` files hold topical maps or synthesis over lower-level memories such as sessions, findings, and decisions. They offer a starting point before raw evidence, not a guarantee of reviewed or current conclusions.
 
-A generated page uses `id`, `type: "page"`, `source: "jumpybrain-process"`, `topic`, timestamps, and source references in the body. New generated pages receive a standard `mem_<uuid>` ID, and later synthesis runs preserve an existing page ID. Pages are canonical Markdown and are indexed like other memory files.
+`process --mode synthesize` writes a deterministic extractive source map, not reviewed semantic synthesis or current truth. New maps use `id`, `type: "page"`, `source: "jumpybrain-process"`, `topic`, timestamps, `confidence: "agent-drafted"`, and original source links/line ranges. Only matching-topic process-owned, non-dream, non-user-reviewed pages with valid unique IDs can be refreshed; existing metadata and creation time are retained. Unchanged extracted bodies leave bytes/timestamps untouched. Pages are canonical Markdown and are indexed like other memory files.
+
+Provenance checks recognize inline Markdown links, full/collapsed/shortcut reference links with same-document definitions, and wiki links. Canonical targets may be relative paths (including URL-encoded Markdown paths) or valid unique file-level memory IDs; duplicate IDs stay ambiguous. A `Sources`/`Sources and continuity` heading need not match a generated template. Unused definitions, undefined shortcuts, images/embeds, and external URLs are not canonical source links. This is a lightweight recognizer, not full CommonMark validation. Missing, broken/ambiguous, and context-only references differ; even a valid source link does not establish claim entailment or independent corroboration.
 
 ### Dream pages
 
@@ -83,7 +85,7 @@ Keep pages concise, with dated claims, uncertainty/contradictions, and readable 
 
 Normal/shallow retrieval prefers relevant dream maps; deep and explicit source/historical queries omit the dream boost. New page timestamps must not make old claims appear current. Roots without dream pages still retrieve ordinary pages and source evidence.
 
-Dream source windows exclude dream-marked pages; use recall/show for related context outside the window. Default evidence dates prefer valid frontmatter `date`, a recognized dated journal filename, valid `created_at`/`createdAt`, then mtime with fallback warnings—not migration `updated_at`. Modified-date windows explicitly select mtime instead. Missing-ID sources are returned with paths without stamping IDs; editing still requires normal document identity checks.
+Dream source windows exclude dream-marked pages; use recall/show for related context outside the window. Default evidence dates prefer valid frontmatter `date`, a recognized dated journal filename, valid `created_at`/`createdAt`, then mtime with fallback warnings—not migration `updated_at`. Modified-date windows explicitly select mtime instead. Packet-only `dateConfidence` (`declared`, `filename`, `fallback`, or `modified`) describes that provenance, not verified event dates or new canonical metadata. Inspect fallback-dated imports explicitly; do not invent dates from ambiguous filenames. Missing-ID sources are returned with paths without stamping IDs; editing still requires normal document identity checks.
 
 ## Document edit contract
 
@@ -94,6 +96,8 @@ Concurrency tokens are `sha256:<hex>` content hashes computed over the exact Mar
 The edit model is whole-document replacement of exact Markdown content. Protected structural metadata from the existing file wins over submitted content during updates: `id`, canonical `type`, `created_at`, `source`, and similar writer-owned identity/provenance fields stay stable. `updated_at` is refreshed only after a successful content update or explicit ID-stamping modification. User-editable fields such as `title`, `tags`, and body text may change when accepted by validation.
 
 Updates keep the file path stable even when the title or frontmatter changes. The ID-addressed edit API does not rename files, move memories between buckets, delete files, patch line ranges, or merge concurrent edits.
+
+Canonical note/page/wrapup creation stages and fsyncs complete bytes before exclusive same-directory hardlink publication: readers do not see a partial final file, and existing files are never overwritten. Filesystems without hardlink support fail closed. ID-addressed updates stage/fsync then atomically rename, rechecking original bytes, ID, single-link regular-file identity, and non-symlink ancestors. Updates serialize per real root in-process; an exclusive `.<filename>.replace.lock` guards final validation/publication among cooperating processes and fails on contention. These safeguards are not filesystem compare-and-swap or protection against external writers ignoring locks; title uniqueness is not locked across processes. Quiesce concurrent filesystem writers. Directory fsync is best-effort, and crashes can leave hidden staging/locks; remove a stale lock only after confirming no writer is active.
 
 ## Session wrapup format
 

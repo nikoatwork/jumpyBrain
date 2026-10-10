@@ -30,6 +30,10 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     }
     index += 1;
   }
+  const processing = args._[0] === "process" || (args._[0] === "run" && args._[1] === "memory:process");
+  if (processing && argv.filter(token => /^--apply(?:=|$)/.test(token)).length > 1) {
+    throw new Error("--apply must not be repeated.");
+  }
   return args._[0] === "migrate" ? parseMigrationArgs(argv) : args;
 }
 

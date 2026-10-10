@@ -916,9 +916,9 @@ test("CLI process validates mode and writes a deterministic support report", asy
     assert.equal(result.files.length, 1);
     assert.match(result.files[0], /^\.jumpybrain\/reports\/lint-/);
     const report = await readFile(path.join(tempRoot, result.files[0]), "utf8");
-    assert.match(report, /missing an explicit Source memories section/);
+    assert.match(report, /PAGE_SOURCES_ABSENT/);
     assert.match(report, /Conflict: `findings\/sales-conflict\.md` declares a conflict with `decisions\/sales-price-book\.md`/);
-    assert.match(report, /Open question in `sessions\/sales-open-question\.md` may be answered by `decisions\/sales-price-book\.md`/);
+    assert.match(report, /Review candidate for open question in `sessions\/sales-open-question\.md` from `decisions\/sales-price-book\.md`/);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

@@ -112,11 +112,15 @@ Deprecated forms:
 
 | Command | Human explanation |
 | --- | --- |
-| `jumpybrain process --root <memory-root> --mode lint [--topic "..."] --apply` | Run deterministic memory checks and write a support report for issues such as stale pages, missing provenance, duplicates, conflicts, and answered open questions. |
-| `jumpybrain process --root <memory-root> --mode synthesize --topic "..." --apply` | Create or update a topical synthesized page under `pages/` from existing canonical memory. |
+| `jumpybrain process --root <memory-root> --mode lint [--topic "..."] [--since <date\|Nd\|Nw>] [--limit <n>] --apply [--json]` | Write a unique support report of deterministic checks and evidence-bearing answer candidates, never question resolutions. |
+| `jumpybrain process --root <memory-root> --mode synthesize --topic "..." [--since <date\|Nd\|Nw>] [--limit <n>] [--if-match <contentHash>] --apply [--json]` | Create or safely refresh an owned extractive source map under `pages/`; no model or reviewed semantic synthesis. |
 | `jumpybrain process --root <memory-root> --mode ensure-ids --apply` | Stamp missing `mem_<uuid>` document IDs onto older canonical Markdown files so they can be edited safely by ID. |
 
-`process` is local/server-side only. It is not exposed through the remote client CLI in remote V1.
+`process` is local/server-side only. It is not exposed through the remote client CLI in remote V1. All modes require `--apply`, `--apply true`, or `--apply=true`; omitted/false apply refuses to run, rather than previewing. Malformed values and repeated `--apply` flags (including mixed spellings) fail.
+
+Lint preserves each run under `.jumpybrain/reports/`. JSON includes `runId`, `issueCount` (zero when clean), structured `issues` with code/severity/evidence/rationale, and `scope`: total, eligible, inspected, candidate-document counts and invocation bounds. Topic/since/limit bound inspection, not the full-corpus comparisons or candidate search. Defaults are 100 inspected documents for lint and 8 sources for synthesis. `--since` uses metadata recency (`updated_at`, then `created_at`, then `date`), not inferred event dates. Provenance checks recognize canonical Markdown/reference/wiki links and ID targets regardless of source-section heading; valid links do not establish claim support. Answer candidates carry bounded passages and rationale; returning no candidate means abstention, not proof that a question is unanswered.
+
+Synthesis cites topical source excerpts and original lines, excluding pages and boolean `dream: true` outputs as primary evidence. It refuses human/dream/user-reviewed or different-topic collisions. Updates require a process-owned page with matching topic, `type: page`, and a valid unique ID; existing metadata and creation time are retained. `--if-match` optionally checks the destination hash from `show`; even without it the operation snapshots and rechecks the destination. Unchanged extracted bodies return `applied: false`, `modifiedCount: 0`, and no files, preserving bytes/timestamps. No topical passage means no page write. Unsafe destinations are rejected; [canonical write safeguards](memory-format.md#document-edit-contract) are not locks against arbitrary external editors. Index separately after canonical changes.
 
 ## Dreaming / consolidation workflow
 
@@ -142,9 +146,11 @@ jumpybrain dream --target-url <url> --from t-0d --days 3 --json
 
 Relative dates resolve once per request in UTC. Packet `window` contains `from` (oldest), `to` (newest), `timezone: "UTC"`, and `dateBasis`; CLI `--from` is the newest anchor, not packet `window.from`. For `nextOffset`, repeat the same bounds with `--offset` and use `window.to` as an absolute anchor. Concurrent edits may shift offsets: this is not a snapshot or exact coverage claim.
 
-Inspect warnings, fallback date bases, missing IDs/path provenance, truncation, and overflow. Empty windows are valid; historical windows cannot find every later edit. Migration `updated_at` is not used as an evidence date. Dream-marked pages are excluded as primary sources; recall/search/show finds related pages outside the window. No source IDs or support state are written, and repeated calls may return the same evidence.
+Inspect warnings, `diagnostics`, missing IDs/path provenance, truncation, and overflow. Each file's `dateConfidence` is `declared` (frontmatter date), `filename` (recognized journal date), `fallback` (creation/mtime), or `modified`; these describe provenance, not verified event dates. Returned-file diagnostics take priority; root-wide date issues are summarized by counts, including outside-window counts. The serialized warning array is capped at 16 KiB/100 entries, each string at 1 KiB, with omitted/truncated counts—not a total packet-size or scan-cost cap. See the [packet contract](shared-memory-protocol.md#get-memoriesalldreamwindow).
 
-After authorized review, create a page from **body only**, or show then update an existing dream page with **full Markdown**:
+Inspect import bursts explicitly: page the evidence window with `nextOffset`, or choose `--date-basis modified --from <modification-UTC-day> --days 1`. Preserved mtimes may differ from import/creation dates. Do not infer event dates from ambiguous filenames or migration `updated_at`. Empty/narrowed windows and final offsets do not prove corpus coverage; historical windows cannot find every later edit. Dream-marked pages are excluded as primary sources; recall/search/show finds related pages outside the window. No source IDs or support state are written, and repeated calls may return the same evidence.
+
+Confirm the target, allowed page writes/indexing, and budget; inspect relevant existing pages before choosing an update, new page, or useful no-op. After authorized review, create a page from **body only**, or show then update an existing dream page with **full Markdown**:
 
 ```bash
 jumpybrain remember --root <memory-root> --type page --dream --title "Topic map" < body.md
@@ -172,7 +178,7 @@ These commands route to the same memory handlers as the top-level commands. They
 | `jumpybrain run memory:recall --query "..." [--root <memory-root>] [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Retrieve memories for a specific question. |
 | `jumpybrain run memory:show --id <mem_id> [--root <memory-root>] [--target-url <url>] [--json]` | Show a full memory document by ID. |
 | `cat revised.md \| jumpybrain run memory:update --id <mem_id> --if-match <contentHash> [--root <memory-root>] [--target-url <url>] [--json]` | Safely replace a whole memory document by ID. |
-| `jumpybrain run memory:process --mode lint\|synthesize\|ensure-ids [--topic "..."] [--root <memory-root>] --apply` | Run local memory processing. |
+| `jumpybrain run memory:process --mode lint\|synthesize\|ensure-ids [--topic "..."] [--root <memory-root>] [--since <date\|Nd\|Nw>] [--limit <n>] [--if-match <contentHash>] --apply [--json]` | Run local memory processing with the same mode-specific bounds and safeguards as `process`. |
 | `cat memory.md \| jumpybrain run memory:remember --type <type> --title "..." [--root <memory-root>] [--tag <tag>] [--json]` | Store a new durable memory from stdin. |
 | `cat wrapup.md \| jumpybrain run memory:wrapup --title "..." [--topic "..."] [--root <memory-root>] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup from stdin. |
 

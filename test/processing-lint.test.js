@@ -81,6 +81,7 @@ test("processing synthesize preserves an existing topical page ID", async () => 
       id: existingId,
       type: "page",
       title: "Old stable pages",
+      source: "jumpybrain-process",
       topic: "stable pages",
       created_at: "2026-01-01T00:00:00.000Z",
       updated_at: "2026-01-01T00:00:00.000Z",
@@ -173,6 +174,17 @@ test("processing lint writes a no-findings support report for clean scoped memor
 
     assert.match(result.files[0], /^\.jumpybrain\/reports\//);
     assert.match(report, /No deterministic lint findings found/);
+    assert.equal(result.issueCount, 0);
+    assert.deepEqual(result.issues, []);
+    assert.match(result.summary[0], /with 0 findings/);
+    const second = await processMemory(root, { mode: "lint", topic: "clean memory", apply: true });
+    assert.notEqual(second.runId, result.runId);
+    assert.notEqual(second.files[0], result.files[0]);
+    assert.equal(await readFile(path.join(root, result.files[0]), "utf8"), report);
+    assert.deepEqual(result.scope, {
+      total: 1, eligible: 1, inspected: 1, candidateDocuments: 1, topic: "clean memory",
+      since: undefined, sinceTime: undefined, limit: 100,
+    });
   } finally {
     await rm(root, { recursive: true, force: true });
   }

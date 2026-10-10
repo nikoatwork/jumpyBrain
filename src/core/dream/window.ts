@@ -1,11 +1,15 @@
 import path from "node:path";
-import type { DreamLimits, DreamWindowFileDateBasis, DreamWindowRange, DreamWindowRequest, Frontmatter } from "../../types.js";
+import type { DreamLimits, DreamWindowDateConfidence, DreamWindowFileDateBasis, DreamWindowRange, DreamWindowRequest, Frontmatter } from "../../types.js";
 import { DEFAULT_DREAM_LIMITS, DreamPolicyError, HARD_DREAM_CAPS } from "./index.js";
 
 export const DEFAULT_DREAM_WINDOW_DAYS = 3;
 export const MAX_DREAM_WINDOW_DAYS = 365;
 /** Separate from body-byte budgets so oversized frontmatter cannot inflate packets without bound. */
 export const DREAM_WINDOW_METADATA_BYTES = 4096;
+/** JSON-serialized warning array/string caps, separate from source body budgets. */
+export const DREAM_WINDOW_WARNING_BYTES = 16 * 1024;
+export const DREAM_WINDOW_WARNING_STRING_BYTES = 1024;
+export const DREAM_WINDOW_WARNING_COUNT = 100;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const DREAM_WINDOW_WARNINGS = [
@@ -20,6 +24,7 @@ export const DREAM_WINDOW_INSTRUCTIONS = [
   "Use explicit document create/update flows and full current hashes for edits; obtain explicit authorization before global/team/remote writes.",
   "Report truncated or unread evidence and limitations. A no-op is valid; no completion step or persistent coverage ledger is needed.",
   "Continue with nextOffset and from equal to window.to, keeping the same days/dateBasis and limits. This is request-local pagination, not a stored queue.",
+  "Creation/mtime fallback dates can reflect an import burst, not event dates. Page the current evidence window with nextOffset to inspect its fallback files. For an explicit import/edit review, use dateBasis modified with from set to the modification UTC day and days 1; preserved mtimes may differ from creation dates. Neither mode verifies dates or full corpus coverage.",
 ];
 
 /** Reject Date.parse's silent calendar rollover and ambiguous locale dates. */
@@ -120,6 +125,46 @@ export function selectDreamEvidenceDate(options: {
   }
   warnings.push(`${file}: evidence date falls back to filesystem mtime (${mtimeDay}); this may reflect an import rather than historical evidence.`);
   return { date: mtimeDay, dateBasis: "mtime", warnings };
+}
+
+/** Describe the available date provenance without inventing historical precision. */
+export function dreamWindowDateConfidence(basis: DreamWindowFileDateBasis): DreamWindowDateConfidence {
+  if (basis === "date") return "declared";
+  if (basis === "filename" || basis === "modified") return basis;
+  return "fallback";
+}
+
+/** Caller supplies priority order. Reserve room for an honest omission/clipping summary. */
+export function boundDreamWindowWarnings(messages: string[]): { warnings: string[]; omittedWarnings: number; truncatedWarnings: number } {
+  const warnings: string[] = [];
+  let omittedWarnings = 0;
+  let truncatedWarnings = 0;
+  let serializedBytes = 2; // []
+  for (const message of messages) {
+    let bounded = message;
+    if (Buffer.byteLength(JSON.stringify(bounded), "utf8") > DREAM_WINDOW_WARNING_STRING_BYTES) {
+      let low = 0;
+      let high = Buffer.byteLength(message, "utf8");
+      const bytes = Buffer.from(message);
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        const prefix = truncateDreamWindowContent(bytes, mid).toString("utf8") + " … [diagnostic truncated]";
+        if (Buffer.byteLength(JSON.stringify(prefix), "utf8") <= DREAM_WINDOW_WARNING_STRING_BYTES) low = mid;
+        else high = mid - 1;
+      }
+      bounded = truncateDreamWindowContent(bytes, low).toString("utf8") + " … [diagnostic truncated]";
+    }
+    const cost = Buffer.byteLength(JSON.stringify(bounded), "utf8") + (warnings.length ? 1 : 0);
+    if (warnings.length >= DREAM_WINDOW_WARNING_COUNT - 1 || serializedBytes + cost > DREAM_WINDOW_WARNING_BYTES - 256) {
+      omittedWarnings += 1;
+      continue;
+    }
+    warnings.push(bounded);
+    serializedBytes += cost;
+    if (bounded !== message) truncatedWarnings += 1;
+  }
+  if (omittedWarnings || truncatedWarnings) warnings.push(`${omittedWarnings} diagnostic message(s) omitted; ${truncatedWarnings} returned diagnostic string(s) truncated (diagnostic budget). File flags and aggregate counts still apply; read full selected sources before claiming review.`);
+  return { warnings, omittedWarnings, truncatedWarnings };
 }
 
 export function compareDreamWindowFiles(left: { date: string; file: string }, right: { date: string; file: string }): number {

@@ -7,7 +7,7 @@
 - Own target-aware stateless `dream` windows for local `--root` and remote `--target-url`: validate `--from`, `--days`, `--date-basis`, offsets/budgets, write private full-context packets with `--out`, and keep bodies out of compact stdout. Legacy lifecycle/apply flags fail with deprecation guidance before credentials/files; legacy runtime/HTTP batch APIs remain available. Plain dream is a read-only operation even on protected targets; old mutation flags stay blocked by access policy.
 - `remember --type page --dream` creates a dream-marked page using body-only stdin, through the existing local/remote write seams. Existing `show`/hash-checked `update` and explicit `index` maintain it. Source preservation is agent-skill guidance, not a new write restriction.
 - Own `migrate logseq` in `migrate.ts`: strict source/root and boolean flags, body-free human summaries or the unchanged app JSON result, safely quoted apply/index hints, and explicit separate indexing. Dispatch this local-only command before remote policy/credentials; reject either remote target flag even when malformed or combined with local flags.
-- Keep migration argument strictness scoped in `args.ts` so legacy commands retain their existing parsing behavior.
+- Keep migration argument strictness scoped in `args.ts`; process additionally rejects repeated apply flags, including mixed bare/value/equals spellings, without changing other legacy command parsing.
 - Delegate local work through `src/cli/local-transport.ts` to the runtime/app seam.
 - Delegate remote work through the HTTP client adapter while keeping API keys and URLs at the CLI boundary.
 - Own target selection: `--root` selects local memory, `--target-url`/`--remote-url` selects the single remote V1 namespace, and remote API keys come only from `JUMPYBRAIN_API_KEY` in the CLI environment rather than adapters or local config.
@@ -17,6 +17,7 @@
 - Keep usage text, doctor reporting, and serve bootstrap behavior in dedicated CLI submodules.
 - `update.ts` detects the current managed installation (including custom roots) and delegates application updates and read-only previews to the installer. Installer scripts own optional macOS companion detection, quit-before-update checks, and locked paired native/runtime replacement; none of this belongs in memory/core/server semantics.
 - Route top-level memory commands and `run memory:*` recipes through shared handlers; do not duplicate behavior.
+- `process` is local-only and requires actual Boolean apply authorization: `--apply`/`--apply true`/`--apply=true` authorize; `false` does not, and malformed values fail. Keep this parsing local to process rather than coercing strings with `Boolean`. Lint JSON adds structured issues, zero-clean counts, run IDs and scope; reports never overwrite a prior run. `synthesize` produces an extractive source map, not semantic reconciliation, refuses human/dream collisions, and returns an unchanged-content no-op without updating timestamps. The processing API's optional destination `ifMatch` hash is exposed by `process --if-match <hash>`; ordinary synthesis also snapshots and rechecks its destination during the operation.
 
 ## Non-responsibilities
 

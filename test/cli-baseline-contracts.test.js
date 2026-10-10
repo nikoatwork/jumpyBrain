@@ -148,7 +148,7 @@ test("CLI local baseline smoke covers doctor, init, status, remember, recall, wr
     assert.equal(lint.applied, true);
     assert.match(lint.files[0], /^\.jumpybrain\/reports\/lint-/);
     const report = await readFile(path.join(memoryRoot, lint.files[0]), "utf8");
-    assert.match(report, /missing an explicit Source memories section/);
+    assert.match(report, /PAGE_SOURCES_ABSENT/);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

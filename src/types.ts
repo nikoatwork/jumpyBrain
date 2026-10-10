@@ -241,6 +241,42 @@ export interface ProcessMemoryOptions {
   topic?: string;
   since?: string;
   limit?: number;
+  /** Optional prior destination hash; a mismatch (including a missing page) refuses synthesis. */
+  ifMatch?: MemoryDocumentContentHash | string;
+}
+
+export type ProcessingLintIssueCode =
+  | "PAGE_SOURCES_ABSENT" | "PAGE_SOURCE_BROKEN" | "PAGE_CONTEXT_ONLY"
+  | "PAGE_MAY_BE_STALE" | "POSSIBLE_DUPLICATE" | "DECLARED_CONFLICT"
+  | "CONFLICT_TARGET_MISSING" | "QUESTION_ANSWER_CANDIDATE";
+
+export interface ProcessingLintEvidence {
+  file: string;
+  text: string;
+  lineStart?: number;
+  lineEnd?: number;
+  target?: string;
+  matchedTokens?: string[];
+}
+
+export interface ProcessingLintIssue {
+  code: ProcessingLintIssueCode;
+  severity: "info" | "warning";
+  file: string;
+  message: string;
+  rationale: string;
+  evidence: ProcessingLintEvidence[];
+}
+
+export interface ProcessingLintScope {
+  total: number;
+  eligible: number;
+  inspected: number;
+  candidateDocuments: number;
+  limit: number;
+  topic?: string;
+  since?: string;
+  sinceTime?: string;
 }
 
 export interface ProcessMemoryResult {
@@ -251,6 +287,10 @@ export interface ProcessMemoryResult {
   files: string[];
   summary: string[];
   modifiedCount?: number;
+  runId?: string;
+  issueCount?: number;
+  issues?: ProcessingLintIssue[];
+  scope?: ProcessingLintScope;
 }
 
 export type MemoryDocumentTargetKind = "local" | "remote";
@@ -537,6 +577,26 @@ export interface DreamWindowRange {
 }
 
 export type DreamWindowFileDateBasis = "date" | "filename" | "created_at" | "createdAt" | "mtime" | "modified";
+/** Provenance confidence, not a probability or verification of the event date. */
+export type DreamWindowDateConfidence = "declared" | "filename" | "fallback" | "modified";
+
+export interface DreamWindowDiagnostics {
+  /** Successfully read non-dream files, including files outside the requested window. */
+  scannedFiles: number;
+  unreadableFiles: number;
+  /** Creation/mtime dates only; not declared dates or recognized journal filenames. */
+  fallbackFiles: number;
+  outsideWindowFallbackFiles: number;
+  /** Files with date diagnostics (including journal-filename fallback), not warning count. */
+  dateDiagnosticFiles: number;
+  outsideWindowDateDiagnosticFiles: number;
+  /** Matching files consumed by this page but omitted after a concurrent change/read failure. */
+  omittedFiles: number;
+  truncatedFiles: number;
+  metadataOmittedFiles: number;
+  omittedWarnings: number;
+  truncatedWarnings: number;
+}
 
 export interface DreamWindowFileContext {
   root: string;
@@ -554,6 +614,7 @@ export interface DreamWindowFileContext {
   truncated: boolean;
   date: string;
   dateBasis: DreamWindowFileDateBasis;
+  dateConfidence: DreamWindowDateConfidence;
   mtime: string;
 }
 
@@ -567,6 +628,7 @@ export interface DreamWindow extends MemoryDocumentTargetMetadata {
   /** Matching primary evidence files in this scan, not proof of complete review. */
   totalFiles: number;
   limits: DreamLimits;
+  diagnostics: DreamWindowDiagnostics;
   warnings: string[];
   instructions: string[];
 }

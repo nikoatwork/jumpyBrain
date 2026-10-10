@@ -1,12 +1,12 @@
 # Applied consolidation field study
 
-Date: 2026-10-10. Status: completed, exploratory—not a benchmark or implementation change.
+Date: 2026-10-10. Status: completed, exploratory—not a benchmark or implementation change. The subsequent [implementation and held-out evaluation](implementation-results.md) records shipped fixes and a stricter no-benefit verdict.
 
 ## Bottom line
 
 Agent-reviewed dream pages improved the evidence available in fixed recall snippets. Deterministic synthesis did not improve judged answer coverage, even when its page became the first result. Lint emitted useful review candidates alongside demonstrably unsupported suggestions; it did not reconcile facts or change retrieval.
 
-Keep additive, source-preserving dreaming. Do not equate a high-ranked synthesized page, a lint suggestion, or newer prose with better or settled knowledge. Follow-up: [processing and maintenance reliability](../../tasks/todo/tasks-consolidation-maintenance-reliability.md).
+Keep additive, source-preserving dreaming. Do not equate a high-ranked synthesized page, a lint suggestion, or newer prose with better or settled knowledge. Follow-up: [processing and maintenance reliability](../../tasks/done/2026-10-10_tasks-consolidation-maintenance-reliability.md).
 
 ## Privacy and execution
 

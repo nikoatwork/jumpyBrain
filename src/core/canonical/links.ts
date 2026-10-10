@@ -1,34 +1,51 @@
 import path from "node:path";
 import type { MemoryConnectionEdgeKind } from "../../types.js";
+import { isValidMemoryDocumentId } from "../document-id.js";
 
 export interface CanonicalLinkReference {
   kind: MemoryConnectionEdgeKind;
   target: string;
 }
 
-export function extractCanonicalLinks(content: string): CanonicalLinkReference[] {
+export function extractCanonicalLinks(content: string, definitionContext = content): CanonicalLinkReference[] {
   const links: CanonicalLinkReference[] = [];
 
-  const wikiPattern = /(^|[^!])\[\[([^\]\n]+)\]\]/g;
-  for (const match of content.matchAll(wikiPattern)) {
-    const target = normalizeWikiTarget(match[2] ?? "");
-    if (target) links.push({ kind: "wiki-link", target });
+  const definitions = new Map<string, string>();
+  // Definitions are destinations, not link occurrences. First definition wins,
+  // even if it points outside canonical memory.
+  const definitionPattern = /^ {0,3}\[([^\]\n]+)\]:[ \t]*(<[^>\n]*>|[^\s\n]+)[^\n]*$/gm;
+  for (const match of definitionContext.matchAll(definitionPattern)) {
+    const key = normalizeReferenceLabel(match[1]!);
+    if (!definitions.has(key)) definitions.set(key, normalizeMarkdownTarget(match[2]!));
   }
+  let text = content.replace(definitionPattern, definition => " ".repeat(definition.length));
 
-  const markdownPattern = /(!?)\[[^\]\n]*\]\(([^)\n]+)\)/g;
-  for (const match of content.matchAll(markdownPattern)) {
+  const wikiPattern = /(!?)\[\[([^\]\n]+)\]\]/g;
+  text = text.replace(wikiPattern, (link, image: string, destination: string) => {
+    const target = normalizeWikiTarget(destination);
+    if (!image && target && isLocalTarget(target)) links.push({ kind: "wiki-link", target });
+    // Do not reinterpret wiki links or embeds as Markdown shortcuts.
+    return " ".repeat(link.length);
+  });
+
+  const markdownPattern = /(!?)\[([^\]\n]*)\](?:\((<[^>\n]*>(?:[ \t]+[^)\n]*)?|[^)\n]*)\)|\[([^\]\n]*)\])?/g;
+  for (const match of text.matchAll(markdownPattern)) {
     if (match[1] === "!") continue;
-    const target = normalizeMarkdownTarget(match[2] ?? "");
+    const target = match[3] !== undefined
+      ? normalizeMarkdownTarget(match[3])
+      : definitions.get(normalizeReferenceLabel(match[4] || match[2] || ""));
     if (target) links.push({ kind: "markdown-link", target });
   }
 
   return links;
 }
 
-export function buildCanonicalLinkTargetLookup(documents: { relativePath: string }[]): Map<string, string | undefined> {
+export function buildCanonicalLinkTargetLookup(documents: { relativePath: string; frontmatter?: { id?: unknown } }[]): Map<string, string | undefined> {
   const values = new Map<string, Set<string>>();
   for (const document of documents) {
-    for (const key of canonicalDocumentLinkKeys(document.relativePath)) {
+    const keys = canonicalDocumentLinkKeys(document.relativePath);
+    if (isValidMemoryDocumentId(document.frontmatter?.id)) keys.push(document.frontmatter.id);
+    for (const key of keys) {
       const normalized = normalizeCanonicalLinkLookupKey(key);
       const set = values.get(normalized) ?? new Set<string>();
       set.add(document.relativePath);
@@ -44,11 +61,21 @@ export function buildCanonicalLinkTargetLookup(documents: { relativePath: string
 }
 
 export function resolveCanonicalLinkTarget(sourceFile: string, rawTarget: string, kind: MemoryConnectionEdgeKind, lookup: Map<string, string | undefined>): string | undefined {
-  const target = rawTarget.replace(/^\/+/, "");
+  const localTarget = rawTarget.trim().replace(/\\/g, "/");
+  if (!isLocalTarget(localTarget)) return undefined;
+  const rooted = localTarget.startsWith("/");
+  const target = localTarget.replace(/^\/+/, "");
   const sourceDir = posixDirname(sourceFile);
+  // Wiki paths are root-based; Markdown may traverse up from the source, but
+  // never out of memory. Validate before basename fallback or normalization.
+  const rootTarget = kind === "wiki-link" || rooted || sourceDir === "." ? target : `${sourceDir}/${target}`;
+  if (!staysWithinRoot(rootTarget)) return undefined;
+  // An ambiguous ID must not fall through to a coincidentally named local file.
+  const key = normalizeCanonicalLinkLookupKey(target);
+  if (isValidMemoryDocumentId(key) && lookup.has(key)) return lookup.get(key);
   const candidates = kind === "wiki-link"
     ? wikiCandidates(target)
-    : markdownCandidates(target, sourceDir);
+    : markdownCandidates(target, rooted ? "." : sourceDir);
 
   for (const candidate of candidates) {
     const found = lookup.get(normalizeCanonicalLinkLookupKey(candidate));
@@ -74,18 +101,37 @@ function normalizeWikiTarget(raw: string): string {
 }
 
 function normalizeMarkdownTarget(raw: string): string {
-  let target = raw.trim();
-  if (target.startsWith("<") && target.endsWith(">")) target = target.slice(1, -1).trim();
-  target = target.split(/\s+/)[0] ?? "";
-  if (!target || target.startsWith("#") || /^[a-z][a-z0-9+.-]*:/i.test(target)) return "";
+  const value = raw.trim();
+  let target = value.startsWith("<") ? value.match(/^<([^>\n]*)>(?:\s|$)/)?.[1] ?? "" : value.split(/\s+/)[0] ?? "";
+  if (!isLocalTarget(target)) return "";
   target = target.split("#")[0]?.split("?")[0] ?? "";
-  target = target.trim().replace(/\\/g, "/");
-  if (!target) return "";
   try {
-    return decodeURIComponent(target);
+    target = decodeURIComponent(target);
   } catch {
-    return target;
+    // Retain literal malformed percent escapes, as for existing inline links.
   }
+  target = target.replace(/\\/g, "/");
+  return isLocalTarget(target) ? target : "";
+}
+
+function normalizeReferenceLabel(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isLocalTarget(value: string): boolean {
+  return Boolean(value) && !value.startsWith("#") && !value.startsWith("//") &&
+    !/^[a-z][a-z0-9+.-]*:/i.test(value) && !/[\u0000-\u001f]/.test(value);
+}
+
+function staysWithinRoot(value: string): boolean {
+  let depth = 0;
+  for (const part of value.split("/")) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      if (--depth < 0) return false;
+    } else depth++;
+  }
+  return true;
 }
 
 function wikiCandidates(target: string): string[] {
@@ -97,7 +143,7 @@ function wikiCandidates(target: string): string[] {
 function markdownCandidates(target: string, sourceDir: string): string[] {
   const normalized = normalizePosix(target);
   const relative = path.posix.normalize(`${sourceDir === "." ? "" : `${sourceDir}/`}${normalized}`);
-  const values = [normalized, relative];
+  const values = [normalized, relative].filter(staysWithinRoot);
   for (const value of [...values]) {
     if (!/\.md$/i.test(value)) values.push(`${value}.md`);
   }

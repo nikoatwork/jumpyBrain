@@ -6,6 +6,8 @@ import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import { hashMemoryDocumentContent, listCanonicalMemoryMarkdownFiles, normalizeRelative, parseFrontmatter, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import {
   boundedDreamFrontmatter,
+  boundDreamWindowWarnings,
+  dreamWindowDateConfidence,
   compareDreamBatchFiles,
   compareDreamWindowFiles,
   DREAM_WINDOW_INSTRUCTIONS,
@@ -47,6 +49,7 @@ import type {
   DreamState,
   DreamStatus,
   DreamWindow,
+  DreamWindowDiagnostics,
   DreamWindowFileContext,
   DreamWindowRequest,
   Frontmatter,
@@ -102,13 +105,13 @@ export async function getDreamWindow(options: {
   const { window, offset, limits } = resolved;
   const root = await compatibleRoot(options.root);
   const target = targetMetadata(config, root);
-  const warnings = [...DREAM_WINDOW_WARNINGS, ...resolved.warnings];
-  let omittedWarnings = 0;
-  const warnScan = (message: string) => {
-    if (warnings.length < 100) warnings.push(message);
-    else omittedWarnings += 1;
+  const warnings: string[] = [];
+  const diagnostics: DreamWindowDiagnostics = {
+    scannedFiles: 0, unreadableFiles: 0, fallbackFiles: 0, outsideWindowFallbackFiles: 0,
+    dateDiagnosticFiles: 0, outsideWindowDateDiagnosticFiles: 0, omittedFiles: 0,
+    truncatedFiles: 0, metadataOmittedFiles: 0, omittedWarnings: 0, truncatedWarnings: 0,
   };
-  const candidates: Array<Omit<DreamWindowFileContext, "content" | "returnedBytes" | "truncated"> & { absolutePath: string }> = [];
+  const candidates: Array<Omit<DreamWindowFileContext, "content" | "returnedBytes" | "truncated"> & { absolutePath: string; dateWarnings: string[] }> = [];
   for (const absolutePath of (await listCanonicalMemoryMarkdownFiles(root)).sort()) {
     const file = normalizeRelative(root, absolutePath);
     let bytes: Buffer;
@@ -117,15 +120,24 @@ export async function getDreamWindow(options: {
       mtimeMs = (await stat(absolutePath)).mtimeMs;
       bytes = await readFile(absolutePath);
     } catch {
-      warnScan(`${file}: could not read canonical evidence; the scan may be incomplete.`);
+      diagnostics.unreadableFiles += 1;
       continue;
     }
     const { frontmatter } = parseFrontmatter(bytes.toString("utf8"));
     if (isDreamDocument({ frontmatter })) continue;
+    diagnostics.scannedFiles += 1;
     const evidence = selectDreamEvidenceDate({ file, frontmatter, mtimeMs, dateBasis: window.dateBasis });
-    // Include fallback diagnostics even outside the window: malformed dates may hide historical evidence.
-    evidence.warnings.forEach(warnScan);
-    if (evidence.date < window.from || evidence.date > window.to) continue;
+    const dateConfidence = dreamWindowDateConfidence(evidence.dateBasis);
+    const outsideWindow = evidence.date < window.from || evidence.date > window.to;
+    if (dateConfidence === "fallback") {
+      diagnostics.fallbackFiles += 1;
+      if (outsideWindow) diagnostics.outsideWindowFallbackFiles += 1;
+    }
+    if (evidence.warnings.length) {
+      diagnostics.dateDiagnosticFiles += 1;
+      if (outsideWindow) diagnostics.outsideWindowDateDiagnosticFiles += 1;
+    }
+    if (outsideWindow) continue;
     candidates.push({
       absolutePath,
       root: target.root,
@@ -138,6 +150,8 @@ export async function getDreamWindow(options: {
       byteLength: bytes.byteLength,
       date: evidence.date,
       dateBasis: evidence.dateBasis,
+      dateConfidence,
+      dateWarnings: evidence.warnings,
       mtime: new Date(mtimeMs).toISOString(),
     });
   }
@@ -148,40 +162,59 @@ export async function getDreamWindow(options: {
   for (const candidate of candidates.slice(offset, offset + limits.maxFiles)) {
     if (remainingBytes <= 0) break;
     nextOffset += 1;
-    const { absolutePath, ...metadata } = candidate;
+    const { absolutePath, dateWarnings, ...metadata } = candidate;
     let bytes: Buffer;
     try {
       bytes = await readFile(absolutePath);
     } catch {
-      warnings.push(`${metadata.file}: no longer readable; omitted from this packet.`);
+      diagnostics.omittedFiles += 1;
       continue;
     }
     if (hashMemoryDocumentContent(bytes) !== metadata.contentHash) {
-      warnings.push(`${metadata.file}: changed during this scan; omitted. Repeat the window to review current evidence.`);
+      diagnostics.omittedFiles += 1;
       continue;
     }
     const totalBudgetIsLimiting = remainingBytes <= limits.bytesPerFile;
     const prefix = truncateDreamWindowContent(bytes, Math.min(limits.bytesPerFile, remainingBytes));
     remainingBytes -= prefix.byteLength;
     const truncated = prefix.byteLength < bytes.byteLength;
-    if (truncated) warnings.push(`${metadata.file}: content truncated to ${prefix.byteLength} of ${bytes.byteLength} bytes; read the full source before editing or claiming review.`);
+    if (truncated) {
+      diagnostics.truncatedFiles += 1;
+      warnings.push(`${metadata.file}: content truncated to ${prefix.byteLength} of ${bytes.byteLength} bytes; read the full source before editing or claiming review.`);
+    }
+    warnings.push(...dateWarnings);
     if (!metadata.id) warnings.push(`${metadata.file}: missing document ID; returned with path provenance only. No ID was assigned.`);
     const bounded = boundedDreamFrontmatter(metadata.frontmatter);
     const id = metadata.id && Buffer.byteLength(metadata.id, "utf8") <= 512 ? metadata.id : undefined;
     const title = Buffer.byteLength(metadata.title, "utf8") <= 1024 ? metadata.title : "";
-    if (bounded.omitted || id !== metadata.id || title !== metadata.title) warnings.push(`${metadata.file}: oversized packet metadata omitted; read full canonical content for complete frontmatter.`);
+    if (bounded.omitted || id !== metadata.id || title !== metadata.title) {
+      diagnostics.metadataOmittedFiles += 1;
+      warnings.push(`${metadata.file}: oversized packet metadata omitted; read full canonical content for complete frontmatter.`);
+    }
     files.push({ ...metadata, id, title, frontmatter: bounded.frontmatter, content: prefix.toString("utf8"), returnedBytes: prefix.byteLength, truncated });
     // A UTF-8 boundary can leave 1–3 unusable bytes; do not spend those on an almost-empty next context.
     if (truncated && totalBudgetIsLimiting) break;
   }
   const hasMore = nextOffset < candidates.length;
-  if (hasMore) warnings.push(`Packet limits left ${candidates.length - nextOffset} matching file(s) unread; continue with offset ${nextOffset} and resolved anchor ${window.to}.`);
-  if (offset > candidates.length) warnings.push(`offset ${offset} is beyond the ${candidates.length} matching file(s); returning an empty packet.`);
-  if (omittedWarnings) warnings.push(`${omittedWarnings} additional diagnostics omitted (warning budget reached).`);
+  // Reserve priority for packet omissions, then selected-file issues. Never publish paths for unreturned files.
+  const packetWarnings: string[] = [];
+  if (diagnostics.truncatedFiles) packetWarnings.push(`${diagnostics.truncatedFiles} returned file(s) have truncated content; pagination does not retrieve their omitted bytes. Read full sources before claiming review.`);
+  if (diagnostics.metadataOmittedFiles) packetWarnings.push(`${diagnostics.metadataOmittedFiles} returned file(s) have omitted packet metadata.`);
+  if (diagnostics.omittedFiles) packetWarnings.push(`${diagnostics.omittedFiles} matching file(s) changed or became unreadable during hydration and were omitted; repeat this window. Pagination has already passed them.`);
+  if (hasMore) packetWarnings.push(`Packet limits left ${candidates.length - nextOffset} matching file(s) unread after this page; continue with offset ${nextOffset} and resolved anchor ${window.to}.`);
+  if (offset > candidates.length) packetWarnings.push(`offset ${offset} is beyond the ${candidates.length} matching file(s); returning an empty packet.`);
+  const scanWarnings: string[] = [];
+  if (diagnostics.unreadableFiles) scanWarnings.push(`${diagnostics.unreadableFiles} canonical file(s) could not be read; scan counts exclude them and may be incomplete.`);
+  if (diagnostics.dateDiagnosticFiles) scanWarnings.push(`Root scan: ${diagnostics.dateDiagnosticFiles} primary file(s) have date diagnostics, ${diagnostics.outsideWindowDateDiagnosticFiles} outside this window. Creation/mtime fallback: ${diagnostics.fallbackFiles} file(s), ${diagnostics.outsideWindowFallbackFiles} outside this window. Counts are not proof of review or historical dates; unselected paths are withheld.`);
+  const boundedWarnings = boundDreamWindowWarnings([
+    ...packetWarnings, ...DREAM_WINDOW_WARNINGS, ...resolved.warnings, ...warnings, ...scanWarnings,
+  ]);
+  diagnostics.omittedWarnings = boundedWarnings.omittedWarnings;
+  diagnostics.truncatedWarnings = boundedWarnings.truncatedWarnings;
   return {
     ...target, window, files, hasMore,
     ...(hasMore ? { nextOffset } : {}),
-    offset, totalFiles: candidates.length, limits, warnings,
+    offset, totalFiles: candidates.length, limits, diagnostics, warnings: boundedWarnings.warnings,
     instructions: [...DREAM_WINDOW_INSTRUCTIONS],
   };
 }

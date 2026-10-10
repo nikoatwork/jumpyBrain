@@ -109,7 +109,7 @@ Rules:
 - Use `source: "jumpybrain-remote"` for remote-created notes and wrapups.
 - Do not record author names, API-key labels, or secrets in frontmatter for V1.
 - File names should be safe, human-readable, and collision-resistant, e.g. `notes/2026-06-30-example-memory-550e8400.md`.
-- File creation must be atomic (`wx` semantics): never overwrite an existing Markdown file.
+- File creation stages and fsyncs complete bytes, then publishes with an exclusive same-directory hardlink: never expose a partial final Markdown file or overwrite an existing one. Unsupported hardlinks fail closed. Directory identities are rechecked; directory fsync is best-effort. Crashes can leave hidden staging, and external ancestor swaps remain outside this guarantee.
 
 ## Index stale state
 
@@ -477,7 +477,11 @@ Query parameters:
 
 Relative dates resolve once per request in UTC. Evidence dates prefer valid frontmatter `date`, a recognized dated journal filename, valid `created_at`/`createdAt`, then mtime. Return fallback/malformed-date warnings; migration `updated_at` is not evidence age. Modified mode selects filesystem mtime. Dream-marked pages are excluded from primary sources; recall/show can retrieve related dream context outside the window.
 
-Responses use `root: "remote:all"` and relative file paths, never server filesystem roots. `window` contains resolved `from` (oldest), `to` (newest), `timezone: "UTC"`, and `dateBasis`. Files include optional IDs, content hashes, selected dates/date bases, bounded content, byte counts, and truncation flags. Missing IDs remain path-addressed evidence without implicit stamping.
+Responses use `root: "remote:all"` and relative file paths, never server filesystem roots. `window` contains resolved `from` (oldest), `to` (newest), `timezone: "UTC"`, and `dateBasis`. Files include optional IDs, full-file content hashes, selected dates/date bases, bounded content, byte counts, and truncation flags. Additive `dateConfidence` is the string union `declared` (frontmatter date), `filename` (recognized journal filename), `fallback` (creation/mtime), or `modified`. It describes date provenance, not a probability or verified event date. Missing IDs remain path-addressed evidence without implicit stamping.
+
+Additive `diagnostics` contains counts: `scannedFiles` (successfully read non-dream files), `unreadableFiles`, `fallbackFiles`, `outsideWindowFallbackFiles`, `dateDiagnosticFiles`, `outsideWindowDateDiagnosticFiles`, `omittedFiles` (matching files changed/unreadable during hydration), `truncatedFiles`, `metadataOmittedFiles`, `omittedWarnings`, and `truncatedWarnings`. Date counts follow the requested basis; modified mode does not audit historical metadata. Packet omissions and returned-file warnings take priority; unselected/outside-window paths are withheld in favor of aggregate counts. The serialized `warnings` array is capped at 16 KiB/100 entries, each serialized string at 1 KiB, including omission/clipping feedback. Aggregate counts and per-file flags remain available. These are diagnostic bounds, not total JSON packet or filesystem scan-cost bounds.
+
+Creation/mtime fallback can reflect import bursts. Deliberately page the evidence window, or request `dateBasis=modified`, `from=<modification-UTC-day>`, `days=1`; preserved mtimes may differ from creation dates. Do not infer dates from ambiguous filenames. Pagination advances files, not truncated bytes; hydration-omitted files have already been passed and require repeating the window. Narrowing or reaching the final offset never proves corpus coverage.
 
 The packet also includes `offset`, `totalFiles`, `hasMore`, optional `nextOffset`, limits, warnings, and instructions; there is no `complete` field or acknowledgment step. `totalFiles` describes matching evidence in this scan, not reviewed coverage. Empty windows are valid. Continue with the same bounds and an absolute anchor from `window.to`; concurrent edits can shift offsets, so packets are not snapshots or exact coverage proofs. Historical windows cannot discover every later edit.
 
@@ -628,6 +632,7 @@ Update semantics:
 - Stale `If-Match` returns `412 precondition_failed`; safe details may include `id`, root-relative `file`, and current `contentHash` but never memory body content.
 - Non-JSON requests return `415 unsupported_media_type`; malformed JSON or missing/invalid `content` returns `400 bad_request` or `422 validation_failed` depending on parse versus validation failure.
 - The server preserves protected metadata from the existing file (`id`, canonical `type`, `created_at`, `source`, and similar structural fields), refreshes `updated_at`, keeps the same root-relative `file`, writes atomically on the server-local filesystem, and marks the remote index stale.
+- Replacement stages/fsyncs complete bytes before rename and rechecks original bytes, ID, single-link regular-file identity, and non-symlink directory identities. Updates serialize per real root in-process; an exclusive `.<filename>.replace.lock` guards final validation/publication among cooperating processes, failing closed on contention. This is not filesystem compare-and-swap: external writers ignoring locks or swapping ancestors can still race, and title uniqueness is not locked across processes. Directory fsync is best-effort. Handled failures clean owned staging/locks; after a crash, remove a stale lock only after confirming no writer is active. These guards do not expand V1 beyond one server process per local root.
 - Omitted dream markers are preserved; explicit boolean `dream: false` removes classification. The marker does not change authorization or protected identity metadata.
 - Remote update does not require `Idempotency-Key` in the MVP contract; concurrency is guarded by `If-Match`.
 

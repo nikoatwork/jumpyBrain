@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-10 — Evidence-safe memory maintenance
+
+- Added source-backed lint candidates, protected extractive-map writes, and bounded dream date diagnostics; [verification and evaluation limits](done/2026-10-10_tasks-consolidation-maintenance-reliability.md).
+
 ## 2026-10-08 — Source-backed recall defaults
 
 - Recall now returns distinct-file evidence with bounded, match-centered passages, independent citations, and labeled metadata across local and hosted CLI workflows.
