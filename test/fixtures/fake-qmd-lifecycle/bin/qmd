@@ -1,0 +1,16 @@
+#!/usr/bin/env node
+import { readFileSync } from "node:fs";
+import helpers from "../database.cjs";
+const args = process.argv.slice(2);
+const command = args[0];
+helpers.event("query", { command, model: process.env.QMD_EMBED_MODEL });
+if (!["query", "search"].includes(command)) throw new Error("unsupported fixture CLI command");
+helpers.fail(command);
+const state = JSON.parse(readFileSync(process.env.INDEX_PATH, "utf8"));
+const collection = args[args.indexOf("-c") + 1];
+const terms = (args[1] || "").replace(/(?:lex|vec):/g, "").toLowerCase().split(/\s+/).filter(Boolean);
+const results = state.documents.filter(d => d.active === 1 && d.collection === collection)
+  .filter(d => terms.some(term => state.content[d.hash].toLowerCase().includes(term)))
+  .map(d => ({ file: `qmd://${collection}/${d.file}`, score: 0.8, line: 1,
+    snippet: `@@ -1,${state.content[d.hash].split("\n").length} @@\n${state.content[d.hash]}` }));
+process.stdout.write(JSON.stringify(results));

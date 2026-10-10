@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeRemoteTargetOrigin } from "./remote-target-origin.mjs";
 import { companionUpdatePlan, checkCompanionUpdate, commitCompanionUpdate } from "./macos-companion.mjs";
+import { checkQmdInstallation, QMD_PACKAGE } from "./qmd-install-check.mjs";
 
 const DEFAULT_REPO = "https://github.com/nikoatwork/jumpyBrain.git";
 const MANIFEST_VERSION = 1;
@@ -105,7 +106,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
     await initializeMemoryRoot({ cliPath, memoryRoot });
   }
 
-  const qmdAvailable = await ensureQmd({ skipInstall: options.skipQmdInstall, dryRun: options.dryRun });
+  const qmdAvailable = await ensureQmd({ appDir, skipInstall: options.skipQmdInstall, dryRun: options.dryRun });
   if (!options.dryRun && qmdAvailable && !options.skipInitialIndex) await indexMemoryRoot({ cliPath, memoryRoot });
 
   const integrationPlan = planIntegrations({ integrations, scope, home, cwd });
@@ -193,6 +194,7 @@ async function updateExistingInstall({
   logPolicyPlan(policyPlan);
 
   if (options.dryRun) {
+    await ensureQmd({ appDir, skipInstall: options.skipQmdInstall, dryRun: true });
     console.log("\njumpyBrain update dry run complete.");
     console.log(`CLI: ${cliPath}`);
     console.log(`Memory preserved: ${memoryRoot}`);
@@ -200,7 +202,9 @@ async function updateExistingInstall({
     return;
   }
 
-  await installApp({ source, ref, appDir, skipBuild: options.skipBuild, companion });
+  await installApp({ source, ref, appDir, skipBuild: options.skipBuild, companion,
+    beforePublish: (stagedApp) => ensureQmd({ appDir: stagedApp, skipInstall: options.skipQmdInstall, dryRun: false }),
+  });
   await mkdir(binDir, { recursive: true });
   await writeCliShim({ cliPath, appDir, cliConfigPath });
   await writeRemoteAccessPolicy(policyPlan);
@@ -307,7 +311,7 @@ function ensureNodeVersion() {
   if (!Number.isInteger(major) || major < 22) throw new Error(`Node >=22 is required. Current Node is ${process.version}. Install a recent Node first, then rerun the installer.`);
 }
 
-async function installApp({ source, ref, appDir, skipBuild, companion }) {
+async function installApp({ source, ref, appDir, skipBuild, companion, beforePublish }) {
   await mkdir(path.dirname(appDir), { recursive: true });
   // Only delete scratch directories created by THIS invocation. Legacy fixed
   // app.installing/app.previous paths may contain user-configured preserved data.
@@ -348,6 +352,9 @@ async function installApp({ source, ref, appDir, skipBuild, companion }) {
     } else if (!existsSync(path.join(stagingDir, "dist", "cli.js"))) {
       throw new Error("--skip-build was passed but dist/cli.js is missing from the install source.");
     }
+
+    // Validate the new runtime selection, not package-local QMD in the old app.
+    await beforePublish?.(stagingDir);
 
     if (companion) {
       commitCompanionUpdate(companion, stagingDir);
@@ -472,27 +479,29 @@ async function indexMemoryRoot({ cliPath, memoryRoot }) {
   run(cliPath, ["index", "--root", memoryRoot], { cwd: process.cwd() });
 }
 
-async function ensureQmd({ skipInstall, dryRun }) {
-  const configured = process.env.JUMPYBRAIN_QMD_BIN;
-  if (configured && commandWorks(configured, ["--version"])) {
-    log(`QMD available: ${configured}`);
-    return true;
-  }
-  if (commandWorks("qmd", ["--version"])) {
-    log("QMD available: qmd");
+async function ensureQmd({ appDir, skipInstall, dryRun }) {
+  const configured = process.env.JUMPYBRAIN_QMD_BIN?.trim();
+  const bundled = path.join(appDir, "node_modules", ".bin", "qmd");
+  const binary = configured || (existsSync(bundled) ? bundled : "qmd");
+  if (checkQmdInstallation(binary)) {
+    log(`QMD available: ${QMD_PACKAGE} (CLI + SDK)`);
     return true;
   }
   if (skipInstall) {
-    log("QMD not found; skipping install because --skip-qmd-install was passed.");
+    log(`Compatible ${QMD_PACKAGE} CLI + SDK not found; skipping install and initial index because --skip-qmd-install was passed.`);
     return false;
+  }
+  // An explicit/bundled selection shadows global npm installs at runtime too.
+  if (configured || existsSync(bundled)) {
+    throw new Error(`Selected QMD is incompatible; install ${QMD_PACKAGE} with CLI and SDK together, or fix JUMPYBRAIN_QMD_BIN/package-local QMD.`);
   }
   if (dryRun) {
-    log("Would install QMD with: npm install -g @tobilu/qmd");
+    log(`Would install QMD with: npm install -g ${QMD_PACKAGE}`);
     return false;
   }
-  log("QMD not found; installing @tobilu/qmd globally");
-  run("npm", ["install", "-g", "@tobilu/qmd"], { cwd: process.cwd() });
-  if (!commandWorks("qmd", ["--version"])) throw new Error("QMD install completed but `qmd --version` still failed. Ensure npm global bin is on PATH or set JUMPYBRAIN_QMD_BIN.");
+  log(`Installing ${QMD_PACKAGE} globally (CLI + SDK)`);
+  run("npm", ["install", "-g", QMD_PACKAGE], { cwd: process.cwd() });
+  if (!checkQmdInstallation("qmd")) throw new Error(`QMD install completed but compatible ${QMD_PACKAGE} CLI + SDK was not found. Ensure npm global bin is first on PATH or set JUMPYBRAIN_QMD_BIN.`);
   return true;
 }
 
@@ -645,11 +654,6 @@ function expandHome(value, home) {
 
 function commandExists(command) {
   return spawnSync("sh", ["-c", `command -v ${shellQuote(command)} >/dev/null 2>&1`], { stdio: "ignore" }).status === 0;
-}
-
-function commandWorks(command, args) {
-  const result = spawnSync(command, args, { stdio: "ignore" });
-  return result.status === 0;
 }
 
 function run(command, args, options) {

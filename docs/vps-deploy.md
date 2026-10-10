@@ -32,16 +32,19 @@ sudo chown -R jumpybrain:jumpybrain /srv/jumpybrain
 ```bash
 sudo -H -u jumpybrain -- git clone https://github.com/nikoatwork/jumpyBrain.git /srv/jumpybrain/app
 sudo -H -u jumpybrain -- sh -lc 'cd /srv/jumpybrain/app && npm ci && npm run build'
-sudo npm install -g @tobilu/qmd
+sudo npm install -g @tobilu/qmd@2.8.3
+node /srv/jumpybrain/app/scripts/qmd-install-check.mjs qmd
 command -v qmd
 ```
 
-Initialize the memory root once:
+Keep the CLI and SDK together in the pinned package; copying only `qmd` is unsupported. Initialize the memory root once (lexical default):
 
 ```bash
 sudo -H -u jumpybrain -- node /srv/jumpybrain/app/dist/cli.js init --root /srv/jumpybrain/memory
 sudo -H -u jumpybrain -- node /srv/jumpybrain/app/dist/cli.js index --root /srv/jumpybrain/memory
 ```
+
+For semantic retrieval, provision a service-readable local GGUF and run the same local index command with `--semantic-model /absolute/models/embedding.gguf`. This persists policy in `jumpybrain.json`; no per-run embedding environment flag is needed. Changed models or older semantic vectors require `--rebuild`. See [policy and recovery](technical.md#indexing).
 
 ## 3. Create a private environment file
 
@@ -148,11 +151,13 @@ jumpybrain recall --target-url https://memory.example.com --topic 'VPS remote sm
 
 ## 7. Automatic indexing
 
-Remote writes are append-only and mark the index stale. The server auto-indexes stale memory every 5 minutes by default, so no cron or systemd timer is required. Manual indexing remains available when you want an immediate rebuild:
+Remote creates and document updates mark the index stale. The server auto-indexes stale memory every 5 minutes by default, so no cron or systemd timer is required. Manual indexing remains available when you want an immediate incremental update:
 
 ```bash
 jumpybrain index --target-url https://memory.example.com
 ```
+
+Add `--rebuild` for explicit vector regeneration; routine and automatic runs reuse unchanged hashes/vectors. Inspect authenticated `status --json` readiness separately from public health. Physically corrupt SQLite requires stopping operations and removing derived state, not just `--rebuild`; follow the [recovery procedure](technical.md#readiness-and-recovery).
 
 ## 8. Logs
 

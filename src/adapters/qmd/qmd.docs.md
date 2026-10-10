@@ -12,6 +12,20 @@
 - Do not own canonical Markdown discovery semantics beyond adapter inputs needed for indexing/search.
 - Do not become a required dependency of `src/core/index.ts`.
 
+## Index lifecycle and readiness
+
+`qmd-lifecycle.ts` owns publication/exclusion; the isolated `qmd-worker.ts` uses **@tobilu/qmd@2.8.3**, with CLI and SDK from the same package. A standalone executable or a different package version is unsupported. App/core own canonical discovery and persisted policy; the worker consumes exactly the supplied Markdown content (including empty/whitespace documents), never a second QMD filesystem scan.
+
+Routine updates use one SQLite `BEGIN IMMEDIATE` transaction and content hashes to reuse unchanged content/vectors. Adds, edits, renames, deletions, and dream-marker changes reconcile both collections. Dream rows share canonical content hashes and embeddings: no `.jumpybrain/qmd-dreams/` copies. Semantic indexing validates a provisioned absolute local GGUF, hashes its bytes, and verifies vector/metadata coverage before commit. Blank content needs no vectors. Model/native-runtime downloads and source builds are disabled in the worker.
+
+`--rebuild` uses the same in-place transaction, reconstructing documents/content/FTS and clearing embeddings/query cache before regeneration. Changed model bytes and older vectors without recorded model identity require this explicit rebuild; pathname equality is insufficient. Lexical mode does not claim semantic coverage. Policy persists outside derived state; see [memory-root](../../core/memory-root/memory-root.docs.md).
+
+Failures before commit roll back the update, retaining the previous committed generation. The generation manifest commits inside SQLite, then QMD config and `index.json` are atomically replaced. A pending marker makes the next search/index recover the actual committed DB manifest after an interruption, rather than assuming rollback. Recovery records a safe interruption diagnostic; a successful index clears it. Status only observes pending/failure state; it does not recover or run models.
+
+A root PID lock covers publication and multi-call search; another process waits at most five seconds, then gets a busy error. Dead owners can be reclaimed; immutable per-owner reap claims prevent competing reclaimers from deleting a new owner's lock. Claims remain as tiny derived tombstones. If a reclaimer itself dies between claiming and unlinking, stop all operations and remove the abandoned lock before retrying. There are **no cross-process reader snapshots** or concurrent last-good read guarantees. SQLite uses FULL synchronization, but JSON rename publication has no explicit file/directory fsync: process-interruption recovery is not a tested power-loss, disk-corruption, or network-filesystem durability guarantee. Rebuild cannot repair physically corrupt SQLite; stop operations, remove derived state, then index (see [recovery](../../../docs/technical.md#indexing)).
+
+Readiness separates freshness, available modes, embedding coverage, and safe last-failure codes. Query failures are not empty results: successful branches can return labeled partial retrieval, but total ordinary-backend failure throws before title supplements. Search checks the pinned package before invoking QMD, and evaluates readiness against the searched manifest while holding the root lock. Semantic queries run only with compatible policy (including an optional SHA-256 `modelHash` pin), complete coverage, and unchanged model stats; lexical/dream branches remain bounded. Readiness stats are not a DB-integrity or inference probe.
+
 ## Title navigation and recency
 
 Ranking is shared by CLI, runtime, and HTTP/Cmd+K. `scoreBreakdown.titleMatchBoost` reports a dedicated title signal:
@@ -67,15 +81,13 @@ Everyday context keeps one grouped result per map. Cross-file echo suppression i
 
 ## Bounded supplemental candidates
 
-QMD capabilities were checked against `@tobilu/qmd` 2.8.3 (`qmd --help`, upstream README collection/search options, and CLI indexing implementation): collection-scoped `search -c` is supported, arbitrary frontmatter filtering is not exposed, and hidden directories are excluded from a parent collection's scan. A disposable real-QMD fixture verified that the scoped collection returns only its dream map. Its BM25 JSON score rounded to zero, so supplemental candidates use a capped `0.5 / rank` fallback rather than the ordinary `1 / rank` fallback; lexical overlap is still required.
-
-At **index time**, the adapter copies only strictly marked Markdown to `.jumpybrain/qmd-dreams/`, preserving relative paths, and indexes it as `jumpybrain-dreams`. These snapshots, the optional manifest `dreamCollection` field, and QMD state are rebuildable. Canonical files are not changed, and results always resolve to their original canonical paths/metadata. Reindex after edits; invoking QMD update alone does not refresh snapshots. Copies trade index-time disk space for collection-scoped query filtering without QMD database internals or a per-query filesystem scan.
+The worker maintains `jumpybrain-dreams` as collection rows for strictly marked canonical Markdown, sharing content/vectors with `jumpybrain`. Its optional manifest `dreamCollection` marker enables collection-scoped lexical supplementation without frontmatter scans or copied files. Reindex after marker/content edits; do not run raw `qmd update`, which bypasses jumpyBrain's canonical input and publication contract. QMD 2.8.3 lexical JSON scores can round to zero, so supplements use a capped `0.5 / rank` fallback and still require lexical overlap.
 
 At **query time**:
 
-- Ordinary retrieval is explicitly scoped to `jumpybrain`: up to eight lexical calls plus the existing structured query, each capped at 160 rows, then at most 160 merged candidates.
+- Ordinary retrieval is explicitly scoped to `jumpybrain`: up to eight lexical calls plus a structured query only when semantic readiness permits, each capped at 160 rows, then at most 160 merged candidates.
 - Normal/shallow retrieval adds at most two lexical calls scoped to `jumpybrain-dreams`, each returning `min(24, max(8, 2 * limit))` rows, merged to that same bound. No extra model query/embedding call is added. Supplemental candidates are merged **after** the ordinary cutoff so raw-heavy results cannot crowd them out first.
-- Deep retrieval skips supplementation. Older manifests without the collection marker skip it too; rebuilding enables it. Failed supplemental searches fall back to ordinary candidates through the existing best-effort QMD behavior.
+- Deep retrieval skips supplementation. Older manifests without the collection marker skip it too; indexing enables it. Failed supplemental searches retain ordinary candidates with a partial-retrieval warning.
 - With up to 24 additional exact-title supplements, at most 208 candidates reach snippet repair. Each canonical repair read is capped at a 128 KiB prefix (plus one truncation-detection byte); QMD snippets beyond that prefix remain usable. No global Markdown body loading occurs. The existing derived manifest metadata is still loaded for canonical path lookup.
 - Repaired identical hits use a real content/location hash, avoiding the old truncated-file-prefix ID collision that could hide distinct raw evidence.
 

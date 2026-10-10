@@ -1,7 +1,7 @@
-import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import type { MemoryRootConfig, MemoryRootInitResult, MemoryRootStatus } from "../../types.js";
+import type { IndexingPolicy, MemoryRootConfig, MemoryRootInitResult, MemoryRootStatus } from "../../types.js";
 
 export const CURRENT_MEMORY_SCHEMA_VERSION = 1;
 export const MEMORY_CONFIG_FILE = "jumpybrain.json";
@@ -84,6 +84,41 @@ export async function resolveIndexRoot(memoryRoot: string): Promise<string> {
   return realpath(resolved);
 }
 
+/** Persist policy outside disposable state. An existing choice always wins over legacy env. */
+export async function indexingPolicy(root: string, requested?: IndexingPolicy, legacy?: IndexingPolicy): Promise<IndexingPolicy> {
+  await assertCompatibleMemoryRoot(root);
+  const loaded = await readConfigIfPresent(root);
+  const policy = requested ?? loaded?.config.indexing ?? legacy ?? { mode: "lexical" };
+  validateIndexingPolicy(policy);
+  if (requested || !loaded?.config.indexing) {
+    const config = { ...(loaded?.config ?? defaultConfig()), indexing: policy };
+    const file = path.join(root, MEMORY_CONFIG_FILE);
+    const temporary = `${file}.${process.pid}.tmp`;
+    await writeFile(temporary, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+    await rename(temporary, file);
+  }
+  return policy;
+}
+
+export async function configuredIndexingPolicy(root: string): Promise<IndexingPolicy | undefined> {
+  const policy = (await readConfigIfPresent(root))?.config.indexing;
+  if (policy) validateIndexingPolicy(policy);
+  return policy;
+}
+
+export function indexingPolicyMatches(configured: IndexingPolicy | undefined, indexed: IndexingPolicy | undefined, modelHash?: string): boolean {
+  return !configured || (configured.mode === indexed?.mode && configured.model === indexed?.model
+    && (!configured.modelHash || configured.modelHash.toLowerCase() === modelHash));
+}
+
+function validateIndexingPolicy(policy: IndexingPolicy): void {
+  if (policy?.modelHash !== undefined && (typeof policy.modelHash !== "string" || !/^[a-f0-9]{64}$/i.test(policy.modelHash))) throw new Error("Invalid indexing modelHash: expected SHA-256.");
+  if (!policy || !["lexical", "semantic"].includes(policy.mode)) throw new Error("Invalid indexing policy: use lexical or semantic.");
+  if (policy.mode === "semantic" && (typeof policy.model !== "string" || !path.isAbsolute(policy.model))) {
+    throw new Error("Semantic indexing requires a provisioned absolute local GGUF model path; set indexing.model or use index --semantic-model.");
+  }
+}
+
 export async function findMemoryRoot(startArg?: string): Promise<string> {
   const start = path.resolve(startArg ?? process.cwd());
   let dir = await realpath(start);
@@ -150,6 +185,11 @@ function compatibilityStatus(root: string, config: MemoryRootConfig, configFile 
       compatible: false,
       message: `${configFile} uses memory schema v${schemaVersion}, but this jumpyBrain CLI only supports up to v${CURRENT_MEMORY_SCHEMA_VERSION}. Update the CLI before writing or indexing this memory root.`,
     };
+  }
+
+  if (config.indexing !== undefined) {
+    try { validateIndexingPolicy(config.indexing); }
+    catch { return { root, configFile, initialized: true, schemaVersion, compatible: false, message: "Invalid indexing policy in jumpybrain.json." }; }
   }
 
   return {

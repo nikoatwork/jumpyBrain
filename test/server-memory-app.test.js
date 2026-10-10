@@ -39,6 +39,8 @@ test("server-memory app handles status, write idempotency, index, and recall wit
     assert.equal(initialStatus.memory, "all");
     assert.equal(initialStatus.initialized, true);
     assert.equal(initialStatus.index.stale, true);
+    assert.ok(initialStatus.readiness);
+    assert.equal(JSON.stringify(initialStatus).includes(tempRoot), false);
     assert.equal(Object.hasOwn(initialStatus, "root"), false);
 
     const body = { type: "finding", title: "Direct server-memory seam", body: "Direct app recall should find this server-memory note." };
@@ -94,10 +96,15 @@ test("server-memory app handles status, write idempotency, index, and recall wit
     const indexed = await app.indexServerMemory({ root: tempRoot, indexRunner, reason: "manual" });
     assert.equal(indexed.root, "remote:all");
     assert.equal(indexed.documents, 1);
+    assert.ok(indexed.readiness);
+    assert.equal(JSON.stringify(indexed).includes(tempRoot), false);
     assert.equal(indexed.index.stale, false);
 
     const recall = await app.searchServerMemory({ root: tempRoot, query: "server-memory note", limit: 5, recall: true });
     assert.equal(recall.root, "remote:all");
+    assert.ok(recall.readiness);
+    assert.ok(recall.retrieval);
+    assert.equal(JSON.stringify(recall).includes(tempRoot), false);
     assert.equal(recall.mode, "recall");
     assert.equal(recall.index.stale, false);
     assert.equal(recall.results[0].provenance.file, created.result.file);

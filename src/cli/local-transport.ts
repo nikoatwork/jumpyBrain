@@ -8,6 +8,7 @@ import type {
   DreamStatus,
   DreamWindow,
   DreamWindowRequest,
+  IndexMemoryOptions,
   IndexMemoryResult,
   LogseqMigrationResult,
   MemoryNoteDraft,
@@ -34,7 +35,7 @@ export interface LocalMemoryTransport {
   initializeMemoryRoot(rootArg: string, options?: { force?: boolean }): Promise<MemoryRootInitResult>;
   memoryRootStatus(rootArg: string): Promise<MemoryRootStatus>;
   findMemoryRoot(startArg?: string): Promise<string>;
-  indexMemory(rootArg: string): Promise<IndexMemoryResult>;
+  indexMemory(rootArg: string, options?: IndexMemoryOptions): Promise<IndexMemoryResult>;
   overviewMemory(rootArg: string, options?: MemoryOverviewOptions): Promise<MemoryOverviewResult>;
   searchMemory(rootArg: string, query: string, limit: number, options?: SearchMemoryOptions): Promise<SearchMemoryResult>;
   processMemory(rootArg: string, options: ProcessMemoryOptions): Promise<ProcessMemoryResult>;

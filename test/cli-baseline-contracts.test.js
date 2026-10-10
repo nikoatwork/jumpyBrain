@@ -100,7 +100,7 @@ test("CLI local baseline smoke covers doctor, init, status, remember, recall, wr
     }).stdout);
     assert.equal(doctor.cli.ok, true);
     assert.equal(doctor.node.ok, true);
-    assert.equal(doctor.qmd.ok, true);
+    assert.equal(doctor.qmd.ok, false, "Node --version is not the required QMD 2.8.3");
     assert.equal(doctor.memoryRoot.ok, true);
     assert.equal(doctor.memoryRoot.initialized, true);
 

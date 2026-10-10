@@ -19,6 +19,8 @@ git clone https://github.com/nikoatwork/jumpyBrain.git
 cd jumpyBrain
 npm install
 npm run build
+npm install -g @tobilu/qmd@2.8.3
+node scripts/qmd-install-check.mjs qmd
 ```
 
 ## 2. Create a private server environment
@@ -33,12 +35,20 @@ export JUMPYBRAIN_SERVER_API_KEYS="$(openssl rand -hex 32)"
 export JUMPYBRAIN_API_KEY="$JUMPYBRAIN_SERVER_API_KEYS"
 ```
 
-Initialize the dedicated root once:
+QMD must include both the CLI and SDK from the pinned package. Initialize the dedicated root once (lexical by default):
 
 ```bash
 node dist/cli.js init --root "$JUMPYBRAIN_SERVER_ROOT"
 node dist/cli.js index --root "$JUMPYBRAIN_SERVER_ROOT"
 ```
+
+For semantic retrieval, provision an embedding GGUF readable by the service user and persist the policy **on the server** before starting:
+
+```bash
+node dist/cli.js index --root "$JUMPYBRAIN_SERVER_ROOT" --semantic-model /absolute/models/embedding.gguf
+```
+
+Later routine/manual/auto-index runs reuse this policy and unchanged vectors. Remote `index --rebuild` is supported; remote clients cannot set model paths or policy. Older semantic vectors or model changes require explicit rebuild. No implicit model download is part of setup/recall. See [index policy and recovery](technical.md#indexing) before deleting derived state or migrating legacy environment configuration.
 
 ## 3. Start the server
 
@@ -54,7 +64,7 @@ JUMPYBRAIN_API_KEY='<same-private-secret>' \
   node dist/cli.js recall --target-url http://127.0.0.1:3787 --topic "what should I remember?" --limit 5
 ```
 
-`GET /health` is intentionally unauthenticated and contains no memory content. Every `/memories/all/...` endpoint requires a bearer key.
+`GET /health` is intentionally unauthenticated, content-free, and liveness-only; it does not establish retrieval readiness. Every `/memories/all/...` endpoint requires a bearer key.
 
 ## 4. Use the minimal web editor
 
@@ -106,7 +116,7 @@ JUMPYBRAIN_API_KEY='<private-client-secret>' jumpybrain status --target-url http
 JUMPYBRAIN_API_KEY='<private-client-secret>' jumpybrain tree --target-url https://memory.example.com --limit 20
 ```
 
-The server requires one explicit memory root and is designed for one process over one persistent local disk in V1. Markdown is canonical; indexes and `.jumpybrain/` support state are derived or rebuildable.
+The server requires one explicit memory root and one process over one persistent local disk in V1. Authenticated status reports freshness separately from embedding coverage and available retrieval modes, using stats rather than model inference. Partial search fallback is labeled; total failure is not an empty result. Busy cross-process search/index operations reject after five seconds rather than serving reader snapshots. Markdown and `jumpybrain.json` policy survive derived-state deletion; stop operations first. Atomic publication recovery is not a power-loss guarantee; retain canonical backups and follow the [recovery procedure](technical.md#readiness-and-recovery).
 
 ## Next references
 

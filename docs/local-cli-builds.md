@@ -27,7 +27,7 @@ This creates `.local-pack/jumpybrain-<version>.tgz` and `.local-pack/latest.json
 - `dist/core/retrieval-policy/index.js`
 - `dist/core/writing/index.js`
 - `dist/runtime/index.js`
-- `dist/adapters/qmd/index.js`
+- `dist/adapters/qmd/index.js`, `qmd-lifecycle.js`, and the isolated `qmd-worker.js`
 - `dist/server/index.js`
 
 It also rejects stale pre-refactor and compatibility output paths so the tarball reflects the final CLI/runtime/server plus core/app/adapters layout.
@@ -48,6 +48,8 @@ Or from the target repo, use the command printed by `cli:pack`:
 npm install -D /path/to/jumpyBrain/.local-pack/jumpybrain-<version>.tgz
 npx jumpybrain --version
 ```
+
+Local retrieval also requires `npm install -g @tobilu/qmd@2.8.3` (CLI and SDK together); tarball installation does not install QMD or models. Verify with `node node_modules/jumpybrain/scripts/qmd-install-check.mjs qmd`. See [semantic setup](cli-commands.md#indexing-policy-and-recovery).
 
 Repos with a `memory/jumpybrain.json` can use recipe commands without repeating `--root`:
 

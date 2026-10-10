@@ -4,6 +4,10 @@
 
 - Added source-backed lint candidates, protected extractive-map writes, and bounded dream date diagnostics; [verification and evaluation limits](done/2026-10-10_tasks-consolidation-maintenance-reliability.md).
 
+## 2026-10-10 — Reliable semantic indexing
+
+- Added [incremental transactional indexing](done/2026-10-10_tasks-semantic-index-reliability.md), persistent semantic policy, explicit rebuild/recovery, and honest local/hosted retrieval readiness on pinned QMD 2.8.3.
+
 ## 2026-10-08 — Source-backed recall defaults
 
 - Recall now returns distinct-file evidence with bounded, match-centered passages, independent citations, and labeled metadata across local and hosted CLI workflows.

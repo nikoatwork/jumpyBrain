@@ -10,6 +10,12 @@
 - Expose ID-addressed local document read/update operations by composing core canonical primitives; updates require a prior content hash and return an explicit stale/not-indexed state instead of rebuilding the index synchronously.
 - Expose a local ID-stamping maintenance alias that delegates to the processing `ensure-ids` mode so callers do not reimplement canonical bucket scans.
 
+## Index/search contract
+
+`indexMemory(root, options)` scans the configured retrieval-only `indexRoot` and passes canonical documents to the QMD lifecycle; `options` accepts `rebuild` and a persisted `indexing` policy. Routine updates reuse hashes/vectors; explicit rebuild is not the default. Index results add work counts and readiness.
+
+`memoryStatus` composes core setup compatibility with derived readiness. Freshness compares canonical file lists and size/mtime/ctime stats to the committed manifest, plus configured policy and model stats; no body hashing, inference, model download, or QMD subprocess is needed. This is a cheap scan, not a constant-time check or SQLite-integrity test. Search adds `readiness` and `retrieval` outcomes; stale/incomplete/failed branches are labeled partial, total backend failure propagates. See [QMD lifecycle](../../adapters/qmd/qmd.docs.md#index-lifecycle-and-readiness) for publication/locking.
+
 ## Non-responsibilities
 
 - Do not parse CLI flags or format CLI output.

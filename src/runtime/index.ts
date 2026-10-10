@@ -12,7 +12,10 @@ export type {
   DreamWindowRange,
   DreamWindowFileContext,
   DreamWindowFileDateBasis,
+  IndexMemoryOptions,
   IndexMemoryResult,
+  RetrievalReadiness,
+  RetrievalOutcome,
   MemoryGraphOptions,
   MemoryGraphResult,
   MemoryOverviewOptions,
@@ -24,7 +27,7 @@ export type {
   SearchResult,
 } from "../types.js";
 export { processMemory } from "../app/processing/index.js";
-export { ensureMemoryDocumentIds, graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../app/local-memory/index.js";
+export { memoryStatus as memoryRootStatus, ensureMemoryDocumentIds, graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../app/local-memory/index.js";
 export { getDreamWindow, abandonDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, completeDreamBatch } from "../app/dream/index.js";
 
 import { packageVersion } from "../adapters/package-info/index.js";

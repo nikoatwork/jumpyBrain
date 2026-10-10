@@ -19,6 +19,12 @@
 - Allocation and writing share the HTTP server's existing write queue. This prevents collisions among writes through **one server queue**, not across server processes or external filesystem edits. Direct app callers must serialize writes themselves. Existing legacy explicit-title writes may still introduce duplicates.
 - Idempotent replay bypasses allocation and retains the original title/ID/result; the original request body, including `dailyDate`, remains the conflict fingerprint. Changed-body reuse of a key conflicts. Existing idempotency is not a transaction spanning Markdown and its replay record (a crash between them remains a recovery limitation).
 
+## Indexing and diagnostics
+
+Manual and five-minute auto-index runs share the local incremental lifecycle and persisted server-local policy. Remote callers may request `rebuild`, never model paths/policy. The runner joins ordinary overlapping work; a rebuild waits for a successful in-flight run before its own explicit rebuild. Remote state writes are serialized per root and atomically replaced; writes during indexing keep freshness stale until covered, and failure does not mark fresh.
+
+Status/index/search packets preserve existing `index` metadata and add safe `readiness`; search also adds `retrieval` outcomes. Do not expose model paths, hashes, backend stderr, or server filesystem roots. Status uses canonical/derived stats without inference/download. Public health is a protocol-only liveness check, not readiness. Run one server process per root: this queue is not distributed coordination, and the [QMD PID lock](../../adapters/qmd/qmd.docs.md#index-lifecycle-and-readiness) rejects busy cross-process operations rather than serving reader snapshots.
+
 ## Non-responsibilities
 
 - Do not parse HTTP requests, authenticate API keys, or choose HTTP status codes.

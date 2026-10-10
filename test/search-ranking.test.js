@@ -3,6 +3,7 @@ import test from "node:test";
 import { chmod, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 import { parseFrontmatter } from "../dist/core/frontmatter.js";
 import { buildQmdIndex, searchQmdIndex } from "../dist/adapters/qmd/index.js";
 import * as ranking from "../dist/adapters/qmd/qmd-ranking.js";
@@ -14,7 +15,7 @@ async function fixture(callback) {
   const root = await mkdtemp(path.join(os.tmpdir(), "jumpy-title-ranking-"));
   const saved = { JUMPYBRAIN_QMD_BIN: process.env.JUMPYBRAIN_QMD_BIN, JUMPYBRAIN_QMD_EMBED: process.env.JUMPYBRAIN_QMD_EMBED };
   try {
-    const binary = path.join(root, "fake-qmd.cjs");
+    const { bin: binary } = await installFakeQmd(root);
     await writeFile(binary, `#!${process.execPath}\nconst fs = require('node:fs');
 const args = process.argv.slice(2);
 if (['search', 'query'].includes(args[0])) {

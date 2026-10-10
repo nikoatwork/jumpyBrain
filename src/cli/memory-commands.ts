@@ -1,3 +1,5 @@
+import path from "node:path";
+import type { IndexMemoryOptions, RetrievalReadiness, SearchMemoryResult } from "../types.js";
 import { numberArg, stringArg, stringListArg, type ParsedCliArgs } from "./args.js";
 import { showMemoryDocumentFromArgs, updateMemoryDocumentFromArgs } from "./document-edit.js";
 import { formatHumanResults } from "./formatting.js";
@@ -43,6 +45,10 @@ export async function runMemoryCommand(
     return;
   }
 
+  if (command === "index" && (args.lexical !== undefined || args["semantic-model"] !== undefined) && resolveCliTarget(args, { allowDiscovery: options.allowDiscovery }).kind === "remote") {
+    throw new Error("--lexical and --semantic-model are server-local policy flags; configure them on the server memory root, not a remote target.");
+  }
+  const indexOptions = command === "index" ? indexOptionsFromArgs(args) : undefined;
   const target = await commandMemoryTarget(args, localMemory, { allowDiscovery: options.allowDiscovery });
 
   if (command === "status") {
@@ -54,13 +60,18 @@ export async function runMemoryCommand(
       if (result.configFile) console.log(`Config: ${result.configFile}${result.schemaVersion ? ` (schema v${result.schemaVersion})` : ""}`);
       console.log(`Compatible: ${result.compatible ? "yes" : "no"}`);
       if (result.message) console.log(result.message);
+      printReadiness(result.readiness);
     }
     return;
   }
 
   if (command === "index") {
-    const result = target.kind === "remote" ? await target.memory.indexMemory() : await localMemory.indexMemory(target.root);
-    console.log(`Indexed ${result.documents} Markdown documents into QMD collection '${result.qmdCollection}' from ${result.root}`);
+    const result = target.kind === "remote" ? await target.memory.indexMemory(indexOptions) : await localMemory.indexMemory(target.root, indexOptions);
+    if (args.json) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log(`Indexed ${result.documents} Markdown documents into QMD collection '${result.qmdCollection}' from ${result.root}`);
+      printReadiness(result.readiness);
+    }
     return;
   }
 
@@ -84,6 +95,7 @@ export async function runMemoryCommand(
     if (args.json) console.log(JSON.stringify({ ...result, mode: command }, null, 2));
     else {
       if (command === "recall") console.log(`Prior memory scan for: ${query}\n`);
+      printRetrievalWarnings(result);
       console.log(formatHumanResults(result.results));
     }
     return;
@@ -155,4 +167,34 @@ function processOptionsFromArgs(args: ParsedCliArgs) {
     ifMatch: stringArg(args, "if-match", false).trim() || undefined,
     limit: numberArg(args, "limit", 0) || undefined,
   };
+}
+
+function indexOptionsFromArgs(args: ParsedCliArgs): IndexMemoryOptions {
+  for (const flag of ["rebuild", "lexical"]) {
+    if (args[flag] !== undefined && args[flag] !== true) throw new Error(`--${flag} is a boolean flag and takes no value.`);
+  }
+  if (args.lexical && args["semantic-model"] !== undefined) throw new Error("Use only one of --lexical or --semantic-model.");
+  const options: IndexMemoryOptions = {};
+  if (args.rebuild) options.rebuild = true;
+  if (args.lexical) options.indexing = { mode: "lexical" };
+  if (args["semantic-model"] !== undefined) {
+    const model = args["semantic-model"];
+    if (typeof model !== "string" || !path.isAbsolute(model)) throw new Error("--semantic-model requires an absolute local model path.");
+    options.indexing = { mode: "semantic", model };
+  }
+  return options;
+}
+
+function printReadiness(readiness?: RetrievalReadiness): void {
+  if (!readiness) return;
+  console.log(`Readiness: ${readiness.freshness}; modes: ${readiness.modes.join(", ") || "none"}; embeddings: ${readiness.embedding}`);
+  if (readiness.lastFailure) console.log(`Last index failure: ${readiness.lastFailure.code}`);
+}
+
+function printRetrievalWarnings(result: SearchMemoryResult): void {
+  const warnings = new Set(result.retrieval?.warnings ?? []);
+  if (result.readiness && result.readiness.freshness !== "fresh") warnings.add(`Index is ${result.readiness.freshness}; results may be incomplete. Run index to refresh.`);
+  if (result.readiness?.embedding === "incomplete" || result.readiness?.embedding === "unknown") warnings.add("Semantic readiness is incomplete or unknown; retrieval may be degraded.");
+  if (result.retrieval?.status === "partial" && !warnings.size) warnings.add("Retrieval is partial; results may be incomplete.");
+  for (const warning of warnings) console.log(`Warning: ${warning}`);
 }

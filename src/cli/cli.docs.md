@@ -19,6 +19,10 @@
 - Route top-level memory commands and `run memory:*` recipes through shared handlers; do not duplicate behavior.
 - `process` is local-only and requires actual Boolean apply authorization: `--apply`/`--apply true`/`--apply=true` authorize; `false` does not, and malformed values fail. Keep this parsing local to process rather than coercing strings with `Boolean`. Lint JSON adds structured issues, zero-clean counts, run IDs and scope; reports never overwrite a prior run. `synthesize` produces an extractive source map, not semantic reconciliation, refuses human/dream collisions, and returns an unchanged-content no-op without updating timestamps. The processing API's optional destination `ifMatch` hash is exposed by `process --if-match <hash>`; ordinary synthesis also snapshots and rechecks its destination during the operation.
 
+## Index controls and diagnostics
+
+`index --rebuild` works locally/remotely; routine index is incremental. Mutually exclusive `--semantic-model /absolute/local/model.gguf` and `--lexical` persist server-local/root policy and are rejected for remote targets before transport. `--rebuild` and `--lexical` take no value. Recipes use the same handler. CLI status/doctor print separate readiness; search/recall print partial/stale warnings, preserving the additive JSON packets. Doctor checks QMD 2.8.3's version and cheap root readiness, not model inference or SQLite integrity; installation must also provide its SDK. See [CLI reference](../../docs/cli-commands.md#indexing-policy-and-recovery).
+
 ## Non-responsibilities
 
 - Do not import QMD adapter internals or manage QMD cache/config paths directly.

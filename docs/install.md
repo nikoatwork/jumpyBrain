@@ -20,8 +20,8 @@ Default behavior:
 - installs the app under `~/.jumpybrain/app`
 - creates a CLI shim at `~/.jumpybrain/bin/jumpybrain`
 - initializes machine-global Markdown memory at `~/.jumpybrain/memory`
-- verifies or installs QMD for local indexing/recall
-- builds an initial memory index so first recall works immediately
+- verifies or installs exact `@tobilu/qmd@2.8.3` (CLI and SDK together) for local indexing/recall
+- builds an initial lexical index; semantic retrieval requires a separately provisioned local GGUF
 - installs all detected integrations:
   - Codex: `~/.agents/skills/jumpybrain-memory/SKILL.md`
   - Claude Code: `~/.claude/skills/jumpybrain-memory/SKILL.md`
@@ -179,10 +179,10 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/uninst
 
 ## Prerequisites and QMD behavior
 
-jumpyBrain is intentionally QMD-first. The installer verifies `qmd --version`; if QMD is missing it tries:
+jumpyBrain requires exact **@tobilu/qmd@2.8.3**, including its CLI and SDK from the same package. The installer checks package identity/version, SDK files, and CLI version without importing model code. If PATH QMD is missing/incompatible it installs:
 
 ```bash
-npm install -g @tobilu/qmd
+npm install -g @tobilu/qmd@2.8.3
 ```
 
 If your npm global install location is not writable or not on `PATH`, install QMD manually or set:
@@ -197,7 +197,9 @@ Resolution order for local/server runtime use:
 2. bundled/package-local `node_modules/.bin/qmd` when present
 3. `qmd` on `PATH`
 
-QMD-derived files live under `<memory-root>/.jumpybrain/` and can be rebuilt from canonical Markdown.
+An incompatible explicit `JUMPYBRAIN_QMD_BIN` or package-local QMD is rejected rather than silently bypassed. A copied executable without its SDK is insufficient. `--skip-qmd-install` leaves missing/incompatible QMD uninstalled and skips the initial index; remote-only clients do not need local QMD. Updates recheck the dependency but do not rebuild memory automatically.
+
+Indexing defaults to lexical; [explicit semantic setup](cli-commands.md#indexing-policy-and-recovery) persists policy in root `jumpybrain.json`. No model is downloaded by recall/status. QMD-derived files live under `<memory-root>/.jumpybrain/`; deleting them retains canonical Markdown and policy. Stop operations before deletion and follow [recovery limits](technical.md#readiness-and-recovery).
 
 ## Basic use
 
@@ -230,6 +232,8 @@ For development from a checkout:
 npm install
 npm run build
 npm link
+npm install -g @tobilu/qmd@2.8.3
+node scripts/qmd-install-check.mjs qmd
 jumpybrain --help
 ```
 

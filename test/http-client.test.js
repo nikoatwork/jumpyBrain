@@ -158,3 +158,24 @@ test("remote HTTP client uses documented dream routes and JSON bodies", async ()
   assert.deepEqual(JSON.parse(calls[3].init.body), { batchId: "dream_93000000-0000-4000-8000-000000000001", summary: "done" });
   assert.deepEqual(JSON.parse(calls[4].init.body), { summary: "skip" });
 });
+
+
+test("HTTP client sends rebuild only and preserves readiness/retrieval across index, status and recall", async () => {
+  const { createRemoteMemoryTransport } = await loadClientModule();
+  const calls = [];
+  const readiness = { freshness: "stale", modes: ["lexical"], embedding: "incomplete" };
+  const retrieval = { status: "partial", warnings: ["semantic_unavailable"] };
+  const transport = createRemoteMemoryTransport({ url: "https://memory.example", apiKey: "secret",
+    fetchImpl: async (url, init) => { calls.push({ url: String(url), init }); return jsonResponse({ readiness, retrieval }); },
+  });
+  assert.deepEqual((await transport.indexMemory({ rebuild: true })).readiness, readiness);
+  assert.deepEqual(JSON.parse(calls[0].init.body), { rebuild: true });
+  await transport.indexMemory();
+  assert.deepEqual(JSON.parse(calls[1].init.body), {});
+  assert.deepEqual((await transport.memoryRootStatus()).readiness, readiness);
+  const recall = await transport.searchMemory("query", 5, { mode: "recall" });
+  assert.deepEqual(recall.readiness, readiness);
+  assert.deepEqual(recall.retrieval, retrieval);
+  assert.throws(() => transport.indexMemory({ indexing: { mode: "semantic", model: "/private/model" } }), /server-local/);
+  assert.equal(calls.length, 4);
+});

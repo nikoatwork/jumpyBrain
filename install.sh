@@ -31,7 +31,7 @@ cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT INT TERM
 
 mkdir -p "$TMP_DIR/scripts" "$TMP_DIR/integrations/macos-companion"
-for FILE in scripts/public-install.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/macos-companion/update.py; do
+for FILE in scripts/public-install.mjs scripts/qmd-install-check.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/macos-companion/update.py; do
   if command -v curl >/dev/null 2>&1; then
     curl -fsSL "$RAW_BASE/$FILE" -o "$TMP_DIR/$FILE"
   elif command -v wget >/dev/null 2>&1; then

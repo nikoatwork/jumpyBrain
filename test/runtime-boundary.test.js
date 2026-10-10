@@ -12,6 +12,8 @@ test("local runtime boundary exports current memory operations without importing
 
   assert.equal(typeof runtime.initializeMemoryRoot, "function");
   assert.equal(typeof runtime.memoryRootStatus, "function");
+  const app = await import(pathToFileURL(path.join(repoRoot, "dist/app/local-memory/index.js")).href);
+  assert.equal(runtime.memoryRootStatus, app.memoryStatus, "runtime status must override the core wildcard with readiness-aware app status");
   assert.equal(typeof runtime.findMemoryRoot, "function");
   assert.equal(typeof runtime.indexMemory, "function");
   assert.equal(typeof runtime.searchMemory, "function");
@@ -35,6 +37,7 @@ test("local runtime can initialize and inspect a memory root directly", async ()
     const status = await runtime.memoryRootStatus(tempRoot);
     assert.equal(status.initialized, true);
     assert.equal(status.compatible, true);
+    assert.ok(status.readiness);
     assert.equal(status.root, init.root);
   } finally {
     await rm(tempRoot, { recursive: true, force: true });

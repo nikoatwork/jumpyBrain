@@ -1,3 +1,4 @@
+import type { RetrievalOutcome } from "../../types.js";
 import { QMD_COLLECTION, QMD_DREAM_COLLECTION, qmdVirtualPathToRelative, runQmd } from "./qmd-cli.js";
 
 export interface QmdCandidate {
@@ -9,12 +10,18 @@ export interface QmdCandidate {
   dreamSupplement?: boolean;
 }
 
-export async function searchWithQmdCli(root: string, query: string, limit: number, options: { dreamsOnly?: boolean } = {}): Promise<QmdCandidate[]> {
+export async function searchWithQmdCli(root: string, query: string, limit: number, options: { dreamsOnly?: boolean; semantic?: boolean; model?: string; outcome?: RetrievalOutcome } = {}): Promise<QmdCandidate[]> {
   const collection = options.dreamsOnly ? QMD_DREAM_COLLECTION : QMD_COLLECTION;
   // Supplemental retrieval stays lexical: at most two processes and 24 rows each.
   limit = Math.max(1, Math.min(options.dreamsOnly ? 24 : 160, limit));
   const merged = new Map<string, QmdCandidate>();
   const lexQueries = qmdLexQueries(query);
+  let successes = 0;
+  const warn = (code: string) => {
+    if (!options.outcome) return;
+    options.outcome.status = "partial";
+    if (!options.outcome.warnings.includes(code)) options.outcome.warnings.push(code);
+  };
 
   const addRows = (rows: Array<{ file?: string; score?: number; snippet?: string; line?: number }>, weight: number) => {
     rows.forEach((item, rank) => {
@@ -49,28 +56,33 @@ export async function searchWithQmdCli(root: string, query: string, limit: numbe
     try {
       const result = runQmd(root, ["search", lexQuery, "--json", "-n", String(limit), "-c", collection]);
       addRows(parseQmdJsonRows(result.stdout), 1);
+      successes++;
     } catch {
-      // Keep search runs alive when one QMD lexical query emits malformed JSON or fails.
+      warn(options.dreamsOnly ? "dream_query_failed" : "lexical_query_failed");
     }
   }
 
-  if (!options.dreamsOnly) try {
+  if (!options.dreamsOnly && options.semantic !== false) try {
     const queryLines = [...lexQueries.slice(0, 8).map((lexQuery) => `lex: ${lexQuery}`), `vec: ${query}`];
-    const result = runQmd(root, ["query", queryLines.join("\n"), "--json", "-n", String(limit), "--no-rerank", "-c", collection]);
+    const result = runQmd(root, ["query", queryLines.join("\n"), "--json", "-n", String(limit), "--no-rerank", "-c", collection], options.model);
     addRows(parseQmdJsonRows(result.stdout), 0.9);
+    successes++;
   } catch {
-    // QMD query mode can fail when embeddings are unavailable; BM25 QMD search above is still real QMD retrieval.
+    warn("semantic_query_failed_lexical_fallback");
   }
+  if (!successes && !options.dreamsOnly) throw new Error("QMD retrieval failed; no backend query succeeded. This is not an empty memory result.");
 
   return [...merged.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 function parseQmdJsonRows(stdout: string): Array<{ file?: string; score?: number; snippet?: string; line?: number }> {
+  if (stdout.trim() === "No results found.") return []; // QMD 2.8.3's empty --json response.
   const start = stdout.indexOf("[");
   const end = stdout.lastIndexOf("]");
   const jsonText = start >= 0 && end >= start ? stdout.slice(start, end + 1) : stdout;
   const parsed = JSON.parse(jsonText);
-  return Array.isArray(parsed) ? parsed : [];
+  if (!Array.isArray(parsed)) throw new Error("Invalid QMD result packet.");
+  return parsed;
 }
 
 function lineRangeFromSnippet(snippet: string): { lineStart: number; lineEnd: number } | undefined {

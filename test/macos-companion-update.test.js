@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 import { companionUpdatePlan } from "../scripts/macos-companion.mjs";
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -44,7 +45,9 @@ async function fixture(customRoot = false) {
   await writeFile(path.join(tools, "swiftc"), '#!/bin/sh\nwhile [ "$1" != "-o" ]; do shift; done\nprintf "new native executable\\n" > "$2"\n', { mode: 0o755 });
   await writeFile(path.join(tools, "xcrun"), `#!/bin/sh\nif [ "$1" = "--find" ]; then printf '%s\\n' '${tools}/swiftc'; else printf '/fixture/sdk\\n'; fi\n`, { mode: 0o755 });
   await writeFile(path.join(tools, "codesign"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
-  const env = { HOME: home, PATH: `${tools}:${process.env.PATH}`, PYTHONDONTWRITEBYTECODE: "1" };
+  const { bin: qmd } = await installFakeQmd(temp);
+  await writeFile(qmd, '#!/bin/sh\nprintf "qmd 2.8.3\\n"\n', { mode: 0o755 });
+  const env = { JUMPYBRAIN_QMD_BIN: qmd, HOME: home, PATH: `${tools}:${process.env.PATH}`, PYTHONDONTWRITEBYTECODE: "1" };
   const installer = path.join(repo, "scripts/public-install.mjs");
   const args = ["--home", home, "--install-root", root, "--source", source, "--skip-build", "--skip-qmd-install", "--skip-initial-index", "--integrations", "none"];
   run(process.execPath, [installer, ...args], env);
@@ -61,7 +64,7 @@ async function fixture(customRoot = false) {
   await writeFile(path.join(app, "Contents/MacOS/jumpyBrain"), "old native executable\n");
   await writeFile(path.join(app, "Contents/Info.plist"), `<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>local.jumpybrain.companion</string><key>CFBundleExecutable</key><string>jumpyBrain</string></dict></plist>`);
   const config = {
-    node: process.execPath, qmd: "/usr/bin/true", runtimeRoot: path.join(root, "app"),
+    node: process.execPath, qmd, runtimeRoot: path.join(root, "app"),
     memoryRoot: memory, supportDirectory: support,
     launchAgent: path.join(home, "Library/LaunchAgents/local.jumpybrain.companion.plist"),
     label: "local.jumpybrain.companion", port: 4891, revision: "old",

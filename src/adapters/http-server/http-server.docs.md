@@ -35,6 +35,10 @@
 - JSON parser failures use an internal class discriminator: untrusted request fields named `statusCode`/`body` must never become HTTP responses or logged error codes.
 - Share route literals with the HTTP client through `src/adapters/http-protocol.ts`; keep future route splits behind this adapter surface.
 
+## Index protocol boundary
+
+Authenticated POST `/memories/all/index` accepts an empty body, `{}`, or `{ "rebuild": boolean }`; reject other fields (including policy/model paths) and nonboolean rebuild with 400. Delegate routine/rebuild work to the same app runner. Status/index/search expose additive safe readiness, and search exposes partial retrieval warnings; total backend failures remain generic 500 `search_failed` (index failures: `index_failed`). Public `/health` stays content-free and liveness-only, with no readiness/model probe. Full packet contracts: [shared-memory protocol](../../../docs/shared-memory-protocol.md#index-stale-state).
+
 ## Non-responsibilities
 
 - Do not parse CLI command usage or target selection.

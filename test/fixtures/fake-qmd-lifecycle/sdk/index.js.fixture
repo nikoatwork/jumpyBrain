@@ -1,0 +1,26 @@
+import helpers from "../database.cjs";
+const { Database, fail, event } = helpers;
+export async function createStore({ dbPath }) {
+  fail("open");
+  const db = new Database(dbPath);
+  const internal = {
+    db,
+    insertContent(hash, content) { fail("ingest"); db.state.content[hash] = content; },
+    insertDocument(collection, file, title, hash) {
+      db.state.documents.push({ id: db.state.nextId++, collection, file, title, hash, active: 1 });
+    },
+    findActiveDocument(collection, file) {
+      return db.state.documents.find(d => d.collection === collection && d.file === file && d.active === 1) ?? null;
+    },
+    updateDocument(id, title, hash) { Object.assign(db.state.documents.find(d => d.id === id), { title, hash }); },
+    updateDocumentTitle(id, title) { db.state.documents.find(d => d.id === id).title = title; },
+    deactivateDocument(collection, file) { this.findActiveDocument(collection, file).active = 0; },
+    getActiveDocumentPaths(collection) {
+      return db.state.documents.filter(d => d.collection === collection && d.active === 1).map(d => d.file);
+    },
+    clearAllEmbeddings() {
+      db.state.metadata = []; db.state.vectors = []; db.state.counters.clears++; event("clear");
+    },
+  };
+  return { internal, async close() { db.close(); } };
+}

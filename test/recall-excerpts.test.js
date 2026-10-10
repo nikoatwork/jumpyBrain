@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 import test from "node:test";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -168,7 +169,7 @@ async function driverFixture(t, lines, rows) {
   const manifest = manifestPath(root);
   await mkdir(path.dirname(manifest), { recursive: true });
   await writeFile(manifest, JSON.stringify({ version: 1, root, generatedAt: new Date(0).toISOString(), qmdCollection: "jumpybrain", documents: [document] }));
-  const binary = path.join(root, "fake-qmd.cjs");
+  const { bin: binary } = await installFakeQmd(root);
   await writeFile(binary, `#!${process.execPath}\nconsole.log(JSON.stringify(${JSON.stringify(rows.map((row) => ({ ...row, file: "qmd://jumpybrain/note.md", score: 0.5 })))}));\n`);
   await chmod(binary, 0o755);
   const previous = process.env.JUMPYBRAIN_QMD_BIN;

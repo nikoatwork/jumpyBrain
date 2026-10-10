@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import vm from "node:vm";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { repoRoot } from "./source-graph-helpers.js";
@@ -73,7 +74,7 @@ test("local CLI and Cmd+K share title-first ranking; the palette only partitions
       if (n === 0) rows.push({ file, score: 0.92, snippet: second, line: line + 31 });
     }
     assert.ok(rows.every((row) => row.file !== exactFile), "QMD deliberately omits the exact-title page");
-    const binary = path.join(root, "fake-qmd.cjs");
+    const { bin: binary } = await installFakeQmd(root);
     await writeFile(binary, `#!${process.execPath}
 const fs = require('node:fs');
 const args = process.argv.slice(2);

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { activeFakeQmdFiles, fakeQmdState, installFakeQmd } from "./fake-qmd-helper.js";
 
 import { createDreamHandoff } from "../dist/adapters/http-server/dream-handoff.js";
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from "../dist/server/index.js";
@@ -129,7 +130,7 @@ test("copied Dream recipes drive a disposable authenticated remote CLI lifecycle
   const root = path.join(temp, "server-memory");
   const scratch = path.join(temp, "private-client");
   const home = path.join(temp, "home");
-  const qmd = path.join(temp, "synthetic-qmd.cjs");
+  const { bin: qmd } = await installFakeQmd(temp);
   const callsFile = path.join(temp, "qmd-calls.jsonl");
   const overrides = {
     HOME: home, XDG_CONFIG_HOME: home, XDG_CACHE_HOME: path.join(temp, "cache"),
@@ -248,8 +249,10 @@ else { console.error('Unexpected QMD operation: ' + args[0]); process.exit(1); }
     assert.match((await run("update", { success: false })).stderr, /content hash is stale/i);
     assert.equal(await readFile(path.join(root, created.file), "utf8"), accepted);
 
-    // index currently accepts --json but prints a human summary, unlike other recipes.
-    assert.match((await run("index")).stdout, /Indexed \d+ Markdown documents/);
+    const indexedResult = await json("index");
+    assert.equal(indexedResult.documents, before.length + 1);
+    assert.deepEqual(indexedResult.work, { added: 1, updated: 0, unchanged: before.length, removed: 0, embedded: 0 });
+    assert.deepEqual(indexedResult.readiness.modes, ["lexical"]);
     const after = await json("show");
     assert.equal(after.contentHash, updated.newContentHash);
     assert.equal(after.frontmatter.id, created.id);
@@ -274,8 +277,15 @@ else { console.error('Unexpected QMD operation: ' + args[0]); process.exit(1); }
     assert.deepEqual((await readdir(scratch)).sort(), ["body.md", "revised.md"], "no fallback local memory or exported evidence packets");
     const calls = (await readFile(callsFile, "utf8")).trim().split("\n").map(JSON.parse);
     assert.ok(calls.some((args) => args[0] === "search"));
-    assert.equal(calls.filter((args) => args[0] === "update").length, 2, "one setup index and one post-write handoff index");
-    assert.ok(calls.every((args) => ["collection", "update", "search", "query"].includes(args[0])), "only stubbed operations; no embeddings or real model calls");
+    assert.ok(calls.every((args) => args[0] === "search"), "lexical search only; indexing never calls collection/update CLI");
+    const state = await fakeQmdState(root);
+    assert.equal(state.counters.commits, 2, "one setup index and one post-write handoff index");
+    assert.equal(state.counters.embedded, 0);
+    assert.deepEqual(JSON.parse(state.manifest), manifest);
+    assert.deepEqual(activeFakeQmdFiles(state), preserved.map(entry => entry.file).sort());
+    assert.deepEqual(activeFakeQmdFiles(state, "jumpybrain-dreams"), [created.file, "pages/prior-dream.md"].sort());
+    assert.equal(await realpath(state.collections.jumpybrain.path), await realpath(root));
+    assert.equal(await realpath(state.collections["jumpybrain-dreams"].path), await realpath(root));
   } finally {
     if (server) await server.close();
     for (const [key, value] of Object.entries(previous)) {

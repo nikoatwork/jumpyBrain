@@ -73,7 +73,9 @@ remote-memory/
   preferences/
   pages/
   .jumpybrain/
-    qmd/                 # QMD/index/cache derived state when used
+    index.json           # published generation manifest
+    qmd-cache/qmd/       # transactional QMD SQLite state
+    qmd-config/          # derived CLI collection/model configuration
     remote/
       index-state.json
       dream-state.json   # legacy batch APIs only
@@ -113,7 +115,7 @@ Rules:
 
 ## Index stale state
 
-Remote writes do not synchronously rebuild the index. After each successful remote write, mark the index stale in `.jumpybrain/remote/index-state.json`:
+Remote writes do not synchronously update the index. After each successful remote write, mark the index stale in `.jumpybrain/remote/index-state.json`:
 
 ```json
 {
@@ -128,9 +130,13 @@ Remote writes do not synchronously rebuild the index. After each successful remo
 
 The server auto-indexes stale remote memory every 5 minutes by default. The auto-indexer runs inside the server process, calls the same local runtime indexing code as the HTTP endpoint, and never requires a public self-call, OS cron, or Coolify scheduled job. If an auto-index attempt fails, the server keeps running and tries again on the next 5-minute tick while the state remains stale.
 
-After either the auto-indexer or `POST /memories/all/index` succeeds, set `stale` to `false` and update `lastIndexedAt`, `documents`, and `qmdCollection`. Manual `POST /memories/all/index` remains available for immediate maintenance or diagnostics.
+After either the auto-indexer or `POST /memories/all/index` succeeds, update `lastIndexedAt`, `documents`, and `qmdCollection`. Clear `stale` only if covered: writes during the run or stale local readiness keep it true. Failure never marks a generation fresh. Manual indexing remains available for immediate maintenance.
 
-Search and recall responses should include index metadata so the CLI can warn when results may be stale.
+Status/index/search retain legacy `index` metadata and add safe `readiness`: `freshness` (`missing|fresh|stale|unknown`), `modes` (available `lexical`/`semantic`), `embedding` (`disabled|complete|incomplete|unknown`), and optional `lastFailure: { code, at }` (`index_failed` or `interrupted_update`). No model paths/hashes, credentials, backend stderr, or server roots are included. Status scans file/manifest stats without model inference/download; it is not a DB-integrity probe.
+
+Search/recall also add `retrieval: { status: "complete" | "partial", warnings: string[] }`. Warnings can include `index_not_fresh`, `semantic_coverage_incomplete`, `lexical_query_failed`, `semantic_query_failed_lexical_fallback`, or `dream_query_failed`. Intentional lexical mode is not an outage. Total ordinary-backend failure is HTTP 500 `search_failed`, not an empty `results` array; title supplements cannot conceal it. Index results add `work: { added, updated, unchanged, removed, embedded }`, with embeddings counted as chunks.
+
+The same [local lifecycle/recovery rules](technical.md#indexing) govern remote work: persistent server-local policy, transactional reuse/rollback, pending publication recovery on next search/index, and a five-second busy PID lock rather than cross-process reader snapshots. One server process per root remains the deployment boundary.
 
 ## Idempotency
 
@@ -219,9 +225,9 @@ Do not expose the server's absolute filesystem root by default.
 
 ### `POST /memories/all/index`
 
-Authenticated rebuild of server-side derived search state.
+Authenticated incremental update of server-derived state using its persisted `jumpybrain.json` policy. Request body may be empty or `{}`; `{ "rebuild": true }` explicitly regenerates vectors/query cache in-place. `rebuild` must be boolean. All other fields, including model paths/indexing policy, are rejected with 400; configure policy on the server-local root. Rebuild is not SQLite corruption repair.
 
-Request body may be empty:
+Default request:
 
 ```json
 {}
@@ -671,7 +677,7 @@ Successful response:
 | 415 | `unsupported_media_type` | Non-JSON body for JSON endpoint. |
 | 422 | `validation_failed` | Valid JSON but invalid memory draft/wrapup/document content. |
 | 428 | `precondition_required` | Document update omitted the required `If-Match` content hash. |
-| 500 | `index_failed` | Server-side index rebuild failed. |
+| 500 | `index_failed` | Server-side index update/rebuild failed. |
 | 500 | `overview_failed` | Server-side overview/tree generation failed. |
 | 500 | `search_failed` | Server-side search/recall failed. |
 | 500 | `server_misconfigured` | Server root/API key/QMD configuration is invalid. |
@@ -694,7 +700,7 @@ Safety baseline:
 - Back up the canonical Markdown memory root. `.jumpybrain/` is support/derived state but can be included in backups for faster recovery.
 - Rotate API keys by editing server env/config and restarting the process.
 - Run one server process against one local disk memory root for V1; do not horizontally scale this server yet.
-- Server auto-indexing is enabled by default and checks stale remote memory every 5 minutes. Manual `POST /memories/all/index` is still useful when operators want an immediate rebuild.
+- Server auto-indexing is enabled by default and checks stale remote memory every 5 minutes. Manual `POST /memories/all/index` is still useful when operators want an immediate update.
 - Server request and operation logs are written to `.jumpybrain/logs/server-YYYY-MM-DD.log` under the memory root. Logs are compact text lines with method/path/status/duration, write/index metadata, and stable error codes. Access logs over SSH or host filesystem tooling; V1 intentionally does not expose a developer logs HTTP endpoint.
 
 ## Deferred from V1

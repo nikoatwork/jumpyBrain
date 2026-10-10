@@ -44,6 +44,10 @@ test("local pack manifest covers final layered CLI/runtime files", () => {
   assert.ok(requiredLocalPackFiles.includes(packed("adapters", "logging", "index.js")));
   assert.ok(requiredLocalPackFiles.includes(packed("adapters", "package-info", "index.js")));
   assert.ok(requiredLocalPackFiles.includes(packed("adapters", "qmd", "index.js")));
+  for (const name of ["qmd-lifecycle", "qmd-worker"]) {
+    for (const ext of ["js", "d.ts"]) assert.ok(requiredLocalPackFiles.includes(packed("adapters", "qmd", `${name}.${ext}`)));
+  }
+  assert.ok(requiredLocalPackFiles.includes("package/scripts/qmd-install-check.mjs"));
   assert.ok(requiredLocalPackFiles.includes(packed("core", "index.js")));
   assert.ok(requiredLocalPackFiles.includes(packed("core", "canonical", "index.js")));
   assert.ok(requiredLocalPackFiles.includes(packed("core", "canonical", "markdown-store.js")));

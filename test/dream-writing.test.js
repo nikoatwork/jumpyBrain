@@ -4,6 +4,7 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 
 import { rememberMemory } from "../dist/app/writing/local-writer.js";
 import { writeRemoteMemoryNote } from "../dist/app/writing/remote-writer.js";
@@ -59,7 +60,7 @@ test("document updates preserve an omitted dream marker without making it protec
 test("CLI dream page create/update retains identity, rejects stale hashes and refreshes derived metadata on index", async (t) => {
   const root = await disposableRoot(t);
   // No model/provider calls: this tests canonical/index metadata lifecycle, not QMD ranking.
-  const qmd = path.join(root, "synthetic-qmd");
+  const { bin: qmd } = await installFakeQmd(root);
   await writeFile(qmd, '#!/bin/sh\ncase "$1" in\n  collection|update) exit 0 ;;\n  *) echo "unexpected QMD call: $1" >&2; exit 1 ;;\nesac\n');
   await chmod(qmd, 0o755);
   const env = { ...process.env, HOME: root, JUMPYBRAIN_QMD_BIN: qmd, JUMPYBRAIN_QMD_EMBED: "false" };

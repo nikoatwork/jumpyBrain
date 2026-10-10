@@ -3,6 +3,7 @@ import test from "node:test";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 import { groupResultsByFile, diversifyResults } from "../dist/adapters/qmd/qmd-ranking.js";
 import { searchQmdIndex } from "../dist/adapters/qmd/index.js";
 import { searchMemory } from "../dist/runtime/index.js";
@@ -151,7 +152,7 @@ test("normal/shallow file limits and additional evidence are identical across ad
     await writeFile(path.join(root, "notes/capacity.md"), other + "\n");
     const rows = passages.map((snippet, i) => ({ file: "notes/dispatch.md", line: 4 + i * 30, snippet, score: 0 }));
     rows.push({ file: "notes/capacity.md", line: 1, snippet: other, score: 0 });
-    const binary = path.join(root, "fake-qmd.cjs");
+    const { bin: binary } = await installFakeQmd(root);
     await writeFile(binary, `#!${process.execPath}
 const fs = require('node:fs');
 const args = process.argv.slice(2);

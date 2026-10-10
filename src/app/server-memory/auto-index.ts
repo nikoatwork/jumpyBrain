@@ -1,6 +1,6 @@
 import { indexMemory as appIndexMemory } from "../local-memory/index.js";
-import type { IndexMemoryResult } from "../../types.js";
-import { markRemoteIndexFresh, readRemoteIndexState, writeRemoteIndexState, type RemoteIndexState } from "./state.js";
+import type { IndexMemoryOptions, IndexMemoryResult } from "../../types.js";
+import { markRemoteIndexFresh, readRemoteIndexState, type RemoteIndexState } from "./state.js";
 
 export const REMOTE_AUTO_INDEX_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -13,7 +13,7 @@ export interface RemoteIndexRunResult {
 }
 
 export interface RemoteIndexRunner {
-  indexNow(reason?: string): Promise<RemoteIndexRunResult>;
+  indexNow(reason?: string, options?: Pick<IndexMemoryOptions, "rebuild">): Promise<RemoteIndexRunResult>;
   isIndexing(): boolean;
 }
 
@@ -24,8 +24,8 @@ export interface RemoteAutoIndexer {
 
 export function createRemoteIndexRunner(options: {
   root: string;
-  indexMemory?: (root: string) => Promise<IndexMemoryResult>;
-  markFresh?: (root: string, result: IndexMemoryResult) => Promise<RemoteIndexState>;
+  indexMemory?: (root: string, options?: IndexMemoryOptions) => Promise<IndexMemoryResult>;
+  markFresh?: typeof markRemoteIndexFresh;
   logger?: RemoteAutoIndexLogger;
 }): RemoteIndexRunner {
   const indexMemory = options.indexMemory ?? appIndexMemory;
@@ -33,29 +33,33 @@ export function createRemoteIndexRunner(options: {
   const logger = options.logger ?? defaultAutoIndexLogger;
   let inFlight: Promise<RemoteIndexRunResult> | undefined;
 
-  return {
-    indexNow(reason = "manual") {
-      if (inFlight) {
-        logger("warn", "overlap-joined", { reason });
-        return inFlight;
-      }
-      const startedAt = new Date().toISOString();
-      logger("info", "start", { reason });
-      inFlight = indexMemory(options.root)
-        .then(async (result) => {
-          const index = options.markFresh ? await markFresh(result.root, result) : await markFreshUnlessNewerWrite(result.root, result, startedAt);
-          logger("info", "success", { reason, documents: result.documents, qmdCollection: result.qmdCollection, stale: index.stale });
-          return { result, index };
-        })
-        .catch((error) => {
-          logger("error", "failure", { reason, message: error instanceof Error ? error.message : String(error) });
-          throw error;
-        })
-        .finally(() => {
-          inFlight = undefined;
-        });
+  function indexNow(reason = "manual", indexOptions: Pick<IndexMemoryOptions, "rebuild"> = {}): Promise<RemoteIndexRunResult> {
+    if (inFlight) {
+      logger("warn", "overlap-joined", { reason });
+      // A rebuild request must not silently join an incremental run.
+      if (indexOptions.rebuild) return inFlight.then(() => indexNow(reason, indexOptions));
       return inFlight;
-    },
+    }
+    const startedAt = new Date().toISOString();
+    logger("info", "start", { reason });
+    inFlight = indexMemory(options.root, indexOptions)
+      .then(async (result) => {
+        const index = await markFresh(result.root, result, new Date().toISOString(), startedAt);
+        logger("info", "success", { reason, documents: result.documents, qmdCollection: result.qmdCollection, stale: index.stale });
+        return { result, index };
+      })
+      .catch((error) => {
+        logger("error", "failure", { reason, message: error instanceof Error ? error.message : String(error) });
+        throw error;
+      })
+      .finally(() => {
+        inFlight = undefined;
+      });
+    return inFlight;
+  }
+
+  return {
+    indexNow,
     isIndexing: () => inFlight !== undefined,
   };
 }
@@ -99,21 +103,6 @@ export function startRemoteAutoIndexer(options: {
       if (timer) clearInterval(timer);
     },
   };
-}
-
-async function markFreshUnlessNewerWrite(root: string, result: IndexMemoryResult, startedAt: string): Promise<RemoteIndexState> {
-  const current = await readRemoteIndexState(root);
-  if (current.lastWriteAt && current.lastWriteAt >= startedAt) {
-    return writeRemoteIndexState(root, {
-      ...current,
-      version: 1,
-      stale: true,
-      lastIndexedAt: new Date().toISOString(),
-      documents: result.documents,
-      qmdCollection: result.qmdCollection,
-    });
-  }
-  return markRemoteIndexFresh(root, result);
 }
 
 export function defaultAutoIndexLogger(_level: LogLevel, _event: string, _details: Record<string, unknown> = {}): void {

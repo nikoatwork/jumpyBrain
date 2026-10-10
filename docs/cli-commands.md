@@ -55,11 +55,27 @@ The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local adv
 | `jumpybrain init --root <memory-root> [--force] [--json]` | Create or refresh a local memory root with `jumpybrain.json`, standard memory folders, and ignored derived state. |
 | `jumpybrain status --root <memory-root> [--json]` | Check whether a local memory root is initialized, compatible, and ready to use. |
 | `jumpybrain status --target-url <url> [--json]` | Check whether a remote jumpyBrain server memory target is ready to use. Requires `JUMPYBRAIN_API_KEY`. |
-| `jumpybrain index --root <memory-root>` | Rebuild the derived search index from canonical Markdown memory files. Run this after manual Markdown edits or document updates when you need fresh recall/search. |
-| `jumpybrain index --target-url <url>` | Ask a remote server to rebuild its derived search index. Requires `JUMPYBRAIN_API_KEY`. |
+| `jumpybrain index --root <memory-root> [--rebuild] [--semantic-model <absolute-local-gguf> \| --lexical] [--json]` | Update derived search state incrementally; persist explicit policy or request a rebuild. |
+| `jumpybrain index --target-url <url> [--rebuild] [--json]` | Update server-derived search state using its persisted policy. Requires `JUMPYBRAIN_API_KEY`; model/policy flags are server-local only. |
 | `jumpybrain tree --root <memory-root> [--connections] [--show-files] [--limit <n>] [--json]` | Show a map of a local memory root: buckets, document counts, tags, index freshness, and optionally file lists and Markdown/wiki-link connections. It does not print full memory bodies. |
 | `jumpybrain tree --target-url <url> [--connections] [--show-files] [--limit <n>] [--json]` | Show the same memory overview for a hosted/shared memory server. Requires `JUMPYBRAIN_API_KEY`. |
 | `jumpybrain overview ...` | Alias for `jumpybrain tree ...`. |
+
+### Indexing policy and recovery
+
+Install **@tobilu/qmd@2.8.3** (CLI and SDK together). New/unconfigured roots default to lexical indexing. To enable semantic retrieval, provision a local embedding GGUF first:
+
+```bash
+jumpybrain index --root <memory-root> --semantic-model /absolute/models/embedding.gguf
+jumpybrain index --root <memory-root>                 # reuse persisted policy/vectors
+jumpybrain index --root <memory-root> --lexical       # intentionally disable semantic retrieval
+jumpybrain index --root <memory-root> --rebuild       # explicit regeneration
+jumpybrain index --target-url <url> --rebuild          # uses server-local policy
+```
+
+`--lexical` and `--semantic-model` are mutually exclusive; `--lexical` and `--rebuild` are valueless booleans. Policy lives in root `jumpybrain.json`, not `.jumpybrain/`. Legacy unconfigured roots may explicitly migrate with truthy `JUMPYBRAIN_QMD_EMBED` plus an absolute local `QMD_EMBED_MODEL`; environment settings are ignored once configured. Changed models and older unidentified semantic vectors require `--rebuild`.
+
+Status/doctor report freshness, available modes, embedding coverage, and safe failures without inference/download. Search/recall warn about partial fallback or stale/incomplete state; total backend failure is an error, not “no memories.” Index JSON adds work counts (`embedded` counts chunks). `/health` is only liveness. For interrupted publication, busy locks, physically corrupt SQLite, and safe derived-state deletion, see [recovery limits](technical.md#readiness-and-recovery); `--rebuild` does not repair corrupt SQLite.
 
 ## Logseq migration (local only)
 
@@ -170,7 +186,7 @@ These commands route to the same memory handlers as the top-level commands. They
 | Command | Human explanation |
 | --- | --- |
 | `jumpybrain run memory:status [--root <memory-root>] [--json]` | Check memory root status. |
-| `jumpybrain run memory:index [--root <memory-root>]` | Rebuild the derived search index. |
+| `jumpybrain run memory:index [--root <memory-root>] [--rebuild]` | Update the derived index; same policy/rebuild options as top-level `index`. |
 | `jumpybrain run memory:tree [--root <memory-root>] [--connections] [--show-files] [--limit <n>] [--json]` | Show a memory overview tree. |
 | `jumpybrain run memory:overview ...` | Alias for `jumpybrain run memory:tree ...`. |
 | `jumpybrain run memory:search --query "..." [--root <memory-root>] [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Search memories for a given query. |

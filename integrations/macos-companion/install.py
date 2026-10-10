@@ -44,8 +44,8 @@ def build_app(runtime, build, config):
     package = validate_runtime(runtime)
     source = runtime / "integrations/macos-companion"
     # Keep stable Homebrew symlink paths, not version-specific Cellar targets.
-    for key in ("node", "qmd"):
-        run(config[key], "--version", stdout=subprocess.DEVNULL)
+    run(config["node"], "--version", stdout=subprocess.DEVNULL)
+    run(config["node"], runtime / "scripts/qmd-install-check.mjs", config["qmd"])
     run("xcrun", "--find", "swiftc", stdout=subprocess.DEVNULL)
     if not shutil.which("codesign"):
         raise SafetyError("codesign must be installed before building the companion")
@@ -167,7 +167,7 @@ def main():
         if args.port is not None:
             config["port"] = args.port
         if not config["node"] or not config["qmd"]:
-            raise SafetyError("node and qmd must be installed and on PATH before installing")
+            raise SafetyError("node and @tobilu/qmd@2.8.3 (CLI + SDK) must be installed and on PATH before installing")
         if type(config["port"]) is not int or not 1024 <= config["port"] <= 65535:
             raise SafetyError("Choose an unprivileged port (1024–65535)")
         memory = absolute(config["memoryRoot"], "memoryRoot")

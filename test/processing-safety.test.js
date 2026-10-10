@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -118,7 +119,7 @@ test("Boolean apply is explicit in API and CLI, including false and malformed va
 }));
 
 async function fakeIndex(root, rows, script = "") {
-  const binary = path.join(root, "fake-qmd.cjs");
+  const { bin: binary } = await installFakeQmd(root);
   await writeFile(binary, `#!${process.execPath}\nconst fs = require('node:fs');\nconst args = process.argv.slice(2);\nif (['search', 'query'].includes(args[0])) { ${script}\nconst collection = args[args.indexOf('-c') + 1];\nconsole.log(JSON.stringify(${JSON.stringify(rows)}.map(row => ({...row, file: 'qmd://' + collection + '/' + row.file}))));\n} else console.log('[]');\n`);
   await chmod(binary, 0o755);
   process.env.JUMPYBRAIN_QMD_BIN = binary;

@@ -13,6 +13,7 @@
     "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node scripts/build-editor.mjs",
     "test": "npm run build && node --test",
     "validate": "npm test",
+    "smoke:semantic-index": "npm run build && node scripts/semantic-index-smoke.mjs",
     "smoke:graph": "npx --package=playwright node scripts/graph-ui-smoke.mjs",
     "smoke:graph-editor": "npm run build && npx --package=playwright node scripts/graph-editor-smoke.mjs",
     "smoke:daily-capture": "npm run build && npx --package=playwright node scripts/daily-capture-smoke.mjs",
@@ -35,6 +36,7 @@
     "install.sh",
     "uninstall.sh",
     "scripts/public-install.mjs",
+    "scripts/qmd-install-check.mjs",
     "scripts/macos-companion.mjs",
     "scripts/remote-target-origin.mjs",
     "scripts/public-uninstall.mjs"

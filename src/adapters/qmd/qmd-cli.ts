@@ -1,82 +1,66 @@
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { existsSync, realpathSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const QMD_COLLECTION = "jumpybrain";
 export const QMD_DREAM_COLLECTION = "jumpybrain-dreams";
+export const SUPPORTED_QMD_VERSION = "2.8.3";
 
-export function derivedRoot(root: string): string {
-  return path.join(root, ".jumpybrain");
-}
-
-export function manifestPath(root: string): string {
-  return path.join(derivedRoot(root), "index.json");
-}
-
-export async function rebuildQmdCliCollection(root: string, options: { embed: boolean; sourceRoot?: string; dreamRoot?: string }): Promise<void> {
-  const derived = derivedRoot(root);
-  const sourceRoot = options.sourceRoot ?? root;
-  await rm(path.join(derived, "qmd-cache"), { recursive: true, force: true });
-  await rm(path.join(derived, "qmd-config"), { recursive: true, force: true });
-  await mkdir(path.join(derived, "qmd-cache"), { recursive: true });
-  await mkdir(path.join(derived, "qmd-config"), { recursive: true });
-  await mkdir(path.join(derived, "qmd-home"), { recursive: true });
-
-  runQmd(root, ["collection", "add", sourceRoot, "--name", QMD_COLLECTION, "--mask", "**/*.md"]);
-  if (options.dreamRoot) {
-    runQmd(root, ["collection", "add", options.dreamRoot, "--name", QMD_DREAM_COLLECTION, "--mask", "**/*.md"]);
-  }
-  runQmd(root, ["update"]);
-
-  if (options.embed) runQmd(root, ["embed"]);
-}
+export function derivedRoot(root: string): string { return path.join(root, ".jumpybrain"); }
+export function manifestPath(root: string): string { return path.join(derivedRoot(root), "index.json"); }
+export function databasePath(root: string): string { return path.join(derivedRoot(root), "qmd-cache", "qmd", "index.sqlite"); }
 
 export function resolveQmdBinary(env: NodeJS.ProcessEnv = process.env): string {
-  const configured = env.JUMPYBRAIN_QMD_BIN?.trim();
-  if (configured) return configured;
-
-  const bundled = bundledQmdBinary();
-  if (bundled) return bundled;
-
-  return "qmd";
+  return env.JUMPYBRAIN_QMD_BIN?.trim() || bundledQmdBinary() || "qmd";
 }
 
-export function runQmd(root: string, args: string[]): { stdout: string; stderr: string } {
+/** The CLI and transactional SDK must come from the same explicitly supported installation. */
+export function resolveQmdSdk(): string {
+  const bin = resolveQmdBinary();
+  const candidate = path.isAbsolute(bin) || bin.includes(path.sep) ? bin
+    : (process.env.PATH ?? "").split(path.delimiter).map(dir => path.join(dir, bin)).find(file => existsSync(file));
+  if (!candidate || !existsSync(candidate)) throw new Error("qmd CLI is required. Install with `npm install -g @tobilu/qmd@2.8.3` or set JUMPYBRAIN_QMD_BIN.");
+  let dir = path.dirname(realpathSync(candidate));
+  while (true) {
+    const pkg = path.join(dir, "package.json");
+    if (existsSync(pkg)) {
+      const info = JSON.parse(readFileSync(pkg, "utf8"));
+      if (info.name === "@tobilu/qmd") {
+        if (info.version !== SUPPORTED_QMD_VERSION) throw new Error("Unsupported QMD version; install @tobilu/qmd@2.8.3 before indexing or searching.");
+        return path.join(dir, "dist", "index.js");
+      }
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  throw new Error("QMD indexing requires the @tobilu/qmd@2.8.3 package (CLI and SDK together); check JUMPYBRAIN_QMD_BIN.");
+}
+
+export function runQmd(root: string, args: string[], model?: string): { stdout: string; stderr: string } {
   const derived = derivedRoot(root);
-  const qmdBin = resolveQmdBinary();
-  const result = spawnSync(qmdBin, args, {
-    cwd: root,
-    encoding: "utf8",
-    maxBuffer: 20 * 1024 * 1024,
+  const result = spawnSync(resolveQmdBinary(), [...args, "--index", "index"], {
+    cwd: root, encoding: "utf8", maxBuffer: 20 * 1024 * 1024,
     env: {
       ...process.env,
       HOME: path.join(derived, "qmd-home"),
       XDG_CACHE_HOME: path.join(derived, "qmd-cache"),
       QMD_CONFIG_DIR: path.join(derived, "qmd-config"),
+      INDEX_PATH: databasePath(root),
+      QMD_EMBED_MODEL: model ?? "",
+      QMD_SQLITE_BUSY_TIMEOUT: "5000",
       GGML_METAL_NO_RESIDENCY: process.env.QMD_METAL_KEEP_RESIDENCY ? process.env.GGML_METAL_NO_RESIDENCY : "1",
     },
   });
-
-  if (result.error && result.error.message.includes("ENOENT")) {
-    throw new Error("qmd CLI is required for local/server jumpyBrain runtime indexing and recall. Install with `npm install -g @tobilu/qmd`, ensure `qmd` is on PATH, or set JUMPYBRAIN_QMD_BIN to the qmd executable.");
-  }
-
-  if (result.status !== 0) {
-    throw new Error(`${qmdBin} ${args.join(" ")} failed\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
-  }
-
+  if (result.error || result.status !== 0) throw new Error("QMD query execution failed.");
   return { stdout: result.stdout, stderr: result.stderr };
 }
 
 function bundledQmdBinary(): string | undefined {
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  const candidates = [
-    path.resolve(moduleDir, "..", "..", "node_modules", ".bin", process.platform === "win32" ? "qmd.cmd" : "qmd"),
-    path.resolve(moduleDir, "..", "node_modules", ".bin", process.platform === "win32" ? "qmd.cmd" : "qmd"),
-  ];
-  return candidates.find((candidate) => existsSync(candidate));
+  const candidates = [3, 2, 1].map(level => path.resolve(moduleDir, ...Array(level).fill(".."), "node_modules", ".bin", process.platform === "win32" ? "qmd.cmd" : "qmd"));
+  return candidates.find(candidate => existsSync(candidate));
 }
 
 export function qmdVirtualPathToRelative(file: string, collection = QMD_COLLECTION): string | undefined {
@@ -84,7 +68,4 @@ export function qmdVirtualPathToRelative(file: string, collection = QMD_COLLECTI
   if (!file.startsWith(prefix)) return undefined;
   return decodeURIComponent(file.slice(prefix.length));
 }
-
-export function normalizeQmdLookupPath(file: string): string {
-  return file.toLowerCase().replace(/_/g, "-");
-}
+export function normalizeQmdLookupPath(file: string): string { return file.toLowerCase().replace(/_/g, "-"); }

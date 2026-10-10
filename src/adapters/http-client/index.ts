@@ -9,6 +9,7 @@ import type {
   DreamStatus,
   DreamWindow,
   DreamWindowRequest,
+  IndexMemoryOptions,
   IndexMemoryResult,
   MemoryDocumentReadResult,
   MemoryDocumentUpdateResult,
@@ -44,7 +45,7 @@ export interface RemoteMemoryTransportOptions {
 export interface RemoteMemoryTransport {
   readonly url: string;
   memoryRootStatus(): Promise<MemoryRootStatus & Record<string, unknown>>;
-  indexMemory(): Promise<IndexMemoryResult & Record<string, unknown>>;
+  indexMemory(options?: Pick<IndexMemoryOptions, "rebuild">): Promise<IndexMemoryResult & Record<string, unknown>>;
   overviewMemory(options?: MemoryOverviewOptions): Promise<MemoryOverviewResult & Record<string, unknown>>;
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions & { mode?: "search" | "recall" }): Promise<SearchMemoryResult & Record<string, unknown>>;
   readMemoryDocument(id: string): Promise<MemoryDocumentReadResult & Record<string, unknown>>;
@@ -91,7 +92,10 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   return {
     url: baseUrl,
     memoryRootStatus: () => request(HTTP_MEMORY_ROUTES.status) as Promise<MemoryRootStatus & Record<string, unknown>>,
-    indexMemory: () => request(HTTP_MEMORY_ROUTES.index, { method: "POST", body: "{}" }) as Promise<IndexMemoryResult & Record<string, unknown>>,
+    indexMemory: (indexOptions = {}) => {
+      if ("indexing" in indexOptions) throw new Error("Indexing policy must be configured on the server-local memory root.");
+      return request(HTTP_MEMORY_ROUTES.index, { method: "POST", body: JSON.stringify(indexOptions.rebuild === undefined ? {} : { rebuild: indexOptions.rebuild }) }) as Promise<IndexMemoryResult & Record<string, unknown>>;
+    },
     overviewMemory: (overviewOptions = {}) => {
       const params = new URLSearchParams();
       if (overviewOptions.showFiles) params.set("showFiles", "1");

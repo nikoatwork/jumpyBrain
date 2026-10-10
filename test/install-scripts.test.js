@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, realpath, rm, writeFile, mkdir } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm, writeFile, mkdir, symlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { checkQmdInstallation, QMD_PACKAGE } from "../scripts/qmd-install-check.mjs";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 import { resolveQmdBinary } from "../dist/adapters/qmd/qmd-cli.js";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -706,7 +708,7 @@ test("CLI doctor reports machine-readable installer diagnostics", async () => {
     const payload = JSON.parse(result.stdout);
     assert.equal(payload.cli.ok, true);
     assert.equal(payload.node.ok, true);
-    assert.equal(payload.qmd.ok, true);
+    assert.equal(payload.qmd.ok, false, "Node --version is not the required QMD 2.8.3");
     assert.equal(payload.memoryRoot.ok, true);
     assert.equal(payload.memoryRoot.root, await realpath(memoryRoot));
     assert.equal(payload.integrations.codex.ok, false);
@@ -718,3 +720,90 @@ test("CLI doctor reports machine-readable installer diagnostics", async () => {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+
+test("installer QMD check requires exact package, SDK files, and matching executable version", async () => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-qmd-install-check-"));
+  try {
+    const { bin } = await installFakeQmd(temp);
+    const pkg = path.resolve(bin, "../..");
+    const metadataPath = path.join(pkg, "package.json");
+    const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+    await writeFile(bin, '#!/bin/sh\nprintf "qmd 2.8.3 (facd35e)\\n"\n', { mode: 0o755 });
+    assert.equal(checkQmdInstallation(bin), true);
+    const linked = path.join(temp, "qmd");
+    await symlink(bin, linked);
+    assert.equal(checkQmdInstallation(linked), true, "global npm-style symlinks resolve to package");
+    const standalone = path.join(temp, "standalone-qmd");
+    await writeFile(standalone, await readFile(bin), { mode: 0o755 });
+    assert.equal(checkQmdInstallation(standalone), false, "version output alone is insufficient");
+    for (const version of ["2.8.2", "2.8.4", "3.0.0"]) {
+      await writeFile(metadataPath, JSON.stringify({ ...metadata, version }));
+      assert.equal(checkQmdInstallation(bin), false, version);
+    }
+    await writeFile(metadataPath, JSON.stringify(metadata));
+    await writeFile(bin, '#!/bin/sh\nprintf "qmd 2.8.4\\n"\n');
+    assert.equal(checkQmdInstallation(bin), false, "CLI must match package version");
+    await writeFile(bin, '#!/bin/sh\nprintf "qmd 2.8.3\\n"\n');
+    await rm(path.join(pkg, "dist/store.js"));
+    assert.equal(checkQmdInstallation(bin), false, "incomplete SDK rejected");
+  } finally { await rm(temp, { recursive: true, force: true }); }
+});
+
+test("installer rejects shadowing incompatible override or skips it explicitly, without initial index", async () => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-qmd-override-"));
+  try {
+    const args = ["--dry-run", "--install-root", path.join(temp, "install"), "--home", temp, "--integrations", "none"];
+    const env = { ...process.env, JUMPYBRAIN_QMD_BIN: process.execPath };
+    const result = spawnSync(process.execPath, [installScript, ...args], { env, encoding: "utf8" });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /Selected QMD is incompatible.*@tobilu\/qmd@2\.8\.3/);
+    const skipped = runNode(installScript, [...args, "--skip-qmd-install"], { env });
+    assert.match(skipped.stdout, /skipping install and initial index/);
+    assert.doesNotMatch(skipped.stdout, /QMD available/);
+  } finally { await rm(temp, { recursive: true, force: true }); }
+});
+
+test("public installer replaces incompatible PATH QMD using the exact package and rechecks CLI plus SDK", async () => {
+  const temp = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-qmd-pinned-install-"));
+  try {
+    const { bin } = await installFakeQmd(temp);
+    await writeFile(bin, '#!/bin/sh\nprintf "qmd 2.8.3\\n"\n', { mode: 0o755 });
+    const metadataPath = path.resolve(bin, "../../package.json");
+    const metadata = JSON.parse(await readFile(metadataPath, "utf8"));
+    await writeFile(metadataPath, JSON.stringify({ ...metadata, version: "2.8.2" }));
+    const tools = path.join(temp, "tools");
+    await mkdir(tools);
+    await symlink(bin, path.join(tools, "qmd"));
+    const receipt = path.join(temp, "npm-call.json");
+    await writeFile(path.join(tools, "npm"), `#!${process.execPath}
+const fs = require("node:fs");
+fs.writeFileSync(${JSON.stringify(receipt)}, JSON.stringify(process.argv.slice(2)));
+fs.writeFileSync(${JSON.stringify(metadataPath)}, ${JSON.stringify(JSON.stringify(metadata))});
+`, { mode: 0o755 });
+    const args = ["--install-root", path.join(temp, "install"), "--home", path.join(temp, "home"), "--source", repoRoot, "--skip-build", "--skip-initial-index", "--integrations", "none"];
+    const env = { JUMPYBRAIN_QMD_BIN: "", PATH: `${tools}${path.delimiter}${process.env.PATH}` };
+    const preview = runNode(installScript, [...args, "--dry-run"], { env });
+    assert.match(preview.stdout, /npm install -g @tobilu\/qmd@2\.8\.3/);
+    assert.equal(existsSync(receipt), false, "preview never installs");
+    runNode(installScript, args, { env });
+    assert.deepEqual(JSON.parse(await readFile(receipt, "utf8")), ["install", "-g", QMD_PACKAGE]);
+    assert.equal(checkQmdInstallation(bin), true);
+    await rm(receipt);
+    const update = runNode(installScript, args, { env });
+    assert.match(update.stdout, /QMD available: @tobilu\/qmd@2\.8\.3/);
+    assert.equal(existsSync(receipt), false, "compatible updates do not reinstall");
+  } finally { await rm(temp, { recursive: true, force: true }); }
+});
+
+test("supported distribution entrypoints ship the QMD check and pin Docker installs", async () => {
+  const shell = await readFile(path.join(repoRoot, "install.sh"), "utf8");
+  const docker = await readFile(path.join(repoRoot, "Dockerfile"), "utf8");
+  const companion = await readFile(path.join(repoRoot, "integrations/macos-companion/install.py"), "utf8");
+  const pkg = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
+  assert.match(shell, /for FILE in .*scripts\/qmd-install-check\.mjs/);
+  assert.match(docker, /npm install -g @tobilu\/qmd@2\.8\.3/);
+  assert.match(docker, /node scripts\/qmd-install-check\.mjs qmd/);
+  assert.match(companion, /runtime \/ "scripts\/qmd-install-check\.mjs", config\["qmd"\]/);
+  assert.ok(pkg.files.includes("scripts/qmd-install-check.mjs"));
+});

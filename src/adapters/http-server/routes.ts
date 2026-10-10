@@ -371,10 +371,19 @@ export async function routeRequest(context: { request: IncomingMessage; response
       return;
     }
 
+    if (Object.keys(parsedBody).some((key) => key !== "rebuild")) {
+      writeJson(response, 400, errorResponse("bad_request", "Only rebuild is supported remotely; configure indexing policy on the server-local memory root."));
+      return;
+    }
+    if (parsedBody.rebuild !== undefined && typeof parsedBody.rebuild !== "boolean") {
+      writeJson(response, 400, errorResponse("bad_request", "rebuild must be a boolean."));
+      return;
+    }
+
     const indexedAt = Date.now();
     logger.info("index_start", { path: url.pathname, reason: "manual" });
     try {
-      const packet = await indexServerMemory({ root, indexRunner, reason: "manual" });
+      const packet = await indexServerMemory({ root, indexRunner, reason: "manual", rebuild: parsedBody.rebuild as boolean | undefined });
       logger.info("index_success", { reason: "manual", documents: packet.documents, qmdCollection: packet.qmdCollection, stale: packet.index.stale, duration_ms: Date.now() - indexedAt });
       writeJson(response, 200, packet);
     } catch (error) {

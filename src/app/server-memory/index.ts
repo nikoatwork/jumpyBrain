@@ -1,5 +1,5 @@
-import { findMemoryRoot, initializeMemoryRoot, memoryRootStatus } from "../../core/memory-root/index.js";
-import { graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
+import { findMemoryRoot, initializeMemoryRoot } from "../../core/memory-root/index.js";
+import { memoryStatus, graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
 import { processMemory } from "../processing/index.js";
 import { rememberMemory, writeSessionWrapup, type WrapupDraft, type WrapupWriteResult } from "../writing/index.js";
 import { writeRemoteMemoryNote, writeRemoteSessionWrapup, type RemoteWrapupDraft } from "../writing/remote-writer.js";
@@ -12,6 +12,7 @@ import type {
   DreamStatus,
   DreamWindow,
   DreamWindowRequest,
+  IndexMemoryOptions,
   IndexMemoryResult,
   MemoryDocumentContentHash,
   MemoryDocumentReadResult,
@@ -53,7 +54,7 @@ export interface ServerMemoryRuntime {
   initializeMemoryRoot(options?: { force?: boolean }): Promise<MemoryRootInitResult>;
   memoryRootStatus(): Promise<MemoryRootStatus>;
   findMemoryRoot(): Promise<string>;
-  indexMemory(): Promise<IndexMemoryResult>;
+  indexMemory(options?: IndexMemoryOptions): Promise<IndexMemoryResult>;
   overviewMemory(options?: MemoryOverviewOptions): Promise<MemoryOverviewResult>;
   graphMemory(options?: MemoryGraphOptions): Promise<RemoteMemoryGraphPacket>;
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions): Promise<SearchMemoryResult>;
@@ -73,6 +74,7 @@ export interface ServerMemoryRuntime {
 export interface RemoteMemoryStatusPacket {
   memory: "all";
   canonical: "markdown";
+  readiness?: MemoryRootStatus["readiness"];
   initialized: boolean;
   compatible: boolean;
   configFile?: string;
@@ -81,6 +83,8 @@ export interface RemoteMemoryStatusPacket {
 }
 
 export interface RemoteMemoryIndexPacket {
+  readiness?: IndexMemoryResult["readiness"];
+  work?: IndexMemoryResult["work"];
   memory: "all";
   root: "remote:all";
   documents: number;
@@ -138,9 +142,9 @@ export function createServerMemoryRuntime(options: ServerMemoryRuntimeOptions): 
   return {
     root,
     initializeMemoryRoot: async (initOptions) => initializeMemoryRoot(root, { ...initOptions, packageVersion: options.packageVersion ? await options.packageVersion() : undefined }),
-    memoryRootStatus: () => memoryRootStatus(root),
+    memoryRootStatus: () => memoryStatus(root),
     findMemoryRoot: () => findMemoryRoot(root),
-    indexMemory: () => indexMemory(root),
+    indexMemory: (indexOptions) => indexMemory(root, indexOptions),
     overviewMemory: (overviewOptions) => overviewMemory(root, overviewOptions),
     graphMemory: (graphOptions) => graphServerMemory({ root, graph: graphOptions }),
     searchMemory: (query, limit, searchOptions) => searchMemory(root, query, limit, searchOptions),
@@ -159,7 +163,7 @@ export function createServerMemoryRuntime(options: ServerMemoryRuntimeOptions): 
 }
 
 export async function serverMemoryStatus(rootArg: string): Promise<RemoteMemoryStatusPacket> {
-  const status = await memoryRootStatus(rootArg);
+  const status = await memoryStatus(rootArg);
   const index = await readRemoteIndexState(status.root);
   return {
     memory: "all",
@@ -168,19 +172,22 @@ export async function serverMemoryStatus(rootArg: string): Promise<RemoteMemoryS
     compatible: status.compatible,
     configFile: status.configFile,
     schemaVersion: status.schemaVersion,
+    readiness: status.readiness,
     index,
   };
 }
 
-export async function indexServerMemory(options: { root: string; indexRunner?: RemoteIndexRunner; reason?: string } | string): Promise<RemoteMemoryIndexPacket> {
+export async function indexServerMemory(options: { root: string; indexRunner?: RemoteIndexRunner; reason?: string; rebuild?: boolean } | string): Promise<RemoteMemoryIndexPacket> {
   const root = typeof options === "string" ? options : options.root;
   const indexRunner = typeof options === "string" ? createRemoteIndexRunner({ root }) : options.indexRunner ?? createRemoteIndexRunner({ root });
-  const { result, index } = await indexRunner.indexNow(typeof options === "string" ? "manual" : options.reason ?? "manual");
+  const { result, index } = await indexRunner.indexNow(typeof options === "string" ? "manual" : options.reason ?? "manual", typeof options === "string" ? undefined : { rebuild: options.rebuild });
   return {
     memory: "all",
     root: "remote:all",
     documents: result.documents,
     qmdCollection: result.qmdCollection,
+    readiness: result.readiness,
+    work: result.work,
     index,
   };
 }
@@ -282,6 +289,8 @@ export async function searchServerMemory(options: {
     depth: result.depth,
     index,
     results: result.results,
+    readiness: result.readiness,
+    retrieval: result.retrieval,
   };
 }
 

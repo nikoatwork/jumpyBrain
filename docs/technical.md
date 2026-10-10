@@ -185,23 +185,27 @@ Processing is local/server-side code. In hosted/shared deployments, scheduled pr
 
 ## Indexing
 
-Markdown files are canonical. The derived manifest, QMD cache, and QMD config live under:
+Markdown and root `jumpybrain.json` are canonical. QMD **@tobilu/qmd@2.8.3** is required for local/server retrieval: CLI and SDK must come from the same package, not a copied executable. Resolution is `JUMPYBRAIN_QMD_BIN`, then package-local `node_modules/.bin/qmd`, then PATH. There is no alternate local retrieval backend.
 
-```text
-<memory-root>/.jumpybrain/
-```
+### Policy and routine updates
 
-This directory is rebuildable and safe to delete.
+`index` defaults to lexical mode. Use `index --semantic-model /absolute/local/model.gguf` to persist semantic policy under `indexing` in `jumpybrain.json`; `--lexical` explicitly switches back. Provision the embedding GGUF and native runtime beforehand: indexing/recall must not download a model. Existing policy wins over environment settings. For unconfigured legacy roots only, truthy `JUMPYBRAIN_QMD_EMBED` explicitly migrates to semantic mode and requires an absolute local `QMD_EMBED_MODEL`. Bare environment opt-in without that model is an error.
 
-jumpyBrain owns Markdown discovery, frontmatter parsing, CLI output, and provenance mapping. QMD indexes the original Markdown files directly and owns production retrieval chunking/snippets.
+The adapter ingests exactly the core-selected canonical Markdown, including a configured retrieval-only `indexRoot`. Routine SQLite transactions reconcile changes and reuse content hashes/vectors. Dream collection rows share those hashes; there are no dream file snapshots. Explicit `--rebuild` reconstructs documents/content/FTS and clears embeddings/query cache in the same transaction. Older semantic vectors without recorded model identity, or changed model bytes, require explicit rebuild rather than silent reuse.
 
-QMD is required; there is no local retrieval fallback. Runtime resolution order is:
+### Readiness and recovery
 
-1. `JUMPYBRAIN_QMD_BIN`
-2. package-local/bundled `node_modules/.bin/qmd` when present
-3. `qmd` on `PATH`
+Status/index/search expose `readiness`: independent `freshness` (`missing|fresh|stale|unknown`), available `modes`, `embedding` (`disabled|complete|incomplete|unknown`), and optional safe `lastFailure` code/time. Search adds `retrieval: { status: "complete" | "partial", warnings: [...] }`. Intentional lexical-only mode is not a semantic outage; partial backend fallback is labeled, and total backend failure throws instead of returning an empty result. Status/doctor use manifest and filesystem stats, not inference/download or a DB-integrity check. Stats cannot prove unchanged bytes against adversarial replacements.
 
-Set `JUMPYBRAIN_QMD_EMBED=1` during indexing to ask QMD to generate vector embeddings when your local QMD runtime is ready.
+Failed pre-commit updates roll back, retaining the previous committed generation. SQLite commits its own generation manifest before atomic publication of `.jumpybrain/index.json`; pending publication is recovered on the next search/index. Publication and multi-call reads use a PID lock with a five-second busy timeout, **not cross-process reader snapshots**. Run one server process per root. Canonical edits outside indexing are not a global snapshot: writes detected during a run leave readiness stale.
+
+Recovery choices:
+
+- Retry ordinary `index` after fixing a failure; use `index --rebuild` for explicit lexical/model/vector regeneration (local or remote).
+- Physically corrupt SQLite is **not** repaired by in-place `--rebuild`. Stop server/index/search operations, back up Markdown plus `jumpybrain.json`, remove the selected root's derived `.jumpybrain/`, then index again and restart. This also discards derived logs, replay receipts, and legacy support state; do not confuse it with the installation directory `~/.jumpybrain`.
+- Deleting derived state retains persisted indexing policy and canonical memory. Keep the provisioned model available; do not reset configuration with `init --force`.
+
+SQLite uses FULL synchronization, but atomic JSON replacements do not explicitly fsync files/directories. Process-interruption recovery does not establish power-loss, filesystem-failure, or disk-corruption durability. Keep canonical backups. Implementation ownership and limits: [QMD lifecycle](../src/adapters/qmd/qmd.docs.md#index-lifecycle-and-readiness).
 
 ## Advisory code-quality report
 

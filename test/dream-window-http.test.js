@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { installFakeQmd } from "./fake-qmd-helper.js";
 
 import { createRemoteMemoryTransport, RemoteMemoryError } from "../dist/adapters/http-client/index.js";
 import { routeRequest } from "../dist/adapters/http-server/routes.js";
@@ -213,7 +214,7 @@ test("remote window rejects unsupported packets and preserves non-upgrade HTTP e
 test("remote page creation/update preserves dream booleans and identity, checks hashes, and reindexes metadata", async (t) => {
   const root = await rootFixture(t);
   // Exercise real app indexing without user QMD configuration, models, or provider calls.
-  const qmd = path.join(root, "synthetic-qmd");
+  const { bin: qmd } = await installFakeQmd(root);
   await writeFile(qmd, '#!/bin/sh\ncase "$1" in\n  collection|update) exit 0 ;;\n  *) echo "unexpected QMD call: $1" >&2; exit 1 ;;\nesac\n');
   await chmod(qmd, 0o755);
   for (const [key, value] of Object.entries({ HOME: root, JUMPYBRAIN_QMD_BIN: qmd, JUMPYBRAIN_QMD_EMBED: "false" })) {

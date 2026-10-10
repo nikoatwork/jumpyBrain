@@ -8,6 +8,10 @@
 - Preserve remote response shapes expected by the CLI while adding transport details such as API keys, `If-Match`, content type, idempotency headers, and dream route paths.
 - Keep remote-target communication isolated from local runtime internals.
 
+## Index and retrieval packets
+
+`indexMemory({ rebuild?: boolean })` forwards only the optional boolean to authenticated POST `/memories/all/index`; reject indexing policy/model options locally. Policy is configured on the server filesystem, never through this transport. Preserve additive `readiness`, index `work`, and search `retrieval` fields without exposing host diagnostics. A failed backend request must remain an error, not an empty result. See [protocol](../../../docs/shared-memory-protocol.md#index-stale-state).
+
 ## Non-responsibilities
 
 - Do not parse all CLI commands or own user-facing command usage text.

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { activeFakeQmdFiles, fakeQmdState, installFakeQmd } from "./fake-qmd-helper.js";
 import { parseFrontmatter } from "../dist/core/frontmatter.js";
 import { dreamBoostFor, isDreamDocument, isSourceFocusedQuery } from "../dist/core/retrieval-policy/index.js";
 import { buildQmdIndex, searchQmdIndex } from "../dist/adapters/qmd/index.js";
@@ -66,7 +67,7 @@ async function fixture(callback) {
   const previous = process.env.JUMPYBRAIN_QMD_BIN;
   const embed = process.env.JUMPYBRAIN_QMD_EMBED;
   try {
-    const binary = path.join(root, "fake-qmd.cjs");
+    const { bin: binary } = await installFakeQmd(root);
     await writeFile(binary, `#!${process.execPath}\nconst fs = require('node:fs');
 const args = process.argv.slice(2);
 fs.appendFileSync('calls.jsonl', JSON.stringify(args) + '\\n');
@@ -77,6 +78,7 @@ if (['search', 'query'].includes(args[0])) {
   console.log(JSON.stringify(rows.slice(0, n).map(row => ({ ...row, file: 'qmd://' + collection + '/' + row.file }))));
 } else console.log('[]');\n`);
     await chmod(binary, 0o755);
+    await writeFile(path.join(root, "calls.jsonl"), "");
     process.env.JUMPYBRAIN_QMD_BIN = binary;
     process.env.JUMPYBRAIN_QMD_EMBED = "0";
     await callback(root);
@@ -97,7 +99,7 @@ async function put(root, file, marker, body = prose) {
 }
 
 async function calls(root) {
-  return (await readFile(path.join(root, "calls.jsonl"), "utf8")).trim().split("\n").map(JSON.parse);
+  return (await readFile(path.join(root, "calls.jsonl"), "utf8")).trim().split("\n").filter(Boolean).map(JSON.parse);
 }
 
 const row = (file, score, snippet = prose, line = 5) => ({ file, score, snippet, line });
@@ -111,8 +113,18 @@ test("scoped supplemental candidates survive a raw-heavy cutoff, preserve origin
   const bodyBefore = await readFile(map.absolutePath, "utf8");
   await writeFile(path.join(root, "rows.json"), JSON.stringify({ jumpybrain: raw, "jumpybrain-dreams": [row(map.relativePath, 0)] }));
   await buildQmdIndex(root, docs);
-  assert.equal(await readFile(path.join(root, ".jumpybrain/qmd-dreams/notes/map.md"), "utf8"), bodyBefore);
-  await assert.rejects(readFile(path.join(root, ".jumpybrain/qmd-dreams/pages/ordinary.md")), { code: "ENOENT" });
+  const state = await fakeQmdState(root);
+  const manifest = JSON.parse(await readFile(path.join(root, ".jumpybrain/index.json"), "utf8"));
+  assert.deepEqual(JSON.parse(state.manifest), manifest, "published manifest matches the committed generation");
+  assert.deepEqual(activeFakeQmdFiles(state), docs.map(doc => doc.relativePath).sort());
+  assert.deepEqual(activeFakeQmdFiles(state, "jumpybrain-dreams"), [map.relativePath]);
+  assert.equal(manifest.dreamCollection, "jumpybrain-dreams");
+  assert.equal(await realpath(state.collections["jumpybrain-dreams"].path), await realpath(root));
+  assert.equal(await realpath(state.collections.jumpybrain.path), await realpath(root));
+  const indexedMap = state.documents.find(doc => doc.active === 1 && doc.collection === "jumpybrain-dreams");
+  assert.equal(state.content[indexedMap.hash], bodyBefore);
+  await assert.rejects(readFile(path.join(root, ".jumpybrain/qmd-dreams/notes/map.md")), { code: "ENOENT" });
+  assert.deepEqual(await calls(root), [], "indexing uses the transactional SDK, not collection/update CLI calls");
   const found = await searchQmdIndex(root, "harbor migration", 5);
   assert.equal(found[0].provenance.file, map.relativePath);
   assert.equal(found[0].provenance.metadata.dream, true);
@@ -130,6 +142,7 @@ test("scoped supplemental candidates survive a raw-heavy cutoff, preserve origin
   await searchQmdIndex(root, "harbor migration", 1000000);
   const searches = (await calls(root)).filter((args) => ["query", "search"].includes(args[0]));
   assert.ok(searches.every((args) => Number(args[args.indexOf("-n") + 1]) <= 160));
+  assert.ok(searches.every((args) => args[0] === "search"), "lexical policy never invokes semantic query");
 }));
 
 test("unrelated supplemental maps are rejected, duplicates merge, and deep preserves same-file detail IDs", async () => fixture(async (root) => {
@@ -166,7 +179,7 @@ test("legacy index without dreams preserves ordinary pages and raw fallback with
   assert.ok((await calls(root)).every((args) => !args.includes("jumpybrain-dreams")));
 }));
 
-test("reindexing refreshes dream snapshots and legacy manifests need no supplemental collection", async () => fixture(async (root) => {
+test("reindexing refreshes exact dream membership and legacy manifests need no supplemental collection", async () => fixture(async (root) => {
   let map = await put(root, "pages/map.md", "true");
   await writeFile(path.join(root, "rows.json"), JSON.stringify({ jumpybrain: [row(map.relativePath, 0.6)], "jumpybrain-dreams": [row(map.relativePath, 0.6)] }));
   await buildQmdIndex(root, [map]);
@@ -182,7 +195,12 @@ test("reindexing refreshes dream snapshots and legacy manifests need no suppleme
   map = await put(root, "pages/map.md", "false");
   await buildQmdIndex(root, [map]);
   await assert.rejects(readFile(path.join(root, ".jumpybrain/qmd-dreams/pages/map.md")), { code: "ENOENT" });
-  assert.equal(JSON.parse(await readFile(manifestPath, "utf8")).dreamCollection, undefined);
+  const refreshed = JSON.parse(await readFile(manifestPath, "utf8"));
+  const state = await fakeQmdState(root);
+  assert.equal(refreshed.dreamCollection, undefined);
+  assert.deepEqual(JSON.parse(state.manifest), refreshed);
+  assert.deepEqual(activeFakeQmdFiles(state), [map.relativePath]);
+  assert.deepEqual(activeFakeQmdFiles(state, "jumpybrain-dreams"), []);
   const ordinary = await searchQmdIndex(root, "harbor migration", 5);
   assert.equal(ordinary[0].scoreBreakdown.dreamBoost, 0);
 }));

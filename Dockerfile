@@ -19,7 +19,9 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-RUN npm install -g @tobilu/qmd \
+COPY scripts/qmd-install-check.mjs ./scripts/qmd-install-check.mjs
+RUN npm install -g @tobilu/qmd@2.8.3 \
+    && node scripts/qmd-install-check.mjs qmd \
     && mkdir -p /data/jumpybrain/memory
 
 COPY package.json ./package.json

@@ -1,9 +1,11 @@
-import { createHash } from "node:crypto";
-import path from "node:path";
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { readFile, stat } from "node:fs/promises";
+import { parseFrontmatter } from "../../core/frontmatter.js";
+import { configuredIndexingPolicy, indexingPolicy, indexingPolicyMatches } from "../../core/memory-root/index.js";
+import { qmdReadiness, recordQmdFailure, recoverQmdPublication, updateQmdGeneration, withQmdLock } from "./qmd-lifecycle.js";
 import { withSessionAliases } from "../../core/provenance.js";
-import type { IndexManifest, IndexedDocument, MarkdownDocument, RetrievalDepth, ScoreBreakdown, SearchResult } from "../../types.js";
-import { QMD_DREAM_COLLECTION, derivedRoot, manifestPath, normalizeQmdLookupPath, rebuildQmdCliCollection } from "./qmd-cli.js";
+import type { IndexManifest, IndexMemoryOptions, IndexingPolicy, IndexedDocument, MarkdownDocument, RetrievalDepth, RetrievalOutcome, ScoreBreakdown, SearchResult } from "../../types.js";
+import { QMD_DREAM_COLLECTION, manifestPath, normalizeQmdLookupPath, resolveQmdSdk } from "./qmd-cli.js";
 import { qmdLexQueries, searchWithQmdCli } from "./qmd-query.js";
 import {
   clampScore,
@@ -34,26 +36,48 @@ const INDEX_VERSION = 1;
 
 export interface QmdManifest extends IndexManifest {
   dreamCollection?: typeof QMD_DREAM_COLLECTION;
+  generation?: string;
+  policy?: IndexingPolicy;
+  embedding?: { state: "complete" | "disabled"; modelHash?: string; pending?: number };
+  modelStat?: { size: number; mtimeMs: number; ctimeMs?: number };
+  sources?: Array<{ file: string; size: number; mtimeMs: number; ctimeMs: number }>;
 }
 
-export async function buildQmdIndex(root: string, documents: MarkdownDocument[], options: { sourceRoot?: string } = {}): Promise<IndexManifest> {
-  await mkdir(derivedRoot(root), { recursive: true });
-
-  const dreamRoot = await stageDreamDocuments(root, documents);
-  const manifest: QmdManifest = {
-    version: INDEX_VERSION,
-    root,
-    sourceRoot: options.sourceRoot && options.sourceRoot !== root ? options.sourceRoot : undefined,
-    generatedAt: new Date().toISOString(),
-    qmdCollection: "jumpybrain",
-    dreamCollection: dreamRoot ? QMD_DREAM_COLLECTION : undefined,
-    documents: documents.map(toIndexedDocument),
-  };
-
-  await writeFile(manifestPath(root), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  await rebuildQmdCliCollection(root, { embed: truthy(process.env.JUMPYBRAIN_QMD_EMBED), sourceRoot: options.sourceRoot, dreamRoot });
-
-  return manifest;
+export async function buildQmdIndex(root: string, documents: MarkdownDocument[], options: IndexMemoryOptions & { sourceRoot?: string } = {}): Promise<QmdManifest & { work?: import("./qmd-worker.js").WorkerWork }> {
+  return withQmdLock(root, async () => {
+    try {
+      const legacy = truthy(process.env.JUMPYBRAIN_QMD_EMBED)
+        ? { mode: "semantic" as const, model: process.env.QMD_EMBED_MODEL } : undefined;
+      const policy = await indexingPolicy(root, options.indexing, legacy);
+      const snapshots = [];
+      const sources = [];
+      for (const doc of documents) {
+        const before = await stat(doc.absolutePath);
+        const content = await readFile(doc.absolutePath, "utf8");
+        const after = await stat(doc.absolutePath);
+        if (before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs || before.size !== after.size) throw new Error("Canonical memory changed during snapshot; retry index.");
+        const parsed = parseFrontmatter(content);
+        snapshots.push({ ...doc, frontmatter: parsed.frontmatter, bodyStartLine: parsed.bodyStartLine, content });
+        sources.push({ file: doc.relativePath, size: after.size, mtimeMs: after.mtimeMs, ctimeMs: after.ctimeMs });
+      }
+      const model = policy.mode === "semantic" ? await stat(policy.model!) : undefined;
+      const manifest: QmdManifest = {
+        version: INDEX_VERSION, root,
+        sourceRoot: options.sourceRoot && options.sourceRoot !== root ? options.sourceRoot : undefined,
+        generatedAt: new Date().toISOString(), generation: randomUUID(),
+        qmdCollection: "jumpybrain",
+        dreamCollection: snapshots.some(isDreamDocument) ? QMD_DREAM_COLLECTION : undefined,
+        documents: snapshots.map(toIndexedDocument), sources,
+        ...(model ? { modelStat: { size: model.size, mtimeMs: model.mtimeMs, ctimeMs: model.ctimeMs } } : {}),
+      };
+      const result = await updateQmdGeneration(root, snapshots, manifest, policy, options);
+      return { ...result.manifest, work: result.work };
+    } catch (error) {
+      await recordQmdFailure(root);
+      if ((error as NodeJS.ErrnoException).code) throw new Error("Index input or provisioned model is unavailable; check local configuration and retry.");
+      throw error;
+    }
+  });
 }
 
 export async function loadManifest(root: string): Promise<QmdManifest> {
@@ -69,14 +93,26 @@ export async function loadManifest(root: string): Promise<QmdManifest> {
   }
 }
 
-export async function searchQmdIndex(root: string, query: string, limit: number, options: { depth?: RetrievalDepth } = {}): Promise<SearchResult[]> {
+export async function searchQmdIndex(root: string, query: string, limit: number, options: { depth?: RetrievalDepth; outcome?: RetrievalOutcome; inspect?: (manifest: QmdManifest) => Promise<void> } = {}): Promise<SearchResult[]> {
+  return withQmdLock(root, async () => {
+    resolveQmdSdk();
+    await recoverQmdPublication(root);
+    return searchGeneration(root, query, limit, options);
+  });
+}
+
+async function searchGeneration(root: string, query: string, limit: number, options: { depth?: RetrievalDepth; outcome?: RetrievalOutcome; inspect?: (manifest: QmdManifest) => Promise<void> }): Promise<SearchResult[]> {
   const depth = normalizeRetrievalDepth(options.depth);
   const manifest = await loadManifest(root);
-  if (!Number.isFinite(limit) || limit <= 0) return [];
+  const readiness = await qmdReadiness(root, manifest);
+  const policy = await configuredIndexingPolicy(root);
+  const compatible = indexingPolicyMatches(policy, manifest.policy, manifest.embedding?.modelHash);
+  const model = compatible && readiness.modes.includes("semantic") ? manifest.policy?.model : undefined;
+  if (!Number.isFinite(limit) || limit <= 0) { await options.inspect?.(manifest); return []; }
   const documents = documentsByQmdPath(manifest.documents);
-  const candidates = await searchWithQmdCli(root, query, Math.min(160, Math.max(limit * 8, 40)));
+  const candidates = await searchWithQmdCli(root, query, Math.min(160, Math.max(limit * 8, 40)), { model, semantic: !!model, outcome: options.outcome });
   if (depth !== "deep" && manifest.dreamCollection === QMD_DREAM_COLLECTION) {
-    const supplemental = await searchWithQmdCli(root, query, Math.min(24, Math.max(8, limit * 2)), { dreamsOnly: true });
+    const supplemental = await searchWithQmdCli(root, query, Math.min(24, Math.max(8, limit * 2)), { dreamsOnly: true, outcome: options.outcome });
     candidates.push(...supplemental.filter((candidate) => {
       const document = candidate.file && (documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file)));
       return document && isDreamDocument(document);
@@ -143,23 +179,8 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
     || a.id.localeCompare(b.id));
   // Explicit evidence requests retain chunk-level limits and all original fields.
   const diversityDepth = isSourceFocusedQuery(query) ? "deep" : depth;
+  await options.inspect?.(manifest);
   return diversifyResults(groupResultsByFile(ranked, diversityDepth), diversityDepth).slice(0, limit);
-}
-
-/** Copies are derived snapshots; all result provenance still addresses originals. */
-async function stageDreamDocuments(root: string, documents: MarkdownDocument[]): Promise<string | undefined> {
-  const staging = path.join(derivedRoot(root), "qmd-dreams");
-  await rm(staging, { recursive: true, force: true });
-  const dreams = documents.filter(isDreamDocument);
-  if (!dreams.length) return undefined;
-  for (const document of dreams) {
-    const destination = path.resolve(staging, document.relativePath);
-    const relative = path.relative(path.resolve(staging), destination);
-    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Invalid dream document path");
-    await mkdir(path.dirname(destination), { recursive: true });
-    await copyFile(document.absolutePath, destination);
-  }
-  return staging;
 }
 
 function toIndexedDocument(document: MarkdownDocument): IndexedDocument {

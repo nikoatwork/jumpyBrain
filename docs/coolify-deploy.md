@@ -28,6 +28,8 @@ Port / Exposed port: 3001
 Auto Deploy: enabled for master
 ```
 
+The Dockerfile pins `@tobilu/qmd@2.8.3` and checks its CLI plus SDK together. Lexical indexing is the default; for semantic retrieval, mount a provisioned GGUF at a stable absolute container path and configure `index --semantic-model` on the server-local root. Policy persists in `jumpybrain.json`, not container environment toggles. See [policy and recovery](technical.md#indexing).
+
 ## Environment variables
 
 Set these in Coolify as application environment variables. Store secrets only in Coolify's private environment/secret UI, not in the repository.
@@ -93,12 +95,12 @@ export JUMPYBRAIN_API_KEY=<same-secret-as-JUMPYBRAIN_SERVER_API_KEYS>
 
 jumpybrain status --target-url https://memory.example.com
 printf 'Coolify remote smoke body\n' | jumpybrain remember --target-url https://memory.example.com --type finding --title 'Coolify remote smoke'
-# Optional immediate rebuild; the server also auto-indexes stale memory every 5 minutes.
+# Optional immediate incremental update; the server also auto-indexes stale memory every 5 minutes.
 jumpybrain index --target-url https://memory.example.com
 jumpybrain recall --target-url https://memory.example.com --topic 'Coolify remote smoke' --limit 5
 ```
 
-Remote writes are append-only and mark the index stale. The server auto-indexes stale memory every 5 minutes by default, so no Coolify scheduled job or external cron is required. Keep `jumpybrain index --target-url ...` for immediate maintenance or diagnostics.
+Remote creates and document updates mark the index stale. The server auto-indexes stale memory every 5 minutes by default, so no Coolify scheduled job or external cron is required. Keep `jumpybrain index --target-url ...` for immediate maintenance or diagnostics.
 
 Server logs are stored inside the mounted memory root at `.jumpybrain/logs/server-YYYY-MM-DD.log`. With the recommended host mount, inspect them over SSH at:
 

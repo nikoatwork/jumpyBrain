@@ -49,10 +49,38 @@ export interface SearchResult {
   scoreBreakdown?: ScoreBreakdown;
 }
 
+export interface IndexingPolicy {
+  mode: "lexical" | "semantic";
+  /** Provisioned local GGUF; never a download URI. */
+  model?: string;
+  /** Optional SHA-256 pin for explicitly provisioned model bytes. */
+  modelHash?: string;
+}
+
+export interface IndexMemoryOptions {
+  rebuild?: boolean;
+  indexing?: IndexingPolicy;
+}
+
+/** Safe, content-free diagnostics shared by local and hosted callers. */
+export interface RetrievalReadiness {
+  freshness: "fresh" | "stale" | "missing" | "unknown";
+  modes: Array<"lexical" | "semantic">;
+  embedding: "disabled" | "complete" | "incomplete" | "unknown";
+  lastFailure?: { code: string; at: string };
+}
+
+export interface RetrievalOutcome {
+  status: "complete" | "partial";
+  warnings: string[];
+}
+
 export interface IndexMemoryResult {
   root: string;
   documents: number;
   qmdCollection: string;
+  readiness?: RetrievalReadiness;
+  work?: { added: number; updated: number; unchanged: number; removed: number; embedded: number };
 }
 
 export interface SearchMemoryResult {
@@ -60,6 +88,8 @@ export interface SearchMemoryResult {
   query: string;
   depth?: RetrievalDepth;
   results: SearchResult[];
+  readiness?: RetrievalReadiness;
+  retrieval?: RetrievalOutcome;
 }
 
 export interface SearchMemoryOptions {
@@ -530,6 +560,7 @@ export interface MemoryRootConfig {
   derivedDir: ".jumpybrain";
   memoryDirs: string[];
   indexRoot?: string;
+  indexing?: IndexingPolicy;
   createdAt: string;
   createdBy: {
     package: string;
@@ -547,6 +578,7 @@ export interface MemoryRootInitResult {
 }
 
 export interface MemoryRootStatus {
+  readiness?: RetrievalReadiness;
   root: string;
   initialized: boolean;
   compatible: boolean;
