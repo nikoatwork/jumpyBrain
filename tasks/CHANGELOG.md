@@ -1,8 +1,12 @@
 # Task Changelog
 
+## 2026-10-11 — Self-maintaining recall completed
+
+- Creation retains saved identity through index/replay failures; empty keyword fallback stays within existing budgets; strict read-only lexical retrieval performs no derived-state writes. Completed/archive: [self-maintaining recall](done/2026-10-11_tasks-self-maintaining-recall.md), with 812 passing tests, provisioned QMD validation and explicit evaluation/platform limits.
+
 ## 2026-10-11 — Automatic index freshness
 
-- Local recall/search now repairs derived indexes without rewriting root policy; hosted maintenance checks canonical changes through the shared bounded runner. [Verification and remaining work](todo/tasks-self-maintaining-recall.md#automatic-index-increment--2026-10-11).
+- Local recall/search now repairs derived indexes without rewriting root policy; hosted maintenance checks canonical changes through the shared bounded runner. [Verification and limits](done/2026-10-11_tasks-self-maintaining-recall.md#automatic-index-increment--2026-10-11).
 
 ## 2026-10-11 — Responsive bounded retrieval
 

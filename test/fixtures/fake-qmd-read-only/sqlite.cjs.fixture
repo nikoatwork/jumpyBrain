@@ -1,0 +1,17 @@
+const { readFileSync } = require("node:fs");
+const { fileURLToPath } = require("node:url");
+module.exports = class Database {
+  constructor(file, options) {
+    const url = new URL(file);
+    if (process.env.SQLITE_USE_URI !== "1" || url.search !== "?mode=ro&immutable=1"
+      || !options.readonly || !options.fileMustExist) throw Error("unsafe open");
+    this.readonly = true;
+    this.state = JSON.parse(readFileSync(fileURLToPath(url), "utf8"));
+  }
+  prepare(sql) {
+    return { get: () => sql.includes("sqlite_master") ? this.state.manifest && { name: "jb_generation" }
+      : this.state.manifest && { manifest: JSON.stringify(this.state.manifest) } };
+  }
+  exec() { throw Error("unexpected write"); }
+  close() {}
+};

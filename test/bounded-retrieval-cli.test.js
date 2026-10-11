@@ -79,6 +79,7 @@ test("bounded CLI local/remote/recipe output is exactly one budgeted JSON packet
 
 test("bounded flags fail clearly before credentials and never silently discard budgets or ranges", async () => {
   for (const args of [
+    ["recall", "--read-only=false"], ["recall", "--read-only", "false"], ["recall", "--read-only", "--read-only"],
     ["recall", "--compact", "false"], ["recall", "--compact", "--max-bytes"],
     ["recall", "--compact", "--max-bytes", "1023"], ["recall", "--compact", "--max-bytes", "NaN"],
     ["recall", "--compact", "--max-bytes", "1024", "--max-bytes", "2048"],

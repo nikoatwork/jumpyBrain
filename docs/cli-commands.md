@@ -112,6 +112,12 @@ Retrieval depth changes what kind of memory is favored:
 - `--depth normal` balances current memory with evidence. Both normal and shallow prefer relevant `dream: true` maps, with a bounded supplemental lexical candidate collection; reindex to refresh it.
 - `--depth deep` allows more raw session evidence to surface without the dream boost. Explicit source/historical queries also omit that boost. Unrelated dream pages must not dominate; roots without dream pages retain ordinary retrieval.
 
+### Strict read-only retrieval
+
+Add valueless `--read-only` to local/hosted recall/search, compact output or recipes (`readOnly:true` in runtime). Unlike `--no-refresh`, it performs **no derived-state writes**, including temporary locks/schema/cache. It uses the same pinned QMD engine's lexical functions on immutable read-only SQLite, not models. It requires an existing closed published generation and refuses locks (even abandoned ones), pending publication, nonempty WAL, corrupt/mismatched or concurrently changed indexes. Ask authorized maintenance to recover/checkpoint/rebuild outside strict mode; no fallback silently writes. It reports partial `read_only_index` and, on semantic-capable indexes, `read_only_lexical_fallback`. It is not a filesystem snapshot. Remote clients first inspect observational status capability; older servers require upgrade before retrieval is attempted.
+
+Keyword fallback is likewise explicit: only successful strict discovery with no eligible candidates can use up to two meaningful lexical singleton queries in **spare** slots of the existing eight-call budget. Quotes, exclusions, paths/identifiers and Boolean constraints suppress relaxation, vector discovery and token-only temporal backfill; skipped semantic work reports `query_constraints_lexical_only`. `keyword_query_relaxed` marks partial-topic evidence, not a complete answer; unrelated partial matches/noise can still occur. Strict successful retrieval remains unchanged.
+
 ### Explicit temporal retrieval
 
 Search, recall, and their `run memory:*` recipes accept these optional flags on local or remote targets, with either rich or compact output:
@@ -161,6 +167,8 @@ Lines are inclusive, 1-based, and include frontmatter. Omitted start/end bounds 
 Stale hash/source means refresh recall and reassess evidence, not bypass the precondition. Missing/duplicate IDs never authorize stamping or repair during reads. Unavailable expansion can require a narrower query or an explicitly authorized source refresh; unsupported servers fail with upgrade guidance, **without full-document fallback**. A minimum envelope or first whole line that cannot fit is an error; increase the budget within its bounds or choose another range. `show` remains the explicit whole-document read for editing or broader context, with no range flags.
 
 ## Writing and editing memory
+
+Creation JSON preserves existing fields and adds `saved:true`, canonical `id`/`file`, compatibility `indexed`, and `indexing.status: indexed | pending | failed`. Local remember uses nonpersisting freshness after publication and verifies the saved identity is covered; memories excluded by configured `indexRoot` remain pending with explicit scope guidance. Wrapup/hosted writes defer indexing. Saved/index-failed creation exits **0** with explicit partial-success diagnostics; repair indexing for the same root/target, never recreate the memory. Validation/publication errors still fail. Hosted late replay-storage failure also retains identity (`creation_replay_failed`) but warns that reusing the creation key may not be safe. Lost responses/crashes remain uncertain and are never automatically retried.
 
 | Command | Human explanation |
 | --- | --- |

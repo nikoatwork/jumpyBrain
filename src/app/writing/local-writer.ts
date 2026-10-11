@@ -1,9 +1,12 @@
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
-import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, renderMarkdownDocument, slug, validateWrapupBody, VALID_MEMORY_TYPES, wrapupValidationMessage, type WrapupValidation } from "../../core/writing/index.js";
-import type { MemoryNoteDraft, MemoryNoteType, MemoryWriteResult } from "../../types.js";
+import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, renderMarkdownDocument, slug, validateWrapupBody, VALID_MEMORY_TYPES, wrapupValidationMessage } from "../../core/writing/index.js";
+import type { MemoryNoteDraft, MemoryNoteType, MemoryWriteResult, WrapupWriteResult } from "../../types.js";
+import { pendingCreationIndex } from "./creation-outcome.js";
 import { writeUniqueMarkdownFile } from "./filesystem.js";
+
+export type { WrapupWriteResult } from "../../types.js";
 
 const VALID_TYPES = new Set<MemoryNoteType>(VALID_MEMORY_TYPES);
 
@@ -12,13 +15,6 @@ export interface WrapupDraft {
   body: string;
   tags?: string[];
   recallTopic?: string;
-}
-
-export interface WrapupWriteResult extends MemoryWriteResult {
-  title: string;
-  recallTopic?: string;
-  body: string;
-  validation: WrapupValidation;
 }
 
 export async function rememberMemory(rootArg: string, options: MemoryNoteDraft): Promise<MemoryWriteResult> {
@@ -45,7 +41,7 @@ export async function rememberMemory(rootArg: string, options: MemoryNoteDraft):
   ], [`# ${title}`, "", body].join("\n"));
 
   const writtenAbsolute = await writeUniqueMarkdownFile(dir, `${now.slice(0, 10)}-${slug(title, "untitled")}`, markdown);
-  return { id, file: normalizeRelative(root, writtenAbsolute) };
+  return { id, file: normalizeRelative(root, writtenAbsolute), ...pendingCreationIndex() };
 }
 
 export async function writeSessionWrapup(rootArg: string, draft: WrapupDraft): Promise<WrapupWriteResult> {
@@ -79,6 +75,7 @@ export async function writeSessionWrapup(rootArg: string, draft: WrapupDraft): P
 
   return {
     id,
+    ...pendingCreationIndex(),
     file: normalizeRelative(root, writtenAbsolute),
     title,
     recallTopic: draft.recallTopic,

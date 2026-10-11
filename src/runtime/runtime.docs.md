@@ -16,6 +16,8 @@
 
 Local search/compact recall default to automatic incremental repair; `refresh: false` opts out of repair/publication recovery, not PID-lock coordination writes. Export `ensureMemoryIndexed(root, ExecutionOptions)` for explicit app-owned automatic maintenance without policy persistence or rebuild. See the local-memory contract for missing/stale/failure outcomes.
 
+Rich/compact `readOnly: true` offers strict no-derived-write lexical retrieval and implies no refresh. Unsafe publication/WAL/lock/generation states fail closed; semantic omission remains explicit. Writers return `saved:true`, `id`/`file` and a separate pending/indexed/failed indexing outcome; export post-save `ensureSavedMemoryIndexed` to verify that saved identity is actually covered (unrelated/excluding `indexRoot` stays pending); callers must repair indexing, never retry saved creation.
+
 Index/search/compact recall accept `ExecutionOptions` (`signal?: AbortSignal`, `timeoutMs?: number`), exported for local hosts; these are lifecycle controls, not retrieval-depth/effort policy. See [execution limits](../adapters/qmd/qmd.docs.md#bounded-execution).
 
 ## Bounded evidence surface

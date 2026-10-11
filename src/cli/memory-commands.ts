@@ -1,6 +1,7 @@
 import path from "node:path";
+import { pendingCreationIndex } from "../runtime/index.js";
 import { temporalOptions } from "./temporal.js";
-import type { IndexMemoryOptions, RetrievalReadiness, SearchMemoryResult } from "../types.js";
+import type { IndexMemoryOptions, MemoryWriteResult, RetrievalReadiness, SearchMemoryResult } from "../types.js";
 import { numberArg, stringArg, stringListArg, type ParsedCliArgs } from "./args.js";
 import { showMemoryDocumentFromArgs, updateMemoryDocumentFromArgs } from "./document-edit.js";
 import { formatHumanResults } from "./formatting.js";
@@ -101,12 +102,12 @@ export async function runMemoryCommand(
     const limit = numberArg(args, "limit", command === "recall" ? 5 : 10);
     const depth = stringArg(args, "depth", "normal");
     if (compact) {
-      await printCompactRecall(target, localMemory, query, limit, { ...compact, ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
+      await printCompactRecall(target, localMemory, query, limit, { ...compact, ...(args["read-only"] ? { readOnly: true } : {}), ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
       return;
     }
     const result = target.kind === "remote"
-      ? await target.memory.searchMemory(query, limit, { depth, mode: command, ...(temporal ? { temporal } : {}) })
-      : await localMemory.searchMemory(target.root, query, limit, { depth, ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
+      ? await target.memory.searchMemory(query, limit, { depth, mode: command, ...(args["read-only"] ? { readOnly: true } : {}), ...(temporal ? { temporal } : {}) })
+      : await localMemory.searchMemory(target.root, query, limit, { depth, ...(args["read-only"] ? { readOnly: true } : {}), ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
     if (args.json) console.log(JSON.stringify({ ...result, mode: command }, null, 2));
     else {
       if (command === "recall") console.log(`Prior memory scan for: ${query}\n`);
@@ -134,7 +135,10 @@ export async function runMemoryCommand(
   if (command === "remember") {
     const result = await rememberFromStdin(target, localMemory, args);
     if (args.json) console.log(JSON.stringify(result, null, 2));
-    else console.log(`Remembered memory: ${result.file}`);
+    else {
+      console.log(`Remembered memory: ${result.file}`);
+      printCreationIndexing(result);
+    }
     return;
   }
 
@@ -144,9 +148,10 @@ export async function runMemoryCommand(
     const limit = numberArg(args, "limit", 5);
     const body = readStdin();
     const relatedMemory = topic ? await recallRelatedMemory(target, localMemory, topic, limit) : { skipped: true as const, reason: "--topic not provided" };
-    const result = target.kind === "remote"
+    const written = target.kind === "remote"
       ? await target.memory.writeSessionWrapup({ title, body, tags: stringListArg(args, "tag"), recallTopic: topic || undefined })
       : await localMemory.writeSessionWrapup(target.root, { title, body, tags: stringListArg(args, "tag"), recallTopic: topic || undefined });
+    const result = { ...pendingCreationIndex(), ...written };
     if (args.json) console.log(JSON.stringify({ ...result, relatedMemory }, null, 2));
     else {
       if (topic && !relatedMemory.skipped) {
@@ -157,6 +162,7 @@ export async function runMemoryCommand(
         console.log("Related memory preflight skipped: --topic not provided.\n");
       }
       console.log(`Wrote session wrapup: ${result.file}\n`);
+      printCreationIndexing(result);
       console.log(typeof result.body === "string" ? result.body : body.trimEnd());
     }
   }
@@ -217,4 +223,14 @@ function printRetrievalWarnings(result: SearchMemoryResult): void {
   if (result.readiness?.embedding === "incomplete" || result.readiness?.embedding === "unknown") warnings.add("Semantic readiness is incomplete or unknown; retrieval may be degraded.");
   if (result.retrieval?.status === "partial" && !warnings.size) warnings.add("Retrieval is partial; results may be incomplete.");
   for (const warning of warnings) console.log(`Warning: ${warning}`);
+}
+
+function printCreationIndexing(result: MemoryWriteResult): void {
+  console.log(`Saved document ID: ${result.id}`);
+  if (result.indexing.status === "indexed") return;
+  console.log(`${result.indexing.status === "failed" ? "Partial success" : "Index pending"}: Markdown saved; indexing ${result.indexing.status}.`);
+  if (result.indexing.diagnostic) {
+    console.log(result.indexing.diagnostic.message);
+    console.log(result.indexing.diagnostic.recovery);
+  }
 }

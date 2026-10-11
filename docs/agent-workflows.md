@@ -59,7 +59,7 @@ Run a visible prior-knowledge scan before deep work:
 jumpybrain recall --root <memory-root> --topic "QMD memory architecture" --limit 5 --compact
 ```
 
-Keep recall visible and cite the returned evidence; do not silently inject memory. Ordinary local recall/search automatically repairs missing/stale derived indexes within its deadline, preserving Markdown and root policy. Use `--no-refresh` to disable repair/recovery (temporary PID-lock coordination still writes). Hosted reads remain nonrepairing and report partial/stale evidence until server maintenance or authorized indexing succeeds; protected clients never send a hidden index mutation.
+Keep recall visible and cite the returned evidence; do not silently inject memory. Ordinary local recall/search automatically repairs missing/stale derived indexes within its deadline, preserving Markdown and root policy. Use `--no-refresh` to disable repair/recovery (temporary PID-lock coordination still writes), or `--read-only` for strict zero-derived-write lexical retrieval of an existing closed published generation. Hosted reads remain nonrepairing and report partial/stale evidence until server maintenance or authorized indexing succeeds; protected clients never send a hidden index mutation.
 
 ## Specific-question recall
 

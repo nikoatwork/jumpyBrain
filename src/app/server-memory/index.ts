@@ -2,6 +2,7 @@ import { findMemoryRoot, initializeMemoryRoot } from "../../core/memory-root/ind
 import { memoryStatus, graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
 import { processMemory } from "../processing/index.js";
 import { rememberMemory, writeSessionWrapup, type WrapupDraft, type WrapupWriteResult } from "../writing/index.js";
+import { failedCreationIndex, failedCreationReplay } from "../writing/creation-outcome.js";
 import { writeRemoteMemoryNote, writeRemoteSessionWrapup, type RemoteWrapupDraft } from "../writing/remote-writer.js";
 import type {
   ExecutionOptions,
@@ -35,7 +36,7 @@ import type {
 import { createRemoteIndexRunner, type RemoteIndexRunner } from "./auto-index.js";
 import { prepareServerNote, type ServerMemoryNoteDraft } from "./daily-note.js";
 import { withIdempotency, type IdempotencyResult } from "./idempotency.js";
-import { markRemoteIndexStale, readRemoteIndexState, type RemoteIndexState } from "./state.js";
+import { defaultRemoteIndexState, markRemoteIndexStale, readRemoteIndexState, type RemoteIndexState } from "./state.js";
 import { compactSearchServerMemory } from "./compact.js";
 import { expandServerMemoryDocument } from "./expansion.js";
 import type { CompactRecallOptions, CompactRecallPacket } from "../../core/retrieval-policy/compact.js";
@@ -84,6 +85,7 @@ export interface ServerMemoryRuntime {
 export interface RemoteMemoryStatusPacket {
   memory: "all";
   canonical: "markdown";
+  readOnlyRetrieval: "lexical-immutable-v1";
   readiness?: MemoryRootStatus["readiness"];
   initialized: boolean;
   compatible: boolean;
@@ -122,7 +124,7 @@ export interface RemoteMemorySearchPacket extends Omit<SearchMemoryResult, "root
   index: RemoteIndexState;
 }
 
-export type RemoteMemoryWritePacket = Record<string, unknown> & {
+export type RemoteMemoryWritePacket = MemoryWriteResult & Record<string, unknown> & {
   memory: "all";
   target: "remote";
   index: RemoteIndexState;
@@ -180,6 +182,7 @@ export async function serverMemoryStatus(rootArg: string): Promise<RemoteMemoryS
   return {
     memory: "all",
     canonical: "markdown",
+    readOnlyRetrieval: "lexical-immutable-v1",
     initialized: status.initialized,
     compatible: status.compatible,
     configFile: status.configFile,
@@ -289,8 +292,9 @@ export async function searchServerMemory(options: ExecutionOptions & {
   depth?: RetrievalDepth | string;
   recall?: boolean;
   temporal?: SearchMemoryOptions["temporal"];
+  readOnly?: boolean;
 }): Promise<RemoteMemorySearchPacket> {
-  const searchOptions: SearchMemoryOptions = { refresh: false, depth: options.depth, temporal: options.temporal, signal: options.signal, timeoutMs: options.timeoutMs };
+  const searchOptions: SearchMemoryOptions = { refresh: false, readOnly: options.readOnly, depth: options.depth, temporal: options.temporal, signal: options.signal, timeoutMs: options.timeoutMs };
   const result = await searchMemory(options.root, options.query, options.limit, searchOptions);
   const index = await readRemoteIndexState(result.root);
   return {
@@ -324,11 +328,19 @@ export async function writeServerMemoryWithIdempotency(options: {
     method: options.method,
     path: options.path,
     body: options.body,
+    onRecordFailure: saved => ({ ...saved, ...failedCreationReplay() }),
     create: async () => {
       const writeResult = options.write.kind === "note"
         ? await writeRemoteMemoryNote(options.root, await prepareServerNote(options.root, options.write.draft, options.write.dailyDate))
         : await writeRemoteSessionWrapup(options.root, options.write.draft);
-      const index = await markRemoteIndexStale(options.root);
+      // Canonical publication above must still throw on failure. This catch is
+      // strictly derived-index bookkeeping; replay storage has its own saved-result guard.
+      let index: RemoteIndexState;
+      try {
+        index = await markRemoteIndexStale(options.root);
+      } catch (error) {
+        return { memory: "all", target: "remote", ...writeResult, ...failedCreationIndex(error, true), index: defaultRemoteIndexState() };
+      }
       return { memory: "all", target: "remote", ...writeResult, index };
     },
   });

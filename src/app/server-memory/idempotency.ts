@@ -25,6 +25,8 @@ export async function withIdempotency<T>(options: {
   path: string;
   body: Record<string, unknown>;
   create: () => Promise<T>;
+  /** Creation completed; preserve its identity if only derived replay storage fails. */
+  onRecordFailure?: (saved: T) => T;
 }): Promise<IdempotencyResult<T>> {
   const key = options.key?.trim();
   if (!key) return { kind: "missing-key" };
@@ -51,8 +53,13 @@ export async function withIdempotency<T>(options: {
     createdAt: new Date().toISOString(),
   };
 
-  await mkdir(path.dirname(recordFile), { recursive: true });
-  await writeFile(recordFile, `${JSON.stringify(record, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  try {
+    await mkdir(path.dirname(recordFile), { recursive: true });
+    await writeFile(recordFile, `${JSON.stringify(record, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+  } catch (error) {
+    if (!options.onRecordFailure) throw error;
+    return { kind: "created", result: options.onRecordFailure(result) };
+  }
   return { kind: "created", result };
 }
 

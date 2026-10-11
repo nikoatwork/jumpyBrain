@@ -45,9 +45,13 @@ Request disconnects (unfinished response close/body abort) propagate `AbortSigna
 
 Execution overload/busy => **503 `execution_overloaded`**, deadline => **504 `execution_timeout`**, cancellation while connected => **499 `execution_aborted`**. Backend/output failures retain static 500 errors or existing labeled partial fallback where an independent branch succeeded. Disconnected sockets get no attempted packet. Query bodies, raw exceptions/stderr, credentials and server paths are excluded from execution diagnostics.
 
+## Strict read-only retrieval
+
+Rich search/recall and compact recall accept optional boolean `readOnly`. Status advertises `readOnlyRetrieval: "lexical-immutable-v1"`; delegate strict reads to app without write queues/indexing/coordination writes. Responses acknowledge `read_only_index` and semantic omission when applicable. Map busy/changed read-only gates to safe 503, other readonly prerequisites to safe 409; no backend paths or request data in errors. Clients must not downgrade to ordinary reads if unsupported.
+
 ## Bounded retrieval protocol
 
-Authenticated POST `/memories/all/recall/compact` accepts `{ query, limit?, depth?, maxBytes?, diagnostics? }`; POST `/memories/all/expand` accepts `{ id, expectedContentHash, startLine?, endLine?, sectionLine?, maxBytes? }`. These are additive read operations, not aliases for legacy rich recall or editor GET. Unknown fields are rejected; no caller-supplied roots are accepted. Both bypass the write queue and return the app's version-1 packet **without an envelope**, serialized as `JSON.stringify(packet) + "\n"` (never the legacy pretty printer), with `Cache-Control: no-store`. Budget is 1024–65536 UTF-8 bytes including LF, default 8192.
+Authenticated POST `/memories/all/recall/compact` accepts `{ query, limit?, depth?, maxBytes?, diagnostics?, temporal?, readOnly? }`; POST `/memories/all/expand` accepts `{ id, expectedContentHash, startLine?, endLine?, sectionLine?, maxBytes? }`. These are additive read operations, not aliases for legacy rich recall or editor GET. Unknown fields are rejected; no caller-supplied roots are accepted. Both bypass the write queue and return the app's version-1 packet **without an envelope**, serialized as `JSON.stringify(packet) + "\n"` (never the legacy pretty printer), with `Cache-Control: no-store`. Budget is 1024–65536 UTF-8 bytes including LF, default 8192.
 
 Expansion maps missing ID to 404, duplicate ID to 409, missing hash to 428, stale hash to 412, invalid hash/range/budget to 400, and an unfit whole source line/minimum envelope or invalid UTF-8 to 422. Errors use static safe messages, never backend exception text or path-bearing details. Unsupported methods return authenticated 405. Compact recall delegates the local app via `app/server-memory/compact.ts`; expansion delegates `app/server-memory/expansion.ts`.
 

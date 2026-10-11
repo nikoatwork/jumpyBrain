@@ -2,7 +2,8 @@ import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, renderMarkdownDocument, slug, validateWrapupBody, type WrapupValidation } from "../../core/writing/index.js";
-import type { MemoryNoteType } from "../../types.js";
+import type { MemoryNoteType, MemoryWriteResult } from "../../types.js";
+import { pendingCreationIndex } from "./creation-outcome.js";
 import { writeUniqueMarkdownFile } from "./filesystem.js";
 
 export type RemoteMemoryNoteType = "note" | "finding" | "decision" | "preference" | "page";
@@ -22,9 +23,7 @@ export interface RemoteWrapupDraft {
   recallTopic?: string;
 }
 
-export interface RemoteMemoryWriteResult {
-  id: string;
-  file: string;
+export interface RemoteMemoryWriteResult extends MemoryWriteResult {
   type: MemoryNoteType;
   title: string;
 }
@@ -62,7 +61,7 @@ export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemory
 
   const dir = path.join(root, directoryForType(type));
   const writtenAbsolute = await writeUniqueMarkdownFile(dir, remoteBaseName(now, title, id), markdown);
-  return { id, file: normalizeRelative(root, writtenAbsolute), type, title };
+  return { id, file: normalizeRelative(root, writtenAbsolute), type, title, ...pendingCreationIndex() };
 }
 
 export async function writeRemoteSessionWrapup(rootArg: string, draft: RemoteWrapupDraft): Promise<RemoteWrapupWriteResult> {
@@ -94,6 +93,7 @@ export async function writeRemoteSessionWrapup(rootArg: string, draft: RemoteWra
   const writtenAbsolute = await writeUniqueMarkdownFile(path.join(root, "sessions"), remoteBaseName(now, title, id), markdown);
   return {
     id,
+    ...pendingCreationIndex(),
     file: normalizeRelative(root, writtenAbsolute),
     type: "session",
     title,

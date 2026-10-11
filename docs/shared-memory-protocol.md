@@ -119,6 +119,14 @@ Index/search/recall/compact recall share bounded async backend admission: one ac
 
 Deadlines are server-local configuration, not request JSON fields: search/compact 60 seconds, index 600 seconds by default; query commands additionally 30 seconds. Body/header receipt has a separate 30-second Node timeout. See [technical execution contract](technical.md#bounded-retrieval-execution) for capture caps, shutdown/process-group portability and non-preemptible input-work limits.
 
+## Creation outcomes and strict observational reads
+
+Append-only notes/wrapups preserve old fields and add `saved:true`, canonical `id`/`file`, `indexed:false`, and `indexing.status: pending | failed` (hosted indexing is deferred). Post-save derived-index bookkeeping or replay-record persistence failure returns the saved identity with safe diagnostics and HTTP success, never a misleading creation failure. `creation_replay_failed` warns that repeating creation/reusing its key may not be safe. Canonical errors and pre-save replay lookup errors still fail; this does not make Markdown and replay storage a transaction or resolve abrupt crash/lost-response uncertainty.
+
+Rich search/recall and compact recall accept optional boolean `readOnly`. Authenticated status advertises `readOnlyRetrieval: "lexical-immutable-v1"`; supported clients preflight it before querying, within their existing deadline. Strict retrieval never acquires/reaps locks, initializes schema/cache, recovers publication or runs models. It uses pinned QMD lexical APIs with immutable read-only SQLite and refuses any nonempty WAL, lock, pending marker, missing/mismatched/corrupt or changed generation. This is change detection, not a snapshot. Successful warnings include `read_only_index` and semantic omission when applicable; no ordinary fallback. Safe `read_only_busy`/`read_only_changed` errors use 503, other prerequisite errors 409.
+
+Unconstrained successful empty discovery may use at most two meaningful singleton lexical queries in spare slots of the existing eight-call budget; partial `keyword_query_relaxed` reports topic relaxation, never full-answer completeness. Strict matches/constraints/depth/root/temporal policy remain intact; token-only temporal backfill is suppressed for constrained queries.
+
 ## Index stale state
 
 Remote writes do not synchronously update the index. After each successful remote write, mark the index stale in `.jumpybrain/remote/index-state.json`:
@@ -465,7 +473,7 @@ Request fields (unknown fields, including caller-supplied roots, are rejected):
 { "query": "release planning", "limit": 5, "depth": "normal", "maxBytes": 8192, "diagnostics": false }
 ```
 
-`query` is required (not `topic`); optional `limit` is a positive integer, `depth` is `shallow|normal|deep`, `diagnostics` is boolean, and optional `temporal` follows the contract above. The CLI maps recall topics to `query`; its defaults remain 5 recall results and 10 search results.
+`query` is required (not `topic`); optional `limit` is a positive integer, `depth` is `shallow|normal|deep`, `diagnostics` is boolean, optional boolean `readOnly` follows the strict observational contract, and optional `temporal` follows the contract above. The CLI maps recall topics to `query`; its defaults remain 5 recall results and 10 search results.
 
 Both bounded endpoints return their version-1 packet directly, **without a remote wrapper**, using `JSON.stringify(packet) + "\n"` and `Cache-Control: no-store`. `maxBytes` is an integer **1024–65536**, default **8192**, capping actual serialized UTF-8 bytes, not tokens. The entire successful envelope, JSON escaping, diagnostics, and trailing LF count; HTTP headers and error packets do not. Compact CLI stdout uses the same framing even without `--json`, with no banners.
 
@@ -553,6 +561,9 @@ Response:
   "file": "findings/2026-06-30-remote-writes-are-append-only-550e8400.md",
   "type": "finding",
   "title": "Remote writes are append-only",
+  "saved": true,
+  "indexed": false,
+  "indexing": { "status": "pending" },
   "index": { "stale": true }
 }
 ```

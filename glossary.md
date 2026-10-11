@@ -1,5 +1,9 @@
 # Glossary
 
+## Saved memory outcome
+
+`Saved` means canonical Markdown publication completed and its document ID/path remain usable. `Indexed`, `pending`, and `failed` describe separate derived-index/bookkeeping outcomes; a failed index is not a failed creation. Repair indexing rather than recreating a saved memory. Abrupt crash/lost-response uncertainty is not resolved by this result vocabulary.
+
 ## Dream page
 
 A topical synthesis marked with the YAML boolean `dream: true`, normally under `pages/`. It connects and condenses source evidence, can evolve across dreaming runs, and receives a relevance-aware preference in normal/shallow retrieval. The marker is neither a truth guarantee nor a write permission; `[[dream]]` alone does not classify a document.

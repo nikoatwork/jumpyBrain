@@ -4,6 +4,7 @@ import { metadataDate } from "../canonical/metadata-date.js";
 
 export interface CompactRecallOptions extends ExecutionOptions {
   refresh?: boolean;
+  readOnly?: boolean;
   depth?: RetrievalDepth | string;
   temporal?: TemporalQuery;
   maxBytes?: number;

@@ -1,4 +1,4 @@
-/** Isolated, version-pinned QMD writer. stdin -> one final JSON response on stdout. */
+/** Isolated, version-pinned QMD worker. stdin -> one final JSON response on stdout. */
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
@@ -6,6 +6,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { MarkdownDocument } from "../../types.js";
+import { assertSameReadOnlyQmdGeneration, observeReadOnlyQmdGeneration, ReadOnlyQmdError } from "./qmd-read-only.js";
+import { databasePath, QMD_COLLECTION, QMD_DREAM_COLLECTION } from "./qmd-cli.js";
 
 export interface WorkerPolicy {
   mode: "lexical" | "semantic";
@@ -29,7 +31,17 @@ export interface WorkerManifestRequest {
   sdkPath: string;
   dbPath: string;
 }
-export type WorkerRequest = WorkerIndexRequest | WorkerManifestRequest;
+export interface WorkerReadOnlyRequest {
+  action: "read-only-query" | "read-only-generation";
+  sdkPath: string;
+  root: string;
+  dbPath: string;
+  generation: string;
+  query?: string;
+  limit?: number;
+  collection?: string;
+}
+export type WorkerRequest = WorkerIndexRequest | WorkerManifestRequest | WorkerReadOnlyRequest;
 
 export interface WorkerWork {
   added: number;
@@ -133,6 +145,58 @@ async function recoverManifest(request: WorkerManifestRequest): Promise<{ manife
   const db = new Database(request.dbPath, { readonly: true, fileMustExist: true, timeout: BUSY_TIMEOUT_MS });
   try { return { manifest: committedManifest(db) }; }
   finally { db.close(); }
+}
+
+/** Open an immutable, physical read-only URI, never QMD createStore/openDatabase.
+ * A committed WAL is NOT part of immutable SQLite's view; reject it first.
+ */
+async function readOnlyQuery(request: WorkerReadOnlyRequest): Promise<{ generation: string; rows?: Row[] }> {
+  stage = "read-only";
+  requireCondition(typeof request.root === "string" && path.isAbsolute(request.root));
+  requireCondition(request.dbPath === databasePath(request.root));
+  if (typeof request.generation !== "string" || !request.generation.trim()) throw new ReadOnlyQmdError("read_only_missing");
+  const before = await observeReadOnlyQmdGeneration(request.root);
+  if (before.generation !== request.generation) throw new ReadOnlyQmdError("read_only_generation");
+  // libsqlite reads this setting when the native module loads, not per connection.
+  process.env.SQLITE_USE_URI = "1";
+  const Database = createRequire(request.sdkPath)("better-sqlite3") as new (
+    file: string, options: { readonly: boolean; fileMustExist: boolean; timeout: number },
+  ) => Database;
+  const uri = pathToFileURL(request.dbPath);
+  uri.search = "?mode=ro&immutable=1";
+  const db = new Database(uri.href, { readonly: true, fileMustExist: true, timeout: BUSY_TIMEOUT_MS });
+  try {
+    const manifest = committedManifest(db);
+    if (!manifest?.generation) throw new ReadOnlyQmdError("read_only_missing");
+    if (manifest.generation !== request.generation) throw new ReadOnlyQmdError("read_only_generation");
+    if (request.action === "read-only-generation") return { generation: request.generation };
+    requireCondition(typeof request.query === "string" && Number.isSafeInteger(request.limit) && request.limit! >= 1 && request.limit! <= 160);
+    requireCondition(request.collection === QMD_COLLECTION || request.collection === QMD_DREAM_COLLECTION);
+    // Import only the pinned pure retrieval functions. No CLI/schema/config/cache
+    // setup, vector extension, model construction or inference is invoked.
+    const api = await import(pathToFileURL(path.join(path.dirname(request.sdkPath), "store.js")).href) as {
+      searchFTS(db: Database, query: string, limit: number, collection: string): Array<{
+        filepath: string; hash: string; docid?: string; score: number; title: string; body?: string; context?: string;
+      }>;
+      extractSnippet(body: string, query: string, maxLen: number): { line: number; snippet: string };
+    };
+    const rows = api.searchFTS(db, request.query!, Math.max(50, request.limit! * 2), request.collection!)
+      .filter(row => row.score >= 0).slice(0, request.limit).map(row => {
+        const snippet = api.extractSnippet(row.body || "", request.query!, 300);
+        const docid = row.docid || row.hash?.slice(0, 6);
+        return {
+          ...(docid ? { docid: `#${docid}` } : {}),
+          score: Math.round(row.score * 100) / 100,
+          file: row.filepath, line: snippet.line, title: row.title,
+          ...(row.context ? { context: row.context } : {}),
+          ...(snippet.snippet ? { snippet: snippet.snippet } : {}),
+        };
+      });
+    return { generation: request.generation, rows };
+  } finally {
+    db.close();
+    assertSameReadOnlyQmdGeneration(before, await observeReadOnlyQmdGeneration(request.root));
+  }
 }
 
 function validateDocuments(request: WorkerIndexRequest): void {
@@ -359,17 +423,26 @@ async function main(): Promise<void> {
   console.log = () => {};
   console.warn = () => {};
   console.error = () => {};
+  let readOnly = false;
   try {
     const chunks: Buffer[] = [];
     for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
     const request = JSON.parse(Buffer.concat(chunks).toString("utf8")) as WorkerRequest;
     requireCondition(request && typeof request === "object");
+    readOnly = request.action === "read-only-query" || request.action === "read-only-generation";
     requireCondition(typeof request.dbPath === "string" && path.isAbsolute(request.dbPath));
-    requireCondition(request.action === undefined || request.action === "index" || request.action === "manifest");
+    requireCondition(request.action === undefined || request.action === "index" || request.action === "manifest" || readOnly);
     await validateSdk(request.sdkPath);
-    const result = request.action === "manifest" ? await recoverManifest(request) : await index(request);
+    const result = request.action === "read-only-query" || request.action === "read-only-generation"
+      ? await readOnlyQuery(request) : request.action === "manifest" ? await recoverManifest(request) : await index(request as WorkerIndexRequest);
     process.stdout.write(`${JSON.stringify(result)}\n`);
-  } catch {
+  } catch (error) {
+    if (readOnly) {
+      const safe = error instanceof ReadOnlyQmdError ? error : new ReadOnlyQmdError(stage === "sdk-version" ? "read_only_sdk" : "read_only_invalid");
+      process.stdout.write(`${JSON.stringify({ error: { code: safe.code, message: safe.message } })}\n`);
+      process.exitCode = 1;
+      return;
+    }
     process.stdout.write(`${JSON.stringify({ error: { code: "qmd_worker_failed", stage,
       message: `QMD indexing worker failed during ${stage}.` } })}\n`);
     process.exitCode = 1;

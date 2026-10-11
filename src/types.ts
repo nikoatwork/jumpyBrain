@@ -105,6 +105,8 @@ export interface SearchMemoryResult {
 export interface SearchMemoryOptions extends ExecutionOptions {
   /** Default true locally: repair derived state within the search deadline. False never repairs. */
   refresh?: boolean;
+  /** Strict no-derived-writes, lexical-only published-generation read; implies no refresh. */
+  readOnly?: boolean;
   depth?: RetrievalDepth | string;
   temporal?: TemporalQuery;
 }
@@ -309,9 +311,26 @@ export interface MemoryNoteDraft {
   tags?: string[];
 }
 
+/** Canonical publication succeeded; derived indexing is a separate outcome. */
 export interface MemoryWriteResult {
   id: string;
+  /** Root-relative canonical Markdown path. */
   file: string;
+  saved: true;
+  /** Compatibility flag: true only after synchronous indexing succeeds. */
+  indexed: boolean;
+  indexing: {
+    status: "indexed" | "pending" | "failed";
+    /** Safe, content-free diagnostics; never backend stderr or model/root paths. */
+    diagnostic?: { code: string; message: string; recovery: string };
+  };
+}
+
+export interface WrapupWriteResult extends MemoryWriteResult {
+  title: string;
+  recallTopic?: string;
+  body: string;
+  validation: { valid: boolean; missingSections: string[]; emptySections: string[] };
 }
 
 export type ProcessMode = "lint" | "synthesize" | "ensure-ids";

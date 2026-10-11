@@ -193,5 +193,8 @@ export function boundedErrorMessage(code: string, status: number): string {
     execution_aborted: "Memory operation canceled.",
     execution_overloaded: "Memory execution queue is full; retry shortly.",
   };
+  if (["read_only_busy", "read_only_pending", "read_only_wal", "read_only_missing", "read_only_generation", "read_only_changed", "read_only_invalid", "read_only_sdk"].includes(code)) {
+    return "Strict read-only retrieval is unavailable. Wait for writers or ask authorized server maintenance to recover/checkpoint/rebuild derived state; no read-side repair was attempted.";
+  }
   return Object.hasOwn(messages, code) ? messages[code]! : `Remote bounded memory request failed with HTTP ${status}.`;
 }

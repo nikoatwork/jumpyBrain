@@ -30,7 +30,7 @@ export class MemoryDocumentPreconditionError extends Error implements MemoryDocu
   }
 }
 
-export { MemoryExecutionError } from "../../adapters/qmd/index.js";
+export { ReadOnlyQmdError, MemoryExecutionError } from "../../adapters/qmd/index.js";
 export { compactSearchMemory, serializeCompactRecall, type CompactRecallOptions, type CompactRecallPacket, type CompactRecallPassage } from "./compact.js";
 export { expandMemoryDocument } from "./expansion.js";
 export { graphMemory } from "./graph.js";
@@ -76,6 +76,7 @@ export async function indexMemory(rootArg: string, options: IndexMemoryOptions =
 }
 
 export async function searchMemory(rootArg: string, query: string, limit: number, options: SearchMemoryOptions = {}): Promise<SearchMemoryResult> {
+  if (options.readOnly !== undefined && typeof options.readOnly !== "boolean") throw new Error("readOnly must be boolean.");
   return withQmdOperation(rootArg, "search", options, async () => {
   const interval = resolveTemporalQuery(options.temporal);
   const temporal: TemporalRetrieval | undefined = interval ? { interval, coverage: {
@@ -84,13 +85,17 @@ export async function searchMemory(rootArg: string, query: string, limit: number
   } } : undefined;
   const root = await readExecution(resolveMemoryRoot(rootArg));
   await readExecution(assertCompatibleMemoryRoot(root));
-  if (options.refresh !== false) await ensureMemoryIndexed(root);
+  if (options.refresh !== false && !options.readOnly) await ensureMemoryIndexed(root);
   const depth = normalizeRetrievalDepth(options.depth);
   const retrieval: RetrievalOutcome = { status: "complete", warnings: [] };
   let readiness!: RetrievalReadiness;
-  const results = await searchQmdIndex(root, query, limit, { depth, outcome: retrieval, temporal, recover: options.refresh !== false,
+  const results = await searchQmdIndex(root, query, limit, { depth, outcome: retrieval, temporal, readOnly: options.readOnly, recover: options.refresh !== false,
     inspect: async manifest => { readiness = await retrievalReadiness(root, manifest); },
   });
+  if (options.readOnly) {
+    retrieval.warnings.push("read_only_index");
+    if (readiness.modes.includes("semantic")) retrieval.warnings.push("read_only_lexical_fallback");
+  }
   if (readiness.freshness !== "fresh") retrieval.warnings.push("index_not_fresh");
   if (readiness.embedding === "incomplete" || readiness.embedding === "unknown") retrieval.warnings.push("semantic_coverage_incomplete");
   if (retrieval.warnings.length) retrieval.status = "partial";

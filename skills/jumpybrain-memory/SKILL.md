@@ -65,7 +65,7 @@ printf '%s\n' "<durable finding, decision, or preference>" \
   | __JUMPYBRAIN_CLI__ remember --root "__JUMPYBRAIN_MEMORY_ROOT__" --type finding --title "<short title>"
 ```
 
-Good memory types: `finding`, `decision`, `preference`, `note`.
+Good memory types: `finding`, `decision`, `preference`, `note`. A `saved:true` result with pending/failed indexing still identifies a published memory: keep its ID/path and repair indexing, never repeat creation. Abrupt crashes/lost responses remain uncertain; do not automatically retry a write.
 
 ## Optional dreaming
 
@@ -99,5 +99,5 @@ Show the written file path and ask if the user wants edits.
 - Keep recall explicit and visible; do not silently inject memory.
 - Preserve uncertainty from recalled memory.
 - Markdown memory files are canonical; derived indexes can be rebuilt.
-- Local recall/search automatically repairs missing/stale derived indexes after manual edits, without changing Markdown or root policy. Use `--no-refresh` to disable repair/recovery, not temporary lock writes. Hosted reads remain nonrepairing; server maintenance checks freshness, or an explicitly authorized operator can index immediately.
+- Local recall/search automatically repairs missing/stale derived indexes after manual edits, without changing Markdown or root policy. Use `--no-refresh` to disable repair/recovery, not temporary lock writes; `--read-only` forbids derived writes with lexical-only retrieval of a safe closed published generation. Hosted reads remain nonrepairing; server maintenance checks freshness, or an explicitly authorized operator can index immediately.
 - Treat global/team memory writes as explicit-command only; do not infer or auto-commit global memory from normal wrapup habits.

@@ -15,6 +15,7 @@ export { serializeCompactRecall } from "../../core/retrieval-policy/compact.js";
 
 /** Opt-in bounded recall; legacy search ranking, excerpt selection, and full-document reads are unchanged. */
 export async function compactSearchMemory(root: string, query: string, limit: number, options: CompactRecallOptions = {}): Promise<CompactRecallPacket> {
+  if (options.readOnly !== undefined && typeof options.readOnly !== "boolean") throw new Error("readOnly must be boolean.");
   return withQmdOperation(root, "search", options, async () => {
   const interval = resolveTemporalQuery(options.temporal);
   const maxBytes = validatePacketMaxBytes(options.maxBytes);
@@ -22,7 +23,7 @@ export async function compactSearchMemory(root: string, query: string, limit: nu
     || (options.diagnostics !== undefined && typeof options.diagnostics !== "boolean")) {
     throw new Error("Compact recall requires query, a positive integer limit, and boolean diagnostics.");
   }
-  const search = await searchMemory(root, query, limit, { depth: options.depth, temporal: options.temporal, refresh: options.refresh });
+  const search = await searchMemory(root, query, limit, { depth: options.depth, temporal: options.temporal, refresh: options.refresh, readOnly: options.readOnly });
   if (interval && !search.temporal) throw new Error("Temporal search did not return its resolved scope; refresh the runtime before retrying.");
   const sourceRoot = await resolveIndexRoot(search.root);
   type Source = { document: MemoryDocumentReadResult } | { reason: ExpansionUnavailableReason };

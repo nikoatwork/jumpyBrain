@@ -29,6 +29,10 @@ V1 packet/nested schemas reject unknown fields, including server-root/envelope f
 
 Bounded-read error bodies have a separate fixed **8192-byte** stream cap, with cancellation on overflow and strict UTF-8/JSON parsing. Preserve HTTP status and short token-shaped error codes, but never echo remote messages/details. Known expansion errors receive static actionable guidance; malformed/oversized errors use static HTTP errors. Unsupported-status upgrade guidance still applies, except a well-formed expansion `missing_id` 404. These error limits do not redefine legacy rich endpoint behavior.
 
+## Strict read-only retrieval
+
+Rich/compact request `readOnly:true` first GETs observational status and requires `readOnlyRetrieval: "lexical-immutable-v1"` before any query request, within the same transport deadline/signal. Older servers fail with upgrade guidance without sending an ignored flag to write-capable legacy reads. Responses must acknowledge `read_only_index` in retrieval warnings; otherwise fail with no ordinary/full-document fallback. Static read-only failure guidance asks authorized maintenance to recover/checkpoint/rebuild, never a hidden client mutation. This mode is lexical-only; semantic omission is explicit.
+
 ## Execution lifecycle
 
 Local transport `signal`/`timeoutMs` options on index/search/compact recall control fetch **and response-body consumption**, never serialized server knobs. Defaults are 70 seconds for reads and 610 seconds for index (headroom over default backend deadlines); longer server deadlines require a matching client runtime option. Timeout/abort produce static `RemoteMemoryError` codes `execution_timeout`/`execution_aborted` and remove timers/listeners. Server overload/deadline codes remain errors, not empty memory. Other legacy requests also have the finite 70-second transport default.

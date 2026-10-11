@@ -3,13 +3,14 @@ import { withQmdOperation, readExecution, executionSignal, checkExecution, Memor
 import { readFile, stat } from "node:fs/promises";
 import { parseFrontmatter } from "../../core/frontmatter.js";
 import { automaticIndexingPolicy, indexingPolicy, indexingPolicyMatches } from "../../core/memory-root/index.js";
+import { withReadOnlyQmdGeneration } from "./qmd-read-only.js";
 import { assertQmdPublished, qmdReadiness, recordQmdFailure, recoverQmdPublication, updateQmdGeneration, withQmdLock } from "./qmd-lifecycle.js";
 import { withSessionAliases } from "../../core/provenance.js";
 import { evidenceDate, evidenceInInterval } from "../../core/retrieval-policy/temporal.js";
 import type { ExecutionOptions, TemporalRetrieval, TemporalResolution } from "../../types.js";
 import type { IndexManifest, IndexMemoryOptions, IndexingPolicy, IndexedDocument, MarkdownDocument, RetrievalDepth, RetrievalOutcome, ScoreBreakdown, SearchResult } from "../../types.js";
 import { QMD_DREAM_COLLECTION, manifestPath, normalizeQmdLookupPath, resolveQmdSdk } from "./qmd-cli.js";
-import { qmdLexQueries, searchWithQmdCli, tokenize, type QmdCandidate } from "./qmd-query.js";
+import { hasQueryConstraints, hasQueryExclusions, qmdLexQueries, searchWithQmdCli, tokenize, type QmdCandidate } from "./qmd-query.js";
 import {
   clampScore,
   dateStats,
@@ -108,10 +109,13 @@ interface SearchOptions extends ExecutionOptions {
   inspect?: (manifest: QmdManifest) => Promise<void>;
   /** Disable commit-publication recovery for deliberate nonrepairing reads. */
   recover?: boolean;
+  readOnly?: boolean;
 }
 const TEMPORAL_BACKFILL_BUDGET = 64;
 
 export async function searchQmdIndex(root: string, query: string, limit: number, options: SearchOptions = {}): Promise<SearchResult[]> {
+  if (options.readOnly) return withQmdOperation(root, "search", options, () =>
+    withReadOnlyQmdGeneration(root, () => searchGeneration(root, query, limit, options)));
   return withQmdOperation(root, "search", options, () => withQmdLock(root, async () => {
     resolveQmdSdk();
     if (options.recover !== false) await recoverQmdPublication(root);
@@ -139,10 +143,13 @@ async function searchGeneration(root: string, query: string, limit: number, opti
   const lookup = (candidate: QmdCandidate) => candidate.file ? documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file)) : undefined;
   // Backend cutoffs still exist; the independent manifest backfill below is what
   // lets in-range evidence outside the ordinary top-k participate in selection.
-  const candidates = (await searchWithQmdCli(root, query, Math.min(160, Math.max(limit * 8, 40)), { model, semantic: !!model, outcome: options.outcome }))
-    .filter(candidate => !interval || lookup(candidate));
+  const candidates = (await searchWithQmdCli(root, query, Math.min(160, Math.max(limit * 8, 40)), {
+    readOnly: options.readOnly, model, semantic: !!model && !options.readOnly, outcome: options.outcome,
+    eligible: candidate => !!lookup(candidate),
+    allowRelaxation: eligible.length > 0 && !eligible.some(document => isExactTitleMatch(query, document)),
+  }));
   if (depth !== "deep" && manifest.dreamCollection === QMD_DREAM_COLLECTION) {
-    const supplemental = await searchWithQmdCli(root, query, Math.min(24, Math.max(8, limit * 2)), { dreamsOnly: true, outcome: options.outcome });
+    const supplemental = await searchWithQmdCli(root, query, Math.min(24, Math.max(8, limit * 2)), { readOnly: options.readOnly, dreamsOnly: true, outcome: options.outcome });
     candidates.push(...supplemental.filter((candidate) => {
       const document = candidate.file && (documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file)));
       return document && isDreamDocument(document);
@@ -155,13 +162,15 @@ async function searchGeneration(root: string, query: string, limit: number, opti
     return document ? [document.relativePath] : [];
   }));
   const titleDocuments = eligible
-    .filter((document) => !candidateFiles.has(document.relativePath) && isExactTitleMatch(query, document))
+    .filter((document) => !hasQueryExclusions(query) && !candidateFiles.has(document.relativePath) && isExactTitleMatch(query, document))
     .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
     .slice(0, 24);
   candidates.push(...titleDocuments.map((document) => ({ file: document.relativePath, score: 0 })));
   if (options.temporal) {
     for (const doc of titleDocuments) candidateFiles.add(doc.relativePath);
-    const backfill = eligible.filter(doc => !candidateFiles.has(doc.relativePath))
+    // Token-only body/title backfill cannot enforce phrases, exclusions or
+    // exact identifiers. Never reintroduce a constrained backend rejection.
+    const backfill = (hasQueryConstraints(query) ? [] : eligible).filter(doc => !candidateFiles.has(doc.relativePath))
       .sort((a, b) => titleMatchBoostFor(query, b) - titleMatchBoostFor(query, a) || comparePath(a.relativePath, b.relativePath))
       .slice(0, TEMPORAL_BACKFILL_BUDGET);
     candidates.push(...backfill.map(doc => ({ file: doc.relativePath, score: 0, temporalBackfill: true })));

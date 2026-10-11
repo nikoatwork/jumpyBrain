@@ -32,6 +32,7 @@ export type {
   SearchMemoryResult,
   SearchResult,
 } from "../types.js";
+export { ensureSavedMemoryIndexed } from "../app/creation.js";
 export { processMemory } from "../app/processing/index.js";
 export { compactSearchMemory, serializeCompactRecall, type CompactRecallOptions, type CompactRecallPacket, type CompactRecallPassage, expandMemoryDocument, memoryStatus as memoryRootStatus, ensureMemoryDocumentIds, ensureMemoryIndexed, graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../app/local-memory/index.js";
 export { getDreamWindow, abandonDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, completeDreamBatch } from "../app/dream/index.js";

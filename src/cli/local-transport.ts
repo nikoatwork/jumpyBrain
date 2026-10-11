@@ -40,6 +40,7 @@ export interface LocalMemoryTransport {
   memoryRootStatus(rootArg: string): Promise<MemoryRootStatus>;
   findMemoryRoot(startArg?: string): Promise<string>;
   indexMemory(rootArg: string, options?: IndexMemoryOptions): Promise<IndexMemoryResult>;
+  ensureSavedMemoryIndexed(rootArg: string, saved: MemoryWriteResult, options?: IndexMemoryOptions): Promise<MemoryWriteResult>;
   overviewMemory(rootArg: string, options?: MemoryOverviewOptions): Promise<MemoryOverviewResult>;
   searchMemory(rootArg: string, query: string, limit: number, options?: SearchMemoryOptions): Promise<SearchMemoryResult>;
   compactSearchMemory(rootArg: string, query: string, limit: number, options?: CompactRecallOptions): Promise<CompactRecallPacket>;
@@ -74,6 +75,7 @@ export function createLocalMemoryTransport(): LocalMemoryTransport {
     memoryRootStatus: runtime.memoryRootStatus,
     findMemoryRoot: runtime.findMemoryRoot,
     indexMemory: (root, options = {}) => cancelOnCliSignal(options.signal, signal => runtime.indexMemory(root, { ...options, signal })),
+    ensureSavedMemoryIndexed: (root, saved, options = {}) => cancelOnCliSignal(options.signal, signal => runtime.ensureSavedMemoryIndexed(root, saved, { ...options, signal })),
     overviewMemory: runtime.overviewMemory,
     searchMemory: (root, query, limit, options = {}) => cancelOnCliSignal(options.signal, signal => runtime.searchMemory(root, query, limit, { ...options, signal })),
     compactSearchMemory: (root, query, limit, options = {}) => cancelOnCliSignal(options.signal, signal => runtime.compactSearchMemory(root, query, limit, { ...options, signal })),

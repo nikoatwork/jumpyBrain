@@ -105,7 +105,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       const expansion = url.pathname === HTTP_MEMORY_ROUTES.expand;
       const allowed = expansion
         ? ["id", "expectedContentHash", "startLine", "endLine", "sectionLine", "maxBytes"]
-        : ["query", "limit", "depth", "maxBytes", "diagnostics", "temporal"];
+        : ["query", "limit", "depth", "maxBytes", "diagnostics", "temporal", "readOnly"];
       if (Object.keys(body).some(key => !allowed.includes(key))) {
         writeJson(response, 400, errorResponse("bad_request", "Unknown bounded memory request field."));
         return;
@@ -118,13 +118,14 @@ export async function routeRequest(context: { request: IncomingMessage; response
         if (typeof body.query !== "string" || !body.query.trim()
           || (body.limit !== undefined && (typeof body.limit !== "number" || !Number.isSafeInteger(body.limit) || body.limit < 1))
           || (body.depth !== undefined && (typeof body.depth !== "string" || !["shallow", "normal", "deep"].includes(body.depth)))
+          || (body.readOnly !== undefined && typeof body.readOnly !== "boolean")
           || (body.diagnostics !== undefined && typeof body.diagnostics !== "boolean")) {
           writeJson(response, 400, errorResponse("bad_request", "Compact recall requires query, a positive integer limit, valid depth, and boolean diagnostics."));
           return;
         }
         resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
         packet = await compactSearchServerMemory({ root, query: body.query, limit: body.limit as number | undefined ?? 5,
-          recall: { signal, timeoutMs: searchTimeoutMs, depth: body.depth as string | undefined, maxBytes, diagnostics: body.diagnostics as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined } });
+          recall: { signal, timeoutMs: searchTimeoutMs, depth: body.depth as string | undefined, maxBytes, diagnostics: body.diagnostics as boolean | undefined, readOnly: body.readOnly as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined } });
       }
       // Unlike legacy writeJson, this must not pretty-print or add an envelope.
       const wire = serializeBudgetedPacket(packet);
@@ -133,7 +134,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       response.setHeader("content-type", "application/json; charset=utf-8");
       response.end(wire);
     } catch (error) {
-      const mapped = executionErrorResponse(error) ?? boundedReadErrorResponse(error);
+      const mapped = executionErrorResponse(error) ?? readOnlyErrorResponse(error) ?? boundedReadErrorResponse(error);
       writeJson(response, mapped.statusCode, mapped.body);
     }
     return;
@@ -474,6 +475,10 @@ export async function routeRequest(context: { request: IncomingMessage; response
     const query = stringField(body, recall ? "topic" : "query") || stringField(body, "query");
     const limit = positiveIntegerField(body, "limit", recall ? 5 : 10);
     const depth = stringField(body, "depth") || "normal";
+    if (body.readOnly !== undefined && typeof body.readOnly !== "boolean") {
+      writeJson(response, 400, errorResponse("bad_request", "readOnly must be boolean."));
+      return;
+    }
     if (!query) {
       writeJson(response, 400, errorResponse("bad_request", recall ? "Recall requires topic or query." : "Search requires query."));
       return;
@@ -485,14 +490,15 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
     try {
       resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
-      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall, temporal: body.temporal as TemporalQuery | undefined, signal, timeoutMs: searchTimeoutMs }));
+      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall, readOnly: body.readOnly as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined, signal, timeoutMs: searchTimeoutMs }));
     } catch (error) {
       if ((error as { code?: string }).code === "invalid_temporal") {
         writeJson(response, 400, errorResponse("invalid_temporal", "Invalid temporal query. Use real ISO dates, timezone-explicit timestamps, and an explicit referenceDate for relative bounds."));
         return;
       }
       const mapped = executionErrorResponse(error);
-      writeJson(response, mapped?.statusCode ?? 500, mapped?.body ?? errorResponse("search_failed", recall ? "Remote recall failed." : "Remote search failed."));
+      const readOnlyError = readOnlyErrorResponse(error);
+      writeJson(response, mapped?.statusCode ?? readOnlyError?.statusCode ?? 500, mapped?.body ?? readOnlyError?.body ?? errorResponse("search_failed", recall ? "Remote recall failed." : "Remote search failed."));
     }
     return;
   }
@@ -869,6 +875,14 @@ function isErrorBody(body: unknown): body is JsonError {
 
 export function errorResponse(code: string, message: string, details?: Record<string, unknown>): JsonError {
   return { error: { code, message, ...(details ? { details } : {}) } };
+}
+
+function readOnlyErrorResponse(error: unknown): { statusCode: number; body: JsonError } | undefined {
+  const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
+  const codes = ["read_only_busy", "read_only_pending", "read_only_wal", "read_only_missing", "read_only_generation", "read_only_changed", "read_only_invalid", "read_only_sdk", "read_only_arguments"];
+  if (typeof code !== "string" || !codes.includes(code)) return undefined;
+  return { statusCode: ["read_only_busy", "read_only_changed"].includes(code) ? 503 : 409,
+    body: errorResponse(code, "Strict read-only retrieval is unavailable for this index. Wait for writers or ask authorized server maintenance to recover/checkpoint/rebuild derived state; no read-side repair was attempted.") };
 }
 
 /** Static messages only: canonical/backend exceptions may contain paths or request data. */

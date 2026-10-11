@@ -122,7 +122,10 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
 
   async function boundedRequest(path: string, body: Record<string, unknown>, kind: "recall" | "expansion", execution: ExecutionOptions = {}): Promise<unknown> {
     return execute(execution, false, async signal => {
-    if (kind === "recall") resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
+    if (kind === "recall") {
+      resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
+      if (body.readOnly === true) await assertReadOnlySupport(signal);
+    }
     const maxBytes = validatePacketMaxBytes(body.maxBytes as number | undefined);
     const unsupported = () => new RemoteMemoryError(502, "unsupported_bounded_read",
       `Remote server returned an unsupported ${kind} response. Upgrade the server; no full-document fallback was attempted.`);
@@ -143,8 +146,17 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     let packet: unknown;
     try { packet = JSON.parse(text); } catch { throw unsupported(); }
     if (!validBoundedPacket(packet, kind, maxBytes, body) || !packetFits(packet, maxBytes)) throw unsupported();
+    if (kind === "recall" && body.readOnly === true && !(packet as CompactRecallPacket).retrieval.warnings.includes("read_only_index")) throw unsupported();
     return packet;
     });
+  }
+
+  async function assertReadOnlySupport(signal: AbortSignal): Promise<void> {
+    // Status is observational even on older servers. Do not send an ignored
+    // strict flag to a legacy read endpoint that can create locks/cache/schema.
+    const status = await request(HTTP_MEMORY_ROUTES.status, {}, { signal });
+    if (status.readOnlyRetrieval !== "lexical-immutable-v1") throw new RemoteMemoryError(502, "unsupported_read_only",
+      "Remote server does not advertise strict read-only retrieval. Upgrade the server; no retrieval or mutation was attempted.");
   }
 
   return {
@@ -162,20 +174,28 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       const query = params.toString();
       return request(`${HTTP_MEMORY_ROUTES.overview}${query ? `?${query}` : ""}`) as Promise<MemoryOverviewResult & Record<string, unknown>>;
     },
-    searchMemory: async (query, limit, searchOptions = {}) => {
+    searchMemory: async (query, limit, searchOptions = {}) => execute(searchOptions, false, async signal => {
+      if (searchOptions.readOnly !== undefined && typeof searchOptions.readOnly !== "boolean") throw new Error("readOnly must be boolean.");
       resolveTemporalQuery(searchOptions.temporal);
+      if (searchOptions.readOnly === true) await assertReadOnlySupport(signal);
       const mode = searchOptions.mode ?? "search";
-      const body = { ...(searchOptions.temporal ? { temporal: searchOptions.temporal } : {}), ...(mode === "recall"
+      const body = { ...(searchOptions.readOnly === true ? { readOnly: true } : {}), ...(searchOptions.temporal ? { temporal: searchOptions.temporal } : {}), ...(mode === "recall"
         ? { topic: query, limit, depth: searchOptions.depth ?? "normal" }
         : { query, limit, depth: searchOptions.depth ?? "normal" }) };
-      const packet = await request(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) }, searchOptions);
+      const packet = await request(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) }, { signal });
       if (searchOptions.temporal && !validTemporalResponse(packet.temporal, searchOptions.temporal)) {
         throw new RemoteMemoryError(502, "unsupported_temporal", "Remote server did not honor the temporal scope. Upgrade the server; no unfiltered fallback was attempted.");
       }
+      if (searchOptions.readOnly === true && !(packet.retrieval as SearchMemoryResult["retrieval"])?.warnings.includes("read_only_index")) {
+        throw new RemoteMemoryError(502, "unsupported_read_only", "Remote server did not honor strict read-only retrieval. Upgrade the server; no fallback was attempted.");
+      }
       return packet as unknown as SearchMemoryResult & Record<string, unknown>;
+    }),
+    compactSearchMemory: async (query, limit, recallOptions = {}) => {
+      if (recallOptions.readOnly !== undefined && typeof recallOptions.readOnly !== "boolean") throw new Error("readOnly must be boolean.");
+      return boundedRequest(HTTP_MEMORY_ROUTES.compactRecall,
+        { query, limit, depth: recallOptions.depth, maxBytes: recallOptions.maxBytes, diagnostics: recallOptions.diagnostics, temporal: recallOptions.temporal, ...(recallOptions.readOnly === true ? { readOnly: true } : {}) }, "recall", recallOptions) as Promise<CompactRecallPacket>;
     },
-    compactSearchMemory: (query, limit, recallOptions = {}) => boundedRequest(HTTP_MEMORY_ROUTES.compactRecall,
-      { query, limit, depth: recallOptions.depth, maxBytes: recallOptions.maxBytes, diagnostics: recallOptions.diagnostics, temporal: recallOptions.temporal }, "recall", recallOptions) as Promise<CompactRecallPacket>,
     expandMemoryDocument: (expansionOptions) => boundedRequest(HTTP_MEMORY_ROUTES.expand, { ...expansionOptions }, "expansion") as Promise<ExpansionResult>,
     readMemoryDocument: (id) => request(memoryDocumentPath(id)) as Promise<MemoryDocumentReadResult & Record<string, unknown>>,
     updateMemoryDocument: (id, content, updateOptions) => request(memoryDocumentPath(id), {
