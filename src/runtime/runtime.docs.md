@@ -14,6 +14,8 @@
 
 `indexMemory(root, options?: IndexMemoryOptions)` accepts `rebuild?: boolean` and `indexing?: IndexingPolicy`. Exports include `IndexMemoryOptions`, `RetrievalReadiness`, and `RetrievalOutcome`; the options embed the indexing-policy shape. Routine indexing is incremental; policy persists in `jumpybrain.json`. `memoryRootStatus` composes app readiness, not only core schema compatibility. Status/index/search retain prior fields with additive readiness; search distinguishes partial fallback from total backend failure. No HTTP transport or QMD implementation becomes part of this local boundary. See [local-memory](../app/local-memory/local-memory.docs.md#indexsearch-contract).
 
+Local search/compact recall default to automatic incremental repair; `refresh: false` opts out of repair/publication recovery, not PID-lock coordination writes. Export `ensureMemoryIndexed(root, ExecutionOptions)` for explicit app-owned automatic maintenance without policy persistence or rebuild. See the local-memory contract for missing/stale/failure outcomes.
+
 Index/search/compact recall accept `ExecutionOptions` (`signal?: AbortSignal`, `timeoutMs?: number`), exported for local hosts; these are lifecycle controls, not retrieval-depth/effort policy. See [execution limits](../adapters/qmd/qmd.docs.md#bounded-execution).
 
 ## Bounded evidence surface

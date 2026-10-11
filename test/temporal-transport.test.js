@@ -145,7 +145,7 @@ test("temporal local/HTTP/CLI parity, safe invalid_temporal errors, and changed-
     assert.equal(bounded.stdout, serializeCompactRecall(await compactSearchMemory(root, "calibration", 5, { temporal })));
   }
   await writeFile(file, content.replace("date: 2025-01-02", "date: 2024-01-02"));
-  const refreshed = await compactSearchMemory(root, "calibration", 5, { temporal });
+  const refreshed = await compactSearchMemory(root, "calibration", 5, { temporal, refresh: false });
   assert.equal(refreshed.passages.length, 0);
   assert.ok(refreshed.retrieval.warnings.includes("source_changed"));
   assert.equal(refreshed.retrieval.status, "partial");

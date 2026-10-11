@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { withQmdOperation, readExecution, executionSignal, checkExecution, MemoryExecutionError } from "./qmd-execution.js";
 import { readFile, stat } from "node:fs/promises";
 import { parseFrontmatter } from "../../core/frontmatter.js";
-import { configuredIndexingPolicy, indexingPolicy, indexingPolicyMatches } from "../../core/memory-root/index.js";
-import { qmdReadiness, recordQmdFailure, recoverQmdPublication, updateQmdGeneration, withQmdLock } from "./qmd-lifecycle.js";
+import { automaticIndexingPolicy, indexingPolicy, indexingPolicyMatches } from "../../core/memory-root/index.js";
+import { assertQmdPublished, qmdReadiness, recordQmdFailure, recoverQmdPublication, updateQmdGeneration, withQmdLock } from "./qmd-lifecycle.js";
 import { withSessionAliases } from "../../core/provenance.js";
 import { evidenceDate, evidenceInInterval } from "../../core/retrieval-policy/temporal.js";
 import type { ExecutionOptions, TemporalRetrieval, TemporalResolution } from "../../types.js";
@@ -48,25 +48,27 @@ export interface QmdManifest extends IndexManifest {
   sources?: Array<{ file: string; size: number; mtimeMs: number; ctimeMs: number }>;
 }
 
-export async function buildQmdIndex(root: string, documents: MarkdownDocument[], options: IndexMemoryOptions & { sourceRoot?: string } = {}): Promise<QmdManifest & { work?: import("./qmd-worker.js").WorkerWork }> {
+export async function buildQmdIndex(root: string, documents: MarkdownDocument[], options: IndexMemoryOptions & { sourceRoot?: string; persistPolicy?: boolean } = {}): Promise<QmdManifest & { work?: import("./qmd-worker.js").WorkerWork }> {
   return withQmdOperation(root, "index", options, () => withQmdLock(root, async () => {
     try {
       const legacy = truthy(process.env.JUMPYBRAIN_QMD_EMBED)
         ? { mode: "semantic" as const, model: process.env.QMD_EMBED_MODEL } : undefined;
-      const policy = await indexingPolicy(root, options.indexing, legacy);
+      const policy = options.persistPolicy === false
+        ? await readExecution(automaticIndexingPolicy(root))
+        : await indexingPolicy(root, options.indexing, legacy);
       const snapshots = [];
       const sources = [];
       for (const doc of documents) {
         checkExecution();
-        const before = await stat(doc.absolutePath);
+        const before = await readExecution(stat(doc.absolutePath));
         const content = await readExecution(readFile(doc.absolutePath, { encoding: "utf8", signal: executionSignal() }));
-        const after = await stat(doc.absolutePath);
+        const after = await readExecution(stat(doc.absolutePath));
         if (before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs || before.size !== after.size) throw new Error("Canonical memory changed during snapshot; retry index.");
         const parsed = parseFrontmatter(content);
         snapshots.push({ ...doc, frontmatter: parsed.frontmatter, bodyStartLine: parsed.bodyStartLine, content });
         sources.push({ file: doc.relativePath, size: after.size, mtimeMs: after.mtimeMs, ctimeMs: after.ctimeMs });
       }
-      const model = policy.mode === "semantic" ? await stat(policy.model!) : undefined;
+      const model = policy.mode === "semantic" ? await readExecution(stat(policy.model!)) : undefined;
       const manifest: QmdManifest = {
         version: INDEX_VERSION, root,
         sourceRoot: options.sourceRoot && options.sourceRoot !== root ? options.sourceRoot : undefined,
@@ -104,13 +106,16 @@ interface SearchOptions extends ExecutionOptions {
   outcome?: RetrievalOutcome;
   temporal?: TemporalRetrieval;
   inspect?: (manifest: QmdManifest) => Promise<void>;
+  /** Disable commit-publication recovery for deliberate nonrepairing reads. */
+  recover?: boolean;
 }
 const TEMPORAL_BACKFILL_BUDGET = 64;
 
 export async function searchQmdIndex(root: string, query: string, limit: number, options: SearchOptions = {}): Promise<SearchResult[]> {
   return withQmdOperation(root, "search", options, () => withQmdLock(root, async () => {
     resolveQmdSdk();
-    await recoverQmdPublication(root);
+    if (options.recover !== false) await recoverQmdPublication(root);
+    else assertQmdPublished(root);
     return searchGeneration(root, query, limit, options);
   }));
 }
@@ -118,8 +123,8 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
 async function searchGeneration(root: string, query: string, limit: number, options: SearchOptions): Promise<SearchResult[]> {
   const depth = normalizeRetrievalDepth(options.depth);
   const manifest = await loadManifest(root);
-  const readiness = await qmdReadiness(root, manifest);
-  const policy = await configuredIndexingPolicy(root);
+  const readiness = await readExecution(qmdReadiness(root, manifest));
+  const policy = await readExecution(automaticIndexingPolicy(root));
   const compatible = indexingPolicyMatches(policy, manifest.policy, manifest.embedding?.modelHash);
   const model = compatible && readiness.modes.includes("semantic") ? manifest.policy?.model : undefined;
   if (!Number.isFinite(limit) || limit <= 0) { await options.inspect?.(manifest); return []; }

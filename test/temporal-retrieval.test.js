@@ -69,7 +69,7 @@ async function fixture(run) {
       await writeFile(path.join(root,"rows.json"), JSON.stringify({ jumpybrain: rows, "jumpybrain-dreams": dreams }));
       await writeFile(manifestPath(root), JSON.stringify({ version: 1, root, qmdCollection: "jumpybrain", dreamCollection: "jumpybrain-dreams", generatedAt: "2026-01-01T00:00:00Z", documents: await readMarkdownDocuments(root) }));
     };
-    await run({ root, put, index, search: (temporal, limit = 5, depth = "normal", query = "Helios calibration") => searchMemory(root, query, limit, { temporal, depth }) });
+    await run({ root, put, index, search: (temporal, limit = 5, depth = "normal", query = "Helios calibration") => searchMemory(root, query, limit, { temporal, depth, refresh: false }) });
   } finally {
     if (previous === undefined) delete process.env.JUMPYBRAIN_QMD_BIN; else process.env.JUMPYBRAIN_QMD_BIN = previous;
     await rm(root, { recursive: true, force: true });
@@ -151,7 +151,7 @@ test("metadata changes and malformed headers never return stale relationships or
     const result = await search(temporal);
     assert.deepEqual(result.results, [], JSON.stringify(change));
     assert.ok(result.retrieval.warnings.includes("source_changed"));
-    const compact = await compactSearchMemory(root, "Helios calibration", 5, { temporal });
+    const compact = await compactSearchMemory(root, "Helios calibration", 5, { temporal, refresh: false });
     assert.deepEqual(compact.passages, []);
     assert.ok(compact.retrieval.warnings.includes("source_changed"));
   }
@@ -164,7 +164,7 @@ test("metadata changes and malformed headers never return stale relationships or
     const result = await search(temporal);
     assert.deepEqual(result.results, [], `${opener}/${large}`);
     assert.ok(result.retrieval.warnings.includes("source_changed"));
-    assert.deepEqual((await compactSearchMemory(root,"Helios calibration",5,{temporal})).passages,[]);
+    assert.deepEqual((await compactSearchMemory(root,"Helios calibration",5,{temporal,refresh:false})).passages,[]);
   }
 }));
 

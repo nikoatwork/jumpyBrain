@@ -30,7 +30,7 @@ test("remote auto-index tick indexes stale state and skips fresh state", async (
     logger: (level, event, details) => events.push({ level, event, details }),
     indexMemory: async (root) => {
       indexCalls += 1;
-      return { root, documents: 3, qmdCollection: "jumpybrain" };
+      return { root, documents: 3, qmdCollection: "jumpybrain", readiness: { freshness: "fresh", modes: ["lexical"], embedding: "disabled" } };
     },
     markFresh: async (_root, result) => ({ version: 1, stale: false, documents: result.documents, qmdCollection: result.qmdCollection }),
   });
@@ -44,10 +44,10 @@ test("remote auto-index tick indexes stale state and skips fresh state", async (
   });
 
   assert.equal(await autoIndex.tick(), "skipped-not-stale");
-  assert.equal(indexCalls, 0);
+  assert.equal(indexCalls, 1); // Joined readiness operation, not an unconditional worker run.
 
   assert.equal(await autoIndex.tick(), "indexed");
-  assert.equal(indexCalls, 1);
+  assert.equal(indexCalls, 2);
   assert.ok(events.some((entry) => entry.event === "skipped-not-stale"));
   assert.ok(events.some((entry) => entry.event === "success" && entry.details.documents === 3));
   autoIndex.stop();

@@ -85,9 +85,13 @@ jumpybrain migrate logseq --source <vault> --root <memory-root> [--apply] [--fai
 
 Default is a non-mutating dry-run. Import classic Logseq `pages/**/*.md` into `notes/` and `journals/**/*.md` into `sessions/`, preserving source body bytes under a new frontmatter envelope. `--apply` explicitly writes the destination; the source stays untouched. Reruns overwrite mapped destination edits by default and delete missing-source outputs owned by the prior manifest. `--fail-on-conflict` provides a conservative destination-conflict check, not a merge.
 
-Both paths are required; booleans accept bare flags or explicit `true`/`false`, not arbitrary strings. Remote flags are rejected before policy/credentials/network. JSON returns the app plan/result (counts, relative mappings/hashes, warnings/errors, manifest, `dryRun`, `applied`, `indexed: false`) without bodies. After successful apply, run `jumpybrain index --root <memory-root>` separately. See [Logseq migration](logseq-migration.md) for limitations, asset omissions, manifest ownership, and safe reruns.
+Both paths are required; booleans accept bare flags or explicit `true`/`false`, not arbitrary strings. Remote flags are rejected before policy/credentials/network. JSON returns the app plan/result (counts, relative mappings/hashes, warnings/errors, manifest, `dryRun`, `applied`, `indexed: false`) without bodies. After successful apply, ordinary local recall/search repairs derived state automatically; run `jumpybrain index --root <memory-root>` explicitly to index immediately or configure policy. See [Logseq migration](logseq-migration.md) for limitations, asset omissions, manifest ownership, and safe reruns.
 
 ## Reading and retrieving memory
+
+Local recall/search (including compact output and recipes) automatically repair missing/stale derived indexes. Repair, query, and verification share the finite search deadline; concurrent external changes can still produce explicitly partial evidence. Fresh recall runs no indexing worker/models. Automatic repair preserves Markdown and `jumpybrain.json` bytes/absence, uses configured policy or lexical by default, ignores legacy environment migration, and never selects rebuild or downloads models. Provision dependencies/models explicitly; incompatible models require operator intervention.
+
+Use `--no-refresh` to skip repair and pending-publication recovery (`refresh: false` in runtime rich/compact options). This is **not a zero-filesystem-write mode**: searches retain temporary PID-lock coordination. Missing indexes and pending publication are errors; stale published evidence is labeled partial. Status/show/expand never repair. Hosted reads always use the nonrepairing path; server maintenance checks actual canonical freshness every five minutes, including external/git-pull changes. Protected remote clients never send a hidden index command.
 
 | Command | Human explanation |
 | --- | --- |

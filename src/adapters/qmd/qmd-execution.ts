@@ -113,6 +113,8 @@ export async function runQmdChild(binary: string, args: string[], options: {
   cwd?: string; env?: NodeJS.ProcessEnv; input?: string; maxBytes: number;
   /** Worker protocol has content-free stage diagnostics on nonzero exit. */
   acceptNonzero?: boolean;
+  /** Indexing uses the enclosing deadline, even when repair belongs to a search. */
+  command?: "query" | "index";
 }): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
   const current = context.getStore();
   if (!current) throw new Error("QMD execution requires an admitted memory operation.");
@@ -138,7 +140,7 @@ export async function runQmdChild(binary: string, args: string[], options: {
     current.signal.addEventListener("abort", abort, { once: true });
     // Index workers have the operation's longer deadline, queries/recovery a
     // command ceiling as well as the request-wide signal.
-    const commandTimer = current.kind === "search" ? setTimeout(() => fail(new MemoryExecutionError("execution_timeout")), EXECUTION_LIMITS.commandMs) : undefined;
+    const commandTimer = current.kind === "search" && options.command !== "index" ? setTimeout(() => fail(new MemoryExecutionError("execution_timeout")), EXECUTION_LIMITS.commandMs) : undefined;
     const capture = (target: Buffer[], chunk: Buffer) => {
       if (failure) return;
       bytes += chunk.length;

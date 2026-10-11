@@ -75,6 +75,7 @@ async function worker(request: Record<string, unknown>): Promise<{ manifest: Qmd
   let result;
   try { result = await runQmdChild(process.execPath, [fileURLToPath(new URL("./qmd-worker.js", import.meta.url))], {
     input: JSON.stringify({ ...request, ownerPid: process.pid }), maxBytes: 64 * 1024 * 1024, acceptNonzero: true,
+    command: request.action === "manifest" ? "query" : "index",
     env: { ...process.env, QMD_SQLITE_BUSY_TIMEOUT: "5000" },
   }); } catch (error) {
     if (isExecutionControlError(error) || error instanceof MemoryExecutionError) throw error;
@@ -134,6 +135,15 @@ export async function updateQmdGeneration(root: string, documents: Array<Markdow
   return { manifest: result.manifest, work: result.work };
 }
 
+/** App maintenance may replay publication, but observational reads cannot mix generations. */
+export async function recoverQmdIndex(root: string): Promise<void> {
+  if (existsSync(pendingPath(root))) await withQmdLock(root, () => recoverQmdPublication(root));
+}
+
+export function assertQmdPublished(root: string): void {
+  if (existsSync(pendingPath(root))) throw new Error("Memory index publication is pending; local reads can retry without --no-refresh. Hosted reads must wait for maintenance or authorized index recovery.");
+}
+
 export async function qmdReadiness(root: string, manifest?: QmdManifest, stale?: boolean): Promise<RetrievalReadiness> {
   let lastFailure: RetrievalReadiness["lastFailure"];
   try {
@@ -151,7 +161,7 @@ export async function qmdReadiness(root: string, manifest?: QmdManifest, stale?:
     } catch { semantic = false; }
   }
   return {
-    freshness: missing ? "missing" : pending || lastFailure || stale ? "stale" : stale === false ? "fresh" : "unknown",
+    freshness: missing ? "missing" : pending || stale ? "stale" : stale === false ? "fresh" : "unknown",
     modes: missing ? [] : semantic ? ["lexical", "semantic"] : ["lexical"],
     embedding: manifest?.policy?.mode === "lexical" ? "disabled" : semantic ? "complete" : manifest?.policy?.mode === "semantic" ? "incomplete" : "unknown",
     ...(lastFailure ? { lastFailure } : {}),

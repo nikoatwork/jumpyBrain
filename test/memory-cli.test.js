@@ -1091,10 +1091,10 @@ test("CLI note commands report remember migration", async () => {
   }
 });
 
-test("CLI recall reports missing index clearly", async () => {
+test("CLI no-refresh recall reports missing index clearly", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-memory-"));
   try {
-    const result = runCliFailure(["recall", "--root", tempRoot, "--query", "anything"]);
+    const result = runCliFailure(["recall", "--root", tempRoot, "--query", "anything", "--no-refresh"]);
     assert.match(result.stderr, /Memory index not found/);
     assert.match(result.stderr, /jumpybrain index --root/);
   } finally {

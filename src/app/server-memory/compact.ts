@@ -7,5 +7,5 @@ export function compactSearchServerMemory(options: {
   limit: number;
   recall?: Parameters<typeof compactSearchMemory>[3];
 }): ReturnType<typeof compactSearchMemory> {
-  return compactSearchMemory(options.root, options.query, options.limit, options.recall);
+  return compactSearchMemory(options.root, options.query, options.limit, { ...options.recall, refresh: false });
 }

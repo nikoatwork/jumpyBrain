@@ -157,7 +157,7 @@ export function createServerMemoryRuntime(options: ServerMemoryRuntimeOptions): 
     indexMemory: (indexOptions) => indexMemory(root, indexOptions),
     overviewMemory: (overviewOptions) => overviewMemory(root, overviewOptions),
     graphMemory: (graphOptions) => graphServerMemory({ root, graph: graphOptions }),
-    searchMemory: (query, limit, searchOptions) => searchMemory(root, query, limit, searchOptions),
+    searchMemory: (query, limit, searchOptions) => searchMemory(root, query, limit, { ...searchOptions, refresh: false }),
     compactSearchMemory: (query, limit, recall) => compactSearchServerMemory({ root, query, limit, recall }),
     expandMemoryDocument: (expansion) => expandServerMemoryDocument({ ...expansion, root }),
     readMemoryDocument: (id) => readServerMemoryDocument({ root, id }),
@@ -290,7 +290,7 @@ export async function searchServerMemory(options: ExecutionOptions & {
   recall?: boolean;
   temporal?: SearchMemoryOptions["temporal"];
 }): Promise<RemoteMemorySearchPacket> {
-  const searchOptions: SearchMemoryOptions = { depth: options.depth, temporal: options.temporal, signal: options.signal, timeoutMs: options.timeoutMs };
+  const searchOptions: SearchMemoryOptions = { refresh: false, depth: options.depth, temporal: options.temporal, signal: options.signal, timeoutMs: options.timeoutMs };
   const result = await searchMemory(options.root, options.query, options.limit, searchOptions);
   const index = await readRemoteIndexState(result.root);
   return {

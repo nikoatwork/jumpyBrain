@@ -7,7 +7,7 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
   if (operation === "expand" || (["recall", "search"].includes(operation)
-    && argv.some(token => /^--(?:compact|max-bytes|diagnostics|from|to|reference-date|order)(?:=|$)/u.test(token)))) {
+    && argv.some(token => /^--(?:compact|max-bytes|diagnostics|no-refresh|from|to|reference-date|order)(?:=|$)/u.test(token)))) {
     return parseBoundedReadArgs(argv, operation);
   }
   const args: ParsedCliArgs = { _: [] };
@@ -70,7 +70,7 @@ export function stringListArg(args: ParsedCliArgs, key: string): string[] {
 function parseBoundedReadArgs(argv: string[], operation: string): ParsedCliArgs {
   const positional = argv[0] === "run" ? 2 : 1;
   const args: ParsedCliArgs = { _: argv.slice(0, positional) };
-  const booleans = new Set(operation === "expand" ? ["json"] : ["json", "compact", "diagnostics"]);
+  const booleans = new Set(operation === "expand" ? ["json"] : ["json", "compact", "diagnostics", "no-refresh"]);
   const values = new Set(["root", "target-url", "remote-url", "max-bytes", ...(operation === "expand"
     ? ["id", "if-match", "start-line", "end-line", "section-line"] : ["topic", "query", "limit", "depth", "from", "to", "reference-date", "order"])]);
   for (let index = positional; index < argv.length; index++) {

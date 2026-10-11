@@ -99,5 +99,5 @@ Show the written file path and ask if the user wants edits.
 - Keep recall explicit and visible; do not silently inject memory.
 - Preserve uncertainty from recalled memory.
 - Markdown memory files are canonical; derived indexes can be rebuilt.
-- If Markdown memory was edited manually, run `__JUMPYBRAIN_CLI__ index --root "__JUMPYBRAIN_MEMORY_ROOT__"`.
+- Local recall/search automatically repairs missing/stale derived indexes after manual edits, without changing Markdown or root policy. Use `--no-refresh` to disable repair/recovery, not temporary lock writes. Hosted reads remain nonrepairing; server maintenance checks freshness, or an explicitly authorized operator can index immediately.
 - Treat global/team memory writes as explicit-command only; do not infer or auto-commit global memory from normal wrapup habits.

@@ -3,6 +3,7 @@ import { packetFits, PacketBudgetError, serializeBudgetedPacket, validatePacketM
 import { metadataDate } from "../canonical/metadata-date.js";
 
 export interface CompactRecallOptions extends ExecutionOptions {
+  refresh?: boolean;
   depth?: RetrievalDepth | string;
   temporal?: TemporalQuery;
   maxBytes?: number;

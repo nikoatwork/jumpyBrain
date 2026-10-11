@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-11 — Automatic index freshness
+
+- Local recall/search now repairs derived indexes without rewriting root policy; hosted maintenance checks canonical changes through the shared bounded runner. [Verification and remaining work](todo/tasks-self-maintaining-recall.md#automatic-index-increment--2026-10-11).
+
 ## 2026-10-11 — Responsive bounded retrieval
 
 - Replaced blocking QMD execution with bounded asynchronous admission, cancellation-safe indexing and request-local source reuse; [limits and verification](done/2026-10-11_tasks-bounded-retrieval-execution.md).

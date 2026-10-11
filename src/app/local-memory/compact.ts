@@ -22,7 +22,7 @@ export async function compactSearchMemory(root: string, query: string, limit: nu
     || (options.diagnostics !== undefined && typeof options.diagnostics !== "boolean")) {
     throw new Error("Compact recall requires query, a positive integer limit, and boolean diagnostics.");
   }
-  const search = await searchMemory(root, query, limit, { depth: options.depth, temporal: options.temporal });
+  const search = await searchMemory(root, query, limit, { depth: options.depth, temporal: options.temporal, refresh: options.refresh });
   if (interval && !search.temporal) throw new Error("Temporal search did not return its resolved scope; refresh the runtime before retrying.");
   const sourceRoot = await resolveIndexRoot(search.root);
   type Source = { document: MemoryDocumentReadResult } | { reason: ExpansionUnavailableReason };

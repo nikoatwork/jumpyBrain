@@ -59,7 +59,7 @@ Run a visible prior-knowledge scan before deep work:
 jumpybrain recall --root <memory-root> --topic "QMD memory architecture" --limit 5 --compact
 ```
 
-Keep recall visible and cite the returned evidence; do not silently inject memory.
+Keep recall visible and cite the returned evidence; do not silently inject memory. Ordinary local recall/search automatically repairs missing/stale derived indexes within its deadline, preserving Markdown and root policy. Use `--no-refresh` to disable repair/recovery (temporary PID-lock coordination still writes). Hosted reads remain nonrepairing and report partial/stale evidence until server maintenance or authorized indexing succeeds; protected clients never send a hidden index mutation.
 
 ## Specific-question recall
 
@@ -74,7 +74,7 @@ jumpybrain recall --root <memory-root> --topic "sales process" --depth shallow
 jumpybrain recall --root <memory-root> --topic "sales process" --depth deep
 ```
 
-`shallow` favors topical pages and decisions; normal/shallow give relevant boolean `dream: true` maps an explainable preference. A bounded lexical dream-candidate collection helps relevant maps compete; reindex after edits. `deep` and explicit source/historical queries omit the dream boost. Ordinary pages and raw evidence remain useful, including in roots with no dream pages.
+`shallow` favors topical pages and decisions; normal/shallow give relevant boolean `dream: true` maps an explainable preference. A bounded lexical dream-candidate collection helps relevant maps compete; ordinary local recall automatically indexes edits, while hosted/nonrepairing reads need successful maintenance. `deep` and explicit source/historical queries omit the dream boost. Ordinary pages and raw evidence remain useful, including in roots with no dream pages.
 
 Legacy non-compact JSON results include `id`, `score`, `snippet`, `provenance`, and `scoreBreakdown`. Normal/shallow recall/search spend `--limit` slots on distinct files, with up to two source passages per file: the primary fields plus optional `passages` containing independently cited evidence. `omittedPassages`, when present, counts additional candidate passages not shown—not every unseen passage in the file. Deep and explicit source-focused queries retain chunk-level limits.
 

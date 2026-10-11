@@ -1,4 +1,4 @@
-import { indexMemory as appIndexMemory } from "../local-memory/index.js";
+import { ensureMemoryIndexed, indexMemory as appIndexMemory } from "../local-memory/index.js";
 import { checkExecution, readExecution, executionScope, EXECUTION_LIMITS, MemoryExecutionError } from "../../adapters/qmd/index.js";
 import type { IndexMemoryOptions, IndexMemoryResult } from "../../types.js";
 import { invalidateRemoteIndex, markRemoteIndexFresh, readRemoteIndexState, type RemoteIndexState } from "./state.js";
@@ -43,10 +43,14 @@ export function createRemoteIndexRunner(options: {
     logger("info", "start", { reason });
     const job: Job = { controller: new AbortController(), waiters: 0, promise: undefined! };
     inFlight = job;
-    job.promise = (async () => indexMemory(options.root, { rebuild, signal: job.controller.signal, timeoutMs: options.timeoutMs }))()
+    const operation = reason === "auto" && !options.indexMemory ? ensureMemoryIndexed : indexMemory;
+    job.promise = (async () => operation(options.root, { rebuild, signal: job.controller.signal, timeoutMs: options.timeoutMs }))()
       .then(async result => {
         checkExecution(job.controller.signal);
-        const index = await markFresh(result.root, result, new Date().toISOString(), startedAt);
+        const current = reason === "auto" && !result.work && result.readiness?.freshness === "fresh"
+          ? await readExecution(readRemoteIndexState(result.root), job.controller.signal) : undefined;
+        const index = current && !current.stale ? current
+          : await markFresh(result.root, result, new Date().toISOString(), startedAt);
         logger("info", "success", { reason, documents: result.documents, qmdCollection: result.qmdCollection, stale: index.stale });
         return { result, index };
       }).catch(async error => {
@@ -126,21 +130,27 @@ export function startRemoteAutoIndexer(options: {
   const readState = options.readState ?? readRemoteIndexState;
   const logger = options.logger ?? defaultAutoIndexLogger;
   let stopped = false;
+  const callers = new Set<AbortController>();
 
   const tick = async (): Promise<"indexed" | "skipped-not-stale" | "failed"> => {
     if (stopped) return "skipped-not-stale";
+    const controller = new AbortController();
+    callers.add(controller);
+    const scope = executionScope("index", { signal: controller.signal });
     try {
-      const state = await readState(options.root);
-      if (!state.stale) {
+      const state = await readExecution(readState(options.root), scope.signal);
+      // Actual canonical discovery/repair belongs to the joined, admitted runner,
+      // never an unbounded preflight scan trusting the legacy stale flag.
+      const run = await options.indexRunner.indexNow("auto", { signal: scope.signal });
+      if (!state.stale && !run.result.work && run.result.readiness?.freshness === "fresh") {
         logger("info", "skipped-not-stale", { lastIndexedAt: state.lastIndexedAt });
         return "skipped-not-stale";
       }
-      await options.indexRunner.indexNow("auto");
       return "indexed";
     } catch (error) {
-      logger("error", "tick-failed", { message: error instanceof Error ? error.message : String(error) });
+      logger("error", "tick-failed", { code: error instanceof MemoryExecutionError ? error.code : "index_failed" });
       return "failed";
-    }
+    } finally { scope.dispose(); callers.delete(controller); }
   };
 
   const timer = options.startTimer === false ? undefined : setInterval(() => { void tick(); }, intervalMs);
@@ -150,6 +160,7 @@ export function startRemoteAutoIndexer(options: {
     tick,
     stop() {
       stopped = true;
+      for (const controller of callers) controller.abort();
       if (timer) clearInterval(timer);
     },
   };

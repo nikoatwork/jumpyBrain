@@ -100,6 +100,12 @@ export async function indexingPolicy(root: string, requested?: IndexingPolicy, l
   return policy;
 }
 
+/** Automatic derived-state repair never persists policy or migrates legacy environment choices. */
+export async function automaticIndexingPolicy(root: string): Promise<IndexingPolicy> {
+  await assertCompatibleMemoryRoot(root);
+  return await configuredIndexingPolicy(root) ?? { mode: "lexical" };
+}
+
 export async function configuredIndexingPolicy(root: string): Promise<IndexingPolicy | undefined> {
   const policy = (await readConfigIfPresent(root))?.config.indexing;
   if (policy) validateIndexingPolicy(policy);

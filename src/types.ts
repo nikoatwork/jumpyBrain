@@ -103,6 +103,8 @@ export interface SearchMemoryResult {
 }
 
 export interface SearchMemoryOptions extends ExecutionOptions {
+  /** Default true locally: repair derived state within the search deadline. False never repairs. */
+  refresh?: boolean;
   depth?: RetrievalDepth | string;
   temporal?: TemporalQuery;
 }

@@ -20,7 +20,7 @@ export function agentInstructions(): string {
     "- Compact dates and legacy Written date are from valid creation metadata, otherwise unknown; no event-date inference or temporal event filters. Legacy text Evidence date is explicit frontmatter date, not an observation date or a date for every passage. Confidence does not guarantee truth.",
     "- Use `jumpybrain show --root <memory-root> --id <mem_id>` then pipe exact revised Markdown to `jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash>` for safe local document edits; use the same commands with `--target-url <url>` and JUMPYBRAIN_API_KEY for hosted/shared memory.",
     "- Only with explicit write authorization, use `jumpybrain process --root <memory-root> --mode ensure-ids --apply` to stamp missing IDs for editing older files, never to enable a read.",
-    "- `remember` indexes after writing; run memory:index after manually editing Markdown memory files or after document updates when fresh recall/search is needed.",
+    "- Local recall/search automatically repairs missing/stale derived indexes after manual edits or updates, without changing Markdown or root policy. --no-refresh disables repair/recovery, not temporary lock writes. Hosted reads remain nonrepairing; server maintenance checks freshness, or an authorized operator can index immediately.",
     "- At session end, recall likely duplicates/conflicts, then pipe a strict wrapup with sections: ## Findings, ## Decisions, ## Conflicts / Corrections, ## Open Questions",
     "- Global/team/remote writes require explicit user authorization to update that memory.",
     "- Do not memorize secrets, credentials, tokens, raw chat noise, or vague status updates.",

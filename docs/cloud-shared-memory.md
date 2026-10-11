@@ -92,7 +92,7 @@ From the memory-map toolbar, choose **Consolidate notes (Dream)…**, then **Cop
 
 Nothing runs when you copy: the agent uses its own account and separately configured CLI/`JUMPYBRAIN_API_KEY`. Browser credentials and note bodies are not included. Missing credentials, unreachable targets (including a different machine's localhost), and read-only policies still block the workflow. If clipboard access fails, select and copy the visible prompt manually. Avoid editing affected dream pages in another tab while the agent works; refresh the map or reopen pages afterward. The browser does not track progress or completion.
 
-Autosave and search indexing are separate: a saved document marks the derived index stale, and new text may not appear in search until indexing succeeds (checks run every five minutes by default; that is not a freshness guarantee). The current conflict behavior is intentionally bounded last-write-wins debt: after one stale-hash response the browser reapplies the local body over fresh protected frontmatter and retries once; another conflict stops and requires an explicit retry.
+Autosave and search indexing are separate: a saved document marks the derived index stale, and new text may not appear in search until indexing succeeds (joined canonical freshness checks run every five minutes by default, including external/git-pull changes even when legacy state says fresh; hosted reads remain nonrepairing and label stale evidence, not a freshness guarantee). The current conflict behavior is intentionally bounded last-write-wins debt: after one stale-hash response the browser reapplies the local body over fresh protected frontmatter and retries once; another conflict stops and requires an explicit retry.
 
 ## 5. Connect an installed CLI
 

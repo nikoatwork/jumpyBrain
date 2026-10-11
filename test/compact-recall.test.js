@@ -3,7 +3,9 @@ import test from "node:test";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { compactSearchMemory } from "../dist/app/local-memory/compact.js";
+import { compactSearchMemory as searchCompact } from "../dist/app/local-memory/compact.js";
+// These fixed/legacy-manifest fixtures exercise source verification, not automatic maintenance.
+const compactSearchMemory = (root, query, limit, options = {}) => searchCompact(root, query, limit, { ...options, refresh: false });
 import { compactWrittenDate, excerptMatchesSource, packCompactRecall, serializeCompactRecall } from "../dist/core/retrieval-policy/compact.js";
 import { expandCanonicalMemoryDocument } from "../dist/core/canonical/expansion.js";
 import { hashMemoryDocumentContent, readMarkdownDocuments } from "../dist/core/canonical/markdown-store.js";

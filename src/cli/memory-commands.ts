@@ -101,12 +101,12 @@ export async function runMemoryCommand(
     const limit = numberArg(args, "limit", command === "recall" ? 5 : 10);
     const depth = stringArg(args, "depth", "normal");
     if (compact) {
-      await printCompactRecall(target, localMemory, query, limit, { ...compact, ...(temporal ? { temporal } : {}) });
+      await printCompactRecall(target, localMemory, query, limit, { ...compact, ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
       return;
     }
     const result = target.kind === "remote"
       ? await target.memory.searchMemory(query, limit, { depth, mode: command, ...(temporal ? { temporal } : {}) })
-      : await localMemory.searchMemory(target.root, query, limit, { depth, ...(temporal ? { temporal } : {}) });
+      : await localMemory.searchMemory(target.root, query, limit, { depth, ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
     if (args.json) console.log(JSON.stringify({ ...result, mode: command }, null, 2));
     else {
       if (command === "recall") console.log(`Prior memory scan for: ${query}\n`);

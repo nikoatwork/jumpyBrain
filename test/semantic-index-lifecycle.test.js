@@ -47,8 +47,15 @@ async function setup(t) {
       const [root, action, options] = JSON.parse(process.argv[1]);
       try {
         const result = action === "index" ? await app.indexMemory(root, options)
+          : action === "ensure" ? await app.ensureMemoryIndexed(root, options)
+          : action === "hosted-tick" ? await (async () => {
+              const { createRemoteIndexRunner, startRemoteAutoIndexer } = await import(${JSON.stringify(new URL('../dist/app/server-memory/auto-index.js', import.meta.url).href)});
+              const runner = createRemoteIndexRunner({ root });
+              const auto = startRemoteAutoIndexer({ root, indexRunner: runner, startTimer: false });
+              try { return { tick: await auto.tick() }; } finally { auto.stop(); await runner.stop(); }
+            })()
           : action === "status" ? await app.memoryStatus(root)
-          : action === "search" ? await app.searchMemory(root, options.query ?? "quartz", 10)
+          : action === "search" ? await app.searchMemory(root, options.query ?? "quartz", 10, options)
           : (() => { throw new Error("unknown fixture action"); })();
         process.stdout.write(JSON.stringify(result));
       } catch (error) { process.stderr.write(error.message); process.exitCode = 1; }
@@ -231,7 +238,7 @@ test("a changed configured model digest disables semantic queries until explicit
   assert.equal(status.readiness.freshness, "stale");
   assert.equal(status.readiness.embedding, "incomplete");
   const before = (await f.events()).filter(e => e.type === "query" && e.command === "query").length;
-  const result = await f.run("search");
+  const result = await f.run("search", { refresh: false });
   assert.deepEqual(result.readiness.modes, ["lexical"]);
   assert.equal(result.retrieval.status, "partial");
   assert.equal((await f.events()).filter(e => e.type === "query" && e.command === "query").length, before);
@@ -284,7 +291,7 @@ test("pending publication recovers the committed database manifest using readonl
   assert.deepEqual(await f.manifest(), committed);
   assert.equal(await readFile(f.dbFile, "utf8"), dbBytes);
   assert.equal(result.results[0].provenance.file, "a.md");
-  assert.equal(result.readiness.freshness, "stale");
+  assert.equal(result.readiness.freshness, "fresh");
   assert.equal(result.readiness.lastFailure.code, "interrupted_update");
   assert.equal(existsSync(path.join(f.derived, "index-pending.json")), false);
   assert.equal((await json(path.join(f.derived, "qmd-config/index.yml"))).models.embed, f.model);
@@ -321,7 +328,7 @@ test("index jobs/readers serialize while a concurrent canonical write leaves the
   await waitFor(gate + ".entered");
   await f.put("a.md", "quartz after concurrent write with new bytes\n");
   let readDone = false;
-  const reading = f.run("search").then(result => { readDone = true; return result; });
+  const reading = f.run("search", { refresh: false }).then(result => { readDone = true; return result; });
   reading.catch(() => {});
   await pause(120);
   assert.equal(readDone, false);
@@ -429,4 +436,133 @@ test("full rebuild replaces corrupted content and inactive history atomically fr
   work(await f.run("index", { rebuild: true, indexing: { mode: "lexical" } }), { added: 1 });
   assert.deepEqual((await f.state()).metadata, []);
   assert.equal((await f.run("search")).results[0].provenance.file, "a.md");
+});
+
+ test("automatic recall bootstraps legacy/empty roots without policy persistence or environment migration", async t => {
+  const f = await setup(t);
+  await assert.rejects(f.run("search", { refresh: false }), /Memory index not found/);
+  assert.equal(existsSync(f.dbFile), false);
+  const empty = await f.run("search", {}, { JUMPYBRAIN_QMD_EMBED: "1", QMD_EMBED_MODEL: "/missing.gguf" });
+  assert.deepEqual(empty.results, []);
+  assert.equal(empty.readiness.freshness, "fresh");
+  assert.equal(existsSync(path.join(f.root, "jumpybrain.json")), false);
+  await f.put("notes/a.md", "quartz automatic legacy recovery\n");
+  const result = await f.run("search");
+  assert.equal(result.results[0].provenance.file, "notes/a.md");
+  assert.equal(result.readiness.freshness, "fresh");
+  const generation = (await f.manifest()).generation;
+  const before = await f.events();
+  await f.run("search");
+  assert.equal((await f.manifest()).generation, generation);
+  assert.equal((await f.events()).filter(e => e.type !== "query").length, before.filter(e => e.type !== "query").length);
+  assert.equal((await f.events()).some(e => e.type === "llm"), false);
+  assert.equal(existsSync(path.join(f.root, "jumpybrain.json")), false);
+});
+
+ test("automatic repair detects add/edit/rename/delete and preserves config and canonical bytes", async t => {
+  const f = await setup(t);
+  const config = '{ "schemaVersion": 1, "indexing": { "mode": "lexical" } }\n';
+  await f.put("jumpybrain.json", config);
+  await f.put("a.md", "quartz first\n");
+  await f.run("search");
+  await f.put("b.md", "quartz added\n");
+  await f.run("search");
+  await f.put("a.md", "quartz edited qualification\n");
+  await f.run("search");
+  await rename(path.join(f.root, "a.md"), path.join(f.root, "renamed.md"));
+  await f.run("search");
+  await rm(path.join(f.root, "b.md"));
+  assert.deepEqual((await f.run("search")).results.map(r => r.provenance.file), ["renamed.md"]);
+  assert.deepEqual(active(await f.state()), ["renamed.md"]);
+  assert.equal((await f.state()).counters.clears, 0);
+  assert.equal(await readFile(path.join(f.root, "jumpybrain.json"), "utf8"), config);
+  assert.equal(await readFile(path.join(f.root, "renamed.md"), "utf8"), "quartz edited qualification\n");
+});
+
+ test("automatic semantic repair reuses unchanged vectors, respects indexRoot and never rewrites policy on failure", async t => {
+  const f = await setup(t);
+  const config = JSON.stringify({ schemaVersion: 1, indexRoot: "notes", indexing: f.policy }, null, 4);
+  await f.put("jumpybrain.json", config);
+  await f.put("notes/a.md", "quartz selected source\n");
+  await f.put("outside.md", "quartz excluded source\n");
+  await f.run("search");
+  await f.put("notes/b.md", "quartz added source\n");
+  work(await f.run("ensure"), { unchanged: 1, added: 1, embedded: 1 });
+  assert.equal((await f.state()).counters.embedded, 2);
+  await writeFile(f.model, "GGUFchanged provisioned model");
+  await assert.rejects(f.run("search"), /rebuild/);
+  assert.equal(await readFile(path.join(f.root, "jumpybrain.json"), "utf8"), config);
+  assert.equal((await f.state()).counters.clears, 0);
+  assert.equal(await readFile(path.join(f.root, "notes/a.md"), "utf8"), "quartz selected source\n");
+});
+
+ test("automatic repair failure leaves absent/legacy policy untouched and no-refresh preserves pending publication", async t => {
+  for (const config of [undefined, '{ "schemaVersion": 1 }\n']) {
+    const f = await setup(t);
+    if (config) await f.put("jumpybrain.json", config);
+    await f.put("a.md", "quartz failure\n");
+    await f.control({ fail: "ingest" });
+    await assert.rejects(f.run("search"), /previous committed index retained/);
+    if (config) assert.equal(await readFile(path.join(f.root, "jumpybrain.json"), "utf8"), config);
+    else assert.equal(existsSync(path.join(f.root, "jumpybrain.json")), false);
+    const pending = await readFile(path.join(f.derived, "index-pending.json"), "utf8");
+    const events = (await f.events()).length;
+    await assert.rejects(f.run("search", { refresh: false }), /publication is pending/);
+    assert.equal(await readFile(path.join(f.derived, "index-pending.json"), "utf8"), pending);
+    assert.equal((await f.events()).length, events);
+    await f.control({});
+    assert.equal((await f.run("search")).readiness.freshness, "fresh");
+  }
+});
+
+ test("no-refresh queries use the same lexical default as readiness when semantic policy was removed", async t => {
+  const f = await setup(t);
+  await f.put("a.md", "quartz policy removed\n");
+  await f.run("index", { indexing: f.policy });
+  await rm(path.join(f.root, "jumpybrain.json"));
+  const before = (await f.events()).filter(e => e.type === "query" && e.command === "query").length;
+  const result = await f.run("search", { refresh: false });
+  assert.equal(result.readiness.embedding, "disabled");
+  assert.equal(result.retrieval.status, "partial");
+  assert.equal((await f.events()).filter(e => e.type === "query" && e.command === "query").length, before);
+});
+
+ test("recall repair shares its deadline and rechecks a generation changed during indexing without retry loops", async t => {
+  const f = await setup(t);
+  await f.put("a.md", "quartz original\n");
+  await f.put("jumpybrain.json", JSON.stringify({ schemaVersion: 1, indexing: f.policy }));
+  const gate = path.join(f.temp, "automatic-gate");
+  await f.control({ gate });
+  const searching = f.run("search");
+  searching.catch(() => {});
+  await waitFor(gate + ".entered");
+  await f.put("a.md", "quartz changed during repair\n");
+  await writeFile(gate + ".release", "go");
+  const result = await searching;
+  assert.equal(result.readiness.freshness, "stale");
+  assert.ok(result.retrieval.warnings.includes("index_not_fresh"));
+  assert.equal((await f.state()).counters.embedded, 1);
+  const heldGate = path.join(f.temp, "deadline-gate");
+  await f.control({ gate: heldGate });
+  const indexing = f.run("index");
+  indexing.catch(() => {});
+  await waitFor(heldGate + ".entered");
+  await assert.rejects(f.run("search", { timeoutMs: 100 }), /deadline exceeded/);
+  assert.equal(existsSync(path.join(f.derived, "index.lock")), true);
+  await writeFile(heldGate + ".release", "go");
+  await indexing;
+  assert.equal(existsSync(path.join(f.derived, "index.lock")), false);
+});
+
+ test("hosted maintenance detects external/git-pull changes despite stale:false, using nonpersisting repair", async t => {
+  const f = await setup(t);
+  await f.put("a.md", "quartz before git pull\n");
+  await f.run("search");
+  await f.put(".jumpybrain/remote/index-state.json", JSON.stringify({ version: 1, stale: false }));
+  assert.equal((await f.run("hosted-tick")).tick, "skipped-not-stale");
+  assert.equal((await f.run("hosted-tick")).tick, "skipped-not-stale");
+  await f.put("a.md", "quartz after git pull\n");
+  assert.equal((await f.run("hosted-tick")).tick, "indexed");
+  assert.equal((await f.state()).content[hash("quartz after git pull\n")], "quartz after git pull\n");
+  assert.equal(existsSync(path.join(f.root, "jumpybrain.json")), false);
 });
