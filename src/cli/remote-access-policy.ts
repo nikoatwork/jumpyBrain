@@ -46,7 +46,7 @@ export function normalizeRemoteTargetOrigin(value: string): string {
   return url.origin;
 }
 
-const READ_COMMANDS = new Set(["status", "tree", "overview", "search", "recall", "show"]);
+const READ_COMMANDS = new Set(["status", "tree", "overview", "search", "recall", "show", "expand"]);
 const MEMORY_RECIPE_PREFIX = "memory:";
 
 export async function enforceRemoteAccessPolicy(
@@ -131,7 +131,7 @@ export function isReadInvocation(args: ParsedCliArgs): boolean {
 function isTargetAwareInvocation(args: ParsedCliArgs): boolean {
   const command = args._[0];
   if (command === "dream" || command === "note") return true;
-  if (["status", "index", "tree", "overview", "search", "recall", "show", "process", "remember", "wrapup"].includes(command)) return true;
+  if (["status", "index", "tree", "overview", "search", "recall", "show", "expand", "process", "remember", "wrapup"].includes(command)) return true;
   if (command === "update") return Boolean(args.id || args["if-match"] || args.root || args["target-url"] || args["remote-url"]);
   if (command === "run" && typeof args._[1] === "string" && args._[1].startsWith(MEMORY_RECIPE_PREFIX)) return true;
   return Boolean(args["target-url"] || args["remote-url"])

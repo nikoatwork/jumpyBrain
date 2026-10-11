@@ -15,6 +15,8 @@
 
 ## Evidence excerpts
 
+Heading/fence recognition is shared with canonical evidence expansion via `core/canonical/markdown-structure.ts`; excerpt policy remains owned here.
+
 Select a matching line within the supplied window, discounting repeated topic/title mentions relative to rarer requested detail. A heading at the first nonblank body line (ATX or setext, regardless of level) is the main title: exclude it and its setext underline from match candidates when another nonblank line exists in the window. Title-only windows/notes retain the fallback; do not search unrelated windows. The title can still appear as necessary ancestor context. Markdown link labels contribute to matching; original targets remain unchanged in the structured excerpt (CLI plain-display abbreviation is a separate concern). Normalize punctuation for matching only. This is excerpt selection, not a document relevance score or a generated claim.
 
 Prefer the enclosing small heading section or a whole paragraph/list item/fenced block; retain nested list qualifications and bounded adjacent context. Heading names are never special-cased. Preserve ancestor scope when its contiguous span fits, otherwise explicitly label omitted ancestor context. Large units use a match-centered, explicitly partial excerpt. Returned ranges address the displayed canonical lines, not the whole retrieval window. Whitespace is compacted, so this is not a lossless Markdown rendering.
@@ -27,3 +29,14 @@ The initial per-passage bound is 1,000 characters, including omission markers. T
 - `dreamBoostFor` targets a total depth preference of `0.55` in normal and `1.0` in shallow retrieval, subtracting the existing bucket boost before applying relevance. For a fully relevant page, the additional contributions are `0.45` / `0.2`; this is not another full page bonus.
 - The adapter supplies relevance in `[0,1]`. Deep retrieval and explicit source/detail/date queries receive no dream boost. `isSourceFocusedQuery` conservatively recognizes source/raw/journal/session terms, exact quotes, Markdown paths, and explicit years; it is a heuristic, not intent understanding.
 - Classification is neither a truth guarantee nor independent corroboration. Canonical metadata, including historical evidence dates, remains attached to results.
+
+
+## Compact recall packets
+
+`compact.ts` owns version-1 `kind: "recall"` evidence shapes and pure whole-passage packing. `packCompactRecall` consumes the existing search order: primary then additional passages for each result. It skips units that cannot fit and continues in order; it never slices their text or qualifications. `omitted.results` counts search rows with no represented passage, while `omitted.passages` includes budget omissions plus search's reported candidate-passage omissions. Neither counts unknown matches beyond search's limit/candidate pools.
+
+The complete `serializeCompactRecall(packet)` output is compact JSON plus one LF. `core/serialized-budget.ts` owns UTF-8 accounting and integer budgets (1024–65536, default 8192); query, readiness, retrieval outcome, omission markers and opt-in diagnostics all count. An oversized minimum envelope throws `budget_too_small`. Transports must not wrap, pretty-print, or add fields after packing. Huge diagnostic metadata can exclude a whole passage, not bypass the cap. No token estimate or tokenizer guarantee.
+
+Packet scope is `selected_passages`; passage scope is `excerpt`. Both explicitly have `partial: true`: bounded recall never asserts complete document/answer context. Existing excerpt omission markers remain unchanged. Dates use strictly validated `created_at`, otherwise `createdAt`, matching human recall's written-date precedence; absent/invalid dates have `basis: "unknown"`. They never infer an event date from `date`, modification times, or filenames.
+
+The app verifies expansion identity and current source bytes; this policy module only compares supplied excerpt coordinates/text against supplied source, allowing existing whitespace compaction and explicit partial/ancestor/read-bound markers. Unmarked excerpts require the entire cited range to match; within-line partial slices must match the cited single line. Arbitrary frontmatter and QMD score/hit IDs are diagnostics-only.

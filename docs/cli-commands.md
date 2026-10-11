@@ -23,9 +23,9 @@ For a target marked read-only during installation, the CLI permits only this exp
 
 | Allowed | Blocked |
 | --- | --- |
-| `status`, `tree`/`overview`, `search`, `recall`, `show` | `index`, `remember`, `wrapup`, document `update`, and remote `process` |
+| `status`, `tree`/`overview`, `search`, `recall`, `expand`, `show` | `index`, `remember`, `wrapup`, document `update`, and remote `process` |
 | `dream` (stateless window read) | Deprecated batch mutation flags remain rejected |
-| Matching `run memory:status/tree/overview/search/recall/show` recipes | Matching mutation recipes and future unclassified remote operations |
+| Matching `run memory:status/tree/overview/search/recall/expand/show` recipes | Matching mutation recipes and future unclassified remote operations |
 
 Legacy dream flags fail with deprecation guidance; they cannot turn a window read into a batch mutation. Rejection occurs before credentials, stdin/files, wrapup recall, idempotency creation, or HTTP transport. Local roots and unlisted remote origins keep their existing behavior.
 
@@ -91,12 +91,14 @@ Both paths are required; booleans accept bare flags or explicit `true`/`false`, 
 
 | Command | Human explanation |
 | --- | --- |
-| `jumpybrain recall --root <memory-root> --topic "..." [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Retrieve prior memories relevant to a current task/topic, with compact snippets and provenance. Default limit is 5. |
+| `jumpybrain recall --root <memory-root> --topic "..." [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Retrieve prior memories relevant to a current task/topic, with snippets and provenance. Default limit is 5. |
 | `jumpybrain recall --root <memory-root> --query "..." [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Ask a specific memory question and retrieve matching snippets. Default limit is 5 for `recall`. |
 | `jumpybrain recall --target-url <url> --topic "..." [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Retrieve relevant memory from a hosted/shared server. Requires `JUMPYBRAIN_API_KEY`. |
 | `jumpybrain recall --target-url <url> --query "..." [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Ask a specific memory question against a hosted/shared server. Requires `JUMPYBRAIN_API_KEY`. |
 | `jumpybrain search --root <memory-root> --query "..." [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Search memory for a given search term or question. Default limit is 10. |
 | `jumpybrain search --target-url <url> --query "..." [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Search hosted/shared memory. Requires `JUMPYBRAIN_API_KEY`. |
+| `jumpybrain expand --root <memory-root> --id <mem_id> --if-match sha256:<hash> [--start-line <n> --end-line <n> \| --section-line <n>] [--max-bytes <n>] [--json]` | Read hash-checked, byte-bounded source evidence. Always JSON. |
+| `jumpybrain expand --target-url <url> --id <mem_id> --if-match sha256:<hash> [--start-line <n> --end-line <n> \| --section-line <n>] [--max-bytes <n>] [--json]` | The same bounded read on a hosted server; requires `JUMPYBRAIN_API_KEY`. |
 | `jumpybrain show --root <memory-root> --id <mem_id> [--json]` | Read the full Markdown document for a specific memory ID, including its content hash for safe edits. |
 | `jumpybrain show --target-url <url> --id <mem_id> [--json]` | Read a full memory document from a remote server by ID. Requires `JUMPYBRAIN_API_KEY`. |
 
@@ -105,6 +107,32 @@ Retrieval depth changes what kind of memory is favored:
 - `--depth shallow` favors compressed/current memory such as pages and decisions.
 - `--depth normal` balances current memory with evidence. Both normal and shallow prefer relevant `dream: true` maps, with a bounded supplemental lexical candidate collection; reindex to refresh it.
 - `--depth deep` allows more raw session evidence to surface without the dream boost. Explicit source/historical queries also omit that boost. Unrelated dream pages must not dominate; roots without dream pages retain ordinary retrieval.
+
+### Compact recall/search and conditional expansion
+
+Add `--compact [--max-bytes <n>] [--diagnostics]` to any `recall` or `search` command, locally or remotely:
+
+```bash
+jumpybrain recall --root <memory-root> --query "<question>" --compact --max-bytes 8192
+jumpybrain search --target-url <url> --query "<question>" --compact --diagnostics
+```
+
+Successful compact and `expand` output is always `JSON.stringify(packet) + "\n"`: one compact JSON object plus one LF, with no banners, even without `--json`. Legacy text and non-compact `--json` output are unchanged. `--compact` and `--diagnostics` take no value; search/recall reject `--max-bytes` or `--diagnostics` without `--compact`.
+
+`--max-bytes` is an integer from **1024 to 65536**, default **8192**. It caps actual serialized UTF-8 bytes, not tokens, including the entire successful packet envelope, diagnostics, JSON escaping, and final LF. HTTP headers and error packets are outside this cap. Diagnostics compete with evidence for space; oversized recall passages are omitted rather than shortened.
+
+Compact packets contain `passages`, citations, `readiness`, `retrieval` warnings, and candidate-relative `omitted` counts. Their `partial: true` means selected evidence, not a complete answer/document. Dates describe only valid creation metadata (`basis: "written"`), otherwise `basis: "unknown"`; event-date inference and temporal event filters are not implemented. See the [packet contract](shared-memory-protocol.md#post-memoriesallrecallcompact).
+
+Answer from sufficient passages. For an evidence gap, narrow the query or expand the relevant lines/section on the **same target**, using an available passage's `expansion.id` and `expansion.expectedContentHash`, never a QMD hit ID:
+
+```bash
+jumpybrain expand --root <memory-root> --id <mem_id> --if-match sha256:<hash> --start-line 20 --end-line 40
+jumpybrain expand --target-url <url> --id <mem_id> --if-match sha256:<hash> --section-line 25
+```
+
+Lines are inclusive, 1-based, and include frontmatter. Omitted start/end bounds default to the document's first/last line; no range requests the whole document scope, still byte-bounded. `--section-line` selects the body anchor's enclosing heading section (including subsections) and cannot combine with line bounds. `text` preserves exact whole lines; cite actual `startLine`/`endLine`, not requested bounds. `partial`/`omittedLines` concern only the requested scope. Continue a partial response with `--start-line <continuationLine> --end-line <requestedEndLine>` and the **same hash** (not `--section-line`). A bounded section prefix may not reach the anchor.
+
+Stale hash/source means refresh recall and reassess evidence, not bypass the precondition. Missing/duplicate IDs never authorize stamping or repair during reads. Unavailable expansion can require a narrower query or an explicitly authorized source refresh; unsupported servers fail with upgrade guidance, **without full-document fallback**. A minimum envelope or first whole line that cannot fit is an error; increase the budget within its bounds or choose another range. `show` remains the explicit whole-document read for editing or broader context, with no range flags.
 
 ## Writing and editing memory
 
@@ -192,10 +220,13 @@ These commands route to the same memory handlers as the top-level commands. They
 | `jumpybrain run memory:search --query "..." [--root <memory-root>] [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Search memories for a given query. |
 | `jumpybrain run memory:recall --topic "..." [--root <memory-root>] [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Retrieve memories relevant to a current topic. |
 | `jumpybrain run memory:recall --query "..." [--root <memory-root>] [--limit <n>] [--depth shallow\|normal\|deep] [--json]` | Retrieve memories for a specific question. |
+| `jumpybrain run memory:expand --id <mem_id> --if-match sha256:<hash> [--root <memory-root>] [--target-url <url>] [--start-line <n> --end-line <n> \| --section-line <n>] [--max-bytes <n>] [--json]` | Read bounded source evidence; same contract as `expand`. |
 | `jumpybrain run memory:show --id <mem_id> [--root <memory-root>] [--target-url <url>] [--json]` | Show a full memory document by ID. |
 | `cat revised.md \| jumpybrain run memory:update --id <mem_id> --if-match <contentHash> [--root <memory-root>] [--target-url <url>] [--json]` | Safely replace a whole memory document by ID. |
 | `jumpybrain run memory:process --mode lint\|synthesize\|ensure-ids [--topic "..."] [--root <memory-root>] [--since <date\|Nd\|Nw>] [--limit <n>] [--if-match <contentHash>] --apply [--json]` | Run local memory processing with the same mode-specific bounds and safeguards as `process`. |
 | `cat memory.md \| jumpybrain run memory:remember --type <type> --title "..." [--root <memory-root>] [--tag <tag>] [--json]` | Store a new durable memory from stdin. |
 | `cat wrapup.md \| jumpybrain run memory:wrapup --title "..." [--topic "..."] [--root <memory-root>] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup from stdin. |
+
+`memory:recall` and `memory:search` also accept `--compact [--max-bytes <n>] [--diagnostics]`.
 
 Remote recipe commands also accept `--target-url <url>` where the underlying top-level command supports remote targets, and require `JUMPYBRAIN_API_KEY`.

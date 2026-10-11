@@ -1,5 +1,9 @@
 import * as runtime from "../runtime/index.js";
 import type {
+  CompactRecallOptions,
+  CompactRecallPacket,
+  ExpansionOptions,
+  ExpansionResult,
   DreamAbandonResult,
   DreamBatch,
   DreamCompleteRequest,
@@ -38,6 +42,8 @@ export interface LocalMemoryTransport {
   indexMemory(rootArg: string, options?: IndexMemoryOptions): Promise<IndexMemoryResult>;
   overviewMemory(rootArg: string, options?: MemoryOverviewOptions): Promise<MemoryOverviewResult>;
   searchMemory(rootArg: string, query: string, limit: number, options?: SearchMemoryOptions): Promise<SearchMemoryResult>;
+  compactSearchMemory(rootArg: string, query: string, limit: number, options?: CompactRecallOptions): Promise<CompactRecallPacket>;
+  expandMemoryDocument(rootArg: string, options: ExpansionOptions): Promise<ExpansionResult>;
   processMemory(rootArg: string, options: ProcessMemoryOptions): Promise<ProcessMemoryResult>;
   readMemoryDocument(rootArg: string, id: string): Promise<MemoryDocumentReadResult>;
   updateMemoryDocument(rootArg: string, id: string, content: string, options?: { ifMatch?: string; contentHash?: string }): Promise<MemoryDocumentUpdateResult>;
@@ -60,6 +66,8 @@ export function createLocalMemoryTransport(): LocalMemoryTransport {
     indexMemory: runtime.indexMemory,
     overviewMemory: runtime.overviewMemory,
     searchMemory: runtime.searchMemory,
+    compactSearchMemory: runtime.compactSearchMemory,
+    expandMemoryDocument: runtime.expandMemoryDocument,
     processMemory: runtime.processMemory,
     readMemoryDocument: runtime.readMemoryDocument,
     updateMemoryDocument: runtime.updateMemoryDocument,

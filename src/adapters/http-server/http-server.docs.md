@@ -39,6 +39,12 @@
 
 Authenticated POST `/memories/all/index` accepts an empty body, `{}`, or `{ "rebuild": boolean }`; reject other fields (including policy/model paths) and nonboolean rebuild with 400. Delegate routine/rebuild work to the same app runner. Status/index/search expose additive safe readiness, and search exposes partial retrieval warnings; total backend failures remain generic 500 `search_failed` (index failures: `index_failed`). Public `/health` stays content-free and liveness-only, with no readiness/model probe. Full packet contracts: [shared-memory protocol](../../../docs/shared-memory-protocol.md#index-stale-state).
 
+## Bounded retrieval protocol
+
+Authenticated POST `/memories/all/recall/compact` accepts `{ query, limit?, depth?, maxBytes?, diagnostics? }`; POST `/memories/all/expand` accepts `{ id, expectedContentHash, startLine?, endLine?, sectionLine?, maxBytes? }`. These are additive read operations, not aliases for legacy rich recall or editor GET. Unknown fields are rejected; no caller-supplied roots are accepted. Both bypass the write queue and return the app's version-1 packet **without an envelope**, serialized as `JSON.stringify(packet) + "\n"` (never the legacy pretty printer), with `Cache-Control: no-store`. Budget is 1024–65536 UTF-8 bytes including LF, default 8192.
+
+Expansion maps missing ID to 404, duplicate ID to 409, missing hash to 428, stale hash to 412, invalid hash/range/budget to 400, and an unfit whole source line/minimum envelope or invalid UTF-8 to 422. Errors use static safe messages, never backend exception text or path-bearing details. Unsupported methods return authenticated 405. Compact recall delegates the local app via `app/server-memory/compact.ts`; expansion delegates `app/server-memory/expansion.ts`.
+
 ## Non-responsibilities
 
 - Do not parse CLI command usage or target selection.

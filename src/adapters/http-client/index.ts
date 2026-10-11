@@ -1,5 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { HTTP_MEMORY_ROUTES, memoryDocumentPath, memoryDreamBatchAbandonPath, memoryDreamBatchCompletePath, memoryDreamBatchPath } from "../http-protocol.js";
+import { packetFits, validatePacketMaxBytes } from "../../core/serialized-budget.js";
+import type { CompactRecallOptions, CompactRecallPacket } from "../../core/retrieval-policy/compact.js";
+import type { ExpansionOptions, ExpansionResult } from "../../core/canonical/expansion.js";
+import { boundedErrorMessage, readBoundedErrorCode, readBoundedResponse, validBoundedPacket } from "./bounded-response.js";
 import type {
   DreamAbandonResult,
   DreamBatch,
@@ -48,6 +52,8 @@ export interface RemoteMemoryTransport {
   indexMemory(options?: Pick<IndexMemoryOptions, "rebuild">): Promise<IndexMemoryResult & Record<string, unknown>>;
   overviewMemory(options?: MemoryOverviewOptions): Promise<MemoryOverviewResult & Record<string, unknown>>;
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions & { mode?: "search" | "recall" }): Promise<SearchMemoryResult & Record<string, unknown>>;
+  compactSearchMemory(query: string, limit: number, options?: CompactRecallOptions): Promise<CompactRecallPacket>;
+  expandMemoryDocument(options: ExpansionOptions): Promise<ExpansionResult>;
   readMemoryDocument(id: string): Promise<MemoryDocumentReadResult & Record<string, unknown>>;
   updateMemoryDocument(id: string, content: string, options: { ifMatch: string }): Promise<MemoryDocumentUpdateResult & Record<string, unknown>>;
   getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
@@ -89,6 +95,30 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     return payload;
   }
 
+  async function boundedRequest(path: string, body: Record<string, unknown>, kind: "recall" | "expansion"): Promise<unknown> {
+    const maxBytes = validatePacketMaxBytes(body.maxBytes as number | undefined);
+    const unsupported = () => new RemoteMemoryError(502, "unsupported_bounded_read",
+      `Remote server returned an unsupported ${kind} response. Upgrade the server; no full-document fallback was attempted.`);
+    const response = await fetchImpl(new URL(path, baseUrl), {
+      method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) {
+      const code = await readBoundedErrorCode(response) ?? `http_${response.status}`;
+      // A supported expansion can legitimately return 404 for an unknown canonical ID.
+      if ([404, 405, 501].includes(response.status) && !(kind === "expansion" && response.status === 404 && code === "missing_id")) {
+        throw new RemoteMemoryError(response.status, "unsupported_bounded_read",
+          `Remote server does not support bounded ${kind}. Upgrade the server; no full-document fallback was attempted.`);
+      }
+      throw new RemoteMemoryError(response.status, code, boundedErrorMessage(code, response.status));
+    }
+    const text = await readBoundedResponse(response, maxBytes, unsupported);
+    let packet: unknown;
+    try { packet = JSON.parse(text); } catch { throw unsupported(); }
+    if (!validBoundedPacket(packet, kind, maxBytes, body) || !packetFits(packet, maxBytes)) throw unsupported();
+    return packet;
+  }
+
   return {
     url: baseUrl,
     memoryRootStatus: () => request(HTTP_MEMORY_ROUTES.status) as Promise<MemoryRootStatus & Record<string, unknown>>,
@@ -111,6 +141,9 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
         : { query, limit, depth: searchOptions.depth ?? "normal" };
       return request(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) }) as Promise<SearchMemoryResult & Record<string, unknown>>;
     },
+    compactSearchMemory: (query, limit, recallOptions = {}) => boundedRequest(HTTP_MEMORY_ROUTES.compactRecall,
+      { query, limit, depth: recallOptions.depth, maxBytes: recallOptions.maxBytes, diagnostics: recallOptions.diagnostics }, "recall") as Promise<CompactRecallPacket>,
+    expandMemoryDocument: (expansionOptions) => boundedRequest(HTTP_MEMORY_ROUTES.expand, { ...expansionOptions }, "expansion") as Promise<ExpansionResult>,
     readMemoryDocument: (id) => request(memoryDocumentPath(id)) as Promise<MemoryDocumentReadResult & Record<string, unknown>>,
     updateMemoryDocument: (id, content, updateOptions) => request(memoryDocumentPath(id), {
       method: "PUT",

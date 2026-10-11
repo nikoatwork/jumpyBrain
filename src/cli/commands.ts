@@ -96,7 +96,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
 }
 
 function isMemoryCommand(command: string): command is MemoryCommand {
-  return ["status", "index", "tree", "overview", "search", "recall", "show", "update", "process", "remember", "wrapup"].includes(command);
+  return ["status", "index", "tree", "overview", "search", "recall", "show", "expand", "update", "process", "remember", "wrapup"].includes(command);
 }
 
 function looksLikeMemoryDocumentUpdate(args: ReturnType<typeof parseArgs>): boolean {

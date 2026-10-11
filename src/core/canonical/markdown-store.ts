@@ -46,6 +46,8 @@ export interface CanonicalMemoryDocumentLocation {
 }
 
 export interface ReadCanonicalMemoryDocumentOptions {
+  /** Reuse guarded inode/ancestor/ID checks for source evidence reads; reject hardlinks. */
+  guarded?: boolean;
   target?: MemoryDocumentTargetKind;
   rootLabel?: string;
   memory?: "all";
@@ -127,7 +129,7 @@ export async function findCanonicalMemoryDocumentById(rootArg: string, id: strin
 
 export async function readCanonicalMemoryDocumentById(rootArg: string, id: string, options: ReadCanonicalMemoryDocumentOptions = {}): Promise<MemoryDocumentReadResult> {
   const location = await findCanonicalMemoryDocumentById(rootArg, id);
-  const bytes = await readFile(location.absolutePath);
+  const bytes = options.guarded ? (await replacementSnapshot(location)).bytes : await readFile(location.absolutePath);
   const content = bytes.toString("utf8");
   const parsed = parseFrontmatter(content);
   const type = memoryTypeForPath(location.file, parsed.frontmatter);

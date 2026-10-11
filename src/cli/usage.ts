@@ -16,6 +16,9 @@ export function usage(): string {
     "  jumpybrain tree --root <memory-root> [--connections] [--show-files] [--limit 25] [--json]",
     "  jumpybrain recall --root <memory-root> --topic \"...\" --limit 5 --depth shallow",
     "  jumpybrain recall --root <memory-root> --query \"...\" --limit 10 --depth normal --json",
+    "  jumpybrain recall --root <memory-root>|--target-url <url> --query \"...\" [--compact [--max-bytes <n>] [--diagnostics]] [--json]",
+    "  jumpybrain search --root <memory-root>|--target-url <url> --query \"...\" [--limit 10] [--depth shallow|normal|deep] [--compact [--max-bytes <n>] [--diagnostics]] [--json]",
+    "  jumpybrain expand --root <memory-root>|--target-url <url> --id <mem_id> --if-match sha256:<hash> [--start-line <n> --end-line <n> | --section-line <n>] [--max-bytes <n>] [--json]",
     "  jumpybrain show --root <memory-root> --id <mem_id> [--json]",
     "  jumpybrain show --target-url <url> --id <mem_id> [--json]",
     "  jumpybrain dream --root <memory-root>|--target-url <url> [--from t-0d|YYYY-MM-DD] [--days 3] [--date-basis evidence|modified] [--offset 0] [--out dream-window.json] [--json]",
@@ -25,6 +28,11 @@ export function usage(): string {
     "  jumpybrain process --root <memory-root> --mode lint|synthesize|ensure-ids [--topic \"...\"] --apply",
     "  cat memory.md | jumpybrain remember --root <memory-root> --type finding --title \"...\"",
     "  cat wrapup.md | jumpybrain wrapup --root <memory-root> --title \"...\" --topic \"...\"",
+    "",
+    "  recall/search (including recipes): --compact [--max-bytes <n>] [--diagnostics]",
+    "  Compact and expand: always compact JSON + one LF, no banners; --json is optional.",
+    "  maxBytes: 1024-65536 UTF-8 bytes (default 8192), including envelope/diagnostics/LF, not tokens.",
+    "  HTTP headers/error packets are outside the successful cap; legacy text/JSON is unchanged.",
   ].join("\n");
 }
 
@@ -37,10 +45,17 @@ export function runUsage(): string {
     "  jumpybrain run memory:remember --type finding --title \"...\" [--root <memory-root>]",
     "  jumpybrain run memory:recall --topic \"...\" [--root <memory-root>] [--limit 5] [--depth shallow|normal|deep]",
     "  jumpybrain run memory:recall --query \"...\" [--root <memory-root>] [--limit 10] [--depth shallow|normal|deep] [--json]",
+    "  jumpybrain run memory:search --query \"...\" [--root <memory-root>] [--target-url <url>] [--limit 10] [--depth shallow|normal|deep] [--json]",
+    "  jumpybrain run memory:expand --id <mem_id> --if-match sha256:<hash> [--root <memory-root>] [--target-url <url>] [--start-line <n> --end-line <n> | --section-line <n>] [--max-bytes <n>] [--json]",
     "  jumpybrain run memory:show --id <mem_id> [--root <memory-root>] [--target-url <url>] [--json]",
     "  cat revised.md | jumpybrain run memory:update --id <mem_id> --if-match <contentHash> [--root <memory-root>] [--target-url <url>] [--json]",
     "  jumpybrain run memory:process --mode lint|synthesize|ensure-ids [--topic \"...\"] [--root <memory-root>] --apply",
     "  cat memory.md | jumpybrain run memory:remember --type finding --title \"...\" [--root <memory-root>]",
     "  cat wrapup.md | jumpybrain run memory:wrapup --title \"...\" --topic \"...\" [--root <memory-root>]",
+    "",
+    "  recall/search (including recipes): --compact [--max-bytes <n>] [--diagnostics]",
+    "  Compact and expand: always compact JSON + one LF, no banners; --json is optional.",
+    "  maxBytes: 1024-65536 UTF-8 bytes (default 8192), including envelope/diagnostics/LF, not tokens.",
+    "  HTTP headers/error packets are outside the successful cap; legacy text/JSON is unchanged.",
   ].join("\n");
 }

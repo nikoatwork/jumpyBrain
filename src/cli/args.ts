@@ -5,6 +5,11 @@ export interface ParsedCliArgs {
 
 export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
+  const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
+  if (operation === "expand" || (["recall", "search"].includes(operation)
+    && argv.some(token => /^--(?:compact|max-bytes|diagnostics)(?:=|$)/u.test(token)))) {
+    return parseBoundedReadArgs(argv, operation);
+  }
   const args: ParsedCliArgs = { _: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
@@ -59,6 +64,32 @@ export function stringListArg(args: ParsedCliArgs, key: string): string[] {
   if (typeof value === "string") return [value];
   if (Array.isArray(value)) return value.map(String);
   return [];
+}
+
+// Scoped strict parsing prevents misspelled budgets/ranges silently becoming unbounded reads.
+function parseBoundedReadArgs(argv: string[], operation: string): ParsedCliArgs {
+  const positional = argv[0] === "run" ? 2 : 1;
+  const args: ParsedCliArgs = { _: argv.slice(0, positional) };
+  const booleans = new Set(operation === "expand" ? ["json"] : ["json", "compact", "diagnostics"]);
+  const values = new Set(["root", "target-url", "remote-url", "max-bytes", ...(operation === "expand"
+    ? ["id", "if-match", "start-line", "end-line", "section-line"] : ["topic", "query", "limit", "depth"])]);
+  for (let index = positional; index < argv.length; index++) {
+    const token = argv[index];
+    if (!token.startsWith("--")) throw new Error(`Unexpected bounded-read argument: ${token}.`);
+    const equal = token.indexOf("=");
+    const key = token.slice(2, equal < 0 ? undefined : equal);
+    if (!booleans.has(key) && !values.has(key)) throw new Error(`Unknown bounded-read flag --${key}.`);
+    if (args[key] !== undefined) throw new Error(`--${key} must not be repeated.`);
+    if (booleans.has(key)) {
+      if (equal >= 0) throw new Error(`--${key} is a boolean flag and takes no value.`);
+      args[key] = true;
+    } else {
+      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+      if (!value || value.startsWith("--")) throw new Error(`--${key} requires a value.`);
+      args[key] = value;
+    }
+  }
+  return args;
 }
 
 // Keep migration strict without changing legacy argument behavior for other commands.

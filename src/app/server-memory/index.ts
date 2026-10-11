@@ -35,6 +35,12 @@ import { createRemoteIndexRunner, type RemoteIndexRunner } from "./auto-index.js
 import { prepareServerNote, type ServerMemoryNoteDraft } from "./daily-note.js";
 import { withIdempotency, type IdempotencyResult } from "./idempotency.js";
 import { markRemoteIndexStale, readRemoteIndexState, type RemoteIndexState } from "./state.js";
+import { compactSearchServerMemory } from "./compact.js";
+import { expandServerMemoryDocument } from "./expansion.js";
+import type { CompactRecallOptions, CompactRecallPacket } from "../../core/retrieval-policy/compact.js";
+import type { ExpansionOptions, ExpansionResult } from "../../core/canonical/expansion.js";
+export { compactSearchServerMemory, expandServerMemoryDocument };
+
 import { getDreamWindow as getServerDreamWindow, abandonDreamBatch as abandonServerDreamBatch, createDreamBatch as createServerDreamBatch, getDreamBatch as getServerDreamBatch, getDreamStatus as getServerDreamStatus, completeDreamBatch as completeServerDreamBatch } from "./dream.js";
 
 export { recentServerMemory, type RemoteMemoryRecentNote, type RemoteMemoryRecentPacket } from "./recent.js";
@@ -58,6 +64,8 @@ export interface ServerMemoryRuntime {
   overviewMemory(options?: MemoryOverviewOptions): Promise<MemoryOverviewResult>;
   graphMemory(options?: MemoryGraphOptions): Promise<RemoteMemoryGraphPacket>;
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions): Promise<SearchMemoryResult>;
+  compactSearchMemory(query: string, limit: number, options?: CompactRecallOptions): Promise<CompactRecallPacket>;
+  expandMemoryDocument(options: ExpansionOptions): Promise<ExpansionResult>;
   readMemoryDocument(id: string): Promise<RemoteMemoryDocumentReadPacket>;
   updateMemoryDocument(id: string, content: string, options: ServerMemoryDocumentUpdateOptions): Promise<RemoteMemoryDocumentUpdatePacket>;
   getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
@@ -148,6 +156,8 @@ export function createServerMemoryRuntime(options: ServerMemoryRuntimeOptions): 
     overviewMemory: (overviewOptions) => overviewMemory(root, overviewOptions),
     graphMemory: (graphOptions) => graphServerMemory({ root, graph: graphOptions }),
     searchMemory: (query, limit, searchOptions) => searchMemory(root, query, limit, searchOptions),
+    compactSearchMemory: (query, limit, recall) => compactSearchServerMemory({ root, query, limit, recall }),
+    expandMemoryDocument: (expansion) => expandServerMemoryDocument({ ...expansion, root }),
     readMemoryDocument: (id) => readServerMemoryDocument({ root, id }),
     updateMemoryDocument: (id, content, updateOptions) => updateServerMemoryDocument({ root, id, content, ...updateOptions }),
     getDreamWindow: (request) => getDreamWindow({ root, request }),

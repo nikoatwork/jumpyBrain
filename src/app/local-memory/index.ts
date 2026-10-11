@@ -28,6 +28,8 @@ export class MemoryDocumentPreconditionError extends Error implements MemoryDocu
   }
 }
 
+export { compactSearchMemory, serializeCompactRecall, type CompactRecallOptions, type CompactRecallPacket, type CompactRecallPassage } from "./compact.js";
+export { expandMemoryDocument } from "./expansion.js";
 export { graphMemory } from "./graph.js";
 export { overviewMemory } from "./overview.js";
 

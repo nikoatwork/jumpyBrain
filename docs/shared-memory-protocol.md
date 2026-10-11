@@ -47,7 +47,7 @@ JUMPYBRAIN_API_KEY=client-key \
 
 `--target-url` and `--remote-url` are equivalent. Do not store API keys in committed `jumpybrain.json` files.
 
-An installer-created CLI may mark selected remote origins read-only in device-local `cli-config.json`. For a match, retrieval remains available while all canonical, derived-index, and dream support-state mutations are rejected before credentials, input files, or HTTP requests are touched. Direct commands and `run memory:*` recipes share the same classifier.
+An installer-created CLI may mark selected remote origins read-only in device-local `cli-config.json`. For a match, retrieval remains available while all canonical, derived-index, and dream support-state mutations are rejected before credentials, input files, or HTTP requests are touched. The read allowlist includes compact recall/search and `expand`, including `run memory:expand`. Direct commands and `run memory:*` recipes share the same classifier.
 
 This policy is advisory accidental-write protection, not server authorization. A user can bypass it by changing local config, using a different CLI, or calling HTTP directly. Enforce actual access control at the server/proxy layer. Policy identity is the normalized HTTP(S) origin because V1 routes use absolute `/memories/all/...` paths; paths, queries, fragments, default ports, and trailing slashes collapse to the origin, while DNS aliases, redirects, alternate proxy origins, and non-default ports remain distinct.
 
@@ -430,6 +430,73 @@ Response mirrors search, with `mode: "recall"` for CLI JSON compatibility:
 }
 ```
 
+### `POST /memories/all/recall/compact`
+
+Authenticated, additive read endpoint for CLI `recall --compact` and `search --compact`. Existing `/recall`, `/search`, text, and rich JSON contracts are unchanged. Agents use the CLI, not HTTP directly.
+
+Request fields (unknown fields, including caller-supplied roots, are rejected):
+
+```json
+{ "query": "release planning", "limit": 5, "depth": "normal", "maxBytes": 8192, "diagnostics": false }
+```
+
+`query` is required (not `topic`); optional `limit` is a positive integer, `depth` is `shallow|normal|deep`, and `diagnostics` is boolean. The CLI maps recall topics to `query`; its defaults remain 5 recall results and 10 search results.
+
+Both bounded endpoints return their version-1 packet directly, **without a remote wrapper**, using `JSON.stringify(packet) + "\n"` and `Cache-Control: no-store`. `maxBytes` is an integer **1024–65536**, default **8192**, capping actual serialized UTF-8 bytes, not tokens. The entire successful envelope, JSON escaping, diagnostics, and trailing LF count; HTTP headers and error packets do not. Compact CLI stdout uses the same framing even without `--json`, with no banners.
+
+Compact packet fields:
+
+| Field | Contract |
+| --- | --- |
+| `version`, `kind` | `1`, `"recall"` for both compact recall and search. |
+| `query`, `depth`, `maxBytes` | Effective request and byte cap. |
+| `scope`, `partial` | `"selected_passages"`, `true`: never a complete-document/answer assertion. |
+| `readiness`, `retrieval` | Safe readiness and retrieval status/warnings, as above. |
+| `passages` | Ordered selected evidence units; oversized units are skipped, not shortened by the packer. |
+| `omitted` | `{ results, passages }`: candidate-relative omissions, including upstream passage omissions, not unseen corpus coverage. |
+| `diagnostics` | Opt-in `{ candidateResults, candidatePassages, budgetOmittedPassages }`; consumes the same budget. |
+
+Each passage contains:
+
+- `filePath`, `pathBasis: "canonical_root" | "index_root"`, inclusive 1-based `startLine`/`endLine`, `text`, `scope: "excerpt"`, and `partial: true`. Paths are relative to the stated basis, never server absolute roots.
+- `date: { basis: "written", value, field: "created_at" | "createdAt" }` from valid creation metadata, otherwise `{ basis: "unknown" }`. No frontmatter evidence-date, filename, or mtime fallback; event-date inference and temporal event filters are not implemented.
+- Optional `documentId` validated against the current unique canonical source; this alone does not imply expansion is available.
+- `expansion: { available: true, id, expectedContentHash, startLine, endLine }` only when current source identity and cited excerpt match. Use these ID/hash fields, **never a QMD hit ID**, for expansion.
+- Otherwise `expansion: { available: false, reason }`, where reason is `missing_id`, `invalid_id`, `duplicate_id`, `source_unavailable`, `source_changed`, `source_mismatch`, `invalid_utf8`, or `outside_canonical_root`. Reads never stamp or repair IDs.
+- Opt-in `diagnostics: { hitId, score, scoreBreakdown?, metadata? }`, inside the same cap. Diagnostics are not additional evidence or truth guarantees.
+
+A budget that cannot fit the query/readiness/minimum envelope fails with `422 budget_too_small`; an empty passage list may instead mean all candidate units were omitted. Preserve warnings and omission counts rather than treating either outcome as proof that memory is absent.
+
+### `POST /memories/all/expand`
+
+Authenticated, read-only canonical source expansion. No idempotency key, write queue, index update, ID stamping, or support-state mutation. Both bounded endpoints use existing read authentication; HTTP POST does not make them writes.
+
+```json
+{ "id": "mem_550e8400-e29b-41d4-a716-446655440000", "expectedContentHash": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "startLine": 20, "endLine": 40, "maxBytes": 8192 }
+```
+
+`id` and `expectedContentHash` are required. The hash is SHA-256 over exact full-file bytes from available compact expansion metadata or a prior document read; unlike document PUT, it is a **JSON body field**, not an `If-Match` header. CLI exposes it as `--if-match`. Unknown fields are rejected.
+
+Optional positive integer `startLine`/`endLine` select inclusive 1-based lines including frontmatter, defaulting to first/last document lines. Alternatively `sectionLine` is a body-line anchor for the innermost enclosing heading section, including subsections; it cannot combine with line bounds. A pre-heading anchor selects the body preamble. No bounds selects whole-document scope, still byte-bounded.
+
+Response fields:
+
+| Field | Contract |
+| --- | --- |
+| `version`, `kind` | `1`, `"expansion"`. |
+| `id`, `filePath`, `contentHash` | Canonical ID, root-relative path, and matched full-file hash. |
+| `scope` | `"lines"` or `"section"`. |
+| `requestedStartLine`, `requestedEndLine` | Resolved requested scope. |
+| `startLine`, `endLine`, `totalLines` | Actual returned citation and source line count. |
+| `text` | Exact whole source lines, retaining CRLF/whitespace/final-newline presence. |
+| `partial`, `omittedLines` | Budget truncation within the requested scope only, not whole-document or answer completeness. |
+| `continuationLine` | Present only when partial; next unread line (`endLine + 1`). |
+| `maxBytes` | Effective serialized byte cap, with the same framing as compact recall. |
+
+Continue partial evidence with `startLine: continuationLine`, `endLine: requestedEndLine`, and the **same hash**, omitting `sectionLine`. Cite actual returned bounds: a bounded section prefix may not reach its anchor. Missing hash is 428; stale hash or changed identity is 412 and requires refreshed recall/source evidence, not precondition bypass. Missing/duplicate IDs are 404/409 and never authorize read-time mutations. Invalid range/hash/budget is 400; an unfit envelope/first whole line or invalid UTF-8 is 422. Lines are never silently cut to fit.
+
+New clients validate packet version/kind/shape, declared budget, and serialized size. Unsupported endpoints (404/405/501) or malformed bounded packets fail with upgrade guidance, **without automatic full-document fallback**; expansion `404 missing_id` remains a document error. Explicit CLI `show` remains the whole-document editing/broader-context workflow, not an expansion retry strategy.
+
 ### `POST /memories/all/notes`
 
 Authenticated append-only `remember` write. Requires `Idempotency-Key`.
@@ -664,6 +731,8 @@ Successful response:
 | HTTP | Code | Meaning |
 | --- | --- | --- |
 | 400 | `bad_request` | Malformed JSON, invalid query/body shape, or invalid parameter. |
+| 400 | `invalid_budget` | Bounded-read byte budget is not an integer from 1024 to 65536. |
+| 400 | `invalid_expansion` | Invalid expansion hash or line/section bounds. |
 | 400 | `invalid_id` | Document ID is not shaped as `mem_<uuid>`. |
 | 400 | `idempotency_key_required` | Create request omitted `Idempotency-Key`. |
 | 401 | `auth_required` | Missing `Authorization: Bearer ...`. |
@@ -673,10 +742,13 @@ Successful response:
 | 405 | `method_not_allowed` | Known route with unsupported method. |
 | 409 | `duplicate_id` | More than one canonical Markdown document has the requested document ID. |
 | 409 | `idempotency_conflict` | Same idempotency key used for a different request. |
-| 412 | `precondition_failed` | `If-Match` did not match the current document `contentHash`; re-read before retrying. |
+| 412 | `precondition_failed` | Update `If-Match` or expansion `expectedContentHash` is stale, or source identity changed; refresh evidence before retrying. |
 | 415 | `unsupported_media_type` | Non-JSON body for JSON endpoint. |
+| 422 | `budget_too_small` | Minimum bounded packet envelope cannot fit. |
+| 422 | `line_too_large` | First requested whole source line cannot fit; increase budget or choose another range. |
+| 422 | `invalid_utf8` | Exact expansion is unavailable for invalid UTF-8 source. |
 | 422 | `validation_failed` | Valid JSON but invalid memory draft/wrapup/document content. |
-| 428 | `precondition_required` | Document update omitted the required `If-Match` content hash. |
+| 428 | `precondition_required` | Update omitted `If-Match`, or expansion omitted `expectedContentHash`. |
 | 500 | `index_failed` | Server-side index update/rebuild failed. |
 | 500 | `overview_failed` | Server-side overview/tree generation failed. |
 | 500 | `search_failed` | Server-side search/recall failed. |

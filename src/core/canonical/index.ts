@@ -26,3 +26,14 @@ export {
   type ReadCanonicalMemoryDocumentOptions,
   type ReplaceCanonicalMemoryDocumentOptions,
 } from "./markdown-store.js";
+export {
+  DEFAULT_EXPANSION_MAX_BYTES,
+  MAX_EXPANSION_MAX_BYTES,
+  MIN_EXPANSION_MAX_BYTES,
+  MemoryExpansionError,
+  expandCanonicalMemoryDocument,
+  serializeExpansion,
+  type ExpansionErrorCode,
+  type ExpansionOptions,
+  type ExpansionResult,
+} from "./expansion.js";

@@ -129,7 +129,7 @@ test("local and hosted recall/search share plain formatting and leave JSON packe
   assert.equal(JSON.stringify(payload), original);
 });
 
-test("distributed skill and copyable guidance teach conditional expansion without invented range flags", async () => {
+test("distributed skill and copyable guidance teach bounded conditional expansion and explicit whole reads", async () => {
   const skill = await readFile(new URL("../skills/jumpybrain-memory/SKILL.md", import.meta.url), "utf8");
   const workflows = await readFile(new URL("../docs/agent-workflows.md", import.meta.url), "utf8");
   for (const guidance of [skill, workflows, agentInstructions()]) {
@@ -141,6 +141,11 @@ test("distributed skill and copyable guidance teach conditional expansion withou
     assert.match(guidance, /Written date/);
     assert.match(guidance, /Evidence date/);
     assert.match(guidance, /--target-url <url> --id <mem_id> --json/);
+    assert.match(guidance, /--compact/);
+    assert.match(guidance, /--section-line/);
+    assert.match(guidance, /continuationLine/);
+    assert.match(guidance, /expectedContentHash/);
+    assert.match(guidance, /no automatic full-document fallback|without automatic full-document fallback|never automatic full-document fallback/);
   }
   const installer = await readFile(new URL("../scripts/public-install.mjs", import.meta.url), "utf8");
   assert.ok(installer.includes('path.join(appDir, "skills", "jumpybrain-memory", "SKILL.md")'));

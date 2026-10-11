@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-10 — Budgeted recall and evidence expansion
+
+- Added opt-in byte-bounded recall and hash-guarded line/section expansion across local and hosted CLI workflows, preserving full-document editing; [contracts and verification](done/2026-10-11_tasks-budgeted-recall-and-expansion.md).
+
 ## 2026-10-10 — Evidence-safe memory maintenance
 
 - Added source-backed lint candidates, protected extractive-map writes, and bounded dream date diagnostics; [verification and evaluation limits](done/2026-10-10_tasks-consolidation-maintenance-reliability.md).

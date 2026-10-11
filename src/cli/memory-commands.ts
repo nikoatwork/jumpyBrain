@@ -9,6 +9,7 @@ import { resolveCliTarget } from "./targets.js";
 import { rememberFromStdin } from "./memory-write.js";
 import { formatMemoryOverview, overviewOptionsFromArgs } from "./overview.js";
 import { readStdin } from "./stdin.js";
+import { compactOptions, expansionOptions, printCompactRecall, printExpansion } from "./bounded-reads.js";
 
 export type MemoryCommand =
   | "status"
@@ -18,6 +19,7 @@ export type MemoryCommand =
   | "search"
   | "recall"
   | "show"
+  | "expand"
   | "update"
   | "process"
   | "remember"
@@ -29,6 +31,8 @@ export async function runMemoryCommand(
   localMemory: LocalMemoryTransport,
   options: { allowDiscovery?: boolean } = {},
 ): Promise<void> {
+  const compact = command === "recall" || command === "search" ? compactOptions(args) : undefined;
+  const expansion = command === "expand" ? expansionOptions(args) : undefined;
   if (command === "process") {
     const selected = resolveCliTarget(args, { allowDiscovery: options.allowDiscovery });
     if (selected.kind === "remote") throw new Error("process is local/server-side only in remote V1. Run it on the server memory root.");
@@ -50,6 +54,11 @@ export async function runMemoryCommand(
   }
   const indexOptions = command === "index" ? indexOptionsFromArgs(args) : undefined;
   const target = await commandMemoryTarget(args, localMemory, { allowDiscovery: options.allowDiscovery });
+
+  if (expansion) {
+    await printExpansion(target, localMemory, expansion);
+    return;
+  }
 
   if (command === "status") {
     const result = target.kind === "remote" ? await target.memory.memoryRootStatus() : await localMemory.memoryRootStatus(target.root);
@@ -89,6 +98,10 @@ export async function runMemoryCommand(
     const query = stringArg(args, command === "recall" ? "topic" : "query", command === "recall" ? stringArg(args, "query", false) : undefined);
     const limit = numberArg(args, "limit", command === "recall" ? 5 : 10);
     const depth = stringArg(args, "depth", "normal");
+    if (compact) {
+      await printCompactRecall(target, localMemory, query, limit, compact);
+      return;
+    }
     const result = target.kind === "remote"
       ? await target.memory.searchMemory(query, limit, { depth, mode: command })
       : await localMemory.searchMemory(target.root, query, limit, { depth });

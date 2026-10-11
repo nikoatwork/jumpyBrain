@@ -9,6 +9,8 @@ export const HTTP_MEMORY_ROUTES = {
   graphJson: `${MEMORY_PREFIX}/graph.json`,
   search: `${MEMORY_PREFIX}/search`,
   recall: `${MEMORY_PREFIX}/recall`,
+  compactRecall: `${MEMORY_PREFIX}/recall/compact`,
+  expand: `${MEMORY_PREFIX}/expand`,
   notes: `${MEMORY_PREFIX}/notes`,
   recent: `${MEMORY_PREFIX}/recent`,
   resolveTitle: `${MEMORY_PREFIX}/resolve-title`,

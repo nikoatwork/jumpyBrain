@@ -4,6 +4,10 @@ import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPat
 import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
 import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
+import { compactSearchServerMemory } from "../../app/server-memory/compact.js";
+import { expandServerMemoryDocument } from "../../app/server-memory/expansion.js";
+import type { ExpansionOptions } from "../../core/canonical/expansion.js";
+import { serializeBudgetedPacket, validatePacketMaxBytes } from "../../core/serialized-budget.js";
 import type { RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
 import { graphPageHtml } from "./graph-page.js";
 import { brainFaviconSvg } from "./favicon.js";
@@ -73,6 +77,61 @@ export async function routeRequest(context: { request: IncomingMessage; response
   const authFailure = authenticate(request, apiKeys);
   if (authFailure) {
     writeJson(response, 401, authFailure);
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.compactRecall || url.pathname === HTTP_MEMORY_ROUTES.expand) {
+    response.setHeader("cache-control", "no-store");
+    if (request.method !== "POST") {
+      response.setHeader("allow", "POST");
+      writeJson(response, 405, errorResponse("method_not_allowed", "Use POST for bounded memory reads."));
+      return;
+    }
+    try {
+      const body = await parseJsonBody(request);
+      if (isJsonError(body)) {
+        writeJson(response, body.statusCode, body.body);
+        return;
+      }
+      let maxBytes: number;
+      try { maxBytes = validatePacketMaxBytes(body.maxBytes as number | undefined); }
+      catch {
+        writeJson(response, 400, errorResponse("invalid_budget", "maxBytes must be an integer between 1024 and 65536."));
+        return;
+      }
+      const expansion = url.pathname === HTTP_MEMORY_ROUTES.expand;
+      const allowed = expansion
+        ? ["id", "expectedContentHash", "startLine", "endLine", "sectionLine", "maxBytes"]
+        : ["query", "limit", "depth", "maxBytes", "diagnostics"];
+      if (Object.keys(body).some(key => !allowed.includes(key))) {
+        writeJson(response, 400, errorResponse("bad_request", "Unknown bounded memory request field."));
+        return;
+      }
+      let packet: unknown;
+      if (expansion) {
+        // Core validates hash and scope; never accept a caller-supplied filesystem root.
+        packet = await expandServerMemoryDocument({ ...body as unknown as ExpansionOptions, root });
+      } else {
+        if (typeof body.query !== "string" || !body.query.trim()
+          || (body.limit !== undefined && (typeof body.limit !== "number" || !Number.isSafeInteger(body.limit) || body.limit < 1))
+          || (body.depth !== undefined && (typeof body.depth !== "string" || !["shallow", "normal", "deep"].includes(body.depth)))
+          || (body.diagnostics !== undefined && typeof body.diagnostics !== "boolean")) {
+          writeJson(response, 400, errorResponse("bad_request", "Compact recall requires query, a positive integer limit, valid depth, and boolean diagnostics."));
+          return;
+        }
+        packet = await compactSearchServerMemory({ root, query: body.query, limit: body.limit as number | undefined ?? 5,
+          recall: { depth: body.depth as string | undefined, maxBytes, diagnostics: body.diagnostics as boolean | undefined } });
+      }
+      // Unlike legacy writeJson, this must not pretty-print or add an envelope.
+      const wire = serializeBudgetedPacket(packet);
+      if (Buffer.byteLength(wire, "utf8") > maxBytes) throw new Error("Invalid bounded packet");
+      response.statusCode = 200;
+      response.setHeader("content-type", "application/json; charset=utf-8");
+      response.end(wire);
+    } catch (error) {
+      const mapped = boundedReadErrorResponse(error);
+      writeJson(response, mapped.statusCode, mapped.body);
+    }
     return;
   }
 
@@ -792,4 +851,26 @@ function isErrorBody(body: unknown): body is JsonError {
 
 export function errorResponse(code: string, message: string, details?: Record<string, unknown>): JsonError {
   return { error: { code, message, ...(details ? { details } : {}) } };
+}
+
+/** Static messages only: canonical/backend exceptions may contain paths or request data. */
+function boundedReadErrorResponse(error: unknown): { statusCode: number; body: JsonError } {
+  const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
+  const errors: Record<string, [number, string]> = {
+    invalid_id: [400, "Expected a canonical mem_<uuid> document ID."],
+    missing_id: [404, "Canonical memory document not found."],
+    duplicate_id: [409, "Canonical document ID is ambiguous; repair duplicate IDs before expanding."],
+    invalid_expansion: [400, "Invalid expansion hash or line/section range."],
+    invalid_budget: [400, "maxBytes must be an integer between 1024 and 65536."],
+    budget_too_small: [422, "Byte budget cannot fit the minimum packet. Increase maxBytes."],
+    line_too_large: [422, "First requested whole source line exceeds the budget. Increase maxBytes or request another range."],
+    precondition_required: [428, "Expansion requires expectedContentHash from prior recall or document read."],
+    precondition_failed: [412, "Document hash is stale or identity changed. Refresh recall before expanding."],
+    invalid_utf8: [422, "Document is not valid UTF-8; exact expansion is unavailable."],
+  };
+  if (typeof code === "string" && Object.hasOwn(errors, code)) {
+    const [statusCode, message] = errors[code]!;
+    return { statusCode, body: errorResponse(code, message) };
+  }
+  return { statusCode: 500, body: errorResponse("bounded_read_failed", "Remote bounded memory read failed.") };
 }
