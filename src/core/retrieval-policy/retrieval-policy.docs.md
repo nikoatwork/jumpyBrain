@@ -31,6 +31,12 @@ The initial per-passage bound is 1,000 characters, including omission markers. T
 - Classification is neither a truth guarantee nor independent corroboration. Canonical metadata, including historical evidence dates, remains attached to results.
 
 
+## Temporal evidence policy
+
+`temporal.ts` owns pure strict evidence-date selection and query validation, not discovery. `resolveTemporalQuery` accepts explicit lower/upper days or timezone-explicit timestamps (at most millisecond precision), rejects impossible/reversed/empty bounds and malformed types/unknown keys, and normalizes to a UTC half-open interval. Day upper bounds include that day. Relative `t-Nd` requires a supplied real `referenceDate`; there is no moving clock or inferred natural-language filter. `order: chronological` can stand alone without bounds.
+
+`evidenceDate` returns `declared` from valid `date`, otherwise recognized journal `filename`, otherwise `unknown` with missing/invalid/synthesis reason. An invalid explicit date blocks fallbacks. Strict dream/process-owned syntheses without `date` never use filename/creation/modification dates. Unknowns do not satisfy date bounds but may participate in order-only retrieval. No date is asserted to verify events or fact validity; a multi-period synthesis's declared date cannot date every claim. Strict ISO-calendar validation is shared with canonical written dates and dream-window validation, while their fallback policies deliberately differ.
+
 ## Compact recall packets
 
 `compact.ts` owns version-1 `kind: "recall"` evidence shapes and pure whole-passage packing. `packCompactRecall` consumes the existing search order: primary then additional passages for each result. It skips units that cannot fit and continues in order; it never slices their text or qualifications. `omitted.results` counts search rows with no represented passage, while `omitted.passages` includes budget omissions plus search's reported candidate-passage omissions. Neither counts unknown matches beyond search's limit/candidate pools.
@@ -40,3 +46,7 @@ The complete `serializeCompactRecall(packet)` output is compact JSON plus one LF
 Packet scope is `selected_passages`; passage scope is `excerpt`. Both explicitly have `partial: true`: bounded recall never asserts complete document/answer context. Existing excerpt omission markers remain unchanged. Dates use strictly validated `created_at`, otherwise `createdAt`, matching human recall's written-date precedence; absent/invalid dates have `basis: "unknown"`. They never infer an event date from `date`, modification times, or filenames.
 
 The app verifies expansion identity and current source bytes; this policy module only compares supplied excerpt coordinates/text against supplied source, allowing existing whitespace compaction and explicit partial/ancestor/read-bound markers. Unmarked excerpts require the entire cited range to match; within-line partial slices must match the cited single line. Arbitrary frontmatter and QMD score/hit IDs are diagnostics-only.
+
+### Compact temporal additions
+
+Only an explicit temporal request adds the optional packet `temporal` interval/coverage and passage `evidenceDate`/`relationships`. Written `date` remains separate. Relationships contain only source-declared `conflicts_with`/`supersedes` strings or string arrays, never inferred resolution. All additions count toward the same whole-passage UTF-8 budget; oversized declarations omit the passage, not the qualifications. Without a temporal envelope the pure packer strips temporal passage additions, preserving legacy V1 output.

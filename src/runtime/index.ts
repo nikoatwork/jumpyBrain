@@ -22,6 +22,11 @@ export type {
   MemoryOverviewResult,
   ProcessMemoryOptions,
   ProcessMemoryResult,
+  EvidenceDate,
+  TemporalQuery,
+  TemporalResolution,
+  TemporalCoverage,
+  TemporalRetrieval,
   SearchMemoryOptions,
   SearchMemoryResult,
   SearchResult,
@@ -42,3 +47,5 @@ export { migrateLogseq } from "../app/migration/index.js";
 export type { LogseqMigrationResult } from "../app/migration/index.js";
 
 export type { DreamWorkflowConfig } from "../app/dream/index.js";
+
+export { resolveTemporalQuery } from "../core/retrieval-policy/temporal.js";

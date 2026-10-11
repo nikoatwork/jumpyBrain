@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
 import { hashMemoryDocumentContent, listCanonicalMemoryMarkdownFiles, normalizeRelative, parseFrontmatter, readCanonicalMemoryDocumentById, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
+import { metadataDate } from "../../core/canonical/metadata-date.js";
 import { assertCompatibleMemoryRoot, DERIVED_DIR } from "../../core/memory-root/index.js";
 import type { Frontmatter, ProcessMemoryOptions, ProcessMemoryResult, ProcessMode, ProcessingLintScope } from "../../types.js";
 import { searchQmdIndex } from "../../adapters/qmd/index.js";
@@ -52,8 +53,14 @@ async function synthesizeMemory(root: string, options: ProcessMemoryOptions): Pr
     if (opened.file !== relative || opened.contentHash !== hashMemoryDocumentContent(existing.content)) throw new Error("Synthesis destination changed during preflight.");
   }
   const documents = await readSourceDocuments(root);
-  const direct = selectSources(documents, { topic, sinceTime, limit, includePages: false });
-  const sources = await expandSourcesWithQmd(root, documents, direct, { topic, sinceTime, limit });
+  // QMD can nominate only canonical sources that pass the same scope checks as
+  // direct selection. Filter before either path spends the source limit.
+  const eligible = documents.filter(document => document.relativePath !== relative
+    && isPrimarySource(document) && withinSince(document, sinceTime)
+    && Boolean(sourceExcerpt(document, topic))).sort(sourceOrder);
+  const terms = distinctiveTokens(topic);
+  const direct = eligible.filter(document => topicMatches(document, terms)).slice(0, limit);
+  const sources = await expandSourcesWithQmd(root, eligible, direct, { topic, limit });
   const excerpts = sources.flatMap(source => { const excerpt = sourceExcerpt(source, topic); return excerpt ? [{ source, excerpt }] : []; });
   if (!excerpts.length) throw new Error(`No source passages found for topic ${JSON.stringify(topic)} within the requested bounds.`);
   const body = renderPageBody(topic, excerpts);
@@ -88,7 +95,7 @@ async function lintMemory(root: string, options: ProcessMemoryOptions): Promise<
   const topic = options.topic?.trim() || undefined;
   const limit = positiveLimit(options.limit, 100);
   const sinceTime = parseSince(options.since);
-  const eligible = selectSources(documents, { topic, sinceTime, limit: documents.length, includePages: true });
+  const eligible = selectLintSources(documents, { topic, sinceTime });
   const scoped = eligible.slice(0, limit);
   const issues = lintDocuments(scoped, documents, document => documentTime(document.frontmatter));
   const now = new Date().toISOString();
@@ -134,16 +141,15 @@ async function assertSafeDestination(root: string, file: string): Promise<void> 
   }
 }
 
-async function expandSourcesWithQmd(root: string, documents: SourceDocument[], initial: SourceDocument[], options: { topic: string; sinceTime?: number; limit: number }): Promise<SourceDocument[]> {
+async function expandSourcesWithQmd(root: string, eligible: SourceDocument[], initial: SourceDocument[], options: { topic: string; limit: number }): Promise<SourceDocument[]> {
   if (initial.length >= options.limit) return initial;
-  const byPath = new Map(documents.map(document => [document.relativePath, document]));
+  const byPath = new Map(eligible.map(document => [document.relativePath, document]));
   const selected = new Map(initial.map(document => [document.relativePath, document]));
   try {
     const results = await searchQmdIndex(root, options.topic, Math.max(options.limit * 2, 12), { depth: "deep" });
     for (const result of results) {
       const document = byPath.get(result.provenance.file);
-      if (!document || !isPrimarySource(document) || !withinSince(document, options.sinceTime)) continue;
-      if (!sourceExcerpt(document, options.topic)) continue;
+      if (!document) continue;
       selected.set(document.relativePath, document);
       if (selected.size >= options.limit) break;
     }
@@ -153,13 +159,11 @@ async function expandSourcesWithQmd(root: string, documents: SourceDocument[], i
   }
   return [...selected.values()].sort(sourceOrder).slice(0, options.limit);
 }
-function selectSources(documents: SourceDocument[], options: { topic?: string; sinceTime?: number; limit: number; includePages: boolean }): SourceDocument[] {
+function selectLintSources(documents: SourceDocument[], options: { topic?: string; sinceTime?: number }): SourceDocument[] {
   const terms = distinctiveTokens(options.topic ?? "");
-  return documents.filter(document => options.includePages || isPrimarySource(document))
-    .filter(document => withinSince(document, options.sinceTime))
+  return documents.filter(document => withinSince(document, options.sinceTime))
     .filter(document => terms.length === 0 || topicMatches(document, terms))
-    .filter(document => options.includePages || Boolean(sourceExcerpt(document, options.topic ?? "")))
-    .sort(sourceOrder).slice(0, options.limit);
+    .sort(sourceOrder);
 }
 function withinSince(document: SourceDocument, sinceTime?: number): boolean {
   return sinceTime === undefined || (documentTime(document.frontmatter) ?? -Infinity) >= sinceTime;
@@ -177,27 +181,46 @@ function renderPageBody(topic: string, excerpts: Array<{ source: SourceDocument;
     ...excerpts.flatMap(({ source, excerpt }) => [
       `### ${String(source.frontmatter.title ?? headingTitle(source.body) ?? source.relativePath)}`, "",
       `> ${excerpt.snippet.replace(/\n/g, "\n> ")}`, "",
-      `[Original source](${link(source)}) — lines ${excerpt.lineStart}-${excerpt.lineEnd}.`, "",
+      `[Original source](${link(source)}) — lines ${excerpt.lineStart}-${excerpt.lineEnd}.`,
+      ...sourceMetadata(source), "",
     ]),
     "## Source memories",
     ...excerpts.map(({ source }) => `- [${source.relativePath}](${link(source)})`), "",
     "## Maintenance",
-    "- Generated by `jumpybrain process --mode synthesize --apply`; unchanged excerpts produce no write.",
-    "- Source metadata dates bound selection when --since is supplied; dates are not inferred event chronology. Original evidence remains canonical.",
+    "- Generated by `jumpybrain process --mode synthesize --apply`; unchanged excerpts and cited metadata produce no write.",
+    "- Source metadata recency (updated_at, otherwise created_at, otherwise date) bounds selection when --since is supplied; missing/invalid selected dates are excluded. Dates are not inferred event chronology. Original evidence remains canonical.",
   ].join("\n");
+}
+/** Keep metadata provenance outside the quote: these are not asserted body claims. */
+function sourceMetadata(source: SourceDocument): string[] {
+  const code = (value: unknown) => {
+    const text = JSON.stringify(value);
+    const fence = "`".repeat((text.match(/`+/g) ?? []).reduce((longest, run) => Math.max(longest, run.length), 0) + 1);
+    return `${fence} ${text} ${fence}`;
+  };
+  const fields = (keys: string[]) => keys.filter(key => Object.hasOwn(source.frontmatter, key))
+    .map(key => `${key}: ${code(source.frontmatter[key])}`).join("; ");
+  const dates = fields(["date", "created_at", "createdAt", "updated_at"]);
+  const qualifications = fields(["confidence", "review", "conflicts_with", "supersedes"]);
+  return [
+    `Source dates (verbatim metadata, not inferred event times): ${dates || "undated"}.`,
+    ...(qualifications ? [`Source qualifications/relationships (unreconciled): ${qualifications}.`] : []),
+  ];
 }
 function documentTime(metadata: Frontmatter): number | undefined {
   const value = metadata.updated_at ?? metadata.created_at ?? metadata.date;
-  if (value === undefined || value === null || value === "") return undefined;
-  const parsed = Date.parse(String(value));
-  return Number.isFinite(parsed) ? parsed : undefined;
+  const valid = metadataDate(value);
+  return valid === undefined ? undefined : Date.parse(valid);
 }
 function parseSince(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const relative = /^(\d+)([dw])$/.exec(value.trim());
-  if (relative) return Date.now() - Number(relative[1]) * (relative[2] === "w" ? 7 : 1) * 86400000;
-  const absolute = Date.parse(value.trim());
-  if (Number.isFinite(absolute)) return absolute;
+  if (relative) {
+    const resolved = Date.now() - Number(relative[1]) * (relative[2] === "w" ? 7 : 1) * 86400000;
+    if (Number.isFinite(new Date(resolved).getTime())) return resolved;
+  }
+  const absolute = metadataDate(value.trim());
+  if (absolute !== undefined) return Date.parse(absolute);
   throw new Error(`Invalid --since '${value}'. Use an ISO date, Nd, or Nw.`);
 }
 function positiveLimit(value: number | undefined, fallback: number): number {

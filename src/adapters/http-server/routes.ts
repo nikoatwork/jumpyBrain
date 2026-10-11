@@ -1,3 +1,5 @@
+import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
+import type { TemporalQuery } from "../../types.js";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPath, isMemoryRoute } from "../http-protocol.js";
@@ -102,7 +104,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       const expansion = url.pathname === HTTP_MEMORY_ROUTES.expand;
       const allowed = expansion
         ? ["id", "expectedContentHash", "startLine", "endLine", "sectionLine", "maxBytes"]
-        : ["query", "limit", "depth", "maxBytes", "diagnostics"];
+        : ["query", "limit", "depth", "maxBytes", "diagnostics", "temporal"];
       if (Object.keys(body).some(key => !allowed.includes(key))) {
         writeJson(response, 400, errorResponse("bad_request", "Unknown bounded memory request field."));
         return;
@@ -119,8 +121,9 @@ export async function routeRequest(context: { request: IncomingMessage; response
           writeJson(response, 400, errorResponse("bad_request", "Compact recall requires query, a positive integer limit, valid depth, and boolean diagnostics."));
           return;
         }
+        resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
         packet = await compactSearchServerMemory({ root, query: body.query, limit: body.limit as number | undefined ?? 5,
-          recall: { depth: body.depth as string | undefined, maxBytes, diagnostics: body.diagnostics as boolean | undefined } });
+          recall: { depth: body.depth as string | undefined, maxBytes, diagnostics: body.diagnostics as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined } });
       }
       // Unlike legacy writeJson, this must not pretty-print or add an envelope.
       const wire = serializeBudgetedPacket(packet);
@@ -479,8 +482,13 @@ export async function routeRequest(context: { request: IncomingMessage; response
     }
 
     try {
-      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall }));
-    } catch {
+      resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
+      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall, temporal: body.temporal as TemporalQuery | undefined }));
+    } catch (error) {
+      if ((error as { code?: string }).code === "invalid_temporal") {
+        writeJson(response, 400, errorResponse("invalid_temporal", "Invalid temporal query. Use real ISO dates, timezone-explicit timestamps, and an explicit referenceDate for relative bounds."));
+        return;
+      }
       writeJson(response, 500, errorResponse(recall ? "search_failed" : "search_failed", recall ? "Remote recall failed." : "Remote search failed."));
     }
     return;
@@ -857,6 +865,7 @@ export function errorResponse(code: string, message: string, details?: Record<st
 function boundedReadErrorResponse(error: unknown): { statusCode: number; body: JsonError } {
   const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
   const errors: Record<string, [number, string]> = {
+    invalid_temporal: [400, "Invalid temporal query. Use real ISO dates, timezone-explicit timestamps, and an explicit referenceDate for relative bounds."],
     invalid_id: [400, "Expected a canonical mem_<uuid> document ID."],
     missing_id: [404, "Canonical memory document not found."],
     duplicate_id: [409, "Canonical document ID is ambiguous; repair duplicate IDs before expanding."],

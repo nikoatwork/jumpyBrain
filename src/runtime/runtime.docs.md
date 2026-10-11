@@ -24,3 +24,7 @@ Export `compactSearchMemory(root, query, limit, options)` plus compact packet/op
 - Do not implement HTTP request/response handling or authentication.
 - Do not expose remote/server append-only writer helpers through the package root/runtime surface.
 - Do not import QMD adapter internals directly; local memory and processing orchestration go through app use-case seams.
+
+## Temporal retrieval surface
+
+Export `TemporalQuery`, `TemporalResolution`, `TemporalCoverage`, `TemporalRetrieval`, `EvidenceDate`, and `resolveTemporalQuery`. Rich and compact search accept the same explicit temporal options; no temporal request preserves legacy packet shape. Relative bounds require a caller-supplied UTC reference date.

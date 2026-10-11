@@ -51,3 +51,7 @@ Expansion maps missing ID to 404, duplicate ID to 409, missing hash to 428, stal
 - Do not own canonical Markdown storage semantics, protected-frontmatter normalization, or server-memory workflows beyond delegating to app use cases; browser reconstruction is transport/UI state for the existing whole-document PUT contract.
 - Do not run AI/model providers, schedulers, server-side prompt construction, or server-side memory consolidation for dreaming. Explicit client-side copyable instructions are presentation only, not execution or permission enforcement.
 - Do not expose QMD adapter internals directly to CLI modules.
+
+## Temporal retrieval protocol
+
+Rich search/recall and compact recall accept optional `temporal`, validate it using core resolution, and forward it unchanged through server-memory. `invalid_temporal` is a safe static 400 response for either route family; no exception text is returned. Resolved scope/coverage comes from the local application, never a protocol-generated acknowledgement of an ignored filter. See [protocol](../../../docs/shared-memory-protocol.md#temporal-retrieval-options).

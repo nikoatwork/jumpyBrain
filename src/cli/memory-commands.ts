@@ -1,4 +1,5 @@
 import path from "node:path";
+import { temporalOptions } from "./temporal.js";
 import type { IndexMemoryOptions, RetrievalReadiness, SearchMemoryResult } from "../types.js";
 import { numberArg, stringArg, stringListArg, type ParsedCliArgs } from "./args.js";
 import { showMemoryDocumentFromArgs, updateMemoryDocumentFromArgs } from "./document-edit.js";
@@ -31,6 +32,7 @@ export async function runMemoryCommand(
   localMemory: LocalMemoryTransport,
   options: { allowDiscovery?: boolean } = {},
 ): Promise<void> {
+  const temporal = command === "recall" || command === "search" ? temporalOptions(args) : undefined;
   const compact = command === "recall" || command === "search" ? compactOptions(args) : undefined;
   const expansion = command === "expand" ? expansionOptions(args) : undefined;
   if (command === "process") {
@@ -99,17 +101,22 @@ export async function runMemoryCommand(
     const limit = numberArg(args, "limit", command === "recall" ? 5 : 10);
     const depth = stringArg(args, "depth", "normal");
     if (compact) {
-      await printCompactRecall(target, localMemory, query, limit, compact);
+      await printCompactRecall(target, localMemory, query, limit, { ...compact, ...(temporal ? { temporal } : {}) });
       return;
     }
     const result = target.kind === "remote"
-      ? await target.memory.searchMemory(query, limit, { depth, mode: command })
-      : await localMemory.searchMemory(target.root, query, limit, { depth });
+      ? await target.memory.searchMemory(query, limit, { depth, mode: command, ...(temporal ? { temporal } : {}) })
+      : await localMemory.searchMemory(target.root, query, limit, { depth, ...(temporal ? { temporal } : {}) });
     if (args.json) console.log(JSON.stringify({ ...result, mode: command }, null, 2));
     else {
       if (command === "recall") console.log(`Prior memory scan for: ${query}\n`);
+      if (result.temporal) {
+        const { interval, coverage } = result.temporal;
+        console.log(`Evidence interval (UTC): [${interval.from ?? "unbounded"}, ${interval.toExclusive ?? "unbounded"}); order: ${interval.order}${interval.referenceDate ? `; reference date: ${interval.referenceDate}` : ""}`);
+        console.log(`Temporal coverage: ${coverage.eligibleDocuments} eligible; ${coverage.excludedUndated} undated and ${coverage.excludedInvalid} invalid excluded; ${coverage.unvisitedDocuments} unvisited (not a match count).`);
+      }
       printRetrievalWarnings(result);
-      console.log(formatHumanResults(result.results));
+      console.log(formatHumanResults(result.results, { temporal: Boolean(temporal) }));
     }
     return;
   }

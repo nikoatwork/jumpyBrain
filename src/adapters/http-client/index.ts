@@ -1,3 +1,6 @@
+import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
+import { validTemporalResponse } from "./temporal-response.js";
+import type { TemporalQuery } from "../../types.js";
 import { randomUUID } from "node:crypto";
 import { HTTP_MEMORY_ROUTES, memoryDocumentPath, memoryDreamBatchAbandonPath, memoryDreamBatchCompletePath, memoryDreamBatchPath } from "../http-protocol.js";
 import { packetFits, validatePacketMaxBytes } from "../../core/serialized-budget.js";
@@ -96,6 +99,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   }
 
   async function boundedRequest(path: string, body: Record<string, unknown>, kind: "recall" | "expansion"): Promise<unknown> {
+    if (kind === "recall") resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
     const maxBytes = validatePacketMaxBytes(body.maxBytes as number | undefined);
     const unsupported = () => new RemoteMemoryError(502, "unsupported_bounded_read",
       `Remote server returned an unsupported ${kind} response. Upgrade the server; no full-document fallback was attempted.`);
@@ -134,15 +138,20 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       const query = params.toString();
       return request(`${HTTP_MEMORY_ROUTES.overview}${query ? `?${query}` : ""}`) as Promise<MemoryOverviewResult & Record<string, unknown>>;
     },
-    searchMemory: (query, limit, searchOptions = {}) => {
+    searchMemory: async (query, limit, searchOptions = {}) => {
+      resolveTemporalQuery(searchOptions.temporal);
       const mode = searchOptions.mode ?? "search";
-      const body = mode === "recall"
+      const body = { ...(searchOptions.temporal ? { temporal: searchOptions.temporal } : {}), ...(mode === "recall"
         ? { topic: query, limit, depth: searchOptions.depth ?? "normal" }
-        : { query, limit, depth: searchOptions.depth ?? "normal" };
-      return request(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) }) as Promise<SearchMemoryResult & Record<string, unknown>>;
+        : { query, limit, depth: searchOptions.depth ?? "normal" }) };
+      const packet = await request(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) });
+      if (searchOptions.temporal && !validTemporalResponse(packet.temporal, searchOptions.temporal)) {
+        throw new RemoteMemoryError(502, "unsupported_temporal", "Remote server did not honor the temporal scope. Upgrade the server; no unfiltered fallback was attempted.");
+      }
+      return packet as unknown as SearchMemoryResult & Record<string, unknown>;
     },
     compactSearchMemory: (query, limit, recallOptions = {}) => boundedRequest(HTTP_MEMORY_ROUTES.compactRecall,
-      { query, limit, depth: recallOptions.depth, maxBytes: recallOptions.maxBytes, diagnostics: recallOptions.diagnostics }, "recall") as Promise<CompactRecallPacket>,
+      { query, limit, depth: recallOptions.depth, maxBytes: recallOptions.maxBytes, diagnostics: recallOptions.diagnostics, temporal: recallOptions.temporal }, "recall") as Promise<CompactRecallPacket>,
     expandMemoryDocument: (expansionOptions) => boundedRequest(HTTP_MEMORY_ROUTES.expand, { ...expansionOptions }, "expansion") as Promise<ExpansionResult>,
     readMemoryDocument: (id) => request(memoryDocumentPath(id)) as Promise<MemoryDocumentReadResult & Record<string, unknown>>,
     updateMemoryDocument: (id, content, updateOptions) => request(memoryDocumentPath(id), {

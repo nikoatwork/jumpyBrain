@@ -16,6 +16,8 @@ export interface Provenance {
   sessionId?: string;
   session_id?: string;
   metadata?: Frontmatter;
+  /** Document-level evidence provenance, never modification/fact-validity time. */
+  evidenceDate?: EvidenceDate;
 }
 
 export type RetrievalDepth = "shallow" | "normal" | "deep";
@@ -88,12 +90,52 @@ export interface SearchMemoryResult {
   query: string;
   depth?: RetrievalDepth;
   results: SearchResult[];
+  temporal?: TemporalRetrieval;
   readiness?: RetrievalReadiness;
   retrieval?: RetrievalOutcome;
 }
 
 export interface SearchMemoryOptions {
   depth?: RetrievalDepth | string;
+  temporal?: TemporalQuery;
+}
+
+export type EvidenceDate =
+  | { basis: "declared" | "filename"; value: string }
+  | { basis: "unknown"; reason: "missing" | "invalid" | "synthesis" };
+
+/** Explicit evidence-date scope; timestamps need a timezone. Natural language is not a filter. */
+export interface TemporalQuery {
+  from?: string;
+  to?: string;
+  /** Required for t-Nd bounds; real UTC YYYY-MM-DD, never an implicit moving clock. */
+  referenceDate?: string;
+  order?: "relevance" | "chronological";
+}
+
+export interface TemporalResolution {
+  basis: "evidence";
+  timezone: "UTC";
+  from?: string;
+  /** Date-only upper inputs include the entire day; timestamp uppers are exclusive. */
+  toExclusive?: string;
+  referenceDate?: string;
+  order: "relevance" | "chronological";
+}
+
+export interface TemporalCoverage {
+  eligibleDocuments: number;
+  excludedUndated: number;
+  excludedInvalid: number;
+  backfillBudget: number;
+  backfilledDocuments: number;
+  /** Eligible manifest documents absent from bounded discovery, not a match count. */
+  unvisitedDocuments: number;
+}
+
+export interface TemporalRetrieval {
+  interval: TemporalResolution;
+  coverage: TemporalCoverage;
 }
 
 export interface MemoryOverviewOptions {

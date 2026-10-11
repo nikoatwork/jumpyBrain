@@ -173,11 +173,21 @@ Depth is a jumpyBrain policy layer: `shallow` favors compressed pages/decisions,
 
 The QMD adapter supplements ordinary candidates with a bounded lexical dream-candidate collection, merged/deduplicated before ranking; it does not load every page body per query. Reindex after marker/content edits or an upgrade to populate that derived collection. Everyday retrieval reduces repeated map chunks and near-identical echoes without hiding distinct raw details; deep retains evidence. No dream pages is a valid root, not a retrieval failure.
 
+## Temporal retrieval
+
+Explicit [CLI temporal options](cli-commands.md#explicit-temporal-retrieval) compose the same runtime/server search: resolve a UTC half-open evidence interval once, filter manifest metadata before candidate repair/limits, and retain date provenance. Date-only upper bounds include the day; timestamp upper bounds are exclusive (millisecond precision). Relative `t-Nd` inputs require a pinned `referenceDate`. Natural-language hints remain ranking hints, not filters.
+
+QMD 2.8.3's supported search interfaces provide collection scoping but no canonical frontmatter-date filter. A bounded manifest-aware backfill adds at most **64** in-range files absent from ordinary/dream/title candidates, prioritizing title relevance then canonical path. Each prefix read is at most **128 KiB plus one byte**; no corpus-wide body scan is added. Backfill without backend relevance requires every meaningful query token in its repaired title/excerpt, or an exact title. This conservative lexical rescue is not semantic/exhaustive retrieval; a dated source absent from both pools can still be missed. Existing fusion/query counts stay unchanged.
+
+Explicit temporal results always report `temporal_bounded_discovery` and partial status. Coverage counts describe eligible/excluded/visited **manifest documents**, not known matching evidence. Exhausting the backfill budget, stale indexes and excluded invalid/undated metadata are visible; zero hits cannot prove historical absence. Temporal repair checks complete current prefix frontmatter and body-start coordinates against the manifest, omitting changed/malformed/unreadable-source candidates with diagnostics. Reindex after edits; repair malformed headers before retrying. This is not an atomic filesystem snapshot, and newly eligible files require reindexing.
+
+Select relevant files/passages before chronological presentation; chronological ties use path, line and hit ID, with undated items last for order-only requests. Temporal queries disable the ordinary recency boost and cross-file map echo suppression so older conflicting evidence is not hidden by a newer synthesis. Depth still shapes the evidence; declared dates are not fact validity. Protocols carry explicit conflict/supersession declarations without resolving them. See [date semantics](memory-format.md#evidence-writing-and-validity-dates) and [QMD details](../src/adapters/qmd/qmd.docs.md#explicit-temporal-retrieval).
+
 ## Processing
 
 `jumpybrain process` is the umbrella command for memory work over existing canonical Markdown. It requires `--apply` for mutating runs.
 
-- `--mode synthesize` creates or updates a topical page under `pages/` for `--topic` and preserves an existing page document ID.
+- `--mode synthesize` creates or safely refreshes a process-owned extractive source map for `--topic`, preserving ID, creation/evidence dates and applicable metadata. Direct and QMD-nominated primary sources share scope/exclusion checks before limits. Structural quotes retain bounded qualifications, source lines and verbatim date/relationship declarations; the map is not reviewed synthesis or a single inferred event date.
 - `--mode lint` writes a deterministic support report under `.jumpybrain/reports/`, currently checking stale pages, missing page provenance, duplicate finding/decision titles, explicit `conflicts_with` metadata, and open questions that appear answered elsewhere.
 - `--mode ensure-ids` stamps missing `mem_<uuid>` file-level IDs in canonical buckets before document edit workflows; already-IDed files must remain byte-identical.
 

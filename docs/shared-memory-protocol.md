@@ -430,6 +430,25 @@ Response mirrors search, with `mode: "recall"` for CLI JSON compatibility:
 }
 ```
 
+### Temporal retrieval options
+
+Rich `/search`, `/recall`, and `/recall/compact` accept optional `temporal: { from?, to?, referenceDate?, order? }`. Values are real ISO dates or timezone-explicit timestamps with at most three fractional-second digits (millisecond precision); `t-Nd` bounds require an explicit `referenceDate` UTC date. `order` is `relevance` (default) or `chronological`; a bound or chronological order is required. Unknown temporal keys, malformed dates/types, and empty/reversed intervals return static safe **400 `invalid_temporal`** errors before search.
+
+An explicit temporal response includes:
+
+```json
+{
+  "temporal": {
+    "interval": { "basis": "evidence", "timezone": "UTC", "from": "2025-01-01T00:00:00.000Z", "toExclusive": "2025-01-09T00:00:00.000Z", "order": "chronological" },
+    "coverage": { "eligibleDocuments": 12, "excludedUndated": 2, "excludedInvalid": 1, "backfillBudget": 10, "backfilledDocuments": 3, "unvisitedDocuments": 0 }
+  }
+}
+```
+
+Bounds resolve to a half-open UTC interval. Date-only `to` includes its entire day; timestamp `to` is exclusive. `referenceDate` is echoed when supplied; absent bounds remain absent. Evidence provenance is `{ basis: "declared" | "filename", value }` or `{ basis: "unknown", reason: "missing" | "invalid" | "synthesis" }`, never creation/mtime or inferred fact-validity. Coverage counts describe bounded manifest discovery, not matching claims or guaranteed complete answers; honor `retrieval` partial warnings and readiness.
+
+New rich and compact clients validate returned interval fields against local `resolveTemporalQuery`, including order/reference date. A missing or mismatched scope is unsupported, with upgrade guidance and **no unfiltered fallback**, including old servers that silently ignore the request field. Compact schemas additionally reject unsolicited temporal additions and validate evidence dates against the requested interval.
+
 ### `POST /memories/all/recall/compact`
 
 Authenticated, additive read endpoint for CLI `recall --compact` and `search --compact`. Existing `/recall`, `/search`, text, and rich JSON contracts are unchanged. Agents use the CLI, not HTTP directly.
@@ -440,7 +459,7 @@ Request fields (unknown fields, including caller-supplied roots, are rejected):
 { "query": "release planning", "limit": 5, "depth": "normal", "maxBytes": 8192, "diagnostics": false }
 ```
 
-`query` is required (not `topic`); optional `limit` is a positive integer, `depth` is `shallow|normal|deep`, and `diagnostics` is boolean. The CLI maps recall topics to `query`; its defaults remain 5 recall results and 10 search results.
+`query` is required (not `topic`); optional `limit` is a positive integer, `depth` is `shallow|normal|deep`, `diagnostics` is boolean, and optional `temporal` follows the contract above. The CLI maps recall topics to `query`; its defaults remain 5 recall results and 10 search results.
 
 Both bounded endpoints return their version-1 packet directly, **without a remote wrapper**, using `JSON.stringify(packet) + "\n"` and `Cache-Control: no-store`. `maxBytes` is an integer **1024–65536**, default **8192**, capping actual serialized UTF-8 bytes, not tokens. The entire successful envelope, JSON escaping, diagnostics, and trailing LF count; HTTP headers and error packets do not. Compact CLI stdout uses the same framing even without `--json`, with no banners.
 
@@ -452,6 +471,7 @@ Compact packet fields:
 | `query`, `depth`, `maxBytes` | Effective request and byte cap. |
 | `scope`, `partial` | `"selected_passages"`, `true`: never a complete-document/answer assertion. |
 | `readiness`, `retrieval` | Safe readiness and retrieval status/warnings, as above. |
+| `temporal` | Only for an explicit temporal request: resolved `interval` and `coverage` above. |
 | `passages` | Ordered selected evidence units; oversized units are skipped, not shortened by the packer. |
 | `omitted` | `{ results, passages }`: candidate-relative omissions, including upstream passage omissions, not unseen corpus coverage. |
 | `diagnostics` | Opt-in `{ candidateResults, candidatePassages, budgetOmittedPassages }`; consumes the same budget. |
@@ -459,7 +479,8 @@ Compact packet fields:
 Each passage contains:
 
 - `filePath`, `pathBasis: "canonical_root" | "index_root"`, inclusive 1-based `startLine`/`endLine`, `text`, `scope: "excerpt"`, and `partial: true`. Paths are relative to the stated basis, never server absolute roots.
-- `date: { basis: "written", value, field: "created_at" | "createdAt" }` from valid creation metadata, otherwise `{ basis: "unknown" }`. No frontmatter evidence-date, filename, or mtime fallback; event-date inference and temporal event filters are not implemented.
+- `date: { basis: "written", value, field: "created_at" | "createdAt" }` from valid creation metadata, otherwise `{ basis: "unknown" }`. This written date never falls back to evidence-date, filename, or mtime.
+- Only for an explicit temporal request: `evidenceDate` as above and optional `relationships: { conflicts_with?: string | string[], supersedes?: string | string[] }`. Preserve source declarations verbatim; never infer or resolve relations. Temporal candidate verification omits changed frontmatter/body-start coordinates and incomplete headers (including ID-less sources) with a partial `source_changed` warning; compact hash verification additionally rejects newly changed evidence. These fields count toward the same budget; oversized declarations can omit the entire passage.
 - Optional `documentId` validated against the current unique canonical source; this alone does not imply expansion is available.
 - `expansion: { available: true, id, expectedContentHash, startLine, endLine }` only when current source identity and cited excerpt match. Use these ID/hash fields, **never a QMD hit ID**, for expansion.
 - Otherwise `expansion: { available: false, reason }`, where reason is `missing_id`, `invalid_id`, `duplicate_id`, `source_unavailable`, `source_changed`, `source_mismatch`, `invalid_utf8`, or `outside_canonical_root`. Reads never stamp or repair IDs.

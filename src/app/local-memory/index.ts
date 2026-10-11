@@ -4,6 +4,8 @@ import { listMarkdownFiles, readCanonicalMemoryDocumentById, readMarkdownDocumen
 import { assertCompatibleMemoryRoot, configuredIndexingPolicy, indexingPolicyMatches, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
 import { buildQmdIndex, loadManifest, qmdReadiness, searchQmdIndex, type QmdManifest } from "../../adapters/qmd/index.js";
 import { normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
+import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
+import type { TemporalRetrieval } from "../../types.js";
 import { processMemory } from "../processing/index.js";
 import type { IndexMemoryOptions, RetrievalOutcome, RetrievalReadiness, IndexMemoryResult, MemoryDocumentContentHash, MemoryDocumentEditError, MemoryDocumentEditErrorCode, MemoryDocumentReadResult, MemoryDocumentUpdateResult, ProcessMemoryResult, SearchMemoryOptions, SearchMemoryResult } from "../../types.js";
 
@@ -75,18 +77,23 @@ export async function indexMemory(rootArg: string, options: IndexMemoryOptions =
 }
 
 export async function searchMemory(rootArg: string, query: string, limit: number, options: SearchMemoryOptions = {}): Promise<SearchMemoryResult> {
+  const interval = resolveTemporalQuery(options.temporal);
+  const temporal: TemporalRetrieval | undefined = interval ? { interval, coverage: {
+    eligibleDocuments: 0, excludedUndated: 0, excludedInvalid: 0,
+    backfillBudget: 0, backfilledDocuments: 0, unvisitedDocuments: 0,
+  } } : undefined;
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
   const depth = normalizeRetrievalDepth(options.depth);
   const retrieval: RetrievalOutcome = { status: "complete", warnings: [] };
   let readiness!: RetrievalReadiness;
-  const results = await searchQmdIndex(root, query, limit, { depth, outcome: retrieval,
+  const results = await searchQmdIndex(root, query, limit, { depth, outcome: retrieval, temporal,
     inspect: async manifest => { readiness = await retrievalReadiness(root, manifest); },
   });
   if (readiness.freshness !== "fresh") retrieval.warnings.push("index_not_fresh");
   if (readiness.embedding === "incomplete" || readiness.embedding === "unknown") retrieval.warnings.push("semantic_coverage_incomplete");
   if (retrieval.warnings.length) retrieval.status = "partial";
-  return { root, query, depth, results, readiness, retrieval };
+  return { root, query, depth, results, readiness, retrieval, ...(temporal ? { temporal } : {}) };
 }
 
 export async function readMemoryDocument(rootArg: string, id: string): Promise<MemoryDocumentReadResult> {

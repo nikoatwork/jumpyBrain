@@ -1,9 +1,10 @@
-import type { Frontmatter, MemoryDocumentContentHash, RetrievalDepth, RetrievalOutcome, RetrievalReadiness, ScoreBreakdown } from "../../types.js";
+import type { EvidenceDate, TemporalQuery, TemporalRetrieval, Frontmatter, MemoryDocumentContentHash, RetrievalDepth, RetrievalOutcome, RetrievalReadiness, ScoreBreakdown } from "../../types.js";
 import { packetFits, PacketBudgetError, serializeBudgetedPacket, validatePacketMaxBytes } from "../serialized-budget.js";
 import { metadataDate } from "../canonical/metadata-date.js";
 
 export interface CompactRecallOptions {
   depth?: RetrievalDepth | string;
+  temporal?: TemporalQuery;
   maxBytes?: number;
   diagnostics?: boolean;
 }
@@ -23,6 +24,9 @@ export interface CompactRecallPassage {
   scope: "excerpt";
   /** Excerpts are not complete document/answer context, even without truncation markers. */
   partial: true;
+  evidenceDate?: EvidenceDate;
+  /** Explicit source declarations only; never inferred reconciliation. */
+  relationships?: { conflicts_with?: string | string[]; supersedes?: string | string[] };
   date: { basis: "written"; value: string; field: "created_at" | "createdAt" } | { basis: "unknown" };
   expansion: { available: true; id: string; expectedContentHash: MemoryDocumentContentHash; startLine: number; endLine: number }
     | { available: false; reason: ExpansionUnavailableReason };
@@ -38,6 +42,7 @@ export interface CompactRecallPacket {
   scope: "selected_passages";
   /** Recall is a limited evidence selection, not a complete-source/answer assertion. */
   partial: true;
+  temporal?: TemporalRetrieval;
   readiness: RetrievalReadiness;
   retrieval: RetrievalOutcome;
   passages: CompactRecallPassage[];
@@ -53,7 +58,7 @@ export interface CompactRecallCandidate {
 
 /** Preserve search order and whole evidence units; skip oversized units, never shorten them. */
 export function packCompactRecall(
-  envelope: Pick<CompactRecallPacket, "query" | "depth" | "readiness" | "retrieval">,
+  envelope: Pick<CompactRecallPacket, "query" | "depth" | "readiness" | "retrieval" | "temporal">,
   candidates: CompactRecallCandidate[],
   options: Pick<CompactRecallOptions, "maxBytes" | "diagnostics"> = {},
 ): CompactRecallPacket {
@@ -75,8 +80,9 @@ export function packCompactRecall(
   for (const [index, candidate] of candidates.entries()) {
     for (const passage of candidate.passages) {
       // Diagnostics are opt-in even for callers of this pure packing seam.
-      const { diagnostics, ...evidence } = passage;
-      selected.push(options.diagnostics ? passage : evidence);
+      const { diagnostics, evidenceDate, relationships, ...evidence } = passage;
+      selected.push({ ...evidence, ...(envelope.temporal ? { evidenceDate, relationships } : {}),
+        ...(options.diagnostics && diagnostics ? { diagnostics } : {}) });
       const previouslyRepresented = represented.has(index);
       represented.add(index);
       if (!packetFits(packet(), maxBytes)) {

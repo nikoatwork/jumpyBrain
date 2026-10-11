@@ -16,6 +16,14 @@ A bounded source excerpt with its own file/line provenance, not a generated or i
 
 A read-only, content-hash-guarded line range or enclosing section from canonical Markdown. Returned citations cover only actual whole source lines; budget truncation reports a continuation line. Stale hashes require refreshed evidence, never automatic full-document fallback. Byte caps are not token budgets.
 
+## Evidence date
+
+Declared document-level `date`, or a conservatively recognized journal filename date in explicit temporal retrieval. It is separate from writing/import time (`created_at`/`createdAt`), edit time (`updated_at`/mtime), and fact validity (when a particular claim is true, not inferred by retrieval). Multi-period synthesis does not gain a single event date from its creation time. Date-bounded recall excludes unknown/invalid evidence dates; dream import-review windows intentionally retain labeled fallback dates.
+
+## Temporal recall interval
+
+An explicitly requested, resolved UTC half-open evidence interval: inclusive lower bound, exclusive upper bound. A date-only upper input includes its entire day; timestamp uppers are exclusive. Relative bounds require a pinned reference date. Relevance selects a bounded evidence set; chronological order only presents that set and does not establish truth, supersession, or exhaustive coverage.
+
 ## Dream window
 
 A stateless, bounded context request over inclusive UTC calendar dates. `--from` selects the newest day and `--days` counts backward: `--from t-1d --days 3` covers T-1 through T-3. Overlap and revisits are intentional; retrieval records no dreamed/completed status. Evidence dates and filesystem modification dates are separate selection modes.

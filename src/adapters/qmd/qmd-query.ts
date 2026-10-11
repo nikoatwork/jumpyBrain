@@ -8,6 +8,7 @@ export interface QmdCandidate {
   snippet?: string;
   score: number;
   dreamSupplement?: boolean;
+  temporalBackfill?: boolean;
 }
 
 export async function searchWithQmdCli(root: string, query: string, limit: number, options: { dreamsOnly?: boolean; semantic?: boolean; model?: string; outcome?: RetrievalOutcome } = {}): Promise<QmdCandidate[]> {

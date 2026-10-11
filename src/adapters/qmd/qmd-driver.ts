@@ -4,9 +4,11 @@ import { parseFrontmatter } from "../../core/frontmatter.js";
 import { configuredIndexingPolicy, indexingPolicy, indexingPolicyMatches } from "../../core/memory-root/index.js";
 import { qmdReadiness, recordQmdFailure, recoverQmdPublication, updateQmdGeneration, withQmdLock } from "./qmd-lifecycle.js";
 import { withSessionAliases } from "../../core/provenance.js";
+import { evidenceDate, evidenceInInterval } from "../../core/retrieval-policy/temporal.js";
+import type { TemporalRetrieval, TemporalResolution } from "../../types.js";
 import type { IndexManifest, IndexMemoryOptions, IndexingPolicy, IndexedDocument, MarkdownDocument, RetrievalDepth, RetrievalOutcome, ScoreBreakdown, SearchResult } from "../../types.js";
 import { QMD_DREAM_COLLECTION, manifestPath, normalizeQmdLookupPath, resolveQmdSdk } from "./qmd-cli.js";
-import { qmdLexQueries, searchWithQmdCli } from "./qmd-query.js";
+import { qmdLexQueries, searchWithQmdCli, tokenize, type QmdCandidate } from "./qmd-query.js";
 import {
   clampScore,
   dateStats,
@@ -24,6 +26,8 @@ import {
 } from "./qmd-ranking.js";
 import { depthPolicyFor, dreamBoostFor, isDreamDocument, isSourceFocusedQuery, normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
 import {
+  boundedOriginalLines,
+  type CanonicalPrefix,
   excerptFromQmdWindow,
   looksLikeUnhelpfulSnippet,
   neighborSnippetFromOriginal,
@@ -93,7 +97,15 @@ export async function loadManifest(root: string): Promise<QmdManifest> {
   }
 }
 
-export async function searchQmdIndex(root: string, query: string, limit: number, options: { depth?: RetrievalDepth; outcome?: RetrievalOutcome; inspect?: (manifest: QmdManifest) => Promise<void> } = {}): Promise<SearchResult[]> {
+interface SearchOptions {
+  depth?: RetrievalDepth;
+  outcome?: RetrievalOutcome;
+  temporal?: TemporalRetrieval;
+  inspect?: (manifest: QmdManifest) => Promise<void>;
+}
+const TEMPORAL_BACKFILL_BUDGET = 64;
+
+export async function searchQmdIndex(root: string, query: string, limit: number, options: SearchOptions = {}): Promise<SearchResult[]> {
   return withQmdLock(root, async () => {
     resolveQmdSdk();
     await recoverQmdPublication(root);
@@ -101,7 +113,7 @@ export async function searchQmdIndex(root: string, query: string, limit: number,
   });
 }
 
-async function searchGeneration(root: string, query: string, limit: number, options: { depth?: RetrievalDepth; outcome?: RetrievalOutcome; inspect?: (manifest: QmdManifest) => Promise<void> }): Promise<SearchResult[]> {
+async function searchGeneration(root: string, query: string, limit: number, options: SearchOptions): Promise<SearchResult[]> {
   const depth = normalizeRetrievalDepth(options.depth);
   const manifest = await loadManifest(root);
   const readiness = await qmdReadiness(root, manifest);
@@ -109,8 +121,19 @@ async function searchGeneration(root: string, query: string, limit: number, opti
   const compatible = indexingPolicyMatches(policy, manifest.policy, manifest.embedding?.modelHash);
   const model = compatible && readiness.modes.includes("semantic") ? manifest.policy?.model : undefined;
   if (!Number.isFinite(limit) || limit <= 0) { await options.inspect?.(manifest); return []; }
-  const documents = documentsByQmdPath(manifest.documents);
-  const candidates = await searchWithQmdCli(root, query, Math.min(160, Math.max(limit * 8, 40)), { model, semantic: !!model, outcome: options.outcome });
+  const interval = options.temporal?.interval;
+  const warn = (code: string) => {
+    if (!options.outcome) return;
+    options.outcome.status = "partial";
+    if (!options.outcome.warnings.includes(code)) options.outcome.warnings.push(code);
+  };
+  const eligible = manifest.documents.filter(document => !interval || evidenceInInterval(evidenceDate(document.relativePath, document.frontmatter), interval));
+  const documents = documentsByQmdPath(eligible);
+  const lookup = (candidate: QmdCandidate) => candidate.file ? documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file)) : undefined;
+  // Backend cutoffs still exist; the independent manifest backfill below is what
+  // lets in-range evidence outside the ordinary top-k participate in selection.
+  const candidates = (await searchWithQmdCli(root, query, Math.min(160, Math.max(limit * 8, 40)), { model, semantic: !!model, outcome: options.outcome }))
+    .filter(candidate => !interval || lookup(candidate));
   if (depth !== "deep" && manifest.dreamCollection === QMD_DREAM_COLLECTION) {
     const supplemental = await searchWithQmdCli(root, query, Math.min(24, Math.max(8, limit * 2)), { dreamsOnly: true, outcome: options.outcome });
     candidates.push(...supplemental.filter((candidate) => {
@@ -124,11 +147,31 @@ async function searchGeneration(root: string, query: string, limit: number, opti
     const document = candidate.file && (documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file)));
     return document ? [document.relativePath] : [];
   }));
-  const titleDocuments = manifest.documents
+  const titleDocuments = eligible
     .filter((document) => !candidateFiles.has(document.relativePath) && isExactTitleMatch(query, document))
     .sort((a, b) => a.relativePath.localeCompare(b.relativePath))
     .slice(0, 24);
   candidates.push(...titleDocuments.map((document) => ({ file: document.relativePath, score: 0 })));
+  if (options.temporal) {
+    for (const doc of titleDocuments) candidateFiles.add(doc.relativePath);
+    const backfill = eligible.filter(doc => !candidateFiles.has(doc.relativePath))
+      .sort((a, b) => titleMatchBoostFor(query, b) - titleMatchBoostFor(query, a) || comparePath(a.relativePath, b.relativePath))
+      .slice(0, TEMPORAL_BACKFILL_BUDGET);
+    candidates.push(...backfill.map(doc => ({ file: doc.relativePath, score: 0, temporalBackfill: true })));
+    const excluded = manifest.documents.filter(doc => !documents.has(doc.relativePath))
+      .map(doc => evidenceDate(doc.relativePath, doc.frontmatter));
+    Object.assign(options.temporal.coverage, {
+      eligibleDocuments: eligible.length,
+      excludedUndated: excluded.filter(date => date.basis === "unknown" && date.reason !== "invalid").length,
+      excludedInvalid: excluded.filter(date => date.basis === "unknown" && date.reason === "invalid").length,
+      backfillBudget: TEMPORAL_BACKFILL_BUDGET, backfilledDocuments: backfill.length,
+      unvisitedDocuments: Math.max(0, eligible.length - candidateFiles.size - backfill.length),
+    });
+    warn("temporal_bounded_discovery");
+    if (options.temporal.coverage.unvisitedDocuments) warn("temporal_candidate_budget_exhausted");
+    if (options.temporal.coverage.excludedUndated) warn("temporal_undated_excluded");
+    if (options.temporal.coverage.excludedInvalid) warn("temporal_invalid_dates_excluded");
+  }
   candidates.sort((a, b) => b.score - a.score);
   const candidateDocuments = matchedCandidateDocuments(candidates, documents);
   const temporalStats = dateStats(candidateDocuments);
@@ -142,19 +185,34 @@ async function searchGeneration(root: string, query: string, limit: number, opti
 
     let repaired;
     try {
+      let source: CanonicalPrefix | undefined;
+      if (interval) {
+        source = await boundedOriginalLines(document.absolutePath);
+        const text = source.lines.join("\n");
+        // An opened-but-unclosed header (short or beyond our prefix) must not
+        // masquerade as a metadata-free journal eligible through its filename.
+        const parsed = parseFrontmatter(text);
+        if ((source.lines[0]?.trim() === "---" && parsed.bodyStartLine === 1)
+          || parsed.bodyStartLine !== document.bodyStartLine
+          || JSON.stringify(parsed.frontmatter) !== JSON.stringify(document.frontmatter)) {
+          warn("source_changed");
+          continue;
+        }
+      }
       repaired = await resultSnippet(document, query, {
         lineStart: candidate.lineStart ?? document.bodyStartLine,
         lineEnd: candidate.lineEnd ?? candidate.lineStart ?? document.bodyStartLine,
         snippet: candidate.snippet ?? "",
-      });
+      }, source);
     } catch (error) {
       // An index can briefly outlive a deleted/renamed canonical note.
-      if (["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) continue;
+      if (["ENOENT", "ENOTDIR"].includes((error as NodeJS.ErrnoException).code ?? "")) { if (interval) warn("source_changed"); continue; }
       throw error;
     }
 
     const exactTitle = isExactTitleMatch(query, document);
     if (!repaired.snippet && !exactTitle) continue;
+    if (candidate.temporalBackfill && !exactTitle && !backfillRelevant(query, repaired.snippet, document)) continue;
     if (candidate.dreamSupplement && !exactTitle && dreamRelevance(query, repaired.snippet, document.frontmatter, clampScore(candidate.score)) === 0) continue;
     const id = `qmd-${stableResultId(document.relativePath, repaired.lineStart, repaired.snippet)}`;
     if (seen.has(id)) continue;
@@ -170,6 +228,7 @@ async function searchGeneration(root: string, query: string, limit: number, opti
       query,
       snippet: repaired.snippet,
       temporalStats,
+      interval,
     }));
   }
 
@@ -180,7 +239,19 @@ async function searchGeneration(root: string, query: string, limit: number, opti
   // Explicit evidence requests retain chunk-level limits and all original fields.
   const diversityDepth = isSourceFocusedQuery(query) ? "deep" : depth;
   await options.inspect?.(manifest);
-  return diversifyResults(groupResultsByFile(ranked, diversityDepth), diversityDepth).slice(0, limit);
+  const grouped = groupResultsByFile(ranked, diversityDepth);
+  // Explicit history keeps declared conflicts/updates even when snippets echo a map.
+  const selected = (interval ? grouped : diversifyResults(grouped, diversityDepth)).slice(0, limit);
+  // Selection is relevance-first; chronology is a presentation of that same set.
+  if (interval?.order === "chronological") selected.sort((a, b) => {
+    const time = (hit: SearchResult) => {
+      const date = hit.provenance.evidenceDate;
+      return date && date.basis !== "unknown" ? Date.parse(date.value) : Infinity;
+    };
+    return time(a) - time(b) || comparePath(a.provenance.file, b.provenance.file)
+      || a.provenance.lineStart - b.provenance.lineStart || comparePath(a.id, b.id);
+  });
+  return selected;
 }
 
 function toIndexedDocument(document: MarkdownDocument): IndexedDocument {
@@ -215,12 +286,13 @@ async function resultSnippet(
   document: IndexedDocument,
   query: string,
   candidate: { lineStart: number; lineEnd: number; snippet: string },
+  source?: CanonicalPrefix,
 ): Promise<{ lineStart: number; lineEnd: number; snippet: string }> {
   if (candidate.lineStart < document.bodyStartLine || (!candidate.snippet && candidate.lineStart === document.bodyStartLine)) {
-    const repaired = await snippetFromOriginalBody(document, query);
+    const repaired = await snippetFromOriginalBody(document, query, source);
     if (repaired.snippet) return repaired;
   }
-  const expanded = await neighborSnippetFromOriginal(document, candidate.lineStart, candidate.lineEnd, query);
+  const expanded = await neighborSnippetFromOriginal(document, candidate.lineStart, candidate.lineEnd, query, source);
   if (expanded.snippet) return expanded;
   // Keep hits beyond the bounded canonical prefix usable. QMD's window start
   // (not its match-anchor field) owns these fallback source coordinates.
@@ -237,18 +309,20 @@ function toSearchResult(options: {
   query: string;
   snippet: string;
   temporalStats: { min: number; max: number } | undefined;
+  interval?: TemporalResolution;
 }): SearchResult {
   const provenance = withSessionAliases({
     file: options.document.relativePath,
     lineStart: options.lineStart,
     lineEnd: options.lineEnd,
     metadata: options.document.frontmatter,
+    ...(options.interval ? { evidenceDate: evidenceDate(options.document.relativePath, options.document.frontmatter) } : {}),
   });
   const exactMatchBoost = exactBoost(options.query, options.snippet);
   const titleMatchBoost = titleMatchBoostFor(options.query, options.document);
   const metadataBoost = metadataBoostFor(options.query, options.document.frontmatter);
   const relevance = dreamRelevance(options.query, options.snippet, options.document.frontmatter, clampScore(options.candidateScore));
-  const temporalRelevance = temporalBoostFor(options.query, options.document.frontmatter, options.temporalStats, relevance);
+  const temporalRelevance = options.interval ? 0 : temporalBoostFor(options.query, options.document.frontmatter, options.temporalStats, relevance);
   const memoryStrength = memoryStrengthBoost(options.document.frontmatter);
   const provenanceConfidence = provenanceConfidenceBoost(provenance);
   const qmdScore = clampScore(options.candidateScore);
@@ -284,6 +358,16 @@ function toSearchResult(options: {
     } satisfies ScoreBreakdown,
   };
 }
+
+function backfillRelevant(query: string, snippet: string, document: IndexedDocument): boolean {
+  const terms = [...new Set(tokenize(query))];
+  const words = new Set(tokenize(`${document.frontmatter.title ?? ""} ${snippet}`));
+  // This branch has no backend relevance evidence. Require every meaningful
+  // query token rather than letting a generic word (e.g. "map") admit a different topic.
+  return terms.length > 0 && terms.every(term => words.has(term));
+}
+
+function comparePath(a: string, b: string): number { return a < b ? -1 : a > b ? 1 : 0; }
 
 function stableResultId(file: string, lineStart: number, snippet: string): string {
   return createHash("sha256").update(`${file}:${lineStart}:${snippet}`).digest("hex").slice(0, 24);

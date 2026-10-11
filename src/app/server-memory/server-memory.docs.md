@@ -33,3 +33,7 @@ Status/index/search packets preserve existing `index` metadata and add safe `rea
 - Do not parse CLI flags or format command-line output.
 - Do not contain QMD internals; indexing and search go through the app local-memory seam.
 - Do not run AI/model providers, schedule dreaming, synthesize memory, or apply generated consolidation edits on the server.
+
+## Temporal retrieval
+
+`searchServerMemory` forwards `temporal` and preserves the returned resolved interval/coverage in its remote-safe envelope. Compact recall delegates the same options without adding fields after packing. The app does not independently resolve a scope as a substitute for actual local temporal retrieval.

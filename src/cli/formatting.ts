@@ -19,7 +19,7 @@ function sourceReference(provenance: Provenance): string {
   return `${where}${session}`;
 }
 
-function resultMetadata(provenance: Provenance): string {
+function resultMetadata(provenance: Provenance, temporal = false): string {
   const metadata = provenance.metadata ?? {};
   const fields = [
     `Title: ${metadataText(metadata.title, 160) ?? "(untitled)"}`,
@@ -27,11 +27,20 @@ function resultMetadata(provenance: Provenance): string {
     `Written date: ${metadataDate(metadata.created_at) ?? metadataDate(metadata.createdAt) ?? "unknown"}`,
   ];
   // A document's explicit date is not necessarily an observation date for every passage.
-  if (metadata.date !== undefined) fields.push(`Evidence date: ${metadataDate(metadata.date) ?? "unknown"}`);
+  if (temporal) {
+    const date = provenance.evidenceDate;
+    const valid = date && (date.basis === "declared" || date.basis === "filename") && metadataDate(date.value);
+    const reason = date?.basis === "unknown" && ["missing", "invalid", "synthesis"].includes(date.reason) ? date.reason : "missing";
+    fields.push(`Evidence date: ${valid ? `${valid} (${date!.basis})` : `unknown (${reason})`}`);
+    for (const key of ["conflicts_with", "supersedes"] as const) {
+      const value = metadata[key];
+      if (value !== undefined) fields.push(`Declared ${key}: ${metadataText(Array.isArray(value) ? JSON.stringify(value) : String(value), 320) ?? "(empty)"}`);
+    }
+  } else if (metadata.date !== undefined) fields.push(`Evidence date: ${metadataDate(metadata.date) ?? "unknown"}`);
   return fields.join(" | ");
 }
 
-export function formatHumanResults(results: SearchResult[]): string {
+export function formatHumanResults(results: SearchResult[], options: { temporal?: boolean } = {}): string {
   if (results.length === 0) return "No memory matches found.";
 
   let linksShortened = false;
@@ -43,7 +52,7 @@ export function formatHumanResults(results: SearchResult[]): string {
   const output = results.map((result, index) => {
     const lines = [
       `${index + 1}. ${sourceReference(result.provenance)} score=${result.score}`,
-      `   ${resultMetadata(result.provenance)}`,
+      `   ${resultMetadata(result.provenance, options.temporal)}`,
       `   ${displaySnippet(result.snippet)}`,
     ];
     // Accept additive passages while preserving the legacy representative snippet.
@@ -53,6 +62,7 @@ export function formatHumanResults(results: SearchResult[]): string {
       const key = JSON.stringify([passage.snippet, sourceReference(passage.provenance)]);
       if (seen.has(key)) continue;
       seen.add(key);
+      if (options.temporal) lines.push(`   ${resultMetadata(passage.provenance, true)}`);
       lines.push(`   Source: ${sourceReference(passage.provenance)}`, `   ${displaySnippet(passage.snippet)}`);
     }
     if (Number.isSafeInteger(result.omittedPassages) && result.omittedPassages! > 0) {

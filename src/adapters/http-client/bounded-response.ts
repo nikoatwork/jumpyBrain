@@ -1,3 +1,5 @@
+import { validTemporalResponse, validTemporalEvidence } from "./temporal-response.js";
+import type { TemporalQuery } from "../../types.js";
 import { isValidMemoryDocumentId } from "../../core/document-id.js";
 import { compactWrittenDate } from "../../core/retrieval-policy/compact.js";
 
@@ -30,11 +32,12 @@ export function validBoundedPacket(packet: unknown, kind: "recall" | "expansion"
   const p = packet;
   if (p.version !== 1 || p.kind !== kind || p.maxBytes !== maxBytes) return false;
   if (kind === "recall") return fields(p, ["version", "kind", "query", "depth", "maxBytes", "scope", "partial",
-    "readiness", "retrieval", "passages", "omitted", "diagnostics"])
+    "readiness", "retrieval", "passages", "omitted", "diagnostics", "temporal"])
+    && validTemporalResponse(p.temporal, request.temporal as TemporalQuery | undefined)
     && typeof p.query === "string" && p.query === request.query
     && oneOf(p.depth, ["shallow", "normal", "deep"]) && p.depth === (request.depth === undefined ? "normal" : request.depth)
     && p.scope === "selected_passages" && p.partial === true
-    && Array.isArray(p.passages) && p.passages.every(passage => validPassage(passage, request.diagnostics === true))
+    && Array.isArray(p.passages) && p.passages.every(passage => validPassage(passage, request.diagnostics === true, request.temporal as TemporalQuery | undefined))
     && validReadiness(p.readiness)
     && record(p.retrieval) && fields(p.retrieval, ["status", "warnings"])
     && oneOf(p.retrieval.status, ["complete", "partial"])
@@ -79,13 +82,16 @@ function validReadiness(p: unknown): boolean {
       && oneOf(p.lastFailure.code, ["index_failed", "interrupted_update"]) && validDate(p.lastFailure.at)));
 }
 
-function validPassage(p: unknown, diagnostics: boolean): boolean {
+function validPassage(p: unknown, diagnostics: boolean, temporal?: TemporalQuery): boolean {
   if (!record(p) || !fields(p, ["documentId", "filePath", "pathBasis", "startLine", "endLine", "text", "scope", "partial",
-    "date", "expansion", "diagnostics"]) || !relativePath(p.filePath) || typeof p.text !== "string"
+    "date", "expansion", "diagnostics", "evidenceDate", "relationships"]) || !relativePath(p.filePath) || typeof p.text !== "string"
     || !oneOf(p.pathBasis, ["canonical_root", "index_root"])
     || p.scope !== "excerpt" || p.partial !== true
     || !positiveInteger(p.startLine) || !positiveInteger(p.endLine) || p.endLine < p.startLine
     || !record(p.expansion) || !record(p.date)) return false;
+  if (temporal ? !validTemporalEvidence(p.evidenceDate, temporal) : ("evidenceDate" in p || "relationships" in p)) return false;
+  if ("relationships" in p && (!record(p.relationships) || !fields(p.relationships, ["conflicts_with", "supersedes"])
+    || !Object.values(p.relationships).every(value => typeof value === "string" || (Array.isArray(value) && value.every(item => typeof item === "string"))))) return false;
   if (!(p.date.basis === "unknown" ? fields(p.date, ["basis"])
     : p.date.basis === "written" && fields(p.date, ["basis", "value", "field"])
       && validDate(p.date.value) && oneOf(p.date.field, ["created_at", "createdAt"]))) return false;
@@ -171,6 +177,7 @@ export async function readBoundedErrorCode(response: Response): Promise<string |
 /** Never surface server-controlled messages, even when a small error body is well-formed. */
 export function boundedErrorMessage(code: string, status: number): string {
   const messages: Record<string, string> = {
+    invalid_temporal: "Invalid temporal query; use real ISO dates or timezone-explicit timestamps and pin relative bounds with referenceDate.",
     invalid_id: "Expected a canonical mem_<uuid> document ID.",
     missing_id: "Canonical memory document not found.",
     duplicate_id: "Canonical document ID is ambiguous; repair duplicate IDs before expanding.",

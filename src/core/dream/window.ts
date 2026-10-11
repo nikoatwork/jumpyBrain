@@ -1,4 +1,5 @@
 import path from "node:path";
+import { metadataDate } from "../canonical/metadata-date.js";
 import type { DreamLimits, DreamWindowDateConfidence, DreamWindowFileDateBasis, DreamWindowRange, DreamWindowRequest, Frontmatter } from "../../types.js";
 import { DEFAULT_DREAM_LIMITS, DreamPolicyError, HARD_DREAM_CAPS } from "./index.js";
 
@@ -29,9 +30,7 @@ export const DREAM_WINDOW_INSTRUCTIONS = [
 
 /** Reject Date.parse's silent calendar rollover and ambiguous locale dates. */
 export function parseDreamCalendarDay(value: unknown): number | undefined {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000-")) return undefined;
-  const ms = Date.parse(`${value}T00:00:00.000Z`);
-  return Number.isFinite(ms) && new Date(ms).toISOString().slice(0, 10) === value ? ms : undefined;
+  return typeof value === "string" && value.length === 10 && metadataDate(value) ? Date.parse(value) : undefined;
 }
 
 export function resolveDreamWindow(request: DreamWindowRequest = {}, now = new Date()): {
@@ -78,13 +77,9 @@ export function resolveDreamWindow(request: DreamWindowRequest = {}, now = new D
 
 /** ISO date or timezone-explicit timestamp only; validate its written calendar date first. */
 function evidenceDay(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  if (parseDreamCalendarDay(value) !== undefined) return value;
-  const match = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.\d{1,9})?(Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
-  if (!match || parseDreamCalendarDay(match[1]) === undefined) return undefined;
-  const ms = Date.parse(value);
-  if (!Number.isFinite(ms)) return undefined;
-  const day = new Date(ms).toISOString().slice(0, 10);
+  const valid = metadataDate(value);
+  if (!valid) return undefined;
+  const day = new Date(Date.parse(valid)).toISOString().slice(0, 10);
   return parseDreamCalendarDay(day) === undefined ? undefined : day;
 }
 

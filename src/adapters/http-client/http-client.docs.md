@@ -35,3 +35,7 @@ Bounded-read error bodies have a separate fixed **8192-byte** stream cap, with c
 - Do not implement server route handlers or server-local memory writes.
 - Do not implement AI/model calls or server-side dream consolidation; dream transport only moves JSON between CLI and server.
 - Do not import QMD or filesystem memory-root internals.
+
+## Temporal scope verification
+
+Rich and compact searches forward optional `temporal` after core validation. `temporal-response.ts` compares every resolved interval field against `resolveTemporalQuery(request.temporal)` and validates coverage counts: missing/mismatched scopes fail with upgrade guidance, never unfiltered fallback. Compact V1 additionally requires in-scope `evidenceDate` on temporal passages and closed string/string-array `relationships`; these fields and the temporal envelope are rejected without a temporal request. Written dates remain independent. See [protocol](../../../docs/shared-memory-protocol.md#temporal-retrieval-options).

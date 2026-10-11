@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-11 — Explicit temporal retrieval
+
+- Added bounded evidence-date filtering and chronological recall across local/hosted CLI, with date provenance, stale-source checks and scope-safe processing; [verification and limits](done/2026-10-11_tasks-temporal-retrieval-correctness.md).
+
 ## 2026-10-10 — Budgeted recall and evidence expansion
 
 - Added opt-in byte-bounded recall and hash-guarded line/section expansion across local and hosted CLI workflows, preserving full-document editing; [contracts and verification](done/2026-10-11_tasks-budgeted-recall-and-expansion.md).

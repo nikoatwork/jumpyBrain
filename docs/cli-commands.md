@@ -108,6 +108,28 @@ Retrieval depth changes what kind of memory is favored:
 - `--depth normal` balances current memory with evidence. Both normal and shallow prefer relevant `dream: true` maps, with a bounded supplemental lexical candidate collection; reindex to refresh it.
 - `--depth deep` allows more raw session evidence to surface without the dream boost. Explicit source/historical queries also omit that boost. Unrelated dream pages must not dominate; roots without dream pages retain ordinary retrieval.
 
+### Explicit temporal retrieval
+
+Search, recall, and their `run memory:*` recipes accept these optional flags on local or remote targets, with either rich or compact output:
+
+| Flag | Contract |
+| --- | --- |
+| `--from <date>` | Inclusive evidence-date lower bound. |
+| `--to <date>` | Date-only upper bound includes the whole UTC day; timezone-explicit timestamp upper bound is exclusive. |
+| `--reference-date <YYYY-MM-DD>` | Explicit UTC anchor required for any `t-Nd` bound; never inferred from the current clock. |
+| `--order relevance\|chronological` | Default relevance within the scope; chronological orders evidence oldest first. Chronological alone is permitted. |
+
+```bash
+jumpybrain recall --root <memory-root> --query "release decision" --from t-7d --to t-0d --reference-date 2025-01-08 --order chronological
+jumpybrain run memory:search --target-url <url> --query "release decision" --from 2025-01-01 --to 2025-01-08 --compact
+```
+
+Use real ISO calendar dates or timezone-explicit ISO timestamps with at most three fractional-second digits (millisecond precision). Natural-language dates in the query do not create filters. Any temporal flag enables strict parsing: malformed/missing values, unknown/repeated flags, and valued booleans fail before credentials. An empty/reversed resolved interval is invalid.
+
+The scope is **document evidence time**, not fact-validity time or last modification. Valid explicit `date` wins; recognized dated session filenames are the conservative fallback. Invalid explicit dates are not replaced by filename/creation dates. Undated syntheses do not acquire dates from filenames; creation/import/mtime never establishes evidence time. Date-bounded retrieval excludes unknown dates; chronological-only retrieval can retain them. Inspect returned coverage and partial/stale warnings: bounded discovery and result limits are not exhaustive corpus coverage, and newest is not necessarily correct.
+
+Rich JSON adds `temporal: { interval, coverage }` and evidence-date provenance. Plain output shows the resolved half-open UTC interval, evidence-date basis, explicit `conflicts_with`/`supersedes` declarations and warnings; declarations are not adjudicated truth. New clients reject servers that omit or mismatch the requested resolved interval, with upgrade guidance and no unfiltered fallback.
+
 ### Compact recall/search and conditional expansion
 
 Add `--compact [--max-bytes <n>] [--diagnostics]` to any `recall` or `search` command, locally or remotely:
@@ -121,7 +143,7 @@ Successful compact and `expand` output is always `JSON.stringify(packet) + "\n"`
 
 `--max-bytes` is an integer from **1024 to 65536**, default **8192**. It caps actual serialized UTF-8 bytes, not tokens, including the entire successful packet envelope, diagnostics, JSON escaping, and final LF. HTTP headers and error packets are outside this cap. Diagnostics compete with evidence for space; oversized recall passages are omitted rather than shortened.
 
-Compact packets contain `passages`, citations, `readiness`, `retrieval` warnings, and candidate-relative `omitted` counts. Their `partial: true` means selected evidence, not a complete answer/document. Dates describe only valid creation metadata (`basis: "written"`), otherwise `basis: "unknown"`; event-date inference and temporal event filters are not implemented. See the [packet contract](shared-memory-protocol.md#post-memoriesallrecallcompact).
+Compact packets contain `passages`, citations, `readiness`, `retrieval` warnings, and candidate-relative `omitted` counts. Their `partial: true` means selected evidence, not a complete answer/document. The existing `date` describes only valid creation metadata (`basis: "written"`), otherwise `basis: "unknown"`. An explicit temporal request adds the resolved `temporal` envelope, separate passage `evidenceDate`, and optional declared `relationships`, all inside the same byte budget. Without temporal flags, these additions are absent. Changed source frontmatter/body-start coordinates or incomplete headers during verification cause candidate omission and a partial `source_changed` warning, including ID-less sources. Fix malformed headers, refresh the index and retry. See the [packet contract](shared-memory-protocol.md#post-memoriesallrecallcompact).
 
 Answer from sufficient passages. For an evidence gap, narrow the query or expand the relevant lines/section on the **same target**, using an available passage's `expansion.id` and `expansion.expectedContentHash`, never a QMD hit ID:
 
@@ -164,7 +186,7 @@ Deprecated forms:
 
 Lint preserves each run under `.jumpybrain/reports/`. JSON includes `runId`, `issueCount` (zero when clean), structured `issues` with code/severity/evidence/rationale, and `scope`: total, eligible, inspected, candidate-document counts and invocation bounds. Topic/since/limit bound inspection, not the full-corpus comparisons or candidate search. Defaults are 100 inspected documents for lint and 8 sources for synthesis. `--since` uses metadata recency (`updated_at`, then `created_at`, then `date`), not inferred event dates. Provenance checks recognize canonical Markdown/reference/wiki links and ID targets regardless of source-section heading; valid links do not establish claim support. Answer candidates carry bounded passages and rationale; returning no candidate means abstention, not proof that a question is unanswered.
 
-Synthesis cites topical source excerpts and original lines, excluding pages and boolean `dream: true` outputs as primary evidence. It refuses human/dream/user-reviewed or different-topic collisions. Updates require a process-owned page with matching topic, `type: page`, and a valid unique ID; existing metadata and creation time are retained. `--if-match` optionally checks the destination hash from `show`; even without it the operation snapshots and rechecks the destination. Unchanged extracted bodies return `applied: false`, `modifiedCount: 0`, and no files, preserving bytes/timestamps. No topical passage means no page write. Unsafe destinations are rejected; [canonical write safeguards](memory-format.md#document-edit-contract) are not locks against arbitrary external editors. Index separately after canonical changes.
+Synthesis cites topical source excerpts and original lines, excluding pages and boolean `dream: true` outputs as primary evidence. It refuses human/dream/user-reviewed or different-topic collisions. Updates require a process-owned page with matching topic, `type: page`, and a valid unique ID; existing metadata and creation time are retained. `--if-match` optionally checks the destination hash from `show`; even without it the operation snapshots and rechecks the destination. Unchanged excerpts and cited metadata return `applied: false`, `modifiedCount: 0`, and no files, preserving bytes/timestamps. No topical passage means no page write. Unsafe destinations are rejected; [canonical write safeguards](memory-format.md#document-edit-contract) are not locks against arbitrary external editors. Index separately after canonical changes.
 
 ## Dreaming / consolidation workflow
 

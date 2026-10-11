@@ -17,15 +17,17 @@ export function cleanQmdSnippet(snippet: string): string {
     .trim();
 }
 
-export async function snippetFromOriginalBody(document: IndexedDocument, query: string): Promise<SnippetRepair> {
-  const { lines, truncated } = await boundedOriginalLines(document.absolutePath);
+export interface CanonicalPrefix { lines: string[]; truncated: boolean }
+
+export async function snippetFromOriginalBody(document: IndexedDocument, query: string, source?: CanonicalPrefix): Promise<SnippetRepair> {
+  const { lines, truncated } = source ?? await boundedOriginalLines(document.absolutePath);
   const bodyIndex = Math.max(0, document.bodyStartLine - 1);
   if (bodyIndex >= lines.length) return { lineStart: document.bodyStartLine, lineEnd: document.bodyStartLine, snippet: "" };
   return selectCanonicalExcerpt(lines, truncated, document.bodyStartLine, document.bodyStartLine, lines.length, query);
 }
 
-export async function neighborSnippetFromOriginal(document: IndexedDocument, lineStart: number, lineEnd: number | undefined, query = ""): Promise<SnippetRepair> {
-  const { lines, truncated } = await boundedOriginalLines(document.absolutePath);
+export async function neighborSnippetFromOriginal(document: IndexedDocument, lineStart: number, lineEnd: number | undefined, query = "", source?: CanonicalPrefix): Promise<SnippetRepair> {
+  const { lines, truncated } = source ?? await boundedOriginalLines(document.absolutePath);
   if (lineStart > lines.length || (truncated && (lineEnd ?? lineStart) > lines.length)) {
     return { lineStart, lineEnd: lineEnd ?? lineStart, snippet: "" };
   }
@@ -80,7 +82,7 @@ function looksLikeFrontmatterOnly(snippet: string): boolean {
 
 // Repair is best-effort, not an unbounded full-document read. QMD's own snippet
 // remains usable for hits beyond this prefix; callers can explicitly expand it.
-async function boundedOriginalLines(file: string): Promise<{ lines: string[]; truncated: boolean }> {
+export async function boundedOriginalLines(file: string): Promise<CanonicalPrefix> {
   const maximumBytes = 128 * 1024;
   const handle = await open(file, "r");
   try {

@@ -286,8 +286,9 @@ export async function searchServerMemory(options: {
   limit: number;
   depth?: RetrievalDepth | string;
   recall?: boolean;
+  temporal?: SearchMemoryOptions["temporal"];
 }): Promise<RemoteMemorySearchPacket> {
-  const searchOptions: SearchMemoryOptions = { depth: options.depth };
+  const searchOptions: SearchMemoryOptions = { depth: options.depth, temporal: options.temporal };
   const result = await searchMemory(options.root, options.query, options.limit, searchOptions);
   const index = await readRemoteIndexState(result.root);
   return {
@@ -301,6 +302,7 @@ export async function searchServerMemory(options: {
     results: result.results,
     readiness: result.readiness,
     retrieval: result.retrieval,
+    ...(result.temporal ? { temporal: result.temporal } : {}),
   };
 }
 

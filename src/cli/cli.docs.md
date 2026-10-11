@@ -32,3 +32,7 @@
 - Do not change public CLI behavior during internal refactors unless a task explicitly calls for it.
 - Do not run AI/model providers or perform hidden prompt injection for dreaming; local agents decide and apply edits explicitly.
 - Do not put command implementation back into `src/cli.ts`; keep the binary path stable while routing through CLI submodules.
+
+## Explicit temporal retrieval
+
+`temporal.ts` validates `--from`, `--to`, `--reference-date`, and `--order` before target credentials. Search/recall and recipes switch to strict bounded-read argument parsing whenever any temporal flag is present: unknown/repeated flags, missing values, and valued booleans fail. The handler passes one `temporal` object through either transport. Human output reports the resolved UTC half-open interval, coverage, evidence-date basis, explicit relationship declarations, and partial warnings; non-temporal formatting stays unchanged. See [CLI temporal contract](../../docs/cli-commands.md#explicit-temporal-retrieval).

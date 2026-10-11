@@ -38,7 +38,8 @@ test("synthesis refuses human and dream collisions without changing a byte", () 
 test("synthesis uses structural excerpts, retains qualifications, preserves metadata and is byte-stable on rerun", () => fixture(async (root, write) => {
   await write("pages/quartz-ledger.md", "# Old map\n\nOld generated body.", {
     id, type: "page", topic: "quartz ledger", title: "Preserved custom title", source: "jumpybrain-process",
-    created_at: "2020-01-01", tags: ["custom"], custom_owner: "fictional", review: "recommended", confidence: "agent-drafted",
+    created_at: "2020-01-01", date: "2018-04-05", dream: false, dream_window: "2018-04",
+    dream_sources: ["notes/historical.md"], tags: ["custom"], custom_owner: "fictional", review: "recommended", confidence: "agent-drafted",
   });
   const first = await synthesize(root);
   assert.equal(first.modifiedCount, 1);
@@ -53,6 +54,11 @@ test("synthesis uses structural excerpts, retains qualifications, preserves meta
   assert.equal(parsed.frontmatter.id, id);
   assert.equal(parsed.frontmatter.title, "Preserved custom title");
   assert.equal(parsed.frontmatter.created_at, "2020-01-01");
+  assert.equal(parsed.frontmatter.date, "2018-04-05");
+  assert.equal(parsed.frontmatter.dream, false);
+  assert.equal(parsed.frontmatter.dream_window, "2018-04");
+  assert.deepEqual(parsed.frontmatter.dream_sources, ["notes/historical.md"]);
+  assert.notEqual(parsed.frontmatter.updated_at, "2026-02-01");
   assert.equal(parsed.frontmatter.custom_owner, "fictional");
   assert.deepEqual(parsed.frontmatter.tags, ["custom"]);
   assert.equal(parsed.frontmatter.review, "recommended");
@@ -138,9 +144,9 @@ test("direct and QMD-expanded synthesis both enforce since and exclude dream pri
   await write("notes/qmd-current.md", "# Related\n\nLedger has a recent bounded mechanism.", { updated_at: "2026-02-01" });
   await write("notes/qmd-old.md", "# Related\n\nLedger has an obsolete backend mechanism.", { updated_at: "2020-01-01" });
   await write("notes/qmd-dream.md", "# Related\n\nLedger has a dreamed backend mechanism.", { dream: true });
-  const files = ["notes/old.md", "notes/dream.md", "notes/qmd-current.md", "notes/qmd-old.md", "notes/qmd-dream.md"];
+  const files = ["notes/old.md", "notes/dream.md", "notes/qmd-old.md", "notes/qmd-dream.md", "notes/qmd-current.md"];
   await fakeIndex(root, files.map(file => ({ file, score: 0.99, line: 8, snippet: "quartz ledger mechanism" })));
-  await synthesize(root, { since: "2025-01-01" });
+  await synthesize(root, { since: "2025-01-01", limit: 2 });
   const content = await readFile(path.join(root, "pages/quartz-ledger.md"), "utf8");
   assert.match(content, /recent bounded mechanism/);
   assert.doesNotMatch(content, /obsolete|dream-only|dreamed backend/);
@@ -156,3 +162,99 @@ test("a destination changed during QMD expansion is never overwritten", () => wi
   await assert.rejects(synthesize(root), /changed after preflight/);
   assert.equal(await readFile(file, "utf8"), concurrent);
 })));
+
+test("synthesis excludes strict dream evidence in every canonical bucket and excludes its own output before limiting", () => fixture(async (root, write) => {
+  for (const bucket of ["notes", "findings", "decisions", "preferences", "sessions", "pages"]) {
+    await write(`${bucket}/dream.md`, "# Quartz ledger\n\nQuartz ledger fabricated dream evidence.", { dream: true, updated_at: "2099-01-01" });
+  }
+  await write("notes/quoted.md", "# Quartz ledger\n\nQuartz ledger quoted marker remains primary evidence.", { dream: "true", updated_at: "2026-03-01" });
+  await write("notes/false.md", "# Quartz ledger\n\nQuartz ledger false marker remains primary evidence.", { dream: false, updated_at: "2026-04-01" });
+  await write("notes/typed-page.md", "# Quartz ledger\n\nQuartz ledger relocated page is not primary evidence.", { type: "page", updated_at: "2099-01-01" });
+  await write("pages/quartz-ledger.md", "# Quartz ledger\n\nQuartz ledger prior output must not cite itself.", {
+    id, type: "page", topic: "quartz ledger", source: "jumpybrain-process", updated_at: "2099-01-01",
+  });
+  const result = await synthesize(root, { limit: 2 });
+  const content = await readFile(path.join(root, result.files[0]), "utf8");
+  assert.match(content, /quoted marker remains primary evidence/);
+  assert.match(content, /false marker remains primary evidence/);
+  assert.doesNotMatch(content, /fabricated dream|relocated page|prior output|\.\.\/pages\/quartz-ledger/);
+}));
+
+test("since uses validated metadata recency, excludes undated/invalid sources before limits and does not infer event time", () => fixture(async (root, write) => {
+  await write("notes/invalid.md", "# Quartz ledger\n\nQuartz ledger invalid calendar evidence.", { updated_at: "2026-02-30", created_at: "2026-03-02" });
+  await writeFile(path.join(root, "notes/undated.md"), "# Quartz ledger\n\nQuartz ledger undated evidence.");
+  await write("notes/revised.md", "# Quartz ledger\n\nQuartz ledger historical evidence edited recently.", { date: "1999-01-01", created_at: "2000-01-01", updated_at: "2026-03-01" });
+  // The cutoff is inclusive, and a bad preferred date must not fall through to a good lower-priority date.
+  await synthesize(root, { since: "2026-03-01", limit: 1 });
+  const content = await readFile(path.join(root, "pages/quartz-ledger.md"), "utf8");
+  assert.match(content, /historical evidence edited recently/);
+  assert.match(content, /date: ` "1999-01-01" `/);
+  assert.match(content, /created_at: ` "2000-01-01" `/);
+  assert.match(content, /updated_at: ` "2026-03-01" `/);
+  assert.doesNotMatch(content, /invalid calendar evidence|undated evidence/);
+  assert.equal(parseFrontmatter(content).frontmatter.date, undefined, "a multi-source map must not invent an evidence date");
+  for (const since of ["2026-02-30", "2026-03-01T00:00:00", "not a date", `${"9".repeat(400)}d`]) {
+    await assert.rejects(synthesize(root, { since }), /Invalid --since/);
+  }
+}));
+
+test("QMD cannot reintroduce missing or invalid dates when direct selection abstains", () => withQmd(() => fixture(async (root, write) => {
+  await write("notes/qmd-invalid.md", "# Related\n\nLedger invalid preferred date.", { updated_at: "2026-02-30", created_at: "2026-03-01" });
+  await writeFile(path.join(root, "notes/qmd-undated.md"), "# Related\n\nLedger undated candidate.");
+  await write("notes/qmd-valid.md", "# Related\n\nLedger bounded valid candidate.", { updated_at: "2026-03-01" });
+  const files = ["notes/qmd-invalid.md", "notes/qmd-undated.md", "notes/qmd-valid.md"];
+  await fakeIndex(root, files.map(file => ({ file, score: 0.99, line: 8, snippet: "quartz ledger mechanism" })));
+  await synthesize(root, { since: "2026-03-01", limit: 1 });
+  const content = await readFile(path.join(root, "pages/quartz-ledger.md"), "utf8");
+  assert.match(content, /bounded valid candidate/);
+  assert.doesNotMatch(content, /invalid preferred date|undated candidate/);
+})));
+
+test("structural citations retain late qualifications, dates and declared conflicts without reconciling them", () => fixture(async (root, write) => {
+  const file = "decisions/qualified.md";
+  await write(file, `# Quartz ledger\n\n## Trial\n- Quartz ledger retries use a durable key. ${"The trial was monitored. ".repeat(12)}\n  - As of 2021-02-03 this is sandbox-only; production remains uncertain.\n  - This conflicts with the earlier rollout claim.`, {
+    date: "2021-02-03", created_at: "2022-01-01", updated_at: "2026-04-01", confidence: "agent-drafted", conflicts_with: ["notes/quartz.md"],
+  });
+  // CRLF sources still need actual canonical line numbers, including frontmatter.
+  const original = (await readFile(path.join(root, file), "utf8")).replaceAll("\n", "\r\n");
+  await writeFile(path.join(root, file), original);
+  await synthesize(root);
+  const content = await readFile(path.join(root, "pages/quartz-ledger.md"), "utf8");
+  assert.match(content, /As of 2021-02-03 this is sandbox-only; production remains uncertain/);
+  assert.match(content, /This conflicts with the earlier rollout claim/);
+  assert.match(content, /conflicts_with: ` \["notes\/quartz.md"\] `/);
+  assert.match(content, /Source dates \(verbatim metadata, not inferred event times\)/);
+  const citation = content.match(/> ([^\n]+)\n\n\[Original source\]\(\.\.\/decisions\/qualified.md\) — lines (\d+)-(\d+)/);
+  assert.ok(citation);
+  assert.ok(citation[1].length <= 1000);
+  assert.equal(citation[1], original.split(/\r?\n/).slice(Number(citation[2]) - 1, Number(citation[3])).join(" ").replace(/\s+/g, " ").trim());
+  assert.match(content, /\[Original source\]\(\.\.\/notes\/quartz.md\)/, "contrary sources remain independently cited");
+}));
+
+test("oversized source units remain explicitly partial, bounded and cited instead of asserted summaries", () => fixture(async (root, write) => {
+  await write("notes/oversized.md", `# Quartz ledger\n\nQuartz ledger provisional experiment. ${"Additional qualification requires investigation. ".repeat(60)}Not established for production.`, { updated_at: "2026-04-01" });
+  await synthesize(root, { limit: 1 });
+  const content = await readFile(path.join(root, "pages/quartz-ledger.md"), "utf8");
+  const quote = content.split("\n").find(line => line.startsWith("> ")).slice(2);
+  assert.ok(quote.length <= 1000);
+  assert.match(quote, /partial excerpt; expand source/);
+  assert.match(content, /Excerpts may omit context; follow original sources/);
+  assert.match(content, /\[Original source\]\(\.\.\/notes\/oversized.md\) — lines \d+-\d+/);
+}));
+
+
+test("source date-only changes refresh citations without changing page identity or creation/evidence dates", () => fixture(async (root, write) => {
+  await synthesize(root);
+  const page = path.join(root, "pages/quartz-ledger.md");
+  const first = parseFrontmatter(await readFile(page, "utf8"));
+  const source = path.join(root, "notes/quartz.md");
+  const before = await readFile(source, "utf8");
+  await writeFile(source, before.replace('updated_at: "2026-02-01"', 'updated_at: "2026-05-01"'));
+  assert.equal((await synthesize(root)).modifiedCount, 1);
+  const second = parseFrontmatter(await readFile(page, "utf8"));
+  assert.equal(second.frontmatter.id, first.frontmatter.id);
+  assert.equal(second.frontmatter.created_at, first.frontmatter.created_at);
+  assert.equal(second.frontmatter.date, undefined);
+  assert.match(second.body, /updated_at: ` "2026-05-01" `/);
+  assert.equal((await synthesize(root)).applied, false);
+}));
