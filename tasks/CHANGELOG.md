@@ -28,6 +28,10 @@
 
 - Added [incremental transactional indexing](done/2026-10-10_tasks-semantic-index-reliability.md), persistent semantic policy, explicit rebuild/recovery, and honest local/hosted retrieval readiness on pinned QMD 2.8.3.
 
+## 2026-10-10 — Product mission
+
+- Recorded the [product vision](../docs/product-vision.md): lean, semantic, temporally aware agent memory with token-efficient retrieval and first-class local/shared-VPS use.
+
 ## 2026-10-08 — Source-backed recall defaults
 
 - Recall now returns distinct-file evidence with bounded, match-centered passages, independent citations, and labeled metadata across local and hosted CLI workflows.

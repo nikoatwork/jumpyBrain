@@ -94,6 +94,7 @@ To host a shared brain, start with the [operator quickstart](docs/cloud-shared-m
 
 ## Documentation
 
+- [Product vision](docs/product-vision.md)
 - [Installation and updates](docs/install.md)
 - [macOS app (beta)](integrations/macos-companion/README.md)
 - [Using jumpyBrain with agents](docs/agent-workflows.md)
