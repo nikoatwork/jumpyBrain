@@ -1,6 +1,6 @@
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import { validTemporalResponse } from "./temporal-response.js";
-import type { TemporalQuery } from "../../types.js";
+import type { ExecutionOptions, TemporalQuery } from "../../types.js";
 import { randomUUID } from "node:crypto";
 import { HTTP_MEMORY_ROUTES, memoryDocumentPath, memoryDreamBatchAbandonPath, memoryDreamBatchCompletePath, memoryDreamBatchPath } from "../http-protocol.js";
 import { packetFits, validatePacketMaxBytes } from "../../core/serialized-budget.js";
@@ -52,7 +52,7 @@ export interface RemoteMemoryTransportOptions {
 export interface RemoteMemoryTransport {
   readonly url: string;
   memoryRootStatus(): Promise<MemoryRootStatus & Record<string, unknown>>;
-  indexMemory(options?: Pick<IndexMemoryOptions, "rebuild">): Promise<IndexMemoryResult & Record<string, unknown>>;
+  indexMemory(options?: Pick<IndexMemoryOptions, "rebuild" | "signal" | "timeoutMs">): Promise<IndexMemoryResult & Record<string, unknown>>;
   overviewMemory(options?: MemoryOverviewOptions): Promise<MemoryOverviewResult & Record<string, unknown>>;
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions & { mode?: "search" | "recall" }): Promise<SearchMemoryResult & Record<string, unknown>>;
   compactSearchMemory(query: string, limit: number, options?: CompactRecallOptions): Promise<CompactRecallPacket>;
@@ -82,12 +82,33 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   if (!apiKey) throw new Error("Remote jumpyBrain API key is required.");
   const fetchImpl = options.fetchImpl ?? fetch;
 
-  async function request(path: string, init: RequestInit = {}): Promise<Record<string, unknown>> {
+  async function execute<T>(execution: ExecutionOptions, index: boolean, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    const timeoutMs = execution.timeoutMs ?? (index ? 610_000 : 70_000);
+    if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647) throw new Error("Invalid execution timeout.");
+    const controller = new AbortController();
+    const error = (code: string) => new RemoteMemoryError(code === "execution_timeout" ? 504 : 499, code, code === "execution_timeout" ? "Memory operation deadline exceeded; retry or adjust the local deadline." : "Memory operation canceled.");
+    const abort = () => controller.abort(error("execution_aborted"));
+    const timer = setTimeout(() => controller.abort(error("execution_timeout")), timeoutMs);
+    execution.signal?.addEventListener("abort", abort, { once: true });
+    if (execution.signal?.aborted) abort();
+    try {
+      if (controller.signal.aborted) throw controller.signal.reason;
+      const result = await operation(controller.signal);
+      if (controller.signal.aborted) throw controller.signal.reason;
+      return result;
+    } catch (caught) {
+      if (controller.signal.aborted) throw controller.signal.reason;
+      throw caught;
+    } finally { clearTimeout(timer); execution.signal?.removeEventListener("abort", abort); }
+  }
+
+  async function request(path: string, init: RequestInit = {}, execution: ExecutionOptions = {}, index = false): Promise<Record<string, unknown>> {
+    return execute(execution, index, async signal => {
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${apiKey}`);
     if (init.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
-    const response = await fetchImpl(new URL(path, baseUrl), { ...init, headers });
+    const response = await fetchImpl(new URL(path, baseUrl), { ...init, headers, signal });
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
     if (!response.ok) {
       const remoteError = payload.error && typeof payload.error === "object" ? payload.error as Record<string, unknown> : undefined;
@@ -96,16 +117,18 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       throw new RemoteMemoryError(response.status, code, message);
     }
     return payload;
+    });
   }
 
-  async function boundedRequest(path: string, body: Record<string, unknown>, kind: "recall" | "expansion"): Promise<unknown> {
+  async function boundedRequest(path: string, body: Record<string, unknown>, kind: "recall" | "expansion", execution: ExecutionOptions = {}): Promise<unknown> {
+    return execute(execution, false, async signal => {
     if (kind === "recall") resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
     const maxBytes = validatePacketMaxBytes(body.maxBytes as number | undefined);
     const unsupported = () => new RemoteMemoryError(502, "unsupported_bounded_read",
       `Remote server returned an unsupported ${kind} response. Upgrade the server; no full-document fallback was attempted.`);
     const response = await fetchImpl(new URL(path, baseUrl), {
       method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body), signal,
     });
     if (!response.ok) {
       const code = await readBoundedErrorCode(response) ?? `http_${response.status}`;
@@ -121,6 +144,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     try { packet = JSON.parse(text); } catch { throw unsupported(); }
     if (!validBoundedPacket(packet, kind, maxBytes, body) || !packetFits(packet, maxBytes)) throw unsupported();
     return packet;
+    });
   }
 
   return {
@@ -128,7 +152,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     memoryRootStatus: () => request(HTTP_MEMORY_ROUTES.status) as Promise<MemoryRootStatus & Record<string, unknown>>,
     indexMemory: (indexOptions = {}) => {
       if ("indexing" in indexOptions) throw new Error("Indexing policy must be configured on the server-local memory root.");
-      return request(HTTP_MEMORY_ROUTES.index, { method: "POST", body: JSON.stringify(indexOptions.rebuild === undefined ? {} : { rebuild: indexOptions.rebuild }) }) as Promise<IndexMemoryResult & Record<string, unknown>>;
+      return request(HTTP_MEMORY_ROUTES.index, { method: "POST", body: JSON.stringify(indexOptions.rebuild === undefined ? {} : { rebuild: indexOptions.rebuild }) }, indexOptions, true) as Promise<IndexMemoryResult & Record<string, unknown>>;
     },
     overviewMemory: (overviewOptions = {}) => {
       const params = new URLSearchParams();
@@ -144,14 +168,14 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       const body = { ...(searchOptions.temporal ? { temporal: searchOptions.temporal } : {}), ...(mode === "recall"
         ? { topic: query, limit, depth: searchOptions.depth ?? "normal" }
         : { query, limit, depth: searchOptions.depth ?? "normal" }) };
-      const packet = await request(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) });
+      const packet = await request(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) }, searchOptions);
       if (searchOptions.temporal && !validTemporalResponse(packet.temporal, searchOptions.temporal)) {
         throw new RemoteMemoryError(502, "unsupported_temporal", "Remote server did not honor the temporal scope. Upgrade the server; no unfiltered fallback was attempted.");
       }
       return packet as unknown as SearchMemoryResult & Record<string, unknown>;
     },
     compactSearchMemory: (query, limit, recallOptions = {}) => boundedRequest(HTTP_MEMORY_ROUTES.compactRecall,
-      { query, limit, depth: recallOptions.depth, maxBytes: recallOptions.maxBytes, diagnostics: recallOptions.diagnostics, temporal: recallOptions.temporal }, "recall") as Promise<CompactRecallPacket>,
+      { query, limit, depth: recallOptions.depth, maxBytes: recallOptions.maxBytes, diagnostics: recallOptions.diagnostics, temporal: recallOptions.temporal }, "recall", recallOptions) as Promise<CompactRecallPacket>,
     expandMemoryDocument: (expansionOptions) => boundedRequest(HTTP_MEMORY_ROUTES.expand, { ...expansionOptions }, "expansion") as Promise<ExpansionResult>,
     readMemoryDocument: (id) => request(memoryDocumentPath(id)) as Promise<MemoryDocumentReadResult & Record<string, unknown>>,
     updateMemoryDocument: (id, content, updateOptions) => request(memoryDocumentPath(id), {

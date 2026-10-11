@@ -10,6 +10,8 @@ export interface JumpyBrainHttpServerOptions {
   apiKeys: string[];
   indexRunner?: RemoteIndexRunner;
   logger?: FileLogger;
+  searchTimeoutMs?: number;
+  indexTimeoutMs?: number;
 }
 
 export interface StartedJumpyBrainHttpServer {
@@ -28,6 +30,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   const logger = options.logger ?? createFileLogger({ root, name: "server" });
   const indexRunner = options.indexRunner ?? createRemoteIndexRunner({
     root,
+    timeoutMs: options.indexTimeoutMs,
     logger: (level, event, details) => logger.log(level, `auto_index_${event}`, details),
   });
   let writeQueue = Promise.resolve();
@@ -37,15 +40,35 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
     return current;
   };
 
-  return http.createServer(async (request, response) => {
+  const requests = new Set<AbortController>();
+  const handlers = new Set<Promise<void>>();
+  let shuttingDown = false;
+  const server = http.createServer(async (request, response) => {
+    let finish!: () => void;
+    const completed = new Promise<void>(resolve => { finish = resolve; });
+    handlers.add(completed);
+    const controller = new AbortController();
+    requests.add(controller);
+    const disconnect = () => { if (!response.writableEnded) controller.abort(); };
+    const shutdownRequest = () => { if (!request.complete) request.destroy(); };
+    controller.signal.addEventListener("abort", shutdownRequest, { once: true });
+    request.once("aborted", disconnect);
+    response.once("close", disconnect);
+    if (shuttingDown) controller.abort();
     const startedAt = Date.now();
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
-      await routeRequest({ request, response, root, apiKeys, enqueueWrite, indexRunner, logger });
+      await routeRequest({ request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal: controller.signal, searchTimeoutMs: options.searchTimeoutMs });
     } catch (error) {
-      logger.error("http_unhandled_error", { method: request.method, path: url.pathname, message: error instanceof Error ? error.message : String(error) });
+      logger.error("http_unhandled_error", { method: request.method, path: url.pathname, code: "server_misconfigured" });
       writeJson(response, 500, errorResponse("server_misconfigured", "Server request failed."));
     } finally {
+      requests.delete(controller);
+      controller.signal.removeEventListener("abort", shutdownRequest);
+      request.off("aborted", disconnect);
+      response.off("close", disconnect);
+      handlers.delete(completed);
+      finish();
       if (url.pathname !== HTTP_MEMORY_ROUTES.health) {
         logger.info("http_request", {
           method: request.method,
@@ -57,6 +80,20 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
       }
     }
   });
+  // Finite body receipt, separate from the backend operation deadline.
+  server.requestTimeout = 30_000;
+  server.headersTimeout = 30_000;
+  const close = server.close.bind(server);
+  server.close = ((callback?: (error?: Error) => void) => {
+    shuttingDown = true;
+    for (const controller of requests) controller.abort();
+    const stopped = indexRunner.stop?.() ?? Promise.resolve();
+    // A disconnected socket can be closed while its async route still owns a
+    // child/lock. Native close alone is not an application-work drain.
+    close(error => { void Promise.all([stopped, ...handlers]).then(() => callback?.(error), () => callback?.(error)); });
+    return server;
+  }) as typeof server.close;
+  return server;
 }
 
 export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions & { host?: string; port?: number; autoIndex?: false | { intervalMs?: number; startTimer?: boolean } }): Promise<StartedJumpyBrainHttpServer> {
@@ -66,6 +103,7 @@ export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOpt
   const logger = options.logger ?? createFileLogger({ root, name: "server" });
   const indexRunner = options.indexRunner ?? createRemoteIndexRunner({
     root,
+    timeoutMs: options.indexTimeoutMs,
     logger: (level, event, details) => logger.log(level, `auto_index_${event}`, details),
   });
   const server = createJumpyBrainHttpServer({ ...options, root, indexRunner, logger });

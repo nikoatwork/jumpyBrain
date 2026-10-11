@@ -6,6 +6,8 @@
 - Re-export the HTTP server adapter and server-memory helpers for compatibility while keeping route parsing/auth implementation under `src/adapters/http-server/`.
 - Preserve remote JSON shapes and avoid leaking server filesystem paths to remote clients.
 
+Server config accepts `searchTimeoutMs`/`indexTimeoutMs`, also read from `JUMPYBRAIN_SEARCH_TIMEOUT_MS`/`JUMPYBRAIN_INDEX_TIMEOUT_MS`; validation occurs at bootstrap. HTTP close propagates cancellation to its own app work and index runner. Admission and child lifecycle stay in the QMD adapter, not server protocol code.
+
 ## Non-responsibilities
 
 - Do not import CLI command parsing or CLI helper modules.

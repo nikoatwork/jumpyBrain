@@ -174,6 +174,10 @@ Deprecated forms:
 | `jumpybrain note ...` | `jumpybrain remember ...` |
 | `jumpybrain run memory:note ...` | `jumpybrain run memory:remember ...` |
 
+## Retrieval execution limits
+
+Local search/recall (including compact) defaults to a 60-second whole-operation deadline, local index to 600 seconds. Override using `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS` (positive integer milliseconds). `serve` uses the same server-owned environment controls; remote requests cannot set backend deadlines. Remote transport defaults to 70-second reads / 610-second indexing. Local index/search/compact SIGINT/SIGTERM cancels queued/active owned work before exiting. Depth still describes evidence shape, not effort. Overload/deadline errors are actionable failures, never “no memories”; see [all bounds and platform limits](technical.md#bounded-retrieval-execution).
+
 ## Processing and maintenance
 
 | Command | Human explanation |

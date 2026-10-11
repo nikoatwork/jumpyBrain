@@ -1,8 +1,8 @@
-import type { EvidenceDate, TemporalQuery, TemporalRetrieval, Frontmatter, MemoryDocumentContentHash, RetrievalDepth, RetrievalOutcome, RetrievalReadiness, ScoreBreakdown } from "../../types.js";
+import type { ExecutionOptions, EvidenceDate, TemporalQuery, TemporalRetrieval, Frontmatter, MemoryDocumentContentHash, RetrievalDepth, RetrievalOutcome, RetrievalReadiness, ScoreBreakdown } from "../../types.js";
 import { packetFits, PacketBudgetError, serializeBudgetedPacket, validatePacketMaxBytes } from "../serialized-budget.js";
 import { metadataDate } from "../canonical/metadata-date.js";
 
-export interface CompactRecallOptions {
+export interface CompactRecallOptions extends ExecutionOptions {
   depth?: RetrievalDepth | string;
   temporal?: TemporalQuery;
   maxBytes?: number;

@@ -189,6 +189,9 @@ export function boundedErrorMessage(code: string, status: number): string {
     precondition_failed: "Document hash is stale or identity changed. Refresh recall before expanding.",
     invalid_utf8: "Document is not valid UTF-8; exact expansion is unavailable.",
     bounded_read_failed: "Remote bounded memory read failed.",
+    execution_timeout: "Memory operation deadline exceeded; retry or adjust the local deadline.",
+    execution_aborted: "Memory operation canceled.",
+    execution_overloaded: "Memory execution queue is full; retry shortly.",
   };
   return Object.hasOwn(messages, code) ? messages[code]! : `Remote bounded memory request failed with HTTP ${status}.`;
 }

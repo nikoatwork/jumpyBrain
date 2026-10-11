@@ -2,7 +2,7 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import { listMarkdownFiles, readCanonicalMemoryDocumentById, readMarkdownDocuments, replaceCanonicalMemoryDocumentById, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot, configuredIndexingPolicy, indexingPolicyMatches, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
-import { buildQmdIndex, loadManifest, qmdReadiness, searchQmdIndex, type QmdManifest } from "../../adapters/qmd/index.js";
+import { withQmdOperation, readExecution, executionSignal, checkExecution, buildQmdIndex, loadManifest, qmdReadiness, searchQmdIndex, type QmdManifest } from "../../adapters/qmd/index.js";
 import { normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import type { TemporalRetrieval } from "../../types.js";
@@ -30,6 +30,7 @@ export class MemoryDocumentPreconditionError extends Error implements MemoryDocu
   }
 }
 
+export { MemoryExecutionError } from "../../adapters/qmd/index.js";
 export { compactSearchMemory, serializeCompactRecall, type CompactRecallOptions, type CompactRecallPacket, type CompactRecallPassage } from "./compact.js";
 export { expandMemoryDocument } from "./expansion.js";
 export { graphMemory } from "./graph.js";
@@ -47,15 +48,16 @@ async function retrievalReadiness(root: string, searchedManifest?: QmdManifest):
   if (manifest?.sources) {
     try {
       const sourceRoot = await resolveIndexRoot(root);
-      const files = await listMarkdownFiles(sourceRoot);
+      const files = await readExecution(listMarkdownFiles(sourceRoot, executionSignal()));
       const expected = new Map(manifest.sources.map(item => [item.file, item]));
       stale = (manifest.sourceRoot ?? root) !== sourceRoot || files.length !== expected.size;
       for (const file of files) {
-        const info = await stat(file);
+        checkExecution();
+        const info = await readExecution(stat(file));
         const previous = expected.get(path.relative(sourceRoot, file).split(path.sep).join("/"));
         if (!previous || previous.size !== info.size || previous.mtimeMs !== info.mtimeMs || previous.ctimeMs !== info.ctimeMs) { stale = true; break; }
       }
-    } catch { stale = true; }
+    } catch { checkExecution(); stale = true; }
   }
   const readiness = await qmdReadiness(root, manifest, stale);
   const configured = await configuredIndexingPolicy(root);
@@ -68,22 +70,26 @@ async function retrievalReadiness(root: string, searchedManifest?: QmdManifest):
 }
 
 export async function indexMemory(rootArg: string, options: IndexMemoryOptions = {}): Promise<IndexMemoryResult> {
-  const root = await resolveMemoryRoot(rootArg);
-  await assertCompatibleMemoryRoot(root);
-  const sourceRoot = await resolveIndexRoot(root);
-  const documents = await readMarkdownDocuments(sourceRoot);
+  return withQmdOperation(rootArg, "index", options, async () => {
+  const root = await readExecution(resolveMemoryRoot(rootArg));
+  await readExecution(assertCompatibleMemoryRoot(root));
+  const sourceRoot = await readExecution(resolveIndexRoot(root));
+  const documents = await readExecution(readMarkdownDocuments(sourceRoot, executionSignal()));
+  checkExecution();
   const manifest = await buildQmdIndex(root, documents, { ...options, sourceRoot });
   return { root, documents: manifest.documents.length, qmdCollection: manifest.qmdCollection, readiness: await retrievalReadiness(root), work: manifest.work };
+  });
 }
 
 export async function searchMemory(rootArg: string, query: string, limit: number, options: SearchMemoryOptions = {}): Promise<SearchMemoryResult> {
+  return withQmdOperation(rootArg, "search", options, async () => {
   const interval = resolveTemporalQuery(options.temporal);
   const temporal: TemporalRetrieval | undefined = interval ? { interval, coverage: {
     eligibleDocuments: 0, excludedUndated: 0, excludedInvalid: 0,
     backfillBudget: 0, backfilledDocuments: 0, unvisitedDocuments: 0,
   } } : undefined;
-  const root = await resolveMemoryRoot(rootArg);
-  await assertCompatibleMemoryRoot(root);
+  const root = await readExecution(resolveMemoryRoot(rootArg));
+  await readExecution(assertCompatibleMemoryRoot(root));
   const depth = normalizeRetrievalDepth(options.depth);
   const retrieval: RetrievalOutcome = { status: "complete", warnings: [] };
   let readiness!: RetrievalReadiness;
@@ -94,6 +100,7 @@ export async function searchMemory(rootArg: string, query: string, limit: number
   if (readiness.embedding === "incomplete" || readiness.embedding === "unknown") retrieval.warnings.push("semantic_coverage_incomplete");
   if (retrieval.warnings.length) retrieval.status = "partial";
   return { root, query, depth, results, readiness, retrieval, ...(temporal ? { temporal } : {}) };
+  });
 }
 
 export async function readMemoryDocument(rootArg: string, id: string): Promise<MemoryDocumentReadResult> {

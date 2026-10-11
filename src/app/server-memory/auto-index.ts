@@ -1,6 +1,7 @@
 import { indexMemory as appIndexMemory } from "../local-memory/index.js";
+import { checkExecution, readExecution, executionScope, EXECUTION_LIMITS, MemoryExecutionError } from "../../adapters/qmd/index.js";
 import type { IndexMemoryOptions, IndexMemoryResult } from "../../types.js";
-import { markRemoteIndexFresh, readRemoteIndexState, type RemoteIndexState } from "./state.js";
+import { invalidateRemoteIndex, markRemoteIndexFresh, readRemoteIndexState, type RemoteIndexState } from "./state.js";
 
 export const REMOTE_AUTO_INDEX_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -13,8 +14,9 @@ export interface RemoteIndexRunResult {
 }
 
 export interface RemoteIndexRunner {
-  indexNow(reason?: string, options?: Pick<IndexMemoryOptions, "rebuild">): Promise<RemoteIndexRunResult>;
+  indexNow(reason?: string, options?: Pick<IndexMemoryOptions, "rebuild" | "signal" | "timeoutMs">): Promise<RemoteIndexRunResult>;
   isIndexing(): boolean;
+  stop?(): Promise<void>;
 }
 
 export interface RemoteAutoIndexer {
@@ -27,40 +29,88 @@ export function createRemoteIndexRunner(options: {
   indexMemory?: (root: string, options?: IndexMemoryOptions) => Promise<IndexMemoryResult>;
   markFresh?: typeof markRemoteIndexFresh;
   logger?: RemoteAutoIndexLogger;
+  timeoutMs?: number;
 }): RemoteIndexRunner {
   const indexMemory = options.indexMemory ?? appIndexMemory;
   const markFresh = options.markFresh ?? markRemoteIndexFresh;
   const logger = options.logger ?? defaultAutoIndexLogger;
-  let inFlight: Promise<RemoteIndexRunResult> | undefined;
+  type Job = { promise: Promise<RemoteIndexRunResult>; controller: AbortController; waiters: number };
+  let inFlight: Job | undefined;
+  let stopped = false;
 
-  function indexNow(reason = "manual", indexOptions: Pick<IndexMemoryOptions, "rebuild"> = {}): Promise<RemoteIndexRunResult> {
-    if (inFlight) {
-      logger("warn", "overlap-joined", { reason });
-      // A rebuild request must not silently join an incremental run.
-      if (indexOptions.rebuild) return inFlight.then(() => indexNow(reason, indexOptions));
-      return inFlight;
-    }
+  function launch(reason: string, rebuild?: boolean): Job {
     const startedAt = new Date().toISOString();
     logger("info", "start", { reason });
-    inFlight = indexMemory(options.root, indexOptions)
-      .then(async (result) => {
+    const job: Job = { controller: new AbortController(), waiters: 0, promise: undefined! };
+    inFlight = job;
+    job.promise = (async () => indexMemory(options.root, { rebuild, signal: job.controller.signal, timeoutMs: options.timeoutMs }))()
+      .then(async result => {
+        checkExecution(job.controller.signal);
         const index = await markFresh(result.root, result, new Date().toISOString(), startedAt);
         logger("info", "success", { reason, documents: result.documents, qmdCollection: result.qmdCollection, stale: index.stale });
         return { result, index };
-      })
-      .catch((error) => {
-        logger("error", "failure", { reason, message: error instanceof Error ? error.message : String(error) });
+      }).catch(async error => {
+        await invalidateRemoteIndex(options.root).catch(() => {});
+        logger("error", "failure", { reason, code: error instanceof MemoryExecutionError ? error.code : "index_failed" });
         throw error;
-      })
-      .finally(() => {
-        inFlight = undefined;
-      });
-    return inFlight;
+      }).finally(() => { if (inFlight === job) inFlight = undefined; });
+    return job;
+  }
+
+  function join(job: Job, signal: AbortSignal): Promise<RemoteIndexRunResult> {
+    checkExecution(signal);
+    if (job.waiters >= EXECUTION_LIMITS.queue) throw new MemoryExecutionError("execution_overloaded");
+    job.waiters++;
+    return new Promise((resolve, reject) => {
+      let done = false;
+      const finish = (error?: unknown, result?: RemoteIndexRunResult) => {
+        if (done) return;
+        done = true;
+        signal.removeEventListener("abort", abort);
+        job.waiters--;
+        if (job.waiters === 0 && error && signal.aborted) job.controller.abort(new MemoryExecutionError("execution_aborted"));
+        if (error) reject(error); else resolve(result!);
+      };
+      const abort = () => finish(signal.reason);
+      signal.addEventListener("abort", abort, { once: true });
+      job.promise.then(result => finish(undefined, result), error => finish(error));
+      if (signal.aborted) abort();
+    });
+  }
+
+  async function indexNow(reason = "manual", indexOptions: Pick<IndexMemoryOptions, "rebuild" | "signal" | "timeoutMs"> = {}): Promise<RemoteIndexRunResult> {
+    if (stopped) throw new MemoryExecutionError("execution_aborted");
+    const scope = executionScope("index", { ...indexOptions, timeoutMs: indexOptions.timeoutMs ?? options.timeoutMs });
+    try {
+      checkExecution(scope.signal);
+      while (inFlight) {
+        if (inFlight.controller.signal.aborted) {
+          // A new caller is not an owner of a previously abandoned job. Wait
+          // for child/lock cleanup, then start fresh under its own deadline.
+          await readExecution(inFlight.promise.catch(() => {}), scope.signal);
+          continue;
+        }
+        logger("warn", "overlap-joined", { reason });
+        const result = await join(inFlight, scope.signal);
+        // Explicit rebuild waits for successful in-flight work, with the SAME
+        // caller deadline. Recheck after await: another rebuild may have started.
+        if (!indexOptions.rebuild) return result;
+      }
+      checkExecution(scope.signal);
+      if (stopped) throw new MemoryExecutionError("execution_aborted");
+      return await join(launch(reason, indexOptions.rebuild), scope.signal);
+    } finally { scope.dispose(); }
   }
 
   return {
     indexNow,
     isIndexing: () => inFlight !== undefined,
+    async stop() {
+      stopped = true;
+      const job = inFlight;
+      job?.controller.abort(new MemoryExecutionError("execution_aborted"));
+      await job?.promise.catch(() => {});
+    },
   };
 }
 

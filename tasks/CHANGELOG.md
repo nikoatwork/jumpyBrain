@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-11 — Responsive bounded retrieval
+
+- Replaced blocking QMD execution with bounded asynchronous admission, cancellation-safe indexing and request-local source reuse; [limits and verification](done/2026-10-11_tasks-bounded-retrieval-execution.md).
+
 ## 2026-10-11 — Explicit temporal retrieval
 
 - Added bounded evidence-date filtering and chronological recall across local/hosted CLI, with date provenance, stale-source checks and scope-safe processing; [verification and limits](done/2026-10-11_tasks-temporal-retrieval-correctness.md).

@@ -59,7 +59,14 @@ export interface IndexingPolicy {
   modelHash?: string;
 }
 
-export interface IndexMemoryOptions {
+/** Local lifecycle controls; never serialized as backend/query options. */
+export interface ExecutionOptions {
+  signal?: AbortSignal;
+  /** Whole-operation deadline including admission/lock waits; no per-call reset. */
+  timeoutMs?: number;
+}
+
+export interface IndexMemoryOptions extends ExecutionOptions {
   rebuild?: boolean;
   indexing?: IndexingPolicy;
 }
@@ -95,7 +102,7 @@ export interface SearchMemoryResult {
   retrieval?: RetrievalOutcome;
 }
 
-export interface SearchMemoryOptions {
+export interface SearchMemoryOptions extends ExecutionOptions {
   depth?: RetrievalDepth | string;
   temporal?: TemporalQuery;
 }

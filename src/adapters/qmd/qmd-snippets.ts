@@ -17,7 +17,23 @@ export function cleanQmdSnippet(snippet: string): string {
     .trim();
 }
 
-export interface CanonicalPrefix { lines: string[]; truncated: boolean }
+export interface CanonicalPrefix { lines: string[]; truncated: boolean; bytes?: number }
+
+/** Per-operation reuse only. Fixed cap, no eviction or cross-request invalidation.
+ * Retain rejected reads too so missing files are not reopened per candidate.
+ */
+export function canonicalPrefixCache(maximumBytes = 4 * 1024 * 1024, read = boundedOriginalLines) {
+  const cache = new Map<string, Promise<CanonicalPrefix>>();
+  let reserved = 0;
+  const perFile = 128 * 1024 + 1;
+  return (file: string): Promise<CanonicalPrefix> => {
+    const existing = cache.get(file);
+    if (existing) return existing;
+    const result = read(file);
+    if (reserved + perFile <= maximumBytes) { reserved += perFile; cache.set(file, result); }
+    return result;
+  };
+}
 
 export async function snippetFromOriginalBody(document: IndexedDocument, query: string, source?: CanonicalPrefix): Promise<SnippetRepair> {
   const { lines, truncated } = source ?? await boundedOriginalLines(document.absolutePath);
@@ -90,7 +106,7 @@ export async function boundedOriginalLines(file: string): Promise<CanonicalPrefi
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
     const lines = buffer.subarray(0, Math.min(bytesRead, maximumBytes)).toString("utf8").split(/\r?\n/);
     if (bytesRead > maximumBytes) lines.pop(); // Never quote a partial trailing line.
-    return { lines, truncated: bytesRead > maximumBytes };
+    return { lines, truncated: bytesRead > maximumBytes, bytes: bytesRead };
   } finally {
     await handle.close();
   }

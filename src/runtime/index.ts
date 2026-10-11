@@ -27,6 +27,7 @@ export type {
   TemporalResolution,
   TemporalCoverage,
   TemporalRetrieval,
+  ExecutionOptions,
   SearchMemoryOptions,
   SearchMemoryResult,
   SearchResult,

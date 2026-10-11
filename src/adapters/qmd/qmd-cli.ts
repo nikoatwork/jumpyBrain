@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { runQmdChild } from "./qmd-execution.js";
 import { existsSync, realpathSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,10 +38,10 @@ export function resolveQmdSdk(): string {
   throw new Error("QMD indexing requires the @tobilu/qmd@2.8.3 package (CLI and SDK together); check JUMPYBRAIN_QMD_BIN.");
 }
 
-export function runQmd(root: string, args: string[], model?: string): { stdout: string; stderr: string } {
+export async function runQmd(root: string, args: string[], model?: string): Promise<{ stdout: string; stderr: string }> {
   const derived = derivedRoot(root);
-  const result = spawnSync(resolveQmdBinary(), [...args, "--index", "index"], {
-    cwd: root, encoding: "utf8", maxBuffer: 20 * 1024 * 1024,
+  return runQmdChild(resolveQmdBinary(), [...args, "--index", "index"], {
+    cwd: root, maxBytes: 20 * 1024 * 1024,
     env: {
       ...process.env,
       HOME: path.join(derived, "qmd-home"),
@@ -53,8 +53,6 @@ export function runQmd(root: string, args: string[], model?: string): { stdout: 
       GGML_METAL_NO_RESIDENCY: process.env.QMD_METAL_KEEP_RESIDENCY ? process.env.GGML_METAL_NO_RESIDENCY : "1",
     },
   });
-  if (result.error || result.status !== 0) throw new Error("QMD query execution failed.");
-  return { stdout: result.stdout, stderr: result.stderr };
 }
 
 function bundledQmdBinary(): string | undefined {

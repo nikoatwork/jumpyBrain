@@ -29,6 +29,10 @@ V1 packet/nested schemas reject unknown fields, including server-root/envelope f
 
 Bounded-read error bodies have a separate fixed **8192-byte** stream cap, with cancellation on overflow and strict UTF-8/JSON parsing. Preserve HTTP status and short token-shaped error codes, but never echo remote messages/details. Known expansion errors receive static actionable guidance; malformed/oversized errors use static HTTP errors. Unsupported-status upgrade guidance still applies, except a well-formed expansion `missing_id` 404. These error limits do not redefine legacy rich endpoint behavior.
 
+## Execution lifecycle
+
+Local transport `signal`/`timeoutMs` options on index/search/compact recall control fetch **and response-body consumption**, never serialized server knobs. Defaults are 70 seconds for reads and 610 seconds for index (headroom over default backend deadlines); longer server deadlines require a matching client runtime option. Timeout/abort produce static `RemoteMemoryError` codes `execution_timeout`/`execution_aborted` and remove timers/listeners. Server overload/deadline codes remain errors, not empty memory. Other legacy requests also have the finite 70-second transport default.
+
 ## Non-responsibilities
 
 - Do not parse all CLI commands or own user-facing command usage text.

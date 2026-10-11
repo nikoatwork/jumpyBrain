@@ -14,6 +14,8 @@
 
 `indexMemory(root, options?: IndexMemoryOptions)` accepts `rebuild?: boolean` and `indexing?: IndexingPolicy`. Exports include `IndexMemoryOptions`, `RetrievalReadiness`, and `RetrievalOutcome`; the options embed the indexing-policy shape. Routine indexing is incremental; policy persists in `jumpybrain.json`. `memoryRootStatus` composes app readiness, not only core schema compatibility. Status/index/search retain prior fields with additive readiness; search distinguishes partial fallback from total backend failure. No HTTP transport or QMD implementation becomes part of this local boundary. See [local-memory](../app/local-memory/local-memory.docs.md#indexsearch-contract).
 
+Index/search/compact recall accept `ExecutionOptions` (`signal?: AbortSignal`, `timeoutMs?: number`), exported for local hosts; these are lifecycle controls, not retrieval-depth/effort policy. See [execution limits](../adapters/qmd/qmd.docs.md#bounded-execution).
+
 ## Bounded evidence surface
 
 Export `compactSearchMemory(root, query, limit, options)` plus compact packet/options types and serializer, and `expandMemoryDocument(root, options)` plus canonical expansion types/serializer. Both compose the same local/server app operations, preserve unbudgeted search/show contracts, and return version-1 root-relative packets with a 1024–65536 serialized UTF-8 byte budget (default 8192, including LF). Callers must not wrap or pretty-print packets after packing. See [local-memory](../app/local-memory/local-memory.docs.md#opt-in-compact-recall) and [guarded expansion](../core/canonical/canonical.docs.md#guarded-evidence-expansion).

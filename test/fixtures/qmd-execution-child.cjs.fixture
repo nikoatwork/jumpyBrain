@@ -1,0 +1,18 @@
+const fs = require('node:fs');
+const { spawn } = require('node:child_process');
+const [mode, marker, release] = process.argv.slice(1);
+let descendant;
+if (mode === 'tree' || mode === 'orphan') {
+  descendant = spawn(process.execPath, ['-e', 'process.on("SIGTERM", () => {}); setInterval(() => {}, 1000)'], { stdio: mode === 'orphan' ? 'ignore' : 'inherit' });
+  process.on('SIGTERM', () => {});
+}
+if (marker) fs.writeFileSync(marker, JSON.stringify({ pid: process.pid, descendant: descendant?.pid }));
+if (mode === 'orphan') process.exit(9);
+if (mode === 'crash') { process.stderr.write('private query /server/root credential'); process.exit(9); }
+else if (mode === 'overflow') { setInterval(() => process.stdout.write('x'.repeat(4096)), 1); }
+else if (mode === 'echo') { process.stdin.pipe(process.stdout); }
+else if (mode === 'gate') {
+  const timer = setInterval(() => {
+    if (fs.existsSync(release)) { clearInterval(timer); process.stdout.write('[]'); }
+  }, 5);
+} else setInterval(() => {}, 1000);

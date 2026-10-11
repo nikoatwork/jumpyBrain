@@ -88,6 +88,11 @@ export function markRemoteIndexStale(root: string, now = new Date().toISOString(
   });
 }
 
+/** Backend failure is not a canonical write; preserve the genuine write timestamp. */
+export function invalidateRemoteIndex(root: string): Promise<RemoteIndexState> {
+  return serializeState(root, async () => writeState(root, { ...await readState(root), stale: true }));
+}
+
 function remoteIndexStateFile(root: string): string {
   return path.join(root, ".jumpybrain", "remote", "index-state.json");
 }

@@ -9,7 +9,7 @@ Keep semantic retrieval available across routine local/server indexing while avo
 ## Notes
 
 - Approved for planning on 2026-10-10. Direction: [product vision](../../docs/product-vision.md); evidence: [retrieval review](../../deep-dives/retrieval-product-review/findings.md#1-make-semantic-retrieval-efficient-and-observable).
-- Priority: first foundational ticket. No prerequisite. Coordinate the adapter execution seam with [ticket 4](../todo/tasks-bounded-retrieval-execution.md); this ticket owns indexing lifecycle/readiness, not asynchronous subprocess scheduling.
+- Priority: first foundational ticket. No prerequisite. Coordinate the adapter execution seam with [ticket 4](2026-10-11_tasks-bounded-retrieval-execution.md); this ticket owns indexing lifecycle/readiness, not asynchronous subprocess scheduling.
 - Baseline at planning: indexing deleted QMD cache/config, published the manifest before QMD succeeded, and generated embeddings only when the environment enabled them. Search failures could be swallowed as empty results. Replaced by the lifecycle documented below.
 - Keep one engine and one server process per memory root. No new vector store, background model service, or automatic model download as a side effect of recall.
 - Deployment packaging fixes, browser conflict handling, permissions, and remote Mac-companion support are separate from these five retrieval tickets.

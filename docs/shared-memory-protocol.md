@@ -113,6 +113,12 @@ Rules:
 - File names should be safe, human-readable, and collision-resistant, e.g. `notes/2026-06-30-example-memory-550e8400.md`.
 - File creation stages and fsyncs complete bytes, then publishes with an exclusive same-directory hardlink: never expose a partial final Markdown file or overwrite an existing one. Unsupported hardlinks fail closed. Directory identities are rechecked; directory fsync is best-effort. Crashes can leave hidden staging, and external ancestor swaps remain outside this guarantee.
 
+## Backend execution limits
+
+Index/search/recall/compact recall share bounded async backend admission: one active operation per root, two process-wide, sixteen queued. Queue saturation/cross-process busy returns **503 `execution_overloaded`**, total deadline exhaustion **504 `execution_timeout`**, connected cancellation **499 `execution_aborted`**. Failed backend operations remain errors, not empty results; independently successful query branches may retain the existing labeled fallback. Disconnect/shutdown cancels owned work; an individual joined index caller does not cancel peers. Interrupted jobs leave readiness/remote freshness stale. No query bodies, credentials, stderr or server paths appear in these diagnostics.
+
+Deadlines are server-local configuration, not request JSON fields: search/compact 60 seconds, index 600 seconds by default; query commands additionally 30 seconds. Body/header receipt has a separate 30-second Node timeout. See [technical execution contract](technical.md#bounded-retrieval-execution) for capture caps, shutdown/process-group portability and non-preemptible input-work limits.
+
 ## Index stale state
 
 Remote writes do not synchronously update the index. After each successful remote write, mark the index stale in `.jumpybrain/remote/index-state.json`:

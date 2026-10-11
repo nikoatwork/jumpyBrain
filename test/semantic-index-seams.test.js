@@ -121,7 +121,8 @@ test("overlapping rebuild is queued rather than silently joining an incremental 
   assert.equal(calls.length, 1);
   release();
   await Promise.all([first, rebuild]);
-  assert.deepEqual(calls, [{}, { rebuild: true }]);
+  assert.ok(calls.every(options => options.signal instanceof AbortSignal));
+  assert.deepEqual(calls.map(({ signal, timeoutMs, rebuild }) => rebuild === undefined ? {} : { rebuild }), [{}, { rebuild: true }]);
 });
 
 test("doctor requires QMD 2.8.3 and status readiness without model work or raw diagnostics", async (t) => {

@@ -1,5 +1,6 @@
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import type { TemporalQuery } from "../../types.js";
+import { MemoryExecutionError } from "../../app/server-memory/index.js";
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPath, isMemoryRoute } from "../http-protocol.js";
@@ -25,8 +26,8 @@ interface JsonError {
 
 export const RESPONSE_ERROR_CODE = Symbol("jumpybrain.responseErrorCode");
 
-export async function routeRequest(context: { request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger }): Promise<void> {
-  const { request, response, root, apiKeys, enqueueWrite, indexRunner, logger } = context;
+export async function routeRequest(context: { request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number }): Promise<void> {
+  const { request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal, searchTimeoutMs } = context;
   const url = new URL(request.url ?? "/", "http://localhost");
 
   if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.health) {
@@ -123,7 +124,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
         }
         resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
         packet = await compactSearchServerMemory({ root, query: body.query, limit: body.limit as number | undefined ?? 5,
-          recall: { depth: body.depth as string | undefined, maxBytes, diagnostics: body.diagnostics as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined } });
+          recall: { signal, timeoutMs: searchTimeoutMs, depth: body.depth as string | undefined, maxBytes, diagnostics: body.diagnostics as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined } });
       }
       // Unlike legacy writeJson, this must not pretty-print or add an envelope.
       const wire = serializeBudgetedPacket(packet);
@@ -132,7 +133,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       response.setHeader("content-type", "application/json; charset=utf-8");
       response.end(wire);
     } catch (error) {
-      const mapped = boundedReadErrorResponse(error);
+      const mapped = executionErrorResponse(error) ?? boundedReadErrorResponse(error);
       writeJson(response, mapped.statusCode, mapped.body);
     }
     return;
@@ -445,12 +446,13 @@ export async function routeRequest(context: { request: IncomingMessage; response
     const indexedAt = Date.now();
     logger.info("index_start", { path: url.pathname, reason: "manual" });
     try {
-      const packet = await indexServerMemory({ root, indexRunner, reason: "manual", rebuild: parsedBody.rebuild as boolean | undefined });
+      const packet = await indexServerMemory({ root, indexRunner, reason: "manual", rebuild: parsedBody.rebuild as boolean | undefined, signal });
       logger.info("index_success", { reason: "manual", documents: packet.documents, qmdCollection: packet.qmdCollection, stale: packet.index.stale, duration_ms: Date.now() - indexedAt });
       writeJson(response, 200, packet);
     } catch (error) {
-      logger.error("index_failure", { reason: "manual", duration_ms: Date.now() - indexedAt, message: error instanceof Error ? error.message : String(error) });
-      writeJson(response, 500, errorResponse("index_failed", "Remote index rebuild failed."));
+      logger.error("index_failure", { reason: "manual", duration_ms: Date.now() - indexedAt, code: error instanceof MemoryExecutionError ? error.code : "index_failed" });
+      const mapped = executionErrorResponse(error);
+      writeJson(response, mapped?.statusCode ?? 500, mapped?.body ?? errorResponse("index_failed", "Remote index rebuild failed."));
     }
     return;
   }
@@ -483,13 +485,14 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
     try {
       resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
-      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall, temporal: body.temporal as TemporalQuery | undefined }));
+      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall, temporal: body.temporal as TemporalQuery | undefined, signal, timeoutMs: searchTimeoutMs }));
     } catch (error) {
       if ((error as { code?: string }).code === "invalid_temporal") {
         writeJson(response, 400, errorResponse("invalid_temporal", "Invalid temporal query. Use real ISO dates, timezone-explicit timestamps, and an explicit referenceDate for relative bounds."));
         return;
       }
-      writeJson(response, 500, errorResponse(recall ? "search_failed" : "search_failed", recall ? "Remote recall failed." : "Remote search failed."));
+      const mapped = executionErrorResponse(error);
+      writeJson(response, mapped?.statusCode ?? 500, mapped?.body ?? errorResponse("search_failed", recall ? "Remote recall failed." : "Remote search failed."));
     }
     return;
   }
@@ -839,7 +842,14 @@ function tagsField(body: Record<string, unknown>): string[] {
   return value.map(String).map((tag) => tag.trim()).filter(Boolean);
 }
 
+function executionErrorResponse(error: unknown): { statusCode: number; body: JsonError } | undefined {
+  if (!(error instanceof MemoryExecutionError)) return;
+  const statusCode = error.code === "execution_overloaded" ? 503 : error.code === "execution_timeout" ? 504 : error.code === "execution_aborted" ? 499 : 500;
+  return { statusCode, body: errorResponse(error.code, error.message) };
+}
+
 export function writeJson(response: ServerResponse, statusCode: number, body: unknown): void {
+  if (response.destroyed || response.writableEnded) return;
   response.statusCode = statusCode;
   if (isErrorBody(body)) (response as ServerResponse & { [RESPONSE_ERROR_CODE]?: string })[RESPONSE_ERROR_CODE] = body.error.code;
   response.setHeader("content-type", "application/json; charset=utf-8");

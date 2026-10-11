@@ -118,6 +118,8 @@ JUMPYBRAIN_API_KEY='<private-client-secret>' jumpybrain tree --target-url https:
 
 The server requires one explicit memory root and one process over one persistent local disk in V1. Authenticated status reports freshness separately from embedding coverage and available retrieval modes, using stats rather than model inference. Partial search fallback is labeled; total failure is not an empty result. Busy cross-process search/index operations reject after five seconds rather than serving reader snapshots. Markdown and `jumpybrain.json` policy survive derived-state deletion; stop operations first. Atomic publication recovery is not a power-loss guarantee; retain canonical backups and follow the [recovery procedure](technical.md#readiness-and-recovery).
 
+Search/index waits are nonblocking and admission-bounded; overload is HTTP 503 and backend deadlines are 504. Default deadlines are 60 seconds/search and 600 seconds/index, configurable on the host with `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS`. Match proxy/client timeouts for long indexing; these limits are not a VPS sizing promise. See [execution and capacity limits](vps-deploy.md#execution-and-capacity-limits).
+
 ## Next references
 
 - [Shared-memory protocol and API reference](shared-memory-protocol.md)

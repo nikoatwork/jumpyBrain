@@ -1,4 +1,5 @@
 import path from "node:path";
+import { withQmdOperation, readExecution, executionSignal, checkExecution } from "../../adapters/qmd/index.js";
 import { evidenceDate, evidenceInInterval, resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import { hashMemoryDocumentContent, readCanonicalMemoryDocumentById } from "../../core/canonical/markdown-store.js";
 import { isValidMemoryDocumentId } from "../../core/document-id.js";
@@ -14,6 +15,7 @@ export { serializeCompactRecall } from "../../core/retrieval-policy/compact.js";
 
 /** Opt-in bounded recall; legacy search ranking, excerpt selection, and full-document reads are unchanged. */
 export async function compactSearchMemory(root: string, query: string, limit: number, options: CompactRecallOptions = {}): Promise<CompactRecallPacket> {
+  return withQmdOperation(root, "search", options, async () => {
   const interval = resolveTemporalQuery(options.temporal);
   const maxBytes = validatePacketMaxBytes(options.maxBytes);
   if (typeof query !== "string" || !query.trim() || !Number.isSafeInteger(limit) || limit < 1
@@ -28,10 +30,11 @@ export async function compactSearchMemory(root: string, query: string, limit: nu
   const sourceFor = (id: string): Promise<Source> => {
     let source = sources.get(id);
     if (!source) {
-      source = readCanonicalMemoryDocumentById(search.root, id, { guarded: true }).then((document): Source => {
+      source = readCanonicalMemoryDocumentById(search.root, id, { guarded: true, signal: executionSignal() }).then((document): Source => {
         // Hashes cover raw bytes. Lossy UTF-8 must not acquire a seemingly valid expansion token.
         return hashMemoryDocumentContent(document.content) === document.contentHash ? { document } : { reason: "invalid_utf8" };
       }).catch((error): Source => {
+        checkExecution();
         const code = (error as { code?: string }).code;
         return { reason: code === "duplicate_id" ? "duplicate_id" : code === "missing_id" || code === "precondition_failed"
           ? "source_changed" : "source_unavailable" };
@@ -43,6 +46,7 @@ export async function compactSearchMemory(root: string, query: string, limit: nu
   const candidates: CompactRecallCandidate[] = [];
   let sourceChanged = false;
   for (const result of search.results) {
+    checkExecution();
     const passages: CompactRecallPassage[] = [];
     const seen = new Set<string>();
     let changedPassages = 0;
@@ -70,7 +74,7 @@ export async function compactSearchMemory(root: string, query: string, limit: nu
       if (!withinRoot) passage.expansion = { available: false, reason: "outside_canonical_root" };
       else if (id !== undefined && !isValidMemoryDocumentId(id)) passage.expansion = { available: false, reason: "invalid_id" };
       else if (typeof id === "string") {
-        const source = await sourceFor(id);
+        const source = await readExecution(sourceFor(id));
         if ("reason" in source) passage.expansion = { available: false, reason: source.reason };
         else if (source.document.file !== passage.filePath) passage.expansion = { available: false, reason: "source_mismatch" };
         else {
@@ -108,6 +112,7 @@ export async function compactSearchMemory(root: string, query: string, limit: nu
       : search.retrieval ?? { status: "partial", warnings: ["retrieval_outcome_unavailable"] },
     ...(interval && search.temporal ? { temporal: search.temporal } : {}),
   }, candidates, { maxBytes, diagnostics: options.diagnostics });
+  });
 }
 
 function declaredRelationships(metadata: Frontmatter = {}): CompactRecallPassage["relationships"] {

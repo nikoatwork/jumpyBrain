@@ -161,6 +161,16 @@ Recall JSON returns:
 }
 ```
 
+## Bounded retrieval execution
+
+QMD queries and indexing/recovery workers run asynchronously without a shell. Admission covers the whole operation: two active operations per process, one per real root, sixteen queued, FIFO among runnable roots. QMD's CLI wrapper has its own child, so these are not two-OS-process or heap limits. One-server-per-root and the existing five-second cross-process PID lock remain required; searches never read a mutating generation.
+
+Search/compact recall have a 60-second total deadline; indexing has 600 seconds. Set `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS` locally or in the server environment (positive integer milliseconds <=2147483647). Search commands also have a 30-second ceiling. Queue/lock waits and all branches consume the same budget. Combined stdout/stderr caps remain 20 MiB/query and 64 MiB/index worker. Local runtime `signal`/`timeoutMs` controls are not serialized server options; remote transport defaults are 70 seconds/read and 610 seconds/index.
+
+Overload returns `execution_overloaded` (HTTP 503); deadlines `execution_timeout` (504); connected cancellation `execution_aborted` (499). No backend failure is represented as empty memory. Disconnect/shutdown releases queued work and terminates owned active children; canceling one joined index waiter does not kill peers' work. Failures invalidate remote freshness without inventing canonical writes. POSIX TERM escalates to owned-group KILL after 250 ms; Windows direct-child behavior and Linux process lifecycle remain unverified here. CLI SIGINT/SIGTERM on local index/search/compact recall propagate cancellation; abrupt SIGKILL cannot clean up reliably.
+
+Per-request canonical prefix reuse keeps original 128 KiB/file reads with a 4 MiB source-byte reservation cap; decoded JS overhead is additional. No cross-request cache, new ranking policy or reduced fan-out. Full canonical scans/snapshots and compact ID verification remain unbounded input work; synchronous parsing and OS-uninterruptible filesystem/process work are not preemptible deadlines. Publish/lock cleanup is awaited rather than detached. Limits are conservative controls, not measured VPS capacity or recall-speed guarantees; [external measurements and caveats](../tasks/done/2026-10-11_tasks-bounded-retrieval-execution.md).
+
 ## Setup compatibility
 
 `jumpybrain init --root <memory-root>` creates a committed `jumpybrain.json` with the current memory-root schema version plus standard memory directories. Current commands allow legacy/manual roots without this file, but if the file exists they refuse to write or index a root whose schema version is newer than the installed CLI. This keeps first-repo dogfooding safer while the package evolves.

@@ -159,6 +159,12 @@ jumpybrain index --target-url https://memory.example.com
 
 Add `--rebuild` for explicit vector regeneration; routine and automatic runs reuse unchanged hashes/vectors. Inspect authenticated `status --json` readiness separately from public health. Physically corrupt SQLite requires stopping operations and removing derived state, not just `--rebuild`; follow the [recovery procedure](technical.md#readiness-and-recovery).
 
+## Execution and capacity limits
+
+Search/index children are asynchronous, with one active operation per root, two process-wide and sixteen queued; saturation returns 503, deadline exhaustion 504. Default search/compact deadline is 60 seconds (30 seconds per query command), index 600 seconds. Optional `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS` are positive integer milliseconds. Keep reverse-proxy/client timeouts consistent with long indexing; remote CLI defaults to 610 seconds/index and 70 seconds/read. For example, nginx's default read timeout can expire before a healthy long index; set `proxy_read_timeout 610s;` when accepting the default index deadline.
+
+An invocation may contain a QMD wrapper plus worker and semantic model memory. Neither the concurrency bound nor laptop lexical results establish a minimum VPS RAM/CPU size. Size against your actual model/corpus/concurrent workload, retain OS/service resource limits, and monitor safe overload/readiness. Health remains serviceable during subprocess waits, but unbounded canonical input scans, synchronous parsing and OS-uninterruptible work are not an SLA. One server process per local filesystem/root remains required. See [execution contract](technical.md#bounded-retrieval-execution) for cancellation, output caps and tested-platform limits. This is backend admission, not a replacement for reverse-proxy IP rate limits.
+
 ## 8. Logs
 
 Server logs are written under the memory root at `.jumpybrain/logs/server-YYYY-MM-DD.log`. Inspect them over SSH:

@@ -1,11 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
+import { withQmdOperation, readExecution, executionSignal, checkExecution, MemoryExecutionError } from "./qmd-execution.js";
 import { readFile, stat } from "node:fs/promises";
 import { parseFrontmatter } from "../../core/frontmatter.js";
 import { configuredIndexingPolicy, indexingPolicy, indexingPolicyMatches } from "../../core/memory-root/index.js";
 import { qmdReadiness, recordQmdFailure, recoverQmdPublication, updateQmdGeneration, withQmdLock } from "./qmd-lifecycle.js";
 import { withSessionAliases } from "../../core/provenance.js";
 import { evidenceDate, evidenceInInterval } from "../../core/retrieval-policy/temporal.js";
-import type { TemporalRetrieval, TemporalResolution } from "../../types.js";
+import type { ExecutionOptions, TemporalRetrieval, TemporalResolution } from "../../types.js";
 import type { IndexManifest, IndexMemoryOptions, IndexingPolicy, IndexedDocument, MarkdownDocument, RetrievalDepth, RetrievalOutcome, ScoreBreakdown, SearchResult } from "../../types.js";
 import { QMD_DREAM_COLLECTION, manifestPath, normalizeQmdLookupPath, resolveQmdSdk } from "./qmd-cli.js";
 import { qmdLexQueries, searchWithQmdCli, tokenize, type QmdCandidate } from "./qmd-query.js";
@@ -26,7 +27,7 @@ import {
 } from "./qmd-ranking.js";
 import { depthPolicyFor, dreamBoostFor, isDreamDocument, isSourceFocusedQuery, normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
 import {
-  boundedOriginalLines,
+  canonicalPrefixCache,
   type CanonicalPrefix,
   excerptFromQmdWindow,
   looksLikeUnhelpfulSnippet,
@@ -48,7 +49,7 @@ export interface QmdManifest extends IndexManifest {
 }
 
 export async function buildQmdIndex(root: string, documents: MarkdownDocument[], options: IndexMemoryOptions & { sourceRoot?: string } = {}): Promise<QmdManifest & { work?: import("./qmd-worker.js").WorkerWork }> {
-  return withQmdLock(root, async () => {
+  return withQmdOperation(root, "index", options, () => withQmdLock(root, async () => {
     try {
       const legacy = truthy(process.env.JUMPYBRAIN_QMD_EMBED)
         ? { mode: "semantic" as const, model: process.env.QMD_EMBED_MODEL } : undefined;
@@ -56,8 +57,9 @@ export async function buildQmdIndex(root: string, documents: MarkdownDocument[],
       const snapshots = [];
       const sources = [];
       for (const doc of documents) {
+        checkExecution();
         const before = await stat(doc.absolutePath);
-        const content = await readFile(doc.absolutePath, "utf8");
+        const content = await readExecution(readFile(doc.absolutePath, { encoding: "utf8", signal: executionSignal() }));
         const after = await stat(doc.absolutePath);
         if (before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs || before.size !== after.size) throw new Error("Canonical memory changed during snapshot; retry index.");
         const parsed = parseFrontmatter(content);
@@ -78,15 +80,15 @@ export async function buildQmdIndex(root: string, documents: MarkdownDocument[],
       return { ...result.manifest, work: result.work };
     } catch (error) {
       await recordQmdFailure(root);
-      if ((error as NodeJS.ErrnoException).code) throw new Error("Index input or provisioned model is unavailable; check local configuration and retry.");
+      if (!(error instanceof MemoryExecutionError) && (error as NodeJS.ErrnoException).code) throw new Error("Index input or provisioned model is unavailable; check local configuration and retry.");
       throw error;
     }
-  });
+  }));
 }
 
 export async function loadManifest(root: string): Promise<QmdManifest> {
   try {
-    const raw = await readFile(manifestPath(root), "utf8");
+    const raw = await readExecution(readFile(manifestPath(root), { encoding: "utf8", signal: executionSignal() }));
     return JSON.parse(raw) as QmdManifest;
   } catch (error) {
     const fileError = error as NodeJS.ErrnoException;
@@ -97,7 +99,7 @@ export async function loadManifest(root: string): Promise<QmdManifest> {
   }
 }
 
-interface SearchOptions {
+interface SearchOptions extends ExecutionOptions {
   depth?: RetrievalDepth;
   outcome?: RetrievalOutcome;
   temporal?: TemporalRetrieval;
@@ -106,11 +108,11 @@ interface SearchOptions {
 const TEMPORAL_BACKFILL_BUDGET = 64;
 
 export async function searchQmdIndex(root: string, query: string, limit: number, options: SearchOptions = {}): Promise<SearchResult[]> {
-  return withQmdLock(root, async () => {
+  return withQmdOperation(root, "search", options, () => withQmdLock(root, async () => {
     resolveQmdSdk();
     await recoverQmdPublication(root);
     return searchGeneration(root, query, limit, options);
-  });
+  }));
 }
 
 async function searchGeneration(root: string, query: string, limit: number, options: SearchOptions): Promise<SearchResult[]> {
@@ -177,17 +179,18 @@ async function searchGeneration(root: string, query: string, limit: number, opti
   const temporalStats = dateStats(candidateDocuments);
   const seen = new Set<string>();
   const results: SearchResult[] = [];
+  const prefix = canonicalPrefixCache();
 
   for (const candidate of candidates) {
+    checkExecution();
     if (!candidate.file) continue;
     const document = documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file));
     if (!document) continue;
 
     let repaired;
     try {
-      let source: CanonicalPrefix | undefined;
+      const source = await readExecution(prefix(document.absolutePath));
       if (interval) {
-        source = await boundedOriginalLines(document.absolutePath);
         const text = source.lines.join("\n");
         // An opened-but-unclosed header (short or beyond our prefix) must not
         // masquerade as a metadata-free journal eligible through its filename.

@@ -57,16 +57,26 @@ export interface LocalMemoryTransport {
   writeSessionWrapup(rootArg: string, draft: WrapupDraft): Promise<WrapupWriteResult>;
 }
 
+/** CLI owns OS signal policy; library/runtime callers supply AbortSignal explicitly. */
+async function cancelOnCliSignal<T>(signal: AbortSignal | undefined, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  process.once("SIGINT", abort);
+  process.once("SIGTERM", abort);
+  try { return await operation(signal ? AbortSignal.any([signal, controller.signal]) : controller.signal); }
+  finally { process.off("SIGINT", abort); process.off("SIGTERM", abort); }
+}
+
 export function createLocalMemoryTransport(): LocalMemoryTransport {
   return {
     migrateLogseq: runtime.migrateLogseq,
     initializeMemoryRoot: runtime.initializeMemoryRoot,
     memoryRootStatus: runtime.memoryRootStatus,
     findMemoryRoot: runtime.findMemoryRoot,
-    indexMemory: runtime.indexMemory,
+    indexMemory: (root, options = {}) => cancelOnCliSignal(options.signal, signal => runtime.indexMemory(root, { ...options, signal })),
     overviewMemory: runtime.overviewMemory,
-    searchMemory: runtime.searchMemory,
-    compactSearchMemory: runtime.compactSearchMemory,
+    searchMemory: (root, query, limit, options = {}) => cancelOnCliSignal(options.signal, signal => runtime.searchMemory(root, query, limit, { ...options, signal })),
+    compactSearchMemory: (root, query, limit, options = {}) => cancelOnCliSignal(options.signal, signal => runtime.compactSearchMemory(root, query, limit, { ...options, signal })),
     expandMemoryDocument: runtime.expandMemoryDocument,
     processMemory: runtime.processMemory,
     readMemoryDocument: runtime.readMemoryDocument,

@@ -4,6 +4,8 @@ export interface JumpyBrainServerConfig {
   port: number;
   apiKeys: string[];
   publicBaseUrl?: string;
+  searchTimeoutMs?: number;
+  indexTimeoutMs?: number;
 }
 
 export interface ResolveServerConfigInput {
@@ -12,6 +14,8 @@ export interface ResolveServerConfigInput {
   port?: string | number;
   apiKeys?: string | string[];
   publicBaseUrl?: string;
+  searchTimeoutMs?: number;
+  indexTimeoutMs?: number;
 }
 
 export function resolveServerConfig(input: ResolveServerConfigInput = {}, env: NodeJS.ProcessEnv = process.env): JumpyBrainServerConfig {
@@ -24,7 +28,18 @@ export function resolveServerConfig(input: ResolveServerConfigInput = {}, env: N
   if (apiKeys.length === 0) throw new Error("At least one server API key is required. Set JUMPYBRAIN_SERVER_API_KEYS.");
 
   const publicBaseUrl = firstNonEmpty(input.publicBaseUrl, env.JUMPYBRAIN_PUBLIC_BASE_URL);
-  return { root, host, port, apiKeys, publicBaseUrl };
+  const timeout = (value: number | string | undefined): number | undefined => {
+    if (value === undefined) return undefined;
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 2_147_483_647) throw new Error("Execution timeout must be a positive integer no larger than 2147483647 ms.");
+    return parsed;
+  };
+  const searchTimeoutMs = timeout(input.searchTimeoutMs ?? env.JUMPYBRAIN_SEARCH_TIMEOUT_MS);
+  const indexTimeoutMs = timeout(input.indexTimeoutMs ?? env.JUMPYBRAIN_INDEX_TIMEOUT_MS);
+  return { root, host, port, apiKeys, publicBaseUrl,
+    ...(searchTimeoutMs === undefined ? {} : { searchTimeoutMs }),
+    ...(indexTimeoutMs === undefined ? {} : { indexTimeoutMs }),
+  };
 }
 
 function parsePort(value: string | number): number {

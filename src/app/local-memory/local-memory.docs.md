@@ -17,6 +17,8 @@
 
 `memoryStatus` composes core setup compatibility with derived readiness. Freshness compares canonical file lists and size/mtime/ctime stats to the committed manifest, plus configured policy and model stats; no body hashing, inference, model download, or QMD subprocess is needed. This is a cheap scan, not a constant-time check or SQLite-integrity test. Search adds `readiness` and `retrieval` outcomes; stale/incomplete/failed branches are labeled partial, total backend failure propagates. See [QMD lifecycle](../../adapters/qmd/qmd.docs.md#index-lifecycle-and-readiness) for publication/locking.
 
+Index/search/compact recall accept local `signal` and whole-operation `timeoutMs`, with bounded admission and async children owned by the [QMD execution seam](../../adapters/qmd/qmd.docs.md#bounded-execution). Compact verification shares the search deadline rather than opening a second budget. Read-only discovery waits observe cancellation; canonical scans/reads receive backend-agnostic signals. No detached write/publication is permitted. Finite backend deadlines do not bound synchronous parsing, total corpus input bytes, or OS-uninterruptible I/O.
+
 ## Non-responsibilities
 
 - Do not parse CLI flags or format CLI output.

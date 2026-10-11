@@ -48,6 +48,7 @@ export interface CanonicalMemoryDocumentLocation {
 export interface ReadCanonicalMemoryDocumentOptions {
   /** Reuse guarded inode/ancestor/ID checks for source evidence reads; reject hardlinks. */
   guarded?: boolean;
+  signal?: AbortSignal;
   target?: MemoryDocumentTargetKind;
   rootLabel?: string;
   memory?: "all";
@@ -74,16 +75,18 @@ export async function resolveMemoryRoot(rootArg: string): Promise<string> {
   return realpath(resolved);
 }
 
-export async function listMarkdownFiles(root: string): Promise<string[]> {
-  return walkMarkdownFiles(root, [root]);
+export async function listMarkdownFiles(root: string, signal?: AbortSignal): Promise<string[]> {
+  return walkMarkdownFiles(root, [root], { signal });
 }
 
-export async function listCanonicalMemoryMarkdownFiles(root: string): Promise<string[]> {
-  return walkMarkdownFiles(root, CANONICAL_MEMORY_BUCKETS.map((bucket) => path.join(root, bucket)), { ignoreMissingStart: true });
+export async function listCanonicalMemoryMarkdownFiles(root: string, signal?: AbortSignal): Promise<string[]> {
+  return walkMarkdownFiles(root, CANONICAL_MEMORY_BUCKETS.map((bucket) => path.join(root, bucket)), { ignoreMissingStart: true, signal });
 }
 
-export async function readMarkdownDocument(root: string, absolutePath: string): Promise<MarkdownDocument> {
-  const content = await readFile(absolutePath, "utf8");
+export async function readMarkdownDocument(root: string, absolutePath: string, signal?: AbortSignal): Promise<MarkdownDocument> {
+  signal?.throwIfAborted();
+  const content = await readFile(absolutePath, { encoding: "utf8", signal });
+  signal?.throwIfAborted();
   const parsed = parseFrontmatter(content);
   return {
     absolutePath,
@@ -93,22 +96,24 @@ export async function readMarkdownDocument(root: string, absolutePath: string): 
   };
 }
 
-export async function readMarkdownDocuments(root: string): Promise<MarkdownDocument[]> {
-  const files = await listMarkdownFiles(root);
-  return Promise.all(files.map((file) => readMarkdownDocument(root, file)));
+export async function readMarkdownDocuments(root: string, signal?: AbortSignal): Promise<MarkdownDocument[]> {
+  const files = await listMarkdownFiles(root, signal);
+  const documents = [];
+  for (const file of files) documents.push(await readMarkdownDocument(root, file, signal));
+  return documents;
 }
 
-export async function findCanonicalMemoryDocumentById(rootArg: string, id: string): Promise<CanonicalMemoryDocumentLocation> {
+export async function findCanonicalMemoryDocumentById(rootArg: string, id: string, signal?: AbortSignal): Promise<CanonicalMemoryDocumentLocation> {
   if (!isValidMemoryDocumentId(id)) {
     throw new MemoryDocumentLookupError("invalid_id", `Invalid memory document id '${id}'. Expected mem_<uuid>.`, { id });
   }
 
   const root = await resolveMemoryRoot(rootArg);
-  const files = await listCanonicalMemoryMarkdownFiles(root);
+  const files = await listCanonicalMemoryMarkdownFiles(root, signal);
   const matches: CanonicalMemoryDocumentLocation[] = [];
 
   for (const absolutePath of files) {
-    const document = await readMarkdownDocument(root, absolutePath);
+    const document = await readMarkdownDocument(root, absolutePath, signal);
     if (document.frontmatter.id !== id) continue;
     matches.push(toCanonicalMemoryDocumentLocation(root, document, id));
   }
@@ -128,8 +133,9 @@ export async function findCanonicalMemoryDocumentById(rootArg: string, id: strin
 }
 
 export async function readCanonicalMemoryDocumentById(rootArg: string, id: string, options: ReadCanonicalMemoryDocumentOptions = {}): Promise<MemoryDocumentReadResult> {
-  const location = await findCanonicalMemoryDocumentById(rootArg, id);
-  const bytes = options.guarded ? (await replacementSnapshot(location)).bytes : await readFile(location.absolutePath);
+  const location = await findCanonicalMemoryDocumentById(rootArg, id, options.signal);
+  const bytes = options.guarded ? (await replacementSnapshot(location, undefined, options.signal)).bytes : await readFile(location.absolutePath, { signal: options.signal });
+  options.signal?.throwIfAborted();
   const content = bytes.toString("utf8");
   const parsed = parseFrontmatter(content);
   const type = memoryTypeForPath(location.file, parsed.frontmatter);
@@ -307,20 +313,21 @@ function isLogseqOutputPath(relative: string): boolean {
     parts.every((part) => !!part && !part.startsWith("."));
 }
 
-async function isImportedLogseqDocument(root: string, absolute: string): Promise<boolean> {
+async function isImportedLogseqDocument(root: string, absolute: string, signal?: AbortSignal): Promise<boolean> {
   const relative = normalizeRelative(root, absolute);
   if (!isLogseqOutputPath(relative)) return false;
-  const { frontmatter } = await readMarkdownDocument(root, absolute);
+  const { frontmatter } = await readMarkdownDocument(root, absolute, signal);
   const journal = relative.startsWith("sessions/");
   const sourcePath = `${journal ? "journals" : "pages"}/${relative.slice(relative.indexOf("/") + 1)}`;
   return frontmatter.source === "logseq-migration" && isValidMemoryDocumentId(frontmatter.id) &&
     frontmatter.type === (journal ? "session" : "note") && frontmatter.source_path === sourcePath;
 }
 
-async function walkMarkdownFiles(root: string, starts: string[], options: { ignoreMissingStart?: boolean } = {}): Promise<string[]> {
+async function walkMarkdownFiles(root: string, starts: string[], options: { ignoreMissingStart?: boolean; signal?: AbortSignal } = {}): Promise<string[]> {
   const results: string[] = [];
 
   async function walk(dir: string, importsOnly = false): Promise<void> {
+    options.signal?.throwIfAborted();
     let entries;
     try {
       entries = await readdir(dir, { withFileTypes: true });
@@ -331,6 +338,7 @@ async function walkMarkdownFiles(root: string, starts: string[], options: { igno
 
     entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
+      options.signal?.throwIfAborted();
       const absolute = path.join(dir, entry.name);
       const relative = normalizeRelative(root, absolute);
       const ignored = IGNORED_DIRS.has(entry.name);
@@ -342,7 +350,7 @@ async function walkMarkdownFiles(root: string, starts: string[], options: { igno
       }
       if (ignored || !entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
       const excluded = importsOnly || IGNORED_FILE_PATTERNS.some((pattern) => pattern.test(relative));
-      if (!excluded || await isImportedLogseqDocument(root, absolute)) results.push(absolute);
+      if (!excluded || await isImportedLogseqDocument(root, absolute, options.signal)) results.push(absolute);
     }
   }
 
@@ -379,9 +387,10 @@ function replacementConflict(location: CanonicalMemoryDocumentLocation, currentC
   );
 }
 
-async function replacementSnapshot(location: CanonicalMemoryDocumentLocation, expected?: ReplacementSnapshot): Promise<ReplacementSnapshot> {
+async function replacementSnapshot(location: CanonicalMemoryDocumentLocation, expected?: ReplacementSnapshot, signal?: AbortSignal): Promise<ReplacementSnapshot> {
   let handle;
   try {
+    signal?.throwIfAborted();
     const directories: Stats[] = [];
     let dir = location.root;
     for (const component of ["", ...path.dirname(location.file).split("/")]) {
@@ -400,7 +409,8 @@ async function replacementSnapshot(location: CanonicalMemoryDocumentLocation, ex
     handle = await open(location.absolutePath, constants.O_RDONLY | constants.O_NOFOLLOW);
     const opened = await handle.stat();
     if (!sameIdentity(file, opened) || !opened.isFile() || opened.nlink !== 1) throw replacementConflict(location);
-    const bytes = await handle.readFile();
+    const bytes = await handle.readFile({ signal });
+    signal?.throwIfAborted();
     if (parseFrontmatter(bytes.toString("utf8")).frontmatter.id !== location.id) throw replacementConflict(location);
     await handle.close();
     handle = undefined;

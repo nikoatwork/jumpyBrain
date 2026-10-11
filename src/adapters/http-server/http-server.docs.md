@@ -39,6 +39,12 @@
 
 Authenticated POST `/memories/all/index` accepts an empty body, `{}`, or `{ "rebuild": boolean }`; reject other fields (including policy/model paths) and nonboolean rebuild with 400. Delegate routine/rebuild work to the same app runner. Status/index/search expose additive safe readiness, and search exposes partial retrieval warnings; total backend failures remain generic 500 `search_failed` (index failures: `index_failed`). Public `/health` stays content-free and liveness-only, with no readiness/model probe. Full packet contracts: [shared-memory protocol](../../../docs/shared-memory-protocol.md#index-stale-state).
 
+## Execution lifecycle
+
+Request disconnects (unfinished response close/body abort) propagate `AbortSignal` through app operations. Server close cancels its request scopes and shared index runner, drains route handlers even after their sockets disconnect, waits for owned children/index work, and destroys incomplete request streams; it does not cancel unrelated local operations. HTTP body/header receipt has a 30-second Node timeout, separate from backend execution. Host options `searchTimeoutMs`/`indexTimeoutMs` configure the [single QMD execution policy](../qmd/qmd.docs.md#bounded-execution); client bodies cannot override it.
+
+Execution overload/busy => **503 `execution_overloaded`**, deadline => **504 `execution_timeout`**, cancellation while connected => **499 `execution_aborted`**. Backend/output failures retain static 500 errors or existing labeled partial fallback where an independent branch succeeded. Disconnected sockets get no attempted packet. Query bodies, raw exceptions/stderr, credentials and server paths are excluded from execution diagnostics.
+
 ## Bounded retrieval protocol
 
 Authenticated POST `/memories/all/recall/compact` accepts `{ query, limit?, depth?, maxBytes?, diagnostics? }`; POST `/memories/all/expand` accepts `{ id, expectedContentHash, startLine?, endLine?, sectionLine?, maxBytes? }`. These are additive read operations, not aliases for legacy rich recall or editor GET. Unknown fields are rejected; no caller-supplied roots are accepted. Both bypass the write queue and return the app's version-1 packet **without an envelope**, serialized as `JSON.stringify(packet) + "\n"` (never the legacy pretty printer), with `Cache-Control: no-store`. Budget is 1024–65536 UTF-8 bytes including LF, default 8192.

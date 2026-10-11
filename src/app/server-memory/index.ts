@@ -4,6 +4,7 @@ import { processMemory } from "../processing/index.js";
 import { rememberMemory, writeSessionWrapup, type WrapupDraft, type WrapupWriteResult } from "../writing/index.js";
 import { writeRemoteMemoryNote, writeRemoteSessionWrapup, type RemoteWrapupDraft } from "../writing/remote-writer.js";
 import type {
+  ExecutionOptions,
   DreamAbandonResult,
   DreamBatch,
   DreamCompleteRequest,
@@ -46,6 +47,7 @@ import { getDreamWindow as getServerDreamWindow, abandonDreamBatch as abandonSer
 export { recentServerMemory, type RemoteMemoryRecentNote, type RemoteMemoryRecentPacket } from "./recent.js";
 export { resolveServerMemoryTitle } from "./resolve-title.js";
 
+export { MemoryExecutionError } from "../local-memory/index.js";
 export { DreamStateError, DREAM_BATCHES_RELATIVE_DIR, DREAM_STATE_RELATIVE_PATH } from "./dream.js";
 
 export interface ServerMemoryRuntimeOptions {
@@ -187,10 +189,10 @@ export async function serverMemoryStatus(rootArg: string): Promise<RemoteMemoryS
   };
 }
 
-export async function indexServerMemory(options: { root: string; indexRunner?: RemoteIndexRunner; reason?: string; rebuild?: boolean } | string): Promise<RemoteMemoryIndexPacket> {
+export async function indexServerMemory(options: { root: string; indexRunner?: RemoteIndexRunner; reason?: string; rebuild?: boolean; signal?: AbortSignal; timeoutMs?: number } | string): Promise<RemoteMemoryIndexPacket> {
   const root = typeof options === "string" ? options : options.root;
   const indexRunner = typeof options === "string" ? createRemoteIndexRunner({ root }) : options.indexRunner ?? createRemoteIndexRunner({ root });
-  const { result, index } = await indexRunner.indexNow(typeof options === "string" ? "manual" : options.reason ?? "manual", typeof options === "string" ? undefined : { rebuild: options.rebuild });
+  const { result, index } = await indexRunner.indexNow(typeof options === "string" ? "manual" : options.reason ?? "manual", typeof options === "string" ? undefined : { rebuild: options.rebuild, ...(options.signal ? { signal: options.signal } : {}), ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }) });
   return {
     memory: "all",
     root: "remote:all",
@@ -280,7 +282,7 @@ export async function abandonDreamBatch(options: { root: string; batchId: string
   return abandonServerDreamBatch(options);
 }
 
-export async function searchServerMemory(options: {
+export async function searchServerMemory(options: ExecutionOptions & {
   root: string;
   query: string;
   limit: number;
@@ -288,7 +290,7 @@ export async function searchServerMemory(options: {
   recall?: boolean;
   temporal?: SearchMemoryOptions["temporal"];
 }): Promise<RemoteMemorySearchPacket> {
-  const searchOptions: SearchMemoryOptions = { depth: options.depth, temporal: options.temporal };
+  const searchOptions: SearchMemoryOptions = { depth: options.depth, temporal: options.temporal, signal: options.signal, timeoutMs: options.timeoutMs };
   const result = await searchMemory(options.root, options.query, options.limit, searchOptions);
   const index = await readRemoteIndexState(result.root);
   return {

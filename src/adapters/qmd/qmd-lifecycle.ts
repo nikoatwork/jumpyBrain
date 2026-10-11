@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { checkExecution, isExecutionControlError, MemoryExecutionError, runQmdChild } from "./qmd-execution.js";
 import { randomUUID } from "node:crypto";
 import { existsSync, openSync, closeSync, writeFileSync, readFileSync, unlinkSync, statSync } from "node:fs";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
@@ -29,6 +29,7 @@ export async function withQmdLock<T>(root: string, operation: () => Promise<T>):
   const deadline = Date.now() + 5_000;
   const owner = JSON.stringify({ pid: process.pid, token: randomUUID() });
   while (true) {
+    checkExecution();
     try {
       const fd = openSync(lock, "wx", 0o600);
       try { writeFileSync(fd, owner); } finally { closeSync(fd); }
@@ -59,7 +60,7 @@ export async function withQmdLock<T>(root: string, operation: () => Promise<T>):
           } catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
         }
       } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; }
-      if (Date.now() >= deadline) throw new Error("Memory index is busy; retry shortly.");
+      if (Date.now() >= deadline) throw new MemoryExecutionError("execution_overloaded");
       await new Promise(resolve => setTimeout(resolve, 25));
     }
   }
@@ -70,14 +71,18 @@ export async function withQmdLock<T>(root: string, operation: () => Promise<T>):
   }
 }
 
-function worker(request: Record<string, unknown>): { manifest: QmdManifest | null; work?: WorkerWork } {
-  const result = spawnSync(process.execPath, [fileURLToPath(new URL("./qmd-worker.js", import.meta.url))], {
-    input: JSON.stringify({ ...request, ownerPid: process.pid }), encoding: "utf8", maxBuffer: 64 * 1024 * 1024,
+async function worker(request: Record<string, unknown>): Promise<{ manifest: QmdManifest | null; work?: WorkerWork }> {
+  let result;
+  try { result = await runQmdChild(process.execPath, [fileURLToPath(new URL("./qmd-worker.js", import.meta.url))], {
+    input: JSON.stringify({ ...request, ownerPid: process.pid }), maxBytes: 64 * 1024 * 1024, acceptNonzero: true,
     env: { ...process.env, QMD_SQLITE_BUSY_TIMEOUT: "5000" },
-  });
+  }); } catch (error) {
+    if (isExecutionControlError(error) || error instanceof MemoryExecutionError) throw error;
+    throw new MemoryExecutionError("execution_failed");
+  }
   let payload;
   try { payload = JSON.parse(result.stdout.trim().split("\n").at(-1) ?? ""); } catch { /* Safe fixed diagnostics below. */ }
-  if (result.error || result.status !== 0 || payload?.error || !payload || !("manifest" in payload)) {
+  if (result.exitCode !== 0 || payload?.error || !payload || !("manifest" in payload)) {
     const stage = payload?.error?.stage;
     const safeStage = typeof stage === "string" && /^[a-z-]{1,24}$/.test(stage) ? stage : "execution";
     throw new Error(`QMD indexing failed during ${safeStage}; previous committed index retained. Check policy/model and retry index (use --rebuild for model changes).`);
@@ -88,7 +93,7 @@ function worker(request: Record<string, unknown>): { manifest: QmdManifest | nul
 /** Must run under the root lock. Replays commit-before-publication after interruption. */
 export async function recoverQmdPublication(root: string): Promise<void> {
   if (!existsSync(pendingPath(root))) return;
-  const { manifest } = worker({ action: "manifest", sdkPath: resolveQmdSdk(), dbPath: databasePath(root) });
+  const { manifest } = await worker({ action: "manifest", sdkPath: resolveQmdSdk(), dbPath: databasePath(root) });
   if (manifest) {
     await publishConfiguration(root, manifest);
     await atomicJson(manifestPath(root), manifest);
@@ -109,13 +114,16 @@ async function publishConfiguration(root: string, manifest: QmdManifest): Promis
 
 export async function updateQmdGeneration(root: string, documents: Array<MarkdownDocument & { content: string }>, manifest: QmdManifest, policy: IndexingPolicy, options: IndexMemoryOptions): Promise<{ manifest: QmdManifest; work: WorkerWork }> {
   await recoverQmdPublication(root);
+  checkExecution();
   const sdkPath = resolveQmdSdk();
   await mkdir(path.dirname(databasePath(root)), { recursive: true });
   await mkdir(path.join(derivedRoot(root), "qmd-home"), { recursive: true });
+  checkExecution();
   await atomicJson(pendingPath(root), { generation: manifest.generation });
   // On failure leave pending: recovery checks the actual commit, never assumes rollback.
   // The driver records all indexing failures (including input/policy errors) in one place.
-  const result = worker({ sdkPath, root, dbPath: databasePath(root), sourceRoot: manifest.sourceRoot ?? root, documents, manifest, policy, rebuild: options.rebuild });
+  const result = await worker({ sdkPath, root, dbPath: databasePath(root), sourceRoot: manifest.sourceRoot ?? root, documents, manifest, policy, rebuild: options.rebuild });
+  checkExecution();
   if (!result.manifest || !result.work) throw new Error("QMD indexing returned no committed generation.");
   await publishConfiguration(root, result.manifest);
   await atomicJson(manifestPath(root), result.manifest);
