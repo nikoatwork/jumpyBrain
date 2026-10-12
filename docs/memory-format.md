@@ -67,6 +67,14 @@ Schema notes:
 - These strict search semantics deliberately differ from dream import-review windows (which warn while falling back through creation/mtime) and unfiltered ranking's legacy creation-date preference. No body-wide event extraction or inferred fact-validity interval is supported. See [temporal CLI options](cli-commands.md#explicit-temporal-retrieval).
 - Optional `conflicts_with` and `supersedes` are string/string-array declarations referring to source IDs, paths, or titles. Preserve existing reviewed declarations rather than inferring new ones. Retrieval displays them verbatim as unreconciled metadata, does not validate their truth, and never hides older evidence because a newer note claims supersession. `conflicts_with` is also inspected by processing lint; `supersedes` is descriptive, not an automatic invalidation rule.
 
+## Structure for selective retrieval
+
+Use real Markdown headings (`## Scope`, for example), blank-line-separated paragraphs, and ordinary lists where useful. An inline label such as `Scope:` within a long paragraph is prose, not a heading/section boundary. No domain-specific labels or general memory template are required; strict session wrapup sections remain a separate command contract.
+
+Keep important qualifications close to the claims they govern, and make paragraphs independently useful by stating their scope, dates, uncertainty, and source references where needed. Avoid packing unrelated claims and caveats into one giant paragraph or source line. Structure helps bounded extraction but does not guarantee that every qualification or ancestor section is returned.
+
+Recall excerpts remain bounded at 1,000 characters; a larger compact aggregate byte budget does not lengthen them. Conditional expansion returns exact **whole lines** or a bounded prefix of a heading section, not substrings. Its envelope/JSON escaping also consume space. A first requested line too large for the maximum 65536-byte packet cannot be recovered by continuation; a section prefix may stop before the anchor. Prefer manageable source lines and meaningful paragraph/section boundaries for selective follow-ups. These are authoring recommendations, not automatic rewrites or a reason to modify imported sources during reads. See [CLI bounds](cli-commands.md#compact-recallsearch-and-conditional-expansion).
+
 ## Imported Logseq documents
 
 [`migrate logseq`](logseq-migration.md) maps classic Logseq `pages/<relative>.md` to `notes/<relative>.md` (`type: "note"`) and `journals/<relative>.md` to `sessions/<relative>.md` (`type: "session"`). Imported journals are not wrapup documents and do not require wrapup sections. Imported Logseq pages are not synthesized jumpyBrain pages.

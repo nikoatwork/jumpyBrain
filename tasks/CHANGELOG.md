@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-12 — Recall format guidance
+
+- Clarified compact/text trade-offs, guarded expansion prerequisites, and selective-read source structure; [completed guidance task](done/2026-10-12_tasks-recall-format-guidance.md).
+
 ## 2026-10-11 — Self-maintaining recall completed
 
 - Creation retains saved identity through index/replay failures; empty keyword fallback stays within existing budgets; strict read-only lexical retrieval performs no derived-state writes. Completed/archive: [self-maintaining recall](done/2026-10-11_tasks-self-maintaining-recall.md), with 812 passing tests, provisioned QMD validation and explicit evaluation/platform limits.

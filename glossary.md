@@ -14,11 +14,11 @@ A process-owned page produced by deterministic `process --mode synthesize`: boun
 
 ## Recall passage
 
-A bounded source excerpt with its own file/line provenance, not a generated or independently verified claim. Normal/shallow recall groups passages by canonical file before applying the result limit; deep/source-focused recall retains chunk-level limits. A legacy file-level hit contains at most two passages and may report omitted candidate passages. Opt-in compact recall packs whole passages under an aggregate serialized UTF-8 byte cap; each carries explicit partial scope and either a unique canonical ID/hash expansion token or an unavailability reason. QMD hit IDs are not document IDs.
+A bounded source excerpt with its own file/line provenance, not a generated or independently verified claim. Normal/shallow recall groups passages by canonical file before applying the result limit; deep/source-focused recall retains chunk-level limits. A legacy file-level hit contains at most two passages and may report omitted candidate passages. Opt-in compact recall packs the same excerpts (each bounded at 1,000 characters) under an aggregate serialized UTF-8 byte cap; raising it does not lengthen individual excerpts. Bounded does not mean universally smaller: metadata can exceed text at small result counts, and bytes are not tokens. Text citations alone are not verified expansion handles; in compact, each carries explicit partial scope and either a unique canonical ID/hash expansion token or an unavailability reason. QMD hit IDs are not document IDs.
 
 ## Evidence expansion
 
-A read-only, content-hash-guarded line range or enclosing section from canonical Markdown. Returned citations cover only actual whole source lines; budget truncation reports a continuation line. Stale hashes require refreshed evidence, never automatic full-document fallback. Byte caps are not token budgets.
+A read-only, content-hash-guarded line range or enclosing section from canonical Markdown. Returned citations cover only actual whole source lines; budget truncation reports a continuation line. A first requested line too large for the maximum packet space is an error, not a substring or recoverable continuation. Available compact ID/hash handles supply guarded-read preconditions only on the same root/target; local file-tool range reads are not hash-checked expansion. Stale hashes require refreshed evidence, never automatic full-document fallback. Byte caps are not token budgets.
 
 ## Evidence date
 
