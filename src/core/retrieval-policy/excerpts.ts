@@ -86,7 +86,13 @@ export function selectEvidenceExcerpt(lines: string[], options: ExcerptOptions):
   if (index < 0) index = Math.max(0, blocks.findIndex((block) => block.start > center));
   let { start: from, end: to } = blocks[index] ?? { start: center, end: center };
   if (compact(lines.slice(from, to + 1).join("\n")).length > maximum) {
-    return finish(partialExcerpt(lines, from, to, center, terms, maximum));
+    // blockRanges can include an immediately preceding heading in the prose
+    // block. Allow that prefix, but never reinterpret wrapped prose as one line.
+    const proseStart = structure.headings.has(from)
+      ? from + (/^ {0,3}(?:=+|-+)\s*$/u.test(lines[from + 1] ?? "") ? 2 : 1) : from;
+    return finish(partialExcerpt(lines, from, to, center, terms, maximum,
+      proseStart === center && to === center && !structure.fences.has(from) && !structure.headings.has(center)
+      && !/^(?: {4}| *\t)/u.test(lines[center])));
   }
   let left = index - 1;
   let right = index + 1;
@@ -148,7 +154,7 @@ function excerpt(lines: string[], start: number, end: number): EvidenceExcerpt {
   return { snippet: compact(lines.slice(range.start, range.end + 1).join("\n")), lineStart: range.start + 1, lineEnd: range.end + 1 };
 }
 
-function partialExcerpt(lines: string[], from: number, to: number, center: number, terms: NonNullable<ExcerptOptions["terms"]>, maximum: number): EvidenceExcerpt {
+function partialExcerpt(lines: string[], from: number, to: number, center: number, terms: NonNullable<ExcerptOptions["terms"]>, maximum: number, sentenceProse: boolean): EvidenceExcerpt {
   // An oversized unit must advertise incompleteness. Center a single long line
   // around its strongest term rather than returning only the unit's prefix.
   let result = excerpt(lines, center, center);
@@ -157,6 +163,11 @@ function partialExcerpt(lines: string[], from: number, to: number, center: numbe
     const term = [...terms].sort((a, b) => b.weight - a.weight).find((term) => text.toLowerCase().includes(term.text.toLowerCase()));
     const match = term ? text.toLowerCase().indexOf(term.text.toLowerCase()) : 0;
     const budget = maximum - PARTIAL.length - 2;
+    const sentence = sentenceProse && term
+      ? sentenceSlice(text, match, match + term.text.length, budget) : undefined;
+    if (sentence) {
+      return { ...result, snippet: (sentence.start ? "… " : "") + text.slice(sentence.start, sentence.end) + PARTIAL };
+    }
     let offset = Math.max(0, match - Math.floor(budget / 3));
     // Prefer whitespace edges, never silently present a mid-word fragment as whole.
     if (offset > 0) { const space = text.indexOf(" ", offset); if (space >= 0 && space < match) offset = space + 1; }
@@ -169,4 +180,42 @@ function partialExcerpt(lines: string[], from: number, to: number, center: numbe
   while (start > from && compact(lines.slice(start - 1, end + 1).join("\n")).length <= maximum - PARTIAL.length) start--;
   result = excerpt(lines, start, end);
   return { ...result, snippet: result.snippet + PARTIAL };
+}
+
+/** Only plain, single-line paragraphs: no Markdown/link/code punctuation guessing.
+ * Every terminator must be defensible; uncertainty keeps the existing slice.
+ */
+function sentenceSlice(text: string, matchStart: number, matchEnd: number, budget: number): { start: number; end: number } | undefined {
+  if (/^(?: {4}|\t|\s*(?:[-*+]|\d+[.)]|>|#)\s)/u.test(text)
+    || /[\[\]`<>\\*_~|]|https?:\/\//u.test(text)
+    || text.toLowerCase().length !== text.length) return undefined;
+  const boundaries: number[] = [0];
+  const abbreviations = new Set(["approx", "dept", "dr", "etc", "fig", "inc", "jr", "mr", "mrs", "ms", "no", "prof", "sr", "st", "vs", "vol"]);
+  // Work on offsets into the compacted source, never reconstructed sentences.
+  // Separate word/punctuation alternatives avoid rescanning a punctuation-free
+  // long word at every offset (a word-plus-terminator regex can be quadratic).
+  const tokens = /[\p{L}\p{N}]+|[.!?]/gu;
+  let word = "", wordEnd = 0, consumed = 0;
+  for (const token of text.matchAll(tokens)) {
+    const end = token.index! + token[0].length;
+    if (!/[.!?]/u.test(token[0])) { word = token[0]; wordEnd = end; continue; }
+    // Unrecognized punctuation (decimals, ellipses, initials, quotes, etc.)
+    // anywhere in the paragraph makes boundary inference too uncertain.
+    if (wordEnd !== token.index
+      || (token[0] === "." && (!/^\p{Ll}{3,}$/u.test(word) || abbreviations.has(word)))
+      || (end < text.length && !/^ \p{Lu}/u.test(text.slice(end, end + 3)))) return undefined;
+    boundaries.push(end);
+    consumed = end;
+  }
+  if (consumed !== text.length) return undefined;
+  const index = boundaries.findIndex((end, i) => i > 0 && matchStart >= boundaries[i - 1] && matchEnd <= end);
+  if (index < 1) return undefined;
+  let left = index - 1, right = index;
+  const startAt = (i: number) => boundaries[i] + (i ? 1 : 0);
+  if (boundaries[right] - startAt(left) > budget) return undefined;
+  // As with structural context, prefer following qualifications, then preceding
+  // context. Do not skip a sentence that cannot fit.
+  while (right + 1 < boundaries.length && boundaries[right + 1] - startAt(left) <= budget) right++;
+  while (left > 0 && boundaries[right] - startAt(left - 1) <= budget) left--;
+  return { start: startAt(left), end: boundaries[right] };
 }
