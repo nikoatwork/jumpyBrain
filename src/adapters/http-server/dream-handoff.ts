@@ -110,7 +110,7 @@ export const dreamScript = createDreamHandoff.toString() + String.raw`
 const dreamDialog = $("dream-handoff");
 let dreamGeneration = 0;
 function openDreamHandoff() {
-  if (state.view !== "graph" || document.querySelector("dialog[open]")) return;
+  if (state.view !== "graph" || document.querySelector("dialog[open]") || (typeof companionMode !== "undefined" && companionMode && companionFrozen)) return;
   cancelReferenceInteraction();
   dreamGeneration++;
   $("dream-preview").value = "";
@@ -120,16 +120,16 @@ function openDreamHandoff() {
   $("dream-feedback").dataset.error = "false";
   $("dream-copy").disabled = false;
   try {
-    const handoff = createDreamHandoff(location.origin, new Date());
+    const handoff = createDreamHandoff(typeof companionMode !== "undefined" && companionMode ? companionDreamTarget() : location.origin, new Date());
     $("dream-target").textContent = handoff.target;
     $("dream-window").textContent = handoff.from + " through " + handoff.to + " (inclusive UTC)";
     $("dream-preview").value = handoff.prompt;
     $("dream-preview").setSelectionRange(0, 0);
     $("dream-preview").scrollTop = 0;
-  } catch {
+  } catch (error) {
     $("dream-copy").disabled = true;
     $("dream-feedback").dataset.error = "true";
-    $("dream-feedback").textContent = "Could not prepare a prompt for this memory. Check the server address and your device clock.";
+    $("dream-feedback").textContent = typeof companionMode !== "undefined" && companionMode ? error.message : "Could not prepare a prompt for this memory. Check the server address and your device clock.";
   }
   dreamDialog.showModal();
   ($("dream-copy").disabled ? $("dream-close") : $("dream-copy")).focus({ preventScroll: true });

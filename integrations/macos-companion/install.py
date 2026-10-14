@@ -72,7 +72,8 @@ def build_app(runtime, build, config):
         print("Using a build-local overlay for duplicate CLT SwiftBridging maps.")
     sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
     run(compiler, "-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{platform.machine()}-apple-macos13.0",
-        "-module-cache-path", build / "module-cache", *compiler_options, "-framework", "AppKit",
+        "-module-cache-path", build / "module-cache", *compiler_options,
+        "-framework", "AppKit", "-framework", "Security", "-framework", "LocalAuthentication",
         source / "Companion.swift", "-o", macos / "jumpyBrain")
     for helper in ("server-bootstrap.mjs", "menu-update.mjs", "update-check.mjs"):
         shutil.copy2(source / helper, resources / helper)
@@ -206,6 +207,7 @@ def main():
                 else:
                     if os.path.lexists(app):
                         raise SafetyError("An app appeared during build; refusing replacement")
+                    # Private loopback CONTROL token only; remote keys live in Keychain.
                     key_file = support / "api-key"
                     if not os.path.lexists(key_file):
                         fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)

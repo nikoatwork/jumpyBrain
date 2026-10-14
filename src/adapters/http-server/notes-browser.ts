@@ -252,7 +252,7 @@ function renderRecentNotes(recent) {
     const item = document.createElement("li");
     const link = document.createElement("a");
     link.className = "recent-link";
-    link.href = "/?note=" + encodeURIComponent(note.id);
+    link.href = typeof companionMode !== "undefined" && companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(note.id)) : "/?note=" + encodeURIComponent(note.id);
     const title = document.createElement("span");
     title.textContent = note.title || note.file || "Untitled";
     link.title = title.textContent + (note.file ? " · " + note.file : "");
@@ -389,7 +389,7 @@ function createPageNavigation(options) {
     return restoring.promise;
   }
   async function navigate(destination) {
-    if (busy || destination === current.url) return false;
+    if (busy || options.blocked?.() || destination === current.url) return false;
     busy = true;
     let applied = false;
     try {
@@ -397,7 +397,8 @@ function createPageNavigation(options) {
       await restore();
       if (!allowed) return false;
       // Creation runs only after saving the current draft, under the same history lock.
-      const url = typeof destination === "function" ? await destination() : destination;
+      const destinationUrl = typeof destination === "function" ? await destination() : destination;
+      const url = options.scope ? options.scope(destinationUrl) : destinationUrl;
       await restore();
       current = { url, index: current.index + 1 };
       position = current.index;
@@ -439,7 +440,7 @@ function createPageNavigation(options) {
     committing = entry;
     options.go(entry.index - current.index);
   }
-  return { navigate, pop };
+  return { navigate, pop, isBusy: () => busy, reset(entry) { current = entry; position = entry.index; } };
 }
 
 function datedNoteDraft(date) {
@@ -464,7 +465,7 @@ function createNoteCapture(options) {
     })().finally(() => { pending = null; });
     return pending;
   }
-  return { create, complete() { attempt = null; } };
+  return { create, complete() { attempt = null; }, hasPending: () => Boolean(attempt), isInFlight: () => Boolean(pending) };
 }
 
 function pageReferenceError(result, results) {
@@ -526,7 +527,7 @@ const referenceAutocomplete = window.installReferenceAutocomplete($("note-editor
     body: JSON.stringify({ query, limit: 24, depth: "normal" }), signal,
   }),
   getSession: () => state.noteToken + ":" + credentialRevision,
-  isEnabled: () => state.view === "note" && state.editor?.state.loaded && !state.editor.state.navigationPending
+  isEnabled: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()) && state.view === "note" && state.editor?.state.loaded && !state.editor.state.navigationPending
     && !searchDialog.open && !connectionDialog.open && !dreamDialog.open,
   onError: () => referenceMessage("Could not insert this reference. Keep editing or use Insert page reference.", true),
 });
@@ -546,6 +547,7 @@ function cancelReferenceInteraction() {
   referenceMessage("");
 }
 async function activatePageReference(title) {
+  if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return;
   const origin = state.editor, revision = credentialRevision;
   if (referenceRequest || !origin?.state.loaded || origin.state.navigationPending
       || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
@@ -603,6 +605,7 @@ $("recent-retry").addEventListener("click", () => recentNotes.load());
 $("recent-connect").addEventListener("click", () => openConnection(false));
 
 function openSearch(mode = "navigate", range = null) {
+  if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return;
   if (searchDialog.open || connectionDialog.open || dreamDialog.open) return;
   cancelReferenceInteraction();
   searchMode = mode === "insert" ? "insert" : "navigate";
@@ -707,6 +710,7 @@ $("note-search-input").addEventListener("keydown", (event) => {
 });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));
 function handleNoteShortcut(event) {
+  if (typeof companionMode !== "undefined" && companionMode && (companionFrozen || state.view === "settings")) return;
   if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey)) return;
   if (event.key.toLowerCase() === "k") {
     if (connectionDialog.open || dreamDialog.open) return;
@@ -724,6 +728,7 @@ function handleNoteShortcut(event) {
 document.addEventListener("keydown", handleNoteShortcut, true);
 
 function renderConnection() {
+  if (typeof companionMode !== "undefined" && companionMode) { renderCompanionConnection(); return; }
   const connected = connectionStatus === "connected";
   const label = connected ? "Connected" : connectionStatus === "checking" ? "Connecting…" : "Connect";
   const button = $("open-connection");
@@ -744,6 +749,7 @@ function maskApiKey() {
   $("toggle-api-key").setAttribute("aria-pressed", "false");
 }
 function openConnection(fromSearch) {
+  if (typeof companionMode !== "undefined" && companionMode) { navigation.navigate(companionScopeUrl("/settings")); return; }
   if (dreamDialog.open) return;
   cancelReferenceInteraction();
   apiKeyInput.value = activeApiKey;
@@ -770,6 +776,7 @@ $("toggle-api-key").addEventListener("click", () => {
   $("toggle-api-key").setAttribute("aria-pressed", String(reveal));
 });
 function setConnectionKey(key) {
+  if (typeof companionMode !== "undefined" && companionMode) return;
   cancelReferenceInteraction();
   key = key.trim();
   activeApiKey = key;
@@ -816,6 +823,8 @@ history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", initialEntry.u
 const navigation = createPageNavigation({
   initial: initialEntry,
   beforeLeave: () => requestEditorNavigation(() => {}),
+  blocked: () => typeof companionMode !== "undefined" && companionMode && companionFrozen,
+  scope: (url) => companionMode ? companionScopeUrl(url) : url,
   resume: () => state.editor?.setNavigationPending(false),
   go: (delta) => history.go(delta),
   push: (entry) => history.pushState({ jumpyBrainIndex: entry.index }, "", entry.url),
@@ -837,6 +846,16 @@ for (const [id, url] of [["home-link", "/"], ["graph-link", "/graph"]]) {
 }
 
 function showPage(url) {
+  if (typeof companionMode !== "undefined" && companionMode && !companionRegistered) return;
+  if (typeof companionMode !== "undefined" && companionMode) {
+    const requested = new URL(url, location.origin);
+    if (requested.searchParams.has("note") && requested.searchParams.get("brain") !== companionState.activeId) {
+      companionMessage("This note link belongs to another brain. Open a note from this brain instead.", true);
+      url = companionScopeUrl("/");
+      history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", url);
+      navigation.reset({ url, index: initialEntry.index });
+    }
+  }
   referenceAutocomplete.dismiss();
   referenceMessage("");
   if (dreamDialog.open) closeDreamHandoff(false);
@@ -846,8 +865,10 @@ function showPage(url) {
   if (connectionDialog.open) closeConnection();
   const target = new URL(url, location.origin);
   const documentId = target.searchParams.get("note");
-  state.view = documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
+  if (typeof companionMode !== "undefined" && companionMode && state.view === "settings" && !/^\/settings\/?$/.test(target.pathname)) companionClearForm();
+  state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
   document.body.dataset.view = state.view;
+  if (typeof companionMode !== "undefined" && companionMode) $("companion-settings").hidden = state.view !== "settings";
   $("home").hidden = state.view !== "home";
   $("note-panel").hidden = state.view !== "note";
   $("note-save-state").hidden = state.view !== "note";
@@ -860,7 +881,11 @@ function showPage(url) {
   state.editor = null;
   $("note-retry").hidden = true;
   document.title = state.view === "graph" ? "Memory map · jumpyBrain" : "Notes · jumpyBrain";
-  if (state.view === "graph") {
+  if (state.view === "settings") {
+    document.title = "Settings · jumpyBrain";
+    renderCompanionSettings();
+    $("companion-heading").focus();
+  } else if (state.view === "graph") {
     if (!state.graph) loadGraph(); else queueGraphLayout(0, true);
     $("query").focus({ preventScroll: true });
   } else {
@@ -870,60 +895,64 @@ function showPage(url) {
 }
 
 async function showNote(documentId, focusEnd = false) {
-  const staged = stagedReferenceNote;
-  cancelReferenceInteraction();
-  const token = ++state.noteToken;
-  if (state.editor) state.editor.cancel();
-  state.editor = null;
-  $("note-title").textContent = "";
-  $("note-title").hidden = false;
-  $("note-name").hidden = true;
-  $("note-save-error").hidden = true;
-  $("note-editor").hidden = true;
-  richEditor.setMarkdown("", true);
-  $("format-controls").hidden = true;
-  $("note-metadata").hidden = true;
-  $("note-metadata").open = false;
-  $("note-retry").hidden = true;
-  $("insert-reference").hidden = true;
-  $("note-save-state").textContent = "";
-  $("note-load-retry").hidden = true;
-  $("note-message").hidden = false;
-  $("note-message").dataset.error = "false";
-  $("note-message").textContent = "Loading note…";
-  $("note-panel").scrollTop = 0;
-  document.title = "Note · jumpyBrain";
-  if (!isValidMemoryDocumentId(documentId)) { noteLoadError("This note link has an invalid memory ID. Use Search to find a note."); return; }
-  const editor = createDocumentEditor({
-    generation: token, documentId, debounceMs: 750, persistentEditing: true,
-    setTimer: (callback, delay) => window.setTimeout(callback, delay),
-    clearTimer: (timer) => window.clearTimeout(timer),
-    splitDocument: splitEditableDocument, composeDocument: composeEditableDocument,
-    readDocument: readGraphDocument, writeDocument: writeGraphDocument,
-    onSaved: () => { noteSearch.markStale(); referenceAutocomplete.markStale(); },
-    isCurrent: (generation, id) => state.noteToken === generation && state.editor === editor && editor.state.documentId === id,
-    onChange: syncEditorUi,
-  });
-  state.editor = editor;
+  if (typeof companionMode !== "undefined" && companionMode && !companionRegistered) return;
+  if (typeof companionMode !== "undefined" && companionMode) companionNoteLoading++;
   try {
-    const payload = staged?.id === documentId && staged.revision === credentialRevision
-      ? staged.payload : await readGraphDocument(documentId);
-    if (token !== state.noteToken || state.editor !== editor) return;
-    if (typeof payload?.content !== "string" || typeof payload?.contentHash !== "string") throw new Error("Invalid document response.");
-    $("note-title").textContent = payload.title || payload.file || "Untitled";
-    document.title = $("note-title").textContent + " · jumpyBrain";
-    $("note-file").textContent = payload.file || "";
-    $("note-message").hidden = true;
-    editor.hydrate(payload);
-    editor.setEditing(true);
-    if (!searchDialog.open && !connectionDialog.open) richEditor.focus(focusEnd);
-  } catch (error) {
-    if (token !== state.noteToken || state.editor !== editor) return;
-    noteLoadError(Number(error.status) === 404 ? "This note is no longer available. Use Search to find another note."
-      : Number(error.status) === 401 || Number(error.status) === 403 ? "Connect with an access key to open this note."
-      : "Could not load this note. Check your connection and retry.");
-    $("note-load-retry").hidden = false;
-  }
+    const staged = stagedReferenceNote;
+    cancelReferenceInteraction();
+    const token = ++state.noteToken;
+    if (state.editor) state.editor.cancel();
+    state.editor = null;
+    $("note-title").textContent = "";
+    $("note-title").hidden = false;
+    $("note-name").hidden = true;
+    $("note-save-error").hidden = true;
+    $("note-editor").hidden = true;
+    richEditor.setMarkdown("", true);
+    $("format-controls").hidden = true;
+    $("note-metadata").hidden = true;
+    $("note-metadata").open = false;
+    $("note-retry").hidden = true;
+    $("insert-reference").hidden = true;
+    $("note-save-state").textContent = "";
+    $("note-load-retry").hidden = true;
+    $("note-message").hidden = false;
+    $("note-message").dataset.error = "false";
+    $("note-message").textContent = "Loading note…";
+    $("note-panel").scrollTop = 0;
+    document.title = "Note · jumpyBrain";
+    if (!isValidMemoryDocumentId(documentId)) { noteLoadError("This note link has an invalid memory ID. Use Search to find a note."); return; }
+    const editor = createDocumentEditor({
+      generation: token, documentId, debounceMs: 750, persistentEditing: true, conflictRetry: typeof companionMode === "undefined" || !companionMode,
+      setTimer: (callback, delay) => window.setTimeout(callback, delay),
+      clearTimer: (timer) => window.clearTimeout(timer),
+      splitDocument: splitEditableDocument, composeDocument: composeEditableDocument,
+      readDocument: readGraphDocument, writeDocument: writeGraphDocument,
+      onSaved: () => { noteSearch.markStale(); referenceAutocomplete.markStale(); },
+      isCurrent: (generation, id) => state.noteToken === generation && state.editor === editor && editor.state.documentId === id,
+      onChange: syncEditorUi,
+    });
+    state.editor = editor;
+    try {
+      const payload = staged?.id === documentId && staged.revision === credentialRevision
+        ? staged.payload : await readGraphDocument(documentId);
+      if (token !== state.noteToken || state.editor !== editor) return;
+      if (typeof payload?.content !== "string" || typeof payload?.contentHash !== "string") throw new Error("Invalid document response.");
+      $("note-title").textContent = payload.title || payload.file || "Untitled";
+      document.title = $("note-title").textContent + " · jumpyBrain";
+      $("note-file").textContent = payload.file || "";
+      $("note-message").hidden = true;
+      editor.hydrate(payload);
+      editor.setEditing(true);
+      if (!searchDialog.open && !connectionDialog.open) richEditor.focus(focusEnd);
+    } catch (error) {
+      if (token !== state.noteToken || state.editor !== editor) return;
+      noteLoadError(Number(error.status) === 404 ? "This note is no longer available. Use Search to find another note."
+        : Number(error.status) === 401 || Number(error.status) === 403 ? "Connect with an access key to open this note."
+        : "Could not load this note. Check your connection and retry.");
+      $("note-load-retry").hidden = false;
+    }
+  } finally { if (typeof companionMode !== "undefined" && companionMode) companionNoteLoading--; }
 }
 function noteLoadError(message) {
   $("note-message").textContent = message;
@@ -944,7 +973,7 @@ $("note-name").addEventListener("input", () => {
   const singleLine = field.value.replace(/[\r\n]/g, "");
   if (field.value !== singleLine) field.value = singleLine;
   sizeNoteName();
-  state.editor?.inputTitle(field.value);
+  if (!(typeof companionMode !== "undefined" && companionMode && companionReadOnly())) state.editor?.inputTitle(field.value);
 });
 $("note-name").addEventListener("keydown", (event) => {
   if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.key !== "Enter") return;
@@ -955,22 +984,23 @@ window.addEventListener("resize", sizeNoteName);
 $("note-name").addEventListener("blur", () => state.editor?.flush());
 
 function syncEditorUi(editorState) {
+  const companionLocked = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
   if (!state.editor || state.editor.state !== editorState) return;
   $("note-retry").hidden = editorState.saveStatus !== "failed";
   $("note-retry").disabled = editorState.navigationPending;
   $("note-editor").hidden = !editorState.loaded;
   $("note-name").hidden = !editorState.loaded;
   $("note-title").hidden = editorState.loaded;
-  $("note-name").readOnly = editorState.navigationPending;
+  $("note-name").readOnly = editorState.navigationPending || companionLocked;
   $("note-name").setAttribute("aria-invalid", String(editorState.saveStatus === "failed"));
   $("note-save-error").hidden = editorState.saveStatus !== "failed";
   $("note-save-error").textContent = editorState.saveError || "";
   if (editorState.navigationPending || !editorState.loaded) referenceAutocomplete.dismiss();
-  richEditor.setReadOnly(editorState.navigationPending);
+  richEditor.setReadOnly(editorState.navigationPending || companionLocked);
   $("format-controls").hidden = !editorState.loaded;
-  for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending;
+  for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending || companionLocked;
   $("insert-reference").hidden = !editorState.loaded;
-  $("insert-reference").disabled = editorState.navigationPending;
+  $("insert-reference").disabled = editorState.navigationPending || companionLocked;
   if (editorState.loaded) {
     if ($("note-name").value !== editorState.title) $("note-name").value = editorState.title;
     sizeNoteName();
@@ -999,6 +1029,7 @@ const noteCapture = createNoteCapture({
 let creatingNote = false;
 let newNoteId = null;
 async function newNote() {
+  if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
   if (creatingNote || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
   creatingNote = true;
   for (const id of ["new-note", "home-new"]) $(id).disabled = true;
@@ -1028,12 +1059,13 @@ async function newNote() {
     $("new-note").textContent = "Retry new note";
   } finally {
     creatingNote = false;
-    for (const id of ["new-note", "home-new"]) $(id).disabled = false;
+    for (const id of ["new-note", "home-new"]) $(id).disabled = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
   }
 }
 for (const id of ["new-note", "home-new"]) $(id).addEventListener("click", (event) => { if (event.detail < 2) newNote(); });
 
 function openReferenceSearch() {
+  if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
   if (!state.editor?.state.loaded || state.editor.state.navigationPending) return;
   const range = richEditor.referenceRange();
   if (range) openSearch("insert", range);
@@ -1042,6 +1074,7 @@ $("insert-reference").addEventListener("click", openReferenceSearch);
 $("format-controls").addEventListener("mousedown", (event) => { if (event.target.closest("button")) event.preventDefault(); });
 for (const button of document.querySelectorAll("[data-format]")) button.addEventListener("click", () => richEditor.format(button.dataset.format));
 function insertPageReference(result) {
+  if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
   const editor = $("note-editor");
   const range = referenceSelection;
   if (!range || state.editor !== searchDocument || !state.editor?.state.loaded || state.editor.state.navigationPending || richEditor.getMarkdown() !== range.value) {
@@ -1064,5 +1097,5 @@ function insertPageReference(result) {
   state.editor.input(richEditor.getMarkdown());
 }
 
-showPage(initialEntry.url);
+if (!companionMode) showPage(initialEntry.url);
 `;

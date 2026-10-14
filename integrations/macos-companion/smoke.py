@@ -32,6 +32,9 @@ def request(port, path, auth=False, data=None):
     headers = {"Authorization": f"Bearer {KEY}"} if auth else {}
     if data is not None:
         headers["Content-Type"] = "application/json"
+    if auth and path.startswith("/memories/"):
+        _, state = request(port, "/companion/state", True)
+        headers["X-Companion-Generation"] = str(json.loads(state)["generation"])
     req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", headers=headers,
                                  data=json.dumps(data).encode() if data is not None else None)
     try:
@@ -65,6 +68,10 @@ def main():
         runtime.mkdir()
         shutil.copytree(source_runtime / "dist", runtime / "dist")
         shutil.copy2(source_runtime / "package.json", runtime / "package.json")
+        integration = runtime / "integrations/macos-companion"
+        integration.mkdir(parents=True)
+        for helper in ["gateway.mjs", "connections.mjs", "switch-coordinator.mjs"]:
+            shutil.copy2(source_runtime / "integrations/macos-companion" / helper, integration / helper)
         cli = runtime / "dist/cli.js"
         assert not (resources / "runtime").exists(), "App must not contain a bundled runtime snapshot"
         memory = root / "memory"
@@ -99,7 +106,8 @@ def main():
             return child
 
         def running():
-            return (support / "server.log").exists() and "Running · Local memory" in (support / "server.log").read_text()
+            code, body = request(port, "/companion/state", True)
+            return code == 200 and json.loads(body).get("health") == "connected"
 
         try:
             child = start()
@@ -108,6 +116,7 @@ def main():
             assert request(port, "/")[0] == 200
             assert b"note-editor" in request(port, "/")[1]
             assert request(port, "/graph")[0] == 200
+            assert request(port, "/settings")[0] == 200
             assert request(port, "/memories/all/status")[0] == 401
             assert request(port, "/memories/all/status", True)[0] == 200
             code, body = request(port, "/memories/all/search", True, {"query": "CompanionFixture", "limit": 5})

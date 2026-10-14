@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-14 — Companion brain connections
+
+- Added companion `/settings`, named local/remote profiles, Keychain credentials, and draft-safe all-tab/menu switching without changing CLI targets; [verification and beta limits](done/2026-10-14_tasks-macos-brain-connections-settings.md).
+
 ## 2026-10-14 — Calmer daily writing
 
 - Refined the editor with literary typography, comfortable page spacing, quieter formatting controls, and wrapping titles for a more relaxed writing experience.

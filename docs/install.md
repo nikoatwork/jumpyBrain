@@ -42,13 +42,13 @@ Then verify:
 
 ### macOS app (beta)
 
-The optional menu-bar app runs your local brain and opens its Markdown editor in Chrome. After installing the CLI:
+The optional menu-bar app opens a Chrome editor for named local and remote brains through a private loopback gateway. Its Settings page selects one brain across companion tabs, without changing CLI/agent targets or syncing memory. After installing the CLI:
 
 ```sh
 python3 "$HOME/.jumpybrain/app/integrations/macos-companion/install.py"
 ```
 
-Requires macOS 13+, Xcode command-line tools, Python 3.9+, Google Chrome, and the CLI’s Node/QMD dependencies. This is a locally built beta, not a downloadable app. See [the app guide](../integrations/macos-companion/README.md) for controls, custom paths, and limitations.
+Requires macOS 13+, Xcode command-line tools, Python 3.9+, Google Chrome, and the CLI’s Node/QMD dependencies. This beta is built locally and ad-hoc signed, not a downloadable signed/notarized app. Remote keys use macOS Keychain, not browser storage; rebuilding can require key re-entry. Profile switching/active-key repair is blocked by failed saves or unresponsive editor tabs. Remote editing (including indexing) requires explicit target-specific approval in Settings. See [the app guide](../integrations/macos-companion/README.md) for connection storage, authentication, offline behavior, custom paths, recovery, and test limits.
 
 ### Project-local install
 
@@ -143,7 +143,7 @@ For intentional version changes, pass `--ref <ref>` or set `JUMPYBRAIN_INSTALL_R
 
 ## Uninstall
 
-If you installed the macOS app, [remove it first](../integrations/macos-companion/README.md#remove); it depends on the shared CLI runtime.
+If you installed the macOS app, [remove it first](../integrations/macos-companion/README.md#remove); it depends on the shared CLI runtime. Companion removal preserves its connections/support directory and Keychain items unless you deliberately remove them separately; it does not revoke remote server keys.
 
 Uninstall requires a valid, supported `install-manifest.json` whose recorded install root and owned paths match the selected root. It fails closed before deleting anything when that ownership proof is missing, malformed, unsupported, or inconsistent. A valid uninstall removes only the recorded app, shim, CLI policy config, manifest, and integration files. It preserves Markdown memory by default.
 

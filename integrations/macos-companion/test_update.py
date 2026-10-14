@@ -190,7 +190,10 @@ class PreflightTests(Fixture):
 
 class TransactionTests(Fixture):
     def test_pair_commit_preserves_settings_key_login_memory_remote_and_lock(self):
-        preserved = {p: p.read_bytes() for p in (self.agent, self.support / "api-key", self.memory / "notes.md",
+        connections = self.support / "connections.json"
+        connections.write_text('{"version":1,"credentialRef":"opaque-keychain-reference","activeId":"selected"}\n')
+        connections.chmod(0o600)
+        preserved = {p: p.read_bytes() for p in (connections, self.agent, self.support / "api-key", self.memory / "notes.md",
                                                 self.memory / "jumpybrain.json", self.root / "cli-config.json",
                                                 self.root / "install-manifest.json")}
         ino = (self.support / "companion.lock").stat().st_ino

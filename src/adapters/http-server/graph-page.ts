@@ -2,17 +2,19 @@ import { readFileSync } from "node:fs";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
 import { notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
 import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
+import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
 
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
 
-export function graphPageHtml(nonce: string, view: "home" | "graph" = "home"): string {
+export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings" = "home", options: { companion?: boolean } = {}): string {
+  const companion = options.companion === true;
   if (!/^[A-Za-z0-9_-]+$/.test(nonce)) throw new Error("graph page nonce must be base64url-safe");
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${view === "graph" ? "Memory map" : "Notes"} · jumpyBrain</title>
+  <title>${companion && view === "settings" ? "Settings" : view === "graph" ? "Memory map" : "Notes"} · jumpyBrain</title>
   <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
   <style nonce="${nonce}">
     /* jumpyBrain UI foundation: shared color, type, spacing, radius and elevation tokens. */
@@ -123,6 +125,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" = "home"): s
     }
     ${notesStyles}
     ${dreamStyles}
+    ${companion ? companionStyles : ""}
   </style>
 </head>
 <body data-view="home">
@@ -169,22 +172,28 @@ ${dreamMarkup}
     <p class="helper">Scroll to zoom · Drag to move · Select a note to open</p>
   </section>
   ${notesViews}
+  ${companion ? companionMarkup : ""}
 </main>
 <script nonce="${nonce}">
 ${lexicalBundle}
 const $ = (id) => document.getElementById(id);
 const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
+const companionMode = ${companion};
+${companion ? companionPrelude : ""}
 const apiKeyInput = $("api-key");
-const hashKey = new URLSearchParams(location.hash.replace(/^#/, "")).get("apiKey");
-try { apiKeyInput.value = localStorage.getItem("jumpybrain.graph.apiKey") || ""; } catch { /* Browser storage may be disabled. */ }
-if (hashKey) {
-  apiKeyInput.value = hashKey;
-  try { localStorage.setItem("jumpybrain.graph.apiKey", hashKey); } catch { /* Session-only access. */ }
-  history.replaceState(history.state, "", location.pathname + location.search);
+if (!companionMode) {
+  const hashKey = new URLSearchParams(location.hash.replace(/^#/, "")).get("apiKey");
+  try { apiKeyInput.value = localStorage.getItem("jumpybrain.graph.apiKey") || ""; } catch { /* Browser storage may be disabled. */ }
+  if (hashKey) {
+    apiKeyInput.value = hashKey;
+    try { localStorage.setItem("jumpybrain.graph.apiKey", hashKey); } catch { /* Session-only access. */ }
+    history.replaceState(history.state, "", location.pathname + location.search);
+  }
+
 }
 
 // Keep the committed credential separate from edits in the settings dialog.
-let activeApiKey = apiKeyInput.value.trim();
+let activeApiKey = companionMode ? "companion-session" : apiKeyInput.value.trim();
 let credentialRevision = 0;
 let connectionStatus = activeApiKey ? "checking" : "disconnected";
 
@@ -217,7 +226,7 @@ $("note-editor").addEventListener("blur", () => {
 window.addEventListener("beforeunload", protectPendingEditorUnload);
 
 function protectPendingEditorUnload(event) {
-  if (!state.editor || !state.editor.hasPending()) return;
+  if ((!state.editor || !state.editor.hasPending()) && !(typeof companionMode !== "undefined" && companionMode && noteCapture.hasPending())) return;
   event.preventDefault();
   event.returnValue = "";
 }
@@ -237,9 +246,18 @@ async function graphFetch(url, options) {
   const requestOptions = Object.assign({}, options || {});
   requestOptions.headers = Object.assign({}, requestOptions.headers || {});
   const revision = credentialRevision;
-  if (activeApiKey) requestOptions.headers.Authorization = "Bearer " + activeApiKey;
+  if (typeof companionMode !== "undefined" && companionMode) {
+    await companionReady;
+    if (!companionRegistered || companionSessionFailed) throw new Error("Companion session unavailable. Open Settings.");
+    requestOptions.headers["X-Companion-Generation"] = String(companionState.generation);
+    requestOptions.headers["X-Companion-Tab"] = companionTabId;
+  } else if (activeApiKey) requestOptions.headers.Authorization = "Bearer " + activeApiKey;
   try {
     const response = await fetch(url, requestOptions);
+    if (typeof companionMode !== "undefined" && companionMode && response.status === 409) {
+      const packet = await response.clone().json().catch(() => null);
+      if (packet?.error?.code === "stale_generation") companionFence();
+    }
     if (revision === credentialRevision) {
       if (response.status === 401 || response.status === 403) connectionStatus = "disconnected";
       else if (response.ok) connectionStatus = "connected";
@@ -533,7 +551,7 @@ function createDocumentEditor(options) {
       const payload = await options.writeDocument(editorState.documentId, content, editorState.contentHash);
       return { payload, body, title, revision, content };
     } catch (error) {
-      if (!isCurrent() || Number(error && error.status) !== 412) throw error;
+      if (!isCurrent() || Number(error && error.status) !== 412 || options.conflictRetry === false) throw error;
 
       // TODO(temporary last-write-wins): replace this one-retry overwrite with visible conflict/merge UX.
       const latest = await options.readDocument(editorState.documentId);
@@ -712,6 +730,7 @@ async function selectNode(node) {
 }
 
 async function requestEditorNavigation(action) {
+  if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return false;
   referenceAutocomplete.dismiss();
   const editor = state.editor;
   if (!editor) {
@@ -783,6 +802,7 @@ function updateViewport() { $("viewport").setAttribute("transform", "translate("
 
 ${dreamScript}
 ${notesScript}
+${companion ? companionScript : ""}
 </script>
 </body>
 </html>`;

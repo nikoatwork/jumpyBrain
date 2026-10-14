@@ -1,7 +1,9 @@
 import AppKit
 import Darwin
+import Security
+import LocalAuthentication
 
-// Local prototype: UI/process lifecycle only. All memory behavior stays in the CLI.
+// Native lifecycle and capabilities only; memory and connection policy live in the runtime.
 struct Configuration: Decodable {
     let node: String
     let qmd: String
@@ -14,11 +16,249 @@ struct Configuration: Decodable {
     let revision: String
 }
 
+// Anonymous child pipes are the only credential transport. Never echo a request or
+// Security error: even malformed frames may contain a key. No plaintext fallback.
+final class NativeBridge {
+    private let reader: FileHandle
+    private let writer: FileHandle
+    private let io = DispatchQueue(label: "local.jumpybrain.companion.rpc")
+    private let credentials = DispatchQueue(label: "local.jumpybrain.companion.keychain")
+    private var readSource: DispatchSourceRead?
+    private var writeSource: DispatchSourceWrite?
+    private var input = Data()
+    private var output = Data()
+    private var pending = Set<String>()
+    private var closed = false
+    private var writeSuspended = false
+    private var panel: NSOpenPanel? // main-thread only
+    private let failed: () -> Void
+    private static let service = "local.jumpybrain.companion.connections"
+
+    init(reader: FileHandle, writer: FileHandle, failed: @escaping () -> Void) {
+        self.reader = reader
+        self.writer = writer
+        self.failed = failed
+    }
+
+    func start() {
+        io.sync {
+            for fd in [reader.fileDescriptor, writer.fileDescriptor] {
+                let flags = fcntl(fd, F_GETFL)
+                guard flags >= 0, fcntl(fd, F_SETFL, flags | O_NONBLOCK) >= 0 else { protocolFailure(); return }
+            }
+            let source = DispatchSource.makeReadSource(fileDescriptor: reader.fileDescriptor, queue: io)
+            source.setEventHandler { [weak self] in self?.readFrames() }
+            source.setCancelHandler { [reader] in try? reader.close() }
+            readSource = source
+            source.resume()
+        }
+    }
+
+    func stop() { io.sync { close() } }
+
+    private func close() {
+        guard !closed else { return }
+        closed = true
+        input.removeAll()
+        output.removeAll()
+        pending.removeAll()
+        if let source = readSource { source.cancel() } else { try? reader.close() }
+        readSource = nil
+        if let source = writeSource {
+            if writeSuspended { source.resume(); writeSuspended = false }
+            source.cancel()
+            writeSource = nil
+        } else { try? writer.close() }
+        DispatchQueue.main.async { self.panel?.cancel(nil); self.panel = nil }
+    }
+
+    private func protocolFailure(_ reason: String = "invalid_frame") {
+        guard !closed else { return }
+        // Static reason codes only: frames can contain credentials.
+        fputs("Native connection bridge failed: " + reason + "\n", stderr)
+        close()
+        DispatchQueue.main.async(execute: failed)
+    }
+
+    private func readFrames() {
+        guard !closed else { return }
+        var bytes = [UInt8](repeating: 0, count: 4096)
+        // Bound a dispatch turn as well as the line buffer and outstanding work.
+        for _ in 0..<16 {
+            let count = Darwin.read(reader.fileDescriptor, &bytes, bytes.count)
+            if count < 0 {
+                if errno == EAGAIN || errno == EINTR { return }
+                protocolFailure("read_error"); return
+            }
+            if count == 0 { protocolFailure("pipe_eof"); return }
+            input.append(contentsOf: bytes.prefix(count))
+            guard input.count <= 32768 else { protocolFailure(); return }
+            while let newline = input.firstIndex(of: 10) {
+                let frame = Data(input[..<newline])
+                input.removeSubrange(...newline)
+                guard frame.count <= 16384,
+                      let object = (try? JSONSerialization.jsonObject(with: frame)) as? [String: Any],
+                      let id = object["id"],
+                      let token = Self.idToken(id), !pending.contains(token), pending.count < 32,
+                      let operation = object["operation"] as? String,
+                      ["get", "set", "delete", "select-folder"].contains(operation) else {
+                    protocolFailure(); return
+                }
+                pending.insert(token)
+                if operation == "select-folder" {
+                    DispatchQueue.main.async { [weak self] in self?.selectFolder(id, token) }
+                } else {
+                    guard let reference = object["reference"] as? String,
+                          !reference.isEmpty, reference.utf8.count <= 256,
+                          !reference.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
+                          operation != "set" || ((object["key"] as? String).map { !$0.isEmpty && $0.utf8.count <= 8192 } == true) else {
+                        reply(id, token, result: nil, unavailable: true); continue
+                    }
+                    let key = object["key"] as? String
+                    credentials.async { [weak self] in
+                        guard let self = self, self.io.sync(execute: { !self.closed }) else { return }
+                        let response = Self.credential(operation, reference, key)
+                        self.io.async { self.reply(id, token, result: response.0, unavailable: response.1) }
+                    }
+                }
+            }
+        }
+    }
+
+    private static func idToken(_ id: Any) -> String? {
+        if let string = id as? String, !string.isEmpty, string.utf8.count <= 128 { return "s:" + string }
+        if let number = id as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+           number.doubleValue.isFinite, number.doubleValue.rounded() == number.doubleValue,
+           abs(number.doubleValue) <= 9007199254740991 { return "n:" + number.stringValue }
+        return nil
+    }
+
+    private func reply(_ id: Any, _ token: String, result: String?, unavailable: Bool = false) {
+        guard !closed, pending.remove(token) != nil else { return }
+        let object: [String: Any] = unavailable ? ["id": id, "error": "credential_unavailable"] : ["id": id, "result": result as Any? ?? NSNull()]
+        guard var data = try? JSONSerialization.data(withJSONObject: object), data.count <= 65536,
+              output.count + data.count + 1 <= 262144 else { protocolFailure(); return }
+        data.append(10)
+        output.append(data)
+        if writeSource == nil {
+            let source = DispatchSource.makeWriteSource(fileDescriptor: writer.fileDescriptor, queue: io)
+            source.setEventHandler { [weak self] in self?.flush() }
+            source.setCancelHandler { [writer] in try? writer.close() }
+            writeSource = source
+            source.resume()
+        }
+        if writeSuspended { writeSource?.resume(); writeSuspended = false }
+        flush()
+    }
+
+    private func flush() {
+        guard !closed else { return }
+        while !output.isEmpty {
+            let count = output.withUnsafeBytes { Darwin.write(writer.fileDescriptor, $0.baseAddress!, $0.count) }
+            if count < 0 {
+                if errno == EAGAIN || errno == EINTR { return }
+                protocolFailure(); return
+            }
+            guard count > 0 else { protocolFailure(); return }
+            output.removeFirst(count)
+        }
+        // A write source is level-triggered. Suspend while empty, then resume on
+        // the next reply; cancellation must balance that suspension.
+        if !writeSuspended { writeSource?.suspend(); writeSuspended = true }
+    }
+
+    private func selectFolder(_ id: Any, _ token: String) {
+        guard io.sync(execute: { !closed }) else { return }
+        guard panel == nil else { io.async { self.reply(id, token, result: nil) }; return }
+        let chooser = NSOpenPanel()
+        chooser.canChooseFiles = false
+        chooser.canChooseDirectories = true
+        chooser.allowsMultipleSelection = false
+        chooser.canCreateDirectories = false
+        chooser.prompt = "Choose Memory Folder"
+        panel = chooser
+        NSApp.activate(ignoringOtherApps: true)
+        chooser.begin { [weak self] response in
+            guard let self = self else { return }
+            self.panel = nil
+            var path: String?
+            if response == .OK, let url = chooser.url, url.isFileURL {
+                var directory: ObjCBool = false
+                if FileManager.default.fileExists(atPath: url.path, isDirectory: &directory), directory.boolValue { path = url.path }
+            }
+            let selected = path
+            self.io.async { self.reply(id, token, result: selected) }
+        }
+    }
+
+    private static func credential(_ operation: String, _ reference: String, _ key: String?) -> (String?, Bool) {
+        // Use the default Keychain; locked/denied access is an explicit failure,
+        // never a prompt at login, a different store, or a plaintext fallback.
+        // The default macOS Keychain may use legacy ACLs, which do not honor
+        // LAContext alone. Disable Security-agent interaction process-wide too:
+        // an ad-hoc rebuild must return unavailable, not wait on a hidden prompt.
+        guard SecKeychainSetUserInteractionAllowed(false) == errSecSuccess else { return (nil, true) }
+        let context = LAContext()
+        context.interactionNotAllowed = true
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service, kSecAttrAccount as String: reference,
+            kSecUseAuthenticationContext as String: context]
+        if operation == "get" {
+            var lookup = query
+            lookup[kSecReturnData as String] = true
+            lookup[kSecMatchLimit as String] = kSecMatchLimitOne
+            var item: CFTypeRef?
+            let status = SecItemCopyMatching(lookup as CFDictionary, &item)
+            if status == errSecItemNotFound { return (nil, false) }
+            guard status == errSecSuccess, let data = item as? Data, data.count <= 8192,
+                  let value = String(data: data, encoding: .utf8), !value.isEmpty else { return (nil, true) }
+            return (value, false)
+        }
+        if operation == "delete" {
+            let status = SecItemDelete(query as CFDictionary)
+            return (nil, status != errSecSuccess && status != errSecItemNotFound)
+        }
+        guard let data = key?.data(using: .utf8) else { return (nil, true) }
+        let status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if status == errSecItemNotFound {
+            var addition = query
+            addition[kSecValueData as String] = data
+            return (nil, SecItemAdd(addition as CFDictionary, nil) != errSecSuccess)
+        }
+        return (nil, status != errSecSuccess)
+    }
+}
+
+private struct BrainProfile: Decodable {
+    let id: String
+    let name: String
+    let kind: String
+    let root: String?
+    let url: String?
+    let allowWrites: Bool
+}
+
+private struct CompanionState: Decodable {
+    let profiles: [BrainProfile]
+    let activeId: String?
+    let generation: Int
+    let phase: String
+    let health: String
+    let active: BrainProfile?
+}
+
 final class Companion: NSObject, NSApplicationDelegate {
     private var config: Configuration!
     private var statusItem: NSStatusItem!
     private let statusLine = NSMenuItem(title: "Starting…", action: nil, keyEquivalent: "")
     private var openItem: NSMenuItem!
+    private var settingsItem: NSMenuItem!
+    private var memoryItem: NSMenuItem!
+    private var profilesItem: NSMenuItem!
+    private var connectionState: CompanionState?
+    private var switchInFlight = false
+    private var switching: Bool { switchInFlight || connectionState?.phase == "preparing" }
+    private var nativeBridge: NativeBridge?
     private var restartItem: NSMenuItem!
     private var indexItem: NSMenuItem!
     private var loginItem: NSMenuItem!
@@ -30,7 +270,7 @@ final class Companion: NSObject, NSApplicationDelegate {
     private var updating = false
     private var updateHandoffDirectory: URL?
     private var server: Process?
-    private var indexer: Process?
+    private var indexer: URLSessionDataTask?
     private var output: FileHandle?
     private var healthTimer: Timer?
     private var signals: [DispatchSourceSignal] = []
@@ -68,6 +308,7 @@ final class Companion: NSObject, NSApplicationDelegate {
             guard apiKey.count == 64, apiKey.allSatisfy({ $0.isHexDigit }) else {
                 throw NSError(domain: "Companion", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing/invalid local key. Re-run install.py."])
             }
+            signal(SIGPIPE, SIG_IGN) // A closing child pipe must not terminate the app.
             makeMenu()
             prepareLog()
             for sig in [SIGTERM, SIGINT] {
@@ -104,10 +345,13 @@ final class Companion: NSObject, NSApplicationDelegate {
         menu.addItem(address)
         menu.addItem(.separator())
         openItem = add(menu, "Open Editor in Chrome", #selector(openEditor), "o")
+        settingsItem = add(menu, "Settings…", #selector(openSettings), ",")
+        profilesItem = NSMenuItem(title: "Brain Connections", action: nil, keyEquivalent: "")
+        menu.addItem(profilesItem)
         restartItem = add(menu, "Restart Server…", #selector(restartServer))
         indexItem = add(menu, "Refresh Search Index", #selector(refreshIndex))
         menu.addItem(.separator())
-        _ = add(menu, "Open Memory Folder", #selector(openMemory))
+        memoryItem = add(menu, "Open Memory Folder", #selector(openMemory))
         _ = add(menu, "Show Logs", #selector(showLogs))
         loginItem = add(menu, "Start at Login", #selector(toggleLogin))
         updateLoginState()
@@ -134,16 +378,20 @@ final class Companion: NSObject, NSApplicationDelegate {
 
     private func setStatus(_ text: String, healthy: Bool) {
         ready = healthy
-        if statusLine.title != text {
+        if statusLine.title != text && connectionState == nil {
             if let line = "\(Date().ISO8601Format()) companion: \(text)\n".data(using: .utf8) { try? output?.write(contentsOf: line) }
         }
         statusLine.title = text
-        statusItem?.button?.image = NSImage(systemSymbolName: healthy ? "brain" : "exclamationmark.circle", accessibilityDescription: "jumpyBrain: \(text)")
+        statusItem?.button?.image = NSImage(systemSymbolName: healthy && (connectionState == nil || connectionState?.health == "connected") ? "brain" : "exclamationmark.circle", accessibilityDescription: "jumpyBrain: \(text)")
         statusItem?.button?.image?.isTemplate = true
         statusItem?.button?.toolTip = "jumpyBrain — \(text)"
         openItem?.isEnabled = healthy && !stopping && !updating
-        restartItem?.isEnabled = !stopping && indexer == nil && !updating
-        indexItem?.isEnabled = healthy && !stopping && indexer == nil && !updating
+        settingsItem?.isEnabled = healthy && !stopping && !updating
+        memoryItem?.isEnabled = healthy && connectionState?.active?.kind == "local" && !stopping && !updating && !switching
+        profilesItem?.isEnabled = healthy && !stopping && !updating && !switching
+        for item in profilesItem?.submenu?.items ?? [] { item.isEnabled = profilesItem?.isEnabled == true && indexer == nil }
+        restartItem?.isEnabled = !stopping && indexer == nil && !updating && !switching
+        indexItem?.isEnabled = healthy && connectionState?.health == "connected" && connectionState?.active?.allowWrites == true && !stopping && indexer == nil && !updating && !switching
         updateItem?.isEnabled = !stopping && !updating
         checkUpdateItem?.isEnabled = !stopping && !updating && updateCheck == nil
         loginItem?.isEnabled = !stopping && !updating
@@ -166,7 +414,7 @@ final class Companion: NSObject, NSApplicationDelegate {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: config.node)
         p.arguments = arguments
-        p.currentDirectoryURL = URL(fileURLWithPath: config.memoryRoot)
+        p.currentDirectoryURL = URL(fileURLWithPath: config.supportDirectory)
         // Do not inherit remote credentials or rely on interactive shell startup.
         p.environment = [
             "HOME": FileManager.default.homeDirectoryForCurrentUser.path,
@@ -174,7 +422,6 @@ final class Companion: NSObject, NSApplicationDelegate {
             "LANG": "en_US.UTF-8",
             "JUMPYBRAIN_QMD_BIN": config.qmd,
             "JUMPYBRAIN_SERVER_API_KEYS": apiKey,
-            "JUMPYBRAIN_API_KEY": apiKey,
             "JUMPYBRAIN_NO_UPDATE_CHECK": "1"
         ]
         p.standardInput = FileHandle.nullDevice
@@ -193,11 +440,24 @@ final class Companion: NSObject, NSApplicationDelegate {
             setStatus("Port \(config.port) is busy — stop jbl-serve first", healthy: false)
             return
         }
-        let bootstrap = Bundle.main.resourceURL!.appendingPathComponent("server-bootstrap.mjs").path
-        let p = makeProcess([bootstrap, config.runtimeRoot, "serve", "--root", config.memoryRoot, "--host", "127.0.0.1", "--port", String(config.port)])
+        let gateway = config.runtimeRoot + "/integrations/macos-companion/gateway.mjs"
+        let p = makeProcess([gateway, config.runtimeRoot, config.supportDirectory, config.memoryRoot, String(config.port)])
+        let requests = Pipe()
+        let responses = Pipe()
+        p.standardOutput = requests // stdout is exclusively newline-delimited RPC.
+        p.standardInput = responses
+        let bridge = NativeBridge(reader: requests.fileHandleForReading, writer: responses.fileHandleForWriting) { [weak self, weak p] in
+            guard let self = self, let p = p, self.server === p else { return }
+            if p.isRunning { p.terminate() }
+            self.setStatus("Native connection service unavailable — restart server", healthy: false)
+        }
+        nativeBridge = bridge
         p.terminationHandler = { [weak self] child in
             DispatchQueue.main.async {
                 guard let self = self, self.server === child else { return }
+                self.nativeBridge?.stop()
+                self.nativeBridge = nil
+                self.connectionState = nil
                 self.server = nil
                 if !self.stopping { self.setStatus("Server stopped (\(child.terminationStatus)) — see logs", healthy: false) }
             }
@@ -206,8 +466,13 @@ final class Companion: NSObject, NSApplicationDelegate {
             server = p
             startupTime = Date()
             try p.run()
+            // Process owns/closes the child pipe ends; closing their stale
+            // FileHandles again can close a descriptor already reused by AppKit.
+            bridge.start()
             checkHealth()
         } catch {
+            bridge.stop()
+            nativeBridge = nil
             server = nil
             setStatus("Could not start server — see logs", healthy: false)
             showError("Could not start server", error.localizedDescription)
@@ -235,18 +500,18 @@ final class Companion: NSObject, NSApplicationDelegate {
     private func checkHealth() {
         guard !quitting, !stopping, !healthInFlight, let child = server, child.isRunning else { return }
         healthInFlight = true
-        // This route verifies both the server and our dedicated key without note bodies.
-        var request = URLRequest(url: URL(string: baseURL + "/memories/all/status")!, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 4)
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        // Control availability is independent of the selected target's health.
+        var request = controlRequest("/companion/state", timeout: 4)
+        request.httpMethod = "GET"
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
-            let json = data.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-            let ok = error == nil && (response as? HTTPURLResponse)?.statusCode == 200 && json?["memory"] as? String == "all"
+            let state = data.flatMap { try? JSONDecoder().decode(CompanionState.self, from: $0) }
+            let ok = error == nil && (response as? HTTPURLResponse)?.statusCode == 200 && state != nil
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.healthInFlight = false
                 guard self.server === child, child.isRunning, !self.stopping, !self.quitting else { return }
-                if ok {
-                    self.setStatus("Running · Local memory", healthy: true)
+                if ok, let state = state {
+                    self.present(state)
                     if self.openWhenReady { self.openWhenReady = false; self.openEditor() }
                 } else if Date().timeIntervalSince(self.startupTime) > 15 {
                     self.setStatus("Server not responding — see logs", healthy: false)
@@ -255,11 +520,63 @@ final class Companion: NSObject, NSApplicationDelegate {
         }.resume()
     }
 
+    private func controlRequest(_ path: String, timeout: TimeInterval) -> URLRequest {
+        var request = URLRequest(url: URL(string: baseURL + path)!, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: timeout)
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        return request
+    }
+
+    private func present(_ state: CompanionState) {
+        connectionState = state
+        let suffix = state.health == "connected" ? "Connected" : state.health == "credential_unavailable" ? "Keychain unavailable" : "Offline"
+        // Profile names are untrusted display text, not log messages.
+        let label = state.active?.name.replacingOccurrences(of: "\n", with: " ") ?? "Selected brain"
+        let text = "\(label) · \(suffix)" + (state.phase == "preparing" ? " · Switching…" : "")
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        for profile in state.profiles {
+            let item = add(submenu, profile.name, #selector(switchBrain(_:)))
+            item.representedObject = profile.id
+            item.state = profile.id == state.activeId ? .on : .off
+        }
+        profilesItem.submenu = submenu
+        setStatus(text, healthy: true)
+        // Editor and Settings stay enabled when only the selected target is offline.
+    }
+
+    @objc private func switchBrain(_ sender: NSMenuItem) {
+        guard ready, !switching, !stopping, !updating, indexer == nil,
+              let id = sender.representedObject as? String, id != connectionState?.activeId,
+              let child = server, child.isRunning else { return }
+        var request = controlRequest("/companion/switch", timeout: 20)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["id": id])
+        switchInFlight = true
+        setStatus("Saving tabs before switching…", healthy: true)
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.switchInFlight = false
+                guard self.server === child, !self.stopping, !self.quitting else { return }
+                if error != nil || (response as? HTTPURLResponse)?.statusCode != 200 {
+                    self.showError("Could not confirm brain switch", "A pending or unconfirmed save may have blocked the switch. Check Settings and your editor tabs. No save guard was bypassed; do not restart to force a switch.")
+                }
+                if let state = self.connectionState { self.present(state) }
+                self.checkHealth()
+            }
+        }.resume()
+    }
+
     // Stop only Process instances we created; never kill by port/name/stale PID.
     private func stopServer(_ completion: @escaping () -> Void) {
         stopping = true
         setStatus("Stopping…", healthy: false)
-        let children = [server, indexer].compactMap { $0 }.filter { $0.isRunning }
+        indexer?.cancel()
+        indexer = nil
+        nativeBridge?.stop()
+        nativeBridge = nil
+        let children = [server].compactMap { $0 }.filter { $0.isRunning }
         children.forEach { $0.terminate() }
         let deadline = Date().addingTimeInterval(8)
         func wait() {
@@ -273,8 +590,18 @@ final class Companion: NSObject, NSApplicationDelegate {
 
     @objc private func openEditor() {
         guard ready else { openWhenReady = true; return }
-        // Fragment is consumed/removed by the existing shell, never sent over HTTP.
-        let url = URL(string: baseURL + "/#apiKey=" + apiKey)!
+        openBrowser("/")
+    }
+
+    @objc private func openSettings() {
+        guard ready else { return }
+        openBrowser("/settings")
+    }
+
+    private func openBrowser(_ path: String) {
+        // Gateway consumes/removes the control fragment in an HttpOnly-cookie
+        // handshake. Remote credentials never enter the browser.
+        let url = URL(string: baseURL + path + "#companion=" + apiKey)!
         guard let chrome = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.Chrome") else {
             showError("Google Chrome not found", "Install Chrome, then choose Open Editor again.")
             return
@@ -286,40 +613,38 @@ final class Companion: NSObject, NSApplicationDelegate {
     }
 
     @objc private func restartServer() {
-        guard indexer == nil else { return }
+        guard indexer == nil, !switching else { return }
         guard server == nil || confirm("Restart local server?", "Wait for “Saved” in Chrome first. Browser-only drafts cannot be saved while the server is restarting.", "Restart") else { return }
         stopServer { [weak self] in self?.server = nil; self?.startServer() }
     }
 
     @objc private func refreshIndex() {
-        guard indexer == nil, ready, !stopping else { return }
-        let cli = URL(fileURLWithPath: config.runtimeRoot).appendingPathComponent("dist/cli.js").path
-        // Go through the CLI's HTTP transport so the server serializes indexing
-        // with its own auto-indexer and browser writes, instead of racing QMD.
-        let p = makeProcess([cli, "index", "--target-url", baseURL])
-        indexer = p
-        indexItem.title = "Refreshing Search Index…"
-        indexItem.isEnabled = false
-        restartItem.isEnabled = false
-        p.terminationHandler = { [weak self] child in
+        guard indexer == nil, ready, !stopping, !updating, !switching,
+              connectionState?.health == "connected", connectionState?.active?.allowWrites == true,
+              let child = server, child.isRunning else { return }
+        // The gateway fences this operation and enforces the selected target's
+        // write authorization. Never run a CLI index against an implicit root.
+        var request = controlRequest("/memories/all/index", timeout: 120)
+        request.httpMethod = "POST"
+        if let generation = connectionState?.generation {
+            request.setValue(String(generation), forHTTPHeaderField: "X-Companion-Generation")
+        }
+        let task = URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
             DispatchQueue.main.async {
-                guard let self = self else { return }
+                guard let self = self, self.server === child else { return }
                 self.indexer = nil
                 self.indexItem.title = "Refresh Search Index"
-                self.indexItem.isEnabled = self.ready && !self.stopping && !self.updating
-                self.restartItem.isEnabled = !self.stopping && !self.updating
-                if child.terminationStatus != 0 && !self.quitting {
-                    self.showError("Search refresh failed", "See Show Logs for details. Your Markdown files were not changed by indexing.")
+                self.setStatus(self.statusLine.title, healthy: self.ready)
+                if !self.quitting && !self.stopping && (error != nil || (response as? HTTPURLResponse)?.statusCode != 200) {
+                    self.showError("Search refresh failed", "The selected brain could not confirm indexing. Check its connection and editing permission in Settings; no other brain was indexed.")
                 }
+                self.checkHealth()
             }
         }
-        do { try p.run() } catch {
-            indexer = nil
-            indexItem.title = "Refresh Search Index"
-            indexItem.isEnabled = ready
-            restartItem.isEnabled = true
-            showError("Could not refresh search", error.localizedDescription)
-        }
+        indexer = task
+        indexItem.title = "Refreshing Search Index…"
+        setStatus(statusLine.title, healthy: ready)
+        task.resume()
     }
 
     private var installRoot: URL { URL(fileURLWithPath: config.runtimeRoot).deletingLastPathComponent() }
@@ -462,7 +787,22 @@ final class Companion: NSObject, NSApplicationDelegate {
         showError("Could not start update", message)
     }
 
-    @objc private func openMemory() { NSWorkspace.shared.open(URL(fileURLWithPath: config.memoryRoot)) }
+    @objc private func openMemory() {
+        guard ready, !stopping, !switching, let child = server, child.isRunning else { return }
+        // Recheck, rather than opening a stale local root after a browser switch.
+        URLSession.shared.dataTask(with: controlRequest("/companion/state", timeout: 4)) { [weak self] data, response, error in
+            let state = data.flatMap { try? JSONDecoder().decode(CompanionState.self, from: $0) }
+            DispatchQueue.main.async {
+                guard let self = self, self.server === child, !self.stopping, !self.quitting,
+                      error == nil, (response as? HTTPURLResponse)?.statusCode == 200,
+                      let state = state, state.active?.kind == "local", let root = state.active?.root else { return }
+                var directory: ObjCBool = false
+                if FileManager.default.fileExists(atPath: root, isDirectory: &directory), directory.boolValue {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: root))
+                }
+            }
+        }.resume()
+    }
     @objc private func showLogs() { NSWorkspace.shared.activateFileViewerSelecting([logURL]) }
     @objc private func quit() { NSApp.terminate(nil) }
 
@@ -523,7 +863,7 @@ final class Companion: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if !ownsLock || config == nil { return .terminateNow }
         if quitting { return .terminateLater }
-        if !forcedQuit && (server?.isRunning == true || indexer?.isRunning == true) {
+        if !forcedQuit && (server?.isRunning == true || indexer != nil) {
             guard confirm("Quit jumpyBrain?", "Wait for “Saved” in Chrome first. This stops the local server, not Chrome. It will start again at your next login if Start at Login is checked.", "Quit") else { return .terminateCancel }
         }
         quitting = true
