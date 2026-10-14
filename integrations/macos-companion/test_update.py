@@ -75,7 +75,8 @@ class Fixture(unittest.TestCase):
     def write_config(self):
         (self.app / "Contents/Resources/Configuration.json").write_text(json.dumps(self.config))
 
-    def fake_build(self, runtime, build, config):
+    def fake_build(self, runtime, build, config, previous_app=None):
+        self.assertEqual(previous_app, self.app)
         self.assertEqual(runtime, self.stage)
         self.assertEqual(config["runtimeRoot"], str(self.runtime))
         self.assert_locked()
@@ -299,8 +300,8 @@ class TransactionTests(Fixture):
             build.assert_not_called()
 
     def test_configuration_change_during_build_aborts(self):
-        def change_config(runtime, build, config):
-            built = self.fake_build(runtime, build, config)
+        def change_config(runtime, build, config, previous_app=None):
+            built = self.fake_build(runtime, build, config, previous_app)
             self.config["port"] += 1
             self.write_config()
             return built
@@ -312,13 +313,246 @@ class TransactionTests(Fixture):
         self.assertTrue(self.stage.exists())
 
 
+class NativeBuildTests(Fixture):
+    def setUp(self):
+        super().setUp()
+        self.tools = self.base / "toolchain/usr"
+        self.compiler = self.tools / "bin/swiftc"
+        self.compiler.parent.mkdir(parents=True)
+        self.compiler.write_text("fixture compiler")
+        self.sdk = self.base / "sdk"
+        self.sdk.mkdir()
+        (self.sdk / "AppKit.tbd").write_text("fixture sdk")
+        self.recipe = self.base / "install-recipe.py"
+        self.recipe.write_text("fixture build recipe")
+        for runtime in (self.runtime, self.stage):
+            source = runtime / "integrations/macos-companion"
+            for helper in ("menu-update.mjs", "update-check.mjs"):
+                (source / helper).write_text(runtime.name + helper)
+        self.commands = []
+        self.verify_fails = False
+        self.patches = [patch.object(install, "run", side_effect=self.native_run),
+                        patch.object(install.subprocess, "check_output", side_effect=self.native_output),
+                        patch.object(install.shutil, "which", return_value="/fixture/codesign"),
+                        patch.object(install, "__file__", str(self.recipe))]
+        for mock in self.patches:
+            mock.start()
+            self.addCleanup(mock.stop)
+
+    def native_output(self, command, **kwargs):
+        if "--find" in command:
+            return str(self.compiler) + "\n"
+        if "--show-sdk-path" in command:
+            return str(self.sdk) + "\n"
+        if "--version" in command:
+            return "fixture Swift 5\n"
+        raise AssertionError(command)
+
+    def native_run(self, *args, **kwargs):
+        self.commands.append(tuple(str(a) for a in args))
+        if str(args[0]) == str(self.compiler):
+            target = Path(args[args.index("-o") + 1])
+            source = Path(args[args.index("-o") - 1])
+            target.write_bytes(b"fixture native code:" + source.read_bytes())
+            target.chmod(0o755)
+            # Compiler gets only explicitly controlled variables.
+            self.assertEqual(set(kwargs["env"]) - {"DEVELOPER_DIR", "TOOLCHAINS"},
+                             {"PATH", "LANG", "HOME", "TMPDIR"})
+        if "--verify" in args and self.verify_fails:
+            raise subprocess.CalledProcessError(1, "codesign")
+
+    def build(self, runtime=None, previous=None):
+        scratch = Path(tempfile.mkdtemp(prefix="native-build-", dir=self.base))
+        with redirect_stdout(io.StringIO()):
+            return install.build_app(runtime or self.runtime, scratch, self.config, previous_app=previous)
+
+    def compilations(self):
+        return sum(command[0] == str(self.compiler) for command in self.commands)
+
+    def seed(self):
+        built = self.build()
+        shutil.rmtree(self.app)
+        shutil.copytree(built, self.app)
+        # Only the native source is unchanged; runtime, package and helpers differ.
+        shutil.copy2(self.runtime / "integrations/macos-companion/Companion.swift",
+                     self.stage / "integrations/macos-companion/Companion.swift")
+        self.commands.clear()
+
+    def test_reused_commit_refreshes_all_resources_revision_and_signature(self):
+        self.seed()
+        ino = (self.support / "companion.lock").stat().st_ino
+        key = (self.support / "api-key").read_bytes()
+        memory = self.snapshot(self.memory)
+        update.commit(self.stage, self.root, self.home)
+        self.assertEqual(self.compilations(), 0)
+        self.assertEqual(update.inspect_companion(self.root, self.home), dict(self.config, revision="new"))
+        self.assertEqual(plistlib.loads((self.app / "Contents/Info.plist").read_bytes())["CFBundleShortVersionString"], "new")
+        for helper in ("server-bootstrap.mjs", "menu-update.mjs", "update-check.mjs"):
+            self.assertEqual((self.app / "Contents/Resources" / helper).read_bytes(),
+                             (self.runtime / "integrations/macos-companion" / helper).read_bytes())
+        self.assertTrue(any("--sign" in command and command[-1].endswith("jumpyBrain.app") for command in self.commands))
+        self.assertEqual(key, (self.support / "api-key").read_bytes())
+        self.assertEqual(memory, self.snapshot(self.memory))
+        self.assertEqual(ino, (self.support / "companion.lock").stat().st_ino)
+
+    def test_same_size_same_mtime_changes_to_source_compiler_sdk_and_recipe_rebuild(self):
+        self.seed()
+        for target in (self.stage / "integrations/macos-companion/Companion.swift", self.compiler,
+                       self.sdk / "AppKit.tbd", self.recipe):
+            with self.subTest(input=target):
+                original = target.read_bytes()
+                times = target.stat()
+                target.write_bytes(bytes([original[0] ^ 1]) + original[1:])
+                os.utime(target, ns=(times.st_atime_ns, times.st_mtime_ns))
+                self.commands.clear()
+                self.build(self.stage, self.app)
+                self.assertEqual(self.compilations(), 1)
+                target.write_bytes(original)
+
+    def test_missing_malformed_unknown_record_and_invalid_binary_rebuild(self):
+        self.seed()
+        record = self.app / "Contents/Resources" / install.NATIVE_BUILD_RECORD
+        original = record.read_bytes()
+        for value in (None, b"not json", b"[]", b'{"schemaVersion":99}'):
+            with self.subTest(record=value):
+                if value is None:
+                    record.unlink()
+                else:
+                    record.write_bytes(value)
+                self.commands.clear()
+                self.build(self.stage, self.app)
+                self.assertEqual(self.compilations(), 1)
+                record.write_bytes(original)
+        binary = self.app / "Contents/MacOS/jumpyBrain"
+        binary.write_text("tampered executable")
+        self.commands.clear()
+        self.build(self.stage, self.app)
+        self.assertEqual(self.compilations(), 1)
+
+    def test_symlink_record_or_executable_and_unverifiable_signature_rebuild(self):
+        self.seed()
+        for path in (self.app / "Contents/Resources" / install.NATIVE_BUILD_RECORD,
+                     self.app / "Contents/MacOS/jumpyBrain"):
+            with self.subTest(path=path):
+                backup = path.with_suffix(".backup")
+                path.rename(backup)
+                path.symlink_to(backup)
+                self.commands.clear()
+                self.build(self.stage, self.app)
+                self.assertEqual(self.compilations(), 1)
+                path.unlink()
+                backup.rename(path)
+        self.verify_fails = True
+        self.commands.clear()
+        self.build(self.stage, self.app)
+        self.assertEqual(self.compilations(), 1)
+
+    def test_input_probe_failure_rebuilds_without_record(self):
+        self.seed()
+        with patch.object(install, "native_fingerprint", side_effect=OSError("cannot inspect SDK")):
+            built = self.build(self.stage, self.app)
+        self.assertEqual(self.compilations(), 1)
+        self.assertFalse((built / "Contents/Resources" / install.NATIVE_BUILD_RECORD).exists())
+
+    def test_compiler_version_timeout_rebuilds_without_record(self):
+        def timed_out_version(args, **kwargs):
+            if "--version" in args:
+                raise subprocess.TimeoutExpired("swiftc --version", 5)
+            return self.native_output(args, **kwargs)
+        with patch.object(install.subprocess, "check_output", side_effect=timed_out_version):
+            built = self.build()
+        self.assertEqual(self.compilations(), 1)
+        self.assertFalse((built / "Contents/Resources" / install.NATIVE_BUILD_RECORD).exists())
+
+    def test_inputs_changed_during_compile_do_not_record_a_false_hit(self):
+        with patch.object(install, "native_fingerprint", side_effect=["before", "after"]):
+            built = self.build()
+        self.assertFalse((built / "Contents/Resources" / install.NATIVE_BUILD_RECORD).exists())
+
+    def test_copy_failure_and_nonexecutable_cached_binary_rebuild(self):
+        self.seed()
+        copy = shutil.copy2
+        def fail_cached_copy(source, target, **kwargs):
+            if source == self.app / "Contents/MacOS/jumpyBrain":
+                raise OSError("cached binary copy failed")
+            return copy(source, target, **kwargs)
+        with patch.object(install.shutil, "copy2", side_effect=fail_cached_copy):
+            self.build(self.stage, self.app)
+        self.assertEqual(self.compilations(), 1)
+        self.commands.clear()
+        (self.app / "Contents/MacOS/jumpyBrain").chmod(0o600)
+        self.build(self.stage, self.app)
+        self.assertEqual(self.compilations(), 1)
+
+    def test_reused_update_rolls_back_at_each_swap_boundary(self):
+        self.seed()
+        for failure in range(1, 5):
+            with self.subTest(boundary=failure):
+                before = self.snapshot(self.home)
+                rename = os.rename
+                calls = 0
+                def fail_once(source, target):
+                    nonlocal calls
+                    self.assert_locked()
+                    calls += 1
+                    if calls == failure:
+                        raise OSError("injected reused-update failure")
+                    return rename(source, target)
+                with patch.object(update.os, "rename", side_effect=fail_once):
+                    with self.assertRaisesRegex(OSError, "injected"):
+                        update.commit(self.stage, self.root, self.home)
+                self.assertEqual(before, self.snapshot(self.home))
+                self.assertEqual(self.compilations(), 0)
+
+    def test_target_options_environment_toolchain_version_and_overlay_are_inputs(self):
+        source = self.runtime / "integrations/macos-companion/Companion.swift"
+        env = {"PATH": "/fixture", "HOME": "/scratch-one", "TMPDIR": "/scratch-one"}
+        def fingerprint(options=None, environment=None):
+            return install.native_fingerprint(source, self.compiler, str(self.sdk), options or ["-O"], environment or env)
+        original = fingerprint()
+        self.assertEqual(original, fingerprint(environment=dict(env, HOME="/scratch-two", TMPDIR="/scratch-two")))
+        self.assertNotEqual(original, fingerprint(["-Onone"]))
+        self.assertNotEqual(original, fingerprint(["-O", "duplicateBridgingOverlay=True"]))
+        self.assertNotEqual(original, fingerprint(environment=dict(env, DEVELOPER_DIR="/different")))
+        with patch.object(install.platform, "machine", return_value="different-architecture"):
+            self.assertNotEqual(original, fingerprint())
+        with patch.object(install.subprocess, "check_output", return_value="new Swift"):
+            self.assertNotEqual(original, fingerprint())
+
+    def test_sdk_symlink_target_changes_invalidate(self):
+        external = self.base / "external-header"
+        external.write_text("header one")
+        (self.sdk / "header.h").symlink_to(external)
+        before = install.tree_digest(self.sdk)
+        external.write_text("header two")
+        self.assertNotEqual(before, install.tree_digest(self.sdk))
+        external.unlink()
+        missing = install.tree_digest(self.sdk)
+        external.write_text("header two")
+        self.assertNotEqual(missing, install.tree_digest(self.sdk))
+
+    def test_signing_failure_on_reused_path_leaves_installed_pair_intact(self):
+        self.seed()
+        before = self.snapshot(self.home)
+        def fail_sign(*args, **kwargs):
+            if "--sign" in args:
+                raise subprocess.CalledProcessError(1, "codesign")
+            return self.native_run(*args, **kwargs)
+        with patch.object(install, "run", side_effect=fail_sign):
+            with self.assertRaises(subprocess.CalledProcessError):
+                update.commit(self.stage, self.root, self.home)
+        self.assertEqual(before, self.snapshot(self.home))
+        self.assertEqual(self.compilations(), 0)
+
+
 class StandaloneTests(Fixture):
     def run_install(self, extra=()):
         argv = ["install.py", "--home", str(self.home), "--install-root", str(self.root), *extra]
         with patch.object(sys, "argv", argv), patch.object(sys, "platform", "darwin"), redirect_stdout(io.StringIO()):
             return install.main()
 
-    def standalone_build(self, runtime, build, config):
+    def standalone_build(self, runtime, build, config, previous_app=None):
+        self.assertEqual(previous_app, self.app if self.app.exists() else None)
         self.assertEqual(runtime, self.runtime)
         self.assert_locked()
         app = build / "jumpyBrain.app"
@@ -403,7 +637,8 @@ class StandaloneTests(Fixture):
         shutil.rmtree(self.support)
         (self.root / "install-manifest.json").unlink()
         before = self.snapshot()
-        def build(runtime, scratch, config):
+        def build(runtime, scratch, config, previous_app=None):
+            self.assertIsNone(previous_app)
             self.assertEqual(runtime, self.stage)
             self.assertEqual(config["runtimeRoot"], str(self.stage))
             app = scratch / "jumpyBrain.app"

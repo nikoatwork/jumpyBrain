@@ -690,50 +690,66 @@ final class Companion: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func shellQuote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
-
     @objc private func updateApp() {
         guard !updating, !stopping, !quitting else { return }
         let fm = FileManager.default
         let directory = URL(fileURLWithPath: config.supportDirectory).appendingPathComponent("update-" + UUID().uuidString)
         do {
-            guard fm.fileExists(atPath: installRoot.appendingPathComponent("install-manifest.json").path),
-                  let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
-                throw NSError(domain: "Companion", code: 3, userInfo: [NSLocalizedDescriptionKey: "Updating requires a managed CLI installation and Terminal.app."])
+            guard fm.fileExists(atPath: installRoot.appendingPathComponent("install-manifest.json").path) else {
+                throw NSError(domain: "Companion", code: 3, userInfo: [NSLocalizedDescriptionKey: "Updating requires a managed CLI installation."])
             }
             try fm.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
             let helper = directory.appendingPathComponent("menu-update.mjs")
             try fm.copyItem(at: Bundle.main.resourceURL!.appendingPathComponent("menu-update.mjs"), to: helper)
+            let label = "local.jumpybrain.updater." + directory.lastPathComponent
             let request: [String: Any] = ["parentPid": ProcessInfo.processInfo.processIdentifier,
                 "installRoot": installRoot.path, "appPath": Bundle.main.bundlePath,
-                "home": fm.homeDirectoryForCurrentUser.path, "node": config.node, "qmd": config.qmd]
+                "home": fm.homeDirectoryForCurrentUser.path, "node": config.node, "qmd": config.qmd,
+                "launchdLabel": label]
             let requestURL = directory.appendingPathComponent("request.json")
             try JSONSerialization.data(withJSONObject: request).write(to: requestURL, options: .atomic)
             try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: requestURL.path)
-            let command = directory.appendingPathComponent("update.command")
-            let script = "#!/bin/sh\nexec " + [config.node, helper.path, requestURL.path].map(shellQuote).joined(separator: " ") + "\n"
-            try script.write(to: command, atomically: true, encoding: .utf8)
-            try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: command.path)
+            let job = directory.appendingPathComponent("update.plist")
+            let launchLog = directory.appendingPathComponent("launcher.log")
+            fm.createFile(atPath: launchLog.path, contents: nil, attributes: [.posixPermissions: 0o600])
+            let plist: [String: Any] = ["Label": label,
+                "ProgramArguments": [config.node, helper.path, requestURL.path],
+                "RunAtLoad": true, "KeepAlive": false, "ProcessType": "Background",
+                "LimitLoadToSessionType": "Aqua", "WorkingDirectory": directory.path,
+                "EnvironmentVariables": maintenanceEnvironment,
+                "StandardOutPath": launchLog.path, "StandardErrorPath": launchLog.path]
+            try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: job, options: .atomic)
+            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: job.path)
             updating = true
             updateItem.title = "Starting updater…"
             setStatus(statusLine.title, healthy: ready)
             updateHandoffDirectory = directory
-            // Bound the entire handoff, including a stalled LaunchServices callback.
-            waitForUpdater(directory, deadline: Date().addingTimeInterval(20))
-            // Terminal owns the runner, independently of this app's launchd job.
-            NSWorkspace.shared.open([command], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, error in
+            // A separate launchd job survives shutdown of the companion's job;
+            // ordinary child processes can be killed with the app's process group.
+            let launcher = Process()
+            launcher.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+            launcher.arguments = ["bootstrap", "gui/\(getuid())", job.path]
+            launcher.environment = maintenanceEnvironment
+            launcher.standardInput = FileHandle.nullDevice
+            launcher.standardOutput = FileHandle.nullDevice
+            launcher.standardError = FileHandle.nullDevice
+            launcher.terminationHandler = { [weak self] child in
                 DispatchQueue.main.async {
                     guard let self = self, !self.quitting, self.updateHandoffDirectory == directory else { return }
-                    if let error = error { self.updateHandoffFailed(directory, error.localizedDescription) }
+                    if child.terminationStatus != 0 {
+                        self.updateHandoffFailed(directory, "Could not launch the background updater. The app is still running; check companion logs and try again.")
+                    }
                 }
             }
+            try launcher.run()
+            waitForUpdater(directory, deadline: Date().addingTimeInterval(20))
         } catch { updateHandoffFailed(directory, error.localizedDescription) }
     }
 
     private func waitForUpdater(_ directory: URL, deadline: Date) {
         guard updating, !quitting, updateHandoffDirectory == directory else { return }
         guard Date() < deadline else {
-            updateHandoffFailed(directory, "Terminal did not acknowledge the update in time. The app is still running; try again.")
+            updateHandoffFailed(directory, "The background updater did not acknowledge the update in time. The app is still running; try again.")
             return
         }
         let fm = FileManager.default
@@ -777,8 +793,27 @@ final class Companion: NSObject, NSApplicationDelegate {
         try? FileManager.default.removeItem(at: directory.appendingPathComponent("proceed"))
         // Revocation prevents a late runner from treating a later ordinary quit as
         // permission to update. Leave claimed directories for timeout diagnostics.
-        if !FileManager.default.fileExists(atPath: directory.appendingPathComponent("claimed").path) {
-            try? FileManager.default.removeItem(at: directory)
+        // Revoke before unloading: even a late runner cannot use an ordinary
+        // later Quit as update authorization. Also unload jobs whose Node failed
+        // to start, since those have no runner to clean themselves up.
+        let cleanup = Process()
+        cleanup.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        cleanup.arguments = ["bootout", "gui/\(getuid())/local.jumpybrain.updater.\(directory.lastPathComponent)"]
+        cleanup.environment = maintenanceEnvironment
+        cleanup.standardInput = FileHandle.nullDevice
+        cleanup.standardOutput = FileHandle.nullDevice
+        cleanup.standardError = FileHandle.nullDevice
+        cleanup.terminationHandler = { child in
+            guard child.terminationStatus == 0 else { return }
+            for name in ["request.json", "update.plist", "menu-update.mjs"] {
+                try? FileManager.default.removeItem(at: directory.appendingPathComponent(name))
+            }
+        }
+        // Give a cancelling runner a short grace period to flush its failure
+        // result and clean up itself; bootout otherwise kills it mid-write.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { try? cleanup.run() }
+        if let line = "Update handoff failed: \(message)\nDiagnostics: \(directory.path)\n".data(using: .utf8) {
+            try? output?.write(contentsOf: line)
         }
         updating = false
         updateItem?.title = "Update jumpyBrain…"

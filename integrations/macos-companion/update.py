@@ -260,7 +260,7 @@ def commit(staging, install_root, home):
         from install import build_app
         updated = dict(config, runtimeRoot=str(install_root / "app"))
         with build_workspace() as scratch:
-            built = build_app(staging, scratch, updated)
+            built = build_app(staging, scratch, updated, previous_app=app_path(home))
             if preflight(install_root, home) != config:
                 raise SafetyError("Companion configuration changed during build; retry")
             replace_pair(staging, built, install_root, home)

@@ -35,7 +35,7 @@ Click the brain icon in the menu bar:
 - **Open Memory Folder** — available only for a selected local brain. **Show Logs** opens companion logs.
 - **Start at Login** — enable or disable next-login startup.
 - **Check for Updates** — refresh the update indicator (also checked at startup and every six hours).
-- **Update jumpyBrain…** — update the CLI and app, then reopen the app. Progress appears in Terminal; Chrome stays open.
+- **Update jumpyBrain…** — update the CLI and app, then reopen the app. Runs in the background without opening Terminal; Chrome stays open.
 - **Quit jumpyBrain…** — stop the gateway/local engine, not Chrome or a remote server. Wait for **Saved** first.
 
 The menu shows the selected brain and its connection state. An exclamation icon means startup, offline/Keychain trouble, or another condition needing attention. Login startup does not open Chrome automatically. To reopen manually:
@@ -60,7 +60,7 @@ The last selected brain survives restart. A missing local folder, offline server
 
 ## Update
 
-Choose **Update jumpyBrain…** from the menu bar. There is no additional save/quit confirmation: Terminal starts an independent updater, the app quits, and a successful update reopens it automatically. Chrome stays open and is **not** automatically reloaded. Editing/saving is unavailable while the server is stopped; unsaved or in-flight edits may be lost.
+Choose **Update jumpyBrain…** from the menu bar. There is no additional save/quit confirmation: an independent background updater starts without opening Terminal, the app quits, and a successful update reopens it automatically. Chrome stays open and is **not** automatically reloaded. Editing/saving is unavailable while the server is stopped; unsaved or in-flight edits may be lost.
 
 The menu shows **Update available** when the installed Git revision differs from the recorded source/ref. Checks run at startup, every six hours, or via **Check for Updates**, without installing anything. Public HTTPS Git installs with matching origin metadata are supported; local-source installs, missing provenance, private/unsupported sources, and offline failures show **Updates: unable to check**. The Update action still works independently of the indicator. Pinned commits are not treated as tracking a newer branch.
 
@@ -70,7 +70,9 @@ This updates the shared runtime and native app from the CLI’s recorded source/
 
 A running app still blocks CLI replacement. Only the explicitly clicked menu action authorizes shutdown and automatic reopening; there are no automatic installations. `jumpybrain update --dry-run` previews the update without changing files or requiring a quit.
 
-Terminal must acknowledge the handoff before the app quits. If startup fails, the app stays running. If the updater fails after shutdown, it does not automatically reopen the app: inspect Terminal output and follow its recovery instructions. Logs/results remain under `~/Library/Application Support/jumpyBrain Companion/update-*/` (or the configured support directory); executable handoff files are removed after completion. Completed Terminal windows can be closed.
+The background updater must acknowledge the handoff before the app quits. If startup fails, the app stays running. If updating fails after shutdown, it does not automatically reopen the app: a failure alert offers **Show Log** (dismissed after one minute if unattended). Logs/results remain under `~/Library/Application Support/jumpyBrain Companion/update-*/` (or the configured support directory); temporary updater jobs and executable handoff files are removed after completion. If no alert appears, inspect that directory before reopening; never remove installer locks while an updater is running.
+
+Updates do **not** rebuild the memory index. The browser’s Lexical editor bundle is rebuilt with the CLI, but the long native-build step is Swift compilation. The installer reuses the native executable only when source, build recipe, toolchain/SDK contents, target/options and controlled environment match a verified build record; resources/configuration and signing always refresh. Older installations or changed/unverifiable inputs still compile. Full input verification itself takes time (about 10 seconds in one local fixture), so reuse is faster—not instant.
 
 ## Older installations and recovery
 
@@ -116,10 +118,10 @@ python3 -B integrations/macos-companion/test_update.py
 python3 -B integrations/macos-companion/test_connections_native.py
 node --test test/macos-companion-*.test.js test/companion-browser.test.js
 npx --package=playwright node scripts/companion-gateway-smoke.mjs
-# GUI session required; briefly opens real Terminal windows with inert fixture updates:
+# GUI session required; background launchd jobs with inert fixture updates:
 python3 -B integrations/macos-companion/smoke_menu_update.py
 ```
 
 The native connection regression compiles an isolated copy of the production Swift source (a cold module cache can take minutes), ad-hoc signs a temporary executable, and checks Keychain CRUD/incremental RPC, malformed-frame/input/work bounds, and real menu state for local/read-only/authorized/offline/switching cases. It uses a UUID-only test service in the default Keychain and removes its items/build in cleanup; it never locks/unlocks Keychain, installs an app, contacts a remote brain, or modifies login state. `--skip-keychain` / `--skip-menu` explicitly omit those checks for constrained environments.
 
-The server smoke uses disposable runtime/memory copies to test health, editor routes, authentication, indexed search, duplicate/busy-port refusal, shutdown, orphan cleanup, and unchanged Markdown. The menu smoke instruments startup in a temporary source copy to invoke the production menu action, then tests a real LaunchAgent → Terminal → independent runner handoff, successful fixture-app reopening, failure without reopening, and cancellation-after-ack without quitting the original app. Its CLI is inert; it does not update your installed app or close Terminal windows. Test menu icons briefly appear. The production gateway/browser smoke below covers real Chromium multi-tab saves/conflicts and local/remote editing with disposable roots and fixture credentials. Physical sleeping-tab behavior, folder-picker interaction/cancellation, locked/denied user-Keychain access, credential continuity after a differently signed/ad-hoc rebuild, and actual logout/login remain manual checks; the native fixture does not simulate those OS/browser conditions. A build-local overlay handles duplicate SwiftBridging maps on affected Apple tools without modifying system files.
+The server smoke uses disposable runtime/memory copies to test health, editor routes, authentication, indexed search, duplicate/busy-port refusal, shutdown, orphan cleanup, and unchanged Markdown. The menu smoke instruments startup in a temporary source copy to invoke the production menu action, then tests a real LaunchAgent → independent updater job handoff, successful fixture-app reopening, failure without reopening, duplicate-runner refusal, cancellation-after-ack without quitting the original app, and failed-launch timeout/job cleanup. Its CLI is inert and failure alerts are replaced by evidence markers; it does not update your installed app or open Terminal. Test menu icons briefly appear. The production gateway/browser smoke below covers real Chromium multi-tab saves/conflicts and local/remote editing with disposable roots and fixture credentials. Physical sleeping-tab behavior, folder-picker interaction/cancellation, locked/denied user-Keychain access, credential continuity after a differently signed/ad-hoc rebuild, and actual logout/login remain manual checks; the native fixture does not simulate those OS/browser conditions. A build-local overlay handles duplicate SwiftBridging maps on affected Apple tools without modifying system files.

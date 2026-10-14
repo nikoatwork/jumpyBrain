@@ -6,6 +6,7 @@ An explicit --runtime-root is allowed only with --build-only for development.
 """
 import argparse
 from contextlib import nullcontext
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -14,13 +15,14 @@ import platform
 import secrets
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
 
 from update import (LABEL, SafetyError, app_path, build_workspace, cleanup, companion_lock,
                     absolute, overlaps, preflight, regular, validate_key,
-                    validate_manifest, validate_runtime)
+                    validate_manifest, validate_runtime, read_json)
 
 
 def run(*args, **kwargs):
@@ -39,14 +41,110 @@ def agent_plist(app, support):
     }
 
 
-def build_app(runtime, build, config):
+NATIVE_BUILD_RECORD = "NativeBuild.json"
+
+
+def file_digest(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def tree_digest(root, seen=None):
+    """Hash actual SDK/toolchain bytes, names, modes and symlink destinations.
+
+    No persistent cache or timestamp-only hits: a same-size/mtime edit must miss.
+    Internal symlink targets are already covered by the tree; external targets
+    are included separately. Dangling links are recorded, not silently followed.
+    """
+    root = root.resolve()
+    if not root.is_dir():
+        raise SafetyError(f"Missing native build input directory: {root}")
+    seen = set() if seen is None else seen
+    if root in seen:
+        return "already-covered:" + str(root)
+    seen.add(root)
+    digest = hashlib.sha256()
+    external = set()
+    def walk_error(error):
+        raise error
+
+    for base, directories, files in os.walk(root, onerror=walk_error):
+        directories.sort()
+        for name in sorted(directories + files):
+            path = Path(base) / name
+            mode = path.lstat().st_mode
+            entry = [str(path.relative_to(root)), mode]
+            if stat.S_ISLNK(mode):
+                target = path.resolve()
+                entry += [os.readlink(path), str(target)]
+                if root != target and root not in target.parents:
+                    external.add(target)
+            elif stat.S_ISREG(mode):
+                entry.append(file_digest(path))
+            elif not stat.S_ISDIR(mode):
+                raise SafetyError(f"Unsupported native build input: {path}")
+            digest.update(json.dumps(entry).encode())
+    for target in sorted(external):
+        value = tree_digest(target, seen) if target.is_dir() else file_digest(target) if target.is_file() else "missing"
+        digest.update(json.dumps([str(target), value]).encode())
+    return digest.hexdigest()
+
+
+def native_fingerprint(source, compiler, sdk, options, environment):
+    """Native-only inputs; runtime helpers/config/version are always refreshed."""
+    inputs = {
+        "schemaVersion": 1,
+        "source": file_digest(regular(source)),
+        "recipe": file_digest(Path(__file__)),
+        "compiler": str(compiler.resolve()),
+        "compilerVersion": subprocess.check_output([str(compiler), "--version"], text=True, env=environment, stderr=subprocess.STDOUT, timeout=5).strip(),
+        "toolchain": tree_digest(compiler.parent.parent),
+        "sdk": str(Path(sdk).resolve()), "sdkContents": tree_digest(Path(sdk)),
+        "system": [platform.system(), platform.release(), platform.version(), platform.machine()],
+        "options": options,
+        # HOME/TMPDIR are isolated scratch paths, never semantic build inputs.
+        "environment": {k: v for k, v in environment.items() if k not in ("HOME", "TMPDIR")},
+    }
+    return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
+
+
+def reuse_native(previous_app, executable, fingerprint):
+    """Copy/validate only; any absent, corrupt or unverifiable record is a miss.
+
+    Strip signatures only on the scratch copy. The digest describes unsigned
+    code, avoiding a circular digest inside the newly signed bundle's resources.
+    """
+    if previous_app is None or fingerprint is None:
+        return False
+    try:
+        record = read_json(previous_app / "Contents/Resources" / NATIVE_BUILD_RECORD)
+        if (record.get("schemaVersion") != 1 or record.get("fingerprint") != fingerprint
+                or not isinstance(record.get("executableDigest"), str)):
+            return False
+        regular(previous_app / "Contents/MacOS/jumpyBrain")
+        run("codesign", "--verify", "--strict", previous_app, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        shutil.copy2(previous_app / "Contents/MacOS/jumpyBrain", executable)
+        run("codesign", "--remove-signature", executable, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if file_digest(executable) != record["executableDigest"] or not os.access(executable, os.X_OK):
+            raise SafetyError("Cached native executable digest/mode mismatch")
+        print("Reusing unchanged native companion executable (verified build inputs).", flush=True)
+        return True
+    except (SafetyError, OSError, ValueError, subprocess.CalledProcessError):
+        if executable.exists():
+            executable.unlink()
+        return False
+
+
+def build_app(runtime, build, config, previous_app=None):
     """Build only native assets in caller-owned scratch space; config targets final runtime."""
     package = validate_runtime(runtime)
     source = runtime / "integrations/macos-companion"
     # Keep stable Homebrew symlink paths, not version-specific Cellar targets.
     run(config["node"], "--version", stdout=subprocess.DEVNULL)
     run(config["node"], runtime / "scripts/qmd-install-check.mjs", config["qmd"])
-    run("xcrun", "--find", "swiftc", stdout=subprocess.DEVNULL)
     if not shutil.which("codesign"):
         raise SafetyError("codesign must be installed before building the companion")
     config = dict(config, revision=package["version"])
@@ -71,10 +169,49 @@ def build_app(runtime, build, config):
         compiler_options += ["-vfsoverlay", str(overlay)]
         print("Using a build-local overlay for duplicate CLT SwiftBridging maps.")
     sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
-    run(compiler, "-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{platform.machine()}-apple-macos13.0",
-        "-module-cache-path", build / "module-cache", *compiler_options,
-        "-framework", "AppKit", "-framework", "Security", "-framework", "LocalAuthentication",
-        source / "Companion.swift", "-o", macos / "jumpyBrain")
+    options = ["-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{platform.machine()}-apple-macos13.0",
+               "-framework", "AppKit", "-framework", "Security", "-framework", "LocalAuthentication"]
+    # Make compiler inputs explicit rather than trusting arbitrary shell flags.
+    environment = {"PATH": f"{compiler.parent}:/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "C",
+                   "HOME": str(build), "TMPDIR": str(build)}
+    for key in ("DEVELOPER_DIR", "TOOLCHAINS"):
+        if key in os.environ:
+            environment[key] = os.environ[key]
+    # Compile a snapshot, not a source that can change underneath this build.
+    native_source = build / "Companion.swift"
+    shutil.copy2(regular(source / "Companion.swift"), native_source)
+    fingerprint = None
+    try:
+        print("Checking native companion build inputs…", flush=True)
+        fingerprint = native_fingerprint(native_source, compiler, sdk,
+                                         options + ["duplicateBridgingOverlay=" + str(bool(compiler_options))], environment)
+    except (SafetyError, OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        print(f"Native build inputs could not be verified; rebuilding without reuse: {error}", flush=True)
+    executable = macos / "jumpyBrain"
+    reused = reuse_native(previous_app, executable, fingerprint)
+    if not reused:
+        print("Compiling native companion (Swift; a fresh module cache can take a while)…", flush=True)
+        run(compiler, *options, "-module-cache-path", build / "module-cache", *compiler_options,
+            native_source, "-o", executable, env=environment)
+        # Normalize codesign's Mach-O allocation before recording unsigned bytes.
+        # The linker signature has a different __LINKEDIT allocation; simply
+        # removing it would make the first subsequent bundle sign a false miss.
+        run("codesign", "--force", "--sign", "-", executable)
+        run("codesign", "--remove-signature", executable)
+        if fingerprint is not None:
+            try:
+                confirmed = native_fingerprint(native_source, compiler, sdk,
+                                               options + ["duplicateBridgingOverlay=" + str(bool(compiler_options))], environment)
+                if confirmed != fingerprint:
+                    fingerprint = None
+                    print("Native build inputs changed during compilation; not recording a reuse hit.", flush=True)
+            except (SafetyError, OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+                fingerprint = None
+    if fingerprint is not None:
+        (resources / NATIVE_BUILD_RECORD).write_text(json.dumps({
+            "schemaVersion": 1, "fingerprint": fingerprint,
+            "executableDigest": file_digest(executable),
+        }, indent=2) + "\n")
     for helper in ("server-bootstrap.mjs", "menu-update.mjs", "update-check.mjs"):
         shutil.copy2(source / helper, resources / helper)
     (resources / "Configuration.json").write_text(json.dumps(config, indent=2) + "\n")
@@ -193,7 +330,7 @@ def main():
             if existed and preflight(root, home) != original:
                 raise SafetyError("Companion configuration changed while acquiring its lock; retry")
             with build_workspace() as scratch:
-                built = build_app(runtime, scratch, config)
+                built = build_app(runtime, scratch, config, previous_app=app if existed else None)
                 if args.build_only:
                     output = args.output.expanduser().absolute() if args.output else Path(tempfile.mkdtemp(prefix="jumpybrain-companion-output-")) / "jumpyBrain.app"
                     if os.path.lexists(output):

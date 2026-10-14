@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -11,10 +12,10 @@ import {
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fixture(t) {
+async function fixture(t, { gui = false } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-menu-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const directory = path.join(root, "support handoff");
+  const directory = path.join(root, gui ? `update-${randomUUID()}` : "support handoff");
   await mkdir(directory);
   const request = {
     parentPid: process.pid,
@@ -24,9 +25,10 @@ async function fixture(t) {
     node: path.join(root, `node 'tools' "bin"/node`),
     qmd: path.join(root, `qmd 'tools' "bin"/qmd`),
   };
+  if (gui) request.launchdLabel = `local.jumpybrain.updater.${path.basename(directory)}`;
   const requestPath = path.join(directory, "request.json");
   await writeFile(requestPath, JSON.stringify(request));
-  for (const name of ["update.command", "menu-update.mjs"]) {
+  for (const name of ["update.command", "update.plist", "menu-update.mjs"]) {
     await writeFile(path.join(directory, name), "inert fixture, never executed\n");
   }
   return { root, directory, request, requestPath };
@@ -229,6 +231,7 @@ test("exclusive claim refuses duplicate invocation without touching the existing
   let calls = 0;
   await assert.rejects(runUpdate(f.requestPath, {
     wait: async () => { calls++; }, run: async () => { calls++; return { code: 0 }; },
+    onClaim: () => { calls++; },
   }), { code: "EEXIST" });
   assert.equal(calls, 0);
   assert.equal(await readFile(path.join(f.directory, "update.log"), "utf8"), "first runner log\n");
@@ -321,6 +324,35 @@ test("SIGTERM after readiness revokes handshake and exits without starting an up
   assert.doesNotMatch(await readFile(path.join(f.directory, "update.log"), "utf8"), /Updating installed CLI/);
 });
 
-// Real launchd → Terminal → runner survival and success/failure native relaunch
+test("background job labels are scoped to the private handoff, not arbitrary launchd jobs", async (t) => {
+  const f = await fixture(t, { gui: true });
+  assert.equal(validateRequest(f.request, f.directory), f.request);
+  for (const launchdLabel of [null, "", "local.jumpybrain.companion", "local.jumpybrain.updater.update-wrong", 123]) {
+    assert.throws(() => validateRequest({ ...f.request, launchdLabel }, f.directory), /Invalid updater launchd label/);
+  }
+  assert.throws(() => validateRequest(f.request, path.join(f.root, "support handoff")), /Invalid updater launchd label/);
+});
+
+test("GUI updater failures notify only after shutdown; notification errors preserve failure and cleanup", async (t) => {
+  for (const phase of ["handoff", "update", "reopen", "notification"]) {
+    const f = await fixture(t, { gui: true });
+    let notifications = 0;
+    assert.equal(await runUpdate(f.requestPath, {
+      async wait() { if (phase === "handoff") throw new Error("fixture handoff timeout"); },
+      async run(command) { return { code: phase === "reopen" && command === f.request.node ? 0 : 23 }; },
+      async notify(logPath, options) {
+        notifications++;
+        assert.equal(logPath, path.join(f.directory, "update.log"));
+        assert.deepEqual(options, { cwd: f.directory, env: updateEnvironment(f.request) });
+        assert.equal(JSON.parse(await readFile(path.join(f.directory, "result.json"), "utf8")).status, "failed");
+        if (phase === "notification") throw new Error("fixture notification failure");
+      },
+    }), 1);
+    assert.equal(notifications, phase === "handoff" ? 0 : 1);
+    await assertFinished(f, "failed", /fixture handoff timeout|Updater failed|reopening failed/);
+  }
+});
+
+// Real launchd → independent updater survival and success/failure native relaunch
 // are separately exercised by integrations/macos-companion/smoke_menu_update.py.
-// This unit suite never launches Terminal or touches real launchd jobs.
+// This unit suite never shows UI or touches real launchd jobs.

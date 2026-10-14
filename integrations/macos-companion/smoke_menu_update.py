@@ -3,10 +3,11 @@
 
 Runs the production menu action without Accessibility/AppleScript: only a COPY's
 startup is instrumented to skip server/checks and call updateApp once on the main
-run loop. Real NSWorkspace/Terminal, handshake, shutdown, and open are retained.
+run loop. Real launchd background handoff, shutdown, and open are retained.
+Failure alerts are replaced in the COPY by an evidence marker (no modal UI).
 The cancellation fixture also instruments its bundled helper to emit SIGTERM just
 after acknowledgement, exercising the production synchronous cancellation handler.
-Terminal may leave completed fixture windows open; no Terminal windows are closed.
+No Terminal windows are opened.
 No installed runtime, notes, keys, or persistent login entries are modified.
 """
 import json
@@ -116,9 +117,9 @@ def verify_cancellation(support, memory, started, executable, job):
     assert "Update cancelled before companion shutdown. No update was started." in log
     assert "Updating installed CLI" not in log and "Reopening" not in log
     assert not list(memory.iterdir()), "Fixture memory unexpectedly changed"
-    for name in ("request.json", "ready", "proceed", "acknowledged", "update.command", "menu-update.mjs"):
+    for name in ("request.json", "ready", "proceed", "acknowledged", "update.command", "update.plist", "menu-update.mjs"):
         assert not (handoff / name).exists(), "Helper did not remove " + name
-    print("PASS [cancel-after-ack]: real Terminal runner emitted SIGTERM immediately after ack; "
+    print("PASS [cancel-after-ack]: background runner emitted SIGTERM immediately after ack; "
           "production handler cancelled/revoked handoff; failed result, original native PID still alive; "
           "no fixture CLI or relaunch", flush=True)
 
@@ -159,13 +160,19 @@ process.exit(settings.exitCode);
 
 
 def cleanup(jobs, executables, root, node):
+    # Discover even handoffs created just before an earlier assertion failed.
+    for support in root.glob("*/support"):
+        for handoff in support.glob("update-*"):
+            job = f"gui/{os.getuid()}/local.jumpybrain.updater.{handoff.name}"
+            if job not in jobs:
+                jobs.append(job)
     for job in jobs:
         run("/bin/launchctl", "bootout", job, check=False)
 
     def owned():
         matches = []
         for pid, command in processes().items():
-            # Never signal Terminal, a user's app, or an unverified/reused PID.
+            # Never signal a user's app or an unverified/reused PID.
             if command in executables or (
                 command.startswith(node + " " + str(root) + "/") and
                 ("/menu-update.mjs " in command or "/dist/cli.js update " in command)
@@ -187,7 +194,7 @@ def cleanup(jobs, executables, root, node):
         assert run("/bin/launchctl", "print", job, check=False).returncode != 0, "Fixture launchd job remains: " + job
 
 
-def exercise(root, template, case, exit_code, node, jobs, executables, cancel_after_ack=False):
+def exercise(root, template, case, exit_code, node, jobs, executables, cancel_after_ack=False, launch_fails=False):
     directory = root / case
     directory.mkdir()
     support = directory / "support"
@@ -216,6 +223,8 @@ def exercise(root, template, case, exit_code, node, jobs, executables, cancel_af
     config = json.loads((resources / "Configuration.json").read_text())
     config.update(runtimeRoot=str(runtime), memoryRoot=str(memory),
                   supportDirectory=str(support), launchAgent=str(agent), label=identifier)
+    if launch_fails:
+        config["node"] = "/usr/bin/false"  # launchd job exits before helper readiness
     (resources / "Configuration.json").write_text(json.dumps(config))
     info_path = app / "Contents/Info.plist"
     info = plistlib.loads(info_path.read_bytes())
@@ -237,10 +246,23 @@ def exercise(root, template, case, exit_code, node, jobs, executables, cancel_af
     run("/bin/launchctl", "bootstrap", f"gui/{os.getuid()}", agent)
     started = wait_for(lambda: read_json(support / "started.json"), case + " native startup")
     assert started["ppid"] == 1, "Fixture was not launched by launchd"
+    handoff = wait_for(lambda: next(support.glob("update-*"), None), case + " handoff directory")
+    updater_job = f"gui/{os.getuid()}/local.jumpybrain.updater.{handoff.name}"
+    jobs.append(updater_job)
+    if launch_fails:
+        log_path = support / "server.log"
+        wait_for(lambda: log_path.exists() and "did not acknowledge" in log_path.read_text(), "failed-launch timeout")
+        wait_for(lambda: run("/bin/launchctl", "print", updater_job, check=False).returncode != 0,
+                 "failed-launch job cleanup")
+        assert processes().get(started["pid"]) == executable, "Failed launch quit original companion"
+        assert not (support / "cli.json").exists() and not (support / "relaunched.json").exists()
+        assert not (handoff / "menu-update.mjs").exists() and not (handoff / "update.plist").exists()
+        print("PASS [failed-launch]: no helper readiness; timeout retained app and unloaded updater job", flush=True)
+        return
     if cancel_after_ack:
         verify_cancellation(support, memory, started, executable, job)
         return
-    evidence = wait_for(lambda: read_json(support / "cli.json"), case + " Terminal handshake/CLI")
+    evidence = wait_for(lambda: read_json(support / "cli.json"), case + " background handshake/CLI")
     request, ack = evidence["request"], evidence["ack"]
     assert request["parentPid"] == started["pid"]
     assert request["appPath"] == str(app)
@@ -250,7 +272,15 @@ def exercise(root, template, case, exit_code, node, jobs, executables, cancel_af
     assert started["pid"] not in processes(), "Companion must exit before CLI starts"
     assert evidence["ready"] == "ready\n" and evidence["proceed"] == "update\n"
     assert ack["pid"] == evidence["ppid"] and ack["expires"] > time.time() * 1000
-    assert ack["pid"] in processes(), "Terminal-owned runner died with launchd app"
+    assert ack["pid"] in processes(), "Independent updater died with launchd app"
+    assert updater_job == f"gui/{os.getuid()}/{request['launchdLabel']}"
+    runner_state = run("/bin/launchctl", "print", updater_job).stdout
+    assert f"pid = {ack['pid']}" in runner_state, runner_state
+    # A duplicate with the same label must not bootout the legitimate updater.
+    duplicate = run(node, handoff / "menu-update.mjs", handoff / "request.json", check=False)
+    assert duplicate.returncode == 1 and "EEXIST" in duplicate.stderr, duplicate
+    runner_state = run("/bin/launchctl", "print", updater_job).stdout
+    assert f"pid = {ack['pid']}" in runner_state, "Duplicate unloaded active updater"
     job_state = run("/bin/launchctl", "print", job).stdout
     assert "state = not running" in job_state and "last exit code = 0" in job_state, job_state
     assert evidence["args"] == ["update", "--install-root", str(runtime.parent), "--home", request["home"]]
@@ -259,10 +289,12 @@ def exercise(root, template, case, exit_code, node, jobs, executables, cancel_af
     assert env["JUMPYBRAIN_QMD_BIN"] == "/usr/bin/true" and env["HOME"] == request["home"]
     assert not any(k in env for k in ("JUMPYBRAIN_API_KEY", "JUMPYBRAIN_SERVER_API_KEYS"))
     handoff = next(support.glob("update-*"))
-    assert (handoff / "menu-update.mjs").read_bytes() == (HERE / "menu-update.mjs").read_bytes()
-    assert (handoff / "update.command").stat().st_mode & 0o777 == 0o700
+    assert (handoff / "menu-update.mjs").read_bytes() == (resources / "menu-update.mjs").read_bytes()
+    assert not (handoff / "update.command").exists(), "Terminal launcher must not be created"
+    assert (handoff / "update.plist").stat().st_mode & 0o777 == 0o600
+    assert (handoff / "launcher.log").stat().st_mode & 0o777 == 0o600
     assert (handoff / "request.json").stat().st_mode & 0o777 == 0o600
-    print(f"PASS [{case}]: production menu action → Terminal .command → ready/proceed/ack; "
+    print(f"PASS [{case}]: production menu action → independent launchd job → ready/proceed/ack; "
           "launchd companion exited 0; independent runner called fixture CLI at correct root", flush=True)
     result = wait_for(lambda: read_json(handoff / "result.json"), case + " updater result")
     assert result["status"] == ("success" if exit_code == 0 else "failed"), result
@@ -270,11 +302,13 @@ def exercise(root, template, case, exit_code, node, jobs, executables, cancel_af
     log = (handoff / "update.log").read_text()
     assert "FIXTURE ONLY: update " + str(runtime.parent) in log
     wait_for(lambda: ack["pid"] not in processes(), case + " runner exit")
+    wait_for(lambda: run("/bin/launchctl", "print", updater_job, check=False).returncode != 0,
+             case + " updater launchd job cleanup")
     if exit_code == 0:
         reopened = wait_for(lambda: read_json(support / "relaunched.json"), "fixture relaunch")
         assert reopened["pid"] != started["pid"]
         assert processes().get(reopened["pid"]) == executable
-        assert "Done. You can close this Terminal window." in log
+        assert "Done. Chrome was not reloaded." in log
         print("PASS [success]: /usr/bin/open reopened the uniquely identified fixture; "
               "startup marker prevented another update", flush=True)
     else:
@@ -282,9 +316,10 @@ def exercise(root, template, case, exit_code, node, jobs, executables, cancel_af
         assert not (support / "relaunched.json").exists()
         assert executable not in processes().values()
         assert "Updater failed (23)" in log and "Reopening" not in log
+        assert (handoff / "smoke-notification").read_text() == str(handoff / "update.log")
         print("PASS [failure]: fixture CLI exit 23 retained failure result; app not reopened", flush=True)
     assert not list(memory.iterdir()), "Fixture memory unexpectedly changed"
-    for name in ("request.json", "ready", "proceed", "acknowledged", "update.command", "menu-update.mjs"):
+    for name in ("request.json", "ready", "proceed", "acknowledged", "update.command", "update.plist", "menu-update.mjs"):
         assert not (handoff / name).exists(), "Helper did not remove " + name
 
 
@@ -296,9 +331,9 @@ def main():
     if not node or run("/bin/launchctl", "print", f"gui/{os.getuid()}", check=False).returncode:
         print("BLOCKED: Node and a launchctl GUI domain are required", file=sys.stderr)
         return 2
-    print("Real Terminal fixture windows may briefly open; existing windows will not be controlled.", flush=True)
+    print("Independent background fixture jobs will run; no Terminal windows or failure alerts.", flush=True)
     with tempfile.TemporaryDirectory(prefix="jumpybrain-menu-smoke-") as tmp:
-        # A space also exercises production shell quoting of command/helper paths.
+        # A space exercises launchd argv and helper paths without shell quoting.
         root = Path(tmp).resolve() / "fixture space"
         root.mkdir()
         runtime = root / "build-runtime"
@@ -307,9 +342,20 @@ def main():
         for name in ("Companion.swift", "server-bootstrap.mjs", "menu-update.mjs", "update-check.mjs"):
             shutil.copy2(HERE / name, source / name)
         (source / "Companion.swift").write_text(instrument((source / "Companion.swift").read_text()))
+        helper = source / "menu-update.mjs"
+        original = helper.read_text()
+        anchor = "process.exitCode = await runUpdate(requestPath, { onClaim: () => { claimed = true; } });"
+        assert original.count(anchor) == 1, "Production runner entrypoint changed"
+        helper.write_text(original.replace(anchor, '''process.exitCode = await runUpdate(requestPath, {
+      onClaim: () => { claimed = true; },
+      notify: async (logPath) => writeFile(path.join(path.dirname(logPath), "smoke-notification"), logPath)
+    });'''))
         (runtime / "dist").mkdir()
         (runtime / "dist/cli.js").write_text("throw new Error('Build-only runtime must never execute');\n")
         (runtime / "package.json").write_text(json.dumps({"name": "jumpybrain", "version": "0.0.0", "type": "module"}))
+        # Inert build-dependency check: this fixture has no QMD or memory engine.
+        (runtime / "scripts").mkdir()
+        (runtime / "scripts/qmd-install-check.mjs").write_text("// Fixture only; no QMD loaded.\n")
         build = root / "build"
         build.mkdir()
         jobs, executables = [], []
@@ -322,6 +368,7 @@ def main():
             exercise(root, template, "success", 0, node, jobs, executables)
             exercise(root, template, "failure", 23, node, jobs, executables)
             exercise(root, template, "cancel-after-ack", 0, node, jobs, executables, cancel_after_ack=True)
+            exercise(root, template, "failed-launch", 0, node, jobs, executables, launch_fails=True)
         except Exception as error:
             print(f"FAIL/BLOCKED: {error}", file=sys.stderr)
             for log in root.glob("*/support/*.log"):
@@ -333,8 +380,8 @@ def main():
             cleanup(jobs, executables, root, node)
     print("PASS: disposable jobs/processes/files cleaned; installed app/runtime/login entries untouched")
     print("LIMITS: programmatic menu action (not a physical click); fake CLI, no real update/server; "
-          "cancellation uses synchronous SIGTERM emission in a copied helper, not closing Terminal; "
-          "handoff timeout and logout/login not tested. Terminal may retain completed fixture windows.")
+          "cancellation uses synchronous SIGTERM emission in a copied helper; "
+          "post-shutdown failure alert replaced by marker; logout/login not tested.")
     return 0
 
 
