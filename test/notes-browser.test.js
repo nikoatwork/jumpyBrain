@@ -160,7 +160,7 @@ test("note view uses white borderless proportional editing with an accessible na
   const editorStyle = html.match(/#note-editor \{[^}]+\}/)[0];
   assert.match(editorStyle, /background: var\(--surface\)/);
   assert.match(editorStyle, /border: 0/);
-  assert.match(editorStyle, /ui-sans-serif/);
+  assert.match(editorStyle, /var\(--writing-font\)/);
   assert.doesNotMatch(editorStyle, /monospace/);
   assert.match(html, /#note-editor:focus[^}]+outline: none/);
   assert.match(html, /id="note-name" aria-label="Page name" aria-describedby="note-save-error"/);

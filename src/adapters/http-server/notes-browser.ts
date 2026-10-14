@@ -31,17 +31,20 @@ export const notesStyles = String.raw`
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
     body[data-view="graph"] .app-nav { border-bottom: 1px solid var(--line); }
     main, body[data-view="graph"] main { flex: 1; height: auto; min-height: 0; }
-    #note-panel { width: 100%; min-width: 0; overflow: auto; scrollbar-color: var(--line-strong) transparent; }
-    .note-column { width: min(100%, 800px); margin: 0 auto; padding: clamp(24px, 5vh, 64px) 32px 100px; }
-    #note-title { margin: 0 0 20px; color: var(--ink); font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; overflow-wrap: anywhere; }
-    #note-name { display: block; width: 100%; height: auto; margin: 0 0 20px; padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 650 clamp(26px, 4vw, 36px)/1.25 ui-sans-serif, system-ui, sans-serif; letter-spacing: -.035em; }
-    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 16px/1.8 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #note-panel { --writing-font: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif; width: 100%; min-width: 0; overflow: auto; scrollbar-gutter: stable; scrollbar-color: var(--line-strong) transparent; scroll-padding-block: 32px; }
+    .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(40px, 7vh, 80px) 40px max(160px, 30vh); }
+    #note-title { margin: 0 0 24px; color: var(--ink); font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
+    #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 24px; padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
+    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--writing-font); caret-color: var(--ink); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    /* Each block is a source line; intentional blank lines supply paragraph spacing. */
     #note-editor p { margin: 0; min-height: 1.8em; }
-    #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .45em 0 .2em; line-height: 1.35; font-weight: 650; letter-spacing: -.025em; }
-    #note-editor h1 { font-size: 30px; }
-    #note-editor h2 { font-size: 24px; }
-    #note-editor h3 { font-size: 20px; }
-    #note-editor h4, #note-editor h5, #note-editor h6 { font-size: 18px; }
+    #note-editor > * { scroll-margin-block: 32px; }
+    #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .6em 0 .25em; line-height: 1.35; font-weight: 600; letter-spacing: -.02em; }
+    #note-editor > :first-child { margin-top: 0; }
+    #note-editor h1 { font-size: 32px; }
+    #note-editor h2 { font-size: 27px; }
+    #note-editor h3 { font-size: 23px; }
+    #note-editor h4, #note-editor h5, #note-editor h6 { font-size: 20px; }
     .editor-bold { font-weight: 700; }
     .editor-italic { font-style: italic; }
     .markdown-literal, .markdown-reference { text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; }
@@ -50,9 +53,11 @@ export const notesStyles = String.raw`
     #reference-message { color: var(--ink-soft); font-size: 13px; }
     #reference-message[data-error="true"] { color: var(--error-ink); }
     .markdown-literal::selection { background: var(--surface-hover); }
-    #format-controls { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; margin: 0 0 12px -10px; }
-    #format-controls button { font-size: 12px; }
-    #format-controls #insert-reference { margin: 0; }
+    #format-controls { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 0 0 24px -8px; }
+    #format-controls button { min-height: 36px; padding: 8px; background: transparent; font-size: 12px; }
+    #format-controls button:hover, #format-controls button:focus-visible { background: var(--control-fill); color: var(--ink); }
+    #format-controls [data-format="h3"] { margin-right: 8px; }
+    #format-controls #insert-reference { margin: 0 0 0 auto; }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
     #note-save-error { color: var(--error-ink); font-size: 13px; }
     .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
@@ -96,8 +101,10 @@ export const notesStyles = String.raw`
       #open-search kbd { display: none; }
       #note-save-state { order: 5; margin-left: auto; }
       #note-retry { order: 6; }
-      .note-column { padding: 28px 22px 80px; }
-      #note-editor { font-size: 16px; }
+      .note-column { padding: 32px 24px max(120px, 25vh); }
+      #note-editor { font-size: 18px; }
+      #format-controls { gap: 2px; margin-bottom: 20px; }
+      #format-controls #insert-reference { margin-left: 0; }
       .save-state { font-size: 11px; }
       #note-search { margin-top: 16px; max-height: calc(100dvh - 32px); }
     }
@@ -168,7 +175,7 @@ export const notesViews = String.raw`
   <section id="note-panel" data-testid="graph-note-panel" aria-label="Note editor" hidden>
     <div class="note-column">
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
-      <input id="note-name" aria-label="Page name" aria-describedby="note-save-error" autocomplete="off" hidden />
+      <textarea id="note-name" aria-label="Page name" aria-describedby="note-save-error" aria-multiline="false" rows="1" autocomplete="off" hidden></textarea>
       <p id="note-save-error" role="status" aria-live="polite" hidden></p>
       <p id="reference-message" role="status" aria-live="polite" hidden></p>
       <p id="note-message" role="status" hidden></p>
@@ -925,7 +932,26 @@ function noteLoadError(message) {
   $("note-title").textContent = "Note unavailable";
 }
 $("note-load-retry").addEventListener("click", () => showNote(new URL(location.href).searchParams.get("note")));
-$("note-name").addEventListener("input", () => state.editor?.inputTitle($("note-name").value));
+function sizeNoteName() {
+  const field = $("note-name");
+  if (field.hidden) return;
+  field.style.height = "auto";
+  field.style.height = field.scrollHeight + "px";
+}
+$("note-name").addEventListener("input", () => {
+  // Soft wrapping is visual only; keep the previous single-line title contract.
+  const field = $("note-name");
+  const singleLine = field.value.replace(/[\r\n]/g, "");
+  if (field.value !== singleLine) field.value = singleLine;
+  sizeNoteName();
+  state.editor?.inputTitle(field.value);
+});
+$("note-name").addEventListener("keydown", (event) => {
+  if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.key !== "Enter") return;
+  event.preventDefault();
+  if (!$("note-name").readOnly) richEditor.focus();
+});
+window.addEventListener("resize", sizeNoteName);
 $("note-name").addEventListener("blur", () => state.editor?.flush());
 
 function syncEditorUi(editorState) {
@@ -947,6 +973,7 @@ function syncEditorUi(editorState) {
   $("insert-reference").disabled = editorState.navigationPending;
   if (editorState.loaded) {
     if ($("note-name").value !== editorState.title) $("note-name").value = editorState.title;
+    sizeNoteName();
     $("note-title").textContent = editorState.title || "Untitled";
     document.title = (editorState.title || "Untitled") + " · jumpyBrain";
     if (richEditor.getMarkdown() !== editorState.draft) richEditor.setMarkdown(editorState.draft);

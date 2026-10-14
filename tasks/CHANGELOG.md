@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-14 — Calmer daily writing
+
+- Refined the editor with literary typography, comfortable page spacing, quieter formatting controls, and wrapping titles for a more relaxed writing experience.
+
 ## 2026-10-12 — Recall format guidance
 
 - Clarified compact/text trade-offs, guarded expansion prerequisites, and selective-read source structure; [completed guidance task](done/2026-10-12_tasks-recall-format-guidance.md).

@@ -436,12 +436,23 @@ async function editing(page, { requests }) {
   });
   assert.equal(copy, `[[${target.title}]]`, "editor clipboard event preserves literal brackets (not OS clipboard coverage)");
   await selectEditorText(page, 0);
-  const box = await reference(page).boundingBox();
-  await page.mouse.move(box.x + 4, box.y + box.height / 2);
+  // Derive drag endpoints from character carets rather than fixed pixel offsets
+  // near glyph edges; the writing font and size can differ across platforms.
+  const points = await reference(page).evaluate((element) => {
+    const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode();
+    const caret = (offset) => {
+      const range = document.createRange();
+      range.setStart(text, offset); range.collapse(true);
+      const rect = range.getBoundingClientRect();
+      return { x: rect.x, y: rect.y + rect.height / 2 };
+    };
+    return { start: caret(3), end: caret(12), expected: text.textContent.slice(3, 12) };
+  });
+  await page.mouse.move(points.start.x, points.start.y);
   await page.mouse.down();
-  await page.mouse.move(box.x + Math.min(box.width - 3, 95), box.y + box.height / 2, { steps: 12 });
+  await page.mouse.move(points.end.x, points.end.y, { steps: 12 });
   await page.mouse.up();
-  assert.ok((await page.evaluate(() => getSelection().toString())).length > 0, "native drag selects reference text");
+  assert.equal(await page.evaluate(() => getSelection().toString()), points.expected, "native drag selects the measured reference text");
   assert.equal(requests.filter((r) => endpoint(r, "resolve-title")).length, 0, "copy/drag never resolves or navigates");
   assert.equal(await editorMarkdown(page), baseline);
   // Isolate history from the replacement operation by reloading the persisted text.

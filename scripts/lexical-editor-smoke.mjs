@@ -116,6 +116,22 @@ try {
     await page.reload();
     await page.locator("#note-editor").waitFor({ state: "visible" });
     assert.equal(await editorMarkdown(page), beforeFormat);
+    // Long titles wrap visually while remaining single-line canonical metadata.
+    const longTitle = `An unhurried morning, with enough room to follow a thought wherever it leads · ${width}px`;
+    await page.locator("#note-name").fill(longTitle);
+    await page.waitForFunction(() => {
+      const field = document.getElementById("note-name");
+      return field.clientHeight >= field.scrollHeight && field.scrollWidth <= field.clientWidth;
+    });
+    assert.ok(await page.locator("#note-name").evaluate((field) => field.clientHeight > parseFloat(getComputedStyle(field).lineHeight)));
+    await page.keyboard.press("Enter");
+    assert.equal(await page.evaluate(() => document.activeElement.id), "note-editor");
+    assert.equal(await page.locator("#note-name").inputValue(), longTitle);
+    await saved(page);
+    await page.reload();
+    await page.locator("#note-editor").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#note-name").inputValue(), longTitle);
+    assert.equal(await editorMarkdown(page), beforeFormat);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) {
       await mkdir(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, { recursive: true });
