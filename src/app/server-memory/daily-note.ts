@@ -2,6 +2,8 @@ import { listCanonicalMemoryMarkdownFiles, normalizedDocumentTitle, readMarkdown
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import type { RemoteMemoryNoteDraft } from "../writing/remote-writer.js";
 
+export const DAILY_NOTE_HEADING = "How is your day?";
+
 /** Keep untrusted quick-capture fields intact until app validation. */
 export interface ServerMemoryNoteDraft extends Omit<RemoteMemoryNoteDraft, "type" | "title" | "body"> {
   type: unknown;
@@ -29,18 +31,22 @@ export async function prepareServerNote(rootArg: string, draft: ServerMemoryNote
 
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
-  const pattern = new RegExp(`^${dailyDate}_note_(\\d+)$`);
+  const dateTitle = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(timestamp));
+  const normalizedDateTitle = normalizedDocumentTitle(dateTitle);
+  const prefix = normalizedDateTitle + " · ";
+  const legacyPattern = new RegExp(`^${dailyDate}_note_(\\d+)$`);
   let highest = 0n;
   for (const file of await listCanonicalMemoryMarkdownFiles(root)) {
     const { frontmatter } = await readMarkdownDocument(root, file);
     // Share rename/title-lookup normalization, including ID-less files.
     const title = normalizedDocumentTitle(frontmatter.title);
-    const match = pattern.exec(title);
+    const match = legacyPattern.exec(title) || (title.startsWith(prefix) ? /^(\d+)$/.exec(title.slice(prefix.length)) : null);
+    if (title === normalizedDateTitle && highest < 1n) highest = 1n;
     if (match) {
       const number = BigInt(match[1]!);
       if (number > highest) highest = number;
     }
   }
   // BigInt avoids rounding into an occupied suffix for unusually large imported titles.
-  return { ...draft, type: "note", body: draft.body, title: `${dailyDate}_note_${highest + 1n}` };
+  return { ...draft, type: "note", body: draft.body, title: highest === 0n ? dateTitle : `${dateTitle} · ${highest + 1n}` };
 }

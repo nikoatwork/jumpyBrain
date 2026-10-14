@@ -15,17 +15,31 @@
   <a href="docs/cloud-shared-memory.md">Run your own shared brain</a>
 </p>
 
-<p align="center">
-  <a href="https://demojumpybrain.juttu.co/graph">
-    <img src="docs/assets/jumpybrain-memory-map.webp" alt="The jumpyBrain memory map showing connected company notes, decisions, and topics" width="100%" />
-  </a>
-</p>
-
-<p align="center"><em>Click the image to explore a live, fictional company brain.</em></p>
-
 jumpyBrain gives your team one place to remember what it has learned. Decisions, preferences, project context, discoveries, and handoffs stay available when you switch agents, start a new chat, or come back weeks later.
 
 Store something once. The next person—or the next agent—can find it when it matters.
+
+## A calm place to write
+
+Give a thought some room. Write naturally in the browser, format as you go, and connect related notes with `[[page references]]`. Changes save automatically to Markdown.
+
+<p align="center">
+  <a href="docs/assets/jumpybrain-writing.webp">
+    <img src="docs/assets/jumpybrain-writing.webp" alt="Detail of the jumpyBrain writing page with spacious serif typography, a quiet formatting toolbar, and linked notes about engineering culture and product strategy" width="100%" />
+  </a>
+</p>
+
+## See how your knowledge connects
+
+The memory map brings notes, decisions, findings, and conversations into view. Follow a connection to open its source and keep writing. Your agents can search and recall the same Markdown through the CLI.
+
+<p align="center">
+  <a href="https://demojumpybrain.juttu.co/graph">
+    <img src="docs/assets/jumpybrain-memory-map.webp" alt="The current jumpyBrain memory map connecting 24 fictional team notes across product strategy, engineering culture, customer conversations, and weekly reflection" width="100%" />
+  </a>
+</p>
+
+<p align="center"><em>Screenshots use fictional notes. Click the map to explore the public demo.</em></p>
 
 ## Try the demo in two minutes
 

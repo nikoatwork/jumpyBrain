@@ -14,6 +14,10 @@ Keep the clean white page; make daily writing feel more inviting with literary t
 - `scripts/lexical-editor-smoke.mjs` — real-browser wrapping-title and Enter/save/reload regression coverage.
 - `scripts/page-reference-smoke.mjs` — native drag uses measured character positions across fonts.
 - `tasks/CHANGELOG.md` — writing experience highlight.
+- `src/app/{server-memory,writing}/` — readable daily title allocation and the separate writing-prompt heading.
+- `src/adapters/http-server/reference-autocomplete.ts` — stable inline suggestions during typing.
+- `test/server-daily-note.test.js` and `scripts/{daily-capture,reference-autocomplete}-smoke.mjs` — capture and autocomplete regression coverage.
+- `README.md`, `docs/{cloud-shared-memory,shared-memory-protocol}.md`, and `docs/assets/jumpybrain-{writing,memory-map}.webp` — current behavior and product screenshots.
 
 ## Tasks
 
@@ -39,3 +43,20 @@ Keep the clean white page; make daily writing feel more inviting with literary t
 - A fixed-pixel reference drag check was unreliable with the new serif geometry. Changed it to measured character carets and an exact selected-text assertion. Full real-QMD reference integration smoke passed all 27 desktop/narrow-touch scenarios, including native drag, clipboard events, keyboard navigation, persistence, autocomplete, and tap-versus-scroll.
 - `git diff --check` passed. Physical devices, physical IME, assistive technology, and Safari/Firefox were not tested in this pass.
 - Commit preparation: isolated the editor hunks from shared companion files and verified an exported staged snapshot independently: build and all 111 applicable Node tests passed. The snapshot used copied dependencies because symlinked dependencies omit the bundler's license discovery paths.
+
+## Follow-up — friendlier capture and reliable references
+
+- [x] Replace technical daily titles with a readable date and use “How is your day?” as the initial body heading. Preserve existing notes and the daily sequence across old/new titles.
+- [x] Reproduce and fix flickering/missing `[[` suggestions in the browser on this machine; verify typing, keyboard/pointer acceptance, undo, and autosave.
+- [x] Record targeted regression and visible-browser evidence.
+- [x] Update the README with fresh writer and graph screenshots captured in Chrome from fictional Markdown notes.
+
+### Follow-up verification
+
+- Build and 196 targeted Node tests passed, covering capture allocation, old/new title normalization, idempotency, explicit-title compatibility, search request cancellation/retention, writing/HTTP seams, reference ranges, and browser state guards.
+- Reproduced the empty-list/loading flash in the local in-app browser before the fix. Matching options now remain rendered during new queries; row identity is reused, selection is retained, status space is reserved, and printable keydown no longer refreshes against a pre-input caret.
+- Completed visible Chrome checks on this Mac against the real built editor and a disposable indexed Markdown brain: suggestions stayed visible for each letter of `[[d` → `[[daily wr`, including backspace, spaces, and narrowing. Keyboard acceptance, undo, clicking an option, autosave, and reload all passed.
+- Visible in-app browser checks also confirmed the readable date title and separate “How is your day?” heading. Existing notes were not migrated.
+- Refreshed `README.md` with actual Chrome captures of the writer and current full-page graph (24 fictional notes, 66 connections). The writer WebP crops to the complete writing column for legibility, while the graph preserves the full app viewport; no personal memory or credentials appear in them.
+- Extended the existing isolated autocomplete smoke with held-response/row-continuity checks and updated daily-capture smoke expectations; these browser runners were not rerun in this pass. Chrome verification used the live browser controls instead.
+- Installed runtime remains unchanged. Source changes are ready for review; unrelated companion updater work remains separate.

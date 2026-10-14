@@ -177,17 +177,20 @@ async function validateCreation(page, label) {
   assert.ok(dates.includes(requests[0].draft.dailyDate));
   assert.equal(requests[0].draft.body, "");
   assert.equal(requests[0].draft.type, "note");
-  assert.match(result.title, /^\d{4}-\d{2}-\d{2}_note_[1-9]\d*$/);
-  assert.ok(dates.includes(result.title.slice(0, 10)), "title uses browser-local date");
+  assert.match(result.title, /^[A-Z][a-z]+ \d{1,2}, \d{4}(?: · [1-9]\d*)?$/);
+  assert.ok(dates.some((date) => {
+    const formatted = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(date + "T00:00:00Z"));
+    return result.title === formatted || result.title.startsWith(formatted + " · ");
+  }), "title uses browser-local date");
   assert.equal(await page.locator("#note-title").innerText(), result.title);
-  assert.equal(await page.locator("#note-editor h1").innerText(), result.title, "underscores in numbered titles must remain a rendered heading");
+  assert.equal(await page.locator("#note-editor h1").innerText(), "How is your day?", "body starts with a writing prompt rather than repeating the date");
   const markdown = await canonical(result.file);
   assert.ok(markdown.includes(result.id));
   assert.match(markdown, /created_at: ["']?\d{4}-\d{2}-\d{2}T/);
   assert.equal((await noteFiles()).length, before.length + 1);
   const editor = page.locator("#note-editor");
   assert.equal(await editor.evaluate((element) => document.activeElement === element) && await editorAtEnd(page), true,
-    "new capture focuses the body after the date heading, ready to type");
+    "new capture focuses the body after the writing prompt, ready to type");
   const draft = `${await editorMarkdown(page)}\nSaved from ${label} daily-capture smoke.\n[[${fixture.title}]]\n`;
   await appendEditorText(page, draft.slice((await editorMarkdown(page)).length));
   await saved(page);
@@ -293,7 +296,7 @@ async function validateCaptureShortcuts(page) {
   await opened(page, created.id);
   assert.equal(requests.length, 3);
   assert.ok((await canonical(previous.file)).endsWith(draft), "shortcut saves the old draft without inserting a newline");
-  assert.match(created.title, /^\d{4}-\d{2}-\d{2}_note_[1-9]\d*$/);
+  assert.match(created.title, /^[A-Z][a-z]+ \d{1,2}, \d{4}(?: · [1-9]\d*)?$/);
   await page.evaluate(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, repeat: true, bubbles: true, cancelable: true })));
   await page.locator("#open-search").click();
   await page.locator("#note-search-input").fill("");

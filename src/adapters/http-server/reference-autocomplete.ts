@@ -20,6 +20,7 @@ export type AutocompleteOptions = {
     abortController(): AbortController;
     fetch(query: string, signal: AbortSignal): Promise<unknown>;
     onChange(state: SearchState): void;
+    retainResultsWhileLoading?: boolean;
   }): Search;
   // The host owns authentication, transport, and synchronous dismissal before
   // document/credential/modal/navigation transitions (not just a later refresh).
@@ -43,7 +44,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   status.setAttribute("aria-atomic", "true");
-  status.style.cssText = "padding:4px 7px;font-size:0.875em;overflow-wrap:anywhere";
+  status.style.cssText = "padding:4px 7px;min-height:44px;font-size:12px;line-height:18px;overflow-wrap:anywhere";
   popup.append(status, list);
   popup.hidden = true;
   doc.body.append(popup);
@@ -68,6 +69,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   let tapTimer = 0;
   const cleanups: (() => void)[] = [];
   const search = options.createSearch({
+    retainResultsWhileLoading: true,
     setTimer: (callback, delay) => win.setTimeout(callback, delay),
     clearTimer: (timer) => win.clearTimeout(timer),
     abortController: () => new AbortController(),
@@ -150,14 +152,17 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
     // Freshness/selection refreshes must never detach a pointer's click target.
     // Defer even a changed result set until release; acceptance checks its identity.
     if (key !== renderedKey && !gesture && !pendingTap) {
+      const previousRows = new Map(renderedResults.map((result, index) => [
+        JSON.stringify([result.documentId, result.title, result.referenceTitle]), list.children[index] as HTMLElement,
+      ]));
       renderedKey = key;
       renderedResults = state.results.map((result) => ({ ...result }));
       list.replaceChildren(...renderedResults.map((result, index) => {
-        const row = doc.createElement("div");
+        const row = previousRows.get(JSON.stringify([result.documentId, result.title, result.referenceTitle])) || doc.createElement("div");
         row.id = id + "-option-" + index;
         row.dataset.index = String(index);
         row.setAttribute("role", "option");
-        row.textContent = result.title;
+        if (row.textContent !== result.title) row.textContent = result.title;
         row.style.cssText = "padding:7px;cursor:pointer;overflow-wrap:anywhere";
         return row;
       }));
@@ -173,8 +178,9 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
       row.style.background = selected ? "var(--surface-hover,#eee)" : "";
       if (selected) selectedId = row.id;
     });
-    const message = (feedback || (!state.query ? "Type a page title…" : state.status === "ready" && state.results.length
-      ? state.results.length + " suggestions. Up and Down to choose, Enter to insert, Escape to close." : state.message))
+    const message = (feedback || (!state.query ? "Type a page title…" : state.status === "loading" && state.results.length
+      ? "Updating suggestions…" : state.status === "ready" && state.results.length
+      ? "↑ ↓ choose · Enter insert · Esc close" : state.message))
       + (state.stale ? " · Index may be stale" : "");
     // Do not move a held row by wrapping new freshness/status text above it.
     // Also avoid repeating identical live announcements on geometry updates.
@@ -245,6 +251,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   listen(element, "keydown", (event) => {
     const key = event as KeyboardEvent;
     if (key.isComposing || composing || key.keyCode === 229 || key.metaKey || key.ctrlKey || key.altKey || key.shiftKey) return;
+    if (!["Escape", "ArrowDown", "ArrowUp", "Enter"].includes(key.key)) return;
     refresh();
     if (!active || popup.hidden) return;
     if (key.key === "Escape") { key.preventDefault(); key.stopImmediatePropagation(); dismiss(); }

@@ -36,7 +36,7 @@ export interface RemoteWrapupWriteResult extends RemoteMemoryWriteResult {
 
 const VALID_REMOTE_NOTE_TYPES = new Set<RemoteMemoryNoteType>(["note", "finding", "decision", "preference", "page"]);
 
-export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemoryNoteDraft): Promise<RemoteMemoryWriteResult> {
+export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemoryNoteDraft, options: { heading?: string } = {}): Promise<RemoteMemoryWriteResult> {
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
   const type = normalizeRemoteNoteType(draft.type);
@@ -57,7 +57,7 @@ export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemory
     ["confidence", draft.dream === true ? MEMORY_CONFIDENCE.agentDrafted : MEMORY_CONFIDENCE.userReviewed],
     ["review", draft.dream === true ? MEMORY_REVIEW.userReviewRecommended : undefined],
     ["tags", draft.tags ?? []],
-  ], [`# ${title}`, "", body].join("\n"));
+  ], [`# ${options.heading ?? title}`, "", body].join("\n"));
 
   const dir = path.join(root, directoryForType(type));
   const writtenAbsolute = await writeUniqueMarkdownFile(dir, remoteBaseName(now, title, id), markdown);

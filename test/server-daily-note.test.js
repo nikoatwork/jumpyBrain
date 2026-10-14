@@ -9,6 +9,11 @@ import { writeServerMemoryWithIdempotency } from "../dist/app/server-memory/inde
 import { HTTP_MEMORY_ROUTES } from "../dist/adapters/http-protocol.js";
 
 const day = "2026-09-27";
+const friendlyTitle = (date = day, suffix = 1) => {
+  const [year, month, dateOfMonth] = date.split("-").map(Number);
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${months[month - 1]} ${dateOfMonth}, ${year}` + (suffix === 1 ? "" : ` · ${suffix}`);
+};
 const capture = (dailyDate = day) => ({ type: "note", body: "", dailyDate });
 const headers = { Authorization: "Bearer synthetic-secret", "Content-Type": "application/json" };
 const logger = { info() {}, warn() {}, error() {} };
@@ -45,12 +50,12 @@ async function document(root, file, title) {
   return { absolute, content };
 }
 
-test("daily capture creates readable sequential title metadata and headings, independently per day", async (t) => {
+test("daily capture creates readable date titles and a distinct writing prompt, independently per day", async (t) => {
   const { root, url } = await fixture(t);
   for (const [date, suffix] of [[day, 1], [day, 2], ["2026-09-28", 1], [day, 3], ["2024-02-29", 1]]) {
     const { status, packet } = await create(url, capture(date), `${date}-${suffix}`);
     assert.equal(status, 200);
-    assert.equal(packet.title, `${date}_note_${suffix}`);
+    assert.equal(packet.title, friendlyTitle(date, suffix));
     assert.match(packet.id, /^mem_/);
     assert.equal(packet.type, "note");
     assert.equal(packet.target, "remote");
@@ -58,7 +63,7 @@ test("daily capture creates readable sequential title metadata and headings, ind
     assert.ok(packet.file.startsWith("notes/"));
     const content = await readFile(path.join(root, packet.file), "utf8");
     assert.ok(content.includes(`title: "${packet.title}"`));
-    assert.ok(content.includes(`\n# ${packet.title}\n`));
+    assert.ok(content.includes("\n# How is your day?\n"));
     assert.equal(content.match(/^# /gm).length, 1);
     const read = await fetch(`${url}${HTTP_MEMORY_ROUTES.documentsPrefix}${packet.id}`, { headers });
     assert.equal(read.status, 200);
@@ -80,12 +85,12 @@ test("daily allocation uses fresh normalized canonical titles across buckets, in
   await writeFile(path.join(root, "jumpybrain.json"), JSON.stringify({ schemaVersion: 1, indexRoot: "retrieval" }));
   let result = await create(url, capture(), "first");
   assert.equal(result.status, 200);
-  assert.equal(result.packet.title, `${day}_note_10`);
+  assert.equal(result.packet.title, friendlyTitle(day, 10));
   // An external edit completed before this request must be seen without indexing.
   existing.push(await document(root, "decisions/.import.md", `${day}_NOTE_15`));
   result = await create(url, capture(), "second");
   assert.equal(result.status, 200);
-  assert.equal(result.packet.title, `${day}_note_16`);
+  assert.equal(result.packet.title, friendlyTitle(day, 16));
   for (const file of existing) assert.equal(await readFile(file.absolute, "utf8"), file.content);
 });
 
@@ -94,12 +99,21 @@ test("one real HTTP server write queue allocates unique titles for simultaneous 
   const results = await Promise.all(Array.from({ length: 12 }, (_, i) => create(url, capture(), `parallel-${i}`)));
   assert.ok(results.every(({ status }) => status === 200));
   assert.equal(new Set(results.map(({ packet }) => packet.id)).size, 12);
-  assert.deepEqual(results.map(({ packet }) => Number(packet.title.split("_").at(-1))).sort((a, b) => a - b), Array.from({ length: 12 }, (_, i) => i + 1));
+  assert.deepEqual(results.map(({ packet }) => (packet.title.includes(" · ") ? Number(packet.title.split(" · ").at(-1)) : 1)).sort((a, b) => a - b), Array.from({ length: 12 }, (_, i) => i + 1));
   const retries = await Promise.all(Array.from({ length: 5 }, () => create(url, capture(), "same-key")));
   assert.ok(retries.every(({ status }) => status === 200));
   assert.ok(retries.every(({ packet }) => packet.id === retries[0].packet.id));
-  assert.equal(retries[0].packet.title, `${day}_note_13`);
+  assert.equal(retries[0].packet.title, friendlyTitle(day, 13));
   assert.equal((await readdir(path.join(root, "notes"))).length, 13);
+});
+
+test("daily allocation honors normalized friendly and legacy titles together without rewriting them", async (t) => {
+  const { root, url } = await fixture(t);
+  const original = await document(root, "notes/friendly.md", `  ${friendlyTitle(day).toUpperCase()}  `);
+  await document(root, "pages/imported.md", `${friendlyTitle(day)} · ００４`);
+  await document(root, "notes/legacy.md", `${day}_note_2`);
+  assert.equal((await create(url, capture())).packet.title, friendlyTitle(day, 5));
+  assert.equal(await readFile(original.absolute, "utf8"), original.content);
 });
 
 test("replay retains exact title and ID after later allocations and restart, and body changes conflict", async (t) => {
@@ -117,7 +131,7 @@ test("replay retains exact title and ID after later allocations and restart, and
   await firstServer.close();
   const restarted = await serve(t, root);
   assert.deepEqual(await create(restarted.url, { dailyDate: day, body: "", type: "note" }, "stable-key"), first);
-  assert.equal((await create(restarted.url, capture(), "after-restart")).packet.title, `${day}_note_3`);
+  assert.equal((await create(restarted.url, capture(), "after-restart")).packet.title, friendlyTitle(day, 3));
   assert.equal((await readdir(path.join(root, "notes"))).length, 3);
 });
 
@@ -139,7 +153,7 @@ test("daily capture strictly rejects malformed dates, raw field types and nonbla
   assert.equal((await create(url, capture(), "")).status, 400);
   const valid = await create(url, { ...capture(), body: " \n\t" }, "retry-after-validation");
   assert.equal(valid.status, 200);
-  assert.equal(valid.packet.title, `${day}_note_1`);
+  assert.equal(valid.packet.title, friendlyTitle(day, 1));
 });
 
 test("app seam validates daily capture without relying on HTTP coercion", async (t) => {
@@ -162,7 +176,7 @@ test("explicit-title legacy creation stays unchanged and does not require dailyD
   assert.equal((await create(url, { type: "note", body: "" }, "untitled")).packet.title, "Untitled memory");
   const first = await create(url, { type: "note", title: `${day}_note_20`, body: "" }, "legacy-numbered");
   assert.equal(first.status, 200);
-  assert.equal((await create(url, capture(), "daily")).packet.title, `${day}_note_21`);
+  assert.equal((await create(url, capture(), "daily")).packet.title, friendlyTitle(day, 21));
 });
 
 test("large imported numbered suffixes advance exactly without numeric rounding collisions", async (t) => {
@@ -170,5 +184,5 @@ test("large imported numbered suffixes advance exactly without numeric rounding 
   await document(root, "pages/large.md", `${day}_note_9007199254740992`);
   const result = await create(url, capture());
   assert.equal(result.status, 200);
-  assert.equal(result.packet.title, `${day}_note_9007199254740993`);
+  assert.equal(result.packet.title, friendlyTitle(day, "9007199254740993"));
 });

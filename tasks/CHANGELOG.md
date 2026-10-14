@@ -6,7 +6,7 @@
 
 ## 2026-10-14 — Calmer daily writing
 
-- Refined the editor with literary typography, comfortable page spacing, quieter formatting controls, and wrapping titles for a more relaxed writing experience.
+- Made daily writing calmer with literary typography, friendlier date titles and prompts, comfortable spacing, wrapping titles, and page-reference suggestions that stay visible while typing.
 
 ## 2026-10-12 — Recall format guidance
 

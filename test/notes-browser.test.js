@@ -32,12 +32,13 @@ const docB = "mem_b0000000-0000-4000-8000-000000000001";
 function hit(id = docA, title = "Alpha", file = "notes/alpha.md") {
   return { id: "qmd-hit", snippet: "Body-only search phrase.", provenance: { file, metadata: { id, title } } };
 }
-function searchHarness() {
+function searchHarness(extra = {}) {
   const timers = new Map();
   const requests = [];
   let nextTimer = 0;
   const { createNoteSearch } = runtime(["isValidMemoryDocumentId", "normalizeNoteResults", "createNoteSearch"]);
   const search = createNoteSearch({
+    ...extra,
     setTimer: (run, delay) => { assert.equal(delay, 180); timers.set(++nextTimer, run); return nextTimer; },
     clearTimer: (id) => timers.delete(id),
     abortController: () => new AbortController(),
@@ -233,6 +234,31 @@ test("search handles empty, missing-ID, auth, index/server, rate-limit, and netw
   search.move(1); assert.equal(search.state.selected, 1);
   search.move(1); assert.equal(search.state.selected, 0);
   search.move(-1); assert.equal(search.state.selected, 1);
+});
+
+test("inline search retains matching rows while loading and still rejects stale responses", async () => {
+  const { search, run, requests } = searchHarness({ retainResultsWhileLoading: true });
+  search.query("a"); run();
+  requests[0].resolve({ results: [hit(docA, "Daily reflection"), hit(docB, "Writing practice")], index: { stale: false } });
+  await tick();
+  search.query("da");
+  assert.equal(search.state.status, "loading");
+  assert.equal(search.state.results.length, 1);
+  assert.equal(search.state.results[0].documentId, docA);
+  assert.equal(search.state.selected, 0);
+  run();
+  search.query("daily"); run();
+  assert.equal(requests[1].signal.aborted, true);
+  requests[1].resolve({ results: [hit(docB, "Outdated response")] });
+  await tick();
+  assert.equal(search.state.results[0].documentId, docA);
+  requests[2].resolve({ results: [hit(docA, "Daily reflection")], index: { stale: false } });
+  await tick();
+  assert.equal(search.state.status, "ready");
+  search.query("xyz");
+  assert.equal(search.state.results.length, 0, "unrelated old rows must not remain selectable");
+  search.query("");
+  assert.equal(search.state.results.length, 0);
 });
 
 test("local saves keep search stale across older clean responses until a later fresh query", async () => {

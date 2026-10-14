@@ -92,6 +92,26 @@ try {
         assert.equal(await editorMarkdown(page), source.replace("[[alp", "[[Alpha]]"));
       }
     });
+    await check("matching suggestions stay rendered while a slower next query is pending", async (page) => {
+      await load(page, "[[al"); await selectEditorText(page, 4); await ready(page);
+      const row = menu(page).getByRole("option", { name: "Alpha", exact: true });
+      await row.evaluate((element) => { element.dataset.continuity = "retained"; });
+      const before = await row.boundingBox();
+      await page.evaluate(() => { mode = "hold"; });
+      await page.keyboard.type("p");
+      await page.waitForFunction(() => popup.state.status === "loading");
+      assert.equal(await row.isVisible(), true);
+      assert.equal(await row.getAttribute("data-continuity"), "retained", "the matching row is not detached on each keystroke");
+      const after = await row.boundingBox();
+      assert.equal(after.height, before.height);
+      assert.equal(after.y, before.y, "loading status must not move the option vertically");
+      await page.waitForFunction(() => held.length === 1);
+      await row.click();
+      assert.equal(await editorMarkdown(page), "[[Alpha]]", "a retained matching suggestion can be accepted against the live range");
+      await page.evaluate(() => held.shift()({ results: fixtureResults, index: { stale: false } }));
+      await page.waitForTimeout(100);
+      assert.equal(await menu(page).isVisible(), false, "a late response cannot reopen the accepted picker");
+    });
     await check("Escape is non-destructive; caret departure invalidates session", async (page) => {
       await load(page, "- [[alp"); await selectEditorText(page, 7); await ready(page);
       await page.keyboard.press("Escape"); await page.waitForTimeout(250);

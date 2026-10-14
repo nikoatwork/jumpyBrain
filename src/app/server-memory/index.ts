@@ -34,7 +34,7 @@ import type {
   SearchMemoryResult,
 } from "../../types.js";
 import { createRemoteIndexRunner, type RemoteIndexRunner } from "./auto-index.js";
-import { prepareServerNote, type ServerMemoryNoteDraft } from "./daily-note.js";
+import { DAILY_NOTE_HEADING, prepareServerNote, type ServerMemoryNoteDraft } from "./daily-note.js";
 import { withIdempotency, type IdempotencyResult } from "./idempotency.js";
 import { defaultRemoteIndexState, markRemoteIndexStale, readRemoteIndexState, type RemoteIndexState } from "./state.js";
 import { compactSearchServerMemory } from "./compact.js";
@@ -331,7 +331,8 @@ export async function writeServerMemoryWithIdempotency(options: {
     onRecordFailure: saved => ({ ...saved, ...failedCreationReplay() }),
     create: async () => {
       const writeResult = options.write.kind === "note"
-        ? await writeRemoteMemoryNote(options.root, await prepareServerNote(options.root, options.write.draft, options.write.dailyDate))
+        ? await writeRemoteMemoryNote(options.root, await prepareServerNote(options.root, options.write.draft, options.write.dailyDate),
+          options.write.dailyDate === undefined ? undefined : { heading: DAILY_NOTE_HEADING })
         : await writeRemoteSessionWrapup(options.root, options.write.draft);
       // Canonical publication above must still throw on failure. This catch is
       // strictly derived-index bookkeeping; replay storage has its own saved-result guard.

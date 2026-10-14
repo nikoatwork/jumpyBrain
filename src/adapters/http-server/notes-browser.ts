@@ -325,8 +325,11 @@ function createNoteSearch(options) {
     const token = generation;
     search.query = value.trim();
     search.feedback = "";
-    search.results = [];
-    search.selected = -1;
+    const selectedId = search.results[search.selected]?.documentId;
+    search.results = options.retainResultsWhileLoading && search.query
+      ? search.results.filter((result) => result.title.toLocaleLowerCase().includes(search.query.toLocaleLowerCase())) : [];
+    search.selected = search.results.findIndex((result) => result.documentId === selectedId);
+    if (search.selected < 0) search.selected = search.results.findIndex((result) => result.documentId);
     search.stale = localStale;
     search.status = search.query ? "loading" : "idle";
     search.message = search.query ? "Searching…" : "Search titles and contents.";
