@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-14 — Ambient memory map
+
+- Added subtle blue/lavender/sage light, shaded category nodes, and rounded connecting strands with highlights and shadows; refreshed the README graph capture and verified navigation, filtering, zoom, and panning in Chrome.
+
 ## 2026-10-14 — Companion brain connections
 
 - Added companion `/settings`, named local/remote profiles, Keychain credentials, and draft-safe all-tab/menu switching without changing CLI targets; [verification and beta limits](done/2026-10-14_tasks-macos-brain-connections-settings.md).

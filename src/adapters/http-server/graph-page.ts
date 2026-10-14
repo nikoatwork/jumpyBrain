@@ -5,6 +5,9 @@ import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
 
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
+const graphNodeGlows = ["page", "decision", "finding", "preference", "session", "note", "unresolved"].map((type) =>
+  `<radialGradient id="map-glow-${type}"><stop stop-color="var(--node-${type})" stop-opacity=".2"/><stop offset=".45" stop-color="var(--node-${type})" stop-opacity=".08"/><stop offset="1" stop-color="var(--node-${type})" stop-opacity="0"/></radialGradient>`
+).join("");
 
 export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings" = "home", options: { companion?: boolean } = {}): string {
   const companion = options.companion === true;
@@ -32,16 +35,17 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
       --error-line: #c58c86;
       --line: #e4e2df;
       --line-strong: #cbc8c3;
-      --edge: #b0adaa;
-      --edge-link: #94918d;
+      --edge: #a5b7c7;
+      --edge-link: #b3a6c7;
+      --edge-end: #a8bfb4;
       /* Muted categories are data accents, not application chrome. */
-      --node-page: #626974;
-      --node-decision: #95836a;
-      --node-finding: #82798b;
-      --node-preference: #99817b;
-      --node-session: #91979e;
-      --node-note: #76736e;
-      --node-unresolved: #a46f65;
+      --node-page: #8196ba;
+      --node-decision: #b49a71;
+      --node-finding: #a08ab3;
+      --node-preference: #bd949c;
+      --node-session: #82a7ac;
+      --node-note: #8ba599;
+      --node-unresolved: #bb887b;
       --shadow-sm: 0 1px 3px rgba(48, 46, 43, .05);
       --shadow-lg: 0 16px 48px rgba(48, 46, 43, .12), 0 2px 8px rgba(48, 46, 43, .05);
       --radius-sm: 6px;
@@ -89,10 +93,11 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
 
     main { display: flex; min-height: 0; }
     #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--surface); }
-    #graph { display: block; width: 100%; height: 100%; cursor: grab; }
+    #graph-wrap::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 24% 28%, rgba(166, 194, 218, .16), transparent 56%), radial-gradient(ellipse at 78% 34%, rgba(190, 174, 211, .14), transparent 54%), radial-gradient(ellipse at 52% 84%, rgba(166, 198, 181, .13), transparent 54%); }
+    #graph { position: relative; display: block; width: 100%; height: 100%; cursor: grab; }
     #graph:active { cursor: grabbing; }
     .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; }
-    .stats { color: var(--ink-soft); font-size: 12px; background: var(--surface); }
+    .stats { color: var(--ink-soft); font-size: 12px; background: transparent; }
     .stats strong { font-weight: 500; font-variant-numeric: tabular-nums; }
     .canvas-tools { display: flex; gap: 4px; background: var(--surface); pointer-events: auto; }
     .helper { position: absolute; right: 24px; bottom: 62px; margin: 0; color: var(--ink-faint); font-size: 11px; pointer-events: none; }
@@ -100,14 +105,20 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     #graph-empty { position: absolute; top: 40%; left: 24px; right: 24px; text-align: center; color: var(--ink-soft); pointer-events: none; }
     .sr-status { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-    .edge { stroke: var(--edge); stroke-opacity: .48; stroke-linecap: round; vector-effect: non-scaling-stroke; transition: stroke-opacity .15s ease; }
-    .edge.markdown-link { stroke: var(--edge-link); }
+    .edge, .edge-shadow, .edge-highlight { stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+    .edge { stroke: url(#map-threads); stroke-opacity: .55; transition: stroke-opacity .15s ease; }
+    .edge.markdown-link { stroke-opacity: .7; }
+    .edge-shadow { stroke: #63778c; stroke-opacity: .13; }
+    .edge-highlight { stroke: #ffffff; stroke-opacity: .72; }
     .node { cursor: pointer; }
-    .node circle { fill: var(--node-fill, var(--node-note)); stroke: var(--surface); stroke-width: 2; vector-effect: non-scaling-stroke; transition: stroke-width .15s ease; }
-    .node.unresolved circle { fill: var(--node-unresolved); stroke-dasharray: 3 2; }
+    .node .node-core { fill: var(--node-fill, var(--node-note)); stroke: var(--surface); stroke-width: 1.5; vector-effect: non-scaling-stroke; filter: url(#map-node-shadow); transition: stroke-width .15s ease; }
+    .node .node-halo { pointer-events: none; opacity: .7; transition: opacity .15s ease; }
+    .node .node-sheen { fill: url(#map-node-light); pointer-events: none; }
+    .node.unresolved .node-core { fill: var(--node-unresolved); stroke-dasharray: 3 2; }
     .node text { fill: var(--ink-soft); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; font-size: 11px; font-weight: 640; letter-spacing: -.01em; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
-    .node.show-label text, .node:hover text, .node:focus text, .node.selected text { opacity: 1; }
-    .node:hover circle, .node:focus-visible circle, .node.selected circle { stroke: var(--focus-ring); stroke-width: 4; }
+    .node.show-label text, .node:hover text, .node:focus text, .node.selected text { opacity: 1; pointer-events: auto; }
+    .node:hover .node-core, .node:focus-visible .node-core, .node.selected .node-core { stroke: var(--focus-ring); stroke-width: 4; }
+    .node:hover .node-halo, .node:focus-visible .node-halo, .node.selected .node-halo { opacity: 1; }
     .node.selected text { fill: var(--ink); font-weight: 760; }
 
     @media (max-width: 680px) {
@@ -156,7 +167,15 @@ ${dreamMarkup}
 </header>
 <main>
   <section id="graph-wrap" aria-label="Memory map">
-    <svg id="graph" data-testid="graph-svg" role="group" aria-label="Notes and their connections"><g id="viewport"></g></svg>
+    <svg id="graph" data-testid="graph-svg" role="group" aria-label="Notes and their connections">
+      <defs>
+        <linearGradient id="map-threads" gradientUnits="userSpaceOnUse" x1="12%" y1="8%" x2="88%" y2="92%"><stop stop-color="var(--edge)"/><stop offset=".5" stop-color="var(--edge-link)"/><stop offset="1" stop-color="var(--edge-end)"/></linearGradient>
+        <radialGradient id="map-node-light" cx="30%" cy="24%" r="78%"><stop stop-color="#ffffff" stop-opacity=".72"/><stop offset=".38" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".72" stop-color="#46566b" stop-opacity="0"/><stop offset="1" stop-color="#46566b" stop-opacity=".24"/></radialGradient>
+        <filter id="map-node-shadow" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#62768d" flood-opacity=".2"/></filter>
+        ${graphNodeGlows}
+      </defs>
+      <g id="viewport"></g>
+    </svg>
     <p id="graph-empty" role="status" hidden></p>
     <div class="canvas-bottom">
       <span class="stats" data-testid="graph-stats" aria-label="Shown on this map">
@@ -377,8 +396,25 @@ function render(graph, preserveView) {
     line.setAttribute("class", "edge " + edge.kind);
     line.setAttribute("data-testid", "graph-edge");
     line.setAttribute("x1", a.x); line.setAttribute("y1", a.y); line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
-    line.setAttribute("stroke-width", String(Math.min(1 + edge.count, 5)));
-    viewport.append(line);
+    const width = Math.min(1 + edge.count, 5);
+    line.setAttribute("stroke-width", String(width));
+    // A narrow lit rim and opposite shaded rim give each strand a rounded profile.
+    const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    let nx = (a.y - b.y) / length, ny = (b.x - a.x) / length;
+    if (nx + ny > 0) { nx = -nx; ny = -ny; }
+    const shadow = line.cloneNode(false);
+    shadow.removeAttribute("data-testid");
+    shadow.setAttribute("class", "edge-shadow");
+    shadow.setAttribute("aria-hidden", "true");
+    shadow.setAttribute("stroke-width", String(width + .8));
+    shadow.setAttribute("transform", "translate(" + (-nx * .8) + " " + (-ny * .8) + ")");
+    const highlight = line.cloneNode(false);
+    highlight.removeAttribute("data-testid");
+    highlight.setAttribute("class", "edge-highlight");
+    highlight.setAttribute("aria-hidden", "true");
+    highlight.setAttribute("stroke-width", String(Math.max(.6, width * .3)));
+    highlight.setAttribute("transform", "translate(" + (nx * width * .22) + " " + (ny * width * .22) + ")");
+    viewport.append(shadow, line, highlight);
   }
   for (const node of graph.nodes) {
     const p = positions.get(node.id);
@@ -392,8 +428,18 @@ function render(graph, preserveView) {
     g.setAttribute("transform", "translate(" + p.x + " " + p.y + ")");
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     const nodeRadius = 6 + Math.min(node.degree, 12);
+    circle.setAttribute("class", "node-core");
     circle.setAttribute("r", String(nodeRadius));
     circle.style.setProperty("--node-fill", nodeColor(node));
+    const tone = node.nodeKind === "unresolved" ? "unresolved"
+      : ["page", "decision", "finding", "preference", "session", "note"].includes(node.type) ? node.type : "note";
+    const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    halo.setAttribute("class", "node-halo");
+    halo.setAttribute("r", String(nodeRadius * 3));
+    halo.setAttribute("fill", "url(#map-glow-" + tone + ")");
+    const sheen = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    sheen.setAttribute("class", "node-sheen");
+    sheen.setAttribute("r", String(Math.max(0, nodeRadius - .75)));
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     const labelLeft = p.x > rect.width * .8;
     text.setAttribute("x", String((nodeRadius + 4) * (labelLeft ? -1 : 1)));
@@ -404,7 +450,7 @@ function render(graph, preserveView) {
     const label = Array.from(title.textContent);
     const maxLabel = rect.width < 680 ? 20 : 36;
     text.textContent = label.length > maxLabel ? label.slice(0, maxLabel - 1).join("") + "…" : title.textContent;
-    g.append(title, circle, text);
+    g.append(title, halo, circle, sheen, text);
     g.addEventListener("pointerdown", (event) => event.stopPropagation());
     g.addEventListener("click", (event) => { event.stopPropagation(); selectNode(node, g); });
     g.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectNode(node, g); } });

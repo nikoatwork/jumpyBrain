@@ -60,3 +60,17 @@ Keep the clean white page; make daily writing feel more inviting with literary t
 - Refreshed `README.md` with actual Chrome captures of the writer and current full-page graph (24 fictional notes, 66 connections). The writer WebP crops to the complete writing column for legibility, while the graph preserves the full app viewport; no personal memory or credentials appear in them.
 - Extended the existing isolated autocomplete smoke with held-response/row-continuity checks and updated daily-capture smoke expectations; these browser runners were not rerun in this pass. Chrome verification used the live browser controls instead.
 - Installed runtime remains unchanged. Source changes are ready for review; unrelated companion updater work remains separate.
+
+## Follow-up — ambient memory map
+
+- [x] Commit the approved writing, autocomplete, daily defaults, and README work separately (`ab0ccb8`).
+- [x] Add a restrained blue/lavender/sage wash, shaded nodes, soft halos, and gently colored connections to the graph canvas. Give connections a rounded strand profile with a lit rim and opposite shaded rim. Keep layout and radius/connection meaning unchanged; visible labels now open their note too.
+- [x] Verify the graph in Chrome, including zoom, filters, node opening, and return navigation; update the README graph capture.
+- [x] Record checks and prepare the graph refinement for its separate commit.
+
+### Ambient map verification
+
+- Build and all 111 applicable Node tests passed (graph, notes browser, companion browser, and Lexical bundle); `git diff --check` passed.
+- Verified the real built graph in Chrome on this Mac with 24 fictional notes and 66 connections: zoom/reset, drag-to-pan, filter/refresh, clicking a visible label to open the writer, and Back restoring the prior zoom/pan all passed.
+- Replaced the README graph image with the verified ambient graph capture, including the shaded strands. Decorative layers remain inert, and connection statistics count only the original edges.
+- Installed runtime and personal memory remain unchanged. Unrelated companion updater work is excluded from these commits.

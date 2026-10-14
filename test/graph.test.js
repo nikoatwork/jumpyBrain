@@ -311,7 +311,7 @@ test("graph page uses quiet map controls with native filters and no depth UI", (
   for (const id of ["include-orphans", "include-unresolved"]) {
     assert.match(html, new RegExp(`id="${id}"[^>]*type="checkbox"[^>]*checked`));
   }
-  assert.doesNotMatch(html, /class="(?:topbar|legend)"|radial-gradient|id="depth"|data-testid="graph-depth"/);
+  assert.doesNotMatch(html, /class="(?:topbar|legend)"|id="depth"|data-testid="graph-depth"/);
   assert.match(html, /class="canvas-tools" aria-label="Graph view controls"/);
   assert.match(html, /id="reset-view"/);
   assert.match(html, /window\.addEventListener\("resize", \(\) => queueGraphLayout\(80\)/);

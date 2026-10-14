@@ -35,7 +35,7 @@ The memory map brings notes, decisions, findings, and conversations into view. F
 
 <p align="center">
   <a href="https://demojumpybrain.juttu.co/graph">
-    <img src="docs/assets/jumpybrain-memory-map.webp" alt="The current jumpyBrain memory map connecting 24 fictional team notes across product strategy, engineering culture, customer conversations, and weekly reflection" width="100%" />
+    <img src="docs/assets/jumpybrain-memory-map.webp" alt="The jumpyBrain memory map with softly shaded colored nodes and highlighted connecting strands, linking 24 fictional team notes across strategy, engineering culture, and weekly reflection" width="100%" />
   </a>
 </p>
 
