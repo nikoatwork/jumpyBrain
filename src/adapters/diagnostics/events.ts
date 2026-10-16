@@ -68,15 +68,30 @@ export function diagnosticErrorKind(error: unknown): string {
   try { return error instanceof TypeError ? "type_error" : error instanceof RangeError ? "range_error" : error instanceof SyntaxError ? "syntax_error" : "error"; } catch { return "error"; }
 }
 
+export function unavailableDiagnosticSnapshot(component: DiagnosticComponent, failures = 1): DiagnosticSnapshot {
+  return { component, availability: "unavailable", events: [], dropped: 0, failures, truncatedBytes: 0 };
+}
+
+// Reuse schema rules at each trust boundary; callers retain source-specific policy.
+export function normalizeDiagnosticSnapshot(source: DiagnosticSnapshot, eventLimit: number): DiagnosticSnapshot {
+  return {
+    component: source.component,
+    availability: member(source.availability, ["available", "degraded", "unavailable"], "unavailable"),
+    events: (Array.isArray(source.events) ? source.events.slice(-eventLimit) : [])
+      .map(sanitizeDiagnosticEvent).filter((event): event is DiagnosticEvent => event !== null && event.component === source.component),
+    dropped: number(source.dropped, 1000000000) ?? 0,
+    failures: number(source.failures, 1000000000) ?? 0,
+    truncatedBytes: number(source.truncatedBytes, 1000000000) ?? 0,
+    coalesced: number(source.coalesced, 1000000000) ?? 0,
+  };
+}
+
 // Merge only sanitized events; correlation identifiers never leave a support report raw.
 export function supportReport(sources: DiagnosticSnapshot[], maximumBytes = 24000) {
-  const safeSources = sources.slice(0, 5).filter((s) => DIAGNOSTIC_COMPONENTS.includes(s.component)).map((s) => ({
-    component: s.component, availability: member(s.availability, ["available", "degraded", "unavailable"], "unavailable"),
-    dropped: number(s.dropped, 1000000000) ?? 0, failures: number(s.failures, 1000000000) ?? 0,
-    truncatedBytes: number(s.truncatedBytes, 1000000000) ?? 0,
-    coalesced: number(s.coalesced, 1000000000) ?? 0,
-  }));
-  const events = sources.slice(0, 5).flatMap((s) => (Array.isArray(s.events) ? s.events.slice(-120) : []).map(sanitizeDiagnosticEvent).filter((e): e is DiagnosticEvent => e !== null && e.component === s.component));
+  const normalized = sources.slice(0, 5).filter((source) => DIAGNOSTIC_COMPONENTS.includes(source.component))
+    .map((source) => normalizeDiagnosticSnapshot(source, 120));
+  const safeSources = normalized.map(({ events, ...metadata }) => metadata);
+  const events = normalized.flatMap((source) => source.events);
   events.sort((a, b) => Number(a.severity === "info" && a.outcome === "ok") - Number(b.severity === "info" && b.outcome === "ok") || b.at.localeCompare(a.at));
   const references = new Map<string, string>();
   const ref = (value: string, prefix: string) => { const key = prefix + value; if (!references.has(key)) references.set(key, prefix + (references.size + 1)); return references.get(key)!; };

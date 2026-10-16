@@ -2,7 +2,7 @@ import { constants } from "node:fs";
 import { lstat, mkdir, open, opendir, realpath, unlink } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { createDiagnosticBuffer, diagnosticId, sanitizeDiagnosticEvent, type DiagnosticComponent, type DiagnosticSnapshot } from "./events.js";
+import { createDiagnosticBuffer, diagnosticId, normalizeDiagnosticSnapshot, unavailableDiagnosticSnapshot, sanitizeDiagnosticEvent, type DiagnosticComponent, type DiagnosticSnapshot } from "./events.js";
 
 const SEGMENT = /^events-(\d{13})-[a-f0-9]{8}\.jsonl$/;
 export function newDiagnosticId() { return "d_" + randomBytes(16).toString("hex"); }
@@ -131,7 +131,7 @@ export type DiagnosticStore = ReturnType<typeof createDiagnosticStore>;
 
 // Native host writes this bounded schema snapshot atomically, not a raw log.
 export async function readNativeDiagnosticSnapshot(filePath: string): Promise<DiagnosticSnapshot> {
-  const unavailable: DiagnosticSnapshot = { component: "native", availability: "unavailable", events: [], dropped: 0, failures: 1, truncatedBytes: 0 };
+  const unavailable = unavailableDiagnosticSnapshot("native");
   let file;
   try {
     const parent = await lstat(path.dirname(filePath));
@@ -143,8 +143,12 @@ export async function readNativeDiagnosticSnapshot(filePath: string): Promise<Di
     const read = await file.read(data, 0, data.length, 0);
     const packet = JSON.parse(data.subarray(0, read.bytesRead).toString("utf8"));
     if (!Array.isArray(packet.events) || packet.events.length > 64) return unavailable;
-    const events = packet.events.map(sanitizeDiagnosticEvent).filter((e: ReturnType<typeof sanitizeDiagnosticEvent>) => e && e.component === "native" && Date.parse(e.at) >= Date.now() - 7 * 86400000);
-    return { ...unavailable, availability: events.length === packet.events.length ? "available" : "degraded", events, failures: Number(events.length !== packet.events.length),
-      dropped: typeof packet.dropped === "number" && Number.isFinite(packet.dropped) ? Math.max(0, Math.min(1000000000, Math.trunc(packet.dropped))) : 0 };
+    // Schema normalization is shared; native freshness and degradation remain local.
+    const { coalesced, ...snapshot } = normalizeDiagnosticSnapshot({ ...unavailable,
+      events: packet.events, dropped: packet.dropped }, 64);
+    snapshot.events = snapshot.events.filter((event) => Date.parse(event.at) >= Date.now() - 7 * 86400000);
+    snapshot.failures = Number(snapshot.events.length !== packet.events.length);
+    snapshot.availability = snapshot.failures ? "degraded" : "available";
+    return snapshot;
   } catch { return unavailable; } finally { await file?.close().catch(() => {}); }
 }

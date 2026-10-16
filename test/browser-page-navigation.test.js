@@ -4,12 +4,12 @@ import { createPageHistory } from "../dist/adapters/http-server/browser-page-nav
 
 const page = (n, title = `Page ${n}`) => ({ id: `mem_a0000000-0000-4000-8000-${String(n).padStart(12, "0")}`, title });
 function harness({ blocked = false, readOnly = false, values = new Map() } = {}) {
-  let scope = "brain:a";
-  const history = createPageHistory({ scope: () => scope, onChange() {}, storage: () => ({
+  let scope = "brain:a", writes = 0, changes = 0;
+  const history = createPageHistory({ scope: () => scope, onChange() { changes++; }, storage: () => ({
     getItem(key) { if (blocked) throw Error("blocked"); return values.get(key) ?? null; },
-    setItem(key, value) { if (blocked || readOnly) throw Error("blocked"); values.set(key, value); },
+    setItem(key, value) { if (blocked || readOnly) throw Error("blocked"); values.set(key, value); writes++; },
   }) });
-  return { history, values, scope: (next) => { scope = next; } };
+  return { history, values, counts: () => ({ writes, changes }), scope: (next) => { scope = next; } };
 }
 
 test("visits are unique, latest first, bounded, and independent of rename/save order", () => {
@@ -69,4 +69,20 @@ test("unavailable and read-only storage preserve in-tab visits and pins", () => 
     history.visit(page(1)); history.visit(page(2)); history.toggle(page(1));
     assert.deepEqual(history.snapshot(), { pinned: [page(1)], recent: [page(2)] });
   }
+});
+
+test("unchanged renames skip persistence and notification but still observe newer stored history", () => {
+  const h = harness();
+  h.history.visit(page(1));
+  const before = h.counts();
+  h.history.rename(page(1));
+  assert.deepEqual(h.counts(), before);
+  const other = harness({ values: h.values });
+  other.history.visit(page(2));
+  h.history.rename(page(1));
+  assert.deepEqual(h.counts(), { writes: before.writes, changes: before.changes + 1 });
+  assert.deepEqual(h.history.snapshot().recent, [page(2), page(1)]);
+  h.history.rename(page(1, "Renamed"));
+  assert.deepEqual(h.counts(), { writes: before.writes + 1, changes: before.changes + 2 });
+  assert.deepEqual(h.history.snapshot().recent, [page(2), page(1, "Renamed")]);
 });

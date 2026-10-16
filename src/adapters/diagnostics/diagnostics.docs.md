@@ -3,6 +3,7 @@
 ## Responsibilities
 
 - `events.ts` is browser-safe schema v1: finite component/operation/code vocabularies, bounded numeric facts, canonical timestamps and opaque correlation. Unknown content is discarded, including messages/stacks/paths and nested objects. Error locations identify only the known shell/bundle and numeric line/column.
+- `events.ts` also owns shared snapshot normalization and unavailable-source defaults. Collection, native reading, and report export revalidate through these rules while retaining their own count limits, freshness checks, and availability policy.
 - `store.ts` persists only schema events in a private, owned directory: bounded queue, seven-day retention, ten 1 MiB segments, continuous rotation, no-follow file access, bounded reads and shutdown flush. Only its own segment names are cleaned up. Storage failure is reported separately; it never fails application operations.
 - Event buffers prioritize failures over repetitive successful polls. Support export remaps session/request identifiers to report-local references. Logs are disposable infrastructure, never canonical memory.
 - Stores coalesce matching healthy poll/status/document-read events within thirty seconds and expose the process-local count; failures, unconfirmed outcomes and writes are never sampled. The fixture-volume check retains every failure/write while reducing 100 identical healthy reads to one event per sampling interval. Ten MiB is an aggregate ceiling, not a promise of seven days under every workload.

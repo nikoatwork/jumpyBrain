@@ -40,6 +40,11 @@ try {
   assert.equal(await page.locator('#sidebar-pinned [aria-current="page"]').count(), 1);
   await page.locator("#note-name").fill("Project direction, refined");
   await page.waitForFunction(() => document.querySelector("#sidebar-pinned a").textContent === "Project direction, refined");
+  // Body-only autosaves must not replace a sidebar row under a pointer/focus.
+  await page.evaluate(() => { window.savedSidebarRow = document.querySelector("#sidebar-pinned li"); });
+  await appendEditorText(page, " Body-only sidebar check.");
+  await page.waitForFunction(() => state.editor?.state.saveStatus === "saved" && !state.editor.state.dirty);
+  assert.equal(await page.evaluate(() => window.savedSidebarRow === document.querySelector("#sidebar-pinned li")), true);
   // Cross-tab unpin is reflected without disturbing the open editor.
   const second = await context.newPage();
   await second.goto(server.url);

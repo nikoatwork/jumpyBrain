@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-16 — Browser and diagnostics cleanup
+
+- Eliminated unchanged sidebar writes/row replacement and consolidated diagnostic normalization and editor baseline assignment; focused tests and desktop/narrow browser checks passed.
+
 ## 2026-10-16 — README landing page
 
 - Reframed the README around “Good thoughts deserve a home” and an open-source, agent-first Notion, with editor-led storytelling, personal/shared brains, clear setup paths, and answers to adoption questions.

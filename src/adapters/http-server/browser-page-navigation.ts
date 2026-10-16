@@ -36,16 +36,25 @@ export function createPageHistory(options: { scope(): string | null; storage(): 
   }
   function change(update: () => void) {
     sync();
-    if (!key) return;
-    read(); update();
-    try { options.storage().setItem(key, JSON.stringify(history)); } catch { storageAvailable = false; }
+    if (!key) return false;
+    const beforeRead = JSON.stringify(history);
+    read();
+    const beforeUpdate = JSON.stringify(history);
+    update();
+    const updated = JSON.stringify(history);
+    if (updated === beforeUpdate) {
+      if (updated !== beforeRead) options.onChange();
+      return updated !== beforeRead;
+    }
+    try { options.storage().setItem(key, updated); } catch { storageAvailable = false; }
     options.onChange();
+    return true;
   }
   return {
     snapshot() { sync(); return { pinned: [...history.pinned], recent: history.recent.filter((page) => !history.pinned.some((pin) => pin.id === page.id)).slice(0, 8) }; },
     visit(page: Page) {
-      if (!MEMORY_DOCUMENT_ID_PATTERN.test(page.id)) return;
-      change(() => {
+      if (!MEMORY_DOCUMENT_ID_PATTERN.test(page.id)) return false;
+      return change(() => {
         const entry = { id: page.id, title: (page.title || "Untitled").slice(0, 300) };
         history.recent = [entry, ...history.recent.filter((item) => item.id !== page.id)].slice(0, 30);
         history.pinned = history.pinned.map((item) => item.id === page.id ? entry : item);
@@ -134,7 +143,7 @@ export function installPageNavigation(options: {
   render();
   return {
     select(id: string | null) { selected = id; current = null; render(); },
-    visit(page: Page) { current = page; selected = page.id; history.visit(page); },
+    visit(page: Page) { current = page; selected = page.id; if (!history.visit(page)) render(); },
     rename(page: Page) { if (current?.id === page.id) current = page; history.rename(page); },
     remove(id: string) { if (current?.id === id) current = null; history.remove(id); },
     refresh() { current = null; render(); },

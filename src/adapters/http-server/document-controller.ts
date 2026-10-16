@@ -77,16 +77,21 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
   };
   const isCurrent = () => !editorState.cancelled && options.isCurrent(editorState.generation, editorState.documentId);
 
+  // Callers own validation, draft replacement, and transition policy.
+  function setConfirmedBaseline(hash: string, title: string, parts: ReturnType<DocumentEditorOptions["splitDocument"]>) {
+    editorState.contentHash = hash;
+    editorState.frontmatterPrefix = parts.frontmatterPrefix;
+    editorState.newline = parts.newline;
+    editorState.savedBody = parts.body;
+    editorState.savedTitle = title;
+  }
+
   function hydrate(payload: DocumentPayload) {
     pendingMerge = false; mergeAttempts = 0;
     editorState.reconcileToken++;
     editorState.externalStatus = "";
     const parts = options.splitDocument(String(payload.content || ""));
-    editorState.contentHash = String(payload.contentHash || "");
-    editorState.frontmatterPrefix = parts.frontmatterPrefix;
-    editorState.newline = parts.newline;
-    editorState.savedBody = parts.body;
-    editorState.savedTitle = String(payload.title || "");
+    setConfirmedBaseline(String(payload.contentHash || ""), String(payload.title || ""), parts);
     editorState.title = editorState.savedTitle;
     editorState.draft = parts.body;
     editorState.dirty = false;
@@ -144,10 +149,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     const bodyChanged = body !== editorState.draft;
     editorState.reconcileToken++;
     editorState.draftRevision++;
-    editorState.contentHash = latest.contentHash;
-    editorState.frontmatterPrefix = parts.frontmatterPrefix;
-    editorState.newline = parts.newline;
-    editorState.savedBody = parts.body; editorState.savedTitle = latest.title;
+    setConfirmedBaseline(latest.contentHash, latest.title, parts);
     editorState.draft = body; editorState.title = title;
     editorState.unconfirmedSave = false;
     editorState.dirty = body !== parts.body || title !== latest.title;
@@ -324,11 +326,9 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
       // A persistent editor must never replace its body/caret with another writer's version.
       // Leave its previous hash intact so the next write goes through the explicit conflict policy.
       if (options.persistentEditing && parts.body !== editorState.draft) return;
-      editorState.contentHash = String(latest.contentHash || editorState.contentHash);
-      editorState.frontmatterPrefix = parts.frontmatterPrefix;
-      editorState.newline = parts.newline;
-      editorState.savedBody = parts.body;
-      if (typeof latest.title === "string") editorState.title = editorState.savedTitle = latest.title;
+      setConfirmedBaseline(String(latest.contentHash || editorState.contentHash),
+        typeof latest.title === "string" ? latest.title : editorState.savedTitle, parts);
+      if (typeof latest.title === "string") editorState.title = latest.title;
       editorState.draft = parts.body;
       editorState.saveStatus = "saved";
       emit();
@@ -357,11 +357,9 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     clearSaveTimer();
     pendingMerge = false; mergeAttempts = 0;
     editorState.reconcileToken++;
-    editorState.contentHash = payload.contentHash;
-    editorState.frontmatterPrefix = parts.frontmatterPrefix;
-    editorState.newline = parts.newline;
-    editorState.savedBody = editorState.draft = parts.body;
-    editorState.savedTitle = editorState.title = payload.title;
+    setConfirmedBaseline(payload.contentHash, payload.title, parts);
+    editorState.draft = parts.body;
+    editorState.title = payload.title;
     editorState.saveStatus = "saved";
     editorState.externalStatus = visibleChange ? "updated" : "";
     if (bodyChanged) options.onExternalUpdate?.(parts.body);
