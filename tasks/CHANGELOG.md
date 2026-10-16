@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-14 — Smaller Mac menu
+
+- Moved brain switching and search-index refresh into browser Settings; grouped native login/update and troubleshooting actions into compact submenus.
+
 ## 2026-10-14 — Ambient memory map
 
 - Added subtle blue/lavender/sage light, shaded category nodes, and rounded connecting strands with highlights and shadows; refreshed the README graph capture and verified navigation, filtering, zoom, and panning in Chrome.

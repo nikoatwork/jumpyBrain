@@ -230,18 +230,12 @@ final class NativeBridge {
 }
 
 private struct BrainProfile: Decodable {
-    let id: String
     let name: String
     let kind: String
     let root: String?
-    let url: String?
-    let allowWrites: Bool
 }
 
 private struct CompanionState: Decodable {
-    let profiles: [BrainProfile]
-    let activeId: String?
-    let generation: Int
     let phase: String
     let health: String
     let active: BrainProfile?
@@ -254,13 +248,10 @@ final class Companion: NSObject, NSApplicationDelegate {
     private var openItem: NSMenuItem!
     private var settingsItem: NSMenuItem!
     private var memoryItem: NSMenuItem!
-    private var profilesItem: NSMenuItem!
     private var connectionState: CompanionState?
-    private var switchInFlight = false
-    private var switching: Bool { switchInFlight || connectionState?.phase == "preparing" }
+    private var switching: Bool { connectionState?.phase == "preparing" }
     private var nativeBridge: NativeBridge?
     private var restartItem: NSMenuItem!
-    private var indexItem: NSMenuItem!
     private var loginItem: NSMenuItem!
     private var updateItem: NSMenuItem!
     private var checkUpdateItem: NSMenuItem!
@@ -270,7 +261,6 @@ final class Companion: NSObject, NSApplicationDelegate {
     private var updating = false
     private var updateHandoffDirectory: URL?
     private var server: Process?
-    private var indexer: URLSessionDataTask?
     private var output: FileHandle?
     private var healthTimer: Timer?
     private var signals: [DispatchSourceSignal] = []
@@ -340,29 +330,33 @@ final class Companion: NSObject, NSApplicationDelegate {
         menu.autoenablesItems = false
         statusLine.isEnabled = false
         menu.addItem(statusLine)
-        let address = NSMenuItem(title: baseURL, action: nil, keyEquivalent: "")
-        address.isEnabled = false
-        menu.addItem(address)
         menu.addItem(.separator())
         openItem = add(menu, "Open Editor in Chrome", #selector(openEditor), "o")
         settingsItem = add(menu, "Settings…", #selector(openSettings), ",")
-        profilesItem = NSMenuItem(title: "Brain Connections", action: nil, keyEquivalent: "")
-        menu.addItem(profilesItem)
-        restartItem = add(menu, "Restart Server…", #selector(restartServer))
-        indexItem = add(menu, "Refresh Search Index", #selector(refreshIndex))
         menu.addItem(.separator())
-        memoryItem = add(menu, "Open Memory Folder", #selector(openMemory))
-        _ = add(menu, "Show Logs", #selector(showLogs))
-        loginItem = add(menu, "Start at Login", #selector(toggleLogin))
+        let appItem = NSMenuItem(title: "App", action: nil, keyEquivalent: "")
+        let appMenu = NSMenu()
+        appMenu.autoenablesItems = false
+        appItem.submenu = appMenu
+        menu.addItem(appItem)
+        loginItem = add(appMenu, "Start at Login", #selector(toggleLogin))
         updateLoginState()
-        menu.addItem(.separator())
+        updateStatus.isEnabled = false
+        appMenu.addItem(updateStatus)
+        checkUpdateItem = add(appMenu, "Check for Updates", #selector(checkForUpdates))
+        updateItem = add(appMenu, "Update jumpyBrain…", #selector(updateApp))
         let build = NSMenuItem(title: "Local build · \(config.revision)", action: nil, keyEquivalent: "")
         build.isEnabled = false
-        menu.addItem(build)
-        updateStatus.isEnabled = false
-        menu.addItem(updateStatus)
-        checkUpdateItem = add(menu, "Check for Updates", #selector(checkForUpdates))
-        updateItem = add(menu, "Update jumpyBrain…", #selector(updateApp))
+        appMenu.addItem(build)
+
+        let troubleshootingItem = NSMenuItem(title: "Troubleshooting", action: nil, keyEquivalent: "")
+        let troubleshootingMenu = NSMenu()
+        troubleshootingMenu.autoenablesItems = false
+        troubleshootingItem.submenu = troubleshootingMenu
+        menu.addItem(troubleshootingItem)
+        restartItem = add(troubleshootingMenu, "Restart Server…", #selector(restartServer))
+        memoryItem = add(troubleshootingMenu, "Open Memory Folder", #selector(openMemory))
+        _ = add(troubleshootingMenu, "Show Logs", #selector(showLogs))
         menu.addItem(.separator())
         _ = add(menu, "Quit jumpyBrain…", #selector(quit), "q")
         statusItem.menu = menu
@@ -388,10 +382,7 @@ final class Companion: NSObject, NSApplicationDelegate {
         openItem?.isEnabled = healthy && !stopping && !updating
         settingsItem?.isEnabled = healthy && !stopping && !updating
         memoryItem?.isEnabled = healthy && connectionState?.active?.kind == "local" && !stopping && !updating && !switching
-        profilesItem?.isEnabled = healthy && !stopping && !updating && !switching
-        for item in profilesItem?.submenu?.items ?? [] { item.isEnabled = profilesItem?.isEnabled == true && indexer == nil }
-        restartItem?.isEnabled = !stopping && indexer == nil && !updating && !switching
-        indexItem?.isEnabled = healthy && connectionState?.health == "connected" && connectionState?.active?.allowWrites == true && !stopping && indexer == nil && !updating && !switching
+        restartItem?.isEnabled = !stopping && !updating && !switching
         updateItem?.isEnabled = !stopping && !updating
         checkUpdateItem?.isEnabled = !stopping && !updating && updateCheck == nil
         loginItem?.isEnabled = !stopping && !updating
@@ -532,48 +523,14 @@ final class Companion: NSObject, NSApplicationDelegate {
         // Profile names are untrusted display text, not log messages.
         let label = state.active?.name.replacingOccurrences(of: "\n", with: " ") ?? "Selected brain"
         let text = "\(label) · \(suffix)" + (state.phase == "preparing" ? " · Switching…" : "")
-        let submenu = NSMenu()
-        submenu.autoenablesItems = false
-        for profile in state.profiles {
-            let item = add(submenu, profile.name, #selector(switchBrain(_:)))
-            item.representedObject = profile.id
-            item.state = profile.id == state.activeId ? .on : .off
-        }
-        profilesItem.submenu = submenu
         setStatus(text, healthy: true)
         // Editor and Settings stay enabled when only the selected target is offline.
-    }
-
-    @objc private func switchBrain(_ sender: NSMenuItem) {
-        guard ready, !switching, !stopping, !updating, indexer == nil,
-              let id = sender.representedObject as? String, id != connectionState?.activeId,
-              let child = server, child.isRunning else { return }
-        var request = controlRequest("/companion/switch", timeout: 20)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["id": id])
-        switchInFlight = true
-        setStatus("Saving tabs before switching…", healthy: true)
-        URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.switchInFlight = false
-                guard self.server === child, !self.stopping, !self.quitting else { return }
-                if error != nil || (response as? HTTPURLResponse)?.statusCode != 200 {
-                    self.showError("Could not confirm brain switch", "A pending or unconfirmed save may have blocked the switch. Check Settings and your editor tabs. No save guard was bypassed; do not restart to force a switch.")
-                }
-                if let state = self.connectionState { self.present(state) }
-                self.checkHealth()
-            }
-        }.resume()
     }
 
     // Stop only Process instances we created; never kill by port/name/stale PID.
     private func stopServer(_ completion: @escaping () -> Void) {
         stopping = true
         setStatus("Stopping…", healthy: false)
-        indexer?.cancel()
-        indexer = nil
         nativeBridge?.stop()
         nativeBridge = nil
         let children = [server].compactMap { $0 }.filter { $0.isRunning }
@@ -613,38 +570,9 @@ final class Companion: NSObject, NSApplicationDelegate {
     }
 
     @objc private func restartServer() {
-        guard indexer == nil, !switching else { return }
+        guard !switching else { return }
         guard server == nil || confirm("Restart local server?", "Wait for “Saved” in Chrome first. Browser-only drafts cannot be saved while the server is restarting.", "Restart") else { return }
         stopServer { [weak self] in self?.server = nil; self?.startServer() }
-    }
-
-    @objc private func refreshIndex() {
-        guard indexer == nil, ready, !stopping, !updating, !switching,
-              connectionState?.health == "connected", connectionState?.active?.allowWrites == true,
-              let child = server, child.isRunning else { return }
-        // The gateway fences this operation and enforces the selected target's
-        // write authorization. Never run a CLI index against an implicit root.
-        var request = controlRequest("/memories/all/index", timeout: 120)
-        request.httpMethod = "POST"
-        if let generation = connectionState?.generation {
-            request.setValue(String(generation), forHTTPHeaderField: "X-Companion-Generation")
-        }
-        let task = URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
-            DispatchQueue.main.async {
-                guard let self = self, self.server === child else { return }
-                self.indexer = nil
-                self.indexItem.title = "Refresh Search Index"
-                self.setStatus(self.statusLine.title, healthy: self.ready)
-                if !self.quitting && !self.stopping && (error != nil || (response as? HTTPURLResponse)?.statusCode != 200) {
-                    self.showError("Search refresh failed", "The selected brain could not confirm indexing. Check its connection and editing permission in Settings; no other brain was indexed.")
-                }
-                self.checkHealth()
-            }
-        }
-        indexer = task
-        indexItem.title = "Refreshing Search Index…"
-        setStatus(statusLine.title, healthy: ready)
-        task.resume()
     }
 
     private var installRoot: URL { URL(fileURLWithPath: config.runtimeRoot).deletingLastPathComponent() }
@@ -898,7 +826,7 @@ final class Companion: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if !ownsLock || config == nil { return .terminateNow }
         if quitting { return .terminateLater }
-        if !forcedQuit && (server?.isRunning == true || indexer != nil) {
+        if !forcedQuit && server?.isRunning == true {
             guard confirm("Quit jumpyBrain?", "Wait for “Saved” in Chrome first. This stops the local server, not Chrome. It will start again at your next login if Start at Login is checked.", "Quit") else { return .terminateCancel }
         }
         quitting = true

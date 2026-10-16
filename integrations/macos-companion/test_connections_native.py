@@ -42,54 +42,120 @@ extension Companion {
             revision: "fixture")
         makeMenu()
         defer { NSStatusBar.system.removeStatusItem(statusItem) }
-        let local = BrainProfile(id: "local", name: "Local fixture", kind: "local",
-                                 root: directory, url: nil, allowWrites: true)
-        let remote = BrainProfile(id: "remote", name: "Remote\nfixture", kind: "remote",
-                                  root: nil, url: "https://fixture.invalid", allowWrites: false)
         func check(_ value: Bool, _ message: String) {
             if !value { fputs("Menu assertion: " + message + "\n", stderr); exit(1) }
         }
-        func show(_ active: BrainProfile, _ health: String, _ phase: String = "idle") {
-            present(CompanionState(profiles: [local, remote], activeId: active.id,
-                generation: 3, phase: phase, health: health, active: active))
-            check(profilesItem.submenu?.items.filter { $0.state == .on }.count == 1,
-                  "exactly one selected item")
-            check(profilesItem.submenu?.items.first { $0.state == .on }?.representedObject as? String == active.id,
-                  "menu follows active identity")
+        guard let menu = statusItem.menu,
+              let appMenu = menu.items.first(where: { $0.title == "App" })?.submenu,
+              let troubleshootingMenu = menu.items.first(where: { $0.title == "Troubleshooting" })?.submenu else {
+            check(false, "required submenus exist"); return
         }
-        show(local, "connected")
-        check(memoryItem.isEnabled && indexItem.isEnabled, "local folder/index available")
-        show(remote, "connected")
-        check(!memoryItem.isEnabled && !indexItem.isEnabled, "remote read-only has no folder/index")
-        check(!statusLine.title.contains("\n"), "active label sanitizes newline")
-        let writable = BrainProfile(id: remote.id, name: remote.name, kind: remote.kind,
-                                   root: nil, url: remote.url, allowWrites: true)
-        show(writable, "connected")
-        check(indexItem.isEnabled, "authorized connected remote can index")
-        for health in ["offline", "credential_unavailable", "authentication_failed"] {
-            show(writable, health)
-            check(openItem.isEnabled && settingsItem.isEnabled && profilesItem.isEnabled,
-                  "offline target retains recovery controls")
-            check(!memoryItem.isEnabled && !indexItem.isEnabled, "offline remote disables index/folder")
-            check(connectionState?.activeId == remote.id, "offline does not select fallback")
+        func titles(_ menu: NSMenu) -> [String] {
+            menu.items.map { $0.isSeparatorItem ? "---" : $0.title }
         }
-        show(writable, "credential_unavailable")
-        check(statusLine.title.contains("Keychain unavailable"), "credential status")
-        show(local, "connected", "preparing")
-        check(!profilesItem.isEnabled && !memoryItem.isEnabled && !indexItem.isEnabled && !restartItem.isEnabled,
-              "switch preparation disables competing target actions")
-        switchInFlight = true
-        show(local, "connected")
-        check(!profilesItem.isEnabled && !indexItem.isEnabled, "native in-flight guard")
-        switchInFlight = false
-        stopping = true
-        show(local, "connected")
-        check(!openItem.isEnabled && !settingsItem.isEnabled, "stopping disables controls")
-        stopping = false
-        updating = true
-        show(local, "connected")
-        check(!profilesItem.isEnabled && !indexItem.isEnabled && !openItem.isEnabled, "updating disables actions")
-        print("PASS menu: target identity, permissions, offline recovery, switching/stopping/updating")
+        check(titles(menu) == ["Starting…", "---", "Open Editor in Chrome", "Settings…", "---",
+                               "App", "Troubleshooting", "---", "Quit jumpyBrain…"], "compact top-level order")
+        check(titles(appMenu) == ["Start at Login", "Updates: not checked", "Check for Updates",
+                                  "Update jumpyBrain…", "Local build · fixture"], "App submenu order")
+        check(titles(troubleshootingMenu) == ["Restart Server…", "Open Memory Folder", "Show Logs"],
+              "Troubleshooting submenu order")
+        check(!menu.autoenablesItems && !appMenu.autoenablesItems && !troubleshootingMenu.autoenablesItems,
+              "explicit enabled state on every menu")
+        let build = appMenu.items.last!
+        let logs = troubleshootingMenu.items.last!
+        let quitItem = menu.items.last!
+        let actions: [(NSMenuItem, Selector, String)] = [
+            (openItem, #selector(openEditor), "o"), (settingsItem, #selector(openSettings), ","),
+            (loginItem, #selector(toggleLogin), ""), (checkUpdateItem, #selector(checkForUpdates), ""),
+            (updateItem, #selector(updateApp), ""), (restartItem, #selector(restartServer), ""),
+            (memoryItem, #selector(openMemory), ""), (logs, #selector(showLogs), ""),
+            (quitItem, #selector(quit), "q")]
+        for (item, action, key) in actions {
+            check(item.action == action && item.target as? Companion === self && item.keyEquivalent == key,
+                  "action target/shortcut: " + item.title)
+        }
+        let allItems = menu.items + appMenu.items + troubleshootingMenu.items
+        check(!allItems.contains { $0.title.contains("127.0.0.1") || $0.title.contains("localhost") ||
+                                   $0.title == "Brain Connections" || $0.title.contains("Refresh Search Index") },
+              "no loopback address or obsolete native controls")
+        check(loginItem.state == .off, "absent fixture login item is unchecked")
+
+        // Decode production-shaped payloads: write approval is browser/gateway policy,
+        // not a reason to hide any of the remaining native recovery controls.
+        func state(_ kind: String?, _ health: String, _ phase: String = "idle", _ allowWrites: Bool = true) -> CompanionState {
+            var object: [String: Any] = ["phase": phase, "health": health, "generation": 3,
+                                       "profiles": [], "activeId": kind as Any? ?? NSNull()]
+            if let kind = kind {
+                var active: [String: Any] = ["id": kind, "kind": kind, "allowWrites": allowWrites,
+                    "name": kind == "local" ? "Local fixture" : "Remote\nfixture"]
+                if kind == "local" { active["root"] = directory }
+                else { active["url"] = "https://fixture.invalid" }
+                object["active"] = active
+            } else { object["active"] = NSNull() }
+            return try! JSONDecoder().decode(CompanionState.self, from: JSONSerialization.data(withJSONObject: object))
+        }
+        func controls(_ browser: Bool, _ folder: Bool, _ restart: Bool, _ maintenance: Bool, _ canCheck: Bool? = nil) {
+            check(openItem.isEnabled == browser && settingsItem.isEnabled == browser, "editor/settings availability")
+            check(memoryItem.isEnabled == folder, "selected local folder availability")
+            check(restartItem.isEnabled == restart, "restart availability")
+            check(loginItem.isEnabled == maintenance && updateItem.isEnabled == maintenance, "login/update availability")
+            check(checkUpdateItem.isEnabled == (canCheck ?? maintenance), "update check availability")
+            check(logs.isEnabled && quitItem.isEnabled, "logs/quit remain available")
+            check(menu.items.first { $0.title == "App" }!.isEnabled &&
+                  menu.items.first { $0.title == "Troubleshooting" }!.isEnabled, "submenus remain accessible")
+            check(!statusLine.isEnabled && !updateStatus.isEnabled && !build.isEnabled,
+                  "status and build rows are informational")
+        }
+        controls(false, false, true, true) // Gateway starting: recovery and maintenance remain available.
+        present(state("local", "connected"))
+        controls(true, true, true, true)
+        check(connectionState?.active?.root == directory && statusLine.title == "Local fixture · Connected",
+              "local status/folder follow selected target")
+        for allowWrites in [false, true] {
+            present(state("remote", "connected", "idle", allowWrites))
+            controls(true, false, true, true)
+            check(!statusLine.title.contains("\n"), "active label sanitizes newline")
+            for health in ["offline", "credential_unavailable", "authentication_failed"] {
+                present(state("remote", health, "idle", allowWrites))
+                controls(true, false, true, true)
+                check(connectionState?.active?.kind == "remote" && connectionState?.active?.root == nil,
+                      "offline does not select a local fallback")
+                check(statusLine.title.contains(health == "credential_unavailable" ? "Keychain unavailable" : "Offline"),
+                      "offline/credential status")
+            }
+        }
+        present(state("local", "offline"))
+        controls(true, true, true, true) // A local folder remains useful even with its engine offline.
+        present(state(nil, "offline"))
+        controls(true, false, true, true)
+        check(statusLine.title == "Selected brain · Offline", "no selected target status")
+        for kind in ["local", "remote"] {
+            present(state(kind, "connected", "preparing"))
+            controls(true, false, false, true)
+            check(statusLine.title.contains("Switching…"), "browser switch status")
+        }
+        present(state("local", "connected"))
+        controls(true, true, true, true) // Browser switch completion restores controls.
+        setStatus("Server not responding — see logs", healthy: false)
+        controls(false, false, true, true)
+        present(state("local", "connected"))
+        updateCheck = Process() // No process is launched; exercise only the in-flight indicator guard.
+        setStatus(statusLine.title, healthy: true)
+        controls(true, true, true, true, false)
+        updateCheck = nil
+        for kind in ["local", "remote"] {
+            stopping = true
+            present(state(kind, "connected"))
+            controls(false, false, false, false)
+            stopping = false
+            updating = true
+            present(state(kind, "connected"))
+            controls(false, false, false, false)
+            updating = false
+        }
+        present(state("local", "connected"))
+        controls(true, true, true, true)
+        print("PASS menu: compact structure/actions, local folder, offline recovery, switching/stopping/updating, update checks")
     }
 }
 
@@ -113,6 +179,9 @@ if mode == "--cleanup" {
 
 def build(directory, service):
     source = (HERE / "Companion.swift").read_text()
+    for obsolete in ("profilesItem", "switchBrain", "switchInFlight", "indexItem", "indexer", "refreshIndex",
+                     '"/companion/switch"', '"/memories/all/index"', '"X-Companion-Generation"'):
+        assert obsolete not in source, "Obsolete native action/state remains: " + obsolete
     entry = "let app = NSApplication.shared\n"
     namespace = 'private static let service = "local.jumpybrain.companion.connections"'
     assert source.count(entry) == 1 and source.count(namespace) == 1, "Production anchors changed; review extraction"

@@ -28,14 +28,16 @@ Reinstalling preserves existing memory/port settings unless explicitly overridde
 Click the brain icon in the menu bar:
 
 - **Open Editor in Chrome** — open the selected brain’s editor.
-- **Settings…** — open `/settings` to add, edit, test, remove, or select named connections.
-- **Brain Connections** — select the active brain through the same save guard as Settings.
-- **Restart Server…** — restart the companion gateway and its owned local engine, never the remote server; this **does not download updates**.
-- **Refresh Search Index** — index the selected connected, write-authorized brain after external edits.
-- **Open Memory Folder** — available only for a selected local brain. **Show Logs** opens companion logs.
-- **Start at Login** — enable or disable next-login startup.
-- **Check for Updates** — refresh the update indicator (also checked at startup and every six hours).
-- **Update jumpyBrain…** — update the CLI and app, then reopen the app. Runs in the background without opening Terminal; Chrome stays open.
+- **Settings…** — manage named connections and use **Refresh Search Index** for the selected connected, write-authorized brain after external edits. Connection switching and index refresh live in browser Settings, not the native menu.
+- **App**:
+  - **Start at Login** — enable or disable next-login startup.
+  - Update status and **Check for Updates** — refresh the indicator (also checked at startup and every six hours).
+  - **Update jumpyBrain…** — update the CLI and app, then reopen the app. Runs in the background without opening Terminal; Chrome stays open.
+  - **Local build** — the installed build revision.
+- **Troubleshooting**:
+  - **Restart Server…** — restart the companion gateway and its owned local engine, never the remote server; this **does not download updates**.
+  - **Open Memory Folder** — available only for a selected local brain.
+  - **Show Logs** — open companion logs.
 - **Quit jumpyBrain…** — stop the gateway/local engine, not Chrome or a remote server. Wait for **Saved** first.
 
 The menu shows the selected brain and its connection state. An exclamation icon means startup, offline/Keychain trouble, or another condition needing attention. Login startup does not open Chrome automatically. To reopen manually:
@@ -52,17 +54,17 @@ The first launch seeds the configured local brain; existing profiles are retaine
 
 Replacing a profile’s folder/origin gives it a new identity, so old scoped note bookmarks cannot open against the replacement. See the [control and switching contract](gateway.docs.md) for the developer boundary.
 
-One active profile applies to **all companion editor tabs**. Switching from Settings or the native menu first asks every registered tab to save against the old brain and waits for in-flight operations. Failed/unconfirmed saves or sleeping/unresponsive tabs block activation; no automatic discard or fallback occurs. Wake the blocking tabs and resolve save/conflict errors before retrying. Do not restart to force a switch: browser drafts are not durable. Editing the active destination, repairing its key, or changing its editing permission uses the same barrier.
+One active profile applies to **all companion editor tabs**. Switching from Settings first asks every registered tab to save against the old brain and waits for in-flight operations. Failed/unconfirmed saves or sleeping/unresponsive tabs block activation; no automatic discard or fallback occurs. Wake the blocking tabs and resolve save/conflict errors before retrying. Do not restart to force a switch: browser drafts are not durable. Editing the active destination, repairing its key, or changing its editing permission uses the same barrier.
 
 Remote profiles start read-only. To permit writes, explicitly check **“I explicitly authorize editing, creating notes, and refreshing the search index on this remote brain.”** This permission also gates **Refresh Search Index**. Saving, testing, or selecting a connection is not write approval; server-side permissions still apply. Connection removal deletes profile metadata and attempts removal of its credential, not memory or server authorization. Select another profile before removing the active one.
 
-The last selected brain survives restart. A missing local folder, offline server, failed authentication, or unavailable Keychain does not select another brain. Editor/Settings and the connection switcher remain available while only the target is offline. Companion profiles do **not** change CLI defaults, agent targets, CLI write policy, or their credentials; agents still use the CLI with their explicitly selected target.
+The last selected brain survives restart. A missing local folder, offline server, failed authentication, or unavailable Keychain does not select another brain. Editor/Settings remain available while only the target is offline. Companion profiles do **not** change CLI defaults, agent targets, CLI write policy, or their credentials; agents still use the CLI with their explicitly selected target.
 
 ## Update
 
-Choose **Update jumpyBrain…** from the menu bar. There is no additional save/quit confirmation: an independent background updater starts without opening Terminal, the app quits, and a successful update reopens it automatically. Chrome stays open and is **not** automatically reloaded. Editing/saving is unavailable while the server is stopped; unsaved or in-flight edits may be lost.
+Choose **App → Update jumpyBrain…** from the menu bar. There is no additional save/quit confirmation: an independent background updater starts without opening Terminal, the app quits, and a successful update reopens it automatically. Chrome stays open and is **not** automatically reloaded. Editing/saving is unavailable while the server is stopped; unsaved or in-flight edits may be lost.
 
-The menu shows **Update available** when the installed Git revision differs from the recorded source/ref. Checks run at startup, every six hours, or via **Check for Updates**, without installing anything. Public HTTPS Git installs with matching origin metadata are supported; local-source installs, missing provenance, private/unsupported sources, and offline failures show **Updates: unable to check**. The Update action still works independently of the indicator. Pinned commits are not treated as tracking a newer branch.
+The **App** submenu shows **Update available** when the installed Git revision differs from the recorded source/ref. Checks run at startup, every six hours, or via **App → Check for Updates**, without installing anything. Public HTTPS Git installs with matching origin metadata are supported; local-source installs, missing provenance, private/unsupported sources, and offline failures show **Updates: unable to check**. The Update action still works independently of the indicator. Pinned commits are not treated as tracking a newer branch.
 
 For a terminal-only update, quit the app first, run `~/.jumpybrain/bin/jumpybrain update`, then reopen the app manually. Older companions without the menu action need this one-time update first.
 
@@ -122,6 +124,6 @@ npx --package=playwright node scripts/companion-gateway-smoke.mjs
 python3 -B integrations/macos-companion/smoke_menu_update.py
 ```
 
-The native connection regression compiles an isolated copy of the production Swift source (a cold module cache can take minutes), ad-hoc signs a temporary executable, and checks Keychain CRUD/incremental RPC, malformed-frame/input/work bounds, and real menu state for local/read-only/authorized/offline/switching cases. It uses a UUID-only test service in the default Keychain and removes its items/build in cleanup; it never locks/unlocks Keychain, installs an app, contacts a remote brain, or modifies login state. `--skip-keychain` / `--skip-menu` explicitly omit those checks for constrained environments.
+The native connection regression compiles an isolated copy of the production Swift source (a cold module cache can take minutes), ad-hoc signs a temporary executable, and checks Keychain CRUD/incremental RPC, malformed-frame/input/work bounds, and the compact menu structure, action targets/shortcuts, local-folder availability, and remaining control states for local/read-only/authorized/offline/switching/stopping/updating cases. It uses a UUID-only test service in the default Keychain and removes its items/build in cleanup; it never locks/unlocks Keychain, installs an app, contacts a remote brain, or modifies login state. `--skip-keychain` / `--skip-menu` explicitly omit those checks for constrained environments.
 
 The server smoke uses disposable runtime/memory copies to test health, editor routes, authentication, indexed search, duplicate/busy-port refusal, shutdown, orphan cleanup, and unchanged Markdown. The menu smoke instruments startup in a temporary source copy to invoke the production menu action, then tests a real LaunchAgent → independent updater job handoff, successful fixture-app reopening, failure without reopening, duplicate-runner refusal, cancellation-after-ack without quitting the original app, and failed-launch timeout/job cleanup. Its CLI is inert and failure alerts are replaced by evidence markers; it does not update your installed app or open Terminal. Test menu icons briefly appear. The production gateway/browser smoke below covers real Chromium multi-tab saves/conflicts and local/remote editing with disposable roots and fixture credentials. Physical sleeping-tab behavior, folder-picker interaction/cancellation, locked/denied user-Keychain access, credential continuity after a differently signed/ad-hoc rebuild, and actual logout/login remain manual checks; the native fixture does not simulate those OS/browser conditions. A build-local overlay handles duplicate SwiftBridging maps on affected Apple tools without modifying system files.

@@ -20,6 +20,7 @@ const profiles = [
 const documents = new Map(["a", "b", "r"].map((brain) => [brain, { content: `Fixture ${brain}\n`, hash: "h1" }]));
 let activeId = "a", generation = 1, revision = 1, phase = "idle", switchId = null, target = null;
 let switchSequence = 0, pendingSwitch = null, failWrites = false, failCapture = false, writeDelay = 0, pollDelay = 0;
+let failIndex = false;
 const tabs = new Map(), requests = [], profileWrites = [], violations = [], pollCounts = new Map();
 const snapshot = () => ({ profiles, activeId, generation, revision, phase, switchId, target,
   health: { status: "connected" }, active: profiles.find((item) => item.id === activeId) });
@@ -94,6 +95,14 @@ const server = createServer(async (request, response) => {
       if (!tabs.has(tab)) violations.push("memory before registration");
       if (request.headers.authorization) violations.push("browser bearer credential");
       if (Number(request.headers["x-companion-generation"]) !== generation) { error(response, "stale_generation"); return; }
+      if (url.pathname === "/memories/all/index") {
+        assert.equal(request.method, "POST");
+        assert.deepEqual(body, {});
+        if (!profiles.find((profile) => profile.id === activeId).allowWrites) { error(response, "read_only", 403); return; }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (failIndex) error(response, "index_failed", 503); else json(response, { index: { stale: false } });
+        return;
+      }
       if (url.pathname === "/memories/all/recent") { json(response, { notes: [{ id, title: "Fixture " + activeId, createdAt: "2026-01-01" }] }); return; }
       if (url.pathname === "/memories/all/notes") {
         if (failCapture) { error(response, "fixture_unconfirmed_creation", 503); return; }
@@ -134,6 +143,16 @@ try {
   assert.equal(new URL(settings.url()).hash, "");
   assert.equal(await settings.evaluate(() => localStorage.getItem("jumpybrain.graph.apiKey")), null, "legacy local-server credential must be forgotten");
   assert.equal(requests.some((item) => item.path.startsWith("/memories/")), false, "settings startup needs no memory fetch");
+  await settings.locator("#companion-refresh-index").click();
+  await settings.waitForFunction(() => document.getElementById("companion-refresh-index").disabled);
+  assert.equal(await settings.locator("#companion-name").isDisabled(), true);
+  await settings.waitForFunction(() => document.getElementById("companion-index-feedback").textContent.includes("Search index refreshed"));
+  assert.equal(requests.filter((item) => item.path === "/memories/all/index").length, 1);
+  failIndex = true;
+  await settings.locator("#companion-refresh-index").click();
+  await settings.waitForFunction(() => document.getElementById("companion-index-feedback").dataset.error === "true");
+  await settings.waitForFunction(() => !document.getElementById("companion-refresh-index").disabled);
+  failIndex = false;
   await settings.locator("#companion-folder").click();
   await settings.waitForFunction((root) => document.getElementById("companion-root").value === root, path.join(root, "picked"));
   await settings.locator("#companion-kind").selectOption("remote");
@@ -210,6 +229,9 @@ try {
   await editor.close();
   await settings.locator(".companion-profile").filter({ hasText: "Fixture remote" }).getByRole("button", { name: "Use this brain", exact: true }).click();
   await settings.waitForURL("**/settings?brain=r");
+  await settings.locator("#companion-profiles strong").first().waitFor();
+  assert.equal(await settings.locator("#companion-refresh-index").isDisabled(), true);
+  assert.match(await settings.locator("#companion-index-target").textContent(), /read only/);
   const readOnly = await context.newPage(); readOnly.on("pageerror", (exception) => pageErrors.push(exception.message));
   await readOnly.goto(origin + "/?note=" + id + "&brain=r"); await readOnly.locator("#note-editor").waitFor();
   assert.equal(await readOnly.locator("#note-editor").getAttribute("contenteditable"), "false");

@@ -14,12 +14,22 @@ export const companionStyles = String.raw`
   #companion-banner { padding: 8px 24px; margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
   #companion-banner[data-error=true], #companion-feedback[data-error=true] { color: var(--error-ink); }
   #companion-active { color: var(--ink-soft); font-size: 12px; }
+  .companion-search { padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+  #companion-index-target, #companion-index-feedback { color: var(--ink-soft); overflow-wrap: anywhere; }
+  #companion-index-feedback[data-error=true] { color: var(--error-ink); }
 `;
 
 export const companionMarkup = String.raw`
 <section id="companion-settings" aria-labelledby="companion-heading" hidden>
   <div class="companion-column">
-    <h1 id="companion-heading" tabindex="-1">Brain connections</h1>
+    <h1 id="companion-heading" tabindex="-1">Settings</h1>
+    <section class="companion-search" aria-labelledby="companion-search-heading">
+      <h2 id="companion-search-heading">Search index</h2>
+      <p id="companion-index-target">Connect to a brain to refresh its search index.</p>
+      <button id="companion-refresh-index" class="quiet-button" type="button" disabled>Refresh search index</button>
+      <p id="companion-index-feedback" role="status" aria-live="polite"></p>
+    </section>
+    <h2>Brain connections</h2>
     <p>One active brain across companion tabs. CLI and agent targets are unchanged.</p>
     <p id="companion-feedback" role="status" aria-live="polite"></p>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
@@ -72,6 +82,7 @@ let companionEditId = null;
 let companionEditRevision = null;
 let companionRemoteDestination = "";
 let companionActionBusy = false;
+let companionIndexRefreshing = false;
 const companionHealth = new Map();
 const companionAcknowledged = new Set();
 `;
@@ -123,7 +134,7 @@ function companionHealthText(health) {
 }
 function renderCompanionConnection() {
   $("open-connection").textContent = "Settings";
-  $("open-connection").setAttribute("aria-label", "Brain connection settings");
+  $("open-connection").setAttribute("aria-label", "Settings");
   $("open-connection").dataset.state = companionSessionFailed ? "disconnected" : connectionStatus;
   const active = companionState?.active;
   if ($("companion-active")) $("companion-active").textContent = active
@@ -335,7 +346,41 @@ async function companionAction(work) {
     renderCompanionSettings();
   }
 }
+function companionCanRefreshIndex() {
+  return !companionReadOnly() && !companionActionBusy && companionState?.phase === "idle"
+    && companionHealthText(companionState.health) === "connected";
+}
+function renderCompanionIndex() {
+  const active = companionState?.active;
+  $("companion-refresh-index").disabled = !companionCanRefreshIndex();
+  $("companion-refresh-index").textContent = companionIndexRefreshing ? "Refreshing search index…" : "Refresh search index";
+  $("companion-index-target").textContent = active
+    ? "Refresh “" + active.name + "” after external edits or when recent notes are missing from search."
+      + (active.allowWrites !== true ? " This brain is read only; explicit editing authorization is required." : "")
+      + (companionHealthText(companionState.health) !== "connected" ? " Connect to this brain before refreshing." : "")
+    : "Connect to a brain to refresh its search index.";
+}
+async function companionRefreshIndex() {
+  if (!companionCanRefreshIndex()) return;
+  await companionAction(async () => {
+    companionIndexRefreshing = true;
+    renderCompanionIndex();
+    const feedback = $("companion-index-feedback");
+    feedback.dataset.error = "false";
+    feedback.textContent = "Refreshing the selected brain’s search index…";
+    try {
+      await graphJson("/memories/all/index", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      feedback.textContent = "Search index refreshed. Edits made during the refresh may need another refresh.";
+    } catch {
+      feedback.dataset.error = "true";
+      feedback.textContent = "Search refresh could not be confirmed. Check this brain’s connection and editing permission before trying again.";
+    } finally {
+      companionIndexRefreshing = false;
+    }
+  });
+}
 function renderCompanionSettings() {
+  renderCompanionIndex();
   if (!companionState) return;
   const list = $("companion-profiles");
   // Avoid destroying focused profile buttons on every background poll.
@@ -418,6 +463,7 @@ $("companion-form").addEventListener("submit", (event) => {
     companionClearForm(); companionMessage("Connection saved. Selection and write approval remain explicit.");
   });
 });
+$("companion-refresh-index").addEventListener("click", companionRefreshIndex);
 $("companion-reconnect").addEventListener("click", startCompanion);
 window.addEventListener("pagehide", () => {
   $("companion-key").value = "";

@@ -79,6 +79,57 @@ test("companion settings/scripts are opt-in and both shell variants parse", () =
   assert.doesNotThrow(() => new vm.Script(ordinary.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1]));
 });
 
+test("Settings owns index refresh; read-only, offline, switching and unavailable sessions cannot refresh", () => {
+  assert.match(html, /id="companion-heading" tabindex="-1">Settings</);
+  assert.match(html, /id="companion-refresh-index"/);
+  assert.doesNotMatch(graphPageHtml("fixture"), /id="companion-refresh-index"/);
+  const context = runtime(["companionCanRefreshIndex", "companionReadOnly", "companionHealthText"], {
+    companionState: { phase: "idle", health: { status: "connected" }, active: { allowWrites: true } },
+    companionActionBusy: false, companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
+  });
+  assert.equal(context.companionCanRefreshIndex(), true);
+  for (const key of ["companionActionBusy", "companionFrozen", "companionSessionFailed"]) {
+    context[key] = true; assert.equal(context.companionCanRefreshIndex(), false, key); context[key] = false;
+  }
+  context.companionRegistered = false; assert.equal(context.companionCanRefreshIndex(), false);
+  context.companionRegistered = true;
+  context.companionState.active.allowWrites = false; assert.equal(context.companionCanRefreshIndex(), false);
+  context.companionState.active.allowWrites = true;
+  context.companionState.health = "offline"; assert.equal(context.companionCanRefreshIndex(), false);
+  context.companionState.health = "connected";
+  context.companionState.phase = "preparing"; assert.equal(context.companionCanRefreshIndex(), false);
+});
+
+test("Settings refresh uses fenced memory transport, prevents repeats, and reports unconfirmed failures", async () => {
+  const feedback = { dataset: {} }, fields = {}, calls = [], pending = deferred();
+  const context = runtime(["companionRefreshIndex", "companionAction"], {
+    companionActionBusy: false, companionFrozen: false, companionRegistered: true, companionSessionFailed: false,
+    companionIndexRefreshing: false, state: {},
+    $: (id) => id === "companion-index-feedback" ? feedback : fields,
+    companionCanRefreshIndex: () => !context.companionActionBusy,
+    renderCompanionIndex() {}, renderCompanionSettings() {}, companionMessage() {},
+    graphJson: async (...args) => { calls.push(args); return pending.promise; },
+  });
+  const first = context.companionRefreshIndex();
+  await context.companionRefreshIndex();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], "/memories/all/index");
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0][1])), {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: "{}",
+  });
+  assert.equal(context.companionIndexRefreshing, true);
+  assert.equal(fields.disabled, true);
+  pending.resolve({}); await first;
+  assert.match(feedback.textContent, /Search index refreshed/);
+  assert.equal(context.companionActionBusy, false);
+  assert.equal(context.companionIndexRefreshing, false);
+  context.graphJson = async () => { throw new Error("offline"); };
+  await context.companionRefreshIndex();
+  assert.equal(feedback.dataset.error, "true");
+  assert.match(feedback.textContent, /could not be confirmed/);
+  assert.equal(context.companionActionBusy, false);
+});
+
 test("memory requests wait for registration and send generation/tab, never bearer target keys", async () => {
   const ready = deferred();
   const requests = [];
