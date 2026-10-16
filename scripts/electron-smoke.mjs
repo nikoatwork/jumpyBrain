@@ -28,8 +28,14 @@ try {
     initialRoot: root, port: 0, controlKey,
     credentials: { get: async () => null, set: async () => {}, delete: async () => {}, selectFolder: async () => null },
   });
+  const setupRoot = path.join(temporary, 'Chosen local brain');
+  await mkdir(setupRoot);
+  const invalidRoot = path.join(temporary, 'Unrelated files');
+  await mkdir(invalidRoot); await writeFile(path.join(invalidRoot, 'keep.txt'), 'Untouched');
+  const screenshot = path.join(repo, '.local-pack/desktop/welcome.png');
+  await mkdir(path.dirname(screenshot), { recursive: true });
   const configPath = path.join(temporary, 'fixture.json');
-  await writeFile(configPath, JSON.stringify({ origin: gateway.url, key: controlKey, id, runtimeRoot: repo,
+  await writeFile(configPath, JSON.stringify({ origin: gateway.url, key: controlKey, id, runtimeRoot: repo, setupRoot, invalidRoot, screenshot, runtimeRoot: repo,
     userData: path.join(temporary, 'electron'), result: path.join(temporary, 'result.json') }), { mode: 0o600 });
   const env = { ...process.env, JUMPYBRAIN_ELECTRON_SMOKE_FIXTURE: configPath };
   delete env.ELECTRON_RUN_AS_NODE;
@@ -41,7 +47,7 @@ try {
   let output = '';
   child.stdout.on('data', (chunk) => { output += chunk; process.stdout.write(chunk.toString().split(controlKey).join('[redacted]')); });
   child.stderr.on('data', (chunk) => { output += chunk; });
-  const timer = setTimeout(() => child.kill('SIGKILL'), 60000);
+  const timer = setTimeout(() => child.kill('SIGKILL'), 90000);
   const code = await new Promise((resolve) => child.on('exit', resolve));
   clearTimeout(timer);
   // Never echo raw Chromium load errors, which can include the bootstrap token.

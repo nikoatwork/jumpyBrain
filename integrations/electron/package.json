@@ -1,13 +1,14 @@
 {
-  "name": "jumpybrain-electron-prototype",
-  "version": "0.1.0",
+  "name": "jumpybrain-desktop",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "main": "main.mjs",
-  "description": "Local desktop window for the installed jumpyBrain companion.",
+  "description": "A local-first Markdown memory workspace for your Mac.",
   "scripts": {
     "start": "electron .",
-    "install:local": "node install.mjs"
+    "install:local": "node install.mjs",
+    "pack": "node install.mjs --output ../../.local-pack/desktop"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",

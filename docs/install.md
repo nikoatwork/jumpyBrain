@@ -2,7 +2,7 @@
 
 ## Fast path: installer script
 
-Install the CLI first, then optionally add the [macOS app (beta)](#macos-app-beta). The installer builds jumpyBrain locally and sets up memory, search, and detected agent integrations. jumpyBrain is not published to npm.
+Install the CLI first, then optionally add the [macOS desktop app (beta)](#macos-desktop-app-beta). The installer builds jumpyBrain locally and sets up memory, search, and detected agent integrations. jumpyBrain is not published to npm.
 
 Prerequisites:
 
@@ -40,7 +40,18 @@ Then verify:
 ~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "what should I remember?" --limit 5
 ```
 
-### macOS app (beta)
+### macOS desktop app (beta)
+
+For a Finder/Dock app with a custom icon and local-folder onboarding, clone the private repository using your Git credentials and run:
+
+```sh
+npm run desktop:setup
+open "$HOME/Applications/jumpyBrain Desktop.app"
+```
+
+Run the command from the checkout. It provisions missing CLI/search/helper components, reuses existing managed installations, and builds for your Mac. Choose an empty/new folder or an existing brain in Welcome. Requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. No App Store or Chrome is required for Desktop. Builds are locally ad-hoc signed; signed/notarized downloads and automatic updates are not provided. See the [Desktop guide](../integrations/electron/README.md) for private Git setup, first launch, updates, and recovery.
+
+### macOS menu-bar companion (beta)
 
 The optional menu-bar app opens a Chrome editor for named local and remote brains through a private loopback gateway. Its Settings page selects one brain across companion tabs, without changing CLI/agent targets or syncing memory. After installing the CLI:
 

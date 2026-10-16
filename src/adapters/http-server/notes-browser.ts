@@ -1,3 +1,4 @@
+import { brainOutlineSvg } from "./favicon.js";
 import { themeMarkup } from "./browser-theme.js";
 
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
@@ -10,6 +11,8 @@ export const notesStyles = String.raw`
     .workspace-toolbar { display: flex; align-items: center; flex: 0 0 auto; min-height: 48px; }
     #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; margin: 8px 12px; padding: 6px; }
     #toggle-sidebar svg { width: 20px; height: 20px; }
+    .workspace-brand { display: flex; align-items: center; flex: 0 0 auto; margin: 12px 24px 12px auto; color: var(--ink-soft); }
+    .workspace-brand svg { display: block; width: 24px; height: 24px; }
     .nav-brand { min-width: 0; }
     .app-nav .home-link { display: block; padding: 4px 10px; font-weight: 650; background: transparent; color: var(--ink); }
     .nav-tools, .nav-pages, .nav-preferences { display: flex; flex-direction: column; gap: 2px; }
@@ -155,7 +158,8 @@ export const notesStyles = String.raw`
       .app-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; padding: 12px; border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
       :root[data-sidebar-collapsed="true"] .app-nav { display: grid; }
       #toggle-sidebar { display: none; }
-      .workspace-toolbar { min-height: 0; }
+      .workspace-toolbar { min-height: 40px; }
+      .workspace-brand { margin: 8px 16px 8px auto; }
       .app-nav .home-link { padding-inline: 0; }
       .nav-tools { flex-direction: row; align-items: center; gap: 4px; }
       .nav-pages { grid-row: 2; grid-column: 1; flex-direction: row; }
@@ -224,6 +228,7 @@ export const notesMarkup = String.raw`
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
 </div>
+<span class="workspace-brand" role="img" aria-label="jumpyBrain" title="jumpyBrain">${brainOutlineSvg}</span>
 </div>
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">

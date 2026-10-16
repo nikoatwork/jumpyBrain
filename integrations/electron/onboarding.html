@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'" />
+  <title>Welcome to jumpyBrain</title>
+  <link rel="stylesheet" href="onboarding.css" />
+  <script src="onboarding-renderer.js" defer></script>
+</head>
+<body>
+  <aside aria-label="About jumpyBrain">
+    <div class="brand"><img src="assets/app-icon.svg" width="36" height="36" alt="" /><span>jumpyBrain <small>beta</small></span></div>
+    <div class="intro"><span class="eyebrow">A little space for a bigger picture</span><h1>Good thoughts<br />deserve a home.</h1><p>Your notes, decisions, and discoveries.<br />Connected, remembered, and yours.</p><div class="brain"><img src="assets/app-icon.svg" width="148" height="148" alt="jumpyBrain pink brain icon" /></div></div>
+    <p class="footnote">Plain Markdown. On your Mac.</p>
+  </aside>
+  <main>
+    <div class="step"><span class="step-dot"></span> Make yourself at home</div>
+    <h2>Your brain.<br />Your folder.</h2>
+    <p class="lead">Start with a local brain. Choose where your memories live, and open them in any editor, any time.</p>
+    <section class="folder-card" aria-labelledby="folder-heading">
+      <div class="folder-heading"><span aria-hidden="true">↳</span><h3 id="folder-heading">A folder on this Mac</h3><span class="pill">Local</span></div>
+      <p id="folder-description">Choose an empty folder to start fresh, or open a jumpyBrain folder you already have.</p>
+      <button id="choose" class="secondary" type="button">Choose folder…</button>
+      <p id="folder-path" class="folder-path" hidden></p>
+    </section>
+    <p class="detail" id="setup-detail">A new brain adds Markdown folders and a small configuration file. Nothing is uploaded. You can add other brains in Settings later.</p>
+    <p id="message" role="status" aria-live="polite"></p>
+    <button id="open" class="primary" type="button" disabled>Create my local brain <span aria-hidden="true">→</span></button>
+    <button id="continue" class="existing" type="button" hidden></button>
+    <p class="ownership">No account. No subscription. Just your thoughts.</p>
+  </main>
+</body>
+</html>

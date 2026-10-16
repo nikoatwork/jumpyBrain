@@ -244,12 +244,12 @@ private struct CompanionState: Decodable {
 final class Companion: NSObject, NSApplicationDelegate {
     private var config: Configuration!
     private var statusItem: NSStatusItem!
-    // Use the desktop identity in the menu bar too, preserving its pink color.
+    // Desktop brain contours as an adaptive monochrome menu-bar template.
     private lazy var brainIcon: NSImage? = {
         guard let url = Bundle.main.url(forResource: "MenuBarBrain", withExtension: "png"),
               let image = NSImage(contentsOf: url) else { return nil }
         image.size = NSSize(width: 18, height: 18)
-        image.isTemplate = false
+        image.isTemplate = true
         return image
     }()
     private let statusLine = NSMenuItem(title: "Starting…", action: nil, keyEquivalent: "")
@@ -432,21 +432,7 @@ final class Companion: NSObject, NSApplicationDelegate {
         }
         statusLine.title = text
         let connected = healthy && (connectionState == nil || connectionState?.health == "connected")
-        if let brain = brainIcon {
-            let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
-                brain.draw(in: rect)
-                if !connected {
-                    // Keep the brain recognizable while retaining an offline warning.
-                    let badge = NSBezierPath(ovalIn: NSRect(x: 12, y: 0, width: 6, height: 6))
-                    NSColor.systemOrange.setFill()
-                    badge.fill()
-                    NSColor(calibratedWhite: 0.19, alpha: 1).setStroke()
-                    badge.lineWidth = 1
-                    badge.stroke()
-                }
-                return true
-            }
-            image.isTemplate = false
+        if let image = brainIcon {
             image.accessibilityDescription = "jumpyBrain: \(text)"
             statusItem?.button?.image = image
         } else {

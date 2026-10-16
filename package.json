@@ -32,6 +32,8 @@
     "quality:report": "node scripts/code-quality-report.mjs",
     "release": "node scripts/release.mjs",
     "electron": "npm --prefix integrations/electron start",
+    "desktop:setup": "node scripts/setup-desktop.mjs",
+    "desktop:pack": "npm --prefix integrations/electron run pack",
     "electron:install:local": "npm --prefix integrations/electron run install:local",
     "smoke:electron": "node scripts/electron-smoke.mjs"
   },

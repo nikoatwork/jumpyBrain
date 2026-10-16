@@ -1,9 +1,10 @@
 import { BrowserWindow, dialog, Menu, shell } from 'electron';
+import { fileURLToPath } from 'node:url';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 
 export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics } = {}) {
   const window = new BrowserWindow({
-    title: 'jumpyBrain', width: 1200, height: 860, minWidth: 480, minHeight: 480,
+    title: 'jumpyBrain', icon: fileURLToPath(new URL('./assets/app-icon.png', import.meta.url)), width: 1200, height: 860, minWidth: 480, minHeight: 480,
     show: false, backgroundColor: '#f7f4ed',
     webPreferences: {
       partition: 'persist:jumpybrain-electron-prototype',
@@ -78,11 +79,8 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
 
 export function setApplicationMenu({ app, getWindow, reconnect }) {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: 'jumpyBrain Electron', submenu: [
-      { label: 'About jumpyBrain Electron', click: () => dialog.showMessageBox({
-        type: 'info', message: 'jumpyBrain Electron · local prototype',
-        detail: 'The same browser UI and installed runtime. The native menu-bar companion owns the server, connections, Keychain, and runtime updates. This prototype is not signed for distribution.',
-      }) },
+    { label: 'jumpyBrain', submenu: [
+      { label: 'About jumpyBrain', click: () => app.showAboutPanel() },
       { type: 'separator' },
       { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => {
         const window = getWindow();
@@ -90,7 +88,7 @@ export function setApplicationMenu({ app, getWindow, reconnect }) {
       } },
       { type: 'separator' }, { role: 'services' }, { type: 'separator' },
       { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
-      { type: 'separator' }, { label: 'Quit jumpyBrain Electron', accelerator: 'CommandOrControl+Q', click: () => app.quit() },
+      { type: 'separator' }, { label: 'Quit jumpyBrain', accelerator: 'CommandOrControl+Q', click: () => app.quit() },
     ] },
     { label: 'File', submenu: [
       { label: 'Open Window', accelerator: 'CommandOrControl+N', click: reconnect },

@@ -2,7 +2,7 @@
 
 ## Responsibilities
 
-The native menu-bar button uses bundled `MenuBarBrain.png`, matching the Electron desktop icon at 18 points in full color. Unavailable/starting states retain the brain with an orange badge; the tooltip and menu status retain the full health detail. Minimal/older bundles fall back to system symbols. The native installer copies this resource independently of executable reuse.
+The native menu-bar button uses bundled `MenuBarBrain.png`, generated from `MenuBarBrain.svg`: the Electron brain contours as a transparent monochrome outline at 18 points. AppKit template rendering adapts it to light/dark menu bars. Health remains explicit in the tooltip and menu status. Minimal/older bundles fall back to system symbols. The native installer copies this resource independently of executable reuse.
 
 Support diagnostics use private schema stores under `<support>/diagnostics/{gateway,electron}` (seven-day/10 MiB per store, ten 1 MiB segments, bounded queues). The owned local server exposes its store in process; a remote profile never supplies server filesystem evidence. Authenticated same-origin `GET /companion/diagnostics` uses existing generation/tab admission for browsers, pins active scope during collection, and returns sanitized source snapshots plus runtime/editor fingerprints. Cache entries are brain/generation scoped for two seconds. No arbitrary path/log reader, public hosted log endpoint, memory/index mutation, or provider execution.
 

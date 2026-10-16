@@ -1,13 +1,16 @@
 // Test-only Electron entrypoint. Never imported by the prototype app.
 import { app, Menu, BrowserWindow } from 'electron';
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, access } from 'node:fs/promises';
 import path from 'node:path';
+import { createOnboardingWindow } from './onboarding.mjs';
+import { companionControl, setupComplete, finishSetup } from './setup.mjs';
 import { createEditorWindow, setApplicationMenu } from './window.mjs';
 import { startElectronDiagnostics } from './diagnostics.mjs';
 
 const config = JSON.parse(await readFile(process.env.JUMPYBRAIN_ELECTRON_SMOKE_FIXTURE, 'utf8'));
 app.setPath('userData', config.userData);
+app.on('window-all-closed', () => {}); // Keep the test host alive between welcome/editor windows.
 const checks = [];
 let window, closeChoice = false, closePrompts = 0;
 const feedbackEmails = [];
@@ -26,6 +29,60 @@ try {
   await app.whenReady();
   const diagnostics = await startElectronDiagnostics({ ...config, runtimeRoot: config.runtimeRoot }, { directory: config.userData });
   diagnostics.connect(config);
+  // Exercise the actual packaged page/preload/native boundary with a picker seam.
+  console.log('Electron smoke: onboarding start');
+  const before = await companionControl(config);
+  let choice = { canceled: true, filePaths: [] };
+  let welcome = createOnboardingWindow(config, { chooseFolder: async () => choice });
+  window = welcome.window;
+  await welcome.loaded;
+  await until('!document.getElementById("choose").disabled');
+  assert.equal(await js('document.getElementById("open").disabled'), true);
+  assert.equal(await js('typeof require'), 'undefined');
+  assert.equal(await js('fetch("https://example.com").then(() => false, () => true)'), true);
+  await js('window.open("https://example.com")');
+  assert.equal(BrowserWindow.getAllWindows().length, 1);
+  await js('document.getElementById("choose").click()');
+  await until('!document.getElementById("choose").disabled');
+  assert.equal(await js('document.getElementById("open").disabled'), true);
+  await writeFile(config.screenshot, (await window.webContents.capturePage()).toPNG());
+  choice = { canceled: false, filePaths: [config.invalidRoot] };
+  await js('document.getElementById("choose").click()');
+  await until('document.getElementById("message").textContent.includes("empty folder")');
+  assert.equal(await js('document.getElementById("open").disabled'), true);
+  assert.equal(await readFile(path.join(config.invalidRoot, 'keep.txt'), 'utf8'), 'Untouched');
+  choice = { canceled: false, filePaths: [config.setupRoot] };
+  await js('document.getElementById("choose").click()');
+  await until('!document.getElementById("open").disabled');
+  await assert.rejects(access(path.join(config.setupRoot, 'jumpybrain.json')));
+  await js('document.getElementById("open").click()');
+  await until('document.getElementById("message").dataset.error === "true" || document.getElementById("message").textContent.includes("Creating")');
+  const completed = await Promise.race([welcome.completed, pause(15000).then(async () => { throw new Error('Setup did not finish: ' + await js('document.getElementById("message").textContent')); })]);
+  assert.equal(completed, true);
+  assert.equal((await companionControl(config)).active.root, config.setupRoot);
+  assert.equal(await setupComplete(config.userData), false);
+  await finishSetup(config.userData); assert.equal(await setupComplete(config.userData), true);
+  console.log('Electron smoke: created local brain');
+  { const closed = new Promise((resolve) => window.once('closed', resolve)); window.close(); await closed; }
+  // Reopening welcome never initializes anything unless a button is chosen.
+  welcome = createOnboardingWindow(config);
+  window = welcome.window; await welcome.loaded;
+  console.log('Electron smoke: second welcome loaded');
+  await until('!document.getElementById("continue").hidden');
+  await js('document.getElementById("continue").click()');
+  assert.equal(await welcome.completed, true);
+  { const closed = new Promise((resolve) => window.once('closed', resolve)); window.close(); await closed; }
+  // Missing prerequisite has a readable recovery screen; no capabilities run.
+  welcome = createOnboardingWindow(null);
+  window = welcome.window; await welcome.loaded;
+  await until('document.getElementById("message").textContent.includes("desktop:setup")');
+  assert.equal(await js('document.getElementById("choose").hidden'), true);
+  { const closed = new Promise((resolve) => window.once('closed', resolve)); window.close(); await closed; }
+  assert.equal(await welcome.completed, false);
+  console.log('Electron smoke: restoring fixture brain');
+  await companionControl(config, 'switch', { id: before.activeId });
+  console.log('Electron smoke: editor start');
+  checks.push('local-first onboarding, sandboxed bridge, cancel/invalid folder, explicit creation, relaunch, prerequisite recovery');
   const editor = createEditorWindow(config, { confirmClose: () => { closePrompts++; return closeChoice; },
     openFeedbackEmail: async (url) => { feedbackEmails.push(url); }, diagnostics });
   window = editor.window;

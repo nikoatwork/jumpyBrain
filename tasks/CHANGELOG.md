@@ -1,12 +1,20 @@
 # Task Changelog
 
-## 2026-10-16 — Page-first sidebar
+## 2026-10-16 — README landing page
 
-- Added persistent, brain-scoped pinned pages and recently visited pages in compact sidebar rows, with per-page pin controls and Graph moved to the bottom.
+- Reframed the README around “Good thoughts deserve a home” and an open-source, agent-first Notion, with editor-led storytelling, personal/shared brains, clear setup paths, and answers to adoption questions.
 
 ## 2026-10-16 — Support diagnostics
 
 - Feedback now includes safe, correlated browser and local host failure reports, with bounded retained history, crash evidence, source availability, and inspectable email attachments.
+
+## 2026-10-16 — Desktop welcome and installation
+
+- Added a branded Mac desktop app with local-folder onboarding and a private Git setup command that reuses the shared memory runtime.
+
+## 2026-10-16 — Page-first sidebar
+
+- Added persistent, brain-scoped pinned pages and recently visited pages in compact sidebar rows, with per-page pin controls and Graph moved to the bottom.
 
 ## 2026-10-16 — Beta feedback
 

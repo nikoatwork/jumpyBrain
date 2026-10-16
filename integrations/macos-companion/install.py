@@ -214,6 +214,9 @@ def build_app(runtime, build, config, previous_app=None):
         }, indent=2) + "\n")
     for helper in ("menu-update.mjs", "update-check.mjs"):
         shutil.copy2(source / helper, resources / helper)
+    icon = source / "MenuBarBrain.png"
+    if icon.is_file():
+        shutil.copy2(regular(icon), resources / "MenuBarBrain.png")
     (resources / "Configuration.json").write_text(json.dumps(config, indent=2) + "\n")
     info = {
         "CFBundleExecutable": "jumpyBrain", "CFBundleIdentifier": LABEL,

@@ -326,7 +326,7 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
           if (!relative) return true;
           const parts = relative.split(path.sep);
           return ![".git", "node_modules", ".local-pack", ".dogfood-memory", ".jumpybrain", "tasks"].includes(parts[0])
-            && !parts.some((part) => part === ".build" || part === "__pycache__");
+            && !parts.some((part) => part === "node_modules" || part === ".build" || part === "__pycache__");
         },
       });
     } else {
