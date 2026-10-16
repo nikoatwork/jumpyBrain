@@ -33,7 +33,7 @@ Click the brain icon in the menu bar:
   - **Start at Login** — enable or disable next-login startup.
   - Update status and **Check for Updates** — refresh the indicator (also checked at startup and every six hours).
   - **Update jumpyBrain…** — update the CLI and app, then reopen the app. Runs in the background without opening Terminal; Chrome stays open.
-  - **Local build** — the installed build revision.
+  - **Version x.y.z (beta)** — the installed app version and beta status.
 - **Troubleshooting**:
   - **Restart Server…** — restart the companion gateway and its owned local engine, never the remote server; this **does not download updates**.
   - **Open Memory Folder** — available only for a selected local brain.

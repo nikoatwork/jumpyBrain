@@ -155,3 +155,7 @@ SQLite uses FULL synchronization, but atomic JSON replacements do not explicitly
 Run `npm run quality:report` for an informational size/export hotspot report across `src/`, `test/`, and `scripts/`. The report is intentionally non-gating: use it to pick low-risk refactor candidates, not as a strict CI threshold.
 
 Remaining source-size hotspots are intentionally documented at their module boundaries: the HTTP server adapter owns protocol/auth/response handling while delegating memory behavior, and app processing owns deterministic lint/synthesis orchestration while keeping CLI and HTTP concerns out. If either grows further, split by sub-workflow without moving protocol behavior into app modules or processing behavior into CLI/server adapters.
+
+## Versioned releases
+
+[Release workflow](releases.md) owns patch-by-default versioning, explicit minor bumps, user-approved major releases, validation, tags, and GitHub publication.

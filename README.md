@@ -138,3 +138,5 @@ To host a shared brain, start with the [operator quickstart](docs/cloud-shared-m
 - [Vercel deployment status](docs/vercel-deploy.md)
 
 jumpyBrain is open source under the [MIT License](LICENSE).
+
+Release policy: [patch releases by default; major releases require user approval](docs/releases.md). The app is currently in beta.

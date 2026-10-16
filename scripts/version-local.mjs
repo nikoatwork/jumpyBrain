@@ -1,23 +1,11 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
-import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const args = process.argv.slice(2);
-const bumpOrVersion = args[0] ?? "prerelease";
-const passthrough = args.slice(1);
-
-const result = spawnSync("npm", ["version", bumpOrVersion, "--no-git-tag-version", ...passthrough], {
-  cwd: repoRoot,
-  encoding: "utf8",
-  stdio: "pipe",
-});
-
-if (result.status !== 0) {
-  process.stderr.write(result.stderr);
-  process.stderr.write(result.stdout);
-  process.exit(result.status ?? 1);
-}
-
-process.stdout.write(result.stdout);
+import { nextReleaseVersion, releaseOptions } from "./release-policy.mjs";
+const cwd = fileURLToPath(new URL("..", import.meta.url));
+const options = releaseOptions(process.argv.slice(2));
+const current = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+const next = nextReleaseVersion(current, options.bump, options.approveMajor);
+if (options.dryRun) console.log(`${current} → ${next}`);
+else execFileSync("npm", ["version", next, "--no-git-tag-version", "--ignore-scripts"], { cwd, stdio: "inherit" });

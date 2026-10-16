@@ -121,7 +121,7 @@ export const notesStyles = String.raw`
 
 export const notesMarkup = String.raw`
 <nav class="app-nav" aria-label="Main navigation">
-  <a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain</a>
+  <a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain <small>(beta)</small></a>
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>

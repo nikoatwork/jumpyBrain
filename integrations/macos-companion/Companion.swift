@@ -342,7 +342,7 @@ final class Companion: NSObject, NSApplicationDelegate {
         appMenu.addItem(updateStatus)
         checkUpdateItem = add(appMenu, "Check for Updates", #selector(checkForUpdates))
         updateItem = add(appMenu, "Update jumpyBrain…", #selector(updateApp))
-        let build = NSMenuItem(title: "Local build · \(config.revision)", action: nil, keyEquivalent: "")
+        let build = NSMenuItem(title: "Version \(config.revision) (beta)", action: nil, keyEquivalent: "")
         build.isEnabled = false
         appMenu.addItem(build)
 

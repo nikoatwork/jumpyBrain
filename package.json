@@ -24,9 +24,10 @@
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "cli:version": "node scripts/version-local.mjs",
     "cli:pack": "node scripts/pack-local.mjs",
-    "cli:release:local": "npm run cli:version -- prerelease --preid local && npm run validate && npm run cli:pack",
+    "cli:release:local": "npm run cli:version && npm run validate && npm run cli:pack",
     "cli:install:local": "node scripts/install-local-cli.mjs",
-    "quality:report": "node scripts/code-quality-report.mjs"
+    "quality:report": "node scripts/code-quality-report.mjs",
+    "release": "node scripts/release.mjs"
   },
   "files": [
     "dist",

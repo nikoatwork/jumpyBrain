@@ -56,7 +56,7 @@ extension Companion {
         check(titles(menu) == ["Starting…", "---", "Open Editor in Chrome", "Settings…", "---",
                                "App", "Troubleshooting", "---", "Quit jumpyBrain"], "compact top-level order")
         check(titles(appMenu) == ["Start at Login", "Updates: not checked", "Check for Updates",
-                                  "Update jumpyBrain…", "Local build · fixture"], "App submenu order")
+                                  "Update jumpyBrain…", "Version fixture (beta)"], "App submenu order")
         check(titles(troubleshootingMenu) == ["Restart Server…", "Open Memory Folder", "Show Logs"],
               "Troubleshooting submenu order")
         check(!menu.autoenablesItems && !appMenu.autoenablesItems && !troubleshootingMenu.autoenablesItems,
