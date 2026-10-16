@@ -4,6 +4,10 @@
 
 A named, companion-only destination profile for an existing local Markdown root or remote memory origin. One profile is active across companion editor tabs; switching does not sync memory or change CLI/agent targets. Destination replacement receives a new profile identity so old note links cannot open on a different brain. Remote connectivity and explicit editing/index permission are separate.
 
+## Support diagnostic report
+
+A bounded, inspectable feedback attachment built from allowlisted operational events across available browser/local host sources. It states missing evidence and omissions, replaces correlation IDs with report-local references, and excludes memory content, credentials, paths, raw logs and crash dumps. It is disposable troubleshooting evidence, not canonical memory or proof that an unconfirmed write failed to save.
+
 ## Saved memory outcome
 
 `Saved` means canonical Markdown publication completed and its document ID/path remain usable. `Indexed`, `pending`, and `failed` describe separate derived-index/bookkeeping outcomes; a failed index is not a failed creation. Repair indexing rather than recreating a saved memory. Abrupt crash/lost-response uncertainty is not resolved by this result vocabulary.

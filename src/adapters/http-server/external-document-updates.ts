@@ -27,6 +27,7 @@ export function installExternalDocumentUpdates(options: {
   enabled(): boolean;
   read(id: string, options: { signal: AbortSignal }): Promise<DocumentPayload>;
   onUpdated(): void;
+  onReadFailure?(details: { timeout: boolean; code?: unknown }): void;
 }) {
   const doc = options.document, win = doc.defaultView!;
   const visible = () => doc.visibilityState !== "hidden";
@@ -68,7 +69,9 @@ export function installExternalDocumentUpdates(options: {
         noticeTimer = win.setTimeout(() => editor.clearExternalNotice(), 4000);
       }
       failures = 0;
-    } catch {
+    } catch (error) {
+      if (token === sequence && !suspended && visible()) options.onReadFailure?.({ timeout: controller.signal.aborted,
+        code: error && typeof error === "object" && "code" in error ? error.code : undefined });
       // Reads are observational. Offline/auth/deletion errors never hydrate an
       // empty note, clear a draft, or change the confirmed save outcome.
       failures = Math.min(failures + 1, 4);

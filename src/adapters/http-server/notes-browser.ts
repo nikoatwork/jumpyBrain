@@ -1089,6 +1089,18 @@ function syncEditorUi(editorState) {
   const companionLocked = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
   const needsReview = editorState.saveStatus === "failed" && editorState.saveErrorCode === "precondition_failed";
   if (!state.editor || state.editor.state !== editorState) return;
+  if (typeof feedbackDiagnostics !== "undefined") {
+    const marker = editorState.saveStatus + ":" + editorState.unconfirmedSave + ":" + editorState.saveErrorCode;
+    if (state.lastDiagnosticSave !== marker) {
+      state.lastDiagnosticSave = marker;
+      if (["saved", "failed"].includes(editorState.saveStatus)) feedbackDiagnostics.event("save", {
+        severity: editorState.saveStatus === "failed" ? "warn" : "info",
+        outcome: editorState.saveStatus === "saved" ? "ok" : editorState.unconfirmedSave ? "unconfirmed" : "failed",
+        code: editorState.saveStatus === "saved" ? "saved" : editorState.saveErrorCode === "precondition_failed" ? "conflict" : editorState.unconfirmedSave ? "unconfirmed" : "error",
+      });
+    }
+  }
+
   $("note-retry").hidden = editorState.saveStatus !== "failed" || editorState.saveErrorCode === "precondition_failed";
   $("note-recover").hidden = editorState.saveStatus !== "failed" && !(typeof companionMode !== "undefined" && companionMode && companionSessionFailed);
   $("note-recover").disabled = editorState.navigationPending;
@@ -1243,6 +1255,7 @@ const documentActions = installDocumentActions({
   },
 });
 const externalUpdates = JumpyBrainBrowser.installExternalDocumentUpdates({
+  onReadFailure: (details) => feedbackDiagnostics.event("external_refresh", { severity: "warn", outcome: "failed", code: details.timeout ? "timeout" : details.code || "network" }),
   document, editor: () => state.view === "note" ? state.editor : null,
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
   enabled: () => Boolean(activeApiKey) && !(typeof companionMode !== "undefined" && companionMode

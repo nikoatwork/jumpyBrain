@@ -6,6 +6,7 @@ import path from 'node:path';
 import { initializeMemoryRoot } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
+import { appendEditorText } from './editor-smoke-helpers.mjs';
 
 const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-feedback-'));
 const key = 'disposable-secret-feedback-key';
@@ -31,7 +32,7 @@ try {
     const log = await page.locator('#feedback-logs').inputValue();
     assert.doesNotMatch(log, /Private|disposable-secret|mem_a000|127\.0\.0\.1|private\.md/);
     assert.equal(JSON.parse(log).version, version);
-    assert.ok(JSON.parse(log).events.some((event) => event.operation === 'document'));
+    assert.ok(JSON.parse(log).events.some((event) => event.operation === 'document_read'));
     const text = 'Feedback 🐐 & details\nAnother line';
     await page.locator('#feedback-message').fill(text);
     await page.locator('#feedback-message').press('Control+Enter');
@@ -63,10 +64,36 @@ try {
       await mkdir(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, { recursive: true });
       await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `feedback-${width}.png`) });
     }
+    await page.locator('#feedback-close').click();
+    let failWithConflict = false;
+    await page.route('**/memories/all/documents/*', async (route) => {
+      if (route.request().method() !== 'PUT') return route.continue();
+      if (failWithConflict) return route.fulfill({ status: 412, contentType: 'application/json', body: JSON.stringify({ error: { code: 'precondition_failed', message: 'Private failure details' } }) });
+      // Commit through the real server, then lose the reply before the client
+      // sees it. Feedback must say unconfirmed while preserving the draft.
+      assert.equal((await route.fetch()).status(), 200);
+      return route.abort('connectionrefused');
+    });
+    await appendEditorText(page, ' Private unsaved feedback fixture.');
+    await page.waitForFunction(() => state.editor?.state.saveStatus === 'failed');
+    await page.locator('#open-feedback').click();
+    const failed = await page.locator('#feedback-logs').inputValue();
+    assert.ok(JSON.parse(failed).events.some((event) => event.code === 'network'));
+    assert.ok(JSON.parse(failed).events.some((event) => event.outcome === 'unconfirmed'));
+    assert.doesNotMatch(failed, /Private|disposable-secret|private\.md/);
+    assert.equal(await page.locator('#note-editor').textContent().then((text) => text.includes('Private unsaved feedback fixture.')), true);
+    await page.locator('#feedback-close').click(); failWithConflict = true;
+    await page.locator('#note-retry').click();
+    await page.waitForFunction(() => state.editor?.state.saveErrorCode === 'precondition_failed');
+    await page.locator('#open-feedback').click();
+    const conflict = await page.locator('#feedback-logs').inputValue();
+    assert.ok(JSON.parse(conflict).events.some((event) => event.code === 'conflict'));
+    assert.doesNotMatch(conflict, /Private failure|Private unsaved/);
+    assert.match(await readFile(path.join(root, 'notes/private.md'), 'utf8'), /unsaved feedback/);
     await context.close();
   }
   assert.deepEqual(errors, []);
-  console.log('Feedback smoke: PASS (desktop/narrow, light/dark, attachment/opt-out, privacy, shortcuts, focus, retained message)');
+  console.log('Feedback smoke: PASS (desktop/narrow, light/dark, attachment/opt-out, privacy, shortcuts, focus, network loss/unconfirmed save/conflict evidence, retained draft)');
 } finally {
   await browser?.close(); await server?.close(); await rm(root, { recursive: true, force: true });
 }

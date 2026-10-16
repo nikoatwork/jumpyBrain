@@ -134,8 +134,10 @@ test("memory requests wait for registration and send generation/tab, never beare
   context.companionRegistered = true;
   ready.resolve(); await pending;
   assert.deepEqual(JSON.parse(JSON.stringify(requests[0].options.headers)), {
+    "X-JumpyBrain-Request": requests[0].options.headers["X-JumpyBrain-Request"],
     "X-Companion-Generation": "7", "X-Companion-Tab": "fresh-tab",
   });
+  assert.match(requests[0].options.headers["X-JumpyBrain-Request"], /^d_[a-f0-9]{32}$/);
   context.companionSessionFailed = true;
   await assert.rejects(context.graphFetch("/memories/all/recent"), /session unavailable/);
   assert.equal(requests.length, 1);

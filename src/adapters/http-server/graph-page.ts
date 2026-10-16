@@ -194,7 +194,8 @@ const companionMode = ${companion};
 const feedbackDiagnostics = JumpyBrainBrowser.createFeedbackDiagnostics();
 const feedback = JumpyBrainBrowser.installFeedback({ document, window, diagnostics: feedbackDiagnostics,
   context: () => ({ view: state.view, connection: connectionStatus, companion: companionMode }),
-  onOpen: () => cancelReferenceInteraction() });
+  onOpen: () => cancelReferenceInteraction(),
+  collectHost: companionMode ? (signal) => graphJson("/companion/diagnostics", { signal }) : undefined });
 ${companion ? companionPrelude : ""}
 const apiKeyInput = $("api-key");
 if (!companionMode) {
@@ -238,6 +239,7 @@ const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
   onChange: (markdown) => state.editor?.input(markdown),
   onActivateReference: (title) => activatePageReference(title),
   onError: (error) => {
+    feedbackDiagnostics.event("editor", { severity: "error", outcome: "failed", code: "error" });
     $("capture-message").hidden = false;
     $("capture-message").dataset.error = "true";
     $("capture-message").textContent = "Editor error. Keep this page open and copy your draft before reloading. " + error.message;
@@ -259,15 +261,20 @@ async function graphFetch(url, options) {
   const requestOptions = Object.assign({}, options || {});
   requestOptions.headers = Object.assign({}, requestOptions.headers || {});
   const revision = credentialRevision;
+  const diagnosticRequest = feedbackDiagnostics.begin();
+  requestOptions.headers["X-JumpyBrain-Request"] = diagnosticRequest.id;
   if (typeof companionMode !== "undefined" && companionMode) {
     await companionReady;
-    if (!companionRegistered || companionSessionFailed) throw new Error("Companion session unavailable. Open Settings.");
+    if (!companionRegistered || companionSessionFailed) {
+      feedbackDiagnostics.event("connection", { request: diagnosticRequest.id, severity: "warn", outcome: "failed", code: "unavailable" });
+      throw new Error("Companion session unavailable. Open Settings.");
+    }
     requestOptions.headers["X-Companion-Generation"] = String(companionState.generation);
     requestOptions.headers["X-Companion-Tab"] = companionTabId;
   } else if (activeApiKey) requestOptions.headers.Authorization = "Bearer " + activeApiKey;
   try {
     const response = await fetch(url, requestOptions);
-    feedbackDiagnostics.record(url, requestOptions.method || "GET", response.status);
+    feedbackDiagnostics.finish(url, requestOptions.method || "GET", diagnosticRequest, response);
     if (typeof companionMode !== "undefined" && companionMode && response.status === 409) {
       const packet = await response.clone().json().catch(() => null);
       if (packet?.error?.code === "stale_generation") companionFence();
@@ -280,7 +287,7 @@ async function graphFetch(url, options) {
     }
     return response;
   } catch (error) {
-    feedbackDiagnostics.record(url, requestOptions.method || "GET", error.name === "AbortError" ? "aborted" : "failed");
+    feedbackDiagnostics.finish(url, requestOptions.method || "GET", diagnosticRequest, undefined, error.name === "AbortError");
     if (revision === credentialRevision && error.name !== "AbortError") {
       connectionStatus = "unavailable";
       renderConnection();
@@ -293,6 +300,7 @@ async function graphJson(url, options) {
   const response = await graphFetch(url, options);
   let payload;
   try { payload = await response.json(); } catch { payload = null; }
+  feedbackDiagnostics.result(url, options?.method || "GET", response, payload);
   if (!response.ok) {
     const error = new Error(payload?.error?.message || "Request failed with HTTP " + response.status);
     error.status = response.status;

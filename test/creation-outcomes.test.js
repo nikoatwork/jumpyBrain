@@ -175,6 +175,10 @@ test("hosted CLI exposes deferred and failed post-save outcomes without hidden i
   assertSaved(session, "failed");
   assert.equal(session.indexing.diagnostic.code, "index_state_failed");
   assert.equal(session.validation.valid, true);
+  const diagnostics = await server.diagnostics.snapshot();
+  assert.ok(diagnostics.events.some(event => event.code === "saved" && event.outcome === "ok"));
+  assert.ok(diagnostics.events.some(event => event.code === "index_state_failed" && event.outcome === "pending"));
+  assert.doesNotMatch(JSON.stringify(diagnostics), /private broken|creation-test-secret|Remote CLI body/);
   assert.equal(session.target, "remote");
   assert.doesNotMatch(JSON.stringify(session), /jb-creation-|private broken|creation-test-secret/);
   const human = await run(["remember", ...target, "--title", "Hosted CLI partial text"], { env, input: "Another intentional remote note." });

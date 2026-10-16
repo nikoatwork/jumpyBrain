@@ -244,6 +244,14 @@ private struct CompanionState: Decodable {
 final class Companion: NSObject, NSApplicationDelegate {
     private var config: Configuration!
     private var statusItem: NSStatusItem!
+    // Use the desktop identity in the menu bar too, preserving its pink color.
+    private lazy var brainIcon: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "MenuBarBrain", withExtension: "png"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = false
+        return image
+    }()
     private let statusLine = NSMenuItem(title: "Starting…", action: nil, keyEquivalent: "")
     private var openItem: NSMenuItem!
     private var settingsItem: NSMenuItem!
@@ -275,6 +283,55 @@ final class Companion: NSObject, NSApplicationDelegate {
     private var openWhenReady = false
     private var baseURL: String { "http://127.0.0.1:\(config.port)" }
     private var logURL: URL { URL(fileURLWithPath: config.supportDirectory).appendingPathComponent("server.log") }
+    private let diagnosticSession = "d_" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+
+    // Separate, content-free lifecycle evidence. Raw stderr/configuration and
+    // credential frames never enter this snapshot or the support attachment.
+    private func recordNativeDiagnostic(_ operation: String, _ code: String, exitCode: Int32? = nil) {
+        guard config != nil else { return }
+        let operations = ["startup", "shutdown", "bridge", "update", "connection"]
+        let codes = ["none", "native_start_failed", "native_update_failed", "child_terminated", "bridge_lost", "unavailable"]
+        guard operations.contains(operation), codes.contains(code) else { return }
+        let fm = FileManager.default, directory = URL(fileURLWithPath: config.supportDirectory)
+        var parent = stat()
+        guard lstat(directory.path, &parent) == 0, parent.st_mode & S_IFMT == S_IFDIR, parent.st_uid == getuid(), parent.st_mode & 0o077 == 0 else { return }
+        let url = directory.appendingPathComponent("native-diagnostics.json")
+        var events = [[String: Any]]()
+        var dropped = 0
+        let fd = Darwin.open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+        if fd >= 0 {
+            var info = stat()
+            guard fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_nlink == 1, info.st_uid == getuid(), info.st_size <= 65536, info.st_mode & 0o077 == 0 else { Darwin.close(fd); return }
+            let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: false)
+            if let data = try? handle.read(upToCount: 65536), let packet = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let stored = packet["events"] as? [[String: Any]] {
+                dropped = min(1_000_000_000, max(0, packet["dropped"] as? Int ?? 0))
+                let formatter = ISO8601DateFormatter()
+                for item in stored.suffix(64) {
+                    guard let at = item["at"] as? String, let date = formatter.date(from: at), Date().timeIntervalSince(date) < 7 * 86400, date.timeIntervalSinceNow < 60,
+                          let op = item["operation"] as? String, operations.contains(op), let kind = item["code"] as? String, codes.contains(kind),
+                          let session = item["session"] as? String, session.range(of: "^d_[a-f0-9]{32}$", options: .regularExpression) != nil else { continue }
+                    var clean: [String: Any] = ["schema": 1, "component": "native", "at": at, "operation": op, "code": kind, "session": session, "severity": kind == "none" ? "info" : "warn", "outcome": kind == "none" ? "ok" : "failed"]
+                    if let number = item["exitCode"] as? Int, number >= -65535, number <= 65535 { clean["exitCode"] = number }
+                    events.append(clean)
+                }
+            }
+            Darwin.close(fd)
+        } else if errno != ENOENT { return }
+        var event: [String: Any] = ["schema": 1, "component": "native", "at": Date().ISO8601Format(), "operation": operation, "code": code, "session": diagnosticSession, "severity": code == "none" ? "info" : "warn", "outcome": code == "none" ? "ok" : "failed"]
+        if let value = exitCode { event["exitCode"] = Int(value) }
+        events.append(event)
+        if events.count > 64 {
+            let ordinary = events.firstIndex { ($0["outcome"] as? String) == "ok" }
+            events.remove(at: ordinary ?? 0)
+            dropped = min(1_000_000_000, dropped + 1)
+        }
+        do {
+            let data = try JSONSerialization.data(withJSONObject: ["schema": 1, "events": Array(events.suffix(64)), "dropped": dropped])
+            guard data.count <= 65536 else { return }
+            try data.write(to: url, options: .atomic)
+            try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        } catch { /* Diagnostic failure must not interfere with native lifecycle. */ }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -287,6 +344,7 @@ final class Companion: NSObject, NSApplicationDelegate {
                 return
             }
             ownsLock = true
+            recordNativeDiagnostic("startup", "none")
             guard config.runtimeRoot.hasPrefix("/"),
                   FileManager.default.fileExists(atPath: config.runtimeRoot + "/dist/cli.js") else {
                 throw NSError(domain: "Companion", code: 2, userInfo: [NSLocalizedDescriptionKey: "Installed runtime is missing. Repair the managed CLI installation before reopening jumpyBrain."])
@@ -373,8 +431,29 @@ final class Companion: NSObject, NSApplicationDelegate {
             if let line = "\(Date().ISO8601Format()) companion: \(text)\n".data(using: .utf8) { try? output?.write(contentsOf: line) }
         }
         statusLine.title = text
-        statusItem?.button?.image = NSImage(systemSymbolName: healthy && (connectionState == nil || connectionState?.health == "connected") ? "brain" : "exclamationmark.circle", accessibilityDescription: "jumpyBrain: \(text)")
-        statusItem?.button?.image?.isTemplate = true
+        let connected = healthy && (connectionState == nil || connectionState?.health == "connected")
+        if let brain = brainIcon {
+            let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+                brain.draw(in: rect)
+                if !connected {
+                    // Keep the brain recognizable while retaining an offline warning.
+                    let badge = NSBezierPath(ovalIn: NSRect(x: 12, y: 0, width: 6, height: 6))
+                    NSColor.systemOrange.setFill()
+                    badge.fill()
+                    NSColor(calibratedWhite: 0.19, alpha: 1).setStroke()
+                    badge.lineWidth = 1
+                    badge.stroke()
+                }
+                return true
+            }
+            image.isTemplate = false
+            image.accessibilityDescription = "jumpyBrain: \(text)"
+            statusItem?.button?.image = image
+        } else {
+            // Older/minimal bundles can still start without the artwork resource.
+            statusItem?.button?.image = NSImage(systemSymbolName: connected ? "brain" : "exclamationmark.circle", accessibilityDescription: "jumpyBrain: \(text)")
+            statusItem?.button?.image?.isTemplate = true
+        }
         statusItem?.button?.toolTip = "jumpyBrain — \(text)"
         openItem?.isEnabled = healthy && !stopping && !updating
         settingsItem?.isEnabled = healthy && !stopping && !updating
@@ -436,6 +515,7 @@ final class Companion: NSObject, NSApplicationDelegate {
         p.standardInput = responses
         let bridge = NativeBridge(reader: requests.fileHandleForReading, writer: responses.fileHandleForWriting) { [weak self, weak p] in
             guard let self = self, let p = p, self.server === p else { return }
+            self.recordNativeDiagnostic("bridge", "bridge_lost")
             if p.isRunning { p.terminate() }
             self.setStatus("Native connection service unavailable — restart server", healthy: false)
         }
@@ -443,6 +523,7 @@ final class Companion: NSObject, NSApplicationDelegate {
         p.terminationHandler = { [weak self] child in
             DispatchQueue.main.async {
                 guard let self = self, self.server === child else { return }
+                self.recordNativeDiagnostic("shutdown", "child_terminated", exitCode: child.terminationStatus)
                 self.nativeBridge?.stop()
                 self.nativeBridge = nil
                 self.connectionState = nil
@@ -460,6 +541,7 @@ final class Companion: NSObject, NSApplicationDelegate {
             checkHealth()
         } catch {
             bridge.stop()
+            recordNativeDiagnostic("startup", "native_start_failed")
             nativeBridge = nil
             server = nil
             setStatus("Could not start server — see logs", healthy: false)
@@ -712,6 +794,7 @@ final class Companion: NSObject, NSApplicationDelegate {
     }
 
     private func updateHandoffFailed(_ directory: URL, _ message: String) {
+        recordNativeDiagnostic("update", "native_update_failed")
         updateHandoffDirectory = nil
         try? "cancelled\n".write(to: directory.appendingPathComponent("cancelled"), atomically: true, encoding: .utf8)
         try? FileManager.default.removeItem(at: directory.appendingPathComponent("proceed"))

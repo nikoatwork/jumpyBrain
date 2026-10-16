@@ -41,8 +41,10 @@ function json(response, status, packet, headers = {}) {
 // stdout/stdin are anonymous private pipes to Swift, not a local network capability.
 export function nativeCredentials(input = process.stdin, output = process.stdout, { timeoutMs = 15000 } = {}) {
   let buffer = Buffer.alloc(0), sequence = 0, closed = false;
+  let diagnosticReporter = null;
   const pending = new Map();
-  const close = () => {
+  const close = (report = true) => {
+    if (!closed && report) diagnosticReporter?.({ operation: 'bridge', severity: 'error', outcome: 'failed', code: 'bridge_lost' });
     closed = true;
     for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new ControlError('credential_unavailable', 'Native capability unavailable.', 503)); }
     pending.clear();
@@ -70,7 +72,7 @@ export function nativeCredentials(input = process.stdin, output = process.stdout
     pending.set(id, { resolve, reject, timer });
     output.write(JSON.stringify({ id, operation, ...fields }) + '\n');
   });
-  return { get: (reference) => call('get', { reference }), set: (reference, key) => call('set', { reference, key }), delete: (reference) => call('delete', { reference }), selectFolder: () => call('select-folder'), close: () => { close(); input.off('data', consume); input.pause(); } };
+  return { setDiagnosticReporter(reporter) { diagnosticReporter = reporter; }, get: (reference) => call('get', { reference }), set: (reference, key) => call('set', { reference, key }), delete: (reference) => call('delete', { reference }), selectFolder: () => call('select-folder'), close: () => { close(false); input.off('data', consume); input.pause(); } };
 }
 
 function allowedMemoryRoute(method, pathname) {
@@ -91,6 +93,17 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const { graphPageHtml } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/graph-page.js')).href);
   const { brainFaviconSvg } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/favicon.js')).href);
   const { startJumpyBrainHttpServer } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/server/index.js')).href);
+  const { createDiagnosticStore, newDiagnosticId, readNativeDiagnosticSnapshot } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/store.js')).href);
+  const { diagnosticId, diagnosticOperation, diagnosticCode, statusCode, sanitizeDiagnosticEvent } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/events.js')).href);
+  const { collectSupportDiagnostics } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/diagnostics/index.js')).href);
+  const { readDiagnosticBuildInfo } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/build-info.js')).href);
+  const runtimeInfo = readDiagnosticBuildInfo();
+  const diagnostics = createDiagnosticStore({ directory: path.join(directory, 'diagnostics', 'gateway'), component: 'gateway', metadata: runtimeInfo });
+  const electronDiagnostics = createDiagnosticStore({ directory: path.join(directory, 'diagnostics', 'electron'), component: 'electron' });
+  diagnostics.record({ operation: 'startup', severity: 'info', outcome: 'ok', code: 'none' });
+  credentials.setDiagnosticReporter?.((event) => diagnostics.record(event));
+  let supportPending = null, supportAt = 0, supportCache = null, supportScope = null;
+  const importedEvents = new Set();
   const localStart = localFactory || ((options) => startJumpyBrainHttpServer(options));
   let local = null, localProfile = null, localKey = null;
   let origin, cookieName;
@@ -133,6 +146,8 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     return result;
   };
   const targetFetch = async (profile, route, options = {}, deadline = targetTimeoutMs) => {
+    const started = performance.now();
+    const diagnosticRequest = diagnosticId(options.headers?.['X-JumpyBrain-Request']);
     const controller = new AbortController(); controllers.add(controller);
     const timer = setTimeout(() => controller.abort(), deadline);
     try {
@@ -144,8 +159,12 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       try { body = await bytes(response.body || [], MAX_RESPONSE); }
       catch (error) { controller.abort(); throw error; }
       // Do not send upstream cookies, authentication challenges, or redirects to the shell.
+      diagnostics.record({ operation: diagnosticOperation(route, options.method), request: diagnosticRequest, status: response.status, durationMs: performance.now() - started,
+        severity: response.ok ? 'info' : 'warn', outcome: response.ok ? 'ok' : 'failed', code: statusCode(response.status) });
       return { status: response.status, body, contentType: response.headers.get('content-type') || 'application/json' };
     } catch (error) {
+      diagnostics.record({ operation: diagnosticOperation(route, options.method), request: diagnosticRequest, durationMs: performance.now() - started,
+        severity: 'warn', outcome: 'failed', code: error instanceof ControlError ? diagnosticCode(error.code) : controller.signal.aborted ? 'target_timeout' : 'offline' });
       if (error instanceof ControlError) throw error;
       failure(controller.signal.aborted ? 'target_timeout' : 'offline', controller.signal.aborted ? 'Brain request timed out.' : 'The selected brain is unavailable.', controller.signal.aborted ? 504 : 503);
     } finally { clearTimeout(timer); controllers.delete(controller); }
@@ -213,6 +232,10 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
 
   const handler = async (request, response) => {
     const url = new URL(request.url || '/', origin);
+    const started = performance.now();
+    const requestId = diagnosticId(request.headers['x-jumpybrain-request']) || newDiagnosticId();
+    let errorCode = 'none';
+    response.setHeader('X-JumpyBrain-Request', requestId);
     try {
       // A content-free shell is public, but never on an attacker-controlled Host.
       if (request.headers.host !== new URL(origin).host) failure('untrusted_origin', 'Untrusted companion host.', 403);
@@ -227,11 +250,43 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       }
       if (request.method === 'GET' && url.pathname === '/health') { json(response, 200, { ok: !stopping }); return; }
       const auth = authenticate(request, url.pathname);
+      if (url.pathname === '/companion/diagnostics' && request.method === 'GET') {
+        const finish = coordinator.enter(auth.native ? coordinator.generation : Number(request.headers['x-companion-generation']), request.headers['x-companion-tab'], auth.native);
+        try {
+          const profile = active();
+          const scope = String(coordinator.generation) + ':' + profile?.id;
+          if (!supportPending && (!supportCache || supportScope !== scope || Date.now() - supportAt > 2000)) {
+            const absent = (component) => ({ component, availability: 'unavailable', events: [], dropped: 0, failures: 0, truncatedBytes: 0 });
+            supportPending = collectSupportDiagnostics([
+              { component: 'gateway', snapshot: () => diagnostics.snapshot() },
+              { component: 'server', snapshot: () => profile?.kind === 'local' && localProfile === profile.id && local?.diagnostics ? local.diagnostics.snapshot() : Promise.resolve(absent('server')) },
+              { component: 'native', snapshot: () => readNativeDiagnosticSnapshot(path.join(directory, 'native-diagnostics.json')) },
+              { component: 'electron', snapshot: async () => { const source = await electronDiagnostics.snapshot(); return source.events.length ? source : absent('electron'); } },
+            ]).then((sources) => { supportCache = { schema: 1, runtime: runtimeInfo, sources }; supportScope = scope; supportAt = Date.now(); return supportCache; }).finally(() => { supportPending = null; });
+          }
+          json(response, 200, supportPending ? await supportPending : supportCache);
+        } finally { finish(); }
+        return;
+      }
       if (url.pathname.startsWith('/companion/')) {
         if (url.pathname === '/companion/state' && request.method === 'GET') { await refreshHealth(); json(response, 200, state()); return; }
         if (request.method !== 'POST') failure('method_not_allowed', 'Use POST for companion actions.', 405);
         const body = await jsonBody(request);
         switch (url.pathname) {
+          case '/companion/diagnostics':
+            if (!auth.native) failure('unauthorized', 'Native diagnostics capability required.', 403);
+            if (!exact(body, ['events']) || !Array.isArray(body.events) || body.events.length > 64) failure('invalid_request', 'Invalid diagnostic packet.');
+            for (const input of body.events) {
+              // The event store sanitizes before persistence. Only authenticated
+              // native wrappers may submit; never accept filenames or raw logs.
+              const event = sanitizeDiagnosticEvent(input);
+              if (!event || event.component !== 'electron') continue;
+              const identity = JSON.stringify(event);
+              if (!importedEvents.has(identity)) { electronDiagnostics.record(event); importedEvents.add(identity); }
+              if (importedEvents.size > 512) importedEvents.delete(importedEvents.values().next().value);
+            }
+            supportCache = null;
+            json(response, 200, { ok: true }); return;
           case '/companion/session':
             if (!exact(body, ['token']) || !equal(body.token, controlKey)) failure('unauthorized', 'Open from the companion menu.', 401);
             json(response, 200, { ok: true }, { 'Set-Cookie': `${cookieName}=${cookieToken}; HttpOnly; SameSite=Strict; Path=/` }); return;
@@ -297,15 +352,23 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
         const body = ['POST','PUT','DELETE'].includes(request.method) ? await bytes(request, MAX_BODY) : undefined;
         const headers = {};
         for (const name of ['content-type','if-match','idempotency-key']) if (request.headers[name]) headers[name] = request.headers[name];
+        headers['X-JumpyBrain-Request'] = requestId;
         const packet = await targetFetch(profile, url.pathname + url.search, { method: request.method, headers, body }, url.pathname.endsWith('/index') ? 610000 : targetTimeoutMs);
         // Response payloads preserve existing protocol; only static gateway failures are generated here.
         response.writeHead(packet.status, { 'Content-Type': packet.contentType.startsWith('application/json') ? 'application/json; charset=utf-8' : 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
         response.end(packet.body);
       } finally { finish(); }
     } catch (error) {
+      errorCode = diagnosticCode(error?.code);
       const known = error instanceof ControlError || error?.name === 'ConnectionError';
       const status = error instanceof ControlError ? error.status : error?.code === 'REVISION_CONFLICT' ? 409 : known ? 400 : 500;
       json(response, status, { error: { code: known ? error.code : 'companion_failed', message: known ? error.message : 'Companion operation failed.' } });
+    } finally {
+      if (url.pathname !== '/health' && !['/', '/graph', '/settings', '/favicon.svg', '/companion/diagnostics'].includes(url.pathname)) diagnostics.record({
+        operation: diagnosticOperation(url.pathname, request.method), request: requestId, status: response.statusCode,
+        durationMs: performance.now() - started, outcome: response.statusCode >= 400 ? 'failed' : 'ok',
+        severity: response.statusCode >= 400 ? 'warn' : 'info', code: errorCode === 'none' ? statusCode(response.statusCode) : errorCode,
+      });
     }
   };
   const server = http.createServer((request, response) => {
@@ -318,7 +381,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     server.listen(port, '127.0.0.1', () => { server.off('error', reject); resolve(); });
   });
   origin = `http://127.0.0.1:${server.address().port}`; cookieName = 'jumpybrain_companion_' + server.address().port;
-  return { url: origin, server, store, coordinator, state,
+  return { url: origin, server, store, coordinator, state, diagnostics,
     close: async () => {
       stopping = true; coordinator.close();
       for (const controller of controllers) controller.abort();
@@ -327,6 +390,8 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       await Promise.allSettled([...requests]);
       await healthPending; await targetTail; await stopLocal();
       server.closeAllConnections(); await closed;
+      diagnostics.record({ operation: 'shutdown', severity: 'info', outcome: 'ok', code: 'none' });
+      await Promise.all([diagnostics.flush(), electronDiagnostics.flush()]);
     } };
 }
 

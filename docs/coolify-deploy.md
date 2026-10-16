@@ -110,6 +110,8 @@ tail -n 200 /srv/jumpybrain/memory/.jumpybrain/logs/server-$(date +%F).log
 
 Do not expose a public logs endpoint in V1; use SSH/Coolify host access for production debugging.
 
+Default servers also keep sanitized schema diagnostics in `.jumpybrain/logs/diagnostics/`, capped at seven days and 10 MiB per store with continuous segment rotation. These record operation/error categories, timing and opaque request correlation without memory content or raw exception/provider text. Hosted browser Feedback only includes browser evidence; remote server files stay behind administrator access. Legacy text logs can contain IDs/relative paths, so inspect/redact them deliberately rather than attaching whole files. Diagnostics are disposable and never repair or alter memory/index state.
+
 ## Safety checklist
 
 - Keep the API key only in Coolify secrets and client-side environment variables, not in committed files or production command-line arguments.

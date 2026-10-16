@@ -29,7 +29,7 @@ try {
     credentials: { get: async () => null, set: async () => {}, delete: async () => {}, selectFolder: async () => null },
   });
   const configPath = path.join(temporary, 'fixture.json');
-  await writeFile(configPath, JSON.stringify({ origin: gateway.url, key: controlKey, id,
+  await writeFile(configPath, JSON.stringify({ origin: gateway.url, key: controlKey, id, runtimeRoot: repo,
     userData: path.join(temporary, 'electron'), result: path.join(temporary, 'result.json') }), { mode: 0o600 });
   const env = { ...process.env, JUMPYBRAIN_ELECTRON_SMOKE_FIXTURE: configPath };
   delete env.ELECTRON_RUN_AS_NODE;

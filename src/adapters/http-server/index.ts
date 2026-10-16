@@ -4,17 +4,24 @@ import { HTTP_MEMORY_ROUTES } from "../http-protocol.js";
 import { createFileLogger, type FileLogger } from "../logging/index.js";
 import { createRemoteIndexRunner, startRemoteAutoIndexer, type RemoteAutoIndexer, type RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
 import { RESPONSE_ERROR_CODE, errorResponse, routeRequest, writeJson } from "./routes.js";
+import path from "node:path";
+import { createDiagnosticStore, newDiagnosticId, type DiagnosticStore } from "../diagnostics/store.js";
+import { diagnosticId } from "../diagnostics/events.js";
+import { diagnosticRequestContext, diagnosticServerLogger } from "../diagnostics/server-logging.js";
+import { readDiagnosticBuildInfo } from "../diagnostics/build-info.js";
 
 export interface JumpyBrainHttpServerOptions {
   root: string;
   apiKeys: string[];
   indexRunner?: RemoteIndexRunner;
   logger?: FileLogger;
+  diagnostics?: DiagnosticStore;
   searchTimeoutMs?: number;
   indexTimeoutMs?: number;
 }
 
 export interface StartedJumpyBrainHttpServer {
+  diagnostics: DiagnosticStore;
   server: Server;
   url: string;
   autoIndex?: RemoteAutoIndexer;
@@ -27,7 +34,9 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   const apiKeys = options.apiKeys.map((key) => key.trim()).filter(Boolean);
   if (apiKeys.length === 0) throw new Error("At least one server API key is required.");
 
-  const logger = options.logger ?? createFileLogger({ root, name: "server" });
+  const diagnostics = options.diagnostics ?? createDiagnosticStore({ directory: path.join(root, ".jumpybrain", "logs", "diagnostics"), component: "server", persist: options.logger === undefined, metadata: readDiagnosticBuildInfo() });
+  const logger = diagnosticServerLogger(options.logger ?? createFileLogger({ root, name: "server" }), diagnostics);
+  diagnostics.record({ operation: "startup", severity: "info", outcome: "ok", code: "none" });
   const indexRunner = options.indexRunner ?? createRemoteIndexRunner({
     root,
     timeoutMs: options.indexTimeoutMs,
@@ -43,7 +52,8 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   const requests = new Set<AbortController>();
   const handlers = new Set<Promise<void>>();
   let shuttingDown = false;
-  const server = http.createServer(async (request, response) => {
+  const server = http.createServer((request, response) => diagnosticRequestContext.run(diagnosticId(request.headers["x-jumpybrain-request"]) ?? newDiagnosticId(), async () => {
+    response.setHeader("X-JumpyBrain-Request", diagnosticRequestContext.getStore()!);
     let finish!: () => void;
     const completed = new Promise<void>(resolve => { finish = resolve; });
     handlers.add(completed);
@@ -55,7 +65,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
     request.once("aborted", disconnect);
     response.once("close", disconnect);
     if (shuttingDown) controller.abort();
-    const startedAt = Date.now();
+    const startedAt = performance.now();
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
       await routeRequest({ request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal: controller.signal, searchTimeoutMs: options.searchTimeoutMs });
@@ -74,12 +84,12 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
           method: request.method,
           path: url.pathname,
           status: response.statusCode,
-          duration_ms: Date.now() - startedAt,
+          duration_ms: performance.now() - startedAt,
           error_code: (response as ServerResponse & { [RESPONSE_ERROR_CODE]?: string })[RESPONSE_ERROR_CODE],
         });
       }
     }
-  });
+  }));
   // Finite body receipt, separate from the backend operation deadline.
   server.requestTimeout = 30_000;
   server.headersTimeout = 30_000;
@@ -90,7 +100,10 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
     const stopped = indexRunner.stop?.() ?? Promise.resolve();
     // A disconnected socket can be closed while its async route still owns a
     // child/lock. Native close alone is not an application-work drain.
-    close(error => { void Promise.all([stopped, ...handlers]).then(() => callback?.(error), () => callback?.(error)); });
+    close(error => { void Promise.all([stopped, ...handlers]).then(async () => {
+      diagnostics.record({ operation: "shutdown", severity: "info", outcome: "ok", code: "none" });
+      await Promise.all([diagnostics.flush(), logger.flush?.()]); callback?.(error);
+    }, () => callback?.(error)); });
     return server;
   }) as typeof server.close;
   return server;
@@ -101,18 +114,20 @@ export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOpt
   const port = options.port ?? 3787;
   const root = options.root.trim();
   const logger = options.logger ?? createFileLogger({ root, name: "server" });
+  const diagnostics = options.diagnostics ?? createDiagnosticStore({ directory: path.join(root, ".jumpybrain", "logs", "diagnostics"), component: "server", persist: options.logger === undefined, metadata: readDiagnosticBuildInfo() });
+  const indexLogger = diagnosticServerLogger(logger, diagnostics);
   const indexRunner = options.indexRunner ?? createRemoteIndexRunner({
     root,
     timeoutMs: options.indexTimeoutMs,
-    logger: (level, event, details) => logger.log(level, `auto_index_${event}`, details),
+    logger: (level, event, details) => indexLogger.log(level, `auto_index_${event}`, details),
   });
-  const server = createJumpyBrainHttpServer({ ...options, root, indexRunner, logger });
+  const server = createJumpyBrainHttpServer({ ...options, root, indexRunner, logger, diagnostics });
   const autoIndex = options.autoIndex === false ? undefined : startRemoteAutoIndexer({
     root,
     indexRunner,
     intervalMs: options.autoIndex?.intervalMs,
     startTimer: options.autoIndex?.startTimer,
-    logger: (level, event, details) => logger.log(level, `auto_index_${event}`, details),
+    logger: (level, event, details) => indexLogger.log(level, `auto_index_${event}`, details),
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -126,6 +141,7 @@ export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOpt
   const address = server.address() as AddressInfo;
   const url = `http://${address.address}:${address.port}`;
   return {
+    diagnostics,
     server,
     url,
     autoIndex,

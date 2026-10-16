@@ -6,6 +6,7 @@
 - Own local and server-side memory workflows that are not pure domain rules, including writing canonical Markdown files, local index/search orchestration, deterministic processing, shared local/remote dream state workflows, and server-memory state/idempotency use cases.
 - `creation.ts` composes post-publication saved outcomes with nonpersisting local indexing and saved-ID/scope verification; writing and local-memory modules remain independent. It calls approved core/QMD barrel seams under the existing operation budget, never retries canonical creation.
 - Provide stable seams for runtime, CLI transports, server boundaries, and protocol adapters to call without reaching into lower-level policy modules.
+- `diagnostics/` composes explicit host snapshot sources with a finite deadline and schema sanitization; it never selects arbitrary filesystem paths or reads/writes canonical memory.
 
 ## Non-responsibilities
 

@@ -11,6 +11,7 @@ import vm from "node:vm";
 
 import { graphMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
+import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback.js";
 
 function pageScript() {
   return [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
@@ -563,7 +564,7 @@ test("graph document transport centralizes optional Bearer auth and PUT precondi
   const script = pageScript();
   const requests = [];
   const ctx = {
-    feedbackDiagnostics: { record() {} },
+    feedbackDiagnostics: createFeedbackDiagnostics(),
     activeApiKey: "secret", credentialRevision: 0, connectionStatus: "checking",
     renderConnection: () => {},
     fetch: async (url, options) => {

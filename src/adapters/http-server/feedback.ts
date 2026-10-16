@@ -1,34 +1,57 @@
-// Browser-only support diagnostics. Capture safe facts at source, never redact raw logs.
+// Browser support evidence: schema construction, never arbitrary console/log capture.
+import { createDiagnosticBuffer, diagnosticOperation, diagnosticCode, diagnosticId, statusCode, diagnosticErrorKind, supportReport, type DiagnosticSnapshot } from "../diagnostics/events.js";
 declare const __JUMPYBRAIN_VERSION__: string;
+declare const __JUMPYBRAIN_BUILD__: string;
 export const FEEDBACK_EMAIL = "jumpybrain@agentmail.to";
 const SUBJECT = "jumpyBrain beta feedback";
 const MAX_MESSAGE = 4000;
-type Outcome = number | "failed" | "aborted";
-type Entry = { at: string; operation: string; method: string; outcome: Outcome };
-
+export const MAX_FEEDBACK_BYTES = 65536;
+export function diagnosticBuildInfo() {
+  return { version: typeof __JUMPYBRAIN_VERSION__ === "string" ? __JUMPYBRAIN_VERSION__ : "beta", build: typeof __JUMPYBRAIN_BUILD__ === "string" ? __JUMPYBRAIN_BUILD__ : "unavailable" };
+}
 export function createFeedbackDiagnostics(now = () => new Date()) {
-  const entries: Entry[] = [];
+  const buffer = createDiagnosticBuffer("browser");
+  const freshId = () => "d_" + Array.from(crypto.getRandomValues(new Uint8Array(16)), (n) => n.toString(16).padStart(2, "0")).join("");
+  const session = freshId();
+  const probes = new WeakMap<Response, { id: string; started: number }>();
+  const event = (operation: string, details: Record<string, unknown> = {}) => buffer.record({ at: now().toISOString(), component: "browser", session, operation, ...diagnosticBuildInfo(), severity: "info", outcome: "ok", code: "none", ...details });
   return {
-    record(url: string, method: string, outcome: Outcome) {
-      // No origins, query strings, document IDs, headers, payloads or error messages.
-      const operation = /^\/memories\/all\/documents\//.test(url) ? "document"
-        : /^\/memories\/all\/(recent|search|graph|notes|index)(?:\.json)?(?:\?|$)/.exec(url)?.[1]
-        ?? (/^\/companion\//.test(url) ? "companion" : "request");
-      entries.push({ at: now().toISOString(), operation,
-        method: ["GET", "POST", "PUT", "DELETE"].includes(method) ? method : "other",
-        outcome: typeof outcome === "number" ? Math.max(0, Math.min(599, Math.trunc(outcome))) : outcome });
-      if (entries.length > 40) entries.shift();
+    event,
+    begin() { return { id: freshId(), started: performance.now() }; },
+    finish(url: string, method: string, probe: { id: string; started: number }, response?: Response, aborted = false) {
+      if (response) probes.set(response, probe);
+      const outcome = response ? response.ok ? "ok" : "failed" : aborted ? "aborted" : "failed";
+      event(diagnosticOperation(url, method), { request: probe.id, status: response?.status, durationMs: performance.now() - probe.started,
+        outcome, severity: outcome === "ok" ? "info" : "warn", code: response ? statusCode(response.status) : aborted ? "aborted" : "network" });
     },
-    snapshot(context: { view: string; connection: string; companion: boolean }, userAgent: string) {
+    result(url: string, method: string, response: Response, payload: unknown) {
+      if (!payload || typeof payload !== "object") return;
+      const packet = payload as { error?: { code?: unknown }; indexing?: { status?: unknown }; saved?: boolean };
+      const code = diagnosticCode(packet.error?.code);
+      const indexing = packet.indexing?.status;
+      if (!response.ok || packet.saved === true || indexing === "failed") event(diagnosticOperation(url, method), {
+        request: probes.get(response)?.id ?? diagnosticId(response.headers?.get("X-JumpyBrain-Request")), status: response.status,
+        outcome: !response.ok ? "failed" : indexing === "failed" ? "pending" : packet.saved === true ? "ok" : "pending",
+        severity: !response.ok || indexing === "failed" ? "warn" : "info",
+        code: !response.ok ? code === "unknown" ? statusCode(response.status) : code : indexing === "failed" ? "index_failed" : indexing === "pending" ? "pending" : "saved",
+      });
+    },
+    record(url: string, method: string, outcome: number | "failed" | "aborted") {
+      event(diagnosticOperation(url, method), { status: typeof outcome === "number" ? outcome : undefined, outcome: typeof outcome === "number" ? outcome < 400 ? "ok" : "failed" : outcome,
+        severity: typeof outcome === "number" && outcome < 400 ? "info" : "warn", code: typeof outcome === "number" ? statusCode(outcome) : outcome === "aborted" ? "aborted" : "network" });
+    },
+    snapshot(context: { view: string; connection: string; companion: boolean }, userAgent: string, hostSources: DiagnosticSnapshot[] = [], hostInfo?: unknown) {
       const browser = /Electron\/([\d.]+)/.exec(userAgent) ?? /(Firefox|Edg|Chrome|Version)\/([\d.]+)/.exec(userAgent);
-      const platform = /Windows/.test(userAgent) ? "Windows" : /Android/.test(userAgent) ? "Android"
-        : /iPhone|iPad/.test(userAgent) ? "iOS" : /Macintosh/.test(userAgent) ? "macOS" : /Linux/.test(userAgent) ? "Linux" : "other";
-      return JSON.stringify({ app: "jumpyBrain", version: typeof __JUMPYBRAIN_VERSION__ === "string" ? __JUMPYBRAIN_VERSION__ : "beta",
-        generatedAt: now().toISOString(), platform,
-        browser: browser ? browser[0] : "other", companion: context.companion,
+      const platform = /Windows/.test(userAgent) ? "Windows" : /Android/.test(userAgent) ? "Android" : /iPhone|iPad/.test(userAgent) ? "iOS" : /Macintosh/.test(userAgent) ? "macOS" : /Linux/.test(userAgent) ? "Linux" : "other";
+      const sources = hostSources.filter((s) => s && typeof s === "object" && Array.isArray(s.events));
+      const info = hostInfo && typeof hostInfo === "object" ? hostInfo as Record<string, unknown> : {};
+      const hostRuntime = { version: typeof info.version === "string" && /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(info.version) ? info.version.slice(0, 50) : "unavailable",
+        build: typeof info.build === "string" && /^[a-f0-9]{16}$/.test(info.build) ? info.build : "unavailable" };
+      return JSON.stringify({ ...supportReport([buffer.snapshot(), ...sources], 21000), app: "jumpyBrain", ...diagnosticBuildInfo(), hostRuntime,
+        generatedAt: now().toISOString(), platform, browser: browser ? browser[0] : "other", companion: context.companion === true,
         view: ["home", "note", "graph", "settings"].includes(context.view) ? context.view : "other",
         connection: ["checking", "connected", "disconnected", "unavailable"].includes(context.connection) ? context.connection : "other",
-        events: entries }, null, 2);
+        coverage: context.companion ? "local_host_only_no_remote_server_logs" : "browser_only_no_server_access", browserHistory: "current_tab_only" });
     },
   };
 }
@@ -48,11 +71,13 @@ export function feedbackEmailDraft(message: string, diagnostics: string | null):
   if (diagnostics !== null) lines.push(`--${boundary}`, 'Content-Type: text/plain; charset="UTF-8"',
     'Content-Disposition: attachment; filename="jumpybrain-diagnostics.txt"', "Content-Transfer-Encoding: base64", "", encodedPart(diagnostics));
   lines.push(`--${boundary}--`, "");
-  return lines.join("\r\n");
+  const draft = lines.join("\r\n");
+  if (new TextEncoder().encode(draft).length > MAX_FEEDBACK_BYTES) throw new Error("Feedback exceeds the email draft limit. Shorten the message or exclude diagnostics.");
+  return draft;
 }
 
 export function feedbackMailto(message: string, diagnostics: string | null): string {
-  const body = message.slice(0, MAX_MESSAGE) + (diagnostics === null ? "" : "\n\nDiagnostic log (inline):\n" + diagnostics);
+  const body = new TextDecoder().decode(new TextEncoder().encode(message.slice(0, MAX_MESSAGE))) + (diagnostics === null ? "" : "\n\nDiagnostic log (inline):\n" + diagnostics);
   return `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(SUBJECT)}&body=${encodeURIComponent(body)}`;
 }
 
@@ -60,6 +85,7 @@ export function installFeedback(options: {
   document: Document; window: Window; diagnostics: ReturnType<typeof createFeedbackDiagnostics>;
   context: () => { view: string; connection: string; companion: boolean };
   onOpen?: () => void;
+  collectHost?: (signal: AbortSignal) => Promise<{ sources?: DiagnosticSnapshot[]; runtime?: unknown }>;
 }) {
   const { document, window, diagnostics } = options;
   const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -69,14 +95,22 @@ export function installFeedback(options: {
   const preview = element<HTMLTextAreaElement>("feedback-logs");
   const mail = element<HTMLAnchorElement>("feedback-mailto");
   const status = element<HTMLElement>("feedback-status");
-  let snapshot = "";
+  let snapshot = "", openSequence = 0, collecting = false;
+  let collection: AbortController | null = null;
+  const download = element<HTMLButtonElement>("feedback-download");
   function update() {
     preview.value = include.checked ? snapshot : "";
     preview.closest("details")!.hidden = !include.checked;
-    mail.href = feedbackMailto(message.value, include.checked ? snapshot : null);
+    const fallback = feedbackMailto(message.value, include.checked ? snapshot : null);
+    // Long mailto URIs are not portable; the EML remains the complete attachment path.
+    mail.href = fallback.length <= 8000 ? fallback : feedbackMailto(message.value, null);
+    mail.textContent = fallback.length <= 8000 ? "Open email app" : "Open email app (message only)";
+    try { feedbackEmailDraft(message.value, include.checked ? snapshot : null); download.disabled = collecting; }
+    catch { download.disabled = true; status.textContent = "Shorten your message or exclude diagnostics to fit the email draft limit."; }
   }
   function close(restoreFocus = true) {
     if (!dialog.open) return;
+    openSequence++; collection?.abort(); collection = null; collecting = false;
     dialog.close();
     preview.value = "";
     snapshot = "";
@@ -91,16 +125,47 @@ export function installFeedback(options: {
     update();
     dialog.showModal();
     message.focus();
+    if (include.checked) void collect();
   });
+  async function collect() {
+    if (!options.collectHost || !dialog.open || !include.checked) return;
+    collection?.abort();
+    const token = ++openSequence, controller = new AbortController(); collection = controller;
+    const timer = window.setTimeout(() => controller.abort(), 2000);
+    collecting = true; update();
+    status.textContent = "Collecting available local diagnostics…";
+    try {
+      const host = await Promise.race([options.collectHost(controller.signal), new Promise<never>((_, reject) => {
+        controller.signal.addEventListener("abort", () => reject(new Error("diagnostics unavailable")), { once: true });
+      })]);
+      if (controller.signal.aborted || !dialog.open || token !== openSequence || !include.checked) return;
+      snapshot = diagnostics.snapshot(options.context(), window.navigator.userAgent, Array.isArray(host?.sources) ? host.sources : [], host?.runtime);
+      status.textContent = "Review the report: each source states whether its evidence is available. Only your email app sends it.";
+      update();
+    } catch {
+      if (dialog.open && token === openSequence && include.checked) {
+        snapshot = diagnostics.snapshot(options.context(), window.navigator.userAgent, [{ component: "gateway", availability: "unavailable", events: [], dropped: 0, failures: 1, truncatedBytes: 0 }]);
+        status.textContent = "Local host diagnostics are unavailable. You can still send the browser report.";
+        update();
+      }
+    } finally { window.clearTimeout(timer); if (collection === controller) { collection = null; collecting = false; if (dialog.open) update(); } }
+  }
   element("feedback-close").addEventListener("click", () => close());
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   // Keep global shortcuts away from the note while composing feedback.
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   message.addEventListener("input", update);
-  include.addEventListener("change", update);
+  include.addEventListener("change", () => {
+    if (!include.checked) { openSequence++; collection?.abort(); collection = null; collecting = false; status.textContent = "Diagnostic logs excluded."; }
+    update();
+    if (include.checked) void collect();
+  });
   mail.addEventListener("click", () => { status.textContent = "Your email app was requested. If it does not open, download the email draft or copy your message and email jumpybrain@agentmail.to. Nothing has been sent by jumpyBrain."; });
   element("feedback-download").addEventListener("click", () => {
-    const url = URL.createObjectURL(new Blob([feedbackEmailDraft(message.value, include.checked ? snapshot : null)], { type: "message/rfc822" }));
+    let draft;
+    try { draft = feedbackEmailDraft(message.value, include.checked ? snapshot : null); }
+    catch { status.textContent = "Shorten your message or exclude diagnostics to fit the email draft limit."; return; }
+    const url = URL.createObjectURL(new Blob([draft], { type: "message/rfc822" }));
     const link = document.createElement("a");
     link.href = url; link.download = "jumpybrain-feedback.eml";
     document.body.append(link); link.click(); link.remove();
@@ -108,8 +173,9 @@ export function installFeedback(options: {
     status.textContent = "Email draft download requested. Open the .eml file in your email app, review it, and send. Some apps require Edit as new; if unsupported, use Open email app. Nothing has been sent by jumpyBrain.";
   });
   // Error messages/stacks may contain note text or credentials; record only the event.
-  window.addEventListener("error", () => diagnostics.record("browser", "other", "failed"));
-  window.addEventListener("unhandledrejection", () => diagnostics.record("browser", "other", "failed"));
+  window.addEventListener("error", (event) => diagnostics.event("exception", { severity: "error", outcome: "failed", code: diagnosticErrorKind(event.error),
+    location: event.filename?.startsWith(window.location.origin + "/") ? "shell" : undefined, line: event.lineno, column: event.colno }));
+  window.addEventListener("unhandledrejection", (event) => diagnostics.event("rejection", { severity: "error", outcome: "failed", code: diagnosticErrorKind(event.reason) }));
   return { close, isOpen: () => dialog.open };
 }
 
@@ -120,7 +186,7 @@ export const feedbackMarkup = String.raw`
   <label for="feedback-message">What happened, or what would you like to see?</label>
   <textarea id="feedback-message" maxlength="4000" placeholder="What were you trying to do? What happened instead?"></textarea>
   <label class="feedback-check"><input id="feedback-include-logs" type="checkbox" checked /> Include diagnostic log</label>
-  <p>App and browser details plus up to 40 recent request outcomes from this tab. No note text, searches, keys, file paths, or server logs.</p>
+  <p>App details and recent failures from this tab, plus sanitized local host events when available. No note text, searches, keys, paths, raw logs, or crash dumps. Preview lists source coverage and any omissions. Browser history resets on reload.</p>
   <details><summary>Preview diagnostic log</summary><textarea id="feedback-logs" aria-label="Diagnostic log attachment" readonly spellcheck="false"></textarea></details>
   <p>Download an email draft with the log attached, then open it in your email app to review and send. The email-app fallback includes logs in the message instead.</p>
   <div class="dialog-actions">

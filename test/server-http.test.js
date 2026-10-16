@@ -457,6 +457,8 @@ test("remote HTTP indexed search covers title and body matches across canonical 
     assert.equal(indexPayload.index.stale, false);
     assert.equal(typeof indexPayload.index.lastIndexedAt, "string");
 
+    // Drain infrastructure diagnostics before deliberately deleting live derived state.
+    await started.diagnostics.flush(2000);
     await rm(path.join(tempRoot, ".jumpybrain"), { recursive: true, force: true });
     const rebuilt = await fetch(`${started.url}/memories/all/index`, { method: "POST", headers, body: "{}" });
     const rebuiltPayload = await json(rebuilt);

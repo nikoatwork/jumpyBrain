@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-16 — Support diagnostics
+
+- Feedback now includes safe, correlated browser and local host failure reports, with bounded retained history, crash evidence, source availability, and inspectable email attachments.
+
 ## 2026-10-16 — Beta feedback
 
 - Added Feedback in browser and Electron with user-sent email drafts to the support inbox, optional diagnostic attachments included by default, and an inspectable privacy-limited session log.

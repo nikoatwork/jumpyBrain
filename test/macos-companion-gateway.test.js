@@ -52,6 +52,62 @@ async function fixture(t, options = {}) {
   return { temporary, directory, roots, keys, credentials, gateway, remote, native, browser, save, memory };
 }
 
+test('local support export correlates gateway/server failures, strips private data and rejects browser ingestion/CSRF', async (t) => {
+  const f = await fixture(t);
+  await f.browser('/companion/register', { tabId: 'tab-a', generation: f.gateway.coordinator.generation });
+  const request = 'd_' + 'b'.repeat(32);
+  const response = await f.browser('/memories/all/documents/' + id, { content: '# private body' }, {
+    'X-Companion-Generation': String(f.gateway.coordinator.generation), 'X-Companion-Tab': 'tab-a', 'X-JumpyBrain-Request': request, 'If-Match': 'sha256:stale',
+  }, 'PUT');
+  assert.equal(response.status, 412); assert.equal(response.headers.get('x-jumpybrain-request'), request);
+  assert.equal((await f.browser('/companion/diagnostics', { events: [] })).status, 403);
+  assert.equal((await fetch(f.gateway.url + '/companion/diagnostics')).status, 401);
+  assert.equal((await f.native('/companion/diagnostics', undefined, { Origin: 'https://evil.invalid' })).status, 403);
+  const native = { schema: 1, events: [{ at: new Date().toISOString(), component: 'native', operation: 'bridge', severity: 'error', outcome: 'failed', code: 'bridge_lost', message: 'private' }] };
+  await writeFile(path.join(f.directory, 'native-diagnostics.json'), JSON.stringify(native), { mode: 0o600 });
+  const sent = await f.native('/companion/diagnostics', { events: [{ at: new Date().toISOString(), component: 'electron', operation: 'renderer', severity: 'error', outcome: 'failed', code: 'crashed', exitCode: 11, message: 'private' }] });
+  assert.equal(sent.status, 200);
+  const exported = await (await f.native('/companion/diagnostics')).json();
+  assert.equal(exported.schema, 1); assert.match(exported.runtime.build, /^[a-f0-9]{16}$/);
+  const events = exported.sources.flatMap((s) => s.events);
+  assert.ok(events.some((e) => e.component === 'gateway' && e.request === request && e.code === 'conflict'));
+  assert.ok(events.some((e) => e.component === 'server' && e.request === request && e.code === 'conflict'));
+  assert.ok(events.some((e) => e.component === 'native' && e.code === 'bridge_lost'));
+  assert.ok(events.some((e) => e.component === 'electron' && e.code === 'crashed'));
+  const text = JSON.stringify(exported);
+  for (const secret of [controlKey, 'private', f.roots[0], 'fixture.md', id]) assert.ok(!text.includes(secret), secret);
+  const state = await f.save({ name: 'Remote private label', kind: 'remote', url: f.remote.url, key: 'remote-test-key', allowWrites: false });
+  f.gateway.coordinator.unregister('tab-a', f.gateway.coordinator.generation);
+  const remoteId = state.profiles.find((p) => p.kind === 'remote').id;
+  assert.equal((await f.native('/companion/switch', { id: remoteId })).status, 200);
+  const remoteReport = await (await f.native('/companion/diagnostics')).json();
+  assert.equal(remoteReport.sources.find((s) => s.component === 'server').availability, 'unavailable');
+  assert.deepEqual(remoteReport.sources.find((s) => s.component === 'server').events, []);
+});
+
+test('support diagnostics distinguish forwarding timeouts and rejected switches without recording credentials or RPC frames', async (t) => {
+  const f = await fixture(t, { targetTimeoutMs: 100, fetchImpl: (url, options) => url.includes('/documents/')
+    ? new Promise((_, reject) => options.signal.addEventListener('abort', () => reject(new Error('private timeout')), { once: true })) : fetch(url, options) });
+  await f.browser('/companion/register', { tabId: 'tab-a', generation: f.gateway.coordinator.generation });
+  assert.equal((await f.memory('documents/' + id)).status, 504);
+  const state = await f.save({ name: 'other', kind: 'local', root: f.roots[1], allowWrites: true });
+  const target = state.profiles.find((p) => p.root === f.roots[1]);
+  const switching = f.native('/companion/switch', { id: target.id });
+  await until(() => f.gateway.coordinator.pending);
+  await f.browser('/companion/ack', { tabId: 'tab-a', switchId: f.gateway.coordinator.pending.id, ok: false });
+  assert.equal((await switching).status, 409);
+  const report = await (await f.native('/companion/diagnostics')).json();
+  const events = report.sources.flatMap((s) => s.events);
+  assert.ok(events.some((e) => e.code === 'target_timeout'));
+  assert.ok(events.some((e) => e.code === 'switch_rejected'));
+  assert.doesNotMatch(JSON.stringify(report), /private|Bearer|remote-test-key/);
+  const input = new PassThrough(), output = new PassThrough(), codes = [];
+  const native = nativeCredentials(input, output, { timeoutMs: 20 });
+  native.setDiagnosticReporter((event) => codes.push(event.code));
+  const pending = native.get('private-reference'); input.write('malformed private frame\n');
+  await assert.rejects(pending); assert.deepEqual(codes, ['bridge_lost']); native.close();
+});
+
 test('coordinator requires every positive ack, drains scopes, fences old writes and crash sessions', async () => {
   const coordinator = new SwitchCoordinator({ timeoutMs: 40 });
   const generation = coordinator.generation;

@@ -588,6 +588,8 @@ export async function routeRequest(context: { request: IncomingMessage; response
       file: result.file,
       idempotency: idempotency.kind,
       stale: index?.stale,
+      saved: result.saved,
+      indexing_status: (result.indexing as { status?: unknown } | undefined)?.status,
     });
     writeJson(response, 200, idempotency.result);
     return;

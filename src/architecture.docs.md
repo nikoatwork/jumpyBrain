@@ -66,6 +66,8 @@ Core owns link semantics but not graph presentation. App code assembles document
 
 ## Boundary verification
 
+Support diagnostics use a browser-safe event schema and host persistence under `src/adapters/diagnostics/`; `src/app/diagnostics/` composes explicit bounded snapshot sources. HTTP/gateway hosts supply authenticated local scope. Core never imports diagnostics, and no public hosted raw-log transport is introduced.
+
 Deterministic source-boundary and package-entrypoint tests enforce these directions. Pure boundary property tests use fixed `fast-check` settings from `test/property-helpers.js` in normal `npm test`; they must not spawn QMD or depend on paid/model behavior. Integration tests separately verify runtime, canonical publication, and adapter behavior.
 
 For browser changes, follow the [HTTP adapter map](adapters/http-server/http-server.docs.md) to the [browser/editor contract](adapters/http-server/browser.docs.md). For retrieval lifecycle changes, start with [local memory](app/local-memory/local-memory.docs.md), then the [QMD adapter](adapters/qmd/qmd.docs.md); remote deadlines belong to the [HTTP client](adapters/http-client/http-client.docs.md).

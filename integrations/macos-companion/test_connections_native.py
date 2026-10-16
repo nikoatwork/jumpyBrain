@@ -156,6 +156,19 @@ extension Companion {
         present(state("local", "connected"))
         controls(true, true, true, true)
         print("PASS menu: compact structure/actions, local folder, offline recovery, switching/stopping/updating, update checks")
+        recordNativeDiagnostic("startup", "none")
+        recordNativeDiagnostic("bridge", "bridge_lost")
+        for _ in 0..<70 { recordNativeDiagnostic("connection", "none") }
+        let diagnosticURL = URL(fileURLWithPath: directory).appendingPathComponent("native-diagnostics.json")
+        let data = try! Data(contentsOf: diagnosticURL)
+        let packet = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
+        let events = packet["events"] as! [[String: Any]]
+        check(events.count == 64 && (packet["dropped"] as? Int ?? 0) > 0, "native diagnostic bounds/omissions")
+        check(events.contains { ($0["code"] as? String) == "bridge_lost" }, "polling preserves native failures")
+        check(!String(data: data, encoding: .utf8)!.contains(directory), "native diagnostics omit local paths")
+        var info = stat()
+        check(lstat(diagnosticURL.path, &info) == 0 && info.st_mode & 0o777 == 0o600, "private diagnostic snapshot")
+        print("PASS diagnostics: private bounded native lifecycle history, failure priority, omissions, safe snapshot")
     }
 }
 

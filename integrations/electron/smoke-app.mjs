@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createEditorWindow, setApplicationMenu } from './window.mjs';
+import { startElectronDiagnostics } from './diagnostics.mjs';
 
 const config = JSON.parse(await readFile(process.env.JUMPYBRAIN_ELECTRON_SMOKE_FIXTURE, 'utf8'));
 app.setPath('userData', config.userData);
@@ -23,8 +24,10 @@ async function until(script) {
 async function smoke() {
 try {
   await app.whenReady();
+  const diagnostics = await startElectronDiagnostics({ ...config, runtimeRoot: config.runtimeRoot }, { directory: config.userData });
+  diagnostics.connect(config);
   const editor = createEditorWindow(config, { confirmClose: () => { closePrompts++; return closeChoice; },
-    openFeedbackEmail: async (url) => { feedbackEmails.push(url); } });
+    openFeedbackEmail: async (url) => { feedbackEmails.push(url); }, diagnostics });
   window = editor.window;
   setApplicationMenu({ app, getWindow: () => window, reconnect: () => {} });
   await editor.loaded;
@@ -51,6 +54,7 @@ try {
 
   await js('document.getElementById("open-feedback").click()');
   await until('document.getElementById("feedback-dialog").open');
+  await until('!document.getElementById("feedback-download").disabled');
   assert.equal(await js('document.getElementById("feedback-include-logs").checked'), true);
   await js('document.getElementById("feedback-message").value = "Electron feedback"; document.getElementById("feedback-message").dispatchEvent(new Event("input"))');
   const emailPath = path.join(config.userData, 'jumpybrain-feedback.eml');

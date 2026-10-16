@@ -21,13 +21,19 @@ const fixture = await readFile(fileURLToPath(new URL('./fixtures/qmd-execution-c
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const code = expected => error => error.code === expected && !/private|credential|server\/root/.test(error.message);
+const ownedServers = new Map();
 async function waitFor(predicate) {
   const deadline = Date.now() + 10_000;
   while (!await predicate()) { assert.ok(Date.now() < deadline, 'fixture barrier timed out'); await pause(5); }
 }
 async function temp(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'jb-execution-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => {
+    const server = ownedServers.get(root);
+    if (server?.server.listening) await server.close();
+    ownedServers.delete(root);
+    await rm(root, { recursive: true, force: true });
+  });
   return root;
 }
 function child(mode, marker, release, maxBytes = 1024) {
@@ -172,7 +178,8 @@ const auth = { Authorization: 'Bearer fixture-key', 'Content-Type': 'application
 test('HTTP health/lightweight reads remain serviceable during real adapter child wait; client abort releases it', async t => {
   const f = await product(t);
   const started = await startJumpyBrainHttpServer({ root: f.root, apiKeys: ['fixture-key'], port: 0, autoIndex: false });
-  t.after(() => started.close());
+  ownedServers.set(f.root, started);
+
   const controller = new AbortController();
   const response = fetch(`${started.url}/memories/all/search`, { method: 'POST', headers: auth, body: JSON.stringify({ query: 'quartz' }), signal: controller.signal });
   const aborted = assert.rejects(response);
@@ -192,6 +199,7 @@ test('runtime and HTTP timeout errors agree; shutdown cancels child and incomple
   const f = await product(t);
   await assert.rejects(searchMemory(f.root, 'quartz', 5, { timeoutMs: 150 }), code('execution_timeout'));
   const started = await startJumpyBrainHttpServer({ root: f.root, apiKeys: ['fixture-key'], port: 0, autoIndex: false, searchTimeoutMs: 150 });
+  ownedServers.set(f.root, started);
   const transport = createRemoteMemoryTransport({ url: started.url, apiKey: 'fixture-key' });
   await assert.rejects(transport.searchMemory('quartz', 5), code('execution_timeout'));
   const slow = transport.searchMemory('quartz', 5);
@@ -211,6 +219,7 @@ test('server close drains disconnected handlers through owned-child cleanup', as
   const f = await product(t);
   await writeFile(f.bin, '#!/usr/bin/env node\nprocess.on("SIGTERM", () => {}); require("node:fs").writeFileSync(' + JSON.stringify(f.marker) + ', String(process.pid)); setInterval(() => {},1000);');
   const started = await startJumpyBrainHttpServer({ root: f.root, apiKeys: ['fixture-key'], port: 0, autoIndex: false });
+  ownedServers.set(f.root, started);
   const controller = new AbortController();
   const fetchWork = fetch(`${started.url}/memories/all/search`, { method: 'POST', headers: auth, body: JSON.stringify({ query: 'quartz' }), signal: controller.signal });
   const disconnected = assert.rejects(fetchWork);
@@ -273,7 +282,8 @@ test('slow index serves health, excludes reads, and cancellation retains generat
   const marker = path.join(f.root, '.jumpybrain/index-ready');
   await writeFile(sdk, `import fs from 'node:fs'; fs.writeFileSync(${JSON.stringify(marker)}, String(process.pid)); while (!fs.existsSync(${JSON.stringify(f.release)})) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,5);\n` + original);
   const started = await startJumpyBrainHttpServer({ root: f.root, apiKeys: ['fixture-key'], port: 0, autoIndex: false });
-  t.after(() => started.close());
+  ownedServers.set(f.root, started);
+
   const controller = new AbortController();
   const index = fetch(`${started.url}/memories/all/index`, { method: 'POST', headers: auth, body: '{}', signal: controller.signal });
   const disconnected = assert.rejects(index);

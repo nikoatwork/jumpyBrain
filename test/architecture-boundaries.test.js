@@ -76,6 +76,7 @@ function sourceLayer(file) {
   if (isHttpClientAdapterPath(file)) return "http-client-adapter";
   if (isHttpServerAdapterPath(file)) return "http-server-adapter";
   if (isInfrastructureAdapterPath(file)) return "infrastructure-adapter";
+  if (file.startsWith("src/adapters/diagnostics/")) return "diagnostics-adapter";
   if (file.startsWith("src/runtime/")) return "runtime-app";
   if (isQmdPath(file)) return "qmd-adapter";
   if (file.startsWith("src/core/") || file === "src/types.ts") return "core-domain";
@@ -88,12 +89,13 @@ const approvedLayerImports = new Map([
   ["http-protocol-adapter", new Set(["http-protocol-adapter"])],
   ["http-client-adapter", new Set(["http-client-adapter", "http-protocol-adapter", "core-domain"])],
   ["server-boundary", new Set(["server-boundary", "app-use-case", "core-domain", "http-server-adapter", "infrastructure-adapter"])],
-  ["http-server-adapter", new Set(["http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter"])],
+  ["http-server-adapter", new Set(["http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter"])],
   ["runtime-app", new Set(["runtime-app", "app-use-case", "core-domain", "infrastructure-adapter"])],
-  ["app-use-case", new Set(["app-use-case", "core-domain", "qmd-adapter"])],
+  ["app-use-case", new Set(["app-use-case", "core-domain", "qmd-adapter", "diagnostics-adapter"])],
   ["qmd-adapter", new Set(["qmd-adapter", "core-domain"])],
   ["core-domain", new Set(["core-domain"])],
   ["infrastructure-adapter", new Set(["infrastructure-adapter"])],
+  ["diagnostics-adapter", new Set(["diagnostics-adapter", "infrastructure-adapter"])],
 ]);
 
 test("package entrypoint reaches runtime without importing CLI or server code", async () => {

@@ -5,17 +5,18 @@ import { isFeedbackMailto, isFeedbackDownload } from '../integrations/electron/h
 
 test('feedback diagnostics bound history and capture safe facts without request or environment secrets', () => {
   const log = createFeedbackDiagnostics(() => new Date('2026-10-16T12:00:00Z'));
-  for (let i = 0; i < 50; i++) log.record('/memories/all/documents/private-id?key=secret&query=private', 'PUT', 200 + i);
+  for (let i = 0; i < 150; i++) log.record('/memories/all/documents/private-id?key=secret&query=private', 'PUT', 200);
   log.record('/memories/all/search?query=private', 'POST', 'failed');
   log.record('https://private-host/secret-path', 'private-method', 'aborted');
   const text = log.snapshot({ view: 'private-title', connection: 'private-key', companion: true }, 'Mozilla/5.0 (Macintosh; private-user) Electron/44.8.0 private-path');
   assert.doesNotMatch(text, /private|secret/);
   const data = JSON.parse(text);
-  assert.equal(data.events.length, 40);
+  assert.ok(data.events.length <= 120);
+  assert.ok(data.omitted + data.sources[0].dropped > 0);
   assert.equal(data.platform, 'macOS');
   assert.equal(data.browser, 'Electron/44.8.0');
-  assert.equal(data.events[0].outcome, 212);
-  assert.deepEqual(data.events.at(-2), { at: '2026-10-16T12:00:00.000Z', operation: 'search', method: 'POST', outcome: 'failed' });
+  assert.ok(data.events.some((e) => e.operation === 'search' && e.outcome === 'failed'));
+  assert.ok(data.events.some((e) => e.outcome === 'aborted'));
 });
 
 function parts(email) {

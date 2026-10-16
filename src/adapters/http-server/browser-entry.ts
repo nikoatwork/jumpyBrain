@@ -8,4 +8,4 @@ export { memoryDocumentPath, createBrowserSearchRequest } from "./browser-transp
 export { createRecentWriteSearch } from "./recent-write-search.js";
 export { installDocumentActions } from "./document-actions.js";
 export { installExternalDocumentUpdates } from "./external-document-updates.js";
-export { createFeedbackDiagnostics, installFeedback } from "./feedback.js";
+export { createFeedbackDiagnostics, installFeedback, diagnosticBuildInfo } from "./feedback.js";

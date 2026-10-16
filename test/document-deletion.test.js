@@ -13,13 +13,14 @@ const other = 'mem_d0000000-0000-4000-8000-000000000002';
 const markdown = (id, title, body = 'Original body') => `---\nid: "${id}"\ntitle: "${title}"\ntype: "note"\n---\n${body}\n`;
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-delete-test-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  const cleanup = { close: async () => {} };
+  t.after(async () => { await cleanup.close(); await rm(root, { recursive: true, force: true }); });
   await initializeMemoryRoot(root);
   const file = path.join(root, 'notes/hashed-source.md');
   await writeFile(file, markdown(id, 'Human title'));
   const source = path.join(root, 'notes/backlink.md');
   await writeFile(source, markdown(other, 'Backlink', '[[Human title]]'));
-  return { root, file, source };
+  return { root, file, source, cleanup };
 }
 const code = name => error => error.code === name;
 test('deletion preview is observational, counts title backlinks and preserves surviving bytes', async t => {
@@ -86,9 +87,9 @@ test('a separate process holding the cooperating replacement lock blocks removal
   assert.match(await readFile(file, 'utf8'), /Original body/);
 });
 test('HTTP client preview/apply require auth and If-Match and remove only the selected file', async t => {
-  const { root, source } = await fixture(t);
+  const { root, source, cleanup } = await fixture(t);
   const server = await startJumpyBrainHttpServer({ root, apiKeys: ['disposable-test-key'], port: 0, autoIndex: false });
-  t.after(() => server.close());
+  cleanup.close = () => server.close();
   const endpoint = server.url + '/memories/all/documents/' + id;
   assert.equal((await fetch(endpoint, { method: 'DELETE' })).status, 401);
   const headers = { Authorization: 'Bearer disposable-test-key', 'Content-Type': 'application/json' };

@@ -1,12 +1,17 @@
 import { build } from "esbuild";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, readdir } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
 
 const { version } = JSON.parse(await readFile("package.json", "utf8"));
+const fingerprint = createHash("sha256").update(version);
+for (const name of (await readdir("src", { recursive: true })).filter((name) => name.endsWith(".ts")).sort()) fingerprint.update(name).update(await readFile(`src/${name}`));
+const buildId = fingerprint.digest("hex").slice(0, 16);
+await writeFile("dist/adapters/diagnostics/build-info.json", JSON.stringify({ version, build: buildId }));
 const result = await build({
   entryPoints: ["src/adapters/http-server/browser-entry.ts"],
   bundle: true, minify: true, platform: "browser", format: "iife", globalName: "JumpyBrainBrowser", target: "es2022",
-  define: { "process.env.NODE_ENV": '"production"', __JUMPYBRAIN_VERSION__: JSON.stringify(version) },
+  define: { "process.env.NODE_ENV": '"production"', __JUMPYBRAIN_VERSION__: JSON.stringify(version), __JUMPYBRAIN_BUILD__: JSON.stringify(buildId) },
   legalComments: "eof", write: false, metafile: true,
 });
 // Safe to embed inside a nonce-protected script, even if dependencies contain HTML.

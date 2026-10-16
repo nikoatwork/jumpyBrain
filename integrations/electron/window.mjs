@@ -1,7 +1,7 @@
 import { BrowserWindow, dialog, Menu, shell } from 'electron';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 
-export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url) } = {}) {
+export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics } = {}) {
   const window = new BrowserWindow({
     title: 'jumpyBrain', width: 1200, height: 860, minWidth: 480, minHeight: 480,
     show: false, backgroundColor: '#f7f4ed',
@@ -12,6 +12,11 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     },
   });
   const contents = window.webContents;
+  const record = (code, details = {}) => diagnostics?.record({ operation: 'renderer', severity: 'error', outcome: 'failed', code, ...details });
+  contents.on('render-process-gone', (_event, details) => record(details.reason, { exitCode: details.exitCode }));
+  contents.on('unresponsive', () => record('unresponsive'));
+  contents.on('did-fail-load', (_event, _code, _description, _url, isMainFrame) => { if (isMainFrame) record('load_failed'); });
+  contents.on('did-finish-load', () => { void diagnostics?.checkRenderer(contents); });
   const session = contents.session;
   // The UI is served entirely by the installed gateway. It needs no external
   // network access, Node bridge, preload script, or remote frames. The only

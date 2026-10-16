@@ -181,13 +181,22 @@ function companionLock(value) {
   for (const [id, path] of [["home-link", "/"], ["notes-link", "/"], ["graph-link", "/graph"]]) $(id).href = companionScopeUrl(path);
 }
 async function companionControl(route, body, options = {}) {
-  const response = await fetch("/companion/" + route, {
-    method: body === undefined ? "GET" : "POST", credentials: "same-origin", cache: "no-store",
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...options,
-  });
-  feedbackDiagnostics.record("/companion/" + route, body === undefined ? "GET" : "POST", response.status);
+  const url = "/companion/" + route, method = body === undefined ? "GET" : "POST";
+  const probe = feedbackDiagnostics.begin();
+  let response;
+  try {
+    response = await fetch(url, {
+      method, credentials: "same-origin", cache: "no-store",
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...options,
+      headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...options.headers, "X-JumpyBrain-Request": probe.id },
+    });
+    feedbackDiagnostics.finish(url, method, probe, response);
+  } catch (error) {
+    feedbackDiagnostics.finish(url, method, probe, undefined, error.name === "AbortError");
+    throw error;
+  }
   const packet = await response.json().catch(() => null);
+  feedbackDiagnostics.result(url, method, response, packet);
   if (!response.ok) {
     const error = new Error(packet?.error?.message || "Companion request failed (HTTP " + response.status + ").");
     error.status = response.status;
