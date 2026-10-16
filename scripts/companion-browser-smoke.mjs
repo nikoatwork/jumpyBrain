@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
-import { appendEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
+import { appendEditorText, replaceEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-companion-browser-"));
 const id = "mem_a0000000-0000-4000-8000-000000000001";
@@ -275,10 +275,10 @@ try {
   const conflictEditor = await context.newPage(); conflictEditor.on("pageerror", (exception) => pageErrors.push(exception.message));
   await conflictEditor.goto(origin + "/?note=" + id + "&brain=b");
   await conflictEditor.locator("#note-editor").waitFor();
-  await appendEditorText(editor, "First writer confirmed");
+  await replaceEditorText(editor, "First writer confirmed");
   await editor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Saved");
-  await appendEditorText(conflictEditor, "Conflict retained draft");
-  await conflictEditor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Save failed");
+  await replaceEditorText(conflictEditor, "Conflict retained draft");
+  await conflictEditor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
   const writesBefore = requests.filter((item) => item.headers["if-match"]).length;
   await settings.locator(".companion-profile").filter({ hasText: "Fixture A" }).getByRole("button", { name: "Use this brain", exact: true }).click();
   await settings.waitForFunction(() => document.getElementById("companion-feedback").textContent.includes("switch_blocked"));

@@ -1,10 +1,12 @@
 import { GRAPH_NODE_TONES } from "./map-controller.js";
 import { readFileSync } from "node:fs";
 import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
+import { sidebarBootstrap, sidebarScript } from "./browser-sidebar.js";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
 import { documentActionsMarkup, documentActionsScript, notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
 import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
+import { feedbackMarkup, feedbackStyles } from "./feedback.js";
 
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
 const graphNodeGlows = GRAPH_NODE_TONES.map((type) =>
@@ -21,7 +23,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${companion && view === "settings" ? "Settings" : view === "graph" ? "Memory map" : "Notes"} · jumpyBrain</title>
   <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
-  <script nonce="${nonce}">${themeBootstrap}</script>
+  <script nonce="${nonce}">${themeBootstrap}${sidebarBootstrap}</script>
   <style nonce="${nonce}">
     ${themeStyles}
     * { box-sizing: border-box; }
@@ -109,6 +111,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
     ${notesStyles}
+    ${feedbackStyles}
     ${dreamStyles}
     ${companion ? companionStyles : ""}
   </style>
@@ -117,6 +120,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
 ${notesMarkup}
 ${documentActionsMarkup}
 ${dreamMarkup}
+${feedbackMarkup}
 <header id="graph-header">
   <div class="toolbar" aria-label="Map controls">
     <div class="map-heading">
@@ -173,8 +177,10 @@ ${dreamMarkup}
   ${notesViews}
   ${companion ? companionMarkup : ""}
 </main>
+</div>
 <script nonce="${nonce}">
 ${lexicalBundle}
+${sidebarScript}
 const { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
 const recentWrites = createRecentWriteSearch({
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
@@ -185,6 +191,10 @@ const $ = (id) => document.getElementById(id);
 ${themeScript}
 const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const companionMode = ${companion};
+const feedbackDiagnostics = JumpyBrainBrowser.createFeedbackDiagnostics();
+const feedback = JumpyBrainBrowser.installFeedback({ document, window, diagnostics: feedbackDiagnostics,
+  context: () => ({ view: state.view, connection: connectionStatus, companion: companionMode }),
+  onOpen: () => cancelReferenceInteraction() });
 ${companion ? companionPrelude : ""}
 const apiKeyInput = $("api-key");
 if (!companionMode) {
@@ -257,6 +267,7 @@ async function graphFetch(url, options) {
   } else if (activeApiKey) requestOptions.headers.Authorization = "Bearer " + activeApiKey;
   try {
     const response = await fetch(url, requestOptions);
+    feedbackDiagnostics.record(url, requestOptions.method || "GET", response.status);
     if (typeof companionMode !== "undefined" && companionMode && response.status === 409) {
       const packet = await response.clone().json().catch(() => null);
       if (packet?.error?.code === "stale_generation") companionFence();
@@ -269,6 +280,7 @@ async function graphFetch(url, options) {
     }
     return response;
   } catch (error) {
+    feedbackDiagnostics.record(url, requestOptions.method || "GET", error.name === "AbortError" ? "aborted" : "failed");
     if (revision === credentialRevision && error.name !== "AbortError") {
       connectionStatus = "unavailable";
       renderConnection();

@@ -184,9 +184,9 @@ test("shell composes one graph action and integrates native dialog guards withou
   assert.match(html, /aria-controls="dream-handoff">Consolidate notes \(Dream\)…/);
   assert.match(html, /<dialog id="dream-handoff" aria-labelledby="dream-heading"/);
   assert.match(html, /<textarea id="dream-preview" readonly/);
-  assert.match(html, /\[searchDialog, connectionDialog, dreamDialog\]/);
+  assert.match(html, /\[searchDialog, connectionDialog, dreamDialog, \$\("feedback-dialog"\)\]/);
   assert.match(html, /if \(dreamDialog\.open\) closeDreamHandoff\(false\)/);
-  assert.match(html, /function openSearch[\s\S]*?dreamDialog\.open\) return/);
+  assert.match(html, /function openSearch[\s\S]*?dreamDialog\.open \|\| feedback\.isOpen\(\)\) return/);
   assert.match(html, /function newNote[\s\S]*?dreamDialog\.open\) return/);
   assert.doesNotMatch(dreamScript, /fetch\(|graphJson\(|graphFetch\(|localStorage|activeApiKey|window\.open|\.exec\(|setInterval/);
   const script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];

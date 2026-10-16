@@ -563,6 +563,7 @@ test("graph document transport centralizes optional Bearer auth and PUT precondi
   const script = pageScript();
   const requests = [];
   const ctx = {
+    feedbackDiagnostics: { record() {} },
     activeApiKey: "secret", credentialRevision: 0, connectionStatus: "checking",
     renderConnection: () => {},
     fetch: async (url, options) => {

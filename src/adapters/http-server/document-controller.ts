@@ -1,4 +1,5 @@
 // Browser-safe persistence and Markdown codec. Transport, clocks and selection belong to the host.
+import { mergeDocumentEdits } from "./document-merge.js";
 export interface DocumentPayload { content?: string; contentHash?: string; title?: string }
 export interface DocumentWritePayload { newContentHash?: string; [key: string]: unknown }
 export interface DocumentEditorState {
@@ -9,6 +10,7 @@ export interface DocumentEditorState {
   saveError: string; saveErrorCode: string; loaded: boolean; editing: boolean;
   navigationPending: boolean; autoSaveBlocked: boolean; unconfirmedSave: boolean;
   reconcileToken: number; cancelled: boolean;
+  externalStatus: "" | "pending" | "updated";
 }
 export interface DocumentEditorOptions {
   generation: number; documentId: string; debounceMs: number;
@@ -19,6 +21,9 @@ export interface DocumentEditorOptions {
   readDocument(id: string): Promise<DocumentPayload>;
   writeDocument(id: string, content: string, hash: string): Promise<DocumentWritePayload>;
   onChange(state: DocumentEditorState): void; onSaved?(payload: DocumentWritePayload): void;
+  onExternalUpdate?(body: string): void;
+  canApplyExternal?(): boolean;
+  scope?(): string;
 }
 
 // Title metadata is separate from the raw Markdown body; renaming never rewrites links or headings.
@@ -37,6 +42,7 @@ export function withEditableTitle(prefix: string, title: string, newline: string
 }
 
 export function createDocumentEditor(options: DocumentEditorOptions) {
+  let pendingMerge = false, mergeAttempts = 0;
   const editorState: DocumentEditorState = {
     generation: options.generation,
     documentId: options.documentId,
@@ -61,6 +67,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     unconfirmedSave: false,
     reconcileToken: 0,
     cancelled: false,
+    externalStatus: "",
   };
 
   const emit = () => { if (!editorState.cancelled) options.onChange(editorState); };
@@ -71,6 +78,9 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
   const isCurrent = () => !editorState.cancelled && options.isCurrent(editorState.generation, editorState.documentId);
 
   function hydrate(payload: DocumentPayload) {
+    pendingMerge = false; mergeAttempts = 0;
+    editorState.reconcileToken++;
+    editorState.externalStatus = "";
     const parts = options.splitDocument(String(payload.content || ""));
     editorState.contentHash = String(payload.contentHash || "");
     editorState.frontmatterPrefix = parts.frontmatterPrefix;
@@ -99,8 +109,61 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     }, options.debounceMs);
   }
 
+  function requireReview(message = "This note changed in the same place. Your writing is kept here. Review both versions to continue.") {
+    pendingMerge = false;
+    editorState.saveStatus = "failed";
+    editorState.saveErrorCode = "precondition_failed";
+    editorState.saveError = message;
+    editorState.externalStatus = "pending";
+    editorState.autoSaveBlocked = true;
+    editorState.dirty = true;
+    emit();
+  }
+
+  async function mergeLatest() {
+    if (!options.canApplyExternal?.()) return false;
+    const revision = editorState.draftRevision, hash = editorState.contentHash, scope = options.scope?.();
+    let latest: DocumentPayload;
+    try { latest = await options.readDocument(editorState.documentId); }
+    catch {
+      if (isCurrent()) requireReview("Could not check the latest changes. Your writing is kept here. Reconnect, then review both versions.");
+      return false;
+    }
+    if (!isCurrent() || scope !== options.scope?.()) return false;
+    // The user may have resumed typing while the GET was in flight. Leave the
+    // live surface alone and check again at the next idle save opportunity.
+    if (revision !== editorState.draftRevision || hash !== editorState.contentHash || !options.canApplyExternal?.()) return false;
+    if (typeof latest.content !== "string" || !latest.contentHash || typeof latest.title !== "string") {
+      requireReview("Could not check the latest changes. Your writing is kept here. Review both versions before saving."); return false;
+    }
+    const parts = options.splitDocument(latest.content);
+    const body = mergeDocumentEdits(editorState.savedBody, editorState.draft, parts.body);
+    const title = editorState.title === editorState.savedTitle ? latest.title
+      : latest.title === editorState.savedTitle || latest.title === editorState.title ? editorState.title : null;
+    if (body === null || title === null) { requireReview(); return false; }
+    const bodyChanged = body !== editorState.draft;
+    editorState.reconcileToken++;
+    editorState.draftRevision++;
+    editorState.contentHash = latest.contentHash;
+    editorState.frontmatterPrefix = parts.frontmatterPrefix;
+    editorState.newline = parts.newline;
+    editorState.savedBody = parts.body; editorState.savedTitle = latest.title;
+    editorState.draft = body; editorState.title = title;
+    editorState.unconfirmedSave = false;
+    editorState.dirty = body !== parts.body || title !== latest.title;
+    editorState.saveError = ""; editorState.saveErrorCode = "";
+    editorState.saveStatus = editorState.dirty ? "saving" : "saved";
+    editorState.externalStatus = "updated";
+    pendingMerge = false;
+    if (bodyChanged) options.onExternalUpdate?.(body);
+    emit();
+    options.setTimer(clearExternalNotice, 4000);
+    return true;
+  }
+
   function input(value: string) {
     if (!editorState.loaded || editorState.cancelled) return;
+    if (editorState.externalStatus === "updated") editorState.externalStatus = "";
     editorState.draft = String(value).replace(/\r\n/g, "\n");
     editorState.draftRevision += 1;
     editorState.dirty = editorState.draft !== editorState.savedBody || editorState.title !== editorState.savedTitle || editorState.unconfirmedSave;
@@ -154,6 +217,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
   }
 
   async function runSaveLoop() {
+    if (pendingMerge && !await mergeLatest()) return false;
     while (editorState.dirty && isCurrent()) {
       editorState.saveStatus = "saving";
       editorState.saveError = "";
@@ -164,9 +228,21 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
       } catch (caught) {
       const error = caught as { status?: number; code?: string; message?: string } | null;
         if (!isCurrent()) return false;
+        if (Number(error?.status) === 412 && options.canApplyExternal && !editorState.unconfirmedSave) {
+          if (++mergeAttempts > 2) { requireReview("This note keeps changing. Your writing is kept here. Review both versions to continue."); return false; }
+          pendingMerge = true;
+          editorState.saveStatus = "editing";
+          editorState.saveError = ""; editorState.saveErrorCode = "";
+          editorState.externalStatus = "pending";
+          editorState.dirty = true;
+          emit();
+          return false;
+        }
         editorState.saveStatus = "failed";
-        editorState.saveError = String(error && error.message ? error.message : error);
         editorState.saveErrorCode = Number(error?.status) === 412 ? "precondition_failed" : error?.code ?? "";
+        editorState.saveError = editorState.saveErrorCode === "precondition_failed"
+          ? "This note changed elsewhere. Your writing is kept here. Review both versions to continue."
+          : String(error && error.message ? error.message : error);
         editorState.autoSaveBlocked = true;
         // A failed response may hide a committed write. Even undoing to the previous
         // body needs an explicit retry before we can confirm persistence or leave.
@@ -186,6 +262,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
         return false;
       }
       editorState.contentHash = result.payload.newContentHash;
+      mergeAttempts = 0;
       editorState.savedBody = result.body;
       editorState.savedTitle = result.title;
       editorState.frontmatterPrefix = options.splitDocument(result.content).frontmatterPrefix;
@@ -207,12 +284,14 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
       emit();
       return editorState.saveInFlight;
     }
+    editorState.reconcileToken++;
     const operation = runSaveLoop();
     editorState.saveInFlight = operation;
     operation.then((saved) => {
       if (editorState.saveInFlight !== operation) return;
       editorState.saveInFlight = null;
       emit();
+      if (pendingMerge && !editorState.autoSaveBlocked) scheduleSave();
       if (saved && (!editorState.editing || options.persistentEditing) && !editorState.navigationPending) reconcile();
     });
     return operation;
@@ -230,16 +309,17 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     if (!editorState.dirty || !isCurrent()) return Promise.resolve(true);
     editorState.autoSaveBlocked = false;
     editorState.saveError = "";
+    if (editorState.saveErrorCode === "precondition_failed" && options.canApplyExternal) { pendingMerge = true; mergeAttempts = 0; }
     return startSave();
   }
 
   async function reconcile() {
     if (!isCurrent() || editorState.dirty || (editorState.editing && !options.persistentEditing) || editorState.saveInFlight || editorState.navigationPending) return;
     const token = ++editorState.reconcileToken;
-    const revision = editorState.draftRevision;
+    const revision = editorState.draftRevision, hash = editorState.contentHash;
     try {
       const latest = await options.readDocument(editorState.documentId);
-      if (!isCurrent() || token !== editorState.reconcileToken || revision !== editorState.draftRevision || editorState.dirty || (editorState.editing && !options.persistentEditing) || editorState.saveInFlight || editorState.navigationPending) return;
+      if (!isCurrent() || token !== editorState.reconcileToken || hash !== editorState.contentHash || revision !== editorState.draftRevision || editorState.dirty || (editorState.editing && !options.persistentEditing) || editorState.saveInFlight || editorState.navigationPending) return;
       const parts = options.splitDocument(String(latest.content || ""));
       // A persistent editor must never replace its body/caret with another writer's version.
       // Leave its previous hash intact so the next write goes through the explicit conflict policy.
@@ -255,6 +335,42 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     } catch {
       // The confirmed PUT remains saved; a later document GET can reconcile canonical frontmatter.
     }
+  }
+
+  // A watcher read may finish after typing, saving, navigation, or another read.
+  // Never advance a dirty draft's hash: the next PUT must retain its precondition.
+  function acceptExternal(payload: DocumentPayload, baseline: { hash: string; revision: number; token: number }, allowed: () => boolean) {
+    if (!isCurrent() || !editorState.loaded || editorState.navigationPending || editorState.saveInFlight
+      || baseline.hash !== editorState.contentHash || baseline.revision !== editorState.draftRevision || baseline.token !== editorState.reconcileToken) return false;
+    if (typeof payload.content !== "string" || !payload.contentHash || typeof payload.title !== "string") throw new Error("Invalid saved note response.");
+    if (payload.contentHash === editorState.contentHash) {
+      if (editorState.externalStatus === "pending") { editorState.externalStatus = ""; emit(); }
+      return false;
+    }
+    if (editorState.dirty || editorState.unconfirmedSave || editorState.autoSaveBlocked || !allowed()) {
+      if (editorState.externalStatus !== "pending") { editorState.externalStatus = "pending"; emit(); }
+      return false;
+    }
+    const parts = options.splitDocument(payload.content);
+    const visibleChange = parts.body !== editorState.savedBody || payload.title !== editorState.savedTitle;
+    const bodyChanged = parts.body !== editorState.savedBody;
+    clearSaveTimer();
+    pendingMerge = false; mergeAttempts = 0;
+    editorState.reconcileToken++;
+    editorState.contentHash = payload.contentHash;
+    editorState.frontmatterPrefix = parts.frontmatterPrefix;
+    editorState.newline = parts.newline;
+    editorState.savedBody = editorState.draft = parts.body;
+    editorState.savedTitle = editorState.title = payload.title;
+    editorState.saveStatus = "saved";
+    editorState.externalStatus = visibleChange ? "updated" : "";
+    if (bodyChanged) options.onExternalUpdate?.(parts.body);
+    emit();
+    return visibleChange;
+  }
+
+  function clearExternalNotice() {
+    if (isCurrent() && editorState.externalStatus === "updated") { editorState.externalStatus = ""; emit(); }
   }
 
   /** Explicit user-authorized discard; never writes or advances a stale hash to retry. */
@@ -280,7 +396,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     editorState.reconcileToken += 1;
   }
 
-  return { state: editorState, hydrate, input, inputTitle, setEditing, setNavigationPending, startSave, flush, retry, reconcile, hasPending, reloadSaved, cancel };
+  return { state: editorState, hydrate, input, inputTitle, setEditing, setNavigationPending, startSave, flush, retry, reconcile, acceptExternal, clearExternalNotice, hasPending, reloadSaved, cancel };
 }
 
 export function splitEditableDocument(content: string) {

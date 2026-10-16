@@ -1,0 +1,16 @@
+{
+  "name": "jumpybrain-electron-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "description": "Local desktop window for the installed jumpyBrain companion.",
+  "scripts": {
+    "start": "electron .",
+    "install:local": "node install.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "44.8.0"
+  }
+}

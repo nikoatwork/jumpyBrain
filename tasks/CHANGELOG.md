@@ -1,5 +1,25 @@
 # Task Changelog
 
+## 2026-10-16 — Beta feedback
+
+- Added Feedback in browser and Electron with user-sent email drafts to the support inbox, optional diagnostic attachments included by default, and an inspectable privacy-limited session log.
+
+## 2026-10-16 — Live external note updates
+
+- Open notes now reflect external edits with a brief highlight, preserving active drafts and stale-write protection while terminal agents work alongside the editor. Independent typing and agent edits merge once interaction settles; overlapping changes retain the draft with a clear review action.
+
+## 2026-10-16 — Clearer app navigation
+
+- Replaced the crowded button row with a desktop sidebar grouping note actions, persistent Home/Graph navigation, and Settings/appearance; narrow screens use top navigation. Moved save/recovery feedback into the workspace and preserved guarded, brain-scoped links. A persistent desktop toggle collapses the sidebar without interrupting the open note; narrow top navigation remains available.
+
+## 2026-10-16 — Local Electron window
+
+- Added an optional Mac desktop prototype displaying the installed companion’s existing UI, with native menus and draft-close protection over the same runtime.
+
+## 2026-10-16 — Subtle page-reference brackets
+
+- Made the brackets around underlined page links much fainter in light and dark mode, preserving literal Markdown and native editing/selection.
+
 ## 2026-10-16 — Note lifecycle and recovery
 
 - Unified map title references, added guarded note deletion and draft comparison/reload, made confirmed tab saves discoverable immediately, and improved narrow map and expired-session recovery controls.

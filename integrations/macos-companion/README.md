@@ -6,6 +6,8 @@ A menu-bar app for named local and remote jumpyBrain connections. It runs a priv
 
 This beta is built locally—not a downloadable, signed/notarized release yet.
 
+For an optional desktop window using this same installed runtime and browser UI, see the [local Electron prototype](../electron/README.md). The native companion continues to own the gateway and Keychain.
+
 ## Install
 
 First [install the CLI](../../docs/install.md). You also need macOS 13+, Xcode command-line tools, Python 3.9+, Google Chrome, and the CLI’s Node 22+/QMD dependencies.

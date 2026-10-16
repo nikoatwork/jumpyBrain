@@ -3,7 +3,7 @@ import {
   $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
   COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORY_PUSH_TAG, IS_CODE, PASTE_COMMAND,
-  ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection,
+  ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, getDOMTextNode, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
 import { createEmptyHistoryState, registerHistory } from "@lexical/history";
@@ -15,6 +15,7 @@ import {
 } from "@lexical/markdown";
 
 import { referenceRanges, safeTitle } from "./reference-ranges.js";
+import { externalLineChanges } from "./external-document-updates.js";
 import "./reference-autocomplete.js";
 
 // Unsupported blocks are ordinary editable text, never HTML or silently discarded nodes.
@@ -153,6 +154,38 @@ export function createNoteEditor(element: HTMLElement, options: {
   element.contentEditable = "true";
   editor.setRootElement(element);
   const cleanups = [registerRichText(editor), registerHistory(editor, createEmptyHistoryState(), 300)];
+  // Paint only the literal brackets, without splitting Lexical's text/selection
+  // DOM. Native selection takes precedence over this decorative highlight.
+  if (typeof Highlight !== "undefined" && CSS.highlights) {
+    const name = "jumpybrain-reference-markers";
+    const markers = CSS.highlights.get(name) ?? new Highlight();
+    CSS.highlights.set(name, markers);
+    const ranges = new Map<NodeKey, Range[]>();
+    const clear = (key: NodeKey) => {
+      ranges.get(key)?.forEach((range) => markers.delete(range));
+      ranges.delete(key);
+    };
+    cleanups.push(editor.registerMutationListener(PageReferenceNode, (mutations) => {
+      for (const [key, mutation] of mutations) {
+        clear(key);
+        if (mutation === "destroyed") continue;
+        const link = editor.getElementByKey(key);
+        const text = link?.hasAttribute("data-page-reference") ? getDOMTextNode(link) : null;
+        if (!text || !/^\[\[[^\[\]\r\n]+\]\]$/.test(text.data)) continue;
+        const pair = [0, text.length - 2].map((start) => {
+          const range = text.ownerDocument.createRange();
+          range.setStart(text, start); range.setEnd(text, start + 2);
+          markers.add(range);
+          return range;
+        });
+        ranges.set(key, pair);
+      }
+    }));
+    cleanups.push(() => {
+      for (const key of ranges.keys()) clear(key);
+      if (!markers.size && CSS.highlights.get(name) === markers) CSS.highlights.delete(name);
+    });
+  }
   // Lexical's shortcut plugin intentionally skips code-formatted leaves. Use
   // that guard for literal Markdown, including newly split/pasted text nodes.
   cleanups.push(editor.registerNodeTransform(TextNode, (node) => {
@@ -406,7 +439,8 @@ export function createNoteEditor(element: HTMLElement, options: {
     element.removeEventListener("focusin", focusReference);
   });
 
-  return {
+  let highlightTimer: number | undefined;
+  const api = {
     getMarkdown: () => markdown,
     setMarkdown(value: string, reset = false) {
       if (!reset && value === markdown && editor.getEditorState().isEmpty() === false) return;
@@ -445,6 +479,51 @@ export function createNoteEditor(element: HTMLElement, options: {
       editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
       loading = false;
       notifyReferenceContext();
+    },
+    setExternalMarkdown(value: string) {
+      if (value === markdown) return;
+      const doc = element.ownerDocument, win = doc.defaultView!;
+      const changes = externalLineChanges(markdown, value);
+      const selection = win.getSelection();
+      let caret: { line: number; offset: number } | null = null;
+      if (doc.activeElement === element && selection?.isCollapsed && selection.anchorNode && element.contains(selection.anchorNode)) {
+        let block: Node = selection.anchorNode;
+        while (block.parentNode && block.parentNode !== element) block = block.parentNode;
+        const line = Array.from(element.childNodes).indexOf(block as ChildNode);
+        if (line >= 0) {
+          const range = doc.createRange(); range.selectNodeContents(block);
+          range.setEnd(selection.anchorNode, selection.anchorOffset);
+          caret = { line, offset: range.toString().length };
+        }
+      }
+      const scroll = element.closest("#note-panel");
+      const scrollTop = scroll?.scrollTop, scrollLeft = scroll?.scrollLeft;
+      // External acceptance establishes a new undo baseline. Local edits made
+      // after it remain undoable; Undo cannot restore the replaced remote body.
+      api.setMarkdown(value);
+      if (caret) {
+        const matched = changes.matches.indexOf(caret.line);
+        const block = element.children[matched >= 0 ? matched : Math.min(caret.line, element.children.length - 1)];
+        if (block) {
+          const walker = doc.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+          let remaining = caret.offset, node: Node | null, last: Node | null = null;
+          while ((node = walker.nextNode())) {
+            last = node;
+            if (remaining <= (node.textContent?.length ?? 0)) break;
+            remaining -= node.textContent?.length ?? 0;
+          }
+          const range = doc.createRange();
+          if (node) range.setStart(node, remaining);
+          else if (last) range.setStart(last, last.textContent?.length ?? 0);
+          else range.setStart(block, 0);
+          range.collapse(true); selection!.removeAllRanges(); selection!.addRange(range);
+        }
+      }
+      if (scroll && scrollTop !== undefined && scrollLeft !== undefined) { scroll.scrollTop = scrollTop; scroll.scrollLeft = scrollLeft; }
+      win.clearTimeout(highlightTimer);
+      const highlighted = Array.from(element.children).filter((_, index) => changes.changed[index]);
+      highlighted.forEach((block) => block.classList.add("external-change"));
+      highlightTimer = win.setTimeout(() => highlighted.forEach((block) => block.classList.remove("external-change")), 4000);
     },
     setReadOnly(value: boolean) {
       editor.setEditable(!value);
@@ -485,11 +564,13 @@ export function createNoteEditor(element: HTMLElement, options: {
       editor.focus();
     },
     destroy() {
+      element.ownerDocument.defaultView!.clearTimeout(highlightTimer);
       referenceListeners.clear();
       cleanups.forEach((cleanup) => cleanup());
       editor.setRootElement(null);
     },
   };
+  return api;
 }
 
 Object.assign(window, { createJumpyBrainNoteEditor: createNoteEditor });

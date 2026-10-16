@@ -29,7 +29,7 @@ test("Cmd/Ctrl+Enter creates notes while browser shortcuts remain untouched", ()
   let opened = 0, created = 0;
   const searchDialog = { open: false }, connectionDialog = { open: false }, dreamDialog = { open: false };
   const { handleNoteShortcut } = runtime(["handleNoteShortcut"], {
-    searchDialog, connectionDialog, dreamDialog,
+    searchDialog, connectionDialog, dreamDialog, feedback: { isOpen: () => false },
     openSearch() { opened++; }, closeSearch() {}, newNote() { created++; },
   });
   const untouched = { preventDefault() { throw new Error("reserved/inactive key intercepted"); } };

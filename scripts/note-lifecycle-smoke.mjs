@@ -41,10 +41,10 @@ try {
   await page.getByRole('button',{name:'QA lifecycle created, memory note',exact:true}).click();
   await page.locator('#note-name').waitFor({state:'visible'});
   console.log('step: conflict');const second=await context.newPage();second.setDefaultTimeout(15000);await second.goto(noteUrl);await second.locator('#note-name').waitFor({state:'visible'});
-  await appendEditorText(page,'\nWinning edit.');await page.locator('#note-name').click();
+  await replaceEditorText(page,'Winning edit.');await page.locator('#note-name').click();
   await page.getByTestId('graph-note-save-state').filter({hasText:'Saved'}).waitFor();
-  await replaceEditorText(second,'Losing draft retained for comparison.');await second.locator('#note-name').click();
-  await second.getByTestId('graph-note-save-state').filter({hasText:'Save failed'}).waitFor();
+  await replaceEditorText(second,'Losing draft retained for comparison.');await second.locator('#note-name').click();await second.locator('#note-editor').focus();
+  await second.getByTestId('graph-note-save-state').filter({hasText:'Changes need review'}).waitFor();
   await second.locator('#note-recover').click();
   await second.locator('#recovery-saved').filter({visible:true}).waitFor();
   await second.waitForFunction(()=>document.getElementById('recovery-saved').value.includes('Winning edit.'));

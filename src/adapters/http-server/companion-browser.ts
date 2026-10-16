@@ -13,7 +13,8 @@ export const companionStyles = String.raw`
   #companion-form input[type=checkbox] { height: auto; }
   #companion-banner { padding: 8px 24px; margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
   #companion-banner[data-error=true], #companion-feedback[data-error=true] { color: var(--error-ink); }
-  #companion-active { color: var(--ink-soft); font-size: 12px; }
+  #companion-active { display: block; padding: 4px 10px 0; color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; }
+  @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: 11px; } }
   .companion-search { padding-bottom: 24px; border-bottom: 1px solid var(--line); }
   #companion-index-target, #companion-index-feedback { color: var(--ink-soft); overflow-wrap: anywhere; }
   #companion-index-feedback[data-error=true] { color: var(--error-ink); }
@@ -93,7 +94,7 @@ companionBanner.id = "companion-banner";
 companionBanner.setAttribute("role", "status");
 companionBanner.setAttribute("aria-live", "polite");
 companionBanner.hidden = true;
-document.querySelector(".app-nav").after(companionBanner);
+document.querySelector(".app-workspace").prepend(companionBanner);
 const companionRecovery = document.createElement("div");
 companionRecovery.id = "companion-recovery";
 companionRecovery.className = "companion-actions";
@@ -163,6 +164,7 @@ function companionLock(value) {
   if (!value && state.editor?.state.navigationPending && !navigation.isBusy()) state.editor.setNavigationPending(false);
   // Healthy polls still sync permissions, but must not dismiss live interactions.
   if (enteringFrozen) {
+    feedback.close(false);
     documentActions.close();
     cancelReferenceInteraction();
     if (searchDialog.open) closeSearch(false);
@@ -176,7 +178,7 @@ function companionLock(value) {
   $("companion-fields").disabled = companionActionBusy || companionFrozen;
   if (state.editor) syncEditorUi(state.editor.state);
   else richEditor.setReadOnly(companionReadOnly());
-  for (const [id, path] of [["home-link", "/"], ["graph-link", "/graph"]]) $(id).href = companionScopeUrl(path);
+  for (const [id, path] of [["home-link", "/"], ["notes-link", "/"], ["graph-link", "/graph"]]) $(id).href = companionScopeUrl(path);
 }
 async function companionControl(route, body, options = {}) {
   const response = await fetch("/companion/" + route, {
@@ -184,6 +186,7 @@ async function companionControl(route, body, options = {}) {
     headers: body === undefined ? {} : { "Content-Type": "application/json" },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...options,
   });
+  feedbackDiagnostics.record("/companion/" + route, body === undefined ? "GET" : "POST", response.status);
   const packet = await response.json().catch(() => null);
   if (!response.ok) {
     const error = new Error(packet?.error?.message || "Companion request failed (HTTP " + response.status + ").");

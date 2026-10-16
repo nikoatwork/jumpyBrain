@@ -3,11 +3,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
+import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback.js";
 
 const html = graphPageHtml("fixture", "settings", { companion: true });
 const script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals) {
-  const context = vm.createContext(globals);
+  const context = vm.createContext({ feedback: { close() {}, isOpen: () => false }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
   vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }

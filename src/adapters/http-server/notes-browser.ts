@@ -3,10 +3,27 @@ import { themeMarkup } from "./browser-theme.js";
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
 export const notesStyles = String.raw`
-    body { display: flex; flex-direction: column; height: 100dvh; }
-    .app-nav { min-height: 60px; flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 24px; }
+    body { display: flex; height: 100dvh; }
+    .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+    .app-nav { width: 220px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 28px; padding: 24px 16px 16px; border-right: 1px solid var(--line); overflow: auto; }
+    :root[data-sidebar-collapsed="true"] .app-nav { display: none; }
+    .workspace-toolbar { display: flex; align-items: center; flex: 0 0 auto; min-height: 48px; }
+    #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; margin: 8px 12px; padding: 6px; }
+    #toggle-sidebar svg { width: 20px; height: 20px; }
+    .nav-brand { min-width: 0; }
+    .app-nav .home-link { display: block; padding: 4px 10px; font-weight: 650; background: transparent; color: var(--ink); }
+    .nav-tools, .nav-pages, .nav-preferences { display: flex; flex-direction: column; gap: 6px; }
+    .nav-preferences { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); }
+    .app-nav .nav-item { display: flex; align-items: center; gap: 10px; min-height: 40px; text-align: left; background: transparent; }
+    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .app-nav .nav-item:hover, .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
+    .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); color: var(--ink); }
+    .app-nav #new-note:hover { background: var(--surface-hover); }
+    .app-nav kbd { margin-left: auto; font-size: 11px; color: var(--ink-faint); }
+    .nav-appearance { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; color: var(--ink-soft); font-size: 12px; }
+    .document-status { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: 8px; min-height: 48px; padding: 8px 24px; }
+    body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
-    .app-nav .home-link { margin-right: auto; font-weight: 650; background: transparent; color: var(--ink); }
     .quiet-button { border: 0; border-radius: 6px; padding: 8px 10px; background: var(--control-fill); color: var(--ink-soft); text-decoration: none; font: inherit; cursor: pointer; }
     .quiet-button:hover { background: var(--surface-hover); color: var(--ink); }
     .home { width: 100%; overflow: auto; padding: clamp(28px, 8vh, 80px) 24px 48px; text-align: center; }
@@ -31,7 +48,6 @@ export const notesStyles = String.raw`
     kbd { font: inherit; color: var(--ink); }
     .home-action kbd { flex-shrink: 0; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; font-weight: 400; color: inherit; }
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
-    body[data-view="graph"] .app-nav { border-bottom: 1px solid var(--line); }
     main, body[data-view="graph"] main { flex: 1; height: auto; min-height: 0; }
     #note-panel { --writing-font: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif; width: 100%; min-width: 0; overflow: auto; scrollbar-gutter: stable; scrollbar-color: var(--line-strong) transparent; scroll-padding-block: 32px; }
     .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(40px, 7vh, 80px) 40px max(160px, 30vh); }
@@ -49,8 +65,18 @@ export const notesStyles = String.raw`
     #note-editor h4, #note-editor h5, #note-editor h6 { font-size: 20px; }
     .editor-bold { font-weight: 700; }
     .editor-italic { font-style: italic; }
+    #note-editor > .external-change { border-radius: 3px; animation: external-change-fade 4s ease-out forwards; }
+    @keyframes external-change-fade {
+      0%, 25% { background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
+      100% { background-color: transparent; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #note-editor > .external-change { animation: none; background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
+    }
+    #note-external-state { color: var(--ink-soft); font-size: 12px; }
     .markdown-literal, .markdown-reference { text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; }
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
+    ::highlight(jumpybrain-reference-markers) { color: color-mix(in srgb, var(--ink) 24%, var(--surface)); }
     .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     #reference-message { color: var(--ink-soft); font-size: 13px; }
     #reference-message[data-error="true"] { color: var(--error-ink); }
@@ -69,6 +95,7 @@ export const notesStyles = String.raw`
     .document-dialog .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
     #delete-confirm { color: var(--error-ink); }
     #note-save-error { color: var(--error-ink); font-size: 13px; }
+    #note-save-error[data-review="true"] { color: var(--ink-soft); }
     .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
     .capture-feedback[data-error="true"] { color: var(--error-ink); }
     #insert-reference { margin: 0 0 12px -10px; font-size: 12px; }
@@ -105,11 +132,21 @@ export const notesStyles = String.raw`
     .connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
     #api-key { width: 100%; display: block; margin-top: 8px; font-size: 16px; }
     @media (max-width: 680px) {
-      .app-nav { padding-inline: 12px; gap: 2px; }
-      .app-nav .quiet-button { padding-inline: 8px; font-size: 12px; }
+      body { flex-direction: column; }
+      .app-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; padding: 12px; border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+      :root[data-sidebar-collapsed="true"] .app-nav { display: grid; }
+      #toggle-sidebar { display: none; }
+      .workspace-toolbar { min-height: 0; }
+      .app-nav .home-link { padding-inline: 0; }
+      .nav-tools { flex-direction: row; align-items: center; gap: 4px; }
+      .nav-pages { grid-row: 2; grid-column: 1; flex-direction: row; }
+      .nav-preferences { display: contents; }
+      .nav-preferences #open-connection { grid-row: 2; grid-column: 2; justify-content: center; }
+      .nav-appearance { grid-row: 3; grid-column: 1 / -1; padding: 0; border-top: 1px solid var(--line); padding-top: 6px; }
+      .app-nav .nav-item { padding: 8px; font-size: 12px; min-height: 40px; gap: 6px; }
+      .nav-item svg { width: 16px; height: 16px; }
       #open-search kbd { display: none; }
-      #note-save-state { order: 5; margin-left: auto; }
-      #note-retry { order: 6; }
+      .document-status { padding-inline: 16px; flex-wrap: wrap; }
       .note-column { padding: 32px 24px max(120px, 25vh); }
       #note-editor { font-size: 18px; }
       #format-controls { gap: 2px; margin-bottom: 20px; }
@@ -120,17 +157,32 @@ export const notesStyles = String.raw`
 `;
 
 export const notesMarkup = String.raw`
-<nav class="app-nav" aria-label="Main navigation">
-  <a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain <small>(beta)</small></a>
+<nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
+  <div class="nav-brand"><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain <small>(beta)</small></a></div>
+  <div class="nav-tools" role="group" aria-label="Note actions">
+    <button id="new-note" class="quiet-button nav-item">New note</button>
+    <button id="open-search" class="quiet-button nav-item" aria-label="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Search <kbd class="shortcut"></kbd></button>
+  </div>
+  <div class="nav-pages" role="group" aria-label="Views">
+    <a id="notes-link" class="quiet-button nav-item" href="/">Home</a>
+    <a id="graph-link" class="quiet-button nav-item" href="/graph">Graph</a>
+  </div>
+  <div class="nav-preferences">
+    <button id="open-connection" class="quiet-button nav-item" aria-label="Connect · Connection settings" aria-haspopup="dialog">Connect</button>
+    <button id="open-feedback" class="quiet-button nav-item" aria-haspopup="dialog" aria-controls="feedback-dialog">Feedback</button>
+    <div class="nav-appearance"><span>Appearance</span>${themeMarkup}</div>
+  </div>
+</nav>
+<div class="app-workspace">
+<div class="workspace-toolbar">
+<button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button>
+<div class="document-status" role="group" aria-label="Save status">
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
+  <span id="note-external-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
-  <button id="new-note" class="quiet-button">New note</button>
-  <button id="open-search" class="quiet-button" aria-label="Search notes">Search <kbd class="shortcut"></kbd></button>
-  <a id="graph-link" class="quiet-button" href="/graph">Graph</a>
-  <button id="open-connection" class="quiet-button" aria-label="Connect · Connection settings" aria-haspopup="dialog">Connect</button>
-  ${themeMarkup}
-</nav>
+</div>
+</div>
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">
   <div class="dialog-head">
@@ -512,7 +564,7 @@ function wrapDialogFocus(event) {
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 }
-for (const dialog of [searchDialog, connectionDialog, dreamDialog]) dialog.addEventListener("keydown", wrapDialogFocus);
+for (const dialog of [searchDialog, connectionDialog, dreamDialog, $("feedback-dialog")]) dialog.addEventListener("keydown", wrapDialogFocus);
 let searchOrigin = null;
 let searchSelection = null;
 let searchDocument = null;
@@ -543,7 +595,7 @@ const referenceAutocomplete = window.installReferenceAutocomplete($("note-editor
   fetch: searchMemoryNotes,
   getSession: () => state.noteToken + ":" + credentialRevision,
   isEnabled: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()) && state.view === "note" && state.editor?.state.loaded && !state.editor.state.navigationPending
-    && !searchDialog.open && !connectionDialog.open && !dreamDialog.open && !documentActions.isOpen(),
+    && !searchDialog.open && !connectionDialog.open && !dreamDialog.open && !feedback.isOpen() && !documentActions.isOpen(),
   onError: () => referenceMessage("Could not insert this reference. Keep editing or use Insert page reference.", true),
 });
 let referenceRequest = null;
@@ -621,7 +673,7 @@ $("recent-connect").addEventListener("click", () => openConnection(false));
 
 function openSearch(mode = "navigate", range = null) {
   if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return;
-  if (searchDialog.open || connectionDialog.open || dreamDialog.open) return;
+  if (searchDialog.open || connectionDialog.open || dreamDialog.open || feedback.isOpen()) return;
   cancelReferenceInteraction();
   searchMode = mode === "insert" ? "insert" : "navigate";
   referenceSelection = range;
@@ -727,6 +779,7 @@ $("note-search-input").addEventListener("keydown", (event) => {
 });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));
 function handleNoteShortcut(event) {
+  if (feedback.isOpen()) return;
   if (documentActions.isOpen() || documentActions.isBusy()) return;
   if (typeof companionMode !== "undefined" && companionMode && (companionFrozen || state.view === "settings")) return;
   if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey)) return;
@@ -736,7 +789,7 @@ function handleNoteShortcut(event) {
     event.stopPropagation();
     if (!event.repeat) { if (searchDialog.open) closeSearch(); else openSearch(); }
   } else if (event.key === "Enter") {
-    if (searchDialog.open || connectionDialog.open || dreamDialog.open) return;
+    if (searchDialog.open || connectionDialog.open || dreamDialog.open || feedback.isOpen()) return;
     event.preventDefault();
     event.stopPropagation();
     if (!event.repeat) newNote();
@@ -774,7 +827,7 @@ function openConnection(fromSearch) {
     } else navigation.navigate(companionScopeUrl("/settings"));
     return;
   }
-  if (dreamDialog.open) return;
+  if (dreamDialog.open || feedback.isOpen()) return;
   cancelReferenceInteraction();
   apiKeyInput.value = activeApiKey;
   maskApiKey();
@@ -857,13 +910,14 @@ const navigation = createPageNavigation({
   show: showPage,
 });
 window.addEventListener("popstate", (event) => {
+  feedback.close(false);
   cancelReferenceInteraction();
   if (dreamDialog.open) closeDreamHandoff(false);
   if (searchDialog.open) closeSearch();
   if (connectionDialog.open) closeConnection();
   navigation.pop({ url: shellUrl(), index: Number.isSafeInteger(event.state?.jumpyBrainIndex) ? event.state.jumpyBrainIndex : 0 });
 });
-for (const [id, url] of [["home-link", "/"], ["graph-link", "/graph"]]) {
+for (const [id, url] of [["home-link", "/"], ["notes-link", "/"], ["graph-link", "/graph"]]) {
   $(id).addEventListener("click", (event) => {
     // Native new-tab navigation does not abandon the current draft.
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -872,6 +926,7 @@ for (const [id, url] of [["home-link", "/"], ["graph-link", "/graph"]]) {
 }
 
 function showPage(url) {
+  feedback.close(false);
   if (typeof companionMode !== "undefined" && companionMode && !companionRegistered) return;
   if (typeof companionMode !== "undefined" && companionMode) {
     const requested = new URL(url, location.origin);
@@ -899,8 +954,11 @@ function showPage(url) {
   $("home").hidden = state.view !== "home";
   $("note-panel").hidden = state.view !== "note";
   $("note-save-state").hidden = state.view !== "note";
-  $("open-search").hidden = state.view === "home";
-  $("graph-link").hidden = state.view === "graph";
+  $("note-external-state").hidden = state.view !== "note";
+  for (const [id, current] of [["notes-link", state.view === "home" || state.view === "note"], ["graph-link", state.view === "graph"], ["open-connection", state.view === "settings"]]) {
+    if (current) $(id).setAttribute("aria-current", "page");
+    else $(id).removeAttribute("aria-current");
+  }
   $("error").hidden = true;
   if (state.view === "note") { showNote(documentId, documentId === newNoteId); newNoteId = null; return; }
   state.noteToken++;
@@ -947,6 +1005,7 @@ async function showNote(documentId, focusEnd = false) {
     $("delete-note").hidden = true;
     $("insert-reference").hidden = true;
     $("note-save-state").textContent = "";
+    $("note-external-state").textContent = "";
     $("note-load-retry").hidden = true;
     $("note-message").hidden = false;
     $("note-message").dataset.error = "false";
@@ -960,6 +1019,12 @@ async function showNote(documentId, focusEnd = false) {
       clearTimer: (timer) => window.clearTimeout(timer),
       splitDocument: splitEditableDocument, composeDocument: composeEditableDocument,
       readDocument: readGraphDocument, writeDocument: writeGraphDocument,
+      canApplyExternal: () => externalUpdates.canApply(),
+      scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
+      onExternalUpdate: (body) => {
+        referenceAutocomplete.dismiss();
+        richEditor.setExternalMarkdown(body);
+      },
       onSaved: (payload) => {
         recentWrites.remember({ id: documentId, title: editor.state.savedTitle, body: editor.state.savedBody, file: String(payload.file || $("note-file").textContent || "") });
         state.graph = null;
@@ -1022,10 +1087,12 @@ $("note-name").addEventListener("blur", () => state.editor?.flush());
 
 function syncEditorUi(editorState) {
   const companionLocked = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
+  const needsReview = editorState.saveStatus === "failed" && editorState.saveErrorCode === "precondition_failed";
   if (!state.editor || state.editor.state !== editorState) return;
   $("note-retry").hidden = editorState.saveStatus !== "failed" || editorState.saveErrorCode === "precondition_failed";
   $("note-recover").hidden = editorState.saveStatus !== "failed" && !(typeof companionMode !== "undefined" && companionMode && companionSessionFailed);
   $("note-recover").disabled = editorState.navigationPending;
+  $("note-recover").textContent = editorState.saveErrorCode === "precondition_failed" ? "Review changes" : "Recover draft";
   $("copy-note-draft").hidden = !editorState.loaded;
   $("delete-note").hidden = !editorState.loaded;
   $("delete-note").disabled = editorState.navigationPending || companionLocked;
@@ -1035,9 +1102,10 @@ function syncEditorUi(editorState) {
   $("note-name").hidden = !editorState.loaded;
   $("note-title").hidden = editorState.loaded;
   $("note-name").readOnly = editorState.navigationPending || companionLocked;
-  $("note-name").setAttribute("aria-invalid", String(editorState.saveStatus === "failed"));
+  $("note-name").setAttribute("aria-invalid", String(["duplicate_title", "invalid_title"].includes(editorState.saveErrorCode)));
   $("note-save-error").hidden = editorState.saveStatus !== "failed";
   $("note-save-error").textContent = editorState.saveError || "";
+  $("note-save-error").dataset.review = String(needsReview);
   if (editorState.navigationPending || !editorState.loaded) referenceAutocomplete.dismiss();
   richEditor.setReadOnly(editorState.navigationPending || companionLocked);
   $("format-controls").hidden = !editorState.loaded;
@@ -1054,10 +1122,12 @@ function syncEditorUi(editorState) {
     $("note-metadata").hidden = false;
   }
   const feedback = editorState.saveStatus === "saving" ? "Saving…"
-    : editorState.saveStatus === "failed" ? "Save failed"
+    : editorState.saveStatus === "failed" ? needsReview ? "Changes need review" : "Save failed"
     : editorState.saveStatus === "saved" ? "Saved" : editorState.dirty ? "Editing…" : "";
   $("note-save-state").textContent = feedback;
-  $("note-save-state").dataset.state = editorState.saveStatus;
+  $("note-external-state").textContent = editorState.externalStatus === "pending" ? "Changes available"
+    : editorState.externalStatus === "updated" ? "Updated elsewhere" : "";
+  $("note-save-state").dataset.state = needsReview ? "review" : editorState.saveStatus;
   $("note-save-state").title = editorState.saveError || "";
   $("note-save-state").setAttribute("aria-label", feedback + (editorState.saveError ? ": " + editorState.saveError : ""));
 }
@@ -1170,6 +1240,18 @@ const documentActions = installDocumentActions({
     await navigation.navigate("/");
     $("capture-message").textContent = message;
     $("capture-message").hidden = false;
+  },
+});
+const externalUpdates = JumpyBrainBrowser.installExternalDocumentUpdates({
+  document, editor: () => state.view === "note" ? state.editor : null,
+  scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
+  enabled: () => Boolean(activeApiKey) && !(typeof companionMode !== "undefined" && companionMode
+    && (!companionRegistered || companionFrozen || companionSessionFailed)),
+  read: readGraphDocument,
+  onUpdated: () => {
+    state.graph = null;
+    recentWrites.remove(state.editor.state.documentId);
+    noteSearch.markStale(); referenceAutocomplete.markStale();
   },
 });
 `;

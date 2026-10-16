@@ -2,10 +2,11 @@ import { build } from "esbuild";
 import { readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 
+const { version } = JSON.parse(await readFile("package.json", "utf8"));
 const result = await build({
   entryPoints: ["src/adapters/http-server/browser-entry.ts"],
   bundle: true, minify: true, platform: "browser", format: "iife", globalName: "JumpyBrainBrowser", target: "es2022",
-  define: { "process.env.NODE_ENV": '"production"' },
+  define: { "process.env.NODE_ENV": '"production"', __JUMPYBRAIN_VERSION__: JSON.stringify(version) },
   legalComments: "eof", write: false, metafile: true,
 });
 // Safe to embed inside a nonce-protected script, even if dependencies contain HTML.

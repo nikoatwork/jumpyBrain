@@ -1,0 +1,102 @@
+import { BrowserWindow, dialog, Menu, shell } from 'electron';
+import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
+
+export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url) } = {}) {
+  const window = new BrowserWindow({
+    title: 'jumpyBrain', width: 1200, height: 860, minWidth: 480, minHeight: 480,
+    show: false, backgroundColor: '#f7f4ed',
+    webPreferences: {
+      partition: 'persist:jumpybrain-electron-prototype',
+      nodeIntegration: false, contextIsolation: true, sandbox: true,
+      webSecurity: true, webviewTag: false, navigateOnDragDrop: false,
+    },
+  });
+  const contents = window.webContents;
+  const session = contents.session;
+  // The UI is served entirely by the installed gateway. It needs no external
+  // network access, Node bridge, preload script, or remote frames. The only
+  // download is a bounded feedback email draft saved through the native dialog.
+  // Preserve the existing Copy draft / Copy prompt actions. Never grant
+  // programmatic clipboard reads or permissions to another origin/frame.
+  session.setPermissionRequestHandler((requestContents, permission, callback, details) => {
+    callback(requestContents === contents && permission === 'clipboard-sanitized-write'
+      && details.isMainFrame && isAppNavigation(details.requestingUrl, origin));
+  });
+  session.setPermissionCheckHandler((requestContents, permission, requestingOrigin, details) =>
+    requestContents === contents && permission === 'clipboard-sanitized-write'
+      && details.isMainFrame && isAppNavigation(requestingOrigin, origin));
+  session.webRequest.onBeforeRequest((details, callback) => {
+    let allowed = false;
+    try { allowed = new URL(details.url).origin === origin; } catch { /* Deny. */ }
+    callback({ cancel: !allowed });
+  });
+  const onDownload = (event, item, source) => {
+    if (source !== contents || !isAppNavigation(contents.getURL(), origin)
+      || !isFeedbackDownload({ url: item.getURL(), filename: item.getFilename(), mime: item.getMimeType(), size: item.getTotalBytes() }, origin)) event.preventDefault();
+  };
+  session.on('will-download', onDownload);
+  contents.once('destroyed', () => session.removeListener('will-download', onDownload));
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  contents.on('will-navigate', (event, url) => {
+    if (isFeedbackMailto(url) && isAppNavigation(contents.getURL(), origin)) {
+      event.preventDefault();
+      void openFeedbackEmail(url).catch(() => dialog.showMessageBox(window, {
+        type: 'info', message: 'Could not open an email app',
+        detail: 'Download the feedback email draft, or email jumpybrain@agentmail.to manually.',
+      }));
+      return;
+    }
+    if (!isAppNavigation(url, origin)) event.preventDefault();
+  });
+  contents.on('will-frame-navigate', (event) => {
+    if (!event.isMainFrame || (!isAppNavigation(event.url, origin) && !isFeedbackMailto(event.url))) event.preventDefault();
+  });
+  contents.on('will-redirect', (event) => event.preventDefault());
+  contents.on('will-attach-webview', (event) => event.preventDefault());
+  contents.on('will-prevent-unload', (event) => {
+    const discard = confirmClose ? confirmClose() : dialog.showMessageBoxSync(window, {
+      type: 'warning', title: 'Keep your draft?',
+      message: 'This note has changes that are not confirmed saved.',
+      detail: 'Keep editing to let saving finish or copy your draft. Closing now can lose those changes.',
+      buttons: ['Keep editing', 'Close and discard changes'], defaultId: 0, cancelId: 0,
+      noLink: true,
+    }) === 1;
+    // Electron uses preventDefault here to override the page's unload veto.
+    if (discard) event.preventDefault();
+  });
+  window.once('ready-to-show', () => window.show());
+  // This is the existing Chrome bootstrap. Its own script removes the fragment
+  // immediately, then exchanges the token for the gateway's HttpOnly cookie.
+  const loaded = window.loadURL(`${origin}/#companion=${key}`);
+  return { window, loaded };
+}
+
+export function setApplicationMenu({ app, getWindow, reconnect }) {
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    { label: 'jumpyBrain Electron', submenu: [
+      { label: 'About jumpyBrain Electron', click: () => dialog.showMessageBox({
+        type: 'info', message: 'jumpyBrain Electron · local prototype',
+        detail: 'The same browser UI and installed runtime. The native menu-bar companion owns the server, connections, Keychain, and runtime updates. This prototype is not signed for distribution.',
+      }) },
+      { type: 'separator' },
+      { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => {
+        const window = getWindow();
+        if (window) void window.webContents.executeJavaScript('document.getElementById("open-connection")?.click()');
+      } },
+      { type: 'separator' }, { role: 'services' }, { type: 'separator' },
+      { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+      { type: 'separator' }, { label: 'Quit jumpyBrain Electron', accelerator: 'CommandOrControl+Q', click: () => app.quit() },
+    ] },
+    { label: 'File', submenu: [
+      { label: 'Open Window', accelerator: 'CommandOrControl+N', click: reconnect },
+      { type: 'separator' }, { role: 'close' },
+    ] },
+    { role: 'editMenu' },
+    { label: 'View', submenu: [
+      { role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' },
+      { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
+      { type: 'separator' }, { role: 'togglefullscreen' },
+    ] },
+    { role: 'windowMenu' },
+  ]));
+}
