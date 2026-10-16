@@ -34,3 +34,7 @@ Export `compactSearchMemory(root, query, limit, options)` plus compact packet/op
 ## Temporal retrieval surface
 
 Export `TemporalQuery`, `TemporalResolution`, `TemporalCoverage`, `TemporalRetrieval`, `EvidenceDate`, and `resolveTemporalQuery`. Rich and compact search accept the same explicit temporal options; no temporal request preserves legacy packet shape. Relative bounds require a caller-supplied UTC reference date.
+
+## Deletion surface
+
+Export observational `previewMemoryDocumentDeletion(root,id)` and permanent single-document `deleteMemoryDocument(root,id,{ifMatch,apply:true})`, plus preview/result types. They use the same canonical root and optimistic publication policy as editing, without CLI/HTTP dependencies. Confirmed removal and derived-index status are separate outcomes.

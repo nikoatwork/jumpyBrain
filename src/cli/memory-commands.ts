@@ -3,7 +3,7 @@ import { pendingCreationIndex } from "../runtime/index.js";
 import { temporalOptions } from "./temporal.js";
 import type { IndexMemoryOptions, MemoryWriteResult, RetrievalReadiness, SearchMemoryResult } from "../types.js";
 import { numberArg, stringArg, stringListArg, type ParsedCliArgs } from "./args.js";
-import { showMemoryDocumentFromArgs, updateMemoryDocumentFromArgs } from "./document-edit.js";
+import { deleteMemoryDocumentFromArgs, showMemoryDocumentFromArgs, updateMemoryDocumentFromArgs } from "./document-edit.js";
 import { formatHumanResults } from "./formatting.js";
 import type { LocalMemoryTransport } from "./local-transport.js";
 import { commandMemoryTarget, recallRelatedMemory } from "./memory-target.js";
@@ -20,6 +20,7 @@ export type MemoryCommand =
   | "overview"
   | "search"
   | "recall"
+  | "delete"
   | "show"
   | "expand"
   | "update"
@@ -121,6 +122,8 @@ export async function runMemoryCommand(
     }
     return;
   }
+
+  if (command === "delete") { await deleteMemoryDocumentFromArgs(target, localMemory, args); return; }
 
   if (command === "show") {
     await showMemoryDocumentFromArgs(target, localMemory, args);

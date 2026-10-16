@@ -130,7 +130,6 @@ function snapshot(node: LexicalNode): string {
 export function createNoteEditor(element: HTMLElement, options: {
   onChange: (markdown: string) => void;
   // Kept for caller compatibility; explicit picker opening belongs to the host.
-  onReference?: () => void;
   onActivateReference?: (title: string) => void;
   onError: (error: Error) => void;
 }) {

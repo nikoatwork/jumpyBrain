@@ -1,7 +1,7 @@
 import path from "node:path";
 import { withQmdOperation, readExecution, executionSignal, checkExecution } from "../../adapters/qmd/index.js";
 import { evidenceDate, evidenceInInterval, resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
-import { hashMemoryDocumentContent, readCanonicalMemoryDocumentById } from "../../core/canonical/markdown-store.js";
+import { hashMemoryDocumentContent, discoverCanonicalMemoryDocumentsById } from "../../core/canonical/markdown-store.js";
 import { isValidMemoryDocumentId } from "../../core/document-id.js";
 import { resolveIndexRoot } from "../../core/memory-root/index.js";
 import { compactWrittenDate, excerptMatchesSource, packCompactRecall, type CompactRecallCandidate, type CompactRecallOptions,
@@ -27,11 +27,16 @@ export async function compactSearchMemory(root: string, query: string, limit: nu
   if (interval && !search.temporal) throw new Error("Temporal search did not return its resolved scope; refresh the runtime before retrying.");
   const sourceRoot = await resolveIndexRoot(search.root);
   type Source = { document: MemoryDocumentReadResult } | { reason: ExpansionUnavailableReason };
+  const requestedIds = search.results.flatMap(result => [result, ...(result.passages ?? [])])
+    .map(evidence => evidence.provenance.metadata?.id).filter((id): id is string => isValidMemoryDocumentId(id));
+  // One discovery for every requested ID, retaining global canonical duplicate checks.
+  const discovery = requestedIds.length ? await readExecution(discoverCanonicalMemoryDocumentsById(search.root, requestedIds, executionSignal()))
+    .catch(error => { checkExecution(); return undefined; }) : undefined;
   const sources = new Map<string, Promise<Source>>();
   const sourceFor = (id: string): Promise<Source> => {
     let source = sources.get(id);
     if (!source) {
-      source = readCanonicalMemoryDocumentById(search.root, id, { guarded: true, signal: executionSignal() }).then((document): Source => {
+      source = (discovery ? discovery.read(id, { guarded: true, signal: executionSignal() }) : Promise.reject(new Error("Canonical discovery unavailable"))).then((document): Source => {
         // Hashes cover raw bytes. Lossy UTF-8 must not acquire a seemingly valid expansion token.
         return hashMemoryDocumentContent(document.content) === document.contentHash ? { document } : { reason: "invalid_utf8" };
       }).catch((error): Source => {

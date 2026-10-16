@@ -6,7 +6,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-recent-smoke-"));
 const key = "disposable-recent-key";
@@ -22,11 +22,7 @@ try {
   }
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
   const chromium = await loadPlaywrightChromium();
-  try { browser = await chromium.launch(); }
-  catch (error) {
-    if (!String(error.message).includes("Executable doesn't exist")) throw error;
-    browser = await chromium.launch({ channel: "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   for (const width of [1280, 390]) {
     const page = await browser.newPage({ viewport: { width, height: 820 } });
     page.setDefaultTimeout(15_000);

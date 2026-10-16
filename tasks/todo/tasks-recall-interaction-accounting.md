@@ -1,5 +1,7 @@
 # Recall format and follow-up interaction accounting
 
+**Lifecycle: implementation complete; retained here pending explicit archive approval.** This is completed history, not an active execution plan.
+
 ## Goal
 
 Retain small reproducible regressions that account for complete agent-visible recall and follow-up output, distinguish metadata cost from evidence size, and prevent unsupported compact-versus-text efficiency claims.

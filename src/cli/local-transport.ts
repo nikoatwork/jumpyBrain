@@ -46,6 +46,8 @@ export interface LocalMemoryTransport {
   compactSearchMemory(rootArg: string, query: string, limit: number, options?: CompactRecallOptions): Promise<CompactRecallPacket>;
   expandMemoryDocument(rootArg: string, options: ExpansionOptions): Promise<ExpansionResult>;
   processMemory(rootArg: string, options: ProcessMemoryOptions): Promise<ProcessMemoryResult>;
+  previewMemoryDocumentDeletion: typeof runtime.previewMemoryDocumentDeletion;
+  deleteMemoryDocument: typeof runtime.deleteMemoryDocument;
   readMemoryDocument(rootArg: string, id: string): Promise<MemoryDocumentReadResult>;
   updateMemoryDocument(rootArg: string, id: string, content: string, options?: { ifMatch?: string; contentHash?: string }): Promise<MemoryDocumentUpdateResult>;
   getDreamWindow(rootArg: string, request?: DreamWindowRequest): Promise<DreamWindow>;
@@ -82,6 +84,8 @@ export function createLocalMemoryTransport(): LocalMemoryTransport {
     expandMemoryDocument: runtime.expandMemoryDocument,
     processMemory: runtime.processMemory,
     readMemoryDocument: runtime.readMemoryDocument,
+    previewMemoryDocumentDeletion: runtime.previewMemoryDocumentDeletion,
+    deleteMemoryDocument: runtime.deleteMemoryDocument,
     updateMemoryDocument: runtime.updateMemoryDocument,
     getDreamWindow: (rootArg, request) => runtime.getDreamWindow({ root: rootArg, request }),
     getDreamStatus: (rootArg) => runtime.getDreamStatus({ root: rootArg }),

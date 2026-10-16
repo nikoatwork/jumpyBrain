@@ -16,7 +16,9 @@ fi
 
 TMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t jumpybrain-uninstall)
 cleanup() { rm -rf "$TMP_DIR"; }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if command -v curl >/dev/null 2>&1; then
   curl -fsSL "$SCRIPT_URL" -o "$TMP_DIR/public-uninstall.mjs"
@@ -27,4 +29,4 @@ else
   exit 1
 fi
 
-exec node "$TMP_DIR/public-uninstall.mjs" "$@"
+node "$TMP_DIR/public-uninstall.mjs" "$@"

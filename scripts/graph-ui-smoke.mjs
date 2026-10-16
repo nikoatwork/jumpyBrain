@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { editorMarkdown } from "./editor-smoke-helpers.mjs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 
 const rawUrl = process.env.JUMPYBRAIN_GRAPH_SMOKE_URL;
 const apiKey = process.env.JUMPYBRAIN_GRAPH_SMOKE_API_KEY;
@@ -44,7 +44,7 @@ assert.ok(selectedNode, expectedNodeId
   ? `configured canonical graph node ${JSON.stringify(expectedNodeId)} was not found`
   : "graph has no document node with a valid canonical memory ID");
 
-const browser = await launchBrowser(chromium);
+const browser = await launchPlaywrightChromium({ chromium });
 const page = await browser.newPage({ viewport: { width: 1280, height: 820 } });
 const consoleErrors = [];
 await page.route("**/favicon.ico", (route) => route.fulfill({ status: 204, body: "" }));
@@ -269,13 +269,4 @@ async function capture(targetPage, name) {
   if (!screenshotDir) return;
   await mkdir(screenshotDir, { recursive: true });
   await targetPage.screenshot({ path: path.join(screenshotDir, name), fullPage: true });
-}
-
-async function launchBrowser(browserType) {
-  try {
-    return await browserType.launch();
-  } catch (error) {
-    if (!String(error?.message || error).includes("Executable doesn't exist")) throw error;
-    return browserType.launch({ channel: process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" });
-  }
 }

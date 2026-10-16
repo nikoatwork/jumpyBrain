@@ -8,7 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { indexMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 
 const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
 const apiKey = "daily-capture-disposable-smoke-key";
@@ -33,11 +33,7 @@ try {
   ].join("\n"));
   assert.equal((await indexMemory(root)).documents, 1, "real disposable QMD fixture indexed");
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
-  try { browser = await chromium.launch(); }
-  catch (error) {
-    if (!String(error?.message || error).includes("Executable doesn't exist")) throw error;
-    browser = await chromium.launch({ channel: process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   await run("protocol-empty-body-auth", validateProtocol);
   for (const mobile of [false, true]) {
     const label = mobile ? "mobile" : "desktop";
@@ -361,7 +357,7 @@ async function validateReferences(page, label) {
   assert.equal(await editorMarkdown(page), baseline, "typed [[ remains natively undoable after cancellation");
   await page.keyboard.type(`[[${fixture.query}`);
   await autocomplete.locator("[role='option'][aria-selected='true']").filter({ hasText: fixture.title }).waitFor({ state: "visible" });
-  assert.match(await autocomplete.locator("[role='status']").innerText(), /Enter to insert/);
+  assert.match(await autocomplete.locator("[role='status']").innerText(), /Enter (?:to )?insert/);
   assert.equal(await page.locator("#note-search").isVisible(), false, "typed query stays inline");
   assert.equal(await editor.evaluate((element) => document.activeElement === element), true);
   const queryTrigger = baseline + `[[${fixture.query}`;
@@ -491,7 +487,7 @@ async function picker(page) {
 async function searchRealReference(page) {
   await page.locator("#note-search-input").fill(fixture.query);
   await page.locator("#search-results [role='option']").filter({ hasText: fixture.title }).first().waitFor({ state: "visible" });
-  assert.match(await page.locator("#search-message").innerText(), /Enter to insert/);
+  assert.match(await page.locator("#search-message").innerText(), /Enter (?:to )?insert/);
 }
 async function nativeUndo(page) {
   await undoEditor(page);

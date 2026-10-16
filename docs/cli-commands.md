@@ -272,3 +272,9 @@ These commands route to the same memory handlers as the top-level commands. They
 `memory:recall` and `memory:search` also accept `--compact [--max-bytes <n>] [--diagnostics]`.
 
 Remote recipe commands also accept `--target-url <url>` where the underlying top-level command supports remote targets, and require `JUMPYBRAIN_API_KEY`.
+
+## Delete one memory
+
+`jumpybrain delete --root <root>|--target-url <origin> --id <mem_uuid> [--json]` previews permanent removal without writing. `jumpybrain run memory:delete` is the equivalent recipe. Read the title, relative file, advisory references and Content-Hash first. Apply with `--apply --if-match sha256:<hash>` to remove exactly that current document. Flags are strict; no path/glob/force/cascade or automatic retries. The device read-only policy blocks deletion invocations before credentials.
+
+Deletion is permanent: there is no Trash/Undo; recovery needs your own backup/Git. Missing/stale/duplicate IDs or unsafe file identity fail closed. Successful removal leaves surviving notes/links unchanged and reports pending/failed derived indexing separately. Run `jumpybrain index` on the same authorized root/target to reconcile retrieval; never repeat deletion to repair indexing.

@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 
-from update import (LABEL, SafetyError, app_path, build_workspace, cleanup, companion_lock,
+from lifecycle import (LABEL, SafetyError, app_path, build_workspace, cleanup, companion_lock,
                     absolute, overlaps, preflight, regular, validate_key,
                     validate_manifest, validate_runtime, read_json)
 
@@ -212,7 +212,7 @@ def build_app(runtime, build, config, previous_app=None):
             "schemaVersion": 1, "fingerprint": fingerprint,
             "executableDigest": file_digest(executable),
         }, indent=2) + "\n")
-    for helper in ("server-bootstrap.mjs", "menu-update.mjs", "update-check.mjs"):
+    for helper in ("menu-update.mjs", "update-check.mjs"):
         shutil.copy2(source / helper, resources / helper)
     (resources / "Configuration.json").write_text(json.dumps(config, indent=2) + "\n")
     info = {

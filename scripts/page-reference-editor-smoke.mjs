@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { selectEditorText, appendEditorText, editorMarkdown, undoEditor, editorSelection } from "./editor-smoke-helpers.mjs";
 
 const editorBundle = await readFile(new URL("../dist/adapters/http-server/editor-bundle.js", import.meta.url), "utf8");
@@ -22,9 +22,9 @@ const server = createServer((req, res) => {
     <button id="before">Before editor</button><div id="note-editor" role="textbox" aria-label="Markdown" aria-multiline="true"></div><button id="after">After editor</button>
     <script src="/editor.js"></script>
     <script>
-      var changes = [], follows = [], errors = [], triggers = 0;
+      var changes = [], follows = [], errors = [];
       var richEditor = window.createJumpyBrainNoteEditor(document.querySelector('#note-editor'), {
-        onChange: value => changes.push(value), onReference: () => triggers++,
+        onChange: value => changes.push(value),
         onActivateReference: title => follows.push(title), onError: error => errors.push(error.message)
       });
     </script>`);
@@ -35,10 +35,7 @@ let browser;
 const failures = [];
 try {
   const chromium = await loadPlaywrightChromium();
-  try { browser = await chromium.launch(); } catch (error) {
-    if (!error.message.includes("Executable doesn't exist")) throw error;
-    browser = await chromium.launch({ channel: "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   for (const width of [1280, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, hasTouch: width === 390 });
     async function check(name, run) {

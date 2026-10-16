@@ -13,7 +13,8 @@ test("editor bundle is self-contained, production-sized, and safe to inline unde
   assert.ok(gzipSync(bundle).length < 160_000, "review editor weight if the production bundle exceeds 160 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
-  assert.equal((html.match(/<script\b/g) || []).length, 1);
+  assert.equal((html.match(/<script\b/g) || []).length, 2);
+  for (const script of html.matchAll(/<script\b([^>]*)>/g)) assert.equal(script[1], ' nonce="lexicalbundle"');
   assert.match(html, /<script nonce="lexicalbundle">/);
   assert.match(html, /role="textbox" aria-multiline="true"/);
   assert.doesNotMatch(html, /<textarea id="note-editor"/);

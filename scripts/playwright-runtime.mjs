@@ -19,3 +19,15 @@ export async function loadPlaywrightChromium() {
 
   throw new Error("playwright is not installed. Run: npx playwright install chromium");
 }
+
+// Preserve launch options in both attempts; fallback only for a missing executable.
+// Supplying chromium allows focused tests and callers that already loaded Playwright.
+export async function launchPlaywrightChromium({ chromium, launchOptions = {}, fallbackChannel = process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" } = {}) {
+  const browserType = chromium ?? await loadPlaywrightChromium();
+  try {
+    return await browserType.launch(launchOptions);
+  } catch (error) {
+    if (!String(error?.message || error).includes("Executable doesn't exist") || !fallbackChannel || launchOptions.channel) throw error;
+    return browserType.launch({ ...launchOptions, channel: fallbackChannel });
+  }
+}

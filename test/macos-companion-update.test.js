@@ -224,9 +224,10 @@ test("downloaded public installer includes its companion preflight dependencies"
     const tools = path.join(temp, "tools");
     await mkdir(tools);
     await writeFile(path.join(tools, "curl"), '#!/bin/sh\nFILE=${2#https://fixture.example/}\ncp "$FIXTURE_REPO/$FILE" "$4"\n', { mode: 0o755 });
+    await writeFile(path.join(tools, "node"), '#!/bin/sh\ncase "$1" in -*) exec "$FIXTURE_NODE" "$@";; esac\nBOOTSTRAP=$(dirname "$(dirname "$1")")\npython3 -B "$BOOTSTRAP/integrations/macos-companion/update.py" --detect --home "$FIXTURE_HOME" >/dev/null 2>&1\ntest "$?" -eq 3 || exit 98\nexec "$FIXTURE_NODE" "$@"\n', { mode: 0o755 });
     const result = spawnSync("sh", [path.join(repo, "install.sh"), "--help"], {
       cwd: temp, encoding: "utf8",
-      env: { ...process.env, PATH: `${tools}:${process.env.PATH}`, JUMPYBRAIN_RAW_BASE: "https://fixture.example", FIXTURE_REPO: repo },
+      env: { ...process.env, PATH: `${tools}:${process.env.PATH}`, JUMPYBRAIN_RAW_BASE: "https://fixture.example", FIXTURE_REPO: repo, FIXTURE_NODE: process.execPath, FIXTURE_HOME: path.join(temp, "absent-home") },
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Usage: install.sh/);

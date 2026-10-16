@@ -1,4 +1,5 @@
 import path from "node:path";
+import { normalizedDocumentTitle } from "../document-title.js";
 import type { MemoryConnectionEdgeKind } from "../../types.js";
 import { isValidMemoryDocumentId } from "../document-id.js";
 
@@ -40,7 +41,7 @@ export function extractCanonicalLinks(content: string, definitionContext = conte
   return links;
 }
 
-export function buildCanonicalLinkTargetLookup(documents: { relativePath: string; frontmatter?: { id?: unknown } }[]): Map<string, string | undefined> {
+export function buildCanonicalLinkTargetLookup(documents: { relativePath: string; frontmatter?: { id?: unknown; title?: unknown } }[]): Map<string, string | undefined> {
   const values = new Map<string, Set<string>>();
   for (const document of documents) {
     const keys = canonicalDocumentLinkKeys(document.relativePath);
@@ -53,7 +54,22 @@ export function buildCanonicalLinkTargetLookup(documents: { relativePath: string
     }
   }
 
+  // Exact metadata titles take precedence for literal page references. Keep a
+  // separate namespace so legacy filename/ID keys retain their existing rules.
+  const titles = new Map<string, typeof documents>();
+  for (const document of documents) {
+    const title = normalizedDocumentTitle(document.frontmatter?.title);
+    if (title) titles.set(title, [...(titles.get(title) ?? []), document]);
+  }
   const lookup = new Map<string, string | undefined>();
+  for (const [title, matches] of titles) {
+    const match = matches[0]!;
+    const id = match.frontmatter?.id;
+    const uniqueId = isValidMemoryDocumentId(id) && values.get(normalizeCanonicalLinkLookupKey(id))?.size === 1;
+    // An ID-less legacy filename reference remains a filename reference.
+    if (matches.length === 1 && !uniqueId && normalizedDocumentTitle(path.posix.basename(match.relativePath, ".md")) === title) continue;
+    lookup.set(titleKey(title), matches.length === 1 && uniqueId ? match.relativePath : undefined);
+  }
   for (const [key, matches] of values.entries()) {
     lookup.set(key, matches.size === 1 ? [...matches][0] : undefined);
   }
@@ -61,6 +77,11 @@ export function buildCanonicalLinkTargetLookup(documents: { relativePath: string
 }
 
 export function resolveCanonicalLinkTarget(sourceFile: string, rawTarget: string, kind: MemoryConnectionEdgeKind, lookup: Map<string, string | undefined>): string | undefined {
+  if (kind === "wiki-link" && !/[\[\]\x00-\x1f\x7f|#\\/]/.test(rawTarget)) {
+    const title = titleKey(normalizedDocumentTitle(rawTarget));
+    // An ambiguous/unopenable title must not fall through to another filename.
+    if (lookup.has(title)) return lookup.get(title);
+  }
   const localTarget = rawTarget.trim().replace(/\\/g, "/");
   if (!isLocalTarget(localTarget)) return undefined;
   const rooted = localTarget.startsWith("/");
@@ -157,3 +178,5 @@ function normalizePosix(value: string): string {
 function posixDirname(value: string): string {
   return path.posix.dirname(value);
 }
+
+function titleKey(title: string): string { return "\0title:" + title; }

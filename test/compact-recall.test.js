@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -251,4 +253,26 @@ test("the exact byte boundary counts optional diagnostics and the final LF", () 
   const below = packCompactRecall(envelope, candidates, { maxBytes: exactBudget - 1, diagnostics: true });
   assert.equal(below.passages.length, 0);
   assert.equal(below.omitted.passages, 1);
+});
+
+test("compact recall discovers multiple candidate IDs in one corpus pass", async t => {
+  const root = await fixture(t, {
+    "notes/a.md": note(id, "Calibration alpha."), "notes/b.md": note(id2, "Calibration beta."),
+  }, [
+    { file: "notes/a.md", line: 5, snippet: "Calibration alpha." },
+    { file: "notes/b.md", line: 5, snippet: "Calibration beta." },
+  ]);
+  const realRoot = await fs.realpath(root);
+  let discoveries = 0;
+  const readdir = fs.readdir;
+  t.mock.method(fs, "readdir", async (...args) => {
+    if (args[0] === path.join(realRoot, "notes")) discoveries++;
+    return readdir(...args);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const packet = await compactSearchMemory(root, "calibration", 5);
+  assert.equal(packet.passages.length, 2);
+  assert.ok(packet.passages.every(passage => passage.expansion.available));
+  assert.equal(discoveries, 1);
 });

@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { startCompanionGateway } from "../integrations/macos-companion/gateway.mjs";
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from "../dist/server/index.js";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { appendEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
 
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -154,11 +154,7 @@ try {
   gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots.a, port: 0, controlKey, credentials, switchTimeoutMs: 10000, targetTimeoutMs: 5000 });
   assert.ok(Number.isSafeInteger(gateway.state().generation) && gateway.state().generation > 0);
   const chromium = await loadPlaywrightChromium();
-  try { browser = await chromium.launch(); }
-  catch (error) {
-    if (!error.message.includes("Executable doesn't exist")) throw error;
-    browser = await chromium.launch({ channel: process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   context = await browser.newContext();
   context.setDefaultTimeout(12000);
   await context.addInitScript(() => { try { localStorage.setItem("smoke.unrelated.preference", "untouched-smoke-browser-key"); } catch {} });

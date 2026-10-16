@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 const { startJumpyBrainHttpServer } = await import(process.env.JUMPYBRAIN_SMOKE_PACKAGE_DIR
   ? pathToFileURL(path.join(process.env.JUMPYBRAIN_SMOKE_PACKAGE_DIR, "dist/server/index.js")).href
   : new URL("../dist/server/index.js", import.meta.url).href);
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { editorMarkdown, appendEditorText, selectEditorText, replaceEditorText, undoEditor } from "./editor-smoke-helpers.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-lexical-smoke-"));
@@ -25,10 +25,7 @@ try {
   await mkdir(path.join(root, "notes"));
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
   const chromium = await loadPlaywrightChromium();
-  try { browser = await chromium.launch(); } catch (error) {
-    if (!error.message.includes("Executable doesn't exist")) throw error;
-    browser = await chromium.launch({ channel: "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   for (const width of [1280, 390]) {
     const canonicalPath = path.join(root, "notes/preservation.md");
     const original = (prefix + body).replace(/\n/g, "\r\n");

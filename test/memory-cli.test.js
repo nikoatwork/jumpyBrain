@@ -10,7 +10,9 @@ import test from "node:test";
 
 import { parseFrontmatter } from "../dist/core/canonical/markdown-store.js";
 import { resolveCliTarget } from "../dist/cli/targets.js";
-import { qmdIndexInternalsForTests } from "../dist/adapters/qmd/qmd-driver.js";
+import { normalizeQmdLookupPath } from "../dist/adapters/qmd/qmd-cli.js";
+import { qmdLexQueries } from "../dist/adapters/qmd/qmd-query.js";
+import { dateStats, temporalBoostFor } from "../dist/adapters/qmd/qmd-ranking.js";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..");
@@ -553,39 +555,30 @@ test("frontmatter parsing supports manual memory metadata", () => {
 
 test("QMD helper logic keeps long-context query and path repair deterministic", () => {
   assert.equal(
-    qmdIndexInternalsForTests.normalizeQmdLookupPath("Sessions/Answer_ShareGPT_5Lzox6N_0.md"),
+    normalizeQmdLookupPath("Sessions/Answer_ShareGPT_5Lzox6N_0.md"),
     "sessions/answer-sharegpt-5lzox6n-0.md",
   );
 
-  const assistantQueries = qmdIndexInternalsForTests.qmdLexQueries(
+  const assistantQueries = qmdLexQueries(
     "I'm checking our previous chat about the shift rotation sheet for GM social media agents. Can you remind me what was the rotation for Admon on a Sunday?",
   );
   assert.ok(assistantQueries.slice(0, 8).includes("admon sunday"));
   assert.ok(assistantQueries.slice(0, 8).includes("shift rotation"));
 
-  const temporalQueries = qmdIndexInternalsForTests.qmdLexQueries(
+  const temporalQueries = qmdLexQueries(
     "Which three events happened in the order from first to last: the day I helped my friend prepare the nursery, the day I helped my cousin pick out stuff for her baby shower, and the day I ordered a customized phone case for my friend's birthday?",
   );
   assert.ok(temporalQueries.slice(0, 8).includes("prepare nursery"));
   assert.ok(temporalQueries.slice(0, 8).includes("baby shower"));
   assert.ok(temporalQueries.slice(0, 8).includes("phone case"));
 
-  const datedTemporalQueries = qmdIndexInternalsForTests.qmdLexQueries(
+  const datedTemporalQueries = qmdLexQueries(
     "changes after 2026-06-02 about query generation and wrapup memory",
   ).slice(0, 8).join("\n");
   assert.match(datedTemporalQueries, /query generation/);
   assert.match(datedTemporalQueries, /wrapup memory/);
 
-  assert.equal(qmdIndexInternalsForTests.looksLikeUnhelpfulSnippet("## User Could you suggest a hotel? ## Assistant"), true);
-  assert.equal(qmdIndexInternalsForTests.looksLikeUnhelpfulSnippet("For a romantic dinner, I would recommend Roscioli."), false);
 
-  assert.deepEqual(Object.keys(qmdIndexInternalsForTests).sort(), [
-    "dateStats",
-    "looksLikeUnhelpfulSnippet",
-    "normalizeQmdLookupPath",
-    "qmdLexQueries",
-    "temporalBoostFor",
-  ]);
 });
 
 test("temporal helper boosts dated candidates deterministically", () => {
@@ -594,31 +587,31 @@ test("temporal helper boosts dated candidates deterministically", () => {
     documentWithDate("sessions/mid.md", { date: "2026-06-05" }),
     documentWithDate("sessions/new.md", { date: "2026-06-10" }),
   ];
-  const stats = qmdIndexInternalsForTests.dateStats(docs);
+  const stats = dateStats(docs);
 
-  const latestOld = qmdIndexInternalsForTests.temporalBoostFor("latest QMD decision", docs[0].frontmatter, stats);
-  const latestNew = qmdIndexInternalsForTests.temporalBoostFor("latest QMD decision", docs[2].frontmatter, stats);
+  const latestOld = temporalBoostFor("latest QMD decision", docs[0].frontmatter, stats);
+  const latestNew = temporalBoostFor("latest QMD decision", docs[2].frontmatter, stats);
   assert.ok(latestNew > latestOld);
   assert.equal(latestNew, 0.12);
 
-  const firstOld = qmdIndexInternalsForTests.temporalBoostFor("first QMD decision", docs[0].frontmatter, stats);
-  const firstNew = qmdIndexInternalsForTests.temporalBoostFor("first QMD decision", docs[2].frontmatter, stats);
+  const firstOld = temporalBoostFor("first QMD decision", docs[0].frontmatter, stats);
+  const firstNew = temporalBoostFor("first QMD decision", docs[2].frontmatter, stats);
   assert.ok(firstOld > firstNew);
   assert.equal(firstOld, 0.12);
 
-  const afterMid = qmdIndexInternalsForTests.temporalBoostFor("changes after 2026-06-02 about query generation", docs[1].frontmatter, stats);
-  const afterOld = qmdIndexInternalsForTests.temporalBoostFor("changes after 2026-06-02 about query generation", docs[0].frontmatter, stats);
+  const afterMid = temporalBoostFor("changes after 2026-06-02 about query generation", docs[1].frontmatter, stats);
+  const afterOld = temporalBoostFor("changes after 2026-06-02 about query generation", docs[0].frontmatter, stats);
   assert.ok(afterMid > 0);
   assert.equal(afterOld, 0);
 
-  const beforeMid = qmdIndexInternalsForTests.temporalBoostFor("what happened before 2026-06-10 with wrapup memory", docs[1].frontmatter, stats);
-  const beforeNew = qmdIndexInternalsForTests.temporalBoostFor("what happened before 2026-06-10 with wrapup memory", docs[2].frontmatter, stats);
+  const beforeMid = temporalBoostFor("what happened before 2026-06-10 with wrapup memory", docs[1].frontmatter, stats);
+  const beforeNew = temporalBoostFor("what happened before 2026-06-10 with wrapup memory", docs[2].frontmatter, stats);
   assert.ok(beforeMid > 0);
   assert.equal(beforeNew, 0);
 
-  assert.equal(qmdIndexInternalsForTests.temporalBoostFor("latest QMD decision", { date: "not-a-date" }, stats), 0);
-  assert.equal(qmdIndexInternalsForTests.temporalBoostFor("latest QMD decision", {}, stats), 0);
-  assert.equal(qmdIndexInternalsForTests.temporalBoostFor("after the refactor QMD decision", docs[2].frontmatter, stats), 0);
+  assert.equal(temporalBoostFor("latest QMD decision", { date: "not-a-date" }, stats), 0);
+  assert.equal(temporalBoostFor("latest QMD decision", {}, stats), 0);
+  assert.equal(temporalBoostFor("after the refactor QMD decision", docs[2].frontmatter, stats), 0);
 });
 
 function documentWithDate(relativePath, frontmatter) {

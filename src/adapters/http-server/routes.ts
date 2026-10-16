@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPath, isMemoryRoute } from "../http-protocol.js";
 import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
-import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
+import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, previewServerMemoryDeletion, deleteServerMemoryDocument, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
 import { compactSearchServerMemory } from "../../app/server-memory/compact.js";
 import { expandServerMemoryDocument } from "../../app/server-memory/expansion.js";
 import type { ExpansionOptions } from "../../core/canonical/expansion.js";
@@ -307,7 +307,8 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
     if (request.method === "GET") {
       try {
-        const packet = await readServerMemoryDocument({ root, id });
+        const packet = url.searchParams.get("deletePreview") === "1"
+          ? await previewServerMemoryDeletion({ root, id }) : await readServerMemoryDocument({ root, id });
         logger.info("remote_document_read_success", { path: url.pathname, status: 200, id: packet.id, file: packet.file });
         writeJson(response, 200, packet);
       } catch (error) {
@@ -318,6 +319,23 @@ export async function routeRequest(context: { request: IncomingMessage; response
           id,
           error_code: mapped.body.error.code,
         });
+        writeJson(response, mapped.statusCode, mapped.body);
+      }
+      return;
+    }
+
+    if (request.method === "DELETE") {
+      const ifMatch = ifMatchHeader(request);
+      if (!ifMatch) { writeJson(response, 428, errorResponse("precondition_required", "Deletion requires If-Match from a prior read.")); return; }
+      const body = await parseJsonBody(request);
+      if (isJsonError(body)) { writeJson(response, body.statusCode, body.body); return; }
+      if (body.apply !== true || Object.keys(body).some(key => key !== "apply")) {
+        writeJson(response, 400, errorResponse("validation_failed", "Permanent deletion requires only { apply: true }.")); return;
+      }
+      try {
+        writeJson(response, 200, await enqueueWrite(() => deleteServerMemoryDocument({ root, id, ifMatch, apply: true })));
+      } catch (error) {
+        const mapped = documentUpdateErrorResponse(error);
         writeJson(response, mapped.statusCode, mapped.body);
       }
       return;
@@ -374,7 +392,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       return;
     }
 
-    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET or PUT for ${url.pathname}.`));
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET, PUT or DELETE for ${url.pathname}.`));
     return;
   }
 

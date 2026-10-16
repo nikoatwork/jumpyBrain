@@ -80,3 +80,17 @@ function rewriteUpdatePreconditionError(error: unknown, id: string): Error {
 function hasEditCode(error: unknown): error is { code: string } {
   return typeof error === "object" && error !== null && "code" in error && typeof (error as { code?: unknown }).code === "string";
 }
+
+export async function deleteMemoryDocumentFromArgs(target: CommandMemoryTarget, localMemory: LocalMemoryTransport, args: ParsedCliArgs): Promise<void> {
+  const id = stringArg(args, "id");
+  if (args.apply !== true) {
+    const result = target.kind === "remote" ? await target.memory.previewMemoryDocumentDeletion(id) : await localMemory.previewMemoryDocumentDeletion(target.root, id);
+    if (args.json) console.log(JSON.stringify(result, null, 2));
+    else console.log(`Deletion preview: ${result.title}\nID: ${id}\nFile: ${result.file}\nContent-Hash: ${result.contentHash}\nInbound links: ${result.references.links}; declared relationships: ${result.references.relationships}\nPermanent removal; surviving links are unchanged. Review backups, then pass --apply --if-match <Content-Hash> to delete.`);
+    return;
+  }
+  const ifMatch = stringArg(args, "if-match");
+  const result = target.kind === "remote" ? await target.memory.deleteMemoryDocument(id, { ifMatch, apply: true }) : await localMemory.deleteMemoryDocument(target.root, id, { ifMatch, apply: true });
+  if (args.json) console.log(JSON.stringify(result, null, 2));
+  else console.log(`Removed memory document: ${result.file}\nID: ${result.id}\nIndex ${result.indexing.status}; refresh the index, never retry deletion to repair indexing.`);
+}

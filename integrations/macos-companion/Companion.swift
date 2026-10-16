@@ -268,7 +268,6 @@ final class Companion: NSObject, NSApplicationDelegate {
     private var ready = false
     private var stopping = false
     private var quitting = false
-    private var forcedQuit = false
     private var lockFD: Int32 = -1
     private var ownsLock = false
     private var apiKey = ""
@@ -304,8 +303,7 @@ final class Companion: NSObject, NSApplicationDelegate {
             for sig in [SIGTERM, SIGINT] {
                 signal(sig, SIG_IGN)
                 let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
-                source.setEventHandler { [weak self] in
-                    self?.forcedQuit = true
+                source.setEventHandler {
                     // terminateLater may enter a nested AppKit loop. Don't call it
                     // inside a main-queue block that would starve shutdown callbacks.
                     RunLoop.main.perform { NSApp.terminate(nil) }
@@ -319,7 +317,6 @@ final class Companion: NSObject, NSApplicationDelegate {
             updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in self?.checkForUpdates() }
         } catch {
             showError("Could not start jumpyBrain", error.localizedDescription)
-            forcedQuit = true
             NSApp.terminate(nil)
         }
     }
@@ -358,7 +355,7 @@ final class Companion: NSObject, NSApplicationDelegate {
         memoryItem = add(troubleshootingMenu, "Open Memory Folder", #selector(openMemory))
         _ = add(troubleshootingMenu, "Show Logs", #selector(showLogs))
         menu.addItem(.separator())
-        _ = add(menu, "Quit jumpyBrain…", #selector(quit), "q")
+        _ = add(menu, "Quit jumpyBrain", #selector(quit), "q")
         statusItem.menu = menu
         setStatus("Starting…", healthy: false)
     }
@@ -705,7 +702,6 @@ final class Companion: NSObject, NSApplicationDelegate {
                             return
                         }
                         self.updateHandoffDirectory = nil
-                        self.forcedQuit = true
                         NSApp.terminate(nil)
                     }
                     return
@@ -826,9 +822,6 @@ final class Companion: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if !ownsLock || config == nil { return .terminateNow }
         if quitting { return .terminateLater }
-        if !forcedQuit && server?.isRunning == true {
-            guard confirm("Quit jumpyBrain?", "Wait for “Saved” in Chrome first. This stops the local server, not Chrome. It will start again at your next login if Start at Login is checked.", "Quit") else { return .terminateCancel }
-        }
         quitting = true
         healthTimer?.invalidate()
         updateTimer?.invalidate()

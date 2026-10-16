@@ -1,11 +1,13 @@
+import { GRAPH_NODE_TONES } from "./map-controller.js";
 import { readFileSync } from "node:fs";
+import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
-import { notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
+import { documentActionsMarkup, documentActionsScript, notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
 import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
 
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
-const graphNodeGlows = ["page", "decision", "finding", "preference", "session", "note", "unresolved"].map((type) =>
+const graphNodeGlows = GRAPH_NODE_TONES.map((type) =>
   `<radialGradient id="map-glow-${type}"><stop stop-color="var(--node-${type})" stop-opacity=".2"/><stop offset=".45" stop-color="var(--node-${type})" stop-opacity=".08"/><stop offset="1" stop-color="var(--node-${type})" stop-opacity="0"/></radialGradient>`
 ).join("");
 
@@ -19,46 +21,15 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${companion && view === "settings" ? "Settings" : view === "graph" ? "Memory map" : "Notes"} · jumpyBrain</title>
   <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
+  <script nonce="${nonce}">${themeBootstrap}</script>
   <style nonce="${nonce}">
-    /* jumpyBrain UI foundation: shared color, type, spacing, radius and elevation tokens. */
-    :root {
-      color-scheme: light;
-      --ink: #302f2d;
-      --ink-soft: #62605c;
-      --ink-faint: #706d68;
-      --surface: #ffffff;
-      --control-fill: #f1f0ee;
-      --surface-hover: #e7e5e2;
-      --focus-ring: #625f59;
-      --error-ink: #8b3434;
-      --error-fill: #fbefed;
-      --error-line: #c58c86;
-      --line: #e4e2df;
-      --line-strong: #cbc8c3;
-      --edge: #a5b7c7;
-      --edge-link: #b3a6c7;
-      --edge-end: #a8bfb4;
-      /* Muted categories are data accents, not application chrome. */
-      --node-page: #8196ba;
-      --node-decision: #b49a71;
-      --node-finding: #a08ab3;
-      --node-preference: #bd949c;
-      --node-session: #82a7ac;
-      --node-note: #8ba599;
-      --node-unresolved: #bb887b;
-      --shadow-sm: 0 1px 3px rgba(48, 46, 43, .05);
-      --shadow-lg: 0 16px 48px rgba(48, 46, 43, .12), 0 2px 8px rgba(48, 46, 43, .05);
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
-      --ease: cubic-bezier(.2, .8, .2, 1);
-    }
+    ${themeStyles}
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body { margin: 0; overflow: hidden; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
-    button, input, textarea { font: inherit; }
+    button, input, textarea, select { font: inherit; }
     button { cursor: pointer; }
-    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
     [hidden] { display: none !important; }
 
     /* Quiet map chrome shares the home screen's foundation. */
@@ -85,7 +56,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .map-options label { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ink-soft); font-size: 12px; }
     .map-options .focus-field { display: block; }
     #focus { display: block; width: 100%; margin-top: 6px; }
-    .map-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--ink); }
+    .map-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
     .map-options p { margin: 0; color: var(--ink-faint); font-size: 12px; }
     .button { height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 680; font-size: 12px; transition: background .15s ease, border-color .15s ease; }
     .button-primary { background: var(--control-fill); border-color: var(--line); color: var(--ink); box-shadow: none; }
@@ -96,7 +67,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
 
     main { display: flex; min-height: 0; }
     #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--surface); }
-    #graph-wrap::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 24% 28%, rgba(166, 194, 218, .16), transparent 56%), radial-gradient(ellipse at 78% 34%, rgba(190, 174, 211, .14), transparent 54%), radial-gradient(ellipse at 52% 84%, rgba(166, 198, 181, .13), transparent 54%); }
+    #graph-wrap::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: var(--map-wash); background: radial-gradient(ellipse at 24% 28%, var(--edge), transparent 56%), radial-gradient(ellipse at 78% 34%, var(--edge-link), transparent 54%), radial-gradient(ellipse at 52% 84%, var(--edge-end), transparent 54%); }
     #graph { position: relative; display: block; width: 100%; height: 100%; cursor: grab; }
     #graph:active { cursor: grabbing; }
     .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; }
@@ -111,8 +82,8 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .edge, .edge-shadow, .edge-highlight { stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
     .edge { stroke: url(#map-threads); stroke-opacity: .55; transition: stroke-opacity .15s ease; }
     .edge.markdown-link { stroke-opacity: .7; }
-    .edge-shadow { stroke: #63778c; stroke-opacity: .13; }
-    .edge-highlight { stroke: #ffffff; stroke-opacity: .72; }
+    .edge-shadow { stroke: var(--edge-shadow); stroke-opacity: .13; }
+    .edge-highlight { stroke: var(--edge-highlight); stroke-opacity: .72; }
     .node { cursor: pointer; }
     .node .node-core { fill: var(--node-fill, var(--node-note)); stroke: var(--surface); stroke-width: 1.5; vector-effect: non-scaling-stroke; filter: url(#map-node-shadow); transition: stroke-width .15s ease; }
     .node .node-halo { pointer-events: none; opacity: .7; transition: opacity .15s ease; }
@@ -127,7 +98,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     @media (max-width: 680px) {
       .toolbar { padding: 12px 16px; gap: 6px; }
       .map-heading { flex-basis: 100%; margin-bottom: 8px; }
-      #query { flex: 1; width: 120px; }
+      #query { flex: 1 0 100%; width: 100%; order: 1; }
       #graph-filters { position: static; }
       .map-options { right: 16px; top: calc(100% - 4px); }
       .canvas-bottom { left: 16px; right: 16px; }
@@ -144,6 +115,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
 </head>
 <body data-view="home">
 ${notesMarkup}
+${documentActionsMarkup}
 ${dreamMarkup}
 <header id="graph-header">
   <div class="toolbar" aria-label="Map controls">
@@ -178,8 +150,8 @@ ${dreamMarkup}
     <svg id="graph" data-testid="graph-svg" role="group" aria-label="Notes and their connections">
       <defs>
         <linearGradient id="map-threads" gradientUnits="userSpaceOnUse" x1="12%" y1="8%" x2="88%" y2="92%"><stop stop-color="var(--edge)"/><stop offset=".5" stop-color="var(--edge-link)"/><stop offset="1" stop-color="var(--edge-end)"/></linearGradient>
-        <radialGradient id="map-node-light" cx="30%" cy="24%" r="78%"><stop stop-color="#ffffff" stop-opacity=".72"/><stop offset=".38" stop-color="#ffffff" stop-opacity=".18"/><stop offset=".72" stop-color="#46566b" stop-opacity="0"/><stop offset="1" stop-color="#46566b" stop-opacity=".24"/></radialGradient>
-        <filter id="map-node-shadow" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#62768d" flood-opacity=".2"/></filter>
+        <radialGradient id="map-node-light" cx="30%" cy="24%" r="78%"><stop stop-color="var(--node-light)" stop-opacity=".72"/><stop offset=".38" stop-color="var(--node-light)" stop-opacity=".18"/><stop offset=".72" stop-color="var(--node-shade)" stop-opacity="0"/><stop offset="1" stop-color="var(--node-shade)" stop-opacity=".24"/></radialGradient>
+        <filter id="map-node-shadow" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="var(--node-shade)" flood-opacity=".2"/></filter>
         ${graphNodeGlows}
       </defs>
       <g id="viewport"></g>
@@ -203,7 +175,14 @@ ${dreamMarkup}
 </main>
 <script nonce="${nonce}">
 ${lexicalBundle}
+const { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
+const recentWrites = createRecentWriteSearch({
+  scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
+  fetch: createBrowserSearchRequest((url, options) => graphJson(url, options)),
+});
+const searchMemoryNotes = (query, signal) => recentWrites.search(query, signal);
 const $ = (id) => document.getElementById(id);
+${themeScript}
 const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const companionMode = ${companion};
 ${companion ? companionPrelude : ""}
@@ -224,6 +203,13 @@ let activeApiKey = companionMode ? "companion-session" : apiKeyInput.value.trim(
 let credentialRevision = 0;
 let connectionStatus = activeApiKey ? "checking" : "disconnected";
 
+const map = JumpyBrainBrowser.createMapController({
+  state, element: $, document, window,
+  fetchGraph: (url) => graphJson(url), setStatus,
+  onReady: (ready) => { window.__jumpyBrainGraphReady = ready; }, openNode: selectNode,
+});
+const { loadGraph, queueGraphLayout } = map;
+map.connect();
 $("reload").addEventListener("click", loadGraph);
 const graphFilters = $("graph-filters");
 document.addEventListener("click", (event) => {
@@ -258,16 +244,6 @@ function protectPendingEditorUnload(event) {
   event.returnValue = "";
 }
 
-function graphUrl() {
-  const params = new URLSearchParams();
-  const query = $("query").value.trim();
-  const focus = $("focus").value.trim();
-  if (query) params.set("query", query);
-  if (focus) params.set("focus", focus);
-  params.set("includeUnresolved", $("include-unresolved").checked ? "1" : "0");
-  params.set("includeOrphans", $("include-orphans").checked ? "1" : "0");
-  return "/memories/all/graph.json?" + params.toString();
-}
 
 async function graphFetch(url, options) {
   const requestOptions = Object.assign({}, options || {});
@@ -316,7 +292,7 @@ async function graphJson(url, options) {
 }
 
 function documentUrl(documentId) {
-  return "/memories/all/documents/" + encodeURIComponent(documentId);
+  return memoryDocumentPath(documentId);
 }
 
 function readGraphDocument(documentId, options) {
@@ -343,461 +319,7 @@ function setStatus(text, isError, errorText) {
   }
 }
 
-function renderGraphNotice(graph) {
-  const shown = graph?.nodes.filter((node) => node.nodeKind === "document").length || 0;
-  const total = graph?.stats?.documents;
-  const warnings = [...new Set((Array.isArray(graph?.warnings) ? graph.warnings : [])
-    .filter((warning) => typeof warning === "string" && warning.trim()))];
-  const limit = graph?.options?.limit;
-  const limited = Number.isSafeInteger(limit) && limit > 0
-    && warnings.includes("Graph response was limited to " + limit + " nodes.");
-  // documents counts the entire brain, not matches; unresolved nodes consume cap space too.
-  const scope = Number.isSafeInteger(total) && total >= shown && (shown < total || limited)
-    ? shown.toLocaleString("en-US") + " notes shown · " + total.toLocaleString("en-US") + " notes in this brain." : "";
-  $("graph-scope").textContent = scope;
-  $("graph-scope").hidden = !scope;
-  const list = $("graph-warnings");
-  list.replaceChildren();
-  for (const warning of warnings) {
-    const row = document.createElement("li");
-    row.textContent = warning;
-    list.append(row);
-  }
-  list.hidden = !warnings.length;
-  $("graph-limit-hint").textContent = limited ? "Filter to narrow the view." : "";
-  $("graph-limit-hint").hidden = !limited;
-  $("graph-notice").hidden = !scope && !warnings.length;
-}
 
-async function loadGraph() {
-  const token = ++state.graphToken;
-  renderGraphNotice(null);
-  setStatus("loading");
-  $("ready").hidden = true;
-  $("reload").disabled = true;
-  try {
-    const payload = await graphJson(graphUrl());
-    if (token !== state.graphToken) return;
-    state.graph = payload;
-    renderGraphNotice(payload);
-    setStatus("loaded");
-    if (state.view === "graph") render(payload);
-    $("ready").hidden = false;
-    window.__jumpyBrainGraphReady = true;
-  } catch (error) {
-    if (token !== state.graphToken) return;
-    setStatus("error", true, String(error && error.message ? error.message : error));
-    window.__jumpyBrainGraphReady = false;
-  } finally {
-    if (token === state.graphToken) $("reload").disabled = false;
-  }
-}
-
-function render(graph, preserveView) {
-  const svg = $("graph");
-  const viewport = $("viewport");
-  $("graph-node-count").textContent = graph.nodes.filter((node) => node.nodeKind === "document").length;
-  $("graph-edge-count").textContent = graph.edges.length;
-  $("graph-empty").hidden = graph.nodes.length > 0;
-  $("graph-empty").textContent = $("query").value.trim() || $("focus").value.trim() || !$("include-orphans").checked || !$("include-unresolved").checked
-    ? "No notes match these filters. Try clearing them."
-    : "Your map starts with a note. Choose New note to get started.";
-  const restoreFocus = preserveView && viewport.contains(document.activeElement);
-  const focusedId = restoreFocus ? document.activeElement.getAttribute("data-node-id") : null;
-  viewport.replaceChildren();
-  const rect = svg.getBoundingClientRect();
-  const cx = rect.width / 2 || 400;
-  const cy = rect.height / 2 || 300;
-  const radius = Math.max(72, Math.min(cx, cy) - 88);
-  const radiusX = Math.max(140, Math.min(cx - 120, radius * 1.65));
-  const radiusY = radius;
-  const positions = new Map();
-  const orderedNodes = [...graph.nodes].sort((a, b) => b.degree - a.degree || String(a.title).localeCompare(String(b.title)));
-  const featuredNodes = new Set(orderedNodes.slice(0, rect.width < 680 ? 5 : 12).map((node) => node.id));
-  orderedNodes.forEach((node, index) => {
-    if (index === 0 && orderedNodes.length > 2) {
-      positions.set(node.id, { x: cx, y: cy });
-      return;
-    }
-    const spiralIndex = orderedNodes.length > 2 ? index - 1 : index;
-    const angle = spiralIndex * 2.399963229728653;
-    const progress = Math.sqrt((spiralIndex + 1) / Math.max(1, orderedNodes.length - 1));
-    const nodeRadius = radius * (.28 + progress * .72) * (node.nodeKind === "unresolved" ? .96 : 1);
-    positions.set(node.id, { x: cx + Math.cos(angle) * radiusX * (nodeRadius / radius), y: cy + Math.sin(angle) * radiusY * (nodeRadius / radius) });
-  });
-  for (const edge of graph.edges) {
-    const a = positions.get(edge.source), b = positions.get(edge.target);
-    if (!a || !b) continue;
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("class", "edge " + edge.kind);
-    line.setAttribute("data-testid", "graph-edge");
-    line.setAttribute("x1", a.x); line.setAttribute("y1", a.y); line.setAttribute("x2", b.x); line.setAttribute("y2", b.y);
-    const width = Math.min(1 + edge.count, 5);
-    line.setAttribute("stroke-width", String(width));
-    // A narrow lit rim and opposite shaded rim give each strand a rounded profile.
-    const length = Math.hypot(b.x - a.x, b.y - a.y) || 1;
-    let nx = (a.y - b.y) / length, ny = (b.x - a.x) / length;
-    if (nx + ny > 0) { nx = -nx; ny = -ny; }
-    const shadow = line.cloneNode(false);
-    shadow.removeAttribute("data-testid");
-    shadow.setAttribute("class", "edge-shadow");
-    shadow.setAttribute("aria-hidden", "true");
-    shadow.setAttribute("stroke-width", String(width + .8));
-    shadow.setAttribute("transform", "translate(" + (-nx * .8) + " " + (-ny * .8) + ")");
-    const highlight = line.cloneNode(false);
-    highlight.removeAttribute("data-testid");
-    highlight.setAttribute("class", "edge-highlight");
-    highlight.setAttribute("aria-hidden", "true");
-    highlight.setAttribute("stroke-width", String(Math.max(.6, width * .3)));
-    highlight.setAttribute("transform", "translate(" + (nx * width * .22) + " " + (ny * width * .22) + ")");
-    viewport.append(shadow, line, highlight);
-  }
-  for (const node of graph.nodes) {
-    const p = positions.get(node.id);
-    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    g.setAttribute("class", "node " + node.nodeKind + (featuredNodes.has(node.id) ? " show-label" : "") + (state.selected === node.id ? " selected" : ""));
-    g.setAttribute("data-testid", "graph-node");
-    g.setAttribute("data-node-id", node.id);
-    g.setAttribute("role", "button");
-    g.setAttribute("tabindex", "0");
-    g.setAttribute("aria-label", (node.title || node.file || node.id) + ", " + (node.nodeKind === "unresolved" ? "unresolved link" : "memory note"));
-    g.setAttribute("transform", "translate(" + p.x + " " + p.y + ")");
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    const nodeRadius = 6 + Math.min(node.degree, 12);
-    circle.setAttribute("class", "node-core");
-    circle.setAttribute("r", String(nodeRadius));
-    circle.style.setProperty("--node-fill", nodeColor(node));
-    const tone = node.nodeKind === "unresolved" ? "unresolved"
-      : ["page", "decision", "finding", "preference", "session", "note"].includes(node.type) ? node.type : "note";
-    const halo = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    halo.setAttribute("class", "node-halo");
-    halo.setAttribute("r", String(nodeRadius * 3));
-    halo.setAttribute("fill", "url(#map-glow-" + tone + ")");
-    const sheen = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    sheen.setAttribute("class", "node-sheen");
-    sheen.setAttribute("r", String(Math.max(0, nodeRadius - .75)));
-    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    const labelLeft = p.x > rect.width * .8;
-    text.setAttribute("x", String((nodeRadius + 4) * (labelLeft ? -1 : 1)));
-    text.setAttribute("text-anchor", labelLeft ? "end" : "start");
-    text.setAttribute("y", "4");
-    const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-    title.textContent = node.title || node.file || node.id;
-    const label = Array.from(title.textContent);
-    const maxLabel = rect.width < 680 ? 20 : 36;
-    text.textContent = label.length > maxLabel ? label.slice(0, maxLabel - 1).join("") + "…" : title.textContent;
-    g.append(title, halo, circle, sheen, text);
-    g.addEventListener("pointerdown", (event) => event.stopPropagation());
-    g.addEventListener("click", (event) => { event.stopPropagation(); selectNode(node, g); });
-    g.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectNode(node, g); } });
-    viewport.append(g);
-  }
-  if (!preserveView) { state.pan = { x: 0, y: 0 }; state.scale = 1; }
-  updateViewport();
-  if (restoreFocus) focusGraphNode(focusedId);
-}
-
-function focusGraphNode(id) {
-  const node = id && Array.from($("viewport").children).find((element) => element.getAttribute("data-node-id") === id);
-  (node || $("query")).focus({ preventScroll: true });
-}
-
-function nodeColor(node) {
-  if (node.nodeKind === "unresolved") return "var(--node-unresolved)";
-  return ({ page: "var(--node-page)", decision: "var(--node-decision)", finding: "var(--node-finding)", preference: "var(--node-preference)", session: "var(--node-session)", note: "var(--node-note)" })[node.type] || "var(--node-note)";
-}
-
-function createDocumentEditor(options) {
-  const editorState = {
-    generation: options.generation,
-    selectionToken: options.generation,
-    nodeId: options.nodeId,
-    documentId: options.documentId,
-    exactContent: "",
-    contentHash: "",
-    frontmatterPrefix: "",
-    newline: "\\n",
-    trailingNewline: false,
-    savedBody: "",
-    savedTitle: "",
-    title: "",
-    draft: "",
-    dirty: false,
-    draftRevision: 0,
-    saveTimer: null,
-    saveInFlight: null,
-    saveQueued: false,
-    saveStatus: "idle",
-    saveError: "",
-    loaded: false,
-    editing: false,
-    navigationPending: false,
-    autoSaveBlocked: false,
-    unconfirmedSave: false,
-    reconcileToken: 0,
-    cancelled: false,
-  };
-
-  const emit = () => { if (!editorState.cancelled) options.onChange(editorState); };
-  const clearSaveTimer = () => {
-    if (editorState.saveTimer !== null) options.clearTimer(editorState.saveTimer);
-    editorState.saveTimer = null;
-  };
-  const isCurrent = () => !editorState.cancelled && options.isCurrent(editorState.generation, editorState.documentId);
-
-  function hydrate(payload) {
-    const parts = options.splitDocument(String(payload.content || ""));
-    editorState.exactContent = String(payload.content || "");
-    editorState.contentHash = String(payload.contentHash || "");
-    editorState.frontmatterPrefix = parts.frontmatterPrefix;
-    editorState.newline = parts.newline;
-    editorState.trailingNewline = parts.trailingNewline;
-    editorState.savedBody = parts.body;
-    editorState.savedTitle = String(payload.title || "");
-    editorState.title = editorState.savedTitle;
-    editorState.draft = parts.body;
-    editorState.dirty = false;
-    editorState.draftRevision = 0;
-    editorState.saveStatus = "idle";
-    editorState.saveError = "";
-    editorState.loaded = true;
-    editorState.autoSaveBlocked = false;
-    editorState.unconfirmedSave = false;
-    emit();
-  }
-
-  function scheduleSave() {
-    clearSaveTimer();
-    if (!editorState.dirty || editorState.autoSaveBlocked || editorState.saveInFlight || !isCurrent()) return;
-    editorState.saveTimer = options.setTimer(() => {
-      editorState.saveTimer = null;
-      startSave();
-    }, options.debounceMs);
-  }
-
-  function input(value) {
-    if (!editorState.loaded || editorState.cancelled) return;
-    editorState.draft = String(value).replace(/\\r\\n/g, "\\n");
-    editorState.trailingNewline = /\\n$/.test(editorState.draft);
-    editorState.draftRevision += 1;
-    editorState.dirty = editorState.draft !== editorState.savedBody || editorState.title !== editorState.savedTitle || editorState.unconfirmedSave;
-    if (editorState.saveInFlight) editorState.saveQueued = true;
-    if (editorState.autoSaveBlocked) {
-      editorState.saveStatus = "failed";
-    } else {
-      editorState.saveStatus = editorState.saveInFlight ? "saving" : editorState.dirty ? "editing" : "saved";
-      scheduleSave();
-    }
-    emit();
-  }
-
-  function inputTitle(value) {
-    if (!editorState.loaded || editorState.cancelled) return;
-    editorState.title = String(value);
-    // A rejected duplicate did not write anything; a corrected name can autosave.
-    if (["duplicate_title", "invalid_title"].includes(editorState.saveErrorCode)) {
-      editorState.autoSaveBlocked = false;
-      editorState.saveError = "";
-      editorState.saveErrorCode = "";
-    }
-    input(editorState.draft);
-  }
-
-  function composeDraft(body, title) {
-    const prefix = title !== editorState.savedTitle
-      ? withEditableTitle(editorState.frontmatterPrefix, title, editorState.newline)
-      : editorState.frontmatterPrefix;
-    return options.composeDocument(prefix, body, editorState.newline);
-  }
-
-  function setEditing(value) {
-    const endedEditing = editorState.editing && !value;
-    editorState.editing = Boolean(value);
-    if (editorState.editing && editorState.saveStatus !== "saving" && editorState.saveStatus !== "failed" && editorState.saveStatus !== "saved") editorState.saveStatus = "editing";
-    if (!editorState.editing && !editorState.dirty && editorState.saveStatus === "editing") editorState.saveStatus = "idle";
-    emit();
-    if (endedEditing && editorState.saveStatus === "saved" && !editorState.dirty && !editorState.saveInFlight && !editorState.navigationPending) reconcile();
-  }
-
-  function setNavigationPending(value) {
-    editorState.navigationPending = Boolean(value);
-    emit();
-  }
-
-  async function attemptSave() {
-    let body = editorState.draft;
-    let revision = editorState.draftRevision;
-    let title = editorState.title;
-    let content = composeDraft(body, title);
-    try {
-      const payload = await options.writeDocument(editorState.documentId, content, editorState.contentHash);
-      return { payload, body, title, revision, content };
-    } catch (error) {
-      if (!isCurrent() || Number(error && error.status) !== 412 || options.conflictRetry === false) throw error;
-
-      // TODO(temporary last-write-wins): replace this one-retry overwrite with visible conflict/merge UX.
-      const latest = await options.readDocument(editorState.documentId);
-      if (!isCurrent()) throw new Error("Document selection changed during conflict refresh.");
-      const latestParts = options.splitDocument(String(latest.content || ""));
-      editorState.exactContent = String(latest.content || "");
-      editorState.frontmatterPrefix = latestParts.frontmatterPrefix;
-      editorState.newline = latestParts.newline;
-      // Refresh the title baseline too. After a lost response, undoing a rename
-      // still has to overwrite the possibly committed title, not silently keep it.
-      const retainTitleDraft = editorState.title !== editorState.savedTitle || editorState.unconfirmedSave;
-      if (typeof latest.title === "string") editorState.savedTitle = latest.title;
-      if (!retainTitleDraft) editorState.title = editorState.savedTitle;
-      editorState.contentHash = String(latest.contentHash || "");
-      body = editorState.draft;
-      revision = editorState.draftRevision;
-      title = editorState.title;
-      content = composeDraft(body, title);
-      const payload = await options.writeDocument(editorState.documentId, content, editorState.contentHash);
-      return { payload, body, title, revision, content };
-    }
-  }
-
-  async function runSaveLoop() {
-    while (editorState.dirty && isCurrent()) {
-      editorState.saveQueued = false;
-      editorState.saveStatus = "saving";
-      editorState.saveError = "";
-      emit();
-      let result;
-      try {
-        result = await attemptSave();
-      } catch (error) {
-        if (!isCurrent()) return false;
-        editorState.saveStatus = "failed";
-        editorState.saveError = String(error && error.message ? error.message : error);
-        editorState.saveErrorCode = error && error.code;
-        editorState.autoSaveBlocked = true;
-        // A failed response may hide a committed write. Even undoing to the previous
-        // body needs an explicit retry before we can confirm persistence or leave.
-        editorState.unconfirmedSave = editorState.unconfirmedSave || !["duplicate_title", "invalid_title"].includes(editorState.saveErrorCode);
-        editorState.dirty = true;
-        editorState.saveQueued = false;
-        emit();
-        return false;
-      }
-      if (!isCurrent()) return false;
-      if (!result.payload || typeof result.payload.newContentHash !== "string") {
-        editorState.saveStatus = "failed";
-        editorState.saveError = "Save response did not include a new content hash.";
-        editorState.autoSaveBlocked = true;
-        editorState.unconfirmedSave = true;
-        editorState.dirty = true;
-        emit();
-        return false;
-      }
-      editorState.contentHash = result.payload.newContentHash;
-      editorState.exactContent = result.content;
-      editorState.savedBody = result.body;
-      editorState.savedTitle = result.title;
-      editorState.frontmatterPrefix = options.splitDocument(result.content).frontmatterPrefix;
-      editorState.unconfirmedSave = false;
-      editorState.dirty = editorState.draft !== editorState.savedBody || editorState.title !== editorState.savedTitle;
-      editorState.trailingNewline = /\\n$/.test(editorState.draft);
-      editorState.saveStatus = "saved";
-      editorState.saveError = "";
-      editorState.autoSaveBlocked = false;
-      if (options.onSaved) options.onSaved(result.payload);
-      emit();
-    }
-    return !editorState.dirty && isCurrent();
-  }
-
-  function startSave() {
-    clearSaveTimer();
-    if (!editorState.dirty || editorState.autoSaveBlocked || !isCurrent()) return editorState.saveInFlight || Promise.resolve(!editorState.dirty);
-    if (editorState.saveInFlight) {
-      editorState.saveQueued = true;
-      emit();
-      return editorState.saveInFlight;
-    }
-    const operation = runSaveLoop();
-    editorState.saveInFlight = operation;
-    operation.then((saved) => {
-      if (editorState.saveInFlight !== operation) return;
-      editorState.saveInFlight = null;
-      emit();
-      if (saved && (!editorState.editing || options.persistentEditing) && !editorState.navigationPending) reconcile();
-    });
-    return operation;
-  }
-
-  async function flush() {
-    clearSaveTimer();
-    if (editorState.autoSaveBlocked && editorState.dirty) return false;
-    if (editorState.dirty && !editorState.saveInFlight) startSave();
-    if (editorState.saveInFlight) await editorState.saveInFlight;
-    return !editorState.dirty && editorState.saveStatus !== "failed";
-  }
-
-  function retry() {
-    if (!editorState.dirty || !isCurrent()) return Promise.resolve(true);
-    editorState.autoSaveBlocked = false;
-    editorState.saveError = "";
-    return startSave();
-  }
-
-  async function reconcile() {
-    if (!isCurrent() || editorState.dirty || (editorState.editing && !options.persistentEditing) || editorState.saveInFlight || editorState.navigationPending) return;
-    const token = ++editorState.reconcileToken;
-    const revision = editorState.draftRevision;
-    try {
-      const latest = await options.readDocument(editorState.documentId);
-      if (!isCurrent() || token !== editorState.reconcileToken || revision !== editorState.draftRevision || editorState.dirty || (editorState.editing && !options.persistentEditing) || editorState.saveInFlight || editorState.navigationPending) return;
-      const parts = options.splitDocument(String(latest.content || ""));
-      // A persistent editor must never replace its body/caret with another writer's version.
-      // Leave its previous hash intact so the next write goes through the explicit conflict policy.
-      if (options.persistentEditing && parts.body !== editorState.draft) return;
-      editorState.exactContent = String(latest.content || "");
-      editorState.contentHash = String(latest.contentHash || editorState.contentHash);
-      editorState.frontmatterPrefix = parts.frontmatterPrefix;
-      editorState.newline = parts.newline;
-      editorState.trailingNewline = parts.trailingNewline;
-      editorState.savedBody = parts.body;
-      if (typeof latest.title === "string") editorState.title = editorState.savedTitle = latest.title;
-      editorState.draft = parts.body;
-      editorState.saveStatus = "saved";
-      emit();
-    } catch {
-      // The confirmed PUT remains saved; a later document GET can reconcile canonical frontmatter.
-    }
-  }
-
-  function hasPending() {
-    return editorState.dirty || Boolean(editorState.saveInFlight);
-  }
-
-  function cancel() {
-    clearSaveTimer();
-    editorState.cancelled = true;
-    editorState.reconcileToken += 1;
-  }
-
-  return { state: editorState, hydrate, input, inputTitle, setEditing, setNavigationPending, startSave, flush, retry, reconcile, hasPending, cancel };
-}
-
-function splitEditableDocument(content) {
-  const exact = String(content || "");
-  const newline = exact.includes("\\r\\n") ? "\\r\\n" : "\\n";
-  const frontmatter = exact.match(/^---(?:\\r\\n|\\n)[\\s\\S]*?(?:\\r\\n|\\n)---(?:(?:\\r\\n|\\n)|$)/);
-  const frontmatterPrefix = frontmatter ? frontmatter[0] : "";
-  const rawBody = exact.slice(frontmatterPrefix.length);
-  return {
-    frontmatterPrefix,
-    body: rawBody.replace(/\\r\\n/g, "\\n"),
-    newline,
-    trailingNewline: /(?:\\r\\n|\\n)$/.test(rawBody),
-  };
-}
-
-function composeEditableDocument(frontmatterPrefix, body, newline) {
-  const normalizedBody = String(body || "").replace(/\\r\\n/g, "\\n");
-  return String(frontmatterPrefix || "") + (newline === "\\r\\n" ? normalizedBody.replace(/\\n/g, "\\r\\n") : normalizedBody);
-}
 
 async function selectNode(node) {
   if (node.nodeKind === "unresolved") {
@@ -812,6 +334,7 @@ async function selectNode(node) {
 }
 
 async function requestEditorNavigation(action) {
+  if (documentActions.isBusy()) return false;
   if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return false;
   referenceAutocomplete.dismiss();
   const editor = state.editor;
@@ -836,54 +359,11 @@ function isValidMemoryDocumentId(value) {
   return typeof value === "string" && ${MEMORY_DOCUMENT_ID_PATTERN}.test(value);
 }
 
-function queueGraphLayout(delay, restoreSelection = false) {
-  if (!state.graph || state.view !== "graph") return;
-  if (state.layoutTimer) window.clearTimeout(state.layoutTimer);
-  state.layoutTimer = window.setTimeout(() => {
-    state.layoutTimer = null;
-    if (state.view !== "graph") return;
-    render(state.graph, true);
-    if (restoreSelection) focusGraphNode(state.selected);
-  }, delay || 0);
-}
-
-// SVG has no viewBox: its local units match CSS pixels. Compensate pan using
-// the clamped scale ratio so the chosen graph point stays under the anchor.
-function zoomGraph(factor, clientX, clientY) {
-  const rect = $("graph").getBoundingClientRect();
-  const anchor = {
-    x: clientX === undefined ? rect.width / 2 : clientX - rect.left,
-    y: clientY === undefined ? rect.height / 2 : clientY - rect.top,
-  };
-  const scale = Math.max(.2, Math.min(4, state.scale * factor));
-  const ratio = scale / state.scale;
-  state.pan = {
-    x: anchor.x - (anchor.x - state.pan.x) * ratio,
-    y: anchor.y - (anchor.y - state.pan.y) * ratio,
-  };
-  state.scale = scale;
-  updateViewport();
-}
-
-function onGraphWheel(event) {
-  if (!event.deltaY) return;
-  event.preventDefault();
-  zoomGraph(event.deltaY < 0 ? 1.1 : .9, event.clientX, event.clientY);
-}
-
-const svg = $("graph");
-svg.addEventListener("wheel", onGraphWheel, { passive: false });
-svg.addEventListener("pointerdown", (event) => { state.dragging = { x: event.clientX, y: event.clientY, pan: { ...state.pan } }; svg.setPointerCapture(event.pointerId); });
-svg.addEventListener("pointermove", (event) => { if (!state.dragging) return; state.pan = { x: state.dragging.pan.x + event.clientX - state.dragging.x, y: state.dragging.pan.y + event.clientY - state.dragging.y }; updateViewport(); });
-svg.addEventListener("pointerup", () => { state.dragging = null; });
-$("zoom-in").addEventListener("click", () => zoomGraph(1.2));
-$("zoom-out").addEventListener("click", () => zoomGraph(1 / 1.2));
-$("reset-view").addEventListener("click", () => { state.pan = { x: 0, y: 0 }; state.scale = 1; updateViewport(); });
-window.addEventListener("resize", () => queueGraphLayout(80));
-function updateViewport() { $("viewport").setAttribute("transform", "translate(" + state.pan.x + " " + state.pan.y + ") scale(" + state.scale + ")"); }
 
 ${dreamScript}
 ${notesScript}
+${documentActionsScript}
+if (!companionMode) showPage(initialEntry.url);
 ${companion ? companionScript : ""}
 </script>
 </body>

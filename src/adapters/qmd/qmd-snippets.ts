@@ -9,14 +9,6 @@ export interface SnippetRepair {
   snippet: string;
 }
 
-export function cleanQmdSnippet(snippet: string): string {
-  return snippet
-    .split(/\r?\n/)
-    .filter((line) => !line.startsWith("@@ "))
-    .join("\n")
-    .trim();
-}
-
 export interface CanonicalPrefix { lines: string[]; truncated: boolean; bytes?: number }
 
 /** Per-operation reuse only. Fixed cap, no eviction or cross-request invalidation.
@@ -76,24 +68,6 @@ export function excerptFromQmdWindow(snippet: string, lineStart: number, query: 
   if (/^@@\s+-\d+,\d+\s+@@/.test(lines[0] ?? "")) lines.shift();
   const result = selectEvidenceExcerpt(lines, { bodyStartLine: 1, lineStart: 1, lineEnd: lines.length, terms: excerptTerms(query) });
   return { ...result, lineStart: lineStart + result.lineStart - 1, lineEnd: lineStart + result.lineEnd - 1 };
-}
-
-export function looksLikeUnhelpfulSnippet(snippet: string): boolean {
-  const trimmed = snippet.trim();
-  if (!trimmed) return true;
-  if (looksLikeFrontmatterOnly(trimmed)) return true;
-  if (/##\s+Assistant\s*$/.test(trimmed)) return true;
-
-  const withoutHeadings = trimmed
-    .split(/\s*#{1,6}\s+[A-Za-z][^#]*?/)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
-  return withoutHeadings.length === 0;
-}
-
-function looksLikeFrontmatterOnly(snippet: string): boolean {
-  return /(^|\s)(source|question_id|session_id|date|question_type):\s/.test(snippet) && !/\b(User|Assistant|Note)\b/i.test(snippet);
 }
 
 // Repair is best-effort, not an unbounded full-document read. QMD's own snippet

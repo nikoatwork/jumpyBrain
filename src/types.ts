@@ -436,6 +436,17 @@ export interface MemoryDocumentUpdateResult extends MemoryDocumentTargetMetadata
   index?: MemoryDocumentIndexState;
 }
 
+export interface MemoryDocumentDeletePreview extends MemoryDocumentTargetMetadata {
+  id: string; file: string; title: string; contentHash: MemoryDocumentContentHash;
+  permanent: true;
+  references: { links: number; relationships: number; examples: string[]; truncated: boolean };
+}
+export interface MemoryDocumentDeleteResult extends MemoryDocumentTargetMetadata {
+  id: string; file: string; removed: true; oldContentHash: MemoryDocumentContentHash;
+  indexed: false; index: MemoryDocumentIndexState;
+  indexing: { status: "pending" | "failed"; diagnostic?: string };
+}
+
 export interface DreamCursor {
   mtimeMs: number;
   mtime: string;

@@ -87,3 +87,30 @@ test("local pack validation reports missing and stale pre-refactor files", () =>
     /Local CLI package contents are invalid\./,
   );
 });
+
+// Keep this list independent of the validator so an omitted assertion fails.
+for (const resource of [
+  "install.sh", "uninstall.sh", "scripts/public-install.mjs", "scripts/public-uninstall.mjs",
+  "scripts/macos-companion.mjs", "scripts/qmd-install-check.mjs", "scripts/remote-target-origin.mjs",
+  ...["Companion.swift", "install.py", "update.py", "uninstall.py", "lifecycle.py",
+    "menu-update.mjs", "update-check.mjs", "gateway.mjs", "connections.mjs", "switch-coordinator.mjs"]
+    .map((file) => `integrations/macos-companion/${file}`),
+]) {
+  test(`local pack rejects omission of indispensable resource ${resource}`, () => {
+    const missing = `package/${resource}`;
+    assert.throws(() => validateLocalPackFiles(requiredLocalPackFiles.filter((file) => file !== missing)),
+      (error) => error.message.includes(missing));
+  });
+}
+
+for (const module of [
+  "adapters/http-server/browser-entry", "adapters/http-server/browser-theme",
+  "adapters/http-server/browser-transport", "adapters/http-server/document-controller",
+  "adapters/http-server/map-controller", "adapters/http-server/reference-policy",
+  "app/local-memory/connections", "core/document-id-format",
+]) {
+  test(`local pack rejects missing extracted module ${module}`, () => {
+    const omitted = `package/dist/${module}.js`;
+    assert.throws(() => validateLocalPackFiles(requiredLocalPackFiles.filter(file => file !== omitted)), /Missing required/);
+  });
+}

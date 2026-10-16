@@ -63,3 +63,9 @@ core canonical link extraction, normalization, lookup, and target resolution
 ```
 
 Core owns link semantics but not graph presentation. App code assembles document nodes and edges, then removes local-root details for remote packets. Runtime exposes the local operation. The HTTP adapter owns query parsing, authentication, JSON responses, and the content-free browser shell at `/` and `/graph`, including framework-free search, locally bundled vanilla Lexical editing, and guarded navigation state that compose the existing search and document GET/PUT protocols. Browser editing must not move canonical Markdown, protected-frontmatter, or optimistic-concurrency policy out of core/app seams.
+
+## Boundary verification
+
+Deterministic source-boundary and package-entrypoint tests enforce these directions. Pure boundary property tests use fixed `fast-check` settings from `test/property-helpers.js` in normal `npm test`; they must not spawn QMD or depend on paid/model behavior. Integration tests separately verify runtime, canonical publication, and adapter behavior.
+
+For browser changes, follow the [HTTP adapter map](adapters/http-server/http-server.docs.md) to the [browser/editor contract](adapters/http-server/browser.docs.md). For retrieval lifecycle changes, start with [local memory](app/local-memory/local-memory.docs.md), then the [QMD adapter](adapters/qmd/qmd.docs.md); remote deadlines belong to the [HTTP client](adapters/http-client/http-client.docs.md).

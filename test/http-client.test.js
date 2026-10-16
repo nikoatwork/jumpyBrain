@@ -179,3 +179,98 @@ test("HTTP client sends rebuild only and preserves readiness/retrieval across in
   assert.throws(() => transport.indexMemory({ indexing: { mode: "semantic", model: "/private/model" } }), /server-local/);
   assert.equal(calls.length, 4);
 });
+
+// A controlled clock proves operation ownership without waiting for real deadlines.
+function deadlineClock(t) {
+  let now = 0;
+  const active = new Map();
+  const delays = [];
+  t.mock.method(globalThis, "setTimeout", (callback, delay) => {
+    const handle = {};
+    delays.push(delay);
+    active.set(handle, { callback, at: now + delay });
+    return handle;
+  });
+  t.mock.method(globalThis, "clearTimeout", handle => active.delete(handle));
+  return { delays, active, advance(ms) {
+    now += ms;
+    for (const [handle, timer] of [...active]) if (timer.at <= now) {
+      active.delete(handle);
+      timer.callback();
+    }
+  } };
+}
+
+for (const readOnly of [false, true]) test(`rich retrieval owns one custom deadline including preflight=${readOnly}`, async t => {
+  const { createRemoteMemoryTransport } = await loadClientModule();
+  const clock = deadlineClock(t);
+  const signals = [];
+  const transport = createRemoteMemoryTransport({ url: "https://memory.example", apiKey: "secret",
+    fetchImpl: async (url, { signal }) => {
+      signals.push(signal);
+      clock.advance(readOnly && signals.length === 1 ? 60_000 : 75_000);
+      if (String(url).endsWith("/status")) return jsonResponse({ readOnlyRetrieval: "lexical-immutable-v1" });
+      assert.equal(signal.aborted, false, "the nested default must not cap the caller deadline");
+      return jsonResponse({ results: [], retrieval: { warnings: ["read_only_index"] } });
+    },
+  });
+  await transport.searchMemory("query", 5, { timeoutMs: 180_000, readOnly });
+  assert.deepEqual(clock.delays, [180_000]);
+  assert.equal(new Set(signals).size, 1);
+  assert.equal(clock.active.size, 0);
+});
+
+for (const abort of [false, true]) test(`retrieval keeps deadline and caller cancellation through response body: abort=${abort}`, async t => {
+  const { createRemoteMemoryTransport } = await loadClientModule();
+  const clock = deadlineClock(t);
+  const caller = new AbortController();
+  const added = t.mock.method(caller.signal, "addEventListener");
+  const removed = t.mock.method(caller.signal, "removeEventListener");
+  const transport = createRemoteMemoryTransport({ url: "https://memory.example", apiKey: "secret",
+    fetchImpl: async (_url, { signal }) => ({ ok: true, json: async () => {
+      assert.equal(signal.aborted, false);
+      if (abort) caller.abort(new Error("private caller reason"));
+      else clock.advance(120_000);
+      assert.equal(signal.aborted, true);
+      throw signal.reason;
+    } }),
+  });
+  await assert.rejects(transport.searchMemory("query", 5, { timeoutMs: 120_000, signal: caller.signal }),
+    error => error.code === (abort ? "execution_aborted" : "execution_timeout") && !error.message.includes("private"));
+  assert.deepEqual(clock.delays, [120_000]);
+  assert.equal(clock.active.size, 0);
+  assert.equal(added.mock.callCount(), 1);
+  assert.equal(removed.mock.callCount(), 1);
+});
+
+test("compact read-only preflight shares the retrieval deadline and signal", async t => {
+  const { createRemoteMemoryTransport } = await loadClientModule();
+  const clock = deadlineClock(t);
+  const signals = [];
+  const transport = createRemoteMemoryTransport({ url: "https://memory.example", apiKey: "secret",
+    fetchImpl: async (url, { signal }) => {
+      signals.push(signal);
+      if (String(url).endsWith("/status")) {
+        clock.advance(75_000);
+        return jsonResponse({ readOnlyRetrieval: "lexical-immutable-v1" });
+      }
+      clock.advance(45_000);
+      throw signal.reason;
+    },
+  });
+  await assert.rejects(transport.compactSearchMemory("query", 5, { timeoutMs: 120_000, readOnly: true }), error => error.code === "execution_timeout");
+  assert.equal(signals.length, 2);
+  assert.equal(new Set(signals).size, 1);
+  assert.deepEqual(clock.delays, [120_000]);
+  assert.equal(clock.active.size, 0);
+});
+
+test("index and legacy reads retain their single default deadlines", async t => {
+  const { createRemoteMemoryTransport } = await loadClientModule();
+  const clock = deadlineClock(t);
+  const transport = createRemoteMemoryTransport({ url: "https://memory.example", apiKey: "secret", fetchImpl: async () => jsonResponse({}) });
+  await transport.indexMemory();
+  await transport.memoryRootStatus();
+  assert.deepEqual(clock.delays, [610_000, 70_000]);
+  assert.equal(clock.active.size, 0);
+});

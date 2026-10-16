@@ -3,8 +3,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 
 const result = await build({
-  entryPoints: ["src/adapters/http-server/lexical-editor.ts"],
-  bundle: true, minify: true, platform: "browser", format: "iife", target: "es2022",
+  entryPoints: ["src/adapters/http-server/browser-entry.ts"],
+  bundle: true, minify: true, platform: "browser", format: "iife", globalName: "JumpyBrainBrowser", target: "es2022",
   define: { "process.env.NODE_ENV": '"production"' },
   legalComments: "eof", write: false, metafile: true,
 });

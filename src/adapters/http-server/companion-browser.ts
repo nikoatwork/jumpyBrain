@@ -9,7 +9,7 @@ export const companionStyles = String.raw`
   #companion-fields { border: 0; padding: 0; margin: 0; }
   #companion-form label { display: block; margin: 16px 0; }
   #companion-form input:not([type=checkbox]), #companion-form select { display: block; width: 100%; margin-top: 6px; }
-  #companion-form select { padding: 8px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; }
+  #companion-form select { padding: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; }
   #companion-form input[type=checkbox] { height: auto; }
   #companion-banner { padding: 8px 24px; margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
   #companion-banner[data-error=true], #companion-feedback[data-error=true] { color: var(--error-ink); }
@@ -48,7 +48,7 @@ export const companionMarkup = String.raw`
           <label>Memory server URL<input id="companion-url" type="url" placeholder="https://memory.example.com" autocomplete="off" /></label>
           <label>Access key<input id="companion-key" type="password" autocomplete="new-password" /></label>
           <p>Write-only Keychain credential. Leave blank when editing to preserve the existing key.</p>
-          <label><input id="companion-writes" type="checkbox" /> I explicitly authorize editing, creating notes, and refreshing the search index on this remote brain.</label>
+          <label><input id="companion-writes" type="checkbox" /> I explicitly authorize editing, creating and deleting notes, and refreshing the search index on this remote brain.</label>
           <p>Saving, testing, or selecting a connection does not authorize global/team memory writes.</p>
         </div>
         <div class="companion-actions">
@@ -94,6 +94,18 @@ companionBanner.setAttribute("role", "status");
 companionBanner.setAttribute("aria-live", "polite");
 companionBanner.hidden = true;
 document.querySelector(".app-nav").after(companionBanner);
+const companionRecovery = document.createElement("div");
+companionRecovery.id = "companion-recovery";
+companionRecovery.className = "companion-actions";
+companionRecovery.hidden = true;
+const sessionRetry = document.createElement("button");
+sessionRetry.className = "quiet-button"; sessionRetry.textContent = "Retry companion session";
+sessionRetry.addEventListener("click", () => startCompanion());
+const sessionCopy = document.createElement("button");
+sessionCopy.className = "quiet-button"; sessionCopy.textContent = "Recover draft";
+sessionCopy.addEventListener("click", () => documentActions.openRecovery());
+companionRecovery.append(sessionRetry, sessionCopy);
+companionBanner.after(companionRecovery);
 const companionActiveLabel = document.createElement("span");
 companionActiveLabel.id = "companion-active";
 $("home-link").after(companionActiveLabel);
@@ -104,6 +116,9 @@ function companionMessage(text, error = false) {
   companionBanner.textContent = text;
   companionBanner.hidden = !text;
   companionBanner.dataset.error = String(error);
+  companionRecovery.hidden = !companionSessionFailed;
+  sessionCopy.hidden = !state.editor?.state.loaded;
+  sessionRetry.disabled = companionStarting;
   $("companion-feedback").textContent = text;
   $("companion-feedback").dataset.error = String(error);
 }
@@ -148,6 +163,7 @@ function companionLock(value) {
   if (!value && state.editor?.state.navigationPending && !navigation.isBusy()) state.editor.setNavigationPending(false);
   // Healthy polls still sync permissions, but must not dismiss live interactions.
   if (enteringFrozen) {
+    documentActions.close();
     cancelReferenceInteraction();
     if (searchDialog.open) closeSearch(false);
     if (dreamDialog.open) closeDreamHandoff(false);
@@ -181,7 +197,7 @@ async function companionControl(route, body, options = {}) {
 function companionFence() {
   companionSessionFailed = true;
   companionLock(true);
-  companionMessage("This tab is fenced from memory requests. Your draft is retained; reconnect the companion session in Settings. Do not reload an unsaved draft.", true);
+  companionMessage("This tab is fenced from memory requests. Your draft is retained. Use Recover draft to copy it, then reopen the editor from the companion menu for a fresh session. Retry in Settings only works while the session cookie is valid. Do not reload an unsaved draft.", true);
   $("companion-reconnect").hidden = false;
   renderCompanionConnection();
   renderCompanionSettings();
@@ -228,12 +244,12 @@ async function companionBarrier(switchId) {
   // An already-started create/navigation/load must settle first. Never abandon
   // its result or acknowledge a lost-response idempotent capture.
   const deadline = Date.now() + 10000;
-  while (creatingNote || navigation.isBusy() || companionNoteLoading || noteCapture.isInFlight()) {
+  while (documentActions.isBusy() || creatingNote || navigation.isBusy() || companionNoteLoading || noteCapture.isInFlight()) {
     if (companionState?.switchId !== switchId || companionState.phase !== "preparing") return;
     if (Date.now() >= deadline) break;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
-  let ok = !creatingNote && !navigation.isBusy() && !companionNoteLoading && !noteCapture.hasPending();
+  let ok = !documentActions.isBusy() && !creatingNote && !navigation.isBusy() && !companionNoteLoading && !noteCapture.hasPending();
   if (ok && state.editor) {
     const editor = state.editor;
     editor.setNavigationPending(true);
@@ -305,7 +321,7 @@ async function startCompanion() {
     companionLock(true);
     renderCompanionConnection();
     renderCompanionSettings();
-    companionMessage("Companion session unavailable. Reopen from the companion menu to obtain a fresh session, or retry an existing cookie. Your draft is retained.", true);
+    companionMessage("Companion session unavailable. Reopen the editor from the companion menu for a fresh session. Retry only works if the existing session cookie is still valid. Copy any draft before reloading; your draft is retained in this tab.", true);
     $("companion-reconnect").hidden = false;
     // Settings remain available even without a target/session; no initial memory request.
     if (!state.editor) {
@@ -319,6 +335,7 @@ async function startCompanion() {
   } finally {
     companionStarting = false;
     $("companion-reconnect").disabled = false;
+    sessionRetry.disabled = false;
   }
 }
 function companionFormKind() {

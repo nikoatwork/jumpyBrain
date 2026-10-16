@@ -54,6 +54,7 @@ async function setup(t) {
               const auto = startRemoteAutoIndexer({ root, indexRunner: runner, startTimer: false });
               try { return { tick: await auto.tick() }; } finally { auto.stop(); await runner.stop(); }
             })()
+          : action === "overview" ? await app.overviewMemory(root, { showFiles: true })
           : action === "status" ? await app.memoryStatus(root)
           : action === "search" ? await app.searchMemory(root, options.query ?? "quartz", 10, options)
           : (() => { throw new Error("unknown fixture action"); })();
@@ -566,3 +567,42 @@ test("full rebuild replaces corrupted content and inactive history atomically fr
   assert.equal((await f.state()).content[hash("quartz after git pull\n")], "quartz after git pull\n");
   assert.equal(existsSync(path.join(f.root, "jumpybrain.json")), false);
 });
+
+for (const scenario of ["same-path edit", "changed policy", "missing database", "pending publication"]) {
+  test(`overview observes shared freshness without repair: ${scenario}`, async t => {
+    const f = await setup(t);
+    await f.put("notes/alpha.md", "---\ntitle: Quartz\n---\nquartz original\n");
+    await f.run("index", { indexing: f.policy });
+    assert.equal((await f.run("overview")).index.stale, false);
+    if (scenario === "same-path edit") await f.put("notes/alpha.md", "---\ntitle: Quartz\n---\nquartz changed and longer\n");
+    if (scenario === "changed policy") {
+      const config = await json(path.join(f.root, "jumpybrain.json"));
+      config.indexing = { mode: "lexical" };
+      await f.put("jumpybrain.json", JSON.stringify(config));
+    }
+    if (scenario === "missing database") await rm(f.dbFile);
+    if (scenario === "pending publication") await writeFile(path.join(f.derived, "index-pending.json"), "pending");
+    const manifestBefore = await readFile(f.manifestFile, "utf8");
+    const eventsBefore = await f.events();
+    const overview = await f.run("overview");
+    const status = await f.run("status");
+    assert.notEqual(status.readiness.freshness, "fresh");
+    assert.equal(overview.index.stale, true);
+    assert.equal(overview.index.present, true);
+    assert.equal(overview.index.indexedDocuments, 1);
+    assert.equal(overview.index.unindexedDocuments, 0);
+    assert.equal(overview.files[0].indexed, true);
+    assert.ok(overview.warnings.some(warning => /index.*(stale|missing)/i.test(warning)));
+    assert.equal(await readFile(f.manifestFile, "utf8"), manifestBefore);
+    assert.deepEqual(await f.events(), eventsBefore);
+    if (scenario === "pending publication") {
+      assert.equal(await readFile(path.join(f.derived, "index-pending.json"), "utf8"), "pending");
+      await assert.rejects(f.run("search", { refresh: false }), /pending|publication|recover/i);
+    } else if (scenario !== "missing database") {
+      assert.notEqual((await f.run("search", { refresh: false })).readiness.freshness, "fresh");
+    } else {
+      assert.equal(existsSync(f.dbFile), false);
+      await assert.rejects(f.run("search", { refresh: false }));
+    }
+  });
+}

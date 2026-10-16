@@ -51,3 +51,6 @@ export type { LogseqMigrationResult } from "../app/migration/index.js";
 export type { DreamWorkflowConfig } from "../app/dream/index.js";
 
 export { resolveTemporalQuery } from "../core/retrieval-policy/temporal.js";
+
+export { previewMemoryDocumentDeletion, deleteMemoryDocument } from "../app/local-memory/index.js";
+export type { MemoryDocumentDeletePreview, MemoryDocumentDeleteResult } from "../types.js";

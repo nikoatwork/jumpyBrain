@@ -1,4 +1,4 @@
-import { readCanonicalMemoryDocumentById, readMarkdownDocuments, replaceCanonicalMemoryDocumentById, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
+import { readCanonicalMemoryDocumentById, discoverMarkdownIndexInputs, replaceCanonicalMemoryDocumentById, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
 import { withQmdOperation, readExecution, executionSignal, checkExecution, buildQmdIndex, loadManifest, recoverQmdIndex, searchQmdIndex } from "../../adapters/qmd/index.js";
 import { normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
@@ -60,9 +60,9 @@ export async function ensureMemoryIndexed(rootArg: string, options: ExecutionOpt
 
 async function indexResolvedMemory(root: string, options: IndexMemoryOptions, persistPolicy: boolean): Promise<IndexMemoryResult> {
   const sourceRoot = await readExecution(resolveIndexRoot(root));
-  const documents = await readExecution(readMarkdownDocuments(sourceRoot, executionSignal()));
+  const files = await readExecution(discoverMarkdownIndexInputs(sourceRoot, executionSignal()));
   checkExecution();
-  const manifest = await buildQmdIndex(root, documents, { ...options, sourceRoot, persistPolicy });
+  const manifest = await buildQmdIndex(root, files, { ...options, sourceRoot, persistPolicy });
   return { root, documents: manifest.documents.length, qmdCollection: manifest.qmdCollection,
     readiness: await retrievalReadiness(root, manifest), work: manifest.work };
 }
@@ -126,15 +126,6 @@ export async function updateMemoryDocument(
     );
   }
 
-  const current = await readCanonicalMemoryDocumentById(root, id);
-  if (current.contentHash !== ifMatch) {
-    throw new MemoryDocumentPreconditionError(
-      "precondition_failed",
-      "Document content hash is stale. Re-read the document before retrying the update.",
-      { id, file: current.file, currentContentHash: current.contentHash },
-    );
-  }
-
   try {
     return await replaceCanonicalMemoryDocumentById(root, id, content, { ifMatch, updatedAt: options.updatedAt });
   } catch (error) {
@@ -150,3 +141,5 @@ export async function updateMemoryDocument(
 export async function ensureMemoryDocumentIds(rootArg: string): Promise<ProcessMemoryResult> {
   return processMemory(rootArg, { mode: "ensure-ids", apply: true });
 }
+
+export { previewMemoryDocumentDeletion, deleteMemoryDocument } from "./document-delete.js";

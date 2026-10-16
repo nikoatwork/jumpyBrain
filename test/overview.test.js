@@ -111,3 +111,43 @@ async function writeFixtureMemory(root) {
     "secret body phrase gamma",
   ].join("\n"));
 }
+
+test("overview safely summarizes uninitialized and incompatible roots", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-overview-incompatible-"));
+  try {
+    for (const config of [undefined, { schemaVersion: 999 }]) {
+      if (config) await writeFile(path.join(root, "jumpybrain.json"), JSON.stringify(config));
+      const overview = await overviewMemory(root);
+      assert.equal(overview.compatible, !config);
+      assert.equal(overview.index.stale, true);
+      assert.equal(overview.documents, 0);
+      if (config) assert.ok(overview.warnings.some(warning => /not compatible/.test(warning)));
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("overview and graph share repeated/self/ambiguous connection policy", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-connections-"));
+  try {
+    await initializeMemoryRoot(root);
+    await writeFile(path.join(root, "notes/a.md"), "# A\n[[b]] [[b]] [[a]] [[shared]] [[missing]] [[missing]]\n");
+    await writeFile(path.join(root, "notes/b.md"), "# B\n[a](a.md)\n");
+    await writeFile(path.join(root, "notes/shared.md"), "# Shared\n");
+    await writeFile(path.join(root, "pages/shared.md"), "# Shared too\n");
+    const { graphMemory } = await import("../dist/runtime/index.js");
+    const overview = await overviewMemory(root, { connections: true });
+    const graph = await graphMemory(root);
+    const resolved = graph.edges.filter(edge => edge.resolved).map(({ source, target, kind, count }) => ({ source, target, kind, count }));
+    assert.deepEqual(overview.connections.edges, resolved);
+    assert.equal(overview.connections.edgeCount, 2);
+    assert.equal(overview.connections.edges.find(edge => edge.kind === "wiki-link").count, 2);
+    assert.equal(overview.connections.unresolvedLinks, 3);
+    assert.equal(graph.stats.unresolvedLinks, 2);
+    assert.equal(overview.connections.orphans, graph.stats.orphans);
+    assert.ok(graph.edges.every(edge => edge.source !== edge.target));
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

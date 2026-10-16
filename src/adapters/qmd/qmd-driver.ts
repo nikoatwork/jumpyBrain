@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { withQmdOperation, readExecution, executionSignal, checkExecution, MemoryExecutionError } from "./qmd-execution.js";
 import { readFile, stat } from "node:fs/promises";
 import { parseFrontmatter } from "../../core/frontmatter.js";
+import { readCanonicalMarkdownIndexInput, type CanonicalMarkdownIndexInput } from "../../core/canonical/index.js";
 import { automaticIndexingPolicy, indexingPolicy, indexingPolicyMatches } from "../../core/memory-root/index.js";
 import { withReadOnlyQmdGeneration } from "./qmd-read-only.js";
 import { assertQmdPublished, qmdReadiness, recordQmdFailure, recoverQmdPublication, updateQmdGeneration, withQmdLock } from "./qmd-lifecycle.js";
@@ -10,7 +11,7 @@ import { evidenceDate, evidenceInInterval } from "../../core/retrieval-policy/te
 import type { ExecutionOptions, TemporalRetrieval, TemporalResolution } from "../../types.js";
 import type { IndexManifest, IndexMemoryOptions, IndexingPolicy, IndexedDocument, MarkdownDocument, RetrievalDepth, RetrievalOutcome, ScoreBreakdown, SearchResult } from "../../types.js";
 import { QMD_DREAM_COLLECTION, manifestPath, normalizeQmdLookupPath, resolveQmdSdk } from "./qmd-cli.js";
-import { hasQueryConstraints, hasQueryExclusions, qmdLexQueries, searchWithQmdCli, tokenize, type QmdCandidate } from "./qmd-query.js";
+import { hasQueryConstraints, hasQueryExclusions, searchWithQmdCli, tokenize, type QmdCandidate } from "./qmd-query.js";
 import {
   clampScore,
   dateStats,
@@ -31,7 +32,6 @@ import {
   canonicalPrefixCache,
   type CanonicalPrefix,
   excerptFromQmdWindow,
-  looksLikeUnhelpfulSnippet,
   neighborSnippetFromOriginal,
   snippetFromOriginalBody,
 } from "./qmd-snippets.js";
@@ -49,7 +49,7 @@ export interface QmdManifest extends IndexManifest {
   sources?: Array<{ file: string; size: number; mtimeMs: number; ctimeMs: number }>;
 }
 
-export async function buildQmdIndex(root: string, documents: MarkdownDocument[], options: IndexMemoryOptions & { sourceRoot?: string; persistPolicy?: boolean } = {}): Promise<QmdManifest & { work?: import("./qmd-worker.js").WorkerWork }> {
+export async function buildQmdIndex(root: string, documents: Array<string | CanonicalMarkdownIndexInput>, options: IndexMemoryOptions & { sourceRoot?: string; persistPolicy?: boolean } = {}): Promise<QmdManifest & { work?: import("./qmd-worker.js").WorkerWork }> {
   return withQmdOperation(root, "index", options, () => withQmdLock(root, async () => {
     try {
       const legacy = truthy(process.env.JUMPYBRAIN_QMD_EMBED)
@@ -61,13 +61,11 @@ export async function buildQmdIndex(root: string, documents: MarkdownDocument[],
       const sources = [];
       for (const doc of documents) {
         checkExecution();
-        const before = await readExecution(stat(doc.absolutePath));
-        const content = await readExecution(readFile(doc.absolutePath, { encoding: "utf8", signal: executionSignal() }));
-        const after = await readExecution(stat(doc.absolutePath));
-        if (before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs || before.size !== after.size) throw new Error("Canonical memory changed during snapshot; retry index.");
-        const parsed = parseFrontmatter(content);
-        snapshots.push({ ...doc, frontmatter: parsed.frontmatter, bodyStartLine: parsed.bodyStartLine, content });
-        sources.push({ file: doc.relativePath, size: after.size, mtimeMs: after.mtimeMs, ctimeMs: after.ctimeMs });
+        const snapshot = await readExecution(readCanonicalMarkdownIndexInput(options.sourceRoot ?? root, typeof doc === "string" ? { absolutePath: doc } : doc, executionSignal()));
+        if (!snapshot) continue;
+        const { sourceStat, ...input } = snapshot;
+        snapshots.push(input);
+        sources.push({ file: snapshot.relativePath, ...sourceStat });
       }
       const model = policy.mode === "semantic" ? await readExecution(stat(policy.model!)) : undefined;
       const manifest: QmdManifest = {
@@ -393,11 +391,3 @@ function stableResultId(file: string, lineStart: number, snippet: string): strin
 function truthy(value: string | undefined): boolean {
   return value === "1" || value === "true" || value === "yes";
 }
-
-export const qmdIndexInternalsForTests = {
-  normalizeQmdLookupPath,
-  qmdLexQueries,
-  looksLikeUnhelpfulSnippet,
-  dateStats,
-  temporalBoostFor,
-};

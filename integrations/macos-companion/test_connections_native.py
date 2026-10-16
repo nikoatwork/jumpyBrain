@@ -54,7 +54,7 @@ extension Companion {
             menu.items.map { $0.isSeparatorItem ? "---" : $0.title }
         }
         check(titles(menu) == ["Starting…", "---", "Open Editor in Chrome", "Settings…", "---",
-                               "App", "Troubleshooting", "---", "Quit jumpyBrain…"], "compact top-level order")
+                               "App", "Troubleshooting", "---", "Quit jumpyBrain"], "compact top-level order")
         check(titles(appMenu) == ["Start at Login", "Updates: not checked", "Check for Updates",
                                   "Update jumpyBrain…", "Local build · fixture"], "App submenu order")
         check(titles(troubleshootingMenu) == ["Restart Server…", "Open Memory Folder", "Show Logs"],

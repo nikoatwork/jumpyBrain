@@ -142,3 +142,17 @@ test("unsafe traversal never resolves through normalization, root stripping or b
   assert.equal(resolve(lookup, "../../notes/ledger.md", "markdown-link", "pages/nested/source.md"), "notes/ledger.md");
   assert.equal(resolve(lookup, "notes/../notes/ledger.md", "wiki-link"), "notes/ledger.md");
 });
+
+test('exact metadata titles resolve hashed filenames and block ambiguous fallbacks', () => {
+  const second = 'mem_12345678-1234-1234-1234-123456789013';
+  const docs = [{ relativePath: 'notes/dated-hash.md', frontmatter: { id, title: 'Café plan' } }];
+  assert.equal(resolve(buildCanonicalLinkTargetLookup(docs), 'Ｃafé plan', 'wiki-link'), 'notes/dated-hash.md');
+  docs.push({ relativePath: 'pages/café plan.md', frontmatter: { id: second, title: 'Other name' } });
+  assert.equal(resolve(buildCanonicalLinkTargetLookup(docs), 'Café plan', 'wiki-link'), 'notes/dated-hash.md', 'title precedes coincidental filename');
+  docs.push({ relativePath: 'notes/duplicate.md', frontmatter: { title: 'Café plan' } });
+  assert.equal(resolve(buildCanonicalLinkTargetLookup(docs), 'Café plan', 'wiki-link'), undefined);
+  const renamed = buildCanonicalLinkTargetLookup([{ relativePath: 'notes/dated-hash.md', frontmatter: { id, title: 'New name' } }]);
+  assert.equal(resolve(renamed, 'New name', 'wiki-link'), 'notes/dated-hash.md');
+  assert.equal(resolve(renamed, 'Café plan', 'wiki-link'), undefined);
+  assert.equal(resolve(renamed, 'dated-hash', 'wiki-link'), 'notes/dated-hash.md');
+});

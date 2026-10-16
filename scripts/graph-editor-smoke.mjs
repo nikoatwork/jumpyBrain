@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { indexMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
@@ -61,7 +61,7 @@ try {
   assert.equal(indexed.documents, 2, "disposable QMD index should include both fixtures");
 
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
-  browser = await launchBrowser(chromium);
+  browser = await launchPlaywrightChromium({ chromium });
 
   await validateDesktop();
   await validateMobile();
@@ -433,15 +433,15 @@ async function openEmptyHome(page, label) {
 async function assertSharedPalette(page) {
   // The shell shares these tokens even when a view/dialog is not yet visible.
   for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "#note-editor", "#note-name", "#note-search", "#connection", "#dream-handoff", "#dream-preview"]) {
-    assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(255, 255, 255)", `${selector} uses the shared white surface`);
+    assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(230, 218, 196)", `${selector} uses the shared Ember Light surface`);
   }
   for (const selector of ["#home-new", "#new-note", "#zoom-in", "#connection-submit", "#dream-copy"]) {
-    assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(241, 240, 238)", `${selector} uses the shared warm-grey control fill`);
+    assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(216, 204, 176)", `${selector} uses the shared Ember Light control fill`);
   }
   await page.locator("#home-new").focus();
   assert.equal(await page.locator("#home-new").evaluate((el) => getComputedStyle(el).outlineStyle), "solid", "keyboard focus stays visible");
   await page.locator("#home-new").hover();
-  await page.waitForFunction(() => getComputedStyle(document.querySelector("#home-new")).backgroundColor === "rgb(231, 229, 226)");
+  await page.waitForFunction(() => getComputedStyle(document.querySelector("#home-new")).backgroundColor === "rgb(206, 194, 168)");
   await page.mouse.move(0, 0);
   await page.locator("#home-new").evaluate((el) => el.blur());
 }
@@ -619,14 +619,6 @@ async function runGraphSmoke() {
   assert.equal(result.code, 0, `graph smoke exited with status ${result.code}`);
 }
 
-async function launchBrowser(browserType) {
-  try {
-    return await browserType.launch();
-  } catch (error) {
-    if (!String(error?.message || error).includes("Executable doesn't exist")) throw error;
-    return browserType.launch({ channel: process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" });
-  }
-}
 
 async function appendEditorLine(page, line) {
   const body = await editorMarkdown(page);

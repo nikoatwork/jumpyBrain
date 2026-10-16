@@ -4,84 +4,11 @@ This page keeps implementation-oriented details out of the README.
 
 ## Architecture boundary
 
-jumpyBrain is one memory system with a lean CLI boundary and an internal runtime app that can be composed locally or in a server process against a server-local Markdown memory root. The current module layout is:
+jumpyBrain runs the same Markdown-native app locally and on a server-local root. The CLI selects local runtime operations or remote HTTP transport; indexes remain rebuildable.
 
-```text
-src/index.ts
-  -> src/runtime/index.ts                         # package-level runtime surface
-
-src/cli.ts                                      # executable shim
-  -> src/cli/index.ts
-    -> src/cli/commands.ts                        # top-level command dispatch
-    -> src/cli/recipes.ts                         # `run memory:*` recipe dispatch
-    -> src/cli/targets.ts                         # local/remote target selection
-    -> src/cli/remote-access-policy.ts            # early device-local per-origin read-only classification
-    -> src/cli/local-transport.ts                 # CLI command parsing -> local runtime seam, including document show/update
-      -> src/runtime/index.ts
-    -> src/adapters/http-client/index.ts          # remote HTTP transport for --target-url/--remote-url, including document show/update
-    -> src/adapters/package-info/index.ts         # CLI version metadata
-
-src/server/index.ts
-  -> src/app/server-memory/index.ts               # server-local memory composition
-  -> src/adapters/http-server/index.ts            # opt-in HTTP server/auth/routes for remote memory
-  -> src/adapters/package-info/index.ts           # host package version injection for setup
-
-src/runtime/index.ts
-  -> src/core/index.ts                            # backend-agnostic core/types/policy
-  -> src/app/writing/index.ts                     # local write workflow use cases
-  -> src/app/local-memory/index.ts                # QMD-backed index/search plus document read/update use cases
-  -> src/app/processing/index.ts                  # memory processing app use cases
-  -> src/app/dream/index.ts                       # stateless dream windows and legacy batch compatibility
-  -> src/adapters/package-info/index.ts           # host package version injection for setup
-
-src/app/writing/index.ts
-  -> src/core/writing/*                           # pure Markdown/rendering/wrapup policy
-  -> src/core/canonical/*, src/core/memory-root/* # root resolution and compatibility checks
-
-src/app/local-memory/index.ts / src/app/processing/index.ts
-  -> src/core/canonical/*                         # Markdown scanning/parsing and explicit link extraction
-  -> src/core/memory-root/*                       # setup/status and index-root policy
-  -> src/adapters/qmd/index.ts                    # QMD adapter barrel
-
-src/app/server-memory/index.ts
-  -> src/core/memory-root/*                       # server-local setup/status
-  -> src/app/local-memory/index.ts                # server-local index/search/document read/update use cases
-  -> src/app/writing/index.ts                     # remote write workflow use cases
-  -> src/app/dream/index.ts                       # shared dream workflow configured for remote-safe output
-  -> src/app/server-memory/dream.ts               # thin remote dream facade, no AI/model calls
-
-src/adapters/http-server/index.ts
-  -> src/app/server-memory/index.ts               # protocol routes call server-memory use cases
-
-src/core/index.ts
-  -> src/types.ts
-  -> src/core/canonical/*
-  -> src/core/memory-root/*
-  -> src/core/provenance.ts
-  -> src/core/retrieval-policy/*                  # QMD-independent retrieval policy
-  -> src/core/dream/*                             # pure UTC window/date/limit policy plus legacy batches
-  -> src/core/writing/*                           # pure write policy only
-```
-
-These are source boundaries inside one package, not separate user-installed npm packages. The package entrypoint `src/index.ts` is intentionally a thin re-export of `src/runtime/index.ts`.
+[Source architecture](../src/architecture.docs.md) owns dependency direction and module documentation conventions. Start there for source changes, then use the co-located contracts: [canonical storage](../src/core/canonical/canonical.docs.md), [local memory](../src/app/local-memory/local-memory.docs.md), [QMD](../src/adapters/qmd/qmd.docs.md), [server use cases](../src/app/server-memory/server-memory.docs.md), and [HTTP/browser](../src/adapters/http-server/http-server.docs.md).
 
 Distribution is source/installer-first for self-hosted use, not npm-package-first. Do not add a restrictive `package.json` exports map or package-manager self-update flow unless the project explicitly decides to publish to npm later. The supported user-facing surfaces are the CLI, installer scripts, documented server deployment flow, and Markdown memory format; internal TypeScript deep imports remain undocumented implementation details rather than a hidden or stabilized SDK. `jumpybrain update` belongs at the CLI/installer edge: it reads the installer manifest and reruns the public installer instead of adding update behavior to core/app/runtime/server memory semantics.
-
-Durable module-level architecture notes live in co-located `*docs.md` files under `src/` module directories. Use these instead of per-module `README.md` files; each module doc should state responsibilities and non-responsibilities. `src/architecture.docs.md` records the target CLI/app/core/adapters dependency direction that boundary tests enforce.
-
-The document-edit runtime boundary is ID-addressed: core owns canonical lookup, exact content hashing, protected metadata merge policy, and atomic replacement primitives; app/local-memory adds root compatibility and optimistic-concurrency precondition checks; runtime re-exports those local operations; CLI and HTTP transports only parse protocol/flags and delegate to local or server-memory app operations. Successful document updates currently return stale/not-indexed state so callers can decide when to rebuild derived search state.
-
-Boundary rules enforced by deterministic tests:
-
-- Property tests run in normal `npm test` with fixed `fast-check` settings from `test/property-helpers.js`. They are limited to pure architecture-edge contracts such as Markdown/frontmatter rendering, slug/path normalization, CLI target selection, retrieval-depth policy, pure QMD path helpers, and package manifest validation. They must not spawn QMD or exercise paid/model-dependent behavior.
-- `src/core/index.ts` stays backend-agnostic. It exports types, core canonical Markdown helpers, memory-root setup/status, provenance, pure writing policy, and QMD-independent depth policy helpers only; it must not import CLI command parsing, app orchestration, server code, HTTP/logging/package adapters, targets/client code, or QMD adapter internals.
-- QMD adapter internals live under `src/adapters/qmd/` and are imported through `src/adapters/qmd/index.ts` from app local-memory/processing composition. Pre-adapter QMD module paths should not reappear.
-- `src/runtime/index.ts` composes core and app writing/local-memory/processing workflows and must not import CLI command parsing.
-- `src/cli.ts` is the executable shim. Command dispatch and recipe handling live under `src/cli/commands.ts` and `src/cli/recipes.ts`; CLI submodules handle arguments, stdin/stdout, output shapes, target selection, doctor reporting, serve bootstrap, and usage text. They call local operations through `src/cli/local-transport.ts` and remote targets through `src/adapters/http-client/index.ts`. CLI modules must not import `src/adapters/qmd/` directly.
-- `src/server/index.ts` composes app/server-memory calls around one server-local Markdown memory root and re-exports the opt-in HTTP server adapter. Server modules must not import CLI command parsing or implement HTTP route internals directly.
-- Final source layout does not keep legacy compatibility directories for canonical, setup, retrieval, processing, or writing concepts. New imports should use `src/core/` for pure domain policy and `src/app/` for use-case orchestration.
-
-QMD is owned by the app local-memory/search adapter boundary. CLI command parsing and HTTP routes should not shell out to QMD or manage QMD cache/config paths directly. Local mode and server mode both execute the same app concepts: canonical Markdown files live at the selected memory root, while QMD indexes/cache files remain derived state under `.jumpybrain/`.
 
 The intended install paths are:
 
@@ -163,13 +90,9 @@ Recall JSON returns:
 
 ## Bounded retrieval execution
 
-QMD queries and indexing/recovery workers run asynchronously without a shell. Admission covers the whole operation: two active operations per process, one per real root, sixteen queued, FIFO among runnable roots. QMD's CLI wrapper has its own child, so these are not two-OS-process or heap limits. One-server-per-root and the existing five-second cross-process PID lock remain required; searches never read a mutating generation.
+Set `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS` in the local or server environment to change operation deadlines (positive integer milliseconds <=2147483647). Defaults are 60 seconds for search/compact recall and 600 seconds for indexing. Queue/lock waits consume that budget; request JSON cannot override it.
 
-Search/compact recall have a 60-second total deadline; indexing has 600 seconds. Set `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS` locally or in the server environment (positive integer milliseconds <=2147483647). Search/recovery commands also have a 30-second ceiling; an indexing worker repairing a search uses that search's remaining whole-operation deadline, not a separate index budget. Queue/lock waits and all branches consume the same budget. Combined stdout/stderr caps remain 20 MiB/query and 64 MiB/index worker. Local runtime `signal`/`timeoutMs` controls are not serialized server options; remote transport defaults are 70 seconds/read and 610 seconds/index.
-
-Overload returns `execution_overloaded` (HTTP 503); deadlines `execution_timeout` (504); connected cancellation `execution_aborted` (499). No backend failure is represented as empty memory. Disconnect/shutdown releases queued work and terminates owned active children; canceling one joined index waiter does not kill peers' work. Failures invalidate remote freshness without inventing canonical writes. POSIX TERM escalates to owned-group KILL after 250 ms; Windows direct-child behavior and Linux process lifecycle remain unverified here. CLI SIGINT/SIGTERM on local index/search/compact recall propagate cancellation; abrupt SIGKILL cannot clean up reliably.
-
-Per-request canonical prefix reuse keeps original 128 KiB/file reads with a 4 MiB source-byte reservation cap; decoded JS overhead is additional. No cross-request cache, new ranking policy or reduced fan-out. Full canonical scans/snapshots and compact ID verification remain unbounded input work; synchronous parsing and OS-uninterruptible filesystem/process work are not preemptible deadlines. Publish/lock cleanup is awaited rather than detached. Limits are conservative controls, not measured VPS capacity or recall-speed guarantees; [external measurements and caveats](../tasks/done/2026-10-11_tasks-bounded-retrieval-execution.md).
+[QMD bounded execution](../src/adapters/qmd/qmd.docs.md#bounded-execution) owns admission, child ceilings, capture limits, cancellation, locking, and platform caveats. [HTTP-client transport](../src/adapters/http-client/http-client.docs.md) owns the separate remote deadline (70 seconds/read, 610 seconds/index); [protocol execution limits](shared-memory-protocol.md#backend-execution-limits) owns wire errors and the separate HTTP receipt timeout. These scopes are not interchangeable. Limits are controls, not measured capacity or recall-speed guarantees.
 
 ## Setup compatibility
 

@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-graph-warning-"));
 const apiKey = "graph-warning-disposable-key";
@@ -18,11 +18,7 @@ try {
     `---\ntitle: "${index < 3 ? "Narrow" : "Synthetic"} fixture ${index}"\ntype: "note"\n---\n\nDisposable graph warning fixture.\n`)));
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
   const chromium = await loadPlaywrightChromium();
-  try { browser = await chromium.launch(); }
-  catch (error) {
-    if (!error.message.includes("Executable doesn't exist")) throw error;
-    browser = await chromium.launch({ channel: process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   for (const width of [1280, 390, 320]) {
     const page = await browser.newPage({ viewport: { width, height: width === 320 ? 568 : 844 } });
     const errors = [];
@@ -105,7 +101,7 @@ try {
       assert.equal(await page.locator("#graph-notice").isVisible(), false, "failure clears success warnings/counts");
       assert.equal(await page.getByTestId("graph-ready").isVisible(), false);
       // A layout of cached nodes must not resurrect a successful notice after failure.
-      await page.evaluate(() => render(state.graph, true));
+      await page.evaluate(() => map.render(state.graph, true));
       assert.equal(await page.locator("#graph-notice").isVisible(), false);
       await page.unroute(pattern, fail);
       await refresh(page);

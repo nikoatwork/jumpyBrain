@@ -1,3 +1,4 @@
+import { extractShellFunction } from "./browser-shell-helpers.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -16,20 +17,9 @@ const documentId = (n) => `mem_91000000-0000-4000-8000-${String(n).padStart(12, 
 
 // Execute the shipped palette functions, not a second implementation of its policy.
 function browserNormalizer() {
-  const script = graphPageHtml("parity-test").match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
-  function extract(name) {
-    const start = script.indexOf("function " + name + "(");
-    assert.ok(start >= 0, name);
-    const body = script.indexOf("{", start);
-    let depth = 0;
-    for (let end = body; end < script.length; end++) {
-      if (script[end] === "{") depth++;
-      if (script[end] === "}" && --depth === 0) return script.slice(start, end + 1);
-    }
-    throw new Error("Unterminated " + name);
-  }
+  const script = [...graphPageHtml("parity-test").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
   const context = vm.createContext({});
-  vm.runInContext(["isValidMemoryDocumentId", "normalizeNoteResults"].map(extract).join("\n"), context);
+  vm.runInContext(["isValidMemoryDocumentId", "normalizeNoteResults"].map(name => extractShellFunction(script, name)).join("\n"), context);
   return (hits) => JSON.parse(JSON.stringify(context.normalizeNoteResults(hits)));
 }
 

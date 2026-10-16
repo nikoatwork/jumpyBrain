@@ -42,7 +42,7 @@ async function assertClean(dir, expected = ["original.md"]) {
   assert.deepEqual((await fs.readdir(dir)).sort(), expected.sort());
 }
 
-test("core rejects stale ifMatch even without the app preflight", async t => {
+test("core rejects stale ifMatch before staging", async t => {
   const f = await fixture(t);
   await assert.rejects(replaceCanonicalMemoryDocumentById(f.root, id, "Changed", { ifMatch: "sha256:stale" }), error => {
     assert.equal(error.code, "precondition_failed");
@@ -53,7 +53,7 @@ test("core rejects stale ifMatch even without the app preflight", async t => {
   await assertClean(f.dir);
 });
 
-test("app publication rechecks a revision changed after preflight and retains public error semantics", async t => {
+test("app publication rechecks a revision changed during staging and retains public error semantics", async t => {
   const f = await fixture(t);
   const concurrent = original.replace("Original bytes.", "External revision.");
   atStageSync(t, () => fs.writeFile(f.file, concurrent));

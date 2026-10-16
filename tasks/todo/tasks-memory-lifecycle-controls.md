@@ -50,17 +50,17 @@ Support truthful historical capture and deliberate removal through the same loca
   - [ ] 1.4 Test valid historical/future evidence, leap days, impossible/timezone-less inputs, nonstring API values, repeated/missing flags, omitted date, and local/remote/recipe parity. Verify date-bounded recall and hash-checked edits preserve the declared field.
   - [ ] 1.5 Update CLI/memory-format and agent capture guidance: backfill evidence dates deliberately, preserve uncertainty/multi-period citations, and do not claim verified event chronology.
 
-- [ ] 2.0 Define minimal guarded deletion
-  - [ ] 2.1 Specify preview/apply CLI/runtime/HTTP contracts, authorization, required ID/hash, static path-safe errors, removed/index-state outcomes, and repeated-request behavior. Preview can compose a normal read without introducing a mutating endpoint.
-  - [ ] 2.2 Reuse canonical unique-ID lookup, inode/path checks, and cooperating replacement exclusion for guarded removal. Recheck hash/identity immediately before mutation; keep concurrency and crash limitations explicit rather than claiming portable filesystem compare-and-swap.
-  - [ ] 2.3 Define bounded advisory inbound-link/relationship diagnostics using canonical resolution. Do not rewrite surviving notes, block deletion because of unrelated broken links, or require a new persistent graph/index.
-  - [ ] 2.4 Keep the operation single-document and explicitly permanent. Document recovery from user backups/Git and clarify missing-ID handling; no automatic ID stamping, force bypass, glob/path deletion, or cascade.
+- [x] 2.0 Define minimal guarded deletion
+  - [x] 2.1 Specify preview/apply CLI/runtime/HTTP contracts, authorization, required ID/hash, static path-safe errors, removed/index-state outcomes, and repeated-request behavior. Preview can compose a normal read without introducing a mutating endpoint.
+  - [x] 2.2 Reuse canonical unique-ID lookup, inode/path checks, and cooperating replacement exclusion for guarded removal. Recheck hash/identity immediately before mutation; keep concurrency and crash limitations explicit rather than claiming portable filesystem compare-and-swap.
+  - [x] 2.3 Define bounded advisory inbound-link/relationship diagnostics using canonical resolution. Do not rewrite surviving notes, block deletion because of unrelated broken links, or require a new persistent graph/index.
+  - [x] 2.4 Keep the operation single-document and explicitly permanent. Document recovery from user backups/Git and clarify missing-ID handling; no automatic ID stamping, force bypass, glob/path deletion, or cascade.
 
-- [ ] 3.0 Wire deletion through app and transport seams
-  - [ ] 3.1 Implement a shared app operation and runtime/local transport surface; thin server-memory and HTTP handlers invoke the same guarded canonical semantics.
-  - [ ] 3.2 Add strict CLI delete/recipe parsing with explicit apply authorization and prior-read hash. Classify deletion as a mutation before credentials/stdin/transport; trusted project capture settings cannot authorize it implicitly.
-  - [ ] 3.3 Reuse existing server replay/idempotency conventions where applicable; document retry-after-success and response-loss behavior. A stale token or disappeared file must not delete a recreated document at the same path.
-  - [ ] 3.4 Reconcile/invalidate ordinary and dream index state using the existing incremental lifecycle. Return truthful removal success with pending/failed index diagnostics if backend work fails; never restore or repeat canonical deletion merely to retry indexing.
+- [x] 3.0 Wire deletion through app and transport seams
+  - [x] 3.1 Implement a shared app operation and runtime/local transport surface; thin server-memory and HTTP handlers invoke the same guarded canonical semantics.
+  - [x] 3.2 Add strict CLI delete/recipe parsing with explicit apply authorization and prior-read hash. Classify deletion as a mutation before credentials/stdin/transport; trusted project capture settings cannot authorize it implicitly.
+  - [x] 3.3 Reuse existing server replay/idempotency conventions where applicable; document retry-after-success and response-loss behavior. A stale token or disappeared file must not delete a recreated document at the same path.
+  - [x] 3.4 Reconcile/invalidate ordinary and dream index state using the existing incremental lifecycle. Return truthful removal success with pending/failed index diagnostics if backend work fails; never restore or repeat canonical deletion merely to retry indexing.
 
 - [ ] 4.0 Validate lifecycle safety and existing provenance flexibility
   - [ ] 4.1 Add deterministic races between update/delete/index/read plus cross-process cooperating writer tests. Cover changed hashes, duplicate/missing IDs, unsafe filesystem objects, permission errors, uncertain response delivery, and derived-index failure after removal.
@@ -68,3 +68,9 @@ Support truthful historical capture and deliberate removal through the same loca
   - [ ] 4.3 Verify the shipped lint accepts `Sources`, other headings, inline/reference/wiki citations, and existing generated source lists. Add only missing regressions; preserve warnings for absent/broken/context-only evidence without another heading schema.
   - [ ] 4.4 Update owning docs, CLI/protocol contracts, and backup/recovery guidance; run `npm test` and record results/platform limits here. No registry/global integration changes are required by this ticket.
   - [ ] 4.5 Consolidate duplicated date validation, identity/precondition checks, and deletion-specific index logic where equivalent. Record the complexity review; do not retain speculative trash/bulk/relationship machinery or log planning as a completed changelog result.
+
+## Browser-QA deletion implementation — 2026-10-16
+
+The user authorized all six web-QA improvements in the current chat. Single-document deletion is implemented and verified through runtime, CLI/recipe, HTTP and browser/companion surfaces; [the QA owner](tasks-local-companion-qa.md#all-improvements-implementation--2026-10-16) records files, safeguards and evidence. This does not implement the separate historical-date capture work in section 1 or close every broader lifecycle test/provenance item in section 4.
+
+The operation previews by default, requires explicit permanent apply plus prior-read hash, reuses replacement serialization/locks, and reports derived-index outcomes separately. No Trash or replay database was introduced. Backlink/declared-relationship warnings are advisory. Identical-ID/content recreation across separate reads and noncooperating external writers remain documented filesystem limits.

@@ -189,6 +189,6 @@ test("shell composes one graph action and integrates native dialog guards withou
   assert.match(html, /function openSearch[\s\S]*?dreamDialog\.open\) return/);
   assert.match(html, /function newNote[\s\S]*?dreamDialog\.open\) return/);
   assert.doesNotMatch(dreamScript, /fetch\(|graphJson\(|graphFetch\(|localStorage|activeApiKey|window\.open|\.exec\(|setInterval/);
-  const script = html.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
+  const script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
   assert.doesNotThrow(() => new vm.Script(script));
 });

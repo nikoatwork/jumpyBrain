@@ -1,8 +1,20 @@
 # Task Changelog
 
+## 2026-10-16 — Note lifecycle and recovery
+
+- Unified map title references, added guarded note deletion and draft comparison/reload, made confirmed tab saves discoverable immediately, and improved narrow map and expired-session recovery controls.
+
+## 2026-10-16 — Shared lifecycle and browser ownership
+
+- Centralized native lifecycle safety and browser controllers; canonical indexing and multi-ID recall now reuse request-local work while preserving Markdown publication guards.
+
 ## 2026-10-14 — Smaller Mac menu
 
 - Moved brain switching and search-index refresh into browser Settings; grouped native login/update and troubleshooting actions into compact submenus.
+
+## 2026-10-14 — Ember light and dark themes
+
+- Applied Ember's parchment light and graphite dark palettes across notes, editor, map, dialogs, autocomplete, and companion settings. Added a persistent System / Light / Dark selector, live OS/cross-tab updates, pre-paint appearance, and contrast/browser regressions without changing drafts or credentials.
 
 ## 2026-10-14 — Ambient memory map
 

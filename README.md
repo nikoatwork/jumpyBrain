@@ -2,22 +2,39 @@
   <img src="docs/assets/jumpyBrain.png" alt="jumpyBrain logo" width="220" />
 </p>
 
-<h1 align="center">jumpyBrain: one shared memory for your whole team. and for every AI assistant</h1>
+<h1 align="center">jumpyBrain: one memory for all your agents. Just yours, or shared with your team.</h1>
 
 <p align="center">
-  Give everyone in the company using Claude, Codex, Pi, and other AI agents the same up-to-date context—without copy pasting stuff from one to another.</p>
+  A Markdown workspace with a calm editor and visual memory explorer for you—and search and recall for your AI agents. Run it locally for yourself, or self-host it for your team.
+</p>
 
 <p align="center">
   <strong><a href="https://demojumpybrain.juttu.co/">Try the public demo</a></strong>
   ·
   <a href="#try-the-demo-in-two-minutes">Try it in two minutes</a>
   ·
-  <a href="docs/cloud-shared-memory.md">Run your own shared brain</a>
+  <a href="docs/install.md">Start locally</a>
+  ·
+  <a href="docs/cloud-shared-memory.md">Share with your team</a>
 </p>
 
-jumpyBrain gives your team one place to remember what it has learned. Decisions, preferences, project context, discoveries, and handoffs stay available when you switch agents, start a new chat, or come back weeks later.
+## Two ways to use jumpyBrain
 
-Store something once. The next person—or the next agent—can find it when it matters.
+### 1. Your local memory, across agents
+
+You use Claude, Codex, Pi, or other agents, but your context should not be trapped inside any one of them. Keep decisions, preferences, discoveries, and project knowledge in one local brain. Switch agents or start a new chat without explaining everything again.
+
+It is not just storage for agents. Write and edit notes in the browser, search your memory, and explore connections on the visual map. You and your agents work with the same Markdown files, on your machine.
+
+[Start locally](docs/install.md), or use the [macOS app (beta)](integrations/macos-companion/README.md) to open the editor from your menu bar.
+
+### 2. Your team's agent-first knowledge workspace
+
+Take that same editor, explorer, and agent memory, and share it with your team. Think **an agent-first Notion**: a place where people write and browse knowledge, and their agents can remember, search, and recall it too.
+
+A decision captured by one teammate becomes discoverable by another teammate's agent. Project context, research, and handoffs live beyond any one person's chats. Self-host one shared brain on infrastructure you control—not a separate product or a sync layer over everyone's local files.
+
+[Run a shared brain](docs/cloud-shared-memory.md), or [explore the public demo](https://demojumpybrain.juttu.co/). This is shared knowledge, not Notion feature parity or real-time collaborative editing.
 
 ## A calm place to write
 
@@ -59,11 +76,11 @@ Prefer to ask your coding agent? Paste this:
 
 The [demo homepage](https://demojumpybrain.juttu.co/) also provides copyable `remember`, `search`, and `tree` commands. The sandbox is public, writable, rate-limited, and reset hourly. Do not put private information in it.
 
-## Why teams use jumpyBrain
+## Why use jumpyBrain?
 
-- **Use the agent you want.** Claude, Codex, Pi, and other agents can work from the same shared context.
+- **Use the agent you want.** Claude, Codex, Pi, and other CLI-capable agents can work from the same memory.
 - **Stop repeating yourself.** Remember a decision once instead of explaining it again in every chat and tool.
-- **Keep context current.** New findings and decisions become available to the rest of the team through search and recall.
+- **Carry knowledge forward.** Find past decisions in your next session—or make them available to teammates through search and recall.
 - **Turn notes into knowledge.** The optional [how-to-dream skill](skills/how-to-dream/SKILL.md) helps an agent connect bounded UTC evidence windows into concise topic pages, preserving dates and source notes. Relevant dream maps are preferred in normal/shallow recall; deep recall keeps raw evidence accessible.
 - **Own the brain.** Memory stays in readable Markdown files on your machine or on infrastructure you control.
 
@@ -79,7 +96,7 @@ Later, from any supported agent:
 
 That is the core loop: **remember what should last, recall it when it becomes relevant.**
 
-Good shared memories include:
+Good memories—for yourself or your team—include:
 
 - decisions and the reasons behind them
 - project or company conventions
@@ -95,9 +112,9 @@ Prefer a menu-bar app? The [macOS app (beta)](integrations/macos-companion/READM
 
 The beta is built locally, not a downloadable app yet. See [requirements and setup](integrations/macos-companion/README.md#install).
 
-## Local or shared—your choice
+## Your memory stays yours
 
-Use jumpyBrain privately on one machine, keep memory inside a project, or self-host one shared brain for a team. In every setup:
+Whether your brain is personal, project-local, or shared with a team:
 
 - Markdown files are the source of truth.
 - Search indexes and other generated state can be rebuilt.

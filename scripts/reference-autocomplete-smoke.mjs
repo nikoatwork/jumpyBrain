@@ -1,3 +1,4 @@
+import { extractShellFunction } from "./browser-shell-test-helpers.mjs";
 // Isolated fixture; exercises the REAL search controller with stub transport,
 // not search relevance, authentication, app navigation, or real IME/device QA.
 // Requires existing production dist; does not build an alternative editor or plugin.
@@ -6,22 +7,11 @@ import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { selectEditorText, appendEditorText, editorMarkdown, undoEditor } from "./editor-smoke-helpers.mjs";
 
-const shell = graphPageHtml("isolated-autocomplete").match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
-// Same extraction technique as test/notes-browser.test.js; do not fork ranking/controller logic.
-function extract(name) {
-  const start = shell.indexOf("function " + name + "(");
-  assert.ok(start >= 0, name);
-  let depth = 0;
-  for (let end = shell.indexOf("{", start); end < shell.length; end++) {
-    if (shell[end] === "{") depth++;
-    if (shell[end] === "}" && --depth === 0) return shell.slice(start, end + 1);
-  }
-  throw new Error("Unterminated " + name);
-}
-const controllers = ["isValidMemoryDocumentId", "normalizeNoteResults", "createNoteSearch"].map(extract).join("\n");
+const shell = [...graphPageHtml("isolated-autocomplete").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
+const controllers = ["isValidMemoryDocumentId", "normalizeNoteResults", "createNoteSearch"].map(name => extractShellFunction(shell, name)).join("\n");
 const editorBundle = await readFile(new URL("../dist/adapters/http-server/editor-bundle.js", import.meta.url), "utf8");
 const server = createServer((req, res) => {
   if (req.url === "/editor.js") { res.writeHead(200, { "Content-Type": "text/javascript" }); res.end(editorBundle); return; }
@@ -34,7 +24,7 @@ const server = createServer((req, res) => {
       var changes=[], follows=[], errors=[], requests=[], held=[], session=0, mode="ready", transportStale=false;
       var fixtureResults = ["Alpha", "Beta"].map((title,i) => ({provenance:{file:"notes/"+i+".md", metadata:{id:"mem_90000000-0000-4000-8000-"+String(i+1).padStart(12,"0"),title}},snippet:"Fixture result"}));
       var richEditor = window.createJumpyBrainNoteEditor(document.querySelector('#note-editor'), {
-        onChange: value => changes.push(value), onReference: () => {}, onActivateReference: title => follows.push(title), onError: error => errors.push(error.message)
+        onChange: value => changes.push(value), onActivateReference: title => follows.push(title), onError: error => errors.push(error.message)
       });
       var popup = window.installReferenceAutocomplete(document.querySelector('#note-editor'), richEditor, {
         createSearch: createNoteSearch, getSession: () => session, onError: error => errors.push(error.message),
@@ -54,10 +44,7 @@ let browser;
 const failures = [];
 try {
   const chromium = await loadPlaywrightChromium();
-  try { browser = await chromium.launch(); } catch (error) {
-    if (!error.message.includes("Executable doesn't exist")) throw error;
-    browser = await chromium.launch({ channel: "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   for (const width of [1280, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, hasTouch: width === 390 });
     async function check(name, run) {

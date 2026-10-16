@@ -45,3 +45,7 @@ Status/index/search packets preserve existing `index` metadata and add safe `rea
 ## Temporal retrieval
 
 `searchServerMemory` forwards `temporal` and preserves the returned resolved interval/coverage in its remote-safe envelope. Compact recall delegates the same options without adding fields after packing. The app does not independently resolve a scope as a substitute for actual local temporal retrieval.
+
+## Deletion
+
+Server preview/apply reuse the local-memory deletion operations. Packets replace the local root with `remote:all`. Apply runs inside the HTTP write queue as well as core replacement exclusion. After canonical removal, stale-index bookkeeping failures return successful removal with `indexing.status:failed` and static guidance; they never report canonical failure or retry deletion. No deletion replay ledger, cascade, or implicit global/team authorization is introduced.

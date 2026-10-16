@@ -15,6 +15,7 @@
     "validate": "npm test",
     "smoke:semantic-index": "npm run build && node scripts/semantic-index-smoke.mjs",
     "smoke:graph": "npx --package=playwright node scripts/graph-ui-smoke.mjs",
+    "smoke:theme": "npm run build && npx --package=playwright node scripts/theme-smoke.mjs",
     "smoke:graph-editor": "npm run build && npx --package=playwright node scripts/graph-editor-smoke.mjs",
     "smoke:daily-capture": "npm run build && npx --package=playwright node scripts/daily-capture-smoke.mjs",
     "smoke:lexical": "npm run build && npx --package=playwright node scripts/lexical-editor-smoke.mjs",

@@ -6,11 +6,21 @@ Build the most efficient semantic, temporally aware, high-relevance memory syste
 
 “Most efficient” is our ambition, not a demonstrated benchmark claim. Optimize for correct, source-supported answers per retrieved token, while keeping latency, indexing cost, and operations small. Shorter output is not progress if it loses the qualification that makes an answer correct.
 
-## The shared-memory advantage
+## Two first-class use cases
 
-One persistent brain can serve different agents, people, tools, and machines through the CLI. A decision remembered by one authorized agent should be discoverable by another without copying chat histories or switching agent providers.
+### 1. Personal memory across agents
 
-Local deployment is a first-class choice for private, single-machine use. Shared VPS deployment is equally central, not a separate hosted product: the same memory app runs against a server-local Markdown root, with remote agents using the CLI transport.
+A private, local memory system that follows you across agents, rather than locking context inside one assistant. Keep decisions, preferences, discoveries, and project knowledge available when you switch tools or start a new session.
+
+The human experience is part of the product: a calm editor, search, and a visual memory explorer over the same Markdown that agents remember and recall through the CLI. It should be useful to write and browse even when no agent is running. Agent independence is the goal; current integrations and CLI access determine which agents can connect today.
+
+### 2. An agent-first knowledge workspace for teams
+
+The same experience, shared: people write and explore knowledge, and their agents contribute and retrieve it with explicit authorization. A decision remembered by one teammate's agent should be discoverable by another without copying chat histories or switching agent providers.
+
+Think of this as an **agent-first Notion** for shared knowledge, not a promise of Notion feature parity, real-time co-editing, or a general-purpose project-management suite. The value is durable team context that both humans and agents can use.
+
+Local and shared deployment are equally central, not separate products: the same memory app runs on one machine or against a server-local Markdown root on a self-hosted VPS. Remote agents use the CLI transport; a shared server is not an implicit sync system for personal brains.
 
 ## Product principles
 

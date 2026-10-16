@@ -1,11 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { constants, type Stats } from "node:fs";
-import { lstat, open, readdir, readFile, realpath, rename, unlink } from "node:fs/promises";
+import { lstat, open, readdir, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
 import path from "node:path";
+import { normalizedDocumentTitle } from "../document-title.js";
+export { normalizedDocumentTitle } from "../document-title.js";
 import { mergeMemoryDocumentUpdate } from "../document-update.js";
 import { isValidMemoryDocumentId } from "../document-id.js";
 import { parseFrontmatter } from "../frontmatter.js";
-import type { Frontmatter, MarkdownDocument, MemoryDocumentContentHash, MemoryDocumentEditError, MemoryDocumentEditErrorCode, MemoryDocumentReadResult, MemoryDocumentTargetKind, MemoryDocumentUpdateResult, MemoryNoteType } from "../../types.js";
+import type { Frontmatter, MarkdownDocument, MemoryDocumentContentHash, MemoryDocumentDeleteResult, MemoryDocumentEditError, MemoryDocumentEditErrorCode, MemoryDocumentReadResult, MemoryDocumentTargetKind, MemoryDocumentUpdateResult, MemoryNoteType } from "../../types.js";
 
 export { parseFrontmatter } from "../frontmatter.js";
 
@@ -96,6 +98,46 @@ export async function readMarkdownDocument(root: string, absolutePath: string, s
   };
 }
 
+export interface CanonicalMarkdownIndexInput {
+  absolutePath: string;
+  /** Excluded names require exact migration-envelope eligibility at snapshot time. */
+  importedLogseqOnly?: boolean;
+}
+
+/** Discovery without content reads; validate exceptional envelopes with locked snapshots. */
+export async function discoverMarkdownIndexInputs(root: string, signal?: AbortSignal): Promise<CanonicalMarkdownIndexInput[]> {
+  const deferredMigration = new Set<string>();
+  const files = await walkMarkdownFiles(root, [root], { signal, deferredMigration });
+  return files.map(absolutePath => ({ absolutePath, ...(deferredMigration.has(absolutePath) ? { importedLogseqOnly: true } : {}) }));
+}
+
+export async function readCanonicalMarkdownIndexInput(root: string, input: CanonicalMarkdownIndexInput, signal?: AbortSignal) {
+  const snapshot = await readCanonicalMarkdownSnapshot(root, input.absolutePath, signal);
+  return input.importedLogseqOnly && !isImportedLogseqFrontmatter(snapshot.relativePath, snapshot.frontmatter) ? undefined : snapshot;
+}
+
+export interface CanonicalMarkdownSnapshot extends MarkdownDocument {
+  content: string;
+  sourceStat: { size: number; mtimeMs: number; ctimeMs: number };
+}
+
+/** Caller owns any operation lock; detect changes across the canonical content read. */
+export async function readCanonicalMarkdownSnapshot(root: string, absolutePath: string, signal?: AbortSignal): Promise<CanonicalMarkdownSnapshot> {
+  signal?.throwIfAborted();
+  const before = await stat(absolutePath);
+  const content = await readFile(absolutePath, { encoding: "utf8", signal });
+  signal?.throwIfAborted();
+  const after = await stat(absolutePath);
+  signal?.throwIfAborted();
+  if (before.mtimeMs !== after.mtimeMs || before.ctimeMs !== after.ctimeMs || before.size !== after.size) {
+    throw new Error("Canonical memory changed during snapshot; retry index.");
+  }
+  const parsed = parseFrontmatter(content);
+  return { absolutePath, relativePath: normalizeRelative(root, absolutePath), content,
+    frontmatter: parsed.frontmatter, bodyStartLine: parsed.bodyStartLine,
+    sourceStat: { size: after.size, mtimeMs: after.mtimeMs, ctimeMs: after.ctimeMs } };
+}
+
 export async function readMarkdownDocuments(root: string, signal?: AbortSignal): Promise<MarkdownDocument[]> {
   const files = await listMarkdownFiles(root, signal);
   const documents = [];
@@ -103,37 +145,48 @@ export async function readMarkdownDocuments(root: string, signal?: AbortSignal):
   return documents;
 }
 
-export async function findCanonicalMemoryDocumentById(rootArg: string, id: string, signal?: AbortSignal): Promise<CanonicalMemoryDocumentLocation> {
-  if (!isValidMemoryDocumentId(id)) {
-    throw new MemoryDocumentLookupError("invalid_id", `Invalid memory document id '${id}'. Expected mem_<uuid>.`, { id });
-  }
-
+/** Request-scoped discovery; matched reads revalidate current file identity/bytes. */
+export async function discoverCanonicalMemoryDocumentsById(rootArg: string, ids: Iterable<string>, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   const root = await resolveMemoryRoot(rootArg);
-  const files = await listCanonicalMemoryMarkdownFiles(root, signal);
-  const matches: CanonicalMemoryDocumentLocation[] = [];
-
-  for (const absolutePath of files) {
+  const requested = new Set([...ids].filter(isValidMemoryDocumentId));
+  const matches = new Map<string, CanonicalMemoryDocumentLocation[]>();
+  if (requested.size) for (const absolutePath of await listCanonicalMemoryMarkdownFiles(root, signal)) {
     const document = await readMarkdownDocument(root, absolutePath, signal);
-    if (document.frontmatter.id !== id) continue;
-    matches.push(toCanonicalMemoryDocumentLocation(root, document, id));
+    const id = document.frontmatter.id;
+    if (typeof id !== "string" || !requested.has(id)) continue;
+    const locations = matches.get(id) ?? [];
+    locations.push(toCanonicalMemoryDocumentLocation(root, document, id));
+    matches.set(id, locations);
   }
+  const find = (id: string): CanonicalMemoryDocumentLocation => {
+    signal?.throwIfAborted();
+    if (!isValidMemoryDocumentId(id)) throw new MemoryDocumentLookupError("invalid_id", `Invalid memory document id '${id}'. Expected mem_<uuid>.`, { id });
+    const locations = matches.get(id) ?? [];
+    if (!locations.length) throw new MemoryDocumentLookupError("missing_id", `No canonical memory document found for id '${id}'.`, { id });
+    if (locations.length > 1) throw new MemoryDocumentLookupError("duplicate_id", `Multiple canonical memory documents found for id '${id}'.`, { id, files: locations.map(location => location.file) });
+    return locations[0]!;
+  };
+  return {
+    find,
+    async read(id: string, options: ReadCanonicalMemoryDocumentOptions = {}) {
+      return readCanonicalMemoryDocumentAtLocation(find(id), { ...options, signal: options.signal ?? signal });
+    },
+  };
+}
 
-  if (matches.length === 0) {
-    throw new MemoryDocumentLookupError("missing_id", `No canonical memory document found for id '${id}'.`, { id });
-  }
-
-  if (matches.length > 1) {
-    throw new MemoryDocumentLookupError("duplicate_id", `Multiple canonical memory documents found for id '${id}'.`, {
-      id,
-      files: matches.map((match) => match.file),
-    });
-  }
-
-  return matches[0]!;
+export async function findCanonicalMemoryDocumentById(rootArg: string, id: string, signal?: AbortSignal): Promise<CanonicalMemoryDocumentLocation> {
+  if (!isValidMemoryDocumentId(id)) throw new MemoryDocumentLookupError("invalid_id", `Invalid memory document id '${id}'. Expected mem_<uuid>.`, { id });
+  return (await discoverCanonicalMemoryDocumentsById(rootArg, [id], signal)).find(id);
 }
 
 export async function readCanonicalMemoryDocumentById(rootArg: string, id: string, options: ReadCanonicalMemoryDocumentOptions = {}): Promise<MemoryDocumentReadResult> {
   const location = await findCanonicalMemoryDocumentById(rootArg, id, options.signal);
+  return readCanonicalMemoryDocumentAtLocation(location, options);
+}
+
+async function readCanonicalMemoryDocumentAtLocation(location: CanonicalMemoryDocumentLocation, options: ReadCanonicalMemoryDocumentOptions): Promise<MemoryDocumentReadResult> {
+  const id = location.id;
   const bytes = options.guarded ? (await replacementSnapshot(location, undefined, options.signal)).bytes : await readFile(location.absolutePath, { signal: options.signal });
   options.signal?.throwIfAborted();
   const content = bytes.toString("utf8");
@@ -208,17 +261,41 @@ export async function replaceCanonicalMemoryDocumentById(
     throw new MemoryDocumentLookupError("invalid_id", `Invalid memory document id '${id}'. Expected mem_<uuid>.`, { id });
   }
   const root = await resolveMemoryRoot(rootArg);
+  return withCanonicalMutation(root, () => replaceCanonicalMemoryDocument(root, id, submittedContent, options));
+}
+
+async function withCanonicalMutation<T>(root: string, operation: () => Promise<T>): Promise<T> {
   const previous = replacementQueues.get(root) ?? Promise.resolve();
   let release!: () => void;
   const pending = new Promise<void>((resolve) => { release = resolve; });
   replacementQueues.set(root, pending);
   await previous;
-  try {
-    return await replaceCanonicalMemoryDocument(root, id, submittedContent, options);
-  } finally {
+  try { return await operation(); }
+  finally {
     release();
     if (replacementQueues.get(root) === pending) replacementQueues.delete(root);
   }
+}
+
+/** Permanent single-file removal; never stamps IDs, rewrites backlinks or retries. */
+export async function deleteCanonicalMemoryDocumentById(rootArg: string, id: string, options: { ifMatch: string; apply: true }): Promise<MemoryDocumentDeleteResult> {
+  if (options?.apply !== true) throw new MemoryDocumentLookupError("validation_failed", "Permanent deletion requires explicit apply authorization.");
+  if (!/^sha256:[0-9a-f]{64}$/.test(options.ifMatch ?? "")) throw new MemoryDocumentLookupError("precondition_required", "Deletion requires the content hash from a prior read.");
+  const root = await resolveMemoryRoot(rootArg);
+  return withCanonicalMutation(root, async () => {
+    const location = await findCanonicalMemoryDocumentById(root, id);
+    const original = await replacementSnapshot(location);
+    const hash = hashMemoryDocumentContent(original.bytes);
+    if (hash !== options.ifMatch) throw replacementConflict(location, hash);
+    await withDocumentLock(location, async () => {
+      const latest = await replacementSnapshot(location, original);
+      if (hashMemoryDocumentContent(latest.bytes) !== hash) throw replacementConflict(location);
+      await unlink(location.absolutePath);
+      await fsyncDirectoryBestEffort(path.dirname(location.absolutePath));
+    });
+    return { root, target: "local", id, file: location.file, removed: true, oldContentHash: hash,
+      indexed: false, index: { stale: true, indexed: false }, indexing: { status: "pending" } };
+  });
 }
 
 async function replaceCanonicalMemoryDocument(
@@ -273,10 +350,6 @@ async function replaceCanonicalMemoryDocument(
   };
 }
 
-export function normalizedDocumentTitle(value: unknown): string {
-  return typeof value === "string" ? value.normalize("NFKC").trim().toLowerCase().normalize("NFC") : "";
-}
-
 export function hashMemoryDocumentContent(content: Buffer | string): MemoryDocumentContentHash {
   return `sha256:${createHash("sha256").update(content).digest("hex")}`;
 }
@@ -317,13 +390,18 @@ async function isImportedLogseqDocument(root: string, absolute: string, signal?:
   const relative = normalizeRelative(root, absolute);
   if (!isLogseqOutputPath(relative)) return false;
   const { frontmatter } = await readMarkdownDocument(root, absolute, signal);
+  return isImportedLogseqFrontmatter(relative, frontmatter);
+}
+
+function isImportedLogseqFrontmatter(relative: string, frontmatter: Frontmatter): boolean {
+  if (!isLogseqOutputPath(relative)) return false;
   const journal = relative.startsWith("sessions/");
   const sourcePath = `${journal ? "journals" : "pages"}/${relative.slice(relative.indexOf("/") + 1)}`;
   return frontmatter.source === "logseq-migration" && isValidMemoryDocumentId(frontmatter.id) &&
     frontmatter.type === (journal ? "session" : "note") && frontmatter.source_path === sourcePath;
 }
 
-async function walkMarkdownFiles(root: string, starts: string[], options: { ignoreMissingStart?: boolean; signal?: AbortSignal } = {}): Promise<string[]> {
+async function walkMarkdownFiles(root: string, starts: string[], options: { ignoreMissingStart?: boolean; signal?: AbortSignal; deferredMigration?: Set<string> } = {}): Promise<string[]> {
   const results: string[] = [];
 
   async function walk(dir: string, importsOnly = false): Promise<void> {
@@ -350,7 +428,9 @@ async function walkMarkdownFiles(root: string, starts: string[], options: { igno
       }
       if (ignored || !entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
       const excluded = importsOnly || IGNORED_FILE_PATTERNS.some((pattern) => pattern.test(relative));
-      if (!excluded || await isImportedLogseqDocument(root, absolute, options.signal)) results.push(absolute);
+      if (excluded && options.deferredMigration) {
+        if (isLogseqOutputPath(relative)) { options.deferredMigration.add(absolute); results.push(absolute); }
+      } else if (!excluded || await isImportedLogseqDocument(root, absolute, options.signal)) results.push(absolute);
     }
   }
 
@@ -436,9 +516,7 @@ async function atomicWriteUtf8File(location: CanonicalMemoryDocumentLocation, co
   const file = location.absolutePath;
   const dir = path.dirname(file);
   const tempFile = path.join(dir, `.${path.basename(file)}.${process.pid}.${randomUUID()}.tmp`);
-  const lockFile = path.join(dir, `.${path.basename(file)}.replace.lock`);
   let handle;
-  let lock;
   let staged = false;
   try {
     handle = await open(tempFile, "wx");
@@ -447,27 +525,33 @@ async function atomicWriteUtf8File(location: CanonicalMemoryDocumentLocation, co
     await handle.sync();
     await handle.close();
     handle = undefined;
-    try {
-      lock = await open(lockFile, "wx");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "EEXIST") throw replacementConflict(location);
-      throw error;
-    }
-    // Last asynchronous work before rename: recheck path policy, original inode,
-    // frontmatter ID and bytes. Node/POSIX rename is not a hostile-writer CAS.
-    const latest = await replacementSnapshot(location, original);
-    const latestHash = hashMemoryDocumentContent(latest.bytes);
-    if (latestHash !== oldContentHash) throw replacementConflict(location, latestHash);
-    await rename(tempFile, file);
-    staged = false;
-    await fsyncDirectoryBestEffort(dir);
+    await withDocumentLock(location, async () => {
+      const latest = await replacementSnapshot(location, original);
+      const latestHash = hashMemoryDocumentContent(latest.bytes);
+      if (latestHash !== oldContentHash) throw replacementConflict(location, latestHash);
+      await rename(tempFile, file);
+      staged = false;
+      await fsyncDirectoryBestEffort(dir);
+    });
   } finally {
     if (handle) await handle.close().catch(() => undefined);
     if (staged) await unlink(tempFile).catch(() => undefined);
-    if (lock) {
-      await lock.close().catch(() => undefined);
-      await unlink(lockFile).catch(() => undefined);
+
+  }
+}
+
+async function withDocumentLock<T>(location: CanonicalMemoryDocumentLocation, operation: () => Promise<T>): Promise<T> {
+  const lockFile = path.join(path.dirname(location.absolutePath), `.${path.basename(location.file)}.replace.lock`);
+  let lock;
+  try {
+    try { lock = await open(lockFile, "wx"); }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") throw replacementConflict(location);
+      throw error;
     }
+    return await operation();
+  } finally {
+    if (lock) { await lock.close().catch(() => undefined); await unlink(lockFile).catch(() => undefined); }
   }
 }
 

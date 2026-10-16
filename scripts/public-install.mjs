@@ -13,8 +13,6 @@ const DEFAULT_REPO = "https://github.com/nikoatwork/jumpyBrain.git";
 const MANIFEST_VERSION = 1;
 const INSTALLER_NAME = "jumpybrain-installer";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
 async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
   if (options.help) {

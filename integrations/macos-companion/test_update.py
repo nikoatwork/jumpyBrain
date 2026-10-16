@@ -17,6 +17,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import install
 import update
+import uninstall
 
 
 class Fixture(unittest.TestCase):
@@ -62,7 +63,9 @@ class Fixture(unittest.TestCase):
         source = path / "integrations/macos-companion"
         source.mkdir(parents=True)
         (source / "Companion.swift").write_text(f"// {version} source\n")
-        (source / "server-bootstrap.mjs").write_text(f"// {version} bootstrap\n")
+        for helper in ("gateway.mjs", "connections.mjs", "switch-coordinator.mjs", "menu-update.mjs",
+                       "update-check.mjs", "install.py", "update.py", "uninstall.py", "lifecycle.py"):
+            (source / helper).write_text(f"// {version} {helper}\n")
 
     def make_app(self, path, config):
         (path / "Contents/Resources").mkdir(parents=True)
@@ -187,6 +190,130 @@ class PreflightTests(Fixture):
         self.assertEqual(self.helper("--detect"), 0)
         with self.assertRaises(update.NotOwned):
             update.inspect_companion(self.base / "custom-install", self.home)
+
+
+class UninstallTests(Fixture):
+    def remove(self):
+        absent = subprocess.CompletedProcess([], 113, "", f'Could not find service "{update.LABEL}"')
+        with patch.object(uninstall.subprocess, "run", return_value=absent) as run:
+            uninstall.remove_companion(self.root, self.home)
+            run.assert_called_once()
+
+    def test_custom_paths_and_broken_runtime_key_preserve_all_data(self):
+        self.agent.unlink()
+        self.agent = self.base / "custom-agent.plist"
+        self.config["launchAgent"] = str(self.agent)
+        self.write_config()
+        self.agent.write_bytes(plistlib.dumps(install.agent_plist(self.app, self.support)))
+        (self.support / "api-key").write_text("broken key")
+        (self.support / "connections.json").write_text('{"activeId":"preserve"}')
+        (self.support / "companion.log").write_text("preserve diagnostics")
+        (self.memory / "index.sqlite").write_bytes(b"preserve derived state")
+        (self.runtime / "dist/cli.js").unlink()
+        before = {p: self.snapshot(p) for p in (self.memory, self.runtime, self.support)}
+        self.remove()
+        self.assertFalse(self.app.exists())
+        self.assertFalse(self.agent.exists())
+        for path, content in before.items():
+            self.assertEqual(self.snapshot(path), content)
+
+    def test_invalid_ownership_or_liveness_changes_nothing(self):
+        def held():
+            return update.companion_lock(self.support)
+        cases = ("held", "missing", "symlink", "replaced", "unrelated-job", "unrelated-app")
+        for case in cases:
+            with self.subTest(case=case):
+                # Each case restores itself; no mutation may precede validation.
+                lock = self.support / "companion.lock"
+                original_job = self.agent.read_bytes()
+                original_info = (self.app / "Contents/Info.plist").read_bytes()
+                if case == "missing": lock.unlink()
+                if case == "symlink":
+                    lock.unlink()
+                    lock.symlink_to(self.support / "api-key")
+                if case == "unrelated-job":
+                    self.agent.write_bytes(plistlib.dumps({"Label": update.LABEL, "ProgramArguments": ["/unrelated"]}))
+                if case == "unrelated-app":
+                    (self.app / "Contents/Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": "unrelated"}))
+                before = self.snapshot()
+                flock = fcntl.flock
+                def replace(fd, operation):
+                    result = flock(fd, operation)
+                    lock.unlink()
+                    lock.touch()
+                    return result
+                from contextlib import nullcontext
+                with held() if case == "held" else nullcontext():
+                    with patch.object(uninstall.subprocess, "run") as run:
+                        with patch.object(fcntl, "flock", side_effect=replace) if case == "replaced" else nullcontext():
+                            with self.assertRaises(update.SafetyError):
+                                uninstall.remove_companion(self.root, self.home)
+                        run.assert_not_called()
+                self.assertEqual(self.snapshot(), before)
+                if case in ("missing", "symlink"):
+                    lock.unlink(missing_ok=True)
+                    lock.touch()
+                self.agent.write_bytes(original_job)
+                (self.app / "Contents/Info.plist").write_bytes(original_info)
+
+    def test_loaded_job_must_match_both_origin_and_executable(self):
+        program = self.app / "Contents/MacOS/jumpyBrain"
+        for missing_agent in (False, True):
+            for origin, executable in ((self.agent, "/unrelated"), ("/other.plist", program)):
+                with self.subTest(missing_agent=missing_agent, origin=origin, executable=executable):
+                    if missing_agent:
+                        self.agent.unlink(missing_ok=True)
+                    before = self.snapshot()
+                    output = f"job = {{\n\tpath = {origin}\n\tprogram = {executable}\n\ttype = LaunchAgent\n}}"
+                    result = subprocess.CompletedProcess([], 0, output, "")
+                    with patch.object(uninstall.subprocess, "run", return_value=result) as run:
+                        with self.assertRaisesRegex(update.SafetyError, "loaded LaunchAgent"):
+                            uninstall.remove_companion(self.root, self.home)
+                        run.assert_called_once()
+                    self.assertEqual(self.snapshot(), before)
+
+    def test_owned_loaded_job_is_unloaded_before_deletion(self):
+        output = f"job = {{\n\tpath = {self.agent}\n\tprogram = {self.app / 'Contents/MacOS/jumpyBrain'}\n\ttype = LaunchAgent\n}}"
+        results = [subprocess.CompletedProcess([], 0, output, ""), subprocess.CompletedProcess([], 0)]
+        with patch.object(uninstall.subprocess, "run", side_effect=results) as run:
+            uninstall.remove_companion(self.root, self.home)
+            self.assertEqual([call.args[0][1] for call in run.call_args_list], ["print", "bootout"])
+        self.assertFalse(self.app.exists())
+
+    def test_unknown_launchctl_error_or_unload_failure_preserves_everything(self):
+        output = f"\tpath = {self.agent}\n\tprogram = {self.app / 'Contents/MacOS/jumpyBrain'}\n\ttype = LaunchAgent\n"
+        for results in ([subprocess.CompletedProcess([], 1, "", "unknown failure")],
+                        [subprocess.CompletedProcess([], 0, output, ""), subprocess.CompletedProcess([], 1)]):
+            before = self.snapshot()
+            with patch.object(uninstall.subprocess, "run", side_effect=results):
+                with self.assertRaises(update.SafetyError):
+                    uninstall.remove_companion(self.root, self.home)
+            self.assertEqual(self.snapshot(), before)
+
+    def test_legacy_owned_bundle_can_be_removed(self):
+        del self.config["runtimeRoot"]
+        self.write_config()
+        shutil.copytree(self.runtime, self.app / "Contents/Resources/runtime")
+        (self.app / "Contents/Resources/runtime/dist/cli.js").unlink()
+        self.remove()
+        self.assertTrue(self.memory.exists())
+        self.assertTrue(self.runtime.exists())
+
+
+class RuntimeClosureTests(Fixture):
+    def test_gateway_and_lifecycle_dependencies_are_required_independently(self):
+        source = self.stage / "integrations/macos-companion"
+        for name in ("Companion.swift", "gateway.mjs", "connections.mjs", "switch-coordinator.mjs",
+                     "menu-update.mjs", "update-check.mjs", "install.py", "update.py", "uninstall.py", "lifecycle.py"):
+            with self.subTest(missing=name):
+                dependency = source / name
+                content = dependency.read_bytes()
+                dependency.unlink()
+                with self.assertRaisesRegex(update.SafetyError, name.replace(".", r"\.")):
+                    update.validate_runtime(self.stage)
+                dependency.write_bytes(content)
+        update.validate_runtime(self.stage)
+        self.assertFalse((source / "server-bootstrap.mjs").exists())
 
 
 class TransactionTests(Fixture):
@@ -387,7 +514,7 @@ class NativeBuildTests(Fixture):
         self.assertEqual(self.compilations(), 0)
         self.assertEqual(update.inspect_companion(self.root, self.home), dict(self.config, revision="new"))
         self.assertEqual(plistlib.loads((self.app / "Contents/Info.plist").read_bytes())["CFBundleShortVersionString"], "new")
-        for helper in ("server-bootstrap.mjs", "menu-update.mjs", "update-check.mjs"):
+        for helper in ("menu-update.mjs", "update-check.mjs"):
             self.assertEqual((self.app / "Contents/Resources" / helper).read_bytes(),
                              (self.runtime / "integrations/macos-companion" / helper).read_bytes())
         self.assertTrue(any("--sign" in command and command[-1].endswith("jumpyBrain.app") for command in self.commands))

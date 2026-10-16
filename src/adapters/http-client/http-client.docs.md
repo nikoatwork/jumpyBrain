@@ -35,7 +35,7 @@ Rich/compact request `readOnly:true` first GETs observational status and require
 
 ## Execution lifecycle
 
-Local transport `signal`/`timeoutMs` options on index/search/compact recall control fetch **and response-body consumption**, never serialized server knobs. Defaults are 70 seconds for reads and 610 seconds for index (headroom over default backend deadlines); longer server deadlines require a matching client runtime option. Timeout/abort produce static `RemoteMemoryError` codes `execution_timeout`/`execution_aborted` and remove timers/listeners. Server overload/deadline codes remain errors, not empty memory. Other legacy requests also have the finite 70-second transport default.
+Local transport `signal`/`timeoutMs` options on index/search/compact recall control fetch **and response-body consumption**, never serialized server knobs. Defaults are 70 seconds for reads and 610 seconds for index (headroom over default backend deadlines); longer server deadlines require a matching client runtime option. Each public operation creates exactly one deadline timer. Authenticated internal JSON requests and strict read-only status preflight inherit the same operation signal and remaining lifetime; preflight never resets or caps a longer caller deadline. Rich JSON and bounded streaming decoders remain separate, and both consume response bodies inside that operation scope. Timeout/abort produce static `RemoteMemoryError` codes `execution_timeout`/`execution_aborted` and remove timers/listeners. Server overload/deadline codes remain errors, not empty memory. Other legacy requests also have the finite 70-second transport default.
 
 ## Non-responsibilities
 
@@ -47,3 +47,7 @@ Local transport `signal`/`timeoutMs` options on index/search/compact recall cont
 ## Temporal scope verification
 
 Rich and compact searches forward optional `temporal` after core validation. `temporal-response.ts` compares every resolved interval field against `resolveTemporalQuery(request.temporal)` and validates coverage counts: missing/mismatched scopes fail with upgrade guidance, never unfiltered fallback. Compact V1 additionally requires in-scope `evidenceDate` on temporal passages and closed string/string-array `relationships`; these fields and the temporal envelope are rejected without a temporal request. Written dates remain independent. See [protocol](../../../docs/shared-memory-protocol.md#temporal-retrieval-options).
+
+## Deletion transport
+
+`previewMemoryDocumentDeletion(id)` uses authenticated GET on the document path with `?deletePreview=1`; `deleteMemoryDocument(id,{ifMatch,apply:true})` sends authenticated DELETE with `If-Match` and JSON `{apply:true}`. Missing/changed/duplicate identity failures propagate. Neither method automatically retries removal or refreshes indexing; callers repair the index independently of a confirmed removal.

@@ -1,25 +1,14 @@
+import { shellFunctions } from "./browser-shell-helpers.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 import { extractCanonicalLinks, resolveCanonicalLinkTarget, buildCanonicalLinkTargetLookup } from "../dist/core/canonical/links.js";
 
-const script = graphPageHtml("dailytest").match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
-function extract(name) {
-  let start = script.indexOf("function " + name + "(");
-  assert.ok(start >= 0, name);
-  if (script.slice(start - 6, start) === "async ") start -= 6;
-  const body = script.indexOf("{", start);
-  let depth = 0;
-  for (let end = body; end < script.length; end++) {
-    if (script[end] === "{") depth++;
-    if (script[end] === "}" && --depth === 0) return script.slice(start, end + 1);
-  }
-  throw new Error("Unterminated " + name);
-}
+const script = [...graphPageHtml("dailytest").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals = {}) {
   const context = vm.createContext(globals);
-  vm.runInContext(names.map(extract).join("\n"), context);
+  vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }
 function deferred() {

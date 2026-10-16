@@ -10,7 +10,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { indexMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { editorMarkdown, editorEnd, selectEditorText, replaceEditorText, appendEditorText, undoEditor } from "./editor-smoke-helpers.mjs";
 
 const apiKey = "page-reference-disposable-smoke-key";
@@ -42,11 +42,7 @@ try {
   const indexed = await indexMemory(root);
   assert.equal(indexed.documents, fixtures.length, "actual disposable QMD index contains every fixture");
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
-  try { browser = await chromium.launch(); }
-  catch (error) {
-    if (!String(error.message).includes("Executable doesn't exist")) throw error;
-    browser = await chromium.launch({ channel: process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   // Fail once and clearly when dist predates the parent integration, not dozens
   // of identical selector timeouts. No prototype installer or fake editor here.
   const preflight = await browser.newPage();

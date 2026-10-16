@@ -11,6 +11,7 @@ const MEMORY_RECIPES = new Map<string, MemoryCommand>([
   ["memory:search", "search"],
   ["memory:recall", "recall"],
   ["memory:show", "show"],
+  ["memory:delete", "delete"],
   ["memory:expand", "expand"],
   ["memory:update", "update"],
   ["memory:process", "process"],

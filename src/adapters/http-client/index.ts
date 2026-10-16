@@ -57,6 +57,8 @@ export interface RemoteMemoryTransport {
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions & { mode?: "search" | "recall" }): Promise<SearchMemoryResult & Record<string, unknown>>;
   compactSearchMemory(query: string, limit: number, options?: CompactRecallOptions): Promise<CompactRecallPacket>;
   expandMemoryDocument(options: ExpansionOptions): Promise<ExpansionResult>;
+  previewMemoryDocumentDeletion(id: string): Promise<import("../../types.js").MemoryDocumentDeletePreview>;
+  deleteMemoryDocument(id: string, options: { ifMatch: string; apply: true }): Promise<import("../../types.js").MemoryDocumentDeleteResult>;
   readMemoryDocument(id: string): Promise<MemoryDocumentReadResult & Record<string, unknown>>;
   updateMemoryDocument(id: string, content: string, options: { ifMatch: string }): Promise<MemoryDocumentUpdateResult & Record<string, unknown>>;
   getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
@@ -103,7 +105,13 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   }
 
   async function request(path: string, init: RequestInit = {}, execution: ExecutionOptions = {}, index = false): Promise<Record<string, unknown>> {
-    return execute(execution, index, async signal => {
+    return execute(execution, index, signal => requestInScope(path, init, signal));
+  }
+
+  // Internal requests inherit the public operation's deadline through its signal.
+  // In particular, observational preflight must not reset or cap that lifetime.
+  async function requestInScope(path: string, init: RequestInit, signal: AbortSignal): Promise<Record<string, unknown>> {
+    if (signal.aborted) throw signal.reason;
     const headers = new Headers(init.headers);
     headers.set("Authorization", `Bearer ${apiKey}`);
     if (init.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
@@ -117,7 +125,6 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       throw new RemoteMemoryError(response.status, code, message);
     }
     return payload;
-    });
   }
 
   async function boundedRequest(path: string, body: Record<string, unknown>, kind: "recall" | "expansion", execution: ExecutionOptions = {}): Promise<unknown> {
@@ -154,7 +161,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   async function assertReadOnlySupport(signal: AbortSignal): Promise<void> {
     // Status is observational even on older servers. Do not send an ignored
     // strict flag to a legacy read endpoint that can create locks/cache/schema.
-    const status = await request(HTTP_MEMORY_ROUTES.status, {}, { signal });
+    const status = await requestInScope(HTTP_MEMORY_ROUTES.status, {}, signal);
     if (status.readOnlyRetrieval !== "lexical-immutable-v1") throw new RemoteMemoryError(502, "unsupported_read_only",
       "Remote server does not advertise strict read-only retrieval. Upgrade the server; no retrieval or mutation was attempted.");
   }
@@ -182,7 +189,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       const body = { ...(searchOptions.readOnly === true ? { readOnly: true } : {}), ...(searchOptions.temporal ? { temporal: searchOptions.temporal } : {}), ...(mode === "recall"
         ? { topic: query, limit, depth: searchOptions.depth ?? "normal" }
         : { query, limit, depth: searchOptions.depth ?? "normal" }) };
-      const packet = await request(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) }, { signal });
+      const packet = await requestInScope(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) }, signal);
       if (searchOptions.temporal && !validTemporalResponse(packet.temporal, searchOptions.temporal)) {
         throw new RemoteMemoryError(502, "unsupported_temporal", "Remote server did not honor the temporal scope. Upgrade the server; no unfiltered fallback was attempted.");
       }
@@ -197,6 +204,10 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
         { query, limit, depth: recallOptions.depth, maxBytes: recallOptions.maxBytes, diagnostics: recallOptions.diagnostics, temporal: recallOptions.temporal, ...(recallOptions.readOnly === true ? { readOnly: true } : {}) }, "recall", recallOptions) as Promise<CompactRecallPacket>;
     },
     expandMemoryDocument: (expansionOptions) => boundedRequest(HTTP_MEMORY_ROUTES.expand, { ...expansionOptions }, "expansion") as Promise<ExpansionResult>,
+    previewMemoryDocumentDeletion: (id) => request(memoryDocumentPath(id) + "?deletePreview=1") as Promise<import("../../types.js").MemoryDocumentDeletePreview & Record<string, unknown>>,
+    deleteMemoryDocument: (id, options) => request(memoryDocumentPath(id), {
+      method: "DELETE", headers: { "If-Match": options.ifMatch }, body: JSON.stringify({ apply: options.apply }),
+    }) as Promise<import("../../types.js").MemoryDocumentDeleteResult & Record<string, unknown>>,
     readMemoryDocument: (id) => request(memoryDocumentPath(id)) as Promise<MemoryDocumentReadResult & Record<string, unknown>>,
     updateMemoryDocument: (id, content, updateOptions) => request(memoryDocumentPath(id), {
       method: "PUT",

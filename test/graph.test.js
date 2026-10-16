@@ -1,3 +1,7 @@
+import { memoryDocumentPath } from "../dist/adapters/http-protocol.js";
+import { createMapController, graphNodeTone } from "../dist/adapters/http-server/map-controller.js";
+import { extractShellFunction as extractFunction } from "./browser-shell-helpers.js";
+import * as documentController from "../dist/adapters/http-server/document-controller.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -8,23 +12,8 @@ import vm from "node:vm";
 import { graphMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 
-function extractFunction(src, name) {
-  let start = src.indexOf("function " + name + "(");
-  if (start < 0) throw new Error("function " + name + " not found in graph page script");
-  if (src.slice(Math.max(0, start - 6), start) === "async ") start -= 6;
-  let i = src.indexOf("{", start);
-  let depth = 0;
-  let j = i;
-  for (; j < src.length; j++) {
-    const c = src[j];
-    if (c === "{") depth++;
-    else if (c === "}") { depth--; if (depth === 0) { j++; break; } }
-  }
-  return src.slice(start, j);
-}
-
 function pageScript() {
-  return graphPageHtml("testnonce").match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
+  return [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 }
 
 function loadGraphViewportRuntime({ scale = 1.5, pan = { x: 37, y: -24 }, rect = { left: 120, top: 80, width: 800, height: 600 } } = {}) {
@@ -45,14 +34,9 @@ function loadGraphViewportRuntime({ scale = 1.5, pan = { x: 37, y: -24 }, rect =
     state: { scale, pan: { ...pan } },
     $(id) { assert.ok(elements[id], "unexpected DOM dependency: " + id); return elements[id]; },
   };
-  vm.createContext(ctx);
-  vm.runInContext([
-    extractFunction(script, "zoomGraph"),
-    extractFunction(script, "onGraphWheel"),
-    extractFunction(script, "updateViewport"),
-    script.slice(script.indexOf('const svg = $("graph");\nsvg.addEventListener("wheel"'), script.indexOf('window.addEventListener("resize"')),
-  ].join("\n"), ctx);
-  return { ...ctx, rect, listeners, transforms };
+  const map = createMapController({ state: ctx.state, element: ctx.$, document: {}, window: { addEventListener() {} } });
+  map.connect();
+  return { ...ctx, ...map, rect, listeners, transforms };
 }
 
 function assertClose(actual, expected) {
@@ -63,18 +47,7 @@ function graphPointAt(state, x, y) {
   return { x: (x - state.pan.x) / state.scale, y: (y - state.pan.y) / state.scale };
 }
 
-function loadPageEditorRuntime() {
-  const script = pageScript();
-  const ctx = {};
-  vm.createContext(ctx);
-  vm.runInContext([
-    extractFunction(script, "withEditableTitle"),
-    extractFunction(script, "createDocumentEditor"),
-    extractFunction(script, "splitEditableDocument"),
-    extractFunction(script, "composeEditableDocument"),
-  ].join("\n"), ctx);
-  return ctx;
-}
+function loadPageEditorRuntime() { return documentController; }
 
 function createManualClock() {
   let now = 0;
@@ -314,7 +287,6 @@ test("graph page uses quiet map controls with native filters and no depth UI", (
   assert.doesNotMatch(html, /class="(?:topbar|legend)"|id="depth"|data-testid="graph-depth"/);
   assert.match(html, /class="canvas-tools" aria-label="Graph view controls"/);
   assert.match(html, /id="reset-view"/);
-  assert.match(html, /window\.addEventListener\("resize", \(\) => queueGraphLayout\(80\)/);
   assert.match(html, /prefers-reduced-motion/);
 });
 
@@ -329,8 +301,14 @@ function graphNoticeHarness() {
     $: element, document: { createElement: () => ({ textContent: "" }) },
     state: { graphToken: 0, view: "graph" }, window: {}, graphUrl: () => "/graph.json", render() {},
   });
-  const script = pageScript();
-  vm.runInContext(["renderGraphNotice", "setStatus", "loadGraph"].map((name) => extractFunction(script, name)).join("\n"), context);
+  vm.runInContext(extractFunction(pageScript(), "setStatus"), context);
+  context.state.view = "home"; // Notice/load tests do not need SVG layout.
+  for (const id of ["query", "focus"]) element(id).value = "";
+  Object.assign(context, createMapController({ state: context.state, element,
+    document: context.document, window: context.window,
+    fetchGraph: url => context.graphJson(url), setStatus: (...args) => context.setStatus(...args),
+    onReady: ready => { context.window.__jumpyBrainGraphReady = ready; },
+  }));
   return { context, element };
 }
 
@@ -403,12 +381,13 @@ test("map refresh clears old notices; failed refresh and stale responses cannot 
   assert.equal(context.window.__jumpyBrainGraphReady, false);
 });
 
-test("all browser views share white surfaces and warm-grey semantic controls", () => {
+test("all browser views share Ember surfaces and semantic controls", () => {
   const html = graphPageHtml("testnonce");
   const css = html.match(/<style[^>]*>([\s\S]*?)<\/style>/)[1];
-  assert.match(css, /--surface: #ffffff;/);
-  assert.match(css, /--control-fill: #f1f0ee;/);
-  assert.match(css, /--surface-hover: #e7e5e2;/);
+  assert.match(css, /--surface: #e6dac4;/);
+  assert.match(css, /--surface: #1c1b19;/);
+  assert.match(css, /--control-fill: #d8ccb0;/);
+  assert.match(css, /--surface-hover: #cec2a8;/);
   assert.doesNotMatch(css, /--(?:cream|forest|sage|gold|clay|white)\b/);
   for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "dialog", "#note-name", "#note-editor", "#dream-preview"]) {
     const rule = css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
@@ -425,7 +404,8 @@ test("all browser views share white surfaces and warm-grey semantic controls", (
   }
   for (const type of ["page", "decision", "finding", "preference", "session", "note", "unresolved"]) {
     assert.ok(defined.has(`--node-${type}`));
-    assert.ok(html.includes(`"var(--node-${type})"`), `${type} node uses the shared palette`);
+    assert.equal(graphNodeTone({ nodeKind: type === "unresolved" ? "unresolved" : "document", type }), type);
+    assert.ok(html.includes(`stop-color="var(--node-${type})"`), `${type} glow uses the shared palette`);
   }
 });
 
@@ -522,8 +502,7 @@ test("graph URL needs no depth control and retains inclusion defaults and encode
     URLSearchParams,
     $(id) { assert.ok(controls[id], "unexpected DOM dependency: " + id); return controls[id]; },
   };
-  vm.createContext(ctx);
-  vm.runInContext(extractFunction(pageScript(), "graphUrl"), ctx);
+  Object.assign(ctx, createMapController({ element: ctx.$ }));
   const defaults = new URL(ctx.graphUrl(), "http://localhost");
   assert.equal(defaults.pathname, "/memories/all/graph.json");
   assert.deepEqual(Object.fromEntries(defaults.searchParams), { includeUnresolved: "1", includeOrphans: "1" });
@@ -544,8 +523,7 @@ test("graph focus restoration selects the matching node or falls back to the map
   });
   const controls = { viewport: { children: [node(null), node("pages/a.md"), node("pages/b.md")] }, query: node("query") };
   const ctx = { $: (id) => controls[id] };
-  vm.createContext(ctx);
-  vm.runInContext(extractFunction(pageScript(), "focusGraphNode"), ctx);
+  Object.assign(ctx, createMapController({ element: ctx.$ }));
   ctx.focusGraphNode("pages/b.md");
   ctx.focusGraphNode("missing.md");
   ctx.focusGraphNode(null);
@@ -560,7 +538,6 @@ test("notes editing stays in the HTTP shell with persistent rich editing and nat
   assert.match(script, /requestEditorNavigation/);
   assert.match(script, /searchDialog\.addEventListener\("cancel"/);
   assert.match(script, /beforeunload/);
-  assert.match(script, /temporary last-write-wins/);
   assert.match(html, /id="note-save-state"[^>]*role="status"[^>]*aria-live="polite"/);
   assert.match(html, /id="note-editor"[^>]*aria-label="Markdown note body"/);
   assert.match(html, /@media \(max-width: 680px\)[\s\S]*#note-editor/);
@@ -593,6 +570,7 @@ test("graph document transport centralizes optional Bearer auth and PUT precondi
       return { ok: true, status: 200, json: async () => ({ newContentHash: "sha256:new" }) };
     },
   };
+  ctx.memoryDocumentPath = memoryDocumentPath;
   vm.createContext(ctx);
   vm.runInContext([
     extractFunction(script, "graphFetch"),
@@ -656,40 +634,30 @@ test("page renames serialize title metadata, preserve body, and retain duplicate
   assert.ok(h.writes[2].content.includes('title: "Unique \\"page\\""'), "later body saves retain the renamed title");
 });
 
-test("undoing a rename after a lost response restores the title through a conflict retry", async () => {
+test("a lost-response rename retains the draft until explicit reload", async () => {
   const h = createEditorHarness({
-    readDocument: async () => ({ title: "Beta", content: '---\ntitle: "Beta"\n---\n# Alpha\n', contentHash: "sha256:committed-beta" }),
-    writeDocument: async (_id, _content, _hash, count) => {
-      if (count === 1) throw new Error("Lost response after commit");
-      if (count === 2) throw Object.assign(new Error("Stale hash"), { status: 412 });
-      return { newContentHash: "sha256:restored-alpha" };
-    },
+    readDocument: async () => ({ title: "Beta", content: '---\ntitle: "Beta"\n---\nSaved body', contentHash: "sha256:committed" }),
+    writeDocument: async () => { throw new Error("Lost response after commit"); },
   });
-  h.editor.setEditing(true);
   h.editor.inputTitle("Beta");
   assert.equal(await h.editor.flush(), false);
   h.editor.inputTitle("Alpha");
   assert.equal(h.editor.hasPending(), true);
-  assert.equal(await h.editor.retry(), true);
-  assert.match(h.writes[2].content, /title: "Alpha"/);
-  assert.equal(h.writes[2].hash, "sha256:committed-beta");
-  assert.equal(h.editor.state.savedTitle, "Alpha");
+  assert.equal(h.writes.length, 1);
+  assert.equal(await h.editor.reloadSaved(), true);
+  assert.equal(h.editor.state.title, "Beta");
+  assert.equal(h.editor.state.draft, "Saved body");
   assert.equal(h.editor.hasPending(), false);
 });
 
-test("a body-only conflict retry preserves a concurrently renamed title", async () => {
-  const h = createEditorHarness({
-    readDocument: async () => ({ title: "Remote title", content: '---\ntitle: "Remote title"\n---\n# Alpha\n', contentHash: "sha256:remote" }),
-    writeDocument: async (_id, _content, _hash, count) => {
-      if (count === 1) throw Object.assign(new Error("Stale hash"), { status: 412 });
-      return { newContentHash: "sha256:merged" };
-    },
-  });
-  h.editor.setEditing(true);
+test("a body-only conflict never overwrites a concurrently renamed note", async () => {
+  const h = createEditorHarness({ writeDocument: async () => { throw Object.assign(new Error("Stale hash"), { status: 412 }); } });
   h.editor.input("Updated body");
-  assert.equal(await h.editor.flush(), true);
-  assert.match(h.writes[1].content, /title: "Remote title"/);
-  assert.equal(h.editor.state.title, "Remote title");
+  assert.equal(await h.editor.flush(), false);
+  assert.equal(h.writes.length, 1);
+  assert.equal(h.reads.length, 0);
+  assert.equal(h.editor.state.draft, "Updated body");
+  assert.equal(h.editor.state.saveErrorCode, "precondition_failed");
 });
 
 test("empty page names never write, and undoing a rename is a no-op", async () => {
@@ -802,23 +770,21 @@ test("graph editor serializes input during a save and advances successive conten
   assert.equal(harness.editor.state.dirty, false);
 });
 
-test("graph editor performs one temporary last-write-wins retry with latest frontmatter", async () => {
-  const latest = '---\ntitle: "Server title"\nupdated_at: "later"\n---\nserver body\n';
-  const harness = createEditorHarness({
-    readDocument: async () => ({ content: latest, contentHash: "sha256:latest" }),
-    writeDocument: async (_id, _content, _hash, count) => {
-      if (count === 1) throw Object.assign(new Error("stale"), { status: 412 });
-      return { newContentHash: "sha256:retried" };
-    },
+test("conflict recovery reloads the saved version only on explicit request and never writes", async () => {
+  const h = createEditorHarness({
+    readDocument: async () => ({ title: "Server title", content: "Saved body", contentHash: "sha256:latest" }),
+    writeDocument: async () => { throw Object.assign(new Error("stale"), { status: 412 }); },
   });
-  harness.editor.setEditing(true);
-  harness.editor.input("local body\n");
-  await harness.editor.startSave();
-  assert.equal(harness.writes.length, 2);
-  assert.equal(harness.writes[1].hash, "sha256:latest");
-  assert.match(harness.writes[1].content, /^---\ntitle: "Server title"\nupdated_at: "later"\n---\nlocal body\n$/);
-  assert.equal(harness.editor.state.contentHash, "sha256:retried");
-  assert.equal(harness.editor.state.dirty, false);
+  h.editor.input("Local draft");
+  assert.equal(await h.editor.flush(), false);
+  assert.equal(h.editor.state.draft, "Local draft");
+  assert.equal(h.reads.length, 0);
+  assert.equal(await h.editor.reloadSaved(), true);
+  assert.equal(h.editor.state.draft, "Saved body");
+  assert.equal(h.editor.state.title, "Server title");
+  assert.equal(h.editor.state.contentHash, "sha256:latest");
+  assert.equal(h.editor.hasPending(), false);
+  assert.equal(h.writes.length, 1);
 });
 
 test("graph editor stops after save failures, retains drafts, and requires manual retry", async () => {
@@ -871,7 +837,7 @@ test("graph navigation waits for a save and keeps a failed draft reachable", asy
   const pending = deferred();
   const harness = createEditorHarness({ writeDocument: async () => pending.promise });
   harness.editor.input("pending navigation draft");
-  const ctx = { state: { editor: harness.editor }, referenceAutocomplete: { dismiss() {} } };
+  const ctx = { documentActions: { isBusy: () => false }, state: { editor: harness.editor }, referenceAutocomplete: { dismiss() {} } };
   vm.createContext(ctx);
   vm.runInContext(extractFunction(pageScript(), "requestEditorNavigation"), ctx);
   let navigated = false;
@@ -884,7 +850,7 @@ test("graph navigation waits for a save and keeps a failed draft reachable", asy
 
   const failed = createEditorHarness({ writeDocument: async () => { throw new Error("offline"); } });
   failed.editor.input("reachable failed draft");
-  const failedCtx = { state: { editor: failed.editor }, referenceAutocomplete: { dismiss() {} } };
+  const failedCtx = { documentActions: { isBusy: () => false }, state: { editor: failed.editor }, referenceAutocomplete: { dismiss() {} } };
   vm.createContext(failedCtx);
   vm.runInContext(extractFunction(pageScript(), "requestEditorNavigation"), failedCtx);
   let failedNavigation = false;
@@ -920,7 +886,7 @@ test("graph editor bounds repeated conflicts and ignores a late save after cance
   conflictHarness.editor.setEditing(true);
   conflictHarness.editor.input("local");
   await conflictHarness.editor.startSave();
-  assert.equal(conflictHarness.writes.length, 2, "only the initial PUT and one retry are allowed");
+  assert.equal(conflictHarness.writes.length, 1, "a conflict never silently retries");
   assert.equal(conflictHarness.editor.state.saveStatus, "failed");
   assert.equal(conflictHarness.editor.state.draft, "local");
 
@@ -934,4 +900,21 @@ test("graph editor bounds repeated conflicts and ignores a late save after cance
   await save;
   assert.equal(staleHarness.editor.state.contentHash, "sha256:initial");
   assert.equal(staleHarness.editor.state.draft, "document A draft");
+});
+
+test("map resize queues an 80ms guarded layout through the injected clock", () => {
+  const callbacks = new Map(), timers = [];
+  const state = { graph: { nodes: [] }, view: "graph" };
+  const map = createMapController({ state, element: () => ({ addEventListener() {} }), document: {},
+    window: { addEventListener: (name, callback) => callbacks.set(name, callback),
+      setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }, clearTimeout() {} },
+  });
+  map.connect();
+  callbacks.get("resize")();
+  assert.equal(timers[0].delay, 80);
+  state.view = "note";
+  callbacks.get("resize")();
+  assert.equal(timers.length, 1, "leaving map does not schedule another layout");
+  timers[0].callback(); // A queued layout also remains inert after leaving.
+  assert.equal(state.layoutTimer, null);
 });

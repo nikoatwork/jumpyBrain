@@ -46,3 +46,7 @@ Local search/index execution deadlines can be set with `JUMPYBRAIN_SEARCH_TIMEOU
 ## Explicit temporal retrieval
 
 `temporal.ts` validates `--from`, `--to`, `--reference-date`, and `--order` before target credentials. Search/recall and recipes switch to strict bounded-read argument parsing whenever any temporal flag is present: unknown/repeated flags, missing values, and valued booleans fail. The handler passes one `temporal` object through either transport. Human output reports the resolved UTC half-open interval, coverage, evidence-date basis, explicit relationship declarations, and partial warnings; non-temporal formatting stays unchanged. See [CLI temporal contract](../../docs/cli-commands.md#explicit-temporal-retrieval).
+
+## Delete command
+
+`delete --id <id>` and `run memory:delete` preview only. `--apply --if-match <prior hash>` authorizes permanent removal of exactly one canonical file; no path/glob/force input, Trash, cascade or automatic retry. Delete flags are strict: unknown/repeated/missing values, valued booleans and unexpected positional arguments fail before target credentials or stdin. Device read-only policy classifies deletion as a mutation (including the deletion preview command); preview itself uses a read-only GET. Output distinguishes confirmed removal from pending/failed indexing.

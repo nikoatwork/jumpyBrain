@@ -1,5 +1,7 @@
 # Sentence-aware long-paragraph recall excerpts
 
+**Lifecycle: implementation complete; retained here pending explicit archive approval.** This is completed history, not an active execution plan.
+
 ## Goal
 
 Improve readability of oversized prose excerpts by preferring defensible sentence boundaries, without losing the matched evidence, fabricating source text, or claiming complete qualifications.

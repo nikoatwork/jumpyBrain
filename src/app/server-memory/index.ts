@@ -1,5 +1,5 @@
 import { findMemoryRoot, initializeMemoryRoot } from "../../core/memory-root/index.js";
-import { memoryStatus, graphMemory, indexMemory, overviewMemory, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
+import { memoryStatus, graphMemory, indexMemory, overviewMemory, previewMemoryDocumentDeletion, deleteMemoryDocument, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
 import { processMemory } from "../processing/index.js";
 import { rememberMemory, writeSessionWrapup, type WrapupDraft, type WrapupWriteResult } from "../writing/index.js";
 import { failedCreationIndex, failedCreationReplay } from "../writing/creation-outcome.js";
@@ -43,7 +43,8 @@ import type { CompactRecallOptions, CompactRecallPacket } from "../../core/retri
 import type { ExpansionOptions, ExpansionResult } from "../../core/canonical/expansion.js";
 export { compactSearchServerMemory, expandServerMemoryDocument };
 
-import { getDreamWindow as getServerDreamWindow, abandonDreamBatch as abandonServerDreamBatch, createDreamBatch as createServerDreamBatch, getDreamBatch as getServerDreamBatch, getDreamStatus as getServerDreamStatus, completeDreamBatch as completeServerDreamBatch } from "./dream.js";
+import { getDreamWindow, abandonDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, completeDreamBatch } from "./dream.js";
+export { getDreamWindow, abandonDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, completeDreamBatch };
 
 export { recentServerMemory, type RemoteMemoryRecentNote, type RemoteMemoryRecentPacket } from "./recent.js";
 export { resolveServerMemoryTitle } from "./resolve-title.js";
@@ -69,6 +70,8 @@ export interface ServerMemoryRuntime {
   searchMemory(query: string, limit: number, options?: SearchMemoryOptions): Promise<SearchMemoryResult>;
   compactSearchMemory(query: string, limit: number, options?: CompactRecallOptions): Promise<CompactRecallPacket>;
   expandMemoryDocument(options: ExpansionOptions): Promise<ExpansionResult>;
+  previewMemoryDocumentDeletion(id: string): Promise<import("../../types.js").MemoryDocumentDeletePreview>;
+  deleteMemoryDocument(id: string, options: { ifMatch: string; apply: true }): Promise<import("../../types.js").MemoryDocumentDeleteResult>;
   readMemoryDocument(id: string): Promise<RemoteMemoryDocumentReadPacket>;
   updateMemoryDocument(id: string, content: string, options: ServerMemoryDocumentUpdateOptions): Promise<RemoteMemoryDocumentUpdatePacket>;
   getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
@@ -162,6 +165,8 @@ export function createServerMemoryRuntime(options: ServerMemoryRuntimeOptions): 
     searchMemory: (query, limit, searchOptions) => searchMemory(root, query, limit, { ...searchOptions, refresh: false }),
     compactSearchMemory: (query, limit, recall) => compactSearchServerMemory({ root, query, limit, recall }),
     expandMemoryDocument: (expansion) => expandServerMemoryDocument({ ...expansion, root }),
+    previewMemoryDocumentDeletion: (id) => previewServerMemoryDeletion({ root, id }),
+    deleteMemoryDocument: (id, options) => deleteServerMemoryDocument({ root, id, ...options }),
     readMemoryDocument: (id) => readServerMemoryDocument({ root, id }),
     updateMemoryDocument: (id, content, updateOptions) => updateServerMemoryDocument({ root, id, content, ...updateOptions }),
     getDreamWindow: (request) => getDreamWindow({ root, request }),
@@ -261,30 +266,6 @@ export async function updateServerMemoryDocument(options: {
   };
 }
 
-export async function getDreamWindow(options: { root: string; request?: DreamWindowRequest }): Promise<DreamWindow> {
-  return getServerDreamWindow(options);
-}
-
-export async function getDreamStatus(options: { root: string }): Promise<DreamStatus> {
-  return getServerDreamStatus(options);
-}
-
-export async function createDreamBatch(options: { root: string; request?: DreamCreateRequest }): Promise<DreamBatch> {
-  return createServerDreamBatch(options);
-}
-
-export async function getDreamBatch(options: { root: string; batchId: string }): Promise<DreamBatch> {
-  return getServerDreamBatch(options);
-}
-
-export async function completeDreamBatch(options: { root: string; request: DreamCompleteRequest }): Promise<DreamCompleteResult> {
-  return completeServerDreamBatch(options);
-}
-
-export async function abandonDreamBatch(options: { root: string; batchId: string; summary?: string }): Promise<DreamAbandonResult> {
-  return abandonServerDreamBatch(options);
-}
-
 export async function searchServerMemory(options: ExecutionOptions & {
   root: string;
   query: string;
@@ -351,4 +332,18 @@ function normalizeServerRoot(root: string): string {
   const normalized = root.trim();
   if (!normalized) throw new Error("Server memory root is required.");
   return normalized;
+}
+
+export async function previewServerMemoryDeletion(options: { root: string; id: string }) {
+  const result = await previewMemoryDocumentDeletion(options.root, options.id);
+  return { ...result, root: "remote:all" as const, target: "remote" as const, memory: "all" as const };
+}
+export async function deleteServerMemoryDocument(options: { root: string; id: string; ifMatch: string; apply: true }) {
+  const result = await deleteMemoryDocument(options.root, options.id, options);
+  // Canonical removal has succeeded: derived bookkeeping must never turn it into
+  // a misleading deletion failure or trigger another canonical attempt.
+  try { return { ...result, root: "remote:all" as const, target: "remote" as const, memory: "all" as const,
+    index: await markRemoteIndexStale(options.root) }; }
+  catch { return { ...result, root: "remote:all" as const, target: "remote" as const, memory: "all" as const,
+    indexing: { status: "failed" as const, diagnostic: "Note removed. Index bookkeeping failed; refresh the index." } }; }
 }

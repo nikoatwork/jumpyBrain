@@ -7,7 +7,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
-import { loadPlaywrightChromium } from "./playwright-runtime.mjs";
+import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { appendEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-companion-browser-"));
@@ -140,11 +140,7 @@ async function idlePolls(page, count = 3) {
 let browser;
 try {
   const chromium = await loadPlaywrightChromium();
-  try { browser = await chromium.launch(); }
-  catch (exception) {
-    if (!exception.message.includes("Executable doesn't exist")) throw exception;
-    browser = await chromium.launch({ channel: process.env.JUMPYBRAIN_PLAYWRIGHT_CHANNEL || "chrome" });
-  }
+  browser = await launchPlaywrightChromium({ chromium });
   const context = await browser.newContext();
   await context.addInitScript(() => localStorage.setItem("jumpybrain.graph.apiKey", "untouched-browser-key"));
   const settings = await context.newPage();
@@ -152,6 +148,13 @@ try {
   settings.on("pageerror", (exception) => pageErrors.push(exception.message));
   await settings.goto(origin + "/settings#companion=fixture-token");
   await settings.locator("#companion-profiles strong").first().waitFor();
+  await settings.locator("#color-theme").selectOption("dark");
+  assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(28, 27, 25)");
+  assert.equal(await settings.locator("#companion-kind").evaluate((el) => getComputedStyle(el).color), "rgb(216, 208, 192)");
+  await settings.waitForFunction(() => getComputedStyle(document.querySelector("#companion-name")).backgroundColor === "rgb(28, 27, 25)");
+  await settings.locator("#color-theme").selectOption("light");
+  assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(230, 218, 196)");
+  await settings.locator("#color-theme").selectOption("system");
   assert.equal(new URL(settings.url()).hash, "");
   assert.equal(await settings.evaluate(() => localStorage.getItem("jumpybrain.graph.apiKey")), null, "legacy local-server credential must be forgotten");
   assert.equal(requests.some((item) => item.path.startsWith("/memories/")), false, "settings startup needs no memory fetch");
@@ -210,9 +213,10 @@ try {
   await editor.locator("#note-search-input").press("Enter");
   await editor.locator("#note-search").waitFor({ state: "hidden" });
 
-  const referenceStarted = editor.waitForRequest((request) => request.url() === origin + "/memories/all/search");
-  await appendEditorText(editor, " [[Fix");
-  await referenceStarted;
+  await Promise.all([
+    editor.waitForRequest((request) => request.url() === origin + "/memories/all/search"),
+    appendEditorText(editor, " [[Fix"),
+  ]);
   await idlePolls(editor);
   const suggestion = editor.locator("[data-reference-autocomplete] [role=option][aria-selected=true]");
   await suggestion.waitFor();
@@ -318,6 +322,12 @@ try {
   await failure.locator("#companion-reconnect").waitFor();
   assert.match(await failure.locator("#companion-feedback").textContent(), /session unavailable/);
   assert.equal(new URL(failure.url()).hash, "");
+  await failure.locator("#companion-recovery").waitFor({ state: "visible" });
+  assert.match(await failure.locator("#companion-feedback").textContent(), /Retry only works if the existing session cookie is still valid/);
+  assert.equal(await failure.locator("#companion-recovery").getByRole("button", { name: "Retry companion session", exact: true }).isEnabled(), true);
+  await failure.locator("#companion-recovery").getByRole("button", { name: "Retry companion session", exact: true }).click();
+  await failure.waitForFunction(() => !document.querySelector("#companion-recovery button").disabled);
+  assert.match(await failure.locator("#companion-feedback").textContent(), /Reopen the editor from the companion menu/);
   await unauthenticated.close();
   console.log("companion browser smoke: PASS (registration, settings, keys, idle Search/query/reference/Dream survival, two-tab freeze/flush, uncertain creation, conflict block, generation reload, read-only, stale links, serialized polls, session failure)");
 } finally {

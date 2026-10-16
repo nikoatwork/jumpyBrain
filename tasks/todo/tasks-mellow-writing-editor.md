@@ -1,5 +1,7 @@
 # Mellow daily writing editor
 
+**Lifecycle: implementation complete; retained here pending explicit archive approval.** This is completed history, not an active execution plan.
+
 Status: complete; design accepted. Installed runtime unchanged.
 
 ## Direction

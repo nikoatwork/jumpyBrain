@@ -1,24 +1,13 @@
+import { shellFunctions } from "./browser-shell-helpers.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 
-const script = graphPageHtml("testnonce").match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
-function extract(name) {
-  let start = script.indexOf("function " + name + "(");
-  assert.ok(start >= 0, name);
-  if (script.slice(start - 6, start) === "async ") start -= 6;
-  const body = script.indexOf("{", start);
-  let depth = 0;
-  for (let end = body; end < script.length; end++) {
-    if (script[end] === "{") depth++;
-    if (script[end] === "}" && --depth === 0) return script.slice(start, end + 1);
-  }
-  throw new Error("Unterminated " + name);
-}
+const script = [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals = {}) {
   const context = vm.createContext(globals);
-  vm.runInContext(names.map(extract).join("\n"), context);
+  vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -155,9 +144,9 @@ test("home puts a prominent capture action before secondary search", () => {
   assert.match(html, /setAttribute\("aria-keyshortcuts"/);
 });
 
-test("note view uses white borderless proportional editing with an accessible name field", () => {
+test("note view uses themed borderless proportional editing with an accessible name field", () => {
   const html = graphPageHtml("testnonce");
-  assert.match(html, /--surface: #ffffff;/);
+  assert.match(html, /--surface: #e6dac4;/);
   const editorStyle = html.match(/#note-editor \{[^}]+\}/)[0];
   assert.match(editorStyle, /background: var\(--surface\)/);
   assert.match(editorStyle, /border: 0/);
@@ -571,7 +560,6 @@ test("page references save first, resolve freshly, preflight, and consume the st
   assert.equal(h.pushes[0].url, "/?note=" + docB);
   assert.equal(h.reads.length, 1, "showNote must reuse the validated preflight payload");
   assert.equal(h.state.editor.state.documentId, docB);
-  assert.equal(h.state.editor.state.exactContent, h.payload.content);
   assert.equal(h.state.editor.state.contentHash, h.payload.contentHash);
   assert.equal(h.richEditor.getMarkdown(), h.payload.content);
   assert.equal(h.origin.state.cancelled, true);

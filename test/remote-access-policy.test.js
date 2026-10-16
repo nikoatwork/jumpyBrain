@@ -115,7 +115,7 @@ test("read-only target command matrix allows retrieval and blocks mutations befo
     }
 
     const mutations = [
-      ["index"], ["remember"], ["wrapup", "--title", "x"], ["update", "--id", "mem_test", "--if-match", "sha256:x"], ["process", "--mode", "lint"],
+      ["delete", "--id", "mem_test"], ["run", "memory:delete", "--id", "mem_test"], ["index"], ["remember"], ["wrapup", "--title", "x"], ["update", "--id", "mem_test", "--if-match", "sha256:x"], ["process", "--mode", "lint"],
       ["dream", "--force"], ["dream", "--complete", "dream_test"], ["dream", "--abandon", "dream_test"],
       ["dream", "--apply-manifest", path.join(temp, "missing.json")],
       ["dream", "--status", "--complete", "dream_test"], ["dream", "--status", "--abandon", "dream_test"],

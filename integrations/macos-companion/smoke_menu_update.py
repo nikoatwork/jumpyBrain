@@ -339,7 +339,8 @@ def main():
         runtime = root / "build-runtime"
         source = runtime / "integrations/macos-companion"
         source.mkdir(parents=True)
-        for name in ("Companion.swift", "server-bootstrap.mjs", "menu-update.mjs", "update-check.mjs"):
+        for name in ("Companion.swift", "gateway.mjs", "connections.mjs", "switch-coordinator.mjs",
+                     "menu-update.mjs", "update-check.mjs", "install.py", "update.py", "uninstall.py", "lifecycle.py"):
             shutil.copy2(HERE / name, source / name)
         (source / "Companion.swift").write_text(instrument((source / "Companion.swift").read_text()))
         helper = source / "menu-update.mjs"

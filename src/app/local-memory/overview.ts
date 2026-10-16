@@ -1,10 +1,10 @@
-import { readFile } from "node:fs/promises";
-import { buildCanonicalLinkTargetLookup, extractCanonicalLinks, readMarkdownDocuments, resolveCanonicalLinkTarget, resolveMemoryRoot } from "../../core/canonical/index.js";
+import { collectConnections } from "./connections.js";
+import { retrievalReadiness } from "./freshness.js";
+import { readMarkdownDocuments, resolveMemoryRoot } from "../../core/canonical/index.js";
 import { assertCompatibleMemoryRoot, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
 import { bucketFor, firstString, stringValue, tagsValue, tryLoadManifest } from "./document-fields.js";
 import type {
   MarkdownDocument,
-  MemoryConnectionEdge,
   MemoryConnectionSummary,
   MemoryOverviewBucketSummary,
   MemoryOverviewCount,
@@ -12,6 +12,7 @@ import type {
   MemoryOverviewIndexState,
   MemoryOverviewOptions,
   MemoryOverviewResult,
+  RetrievalReadiness,
 } from "../../types.js";
 
 const DEFAULT_LIMIT = 10;
@@ -25,8 +26,9 @@ export async function overviewMemory(rootArg: string, options: MemoryOverviewOpt
   const manifest = await tryLoadManifest(root);
   const indexedFiles = new Set(manifest?.documents.map((document) => document.relativePath) ?? []);
   const summaries = documents.map((document) => summarizeDocument(document, indexedFiles));
-  const warnings = overviewWarnings({ compatible: status.compatible, documents, manifest, indexedFiles });
-  const index = overviewIndexState(documents, manifest, indexedFiles);
+  const readiness = status.compatible ? await retrievalReadiness(root, manifest) : undefined;
+  const warnings = overviewWarnings({ compatible: status.compatible, documents, manifest, indexedFiles, readiness });
+  const index = overviewIndexState(documents, manifest, indexedFiles, readiness);
   const timestamps = summaries.flatMap((summary) => [summary.updatedAt, summary.createdAt]).filter(isIsoLike).sort();
   const limit = normalizeLimit(options.limit);
 
@@ -46,7 +48,7 @@ export async function overviewMemory(rootArg: string, options: MemoryOverviewOpt
     ...(options.showFiles ? { files: summaries.slice(0, limit) } : {}),
     index,
     warnings,
-    ...(options.connections ? { connections: await connectionSummary(sourceRoot, documents) } : {}),
+    ...(options.connections ? { connections: await connectionSummary(documents) } : {}),
   };
 }
 
@@ -85,11 +87,11 @@ function bucketSummaries(files: MemoryOverviewDocumentSummary[]): MemoryOverview
     .sort((a, b) => a.bucket.localeCompare(b.bucket));
 }
 
-function overviewIndexState(documents: MarkdownDocument[], manifest: Awaited<ReturnType<typeof tryLoadManifest>>, indexedFiles: Set<string>): MemoryOverviewIndexState {
+function overviewIndexState(documents: MarkdownDocument[], manifest: Awaited<ReturnType<typeof tryLoadManifest>>, indexedFiles: Set<string>, readiness?: RetrievalReadiness): MemoryOverviewIndexState {
   const unindexedDocuments = documents.filter((document) => !indexedFiles.has(document.relativePath)).length;
   return {
     present: Boolean(manifest),
-    stale: !manifest || unindexedDocuments > 0 || (manifest.documents.length !== documents.length),
+    stale: readiness?.freshness !== "fresh",
     indexedDocuments: manifest?.documents.length ?? 0,
     generatedAt: manifest?.generatedAt,
     qmdCollection: manifest?.qmdCollection,
@@ -102,6 +104,7 @@ function overviewWarnings(options: {
   documents: MarkdownDocument[];
   manifest: Awaited<ReturnType<typeof tryLoadManifest>>;
   indexedFiles: Set<string>;
+  readiness?: RetrievalReadiness;
 }): string[] {
   const warnings: string[] = [];
   if (!options.compatible) warnings.push("Memory root is not compatible with this jumpyBrain CLI.");
@@ -110,41 +113,15 @@ function overviewWarnings(options: {
   const unindexed = options.documents.filter((document) => !options.indexedFiles.has(document.relativePath)).length;
   if (options.manifest && unindexed > 0) warnings.push(`${unindexed} canonical Markdown document${unindexed === 1 ? " is" : "s are"} not in the latest index manifest; run \`jumpybrain index\`.`);
   if (options.manifest && options.manifest.documents.length > options.documents.length) warnings.push("Index manifest references more documents than the canonical Markdown scan found; run `jumpybrain index`.");
+  if (options.manifest && options.readiness?.freshness !== "fresh") {
+    warnings.push(`Memory index is ${options.readiness?.freshness ?? "unknown"}; run \`jumpybrain index\`.`);
+  }
   return warnings;
 }
 
-async function connectionSummary(root: string, documents: MarkdownDocument[]): Promise<MemoryConnectionSummary> {
-  const lookup = buildCanonicalLinkTargetLookup(documents);
-  const edgeCounts = new Map<string, MemoryConnectionEdge>();
-  let unresolvedLinks = 0;
-
-  for (const document of documents) {
-    const content = await readFile(document.absolutePath, "utf8");
-    for (const reference of extractCanonicalLinks(content)) {
-      const target = resolveCanonicalLinkTarget(document.relativePath, reference.target, reference.kind, lookup);
-      if (!target || target === document.relativePath) {
-        unresolvedLinks += target ? 0 : 1;
-        continue;
-      }
-      const key = `${document.relativePath}\0${target}\0${reference.kind}`;
-      const existing = edgeCounts.get(key);
-      if (existing) existing.count += 1;
-      else edgeCounts.set(key, { source: document.relativePath, target, kind: reference.kind, count: 1 });
-    }
-  }
-
-  const edges = [...edgeCounts.values()].sort((a, b) => a.source.localeCompare(b.source) || a.target.localeCompare(b.target) || a.kind.localeCompare(b.kind));
-  const degree = new Map(documents.map((document) => [document.relativePath, 0]));
-  const neighbors = new Map<string, Set<string>>();
-  for (const edge of edges) {
-    const sourceNeighbors = neighbors.get(edge.source) ?? new Set<string>();
-    sourceNeighbors.add(edge.target);
-    neighbors.set(edge.source, sourceNeighbors);
-    const targetNeighbors = neighbors.get(edge.target) ?? new Set<string>();
-    targetNeighbors.add(edge.source);
-    neighbors.set(edge.target, targetNeighbors);
-  }
-  for (const [file, fileNeighbors] of neighbors) degree.set(file, fileNeighbors.size);
+async function connectionSummary(documents: MarkdownDocument[]): Promise<MemoryConnectionSummary> {
+  const { edges, unresolved, neighbors } = await collectConnections(documents);
+  const degree = new Map(documents.map(document => [document.relativePath, neighbors.get(document.relativePath)?.size ?? 0]));
 
   const topHubs = [...degree.entries()]
     .filter(([, value]) => value > 0)
@@ -157,7 +134,7 @@ async function connectionSummary(root: string, documents: MarkdownDocument[]): P
     edgeCount: edges.length,
     markdownLinks: edges.filter((edge) => edge.kind === "markdown-link").length,
     wikiLinks: edges.filter((edge) => edge.kind === "wiki-link").length,
-    unresolvedLinks,
+    unresolvedLinks: unresolved.length,
     orphans: [...degree.values()].filter((value) => value === 0).length,
     topHubs,
     edges,

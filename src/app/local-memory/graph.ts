@@ -1,11 +1,9 @@
-import { readFile, stat } from "node:fs/promises";
+import { collectConnections } from "./connections.js";
+import { stat } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import path from "node:path";
 import {
-  buildCanonicalLinkTargetLookup,
-  extractCanonicalLinks,
   readMarkdownDocuments,
-  resolveCanonicalLinkTarget,
   resolveMemoryRoot,
 } from "../../core/canonical/index.js";
 import { assertCompatibleMemoryRoot, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
@@ -56,33 +54,24 @@ interface NormalizedGraphOptions extends Required<Pick<MemoryGraphOptions, "dept
 }
 
 async function buildGraph(documents: MarkdownDocument[], indexedFiles: Set<string>, includeUnresolved: boolean): Promise<{ nodes: MemoryGraphNode[]; edges: MemoryGraphEdge[] }> {
-  const lookup = buildCanonicalLinkTargetLookup(documents);
   const nodeMap = new Map<string, MemoryGraphNode>();
-  const edgeCounts = new Map<string, MemoryGraphEdge>();
-
-  for (const document of documents) {
-    const content = await readFile(document.absolutePath, "utf8");
+  const collected = await collectConnections(documents, async (document, content) => {
     const fileStat = await stat(document.absolutePath).catch(() => undefined);
     nodeMap.set(document.relativePath, documentNode(document, content, fileStat, indexedFiles.has(document.relativePath)));
-    for (const reference of extractCanonicalLinks(content)) {
-      const target = resolveCanonicalLinkTarget(document.relativePath, reference.target, reference.kind, lookup);
-      if (target === document.relativePath) continue;
-      const targetId = target ?? unresolvedNodeId(reference.target);
-      if (!target && !includeUnresolved) continue;
-      if (!target && !nodeMap.has(targetId)) nodeMap.set(targetId, unresolvedNode(reference.target, targetId));
-      const key = `${document.relativePath}\0${targetId}\0${reference.kind}`;
-      const existing = edgeCounts.get(key);
-      if (existing) existing.count += 1;
-      else edgeCounts.set(key, {
-        id: edgeId(document.relativePath, targetId, reference.kind),
-        source: document.relativePath,
-        target: targetId,
-        kind: reference.kind,
-        count: 1,
-        resolved: Boolean(target),
-        ...(target ? {} : { rawTarget: reference.target }),
-      });
-    }
+  });
+  const edgeCounts = new Map<string, MemoryGraphEdge>();
+  for (const edge of collected.edges) {
+    const id = edgeId(edge.source, edge.target, edge.kind);
+    edgeCounts.set(`${edge.source}\0${edge.target}\0${edge.kind}`, { ...edge, id, resolved: true });
+  }
+  if (includeUnresolved) for (const reference of collected.unresolved) {
+    const target = unresolvedNodeId(reference.target);
+    if (!nodeMap.has(target)) nodeMap.set(target, unresolvedNode(reference.target, target));
+    const id = edgeId(reference.source, target, reference.kind);
+    const key = `${reference.source}\0${target}\0${reference.kind}`;
+    const existing = edgeCounts.get(key);
+    if (existing) existing.count++;
+    else edgeCounts.set(key, { id, source: reference.source, target, kind: reference.kind, count: 1, resolved: false, rawTarget: reference.target });
   }
 
   const edges = [...edgeCounts.values()].sort(compareEdges);

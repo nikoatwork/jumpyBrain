@@ -1,10 +1,8 @@
 // Conservative editor-only reference recognition; not a general Markdown parser.
 export type ReferenceRange = { start: number; end: number; title: string };
 
-// Matches the production picker's exact-title safety rules (not graph resolution).
-export function safeTitle(title: string): boolean {
-  return Boolean(title && title === title.trim() && !/[\[\]\x00-\x1f\x7f|#\\/]/.test(title));
-}
+import { safeReferenceTitle as safeTitle } from "./reference-policy.js";
+export { safeReferenceTitle as safeTitle } from "./reference-policy.js";
 function escaped(text: string, offset: number): boolean {
   let slashes = 0;
   while (offset > 0 && text[--offset] === "\\") slashes++;

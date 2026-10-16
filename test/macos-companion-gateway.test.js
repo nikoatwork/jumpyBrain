@@ -140,6 +140,7 @@ test('remote profile keys stay out of state/file/browser, read-only writes block
   await f.browser('/companion/register', { tabId: 'tab-a', generation: gen });
   const read = await f.memory('documents/' + id); assert.match((await read.json()).content, /Body remote/);
   assert.equal((await f.memory('notes', { type: 'note', body: '', dailyDate: '2026-01-01' })).status, 403);
+  assert.equal((await f.memory('documents/' + id, { apply: true }, 'tab-a', gen, 'DELETE')).status, 403);
   assert.ok(!(await readFile(path.join(f.directory, 'connections.json'), 'utf8')).includes('remote-test-key'));
   assert.ok(!JSON.stringify(await (await f.native('/companion/state')).json()).includes('remote-test-key'));
   f.gateway.coordinator.unregister('tab-a', gen);
@@ -251,4 +252,20 @@ test('native pipe RPC correlates responses without credentials in errors and fai
   const denied = credentials.get('another'); input.write('{"id":"unknown","result":"secret"}\n');
   await assert.rejects(denied, (error) => !error.message.includes('secret') && error.code === 'credential_unavailable');
   credentials.close();
+});
+
+
+test('gateway forwards guarded deletion and fences old-generation deletion', async t => {
+  const f = await fixture(t);
+  const generation = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'delete-tab', generation });
+  const preview = await (await f.memory('documents/' + id + '?deletePreview=1', undefined, 'delete-tab', generation)).json();
+  assert.equal(preview.permanent, true);
+  const headers = { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'delete-tab', 'If-Match': preview.contentHash };
+  const stale = await f.browser('/memories/all/documents/' + id, { apply: true }, { ...headers, 'X-Companion-Generation': String(generation - 1) }, 'DELETE');
+  assert.equal(stale.status, 409);
+  const removed = await f.browser('/memories/all/documents/' + id, { apply: true }, headers, 'DELETE');
+  assert.equal(removed.status, 200, await removed.clone().text());
+  assert.equal((await removed.json()).removed, true);
+  assert.match(await readFile(path.join(f.roots[1], 'notes/fixture.md'), 'utf8'), /Body b/);
 });

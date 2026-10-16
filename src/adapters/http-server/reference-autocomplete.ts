@@ -1,7 +1,7 @@
 // Browser-only, framework-free presentation over the injected notes search controller.
 // Recognition, source offsets, and undoable replacement belong to the editor bridge.
 import type { createNoteEditor } from "./lexical-editor.js";
-import { safeTitle } from "./reference-ranges.js";
+import { referenceEligibility } from "./reference-policy.js";
 
 type Bridge = Pick<ReturnType<typeof createNoteEditor>, "autocompleteRange" | "subscribeReferenceContext" | "captureSelection" | "getMarkdown" | "insertReference" | "restoreSelection">;
 type Result = { documentId: string | null; title: string; referenceTitle: string | null };
@@ -36,7 +36,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   const id = "reference-autocomplete-" + ++nextId;
   const popup = doc.createElement("div"), list = doc.createElement("div"), status = doc.createElement("div");
   popup.dataset.referenceAutocomplete = "true";
-  popup.style.cssText = "position:fixed;z-index:10000;box-sizing:border-box;width:320px;max-height:240px;overflow:auto;background:var(--surface,white);color:var(--ink,#222);border:1px solid var(--line,#aaa);border-radius:6px;padding:6px;box-shadow:0 4px 16px #0002;touch-action:pan-y;overscroll-behavior:contain;user-select:none;-webkit-user-select:none";
+  popup.style.cssText = "position:fixed;z-index:10000;box-sizing:border-box;width:320px;max-height:240px;overflow:auto;background:var(--surface,white);color:var(--ink,#222);border:1px solid var(--line,#aaa);border-radius:6px;padding:6px;box-shadow:var(--shadow-lg,0 4px 16px #0002);touch-action:pan-y;overscroll-behavior:contain;user-select:none;-webkit-user-select:none";
   list.id = id;
   list.setAttribute("role", "listbox");
   list.setAttribute("aria-label", "Page references");
@@ -141,10 +141,9 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
     return Boolean(left && right && left.documentId === right.documentId && left.title === right.title && left.referenceTitle === right.referenceTitle);
   }
   function problem(result: Result) {
-    const title = result.referenceTitle;
-    if (!result.documentId || !title || !safeTitle(title)) return "No safe exact page title. Choose another note.";
-    return search.state.results.some((other) => other.documentId !== result.documentId && other.referenceTitle?.trim().toLowerCase() === title.toLowerCase())
-      ? "Several results share this title. Choose another title." : "";
+    const reason = referenceEligibility(result, search.state.results);
+    if (reason === "visible_duplicate") return "Several results share this title. Choose another title.";
+    return reason ? "No safe exact page title. Choose another note." : "";
   }
   function render() {
     const state = search.state;

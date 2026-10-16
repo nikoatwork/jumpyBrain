@@ -6,6 +6,7 @@ export interface ParsedCliArgs {
 export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
+  if (operation === "delete") return parseDeleteArgs(argv);
   if (operation === "expand" || (["recall", "search"].includes(operation)
     && argv.some(token => /^--(?:compact|max-bytes|diagnostics|no-refresh|read-only|from|to|reference-date|order)(?:=|$)/u.test(token)))) {
     return parseBoundedReadArgs(argv, operation);
@@ -132,5 +133,27 @@ function parseMigrationArgs(argv: string[]): ParsedCliArgs {
   for (const key of strings) {
     if (typeof args[key] !== "string") throw new Error(`--${key} is required.`);
   }
+  return args;
+}
+
+function parseDeleteArgs(argv: string[]): ParsedCliArgs {
+  const positional = argv[0] === "run" ? 2 : 1;
+  const args: ParsedCliArgs = { _: argv.slice(0, positional) };
+  const flags = new Set(["root", "target-url", "remote-url", "id", "if-match", "apply", "json"]);
+  for (let i = positional; i < argv.length; i++) {
+    const token = argv[i]!;
+    if (!token.startsWith("--")) throw new Error(`Unexpected delete argument: ${token}.`);
+    const key = token.slice(2);
+    if (!flags.has(key)) throw new Error(`Unknown delete flag --${key}.`);
+    if (args[key] !== undefined) throw new Error(`--${key} must not be repeated.`);
+    if (key === "apply" || key === "json") args[key] = true;
+    else {
+      const value = argv[++i];
+      if (!value || value.startsWith("--")) throw new Error(`--${key} requires a value.`);
+      args[key] = value;
+    }
+  }
+  if (!args.id) throw new Error("--id is required.");
+  if (args.apply && !/^sha256:[0-9a-f]{64}$/.test(String(args["if-match"] ?? ""))) throw new Error("Deletion requires --if-match <contentHash> from a prior read.");
   return args;
 }

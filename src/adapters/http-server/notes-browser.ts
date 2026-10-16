@@ -1,3 +1,5 @@
+import { themeMarkup } from "./browser-theme.js";
+
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
 export const notesStyles = String.raw`
@@ -35,7 +37,7 @@ export const notesStyles = String.raw`
     .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(40px, 7vh, 80px) 40px max(160px, 30vh); }
     #note-title { margin: 0 0 24px; color: var(--ink); font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
     #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 24px; padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
-    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--writing-font); caret-color: var(--ink); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--writing-font); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
     /* Each block is a source line; intentional blank lines supply paragraph spacing. */
     #note-editor p { margin: 0; min-height: 1.8em; }
     #note-editor > * { scroll-margin-block: 32px; }
@@ -59,6 +61,13 @@ export const notesStyles = String.raw`
     #format-controls [data-format="h3"] { margin-right: 8px; }
     #format-controls #insert-reference { margin: 0 0 0 auto; }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
+    .note-actions { font-size: 12px; align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .document-dialog { padding: 24px; }
+    .document-dialog h2 { margin-top: 0; }
+    .document-dialog textarea { width: 100%; min-height: 120px; resize: vertical; background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: 8px; }
+    .document-dialog label { display: block; margin-block: 12px; }
+    .document-dialog .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    #delete-confirm { color: var(--error-ink); }
     #note-save-error { color: var(--error-ink); font-size: 13px; }
     .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
     .capture-feedback[data-error="true"] { color: var(--error-ink); }
@@ -72,7 +81,7 @@ export const notesStyles = String.raw`
     .note-frontmatter summary { cursor: pointer; width: fit-content; }
     .note-frontmatter pre { white-space: pre-wrap; overflow-wrap: anywhere; }
     dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
-    dialog::backdrop { background: rgba(45,43,39,.18); }
+    dialog::backdrop { background: var(--backdrop); }
     #note-search { margin-top: min(15vh, 100px); }
     .dialog-head { display: flex; align-items: center; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line); }
     #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: 16px; }
@@ -115,10 +124,12 @@ export const notesMarkup = String.raw`
   <a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain</a>
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
+  <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
   <button id="new-note" class="quiet-button">New note</button>
   <button id="open-search" class="quiet-button" aria-label="Search notes">Search <kbd class="shortcut"></kbd></button>
   <a id="graph-link" class="quiet-button" href="/graph">Graph</a>
   <button id="open-connection" class="quiet-button" aria-label="Connect · Connection settings" aria-haspopup="dialog">Connect</button>
+  ${themeMarkup}
 </nav>
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">
@@ -129,8 +140,9 @@ export const notesMarkup = String.raw`
   <ul id="search-results" role="listbox" aria-label="Matching notes"></ul>
   <div class="search-footer">
     <p id="search-message" role="status" aria-live="polite">Search titles and contents.</p>
-    <p id="reference-help" hidden>Insert a literal [[Page Title]] reference, not a unique-ID link. Duplicate titles may be ambiguous; graph resolution still uses filenames.</p>
-    <p id="search-freshness" hidden>Recent edits may not appear until the search index refreshes.</p>
+    <p id="reference-help" hidden>Insert a literal [[Page Title]] reference, not a unique-ID link. Duplicate titles are ambiguous. Exact page titles are shared with the map; legacy paths remain supported there.</p>
+    <p id="search-freshness" hidden>Recent saves from this tab are included. Other edits may need an index refresh.</p>
+    <button id="search-refresh-index" class="quiet-button" hidden>Refresh search index</button>
     <button id="search-retry" class="quiet-button" hidden>Retry search</button>
     <button id="search-connect" class="quiet-button" hidden>Connect</button>
   </div>
@@ -148,6 +160,25 @@ export const notesMarkup = String.raw`
       <button id="close-connection" class="quiet-button" type="button">Cancel</button>
     </div>
   </form>
+</dialog>
+`;
+
+export const documentActionsMarkup = String.raw`
+<dialog id="document-recovery" class="document-dialog" aria-labelledby="recovery-title">
+  <h2 id="recovery-title">Recover your draft</h2>
+  <p>Your draft is safe in this tab. Copy it before discarding. A stale save cannot be fixed by retrying the same version.</p>
+  <label>Your draft<textarea id="recovery-draft" readonly></textarea></label>
+  <label>Current saved note<textarea id="recovery-saved" readonly></textarea></label>
+  <p id="recovery-message" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button id="recovery-copy" class="quiet-button">Copy draft</button><button id="recovery-reload" class="quiet-button">Discard draft and load saved note</button><button id="recovery-close" class="quiet-button">Keep editing</button></div>
+</dialog>
+<dialog id="document-delete" class="document-dialog" aria-labelledby="delete-title">
+  <h2 id="delete-title">Permanently delete note?</h2>
+  <p id="delete-note-title"></p>
+  <p>This permanently removes the note. There is no Trash or Undo; recovery requires your own backup or Git history. Other notes and their links will stay unchanged.</p>
+  <p id="delete-references"></p>
+  <p id="delete-message" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button id="delete-cancel" class="quiet-button">Cancel</button><button id="delete-confirm" class="quiet-button" disabled>Permanently delete note</button></div>
 </dialog>
 `;
 
@@ -177,6 +208,7 @@ export const notesViews = String.raw`
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
       <textarea id="note-name" aria-label="Page name" aria-describedby="note-save-error" aria-multiline="false" rows="1" autocomplete="off" hidden></textarea>
       <p id="note-save-error" role="status" aria-live="polite" hidden></p>
+      <div class="note-actions"><button id="copy-note-draft" class="quiet-button" hidden>Copy draft</button><button id="delete-note" class="quiet-button" hidden>Delete note…</button><span id="draft-copy-status" role="status" aria-live="polite"></span></div>
       <p id="reference-message" role="status" aria-live="polite" hidden></p>
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
@@ -200,21 +232,6 @@ export const notesViews = String.raw`
 `;
 
 export const notesScript = String.raw`
-// Title metadata is separate from the raw Markdown body; renaming never rewrites links or headings.
-function withEditableTitle(prefix, title, newline) {
-  if (!title.trim() || /[\x00-\x1f\x7f]/.test(title)) {
-    const error = new Error("Enter a non-empty page name without control characters.");
-    error.code = "invalid_title";
-    throw error;
-  }
-  const lines = prefix.replace(/\r\n/g, "\n").split("\n");
-  if (!prefix) return ["---", "title: " + JSON.stringify(title), "---", ""].join(newline);
-  // Canonical frontmatter uses one value per line. Remove all title entries, then add one.
-  const filtered = lines.filter((line) => !/^title\s*:/.test(line));
-  filtered.splice(1, 0, "title: " + JSON.stringify(title));
-  return filtered.join(newline);
-}
-
 // Recent notes come from fresh Markdown metadata, not the search index.
 function createRecentNotes(options) {
   let generation = 0;
@@ -349,7 +366,8 @@ function createNoteSearch(options) {
         search.status = "ready";
         search.message = search.selected >= 0 ? "↑ ↓ to choose · Enter to open"
           : search.results.length ? "These notes need memory IDs before they can be opened. Ask the server operator."
-          : "No notes found. Try another word.";
+          : search.stale ? "No indexed matches yet. Refresh the index to include recent edits." : "No notes found. Try another word.";
+        if (payload?.localOnly) search.message = "Showing matching saves from this tab. Server search is unavailable.";
       } catch (error) {
         if (token !== generation) return;
         search.status = Number(error.status) === 401 || Number(error.status) === 403 ? "auth" : "error";
@@ -472,11 +490,11 @@ function createNoteCapture(options) {
 }
 
 function pageReferenceError(result, results) {
-  const title = result.referenceTitle;
-  if (typeof title !== "string" || !title.trim() || title !== title.trim() || /[\[\]\x00-\x1f\x7f|#\\/]/.test(title)) {
+  const reason = referenceEligibility(result, results);
+  if (reason === "unsafe_title" || reason === "missing_id") {
     return "This note has no safe exact page title for [[references]]. Choose another note.";
   }
-  if (results.some((other) => other.documentId !== result.documentId && other.referenceTitle?.trim().toLowerCase() === title.toLowerCase())) {
+  if (reason === "visible_duplicate") {
     return "Several results share this title. A title-only reference cannot distinguish them; choose another title.";
   }
   return "";
@@ -516,22 +534,16 @@ const noteSearch = createNoteSearch({
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
   abortController: () => new AbortController(),
-  fetch: (query, signal) => graphJson("/memories/all/search", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, limit: 24, depth: "normal" }), signal,
-  }),
+  fetch: searchMemoryNotes,
   onChange: renderNoteSearch,
 });
 
 const referenceAutocomplete = window.installReferenceAutocomplete($("note-editor"), richEditor, {
   createSearch: createNoteSearch,
-  fetch: (query, signal) => graphJson("/memories/all/search", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query, limit: 24, depth: "normal" }), signal,
-  }),
+  fetch: searchMemoryNotes,
   getSession: () => state.noteToken + ":" + credentialRevision,
   isEnabled: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()) && state.view === "note" && state.editor?.state.loaded && !state.editor.state.navigationPending
-    && !searchDialog.open && !connectionDialog.open && !dreamDialog.open,
+    && !searchDialog.open && !connectionDialog.open && !dreamDialog.open && !documentActions.isOpen(),
   onError: () => referenceMessage("Could not insert this reference. Keep editing or use Insert page reference.", true),
 });
 let referenceRequest = null;
@@ -674,6 +686,8 @@ function renderNoteSearch(search) {
     ? "↑ ↓ to choose · Enter to insert reference" : search.message);
   $("search-results").setAttribute("aria-busy", String(search.status === "loading"));
   $("search-freshness").hidden = !search.stale;
+  $("search-refresh-index").hidden = !search.stale;
+  $("search-refresh-index").disabled = searchIndexRefreshing || (typeof companionMode !== "undefined" && companionMode && companionReadOnly());
   $("search-retry").hidden = search.status !== "error";
   $("search-connect").hidden = search.status !== "auth";
 }
@@ -713,6 +727,7 @@ $("note-search-input").addEventListener("keydown", (event) => {
 });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));
 function handleNoteShortcut(event) {
+  if (documentActions.isOpen() || documentActions.isBusy()) return;
   if (typeof companionMode !== "undefined" && companionMode && (companionFrozen || state.view === "settings")) return;
   if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey)) return;
   if (event.key.toLowerCase() === "k") {
@@ -752,7 +767,13 @@ function maskApiKey() {
   $("toggle-api-key").setAttribute("aria-pressed", "false");
 }
 function openConnection(fromSearch) {
-  if (typeof companionMode !== "undefined" && companionMode) { navigation.navigate(companionScopeUrl("/settings")); return; }
+  if (typeof companionMode !== "undefined" && companionMode) {
+    if (companionSessionFailed && state.editor?.hasPending()) {
+      companionMessage("Copy your draft with Recover draft, then reopen the editor from the companion menu. Retry only works with a valid session cookie; do not reload this draft.", true);
+      documentActions.openRecovery();
+    } else navigation.navigate(companionScopeUrl("/settings"));
+    return;
+  }
   if (dreamDialog.open) return;
   cancelReferenceInteraction();
   apiKeyInput.value = activeApiKey;
@@ -784,6 +805,8 @@ function setConnectionKey(key) {
   key = key.trim();
   activeApiKey = key;
   credentialRevision++;
+  recentWrites.reset();
+  documentActions.close();
   connectionStatus = activeApiKey ? "checking" : "disconnected";
   try {
     if (activeApiKey) localStorage.setItem("jumpybrain.graph.apiKey", activeApiKey);
@@ -862,6 +885,7 @@ function showPage(url) {
   referenceAutocomplete.dismiss();
   referenceMessage("");
   if (dreamDialog.open) closeDreamHandoff(false);
+  documentActions.close();
   recentNotes.cancel();
   $("graph-filters").open = false;
   if (searchDialog.open) closeSearch(false);
@@ -883,6 +907,7 @@ function showPage(url) {
   if (state.editor) state.editor.cancel();
   state.editor = null;
   $("note-retry").hidden = true;
+  $("note-recover").hidden = true;
   document.title = state.view === "graph" ? "Memory map · jumpyBrain" : "Notes · jumpyBrain";
   if (state.view === "settings") {
     document.title = "Settings · jumpyBrain";
@@ -907,6 +932,7 @@ async function showNote(documentId, focusEnd = false) {
     if (state.editor) state.editor.cancel();
     state.editor = null;
     $("note-title").textContent = "";
+    $("draft-copy-status").textContent = "";
     $("note-title").hidden = false;
     $("note-name").hidden = true;
     $("note-save-error").hidden = true;
@@ -916,6 +942,9 @@ async function showNote(documentId, focusEnd = false) {
     $("note-metadata").hidden = true;
     $("note-metadata").open = false;
     $("note-retry").hidden = true;
+    $("note-recover").hidden = true;
+    $("copy-note-draft").hidden = true;
+    $("delete-note").hidden = true;
     $("insert-reference").hidden = true;
     $("note-save-state").textContent = "";
     $("note-load-retry").hidden = true;
@@ -926,12 +955,16 @@ async function showNote(documentId, focusEnd = false) {
     document.title = "Note · jumpyBrain";
     if (!isValidMemoryDocumentId(documentId)) { noteLoadError("This note link has an invalid memory ID. Use Search to find a note."); return; }
     const editor = createDocumentEditor({
-      generation: token, documentId, debounceMs: 750, persistentEditing: true, conflictRetry: typeof companionMode === "undefined" || !companionMode,
+      generation: token, documentId, debounceMs: 750, persistentEditing: true,
       setTimer: (callback, delay) => window.setTimeout(callback, delay),
       clearTimer: (timer) => window.clearTimeout(timer),
       splitDocument: splitEditableDocument, composeDocument: composeEditableDocument,
       readDocument: readGraphDocument, writeDocument: writeGraphDocument,
-      onSaved: () => { noteSearch.markStale(); referenceAutocomplete.markStale(); },
+      onSaved: (payload) => {
+        recentWrites.remember({ id: documentId, title: editor.state.savedTitle, body: editor.state.savedBody, file: String(payload.file || $("note-file").textContent || "") });
+        state.graph = null;
+        noteSearch.markStale(); referenceAutocomplete.markStale();
+      },
       isCurrent: (generation, id) => state.noteToken === generation && state.editor === editor && editor.state.documentId === id,
       onChange: syncEditorUi,
     });
@@ -946,6 +979,7 @@ async function showNote(documentId, focusEnd = false) {
       $("note-file").textContent = payload.file || "";
       $("note-message").hidden = true;
       editor.hydrate(payload);
+      if (focusEnd) recentWrites.remember({ id: documentId, title: payload.title || "", body: editor.state.savedBody, file: payload.file || "" });
       editor.setEditing(true);
       if (!searchDialog.open && !connectionDialog.open) richEditor.focus(focusEnd);
     } catch (error) {
@@ -989,7 +1023,13 @@ $("note-name").addEventListener("blur", () => state.editor?.flush());
 function syncEditorUi(editorState) {
   const companionLocked = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
   if (!state.editor || state.editor.state !== editorState) return;
-  $("note-retry").hidden = editorState.saveStatus !== "failed";
+  $("note-retry").hidden = editorState.saveStatus !== "failed" || editorState.saveErrorCode === "precondition_failed";
+  $("note-recover").hidden = editorState.saveStatus !== "failed" && !(typeof companionMode !== "undefined" && companionMode && companionSessionFailed);
+  $("note-recover").disabled = editorState.navigationPending;
+  $("copy-note-draft").hidden = !editorState.loaded;
+  $("delete-note").hidden = !editorState.loaded;
+  $("delete-note").disabled = editorState.navigationPending || companionLocked;
+  $("recovery-reload").disabled = companionLocked || editorState.navigationPending;
   $("note-retry").disabled = editorState.navigationPending;
   $("note-editor").hidden = !editorState.loaded;
   $("note-name").hidden = !editorState.loaded;
@@ -1033,7 +1073,7 @@ let creatingNote = false;
 let newNoteId = null;
 async function newNote() {
   if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
-  if (creatingNote || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
+  if (creatingNote || documentActions.isOpen() || documentActions.isBusy() || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
   creatingNote = true;
   for (const id of ["new-note", "home-new"]) $(id).disabled = true;
   const message = $("capture-message");
@@ -1100,5 +1140,36 @@ function insertPageReference(result) {
   state.editor.input(richEditor.getMarkdown());
 }
 
-if (!companionMode) showPage(initialEntry.url);
+
+`;
+
+export const documentActionsScript = String.raw`
+let searchIndexRefreshing = false;
+$("search-refresh-index").addEventListener("click", async () => {
+  if (searchIndexRefreshing || (typeof companionMode !== "undefined" && companionMode && companionReadOnly())) return;
+  searchIndexRefreshing = true;
+  const revision = credentialRevision;
+  $("search-refresh-index").disabled = true;
+  $("search-message").textContent = "Refreshing search index…";
+  try {
+    await graphJson("/memories/all/index", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+    if (revision === credentialRevision && searchDialog.open) noteSearch.query($("note-search-input").value, true);
+  } catch {
+    if (revision === credentialRevision && searchDialog.open) noteSearch.state.feedback = "Index refresh could not be confirmed. Check the connection before trying again.";
+  } finally { searchIndexRefreshing = false; if (searchDialog.open) renderNoteSearch(noteSearch.state); }
+});
+const documentActions = installDocumentActions({
+  document, editor: () => state.editor,
+  writable: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()),
+  scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
+  json: graphJson,
+  onDeleted: async (id, message) => {
+    recentWrites.remove(id); noteSearch.markStale(); referenceAutocomplete.markStale();
+    state.graph = null;
+    if (state.editor?.state.documentId === id) { state.editor.cancel(); state.editor = null; }
+    await navigation.navigate("/");
+    $("capture-message").textContent = message;
+    $("capture-message").hidden = false;
+  },
+});
 `;

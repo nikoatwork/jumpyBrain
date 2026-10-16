@@ -1,25 +1,14 @@
+import { shellFunctions } from "./browser-shell-helpers.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 
 const html = graphPageHtml("fixture", "settings", { companion: true });
-const script = html.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
-function extract(name) {
-  let start = script.indexOf("function " + name + "(");
-  assert.ok(start >= 0, name);
-  if (script.slice(start - 6, start) === "async ") start -= 6;
-  const body = script.indexOf("{", start);
-  let depth = 0;
-  for (let end = body; end < script.length; end++) {
-    if (script[end] === "{") depth++;
-    if (script[end] === "}" && --depth === 0) return script.slice(start, end + 1);
-  }
-  throw new Error("Unterminated " + name);
-}
+const script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals) {
   const context = vm.createContext(globals);
-  vm.runInContext(names.map(extract).join("\n"), context);
+  vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }
 function deferred() {
@@ -76,7 +65,7 @@ test("companion settings/scripts are opt-in and both shell variants parse", () =
   assert.match(html, /id="companion-key" type="password"/);
   assert.match(html, /id="companion-writes" type="checkbox" \/>/);
   assert.doesNotThrow(() => new vm.Script(script));
-  assert.doesNotThrow(() => new vm.Script(ordinary.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1]));
+  assert.doesNotThrow(() => new vm.Script([...ordinary.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1]));
 });
 
 test("Settings owns index refresh; read-only, offline, switching and unavailable sessions cannot refresh", () => {
@@ -155,7 +144,7 @@ test("companion document conflicts stop without refreshing/overwriting; draft re
   let writes = 0, reads = 0;
   const context = runtime(["createDocumentEditor", "splitEditableDocument", "composeEditableDocument"], {});
   const editor = context.createDocumentEditor({
-    generation: 1, documentId: id, conflictRetry: false, persistentEditing: true,
+    generation: 1, documentId: id, persistentEditing: true,
     setTimer: () => 1, clearTimer() {}, debounceMs: 750, onChange() {}, isCurrent: () => true,
     splitDocument: context.splitEditableDocument, composeDocument: context.composeEditableDocument,
     writeDocument: async () => { writes++; throw Object.assign(new Error("Conflict: draft retained"), { status: 412 }); },
