@@ -24,6 +24,9 @@ try {
   if (capture("git", ["tag", "--list", tag])) throw new Error(`Remote tag ${tag} already exists.`);
   run("git", ["merge-base", "--is-ancestor", "origin/master", "HEAD"]);
   const repository = capture("gh", ["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"]);
+  if (capture("gh", ["api", `repos/${repository}`, "--jq", ".permissions.push"]) !== "true") {
+    throw new Error(`The active GitHub CLI account cannot publish releases to ${repository}. Sign in with an account that has write access before releasing.`);
+  }
   run("npm", ["version", next, "--no-git-tag-version", "--ignore-scripts"]);
   run("npm", ["test"]);
   run("npm", ["run", "cli:pack"]);

@@ -17,7 +17,7 @@ test("patch is default, minor is explicit, all major entrypoints require approva
   assert.throws(() => releaseOptions(["patch", "minor"]), /extra/);
 });
 
-async function fixture(t, failTests = false) {
+async function fixture(t, failTests = false, canPublish = true) {
   const root = await mkdtemp(path.join(tmpdir(), "jumpy-release-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "scripts")); await mkdir(path.join(root, "bin"));
@@ -32,6 +32,7 @@ if(command==='git') {
  if(args[0]==='branch') console.log('master');
 }
 if(command==='gh' && args[0]==='repo') console.log('fixture/jumpybrain');
+if(command==='gh' && args[0]==='api') console.log(process.env.CAN_PUBLISH);
 if(command==='npm') {
  if(args[0]==='version') {fs.writeFileSync('bumped','yes');fs.writeFileSync('package.json',JSON.stringify({version:args[1]}));}
  if(args[0]==='test' && process.env.FAIL_TESTS==='1') process.exit(1);
@@ -39,7 +40,7 @@ if(command==='npm') {
 }
 `;
   for (const name of ["git","npm","gh"]) await writeFile(path.join(root,"bin",name),mock,{mode:0o755});
-  const run = args => spawnSync(process.execPath,[path.join(root,"scripts/release.mjs"),...args],{cwd:root,encoding:"utf8",env:{...process.env,PATH:path.join(root,"bin")+path.delimiter+process.env.PATH,FAIL_TESTS:failTests?"1":"0"}});
+  const run = args => spawnSync(process.execPath,[path.join(root,"scripts/release.mjs"),...args],{cwd:root,encoding:"utf8",env:{...process.env,PATH:path.join(root,"bin")+path.delimiter+process.env.PATH,FAIL_TESTS:failTests?"1":"0",CAN_PUBLISH:canPublish?"true":"false"}});
   const calls = async () => (await readFile(path.join(root,"calls.jsonl"),"utf8")).trim().split("\n").map(JSON.parse);
   return {root,run,calls};
 }
@@ -71,4 +72,11 @@ test("release dry-run changes no version and publishes nothing",async t=>{
   const f=await fixture(t);assert.equal(f.run(['--dry-run']).status,0);
   assert.equal(JSON.parse(await readFile(path.join(f.root,'package.json'),'utf8')).version,'0.3.0');
   assert.ok(!(await f.calls()).some(c=>c[0]==='npm'||c[0]==='gh'||c[1]==='push'));
+});
+
+test("read-only GitHub authentication fails before bumping or publishing",async t=>{
+  const f=await fixture(t,false,false);const result=f.run([]);assert.notEqual(result.status,0);
+  assert.match(result.stderr,/account cannot publish/);
+  assert.equal(JSON.parse(await readFile(path.join(f.root,'package.json'),'utf8')).version,'0.3.0');
+  assert.ok(!(await f.calls()).some(c=>c[0]==='npm'||c[1]==='push'||c[1]==='commit'));
 });
