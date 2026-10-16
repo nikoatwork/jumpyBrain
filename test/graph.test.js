@@ -318,6 +318,91 @@ test("graph page uses quiet map controls with native filters and no depth UI", (
   assert.match(html, /prefers-reduced-motion/);
 });
 
+function graphNoticeHarness() {
+  const elements = new Map();
+  const element = (id) => {
+    if (!elements.has(id)) elements.set(id, { textContent: "", hidden: true, children: [],
+      replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } });
+    return elements.get(id);
+  };
+  const context = vm.createContext({
+    $: element, document: { createElement: () => ({ textContent: "" }) },
+    state: { graphToken: 0, view: "graph" }, window: {}, graphUrl: () => "/graph.json", render() {},
+  });
+  const script = pageScript();
+  vm.runInContext(["renderGraphNotice", "setStatus", "loadGraph"].map((name) => extractFunction(script, name)).join("\n"), context);
+  return { context, element };
+}
+
+function noticePacket(overrides = {}) {
+  return { nodes: [{ nodeKind: "document" }, { nodeKind: "document" }, { nodeKind: "unresolved" }], edges: [],
+    stats: { documents: 1636 }, options: { limit: 3 }, warnings: ["Graph response was limited to 3 nodes."], ...overrides };
+}
+
+test("map notice exposes global/shown note counts, server warnings and a narrowing hint without counting unresolved targets as notes", () => {
+  const html = graphPageHtml("testnonce");
+  assert.match(html, /id="graph-notice"[^>]*role="status"[^>]*aria-atomic="true"/);
+  const { context, element } = graphNoticeHarness();
+  context.renderGraphNotice(noticePacket());
+  assert.equal(element("graph-notice").hidden, false);
+  assert.equal(element("graph-scope").textContent, "2 notes shown · 1,636 notes in this brain.");
+  assert.deepEqual(element("graph-warnings").children.map((row) => row.textContent), ["Graph response was limited to 3 nodes."]);
+  assert.match(element("graph-limit-hint").textContent, /Filter to narrow the view/);
+  assert.equal(element("graph-limit-hint").hidden, false);
+});
+
+test("filtered totals are explicitly whole-brain counts, not matching totals; cap hints follow warnings rather than inferred counts", () => {
+  const { context, element } = graphNoticeHarness();
+  context.renderGraphNotice(noticePacket({ warnings: [], options: { limit: 2, query: "specific" } }));
+  assert.equal(element("graph-scope").textContent, "2 notes shown · 1,636 notes in this brain.");
+  assert.equal(element("graph-warnings").hidden, true);
+  assert.equal(element("graph-limit-hint").hidden, true, "fewer shown notes or hitting the numeric limit does not prove truncation");
+  context.renderGraphNotice(noticePacket({ nodes: [], warnings: [], options: { query: "no match" } }));
+  assert.equal(element("graph-scope").textContent, "0 notes shown · 1,636 notes in this brain.");
+  context.renderGraphNotice(noticePacket({ stats: { documents: 2 }, warnings: [] }));
+  assert.equal(element("graph-notice").hidden, true, "uncapped complete map needs no extra notice");
+  assert.equal(element("graph-scope").textContent, "");
+  assert.equal(element("graph-warnings").children.length, 0);
+});
+
+test("map warnings remain text and tolerate missing/invalid optional metadata without inventing totals", () => {
+  const { context, element } = graphNoticeHarness();
+  const warning = '<img src=x onerror="alert(1)">';
+  context.renderGraphNotice(noticePacket({ stats: { documents: "1636" }, options: {}, warnings: [warning, warning, null, 5, "  "] }));
+  assert.equal(element("graph-scope").textContent, "");
+  assert.deepEqual(element("graph-warnings").children.map((row) => row.textContent), [warning]);
+  assert.equal(element("graph-limit-hint").hidden, true);
+  for (const stats of [undefined, { documents: -1 }, { documents: 1 }, { documents: 1.5 }]) {
+    context.renderGraphNotice(noticePacket({ stats, warnings: undefined }));
+    assert.equal(element("graph-notice").hidden, true);
+  }
+  context.renderGraphNotice(null);
+  assert.equal(element("graph-notice").hidden, true);
+});
+
+test("map refresh clears old notices; failed refresh and stale responses cannot restore a success notice", async () => {
+  const { context, element } = graphNoticeHarness();
+  context.graphJson = async () => noticePacket();
+  await context.loadGraph();
+  assert.equal(element("graph-notice").hidden, false);
+  const stale = deferred(), fresh = deferred();
+  context.graphJson = () => stale.promise;
+  const first = context.loadGraph();
+  assert.equal(element("graph-notice").hidden, true, "loading clears stale scope/warnings");
+  context.graphJson = () => fresh.promise;
+  const second = context.loadGraph();
+  fresh.resolve(noticePacket({ stats: { documents: 2 }, warnings: [] }));
+  await second;
+  stale.resolve(noticePacket()); await first;
+  assert.equal(element("graph-notice").hidden, true, "outdated response cannot restore the cap warning");
+  context.graphJson = async () => { throw new Error("Synthetic graph failure"); };
+  await context.loadGraph();
+  assert.equal(element("graph-notice").hidden, true);
+  assert.equal(element("ready").hidden, true);
+  assert.equal(element("error").hidden, false);
+  assert.equal(context.window.__jumpyBrainGraphReady, false);
+});
+
 test("all browser views share white surfaces and warm-grey semantic controls", () => {
   const html = graphPageHtml("testnonce");
   const css = html.match(/<style[^>]*>([\s\S]*?)<\/style>/)[1];

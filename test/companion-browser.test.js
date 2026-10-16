@@ -218,6 +218,81 @@ test("acknowledgement from an expired switch is never sent", async () => {
   assert.equal(h.acknowledgements.length, 0);
 });
 
+function interactionHarness() {
+  const elements = new Map();
+  const element = (id) => {
+    if (!elements.has(id)) elements.set(id, {});
+    return elements.get(id);
+  };
+  const calls = { references: 0, search: 0, dream: 0, sync: 0, barriers: [], replacements: [] };
+  const context = runtime(["companionLock", "companionApplyState", "companionFence", "companionReadOnly", "companionScopeUrl"], {
+    URL, location: { origin: "http://127.0.0.1:1234", replace: (url) => calls.replacements.push(url) },
+    companionState: { profiles: [], generation: 1, phase: "idle", activeId: "a", active: { allowWrites: true } },
+    companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
+    companionRendered: true, companionStopped: false, companionActionBusy: false,
+    companionAcknowledged: new Set(), creatingNote: false,
+    state: { view: "note", editor: { state: { navigationPending: false }, setNavigationPending() {} } },
+    navigation: { isBusy: () => false },
+    $: element, document: { querySelector: element },
+    searchDialog: { open: false }, dreamDialog: { open: false },
+    cancelReferenceInteraction: () => { calls.references++; },
+    closeSearch: (restore) => { assert.equal(restore, false); calls.search++; context.searchDialog.open = false; },
+    closeDreamHandoff: (restore) => { assert.equal(restore, false); calls.dream++; context.dreamDialog.open = false; },
+    syncEditorUi: () => { calls.sync++; },
+    companionBarrier: async (id) => { calls.barriers.push(id); },
+    companionMessage() {}, renderCompanionConnection() {}, renderCompanionSettings() {},
+  });
+  return { context, calls, element };
+}
+
+test("healthy idle snapshots preserve dialogs and reference interactions while still syncing UI permissions", () => {
+  const { context, calls, element } = interactionHarness();
+  for (const dialog of [context.searchDialog, context.dreamDialog]) {
+    dialog.open = true;
+    for (let poll = 0; poll < 4; poll++) context.companionApplyState({ ...context.companionState });
+    assert.equal(dialog.open, true, "idle polling must not close an open dialog");
+    dialog.open = false;
+  }
+  assert.equal(calls.references, 0, "pending references/autocomplete must not be cancelled");
+  assert.equal(calls.search, 0); assert.equal(calls.dream, 0);
+  assert.equal(calls.sync, 8, "healthy polls still synchronize editor permissions");
+  assert.equal(element("home-new").disabled, false);
+  context.companionApplyState({ ...context.companionState, active: { allowWrites: false } });
+  assert.equal(element("home-new").disabled, true, "unchanged lock state must not skip permission updates");
+});
+
+test("entering preparing or session fencing cancels interactions once and preserves the switch barrier", () => {
+  const { context, calls, element } = interactionHarness();
+  context.searchDialog.open = true; context.dreamDialog.open = true;
+  context.companionApplyState({ ...context.companionState, phase: "preparing", switchId: "switch-1" });
+  context.companionApplyState({ ...context.companionState });
+  assert.equal(calls.references, 1); assert.equal(calls.search, 1); assert.equal(calls.dream, 1);
+  assert.deepEqual(calls.barriers, ["switch-1"]);
+  assert.equal(element("main").inert, true);
+  assert.equal(element(".app-nav").inert, true);
+  assert.equal(context.companionFrozen, true);
+  context.companionApplyState({ ...context.companionState, phase: "idle", switchId: null });
+  assert.equal(context.companionFrozen, false);
+  assert.equal(element("main").inert, false);
+  context.searchDialog.open = true; context.dreamDialog.open = true;
+  context.companionFence(); context.companionFence();
+  assert.equal(calls.references, 2); assert.equal(calls.search, 2); assert.equal(calls.dream, 2);
+  context.companionApplyState({ ...context.companionState });
+  assert.equal(context.companionFrozen, true, "idle polls cannot unfreeze a failed session");
+  assert.equal(element("new-note").disabled, true);
+});
+
+test("generation changes cancel interactions before reloading without adopting the new brain", () => {
+  const { context, calls } = interactionHarness();
+  const original = context.companionState;
+  context.searchDialog.open = true;
+  context.companionApplyState({ ...original, generation: 2, activeId: "b" });
+  assert.equal(calls.references, 1); assert.equal(calls.search, 1);
+  assert.deepEqual(calls.replacements, ["/?brain=b"]);
+  assert.equal(context.companionState, original);
+  assert.equal(context.companionFrozen, true);
+});
+
 test("polling has no overlapping async requests and reschedules only after settlement", async () => {
   const result = deferred(); const timers = []; let calls = 0;
   const context = runtime(["companionPoll"], {

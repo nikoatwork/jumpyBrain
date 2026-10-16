@@ -67,6 +67,9 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .map-heading { flex: 1 0 220px; }
     .map-heading p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; }
     .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: 8px 24px; background: var(--surface); color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; pointer-events: none; }
+    #graph-notice { padding: 0 24px 12px; color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; }
+    #graph-notice p { margin: 0; }
+    #graph-warnings { margin: 4px 0; padding-left: 18px; }
 
     /* Reusable controls and toolbar groups. */
     input { height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
@@ -129,7 +132,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
       .map-options { right: 16px; top: calc(100% - 4px); }
       .canvas-bottom { left: 16px; right: 16px; }
       .helper { left: 16px; right: auto; font-size: 10px; }
-      .graph-feedback, .error { padding-inline: 16px; }
+      .graph-feedback, #graph-notice, .error { padding-inline: 16px; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
@@ -160,6 +163,11 @@ ${dreamMarkup}
       </div>
     </details>
     <button id="reload" data-testid="graph-reload" class="quiet-button" title="Refresh notes and connections">Refresh</button>
+  </div>
+  <div id="graph-notice" role="status" aria-atomic="true" hidden>
+    <p id="graph-scope" hidden></p>
+    <ul id="graph-warnings" hidden></ul>
+    <p id="graph-limit-hint" hidden></p>
   </div>
   <p id="status" data-testid="graph-status" class="graph-feedback" role="status" hidden></p>
   <p id="ready" data-testid="graph-ready" class="sr-status" aria-live="polite" hidden>Map loaded.</p>
@@ -335,8 +343,35 @@ function setStatus(text, isError, errorText) {
   }
 }
 
+function renderGraphNotice(graph) {
+  const shown = graph?.nodes.filter((node) => node.nodeKind === "document").length || 0;
+  const total = graph?.stats?.documents;
+  const warnings = [...new Set((Array.isArray(graph?.warnings) ? graph.warnings : [])
+    .filter((warning) => typeof warning === "string" && warning.trim()))];
+  const limit = graph?.options?.limit;
+  const limited = Number.isSafeInteger(limit) && limit > 0
+    && warnings.includes("Graph response was limited to " + limit + " nodes.");
+  // documents counts the entire brain, not matches; unresolved nodes consume cap space too.
+  const scope = Number.isSafeInteger(total) && total >= shown && (shown < total || limited)
+    ? shown.toLocaleString("en-US") + " notes shown · " + total.toLocaleString("en-US") + " notes in this brain." : "";
+  $("graph-scope").textContent = scope;
+  $("graph-scope").hidden = !scope;
+  const list = $("graph-warnings");
+  list.replaceChildren();
+  for (const warning of warnings) {
+    const row = document.createElement("li");
+    row.textContent = warning;
+    list.append(row);
+  }
+  list.hidden = !warnings.length;
+  $("graph-limit-hint").textContent = limited ? "Filter to narrow the view." : "";
+  $("graph-limit-hint").hidden = !limited;
+  $("graph-notice").hidden = !scope && !warnings.length;
+}
+
 async function loadGraph() {
   const token = ++state.graphToken;
+  renderGraphNotice(null);
   setStatus("loading");
   $("ready").hidden = true;
   $("reload").disabled = true;
@@ -344,6 +379,7 @@ async function loadGraph() {
     const payload = await graphJson(graphUrl());
     if (token !== state.graphToken) return;
     state.graph = payload;
+    renderGraphNotice(payload);
     setStatus("loaded");
     if (state.view === "graph") render(payload);
     $("ready").hidden = false;
