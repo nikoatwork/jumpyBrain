@@ -1,0 +1,88 @@
+// Deliberately narrow JSON SQL double. Unknown SQL fails instead of hiding drift.
+const fs = require("node:fs");
+const path = require("node:path");
+function control() {
+  const file = process.env.FAKE_QMD_CONTROL;
+  return file && fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+}
+function event(type, details = {}) {
+  const file = process.env.FAKE_QMD_EVENTS;
+  if (file) fs.appendFileSync(file, JSON.stringify({ type, pid: process.pid, ...details }) + "\n");
+}
+function fail(stage) {
+  if (control().fail === stage) throw new Error("fixture private diagnostic " + stage);
+}
+class Database {
+  constructor(file, options = {}) {
+    this.file = file;
+    this.readonly = !!options.readonly;
+    if (options.fileMustExist && !fs.existsSync(file)) throw new Error("missing database");
+    this.state = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {
+      tables: ["documents", "content", "content_vectors", "llm_cache"],
+      documents: [], content: {}, metadata: [], vectors: [], collections: {}, nextId: 1,
+      counters: { embedded: 0, clears: 0, commits: 0 },
+    };
+    event("open", { readonly: this.readonly });
+  }
+  exec(sql) {
+    const s = sql.replace(/\s+/g, " ").trim();
+    if (this.readonly) throw new Error("readonly mutation");
+    if (s.startsWith("PRAGMA ")) return;
+    if (s === "BEGIN IMMEDIATE") {
+      if (this.snapshot) throw new Error("nested transaction");
+      this.snapshot = structuredClone(this.state); event("begin"); return;
+    }
+    if (s.startsWith("CREATE TABLE IF NOT EXISTS jb_generation")) {
+      if (!this.state.tables.includes("jb_generation")) this.state.tables.push("jb_generation");
+      return;
+    }
+    if (s === "DELETE FROM documents") { this.state.documents = []; event("clear-documents"); return; }
+    if (s === "DELETE FROM content") { this.state.content = {}; event("clear-content"); return; }
+    if (s === "DELETE FROM documents_fts") { event("clear-fts"); return; }
+    if (s === "DELETE FROM llm_cache") return;
+    if (s === "ROLLBACK") {
+      this.state = this.snapshot; this.snapshot = undefined; event("rollback"); return;
+    }
+    if (s === "COMMIT") {
+      fail("commit");
+      this.state.counters.commits++;
+      fs.mkdirSync(path.dirname(this.file), { recursive: true });
+      const temp = this.file + "." + process.pid + ".tmp";
+      fs.writeFileSync(temp, JSON.stringify(this.state)); fs.renameSync(temp, this.file);
+      this.snapshot = undefined; event("commit"); return;
+    }
+    throw new Error("unsupported exec " + s);
+  }
+  prepare(sql) {
+    const s = sql.replace(/\s+/g, " ").trim();
+    const get = (...args) => {
+      if (s === "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+        return this.state.tables.includes(args[0]) ? { name: args[0] } : undefined;
+      if (s === "SELECT manifest FROM jb_generation WHERE id = 1")
+        return this.state.manifest ? { manifest: this.state.manifest } : undefined;
+      if (s === "SELECT COUNT(*) AS count FROM content_vectors") return { count: this.state.metadata.length };
+      if (s === "SELECT 1 FROM documents WHERE active = 1 AND collection NOT IN (?, ?) LIMIT 1")
+        return this.state.documents.find(d => d.active === 1 && !args.includes(d.collection));
+      throw new Error("unsupported get " + s);
+    };
+    const all = () => {
+      if (s === "SELECT DISTINCT d.hash, c.doc FROM documents d JOIN content c ON c.hash = d.hash WHERE d.active = 1")
+        return [...new Set(this.state.documents.filter(d => d.active === 1).map(d => d.hash))]
+          .map(hash => ({ hash, doc: this.state.content[hash] }));
+      if (s === "SELECT hash, seq, pos, model, embed_fingerprint, total_chunks FROM content_vectors ORDER BY hash, seq")
+        return [...this.state.metadata].sort((a, b) => a.hash.localeCompare(b.hash) || a.seq - b.seq);
+      if (s === "SELECT hash_seq FROM vectors_vec") return this.state.vectors.map(hash_seq => ({ hash_seq }));
+      throw new Error("unsupported all " + s);
+    };
+    const run = (...args) => {
+      if (this.readonly) throw new Error("readonly mutation");
+      if (s === "INSERT INTO jb_generation (id, manifest) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET manifest = excluded.manifest") {
+        this.state.manifest = args[0]; return;
+      }
+      throw new Error("unsupported run " + s);
+    };
+    return { get, all, run };
+  }
+  close() { if (this.snapshot) this.exec("ROLLBACK"); event("close"); }
+}
+module.exports = { Database, control, event, fail };

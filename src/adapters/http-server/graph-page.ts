@@ -1,0 +1,371 @@
+import { GRAPH_NODE_TONES } from "./map-controller.js";
+import { readFileSync } from "node:fs";
+import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
+import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
+import { documentActionsMarkup, documentActionsScript, notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
+import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
+import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
+
+const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
+const graphNodeGlows = GRAPH_NODE_TONES.map((type) =>
+  `<radialGradient id="map-glow-${type}"><stop stop-color="var(--node-${type})" stop-opacity=".2"/><stop offset=".45" stop-color="var(--node-${type})" stop-opacity=".08"/><stop offset="1" stop-color="var(--node-${type})" stop-opacity="0"/></radialGradient>`
+).join("");
+
+export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings" = "home", options: { companion?: boolean } = {}): string {
+  const companion = options.companion === true;
+  if (!/^[A-Za-z0-9_-]+$/.test(nonce)) throw new Error("graph page nonce must be base64url-safe");
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${companion && view === "settings" ? "Settings" : view === "graph" ? "Memory map" : "Notes"} · jumpyBrain</title>
+  <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
+  <script nonce="${nonce}">${themeBootstrap}</script>
+  <style nonce="${nonce}">
+    ${themeStyles}
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body { margin: 0; overflow: hidden; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+    [hidden] { display: none !important; }
+
+    /* Quiet map chrome shares the home screen's foundation. */
+    h1 { margin: 0; color: var(--ink); font-size: 20px; line-height: 1.25; letter-spacing: -.025em; font-weight: 600; }
+    #graph-header { position: relative; z-index: 10; background: var(--surface); }
+    .map-heading { flex: 1 0 220px; }
+    .map-heading p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; }
+    .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: 8px 24px; background: var(--surface); color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; pointer-events: none; }
+    #graph-notice { padding: 0 24px 12px; color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; }
+    #graph-notice p { margin: 0; }
+    #graph-warnings { margin: 4px 0; padding-left: 18px; }
+
+    /* Reusable controls and toolbar groups. */
+    input { height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+    input::placeholder { color: var(--ink-faint); opacity: 1; }
+    input:hover { border-color: var(--ink-faint); }
+    input:focus { border-color: var(--focus-ring); }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 20px 24px; }
+    #query { width: 230px; min-width: 0; background: transparent; border-color: var(--line); }
+    #graph-filters { position: relative; }
+    #graph-filters summary { cursor: pointer; }
+    #graph-filters[open] summary { background: var(--surface-hover); }
+    .map-options { position: absolute; z-index: 1; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-lg); }
+    .map-options label { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ink-soft); font-size: 12px; }
+    .map-options .focus-field { display: block; }
+    #focus { display: block; width: 100%; margin-top: 6px; }
+    .map-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+    .map-options p { margin: 0; color: var(--ink-faint); font-size: 12px; }
+    .button { height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 680; font-size: 12px; transition: background .15s ease, border-color .15s ease; }
+    .button-primary { background: var(--control-fill); border-color: var(--line); color: var(--ink); box-shadow: none; }
+    .button-primary:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+    .button svg, .icon-button svg { width: 15px; height: 15px; }
+    .icon-button { width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); }
+    .icon-button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
+
+    main { display: flex; min-height: 0; }
+    #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--surface); }
+    #graph-wrap::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: var(--map-wash); background: radial-gradient(ellipse at 24% 28%, var(--edge), transparent 56%), radial-gradient(ellipse at 78% 34%, var(--edge-link), transparent 54%), radial-gradient(ellipse at 52% 84%, var(--edge-end), transparent 54%); }
+    #graph { position: relative; display: block; width: 100%; height: 100%; cursor: grab; }
+    #graph:active { cursor: grabbing; }
+    .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; }
+    .stats { color: var(--ink-soft); font-size: 12px; background: transparent; }
+    .stats strong { font-weight: 500; font-variant-numeric: tabular-nums; }
+    .canvas-tools { display: flex; gap: 4px; background: var(--surface); pointer-events: auto; }
+    .helper { position: absolute; right: 24px; bottom: 62px; margin: 0; color: var(--ink-faint); font-size: 11px; pointer-events: none; }
+    .error { margin: 0; padding: 0 24px 12px; color: var(--error-ink); font-size: 13px; overflow-wrap: anywhere; }
+    #graph-empty { position: absolute; top: 40%; left: 24px; right: 24px; text-align: center; color: var(--ink-soft); pointer-events: none; }
+    .sr-status { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+    .edge, .edge-shadow, .edge-highlight { stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+    .edge { stroke: url(#map-threads); stroke-opacity: .55; transition: stroke-opacity .15s ease; }
+    .edge.markdown-link { stroke-opacity: .7; }
+    .edge-shadow { stroke: var(--edge-shadow); stroke-opacity: .13; }
+    .edge-highlight { stroke: var(--edge-highlight); stroke-opacity: .72; }
+    .node { cursor: pointer; }
+    .node .node-core { fill: var(--node-fill, var(--node-note)); stroke: var(--surface); stroke-width: 1.5; vector-effect: non-scaling-stroke; filter: url(#map-node-shadow); transition: stroke-width .15s ease; }
+    .node .node-halo { pointer-events: none; opacity: .7; transition: opacity .15s ease; }
+    .node .node-sheen { fill: url(#map-node-light); pointer-events: none; }
+    .node.unresolved .node-core { fill: var(--node-unresolved); stroke-dasharray: 3 2; }
+    .node text { fill: var(--ink-soft); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; font-size: 11px; font-weight: 640; letter-spacing: -.01em; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+    .node.show-label text, .node:hover text, .node:focus text, .node.selected text { opacity: 1; pointer-events: auto; }
+    .node:hover .node-core, .node:focus-visible .node-core, .node.selected .node-core { stroke: var(--focus-ring); stroke-width: 4; }
+    .node:hover .node-halo, .node:focus-visible .node-halo, .node.selected .node-halo { opacity: 1; }
+    .node.selected text { fill: var(--ink); font-weight: 760; }
+
+    @media (max-width: 680px) {
+      .toolbar { padding: 12px 16px; gap: 6px; }
+      .map-heading { flex-basis: 100%; margin-bottom: 8px; }
+      #query { flex: 1 0 100%; width: 100%; order: 1; }
+      #graph-filters { position: static; }
+      .map-options { right: 16px; top: calc(100% - 4px); }
+      .canvas-bottom { left: 16px; right: 16px; }
+      .helper { left: 16px; right: auto; font-size: 10px; }
+      .graph-feedback, #graph-notice, .error { padding-inline: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+    ${notesStyles}
+    ${dreamStyles}
+    ${companion ? companionStyles : ""}
+  </style>
+</head>
+<body data-view="home">
+${notesMarkup}
+${documentActionsMarkup}
+${dreamMarkup}
+<header id="graph-header">
+  <div class="toolbar" aria-label="Map controls">
+    <div class="map-heading">
+      <h1>Memory map</h1>
+      <p>Your notes and how they connect.</p>
+    </div>
+    <button id="open-dream" class="quiet-button" type="button" aria-haspopup="dialog" aria-controls="dream-handoff">Consolidate notes (Dream)…</button>
+    <input id="query" data-testid="graph-query" aria-label="Filter map by title or tag" placeholder="Filter notes…" />
+    <details id="graph-filters">
+      <summary class="quiet-button">Filters</summary>
+      <div class="map-options">
+        <label class="focus-field">Show connections around<input id="focus" data-testid="graph-focus" placeholder="Note title or file" /></label>
+        <label><input id="include-orphans" data-testid="graph-include-orphans" type="checkbox" checked />Notes without connections</label>
+        <label><input id="include-unresolved" data-testid="graph-include-unresolved" type="checkbox" checked />Links to missing notes</label>
+        <p>Dashed dots are links to notes that don't exist yet.</p>
+      </div>
+    </details>
+    <button id="reload" data-testid="graph-reload" class="quiet-button" title="Refresh notes and connections">Refresh</button>
+  </div>
+  <div id="graph-notice" role="status" aria-atomic="true" hidden>
+    <p id="graph-scope" hidden></p>
+    <ul id="graph-warnings" hidden></ul>
+    <p id="graph-limit-hint" hidden></p>
+  </div>
+  <p id="status" data-testid="graph-status" class="graph-feedback" role="status" hidden></p>
+  <p id="ready" data-testid="graph-ready" class="sr-status" aria-live="polite" hidden>Map loaded.</p>
+  <p id="error" data-testid="graph-error" class="error" role="alert" hidden></p>
+</header>
+<main>
+  <section id="graph-wrap" aria-label="Memory map">
+    <svg id="graph" data-testid="graph-svg" role="group" aria-label="Notes and their connections">
+      <defs>
+        <linearGradient id="map-threads" gradientUnits="userSpaceOnUse" x1="12%" y1="8%" x2="88%" y2="92%"><stop stop-color="var(--edge)"/><stop offset=".5" stop-color="var(--edge-link)"/><stop offset="1" stop-color="var(--edge-end)"/></linearGradient>
+        <radialGradient id="map-node-light" cx="30%" cy="24%" r="78%"><stop stop-color="var(--node-light)" stop-opacity=".72"/><stop offset=".38" stop-color="var(--node-light)" stop-opacity=".18"/><stop offset=".72" stop-color="var(--node-shade)" stop-opacity="0"/><stop offset="1" stop-color="var(--node-shade)" stop-opacity=".24"/></radialGradient>
+        <filter id="map-node-shadow" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="var(--node-shade)" flood-opacity=".2"/></filter>
+        ${graphNodeGlows}
+      </defs>
+      <g id="viewport"></g>
+    </svg>
+    <p id="graph-empty" role="status" hidden></p>
+    <div class="canvas-bottom">
+      <span class="stats" data-testid="graph-stats" aria-label="Shown on this map">
+        <strong id="graph-node-count" data-testid="graph-node-count">0</strong> notes ·
+        <strong id="graph-edge-count" data-testid="graph-edge-count">0</strong> connections
+      </span>
+      <div class="canvas-tools" aria-label="Graph view controls">
+        <button id="zoom-out" class="icon-button" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        <button id="reset-view" class="icon-button" aria-label="Reset view" title="Reset view"><svg viewBox="0 0 24 24" fill="none"><path d="M5 9V5h4M19 9V5h-4M5 15v4h4M19 15v4h-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button id="zoom-in" class="icon-button" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" fill="none"><path d="M12 7v10m-5-5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      </div>
+    </div>
+    <p class="helper">Scroll to zoom · Drag to move · Select a note to open</p>
+  </section>
+  ${notesViews}
+  ${companion ? companionMarkup : ""}
+</main>
+<script nonce="${nonce}">
+${lexicalBundle}
+const { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
+const recentWrites = createRecentWriteSearch({
+  scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
+  fetch: createBrowserSearchRequest((url, options) => graphJson(url, options)),
+});
+const searchMemoryNotes = (query, signal) => recentWrites.search(query, signal);
+const $ = (id) => document.getElementById(id);
+${themeScript}
+const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
+const companionMode = ${companion};
+${companion ? companionPrelude : ""}
+const apiKeyInput = $("api-key");
+if (!companionMode) {
+  const hashKey = new URLSearchParams(location.hash.replace(/^#/, "")).get("apiKey");
+  try { apiKeyInput.value = localStorage.getItem("jumpybrain.graph.apiKey") || ""; } catch { /* Browser storage may be disabled. */ }
+  if (hashKey) {
+    apiKeyInput.value = hashKey;
+    try { localStorage.setItem("jumpybrain.graph.apiKey", hashKey); } catch { /* Session-only access. */ }
+    history.replaceState(history.state, "", location.pathname + location.search);
+  }
+
+}
+
+// Keep the committed credential separate from edits in the settings dialog.
+let activeApiKey = companionMode ? "companion-session" : apiKeyInput.value.trim();
+let credentialRevision = 0;
+let connectionStatus = activeApiKey ? "checking" : "disconnected";
+
+const map = JumpyBrainBrowser.createMapController({
+  state, element: $, document, window,
+  fetchGraph: (url) => graphJson(url), setStatus,
+  onReady: (ready) => { window.__jumpyBrainGraphReady = ready; }, openNode: selectNode,
+});
+const { loadGraph, queueGraphLayout } = map;
+map.connect();
+$("reload").addEventListener("click", loadGraph);
+const graphFilters = $("graph-filters");
+document.addEventListener("click", (event) => {
+  if (graphFilters.open && !graphFilters.contains(event.target)) graphFilters.open = false;
+});
+graphFilters.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    graphFilters.open = false;
+    graphFilters.querySelector("summary").focus();
+  }
+});
+for (const id of ["query", "focus", "include-unresolved", "include-orphans"]) $(id).addEventListener("change", loadGraph);
+for (const id of ["query", "focus"]) $(id).addEventListener("keydown", (event) => { if (event.key === "Enter") loadGraph(); });
+$("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
+const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
+  onChange: (markdown) => state.editor?.input(markdown),
+  onActivateReference: (title) => activatePageReference(title),
+  onError: (error) => {
+    $("capture-message").hidden = false;
+    $("capture-message").dataset.error = "true";
+    $("capture-message").textContent = "Editor error. Keep this page open and copy your draft before reloading. " + error.message;
+  },
+});
+$("note-editor").addEventListener("blur", () => {
+  if (state.editor) state.editor.flush();
+});
+window.addEventListener("beforeunload", protectPendingEditorUnload);
+
+function protectPendingEditorUnload(event) {
+  if ((!state.editor || !state.editor.hasPending()) && !(typeof companionMode !== "undefined" && companionMode && noteCapture.hasPending())) return;
+  event.preventDefault();
+  event.returnValue = "";
+}
+
+
+async function graphFetch(url, options) {
+  const requestOptions = Object.assign({}, options || {});
+  requestOptions.headers = Object.assign({}, requestOptions.headers || {});
+  const revision = credentialRevision;
+  if (typeof companionMode !== "undefined" && companionMode) {
+    await companionReady;
+    if (!companionRegistered || companionSessionFailed) throw new Error("Companion session unavailable. Open Settings.");
+    requestOptions.headers["X-Companion-Generation"] = String(companionState.generation);
+    requestOptions.headers["X-Companion-Tab"] = companionTabId;
+  } else if (activeApiKey) requestOptions.headers.Authorization = "Bearer " + activeApiKey;
+  try {
+    const response = await fetch(url, requestOptions);
+    if (typeof companionMode !== "undefined" && companionMode && response.status === 409) {
+      const packet = await response.clone().json().catch(() => null);
+      if (packet?.error?.code === "stale_generation") companionFence();
+    }
+    if (revision === credentialRevision) {
+      if (response.status === 401 || response.status === 403) connectionStatus = "disconnected";
+      else if (response.ok) connectionStatus = "connected";
+      else if (connectionStatus === "checking") connectionStatus = "unavailable";
+      renderConnection();
+    }
+    return response;
+  } catch (error) {
+    if (revision === credentialRevision && error.name !== "AbortError") {
+      connectionStatus = "unavailable";
+      renderConnection();
+    }
+    throw error;
+  }
+}
+
+async function graphJson(url, options) {
+  const response = await graphFetch(url, options);
+  let payload;
+  try { payload = await response.json(); } catch { payload = null; }
+  if (!response.ok) {
+    const error = new Error(payload?.error?.message || "Request failed with HTTP " + response.status);
+    error.status = response.status;
+    error.code = payload?.error?.code;
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
+}
+
+function documentUrl(documentId) {
+  return memoryDocumentPath(documentId);
+}
+
+function readGraphDocument(documentId, options) {
+  return graphJson(documentUrl(documentId), options);
+}
+
+function writeGraphDocument(documentId, content, contentHash) {
+  return graphJson(documentUrl(documentId), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "If-Match": contentHash },
+    body: JSON.stringify({ content }),
+  });
+}
+
+function setStatus(text, isError, errorText) {
+  const status = $("status");
+  status.textContent = text === "loading" ? "Loading map…" : text;
+  status.hidden = Boolean(isError) || text === "loaded" || text === "ready";
+  if (isError) {
+    $("error").textContent = errorText || text;
+    $("error").hidden = false;
+  } else {
+    $("error").hidden = true;
+  }
+}
+
+
+
+async function selectNode(node) {
+  if (node.nodeKind === "unresolved") {
+    setStatus("This linked note doesn't exist yet: " + (node.title || node.id));
+    return;
+  }
+  if (!isValidMemoryDocumentId(node.documentId)) {
+    setStatus("This document is missing a valid memory ID.");
+    return;
+  }
+  if (await navigation.navigate("/?note=" + encodeURIComponent(node.documentId))) state.selected = node.id;
+}
+
+async function requestEditorNavigation(action) {
+  if (documentActions.isBusy()) return false;
+  if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return false;
+  referenceAutocomplete.dismiss();
+  const editor = state.editor;
+  if (!editor) {
+    await action();
+    return true;
+  }
+  if (editor.state.navigationPending) return false;
+  editor.setNavigationPending(true);
+  const saved = await editor.flush();
+  if (state.editor !== editor) return false;
+  if (!saved) {
+    editor.setNavigationPending(false);
+    return false;
+  }
+  await action();
+  // Keep the editor read-only until the approved route is applied, including history replay.
+  return true;
+}
+
+function isValidMemoryDocumentId(value) {
+  return typeof value === "string" && ${MEMORY_DOCUMENT_ID_PATTERN}.test(value);
+}
+
+
+${dreamScript}
+${notesScript}
+${documentActionsScript}
+if (!companionMode) showPage(initialEntry.url);
+${companion ? companionScript : ""}
+</script>
+</body>
+</html>`;
+}

@@ -1,0 +1,9 @@
+// One browser bundle; pure controllers also remain directly importable in tests.
+import "./lexical-editor.js";
+export { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle } from "./document-controller.js";
+export { createMapController } from "./map-controller.js";
+export { referenceEligibility } from "./reference-policy.js";
+export { memoryDocumentPath, createBrowserSearchRequest } from "./browser-transport.js";
+
+export { createRecentWriteSearch } from "./recent-write-search.js";
+export { installDocumentActions } from "./document-actions.js";

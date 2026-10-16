@@ -1,0 +1,927 @@
+import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
+import type { TemporalQuery } from "../../types.js";
+import { MemoryExecutionError } from "../../app/server-memory/index.js";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPath, isMemoryRoute } from "../http-protocol.js";
+import type { FileLogger } from "../logging/index.js";
+import { packageVersion } from "../package-info/index.js";
+import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, previewServerMemoryDeletion, deleteServerMemoryDocument, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
+import { compactSearchServerMemory } from "../../app/server-memory/compact.js";
+import { expandServerMemoryDocument } from "../../app/server-memory/expansion.js";
+import type { ExpansionOptions } from "../../core/canonical/expansion.js";
+import { serializeBudgetedPacket, validatePacketMaxBytes } from "../../core/serialized-budget.js";
+import type { RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
+import { graphPageHtml } from "./graph-page.js";
+import { brainFaviconSvg } from "./favicon.js";
+import type { DreamWindowRequest, MemoryConnectionEdgeKind } from "../../types.js";
+
+interface JsonError {
+  error: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+export const RESPONSE_ERROR_CODE = Symbol("jumpybrain.responseErrorCode");
+
+export async function routeRequest(context: { request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number }): Promise<void> {
+  const { request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal, searchTimeoutMs } = context;
+  const url = new URL(request.url ?? "/", "http://localhost");
+
+  if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.health) {
+    writeJson(response, 200, {
+      ok: true,
+      service: "jumpybrain-server",
+      version: await packageVersion(),
+    });
+    return;
+  }
+
+  // Public, content-free branding, just like the browser shell.
+  if (url.pathname === "/favicon.svg") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      response.setHeader("allow", "GET, HEAD");
+      writeJson(response, 405, errorResponse("method_not_allowed", "Use GET or HEAD for /favicon.svg."));
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": "image/svg+xml; charset=utf-8",
+      "cache-control": "public, max-age=86400",
+      "x-content-type-options": "nosniff",
+    });
+    response.end(request.method === "HEAD" ? undefined : brainFaviconSvg);
+    return;
+  }
+
+  const browserShellPath = url.pathname === "/" || url.pathname === "/graph" || url.pathname === "/graph/";
+  if (request.method === "GET" && browserShellPath) {
+    const nonce = randomBytes(16).toString("base64url");
+    const contentSecurityPolicy = `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+    writeHtml(response, 200, graphPageHtml(nonce, url.pathname === "/" ? "home" : "graph"), {
+      "content-security-policy": contentSecurityPolicy,
+      "x-content-type-options": "nosniff",
+    });
+    return;
+  }
+
+  if (browserShellPath) {
+    const route = url.pathname === "/" ? "/" : "/graph";
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${route}.`));
+    return;
+  }
+
+  if (!isMemoryRoute(url.pathname)) {
+    writeJson(response, 404, errorResponse("not_found", "Unknown route."));
+    return;
+  }
+
+  const authFailure = authenticate(request, apiKeys);
+  if (authFailure) {
+    writeJson(response, 401, authFailure);
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.compactRecall || url.pathname === HTTP_MEMORY_ROUTES.expand) {
+    response.setHeader("cache-control", "no-store");
+    if (request.method !== "POST") {
+      response.setHeader("allow", "POST");
+      writeJson(response, 405, errorResponse("method_not_allowed", "Use POST for bounded memory reads."));
+      return;
+    }
+    try {
+      const body = await parseJsonBody(request);
+      if (isJsonError(body)) {
+        writeJson(response, body.statusCode, body.body);
+        return;
+      }
+      let maxBytes: number;
+      try { maxBytes = validatePacketMaxBytes(body.maxBytes as number | undefined); }
+      catch {
+        writeJson(response, 400, errorResponse("invalid_budget", "maxBytes must be an integer between 1024 and 65536."));
+        return;
+      }
+      const expansion = url.pathname === HTTP_MEMORY_ROUTES.expand;
+      const allowed = expansion
+        ? ["id", "expectedContentHash", "startLine", "endLine", "sectionLine", "maxBytes"]
+        : ["query", "limit", "depth", "maxBytes", "diagnostics", "temporal", "readOnly"];
+      if (Object.keys(body).some(key => !allowed.includes(key))) {
+        writeJson(response, 400, errorResponse("bad_request", "Unknown bounded memory request field."));
+        return;
+      }
+      let packet: unknown;
+      if (expansion) {
+        // Core validates hash and scope; never accept a caller-supplied filesystem root.
+        packet = await expandServerMemoryDocument({ ...body as unknown as ExpansionOptions, root });
+      } else {
+        if (typeof body.query !== "string" || !body.query.trim()
+          || (body.limit !== undefined && (typeof body.limit !== "number" || !Number.isSafeInteger(body.limit) || body.limit < 1))
+          || (body.depth !== undefined && (typeof body.depth !== "string" || !["shallow", "normal", "deep"].includes(body.depth)))
+          || (body.readOnly !== undefined && typeof body.readOnly !== "boolean")
+          || (body.diagnostics !== undefined && typeof body.diagnostics !== "boolean")) {
+          writeJson(response, 400, errorResponse("bad_request", "Compact recall requires query, a positive integer limit, valid depth, and boolean diagnostics."));
+          return;
+        }
+        resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
+        packet = await compactSearchServerMemory({ root, query: body.query, limit: body.limit as number | undefined ?? 5,
+          recall: { signal, timeoutMs: searchTimeoutMs, depth: body.depth as string | undefined, maxBytes, diagnostics: body.diagnostics as boolean | undefined, readOnly: body.readOnly as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined } });
+      }
+      // Unlike legacy writeJson, this must not pretty-print or add an envelope.
+      const wire = serializeBudgetedPacket(packet);
+      if (Buffer.byteLength(wire, "utf8") > maxBytes) throw new Error("Invalid bounded packet");
+      response.statusCode = 200;
+      response.setHeader("content-type", "application/json; charset=utf-8");
+      response.end(wire);
+    } catch (error) {
+      const mapped = executionErrorResponse(error) ?? readOnlyErrorResponse(error) ?? boundedReadErrorResponse(error);
+      writeJson(response, mapped.statusCode, mapped.body);
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.status) {
+    writeJson(response, 200, await serverMemoryStatus(root));
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.resolveTitle) {
+    response.setHeader("cache-control", "no-store");
+    if (request.method !== "POST") {
+      response.setHeader("allow", "POST");
+      writeJson(response, 405, errorResponse("method_not_allowed", `Use POST for ${HTTP_MEMORY_ROUTES.resolveTitle}.`));
+      return;
+    }
+    try {
+      const parsedBody = await parseJsonBody(request);
+      if (isJsonError(parsedBody)) {
+        writeJson(response, parsedBody.statusCode, parsedBody.body);
+        return;
+      }
+      const title = rawStringField(parsedBody, "title");
+      if (title === undefined) {
+        writeJson(response, 400, errorResponse("bad_request", "Title lookup requires a string title field."));
+        return;
+      }
+      writeJson(response, 200, await resolveServerMemoryTitle({ root, title }));
+    } catch {
+      // Configuration/root errors must not reach the outer diagnostic logger.
+      writeJson(response, 500, errorResponse("resolve_title_failed", "Remote title lookup failed."));
+    }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.recent) {
+    if (request.method !== "GET") {
+      writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${HTTP_MEMORY_ROUTES.recent}.`));
+      return;
+    }
+    try {
+      writeJson(response, 200, await recentServerMemory({ root }));
+    } catch {
+      writeJson(response, 500, errorResponse("recent_failed", "Remote recent notes failed."));
+    }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.dreamWindow) {
+    if (request.method !== "GET") {
+      writeJson(response, 405, errorResponse("method_not_allowed", "Use GET for stateless dream windows."));
+      return;
+    }
+    try {
+      const packet = await getDreamWindow({ root, request: dreamWindowRequest(url) });
+      logger.info("remote_dream_window_success", { path: url.pathname, status: 200, file_count: packet.files.length, has_more: packet.hasMore });
+      writeJson(response, 200, packet);
+    } catch (error) {
+      const mapped = dreamErrorResponse(error, "Remote dream window failed.");
+      logger.warn("remote_dream_window_failure", { path: url.pathname, status: mapped.statusCode, error_code: mapped.body.error.code });
+      writeJson(response, mapped.statusCode, mapped.body);
+    }
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.dreamStatus) {
+    try {
+      const packet = await getDreamStatus({ root });
+      logger.info("remote_dream_status_success", { path: url.pathname, status: 200, open_batch: packet.openBatch?.batchId, file_count: packet.openBatch?.fileCount });
+      writeJson(response, 200, packet);
+    } catch (error) {
+      const mapped = dreamErrorResponse(error, "Remote dream status failed.");
+      logger.warn("remote_dream_status_failure", { path: url.pathname, status: mapped.statusCode, error_code: mapped.body.error.code });
+      writeJson(response, mapped.statusCode, mapped.body);
+    }
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === HTTP_MEMORY_ROUTES.dreamBatches) {
+    const parsedBody = await parseJsonBody(request, { allowEmpty: true });
+    if (isJsonError(parsedBody)) {
+      writeJson(response, parsedBody.statusCode, parsedBody.body);
+      return;
+    }
+    try {
+      const packet = await enqueueWrite(() => createDreamBatch({ root, request: dreamCreateRequest(parsedBody) }));
+      logger.info("remote_dream_batch_create_success", { path: url.pathname, status: 200, batch_id: packet.batchId, file_count: packet.files.length, has_more: packet.hasMore, resumed: packet.resumed });
+      writeJson(response, 200, packet);
+    } catch (error) {
+      const mapped = dreamErrorResponse(error, "Remote dream batch creation failed.");
+      logger.warn("remote_dream_batch_create_failure", { path: url.pathname, status: mapped.statusCode, error_code: mapped.body.error.code });
+      writeJson(response, mapped.statusCode, mapped.body);
+    }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.dreamStatus || url.pathname === HTTP_MEMORY_ROUTES.dreamBatches) {
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use ${url.pathname === HTTP_MEMORY_ROUTES.dreamStatus ? "GET" : "POST"} for ${url.pathname}.`));
+    return;
+  }
+
+  if (url.pathname.startsWith(HTTP_MEMORY_ROUTES.dreamBatchesPrefix)) {
+    const decoded = decodeMemoryDreamBatchPath(url.pathname);
+    if (decoded instanceof Error) {
+      writeJson(response, 400, errorResponse("invalid_batch_id", decoded.message));
+      return;
+    }
+
+    if (!decoded.action && request.method === "GET") {
+      try {
+        const packet = await getDreamBatch({ root, batchId: decoded.batchId });
+        logger.info("remote_dream_batch_read_success", { path: url.pathname, status: 200, batch_id: packet.batchId, file_count: packet.files.length, has_more: packet.hasMore });
+        writeJson(response, 200, packet);
+      } catch (error) {
+        const mapped = dreamErrorResponse(error, "Remote dream batch read failed.");
+        logger.warn("remote_dream_batch_read_failure", { path: url.pathname, status: mapped.statusCode, batch_id: decoded.batchId, error_code: mapped.body.error.code });
+        writeJson(response, mapped.statusCode, mapped.body);
+      }
+      return;
+    }
+
+    if (decoded.action === "complete" && request.method === "POST") {
+      const parsedBody = await parseJsonBody(request, { allowEmpty: true });
+      if (isJsonError(parsedBody)) {
+        writeJson(response, parsedBody.statusCode, parsedBody.body);
+        return;
+      }
+      try {
+        const packet = await enqueueWrite(() => completeDreamBatch({ root, request: { ...dreamCompleteRequest(parsedBody), batchId: decoded.batchId } }));
+        logger.info("remote_dream_batch_complete_success", { path: url.pathname, status: 200, batch_id: packet.batchId, updated_count: packet.updatedDocumentIds.length, skipped_count: packet.skippedDocumentIds.length });
+        writeJson(response, 200, packet);
+      } catch (error) {
+        const mapped = dreamErrorResponse(error, "Remote dream batch completion failed.");
+        logger.warn("remote_dream_batch_complete_failure", { path: url.pathname, status: mapped.statusCode, batch_id: decoded.batchId, error_code: mapped.body.error.code });
+        writeJson(response, mapped.statusCode, mapped.body);
+      }
+      return;
+    }
+
+    if (decoded.action === "abandon" && request.method === "POST") {
+      const parsedBody = await parseJsonBody(request, { allowEmpty: true });
+      if (isJsonError(parsedBody)) {
+        writeJson(response, parsedBody.statusCode, parsedBody.body);
+        return;
+      }
+      try {
+        const packet = await enqueueWrite(() => abandonDreamBatch({ root, batchId: decoded.batchId, summary: stringField(parsedBody, "summary") || undefined }));
+        logger.info("remote_dream_batch_abandon_success", { path: url.pathname, status: 200, batch_id: packet.batchId });
+        writeJson(response, 200, packet);
+      } catch (error) {
+        const mapped = dreamErrorResponse(error, "Remote dream batch abandonment failed.");
+        logger.warn("remote_dream_batch_abandon_failure", { path: url.pathname, status: mapped.statusCode, batch_id: decoded.batchId, error_code: mapped.body.error.code });
+        writeJson(response, mapped.statusCode, mapped.body);
+      }
+      return;
+    }
+
+    const usage = decoded.action ? `Use POST for ${url.pathname}.` : `Use GET for ${url.pathname}.`;
+    writeJson(response, 405, errorResponse("method_not_allowed", usage));
+    return;
+  }
+
+  if (url.pathname.startsWith(HTTP_MEMORY_ROUTES.documentsPrefix)) {
+    const id = decodeMemoryDocumentPath(url.pathname);
+    if (id instanceof Error) {
+      writeJson(response, 400, errorResponse("invalid_id", id.message));
+      return;
+    }
+
+    if (request.method === "GET") {
+      try {
+        const packet = url.searchParams.get("deletePreview") === "1"
+          ? await previewServerMemoryDeletion({ root, id }) : await readServerMemoryDocument({ root, id });
+        logger.info("remote_document_read_success", { path: url.pathname, status: 200, id: packet.id, file: packet.file });
+        writeJson(response, 200, packet);
+      } catch (error) {
+        const mapped = documentReadErrorResponse(error);
+        logger.warn("remote_document_read_failure", {
+          path: url.pathname,
+          status: mapped.statusCode,
+          id,
+          error_code: mapped.body.error.code,
+        });
+        writeJson(response, mapped.statusCode, mapped.body);
+      }
+      return;
+    }
+
+    if (request.method === "DELETE") {
+      const ifMatch = ifMatchHeader(request);
+      if (!ifMatch) { writeJson(response, 428, errorResponse("precondition_required", "Deletion requires If-Match from a prior read.")); return; }
+      const body = await parseJsonBody(request);
+      if (isJsonError(body)) { writeJson(response, body.statusCode, body.body); return; }
+      if (body.apply !== true || Object.keys(body).some(key => key !== "apply")) {
+        writeJson(response, 400, errorResponse("validation_failed", "Permanent deletion requires only { apply: true }.")); return;
+      }
+      try {
+        writeJson(response, 200, await enqueueWrite(() => deleteServerMemoryDocument({ root, id, ifMatch, apply: true })));
+      } catch (error) {
+        const mapped = documentUpdateErrorResponse(error);
+        writeJson(response, mapped.statusCode, mapped.body);
+      }
+      return;
+    }
+
+    if (request.method === "PUT") {
+      const ifMatch = ifMatchHeader(request);
+      if (!ifMatch) {
+        const body = errorResponse("precondition_required", "Document update requires If-Match from a prior document read.", { id });
+        logger.warn("remote_document_update_failure", { method: request.method, path: url.pathname, status: 428, id, error_code: body.error.code });
+        writeJson(response, 428, body);
+        return;
+      }
+
+      const parsedBody = await parseJsonBody(request);
+      if (isJsonError(parsedBody)) {
+        logger.warn("remote_document_update_failure", { method: request.method, path: url.pathname, status: parsedBody.statusCode, id, error_code: parsedBody.body.error.code });
+        writeJson(response, parsedBody.statusCode, parsedBody.body);
+        return;
+      }
+
+      const content = rawStringField(parsedBody, "content");
+      if (content === undefined || content.length === 0) {
+        const body = errorResponse("validation_failed", "Document update requires a non-empty string content field.", { id });
+        logger.warn("remote_document_update_failure", { method: request.method, path: url.pathname, status: 422, id, error_code: body.error.code });
+        writeJson(response, 422, body);
+        return;
+      }
+
+      try {
+        const packet = await enqueueWrite(() => updateServerMemoryDocument({ root, id, content, ifMatch }));
+        logger.info("remote_document_update_success", {
+          method: request.method,
+          path: url.pathname,
+          status: 200,
+          id: packet.id,
+          file: packet.file,
+          stale: packet.index.stale,
+        });
+        writeJson(response, 200, packet);
+      } catch (error) {
+        const mapped = documentUpdateErrorResponse(error);
+        const safeDetails = mapped.body.error.details;
+        logger.warn("remote_document_update_failure", {
+          method: request.method,
+          path: url.pathname,
+          status: mapped.statusCode,
+          id,
+          file: typeof safeDetails?.file === "string" ? safeDetails.file : undefined,
+          error_code: mapped.body.error.code,
+        });
+        writeJson(response, mapped.statusCode, mapped.body);
+      }
+      return;
+    }
+
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET, PUT or DELETE for ${url.pathname}.`));
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.status) {
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${HTTP_MEMORY_ROUTES.status}.`));
+    return;
+  }
+
+  if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.graphJson) {
+    const graphOptions = graphOptionsFromSearchParams(url);
+    if (graphOptions instanceof Error) {
+      writeJson(response, 400, errorResponse("bad_request", graphOptions.message));
+      return;
+    }
+    try {
+      writeJson(response, 200, await graphServerMemory({ root, graph: graphOptions }));
+    } catch {
+      writeJson(response, 500, errorResponse("graph_failed", "Remote graph failed."));
+    }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.graphJson) {
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${HTTP_MEMORY_ROUTES.graphJson}.`));
+    return;
+  }
+
+  if (request.method === "GET" && (url.pathname === HTTP_MEMORY_ROUTES.overview || url.pathname === HTTP_MEMORY_ROUTES.tree)) {
+    const limit = positiveIntegerSearchParam(url, "limit", 10);
+    if (limit instanceof Error) {
+      writeJson(response, 400, errorResponse("bad_request", limit.message));
+      return;
+    }
+    try {
+      writeJson(response, 200, await overviewServerMemory({
+        root,
+        overview: {
+          showFiles: booleanSearchParam(url, "showFiles") || booleanSearchParam(url, "show-files"),
+          connections: booleanSearchParam(url, "connections"),
+          limit,
+        },
+      }));
+    } catch {
+      writeJson(response, 500, errorResponse("overview_failed", "Remote overview failed."));
+    }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.overview || url.pathname === HTTP_MEMORY_ROUTES.tree) {
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${url.pathname}.`));
+    return;
+  }
+
+  if (request.method === "POST" && url.pathname === HTTP_MEMORY_ROUTES.index) {
+    const parsedBody = await parseJsonBody(request, { allowEmpty: true });
+    if (isJsonError(parsedBody)) {
+      writeJson(response, parsedBody.statusCode, parsedBody.body);
+      return;
+    }
+
+    if (Object.keys(parsedBody).some((key) => key !== "rebuild")) {
+      writeJson(response, 400, errorResponse("bad_request", "Only rebuild is supported remotely; configure indexing policy on the server-local memory root."));
+      return;
+    }
+    if (parsedBody.rebuild !== undefined && typeof parsedBody.rebuild !== "boolean") {
+      writeJson(response, 400, errorResponse("bad_request", "rebuild must be a boolean."));
+      return;
+    }
+
+    const indexedAt = Date.now();
+    logger.info("index_start", { path: url.pathname, reason: "manual" });
+    try {
+      const packet = await indexServerMemory({ root, indexRunner, reason: "manual", rebuild: parsedBody.rebuild as boolean | undefined, signal });
+      logger.info("index_success", { reason: "manual", documents: packet.documents, qmdCollection: packet.qmdCollection, stale: packet.index.stale, duration_ms: Date.now() - indexedAt });
+      writeJson(response, 200, packet);
+    } catch (error) {
+      logger.error("index_failure", { reason: "manual", duration_ms: Date.now() - indexedAt, code: error instanceof MemoryExecutionError ? error.code : "index_failed" });
+      const mapped = executionErrorResponse(error);
+      writeJson(response, mapped?.statusCode ?? 500, mapped?.body ?? errorResponse("index_failed", "Remote index rebuild failed."));
+    }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.index) {
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use POST for ${HTTP_MEMORY_ROUTES.index}.`));
+    return;
+  }
+
+  if (request.method === "POST" && (url.pathname === HTTP_MEMORY_ROUTES.search || url.pathname === HTTP_MEMORY_ROUTES.recall)) {
+    const parsedBody = await parseJsonBody(request);
+    if (isJsonError(parsedBody)) {
+      writeJson(response, parsedBody.statusCode, parsedBody.body);
+      return;
+    }
+
+    const body = parsedBody as Record<string, unknown>;
+    const recall = url.pathname === HTTP_MEMORY_ROUTES.recall;
+    const query = stringField(body, recall ? "topic" : "query") || stringField(body, "query");
+    const limit = positiveIntegerField(body, "limit", recall ? 5 : 10);
+    const depth = stringField(body, "depth") || "normal";
+    if (body.readOnly !== undefined && typeof body.readOnly !== "boolean") {
+      writeJson(response, 400, errorResponse("bad_request", "readOnly must be boolean."));
+      return;
+    }
+    if (!query) {
+      writeJson(response, 400, errorResponse("bad_request", recall ? "Recall requires topic or query." : "Search requires query."));
+      return;
+    }
+    if (limit instanceof Error) {
+      writeJson(response, 400, errorResponse("bad_request", limit.message));
+      return;
+    }
+
+    try {
+      resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
+      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall, readOnly: body.readOnly as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined, signal, timeoutMs: searchTimeoutMs }));
+    } catch (error) {
+      if ((error as { code?: string }).code === "invalid_temporal") {
+        writeJson(response, 400, errorResponse("invalid_temporal", "Invalid temporal query. Use real ISO dates, timezone-explicit timestamps, and an explicit referenceDate for relative bounds."));
+        return;
+      }
+      const mapped = executionErrorResponse(error);
+      const readOnlyError = readOnlyErrorResponse(error);
+      writeJson(response, mapped?.statusCode ?? readOnlyError?.statusCode ?? 500, mapped?.body ?? readOnlyError?.body ?? errorResponse("search_failed", recall ? "Remote recall failed." : "Remote search failed."));
+    }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.search || url.pathname === HTTP_MEMORY_ROUTES.recall) {
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use POST for ${url.pathname}.`));
+    return;
+  }
+
+  if (request.method === "POST" && (url.pathname === HTTP_MEMORY_ROUTES.notes || url.pathname === HTTP_MEMORY_ROUTES.wrapups)) {
+    const parsedBody = await parseJsonBody(request);
+    if (isJsonError(parsedBody)) {
+      writeJson(response, parsedBody.statusCode, parsedBody.body);
+      return;
+    }
+
+    const idempotencyKey = request.headers["idempotency-key"];
+    const key = Array.isArray(idempotencyKey) ? idempotencyKey[0] : idempotencyKey;
+    let idempotency: Awaited<ReturnType<typeof writeServerMemoryWithIdempotency>>;
+    try {
+      idempotency = await enqueueWrite(() => writeServerMemoryWithIdempotency({
+        root,
+        key,
+        method: "POST",
+        path: url.pathname,
+        body: parsedBody,
+        write: url.pathname === HTTP_MEMORY_ROUTES.notes
+          ? {
+              kind: "note",
+              dailyDate: parsedBody.dailyDate,
+              draft: {
+                type: parsedBody.dailyDate === undefined ? stringField(parsedBody, "type") : parsedBody.type,
+                dream: optionalBooleanField(parsedBody, "dream"),
+                title: parsedBody.dailyDate === undefined ? stringField(parsedBody, "title") : parsedBody.title,
+                body: parsedBody.dailyDate === undefined ? stringField(parsedBody, "body") : parsedBody.body,
+                tags: tagsField(parsedBody),
+              },
+            }
+          : {
+              kind: "wrapup",
+              draft: {
+                title: stringField(parsedBody, "title"),
+                body: stringField(parsedBody, "body"),
+                tags: tagsField(parsedBody),
+                recallTopic: stringField(parsedBody, "recallTopic") || undefined,
+              },
+            },
+      }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Remote write validation failed.";
+      writeJson(response, 422, errorResponse("validation_failed", message));
+      return;
+    }
+
+    if (idempotency.kind === "missing-key") {
+      writeJson(response, 400, errorResponse("idempotency_key_required", "Create requests require Idempotency-Key."));
+      return;
+    }
+    if (idempotency.kind === "conflict") {
+      writeJson(response, 409, errorResponse("idempotency_conflict", "Idempotency-Key was already used for a different request."));
+      return;
+    }
+
+    const result = idempotency.result as Record<string, unknown>;
+    const index = result.index as { stale?: boolean } | undefined;
+    logger.info("remote_write_success", {
+      path: url.pathname,
+      write_type: result.type,
+      file: result.file,
+      idempotency: idempotency.kind,
+      stale: index?.stale,
+    });
+    writeJson(response, 200, idempotency.result);
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.notes || url.pathname === HTTP_MEMORY_ROUTES.wrapups) {
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use POST for ${url.pathname}.`));
+    return;
+  }
+
+  writeJson(response, 404, errorResponse("not_found", "Unknown memory route."));
+}
+
+function authenticate(request: IncomingMessage, apiKeys: string[]): JsonError | undefined {
+  const header = request.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return errorResponse("auth_required", "Missing Authorization bearer token.");
+  }
+
+  const token = header.slice("Bearer ".length).trim();
+  if (!token || !apiKeys.some((apiKey) => constantTimeTokenEquals(token, apiKey))) {
+    return errorResponse("invalid_api_key", "Invalid API key.");
+  }
+
+  return undefined;
+}
+
+function constantTimeTokenEquals(candidate: string, expected: string): boolean {
+  const candidateHash = createHash("sha256").update(candidate).digest();
+  const expectedHash = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(candidateHash, expectedHash);
+}
+
+function ifMatchHeader(request: IncomingMessage): string {
+  const raw = request.headers["if-match"];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return typeof value === "string" ? value.trim() : "";
+}
+
+class JsonBodyError {
+  constructor(readonly statusCode: number, readonly body: JsonError) {}
+}
+
+async function parseJsonBody(request: IncomingMessage, options: { allowEmpty?: boolean } = {}): Promise<Record<string, unknown> | JsonBodyError> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += buffer.length;
+    if (size > 1024 * 1024) {
+      return new JsonBodyError(400, errorResponse("bad_request", "Request body is too large."));
+    }
+    chunks.push(buffer);
+  }
+
+  const text = Buffer.concat(chunks).toString("utf8").trim();
+  if (!text) return options.allowEmpty ? {} : new JsonBodyError(400, errorResponse("bad_request", "JSON body is required."));
+
+  const contentType = request.headers["content-type"];
+  if (contentType && !String(contentType).toLowerCase().includes("application/json")) {
+    return new JsonBodyError(415, errorResponse("unsupported_media_type", "Use application/json."));
+  }
+
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return new JsonBodyError(400, errorResponse("bad_request", "JSON body must be an object."));
+    }
+    return parsed as Record<string, unknown>;
+  } catch {
+    return new JsonBodyError(400, errorResponse("bad_request", "Malformed JSON body."));
+  }
+}
+
+function isJsonError(value: unknown): value is JsonBodyError {
+  // A JSON request object must never impersonate a parser failure/HTTP response.
+  return value instanceof JsonBodyError;
+}
+
+function dreamErrorResponse(error: unknown, fallback: string): { statusCode: number; body: JsonError } {
+  const publicCodes = new Set(["missing_batch", "invalid_batch_id", "invalid_file", "validation_failed", "invalid_state", "corrupt_batch"]);
+  if (error && typeof error === "object" && publicCodes.has(String((error as { code?: unknown }).code)) && typeof (error as { message?: unknown }).message === "string") {
+    const code = (error as { code: string }).code;
+    const statusCode = code === "missing_batch" ? 404
+      : code === "invalid_batch_id" || code === "invalid_file" || code === "validation_failed" ? 400
+        : code === "invalid_state" ? 409
+          : code === "corrupt_batch" ? 422
+            : 500;
+    return { statusCode, body: errorResponse(code, (error as { message: string }).message, safeErrorDetails((error as { details?: Record<string, unknown> }).details)) };
+  }
+  return { statusCode: 500, body: errorResponse("dream_failed", fallback) };
+}
+
+function documentReadErrorResponse(error: unknown): { statusCode: number; body: JsonError } {
+  if (isMemoryDocumentEditError(error)) {
+    const statusCode = error.code === "missing_id" ? 404 : error.code === "duplicate_id" ? 409 : error.code === "invalid_id" ? 400 : 422;
+    return { statusCode, body: errorResponse(error.code, error.message, safeErrorDetails(error.details)) };
+  }
+
+  return { statusCode: 500, body: errorResponse("update_failed", "Remote document read failed.") };
+}
+
+function documentUpdateErrorResponse(error: unknown): { statusCode: number; body: JsonError } {
+  if (isMemoryDocumentEditError(error)) {
+    const statusCode = documentUpdateStatusCode(error.code);
+    return { statusCode, body: errorResponse(error.code, error.message, safeErrorDetails(error.details)) };
+  }
+
+  return { statusCode: 500, body: errorResponse("update_failed", "Remote document update failed.") };
+}
+
+function documentUpdateStatusCode(code: string): number {
+  if (code === "invalid_id") return 400;
+  if (code === "missing_id") return 404;
+  if (code === "duplicate_id" || code === "duplicate_title") return 409;
+  if (code === "precondition_failed") return 412;
+  if (code === "precondition_required") return 428;
+  if (code === "unsupported_media_type") return 415;
+  if (code === "validation_failed" || code === "unsupported_body") return 422;
+  return 500;
+}
+
+function isMemoryDocumentEditError(error: unknown): error is { code: string; message: string; details?: Record<string, unknown> } {
+  return Boolean(error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string" && typeof (error as { message?: unknown }).message === "string");
+}
+
+function safeErrorDetails(details: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!details) return undefined;
+  const safe: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (key === "id" && typeof value === "string") safe.id = value;
+    if (key === "file" && typeof value === "string") safe.file = value;
+    if (key === "files" && Array.isArray(value)) safe.files = value.map(String);
+    if (key === "currentContentHash" && typeof value === "string") safe.currentContentHash = value;
+  }
+  return Object.keys(safe).length > 0 ? safe : undefined;
+}
+
+function rawStringField(body: Record<string, unknown>, key: string): string | undefined {
+  const value = body[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function stringField(body: Record<string, unknown>, key: string): string {
+  const value = body[key];
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function positiveIntegerField(body: Record<string, unknown>, key: string, fallback: number): number | Error {
+  const value = body[key];
+  if (value === undefined) return fallback;
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  if (!Number.isInteger(parsed) || parsed <= 0) return new Error(`${key} must be a positive integer.`);
+  return parsed;
+}
+
+function positiveIntegerSearchParam(url: URL, key: string, fallback: number): number | Error {
+  const value = url.searchParams.get(key);
+  if (value === null || value === "") return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return new Error(`${key} must be a positive integer.`);
+  return parsed;
+}
+
+function booleanSearchParam(url: URL, key: string): boolean {
+  const value = url.searchParams.get(key);
+  return value === "1" || value === "true" || value === "yes" || value === "";
+}
+
+function optionalBooleanSearchParam(url: URL, key: string): boolean | undefined {
+  const value = url.searchParams.get(key);
+  if (value === null) return undefined;
+  if (value === "1" || value === "true" || value === "yes" || value === "") return true;
+  if (value === "0" || value === "false" || value === "no") return false;
+  return undefined;
+}
+
+function graphOptionsFromSearchParams(url: URL) {
+  const depth = optionalPositiveIntegerSearchParam(url, "depth");
+  if (depth instanceof Error) return depth;
+  const limit = optionalPositiveIntegerSearchParam(url, "limit");
+  if (limit instanceof Error) return limit;
+  const edgeTypes = stringListSearchParam(url, "edgeTypes") ?? stringListSearchParam(url, "edge-types");
+  const allowedEdgeTypes = new Set(["markdown-link", "wiki-link"]);
+  if (edgeTypes?.some((edgeType) => !allowedEdgeTypes.has(edgeType))) return new Error("edgeTypes may only include markdown-link or wiki-link.");
+  return {
+    focus: stringSearchParam(url, "focus") || undefined,
+    query: stringSearchParam(url, "query") || undefined,
+    type: stringSearchParam(url, "type") || undefined,
+    path: stringSearchParam(url, "path") || undefined,
+    tags: stringListSearchParam(url, "tags"),
+    edgeTypes: edgeTypes as MemoryConnectionEdgeKind[] | undefined,
+    includeUnresolved: optionalBooleanSearchParam(url, "includeUnresolved") ?? optionalBooleanSearchParam(url, "include-unresolved"),
+    includeOrphans: optionalBooleanSearchParam(url, "includeOrphans") ?? optionalBooleanSearchParam(url, "include-orphans"),
+    depth,
+    limit,
+  };
+}
+
+function stringSearchParam(url: URL, key: string): string {
+  return url.searchParams.get(key)?.trim() ?? "";
+}
+
+function stringListSearchParam(url: URL, key: string): string[] | undefined {
+  const values = url.searchParams.getAll(key).flatMap((value) => value.split(",")).map((value) => value.trim()).filter(Boolean);
+  return values.length > 0 ? values : undefined;
+}
+
+function optionalPositiveIntegerSearchParam(url: URL, key: string): number | undefined | Error {
+  const value = url.searchParams.get(key);
+  if (value === null || value === "") return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return new Error(`${key} must be a positive integer.`);
+  return parsed;
+}
+
+function dreamCreateRequest(body: Record<string, unknown>) {
+  return {
+    maxFiles: optionalPositiveIntegerField(body, "maxFiles") ?? optionalPositiveIntegerField(body, "max_files"),
+    bytesPerFile: optionalPositiveIntegerField(body, "bytesPerFile") ?? optionalPositiveIntegerField(body, "bytes_per_file"),
+    maxTotalBytes: optionalPositiveIntegerField(body, "maxTotalBytes") ?? optionalPositiveIntegerField(body, "max_total_bytes"),
+    force: booleanField(body, "force"),
+  };
+}
+
+function dreamCompleteRequest(body: Record<string, unknown>) {
+  return {
+    batchId: stringField(body, "batchId"),
+    summary: stringField(body, "summary") || undefined,
+    updatedDocumentIds: stringListField(body, "updatedDocumentIds"),
+    skippedDocumentIds: stringListField(body, "skippedDocumentIds"),
+    operatorNotes: stringField(body, "operatorNotes") || undefined,
+  };
+}
+
+function optionalPositiveIntegerField(body: Record<string, unknown>, key: string): number | undefined {
+  const value = body[key];
+  if (value === undefined) return undefined;
+  const parsed = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  if (!Number.isInteger(parsed) || parsed <= 0) throw { code: "validation_failed", message: `${key} must be a positive integer.` };
+  return parsed;
+}
+
+function dreamWindowRequest(url: URL): DreamWindowRequest {
+  const allowed = new Set(["from", "days", "dateBasis", "offset", "maxFiles", "bytesPerFile", "maxTotalBytes"]);
+  const request: Record<string, string | number> = {};
+  for (const [key, value] of url.searchParams) {
+    if (!allowed.has(key) || Object.hasOwn(request, key)) throw { code: "validation_failed", message: `Unknown or repeated dream parameter: ${key}.` };
+    if (!value.trim()) throw { code: "validation_failed", message: `${key} requires a value.` };
+    request[key] = key === "from" || key === "dateBasis" ? value : Number(value);
+  }
+  return request as DreamWindowRequest;
+}
+
+function optionalBooleanField(body: Record<string, unknown>, key: string): boolean | undefined {
+  if (body[key] === undefined) return undefined;
+  if (typeof body[key] !== "boolean") throw new Error(`${key} must be a boolean.`);
+  return body[key];
+}
+
+function booleanField(body: Record<string, unknown>, key: string): boolean {
+  const value = body[key];
+  if (value === true || value === "true" || value === "1" || value === 1) return true;
+  return false;
+}
+
+function stringListField(body: Record<string, unknown>, key: string): string[] {
+  const value = body[key];
+  if (!Array.isArray(value)) return [];
+  return value.map(String).map((entry) => entry.trim()).filter(Boolean);
+}
+
+function tagsField(body: Record<string, unknown>): string[] {
+  const value = body.tags;
+  if (!Array.isArray(value)) return [];
+  return value.map(String).map((tag) => tag.trim()).filter(Boolean);
+}
+
+function executionErrorResponse(error: unknown): { statusCode: number; body: JsonError } | undefined {
+  if (!(error instanceof MemoryExecutionError)) return;
+  const statusCode = error.code === "execution_overloaded" ? 503 : error.code === "execution_timeout" ? 504 : error.code === "execution_aborted" ? 499 : 500;
+  return { statusCode, body: errorResponse(error.code, error.message) };
+}
+
+export function writeJson(response: ServerResponse, statusCode: number, body: unknown): void {
+  if (response.destroyed || response.writableEnded) return;
+  response.statusCode = statusCode;
+  if (isErrorBody(body)) (response as ServerResponse & { [RESPONSE_ERROR_CODE]?: string })[RESPONSE_ERROR_CODE] = body.error.code;
+  response.setHeader("content-type", "application/json; charset=utf-8");
+  response.end(`${JSON.stringify(body, null, 2)}\n`);
+}
+
+function writeHtml(response: ServerResponse, statusCode: number, html: string, headers: Record<string, string> = {}): void {
+  response.statusCode = statusCode;
+  response.setHeader("content-type", "text/html; charset=utf-8");
+  for (const [name, value] of Object.entries(headers)) response.setHeader(name, value);
+  response.end(html);
+}
+
+function isErrorBody(body: unknown): body is JsonError {
+  return Boolean(body && typeof body === "object" && "error" in body && typeof (body as JsonError).error?.code === "string");
+}
+
+export function errorResponse(code: string, message: string, details?: Record<string, unknown>): JsonError {
+  return { error: { code, message, ...(details ? { details } : {}) } };
+}
+
+function readOnlyErrorResponse(error: unknown): { statusCode: number; body: JsonError } | undefined {
+  const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
+  const codes = ["read_only_busy", "read_only_pending", "read_only_wal", "read_only_missing", "read_only_generation", "read_only_changed", "read_only_invalid", "read_only_sdk", "read_only_arguments"];
+  if (typeof code !== "string" || !codes.includes(code)) return undefined;
+  return { statusCode: ["read_only_busy", "read_only_changed"].includes(code) ? 503 : 409,
+    body: errorResponse(code, "Strict read-only retrieval is unavailable for this index. Wait for writers or ask authorized server maintenance to recover/checkpoint/rebuild derived state; no read-side repair was attempted.") };
+}
+
+/** Static messages only: canonical/backend exceptions may contain paths or request data. */
+function boundedReadErrorResponse(error: unknown): { statusCode: number; body: JsonError } {
+  const code = error && typeof error === "object" ? (error as { code?: unknown }).code : undefined;
+  const errors: Record<string, [number, string]> = {
+    invalid_temporal: [400, "Invalid temporal query. Use real ISO dates, timezone-explicit timestamps, and an explicit referenceDate for relative bounds."],
+    invalid_id: [400, "Expected a canonical mem_<uuid> document ID."],
+    missing_id: [404, "Canonical memory document not found."],
+    duplicate_id: [409, "Canonical document ID is ambiguous; repair duplicate IDs before expanding."],
+    invalid_expansion: [400, "Invalid expansion hash or line/section range."],
+    invalid_budget: [400, "maxBytes must be an integer between 1024 and 65536."],
+    budget_too_small: [422, "Byte budget cannot fit the minimum packet. Increase maxBytes."],
+    line_too_large: [422, "First requested whole source line exceeds the budget. Increase maxBytes or request another range."],
+    precondition_required: [428, "Expansion requires expectedContentHash from prior recall or document read."],
+    precondition_failed: [412, "Document hash is stale or identity changed. Refresh recall before expanding."],
+    invalid_utf8: [422, "Document is not valid UTF-8; exact expansion is unavailable."],
+  };
+  if (typeof code === "string" && Object.hasOwn(errors, code)) {
+    const [statusCode, message] = errors[code]!;
+    return { statusCode, body: errorResponse(code, message) };
+  }
+  return { statusCode: 500, body: errorResponse("bounded_read_failed", "Remote bounded memory read failed.") };
+}

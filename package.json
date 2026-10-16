@@ -1,0 +1,61 @@
+{
+  "name": "jumpybrain",
+  "version": "0.3.1",
+  "private": true,
+  "type": "module",
+  "description": "Markdown-native memory for coding agents.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "jumpybrain": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node scripts/build-editor.mjs",
+    "test": "npm run build && node --test",
+    "validate": "npm test",
+    "smoke:semantic-index": "npm run build && node scripts/semantic-index-smoke.mjs",
+    "smoke:graph": "npx --package=playwright node scripts/graph-ui-smoke.mjs",
+    "smoke:theme": "npm run build && npx --package=playwright node scripts/theme-smoke.mjs",
+    "smoke:graph-editor": "npm run build && npx --package=playwright node scripts/graph-editor-smoke.mjs",
+    "smoke:daily-capture": "npm run build && npx --package=playwright node scripts/daily-capture-smoke.mjs",
+    "smoke:lexical": "npm run build && npx --package=playwright node scripts/lexical-editor-smoke.mjs",
+    "smoke:page-references": "npm run build && npx --package=playwright node scripts/page-reference-editor-smoke.mjs && npx --package=playwright node scripts/reference-autocomplete-smoke.mjs && npx --package=playwright node scripts/page-reference-smoke.mjs",
+    "guard:staged": "node scripts/precommit-guard.mjs",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "cli:version": "node scripts/version-local.mjs",
+    "cli:pack": "node scripts/pack-local.mjs",
+    "cli:release:local": "npm run cli:version && npm run validate && npm run cli:pack",
+    "cli:install:local": "node scripts/install-local-cli.mjs",
+    "quality:report": "node scripts/code-quality-report.mjs",
+    "release": "node scripts/release.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "docs",
+    "skills",
+    "integrations",
+    "install.sh",
+    "uninstall.sh",
+    "scripts/public-install.mjs",
+    "scripts/qmd-install-check.mjs",
+    "scripts/macos-companion.mjs",
+    "scripts/remote-target-origin.mjs",
+    "scripts/public-uninstall.mjs"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@lexical/history": "0.51.0",
+    "@lexical/markdown": "0.51.0",
+    "@lexical/rich-text": "0.51.0",
+    "@lexical/selection": "0.51.0",
+    "@types/node": "^25.9.1",
+    "esbuild": "0.28.2",
+    "fast-check": "^4.8.0",
+    "lexical": "0.51.0",
+    "typescript": "^6.0.3"
+  }
+}

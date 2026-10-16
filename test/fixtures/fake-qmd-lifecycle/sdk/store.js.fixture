@@ -1,0 +1,43 @@
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import helpers from "../database.cjs";
+import { getDefaultLlamaCpp } from "./llm.js";
+const { event, control, fail } = helpers;
+export function upsertStoreCollection(db, name, config) { db.state.collections[name] = config; }
+export function getEmbeddingFingerprint(model) { return "fake-regex-v1:" + model; }
+export function getHashesForEmbedding(db, model) {
+  const hashes = [...new Set(db.state.documents.filter(d => d.active === 1).map(d => d.hash))];
+  return hashes.filter(hash => !db.state.metadata.some(v => v.hash === hash && v.model === model))
+    .map(hash => ({ hash, body: db.state.content[hash] }));
+}
+export async function generateEmbeddings(store, { model, chunkStrategy }) {
+  if (chunkStrategy !== "regex" || store.llm !== getDefaultLlamaCpp()) throw new Error("wrong model/chunker");
+  await store.llm.resolveModel(model);
+  await getDefaultLlamaCpp().resolveModel(model);
+  await store.llm.ensureLlama();
+  const config = control();
+  if (config.gate) {
+    writeFileSync(config.gate + ".entered", "ready");
+    const deadline = Date.now() + 10000;
+    while (!existsSync(config.gate + ".release")) {
+      if (Date.now() > deadline) throw new Error("fixture gate timed out");
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  }
+  let chunksEmbedded = 0;
+  for (const { hash, body } of getHashesForEmbedding(store.db, model)) {
+    if (!body.trim()) continue;
+    store.db.state.metadata.push({ hash, seq: 0, pos: 0, model,
+      embed_fingerprint: getEmbeddingFingerprint(model), total_chunks: 1 });
+    if (!store.db.state.tables.includes("vectors_vec")) store.db.state.tables.push("vectors_vec");
+    store.db.state.vectors.push(hash + "_0");
+    chunksEmbedded++; store.db.state.counters.embedded++;
+    event("embed", { hash });
+  }
+  // Fail only after mutating transaction state so rollback assertions are meaningful.
+  fail("embed");
+  if (config.fail === "embed-result") return { chunksEmbedded, errors: 1, failures: ["private fixture error"] };
+  if (config.fail === "coverage-vector") store.db.state.vectors.pop();
+  if (config.fail === "coverage-metadata") store.db.state.metadata.at(-1).total_chunks = 7;
+  if (config.fail === "model-replaced") writeFileSync(model, Buffer.concat([readFileSync(model), Buffer.from("changed")]));
+  return { chunksEmbedded, errors: 0 };
+}

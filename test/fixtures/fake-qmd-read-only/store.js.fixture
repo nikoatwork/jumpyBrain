@@ -1,0 +1,10 @@
+export function searchFTS(db, query, limit, collection) {
+  if (!db.readonly || limit !== db.state.expectedFetch || collection !== db.state.expectedCollection) throw Error("unsafe query");
+  if (db.state.failQuery) throw Error("private-index-content-do-not-expose");
+  return db.state.rows || [];
+}
+export function extractSnippet(body, query, maxLen) {
+  if (maxLen !== 300) throw Error("snippet mismatch");
+  return { line: 3, snippet: "@@ -2,4 @@ (1 before, 0 after)\n" + body };
+}
+export function createStore() { throw Error("unexpected schema/cache/models"); }

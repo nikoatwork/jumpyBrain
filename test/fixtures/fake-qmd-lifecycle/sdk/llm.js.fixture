@@ -1,0 +1,13 @@
+import helpers from "../database.cjs";
+export class LlamaCpp {
+  constructor({ embedModel }) { this.model = embedModel; helpers.event("llm", { model: embedModel }); }
+  async resolveModel() { throw new Error("implicit model resolution/download forbidden in fixture"); }
+  async ensureLlama(allowBuild) {
+    if (allowBuild !== false) throw new Error("native downloads/builds forbidden in fixture");
+    helpers.event("native", { allowBuild });
+  }
+  async dispose() { helpers.fail("dispose"); }
+}
+let singleton;
+export function setDefaultLlamaCpp(value) { singleton = value; }
+export function getDefaultLlamaCpp() { return singleton; }

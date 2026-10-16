@@ -1,0 +1,13 @@
+# Build outputs contain machine-specific paths; never publish local bundles.
+.build/
+*.app/
+Configuration.json
+__pycache__/
+.DS_Store
+
+# Defense in depth if local support files are copied into this folder.
+api-key
+*.log
+*.log.*
+.env
+.env.*
