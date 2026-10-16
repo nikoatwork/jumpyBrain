@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-16 — Page-first sidebar
+
+- Added persistent, brain-scoped pinned pages and recently visited pages in compact sidebar rows, with per-page pin controls and Graph moved to the bottom.
+
 ## 2026-10-16 — Support diagnostics
 
 - Feedback now includes safe, correlated browser and local host failure reports, with bounded retained history, crash evidence, source availability, and inspectable email attachments.

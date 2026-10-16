@@ -16,6 +16,7 @@
     "smoke:semantic-index": "npm run build && node scripts/semantic-index-smoke.mjs",
     "smoke:graph": "npx --package=playwright node scripts/graph-ui-smoke.mjs",
     "smoke:theme": "npm run build && npx --package=playwright node scripts/theme-smoke.mjs",
+    "smoke:sidebar": "npm run build && npx --package=playwright node scripts/sidebar-smoke.mjs",
     "smoke:feedback": "npm run build && npx --package=playwright node scripts/feedback-smoke.mjs",
     "smoke:diagnostics": "npm run build && node --test test/diagnostics.test.js && npx --package=playwright node scripts/feedback-smoke.mjs && node scripts/diagnostics-electron-smoke.mjs",
     "smoke:graph-editor": "npm run build && npx --package=playwright node scripts/graph-editor-smoke.mjs",

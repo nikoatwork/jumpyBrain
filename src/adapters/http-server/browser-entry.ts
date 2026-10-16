@@ -6,6 +6,7 @@ export { referenceEligibility } from "./reference-policy.js";
 export { memoryDocumentPath, createBrowserSearchRequest } from "./browser-transport.js";
 
 export { createRecentWriteSearch } from "./recent-write-search.js";
+export { installPageNavigation } from "./browser-page-navigation.js";
 export { installDocumentActions } from "./document-actions.js";
 export { installExternalDocumentUpdates } from "./external-document-updates.js";
 export { createFeedbackDiagnostics, installFeedback, diagnosticBuildInfo } from "./feedback.js";

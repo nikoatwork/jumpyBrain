@@ -5,22 +5,41 @@ import { themeMarkup } from "./browser-theme.js";
 export const notesStyles = String.raw`
     body { display: flex; height: 100dvh; }
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-    .app-nav { width: 220px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 28px; padding: 24px 16px 16px; border-right: 1px solid var(--line); overflow: auto; }
+    .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 18px; padding: 20px 12px 12px; border-right: 1px solid var(--line); overflow: auto; }
     :root[data-sidebar-collapsed="true"] .app-nav { display: none; }
     .workspace-toolbar { display: flex; align-items: center; flex: 0 0 auto; min-height: 48px; }
     #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; margin: 8px 12px; padding: 6px; }
     #toggle-sidebar svg { width: 20px; height: 20px; }
     .nav-brand { min-width: 0; }
     .app-nav .home-link { display: block; padding: 4px 10px; font-weight: 650; background: transparent; color: var(--ink); }
-    .nav-tools, .nav-pages, .nav-preferences { display: flex; flex-direction: column; gap: 6px; }
-    .nav-preferences { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); }
-    .app-nav .nav-item { display: flex; align-items: center; gap: 10px; min-height: 40px; text-align: left; background: transparent; }
+    .nav-tools, .nav-pages, .nav-preferences { display: flex; flex-direction: column; gap: 2px; }
+    .nav-preferences { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); flex-shrink: 0; }
+    .app-nav .nav-item { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 5px 10px; font-size: 13px; text-align: left; background: transparent; }
     .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
     .app-nav .nav-item:hover, .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
     .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); color: var(--ink); }
     .app-nav #new-note:hover { background: var(--surface-hover); }
     .app-nav kbd { margin-left: auto; font-size: 11px; color: var(--ink-faint); }
     .nav-appearance { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; color: var(--ink-soft); font-size: 12px; }
+    .nav-library { flex: 1; min-height: 80px; overflow: auto; scrollbar-width: thin; }
+    .nav-library section + section { margin-top: 20px; }
+    .nav-library h2 { margin: 0 10px 6px; font-size: 11px; font-weight: 550; color: var(--ink-faint); letter-spacing: .025em; }
+    .nav-library ul { list-style: none; margin: 0; padding: 0; }
+    .sidebar-empty { margin: 5px 10px; font-size: 12px; line-height: 1.5; color: var(--ink-faint); }
+    .sidebar-page { display: flex; align-items: center; min-width: 0; border-radius: 5px; }
+    .sidebar-page:hover, .sidebar-page:focus-within { background: var(--surface-hover); }
+    .sidebar-page:has([aria-current="page"]) { background: var(--control-fill); }
+    .sidebar-page-link { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 31px; gap: 8px; padding: 5px 4px 5px 10px; color: var(--ink-soft); text-decoration: none; font-size: 13px; line-height: 21px; border-radius: 5px; }
+    .sidebar-page-link::before { content: ""; width: 8px; height: 10px; border: 1px solid currentColor; border-radius: 2px; opacity: .45; flex-shrink: 0; }
+    .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sidebar-page-link[aria-current="page"] { color: var(--ink); }
+    .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 6px; margin-right: 2px; border: 0; border-radius: 4px; color: var(--ink-soft); background: transparent; opacity: 0; }
+    .sidebar-page-pin svg, #pin-current-page svg { width: 16px; height: 16px; }
+    .sidebar-page:hover .sidebar-page-pin, .sidebar-page:focus-within .sidebar-page-pin, .sidebar-page-pin[aria-pressed="true"] { opacity: 1; }
+    .sidebar-page-pin:hover { background: var(--control-fill); color: var(--ink); }
+    #pin-current-page { display: grid; place-items: center; width: 30px; height: 30px; padding: 6px; background: transparent; }
+    #pin-current-page[aria-pressed="true"] { background: var(--control-fill); color: var(--ink); }
+    @media (hover: none) { .sidebar-page-pin { opacity: 1; } }
     .document-status { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: 8px; min-height: 48px; padding: 8px 24px; }
     body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
@@ -140,9 +159,19 @@ export const notesStyles = String.raw`
       .app-nav .home-link { padding-inline: 0; }
       .nav-tools { flex-direction: row; align-items: center; gap: 4px; }
       .nav-pages { grid-row: 2; grid-column: 1; flex-direction: row; }
+      .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
+      .nav-library section { display: flex; align-items: center; gap: 4px; }
+      .nav-library section + section { margin-top: 4px; }
+      .nav-library h2 { flex: 0 0 46px; margin: 0; }
+      .nav-library ul { display: flex; min-width: 0; overflow-x: auto; }
+      .sidebar-page { flex: 0 0 auto; max-width: 190px; }
+      .sidebar-page-link { min-height: 36px; }
+      .sidebar-empty { margin: 4px; }
       .nav-preferences { display: contents; }
-      .nav-preferences #open-connection { grid-row: 2; grid-column: 2; justify-content: center; }
-      .nav-appearance { grid-row: 3; grid-column: 1 / -1; padding: 0; border-top: 1px solid var(--line); padding-top: 6px; }
+      .nav-preferences #graph-link { grid-row: 2; grid-column: 2; justify-content: center; }
+      .nav-preferences #open-connection { grid-row: 4; grid-column: 1; }
+      .nav-preferences #open-feedback { grid-row: 4; grid-column: 2; }
+      .nav-appearance { grid-row: 5; grid-column: 1 / -1; padding: 0; border-top: 1px solid var(--line); padding-top: 6px; }
       .app-nav .nav-item { padding: 8px; font-size: 12px; min-height: 40px; gap: 6px; }
       .nav-item svg { width: 16px; height: 16px; }
       #open-search kbd { display: none; }
@@ -165,9 +194,21 @@ export const notesMarkup = String.raw`
   </div>
   <div class="nav-pages" role="group" aria-label="Views">
     <a id="notes-link" class="quiet-button nav-item" href="/">Home</a>
-    <a id="graph-link" class="quiet-button nav-item" href="/graph">Graph</a>
+  </div>
+  <div class="nav-library" aria-label="Your pages">
+    <section aria-labelledby="sidebar-pinned-heading">
+      <h2 id="sidebar-pinned-heading">Pinned</h2>
+      <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
+      <p id="sidebar-pinned-empty" class="sidebar-empty">Pin pages to keep them here.</p>
+    </section>
+    <section aria-labelledby="sidebar-recent-heading">
+      <h2 id="sidebar-recent-heading">Recent</h2>
+      <ul id="sidebar-recent" aria-label="Recently visited pages"></ul>
+      <p id="sidebar-recent-empty" class="sidebar-empty">Pages you open appear here.</p>
+    </section>
   </div>
   <div class="nav-preferences">
+    <a id="graph-link" class="quiet-button nav-item" href="/graph"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 3-7 10L6 6Z" stroke="currentColor" stroke-width="1.4"/><circle cx="6" cy="6" r="2.5" fill="var(--surface)" stroke="currentColor" stroke-width="1.4"/><circle cx="18" cy="9" r="2.5" fill="var(--surface)" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="19" r="2.5" fill="var(--surface)" stroke="currentColor" stroke-width="1.4"/></svg>Graph</a>
     <button id="open-connection" class="quiet-button nav-item" aria-label="Connect · Connection settings" aria-haspopup="dialog">Connect</button>
     <button id="open-feedback" class="quiet-button nav-item" aria-haspopup="dialog" aria-controls="feedback-dialog">Feedback</button>
     <div class="nav-appearance"><span>Appearance</span>${themeMarkup}</div>
@@ -177,6 +218,7 @@ export const notesMarkup = String.raw`
 <div class="workspace-toolbar">
 <button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button>
 <div class="document-status" role="group" aria-label="Save status">
+  <button id="pin-current-page" class="quiet-button" type="button" aria-label="Pin page" aria-pressed="false" title="Pin page" hidden></button>
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <span id="note-external-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
@@ -859,6 +901,7 @@ function setConnectionKey(key) {
   activeApiKey = key;
   credentialRevision++;
   recentWrites.reset();
+  sidebarPages.refresh();
   documentActions.close();
   connectionStatus = activeApiKey ? "checking" : "disconnected";
   try {
@@ -909,6 +952,17 @@ const navigation = createPageNavigation({
   push: (entry) => history.pushState({ jumpyBrainIndex: entry.index }, "", entry.url),
   show: showPage,
 });
+const sidebarPages = JumpyBrainBrowser.installPageNavigation({
+  document, window,
+  scope: () => {
+    if (!companionMode) return activeApiKey ? "hosted" : null;
+    const active = companionState?.active;
+    return companionRegistered && active && companionState.activeId
+      ? "brain:" + JSON.stringify([companionState.activeId, active.kind, active.root || active.url]) : null;
+  },
+  href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
+  navigate: (url) => { navigation.navigate(url); },
+});
 window.addEventListener("popstate", (event) => {
   feedback.close(false);
   cancelReferenceInteraction();
@@ -947,6 +1001,7 @@ function showPage(url) {
   if (connectionDialog.open) closeConnection();
   const target = new URL(url, location.origin);
   const documentId = target.searchParams.get("note");
+  sidebarPages.select(documentId);
   if (typeof companionMode !== "undefined" && companionMode && state.view === "settings" && !/^\/settings\/?$/.test(target.pathname)) companionClearForm();
   state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
   document.body.dataset.view = state.view;
@@ -955,7 +1010,7 @@ function showPage(url) {
   $("note-panel").hidden = state.view !== "note";
   $("note-save-state").hidden = state.view !== "note";
   $("note-external-state").hidden = state.view !== "note";
-  for (const [id, current] of [["notes-link", state.view === "home" || state.view === "note"], ["graph-link", state.view === "graph"], ["open-connection", state.view === "settings"]]) {
+  for (const [id, current] of [["notes-link", state.view === "home"], ["graph-link", state.view === "graph"], ["open-connection", state.view === "settings"]]) {
     if (current) $(id).setAttribute("aria-current", "page");
     else $(id).removeAttribute("aria-current");
   }
@@ -1026,6 +1081,7 @@ async function showNote(documentId, focusEnd = false) {
         richEditor.setExternalMarkdown(body);
       },
       onSaved: (payload) => {
+        sidebarPages.rename({ id: documentId, title: editor.state.savedTitle });
         recentWrites.remember({ id: documentId, title: editor.state.savedTitle, body: editor.state.savedBody, file: String(payload.file || $("note-file").textContent || "") });
         state.graph = null;
         noteSearch.markStale(); referenceAutocomplete.markStale();
@@ -1044,11 +1100,13 @@ async function showNote(documentId, focusEnd = false) {
       $("note-file").textContent = payload.file || "";
       $("note-message").hidden = true;
       editor.hydrate(payload);
+      sidebarPages.visit({ id: documentId, title: payload.title || payload.file || "Untitled" });
       if (focusEnd) recentWrites.remember({ id: documentId, title: payload.title || "", body: editor.state.savedBody, file: payload.file || "" });
       editor.setEditing(true);
       if (!searchDialog.open && !connectionDialog.open) richEditor.focus(focusEnd);
     } catch (error) {
       if (token !== state.noteToken || state.editor !== editor) return;
+      if (Number(error.status) === 404) sidebarPages.remove(documentId);
       noteLoadError(Number(error.status) === 404 ? "This note is no longer available. Use Search to find another note."
         : Number(error.status) === 401 || Number(error.status) === 403 ? "Connect with an access key to open this note."
         : "Could not load this note. Check your connection and retry.");
@@ -1246,6 +1304,7 @@ const documentActions = installDocumentActions({
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
   json: graphJson,
   onDeleted: async (id, message) => {
+    sidebarPages.remove(id);
     recentWrites.remove(id); noteSearch.markStale(); referenceAutocomplete.markStale();
     state.graph = null;
     if (state.editor?.state.documentId === id) { state.editor.cancel(); state.editor = null; }
@@ -1262,6 +1321,7 @@ const externalUpdates = JumpyBrainBrowser.installExternalDocumentUpdates({
     && (!companionRegistered || companionFrozen || companionSessionFailed)),
   read: readGraphDocument,
   onUpdated: () => {
+    sidebarPages.rename({ id: state.editor.state.documentId, title: state.editor.state.savedTitle });
     state.graph = null;
     recentWrites.remove(state.editor.state.documentId);
     noteSearch.markStale(); referenceAutocomplete.markStale();

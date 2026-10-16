@@ -202,8 +202,4 @@ export const feedbackStyles = String.raw`
   #feedback-dialog .feedback-check { display: flex; align-items: center; gap: 8px; }
   #feedback-include-logs { width: 16px; height: 16px; accent-color: var(--accent); }
   #feedback-logs { font-size: 12px; }
-  @media (max-width: 680px) {
-    .nav-preferences #open-feedback { grid-row: 3; grid-column: 1 / -1; }
-    .nav-appearance { grid-row: 4; }
-  }
 `;
