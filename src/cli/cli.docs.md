@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- `remember` and its recipe strictly parse creation flags, including `--date value`/`--date=value`, before credentials/stdin. Only tags may repeat; existing optional true/false dream spellings remain supported. Shared core validation rejects malformed evidence dates. Both transports receive the same draft.
+
 - Keep `src/cli.ts` as the executable shim; command dispatch lives in `src/cli/commands.ts` and `run` recipes live in `src/cli/recipes.ts`.
 - Parse command-line arguments and stdin, select local or remote targets, and preserve stable user-facing command names, flags, JSON modes, and text output.
 - Own target-aware stateless `dream` windows for local `--root` and remote `--target-url`: validate `--from`, `--days`, `--date-basis`, offsets/budgets, write private full-context packets with `--out`, and keep bodies out of compact stdout. Legacy lifecycle/apply flags fail with deprecation guidance before credentials/files; legacy runtime/HTTP batch APIs remain available. Plain dream is a read-only operation even on protected targets; old mutation flags stay blocked by access policy.

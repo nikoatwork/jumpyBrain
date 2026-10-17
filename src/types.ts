@@ -304,6 +304,8 @@ export type MemoryConfidence = "user-reviewed" | "agent-drafted";
 export type MemoryReviewStatus = "user-review-recommended";
 
 export interface MemoryNoteDraft {
+  /** Declared evidence date, independent of writer-owned creation/edit timestamps. */
+  date?: string;
   dream?: boolean;
   type: string;
   title: string;

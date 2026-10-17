@@ -224,3 +224,69 @@ test("unsupported exclusive hardlinks fail closed, without partial-file fallback
   await assert.rejects(writeUniqueMarkdownFile(f.dir, "new", "Never published"), { code: "ENOTSUP" });
   await assertClean(f.dir);
 });
+
+for (const change of ['content', 'identity', 'hardlink', 'symlink', 'directory-symlink', 'special-file']) {
+  test(`deletion rechecks ${change} after acquiring its cooperating lock`, async t => {
+    const { deleteCanonicalMemoryDocumentById } = await import('../dist/core/canonical/markdown-store.js');
+    const f = await fixture(t);
+    const open = fs.open;
+    let fired = false;
+    t.mock.method(fs, 'open', async (...args) => {
+      const handle = await open(...args);
+      if (String(args[0]).endsWith('.replace.lock') && !fired) {
+        fired = true;
+        if (change === 'content') await fs.writeFile(f.file, original.replace('Original bytes.', 'Intervening revision.'));
+        if (change === 'identity') await fs.writeFile(f.file, original.replace(id, 'mem_61000000-0000-4000-8000-000000000002'));
+        if (change === 'hardlink') await fs.link(f.file, path.join(f.root, 'alias.md'));
+        if (change === 'symlink') {
+          await fs.rename(f.file, path.join(f.root, 'outside.md'));
+          await fs.symlink(path.join(f.root, 'outside.md'), f.file);
+        }
+        if (change === 'directory-symlink') {
+          await fs.rename(f.dir, path.join(f.root, 'moved'));
+          await fs.symlink(path.join(f.root, 'moved'), f.dir);
+        }
+        if (change === 'special-file') {
+          await fs.unlink(f.file);
+          const fifo = spawnSync('mkfifo', [f.file], { encoding: 'utf8' });
+          assert.equal(fifo.status, 0, fifo.stderr);
+        }
+      }
+      return handle;
+    });
+    syncBuiltinESMExports();
+    t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+    await assert.rejects(deleteCanonicalMemoryDocumentById(f.root, id, { ifMatch: f.ifMatch, apply: true }), { code: 'precondition_failed' });
+    assert.equal(fired, true);
+    const retained = await fs.lstat(f.file);
+    if (change === 'special-file') assert.ok(retained.isFIFO());
+    else if (change === 'content') assert.match(await fs.readFile(f.file, 'utf8'), /Intervening revision/);
+    else assert.ok(retained.isFile() || retained.isSymbolicLink());
+  });
+}
+
+test('a real child writer cannot update while deletion owns the lock; reads see complete original bytes', async t => {
+  const { deleteCanonicalMemoryDocumentById, readCanonicalMemoryDocumentById } = await import('../dist/core/canonical/markdown-store.js');
+  const f = await fixture(t);
+  const open = fs.open;
+  let fired = false;
+  t.mock.method(fs, 'open', async (...args) => {
+    const handle = await open(...args);
+    if (String(args[0]).endsWith('.replace.lock') && !fired) {
+      fired = true;
+      assert.equal((await readCanonicalMemoryDocumentById(f.root, id, { guarded: true })).content, original);
+      const program = `import { updateMemoryDocument } from ${JSON.stringify(new URL('../dist/runtime/index.js', import.meta.url).href)};
+        try { await updateMemoryDocument(process.argv[1], process.argv[2], 'Child revision', {ifMatch:process.argv[3]}); process.exitCode=2; }
+        catch(e) { if(e.code !== 'precondition_failed') throw e; }`;
+      const child = spawnSync(process.execPath, ['--input-type=module', '-e', program, f.root, id, f.ifMatch], { encoding: 'utf8', timeout: 10000 });
+      assert.equal(child.status, 0, child.stderr);
+      assert.equal(await fs.readFile(f.file, 'utf8'), original);
+    }
+    return handle;
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  assert.equal((await deleteCanonicalMemoryDocumentById(f.root, id, { ifMatch: f.ifMatch, apply: true })).removed, true);
+  assert.equal(fired, true);
+  await assert.rejects(readCanonicalMemoryDocumentById(f.root, id), { code: 'missing_id' });
+});

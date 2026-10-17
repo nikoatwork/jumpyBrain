@@ -22,6 +22,7 @@ test("lint accepts canonical provenance independent of Sources headings and dist
   await write("pages/sources.md", "# Map\n\n## Sources\n[ledger](../notes/copper%20ledger.md)");
   await write("pages/continuity.md", "# Map\n\n## Sources and continuity\n[[copper ledger]]");
   await write("pages/inline.md", "# Map\n\nSupported by [record](../notes/copper%20ledger.md#mechanism).");
+  await write("pages/generated.md", "# Map\n\n## Source memories\n- [ledger](../notes/copper%20ledger.md)");
   await write("pages/context.md", "# Map\n\n## Related memories\n[ledger](../notes/copper%20ledger.md)");
   await write("pages/absent.md", "# Map\n\n## Sources\nNothing captured.");
   await write("pages/broken.md", "# Map\n\n## Sources\n[missing](../notes/missing.md)");
@@ -87,4 +88,12 @@ test("lint reports invocation scope without implying full inspection", () => fix
   const report = await readFile(path.join(root, result.files[0]), "utf8");
   assert.match(report, /inspected 1\/2 eligible, 4 total/);
   assert.match(report, /2025-01-01T00:00:00.000Z/);
+}));
+
+test('lint treats ambiguous canonical references as broken evidence, not support from a Sources heading', () => fixture(async (root, write) => {
+  await write('notes/shared.md', '# First record');
+  await write('decisions/shared.md', '# Second record');
+  await write('pages/ambiguous.md', '# Map\n\n## Sources\n[[shared]]');
+  const result = await processMemory(root, { mode: 'lint', apply: true });
+  assert.ok(result.issues.some(issue => issue.file === 'pages/ambiguous.md' && issue.code === 'PAGE_SOURCE_BROKEN'));
 }));

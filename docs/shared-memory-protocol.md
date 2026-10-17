@@ -511,6 +511,8 @@ New clients validate packet version/kind/shape, declared budget, and serialized 
 
 Authenticated append-only `remember` write. Requires `Idempotency-Key`.
 
+Optional `date` is a real ISO calendar date (`YYYY-MM-DD`) or timezone-explicit ISO timestamp. The server and CLI client reuse core metadata validation; invalid, empty, null, nonstring, impossible, and timezone-less values fail before publication (HTTP 422 `validation_failed`). Omission leaves existing creation behavior unchanged. Writers preserve the exact date/offset while generating current writing timestamps and filename prefixes. Request-body `date` participates in the existing idempotency fingerprint. It declares document evidence time, not verified events or a validity interval. `dailyDate` independently controls quick-capture title allocation and never implicitly supplies evidence metadata.
+
 Request:
 
 ```json
@@ -803,3 +805,5 @@ Authenticated `GET /memories/all/documents/:id?deletePreview=1` is observational
 Authenticated `DELETE /memories/all/documents/:id` requires `If-Match: sha256:<64 hex>` from a prior read/preview and exactly JSON `{ "apply": true }`. Missing preconditions return 428, stale bytes/unsafe replacement identity 412, missing ID 404, duplicate IDs 409 and invalid apply requests 400. Core rechecks the selected file under the same cooperating lock as replacement; server serialization matches document updates. No path, glob, force, cascade, Trash or automatic backlink mutation is supported. This is permanent removal; user backups/Git provide recovery. Do not automatically retry an unconfirmed deletion; inspect current state first. A repeated removal returns missing ID rather than pretending to remove a new file.
 
 Success returns `{removed:true,id,file,oldContentHash,indexed:false,index:{stale:true,...},indexing:{status:"pending"|"failed",diagnostic?},root:"remote:all",target:"remote",memory:"all"}`. A post-removal derived-bookkeeping failure still returns HTTP success with `indexing.status:"failed"`; refresh indexing separately. Canonical Markdown remains authoritative and surviving references remain literal, potentially broken evidence. These guarantees do not make unlink an atomic compare-and-swap against external writers ignoring the lock, or identify identical-ID/content recreation between separate reads.
+
+Document read/update/delete errors expose only recognized document error codes. Unexpected filesystem failures return generic messages without native error text or server paths. Body-only document updates preserve an omitted evidence `date`; explicit submitted metadata can replace it.

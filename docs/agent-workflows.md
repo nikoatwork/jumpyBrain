@@ -298,3 +298,9 @@ Show the written file path and body, then ask if the user wants edits.
 ```
 
 Review by default. Do not memorize secrets, credentials, or transient chat noise.
+
+## Historical capture and removal
+
+For authorized historical capture, use `remember --date YYYY-MM-DD` (or a timezone-explicit ISO timestamp) on the selected root/target. This declares document evidence time; current writing timestamps remain separate. Do not derive a date from ambiguous prose or date every claim in a multi-period synthesis. Preserve uncertainty, source citations, and per-event periods in the body. Omit the flag when evidence time is unknown; stdin frontmatter is body text.
+
+Capture permission does not authorize deletion. Use `delete --id <mem_id>` to inspect the selected document and advisory references, then only with explicit deletion authorization use `--apply --if-match <prior hash>`. Global/team/remote removal requires explicit authorization for that memory. Removal is permanent and recovery requires your own backup/Git; do not rewrite surviving references automatically. A pending/failed index is repaired by indexing, never by repeating removal. After a lost response, inspect current state before further mutation.

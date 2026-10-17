@@ -606,3 +606,59 @@ for (const scenario of ["same-path edit", "changed policy", "missing database", 
     }
   });
 }
+
+test('captured local and hosted evidence dates drive recall independently of current writing timestamps', async t => {
+  const f = await setup(t);
+  const { rememberMemory, readMemoryDocument, updateMemoryDocument } = await import('../dist/runtime/index.js');
+  const { writeRemoteMemoryNote } = await import('../dist/app/writing/remote-writer.js');
+  const local = await rememberMemory(f.root, { type: 'finding', title: 'Quartz historical local', body: 'quartz historical observation', date: '2020-02-29' });
+  const hosted = await writeRemoteMemoryNote(f.root, { type: 'page', title: 'Quartz historical hosted', body: 'quartz offset observation', date: '2020-03-01T01:00:00+02:00', dream: true });
+  await rememberMemory(f.root, { type: 'note', title: 'Quartz future', body: 'quartz future observation', date: '2099-01-01' });
+  await rememberMemory(f.root, { type: 'note', title: 'Quartz undated', body: 'quartz unknown chronology' });
+  const shown = await readMemoryDocument(f.root, local.id);
+  await updateMemoryDocument(f.root, local.id, 'quartz revised qualification', { ifMatch: shown.contentHash });
+  await f.run('index', { indexing: f.policy });
+  for (const depth of ['shallow', 'normal', 'deep']) {
+    const recalled = await f.run('search', { depth, temporal: { from: '2020-02-29', to: '2020-02-29' } });
+    assert.deepEqual(new Set(recalled.results.map(hit => hit.provenance.file)), new Set([local.file, hosted.file]));
+    assert.ok(recalled.results.every(hit => hit.provenance.metadata.created_at.slice(0, 4) !== '2020'));
+    assert.ok(recalled.results.every(hit => hit.provenance.evidenceDate.basis === 'declared'));
+  }
+});
+
+test('guarded removal during indexing leaves stale evidence explicit and incremental repair removes ordinary and dream hits', async t => {
+  const f = await setup(t);
+  const { rememberMemory, readMemoryDocument, deleteMemoryDocument } = await import('../dist/runtime/index.js');
+  const saved = await rememberMemory(f.root, { type: 'page', title: 'Quartz removable', body: 'quartz dated dream evidence', date: '2020-02-29', dream: true });
+  await f.put('notes/survivor.md', 'quartz surviving source with an unchanged link [[Quartz removable]]\n');
+  const survivor = await readFile(path.join(f.root, 'notes/survivor.md'));
+  await f.run('index', { indexing: f.policy });
+  const { contentHash } = await readMemoryDocument(f.root, saved.id);
+  const gate = path.join(f.temp, 'delete-index-gate');
+  await f.control({ gate });
+  const indexing = f.run('index');
+  indexing.catch(() => {});
+  await waitFor(gate + '.entered');
+  try {
+    const deleted = await deleteMemoryDocument(f.root, saved.id, { ifMatch: contentHash, apply: true });
+    assert.equal(deleted.removed, true);
+    assert.equal(deleted.indexing.status, 'pending');
+    await assert.rejects(readMemoryDocument(f.root, saved.id), { code: 'missing_id' });
+  } finally { await writeFile(gate + '.release', 'go'); }
+  assert.equal((await indexing).readiness.freshness, 'stale');
+  await f.control({ fail: 'commit' });
+  await assert.rejects(f.run('index'));
+  await assert.rejects(readFile(path.join(f.root, saved.file)), { code: 'ENOENT' });
+  await f.control({});
+  const repaired = await f.run('index');
+  assert.ok(repaired.work.removed >= 1);
+  const state = await f.state();
+  assert.ok(!active(state).includes(saved.file));
+  assert.ok(!active(state, 'jumpybrain-dreams').includes(saved.file));
+  assert.ok(!(await f.manifest()).documents.some(doc => doc.relativePath === saved.file));
+  for (const options of [{}, { depth: 'shallow' }, { depth: 'deep' }, { temporal: { from: '2020-02-29', to: '2020-02-29' } }]) {
+    const result = await f.run('search', options);
+    assert.ok(result.results.every(hit => hit.provenance.file !== saved.file));
+  }
+  assert.deepEqual(await readFile(path.join(f.root, 'notes/survivor.md')), survivor);
+});

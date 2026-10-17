@@ -1,3 +1,5 @@
+import { normalizeEvidenceDate } from "../core/writing/metadata.js";
+
 export interface ParsedCliArgs {
   _: string[];
   [key: string]: string | boolean | string[];
@@ -6,6 +8,7 @@ export interface ParsedCliArgs {
 export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
+  if (operation === "remember") return parseRememberArgs(argv);
   if (operation === "delete") return parseDeleteArgs(argv);
   if (operation === "expand" || (["recall", "search"].includes(operation)
     && argv.some(token => /^--(?:compact|max-bytes|diagnostics|no-refresh|read-only|from|to|reference-date|order)(?:=|$)/u.test(token)))) {
@@ -41,6 +44,37 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     throw new Error("--apply must not be repeated.");
   }
   return args._[0] === "migrate" ? parseMigrationArgs(argv) : args;
+}
+
+function parseRememberArgs(argv: string[]): ParsedCliArgs {
+  const positional = argv[0] === "run" ? 2 : 1;
+  const args: ParsedCliArgs = { _: argv.slice(0, positional) };
+  const values = new Set(["root", "target-url", "remote-url", "type", "title", "tag", "date"]);
+  for (let index = positional; index < argv.length; index++) {
+    const token = argv[index]!;
+    if (!token.startsWith("--")) throw new Error(`Unexpected remember argument: ${token}.`);
+    const equal = token.indexOf("=");
+    const key = token.slice(2, equal < 0 ? undefined : equal);
+    if (!values.has(key) && key !== "json" && key !== "dream") throw new Error(`Unknown remember flag --${key}.`);
+    if (args[key] !== undefined && key !== "tag") throw new Error(`--${key} must not be repeated.`);
+    if (key === "json") {
+      if (equal >= 0) throw new Error("--json is a boolean flag and takes no value.");
+      args[key] = true;
+    } else if (key === "dream") {
+      // Preserve the existing explicit true/false spellings as well as --dream.
+      let value = equal >= 0 ? token.slice(equal + 1) : undefined;
+      if (value === undefined && argv[index + 1] !== undefined && !argv[index + 1]!.startsWith("--")) value = argv[++index];
+      if (value !== undefined && value !== "true" && value !== "false") throw new Error("--dream must be a boolean flag or true/false.");
+      args[key] = value ?? true;
+    } else {
+      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+      if (!value || value.startsWith("--")) throw new Error(`--${key} requires a value.`);
+      args[key] = key === "tag" ? [...stringListArg(args, key), value] : value;
+    }
+  }
+  // Reject malformed metadata before target credentials, stdin or any writes.
+  normalizeEvidenceDate(args.date);
+  return args;
 }
 
 export function stringArg(args: ParsedCliArgs, key: string, fallback?: string | false): string {

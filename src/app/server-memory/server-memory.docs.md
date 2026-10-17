@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- Creation validates optional untrusted `date` with core writing policy before passing the typed draft to the writer. Evidence date is independent of quick-capture `dailyDate` title allocation; neither derives the other.
+
 - Compose server-local memory status, indexing, search/recall, graph assembly, document reads/updates, remote writes, idempotency records, auto-index state, and the shared dream workflow against one Markdown memory root.
 - Return remote-safe packets that preserve public HTTP/CLI JSON shapes without exposing the server filesystem root; document reads/updates rewrite local-root metadata to `target: "remote"`, `memory: "all"`, and `root: "remote:all"`.
 - `recentServerMemory` returns at most eight unique valid-ID documents across all canonical buckets as `notes`, with only `id`, `title`, root-relative `file`, and optional date fields. Each call scans fresh Markdown (no QMD/index/state reads), omits hidden paths, excludes every duplicate-ID occurrence before limiting (including hidden matches recognized by editor lookup), and checks root compatibility. Like editor GET/PUT, it scans the memory root, not a configured retrieval-only `indexRoot`, so listed IDs are openable.

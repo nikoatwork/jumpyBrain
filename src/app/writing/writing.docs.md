@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- Local and remote note creation share `MemoryNoteDraft`, including optional `date`. Both render it through core evidence-date validation before publication; omission adds no date. Filename prefixes and creation/edit timestamps retain current writing time; body frontmatter is never metadata input.
+
 - Own local filesystem write workflows for notes and session wrapups.
 - Compose core Markdown rendering, metadata policy, memory-root compatibility, and safe file creation.
 - `writeUniqueMarkdownFile` exclusively stages/fsyncs complete bytes in the destination directory, then publishes via an exclusive same-directory hardlink and removes staging. Readers never see a partially written final Markdown file; existing files (including symlink filenames) are never overwritten. Preserve the unsuffixed name plus 20 timestamp/index collision retries. Unsupported hardlinks fail closed, never fall back to copy or overwrite-capable rename. Directory fsync is best-effort.

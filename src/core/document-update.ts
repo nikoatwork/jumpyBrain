@@ -43,10 +43,12 @@ export function mergeMemoryDocumentUpdate(
       merged.set(key, existing.frontmatter[key]!);
     }
   }
-  // A body-only edit must not silently declassify a dream. This is not protected
-  // metadata: explicit replacement (including false) remains allowed.
-  if (!merged.has("dream") && Object.hasOwn(existing.frontmatter, "dream")) {
-    merged.set("dream", existing.frontmatter.dream!);
+  // Body-only edits retain evidence dates and dream classification. These are
+  // editable metadata: an explicitly submitted value still replaces the old one.
+  for (const key of ["dream", "date"]) {
+    if (!merged.has(key) && Object.hasOwn(existing.frontmatter, key)) {
+      merged.set(key, existing.frontmatter[key]!);
+    }
   }
   merged.set("updated_at", updatedAt);
 

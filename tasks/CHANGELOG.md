@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-17 — Memory lifecycle controls
+
+- Added local/hosted historical evidence-date capture, preserved dates through edits, and verified guarded deletion, index reconciliation, and private filesystem-error handling.
+
 ## 2026-10-16 — Browser and diagnostics cleanup
 
 - Eliminated unchanged sidebar writes/row replacement and consolidated diagnostic normalization and editor baseline assignment; focused tests and desktop/narrow browser checks passed.

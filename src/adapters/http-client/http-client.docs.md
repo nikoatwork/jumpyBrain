@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- Remember validates optional `date` with core writing policy before sending, then forwards its exact ISO representation. This adds no retry or extra request; date belongs to the existing creation body/idempotency contract.
+
 - Implement remote memory client calls for status, index, overview/tree data, recall/search, document read/update, remember, wrapup, and read-only stateless dream windows. Preserve legacy dream status/batch lifecycle calls for compatibility.
 - Window requests use authenticated GET `/memories/all/dream/window` with explicit query options. Reject unsupported responses and return upgrade guidance for 404/405; never fall back to stateful batch creation. Remember forwards the optional boolean dream marker.
 - Encode overview/tree query options for file display, connection statistics, and result limits as `showFiles`, `connections`, and `limit` parameters on the remote overview route.

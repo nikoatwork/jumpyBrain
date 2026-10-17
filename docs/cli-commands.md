@@ -172,12 +172,16 @@ Stale hash/source means refresh recall and reassess evidence, not bypass the pre
 
 ## Writing and editing memory
 
+`remember` and `run memory:remember` accept optional `--date 2024-02-29` or `--date '2024-03-01T01:30:00+02:00'` for a declared document evidence date, locally and remotely. Real calendar dates and timezone-explicit ISO timestamps are accepted; impossible dates, timezone-less timestamps, relative dates, nonstring API values, and missing/repeated flags fail before saving. Both `--date value` and `--date=value` work. Remember flags are strict; only `--tag` may repeat, and `--dream` retains its optional `true`/`false` spellings.
+
+Backfill dates deliberately. The supplied date/offset is retained exactly; IDs, `created_at`, `updated_at`, and filename prefixes remain writer-owned and use current writing time. Omitting `--date` preserves existing creation behavior. Stdin remains body-only: embedded frontmatter cannot supply creation metadata. An evidence date does not verify event chronology or date every claim in a multi-period synthesis; keep uncertainty and source periods in the body. Body-only/hash-checked updates preserve an omitted `date`; explicit frontmatter can correct it or set `date: ""` to mark evidence time unknown.
+
 Creation JSON preserves existing fields and adds `saved:true`, canonical `id`/`file`, compatibility `indexed`, and `indexing.status: indexed | pending | failed`. Local remember uses nonpersisting freshness after publication and verifies the saved identity is covered; memories excluded by configured `indexRoot` remain pending with explicit scope guidance. Wrapup/hosted writes defer indexing. Saved/index-failed creation exits **0** with explicit partial-success diagnostics; repair indexing for the same root/target, never recreate the memory. Validation/publication errors still fail. Hosted late replay-storage failure also retains identity (`creation_replay_failed`) but warns that reusing the creation key may not be safe. Lost responses/crashes remain uncertain and are never automatically retried.
 
 | Command | Human explanation |
 | --- | --- |
-| `cat memory.md \| jumpybrain remember --root <memory-root> --type <type> --title "..." [--tag <tag>] [--json]` | Store a new durable memory from stdin. Types include `note`, `finding`, `decision`, `preference`, and `page`; add `--dream` for a dream-marked page. Local writes are indexed automatically. |
-| `cat memory.md \| jumpybrain remember --target-url <url> --type <type> --title "..." [--tag <tag>] [--json]` | Store a new durable memory on a hosted/shared server. Requires `JUMPYBRAIN_API_KEY`. Remote writes mark the server index stale until the next index run. |
+| `cat memory.md \| jumpybrain remember --root <memory-root> --type <type> --title "..." [--tag <tag>] [--date <ISO-date>] [--json]` | Store a new durable memory from stdin. Types include `note`, `finding`, `decision`, `preference`, and `page`; add `--dream` for a dream-marked page. Local writes are indexed automatically. |
+| `cat memory.md \| jumpybrain remember --target-url <url> --type <type> --title "..." [--tag <tag>] [--date <ISO-date>] [--json]` | Store a new durable memory on a hosted/shared server. Requires `JUMPYBRAIN_API_KEY`. Remote writes mark the server index stale until the next index run. |
 | `cat wrapup.md \| jumpybrain wrapup --root <memory-root> --title "..." [--topic "..."] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup from stdin. If `--topic` is provided, jumpyBrain first recalls related memory and prints it before writing. |
 | `cat wrapup.md \| jumpybrain wrapup --target-url <url> --title "..." [--topic "..."] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup to hosted/shared memory. Requires `JUMPYBRAIN_API_KEY`. |
 | `cat revised.md \| jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> [--json]` | Replace a whole local memory document safely. Get `<contentHash>` from `jumpybrain show`; the update fails if someone changed the document in between. |
@@ -266,7 +270,7 @@ These commands route to the same memory handlers as the top-level commands. They
 | `jumpybrain run memory:show --id <mem_id> [--root <memory-root>] [--target-url <url>] [--json]` | Show a full memory document by ID. |
 | `cat revised.md \| jumpybrain run memory:update --id <mem_id> --if-match <contentHash> [--root <memory-root>] [--target-url <url>] [--json]` | Safely replace a whole memory document by ID. |
 | `jumpybrain run memory:process --mode lint\|synthesize\|ensure-ids [--topic "..."] [--root <memory-root>] [--since <date\|Nd\|Nw>] [--limit <n>] [--if-match <contentHash>] --apply [--json]` | Run local memory processing with the same mode-specific bounds and safeguards as `process`. |
-| `cat memory.md \| jumpybrain run memory:remember --type <type> --title "..." [--root <memory-root>] [--tag <tag>] [--json]` | Store a new durable memory from stdin. |
+| `cat memory.md \| jumpybrain run memory:remember --type <type> --title "..." [--root <memory-root>] [--tag <tag>] [--date <ISO-date>] [--json]` | Store a new durable memory from stdin. |
 | `cat wrapup.md \| jumpybrain run memory:wrapup --title "..." [--topic "..."] [--root <memory-root>] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup from stdin. |
 
 `memory:recall` and `memory:search` also accept `--compact [--max-bytes <n>] [--diagnostics]`.

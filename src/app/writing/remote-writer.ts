@@ -1,20 +1,14 @@
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
-import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, renderMarkdownDocument, slug, validateWrapupBody, type WrapupValidation } from "../../core/writing/index.js";
-import type { MemoryNoteType, MemoryWriteResult } from "../../types.js";
+import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, normalizeEvidenceDate, renderMarkdownDocument, slug, validateWrapupBody, type WrapupValidation } from "../../core/writing/index.js";
+import type { MemoryNoteDraft, MemoryNoteType, MemoryWriteResult } from "../../types.js";
 import { pendingCreationIndex } from "./creation-outcome.js";
 import { writeUniqueMarkdownFile } from "./filesystem.js";
 
 export type RemoteMemoryNoteType = "note" | "finding" | "decision" | "preference" | "page";
 
-export interface RemoteMemoryNoteDraft {
-  type: string;
-  title: string;
-  body: string;
-  tags?: string[];
-  dream?: boolean;
-}
+export type RemoteMemoryNoteDraft = MemoryNoteDraft;
 
 export interface RemoteWrapupDraft {
   title: string;
@@ -50,6 +44,7 @@ export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemory
     ["id", id],
     ["type", type],
     ["dream", normalizeDreamMarker(draft.dream)],
+    ["date", normalizeEvidenceDate(draft.date)],
     ["title", title],
     ["source", "jumpybrain-remote"],
     ["created_at", now],

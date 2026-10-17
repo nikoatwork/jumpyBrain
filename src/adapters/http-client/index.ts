@@ -1,4 +1,5 @@
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
+import { normalizeEvidenceDate } from "../../core/writing/metadata.js";
 import { validTemporalResponse } from "./temporal-response.js";
 import type { ExecutionOptions, TemporalQuery } from "../../types.js";
 import { randomUUID } from "node:crypto";
@@ -244,11 +245,14 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       method: "POST",
       body: JSON.stringify(summary ? { summary } : {}),
     }) as Promise<DreamAbandonResult & Record<string, unknown>>,
-    rememberMemory: (memoryOptions) => request(HTTP_MEMORY_ROUTES.notes, {
-      method: "POST",
-      headers: { "Idempotency-Key": randomUUID() },
-      body: JSON.stringify(memoryOptions),
-    }) as Promise<MemoryWriteResult & Record<string, unknown>>,
+    rememberMemory: async (memoryOptions) => {
+      normalizeEvidenceDate(memoryOptions.date);
+      return request(HTTP_MEMORY_ROUTES.notes, {
+        method: "POST",
+        headers: { "Idempotency-Key": randomUUID() },
+        body: JSON.stringify(memoryOptions),
+      }) as Promise<MemoryWriteResult & Record<string, unknown>>;
+    },
     writeSessionWrapup: (draft) => request(HTTP_MEMORY_ROUTES.wrapups, {
       method: "POST",
       headers: { "Idempotency-Key": randomUUID() },

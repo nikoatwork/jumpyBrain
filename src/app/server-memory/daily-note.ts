@@ -1,11 +1,13 @@
 import { listCanonicalMemoryMarkdownFiles, normalizedDocumentTitle, readMarkdownDocument, resolveMemoryRoot } from "../../core/canonical/index.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 import type { RemoteMemoryNoteDraft } from "../writing/remote-writer.js";
+import { normalizeEvidenceDate } from "../../core/writing/index.js";
 
 export const DAILY_NOTE_HEADING = "How is your day?";
 
 /** Keep untrusted quick-capture fields intact until app validation. */
-export interface ServerMemoryNoteDraft extends Omit<RemoteMemoryNoteDraft, "type" | "title" | "body"> {
+export interface ServerMemoryNoteDraft extends Omit<RemoteMemoryNoteDraft, "type" | "title" | "body" | "date"> {
+  date?: unknown;
   type: unknown;
   title?: unknown;
   body: unknown;
@@ -16,7 +18,8 @@ export async function prepareServerNote(rootArg: string, draft: ServerMemoryNote
   if (typeof draft.type !== "string" || typeof draft.body !== "string" || (draft.title !== undefined && typeof draft.title !== "string")) {
     throw new Error("Memory type, body, and any title must be strings.");
   }
-  if (dailyDate === undefined) return { ...draft, type: draft.type, body: draft.body, title: draft.title ?? "" };
+  const date = normalizeEvidenceDate(draft.date);
+  if (dailyDate === undefined) return { ...draft, date, type: draft.type, body: draft.body, title: draft.title ?? "" };
 
   if (typeof dailyDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dailyDate) || dailyDate.startsWith("0000-")) {
     throw new Error("dailyDate must be a real YYYY-MM-DD calendar date.");
@@ -48,5 +51,5 @@ export async function prepareServerNote(rootArg: string, draft: ServerMemoryNote
     }
   }
   // BigInt avoids rounding into an occupied suffix for unusually large imported titles.
-  return { ...draft, type: "note", body: draft.body, title: highest === 0n ? dateTitle : `${dateTitle} · ${highest + 1n}` };
+  return { ...draft, date, type: "note", body: draft.body, title: highest === 0n ? dateTitle : `${dateTitle} · ${highest + 1n}` };
 }

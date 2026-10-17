@@ -137,3 +137,59 @@ test('an old ID/hash never deletes a different document recreated at the same pa
   await assert.rejects(deleteMemoryDocument(root, id, { ifMatch: contentHash, apply: true }), code('missing_id'));
   assert.equal(await readFile(file, 'utf8'), replacement);
 });
+
+test('uncertain DELETE delivery is never automatically retried or used to remove a replacement', async t => {
+  const { root, file, cleanup } = await fixture(t);
+  const server = await startJumpyBrainHttpServer({ root, apiKeys: ['test-key'], port: 0, autoIndex: false });
+  cleanup.close = () => server.close();
+  let requests = 0;
+  const remote = createRemoteMemoryTransport({ url: server.url, apiKey: 'test-key', fetchImpl: async (...args) => {
+    requests++;
+    const response = await fetch(...args);
+    await response.arrayBuffer();
+    throw new TypeError('Simulated lost response after canonical removal');
+  } });
+  const { contentHash } = await readMemoryDocument(root, id);
+  await assert.rejects(remote.deleteMemoryDocument(id, { ifMatch: contentHash, apply: true }), /lost response/);
+  assert.equal(requests, 1);
+  await assert.rejects(readFile(file), { code: 'ENOENT' });
+  await writeFile(file, markdown(other, 'New owner'));
+  await assert.rejects(deleteMemoryDocument(root, id, { ifMatch: contentHash, apply: true }), code('missing_id'));
+  assert.match(await readFile(file, 'utf8'), /New owner/);
+});
+
+test('HTTP deletion permission failures retain the file and hide filesystem messages', async t => {
+  const fs = (await import('node:fs/promises')).default;
+  const { syncBuiltinESMExports } = await import('node:module');
+  const { root, file, cleanup } = await fixture(t);
+  const server = await startJumpyBrainHttpServer({ root, apiKeys: ['test-key'], port: 0, autoIndex: false });
+  cleanup.close = () => server.close();
+  const { contentHash } = await readMemoryDocument(root, id);
+  const unlink = fs.unlink;
+  const canonicalFile = await fs.realpath(file);
+  t.mock.method(fs, 'unlink', async target => {
+    if (target === canonicalFile) throw Object.assign(new Error('EACCES secret canonical body at ' + canonicalFile), { code: 'EACCES' });
+    return unlink(target);
+  });
+  syncBuiltinESMExports();
+  t.after(() => { t.mock.restoreAll(); syncBuiltinESMExports(); });
+  const response = await fetch(server.url + '/memories/all/documents/' + id, {
+    method: 'DELETE', headers: { Authorization: 'Bearer test-key', 'Content-Type': 'application/json', 'If-Match': contentHash }, body: '{"apply":true}',
+  });
+  assert.equal(response.status, 500);
+  const error = await response.text();
+  assert.ok(!error.includes(root));
+  assert.ok(!error.includes('secret canonical body'));
+  assert.equal(await readFile(file, 'utf8'), markdown(id, 'Human title'));
+  assert.equal((await readdir(path.dirname(file))).some(name => name.endsWith('.replace.lock')), false);
+});
+
+test('preview warnings are bounded and distinguish declared relationships from inbound links', async t => {
+  const { root } = await fixture(t);
+  for (let i = 0; i < 22; i++) await writeFile(path.join(root, `notes/related-${i}.md`), `---\nrelated_to: ["${id}"]\n---\nSurviving record ${i}\n`);
+  const preview = await previewMemoryDocumentDeletion(root, id);
+  assert.equal(preview.references.links, 1);
+  assert.equal(preview.references.relationships, 22);
+  assert.equal(preview.references.examples.length, 20);
+  assert.equal(preview.references.truncated, true);
+});

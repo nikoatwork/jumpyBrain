@@ -18,7 +18,9 @@ export async function rememberFromStdin(
   }
   const dream = dreamArg === undefined ? undefined : dreamArg === true || dreamArg === "true";
   const body = readStdin();
-  const draft = { type, title, body, tags: stringListArg(args, "tag"), ...(dream === undefined ? {} : { dream }) };
+  const draft = { type, title, body, tags: stringListArg(args, "tag"),
+    ...(args.date === undefined ? {} : { date: stringArg(args, "date") }),
+    ...(dream === undefined ? {} : { dream }) };
   if (target.kind === "remote") {
     const result = await target.memory.rememberMemory(draft);
     return { ...pendingCreationIndex(), ...result };

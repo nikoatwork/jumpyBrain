@@ -71,6 +71,8 @@ printf '%s\n' "<durable finding, decision, or preference>" \
   | __JUMPYBRAIN_CLI__ remember --root "__JUMPYBRAIN_MEMORY_ROOT__" --type finding --title "<short title>"
 ```
 
+For authorized historical capture, add `--date YYYY-MM-DD` or a timezone-explicit ISO timestamp. This declares document evidence time while preserving current writing timestamps. Omit unknown dates; retain uncertainty, source citations, and individual event periods in multi-period notes. Stdin frontmatter remains body text. Capture authorization does not grant deletion permission.
+
 Good memory types: `finding`, `decision`, `preference`, `note`. A `saved:true` result with pending/failed indexing still identifies a published memory: keep its ID/path and repair indexing, never repeat creation. Abrupt crashes/lost responses remain uncertain; do not automatically retry a write.
 
 ## Optional dreaming

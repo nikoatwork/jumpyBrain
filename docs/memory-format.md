@@ -61,6 +61,8 @@ Schema notes:
 
 ## Evidence, writing, and validity dates
 
+Create backfilled evidence with `jumpybrain remember --root ./memory --type finding --title "Historical observation" --date 2024-02-29 < body.md` (or use an explicitly authorized `--target-url`). The local/runtime and hosted creation drafts accept the same optional string `date`. Shared strict ISO validation rejects ambiguous/impossible dates before publication; date-only values and explicit offsets remain unchanged. Writing timestamps and filename prefixes still use the current time. Omitting the field adds no evidence date, and leading frontmatter in stdin remains body text.
+
 - `date` is an explicitly declared **document evidence date**, not an automatically verified event date or a validity interval. Use a real `YYYY-MM-DD` or timezone-explicit ISO timestamp. A multi-period map may have a declared synthesis/observation date, but that does not date every event in its body; preserve event periods and source citations in the text.
 - `created_at` / legacy `createdAt` describe writing/import time. `updated_at` and filesystem mtime describe edits. Neither becomes evidence time in strict temporal recall.
 - Explicit temporal search/recall uses valid `date`, otherwise a recognized `YYYY-MM-DD` / `YYYY_MM_DD` journal basename (optionally followed by a hyphen/underscore/space suffix), only under `sessions/` or `type: session`. Invalid explicit dates block fallback. Strict dreams and process-owned maps without `date` stay undated regardless of filename. Other missing/invalid dates are excluded from date-bounded recall with diagnostics; chronological-only output can retain them last.
@@ -109,7 +111,7 @@ Document editing is ID-addressed. A document ID identifies the stable Markdown f
 
 Concurrency tokens are `sha256:<hex>` content hashes computed over the exact Markdown file bytes as read from disk, including frontmatter delimiters, frontmatter order, body text, whitespace, and final newline state. Agents should treat the hash as opaque and refresh it with a read/show operation before retrying a failed update.
 
-The edit model is whole-document replacement of exact Markdown content. Protected structural metadata from the existing file wins over submitted content during updates: `id`, canonical `type`, `created_at`, `source`, and similar writer-owned identity/provenance fields stay stable. `updated_at` is refreshed only after a successful content update or explicit ID-stamping modification. User-editable fields such as `title`, `tags`, and body text may change when accepted by validation.
+The edit model is whole-document replacement of exact Markdown content. Protected structural metadata from the existing file wins over submitted content during updates: `id`, canonical `type`, `created_at`, `source`, and similar writer-owned identity/provenance fields stay stable. `updated_at` is refreshed only after a successful content update or explicit ID-stamping modification. User-editable fields such as `title`, `tags`, and body text may change when accepted by validation. An omitted `date` or `dream` preserves the existing value, including during body-only edits. Explicit submitted values replace them; `date: ""` marks evidence time unknown to temporal retrieval. Existing/imported metadata is not newly validated by editing.
 
 Updates keep the file path stable even when the title or frontmatter changes. The ID-addressed edit API does not rename files, move memories between buckets, delete files, patch line ranges, or merge concurrent edits.
 
@@ -143,3 +145,9 @@ Remote wrapups use the same strict body sections and add remote file metadata (`
 - Do not put secrets, credentials, tokens, or transient chat noise in memory.
 - Derived QMD/index files under `.jumpybrain/` can be rebuilt. Legacy batch APIs retain metadata-only state under `.jumpybrain/dream/` (local) or `.jumpybrain/remote/` (remote); new dream windows ignore and leave it untouched. No dreamed flags, completion ledger, or exact-coverage record is added to Markdown.
 - Provenance comes from file path, line ranges, session id, and frontmatter.
+
+## Permanent removal and recovery
+
+Use the CLI's ID/hash-guarded `delete` preview, then explicitly apply removal of the selected document. There is no Trash, cascade, bulk delete, or automatic backlink rewrite. Preserve backups or Git history yourself: derived indexes cannot restore canonical Markdown. Restore the intended file from your backup without overwriting a newer owner, check its ID for uniqueness, then index the same root/target.
+
+Removal returns a separate pending/failed indexing outcome; reconcile indexing without retrying deletion. An index racing removal can publish an explicitly stale generation; after successful incremental reconciliation the removed file is absent from ordinary, dream, and temporal retrieval. Surviving links remain unchanged and may become broken provenance. Lost responses require inspection of current canonical state before deciding what happened. Cooperating locks protect mutation, but identical-ID/content recreation between reads and external writers ignoring locks remain limitations.

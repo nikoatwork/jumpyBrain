@@ -550,6 +550,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
               draft: {
                 type: parsedBody.dailyDate === undefined ? stringField(parsedBody, "type") : parsedBody.type,
                 dream: optionalBooleanField(parsedBody, "dream"),
+                date: parsedBody.date,
                 title: parsedBody.dailyDate === undefined ? stringField(parsedBody, "title") : parsedBody.title,
                 body: parsedBody.dailyDate === undefined ? stringField(parsedBody, "body") : parsedBody.body,
                 tags: tagsField(parsedBody),
@@ -713,7 +714,9 @@ function documentUpdateStatusCode(code: string): number {
 }
 
 function isMemoryDocumentEditError(error: unknown): error is { code: string; message: string; details?: Record<string, unknown> } {
-  return Boolean(error && typeof error === "object" && typeof (error as { code?: unknown }).code === "string" && typeof (error as { message?: unknown }).message === "string");
+  // Native I/O errors also have code/message, but their messages contain host paths.
+  const codes = ["invalid_id", "missing_id", "duplicate_id", "duplicate_title", "precondition_failed", "precondition_required", "unsupported_media_type", "validation_failed", "unsupported_body"];
+  return Boolean(error && typeof error === "object" && codes.includes(String((error as { code?: unknown }).code)) && typeof (error as { message?: unknown }).message === "string");
 }
 
 function safeErrorDetails(details: Record<string, unknown> | undefined): Record<string, unknown> | undefined {

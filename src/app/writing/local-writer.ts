@@ -1,7 +1,7 @@
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
-import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, renderMarkdownDocument, slug, validateWrapupBody, VALID_MEMORY_TYPES, wrapupValidationMessage } from "../../core/writing/index.js";
+import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, normalizeEvidenceDate, renderMarkdownDocument, slug, validateWrapupBody, VALID_MEMORY_TYPES, wrapupValidationMessage } from "../../core/writing/index.js";
 import type { MemoryNoteDraft, MemoryNoteType, MemoryWriteResult, WrapupWriteResult } from "../../types.js";
 import { pendingCreationIndex } from "./creation-outcome.js";
 import { writeUniqueMarkdownFile } from "./filesystem.js";
@@ -31,6 +31,7 @@ export async function rememberMemory(rootArg: string, options: MemoryNoteDraft):
     ["id", id],
     ["type", type],
     ["dream", normalizeDreamMarker(options.dream)],
+    ["date", normalizeEvidenceDate(options.date)],
     ["title", title],
     ["source", "jumpybrain-remember"],
     ["created_at", now],
