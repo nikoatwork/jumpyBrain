@@ -1,5 +1,10 @@
 # Desktop experience
 
+**Finalized 2026-10-18 — superseded.** Completed desktop onboarding and branding; superseded by the unified macOS app. Historical verification is retained. Archived with user approval. Verification below is historical; no implementation checks were rerun for this archival pass.
+
+> Superseded on 2026-10-16 by the [unified macOS app](2026-10-18_tasks-unified-macos-app.md). Historical implementation/verification below is retained; current trials should use the single `jumpyBrain.app`.
+
+
 ## Goal
 
 Make the macOS Electron app pleasant to install and launch from a private Git checkout, with a branded icon and local-first onboarding where the user chooses the Markdown folder. Preserve existing working-tree changes and the companion's save/connection boundaries.
@@ -38,7 +43,7 @@ Make the macOS Electron app pleasant to install and launch from a private Git ch
 
 ## User trial
 
-Implementation and local installation are complete. Retain this active list for first-run feedback; no archive or commit was attempted because the shared working tree contains concurrent changes, including files touched by this task.
+Implementation and local installation are complete. At implementation time, this list was retained for first-run feedback and no archive or commit was attempted because the shared working tree contained concurrent changes. It is now archived as superseded; current feedback belongs to the unified app.
 
 
 ## Menu-bar icon follow-up

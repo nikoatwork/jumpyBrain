@@ -1,5 +1,10 @@
 # Local Electron prototype
 
+**Finalized 2026-10-18 — superseded.** Completed the prototype; superseded by the unified macOS app. Historical verification is retained. Archived with user approval. Verification below is historical; no implementation checks were rerun for this archival pass.
+
+> Superseded on 2026-10-16 by the [unified macOS app](2026-10-18_tasks-unified-macos-app.md). Historical implementation/verification below is retained; current trials should use the single `jumpyBrain.app`.
+
+
 ## Goal
 
 Run the installed jumpyBrain browser UI in a separate Mac desktop window. User authorized implementation and local launch on 2026-10-16. Preserve unrelated working-tree edits.
@@ -17,7 +22,7 @@ Run the installed jumpyBrain browser UI in a separate Mac desktop window. User a
 - [x] Add reproducible local app packaging/install command and usage/boundary documentation.
 - [x] Verify bootstrap/security and Electron behavior with disposable fixtures; build and launch against the installed runtime without editing personal memory.
 - [x] Record results, limits, and a concise changelog entry for the new desktop surface.
-- [ ] User trials the installed prototype; retain this active list for feedback.
+- [~] Prototype trial superseded by the installed unified app; feedback now belongs to that ticket.
 
 ## Relevant files
 

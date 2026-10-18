@@ -1,6 +1,8 @@
 # Live external document updates
 
-Status: implementation and focused verification complete on 2026-10-16; retained here pending archive approval. Installed locally as v0.3.1 on the user's subsequent update request.
+**Finalized 2026-10-18 — complete.** Completed external refresh, guarded independent-edit merging, and recorded local installation/browser verification. Archived with user approval. Verification below is historical; no implementation checks were rerun for this archival pass.
+
+Status: implementation and focused verification complete on 2026-10-16; archived on 2026-10-18. Installed locally as v0.3.1 on the user's subsequent update request.
 
 ## Goal
 

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-18 — Completed task archive
+
+- Archived ten completed task lists, including the two superseded Electron stages; retained outstanding implementation and manual QA work in `tasks/todo/`.
+
 ## 2026-10-17 — Memory lifecycle controls
 
 - Added local/hosted historical evidence-date capture, preserved dates through edits, and verified guarded deletion, index reconciliation, and private filesystem-error handling.

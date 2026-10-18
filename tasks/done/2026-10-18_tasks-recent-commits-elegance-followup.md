@@ -1,5 +1,7 @@
 # Recent Commits Elegance Followup
 
+**Finalized 2026-10-18 — complete.** Completed sidebar no-op suppression, shared diagnostic normalization, and editor baseline cleanup with focused verification. Archived with user approval. Verification below is historical; no implementation checks were rerun for this archival pass.
+
 ## Goal
 
 Simplify the recent browser and diagnostics additions without changing canonical memory, save/conflict policy, or security boundaries.

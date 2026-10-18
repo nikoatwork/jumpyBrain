@@ -1,8 +1,10 @@
 # Useful beta diagnostics and feedback exports
 
+**Finalized 2026-10-18 — complete.** Completed bounded, privacy-limited diagnostic collection and feedback exports with recorded failure/privacy verification. Archived with user approval. Verification below is historical; no implementation checks were rerun for this archival pass.
+
 ## Status
 
-Completed on 2026-10-16. Implementation and verification are recorded below; retained here for review. Installed runtime/app updates are separate from this source change.
+Completed on 2026-10-16. Implementation and verification are recorded below; archived on 2026-10-18. Installed runtime/app updates are separate from this source change.
 
 ## Goal
 

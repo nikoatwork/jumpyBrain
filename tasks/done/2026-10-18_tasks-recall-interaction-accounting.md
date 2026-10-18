@@ -1,6 +1,8 @@
 # Recall format and follow-up interaction accounting
 
-**Lifecycle: implementation complete; retained here pending explicit archive approval.** This is completed history, not an active execution plan.
+**Finalized 2026-10-18 — complete.** Completed deterministic whole-interaction accounting regressions and documented measured costs and evaluation limits. Archived with user approval. Verification below is historical; no implementation checks were rerun for this archival pass.
+
+**Lifecycle: complete and archived.** This is completed history, not an active execution plan.
 
 ## Goal
 
@@ -73,7 +75,7 @@ Named-tokenizer run below used the **same captured stdout/stderr strings** for b
 - `node --test test/recall-interaction-cost.test.js` — 3/3 passed; default diagnostics explicitly record **tokens not measured**, with no characters/4 estimate.
 - `node --test test/recall-interaction-cost.test.js test/compact-recall.test.js test/canonical-expansion.test.js` — 39/39 passed against available compiled output.
 - `JUMPYBRAIN_ACCOUNTING_TOKENIZER=/tmp/jumpybrain-retrieval-eval-v1/node_modules/js-tiktoken node --test test/recall-interaction-cost.test.js` — 3/3 passed with optional external named-tokenizer accounting. Nothing was installed or changed externally.
-- Child did not run `npm run build`; parent subsequently ran `npm test`, rebuilding final integrated source: **854 passed, 1 skipped, 0 failed** (855 total). Independent read-only review found no actionable issues; `git diff --check` passed. Implementation and integration checks complete; task remains here pending archive approval.
+- Child did not run `npm run build`; parent subsequently ran `npm test`, rebuilding final integrated source: **854 passed, 1 skipped, 0 failed** (855 total). Independent read-only review found no actionable issues; `git diff --check` passed. Implementation and integration checks complete; subsequently archived with user approval on 2026-10-18.
 - Parent reran the optional named-tokenizer command against the final build: **3/3 passed**. Text/compact bytes and tokens matched the recorded observations; rich/show token totals varied slightly with temporary paths as expected. Selective recovery remained 5692 bytes / 1573 tokens versus text+raw-file 7503 bytes / 1470 tokens; these are fixture observations, not product-wide efficiency claims.
 
 ### Limits and complexity review

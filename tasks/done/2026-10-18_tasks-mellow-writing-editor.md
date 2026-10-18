@@ -1,6 +1,8 @@
 # Mellow daily writing editor
 
-**Lifecycle: implementation complete; retained here pending explicit archive approval.** This is completed history, not an active execution plan.
+**Finalized 2026-10-18 — complete.** Completed the accepted writing design, daily capture/reference refinements, and ambient map verification. Archived with user approval. Verification below is historical; no implementation checks were rerun for this archival pass.
+
+**Lifecycle: complete and archived.** This is completed history, not an active execution plan.
 
 Status: complete; design accepted. Installed runtime unchanged.
 

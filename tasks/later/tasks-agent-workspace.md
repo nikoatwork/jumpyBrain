@@ -9,7 +9,7 @@ Explore a jumpyBrain workspace with documents on the left, the existing editor i
 ## Conversation log
 
 - Initial idea: borrow T3 Code's approach to controlling Codex or Claude Code from a custom interface, including streamed activity and reviewable document changes.
-- The immediate preference is to keep agents in their terminal and make the open editor reflect their changes smoothly. Prioritize [external document updates](../todo/tasks-live-external-document-updates.md) before embedding an agent.
+- The immediate preference is to keep agents in their terminal and make the open editor reflect their changes smoothly. Prioritize [external document updates](../done/2026-10-18_tasks-live-external-document-updates.md) before embedding an agent.
 - Useful later actions: attach a current note or selection, ask questions across notes, find source decisions, propose page updates, and run explicitly scoped consolidation.
 - An embedded agent would be optional. Writing, browsing, search, and shared memory must remain useful without it.
 
@@ -43,4 +43,4 @@ The agent uses the jumpyBrain CLI against an explicit memory root/remote target.
 - [T3 Code](https://github.com/pingdotgg/t3code), [Codex adapter](https://github.com/pingdotgg/t3code/blob/main/apps/server/src/orchestration-v2/Adapters/CodexAdapterV2.ts), [Claude adapter](https://github.com/pingdotgg/t3code/blob/main/apps/server/src/orchestration-v2/Adapters/ClaudeAdapterV2.ts).
 - [Codex app-server](https://learn.chatgpt.com/docs/app-server), [ChatGPT plan usage](https://developers.openai.com/siwc/token-sharing-open-source).
 - [Claude programmatic CLI](https://code.claude.com/docs/en/headless), [subscription usage](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan), [SDK overview](https://code.claude.com/docs/en/agent-sdk/overview), [product integration conditions](https://code.claude.com/docs/en/legal-and-compliance).
-- Local context: `docs/product-vision.md`, `src/architecture.docs.md`, `integrations/macos-companion/gateway.docs.md`, and `tasks/todo/tasks-electron-local-prototype.md`.
+- Local context: `docs/product-vision.md`, `src/architecture.docs.md`, `integrations/macos-companion/gateway.docs.md`, and `tasks/done/2026-10-18_tasks-electron-local-prototype.md`.

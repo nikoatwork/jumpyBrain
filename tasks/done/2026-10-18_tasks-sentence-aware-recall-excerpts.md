@@ -1,6 +1,8 @@
 # Sentence-aware long-paragraph recall excerpts
 
-**Lifecycle: implementation complete; retained here pending explicit archive approval.** This is completed history, not an active execution plan.
+**Finalized 2026-10-18 — complete.** Completed conservative sentence-boundary excerpts with source/budget safeguards and recorded integration verification. Archived with user approval. Verification below is historical; no implementation checks were rerun for this archival pass.
+
+**Lifecycle: complete and archived.** This is completed history, not an active execution plan.
 
 ## Goal
 
@@ -53,4 +55,4 @@ Improve readability of oversized prose excerpts by preferring defensible sentenc
 - Final command: `JUMPY_SENTENCE_TEST_ROOT="$PWD" node --import /tmp/jumpy-sentence-source-XXXXXX.mjs --test test/recall-sentences.test.js test/recall-excerpts.test.js test/compact-recall.test.js test/canonical-expansion.test.js test/canonical-document-read.test.js`: **95/95 passed**, including 30 new sentence/fallback cases and unchanged excerpt/compact/current-source regressions.
 - Inspected actual current-source output: at 180 characters, the late-match case returns `… The QUARTZ observation remains provisional. Only the enclosed trial is authorized. … [partial excerpt; expand source]` (119 characters, line 2 through 2, source verification true). The `approx.` case keeps the old 170-character partial slice and also verifies.
 - `git diff --check`: passed. Changes restricted to the owned excerpt source/docs, new focused sentence test, and this task; no compact/schema, workflow/instruction, interaction-cost, changelog, commit/archive, or memory changes.
-- Parent integration verification: `npm test` rebuilt final source, including the heading-prefix gate refinement, and completed successfully: **854 passed, 1 skipped, 0 failed** (855 total). Independent read-only review found no actionable issues; `git diff --check` passed. Implementation and integration checks complete; task remains here pending archive approval.
+- Parent integration verification: `npm test` rebuilt final source, including the heading-prefix gate refinement, and completed successfully: **854 passed, 1 skipped, 0 failed** (855 total). Independent read-only review found no actionable issues; `git diff --check` passed. Implementation and integration checks complete; subsequently archived with user approval on 2026-10-18.
