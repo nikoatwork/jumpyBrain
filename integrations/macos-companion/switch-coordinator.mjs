@@ -91,8 +91,42 @@ export class SwitchCoordinator {
       if (this.pending === pending) this.pending = null;
     }
   }
+  // Reuse the editor's save/freeze protocol for app shutdown. Keep admission
+  // fenced until the owner exits or cancels; never switch the selected brain.
+  async prepareShutdown({ leaseMs = 30000 } = {}) {
+    if (this.pending || this.closing) fail('switch_busy', 'Another switch or shutdown is in progress.');
+    const pending = { id: randomUUID(), shutdown: true, committing: false };
+    const barrier = new Promise((resolve, reject) => { pending.resolve = resolve; pending.reject = reject; });
+    this.pending = pending;
+    const timer = setTimeout(() => pending.reject(new ControlError('save_timeout', 'An editor did not confirm its save. Reopen its tab and resolve pending work before quitting.')), this.timeoutMs);
+    try {
+      this.check();
+      await barrier;
+      pending.lease = setTimeout(() => this.cancelShutdown(pending.id), leaseMs);
+      pending.lease.unref?.();
+      return pending.id;
+    } catch (error) {
+      if (this.pending === pending) this.pending = null;
+      throw error;
+    } finally { clearTimeout(timer); }
+  }
+  cancelShutdown(id) {
+    if (!this.pending?.shutdown || this.pending.id !== id) return;
+    clearTimeout(this.pending.lease);
+    this.pending.reject(new ControlError('shutdown_cancelled', 'Shutdown cancelled.'));
+    this.closing = false;
+    this.pending = null;
+  }
+  commitShutdown(id) {
+    if (!this.pending?.shutdown || this.pending.id !== id || !this.pending.committing) {
+      fail('shutdown_expired', 'Shutdown preparation expired. The app is still running; retry Quit.');
+    }
+    clearTimeout(this.pending.lease);
+    this.closing = true;
+  }
   close() {
     this.closing = true;
+    clearTimeout(this.pending?.lease);
     this.pending?.reject(new ControlError('shutting_down', 'The companion is shutting down.', 503));
   }
 }

@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
 import { mkdtemp, mkdir, writeFile, chmod, symlink, link, rm } from 'node:fs/promises';
-import { installedCompanion, readControlKey, probeCompanion, connectCompanion, isAppNavigation } from '../integrations/electron/host.mjs';
+import { readControlKey, probeCompanion, isAppNavigation } from '../integrations/electron/host.mjs';
 
 const key = 'a'.repeat(64);
 async function fixture(t) {
@@ -24,33 +24,6 @@ async function fixture(t) {
   await save();
   return { home, appPath, supportDirectory, runtimeRoot, config, save };
 }
-
-test('discovers the installed runtime and exact loopback origin without changing configuration', async (t) => {
-  const f = await fixture(t);
-  assert.deepEqual(await installedCompanion({ home: f.home, appPath: f.appPath }), {
-    appPath: f.appPath, runtimeRoot: f.runtimeRoot, supportDirectory: f.supportDirectory, origin: 'http://127.0.0.1:3787',
-  });
-  assert.equal(await readControlKey(f.supportDirectory), key);
-});
-
-test('rejects invalid ports, relative roots, missing runtime, and relative app overrides', async (t) => {
-  const f = await fixture(t);
-  for (const port of [0, 80, 65536, '3787']) {
-    f.config.port = port; await f.save();
-    await assert.rejects(installedCompanion({ appPath: f.appPath }), /unsupported/);
-  }
-  f.config.port = 3787; f.config.runtimeRoot = 'relative'; await f.save();
-  await assert.rejects(installedCompanion({ appPath: f.appPath }), /unsupported/);
-  f.config.runtimeRoot = path.join(f.home, 'missing'); await f.save();
-  await assert.rejects(installedCompanion({ appPath: f.appPath }), /runtime is missing/);
-  await assert.rejects(installedCompanion({ appPath: 'relative.app' }), /absolute/);
-});
-
-test('does not fall through from a malformed installed configuration', async (t) => {
-  const f = await fixture(t);
-  await writeFile(path.join(f.appPath, 'Contents/Resources/Configuration.json'), 'broken');
-  await assert.rejects(installedCompanion({ home: f.home }), /Cannot read/);
-});
 
 test('refuses unsafe control capabilities and support directories', async (t) => {
   const f = await fixture(t);
@@ -92,31 +65,4 @@ test('authenticates gateway state and rejects foreign services, redirects, and o
   const origin = `http://127.0.0.1:${server.address().port}`;
   await probeCompanion(origin, key);
   for (mode of ['foreign', 'redirect', 'huge']) await assert.rejects(probeCompanion(origin, key));
-});
-
-test('reuses a running companion without launching or stopping it', async () => {
-  const config = { origin: 'http://127.0.0.1:3787', supportDirectory: '/fixture', appPath: '/fixture.app' };
-  const result = await connectCompanion(config, {
-    readKey: async () => key, probe: async () => {}, launch: async () => assert.fail('must not launch'),
-  });
-  assert.equal(result.key, key);
-});
-
-test('launches the companion once only after connection refused, then waits for authenticated readiness', async () => {
-  let probes = 0, launches = 0;
-  await connectCompanion({ supportDirectory: '/fixture', appPath: '/fixture.app' }, {
-    readKey: async () => key,
-    probe: async () => { if (++probes === 1) throw Object.assign(new Error(), { code: 'ECONNREFUSED' }); },
-    launch: async (appPath) => { assert.equal(appPath, '/fixture.app'); launches++; },
-  });
-  assert.equal(launches, 1); assert.equal(probes, 2);
-});
-
-test('does not start, adopt, or restart an occupied or unauthenticated port', async () => {
-  for (const error of [new Error('unauthenticated'), Object.assign(new Error(), { code: 'ETIMEDOUT' })]) {
-    await assert.rejects(connectCompanion({ supportDirectory: '/fixture' }, {
-      readKey: async () => key, probe: async () => { throw error; },
-      launch: async () => assert.fail('must not launch'),
-    }));
-  }
 });

@@ -84,7 +84,7 @@ function allowedMemoryRoute(method, pathname) {
   return null;
 }
 
-export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch } = {}) {
+export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance } = {}) {
   if (!path.isAbsolute(runtimeRoot || '') || !/^[0-9a-f]{64}$/i.test(controlKey || '')) throw new Error('Invalid companion bootstrap.');
   // /var is a legitimate macOS alias; the persistence seam itself rejects symlinks.
   directory = await realpath(directory);
@@ -194,11 +194,11 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   };
   const state = () => {
     const snapshot = store.snapshot(); const profile = active();
-    return { ...snapshot, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), health,
+    return { ...snapshot, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), health, ...(hostInstance ? { hostInstance } : {}),
       target: profile?.kind === 'remote' ? profile.url : null };
   };
   const change = async (operation) => {
-    if (mutation || coordinator.pending || stopping) failure('switch_busy', 'Another connection change is in progress.', 409);
+    if (mutation || coordinator.pending || coordinator.closing || stopping) failure('switch_busy', 'Another connection change is in progress.', 409);
     mutation = true;
     try { return await operation(); } finally { mutation = false; }
   };
@@ -273,6 +273,21 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
         if (request.method !== 'POST') failure('method_not_allowed', 'Use POST for companion actions.', 405);
         const body = await jsonBody(request);
         switch (url.pathname) {
+          case '/companion/shutdown': {
+            if (!auth.native) failure('unauthorized', 'Native shutdown capability required.', 403);
+            if (exact(body, ['action']) && body.action === 'prepare') {
+              const id = await change(() => coordinator.prepareShutdown());
+              json(response, 200, { id }); return;
+            }
+            if (exact(body, ['action', 'id']) && body.action === 'cancel' && typeof body.id === 'string') {
+              coordinator.cancelShutdown(body.id); json(response, 200, { ok: true }); return;
+            }
+            if (exact(body, ['action', 'id']) && body.action === 'commit' && typeof body.id === 'string') {
+              coordinator.commitShutdown(body.id); json(response, 200, { ok: true }); return;
+            }
+            failure('invalid_request', 'Invalid shutdown request.');
+            return;
+          }
           case '/companion/diagnostics':
             if (!auth.native) failure('unauthorized', 'Native diagnostics capability required.', 403);
             if (!exact(body, ['events']) || !Array.isArray(body.events) || body.events.length > 64) failure('invalid_request', 'Invalid diagnostic packet.');
@@ -410,6 +425,6 @@ if (entryPath && import.meta.url === pathToFileURL(entryPath).href) {
   watchdog.unref();
   process.once('SIGTERM', stop); process.once('SIGINT', stop);
   try {
-    gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot, port: Number(port), controlKey: process.env.JUMPYBRAIN_SERVER_API_KEYS, credentials });
+    gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot, port: Number(port), controlKey: process.env.JUMPYBRAIN_SERVER_API_KEYS, credentials, hostInstance: process.env.JUMPYBRAIN_DESKTOP_INSTANCE });
   } catch { process.stderr.write('Companion gateway could not start. Check private profile data and runtime installation.\n'); credentials.close(); process.exit(1); }
 }

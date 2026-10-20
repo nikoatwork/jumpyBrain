@@ -40,3 +40,9 @@ Verification: `node --test test/{macos-companion-connections,macos-companion-gat
 ## Browser lifecycle controls
 
 The route allowlist includes document DELETE as a write, forwarding its bounded JSON body and If-Match under the same generation/tab admission and target allowWrites policy as PUT. Read-only profiles cannot delete. GET `?deletePreview=1` remains observational. Browser deletion/reload actions settle before switch acknowledgement; destructive actions recheck current editor/scope/write authorization before submission. Expired-session UI offers direct Retry and Recover draft controls without moving a pending draft to a new generation.
+
+## Unified desktop hosting and shutdown
+
+The bundled Swift helper runs with `--desktop-host`: no separate menu/update/login UI, runtime resolved within the enclosing app, and a parent watchdog. Electron verifies its fresh host-instance identifier in authenticated gateway state; an existing service is never adopted. Standalone mode remains for legacy installations and maintenance.
+
+Native-only POST `/companion/shutdown` with `{action: "prepare"}` reuses the registered-tab save/acknowledgement barrier and request drain. Success returns an opaque `id` and holds admission closed without changing the selected brain or generation. `{action: "cancel", id}` releases that freeze; a 30-second lease also releases an abandoned prepared shutdown. Failure keeps the service available. Ordinary browser sessions cannot invoke this lifecycle control. After window-close guards and diagnostic flushing, native `{action: "commit", id}` must revalidate the live lease and permanently fence admission before the parent stops its host. An expired lease blocks shutdown; the user can retry Quit.

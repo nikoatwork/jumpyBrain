@@ -1,17 +1,15 @@
 #!/usr/bin/env node
-// Private-checkout installation. Reuses managed installations without updating
-// or restarting their runtime/helper. Fresh installs use the existing installer.
+// Private-checkout setup/update of the complete Mac app. CLI installation remains independent.
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { access, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { installedCompanion } from '../integrations/electron/host.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
 if (args.includes('--help')) {
-  console.log('Usage: npm run desktop:setup\nBuilds jumpyBrain Desktop from this trusted checkout on macOS.\nRequires Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools.\nFresh installs provision the managed CLI/QMD without agent integrations.\nExisting CLI/helper installations are reused; no automatic updates or restarts.\nChoose your local brain folder in the welcome screen after launching.');
+  console.log('Usage: npm run desktop:setup\nBuilds and installs the complete jumpyBrain Mac app from this trusted checkout.\nRequires Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools.\nFresh installs provision the managed CLI/QMD without agent integrations.\nExisting CLI settings are retained. Quit older jumpyBrain apps before setup; their bundles are backed up.\nChoose your local brain folder in the welcome screen after launching.');
 } else {
   if (args.length) throw new Error('Unknown option. Run with --help for usage.');
   if (process.platform !== 'darwin') throw new Error('Desktop setup currently supports macOS 13+ only.');
@@ -30,21 +28,13 @@ if (args.includes('--help')) {
   } else console.log('\n1/3 · Reusing your installed CLI and memory settings.');
   if (manifest.installRoot !== installRoot || manifest.appDir !== path.join(installRoot, 'app')) throw new Error('The managed CLI manifest has unexpected paths. Repair the installation before continuing.');
   await access(path.join(manifest.appDir, 'dist/cli.js'));
-  const helpers = [path.join(os.homedir(), 'Applications/jumpyBrain.app'), '/Applications/jumpyBrain.app'];
-  let helperExists = false;
-  for (const helper of helpers) {
-    try { await access(helper); helperExists = true; break; }
-    catch (error) { if (error.code !== 'ENOENT') throw error; }
-  }
-  if (!helperExists) {
-    console.log('\n2/3 · Building the local menu-bar helper…');
-    run('python3', [path.join(manifest.appDir, 'integrations/macos-companion/install.py'), '--no-start']);
-  } else console.log('\n2/3 · Reusing your installed menu-bar helper.');
-  await installedCompanion(); // Fail with repair guidance for a malformed/missing helper runtime.
-  console.log('\n3/3 · Building the desktop app with its Finder and Dock icon…');
+  console.log('\n2/3 · Building the shared memory engine and editor…');
+  run('npm', ['ci']);
+  run('npm', ['run', 'build']);
+  console.log('\n3/3 · Packaging the app, internal native host, and memory runtime…');
   run('npm', ['ci'], path.join(repo, 'integrations/electron'));
   run(process.execPath, ['install.mjs'], path.join(repo, 'integrations/electron'));
-  console.log('\nReady. Open jumpyBrain Desktop from ~/Applications or Spotlight.\nChoose your local brain folder in the welcome screen.\nAgent integrations are optional; the app’s selection does not change CLI/agent targets.');
+  console.log('\nReady. Open jumpyBrain from ~/Applications or Spotlight. Closing its window leaves the brain live in the menu bar.\nChoose your local brain folder in the welcome screen.\nAgent integrations are optional; the app’s selection does not change CLI/agent targets.');
 }
 function run(command, commandArgs, cwd = repo) {
   const result = spawnSync(command, commandArgs, { cwd, stdio: 'inherit' });

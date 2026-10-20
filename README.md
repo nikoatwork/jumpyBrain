@@ -94,10 +94,10 @@ From a source checkout, build and install it with:
 
 ```sh
 npm run desktop:setup
-open "$HOME/Applications/jumpyBrain Desktop.app"
+open "$HOME/Applications/jumpyBrain.app"
 ```
 
-The beta currently builds locally from a Git checkout. See the [Desktop guide](integrations/electron/README.md) for repository access, prerequisites, and updates. The folder selected in Desktop is independent of your agent's CLI target; point your agent at that same folder to work together.
+Closing the window keeps your brain live in the menu bar; Quit stops its local services. The beta currently builds locally from a Git checkout. See the [Desktop guide](integrations/electron/README.md) for repository access, prerequisites, and updates. The folder selected in Desktop is independent of your agent's CLI target; point your agent at that same folder to work together.
 
 ### With your agent, on macOS or Linux
 
@@ -162,7 +162,7 @@ Local use needs no jumpyBrain account or subscription. Shared brains run on infr
 ## Go deeper
 
 - [Installation and updates](docs/install.md)
-- [macOS desktop app](integrations/electron/README.md) · [Menu-bar companion](integrations/macos-companion/README.md)
+- [macOS desktop app](integrations/electron/README.md)
 - [Using jumpyBrain with agents](docs/agent-workflows.md)
 - [Optional how-to-dream skill installation](docs/install.md#optional-how-to-dream-skill)
 - [CLI command reference](docs/cli-commands.md)

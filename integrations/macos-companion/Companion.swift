@@ -8,7 +8,7 @@ struct Configuration: Decodable {
     let node: String
     let qmd: String
     let memoryRoot: String
-    let runtimeRoot: String
+    var runtimeRoot: String
     let supportDirectory: String
     let launchAgent: String
     let label: String
@@ -242,6 +242,9 @@ private struct CompanionState: Decodable {
 }
 
 final class Companion: NSObject, NSApplicationDelegate {
+    private let desktopHost = ProcessInfo.processInfo.arguments.contains("--desktop-host")
+    private let desktopParent = getppid()
+    private var parentTimer: Timer?
     private var config: Configuration!
     private var statusItem: NSStatusItem!
     // Desktop brain contours as an adaptive monochrome menu-bar template.
@@ -337,6 +340,16 @@ final class Companion: NSObject, NSApplicationDelegate {
         do {
             let url = Bundle.main.url(forResource: "Configuration", withExtension: "json")!
             config = try JSONDecoder().decode(Configuration.self, from: Data(contentsOf: url))
+            if desktopHost {
+                // The nested helper and runtime move with the enclosing app.
+                let resources = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
+                config.runtimeRoot = resources.appendingPathComponent("runtime").path
+                guard desktopParent > 1 else { throw NSError(domain: "Companion", code: 3) }
+                parentTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+                    guard let self = self else { return }
+                    if getppid() != self.desktopParent { RunLoop.main.perform { NSApp.terminate(nil) } }
+                }
+            }
             // Lock is NOT inherited by Node. A second app must never adopt/kill another server.
             lockFD = Darwin.open(config.supportDirectory + "/companion.lock", O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
             guard lockFD >= 0, flock(lockFD, LOCK_EX | LOCK_NB) == 0 else {
@@ -356,7 +369,7 @@ final class Companion: NSObject, NSApplicationDelegate {
                 throw NSError(domain: "Companion", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing/invalid local key. Re-run install.py."])
             }
             signal(SIGPIPE, SIG_IGN) // A closing child pipe must not terminate the app.
-            makeMenu()
+            if !desktopHost { makeMenu() }
             prepareLog()
             for sig in [SIGTERM, SIGINT] {
                 signal(sig, SIG_IGN)
@@ -371,8 +384,10 @@ final class Companion: NSObject, NSApplicationDelegate {
             }
             startServer()
             healthTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.checkHealth() }
-            checkForUpdates()
-            updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in self?.checkForUpdates() }
+            if !desktopHost {
+                checkForUpdates()
+                updateTimer = Timer.scheduledTimer(withTimeInterval: 6 * 60 * 60, repeats: true) { [weak self] _ in self?.checkForUpdates() }
+            }
         } catch {
             showError("Could not start jumpyBrain", error.localizedDescription)
             NSApp.terminate(nil)
@@ -477,6 +492,9 @@ final class Companion: NSObject, NSApplicationDelegate {
             "JUMPYBRAIN_SERVER_API_KEYS": apiKey,
             "JUMPYBRAIN_NO_UPDATE_CHECK": "1"
         ]
+        if desktopHost, let instance = ProcessInfo.processInfo.environment["JUMPYBRAIN_DESKTOP_INSTANCE"] {
+            p.environment?["JUMPYBRAIN_DESKTOP_INSTANCE"] = instance
+        }
         p.standardInput = FileHandle.nullDevice
         p.standardOutput = output ?? FileHandle.nullDevice
         p.standardError = output ?? FileHandle.nullDevice
@@ -876,6 +894,7 @@ final class Companion: NSObject, NSApplicationDelegate {
     }
 
     private func showError(_ title: String, _ text: String) {
+        if desktopHost { fputs("jumpyBrain internal host failed; see private diagnostics.\n", stderr); return }
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = title
@@ -892,6 +911,7 @@ final class Companion: NSObject, NSApplicationDelegate {
         if !ownsLock || config == nil { return .terminateNow }
         if quitting { return .terminateLater }
         quitting = true
+        parentTimer?.invalidate()
         healthTimer?.invalidate()
         updateTimer?.invalidate()
         if let check = updateCheck, check.isRunning { check.terminate() }

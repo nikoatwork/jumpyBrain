@@ -2,7 +2,7 @@
 
 ## Brain connection
 
-A named, companion-only destination profile for an existing local Markdown root or remote memory origin. One profile is active across companion editor tabs; switching does not sync memory or change CLI/agent targets. Destination replacement receives a new profile identity so old note links cannot open on a different brain. Remote connectivity and explicit editing/index permission are separate.
+A named, Mac-app destination profile (called a companion profile in the internal protocol) for an existing local Markdown root or remote memory origin. One profile is active across companion editor tabs; switching does not sync memory or change CLI/agent targets. Destination replacement receives a new profile identity so old note links cannot open on a different brain. Remote connectivity and explicit editing/index permission are separate.
 
 ## Support diagnostic report
 

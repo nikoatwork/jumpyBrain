@@ -81,3 +81,14 @@ The current Electron host depends on the separately installed Swift companion fo
 ## Remaining distribution limits
 
 Physical logout/login, Intel hardware, fresh-machine toolchain provisioning, public signing/notarization, and custom/global legacy locations remain separate manual/distribution checks. Unsaved renderer drafts are not crash-persistent. At implementation time, this completed ticket was retained for user trial without an archive or commit. It was subsequently archived with user approval on 2026-10-18; the distribution limits above remain explicit.
+
+
+## Publication verification — 2026-10-20
+
+- Prepared the app-owned source, installer, docs, and regression tests in an isolated checkout; unrelated graph/activity-feed work stayed outside this snapshot.
+- `npm run build` and `node --test --test-concurrency=4` passed: **1,059 passed, 0 failed, 1 skipped** (1,060 total; provisioned-QMD opt-in remains skipped).
+- `npm run desktop:pack` produced the arm64 app and passed the built-in deep strict ad-hoc signature verification. Existing Swift Keychain deprecation warnings remain; no public signing/notarization is claimed.
+- `node scripts/electron-smoke.mjs` passed onboarding, renderer isolation, feedback, navigation, autosave, and draft-close checks with disposable data.
+- `node scripts/unified-desktop-smoke.mjs` passed normal, crash, and recovery cases with the newly packaged native host/runtime: background startup, tray/window reopening, blocked unsafe quit, live service after window close, safe shutdown, and owned-descendant cleanup.
+- The outgoing-content guard and whitespace checks passed. Installed app, user memory, credentials, and login settings were not changed. Generated application bundles remain local build artifacts; publication is source plus build/install tooling.
+- The user confirmed the snapshot-based clean Git history is intentional. Publish it to `master` with an exact force-with-lease, without reconnecting the previous remote history.

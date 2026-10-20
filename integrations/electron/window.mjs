@@ -69,6 +69,7 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     }) === 1;
     // Electron uses preventDefault here to override the page's unload veto.
     if (discard) event.preventDefault();
+    else window.emit('close-cancelled');
   });
   window.once('ready-to-show', () => window.show());
   // This is the existing Chrome bootstrap. Its own script removes the fragment
@@ -77,12 +78,13 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   return { window, loaded };
 }
 
-export function setApplicationMenu({ app, getWindow, reconnect }) {
+export function setApplicationMenu({ app, getWindow, reconnect, settings }) {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'jumpyBrain', submenu: [
       { label: 'About jumpyBrain', click: () => app.showAboutPanel() },
       { type: 'separator' },
       { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => {
+        if (settings) { settings(); return; }
         const window = getWindow();
         if (window) void window.webContents.executeJavaScript('document.getElementById("open-connection")?.click()');
       } },

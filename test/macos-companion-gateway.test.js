@@ -325,3 +325,45 @@ test('gateway forwards guarded deletion and fences old-generation deletion', asy
   assert.equal((await removed.json()).removed, true);
   assert.match(await readFile(path.join(f.roots[1], 'notes/fixture.md'), 'utf8'), /Body b/);
 });
+
+test('shutdown barrier freezes every editor, drains requests, cancels without switching, and expires safely', async () => {
+  const coordinator = new SwitchCoordinator({ timeoutMs: 100 });
+  const generation = coordinator.generation;
+  coordinator.register('first', generation); coordinator.register('second', generation);
+  const finish = coordinator.enter(generation, 'first');
+  const shutdown = coordinator.prepareShutdown({ leaseMs: 30 });
+  const id = coordinator.state().switchId;
+  coordinator.acknowledge('first', id, true); coordinator.acknowledge('second', id, true);
+  assert.equal(coordinator.pending.committing, false);
+  finish(); assert.equal(await shutdown, id);
+  assert.throws(() => coordinator.enter(generation, 'first'), /wait for activation/);
+  assert.throws(() => coordinator.register('late', generation), /in progress/);
+  coordinator.cancelShutdown(id);
+  assert.equal(coordinator.generation, generation); assert.equal(coordinator.tabs.size, 2);
+  coordinator.enter(generation, 'first')();
+  const again = coordinator.prepareShutdown({ leaseMs: 20 });
+  coordinator.acknowledge('first', coordinator.pending.id, true); coordinator.acknowledge('second', coordinator.pending.id, true);
+  const expired = await again; await pause(40); assert.equal(coordinator.pending, null);
+  assert.throws(() => coordinator.commitShutdown(expired), /expired/);
+  const refused = coordinator.prepareShutdown();
+  coordinator.acknowledge('first', coordinator.pending.id, false);
+  await assert.rejects(refused, /unsaved/); assert.equal(coordinator.pending, null);
+  await assert.rejects(coordinator.prepareShutdown(), /did not confirm/);
+  assert.equal(coordinator.pending, null);
+});
+
+test('only the native owner can prepare shutdown; cancellation preserves target and remote service', async (t) => {
+  const f = await fixture(t);
+  const before = f.gateway.store.snapshot();
+  assert.equal((await f.browser('/companion/shutdown', { action: 'prepare' })).status, 403);
+  assert.equal((await f.native('/companion/shutdown', { action: 'invalid' })).status, 400);
+  const result = await (await f.native('/companion/shutdown', { action: 'prepare' })).json();
+  assert.equal(typeof result.id, 'string');
+  assert.equal((await f.native('/companion/profiles', { profile: {}, revision: before.revision })).status, 409);
+  assert.equal((await f.native('/companion/shutdown', { action: 'cancel', id: result.id })).status, 200);
+  assert.deepEqual(f.gateway.store.snapshot(), before);
+  const final = await (await f.native('/companion/shutdown', { action: 'prepare' })).json();
+  assert.equal((await f.native('/companion/shutdown', { action: 'commit', id: final.id })).status, 200);
+  assert.equal((await f.native('/companion/register', { tabId: 'too-late', generation: f.gateway.coordinator.generation })).status, 409);
+  assert.equal((await fetch(f.remote.url + '/health')).status, 200);
+});

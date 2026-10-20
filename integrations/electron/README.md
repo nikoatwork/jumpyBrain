@@ -1,62 +1,64 @@
-# jumpyBrain Desktop for macOS
+# jumpyBrain for macOS
 
-A normal Finder, Spotlight, and Dock app for your Markdown brain. Includes the pink brain app icon, native menus, a sandboxed editor, and a local-first welcome screen. No App Store, account, or subscription is needed.
+One Mac app contains the Electron editor, menu-bar controls, local gateway, shared memory runtime, and an internal native Keychain helper. Closing its window leaves your brain live in the menu bar. **Open jumpyBrain**, the Dock, or **⌘N** reopens the editor. **Quit jumpyBrain** stops the app and its owned local services after open editors confirm their saves.
 
-## Install from a private Git checkout
+The CLI is independently installable and usable on macOS or Linux. It needs neither Electron nor the Mac app. App folder selection does not change CLI or agent targets; pass `--root "/path/to/brain"` or configure the agent's memory skill to share that folder.
 
-Requires macOS 13+, Node 22.12+ and npm, Git, Python 3.9+, and Xcode command-line tools (`xcode-select --install`). Git uses your existing authentication for the private repository.
+## Install or update from a private Git checkout
+
+Requires macOS 13+, Node 22.12+ and npm, Git, Python 3.9+, Xcode command-line tools, and QMD 2.8.3. Git uses your existing repository authentication.
 
 ```sh
 git clone git@github.com:nikoatwork/jumpyBrain.git
 cd jumpyBrain
 npm run desktop:setup
-open "$HOME/Applications/jumpyBrain Desktop.app"
+open "$HOME/Applications/jumpyBrain.app"
 ```
 
-Setup installs the managed local CLI/search runtime if missing, builds the native menu-bar helper if missing, and packages `~/Applications/jumpyBrain Desktop.app` for this Mac's architecture. Electron is downloaded through npm. Fresh installation provisions QMD 2.8.3 with the existing installer, without installing agent skills or running an initial index. Existing managed runtimes, brains, connections, and helpers are reused without automatic updates or restarts. The helper owns the shared gateway, Keychain, and login startup. Chrome is not needed for the Desktop editor; the helper's own **Open Editor** action still targets Chrome.
+For updates, select/pull the desired revision in the checkout, **Quit jumpyBrain**, and rerun `npm run desktop:setup`. Setup builds the editor/runtime and complete Mac bundle together. The menu's **Update jumpyBrain…** explains this flow. There is no automatic download/updater or signed/notarized distribution yet.
 
-The runtime installer creates its standard local CLI brain at `~/.jumpybrain/memory`. Desktop then lets you choose its active brain independently. Selecting a folder in Desktop does not retarget existing CLI commands or agent integrations. To use the same folder with an agent, pass it explicitly with `jumpybrain … --root "/path/to/your/brain"` or configure that agent's memory skill.
+Fresh setup provisions the CLI and external Node/QMD prerequisites through the existing installer without agent integrations or an initial index. Existing CLI installations and targets are retained. The Mac app bundles its own compiled copy of the same runtime, so CLI updates and app updates are independent. The checkout is unnecessary for launching the installed app; external Node and QMD must remain available.
 
-Once installed, this checkout is not needed for launching Desktop. Find **jumpyBrain Desktop** in Spotlight, open it from `~/Applications`, or drag it to the Dock. The separate `jumpyBrain.app` helper remains in the menu bar.
+## Migration from the two-app beta
 
-## First launch
+Quit the older menu-bar helper and Desktop/Electron windows after saving. Setup replaces `~/Applications/jumpyBrain.app` with the unified app and moves owned `jumpyBrain Desktop.app` and `jumpyBrain Electron.app` bundles into a dated recovery archive under `~/Library/Application Support/jumpyBrain Backups`. It refuses unrelated apps, active processes, or a held native service lock.
 
-1. **Choose folder…** opens the macOS folder picker. Create a folder there or select an existing one.
-2. An empty folder becomes a new local brain only after **Create my local brain**. Setup adds the standard Markdown directories, `jumpybrain.json`, and a `.gitignore` entry for rebuildable state.
-3. An existing initialized brain offers **Open my local brain** and retains its configuration and notes. An unrelated populated folder is refused; choose a fresh folder instead.
-4. The folder becomes the active app brain using the helper's normal save barrier. Other open editor tabs must finish saving before a switch completes.
+Connections, control capability, logs, and diagnostics stay in `~/Library/Application Support/jumpyBrain Companion`. Electron preferences and first-run completion retain `~/Library/Application Support/jumpyBrain Electron Prototype`. Markdown stays in its chosen folders. The existing login preference migrates to one `local.jumpybrain.desktop.plist` LaunchAgent; a fresh install defaults to off. Login starts the menu bar and services without opening a window.
 
-If a connection already exists, **Continue with …** keeps that selected brain. Remote connections are explicitly labeled; the primary path always starts local. Canceling the picker or closing Welcome leaves memory unchanged. Later launches return directly to the editor. Additional existing local brains or remote servers can be added in **Settings** (⌘,); remote editing needs separate explicit approval. There is no implicit sync or upload.
+Keychain service names and credential references are retained. Local ad-hoc signing can change Keychain access eligibility; if Settings reports Keychain unavailable, explicitly repair that connection's key there. No credential is copied into files or the renderer, and no broad Keychain access permission is added.
 
-## Build and update
+A failed installation rolls back moved app/login files and leaves a previously running app untouched. Backups are retained after successful publication. For manual rollback, quit the new app, preserve its bundle, restore the previous bundles and login plist from the dated `.tar.gz` backup, and reopen the older app. Do not run both generations together. Custom/global `/Applications` legacy installs require separate migration; setup manages `~/Applications`.
 
-For window development against the installed runtime:
+## First launch and everyday use
+
+1. Choose an empty folder for a new brain or an existing initialized brain.
+2. Confirm **Create my local brain** or **Open my local brain**. Unrelated populated folders are refused.
+3. **Continue with …** retains an existing selected connection. Remote destinations remain explicitly labeled.
+
+Settings (**⌘,**) manages local/remote profiles. Remote writes and indexing require explicit approval for that destination. Switching and quitting use the same all-tab save barrier: failed saves or unresponsive registered browser tabs keep the app running. Wake those tabs and resolve their drafts, or close them using their normal discard confirmation, then retry Quit.
+
+Closing a window retains its pending-draft confirmation and keeps the services running. Quitting stops only the app's own gateway/local engine; separately running shared servers and the CLI remain independent. App-hosted endpoints are unavailable after quit. Crash recovery restarts the services on the next launch, but unsaved renderer-only drafts are not crash-persistent.
+
+**Start at Login** controls the next login. **Show Logs** reveals the private service log. An occupied/unauthenticated port is an error; the app never adopts another process. If its service stopped, reopen the app window to retry startup; existing drafts still require explicit recovery across a restarted session.
+
+## Development and verification
 
 ```sh
+npm run build
 npm --prefix integrations/electron ci
+npm run desktop:pack
 npm run electron
 ```
 
-Source UI edits must be built/installed in the runtime to appear in the editor; the welcome screen belongs to the desktop package.
-
-Package without installing:
+`desktop:pack` writes `.local-pack/desktop/jumpyBrain.app`, including its runtime and internal host. Development Electron uses those resources. `npm run electron:install:local` packages and installs a stopped app from the current compiled runtime; use `desktop:setup` for the full build/update flow.
 
 ```sh
-npm run desktop:pack
-# .local-pack/desktop/jumpyBrain Desktop.app
+node --test test/desktop-lifecycle.test.js test/electron-host.test.js test/electron-setup.test.js test/macos-companion-gateway.test.js
+python3 -B integrations/electron/test_desktop_install.py
+npm run smoke:electron
+npm run smoke:desktop
 ```
 
-To rebuild the installed window, quit **jumpyBrain Desktop**, move its old bundle aside, then run `npm run electron:install:local`. The installer refuses to overwrite an existing bundle. Settings and welcome completion remain outside the bundle, in `~/Library/Application Support/jumpyBrain Electron Prototype` (the retained prototype storage path). The old `jumpyBrain Electron.app` prototype can be removed after closing it; it is not overwritten.
+Tests use disposable memory. The desktop smoke runs the production application lifecycle and signed internal host through background launch, blocked quit, close/reopen, explicit quit, parent crash, and recovery. Native Keychain/RPC coverage remains in `integrations/macos-companion/test_connections_native.py`. Public signing/notarization, Intel hardware, physical login/logout, and arbitrary historical Keychain signing identities need separate validation.
 
-Update the shared runtime/helper separately through the existing `jumpybrain update` flow, after all editor windows report Saved and the helper is quit. Desktop has no automatic updater. If an old runtime lacks required modules, repair/update it before reopening Desktop. Setup never silently replaces a running helper.
-
-Local builds are ad-hoc signed and verified for use on the building Mac. A bundle copied to another Mac is **not a notarized distribution**. Private users should build from their authenticated checkout; a downloadable DMG with Developer ID signing/notarization can be added later without an App Store release. Only the build machine's architecture is produced and verified.
-
-## Recovery and desktop behavior
-
-- A missing helper/runtime opens Welcome with `npm run desktop:setup` recovery instructions. An occupied or unauthenticated gateway port is an error; nothing is taken over or killed.
-- Settings is available with **⌘,**. **⌘N** focuses/reopens the single editor window. Standard edit, zoom, fullscreen, close, and quit menus are available. **⌘Enter** creates a note through the existing editor.
-- Pending drafts retain the existing unload confirmation. **Keep editing** is the default. This does not add crash recovery.
-- Feedback prepares an email draft for `jumpybrain@agentmail.to`; it never sends automatically. Diagnostic inclusion is previewable and optional. Remote keys never enter the renderer.
-- To show Welcome again, quit Desktop and remove only `desktop-setup.json` from its application-support directory. Leave memory and the helper's connections/key files in place.
-- Verification: `node --test test/electron-{host,setup}.test.js` and `npm run smoke:electron` use disposable folders and a production gateway; no personal brain is changed.
+To remove the Mac app, disable **Start at Login**, quit, and move `~/Applications/jumpyBrain.app` to Trash. Brain folders, profiles, Keychain items, backups, and the separately installed CLI remain in place.

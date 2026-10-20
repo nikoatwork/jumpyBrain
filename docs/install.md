@@ -46,20 +46,12 @@ For a Finder/Dock app with a custom icon and local-folder onboarding, clone the 
 
 ```sh
 npm run desktop:setup
-open "$HOME/Applications/jumpyBrain Desktop.app"
+open "$HOME/Applications/jumpyBrain.app"
 ```
 
-Run the command from the checkout. It provisions missing CLI/search/helper components, reuses existing managed installations, and builds for your Mac. Choose an empty/new folder or an existing brain in Welcome. Requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. No App Store or Chrome is required for Desktop. Builds are locally ad-hoc signed; signed/notarized downloads and automatic updates are not provided. See the [Desktop guide](../integrations/electron/README.md) for private Git setup, first launch, updates, and recovery.
+Run from the checkout. Setup builds one app containing the editor, menu bar, internal native helper, and compiled memory runtime. It provisions missing CLI/search prerequisites and preserves existing CLI targets. Close the window to keep the brain live; **Quit jumpyBrain** waits for open editors to save before stopping owned services. CLI-only users need no Mac app.
 
-### macOS menu-bar companion (beta)
-
-The optional menu-bar app opens a Chrome editor for named local and remote brains through a private loopback gateway. Its Settings page selects one brain across companion tabs, without changing CLI/agent targets or syncing memory. After installing the CLI:
-
-```sh
-python3 "$HOME/.jumpybrain/app/integrations/macos-companion/install.py"
-```
-
-Requires macOS 13+, Xcode command-line tools, Python 3.9+, Google Chrome, and the CLI’s Node/QMD dependencies. This beta is built locally and ad-hoc signed, not a downloadable signed/notarized app. Remote keys use macOS Keychain, not browser storage; rebuilding can require key re-entry. Profile switching/active-key repair is blocked by failed saves or unresponsive editor tabs. Remote editing (including indexing) requires explicit target-specific approval in Settings. See [the app guide](../integrations/macos-companion/README.md) for connection storage, authentication, offline behavior, custom paths, recovery, and test limits.
+Requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Builds are locally ad-hoc signed. The [Mac app guide](../integrations/electron/README.md) covers onboarding, migration from the two-app beta, Keychain repair, updates, and recovery. Quit older jumpyBrain apps before setup; owned bundles are backed up and their login preference is migrated.
 
 ### Project-local install
 
@@ -132,9 +124,9 @@ This is an advisory client-side guard against accidental writes, not authorizati
 
 ## Update
 
-One command updates the installed CLI and macOS app, if present. Your Markdown memory, settings, and agent integrations stay in place; development checkouts are separate.
+Update the CLI independently with the command below. Markdown memory, settings, and agent integrations stay in place.
 
-**Using the macOS app?** Choose **Update jumpyBrain…** in its menu bar: updating runs in the background without opening Terminal, the companion quits without an extra confirmation, and it reopens on success. Chrome stays open; saving is unavailable during the update. The menu also checks for available updates. For the CLI command below (or older apps without the Update item), quit the app first and reopen it manually afterward. See [the app guide](../integrations/macos-companion/README.md#update) for availability-check limits and failure recovery.
+For the unified Mac app, select/pull the desired checkout revision, quit jumpyBrain, and run `npm run desktop:setup`. This updates the complete app bundle together; the menu's **Update jumpyBrain…** explains the same flow. App runtime updates do not retarget or replace an existing CLI installation.
 
 ```bash
 ~/.jumpybrain/bin/jumpybrain update
@@ -148,13 +140,13 @@ Preview the update without writing files:
 
 Updates use the source/ref recorded in `~/.jumpybrain/install-manifest.json`—normally GitHub `master`. The CLI detects custom install locations; use `--install-root <path>` to select another. Rerunning the public installer follows the same update path, without reinitializing memory or rewriting agent integrations.
 
-**Older macOS installs:** quit the app and rerun the latest public installer once, from outside a source checkout. This migrates the default installation’s bundled server to the shared runtime. See [migration and recovery details](../integrations/macos-companion/README.md#older-installations-and-recovery).
+**Older standalone companion installs:** their CLI updater retains legacy shared-runtime support. Migrate to the unified Mac app with `npm run desktop:setup` after quitting the old apps; see the [migration guide](../integrations/electron/README.md#migration-from-the-two-app-beta).
 
 For intentional version changes, pass `--ref <ref>` or set `JUMPYBRAIN_INSTALL_REF`. The downloaded bootstrap uses current `master` independently; `JUMPYBRAIN_INSTALLER_REF` overrides its version. Source/development checkouts instead use `git pull && npm install && npm run build`.
 
 ## Uninstall
 
-If you installed the macOS app, [remove it first](../integrations/macos-companion/README.md#remove); it depends on the shared CLI runtime. Companion removal preserves its connections/support directory and Keychain items unless you deliberately remove them separately; it does not revoke remote server keys.
+The unified Mac app has its own bundled runtime and can remain installed when removing the CLI. To remove it, disable **Start at Login**, quit, and move `~/Applications/jumpyBrain.app` to Trash. Its connections/support directory, Keychain items, and Markdown remain. An older standalone companion still depends on the managed CLI runtime and must be [removed first](../integrations/macos-companion/README.md#remove).
 
 Uninstall requires a valid, supported `install-manifest.json` whose recorded install root and owned paths match the selected root. It fails closed before deleting anything when that ownership proof is missing, malformed, unsupported, or inconsistent. A valid uninstall removes only the recorded app, shim, CLI policy config, manifest, and integration files. It preserves Markdown memory by default.
 

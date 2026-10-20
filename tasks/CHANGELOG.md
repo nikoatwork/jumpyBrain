@@ -8,6 +8,11 @@
 
 - Added local/hosted historical evidence-date capture, preserved dates through edits, and verified guarded deletion, index reconciliation, and private filesystem-error handling.
 
+## 2026-10-16 — One macOS app
+
+- Consolidated Desktop and the menu-bar companion into one app with background window-close behavior, guarded shutdown, an owned bundled runtime, and reversible installation migration; the CLI remains independent.
+
+
 ## 2026-10-16 — Browser and diagnostics cleanup
 
 - Eliminated unchanged sidebar writes/row replacement and consolidated diagnostic normalization and editor baseline assignment; focused tests and desktop/narrow browser checks passed.

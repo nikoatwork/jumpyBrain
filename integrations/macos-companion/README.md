@@ -1,12 +1,15 @@
 # macOS app (beta)
 
+> The current Mac product is the [unified Electron app](../electron/README.md), which bundles this native code internally. Use `npm run desktop:setup` for new installations and migration. The standalone app/update instructions below are retained for older installations and internal maintenance.
+
+
 A menu-bar app for named local and remote jumpyBrain connections. It runs a private loopback gateway, opens the Markdown editor in Chrome, and routes supported memory operations to one selected brain. Local brains use the same Markdown/QMD engine as the CLI; remote brains use their existing server. There is no syncing.
 
 **One installed runtime, one update command.** The app and CLI share `~/.jumpybrain/app`. Your Markdown stays separately in `~/.jumpybrain/memory` (or your configured location). Neither runs from your development checkout.
 
 This beta is built locally—not a downloadable, signed/notarized release yet.
 
-For an optional desktop window using this same installed runtime and browser UI, see the [local Electron prototype](../electron/README.md). The native companion continues to own the gateway and Keychain.
+In the unified app, Electron owns the menu bar and lifecycle; this helper owns only native capabilities and its child gateway. Its parent watchdog stops owned services if Electron exits.
 
 ## Install
 
