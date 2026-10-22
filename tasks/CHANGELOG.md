@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Local installation guidance
+
+- Clarified local privacy boundaries, app/CLI use of one brain, existing-install reuse, and agent-assisted setup in the installation guides and new FAQ.
+
 ## 2026-10-22 — Release request policy
 
 - Release requests default to a complete patch publication with synchronized CLI/runtime and Mac app versions, verified GitHub release notes, tag, and artifact.

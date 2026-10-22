@@ -1,5 +1,7 @@
 # Agent Workflows
 
+For first-time setup or adding the Mac app, follow [Helping a user install jumpyBrain](install-for-agents.md). It covers reusing an existing installation, keeping app and CLI on one brain, completing authorized setup without repeated confirmations, and explaining the [privacy boundaries](faq.md#when-can-data-leave-my-computer).
+
 ## Installed integrations
 
 The installer sets up harness-specific integration files without editing broad global instruction files:

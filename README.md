@@ -84,20 +84,27 @@ Your brain is a folder of readable Markdown. You can inspect it, edit it, back i
 
 The app is [MIT licensed](LICENSE). Run it locally, host it on your own infrastructure, change the editor, build an integration, or fork it for your own workflow. Your knowledge stays portable, and you choose the agents that work with it.
 
+**Local first, with no jumpyBrain account required.** Local notes and search stay on your computer. Installing the app or CLI does not upload your brain or enable cloud sync. A shared brain is a server you explicitly connect to. Notes recalled into a cloud AI assistant are handled by that assistant; sending feedback and choosing cloud-synced folders are also separate sharing choices. [Privacy FAQ →](docs/faq.md#when-can-data-leave-my-computer)
+
 ## Start your own brain
+
+**One brain, two ways to use it:** the app is your writing window; the CLI lets your agents use the same Markdown folder. Use either or both. App + agents? Install the CLI below, then add the app from its existing source directory. [Step-by-step installation](docs/install.md) · [Instructions for your agent](docs/install-for-agents.md)
 
 ### On your Mac
 
 The [macOS desktop app (beta)](integrations/electron/README.md) opens with **Your brain. Your folder.** Choose a new folder or an existing brain, then start writing. Add other local or shared brains in Settings later.
 
-From a source checkout, build and install it with:
+Already used the default CLI installer? Reuse that installation:
 
 ```sh
+cd "$HOME/.jumpybrain/app"
 npm run desktop:setup
 open "$HOME/Applications/jumpyBrain.app"
 ```
 
-Closing the window keeps your brain live in the menu bar; Quit stops its local services. The beta currently builds locally from a Git checkout. See the [Desktop guide](integrations/electron/README.md) for repository access, prerequisites, and updates. The folder selected in Desktop is independent of your agent's CLI target; point your agent at that same folder to work together.
+Choose `~/.jumpybrain/memory` in the app to open the same brain your agents use (or your actual configured root). No second clone or copy of your notes is needed. Starting with the app only? Follow the [public source setup](docs/install.md#macos-desktop-app-beta).
+
+The Mac beta currently builds locally and requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Closing the window keeps your brain live in the menu bar; Quit stops its local services. The app bundles its own runtime code, and app/CLI updates are separate. See the [Desktop guide](integrations/electron/README.md) for details. App folder selection does not change your agent's CLI target.
 
 ### With your agent, on macOS or Linux
 
@@ -135,6 +142,10 @@ The sandbox is public, writable, rate-limited, and reset hourly. Use fictional i
 
 ## A few things you might be wondering
 
+**Are the app and CLI two copies of my notes?**
+
+No. When both point at the same folder, they read and write one set of Markdown files. They have separate program installations, not separate brains. [App and CLI explained →](docs/faq.md#are-the-app-and-cli-two-versions-of-my-brain)
+
 **I already use Notion. Why add this?**
 
 Choose jumpyBrain when you want a focused writing and knowledge workspace that you and your agents can use directly, with portable Markdown and control over where it runs. “Agent-first Notion” describes that experience; jumpyBrain focuses on notes, connections, and recall. Databases, project management, and real-time co-editing are outside its current scope.
@@ -162,6 +173,7 @@ Local use needs no jumpyBrain account or subscription. Shared brains run on infr
 ## Go deeper
 
 - [Installation and updates](docs/install.md)
+- [Installation and privacy FAQ](docs/faq.md) · [Agent installation instructions](docs/install-for-agents.md)
 - [macOS desktop app](integrations/electron/README.md)
 - [Using jumpyBrain with agents](docs/agent-workflows.md)
 - [Optional how-to-dream skill installation](docs/install.md#optional-how-to-dream-skill)

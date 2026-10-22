@@ -1,5 +1,17 @@
 # Installation
 
+**jumpyBrain is open source and local first.** Your brain is a folder of Markdown files on your computer. Local writing and search need no jumpyBrain account, subscription, or remote memory server. Installing the CLI or Mac app does not upload your brain or set up cloud sync.
+
+**The app and CLI work with the same brain folder.** The app gives you a window to write and browse; the CLI lets your agents use those files. You can use either or both. There is no note migration or second copy of your brain when both point at the same folder.
+
+Choose your starting point:
+
+- **Agents, or app + agents:** use the CLI installer below, then add the Mac app from that existing installation.
+- **Mac app only:** follow [desktop setup](#macos-desktop-app-beta). It provisions the CLI/search dependencies it needs; agent integrations are optional.
+- **CLI already installed:** go straight to [add the Mac app](#macos-desktop-app-beta). No second clone is needed for the default installation.
+
+Software installation/updates download code and dependencies. A remote brain requires an explicitly selected server; it does not sync your personal brain. Notes recalled into a cloud AI assistant are handled by that assistant, and sending feedback or choosing a cloud-synced folder can also send data outside your computer. See the [privacy and installation FAQ](faq.md#when-can-data-leave-my-computer). Agents helping with setup should follow the [agent installation guide](install-for-agents.md).
+
 ## Fast path: installer script
 
 Install the CLI first, then optionally add the [macOS desktop app (beta)](#macos-desktop-app-beta). The installer builds jumpyBrain locally and sets up memory, search, and detected agent integrations. jumpyBrain is not published to npm.
@@ -17,7 +29,7 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/instal
 
 Default behavior:
 
-- installs the app under `~/.jumpybrain/app`
+- installs the CLI source/runtime under `~/.jumpybrain/app` (this is not a second desktop app or a notes folder)
 - creates a CLI shim at `~/.jumpybrain/bin/jumpybrain`
 - initializes machine-global Markdown memory at `~/.jumpybrain/memory`
 - verifies or installs exact `@tobilu/qmd@2.8.3` (CLI and SDK together) for local indexing/recall
@@ -26,6 +38,18 @@ Default behavior:
   - Codex: `~/.agents/skills/jumpybrain-memory/SKILL.md`
   - Claude Code: `~/.claude/skills/jumpybrain-memory/SKILL.md`
   - Pi: `~/.pi/agent/extensions/jumpybrain-memory.ts`
+
+Here, **global** means available across projects on this computer, not uploaded to a global/team service. `CLI policy: not configured` means no optional remote write restrictions are recorded; it does not mean a remote server is connected.
+
+The installer downloads source from GitHub and dependencies from npm. To inspect the bootstrap before running it, download it to a file:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh -o jumpybrain-install.sh
+less jumpybrain-install.sh
+bash jumpybrain-install.sh
+```
+
+The bootstrap also downloads installer helpers and dependencies; inspecting that file alone is not a full dependency audit. The source for the main installer is [`scripts/public-install.mjs`](../scripts/public-install.mjs). `bash jumpybrain-install.sh --dry-run` previews planned actions without installing jumpyBrain (the bootstrap still downloads its helpers).
 
 Add the bin directory to your shell if you want `jumpybrain` everywhere:
 
@@ -40,18 +64,36 @@ Then verify:
 ~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "what should I remember?" --limit 5
 ```
 
+An empty result is expected for a new brain. Restart/reload an assistant that was already running so it can discover its new integration. Text search is ready immediately; local semantic search is an optional later step.
+
 ### macOS desktop app (beta)
 
-For a Finder/Dock app with a custom icon and local-folder onboarding, clone the private repository using your Git credentials and run:
+Requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Check with `node --version`, `npm --version`, `git --version`, `python3 --version`, and `xcrun --find swiftc`. If Xcode command-line tools are missing, run `xcode-select --install` and finish Apple's installer first.
+
+**Already installed the CLI with the default installer?** Reuse its source directory. Quit any running jumpyBrain app, then:
 
 ```sh
+cd "$HOME/.jumpybrain/app"
 npm run desktop:setup
 open "$HOME/Applications/jumpyBrain.app"
 ```
 
-Run from the checkout. Setup builds one app containing the editor, menu bar, internal native helper, and compiled memory runtime. It provisions missing CLI/search prerequisites and preserves existing CLI targets. Close the window to keep the brain live; **Quit jumpyBrain** waits for open editors to save before stopping owned services. CLI-only users need no Mac app.
+On first launch, choose your **existing memory folder**, normally `~/.jumpybrain/memory`. In the folder chooser, press **⌘⇧G**, enter that path, and select **Open my local brain**. Use the actual root printed by your installer if you chose a different one. Desktop selection does not change the CLI/agent target; matching the folder is what makes both use the same notes.
 
-Requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Builds are locally ad-hoc signed. The [Mac app guide](../integrations/electron/README.md) covers onboarding, migration from the two-app beta, Keychain repair, updates, and recovery. Quit older jumpyBrain apps before setup; owned bundles are backed up and their login preference is migrated.
+**Starting with the Mac app and no CLI install?** Clone the public repository once, then build:
+
+```sh
+git clone https://github.com/nikoatwork/jumpyBrain.git
+cd jumpyBrain
+npm run desktop:setup
+open "$HOME/Applications/jumpyBrain.app"
+```
+
+No GitHub account or SSH key is required for this public HTTPS clone. Fresh desktop setup provisions the managed CLI/search dependencies without agent integrations; choose a new or existing brain in onboarding. For app + agents, use the CLI-first route above.
+
+Setup builds one app containing the editor, menu bar, internal native helper, and compiled memory runtime. It preserves existing CLI targets. The app bundles runtime code, not a duplicate of your notes; app and CLI updates are currently separate. Setup downloads dependencies even when reusing the source directory. Custom CLI install locations need individual checking: desktop setup currently provisions/checks the default `~/.jumpybrain` managed installation.
+
+Close the window to keep the brain live in the menu bar; **Quit jumpyBrain** waits for open editors to save before stopping owned services. The beta builds locally and is ad-hoc signed, with no notarized download installer yet. If macOS blocks opening it, report the exact message; do not disable system security. The [Mac app guide](../integrations/electron/README.md) covers migration, Keychain repair, updates, and recovery.
 
 ### Project-local install
 
@@ -127,6 +169,8 @@ This is an advisory client-side guard against accidental writes, not authorizati
 Update the CLI independently with the command below. Markdown memory, settings, and agent integrations stay in place.
 
 For the unified Mac app, select/pull the desired checkout revision, quit jumpyBrain, and run `npm run desktop:setup`. This updates the complete app bundle together; the menu's **Update jumpyBrain…** explains the same flow. App runtime updates do not retarget or replace an existing CLI installation.
+
+If you built the app from the default managed CLI source, quit the app, run the CLI update below, then run `cd "$HOME/.jumpybrain/app" && npm run desktop:setup` to rebuild the app from the updated source. Avoid running either update while a build is in progress.
 
 ```bash
 ~/.jumpybrain/bin/jumpybrain update

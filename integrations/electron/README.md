@@ -4,18 +4,34 @@ One Mac app contains the Electron editor, menu-bar controls, local gateway, shar
 
 The CLI is independently installable and usable on macOS or Linux. It needs neither Electron nor the Mac app. App folder selection does not change CLI or agent targets; pass `--root "/path/to/brain"` or configure the agent's memory skill to share that folder.
 
-## Install or update from a private Git checkout
+**One brain, two interfaces.** The app and CLI can read and write the same Markdown folder without copying or syncing notes. Local writing/search run on your computer; no jumpyBrain account or remote memory server is required. Installing the app does not upload your brain. See the [privacy FAQ](../../docs/faq.md) for remote connections, cloud assistants, feedback, and file-sync boundaries.
 
-Requires macOS 13+, Node 22.12+ and npm, Git, Python 3.9+, Xcode command-line tools, and QMD 2.8.3. Git uses your existing repository authentication.
+## Install or update from source
+
+Requires macOS 13+, Node 22.12+ and npm, Git, Python 3.9+, Xcode command-line tools, and QMD 2.8.3 (provisioned by fresh setup). The repository is public; an HTTPS clone needs no GitHub login or SSH key.
+
+**Already installed the CLI at its default location?** Quit any running jumpyBrain app and reuse its source:
 
 ```sh
-git clone git@github.com:nikoatwork/jumpyBrain.git
+cd "$HOME/.jumpybrain/app"
+npm run desktop:setup
+open "$HOME/Applications/jumpyBrain.app"
+```
+
+In onboarding choose the existing `~/.jumpybrain/memory` folder, or the actual memory root from your CLI setup. Press **⌘⇧G** in the folder chooser to enter the path. No second clone is needed. See the [installation guide](../../docs/install.md#macos-desktop-app-beta) for prerequisite checks and custom-install limitations.
+
+**No existing CLI install?** Clone once:
+
+```sh
+git clone https://github.com/nikoatwork/jumpyBrain.git
 cd jumpyBrain
 npm run desktop:setup
 open "$HOME/Applications/jumpyBrain.app"
 ```
 
 For updates, select/pull the desired revision in the checkout, **Quit jumpyBrain**, and rerun `npm run desktop:setup`. Setup builds the editor/runtime and complete Mac bundle together. The menu's **Update jumpyBrain…** explains this flow. There is no automatic download/updater or signed/notarized distribution yet.
+
+When using the managed `~/.jumpybrain/app` source, update it with `~/.jumpybrain/bin/jumpybrain update`, then rebuild the app there with `npm run desktop:setup`. Run these sequentially with the app quit. App and CLI updates are separate, so updating only the CLI does not replace the runtime bundled in the Mac app.
 
 Fresh setup provisions the CLI and external Node/QMD prerequisites through the existing installer without agent integrations or an initial index. Existing CLI installations and targets are retained. The Mac app bundles its own compiled copy of the same runtime, so CLI updates and app updates are independent. The checkout is unnecessary for launching the installed app; external Node and QMD must remain available.
 

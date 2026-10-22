@@ -1,6 +1,6 @@
 ---
 name: jumpybrain-memory
-description: Use jumpyBrain local Markdown memory through the CLI. Trigger when a task may depend on prior decisions, project conventions, past bugs, handoffs, preferences, or when the user asks to remember or recall durable context.
+description: Use jumpyBrain local Markdown memory through the CLI. Trigger when a task may depend on prior decisions, project conventions, past bugs, handoffs, preferences, or when the user asks to remember or recall durable context. Also use when helping install jumpyBrain or add its Mac app to an existing CLI installation.
 ---
 
 # jumpyBrain Memory
@@ -13,6 +13,15 @@ Use the installed `jumpybrain` CLI for explicit, visible memory operations.
 - Memory root: `__JUMPYBRAIN_MEMORY_ROOT__`
 
 If either path is unavailable, fall back to `jumpybrain` on `PATH` and `$JUMPYBRAIN_MEMORY_ROOT`.
+
+## Installation help and privacy
+
+For installation, adding the Mac app, or setup troubleshooting, follow the [agent installation guide](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install-for-agents.md) and [installation commands](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install.md).
+
+- jumpyBrain is open source and local first. Local Markdown storage/search needs no account or remote memory server; installing it does not upload the brain or enable cloud sync.
+- The app and CLI use one set of notes when pointed at the same root. Reuse the existing default CLI source at `~/.jumpybrain/app` to build the Mac app, then select the configured memory root in onboarding. The app bundles runtime code, not a copy of the brain. App selection does not retarget this skill; updates are separate.
+- Check existing installations and prerequisites first. Carry out authorized setup without repeated approval questions, respecting host permissions and actual device policies. Report tool denials accurately; do not bypass restrictions or claim success before verification.
+- Do not promise that data can leave only through a memory server: recalled excerpts enter the agent's context and may reach its cloud provider. Explicit remote connections, feedback submissions, and user-chosen file sync are separate sharing paths; installation/updates download software. See the [FAQ](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/faq.md).
 
 ## Recall before acting
 
