@@ -77,7 +77,7 @@ Support truthful historical capture and deliberate removal through the same loca
 
 ## Browser-QA deletion implementation — 2026-10-16
 
-The user authorized all six web-QA improvements in the current chat. Single-document deletion is implemented and verified through runtime, CLI/recipe, HTTP and browser/companion surfaces; [the QA owner](../todo/tasks-local-companion-qa.md#all-improvements-implementation--2026-10-16) records files, safeguards and evidence. This does not implement the separate historical-date capture work in section 1 or close every broader lifecycle test/provenance item in section 4.
+The user authorized all six web-QA improvements in the current chat. Single-document deletion is implemented and verified through runtime, CLI/recipe, HTTP and browser/companion surfaces; [the QA owner](2026-10-22_tasks-local-companion-qa.md#all-improvements-implementation--2026-10-16) records files, safeguards and evidence. This does not implement the separate historical-date capture work in section 1 or close every broader lifecycle test/provenance item in section 4.
 
 The operation previews by default, requires explicit permanent apply plus prior-read hash, reuses replacement serialization/locks, and reports derived-index outcomes separately. No Trash or replay database was introduced. Backlink/declared-relationship warnings are advisory. Identical-ID/content recreation across separate reads and noncooperating external writers remain documented filesystem limits.
 

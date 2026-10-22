@@ -24,7 +24,7 @@ All twelve cleanup increments completed. Final rebuilt suite: 964 passed, 1 skip
 - Browser save/concurrency state belongs in a typed browser module, not an HTML string; canonical publication policy remains in core/app.
 - One owner per lifecycle: HTTP operation deadline, canonical freshness, native ownership/locking, and reference eligibility.
 - Request-local reuse is preferred to persistent caches. Do not trade duplicate-ID detection, stale-source checks, protected frontmatter, or publication race protection for speed.
-- Existing QA plans retain their unfinished work: [companion QA](../todo/tasks-local-companion-qa.md) and [page-reference manual QA](../todo/tasks-page-reference-manual-qa.md). This proposal does not mark their gates complete.
+- Existing QA plans retain their unfinished work: [companion QA](2026-10-22_tasks-local-companion-qa.md) and [page-reference manual QA](../todo/tasks-page-reference-manual-qa.md). This proposal does not mark their gates complete.
 
 ## Tasks
 

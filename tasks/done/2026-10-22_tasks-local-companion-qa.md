@@ -1,6 +1,10 @@
 # Local companion QA follow-up
 
-Current follow-up: the user authorized all six exploratory-QA improvements. Implementation and disposable-root validation are recorded below; installed-app QA remains historical evidence.
+Status: completed and archived on 2026-10-22 with user approval. All implementation and reporting tasks are complete; no closure blockers remain.
+
+Completion: P1/P2 fixes, daily-capture maintenance, narrow graph layout, and all six exploratory-QA improvements are implemented. The dated reports and the 2026-10-16 implementation record below identify tested builds, browser checks, and final verification (980 passed, 0 failed, 1 optional skip). Task 6.0 is satisfied by these existing records; archival does not claim a new test run.
+
+Physical-device, accessibility, and cross-browser validation remains separately tracked in [page-reference manual QA](../todo/tasks-page-reference-manual-qa.md). Those checks and the recorded platform/installed-build limits do not block this ticket, as confirmed by the user. Historical observations below retain their original scope.
 
 ## Goal and ownership
 
@@ -26,15 +30,15 @@ Resolve the findings in [the 2026-10-16 QA report](../../deep-dives/local-compan
   - [x] 3.5 Rebuild, run targeted tests/browser smoke and incremental review, and record precise QA evidence.
 - [x] 4.0 **Test maintenance — Daily-capture helper.** Replace the stale inline `/Enter to insert/` assertion with stable instruction/behavior coverage and rerun all 15 cases, including desktop/narrow reference cases.
 - [x] 5.0 **Usability — Narrow graph filtering.** Give the input usable width at 390 px and 320 px without horizontal overflow; retain change/blur/Enter filtering unless separately agreed.
-- [ ] 6.0 Record a dated follow-up QA report for the exact fixed build. Do not claim installed-app, theme, physical device/IME, OS clipboard, assistive-technology, other-browser, native Keychain/picker, signing/update, or real-hosted validation without performing it. Coordinate separate device gates with `tasks-page-reference-manual-qa.md`.
+- [x] 6.0 Record a dated follow-up QA report for the exact fixed build. Completed by the linked P1/P2 reports and [2026-10-16 implementation and verification record](#all-improvements-implementation--2026-10-16), including build fingerprints and final results. Do not claim installed-app, theme, physical device/IME, OS clipboard, assistive-technology, other-browser, native Keychain/picker, signing/update, or real-hosted validation without performing it. Coordinate separate device gates with [page-reference manual QA](../todo/tasks-page-reference-manual-qa.md).
 
 ## Decisions
 
-- P1 and P2 are complete in the development build; daily-capture test maintenance and narrow filter layout remain subsequent work.
+- P1/P2, daily-capture test maintenance, narrow filter layout, and the six exploratory-QA improvements are complete; earlier verification sections retain the historical sequence and limits.
 - P2 is presentation-only: keep the bounded graph protocol unchanged, label total notes as whole-brain counts, and present the existing limit warning without claiming how many additional notes match a filter.
 - No installed-app update, personal-memory mutation, or deployment is authorized by commit/push approval. Commit only the QA fixes, regressions, and evidence.
 
-## Verification
+## Initial P1/P2 verification (historical)
 
 [P1 follow-up QA record](../../deep-dives/local-companion-qa/2026-10-16-p1-follow-up.md) records commands, tested working-tree hashes, red/green evidence, preservation, and limits.
 

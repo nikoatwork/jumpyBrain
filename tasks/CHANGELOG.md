@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Completed task archive
+
+- Finalized and archived [direct feedback delivery](done/2026-10-22_tasks-direct-feedback.md) and [local companion QA](done/2026-10-22_tasks-local-companion-qa.md); separate manual-device and cross-browser validation remains tracked.
+
 ## 2026-10-22 — Markdown paste
 
 - Pasted Markdown now renders supported headings and emphasis immediately, using the same parser as note loading; selection replacement, undo/redo, code literals, and canonical save/reload remain covered by desktop/mobile browser checks.

@@ -1,5 +1,9 @@
 # Direct feedback delivery
 
+Status: completed and archived on 2026-10-22 with user approval. All delivery, deployment, and verification tasks are complete; no closure blockers remain.
+
+Completion: direct sending is implemented and committed in `616ae5c`; the recorded installed-app test verified relay delivery and the exact synthetic attachment. Deployment details and test results below describe that verification, not a new check performed during archival.
+
 User requested direct in-app sending after the download/email-app paths proved unhelpful.
 
 - [x] Make explicit Send feedback primary; retain diagnostic preview/opt-out and drafts on failure.
