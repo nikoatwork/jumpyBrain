@@ -20,7 +20,7 @@ Show software update availability at the bottom-right of the Mac app sidebar, wi
 
 ## Verification
 
-- Full `npm test` under Node 22: 1,070 passed, one skipped. The first run under Node 26 with linked dependencies exposed existing QMD timing/cleanup failures and missing bundled-license metadata; local `npm ci` plus Node 22 produced the clean run.
+- Pre-release full `npm test`: 1,070 passed, one skipped after local dependency installation. The command used a `node@22` path, but release preparation found that path actually invokes Node 26; the earlier runtime label was incorrect. Linked dependencies caused missing bundled-license metadata, and Node 26 runs intermittently exposed QMD timing/cleanup and evidence-date fixture cleanup failures. Release validation uses the official SHA-256-verified Node 22.23.4 binary instead; the evidence-date tests pass independently on that runtime.
 - Focused updater/lifecycle regressions after final handoff entrypoint fix: 19 passed, including real detached-helper readiness/cancellation and unsafe archive rejection.
 - `node scripts/desktop-updates-smoke.mjs`: real sandboxed Electron window/preload/IPC, bottom-right placement, install/failure/retry, restart cancellation, renderer reload, light/dark, narrow layout, browser-only isolation. Screenshots under `.local-pack/sidebar-update*.png`.
 - `npm run cli:pack`: distribution validated with all 172 required paths. Local desktop packaging and deep strict codesign verification succeeded, including the new updater assets.
