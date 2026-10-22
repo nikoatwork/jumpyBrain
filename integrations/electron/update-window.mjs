@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
 export function createUpdateWindow(updater) {
   const url = new URL('./update.html', import.meta.url).href;
-  const window = new BrowserWindow({ title: 'jumpyBrain Updates', width: 600, height: 680, minWidth: 420, minHeight: 480,
+  const window = new BrowserWindow({ title: 'jumpyBrain Updates', width: 480, height: 360, minWidth: 420, minHeight: 360,
     backgroundColor: '#f7f4ed', webPreferences: { partition: 'jumpybrain-updates', preload: fileURLToPath(new URL('./update-preload.cjs', import.meta.url)),
       nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true, webviewTag: false } });
   const allowed = new Set(['status', 'check', 'prepare', 'app-only', 'cancel', 'restart', 'recover', 'log']);

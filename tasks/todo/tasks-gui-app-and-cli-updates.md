@@ -22,6 +22,12 @@ Status: complete and verified on Apple Silicon (2026-10-22). The original checkp
 - The final successful flow imports production code from the installed ASAR and verifies that the new ASAR retains every next-update helper, including `update-transaction.py` (the packager previously excluded all Python files). It also exercises sidebar/native menu equivalence, sandbox/IPC rejection, preparation cancellation, restart deferral, failed-save and unresponsive registered tabs. The runner checks preserved canonical Markdown, CLI targets, agent settings, login preference, control key and source/ref policy, plus actual CLI execution/version.
 - Screenshots and machine-readable results: `.local-pack/update-smoke/<mode>/`. Test commands: `node scripts/desktop-update-smoke.mjs [success|app-only|relaunch-failure|helper-crash|app-crash]`; `npm run smoke:desktop-update` builds then runs success. Fixture homes are isolated and removed after success; failures retain evidence.
 
+## Follow-up: compact update screen — 2026-10-22
+
+- [x] Replace the verbose introduction and component table with one status heading, compact app version transition, short contextual hint, and relevant actions in a 480 × 360 window.
+- [x] Move component versions, CLI policy, release notes, logs, and prerequisites into Details. Full status remains available on hover; Details supports keyboard activation. Keep app-only scope and version mismatches visible, and automatically expand failure explanations once per failed-state transition.
+- [x] Verify: all 17 updater/lifecycle tests pass. Real Electron renderer smoke passes idle/checking/current/available/preparing/ready/updating/success/recovered states in light/dark themes, compact sizing, app-only choice, keyboard disclosure, literal release-note rendering, and recovery controls. Inspected screenshots in `.local-pack/update-ui/`. No installer or release operation was run for this UI follow-up.
+
 ## Explicit distribution and device limits
 
 - Fixture versions describe locally built immutable test artifacts, not an update of the user's installed app or a newly published GitHub release. A live public old→next release upgrade requires a later release containing this capability; publication was not requested.
