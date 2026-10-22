@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — v0.3.5 beta release
+
+- Published [v0.3.5](done/releases/v0.3.5.md) with coordinated app/CLI updates, formatted Markdown paste, configurable feedback, and consistent browser controls.
+
 ## 2026-10-22 — Shared graph search
 
 - Graph filtering now reuses app search and recent saves, including body and available semantic matches, with cancellation and bounded graph selection.
