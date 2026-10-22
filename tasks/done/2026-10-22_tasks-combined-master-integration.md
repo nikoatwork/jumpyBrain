@@ -1,11 +1,13 @@
 # Combined master integration
 
+Status: completed and archived 2026-10-22. Merge `10a6a57` was pushed to `origin/master`; both the combined local commit and the prior published-release history are verified ancestors. The workspace was clean and local/remote master aligned after push.
+
 User approved keeping the combined graph search, note attention, sidebar and updater work together on 2026-10-22.
 
 - [x] Verify the completed graph task archive and committed local snapshot (`2719e2b`).
 - [x] Reconcile current remote master (`cf119a9`) while preserving combined behavior, aligned 0.3.5 manifests and published release history.
 - [x] Validate the merged snapshot and relevant browser flows.
-- [ ] Commit and push the merge to remote master; verify ancestry and a clean workspace.
+- [x] Commit and push the merge to remote master; verify ancestry and a clean workspace.
 
 ## Integration notes
 

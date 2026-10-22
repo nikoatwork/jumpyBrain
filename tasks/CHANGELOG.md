@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Combined master integration
+
+- Merged graph search, note attention and sidebar/updater work with the published 0.3.5 history on master; finalized [integration verification](done/2026-10-22_tasks-combined-master-integration.md).
+
 ## 2026-10-22 — v0.3.5 beta release
 
 - Published [v0.3.5](done/releases/v0.3.5.md) with coordinated app/CLI updates, formatted Markdown paste, configurable feedback, and consistent browser controls.
