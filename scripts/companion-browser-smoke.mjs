@@ -107,6 +107,12 @@ const server = createServer(async (request, response) => {
         await new Promise((resolve) => setTimeout(resolve, searchDelay));
         json(response, { results: [{ provenance: { file: "notes/fixture.md", metadata: { id, title: "Fixture " + activeId } }, snippet: "Synthetic search result" }], index: { stale: false } }); return;
       }
+      if (url.pathname === "/memories/all/ensure-title") {
+        assert.equal(request.method, "POST");
+        if (!profiles.find((profile) => profile.id === activeId).allowWrites) { error(response, "read_only", 403); return; }
+        assert.equal(body.title, "Fixture " + activeId);
+        json(response, { status: "found", id, created: false }); return;
+      }
       if (url.pathname === "/memories/all/recent") { json(response, { notes: [{ id, title: "Fixture " + activeId, createdAt: "2026-01-01" }] }); return; }
       if (url.pathname === "/memories/all/attention") {
         assert.equal(request.method, "GET");
@@ -217,9 +223,10 @@ try {
   await editor.locator("#note-search-input").press("Enter");
   await editor.locator("#note-search").waitFor({ state: "hidden" });
 
+  await editor.waitForFunction(() => state.editor?.state.loaded && !state.editor.state.navigationPending && document.querySelector("#note-editor").isContentEditable);
   await Promise.all([
     editor.waitForRequest((request) => request.url() === origin + "/memories/all/search"),
-    appendEditorText(editor, " [[Fix"),
+    appendEditorText(editor, " @Fix"),
   ]);
   await idlePolls(editor);
   const suggestion = editor.locator("[data-reference-autocomplete] [role=option][aria-selected=true]");
@@ -231,6 +238,9 @@ try {
   await editor.locator("[data-reference-autocomplete]").waitFor({ state: "hidden" });
   assert.match(await editorMarkdown(editor), /\[\[Fixture a\]\]/, "reference remains insertable after idle polls");
   await editor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Saved");
+  assert.ok(documents.get("a").content.includes("[[Fixture a]]"), "@ selection saves as canonical brackets");
+  assert.ok(!documents.get("a").content.includes("@Fix"), "the transient @ query is replaced");
+  assert.match(await editor.locator("#insert-reference").getAttribute("title"), /type @/);
   assert.deepEqual(failedSearches, [], "healthy polls must not abort Search or reference queries");
   searchDelay = 0;
 

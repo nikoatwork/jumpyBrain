@@ -107,6 +107,7 @@ ${noteAttentionStyles}
     .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     #reference-message { color: var(--ink-soft); font-size: var(--text-ui); }
     #reference-message[data-error="true"] { color: var(--error-ink); }
+    #reference-creation-status { color: var(--error-ink); font-size: var(--text-ui); }
     .markdown-literal::selection { background: var(--surface-hover); }
     #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; margin: 0 0 var(--space-6) calc(-1 * var(--space-2)); }
     #format-controls button { min-height: var(--control-height); padding: var(--space-2); background: transparent; font-size: var(--text-ui); }
@@ -317,6 +318,10 @@ export const notesViews = String.raw`
       <p id="note-save-error" role="status" aria-live="polite" hidden></p>
       <div class="note-actions"><button id="copy-note-draft" class="quiet-button" hidden>Copy draft</button><button id="delete-note" class="quiet-button" hidden>Delete note…</button><span id="draft-copy-status" role="status" aria-live="polite"></span></div>
       <p id="reference-message" role="status" aria-live="polite" hidden></p>
+      <div id="reference-creation-status" hidden>
+        <p role="status" aria-live="polite">A linked page could not be created. Your source note is retained. Retry page creation before leaving this note.</p>
+        <button id="reference-creation-retry" class="quiet-button">Retry page creation</button>
+      </div>
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
       <div id="format-controls" role="group" aria-label="Text formatting" hidden>
@@ -663,6 +668,29 @@ const referenceAutocomplete = window.installReferenceAutocomplete($("note-editor
 });
 let referenceRequest = null;
 let stagedReferenceNote = null;
+const referenceCreation = JumpyBrainBrowser.createReferenceCreation({
+  getSession: () => String(state.noteToken) + ":" + credentialRevision + ":" + (companionMode ? String(companionState?.generation) : ""),
+  // A preparing switch may drain already saved work against its old target.
+  isEnabled: () => companionMode && companionRegistered && !companionSessionFailed
+    && companionState?.active?.allowWrites === true && Boolean(state.editor?.state.loaded),
+  ensure: (title, signal) => graphJson("/memories/all/ensure-title", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }), signal,
+  }),
+  onCreated: () => referenceTargetCreated(),
+  onChange: (creation) => {
+    $("reference-creation-status").hidden = creation.errors.length === 0;
+    if (creation.errors.length) $("reference-creation-status").querySelector("p").textContent = creation.errors[0].message + " Your source note is retained. Retry page creation or edit the reference before leaving this note.";
+    $("reference-creation-retry").disabled = creation.busy || (companionMode && companionReadOnly());
+  },
+});
+$("reference-creation-retry").addEventListener("click", () => {
+  if (companionMode && !companionReadOnly()) referenceCreation.retry();
+});
+function referenceTargetCreated() {
+  state.graph = null;
+  noteSearch.markStale(); referenceAutocomplete.markStale();
+  sidebarPages.reloadAttention();
+}
 function referenceMessage(text, error = false) {
   const message = $("reference-message");
   message.textContent = text;
@@ -691,11 +719,19 @@ async function activatePageReference(title) {
     const opened = await navigation.navigate(async () => {
       // Save first, then resolve freshly (including an unindexed rename of this note).
       if (!current()) throw new Error("cancelled");
-      const result = await graphJson("/memories/all/resolve-title", {
+      let result = await graphJson("/memories/all/resolve-title", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title }), signal: request.signal,
       });
       if (!current()) throw new Error("cancelled");
+      if (result?.status === "missing" && typeof companionMode !== "undefined" && companionMode && !companionReadOnly()) {
+        result = await graphJson("/memories/all/ensure-title", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }), signal: request.signal,
+        });
+        if (!current()) throw new Error("cancelled");
+        if (result?.created) referenceTargetCreated();
+      }
       if (result?.status !== "found" || !isValidMemoryDocumentId(result.id)) {
         const error = new Error("reference_unavailable");
         error.outcome = result?.status;
@@ -718,7 +754,9 @@ async function activatePageReference(title) {
     if (!current()) return;
     referenceMessage(Number(error.status) === 401 || Number(error.status) === 403
       ? "Connect with an access key to open this reference. Your draft is retained."
-      : error.outcome === "missing" ? "No page has this title. Your draft is retained."
+      : error.outcome === "missing" ? (typeof companionMode !== "undefined" && companionMode && companionReadOnly()
+        ? "No page has this title. This brain is read only; creating a page requires editing permission. Your draft is retained."
+        : "No page has this title. Your draft is retained.")
       : error.outcome === "ambiguous" ? "Several pages share this title. Your draft is retained."
       : "This reference could not be opened. It may have changed or be unavailable. Your draft is retained.", true);
   } finally {
@@ -918,6 +956,7 @@ $("toggle-api-key").addEventListener("click", () => {
 });
 function setConnectionKey(key) {
   if (typeof companionMode !== "undefined" && companionMode) return;
+  referenceCreation.reset();
   cancelReferenceInteraction();
   key = key.trim();
   activeApiKey = key;
@@ -1046,6 +1085,7 @@ function showPage(url) {
   }
   $("error").hidden = true;
   if (state.view === "note") { showNote(documentId, documentId === newNoteId); newNoteId = null; return; }
+  referenceCreation.reset();
   state.noteToken++;
   if (state.editor) state.editor.cancel();
   state.editor = null;
@@ -1069,6 +1109,7 @@ async function showNote(documentId, focusEnd = false) {
   if (typeof companionMode !== "undefined" && companionMode && !companionRegistered) return;
   if (typeof companionMode !== "undefined" && companionMode) companionNoteLoading++;
   try {
+    referenceCreation.reset();
     const staged = stagedReferenceNote;
     cancelReferenceInteraction();
     const token = ++state.noteToken;
@@ -1107,6 +1148,9 @@ async function showNote(documentId, focusEnd = false) {
       canApplyExternal: () => externalUpdates.canApply(),
       scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
       onExternalUpdate: (body) => {
+        // Rebase may retain locally entered links. Keep only that existing
+        // intent; never enqueue references supplied by an external snapshot.
+        referenceCreation.rebase(editor.state.savedBody, body);
         referenceAutocomplete.dismiss();
         richEditor.setExternalMarkdown(body);
       },
@@ -1116,6 +1160,7 @@ async function showNote(documentId, focusEnd = false) {
         recentWrites.remember({ id: documentId, title: editor.state.savedTitle, body: editor.state.savedBody, file: String(payload.file || $("note-file").textContent || "") });
         state.graph = null;
         noteSearch.markStale(); referenceAutocomplete.markStale();
+        referenceCreation.saved(editor.state.savedBody, editor.state.draft);
       },
       isCurrent: (generation, id) => state.noteToken === generation && state.editor === editor && editor.state.documentId === id,
       onChange: syncEditorUi,
@@ -1220,7 +1265,10 @@ function syncEditorUi(editorState) {
     sizeNoteName();
     $("note-title").textContent = editorState.title || "Untitled";
     document.title = (editorState.title || "Untitled") + " · jumpyBrain";
-    if (richEditor.getMarkdown() !== editorState.draft) richEditor.setMarkdown(editorState.draft);
+    if (richEditor.getMarkdown() !== editorState.draft) {
+      referenceCreation.reset();
+      richEditor.setMarkdown(editorState.draft);
+    }
     $("note-frontmatter").textContent = editorState.frontmatterPrefix;
     $("note-metadata").hidden = false;
   }

@@ -24,6 +24,7 @@ const server = createServer((req, res) => {
       var changes=[], follows=[], errors=[], requests=[], held=[], session=0, mode="ready", transportStale=false;
       var fixtureResults = ["Alpha", "Beta"].map((title,i) => ({provenance:{file:"notes/"+i+".md", metadata:{id:"mem_90000000-0000-4000-8000-"+String(i+1).padStart(12,"0"),title}},snippet:"Fixture result"}));
       var richEditor = window.createJumpyBrainNoteEditor(document.querySelector('#note-editor'), {
+        atReferenceTrigger: ${req.url === "/?at=1"},
         onChange: value => changes.push(value), onActivateReference: title => follows.push(title), onError: error => errors.push(error.message)
       });
       var popup = window.installReferenceAutocomplete(document.querySelector('#note-editor'), richEditor, {
@@ -47,11 +48,11 @@ try {
   browser = await launchPlaywrightChromium({ chromium });
   for (const width of [1280, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, hasTouch: width === 390 });
-    async function check(name, run) {
+    async function check(name, run, atTrigger = false) {
       const page = await context.newPage(); page.setDefaultTimeout(5000);
       const pageErrors = []; page.on("pageerror", (error) => pageErrors.push(error.message));
       try {
-        await page.goto(origin); await run(page);
+        await page.goto(origin + (atTrigger ? "/?at=1" : "")); await run(page);
         assert.deepEqual(await page.evaluate(() => errors), []); assert.deepEqual(pageErrors, []);
         console.log(`PASS ${width}px ${name}`);
       } catch (error) { failures.push({ width, name, error: error.stack }); console.error(`FAIL ${width}px ${name}: ${error.message}`); }
@@ -69,6 +70,93 @@ try {
       assert.equal(await editorMarkdown(page), "- Start [[Beta]]");
       assert.deepEqual(await page.evaluate(() => follows), []);
       await undoEditor(page); assert.equal(await editorMarkdown(page), "- Start [[alp");
+    });
+    await check("Mac @ supports multiword search, insertion, undo/redo and literal reload", async (page) => {
+      await load(page, "- Start "); await appendEditorText(page, "@");
+      await visible(page); assert.match(await menu(page).innerText(), /Type a page title/);
+      assert.equal(await page.evaluate(() => requests.length), 0);
+      await page.keyboard.type("alpha topic"); await ready(page, "alpha topic");
+      assert.equal(await page.evaluate(() => requests.at(-1).query), "alpha topic");
+      await page.keyboard.press("ArrowDown"); await page.keyboard.press("Enter");
+      assert.equal(await editorMarkdown(page), "- Start [[Beta]]");
+      assert.equal(await page.evaluate(() => document.activeElement.id), "note-editor");
+      assert.deepEqual(await page.evaluate(() => follows), []);
+      await undoEditor(page); assert.equal(await editorMarkdown(page), "- Start @alpha topic");
+      const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
+      await page.keyboard.press(modifier + "+Shift+z");
+      assert.equal(await editorMarkdown(page), "- Start [[Beta]]");
+      await load(page, await editorMarkdown(page));
+      assert.equal(await editorMarkdown(page), "- Start [[Beta]]");
+      // The existing bracket shortcut is still available in the same editor.
+      await load(page, "[[alp"); await selectEditorText(page, 5); await ready(page);
+      await page.keyboard.press("Enter"); assert.equal(await editorMarkdown(page), "[[Alpha]]");
+    }, true);
+    await check("Mac @ works in supported blocks with keyboard, pointer and touch", async (page) => {
+      for (const source of ["# Heading @alp", "- Parent\n    - Nested @alp", "`code`\n\nParagraph (@alp"]) {
+        await load(page, source);
+        const text = await page.locator("#note-editor").textContent();
+        await selectEditorText(page, text.length); await ready(page, "alp");
+        const row = menu(page).getByRole("option").nth(1);
+        if (width === 390) await row.tap(); else await row.click();
+        assert.equal(await editorMarkdown(page), source.replace("@alp", "[[Beta]]"));
+      }
+    }, true);
+    await check("Mac @ dismissal, composition, late responses and read-only guards", async (page) => {
+      await load(page, "@alp"); await selectEditorText(page, 4); await ready(page);
+      await page.keyboard.press("Escape");
+      await page.evaluate(() => popup.refresh());
+      assert.equal(await menu(page).isVisible(), false); assert.equal(await editorMarkdown(page), "@alp");
+      await page.keyboard.type("h"); await ready(page, "alph");
+      await page.locator("#note-editor").dispatchEvent("compositionstart");
+      assert.equal(await menu(page).isVisible(), false);
+      await page.locator("#note-editor").dispatchEvent("keydown", { key: "Enter", isComposing: true });
+      assert.equal(await editorMarkdown(page), "@alph");
+      await page.locator("#note-editor").dispatchEvent("compositionend"); await ready(page);
+      await page.evaluate(() => { fixtureResults[0].provenance.metadata.title = "bad|alias"; });
+      await page.keyboard.type("a"); await ready(page, "alpha"); await page.keyboard.press("Enter");
+      assert.match(await menu(page).innerText(), /No safe exact page title/);
+      assert.equal(await editorMarkdown(page), "@alpha");
+      await page.evaluate(() => { mode = "hold"; });
+      await page.keyboard.type("x"); await page.waitForFunction(() => held.length === 1);
+      await page.evaluate(() => { richEditor.setReadOnly(true); popup.refresh(); });
+      assert.equal(await page.evaluate(() => requests.at(-1).signal.aborted), true);
+      await page.evaluate(() => held.shift()({results:fixtureResults,index:{stale:false}}));
+      await page.waitForTimeout(100); assert.equal(await menu(page).isVisible(), false);
+      assert.equal(await editorMarkdown(page), "@alphax");
+      await page.evaluate(() => { richEditor.setReadOnly(false); mode = "hold"; });
+      await selectEditorText(page, 7); await page.keyboard.type("y");
+      await page.waitForFunction(() => held.length > 0);
+      await load(page, "Other document");
+      await page.evaluate(() => held.splice(0).forEach(resolve => resolve({results:fixtureResults,index:{stale:false}})));
+      await page.waitForTimeout(100); assert.equal(await menu(page).isVisible(), false);
+      assert.equal(await editorMarkdown(page), "Other document");
+    }, true);
+    await check("Mac @ leaves email, escapes, code, links and split query ranges inert", async (page) => {
+      for (const source of ["name@alp", "user@alp.example", "https://name@alp", "\\@alp", "@@alp",
+        "`@alp`", "```\n@alp\n```", "    @alp", "`unclosed\n@alp", "> ```\n@alp",
+        "[label](@alp)", "@al**p**", "**name**@alp", "before@alp", "- item\n  ~~~\n~~~\n@alp"]) {
+        await load(page, source);
+        const text = await page.locator("#note-editor").textContent();
+        await selectEditorText(page, text.indexOf("@alp") >= 0 ? text.indexOf("@alp") + 4 : text.length);
+        await page.waitForTimeout(230);
+        assert.equal(await menu(page).isVisible(), false, source);
+        assert.equal(await editorMarkdown(page), source);
+      }
+      // An unfinished trigger in the middle of a block stays conservative too.
+      await load(page, "Before @alp after"); await selectEditorText(page, 11);
+      await page.waitForTimeout(230); assert.equal(await menu(page).isVisible(), false);
+      // Existing [[ title editing still belongs to the bracket trigger, even
+      // when its literal title contains @. Never replace only that title suffix.
+      await load(page, "[[Title @alp]]"); await selectEditorText(page, 12); await ready(page);
+      assert.equal(await page.evaluate(() => richEditor.autocompleteRange().trigger), "[[");
+      await page.keyboard.press("Enter"); assert.equal(await editorMarkdown(page), "[[Alpha]]");
+    }, true);
+    await check("hosted editor leaves @ literal without requesting search", async (page) => {
+      await load(page, "@alp"); await selectEditorText(page, 4);
+      await page.waitForTimeout(300);
+      assert.equal(await menu(page).isVisible(), false);
+      assert.equal(await page.evaluate(() => requests.length), 0);
+      assert.equal(await editorMarkdown(page), "@alp");
     });
     await check("heading and nested bullets still work with code elsewhere", async (page) => {
       for (const source of ["# Heading [[alp", "- Parent\n    - Nested [[alp\n```\n[[not a link]]\n```", "`code`\n\nParagraph [[alp"]) {

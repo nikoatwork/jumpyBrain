@@ -10,9 +10,10 @@ const bundle = await readFile(new URL("../dist/adapters/http-server/editor-bundl
 test("editor bundle is self-contained, production-sized, and safe to inline under the shell nonce", () => {
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
-  // Attention list/timers, guarded actions and calendar picker add ~4 KB gzip
-  // (160,322 -> 164,378 reviewed). Server-rendered markup/styles stay out of this bundle.
-  assert.ok(gzipSync(bundle).length < 165_000, "review editor weight if the production bundle exceeds 165 KB gzip");
+  // Attention added ~4 KB gzip (160,322 -> 164,378). Reference completion,
+  // queued creation and @ input add ~1.5 KB (165,904 reviewed), with no new
+  // dependencies. Server-rendered markup/styles stay out of this bundle.
+  assert.ok(gzipSync(bundle).length < 167_000, "review editor weight if the production bundle exceeds 167 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);

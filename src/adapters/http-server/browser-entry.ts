@@ -3,6 +3,7 @@ import "./lexical-editor.js";
 export { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle } from "./document-controller.js";
 export { createMapController } from "./map-controller.js";
 export { referenceEligibility } from "./reference-policy.js";
+export { createReferenceCreation } from "./reference-creation.js";
 export { memoryDocumentPath, createBrowserSearchRequest } from "./browser-transport.js";
 
 export { createRecentWriteSearch } from "./recent-write-search.js";

@@ -15,6 +15,7 @@ export const HTTP_MEMORY_ROUTES = {
   attention: `${MEMORY_PREFIX}/attention`,
   recent: `${MEMORY_PREFIX}/recent`,
   resolveTitle: `${MEMORY_PREFIX}/resolve-title`,
+  ensureTitle: `${MEMORY_PREFIX}/ensure-title`,
   wrapups: `${MEMORY_PREFIX}/wrapups`,
   dreamWindow: `${MEMORY_PREFIX}/dream/window`,
   dreamStatus: `${MEMORY_PREFIX}/dream/status`,

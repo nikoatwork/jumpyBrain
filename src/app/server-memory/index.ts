@@ -48,6 +48,7 @@ export { getDreamWindow, abandonDreamBatch, createDreamBatch, getDreamBatch, get
 
 export { recentServerMemory, type RemoteMemoryRecentNote, type RemoteMemoryRecentPacket } from "./recent.js";
 export { resolveServerMemoryTitle } from "./resolve-title.js";
+export { ensureServerMemoryTitle, isSafeReferencePageTitle, type EnsureServerMemoryTitleResult } from "./ensure-title.js";
 
 export { MemoryExecutionError } from "../local-memory/index.js";
 export { DreamStateError, DREAM_BATCHES_RELATIVE_DIR, DREAM_STATE_RELATIVE_PATH } from "./dream.js";

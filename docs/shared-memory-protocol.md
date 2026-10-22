@@ -657,6 +657,20 @@ Authentication is required before method/body validation. Missing/non-string tit
 
 Title scan, ID scan, final read, and later editor GET are separate operations, not an atomic uniqueness guarantee against concurrent writes. Target file/ID/title changes detected during reread produce `unopenable`, but existing scanner policy can skip disappearing directories. Renames can break title references; later title reuse can retarget them. Graph wiki references share eligible exact metadata-title resolution before legacy filename/ID fallback. The browser uses this endpoint only for activation; inline suggestions merge confirmed tab-local writes with potentially stale indexed search and do not imply canonical title uniqueness.
 
+### `POST /memories/all/ensure-title`
+
+Authenticated canonical find-or-create for an explicitly entered page reference. Request: `{ "title": "Exact Page Title" }`, with no additional fields or idempotency key. Unlike `resolve-title`, this is a write: read-only clients/proxies must reject it, and global/team/remote memory still requires explicit write authorization. Responses use `Cache-Control: no-store`:
+
+- `200 { "status": "found", "id": "mem_<uuid>", "created": false }` reuses a unique openable exact-title match.
+- `200 { "status": "found", "id": "mem_<uuid>", "created": true, "indexing": { "status": "pending", ... } }` confirms a newly published page. Derived index-state failure instead returns the same saved identity with `indexing.status: "failed"` and safe `index_state_failed` guidance.
+- `200 { "status": "ambiguous" }` or `200 { "status": "unopenable" }` refuses creation when canonical lookup cannot establish a missing title.
+
+Titles must be nonempty, already trimmed strings without brackets, ASCII control characters, DEL, `|`, `#`, slash or backslash, matching literal reference eligibility. Invalid titles, extra fields or invalid JSON return 400; unsupported media types return 415; other methods return 405. Authentication precedes method/body validation. Root/publication failures return generic 500 `ensure_title_failed`, without server paths or private content. Retry the same title to determine its current canonical target after an uncertain response.
+
+The operation uses fresh normalized exact-title lookup at the editor memory root, independently of QMD/search/index freshness. Only a confirmed missing title publishes canonical Markdown under `pages/`, with a normal generated ID, `type: page`, the exact display title, standard creation/update/source/confidence metadata, and only a title heading as initial content. Ordinary notes POST validation continues to reject blank page bodies.
+
+The host queues lookup and publication together with ordinary canonical writes. Concurrent same-title requests through that queue reuse the first page, including normalized-title variants and uncertain-response retries. This is single-host coordination, not a transaction against other server processes or external filesystem writers. Deletion or rename after creation can invalidate a result; fetch/validate the target before navigation. Rename/delete can also make a later retry create a new page with the old title. No persistent title lock, replay ledger or automatic index job is added.
+
 ### `GET /memories/all/documents/:id`
 
 Authenticated document read by file-level `mem_<uuid>` ID. The response contains safe remote metadata and must not expose the server's absolute filesystem root. `contentHash` is `sha256:<hex>` over the exact Markdown file bytes currently on disk.

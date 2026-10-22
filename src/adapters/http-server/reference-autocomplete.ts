@@ -84,10 +84,10 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
         || !native.anchorNode || !element.contains(native.anchorNode) || native.anchorNode.nodeType !== 3) return null;
     const value = bridge.getMarkdown();
     const caret = bridge.captureSelection(), range = bridge.autocompleteRange();
-    if (!caret?.isCollapsed() || !range || range.value !== value || !range.text.startsWith("[[")
+    if (!caret?.isCollapsed() || !range || range.value !== value || !range.text.startsWith(range.trigger)
         || /[\[\]\r\n]/.test(range.query) || range.selection.anchor.key !== caret.anchor.key
         || range.selection.focus.key !== caret.anchor.key || caret.anchor.type !== "text"
-        || caret.anchor.offset !== range.selection.anchor.offset + 2 + range.query.length
+        || caret.anchor.offset !== range.selection.anchor.offset + range.trigger.length + range.query.length
         || native.anchorOffset !== caret.anchor.offset) return null;
     // Never accept captureSelection's last-selection fallback from another surface.
     const text = native.anchorNode.textContent || "", start = range.selection.anchor.offset;

@@ -269,6 +269,7 @@ async function companionBarrier(switchId) {
     editor.setNavigationPending(true);
     try { ok = await editor.flush(); } catch { ok = false; }
     ok = ok && state.editor === editor && !editor.hasPending();
+    if (ok) ok = await referenceCreation.saved(editor.state.savedBody, editor.state.draft);
   }
   if (companionState?.switchId !== switchId || companionState.phase !== "preparing") return;
   if (!ok) companionMessage("Switch blocked: this tab has a failed save, pending navigation, or unconfirmed note creation. Your draft is retained.", true);
@@ -308,7 +309,7 @@ async function startCompanion() {
     }
     const snapshot = await companionControl("state");
     if (companionState && snapshot.generation !== companionState.generation) {
-      if (state.editor?.hasPending() || noteCapture.hasPending()) {
+      if (state.editor?.hasPending() || noteCapture.hasPending() || referenceCreation.hasPending()) {
         throw new Error("The companion restarted while this tab held an unsaved draft. Copy your draft before reopening; it cannot be moved to the newly selected brain.");
       }
       // Reload a clean old page BEFORE registering in the new generation.

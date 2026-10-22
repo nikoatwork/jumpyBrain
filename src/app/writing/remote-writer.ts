@@ -30,13 +30,13 @@ export interface RemoteWrapupWriteResult extends RemoteMemoryWriteResult {
 
 const VALID_REMOTE_NOTE_TYPES = new Set<RemoteMemoryNoteType>(["note", "finding", "decision", "preference", "page"]);
 
-export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemoryNoteDraft, options: { heading?: string } = {}): Promise<RemoteMemoryWriteResult> {
+export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemoryNoteDraft, options: { heading?: string; emptyReferencePage?: boolean } = {}): Promise<RemoteMemoryWriteResult> {
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
   const type = normalizeRemoteNoteType(draft.type);
   const title = draft.title?.trim() || "Untitled memory";
   const body = draft.body.trim();
-  if (!body && type !== "note") throw new Error("Memory body is empty.");
+  if (!body && type !== "note" && !(type === "page" && options.emptyReferencePage === true)) throw new Error("Memory body is empty.");
 
   const id = generateMemoryDocumentId();
   const now = new Date().toISOString();

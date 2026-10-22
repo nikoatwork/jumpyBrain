@@ -181,7 +181,7 @@ test("lost-response creation is visible to the switch barrier", async () => {
 
 function barrierHarness(overrides = {}) {
   const acknowledgements = [], flush = deferred();
-  const editor = { setNavigationPending() {}, flush: () => flush.promise, hasPending: () => false };
+  const editor = { state: { savedBody: "Source", draft: "Source" }, setNavigationPending() {}, flush: () => flush.promise, hasPending: () => false };
   const context = runtime(["companionBarrier"], {
     companionState: { phase: "preparing", switchId: "switch-1" }, companionTabId: "tab",
     creatingNote: false, navigation: { isBusy: () => false }, companionNoteLoading: 0,
@@ -211,6 +211,20 @@ test("acknowledgement from an expired switch is never sent", async () => {
   h.context.companionState = { phase: "idle", switchId: null };
   h.flush.resolve(true); await pending;
   assert.equal(h.acknowledgements.length, 0);
+});
+
+test("switch acknowledgement waits for saved reference creation and blocks unconfirmed results", async () => {
+  for (const result of [true, false]) {
+    const creation = deferred();
+    let called = false;
+    const h = barrierHarness({ referenceCreation: { saved: () => { called = true; return creation.promise; } } });
+    const pending = h.context.companionBarrier("switch-1");
+    h.flush.resolve(true); await tick();
+    assert.equal(called, true);
+    assert.equal(h.acknowledgements.length, 0, "a confirmed source save is not the complete barrier");
+    creation.resolve(result); await pending;
+    assert.equal(h.acknowledgements[0].body.ok, result);
+  }
 });
 
 function interactionHarness() {

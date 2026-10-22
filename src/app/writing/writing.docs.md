@@ -14,6 +14,7 @@
 - Local/remote document updates leave derived state stale. After edits, run `jumpybrain index` for the selected root/target or let local ordinary recall repair automatically; there is no dream completion transaction.
 - Keep remote append-only server writes in `remote-writer.ts`; import them directly from server-memory, not through the local writing barrel.
 - Allow blank (including whitespace-only) bodies only for remote `note` creation, supporting browser quick capture through the existing POST workflow. The caller supplies the title (server-memory allocates numbered daily titles for browser quick capture); the writer creates a title heading by default, with an internal heading override for the daily capture writing prompt, plus a unique document ID and normal metadata. This override is not a caller-supplied HTTP draft field. Findings, decisions, preferences, session wrapups, and local CLI writes retain their existing body validation.
+- The server-memory reference find-or-create operation can opt into a blank remote `page` through the internal `emptyReferencePage` writer option. It retains the requested safe literal title, heading and standard metadata under `pages/`. Ordinary notes POST drafts do not expose this option and still reject blank page bodies.
 
 ## Non-responsibilities
 

@@ -1,5 +1,17 @@
 # Task Changelog
 
+## 2026-10-22 — Task finalization
+
+- Completed task lists are archived and committed automatically under the [task workflow](../docs/task-workflow.md), preserving unrelated work.
+
+## 2026-10-22 — Missing reference pages
+
+- Mac references create missing pages on activation or after confirmed source saves, preserving drafts, title reuse, write permissions and retry recovery; finalized [implementation and verification](done/2026-10-22_tasks-create-missing-reference-pages.md).
+
+## 2026-10-22 — Mac page-reference shortcut
+
+- The Mac editor accepts `@` for inline page search and inserts canonical `[[Page Title]]` links while retaining the bracket shortcut; finalized [implementation and verification](done/2026-10-22_tasks-mac-at-page-reference-search.md).
+
 ## 2026-10-22 — Combined master integration
 
 - Merged graph search, note attention and sidebar/updater work with the published 0.3.5 history on master; finalized [integration verification](done/2026-10-22_tasks-combined-master-integration.md).

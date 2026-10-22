@@ -8,6 +8,7 @@ import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
 import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, previewServerMemoryDeletion, deleteServerMemoryDocument, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
 import { attentionServerMemory, patchServerMemoryAttention } from "../../app/server-memory/attention.js";
+import { ensureServerMemoryTitle, isSafeReferencePageTitle } from "../../app/server-memory/index.js";
 import { compactSearchServerMemory } from "../../app/server-memory/compact.js";
 import { expandServerMemoryDocument } from "../../app/server-memory/expansion.js";
 import type { ExpansionOptions } from "../../core/canonical/expansion.js";
@@ -175,6 +176,31 @@ export async function routeRequest(context: { request: IncomingMessage; response
     } catch {
       // Configuration/root errors must not reach the outer diagnostic logger.
       writeJson(response, 500, errorResponse("resolve_title_failed", "Remote title lookup failed."));
+    }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.ensureTitle) {
+    response.setHeader("cache-control", "no-store");
+    if (request.method !== "POST") {
+      response.setHeader("allow", "POST");
+      writeJson(response, 405, errorResponse("method_not_allowed", `Use POST for ${HTTP_MEMORY_ROUTES.ensureTitle}.`));
+      return;
+    }
+    try {
+      const parsedBody = await parseJsonBody(request);
+      if (isJsonError(parsedBody)) {
+        writeJson(response, parsedBody.statusCode, parsedBody.body);
+        return;
+      }
+      if (Object.keys(parsedBody).some(key => key !== "title") || !isSafeReferencePageTitle(parsedBody.title)) {
+        writeJson(response, 400, errorResponse("bad_request", "Page creation requires only a safe literal reference title."));
+        return;
+      }
+      const title = parsedBody.title;
+      writeJson(response, 200, await enqueueWrite(() => ensureServerMemoryTitle({ root, title })));
+    } catch {
+      writeJson(response, 500, errorResponse("ensure_title_failed", "Page creation could not be confirmed. Retry the same title to resolve its current page."));
     }
     return;
   }

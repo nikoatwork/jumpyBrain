@@ -245,8 +245,20 @@ graphFilters.addEventListener("keydown", (event) => {
 });
 $("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
 const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
-  onChange: (markdown) => state.editor?.input(markdown),
+  atReferenceTrigger: companionMode,
+  onChange: (markdown) => {
+    state.editor?.input(markdown);
+    if (companionMode && state.editor?.state.loaded) referenceCreation.saved(state.editor.state.savedBody, markdown);
+  },
+  onCompletedReferences: (titles) => {
+    if (companionMode && !companionReadOnly() && state.editor?.state.loaded) {
+      referenceCreation.completed(titles, state.editor.state.draft);
+      referenceCreation.saved(state.editor.state.savedBody, state.editor.state.draft);
+    }
+  },
   onActivateReference: (title) => activatePageReference(title),
+  canActivateReference: () => companionMode && companionRegistered && !companionFrozen && !companionSessionFailed
+    && Boolean(state.editor?.state.loaded) && !state.editor.state.navigationPending,
   onError: (error) => {
     feedbackDiagnostics.event("editor", { severity: "error", outcome: "failed", code: "error" });
     $("capture-message").hidden = false;
@@ -254,13 +266,14 @@ const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
     $("capture-message").textContent = "Editor error. Keep this page open and copy your draft before reloading. " + error.message;
   },
 });
+if (companionMode) $("insert-reference").title = "Insert page reference (or type @ to search)";
 $("note-editor").addEventListener("blur", () => {
   if (state.editor) state.editor.flush();
 });
 window.addEventListener("beforeunload", protectPendingEditorUnload);
 
 function protectPendingEditorUnload(event) {
-  if ((!state.editor || !state.editor.hasPending()) && !(typeof companionMode !== "undefined" && companionMode && noteCapture.hasPending())) return;
+  if ((!state.editor || !state.editor.hasPending()) && !(typeof companionMode !== "undefined" && companionMode && (noteCapture.hasPending() || referenceCreation.hasPending()))) return;
   event.preventDefault();
   event.returnValue = "";
 }
@@ -375,7 +388,7 @@ async function requestEditorNavigation(action) {
   editor.setNavigationPending(true);
   const saved = await editor.flush();
   if (state.editor !== editor) return false;
-  if (!saved) {
+  if (!saved || (typeof companionMode !== "undefined" && companionMode && !await referenceCreation.saved(editor.state.savedBody, editor.state.draft))) {
     editor.setNavigationPending(false);
     return false;
   }

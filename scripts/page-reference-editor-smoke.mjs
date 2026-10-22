@@ -22,9 +22,11 @@ const server = createServer((req, res) => {
     <button id="before">Before editor</button><div id="note-editor" role="textbox" aria-label="Markdown" aria-multiline="true"></div><button id="after">After editor</button>
     <script src="/editor.js"></script>
     <script>
-      var changes = [], follows = [], errors = [];
+      var changes = [], follows = [], errors = [], completed = [], allowReadonlyActivation = false;
       var richEditor = window.createJumpyBrainNoteEditor(document.querySelector('#note-editor'), {
         onChange: value => changes.push(value),
+        onCompletedReferences: titles => completed.push(...titles),
+        canActivateReference: () => allowReadonlyActivation,
         onActivateReference: title => follows.push(title), onError: error => errors.push(error.message)
       });
     </script>`);
@@ -100,6 +102,57 @@ try {
       await page.evaluate(() => richEditor.setReadOnly(true));
       await paste(page, "## Changed");
       assert.equal(await editorMarkdown(page), "Keep this");
+    });
+    await check("completed user references report after source edits, including paste, picker and redo", async (page) => {
+      await load(page, "[[Typed");
+      await appendEditorText(page, "]]");
+      assert.deepEqual(await page.evaluate(() => completed), ["Typed"]);
+      await page.evaluate(() => { completed.length = 0; });
+      await undoEditor(page);
+      assert.deepEqual(await page.evaluate(() => completed), []);
+      await redo(page);
+      assert.deepEqual(await page.evaluate(() => completed), ["Typed"]);
+      await load(page, "Before ");
+      await selectEditorText(page, 7);
+      await paste(page, "[[Pasted]] and `[[Code]]` and \\[[Escaped]]");
+      assert.deepEqual(await page.evaluate(() => completed), ["Pasted"]);
+      await load(page, "[[Pick");
+      await selectEditorText(page, 6);
+      await page.evaluate(() => {
+        const range = richEditor.referenceRange();
+        if (!range || !richEditor.insertReference(range, "[[Picked title]]")) throw new Error("Picker insertion failed");
+      });
+      assert.deepEqual(await page.evaluate(() => completed), ["Picked title"]);
+      await selectEditorText(page, 2, 8);
+      await page.keyboard.insertText("Edited");
+      assert.deepEqual(await page.evaluate(() => completed), ["Picked title", "Edited title"]);
+    });
+    await check("hydration, external snapshots, caret moves and context changes do not complete old references", async (page) => {
+      await load(page, "[[Old unresolved]]");
+      await selectEditorText(page, 5);
+      await page.keyboard.press("ArrowRight");
+      await page.evaluate(() => richEditor.setExternalMarkdown("[[External unresolved]]"));
+      assert.deepEqual(await page.evaluate(() => completed), []);
+      await load(page, "`unclosed\n[[Old unresolved]]");
+      await selectEditorText(page, 0, 1);
+      await page.keyboard.press("Backspace");
+      assert.deepEqual(await links(page), ["[[Old unresolved]]"]);
+      assert.deepEqual(await page.evaluate(() => completed), []);
+      await load(page, "`[[Code]]` and \\[[Escaped]]");
+      await appendEditorText(page, "!");
+      assert.deepEqual(await page.evaluate(() => completed), []);
+    });
+    await check("IME preedit does not report a reference before committed composition", async (page) => {
+      await load(page, "Before ");
+      await selectEditorText(page, 7);
+      const input = await context.newCDPSession(page);
+      try {
+        await input.send("Input.imeSetComposition", { text: "[[日本語]]", selectionStart: 7, selectionEnd: 7 });
+        assert.deepEqual(await page.evaluate(() => completed), []);
+        await input.send("Input.insertText", { text: "[[日本語]]" });
+        await page.waitForFunction(() => completed.includes("日本語"));
+        assert.deepEqual(await page.evaluate(() => completed), ["日本語"]);
+      } finally { await input.detach(); }
     });
     await check("load, click/tap, punctuation, and no change notifications", async (page) => {
       const source = "# [[Heading]]\n\nPlain [[Alpha]] and [[β_日本語]] end.\n- [[Bullet]] + [[Second]]\n  - [[Nested]]\n    - [[Deep]]\n\n[[snake_case **literal**]]\n";
@@ -270,6 +323,19 @@ try {
       await page.getByRole("link").click();
       assert.deepEqual(await page.evaluate(() => follows), []);
     });
+    await check("permission-readonly activation can be enabled explicitly without bypassing selection protection", async (page) => {
+      await load(page, "[[Alpha]]");
+      await page.evaluate(() => { allowReadonlyActivation = true; richEditor.setReadOnly(true); });
+      await page.getByRole("link").click();
+      assert.deepEqual(await page.evaluate(() => follows), ["Alpha"]);
+      await page.evaluate(() => {
+        follows.length = 0;
+        const range = document.createRange(); range.selectNodeContents(document.querySelector('[role="link"]'));
+        getSelection().removeAllRanges(); getSelection().addRange(range);
+      });
+      await page.getByRole("link").dispatchEvent("click", { button: 0 });
+      assert.deepEqual(await page.evaluate(() => follows), []);
+    });
     await check("fence reclassification preserves untouched emphasis spelling", async (page) => {
       const source = "```\nInside\n```\nKeep _italic_ and [[Alpha]].";
       await load(page, source);
@@ -326,6 +392,7 @@ try {
       assert.equal(await page.locator("#note-editor").textContent(), "[[alpha]]");
       assert.deepEqual(await links(page), []);
       assert.equal(await page.locator("#note-editor .editor-bold").textContent(), "pha");
+      assert.deepEqual(await page.evaluate(() => completed), []);
       const markdown = await editorMarkdown(page);
       await selectEditorText(page, 4);
       assert.equal(await page.evaluate(() => richEditor.autocompleteRange()), null);
@@ -365,7 +432,7 @@ if (failures.length) {
 async function load(page, text) {
   await page.evaluate((value) => {
     richEditor.setMarkdown(value, true);
-    changes.length = 0; follows.length = 0; errors.length = 0;
+    changes.length = 0; follows.length = 0; errors.length = 0; completed.length = 0;
   }, text);
   await page.evaluate(() => new Promise(requestAnimationFrame));
 }

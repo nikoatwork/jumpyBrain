@@ -570,6 +570,51 @@ test("page references save first, resolve freshly, preflight, and consume the st
   assert.ok(h.dismissed >= 2);
 });
 
+test("Mac missing references create only after source save and validate before opening", async () => {
+  const h = referenceHarness();
+  let created = 0;
+  Object.assign(h.context, { companionMode: true, companionFrozen: false, companionRegistered: true,
+    companionNoteLoading: 0, companionReadOnly: () => false, referenceTargetCreated: () => { created++; } });
+  const opening = h.activate();
+  await h.activate();
+  assert.equal(h.writes.length, 1, "repeat activation coalesces during save");
+  assert.equal(h.resolves.length, 0);
+  await h.saved();
+  h.resolves[0].resolve({ status: "missing" }); await tick();
+  assert.equal(h.resolves[1].url, "/memories/all/ensure-title");
+  assert.deepEqual(JSON.parse(h.resolves[1].options.body), { title: "Beta" });
+  assert.equal(h.state.editor, h.origin);
+  h.resolves[1].resolve({ status: "found", id: docB, created: true }); await tick();
+  assert.equal(created, 1);
+  assert.equal(h.pushes.length, 0, "creation alone does not replace the source");
+  h.reads[0].resolve(h.payload); await opening; await Promise.all(h.shows);
+  assert.equal(h.state.editor.state.documentId, docB);
+  assert.equal(h.reads.length, 1);
+});
+
+test("Mac missing references retain source on read-only, ambiguous, failed or cancelled creation", async () => {
+  for (const outcome of ["read-only", "ambiguous", "failed", "cancelled"]) {
+    const h = referenceHarness({ dirty: false });
+    Object.assign(h.context, { companionMode: true, companionFrozen: false, companionRegistered: true,
+      companionNoteLoading: 0, companionReadOnly: () => outcome === "read-only", referenceTargetCreated() {} });
+    const opening = h.activate(); await tick();
+    h.resolves[0].resolve({ status: "missing" }); await tick();
+    if (outcome === "read-only") {
+      assert.equal(h.resolves.length, 1);
+    } else if (outcome === "failed") h.resolves[1].reject(Object.assign(new Error("unconfirmed"), { status: 403 }));
+    else if (outcome === "ambiguous") h.resolves[1].resolve({ status: "ambiguous" });
+    else {
+      h.context.cancelReferenceInteraction();
+      assert.equal(h.resolves[1].options.signal.aborted, true);
+      h.resolves[1].resolve({ status: "found", id: docB, created: true });
+    }
+    await opening;
+    assertRetained(h, "Original body");
+    assert.equal(h.reads.length, 0);
+    if (outcome === "read-only") assert.match(h.$("reference-message").textContent, /read only/);
+  }
+});
+
 test("failed saves retain the dirty draft and never resolve a page reference", async () => {
   const h = referenceHarness();
   const opening = h.activate();

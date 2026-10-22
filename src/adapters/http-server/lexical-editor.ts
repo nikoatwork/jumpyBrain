@@ -2,7 +2,7 @@
 import {
   $addUpdateTag, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
-  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORY_PUSH_TAG, IS_CODE, PASTE_COMMAND,
+  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, IS_CODE, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
   ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, getDOMTextNode, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
@@ -15,6 +15,7 @@ import {
 } from "@lexical/markdown";
 
 import { referenceRanges, safeTitle } from "./reference-ranges.js";
+import { completedReferenceTitles } from "./reference-creation.js";
 import { externalLineChanges } from "./external-document-updates.js";
 import "./reference-autocomplete.js";
 
@@ -128,8 +129,15 @@ function snapshot(node: LexicalNode): string {
 
 export function createNoteEditor(element: HTMLElement, options: {
   onChange: (markdown: string) => void;
+  // Only committed edits to active reference text; never hydration or refresh.
+  onCompletedReferences?: (titles: string[]) => void;
+  // Companion-only input shortcut; stored references always use [[…]].
+  atReferenceTrigger?: boolean;
   // Kept for caller compatibility; explicit picker opening belongs to the host.
   onActivateReference?: (title: string) => void;
+  // A permission-readonly host can explain link outcomes while ordinary
+  // navigation/session locks keep reference activation disabled.
+  canActivateReference?: () => boolean;
   onError: (error: Error) => void;
 }) {
   const sources = new Map<string, { original: string; snapshot: string }>();
@@ -255,9 +263,37 @@ export function createNoteEditor(element: HTMLElement, options: {
   cleanups.push(editor.registerNodeTransform(RootNode, scanReferences));
   let markdown = "";
   let loading = false;
+  let completionBaseline = "", redoPending = false, completionTimer = 0;
+  const win = element.ownerDocument.defaultView!;
+  const referenceText = () => $getRoot().getChildren().map((block) => block.getTextContent()).join("\n");
+  function reportCompletions(suppress = false) {
+    const text = referenceText(), active: { start: number; end: number; title: string }[] = [];
+    let offset = 0;
+    for (const block of $getRoot().getChildren()) {
+      function visit(node: LexicalNode) {
+        if ($isTextNode(node)) {
+          if (node instanceof PageReferenceNode && node.__active) active.push({ start: offset, end: offset + node.getTextContentSize(), title: node.getTextContent().slice(2, -2) });
+          offset += node.getTextContentSize();
+        } else if ($isElementNode(node)) node.getChildren().forEach(visit);
+        else offset += node.getTextContentSize();
+      }
+      visit(block); offset++;
+    }
+    const completed = suppress ? [] : completedReferenceTitles(completionBaseline, text, active);
+    if (text !== completionBaseline) redoPending = false;
+    completionBaseline = text;
+    if (completed.length) options.onCompletedReferences?.(completed);
+  }
+  cleanups.push(editor.registerCommand(REDO_COMMAND, () => {
+    redoPending = true;
+    // History can first commit a no-op, then restore its snapshot in a later
+    // microtask. Consume intent only when reference text actually changes.
+    return false;
+  }, COMMAND_PRIORITY_HIGH));
+  cleanups.push(editor.registerCommand(UNDO_COMMAND, () => { redoPending = false; return false; }, COMMAND_PRIORITY_HIGH));
   let lastSelection: RangeSelection | null = null;
   const serialize = () => $convertToMarkdownString(transformers, undefined, true);
-  cleanups.push(editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves }) => {
+  cleanups.push(editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves, tags }) => {
     if (loading) return;
     editorState.read(() => {
       const selection = $getSelection();
@@ -265,9 +301,20 @@ export function createNoteEditor(element: HTMLElement, options: {
       if (!dirtyElements.size && !dirtyLeaves.size) return;
       const next = serialize();
       if (next !== markdown) { markdown = next; options.onChange(next); }
+      if (!editor.isComposing()) reportCompletions(tags.has(HISTORIC_TAG) && !redoPending);
     });
     notifyReferenceContext();
   }));
+  const compositionEnd = () => {
+    win.clearTimeout(completionTimer);
+    // Some browsers commit the final composition through a later input event.
+    // Keep the baseline across preedit updates and inspect only committed state.
+    completionTimer = win.setTimeout(() => {
+      if (!loading && !editor.isComposing()) editor.getEditorState().read(() => reportCompletions());
+    }, 0);
+  };
+  element.addEventListener("compositionend", compositionEnd);
+  cleanups.push(() => { win.clearTimeout(completionTimer); element.removeEventListener("compositionend", compositionEnd); });
   // Do not expose formats that our Markdown subset cannot save.
   cleanups.push(editor.registerCommand(FORMAT_TEXT_COMMAND, (format) => {
     if (format !== "bold" && format !== "italic") return true;
@@ -353,12 +400,28 @@ export function createNoteEditor(element: HTMLElement, options: {
     return editor.read(() => {
       const caret = $getSelection();
       if (!editor.isEditable() || !$isRangeSelection(caret) || !caret.isCollapsed() || caret.anchor.type !== "text") return null;
-      const range = referenceRange(true);
-      if (!range || !range.text.startsWith("[[") || /[\[\]\r\n]/.test(range.query)
-          || range.selection.anchor.key !== caret.anchor.key || range.selection.focus.key !== caret.anchor.key
-          || caret.anchor.offset !== range.selection.anchor.offset + 2 + range.query.length) return null;
       const leaf = caret.anchor.getNode(), block = leaf.getParent();
       if (!$isTextNode(leaf) || !block || !(block instanceof ParagraphNode || block instanceof HeadingNode)) return null;
+      let range = referenceRange(true);
+      let trigger: "[[" | "@" = "[[";
+      if (!range?.text.startsWith("[[") && options.atReferenceTrigger) {
+        const value = leaf.getTextContent(), end = caret.anchor.offset;
+        const opening = value.lastIndexOf("@", end - 1);
+        const previous = opening > 0 ? value[opening - 1]
+          : leaf.getPreviousSiblings().map((node) => node.getTextContent()).join("").slice(-1);
+        // Like unfinished [[ queries, stay within one leaf at logical block end.
+        // A word boundary excludes email addresses, escapes and URL userinfo.
+        if (opening < 0 || (previous && !/[\s(]/.test(previous))
+            || end !== value.length || leaf.getNextSiblings().some((node) => node.getTextContentSize() > 0)) return null;
+        const selection = caret.clone();
+        selection.anchor.set(leaf.getKey(), opening, "text");
+        range = { selection, query: value.slice(opening + 1, end), value: markdown, text: value.slice(opening, end) };
+        trigger = "@";
+      }
+      if (!range || !range.text.startsWith(trigger) || /[\[\]\r\n]/.test(range.query)
+          || (trigger === "@" && range.query.includes("@"))
+          || range.selection.anchor.key !== caret.anchor.key || range.selection.focus.key !== caret.anchor.key
+          || caret.anchor.offset !== range.selection.anchor.offset + trigger.length + range.query.length) return null;
       const blocks = $getRoot().getChildren();
       let offset = 0, found = false;
       for (const candidate of blocks) {
@@ -372,10 +435,10 @@ export function createNoteEditor(element: HTMLElement, options: {
       // A complete sentinel permits the same context scanner to validate empty
       // and unfinished queries. This is string-only; no editor DOM/model edit.
       const probe = text.slice(0, start) + "[[Candidate]]" + text.slice(end);
-      return referenceRanges(probe).some((match) => match.start === start && match.end === start + 13) ? range : null;
+      return referenceRanges(probe).some((match) => match.start === start && match.end === start + 13) ? { ...range, trigger } : null;
     });
   }
-  // Typing [[ is handled by the host’s inline autocomplete installer, never
+  // Typing [[ (or companion @) is handled by the host’s inline autocomplete installer, never
   // by the explicit modal picker. Context notifications include selection edits.
 
   // Browser event delegation only: the model owns every rendered reference.
@@ -393,7 +456,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     });
   }
   function follow(link: HTMLElement) {
-    if (!editor.isEditable() || hasSelection()) return;
+    if ((!editor.isEditable() && options.canActivateReference?.() !== true) || hasSelection()) return;
     const title = editor.read(() => {
       const node = $getNearestNodeFromDOMNode(link);
       if (!(node instanceof PageReferenceNode) || !node.__active) return null;
@@ -491,12 +554,15 @@ export function createNoteEditor(element: HTMLElement, options: {
     setMarkdown(value: string, reset = false) {
       if (!reset && value === markdown && editor.getEditorState().isEmpty() === false) return;
       loading = true;
+      redoPending = false;
+      win.clearTimeout(completionTimer);
       sources.clear(); lastSelection = null;
       editor.update(() => {
         const root = $getRoot(); root.clear();
         root.append(...parseMarkdown(value));
         scanReferences();
         for (const node of root.getChildren()) sources.get(node.getKey())!.snapshot = snapshot(node);
+        completionBaseline = referenceText();
         $setSelection(null);
       }, { discrete: true });
       markdown = value;

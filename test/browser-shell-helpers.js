@@ -11,6 +11,7 @@ export function shellFunctions(script, names, context) {
   for (const [key, value] of Object.entries({
     documentActions: { isBusy: () => false, isOpen: () => false, close() {}, openRecovery() {} },
     recentWrites: { remember() {}, remove() {}, reset() {} }, searchIndexRefreshing: false, sessionRetry: { disabled: false },
+    referenceCreation: { reset() {}, hasPending: () => false, settle: async () => true, saved: async () => true, rebase: async () => true, completed() {} },
     sidebarPages: { select() {}, visit() {}, rename() {}, remove() {}, refresh() {} },
   })) if (!(key in context)) context[key] = value;
   Object.assign(context, { referenceEligibility, memoryDocumentPath });

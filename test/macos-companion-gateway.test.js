@@ -234,6 +234,79 @@ test('remote profile keys stay out of state/file/browser, read-only writes block
   assert.equal(f.gateway.store.snapshot().activeId, remote.id);
 });
 
+test('page find-or-create requires remote write approval while title lookup remains read-only', async t => {
+  const forwarded = [];
+  const f = await fixture(t, { fetchImpl: async (url, options) => {
+    if (url.endsWith('/memories/all/ensure-title')) {
+      forwarded.push({ url, body: JSON.parse(options.body.toString()), headers: options.headers });
+      return new Response(JSON.stringify({ status: 'found', id, created: true }), { headers: { 'Content-Type': 'application/json' } });
+    }
+    return fetch(url, options);
+  } });
+  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key' });
+  const remote = saved.profiles.find(profile => profile.kind === 'remote');
+  assert.equal((await f.native('/companion/switch', { id: remote.id })).status, 200);
+  const generation = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'reference-tab', generation });
+  const resolved = await f.memory('resolve-title', { title: 'Fixture remote' }, 'reference-tab', generation);
+  assert.equal(resolved.status, 200);
+  assert.equal((await resolved.json()).status, 'found');
+  for (const title of ['Fixture remote', 'Missing page']) {
+    const denied = await f.memory('ensure-title', { title }, 'reference-tab', generation);
+    assert.equal(denied.status, 403);
+    assert.equal((await denied.json()).error.code, 'write_not_authorized');
+  }
+  assert.equal(forwarded.length, 0);
+  f.gateway.coordinator.unregister('reference-tab', generation);
+  await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, allowWrites: true });
+  const nextGeneration = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'reference-tab', generation: nextGeneration });
+  const headers = { 'X-Companion-Generation': String(nextGeneration), 'X-Companion-Tab': 'reference-tab' };
+  assert.equal((await f.browser('/memories/all/ensure-title', { title: 'Missing page' }, { ...headers, Origin: 'https://evil.invalid' })).status, 403);
+  assert.equal((await fetch(f.gateway.url + '/memories/all/ensure-title', {
+    method: 'POST', headers: { Origin: f.gateway.url, 'Content-Type': 'application/json', ...headers }, body: JSON.stringify({ title: 'Missing page' }),
+  })).status, 401);
+  const result = await f.memory('ensure-title', { title: 'Missing page' }, 'reference-tab', nextGeneration);
+  assert.equal(result.status, 200, await result.clone().text());
+  assert.deepEqual(await result.json(), { status: 'found', id, created: true });
+  assert.equal(forwarded.length, 1);
+  assert.equal(forwarded[0].url, f.remote.url + '/memories/all/ensure-title');
+  assert.deepEqual(forwarded[0].body, { title: 'Missing page' });
+  assert.equal(forwarded[0].headers.Authorization, 'Bearer remote-test-key');
+  assert.equal((await f.memory('ensure-title', { title: 'Late page' }, 'reference-tab', generation)).status, 409);
+  assert.equal((await f.memory('ensure-title', { title: 'Unknown tab' }, 'unknown-tab', nextGeneration)).status, 409);
+  assert.equal(forwarded.length, 1);
+});
+
+test('page find-or-create pins the admitted brain until drained and fences acknowledged tabs', async t => {
+  let admitted = 0, release;
+  const f = await fixture(t, { fetchImpl: async (url, options) => {
+    if (url.endsWith('/memories/all/ensure-title')) {
+      admitted++;
+      return new Promise(resolve => { release = () => resolve(new Response(JSON.stringify({ status: 'found', id, created: true }), { headers: { 'Content-Type': 'application/json' } })); });
+    }
+    return fetch(url, options);
+  } });
+  const generation = f.gateway.coordinator.generation;
+  const saved = await f.save({ name: 'Local B', kind: 'local', root: f.roots[1] });
+  const target = saved.profiles.find(profile => profile.name === 'Local B');
+  await f.browser('/companion/register', { tabId: 'reference-tab', generation });
+  const creating = f.memory('ensure-title', { title: 'Missing page' }, 'reference-tab', generation);
+  await until(() => release);
+  const switching = f.native('/companion/switch', { id: target.id });
+  await until(() => f.gateway.coordinator.pending);
+  assert.equal((await f.browser('/companion/ack', { tabId: 'reference-tab', switchId: f.gateway.coordinator.pending.id, ok: true })).status, 200);
+  assert.equal(f.gateway.coordinator.generation, generation);
+  assert.notEqual(f.gateway.store.snapshot().activeId, target.id);
+  assert.equal((await f.memory('ensure-title', { title: 'Too late' }, 'reference-tab', generation)).status, 409);
+  release();
+  assert.equal((await creating).status, 200);
+  assert.equal((await switching).status, 200);
+  assert.equal(f.gateway.store.snapshot().activeId, target.id);
+  assert.equal((await f.memory('ensure-title', { title: 'Old generation' }, 'reference-tab', generation)).status, 409);
+  assert.equal(admitted, 1);
+});
+
 test('empty gateway can save its first profile; replacing its destination invalidates old link identity', async (t) => {
   const f = await fixture(t, { initialRoot: undefined });
   assert.equal(f.gateway.state().activeId, null);
