@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — v0.3.6 beta release
+
+- Published [v0.3.6](done/releases/v0.3.6.md) with bounded Mac Back navigation, page-reference creation, shared graph search, note attention, and simpler sidebar/update controls.
+
 ## 2026-10-22 — Mac Back navigation
 
 - Mac Back inputs reuse guarded navigation with five previous pages and no duplicate history stack; finalized [implementation and verification](done/2026-10-22_tasks-mac-back-navigation.md).
