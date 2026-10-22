@@ -527,7 +527,8 @@ function createPageNavigation(options) {
     return restoring.promise;
   }
   async function navigate(destination) {
-    if (busy || options.blocked?.() || destination === current.url) return false;
+    if (busy || options.blocked?.()) return false;
+    if (typeof destination !== "function" && (options.scope ? options.scope(destination) : destination) === current.url) return false;
     busy = true;
     let applied = false;
     try {
@@ -538,6 +539,8 @@ function createPageNavigation(options) {
       const destinationUrl = typeof destination === "function" ? await destination() : destination;
       const url = options.scope ? options.scope(destinationUrl) : destinationUrl;
       await restore();
+      // A resolved self-reference still applies its validated payload, without a new entry.
+      if (url === current.url) { options.show(url); applied = true; return true; }
       current = { url, index: current.index + 1 };
       position = current.index;
       options.push(current);
@@ -578,7 +581,8 @@ function createPageNavigation(options) {
     committing = entry;
     options.go(entry.index - current.index);
   }
-  return { navigate, pop, isBusy: () => busy, reset(entry) { current = entry; position = entry.index; } };
+  return { navigate, pop, back() { if (!busy && !options.blocked?.()) options.go(-1); },
+    isBusy: () => busy, reset(entry) { current = entry; position = entry.index; } };
 }
 
 function datedNoteDraft(date) {
@@ -849,7 +853,8 @@ function renderNoteSearch(search) {
 async function chooseSearchResult(result) {
   if (!result?.documentId || selectingResult) return;
   if (searchMode === "insert") { insertPageReference(result); return; }
-  const url = "/?note=" + encodeURIComponent(result.documentId);
+  const destination = "/?note=" + encodeURIComponent(result.documentId);
+  const url = typeof companionMode !== "undefined" && companionMode ? companionScopeUrl(destination) : destination;
   if (url === shellUrl()) { closeSearch(); return; }
   selectingResult = true;
   noteSearch.cancel();

@@ -341,7 +341,21 @@ test("choosing a result navigates to its detail URL and explains save-guard reje
   assert.equal(context.selectingResult, false);
 });
 
-function navigationHarness(beforeLeave = async () => true) {
+test("choosing the current companion search result closes search without duplicating scoped history", async () => {
+  let closes = 0;
+  const context = runtime(["chooseSearchResult"], {
+    selectingResult: false, searchMode: "navigate", companionMode: true,
+    companionScopeUrl: url => url + "&brain=a",
+    shellUrl: () => "/?note=" + docA + "&brain=a",
+    closeSearch: () => closes++,
+    navigation: { navigate() { assert.fail("current scoped page must not navigate"); } },
+  });
+  await context.chooseSearchResult({ documentId: docA });
+  assert.equal(closes, 1);
+  assert.equal(context.selectingResult, false);
+});
+
+function navigationHarness(beforeLeave = async () => true, extra = {}) {
   const { createPageNavigation } = runtime(["createPageNavigation"]);
   const entries = [{ index: 0, url: "/" }];
   let position = 0;
@@ -354,6 +368,7 @@ function navigationHarness(beforeLeave = async () => true) {
     push(entry) { entries.splice(position + 1); entries.push(entry); position++; },
     go(delta) { assert.notEqual(delta, 0, "history.go(0) would reload"); go.push(delta); },
     show(url) { shown = url; },
+    ...extra,
   });
   async function event(delta) {
     position += delta;
@@ -387,12 +402,40 @@ test("page navigation preserves Back/Forward entries, including a failed-save tr
   assert.equal(h.shown, "/");
 });
 
+test("desktop Back uses the same failed-save guard and ignores frozen/busy input", async () => {
+  let allowed = true, blocked = false;
+  const h = navigationHarness(async () => allowed, { blocked: () => blocked });
+  await h.nav.navigate("/?note=" + docA);
+  allowed = false;
+  h.nav.back(); await h.drain();
+  assert.equal(h.shown, "/?note=" + docA);
+  assert.equal(h.url, h.shown);
+  blocked = true;
+  h.nav.back();
+  assert.equal(h.go.length, 0);
+  blocked = false; allowed = true;
+  h.nav.back(); await h.drain();
+  assert.equal(h.shown, "/");
+});
+
+test("same scoped destination does not add a desktop/browser history entry", async () => {
+  const h = navigationHarness(async () => true, { scope: url => url.includes("brain=") ? url : url + "?brain=a" });
+  assert.equal(await h.nav.navigate("/graph"), true);
+  assert.equal(await h.nav.navigate("/graph"), false);
+  assert.equal(h.entries.length, 2);
+  assert.equal(await h.nav.navigate(async () => "/graph"), true, "resolved self-reference still completes its guarded load");
+  assert.equal(h.entries.length, 2, "resolved destinations must not duplicate history either");
+  assert.equal(h.shown, "/graph?brain=a");
+});
+
 test("overlapping navigation is blocked while a save is pending", async () => {
   let save = null;
   const h = navigationHarness(() => save ? save.promise : Promise.resolve(true));
   await h.nav.navigate("/?note=" + docA);
   save = deferred();
   const navigating = h.nav.navigate("/graph");
+  h.nav.back();
+  assert.equal(h.go.length, 0, "native Back must not queue while save/navigation is busy");
   assert.equal(await h.nav.navigate("/"), false);
   assert.equal(h.url, "/?note=" + docA);
   await h.event(-1); await h.drain();

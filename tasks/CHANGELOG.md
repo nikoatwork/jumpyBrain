@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Mac Back navigation
+
+- Mac Back inputs reuse guarded navigation with five previous pages and no duplicate history stack; finalized [implementation and verification](done/2026-10-22_tasks-mac-back-navigation.md).
+
 ## 2026-10-22 — Task finalization
 
 - Completed task lists are archived and committed automatically under the [task workflow](../docs/task-workflow.md), preserving unrelated work.

@@ -2,6 +2,7 @@ import { BrowserWindow, dialog, Menu, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { mountInlineUpdates, nativeUpdateAction } from './update-inline.mjs';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
+import { installBackNavigation } from './back-navigation.mjs';
 
 export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, updater } = {}) {
   const window = new BrowserWindow({
@@ -14,6 +15,7 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     },
   });
   const contents = window.webContents;
+  installBackNavigation(window, origin);
   const record = (code, details = {}) => diagnostics?.record({ operation: 'renderer', severity: 'error', outcome: 'failed', code, ...details });
   contents.on('render-process-gone', (_event, details) => record(details.reason, { exitCode: details.exitCode }));
   contents.on('unresponsive', () => record('unresponsive'));

@@ -86,6 +86,8 @@ The script verifies the graph loads, renders SVG nodes/edges, filters metadata, 
 
 Browser Back/Forward restores the current history entry before a pending-save flush and replays the traversal only on success. Failed drafts remain reachable with Retry. After an unconfirmed write, even undoing to the previously saved body still requires Retry: a failed network response may hide a committed server write. Closing search preserves rich-editor focus, caret, and scroll; title/frontmatter are never interpreted as browser HTML.
 
+The desktop adapter requests Back through this same controller and ignores requests while navigation is busy or companion editing is frozen. Compare ordinary destinations after companion URL scoping so repeated sidebar clicks do not add duplicate entries. The Electron host bounds native history to the current destination plus five previous pages and clears it on reload/brain changes; ordinary hosted browser history remains browser-owned. See the [desktop boundary](../../../integrations/electron/electron.docs.md) for supported inputs and gesture limits.
+
 ## Non-responsibilities
 
 - Canonical publication, protected frontmatter, ID uniqueness, and title uniqueness belong to core/app. Browser guards do not replace them.
