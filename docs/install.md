@@ -297,3 +297,7 @@ jumpyBrain is structured around three paths while keeping one memory system:
 Vercel is not a supported production target for the memory server because the current server needs durable local filesystem state; see [`vercel-deploy.md`](vercel-deploy.md).
 
 Markdown remains canonical in all paths; indexes and support state remain derived/rebuildable.
+
+### Update from the Mac sidebar
+
+In an installed `~/Applications/jumpyBrain.app`, the bottom-right sidebar control checks for new published versions. Choose **Install update** to download, verify and prepare the new app while you work, then **Restart to update** when ready. Restart waits for open editor tabs to save; resolve any blocked saves and retry. Preparing can take a few minutes and requires the same Node/npm, Python and Xcode command-line tools as initial setup. This updates the desktop app and its bundled runtime; the separately installed CLI keeps its own update workflow. Local/custom-path development builds continue to use `npm run desktop:setup`.

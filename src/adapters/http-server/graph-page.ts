@@ -1,6 +1,7 @@
 import { GRAPH_NODE_TONES } from "./map-controller.js";
 import { readFileSync } from "node:fs";
 import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
+import { updateScript } from "./browser-updates.js";
 import { sidebarBootstrap, sidebarScript } from "./browser-sidebar.js";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
 import { documentActionsMarkup, documentActionsScript, notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
@@ -181,6 +182,7 @@ ${feedbackMarkup}
 <script nonce="${nonce}">
 ${lexicalBundle}
 ${sidebarScript}
+${updateScript}
 const { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
 const recentWrites = createRecentWriteSearch({
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),

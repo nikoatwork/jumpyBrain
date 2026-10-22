@@ -12,17 +12,19 @@ export function createQuitFlow({ getHost, control, closeWindows, cancelClose, fl
       }
       if (!await closeWindows()) {
         if (lease) await control(host.connection, 'shutdown', { action: 'cancel', id: lease });
-        cancelClose(); return;
+        cancelClose(); return false;
       }
       await flush();
       // A slow unload dialog may outlive the preparation lease. Revalidate and
       // hold admission closed before stopping; never assume a stale save barrier.
       if (lease) await control(host.connection, 'shutdown', { action: 'commit', id: lease });
       await host?.stop();
-      exit();
+      await exit();
+      return true;
     } catch (error) {
       if (lease && host?.isAlive()) await control(host.connection, 'shutdown', { action: 'cancel', id: lease }).catch(() => {});
       cancelClose(); await showError(error);
+      return false;
     } finally { pending = null; }
   })();
 }

@@ -1,9 +1,11 @@
+import { updateMarkup, updateStyles } from "./browser-updates.js";
 import { brainOutlineSvg } from "./favicon.js";
 import { themeMarkup } from "./browser-theme.js";
 
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
 export const notesStyles = String.raw`
+${updateStyles}
     body { display: flex; height: 100dvh; }
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
     .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 18px; padding: 20px 12px 12px; border-right: 1px solid var(--line); overflow: auto; }
@@ -216,6 +218,7 @@ export const notesMarkup = String.raw`
     <button id="open-connection" class="quiet-button nav-item" aria-label="Connect · Connection settings" aria-haspopup="dialog">Connect</button>
     <button id="open-feedback" class="quiet-button nav-item" aria-haspopup="dialog" aria-controls="feedback-dialog">Feedback</button>
     <div class="nav-appearance"><span>Appearance</span>${themeMarkup}</div>
+    ${updateMarkup}
   </div>
 </nav>
 <div class="app-workspace">

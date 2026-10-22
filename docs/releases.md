@@ -11,7 +11,7 @@ All 0.x releases are beta GitHub prereleases. Numeric versions remain `major.min
 
 The release command requires a clean `master`, a writable `origin`, and `gh` authenticated as an account with write access to this repository (SSH push access alone is insufficient). Account permissions are checked before changing the version. It fetches remote tags, rejects remote divergence and existing version tags, bumps the root and Electron package.json/package-lock.json together, runs `npm test`, builds/validates the tarball, creates the release commit/tag, atomically pushes branch/tag, then publishes a GitHub release with the tarball. It uses `docs/releases/vX.Y.Z.md` if present, otherwise generated GitHub notes. No npm publication or machine-specific native app bundle is uploaded.
 
-The installer still tracks its recorded Git source/ref (normally master), not GitHub release assets. Tags and release notes provide stable checkpoints. Local-source installations stay local-source installations until explicitly changed.
+The CLI installer still tracks its recorded Git source/ref (normally master), not GitHub release assets. The desktop sidebar updater uses the published `jumpybrain-X.Y.Z.tgz` asset and its GitHub SHA-256 digest, including numeric 0.x beta releases. It builds the app locally, then offers an explicit save-protected restart. Keep the complete Electron packaging sources, lockfile, native helper sources, and compiled runtime in that distribution; no portable Mac binary feed is implied. Tags and release notes provide stable checkpoints. Local-source installations stay local-source installations until explicitly changed.
 
 ## Default for release requests
 

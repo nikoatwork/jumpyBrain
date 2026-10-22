@@ -18,7 +18,7 @@ try {
     appVersion: metadata.version, platform: 'darwin', arch: process.arch, out: output,
     icon: path.join(source, 'assets/app-icon.icns'), appCategoryType: 'public.app-category.productivity',
     asar: true, prune: true,
-    ignore: [/^\/install\.mjs$/, /^\/__pycache__(?:\/|$)/, /^\/.*\.py$/, /^\/smoke.*\.mjs$/, /^\/package-lock\.json$/, /^\/README\.md$/, /^\/.*docs\.md$/],
+    ignore: [/^\/install\.mjs$/, /^\/__pycache__(?:\/|$)/, /^\/(?!update-extract\.py$).*\.py$/, /^\/smoke.*\.mjs$/, /^\/package-lock\.json$/, /^\/README\.md$/, /^\/.*docs\.md$/],
     extendInfo: { CFBundleDisplayName: 'jumpyBrain', NSHumanReadableCopyright: 'jumpyBrain · Markdown stays yours.', LSMinimumSystemVersion: '13.0' },
   });
   const built = path.join(bundle, 'jumpyBrain.app');

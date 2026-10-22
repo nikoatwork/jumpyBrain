@@ -4,6 +4,15 @@ const distDirPrefix = (...segments) => `${distFile(...segments)}/`;
 
 export const requiredLocalPackFiles = Object.freeze([
   "package/package.json",
+  "package/integrations/electron/package.json",
+  "package/integrations/electron/package-lock.json",
+  "package/integrations/electron/install.mjs",
+  "package/integrations/electron/desktop-install.py",
+  "package/integrations/electron/update-release.mjs",
+  "package/integrations/electron/update-extract.py",
+  "package/integrations/electron/update-handoff.mjs",
+  "package/integrations/electron/update-preload.cjs",
+  "package/integrations/electron/updates.mjs",
   "package/install.sh",
   "package/uninstall.sh",
   "package/scripts/public-install.mjs",

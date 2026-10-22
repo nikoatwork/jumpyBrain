@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Desktop sidebar updates
+
+- The Mac sidebar now discovers published updates, prepares them while you work, and offers a separate restart protected by the all-tab save barrier.
+
 ## 2026-10-22 — Local installation guidance
 
 - Clarified local privacy boundaries, app/CLI use of one brain, existing-install reuse, and agent-assisted setup in the installation guides and new FAQ.

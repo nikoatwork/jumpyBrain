@@ -1,5 +1,10 @@
 import { app, BrowserWindow, dialog, Menu, Tray, nativeImage, shell } from 'electron';
 import path from 'node:path';
+import os from 'node:os';
+import { readFile } from 'node:fs/promises';
+import { createDesktopUpdater } from './updates.mjs';
+import { discoverRelease, stageRelease } from './update-release.mjs';
+import { prepareRestart } from './update-handoff.mjs';
 import { fileURLToPath } from 'node:url';
 import { bundledHost, startDesktopHost, desktopControl } from './desktop-host.mjs';
 import { createQuitFlow } from './lifecycle.mjs';
@@ -18,6 +23,29 @@ let window = null, opening = false, host = null, starting = null, config = null;
 let startupError = null;
 let diagnostics = null, tray = null, healthTimer = null, polling = false;
 let quitting = false, quitReady = false, status = 'Starting…';
+let updateTimer = null, updateHandoff = null;
+const updater = createDesktopUpdater({
+  currentVersion: app.getVersion(),
+  supported: app.isPackaged && process.platform === 'darwin' && process.execPath === path.join(os.homedir(), 'Applications/jumpyBrain.app/Contents/MacOS/jumpyBrain'),
+  discover: discoverRelease,
+  stage: async (release, progress) => {
+    const native = JSON.parse(await readFile(path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json'), 'utf8'));
+    return stageRelease(release, { node: native.node, directory: path.join(app.getPath('userData'), 'updates'), progress });
+  },
+  restart: async (prepared) => {
+    if (quitting) throw new Error('Shutdown is already in progress.');
+    quitting = true; void refreshTray();
+    try {
+      const native = JSON.parse(await readFile(path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json'), 'utf8'));
+      updateHandoff = await prepareRestart(prepared, { node: native.node, home: os.homedir() });
+      await Promise.resolve(starting).catch(() => {});
+      const completed = await quit();
+      if (!completed) { await updateHandoff.cancel(); updateHandoff = null; }
+    } catch (error) {
+      await updateHandoff?.cancel(); updateHandoff = null; quitting = false; void refreshTray(); throw error;
+    }
+  },
+});
 const resources = resourceDirectory ?? (app.isPackaged ? process.resourcesPath : fileURLToPath(new URL('../../.local-pack/desktop/jumpyBrain.app/Contents/Resources', import.meta.url)));
 process.on('uncaughtExceptionMonitor', () => { diagnostics?.record({ operation: 'exception', severity: 'error', outcome: 'failed', code: 'error' }); void diagnostics?.flush(); });
 
@@ -57,7 +85,7 @@ async function openEditor(settings = false) {
       await welcome.loaded;
       if (!await welcome.completed || quitting) return;
     }
-    const editor = createEditorWindow(connection, { diagnostics });
+    const editor = createEditorWindow(connection, { diagnostics, updater });
     window = editor.window;
     window.on('closed', () => { if (window === editor.window) window = null; });
     await editor.loaded;
@@ -85,7 +113,7 @@ async function refreshTray() {
     { type: 'separator' },
     { label: 'Start at Login', type: 'checkbox', checked: login, enabled: !!config && app.isPackaged && !quitting,
       click: (item) => void setLoginEnabled(config.launchAgent, process.execPath, item.checked).then(refreshTray).catch(showError) },
-    { label: 'Update jumpyBrain…', click: () => void dialog.showMessageBox({ message: 'Update from your checkout', detail: 'Pull your chosen revision, quit jumpyBrain, then run npm run desktop:setup. This rebuilds and updates the whole Mac app together. Your brains and connections are retained.' }) },
+    { label: 'Check for Updates…', enabled: !quitting, click: () => { void updater.check(); void openEditor().then(() => window?.webContents.executeJavaScript('document.getElementById("desktop-update-toggle")?.click()')); } },
     { label: 'Show Logs', enabled: !!config, click: () => shell.showItemInFolder(path.join(config.supportDirectory, 'server.log')) },
     { type: 'separator' }, { label: 'Quit jumpyBrain', enabled: !quitting, click: () => app.quit() },
   ]));
@@ -106,7 +134,10 @@ const quit = createQuitFlow({
   },
   cancelClose: () => { quitting = false; void refreshTray(); },
   flush: async () => { diagnostics?.record({ operation: 'shutdown', severity: 'info', outcome: 'ok', code: 'none' }); await diagnostics?.flush(); },
-  exit: () => { clearInterval(healthTimer); tray?.destroy(); quitReady = true; app.quit(); }, showError,
+  exit: async () => {
+    await updateHandoff?.commit();
+    clearInterval(healthTimer); clearInterval(updateTimer); tray?.destroy(); quitReady = true; app.quit();
+  }, showError,
 });
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -126,6 +157,8 @@ else {
     icon.setTemplateImage(true); tray = new Tray(icon);
     setApplicationMenu({ app, getWindow: () => window, reconnect: () => void openEditor(), settings: () => void openEditor(true) });
     await refreshTray();
+    void updater.check();
+    updateTimer = setInterval(() => { if (!quitting) void updater.check(); }, 6 * 60 * 60 * 1000);
     healthTimer = setInterval(async () => {
       if (polling || quitting || !host?.isAlive()) return;
       polling = true;

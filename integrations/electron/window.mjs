@@ -1,18 +1,21 @@
-import { BrowserWindow, dialog, Menu, shell } from 'electron';
+import { BrowserWindow, dialog, Menu, shell, ipcMain } from 'electron';
+import { attachUpdateBridge } from './updates.mjs';
 import { fileURLToPath } from 'node:url';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 
-export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics } = {}) {
+export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, updater } = {}) {
   const window = new BrowserWindow({
     title: 'jumpyBrain', icon: fileURLToPath(new URL('./assets/app-icon.png', import.meta.url)), width: 1200, height: 860, minWidth: 480, minHeight: 480,
     show: false, backgroundColor: '#f7f4ed',
     webPreferences: {
       partition: 'persist:jumpybrain-electron-prototype',
+      ...(updater ? { preload: fileURLToPath(new URL('./update-preload.cjs', import.meta.url)) } : {}),
       nodeIntegration: false, contextIsolation: true, sandbox: true,
       webSecurity: true, webviewTag: false, navigateOnDragDrop: false,
     },
   });
   const contents = window.webContents;
+  if (updater) attachUpdateBridge(ipcMain, contents, origin, updater);
   const record = (code, details = {}) => diagnostics?.record({ operation: 'renderer', severity: 'error', outcome: 'failed', code, ...details });
   contents.on('render-process-gone', (_event, details) => record(details.reason, { exitCode: details.exitCode }));
   contents.on('unresponsive', () => record('unresponsive'));
@@ -20,7 +23,8 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   contents.on('did-finish-load', () => { void diagnostics?.checkRenderer(contents); });
   const session = contents.session;
   // The UI is served entirely by the installed gateway. It needs no external
-  // network access, Node bridge, preload script, or remote frames. The only
+  // network access or remote frames. A narrow preload exposes desktop update
+  // state and fixed actions only; Node and raw IPC stay private. The only
   // download is a bounded feedback email draft saved through the native dialog.
   // Preserve the existing Copy draft / Copy prompt actions. Never grant
   // programmatic clipboard reads or permissions to another origin/frame.
