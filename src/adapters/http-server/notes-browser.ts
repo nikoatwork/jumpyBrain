@@ -1017,6 +1017,7 @@ function showPage(url) {
   if (typeof companionMode !== "undefined" && companionMode && state.view === "settings" && !/^\/settings\/?$/.test(target.pathname)) companionClearForm();
   state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
   document.body.dataset.view = state.view;
+  if (state.view !== "graph") map.suspend();
   if (typeof companionMode !== "undefined" && companionMode) $("companion-settings").hidden = state.view !== "settings";
   $("home").hidden = state.view !== "home";
   $("note-panel").hidden = state.view !== "note";

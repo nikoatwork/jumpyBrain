@@ -242,6 +242,15 @@ export function createMapController(options: MapControllerOptions) {
     }, delay || 0);
   }
 
+  function suspend() {
+    cancelFilterTimer();
+    if (state.layoutTimer !== null) window.clearTimeout(state.layoutTimer);
+    state.layoutTimer = null;
+    state.dragging = null;
+    // Preserve the bounded graph packet/camera for Back, but release hidden SVG/listener trees.
+    $("viewport").replaceChildren();
+  }
+
   // SVG has no viewBox: its local units match CSS pixels. Compensate pan using
   // the clamped scale ratio so the chosen graph point stays under the anchor.
   function zoomGraph(factor: number, clientX?: number, clientY?: number) {
@@ -301,5 +310,5 @@ export function createMapController(options: MapControllerOptions) {
   $("reset-view").addEventListener("click", () => { state.pan = { x: 0, y: 0 }; state.scale = 1; updateViewport(); });
   window.addEventListener("resize", () => queueGraphLayout(80));
   }
-  return { graphUrl, loadGraph, renderGraphNotice, render, focusGraphNode, queueGraphLayout, zoomGraph, onGraphWheel, updateViewport, connect };
+  return { graphUrl, loadGraph, renderGraphNotice, render, focusGraphNode, queueGraphLayout, suspend, zoomGraph, onGraphWheel, updateViewport, connect };
 }

@@ -3,7 +3,7 @@ import { buildCanonicalLinkTargetLookup, extractCanonicalLinks, resolveCanonical
 import type { MarkdownDocument, MemoryConnectionEdge, MemoryConnectionEdgeKind } from "../../types.js";
 
 /** Canonical connection policy shared by lightweight overview and graph projections. */
-export async function collectConnections(documents: MarkdownDocument[], visit?: (document: MarkdownDocument, content: string) => Promise<void>) {
+export async function collectConnections(documents: MarkdownDocument[], visit?: (document: MarkdownDocument, content: string) => Promise<void>, options: { neighbors?: boolean } = {}) {
   const lookup = buildCanonicalLinkTargetLookup(documents);
   const edgeCounts = new Map<string, MemoryConnectionEdge>();
   const unresolved: Array<{ source: string; target: string; kind: MemoryConnectionEdgeKind }> = [];
@@ -22,7 +22,7 @@ export async function collectConnections(documents: MarkdownDocument[], visit?: 
       const existing = edgeCounts.get(key);
       if (existing) existing.count++;
       else edgeCounts.set(key, { source: document.relativePath, target, kind: reference.kind, count: 1 });
-      for (const [source, neighbor] of [[document.relativePath, target], [target, document.relativePath]] as const) {
+      if (options.neighbors !== false) for (const [source, neighbor] of [[document.relativePath, target], [target, document.relativePath]] as const) {
         const adjacent = neighbors.get(source) ?? new Set<string>();
         adjacent.add(neighbor);
         neighbors.set(source, adjacent);

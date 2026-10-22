@@ -37,6 +37,13 @@
     "electron:install:local": "npm --prefix integrations/electron run install:local",
     "smoke:electron": "node scripts/electron-smoke.mjs",
     "smoke:desktop": "node scripts/unified-desktop-smoke.mjs",
+    "benchmark:desktop:prepare": "node scripts/desktop-ram-fixtures.mjs",
+    "benchmark:desktop": "node scripts/desktop-ram-benchmark.mjs",
+    "benchmark:desktop:report": "node scripts/desktop-ram-report.mjs",
+    "benchmark:desktop:native": "node scripts/desktop-ram-native.mjs",
+    "benchmark:desktop:gpu": "node scripts/desktop-ram-gpu.mjs",
+    "benchmark:desktop:compare": "node scripts/desktop-ram-compare.mjs",
+    "benchmark:desktop:cancel": "node scripts/desktop-ram-cancel.mjs",
     "smoke:desktop-update": "npm run build && node scripts/desktop-update-smoke.mjs"
   },
   "files": [

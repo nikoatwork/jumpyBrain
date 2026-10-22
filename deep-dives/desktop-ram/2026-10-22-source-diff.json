@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "note": "Both snapshots retain the same pre-existing cosmetic editor CSS. Optimized runtime was built in an isolated checkout from the baseline revision plus RAM changes, excluding concurrent browser redesign edits. Unused Swift .build cache is omitted from the optimized snapshot; this is not a runtime dependency or a measured memory saving.",
+  "protocols": [
+    {
+      "notes": [
+        0,
+        100,
+        1000
+      ],
+      "sources": {
+        "baseline": "f3cbe16417b96109cfe51efd2cab52f4fe01cf5552ef11857bac0573d0f7f030",
+        "optimized": "263bf933df15c297426bcf503c79b1e5d1d757d9666df1bc525ee8663d86614a"
+      },
+      "changedRuntimeFiles": [
+        "Resources/runtime/dist/adapters/diagnostics/build-info.json",
+        "Resources/runtime/dist/adapters/http-server/editor-bundle.js",
+        "Resources/runtime/dist/adapters/http-server/map-controller.d.ts",
+        "Resources/runtime/dist/adapters/http-server/map-controller.js",
+        "Resources/runtime/dist/adapters/http-server/notes-browser.js",
+        "Resources/runtime/dist/app/local-memory/connections.d.ts",
+        "Resources/runtime/dist/app/local-memory/connections.js",
+        "Resources/runtime/dist/app/local-memory/graph.js",
+        "Resources/runtime/dist/core/canonical/markdown-store.js"
+      ]
+    },
+    {
+      "notes": [
+        10000
+      ],
+      "sources": {
+        "baseline": "67dad1c4a14e9735d3926cf2f79a0cee89069c8340932e82e29a44b4565ee797",
+        "optimized": "be45152ce304f688d67c4164277b64bab21c12f450a4261752465ba1a6107001"
+      },
+      "changedRuntimeFiles": [
+        "Resources/runtime/dist/adapters/diagnostics/build-info.json",
+        "Resources/runtime/dist/adapters/http-server/editor-bundle.js",
+        "Resources/runtime/dist/adapters/http-server/map-controller.d.ts",
+        "Resources/runtime/dist/adapters/http-server/map-controller.js",
+        "Resources/runtime/dist/adapters/http-server/notes-browser.js",
+        "Resources/runtime/dist/app/local-memory/connections.d.ts",
+        "Resources/runtime/dist/app/local-memory/connections.js",
+        "Resources/runtime/dist/app/local-memory/graph.js",
+        "Resources/runtime/dist/core/canonical/markdown-store.js"
+      ],
+      "note": "Both large-corpus snapshots additionally include the same gateway index transport fix. It is excluded as a cause of their measured before/after RAM differences."
+    }
+  ]
+}

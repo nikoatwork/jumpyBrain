@@ -352,8 +352,15 @@ async function validateMobile() {
   const page = await context.newPage();
   let allowedAuthFailures = 0;
   let allowedConnectionChecks = 0;
+  const wrongKey = "deliberately-wrong-mobile-key";
   const browserErrors = collectBrowserErrors(page, (response) => {
     const request = response.request();
+    // The editor can reconcile its open document while credentials are wrong.
+    // Scope this expected failure to that fixture and the injected credential,
+    // including an in-flight response that arrives after credentials recover.
+    if (response.status() === 401 && request.method() === "GET"
+        && new URL(response.url()).pathname === `/memories/all/documents/${fixture.id}`
+        && request.headers().authorization === `Bearer ${wrongKey}`) return true;
     if (allowedConnectionChecks > 0 && response.status() === 401 && request.method() === "GET"
         && new URL(response.url()).pathname === "/memories/all/recent") {
       allowedConnectionChecks--;
@@ -377,7 +384,7 @@ async function validateMobile() {
     allowedConnectionChecks = 1;
     const connectionCheck = page.waitForResponse((response) => response.status() === 401
       && response.request().method() === "GET" && new URL(response.url()).pathname === "/memories/all/recent");
-    await setConnectionKey(page, "deliberately-wrong-mobile-key");
+    await setConnectionKey(page, wrongKey);
     await connectionCheck;
     assert.equal(allowedConnectionChecks, 0, "wrong key should fail the explicit connection check once");
     allowedAuthFailures += 1;

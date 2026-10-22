@@ -1,0 +1,1827 @@
+{
+  "schema": 1,
+  "status": "Baseline only; matched optimized acceptance deferred by user to the next iteration.",
+  "units": "Decimal bytes and milliseconds; median/min/max across three repetitions, not pooled samples.",
+  "machine": {
+    "os": "15.7.7",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "ram": 19327352832
+  },
+  "settings": {
+    "counts": [
+      0,
+      100,
+      1000,
+      10000
+    ],
+    "repetitions": 3,
+    "settleSeconds": 15,
+    "recoverySeconds": 300,
+    "soakSeconds": 0,
+    "semantic": true
+  },
+  "protocols": [
+    {
+      "notes": [
+        0,
+        100,
+        1000
+      ],
+      "sourceSha256": "f3cbe16417b96109cfe51efd2cab52f4fe01cf5552ef11857bac0573d0f7f030",
+      "driverSha256": "51e38918d0050938066de434a04f2213cdff17b561d8751f8f457a08ff88a585",
+      "samplerSha256": "169a08579da0edfcb051b402803709095746c6065482e19076996b4df4d1dc7c",
+      "engines": {
+        "electron": "12aa325561098c5dc5b175e465225b1b61e8f4090ce6d5dade89887e0eec8ab7",
+        "electronVersion": "44.8.0",
+        "node": "aa7c3390685f1388f3b898b7d7f84edf95fcee4aa062725aa56dee348afbe6be",
+        "qmdVersion": "2.8.3",
+        "qmd": "4dbf00c90ece2451bd81f6456e889f5554f3e6f409cf16813bf7daf622a4760f"
+      },
+      "modelHash": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+      "artifactVerified": true
+    },
+    {
+      "notes": [
+        10000
+      ],
+      "sourceSha256": "67dad1c4a14e9735d3926cf2f79a0cee89069c8340932e82e29a44b4565ee797",
+      "driverSha256": "51b5e6e6db309e011c779212e05bd6b5aa18104363fd4116e9363936c6e318a1",
+      "samplerSha256": "169a08579da0edfcb051b402803709095746c6065482e19076996b4df4d1dc7c",
+      "engines": {
+        "electron": "12aa325561098c5dc5b175e465225b1b61e8f4090ce6d5dade89887e0eec8ab7",
+        "electronVersion": "44.8.0",
+        "node": "aa7c3390685f1388f3b898b7d7f84edf95fcee4aa062725aa56dee348afbe6be",
+        "qmdVersion": "2.8.3",
+        "qmd": "4dbf00c90ece2451bd81f6456e889f5554f3e6f409cf16813bf7daf622a4760f"
+      },
+      "modelHash": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+      "artifactVerified": true
+    }
+  ],
+  "sampling": [
+    {
+      "run": "0-1",
+      "samples": 4570,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 2.868256455142229,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "0-2",
+      "samples": 4636,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 2.103522217428811,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "0-3",
+      "samples": 4674,
+      "rejectedSamples": 1,
+      "meanSamplerMs": 2.6662785622593104,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "100-1",
+      "samples": 4738,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 3.0585654284508226,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "100-2",
+      "samples": 4885,
+      "rejectedSamples": 1,
+      "meanSamplerMs": 2.906987922210854,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "100-3",
+      "samples": 4857,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 2.711134239242336,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "1000-1",
+      "samples": 5298,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 2.276799546998873,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "1000-2",
+      "samples": 5263,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 2.1899247577427245,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "1000-3",
+      "samples": 5226,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 2.0755861079219273,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "10000-1",
+      "samples": 10217,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 1.5704369188607255,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "10000-2",
+      "samples": 10093,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 1.5573466759139982,
+      "complete": true,
+      "descendantsExited": true
+    },
+    {
+      "run": "10000-3",
+      "samples": 9998,
+      "rejectedSamples": 0,
+      "meanSamplerMs": 1.2583160632126447,
+      "complete": true,
+      "descendantsExited": true
+    }
+  ],
+  "caveats": [
+    "Fresh processes and disposable user data; OS cache, focus, thermal state and unrelated machine activity were not fully controlled.",
+    "100 ms samples are non-atomic and may miss short-lived work; physical footprint is not deduplicated system DRAM.",
+    "15 second post-operation windows are not proof of equilibrium; recovery reports the last 60 seconds of five minutes.",
+    "Two driver/source groups preserve accepted smaller runs and the corrected large editor/index transport. No cross-group optimization claim.",
+    "Displayed graph density depends on the 500-node response cap; counts are recorded."
+  ],
+  "stages": [
+    {
+      "notes": 0,
+      "stage": "cold-background",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 109631040,
+        "min": 109171968,
+        "max": 112088704
+      },
+      "activePeakBytes": {
+        "median": 167252416,
+        "min": 166432768,
+        "max": 167645888
+      },
+      "latencyMs": {
+        "median": 407.666583,
+        "min": 404.51675,
+        "max": 507.055291
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 0,
+      "stage": "home",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 333604928,
+        "min": 205810048,
+        "max": 336554432
+      },
+      "activePeakBytes": {
+        "median": 424830912,
+        "min": 421325120,
+        "max": 445196992
+      },
+      "latencyMs": {
+        "median": 304.99770799999897,
+        "min": 282.8644170000007,
+        "max": 349.1982079999998
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "graph-pan-zoom-resize",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 349611776,
+        "min": 193914624,
+        "max": 349792064
+      },
+      "activePeakBytes": {
+        "median": 502277760,
+        "min": 472065344,
+        "max": 504226944
+      },
+      "latencyMs": {
+        "median": 1023.1301249999997,
+        "min": 1012.2178749999985,
+        "max": 1034.624541000001
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "graph-exit",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 340240192,
+        "min": 193063040,
+        "max": 345155392
+      },
+      "activePeakBytes": {
+        "median": 366159616,
+        "min": 191997696,
+        "max": 368125632
+      },
+      "latencyMs": {
+        "median": 110.24724999999307,
+        "min": 110.16345899999578,
+        "max": 110.72483300000022
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "lexical-index",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 339995072,
+        "min": 191572544,
+        "max": 344746560
+      },
+      "activePeakBytes": {
+        "median": 343715520,
+        "min": 343715520,
+        "max": 345188992
+      },
+      "latencyMs": {
+        "median": 116.66300000000047,
+        "min": 85.48237499999959,
+        "max": 117.45079200000328
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "lexical-search",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 339586048,
+        "min": 192850752,
+        "max": 344271744
+      },
+      "activePeakBytes": {
+        "median": 338439296,
+        "min": 192392256,
+        "max": 349156288
+      },
+      "latencyMs": {
+        "median": 137.15374999999767,
+        "min": 113.87670900000376,
+        "max": 142.817292000007
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "semantic-index",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 340257792,
+        "min": 194129088,
+        "max": 345304064
+      },
+      "activePeakBytes": {
+        "median": 375165952,
+        "min": 237933568,
+        "max": 377539200
+      },
+      "latencyMs": {
+        "median": 415.5930420000077,
+        "min": 398.8085839999985,
+        "max": 990.4494169999962
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "semantic-search",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 342732224,
+        "min": 196063168,
+        "max": 347827520
+      },
+      "activePeakBytes": {
+        "median": 384608320,
+        "min": 239970240,
+        "max": 387065088
+      },
+      "latencyMs": {
+        "median": 917.4055829999998,
+        "min": 903.8832920000132,
+        "max": 1013.7258330000041
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "minimized",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 221604992,
+        "min": 195767872,
+        "max": 222539264
+      },
+      "activePeakBytes": {
+        "median": 342748608,
+        "min": 196210624,
+        "max": 348155008
+      },
+      "latencyMs": {
+        "median": 601.21875,
+        "min": 570.4133330000041,
+        "max": 608.1220840000024
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "restored",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 337014144,
+        "min": 206843712,
+        "max": 338210304
+      },
+      "activePeakBytes": {
+        "median": 221818240,
+        "min": 196030016,
+        "max": 222899712
+      },
+      "latencyMs": {
+        "median": 549.3558750000084,
+        "min": 541.2965829999885,
+        "max": 559.3162920000032
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "closed-window",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 148808448,
+        "min": 147513792,
+        "max": 150119424
+      },
+      "activePeakBytes": {
+        "median": 335834496,
+        "min": 207400896,
+        "max": 338161280
+      },
+      "latencyMs": {
+        "median": 205.44666700001108,
+        "min": 202.35058299999218,
+        "max": 207.07254199997988
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 0,
+      "stage": "reopen",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 333623808,
+        "min": 332607168,
+        "max": 335688256
+      },
+      "activePeakBytes": {
+        "median": 443035648,
+        "min": 428256896,
+        "max": 448770240
+      },
+      "latencyMs": {
+        "median": 269.3448330000101,
+        "min": 251.55066599999554,
+        "max": 273.9838330000057
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "recovery",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 336933952,
+        "min": 213022592,
+        "max": 340588480
+      },
+      "activePeakBytes": {
+        "median": 344159616,
+        "min": 340947776,
+        "max": 404059456
+      },
+      "latencyMs": {
+        "median": 300001.45166699996,
+        "min": 300000.11870899994,
+        "max": 300002.219125
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 0,
+      "stage": "explicit-quit",
+      "repetitions": 3,
+      "settledBytes": null,
+      "activePeakBytes": {
+        "median": 383121152,
+        "min": 214513856,
+        "max": 419722624
+      },
+      "latencyMs": {
+        "median": 568.48388671875,
+        "min": 384.702880859375,
+        "max": 933.075927734375
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 100,
+      "stage": "cold-background",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 113366784,
+        "min": 110417216,
+        "max": 114562560
+      },
+      "activePeakBytes": {
+        "median": 167039296,
+        "min": 166137984,
+        "max": 167137344
+      },
+      "latencyMs": {
+        "median": 509.727084,
+        "min": 504.69770900000003,
+        "max": 511.142167
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 100,
+      "stage": "home",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 356871104,
+        "min": 350922368,
+        "max": 359573888
+      },
+      "activePeakBytes": {
+        "median": 434399808,
+        "min": 412607744,
+        "max": 445540608
+      },
+      "latencyMs": {
+        "median": 308.7809579999994,
+        "min": 308.74683300000106,
+        "max": 314.93924999999945
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "note-edit-save",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 391949056,
+        "min": 389016832,
+        "max": 392162496
+      },
+      "activePeakBytes": {
+        "median": 480111744,
+        "min": 477113472,
+        "max": 487386112
+      },
+      "latencyMs": {
+        "median": 355.77545800000007,
+        "min": 353.523541999999,
+        "max": 361.86783300000025
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "graph-pan-zoom-resize",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 444265280,
+        "min": 439333440,
+        "max": 445740352
+      },
+      "activePeakBytes": {
+        "median": 720728640,
+        "min": 701723584,
+        "max": 726758720
+      },
+      "latencyMs": {
+        "median": 1034.7236669999984,
+        "min": 1031.242624999999,
+        "max": 1129.531458999998
+      },
+      "graphNodes": {
+        "median": 109,
+        "min": 109,
+        "max": 109
+      },
+      "graphEdges": {
+        "median": 279,
+        "min": 279,
+        "max": 279
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "graph-exit",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 408416576,
+        "min": 403927616,
+        "max": 414576704
+      },
+      "activePeakBytes": {
+        "median": 513651136,
+        "min": 503542912,
+        "max": 536359744
+      },
+      "latencyMs": {
+        "median": 113.62995800000499,
+        "min": 112.74062500000582,
+        "max": 115.156167000001
+      },
+      "graphNodes": {
+        "median": 109,
+        "min": 109,
+        "max": 109
+      },
+      "graphEdges": {
+        "median": 279,
+        "min": 279,
+        "max": 279
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "lexical-index",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 404650496,
+        "min": 267647680,
+        "max": 415480000
+      },
+      "activePeakBytes": {
+        "median": 437689152,
+        "min": 435445312,
+        "max": 446159296
+      },
+      "latencyMs": {
+        "median": 183.37791599999764,
+        "min": 183.29700000000594,
+        "max": 199.39562500000466
+      },
+      "graphNodes": {
+        "median": 109,
+        "min": 109,
+        "max": 109
+      },
+      "graphEdges": {
+        "median": 279,
+        "min": 279,
+        "max": 279
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "lexical-search",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 401193472,
+        "min": 265795968,
+        "max": 410155136
+      },
+      "activePeakBytes": {
+        "median": 431301952,
+        "min": 299395392,
+        "max": 443639744
+      },
+      "latencyMs": {
+        "median": 147.89854199999536,
+        "min": 139.74937499999942,
+        "max": 204.8039160000044
+      },
+      "graphNodes": {
+        "median": 109,
+        "min": 109,
+        "max": 109
+      },
+      "graphEdges": {
+        "median": 279,
+        "min": 279,
+        "max": 279
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "semantic-index",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 403372480,
+        "min": 266484096,
+        "max": 414120192
+      },
+      "activePeakBytes": {
+        "median": 5231369920,
+        "min": 5092466176,
+        "max": 5317647872
+      },
+      "latencyMs": {
+        "median": 7470.736124999996,
+        "min": 7344.168292000002,
+        "max": 7593.751083999989
+      },
+      "graphNodes": {
+        "median": 109,
+        "min": 109,
+        "max": 109
+      },
+      "graphEdges": {
+        "median": 279,
+        "min": 279,
+        "max": 279
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "semantic-search",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 406584128,
+        "min": 267844544,
+        "max": 415447936
+      },
+      "activePeakBytes": {
+        "median": 739723328,
+        "min": 562482304,
+        "max": 756075392
+      },
+      "latencyMs": {
+        "median": 2173.271999999997,
+        "min": 2155.4111660000053,
+        "max": 2220.608791000006
+      },
+      "graphNodes": {
+        "median": 109,
+        "min": 109,
+        "max": 109
+      },
+      "graphEdges": {
+        "median": 279,
+        "min": 279,
+        "max": 279
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "minimized",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 280100160,
+        "min": 268172096,
+        "max": 283687936
+      },
+      "activePeakBytes": {
+        "median": 404060416,
+        "min": 268041024,
+        "max": 416857280
+      },
+      "latencyMs": {
+        "median": 616.7886249999865,
+        "min": 608.8342910000065,
+        "max": 619.1625409999979
+      },
+      "graphNodes": {
+        "median": 109,
+        "min": 109,
+        "max": 109
+      },
+      "graphEdges": {
+        "median": 279,
+        "min": 279,
+        "max": 279
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "restored",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 394378560,
+        "min": 378830528,
+        "max": 397475712
+      },
+      "activePeakBytes": {
+        "median": 279756096,
+        "min": 257031488,
+        "max": 284277696
+      },
+      "latencyMs": {
+        "median": 546.797332999995,
+        "min": 546.1534169999941,
+        "max": 549.1356670000241
+      },
+      "graphNodes": {
+        "median": 109,
+        "min": 109,
+        "max": 109
+      },
+      "graphEdges": {
+        "median": 279,
+        "min": 279,
+        "max": 279
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "closed-window",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 165081536,
+        "min": 162819776,
+        "max": 167719168
+      },
+      "activePeakBytes": {
+        "median": 394591552,
+        "min": 378732032,
+        "max": 397950848
+      },
+      "latencyMs": {
+        "median": 205.41774999999325,
+        "min": 205.3243749999965,
+        "max": 206.4084579999908
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 100,
+      "stage": "reopen",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 367656128,
+        "min": 366918912,
+        "max": 369114944
+      },
+      "activePeakBytes": {
+        "median": 459668352,
+        "min": 424263168,
+        "max": 482098432
+      },
+      "latencyMs": {
+        "median": 256.63583300000755,
+        "min": 255.32862499999464,
+        "max": 269.4093330000178
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "recovery",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 377210368,
+        "min": 376767680,
+        "max": 379225600
+      },
+      "activePeakBytes": {
+        "median": 376570496,
+        "min": 375997056,
+        "max": 377619136
+      },
+      "latencyMs": {
+        "median": 300001.608291,
+        "min": 300001.34066600003,
+        "max": 300002.43225
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 100,
+      "stage": "explicit-quit",
+      "repetitions": 3,
+      "settledBytes": null,
+      "activePeakBytes": {
+        "median": 450856704,
+        "min": 255527232,
+        "max": 455820928
+      },
+      "latencyMs": {
+        "median": 917.0009765625,
+        "min": 541.60595703125,
+        "max": 1037.553955078125
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 1000,
+      "stage": "cold-background",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 113170688,
+        "min": 110384896,
+        "max": 114316928
+      },
+      "activePeakBytes": {
+        "median": 167924032,
+        "min": 167579904,
+        "max": 168514432
+      },
+      "latencyMs": {
+        "median": 509.57408300000003,
+        "min": 504.809708,
+        "max": 509.77366600000005
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 1000,
+      "stage": "home",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 358050880,
+        "min": 354659136,
+        "max": 358296192
+      },
+      "activePeakBytes": {
+        "median": 422243008,
+        "min": 386279808,
+        "max": 434940352
+      },
+      "latencyMs": {
+        "median": 310.19437500000095,
+        "min": 285.5331669999996,
+        "max": 317.0782500000005
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "note-edit-save",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 401961600,
+        "min": 401142720,
+        "max": 404815488
+      },
+      "activePeakBytes": {
+        "median": 488911680,
+        "min": 473330304,
+        "max": 491188864
+      },
+      "latencyMs": {
+        "median": 398.1224169999987,
+        "min": 397.9574169999978,
+        "max": 401.1264579999988
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "graph-pan-zoom-resize",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 630859712,
+        "min": 623841536,
+        "max": 641115584
+      },
+      "activePeakBytes": {
+        "median": 1154033152,
+        "min": 1126787008,
+        "max": 1278595136
+      },
+      "latencyMs": {
+        "median": 1175.7595000000001,
+        "min": 1173.2249169999996,
+        "max": 1184.5418329999957
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 946,
+        "min": 946,
+        "max": 946
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "graph-exit",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 525773056,
+        "min": 521509888,
+        "max": 539502528
+      },
+      "activePeakBytes": {
+        "median": 597453120,
+        "min": 593271808,
+        "max": 609576896
+      },
+      "latencyMs": {
+        "median": 115.45816700000432,
+        "min": 114.53416699999798,
+        "max": 119.55825000000186
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 946,
+        "min": 946,
+        "max": 946
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "lexical-index",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 528398336,
+        "min": 523515264,
+        "max": 539229568
+      },
+      "activePeakBytes": {
+        "median": 630646528,
+        "min": 629043968,
+        "max": 631697984
+      },
+      "latencyMs": {
+        "median": 427.71183299999393,
+        "min": 424.72637499999837,
+        "max": 470.33474999999453
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 946,
+        "min": 946,
+        "max": 946
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "lexical-search",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 531069376,
+        "min": 526219136,
+        "max": 540721152
+      },
+      "activePeakBytes": {
+        "median": 542181952,
+        "min": 540839360,
+        "max": 561242240
+      },
+      "latencyMs": {
+        "median": 157.20383300000685,
+        "min": 154.98275000001013,
+        "max": 160.72395899999538
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 946,
+        "min": 946,
+        "max": 946
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "semantic-index",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 552035648,
+        "min": 524159616,
+        "max": 552459520
+      },
+      "activePeakBytes": {
+        "median": 5541810112,
+        "min": 5538457600,
+        "max": 5551796160
+      },
+      "latencyMs": {
+        "median": 57229.88416700001,
+        "min": 57122.608292000004,
+        "max": 57288.834292
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 946,
+        "min": 946,
+        "max": 946
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "semantic-search",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 553363520,
+        "min": 519146432,
+        "max": 556130304
+      },
+      "activePeakBytes": {
+        "median": 873852864,
+        "min": 829626560,
+        "max": 899823808
+      },
+      "latencyMs": {
+        "median": 2397.7465410000004,
+        "min": 2391.1967920000025,
+        "max": 2438.7469580000034
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 946,
+        "min": 946,
+        "max": 946
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "minimized",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 406382848,
+        "min": 364284800,
+        "max": 420644928
+      },
+      "activePeakBytes": {
+        "median": 551364288,
+        "min": 520244160,
+        "max": 564885376
+      },
+      "latencyMs": {
+        "median": 612.1056659999886,
+        "min": 607.8947499999776,
+        "max": 620.210625000007
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 946,
+        "min": 946,
+        "max": 946
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "restored",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 523741952,
+        "min": 464536192,
+        "max": 536693696
+      },
+      "activePeakBytes": {
+        "median": 401942976,
+        "min": 343359040,
+        "max": 417286208
+      },
+      "latencyMs": {
+        "median": 551.0002499999828,
+        "min": 547.6484580000106,
+        "max": 551.4184580000001
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 946,
+        "min": 946,
+        "max": 946
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "closed-window",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 264068864,
+        "min": 207338240,
+        "max": 274071040
+      },
+      "activePeakBytes": {
+        "median": 522513408,
+        "min": 463684480,
+        "max": 530615040
+      },
+      "latencyMs": {
+        "median": 205.92037499998696,
+        "min": 204.9092079999973,
+        "max": 207.6702079999959
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 1000,
+      "stage": "reopen",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 412012224,
+        "min": 404473408,
+        "max": 475286272
+      },
+      "activePeakBytes": {
+        "median": 496354688,
+        "min": 462241920,
+        "max": 542738624
+      },
+      "latencyMs": {
+        "median": 352.50070800000685,
+        "min": 352.1068749999977,
+        "max": 355.04041699998197
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "recovery",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 420952192,
+        "min": 299827264,
+        "max": 447876480
+      },
+      "activePeakBytes": {
+        "median": 474795072,
+        "min": 459132864,
+        "max": 488170176
+      },
+      "latencyMs": {
+        "median": 300001.753666,
+        "min": 300001.6888339999,
+        "max": 300002.822333
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 1000,
+      "stage": "explicit-quit",
+      "repetitions": 3,
+      "settledBytes": null,
+      "activePeakBytes": {
+        "median": 513034368,
+        "min": 303432896,
+        "max": 525635328
+      },
+      "latencyMs": {
+        "median": 840.47802734375,
+        "min": 750.303955078125,
+        "max": 1275.716064453125
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 10000,
+      "stage": "cold-background",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 113203520,
+        "min": 112498816,
+        "max": 114743488
+      },
+      "activePeakBytes": {
+        "median": 168301120,
+        "min": 168104640,
+        "max": 168923776
+      },
+      "latencyMs": {
+        "median": 504.768667,
+        "min": 407.62079100000005,
+        "max": 505.44170799999995
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 10000,
+      "stage": "home",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 375784704,
+        "min": 372917312,
+        "max": 378029760
+      },
+      "activePeakBytes": {
+        "median": 434471680,
+        "min": 429048512,
+        "max": 438190400
+      },
+      "latencyMs": {
+        "median": 910.1208749999987,
+        "min": 908.385416000001,
+        "max": 913.4563330000001
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "note-edit-save",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 475095424,
+        "min": 473129088,
+        "max": 476684608
+      },
+      "activePeakBytes": {
+        "median": 557620992,
+        "min": 552031616,
+        "max": 558486912
+      },
+      "latencyMs": {
+        "median": 2834.636916999996,
+        "min": 2832.7666669999962,
+        "max": 2845.5704590000023
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "graph-pan-zoom-resize",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 648844544,
+        "min": 643356352,
+        "max": 694641600
+      },
+      "activePeakBytes": {
+        "median": 1170249344,
+        "min": 1106387840,
+        "max": 1199428864
+      },
+      "latencyMs": {
+        "median": 2757.9366660000014,
+        "min": 2752.2947090000016,
+        "max": 2841.2577500000043
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "graph-exit",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 632020672,
+        "min": 631904960,
+        "max": 634070400
+      },
+      "activePeakBytes": {
+        "median": 699999616,
+        "min": 698719872,
+        "max": 715905728
+      },
+      "latencyMs": {
+        "median": 720.885208000007,
+        "min": 719.487540999995,
+        "max": 721.6111249999958
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "lexical-index",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 673697600,
+        "min": 665033344,
+        "max": 675337152
+      },
+      "activePeakBytes": {
+        "median": 1486333760,
+        "min": 1371845056,
+        "max": 1489873920
+      },
+      "latencyMs": {
+        "median": 3571.1997090000077,
+        "min": 3411.669833000007,
+        "max": 3601.705833
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "lexical-search",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 593371392,
+        "min": 588322560,
+        "max": 596172608
+      },
+      "activePeakBytes": {
+        "median": 633818048,
+        "min": 629291264,
+        "max": 728257856
+      },
+      "latencyMs": {
+        "median": 454.1126670000085,
+        "min": 317.29700000000594,
+        "max": 454.55358399999386
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "semantic-index",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 691330176,
+        "min": 498358336,
+        "max": 692197312
+      },
+      "activePeakBytes": {
+        "median": 5915688960,
+        "min": 5725340672,
+        "max": 5991991168
+      },
+      "latencyMs": {
+        "median": 556181.211209,
+        "min": 556119.986167,
+        "max": 558027.736833
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "semantic-search",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 624419392,
+        "min": 444311808,
+        "max": 624877312
+      },
+      "activePeakBytes": {
+        "median": 955590336,
+        "min": 788851968,
+        "max": 966861952
+      },
+      "latencyMs": {
+        "median": 3363.4194170000264,
+        "min": 3309.2249160000356,
+        "max": 3506.447832999984
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "minimized",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 472913792,
+        "min": 438967744,
+        "max": 474993856
+      },
+      "activePeakBytes": {
+        "median": 613373824,
+        "min": 458598784,
+        "max": 622058240
+      },
+      "latencyMs": {
+        "median": 612.4291659999872,
+        "min": 609.7143330000108,
+        "max": 620.8155000000261
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "restored",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 589256576,
+        "min": 562486784,
+        "max": 594073216
+      },
+      "activePeakBytes": {
+        "median": 474732928,
+        "min": 452828672,
+        "max": 476354176
+      },
+      "latencyMs": {
+        "median": 543.858292000019,
+        "min": 541.8687919999938,
+        "max": 553.4624579999363
+      },
+      "graphNodes": {
+        "median": 500,
+        "min": 500,
+        "max": 500
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "closed-window",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 349637440,
+        "min": 331386944,
+        "max": 354437760
+      },
+      "activePeakBytes": {
+        "median": 587896896,
+        "min": 551165504,
+        "max": 591533440
+      },
+      "latencyMs": {
+        "median": 205.62270800000988,
+        "min": 205.03879200003576,
+        "max": 206.48508300003596
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    },
+    {
+      "notes": 10000,
+      "stage": "reopen",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 553883648,
+        "min": 541368960,
+        "max": 555457664
+      },
+      "activePeakBytes": {
+        "median": 645748288,
+        "min": 602627200,
+        "max": 647844800
+      },
+      "latencyMs": {
+        "median": 1572.2319579999894,
+        "min": 1381.26416599995,
+        "max": 1769.2562919999473
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "recovery",
+      "repetitions": 3,
+      "settledBytes": {
+        "median": 428743104,
+        "min": 415425088,
+        "max": 556899072
+      },
+      "activePeakBytes": {
+        "median": 560437568,
+        "min": 560357888,
+        "max": 565222080
+      },
+      "latencyMs": {
+        "median": 300001.5643750001,
+        "min": 300000.79283299996,
+        "max": 300002.66345799994
+      },
+      "graphNodes": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      },
+      "graphEdges": {
+        "median": 0,
+        "min": 0,
+        "max": 0
+      }
+    },
+    {
+      "notes": 10000,
+      "stage": "explicit-quit",
+      "repetitions": 3,
+      "settledBytes": null,
+      "activePeakBytes": {
+        "median": 431774592,
+        "min": 411804352,
+        "max": 637803392
+      },
+      "latencyMs": {
+        "median": 589.48193359375,
+        "min": 450.97509765625,
+        "max": 982.4208984375
+      },
+      "graphNodes": null,
+      "graphEdges": null
+    }
+  ]
+}

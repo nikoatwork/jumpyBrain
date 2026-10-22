@@ -87,15 +87,49 @@ export async function listCanonicalMemoryMarkdownFiles(root: string, signal?: Ab
 
 export async function readMarkdownDocument(root: string, absolutePath: string, signal?: AbortSignal): Promise<MarkdownDocument> {
   signal?.throwIfAborted();
-  const content = await readFile(absolutePath, { encoding: "utf8", signal });
-  signal?.throwIfAborted();
-  const parsed = parseFrontmatter(content);
+  const parsed = await readMarkdownMetadata(absolutePath, signal);
   return {
     absolutePath,
     relativePath: normalizeRelative(root, absolutePath),
     frontmatter: parsed.frontmatter,
     bodyStartLine: parsed.bodyStartLine,
   };
+}
+
+/** Metadata callers need no body. Oversized/unfinished headers retain the full parser's behavior. */
+async function readMarkdownMetadata(file: string, signal?: AbortSignal) {
+  const handle = await open(file, "r");
+  try {
+    const chunks: Buffer[] = [];
+    let length = 0;
+    while (length < 65536) {
+      signal?.throwIfAborted();
+      const buffer = Buffer.allocUnsafe(4096);
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, length);
+      signal?.throwIfAborted();
+      chunks.push(buffer.subarray(0, bytesRead)); length += bytesRead;
+      const text = Buffer.concat(chunks, length).toString("utf8");
+      const eof = bytesRead === 0;
+      let start = 0, line = 0;
+      while (start < text.length || (eof && start === text.length)) {
+        const newline = text.indexOf("\n", start);
+        if (newline === -1 && !eof) break;
+        const end = newline === -1 ? text.length : newline;
+        const delimiter = text.slice(start, end).trim() === "---";
+        if (line === 0 && !delimiter) return { frontmatter: {}, bodyStartLine: 1 };
+        if (line > 0 && delimiter) {
+          // Detach metadata strings from the read buffer/body prefix before retaining them.
+          const header = Buffer.from(text.slice(0, end)).toString("utf8");
+          return parseFrontmatter(header);
+        }
+        if (newline === -1) break;
+        start = newline + 1; line++;
+      }
+      if (eof) return { frontmatter: {}, bodyStartLine: 1 };
+    }
+    // Positional reads above do not advance the handle's readFile offset.
+    return parseFrontmatter(await handle.readFile({ encoding: "utf8", signal }));
+  } finally { await handle.close(); }
 }
 
 export interface CanonicalMarkdownIndexInput {

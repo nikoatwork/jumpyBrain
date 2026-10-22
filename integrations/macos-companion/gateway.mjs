@@ -38,6 +38,45 @@ function json(response, status, packet, headers = {}) {
   response.end(JSON.stringify(packet) + '\n');
 }
 
+// Indexing has a 610-second enclosing deadline. Node fetch's implicit five-minute
+// response-header limit must not cut that operation short or label it offline.
+// Other routes retain the existing fetch transport and its shorter app deadline.
+export async function fetchIndexTarget(url, options = {}) {
+  const target = new URL(url);
+  if (!['http:', 'https:'].includes(target.protocol)) throw new Error('Unsupported target protocol.');
+  const transport = target.protocol === 'https:' ? await import('node:https') : http;
+  const { Readable, pipeline } = await import('node:stream');
+  return new Promise((resolve, reject) => {
+    const request = transport.request(target, {
+      method: options.method || 'GET', signal: options.signal,
+      headers: { ...options.headers, 'Accept-Encoding': 'identity' },
+    });
+    request.once('error', reject);
+    request.once('upgrade', (_response, socket) => { socket.destroy(); reject(new Error('Target protocol upgrade refused.')); });
+    request.once('response', async response => {
+      try {
+        const headers = new Headers();
+        for (let index = 0; index < response.rawHeaders.length; index += 2) headers.append(response.rawHeaders[index], response.rawHeaders[index + 1]);
+        let stream = response;
+        const noBody = options.method === 'HEAD' || [204, 205, 304].includes(response.statusCode);
+        const encoding = String(response.headers['content-encoding'] || '').trim().toLowerCase();
+        if (!noBody && encoding && encoding !== 'identity') {
+          const zlib = await import('node:zlib');
+          const decoder = encoding === 'gzip' || encoding === 'x-gzip' ? zlib.createGunzip()
+            : encoding === 'deflate' ? zlib.createInflate() : encoding === 'br' ? zlib.createBrotliDecompress() : null;
+          if (!decoder) throw new Error('Unsupported target encoding.');
+          pipeline(response, decoder, error => { if (error) decoder.destroy(error); });
+          stream = decoder;
+        }
+        if (noBody) response.resume();
+        const body = noBody ? null : Readable.toWeb(stream, { strategy: { highWaterMark: 65536, size: chunk => chunk.byteLength } });
+        resolve(new Response(body, { status: response.statusCode, headers }));
+      } catch (error) { response.destroy(); reject(error); }
+    });
+    request.end(options.body);
+  });
+}
+
 // stdout/stdin are anonymous private pipes to Swift, not a local network capability.
 export function nativeCredentials(input = process.stdin, output = process.stdout, { timeoutMs = 15000 } = {}) {
   let buffer = Buffer.alloc(0), sequence = 0, closed = false;
@@ -155,7 +194,8 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     try {
       const dest = await resolveDestination(profile);
       if (controller.signal.aborted) failure('target_timeout', 'Brain request timed out.', 504);
-      const response = await fetchImpl(dest.url + route, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + dest.key }, redirect: 'manual', signal: controller.signal });
+      const transport = fetchImpl === fetch && route.split('?')[0].endsWith('/index') ? fetchIndexTarget : fetchImpl;
+      const response = await transport(dest.url + route, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + dest.key }, redirect: 'manual', signal: controller.signal });
       if (response.status >= 300 && response.status < 400) { await response.body?.cancel(); failure('unsafe_redirect', 'Memory server redirects are not followed.', 502); }
       let body;
       try { body = await bytes(response.body || [], MAX_RESPONSE); }

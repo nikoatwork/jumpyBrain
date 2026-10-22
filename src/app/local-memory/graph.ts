@@ -1,6 +1,5 @@
 import { collectConnections } from "./connections.js";
-import { stat } from "node:fs/promises";
-import type { Stats } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import {
   readMarkdownDocuments,
@@ -34,6 +33,14 @@ export async function graphMemory(rootArg: string, options: MemoryGraphOptions =
 
   const built = await buildGraph(documents, indexedFiles, normalizedOptions.includeUnresolved);
   const filtered = filterGraph(built.nodes, built.edges, normalizedOptions);
+  // Presentation fields cannot affect filtering/order. Read them only for returned documents.
+  const byPath = new Map(documents.map((document) => [document.relativePath, document]));
+  for (const node of filtered.nodes) {
+    const document = byPath.get(node.id);
+    if (!document) continue;
+    node.snippet = snippetFor(await readFile(document.absolutePath, "utf8"), document.bodyStartLine);
+    if (!node.updatedAt) node.updatedAt = (await stat(document.absolutePath).catch(() => undefined))?.mtime.toISOString();
+  }
 
   return {
     root,
@@ -55,10 +62,8 @@ interface NormalizedGraphOptions extends Required<Pick<MemoryGraphOptions, "dept
 
 async function buildGraph(documents: MarkdownDocument[], indexedFiles: Set<string>, includeUnresolved: boolean): Promise<{ nodes: MemoryGraphNode[]; edges: MemoryGraphEdge[] }> {
   const nodeMap = new Map<string, MemoryGraphNode>();
-  const collected = await collectConnections(documents, async (document, content) => {
-    const fileStat = await stat(document.absolutePath).catch(() => undefined);
-    nodeMap.set(document.relativePath, documentNode(document, content, fileStat, indexedFiles.has(document.relativePath)));
-  });
+  for (const document of documents) nodeMap.set(document.relativePath, documentNode(document, indexedFiles.has(document.relativePath)));
+  const collected = await collectConnections(documents, undefined, { neighbors: false });
   const edgeCounts = new Map<string, MemoryGraphEdge>();
   for (const edge of collected.edges) {
     const id = edgeId(edge.source, edge.target, edge.kind);
@@ -75,11 +80,11 @@ async function buildGraph(documents: MarkdownDocument[], indexedFiles: Set<strin
   }
 
   const edges = [...edgeCounts.values()].sort(compareEdges);
-  const nodes = applyDegrees([...nodeMap.values()].sort(compareNodes), edges);
+  const nodes = [...nodeMap.values()].sort(compareNodes);
   return { nodes, edges };
 }
 
-function documentNode(document: MarkdownDocument, content: string, fileStat: Stats | undefined, indexed: boolean): MemoryGraphNode {
+function documentNode(document: MarkdownDocument, indexed: boolean): MemoryGraphNode {
   const frontmatter = document.frontmatter;
   return {
     id: document.relativePath,
@@ -93,8 +98,7 @@ function documentNode(document: MarkdownDocument, content: string, fileStat: Sta
     type: stringValue(frontmatter.type) ?? bucketType(document.relativePath),
     tags: tagsValue(frontmatter),
     createdAt: firstString(frontmatter.created_at, frontmatter.createdAt, frontmatter.date),
-    updatedAt: firstString(frontmatter.updated_at, frontmatter.updatedAt) ?? fileStat?.mtime.toISOString(),
-    snippet: snippetFor(content, document.bodyStartLine),
+    updatedAt: firstString(frontmatter.updated_at, frontmatter.updatedAt),
     degree: 0,
     inDegree: 0,
     outDegree: 0,
@@ -125,7 +129,7 @@ function filterGraph(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[], options
     filteredEdges = filteredEdges.filter((edge) => !unresolved.has(edge.source) && !unresolved.has(edge.target));
   }
 
-  nodeIds = new Set([...nodeIds].filter((id) => nodeMatchesFilters(nodes.find((node) => node.id === id)!, options)));
+  nodeIds = new Set(nodes.filter((node) => nodeIds.has(node.id) && nodeMatchesFilters(node, options)).map((node) => node.id));
   filteredEdges = filteredEdges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
 
   if (options.focus) {
@@ -145,15 +149,14 @@ function filterGraph(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[], options
     filteredEdges = filteredEdges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
   }
 
-  let filteredNodes = applyDegrees(nodes.filter((node) => nodeIds.has(node.id)).sort(compareNodes), filteredEdges);
+  let filteredNodes = nodes.filter((node) => nodeIds.has(node.id)).sort(compareNodes);
   if (filteredNodes.length > options.limit) {
     const keep = new Set(filteredNodes.slice(0, options.limit).map((node) => node.id));
     filteredNodes = filteredNodes.filter((node) => keep.has(node.id));
     filteredEdges = filteredEdges.filter((edge) => keep.has(edge.source) && keep.has(edge.target));
-    filteredNodes = applyDegrees(filteredNodes, filteredEdges);
   }
 
-  return { nodes: filteredNodes, edges: filteredEdges.sort(compareEdges) };
+  return { nodes: applyDegrees(filteredNodes, filteredEdges), edges: filteredEdges.sort(compareEdges) };
 }
 
 function nodeMatchesFilters(node: MemoryGraphNode, options: NormalizedGraphOptions): boolean {

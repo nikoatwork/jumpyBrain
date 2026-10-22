@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { constants } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { link, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -275,7 +276,7 @@ for (const change of ["symlink", "directory-symlink", "inode-replacement", "chan
     await writeFile(replacement, content);
     let fired = false;
     t.mock.method(fs, "open", async (...args) => {
-      if (!fired && path.basename(String(args[0])) === "evidence.md") {
+      if (!fired && path.basename(String(args[0])) === "evidence.md" && args[1] === (constants.O_RDONLY | constants.O_NOFOLLOW)) {
         fired = true;
         if (change === "symlink") {
           await fs.unlink(file);

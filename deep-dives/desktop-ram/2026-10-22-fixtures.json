@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "preparedAt": "2026-10-22T11:56:52.117Z",
+  "verifiedAt": "2026-10-22T11:57:50.352Z",
+  "state": "prepared-never-launched",
+  "verification": "All four corpus trees, app tree, external Node binary and QMD launcher match the saved manifest.",
+  "generator": {
+    "version": 1,
+    "sha256": "6380d8faaecb6ebb678e05345460eac44e936cae3192fde487509bfd90501f9b"
+  },
+  "machine": {
+    "os": "15.7.7",
+    "build": "24G720",
+    "arch": "arm64",
+    "model": "Mac15,6",
+    "cpu": "Apple M3 Pro",
+    "logicalCpus": 11,
+    "memoryBytes": 19327352832
+  },
+  "checkoutContext": {
+    "head": "87928a9589ca20f0c2fe5b220917e598c02e76c7",
+    "dirty": true,
+    "note": "Context only; the app tree hash identifies the artifact. No source-revision equivalence is inferred."
+  },
+  "artifact": {
+    "version": "0.3.3",
+    "runtimeVersion": "0.3.3",
+    "sha256": "d4796b92eeef461c11388061112e1fb1ac2b3c7e31beaee64bd769324c0c0b62",
+    "files": 565,
+    "bytes": 304474389,
+    "externalNodeSha256": "aa7c3390685f1388f3b898b7d7f84edf95fcee4aa062725aa56dee348afbe6be",
+    "externalQmdLauncherSha256": "b7162aa4da31d602c687f2c3dd2d7fcae753def25066d4b07dc262d790f4ea23",
+    "externalDependencyCoverage": "Node binary and QMD launcher only. Before index/search runs, also fingerprint the resolved QMD package tree and any configured model. No QMD/model work has run."
+  },
+  "corpora": [
+    {
+      "notes": 0,
+      "markdownBytes": 0,
+      "markdownSha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "sizeDistribution": {
+        "1024": 0,
+        "4096": 0,
+        "16384": 0
+      },
+      "links": {
+        "resolvedOccurrences": 0,
+        "unresolvedOccurrences": 0,
+        "orphanDocuments": 0
+      },
+      "indexing": {
+        "mode": "lexical",
+        "state": "absent",
+        "automaticIndexing": false,
+        "model": null
+      },
+      "workloadState": "prepared-never-launched",
+      "treeSha256": "91d66f33b39f16a715083562f0d45f46655828cbded3e1b4a4a10daef90e9cf1"
+    },
+    {
+      "notes": 100,
+      "markdownBytes": 286720,
+      "markdownSha256": "bc6178b981824ecad3478989daf9e0e4403b188237dc89794eff5d81ad4f8215",
+      "sizeDistribution": {
+        "1024": 80,
+        "4096": 10,
+        "16384": 10
+      },
+      "links": {
+        "resolvedOccurrences": 270,
+        "unresolvedOccurrences": 9,
+        "orphanDocuments": 10
+      },
+      "indexing": {
+        "mode": "lexical",
+        "state": "absent",
+        "automaticIndexing": false,
+        "model": null
+      },
+      "workloadState": "prepared-never-launched",
+      "treeSha256": "a649fbaedc176cfc23162d752b2eb9b4fdc269bcd498f1f598b621c109ff3c0d"
+    },
+    {
+      "notes": 1000,
+      "markdownBytes": 2867200,
+      "markdownSha256": "cdec5e1e4eaa3082bb86e7b46f44efc0e79b819aaa116c613ef8fa65636ffe82",
+      "sizeDistribution": {
+        "1024": 800,
+        "4096": 100,
+        "16384": 100
+      },
+      "links": {
+        "resolvedOccurrences": 2700,
+        "unresolvedOccurrences": 90,
+        "orphanDocuments": 100
+      },
+      "indexing": {
+        "mode": "lexical",
+        "state": "absent",
+        "automaticIndexing": false,
+        "model": null
+      },
+      "workloadState": "prepared-never-launched",
+      "treeSha256": "7cfd8de18493aca3b443270416132687accce1963966b4d839f83c0147f31d51"
+    },
+    {
+      "notes": 10000,
+      "markdownBytes": 28672000,
+      "markdownSha256": "4d437565dae961d3d58b16dddece2518862837468302bb124bf9ac8acc8d091a",
+      "sizeDistribution": {
+        "1024": 8000,
+        "4096": 1000,
+        "16384": 1000
+      },
+      "links": {
+        "resolvedOccurrences": 27000,
+        "unresolvedOccurrences": 900,
+        "orphanDocuments": 1000
+      },
+      "indexing": {
+        "mode": "lexical",
+        "state": "absent",
+        "automaticIndexing": false,
+        "model": null
+      },
+      "workloadState": "prepared-never-launched",
+      "treeSha256": "7e0d8f20c1751841d0b6f811930a24c7f2fa955316d9f46b7c079f7d92844426"
+    }
+  ],
+  "measurements": "Not started. No new RAM, latency, recovery, peak, or leak result is claimed."
+}

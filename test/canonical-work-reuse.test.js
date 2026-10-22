@@ -35,8 +35,8 @@ test("multi-ID discovery scans once, guards current bytes, and retains global du
   await assert.rejects(discovery.read("invalid"), { code: "invalid_id" });
   await assert.rejects(discovery.read("mem_10000000-0000-4000-8000-000000000099"), { code: "missing_id" });
   assert.equal(counts.discovery, 1);
-  assert.equal(counts.reads, 4);
-  assert.equal(counts.opens, 2);
+  assert.equal(counts.reads, 0, "discovery should not read whole document bodies");
+  assert.equal(counts.opens, 6, "four metadata reads plus two guarded document reads");
   await fs.writeFile(path.join(root, "notes", "0.md"), `---\nid: ${ids[1]}\n---\nchanged identity\n`);
   await assert.rejects(discovery.read(ids[0], { guarded: true }), { code: "precondition_failed" });
   const controller = new AbortController(); controller.abort();
@@ -80,7 +80,7 @@ test("index reads/parses inputs once inside the root lock, including excluded-na
   const result = await indexMemory(root, { indexing: { mode: "lexical" } });
   assert.equal(result.documents, 4);
   assert.equal(lockedReads, 5);
-  assert.equal(counts.reads, 7); // Two independent readiness-envelope reads after publication.
+  assert.equal(counts.reads, 5); // Readiness-envelope checks use metadata reads after publication.
   // Isolate the parser mock before app import; keep ordinary npm test flag-free.
   const program = `
     import { mock } from "node:test";
@@ -100,7 +100,7 @@ test("index reads/parses inputs once inside the root lock, including excluded-na
     await indexMemory(process.argv[1], { indexing: { mode: "lexical" } });
     process.stdout.write(JSON.stringify({ reads, parses, outsideReads: totalReads - reads, outsideParses: totalParses - parses }));
   `;
-  assert.deepEqual(JSON.parse(execFileSync(process.execPath, ["--experimental-test-module-mocks", "--input-type=module", "-e", program, root], { encoding: "utf8", env: { ...process.env, NODE_NO_WARNINGS: "1" } })), { reads: 5, parses: 5, outsideReads: 2, outsideParses: 2 });
+  assert.deepEqual(JSON.parse(execFileSync(process.execPath, ["--experimental-test-module-mocks", "--input-type=module", "-e", program, root], { encoding: "utf8", env: { ...process.env, NODE_NO_WARNINGS: "1" } })), { reads: 5, parses: 5, outsideReads: 0, outsideParses: 1 });
 });
 
 test("canonical snapshot rejects cancellation and changes during the content read", async t => {

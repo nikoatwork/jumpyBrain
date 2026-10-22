@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createServer, request as httpRequest } from 'node:http';
 import { PassThrough } from 'node:stream';
+import { gzipSync } from 'node:zlib';
 import { startCompanionGateway, nativeCredentials } from '../integrations/macos-companion/gateway.mjs';
 import { SwitchCoordinator } from '../integrations/macos-companion/switch-coordinator.mjs';
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from '../dist/server/index.js';
@@ -15,6 +16,23 @@ const runtimeRoot = path.resolve('.');
 const controlKey = 'a'.repeat(64);
 const id = 'mem_a0000000-0000-4000-8000-000000000001';
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test('real index transport keeps redirect rejection and the decoded response cap', async t => {
+  let mode='redirect',followed=0;
+  const oversized=gzipSync(Buffer.alloc(16*1024*1024+1,32));
+  const upstream=createServer((request,response)=>{
+    if(request.url==='/trap'){followed++;response.end('{}');return;}
+    if(request.url!=='/memories/all/index'){response.end('{}');return;}
+    if(mode==='redirect'){response.writeHead(302,{Location:'/trap'});response.end();}
+    else {response.writeHead(200,{'Content-Type':'application/json','Content-Encoding':'gzip'});response.end(oversized);}
+  });
+  await new Promise(resolve=>upstream.listen(0,'127.0.0.1',resolve));
+  t.after(async()=>{upstream.closeAllConnections();await new Promise(resolve=>upstream.close(resolve));});
+  const f=await fixture(t,{localFactory:async()=>({url:'http://127.0.0.1:'+upstream.address().port,close:async()=>{}})});
+  const headers={'X-Companion-Generation':String(f.gateway.coordinator.generation)};
+  assert.equal((await f.native('/memories/all/index',{},headers)).status,502);assert.equal(followed,0);
+  mode='oversized';assert.equal((await f.native('/memories/all/index',{},headers)).status,413);
+});
 async function until(callback) { for (let i = 0; i < 200; i++) { if (callback()) return; await pause(5); } throw new Error('condition timed out'); }
 async function fixture(t, options = {}) {
   const temporary = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-connections-gateway-')));
@@ -264,13 +282,16 @@ test('invalid TLS certificates fail closed before target credentials or requests
   const upstream = createHttpsServer({ key: await readFile(keyPath), cert: await readFile(certPath) }, (request, response) => { received++; response.end('{}'); });
   await new Promise((resolve) => upstream.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise((resolve) => upstream.close(resolve)));
-  const saved = await f.save({ name: 'Invalid TLS', kind: 'remote', url: 'https://127.0.0.1:' + upstream.address().port, key: 'fixture-tls-target-key' });
+  const saved = await f.save({ name: 'Invalid TLS', kind: 'remote', url: 'https://127.0.0.1:' + upstream.address().port, key: 'fixture-tls-target-key', allowWrites: true });
   const profile = saved.profiles.find((item) => item.name === 'Invalid TLS');
   const switched = await f.native('/companion/switch', { id: profile.id }); assert.equal(switched.status, 200);
   assert.equal(f.gateway.state().health, 'offline'); assert.equal(received, 0);
   const response = await f.native('/memories/all/recent', undefined, { 'X-Companion-Generation': String(f.gateway.coordinator.generation) });
   assert.equal(response.status, 503); assert.equal(received, 0);
   assert.doesNotMatch(await response.text(), /fixture-tls-target-key|\.key|\.cert/);
+  const index = await f.native('/memories/all/index', {}, { 'X-Companion-Generation': String(f.gateway.coordinator.generation) });
+  assert.equal(index.status, 503); assert.equal(received, 0);
+  assert.doesNotMatch(await index.text(), /fixture-tls-target-key|\.key|\.cert/);
 });
 
 test('standalone gateway starts through an entrypoint symlink and shuts down its listener', async (t) => {

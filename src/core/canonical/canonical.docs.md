@@ -23,6 +23,8 @@
 
 `readCanonicalMarkdownSnapshot` reads and parses one file with stat-before/read/stat-after size/mtime/ctime checks and returns content, metadata, body coordinates, and source stats. Callers own operation/locking scope; this detects ordinary changes during a read and does not promise filesystem snapshot isolation or bounded input memory.
 
+Metadata-only `readMarkdownDocument` scans fresh frontmatter in 4 KiB positional reads, stopping after the closing delimiter or a non-frontmatter first line. A header exceeding 64 KiB falls back to the full parser, preserving legacy oversized/unterminated-header semantics rather than truncating metadata. The ordinary path avoids reading/normalizing the body; there is no persistent cache or changed duplicate/exclusion policy. Abort checks occur between reads. Full document/edit/index snapshots still read canonical bytes as before.
+
 ## Guarded evidence expansion
 
 `expandCanonicalMemoryDocument(root, { id, expectedContentHash, startLine?, endLine?, sectionLine?, maxBytes? })` is read-only and uses canonical ID lookup, never the retrieval index. Missing/duplicate/invalid IDs retain lookup errors; no IDs are guessed or stamped. Expansion opts into the existing canonical reader's `guarded` mode, reusing update snapshots for regular single-link file, no-symlink ancestor/inode, and frontmatter-ID checks. The full editing read contract remains unchanged. Hash/identity conflicts return `precondition_failed` with an explicit refresh requirement. Invalid UTF-8 is rejected rather than silently replaced. These checks are not an atomic snapshot against hostile filesystem writers; canonical scans/full source reads remain unbounded input work.

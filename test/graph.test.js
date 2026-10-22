@@ -923,7 +923,7 @@ function mapFilterHarness() {
     setStatus() {}, onReady() {},
   });
   map.connect();
-  return { clock, state, element, requests,
+  return { clock, state, element, requests, map,
     fire(id, type, event = {}) { listeners.get(id + ":" + type)(event); },
     async finish() {
       state.view = "home";
@@ -932,6 +932,23 @@ function mapFilterHarness() {
     },
   };
 }
+
+test("leaving graph releases SVG and pending timers while preserving bounded history state", () => {
+  const h = mapFilterHarness();
+  const graph = { nodes: [{ id: "notes/a.md" }], edges: [] };
+  h.state.graph = graph; h.state.pan = { x: 42, y: 11 }; h.state.scale = 1.5;
+  h.state.selected = "notes/a.md"; h.state.dragging = { x: 1, y: 2, pan: { x: 0, y: 0 } };
+  let cleared = 0; h.element("viewport").replaceChildren = () => { cleared++; };
+  h.element("query").value = "query"; h.fire("query", "input");
+  h.map.queueGraphLayout(80);
+  assert.equal(h.clock.pending, 2);
+  h.state.view = "home"; h.map.suspend(); h.clock.advance(1000);
+  assert.equal(h.clock.pending, 0); assert.equal(cleared, 1);
+  assert.equal(h.state.layoutTimer, null); assert.equal(h.state.dragging, null);
+  assert.equal(h.state.graph, graph); assert.deepEqual(h.state.pan, { x: 42, y: 11 });
+  assert.equal(h.state.scale, 1.5); assert.equal(h.state.selected, "notes/a.md");
+  assert.equal(h.element("query").value, "query"); assert.equal(h.requests.length, 0);
+});
 
 test("map typing waits for three characters, debounces, retains filters and refreshes on clear", async () => {
   const h = mapFilterHarness();

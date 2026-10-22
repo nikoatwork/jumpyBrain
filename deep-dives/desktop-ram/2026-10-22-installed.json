@@ -1,0 +1,738 @@
+{
+  "schema": 1,
+  "macos": "15.7.7",
+  "arch": "arm64",
+  "machine_memory_bytes": 19327352832,
+  "interval_seconds": 5,
+  "elapsed_seconds": 60.39837645800435,
+  "method": "Sum per-process phys_footprint; ps RSS is separate. Lifetime peaks are not simultaneous.",
+  "summary": {
+    "physical_bytes": {
+      "min": 361745472,
+      "median": 370691520,
+      "max": 378261184
+    },
+    "rss_bytes": {
+      "min": 471646208,
+      "median": 483196928,
+      "max": 511164416
+    }
+  },
+  "samples": [
+    {
+      "time": "2026-10-22T11:12:11.412838+00:00",
+      "physical_bytes": 371232192,
+      "rss_bytes": 511164416,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 133398528,
+          "role": "main",
+          "physical_bytes": 57495552,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 41369600,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 27475968,
+          "role": "utility",
+          "physical_bytes": 7571456,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 24952832,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 172507136,
+          "role": "gateway",
+          "physical_bytes": 162583808,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 111460352,
+          "role": "renderer",
+          "physical_bytes": 52448512,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:16.376660+00:00",
+      "physical_bytes": 370658752,
+      "rss_bytes": 510377984,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 132153344,
+          "role": "main",
+          "physical_bytes": 56905728,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 41287680,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 27049984,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 24625152,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 173785088,
+          "role": "gateway",
+          "physical_bytes": 162583808,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 111476736,
+          "role": "renderer",
+          "physical_bytes": 52497664,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:21.399937+00:00",
+      "physical_bytes": 361745472,
+      "rss_bytes": 501202944,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 132071424,
+          "role": "main",
+          "physical_bytes": 56905728,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 41287680,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26804224,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 24625152,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 164904960,
+          "role": "gateway",
+          "physical_bytes": 153604992,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 111509504,
+          "role": "renderer",
+          "physical_bytes": 52563200,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:26.403965+00:00",
+      "physical_bytes": 370691520,
+      "rss_bytes": 509755392,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 132022272,
+          "role": "main",
+          "physical_bytes": 56938496,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 41287680,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26804224,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 24608768,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 173441024,
+          "role": "gateway",
+          "physical_bytes": 162452736,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 111591424,
+          "role": "renderer",
+          "physical_bytes": 52628736,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:31.398470+00:00",
+      "physical_bytes": 363105344,
+      "rss_bytes": 485277696,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 127451136,
+          "role": "main",
+          "physical_bytes": 57053184,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 40960000,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26755072,
+          "role": "utility",
+          "physical_bytes": 7555072,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 24199168,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 156385280,
+          "role": "gateway",
+          "physical_bytes": 154227584,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 109527040,
+          "role": "renderer",
+          "physical_bytes": 53136640,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:36.424750+00:00",
+      "physical_bytes": 367774976,
+      "rss_bytes": 486981632,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 127107072,
+          "role": "main",
+          "physical_bytes": 57151488,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 41123840,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26558464,
+          "role": "utility",
+          "physical_bytes": 7555072,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 24313856,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 158744576,
+          "role": "gateway",
+          "physical_bytes": 158716992,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 109133824,
+          "role": "renderer",
+          "physical_bytes": 53218560,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:41.401709+00:00",
+      "physical_bytes": 373575104,
+      "rss_bytes": 478183424,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 123961344,
+          "role": "main",
+          "physical_bytes": 57217024,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 40402944,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26427392,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 23724032,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 159760384,
+          "role": "gateway",
+          "physical_bytes": 163763456,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 103907328,
+          "role": "renderer",
+          "physical_bytes": 53923072,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:46.382527+00:00",
+      "physical_bytes": 369495296,
+      "rss_bytes": 471646208,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 124043264,
+          "role": "main",
+          "physical_bytes": 57495552,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 39927808,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26460160,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 23773184,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 153911296,
+          "role": "gateway",
+          "physical_bytes": 159323200,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 103530496,
+          "role": "renderer",
+          "physical_bytes": 54004992,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:51.397203+00:00",
+      "physical_bytes": 374115776,
+      "rss_bytes": 476413952,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 124092416,
+          "role": "main",
+          "physical_bytes": 57544704,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 39927808,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26492928,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 23789568,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 158400512,
+          "role": "gateway",
+          "physical_bytes": 163812608,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 103710720,
+          "role": "renderer",
+          "physical_bytes": 54086912,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:12:56.387411+00:00",
+      "physical_bytes": 373706176,
+      "rss_bytes": 476790784,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 123895808,
+          "role": "main",
+          "physical_bytes": 56987648,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 39927808,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26492928,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 23986176,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 158498816,
+          "role": "gateway",
+          "physical_bytes": 163878144,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 103989248,
+          "role": "renderer",
+          "physical_bytes": 54168832,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:13:01.396288+00:00",
+      "physical_bytes": 373771712,
+      "rss_bytes": 477724672,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 124338176,
+          "role": "main",
+          "physical_bytes": 56971264,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 39960576,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26492928,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 23986176,
+          "role": "native-host",
+          "physical_bytes": 12060992,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 158695424,
+          "role": "gateway",
+          "physical_bytes": 163878144,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 104251392,
+          "role": "renderer",
+          "physical_bytes": 54250752,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:13:06.382705+00:00",
+      "physical_bytes": 378261184,
+      "rss_bytes": 483196928,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 124616704,
+          "role": "main",
+          "physical_bytes": 56987648,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 39960576,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26492928,
+          "role": "utility",
+          "physical_bytes": 7538688,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 24363008,
+          "role": "native-host",
+          "physical_bytes": 12044608,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 163397632,
+          "role": "gateway",
+          "physical_bytes": 168318464,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 104366080,
+          "role": "renderer",
+          "physical_bytes": 54299904,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    },
+    {
+      "time": "2026-10-22T11:13:11.391397+00:00",
+      "physical_bytes": 367348928,
+      "rss_bytes": 475004928,
+      "processes": [
+        {
+          "pid": 59991,
+          "parent": 1,
+          "rss_bytes": 124813312,
+          "role": "main",
+          "physical_bytes": 57135104,
+          "lifetime_peak_bytes": 62492672
+        },
+        {
+          "pid": 59992,
+          "parent": 59991,
+          "rss_bytes": 39960576,
+          "role": "gpu",
+          "physical_bytes": 79071872,
+          "lifetime_peak_bytes": 432409280
+        },
+        {
+          "pid": 59993,
+          "parent": 59991,
+          "rss_bytes": 26509312,
+          "role": "utility",
+          "physical_bytes": 7555072,
+          "lifetime_peak_bytes": 8292416
+        },
+        {
+          "pid": 59994,
+          "parent": 59991,
+          "rss_bytes": 24363008,
+          "role": "native-host",
+          "physical_bytes": 12044608,
+          "lifetime_peak_bytes": 12192064
+        },
+        {
+          "pid": 59995,
+          "parent": 59994,
+          "rss_bytes": 153387008,
+          "role": "gateway",
+          "physical_bytes": 156980224,
+          "lifetime_peak_bytes": 171989248
+        },
+        {
+          "pid": 59996,
+          "parent": 59991,
+          "rss_bytes": 105971712,
+          "role": "renderer",
+          "physical_bytes": 54562048,
+          "lifetime_peak_bytes": 63982848
+        }
+      ]
+    }
+  ]
+}
