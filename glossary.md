@@ -4,6 +4,14 @@
 
 A named, Mac-app destination profile (called a companion profile in the internal protocol) for an existing local Markdown root or remote memory origin. One profile is active across companion editor tabs; switching does not sync memory or change CLI/agent targets. Destination replacement receives a new profile identity so old note links cannot open on a different brain. Remote connectivity and explicit editing/index permission are separate.
 
+## Recent activity
+
+A read-only home view of up to eight current Markdown files ordered by their latest valid update or creation metadata, with one entry per file. It retains no change history, block attribution, or unread state. Evidence dates and filesystem copy times do not establish edit recency. See [activity-feed scope](tasks/done/2026-10-18_tasks-knowledge-activity-feed.md).
+
+## Contribution actor (deferred)
+
+A proposed human or agent attribution under an owner's credential scope. Personal-key fingerprints and stable agent IDs were explored but remain unimplemented and are outside the metadata-only recent-activity scope. Current metadata does not establish a verified last editor or contributor history.
+
 ## Support diagnostic report
 
 A bounded, inspectable feedback attachment built from allowlisted operational events across available browser/local host sources. It states missing evidence and omissions, replaces correlation IDs with report-local references, and excludes memory content, credentials, paths, raw logs and crash dumps. It is disposable troubleshooting evidence, not canonical memory or proof that an unconfirmed write failed to save.

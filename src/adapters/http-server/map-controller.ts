@@ -29,6 +29,23 @@ export interface MapControllerOptions {
 }
 export function createMapController(options: MapControllerOptions) {
   const { state, element: $, document, window } = options;
+  let filterTimer: number | null = null;
+  let requestedUrl: string | null = null;
+  function cancelFilterTimer() {
+    if (filterTimer !== null) window.clearTimeout(filterTimer);
+    filterTimer = null;
+  }
+
+  function queueFilter(input: HTMLInputElement) {
+    cancelFilterTimer();
+    const length = Array.from(input.value.trim()).length;
+    if (length > 0 && length < 3) return;
+    filterTimer = window.setTimeout(() => {
+      filterTimer = null;
+      if (state.view === "graph") void loadGraph();
+    }, 250);
+  }
+
   function graphUrl() {
     const params = new URLSearchParams();
     const query = $("query").value.trim();
@@ -67,13 +84,15 @@ export function createMapController(options: MapControllerOptions) {
   }
 
   async function loadGraph() {
+    cancelFilterTimer();
+    requestedUrl = graphUrl();
     const token = ++state.graphToken;
     renderGraphNotice(null);
     options.setStatus("loading");
     $("ready").hidden = true;
     $("reload").disabled = true;
     try {
-      const payload = await options.fetchGraph(graphUrl());
+      const payload = await options.fetchGraph(requestedUrl);
       if (token !== state.graphToken) return;
       state.graph = payload;
       renderGraphNotice(payload);
@@ -83,6 +102,7 @@ export function createMapController(options: MapControllerOptions) {
       options.onReady(true);
     } catch (error) {
       if (token !== state.graphToken) return;
+      requestedUrl = null;
       const message = error && typeof error === "object" && "message" in error ? error.message : error;
       options.setStatus("error", true, String(message || error));
       options.onReady(false);
@@ -249,6 +269,28 @@ export function createMapController(options: MapControllerOptions) {
   function updateViewport() { $("viewport").setAttribute("transform", "translate(" + state.pan.x + " " + state.pan.y + ") scale(" + state.scale + ")"); }
 
   function connect() {
+  $("reload").addEventListener("click", loadGraph);
+  for (const id of ["query", "focus", "include-unresolved", "include-orphans"] as const) {
+    $(id).addEventListener("change", () => {
+      cancelFilterTimer();
+      if (graphUrl() !== requestedUrl) void loadGraph();
+    });
+  }
+  for (const id of ["query", "focus"] as const) {
+    const input = $(id);
+    let composing = false;
+    input.addEventListener("compositionstart", () => { composing = true; cancelFilterTimer(); });
+    input.addEventListener("compositionend", () => { composing = false; queueFilter(input); });
+    input.addEventListener("input", (event) => {
+      if (!composing && !(event as InputEvent).isComposing) queueFilter(input);
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !composing && !event.isComposing) {
+        event.preventDefault();
+        void loadGraph();
+      }
+    });
+  }
   const svg = $("graph");
   svg.addEventListener("wheel", onGraphWheel, { passive: false });
   svg.addEventListener("pointerdown", (event) => { state.dragging = { x: event.clientX, y: event.clientY, pan: { ...state.pan } }; svg.setPointerCapture(event.pointerId); });

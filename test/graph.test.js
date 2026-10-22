@@ -30,6 +30,7 @@ function loadGraphViewportRuntime({ scale = 1.5, pan = { x: 37, y: -24 }, rect =
     "zoom-in": control("zoom-in"),
     "zoom-out": control("zoom-out"),
     "reset-view": control("reset-view"),
+    ...Object.fromEntries(["reload", "query", "focus", "include-unresolved", "include-orphans"].map(id => [id, control(id)])),
   };
   const ctx = {
     state: { scale, pan: { ...pan } },
@@ -902,6 +903,100 @@ test("graph editor bounds repeated conflicts and ignores a late save after cance
   await save;
   assert.equal(staleHarness.editor.state.contentHash, "sha256:initial");
   assert.equal(staleHarness.editor.state.draft, "document A draft");
+});
+
+function mapFilterHarness() {
+  const clock = createManualClock();
+  const listeners = new Map(), elements = new Map(), requests = [];
+  const state = { view: "graph", graphToken: 0 };
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, { value: "", checked: true,
+      replaceChildren() {},
+      addEventListener(type, callback) { listeners.set(id + ":" + type, callback); },
+    });
+    return elements.get(id);
+  };
+  const pending = [];
+  const map = createMapController({ state, element, document: {},
+    window: { addEventListener() {}, setTimeout: clock.setTimer, clearTimeout: clock.clearTimer },
+    fetchGraph(url) { requests.push(new URL(url, "http://localhost")); const request = deferred(); pending.push(request); return request.promise; },
+    setStatus() {}, onReady() {},
+  });
+  map.connect();
+  return { clock, state, element, requests,
+    fire(id, type, event = {}) { listeners.get(id + ":" + type)(event); },
+    async finish() {
+      state.view = "home";
+      for (const request of pending) request.resolve({ nodes: [], edges: [] });
+      await Promise.resolve();
+    },
+  };
+}
+
+test("map typing waits for three characters, debounces, retains filters and refreshes on clear", async () => {
+  const h = mapFilterHarness();
+  for (const value of ["a", "ab", "  ab  "]) {
+    h.element("query").value = value;
+    h.fire("query", "input");
+    h.clock.advance(300);
+  }
+  assert.equal(h.requests.length, 0);
+  h.element("query").value = "abc";
+  h.fire("query", "input");
+  h.clock.advance(200);
+  h.element("query").value = "abcd";
+  h.fire("query", "input");
+  h.element("focus").value = "Selected note";
+  h.element("include-orphans").checked = false;
+  h.clock.advance(249);
+  assert.equal(h.requests.length, 0);
+  h.clock.advance(1);
+  assert.deepEqual(Object.fromEntries(h.requests[0].searchParams), {
+    query: "abcd", focus: "Selected note", includeUnresolved: "1", includeOrphans: "0",
+  });
+  h.fire("query", "change");
+  assert.equal(h.requests.length, 1, "blur should not repeat the automatic request");
+  h.element("query").value = "";
+  h.fire("query", "input");
+  h.clock.advance(250);
+  assert.equal(h.requests.length, 2);
+  assert.equal(h.requests[1].searchParams.has("query"), false);
+  await h.finish();
+});
+
+test("map focus typing handles composition, immediate search and canceled or hidden debounce", async () => {
+  const h = mapFilterHarness();
+  h.element("focus").value = "abc";
+  h.fire("focus", "input");
+  h.fire("focus", "compositionstart");
+  h.fire("focus", "input", { isComposing: true });
+  h.fire("focus", "keydown", { key: "Enter", isComposing: true });
+  h.clock.advance(300);
+  assert.equal(h.requests.length, 0);
+  h.fire("focus", "compositionend");
+  h.clock.advance(250);
+  assert.equal(h.requests.length, 1);
+  h.element("focus").value = "another";
+  h.fire("focus", "input");
+  h.element("focus").value = "an";
+  h.fire("focus", "input");
+  h.clock.advance(300);
+  assert.equal(h.requests.length, 1, "dropping below the threshold cancels pending typing");
+  let prevented = false;
+  h.fire("focus", "keydown", { key: "Enter", preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(h.requests[1].searchParams.get("focus"), "an");
+  h.element("focus").value = "third";
+  h.fire("focus", "input");
+  h.fire("reload", "click");
+  h.clock.advance(300);
+  assert.equal(h.requests.length, 3, "refresh cancels the duplicate typing request");
+  h.element("query").value = "next";
+  h.fire("query", "input");
+  h.state.view = "note";
+  h.clock.advance(300);
+  assert.equal(h.requests.length, 3, "queued typing stays inert after navigation");
+  await h.finish();
 });
 
 test("map resize queues an 80ms guarded layout through the injected clock", () => {

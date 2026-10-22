@@ -135,12 +135,15 @@ try {
   assert.equal(new URL(feedbackEmails[0]).pathname, 'jumpybrain@agentmail.to');
   assert.match(new URL(feedbackEmails[0]).searchParams.get('body'), /Electron feedback/);
   assert.equal(new URL(window.webContents.getURL()).origin, config.origin);
+  await js('document.getElementById("feedback-send").click()');
+  await until('document.getElementById("feedback-status").textContent.includes("Feedback sent")');
+  assert.equal(await js('document.getElementById("feedback-message").value'), '');
   await js('document.getElementById("feedback-close").click()');
   // Other files still cannot download, even from a renderer-created blob.
   const denied = new Promise((resolve) => window.webContents.session.once('will-download', (event) => resolve(event.defaultPrevented)));
   await js('(() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["blocked"], {type:"text/plain"})); a.download = "other.txt"; a.click(); })()');
   assert.equal(await denied, true);
-  checks.push('feedback attachment download, fixed-recipient email handoff, other downloads denied');
+  checks.push('direct feedback through gateway, attachment download, fixed-recipient email handoff, other downloads denied');
 
   const settingsItem = Menu.getApplicationMenu().items[0].submenu.items.find((item) => item.label === 'Settings…');
   settingsItem.click();

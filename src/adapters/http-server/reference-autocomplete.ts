@@ -44,7 +44,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   status.setAttribute("aria-atomic", "true");
-  status.style.cssText = "padding:4px 7px;min-height:44px;font-size:12px;line-height:18px;overflow-wrap:anywhere";
+  status.style.cssText = "padding:4px 7px;font-size:12px;line-height:18px;overflow-wrap:anywhere";
   popup.append(status, list);
   popup.hidden = true;
   doc.body.append(popup);
@@ -177,13 +177,15 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
       row.style.background = selected ? "var(--surface-hover,#eee)" : "";
       if (selected) selectedId = row.id;
     });
-    const message = (feedback || (!state.query ? "Type a page title…" : state.status === "loading" && state.results.length
-      ? "Updating suggestions…" : state.status === "ready" && state.results.length
-      ? "↑ ↓ choose · Enter insert · Esc close" : state.message))
-      + (state.stale ? " · Index may be stale" : "");
-    // Do not move a held row by wrapping new freshness/status text above it.
+    const message = feedback || (state.results.length ? "" :
+      (!state.query ? "Type a page title…" : state.message) + (state.stale ? " · Index may be stale" : ""));
+    // Suggestions occupy the whole dropdown; status is only for empty/error states.
+    // Do not move a held row by changing status visibility above it.
     // Also avoid repeating identical live announcements on geometry updates.
-    if (!gesture && !pendingTap && status.textContent !== message) status.textContent = message;
+    if (!gesture && !pendingTap) {
+      if (status.textContent !== message) status.textContent = message;
+      status.hidden = !message;
+    }
     popup.hidden = false;
     position();
     if (!popup.hidden && selectedId) element.setAttribute("aria-activedescendant", selectedId);

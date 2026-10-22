@@ -26,7 +26,7 @@ interface JsonError {
 
 export const RESPONSE_ERROR_CODE = Symbol("jumpybrain.responseErrorCode");
 
-export async function routeRequest(context: { request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number }): Promise<void> {
+export async function routeRequest(context: { request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number; feedback?: (request: IncomingMessage, response: ServerResponse) => Promise<void> }): Promise<void> {
   const { request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal, searchTimeoutMs } = context;
   const url = new URL(request.url ?? "/", "http://localhost");
 
@@ -69,6 +69,13 @@ export async function routeRequest(context: { request: IncomingMessage; response
   if (browserShellPath) {
     const route = url.pathname === "/" ? "/" : "/graph";
     writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${route}.`));
+    return;
+  }
+
+  if (url.pathname === "/feedback" && context.feedback) {
+    const failure = authenticate(request, apiKeys);
+    if (failure) writeJson(response, 401, failure);
+    else await context.feedback(request, response);
     return;
   }
 

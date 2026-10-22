@@ -84,7 +84,7 @@ function allowedMemoryRoute(method, pathname) {
   return null;
 }
 
-export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance } = {}) {
+export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance, feedbackSender } = {}) {
   if (!path.isAbsolute(runtimeRoot || '') || !/^[0-9a-f]{64}$/i.test(controlKey || '')) throw new Error('Invalid companion bootstrap.');
   // /var is a legitimate macOS alias; the persistence seam itself rejects symlinks.
   directory = await realpath(directory);
@@ -93,6 +93,8 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const { graphPageHtml } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/graph-page.js')).href);
   const { brainFaviconSvg } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/favicon.js')).href);
   const { startJumpyBrainHttpServer } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/server/index.js')).href);
+  const { createFeedbackForwarder, createFeedbackHandler } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/feedback-delivery.js')).href);
+  const feedback = createFeedbackHandler(feedbackSender ?? createFeedbackForwarder());
   const { createDiagnosticStore, newDiagnosticId, readNativeDiagnosticSnapshot } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/store.js')).href);
   const { diagnosticId, diagnosticOperation, diagnosticCode, statusCode, sanitizeDiagnosticEvent } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/events.js')).href);
   const { collectSupportDiagnostics } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/diagnostics/index.js')).href);
@@ -250,6 +252,11 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       }
       if (request.method === 'GET' && url.pathname === '/health') { json(response, 200, { ok: !stopping }); return; }
       const auth = authenticate(request, url.pathname);
+      if (url.pathname === '/feedback') {
+        const finish = coordinator.enter(auth.native ? coordinator.generation : Number(request.headers['x-companion-generation']), request.headers['x-companion-tab'], auth.native);
+        try { await feedback(request, response); } finally { finish(); }
+        return;
+      }
       if (url.pathname === '/companion/diagnostics' && request.method === 'GET') {
         const finish = coordinator.enter(auth.native ? coordinator.generation : Number(request.headers['x-companion-generation']), request.headers['x-companion-tab'], auth.native);
         try {

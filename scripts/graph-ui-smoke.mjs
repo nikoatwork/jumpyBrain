@@ -78,19 +78,37 @@ async function validateGraph(width) {
   await page.getByTestId("graph-svg").waitFor({ state: "visible" });
   console.log(`  ok - graph ready (nodes=${nodeCount}, edges=${edgeCount})`);
 
-  // Exercise graph filtering, then clear it so the prevalidated canonical node is selectable.
-  await page.getByTestId("graph-query").fill(String(selectedNode.title || selectedNode.file || "").split(/\s+/)[0]);
-  await reloadGraph(page);
-  await page.getByTestId("graph-query").fill("");
-  await reloadGraph(page);
-  console.log("  ok - graph filter reload");
+  // Typing must refresh the actual map without Enter or moving focus.
+  const query = page.getByTestId("graph-query");
+  const prefix = Array.from(String(selectedNode.title || selectedNode.file)).slice(0, 3).join("");
+  const requests = [];
+  const recordGraph = (request) => { if (request.url().includes("/graph.json?")) requests.push(request); };
+  page.on("request", recordGraph);
+  try {
+    await query.fill(prefix.slice(0, 2));
+    await page.waitForTimeout(350);
+    assert.equal(requests.length, 0, "two characters should not trigger live filtering");
+    const filtered = page.waitForResponse((response) => new URL(response.url()).searchParams.get("query") === prefix);
+    await query.fill(prefix);
+    const filteredPacket = await (await filtered).json();
+    const expectedIds = filteredPacket.nodes.map(node => node.id).sort();
+    await page.waitForFunction((ids) => JSON.stringify([...document.querySelectorAll('[data-testid="graph-node"]')]
+      .map(node => node.dataset.nodeId).sort()) === JSON.stringify(ids), expectedIds);
+    assert.equal(await query.evaluate(input => document.activeElement === input), true, "typing should retain field focus");
+    const cleared = page.waitForResponse((response) => response.url().includes("/graph.json?") && !new URL(response.url()).searchParams.has("query"));
+    await query.fill("");
+    await cleared;
+    await page.getByTestId("graph-ready").waitFor({ state: "visible" });
+  } finally {
+    page.off("request", recordGraph);
+  }
+  console.log("  ok - live graph filter from the third character, focus retention and clear");
   assert.equal(await page.locator("#depth").count(), 0);
   await page.locator("#graph-filters summary").click();
   const options = await page.locator(".map-options").boundingBox();
   assert.ok(options.x >= 0 && options.x + options.width <= width, "filter options must fit the viewport");
-  await page.getByTestId("graph-focus").fill(String(selectedNode.title || selectedNode.file));
   const focusedResponse = page.waitForResponse((response) => response.url().includes("/graph.json?") && response.url().includes("focus="));
-  await page.getByTestId("graph-focus").press("Tab");
+  await page.getByTestId("graph-focus").fill(String(selectedNode.title || selectedNode.file));
   await focusedResponse;
   await page.getByTestId("graph-ready").waitFor({ state: "visible" });
   await page.keyboard.press("Escape");

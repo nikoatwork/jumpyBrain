@@ -90,7 +90,7 @@ try {
       puts.length = 0;
       await selectEditorText(page, 5);
     }
-    const next = body.replace("Agent will revise this.", "A subtle change from the terminal.");
+    let next = body.replace("Agent will revise this.", "A subtle change from the terminal.");
     external(next);
     await page.waitForFunction((body) => richEditor.getMarkdown() === body, next);
     assert.equal(await page.locator("#note-external-state").innerText(), "Updated elsewhere");
@@ -111,6 +111,28 @@ try {
     await page.waitForFunction((body) => richEditor.getMarkdown() === body, next);
     await page.waitForTimeout(900);
     assert.equal(puts.length, 0, "new local edits undo to the accepted external baseline without a write");
+
+    // A separate user's editor follows the same refresh/highlight path as CLI writes.
+    // Isolate browser storage so this cannot depend on cross-tab storage events.
+    const peerContext = await browser.newContext();
+    try {
+      const peer = await peerContext.newPage();
+      await peer.goto(`${server.url}/?note=${id}#apiKey=${key}`);
+      await peer.locator("#note-editor").waitFor({ state: "visible" });
+      const previous = next;
+      await selectEditorText(peer, "First paragraph.".length);
+      await peer.keyboard.insertText(" Written by another user.");
+      next = previous.replace("First paragraph.", "First paragraph. Written by another user.");
+      await peer.waitForFunction((body) => state.editor.state.saveStatus === "saved" && state.editor.state.savedBody === body, next);
+      await page.waitForFunction((body) => richEditor.getMarkdown() === body, next);
+      assert.equal(await page.locator("#note-external-state").innerText(), "Updated elsewhere");
+      assert.equal(await page.locator("#note-editor > .external-change").count(), 1);
+      assert.equal(puts.length, 0, "another user's save never writes back from the receiving editor");
+      await undoEditor(page);
+      assert.equal(await editorMarkdown(page), next, "Undo cannot restore text from before another user's save");
+    } finally {
+      await peerContext.close();
+    }
 
     // Composition holds even a clean note; it does not require a dirty event.
     await page.locator("#note-name").dispatchEvent("compositionstart");
@@ -219,7 +241,7 @@ try {
     await page.waitForTimeout(250);
     assert.equal(await editorMarkdown(page), "Another note.\n");
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ width, checks: "CLI/filesystem refresh, highlights/fade/reduced motion, caret/scroll/undo, idle-safe merge of independent edits and concurrent end appends, same-passage review, recovery, deletion/read errors, navigation", reads: readDurations.length, maxReadMs: Math.round(Math.max(...readDurations)) }));
+    console.log(JSON.stringify({ width, checks: "CLI/filesystem/other-user editor refresh, highlights/fade/reduced motion, caret/scroll/undo, idle-safe merge of independent edits and concurrent end appends, same-passage review, recovery, deletion/read errors, navigation", reads: readDurations.length, maxReadMs: Math.round(Math.max(...readDurations)) }));
     await page.close();
   }
 } finally {

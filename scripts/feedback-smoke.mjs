@@ -14,11 +14,14 @@ const id = 'mem_a0000000-0000-4000-8000-000000000001';
 const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 let browser, server;
 const errors = [];
+const submissions = [];
+let rejectFeedback = false;
 try {
   await initializeMemoryRoot(root);
   await mkdir(path.join(root, 'notes'), { recursive: true });
   await writeFile(path.join(root, 'notes/private.md'), `---\nid: ${id}\ntitle: Private title\ntype: note\n---\nPrivate note body.\n`);
-  server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
+  server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false,
+    feedbackSender: async report => { submissions.push(report); if (rejectFeedback) throw new Error('fixture delivery unavailable'); } });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
   for (const width of [1280, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 850 }, colorScheme: width === 390 ? 'dark' : 'light', acceptDownloads: true });
@@ -34,11 +37,28 @@ try {
     assert.equal(JSON.parse(log).version, version);
     assert.ok(JSON.parse(log).events.some((event) => event.operation === 'document_read'));
     const text = 'Feedback 🐐 & details\nAnother line';
+    assert.equal(await page.locator('#feedback-send').isDisabled(), true);
+    await page.locator('#feedback-message').fill(text);
+    rejectFeedback = true;
+    await page.locator('#feedback-send').click();
+    await page.locator('#feedback-status').filter({ hasText: 'could not be confirmed' }).waitFor();
+    assert.equal(await page.locator('#feedback-message').inputValue(), text);
+    const failedSubmission = submissions.at(-1);
+    await page.locator('#feedback-close').click();
+    await page.locator('#open-feedback').click();
+    assert.equal(await page.locator('#feedback-logs').inputValue(), log);
+    rejectFeedback = false;
+    await page.locator('#feedback-send').click();
+    await page.locator('#feedback-status').filter({ hasText: 'Feedback sent' }).waitFor();
+    assert.deepEqual(submissions.at(-1), failedSubmission);
+    assert.equal(submissions.at(-1).diagnostics, log);
+    assert.equal(await page.locator('#feedback-message').inputValue(), '');
     await page.locator('#feedback-message').fill(text);
     await page.locator('#feedback-message').press('Control+Enter');
     await page.locator('#feedback-message').press('Meta+k');
     assert.equal(await page.locator('#note-search').evaluate((el) => el.open), false);
     assert.equal(new URL(page.url()).searchParams.get('note'), id);
+    await page.getByText('Email alternatives', { exact: true }).click();
     const [download] = await Promise.all([page.waitForEvent('download'), page.locator('#feedback-download').click()]);
     assert.equal(download.suggestedFilename(), 'jumpybrain-feedback.eml');
     const email = await readFile(await download.path(), 'utf8');
@@ -50,6 +70,11 @@ try {
     assert.equal(await page.locator('#feedback-logs').inputValue(), '');
     const fallback = new URL(await page.locator('#feedback-mailto').getAttribute('href'));
     assert.equal(fallback.searchParams.get('body'), text);
+    await page.locator('#feedback-send').click();
+    await page.locator('#feedback-status').filter({ hasText: 'Feedback sent' }).waitFor();
+    assert.equal(submissions.at(-1).diagnostics, null);
+    assert.notEqual(submissions.at(-1).id, failedSubmission.id);
+    await page.locator('#feedback-message').fill(text);
     const [without] = await Promise.all([page.waitForEvent('download'), page.locator('#feedback-download').click()]);
     assert.doesNotMatch(await readFile(await without.path(), 'utf8'), /Content-Disposition: attachment/);
     await page.locator('#feedback-message').press('Escape');
@@ -58,7 +83,7 @@ try {
     await page.locator('#open-feedback').click();
     assert.equal(await page.locator('#feedback-message').inputValue(), text);
     await page.locator('#feedback-include-logs').check();
-    await page.locator('#feedback-dialog details summary').click();
+    await page.getByText('Preview diagnostic log', { exact: true }).click();
     assert.ok(await page.locator('#feedback-dialog').evaluate((el) => el.getBoundingClientRect().right <= innerWidth));
     if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) {
       await mkdir(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, { recursive: true });

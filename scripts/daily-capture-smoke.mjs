@@ -357,7 +357,7 @@ async function validateReferences(page, label) {
   assert.equal(await editorMarkdown(page), baseline, "typed [[ remains natively undoable after cancellation");
   await page.keyboard.type(`[[${fixture.query}`);
   await autocomplete.locator("[role='option'][aria-selected='true']").filter({ hasText: fixture.title }).waitFor({ state: "visible" });
-  assert.match(await autocomplete.locator("[role='status']").innerText(), /Enter (?:to )?insert/);
+  assert.equal(await autocomplete.locator("[role='status']").isVisible(), false, "matching suggestions show only options");
   assert.equal(await page.locator("#note-search").isVisible(), false, "typed query stays inline");
   assert.equal(await editor.evaluate((element) => document.activeElement === element), true);
   const queryTrigger = baseline + `[[${fixture.query}`;

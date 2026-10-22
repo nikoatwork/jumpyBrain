@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readdir, rm, symlink, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -64,16 +64,41 @@ test("recent orders valid metadata dates, falls through invalid aliases, and put
   await document(root, "notes/z-unknown.md", { id: id(8), updated_at: 9999999999999 });
   const packet = await recentServerMemory({ root });
   assertSafe(packet, root);
-  assert.deepEqual(packet.notes.map((note) => note.id), [1, 6, 2, 3, 4, 5, 7, 8].map(id));
+  assert.deepEqual(packet.notes.map((note) => note.id), [1, 6, 2, 3, 4, 7, 8, 5].map(id));
   assert.equal(packet.notes[0].updatedAt, "2024-08-01");
   assert.equal(packet.notes[0].createdAt, "2020-01-01");
   assert.equal(packet.notes[2].updatedAt, "2024-07-01T00:00:00Z");
   assert.equal(packet.notes[3].createdAt, "2024-06-01");
   assert.equal(packet.notes[4].createdAt, "2024-05-01");
-  assert.equal(packet.notes[5].createdAt, "2024-04-01");
-  assert.deepEqual(packet.notes[6], { id: id(7), title: "", file: "notes/a-unknown.md" });
+  assert.deepEqual(packet.notes[5], { id: id(7), title: "", file: "notes/a-unknown.md" });
+  assert.deepEqual(packet.notes[7], { id: id(5), title: "Dated", file: "sessions/dated.md" });
   for (const note of packet.notes) assert.equal((await readServerMemoryDocument({ root, id: note.id })).file, note.file);
   assert.equal((await readdir(root)).includes(".jumpybrain"), false);
+});
+
+test("recent is a read-only current-file view across repeated external edits and deletion", async (t) => {
+  const root = await fixture(t);
+  const first = { id: id(1), title: "External", date: "2099-01-01", updated_at: "2024-01-01" };
+  const file = await document(root, "notes/external.md", first);
+  await document(root, "notes/newer.md", { id: id(2), created_at: "2024-02-01", date: "1990-01-01" });
+  assert.deepEqual((await recentServerMemory({ root })).notes.map((note) => note.id), [id(2), id(1)]);
+
+  // A body-only edit is visible on read, but cannot establish a new edit date.
+  await writeFile(file, (await readFile(file, "utf8")) + "External edit without a metadata update.\n");
+  assert.deepEqual((await recentServerMemory({ root })).notes.map((note) => note.id), [id(2), id(1)]);
+  await document(root, "notes/external.md", { ...first, title: "Latest external edit", updated_at: "2024-03-01" });
+  await document(root, "notes/external.md", { ...first, title: "Latest external edit", updated_at: "2024-04-01" });
+  const bytes = await readFile(file, "utf8");
+  const packet = await recentServerMemory({ root });
+  assert.equal(packet.notes.length, 2);
+  assert.equal(packet.notes[0].title, "Latest external edit");
+  assert.equal(packet.notes[0].updatedAt, "2024-04-01");
+  assert.deepEqual(await recentServerMemory({ root }), packet);
+  assert.equal(await readFile(file, "utf8"), bytes);
+  assert.deepEqual(await readdir(root), ["notes"], "reads create no index, activity log, or state");
+
+  await rm(file);
+  assert.deepEqual((await recentServerMemory({ root })).notes.map((note) => note.id), [id(2)]);
 });
 
 test("recent excludes noncanonical paths, symlinks, missing/invalid and all duplicate IDs before its fixed cap", async (t) => {

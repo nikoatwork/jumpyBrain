@@ -85,6 +85,7 @@ export function installFeedback(options: {
   document: Document; window: Window; diagnostics: ReturnType<typeof createFeedbackDiagnostics>;
   context: () => { view: string; connection: string; companion: boolean };
   onOpen?: () => void;
+  submit?: (report: { id: string; message: string; diagnostics: string | null }, signal: AbortSignal) => Promise<unknown>;
   collectHost?: (signal: AbortSignal) => Promise<{ sources?: DiagnosticSnapshot[]; runtime?: unknown }>;
 }) {
   const { document, window, diagnostics } = options;
@@ -95,10 +96,18 @@ export function installFeedback(options: {
   const preview = element<HTMLTextAreaElement>("feedback-logs");
   const mail = element<HTMLAnchorElement>("feedback-mailto");
   const status = element<HTMLElement>("feedback-status");
+  const send = element<HTMLButtonElement>("feedback-send");
+  let sending = false;
+  let submission: { id: string; message: string; diagnostics: string | null } | null = null;
   let snapshot = "", openSequence = 0, collecting = false;
   let collection: AbortController | null = null;
   const download = element<HTMLButtonElement>("feedback-download");
   function update() {
+    send.disabled = sending || collecting || !message.value.trim();
+    send.textContent = sending ? "Sending…" : "Send feedback";
+    message.disabled = sending;
+    include.disabled = sending;
+    element<HTMLButtonElement>("feedback-close").disabled = sending;
     preview.value = include.checked ? snapshot : "";
     preview.closest("details")!.hidden = !include.checked;
     const fallback = feedbackMailto(message.value, include.checked ? snapshot : null);
@@ -109,6 +118,7 @@ export function installFeedback(options: {
     catch { download.disabled = true; status.textContent = "Shorten your message or exclude diagnostics to fit the email draft limit."; }
   }
   function close(restoreFocus = true) {
+    if (sending && restoreFocus) return;
     if (!dialog.open) return;
     openSequence++; collection?.abort(); collection = null; collecting = false;
     dialog.close();
@@ -118,14 +128,39 @@ export function installFeedback(options: {
     if (restoreFocus) element("open-feedback").focus({ preventScroll: true });
   }
   element("open-feedback").addEventListener("click", () => {
-    if (dialog.open || document.querySelector("dialog[open]")) return;
+    if (sending || dialog.open || document.querySelector("dialog[open]")) return;
     options.onOpen?.();
-    snapshot = diagnostics.snapshot(options.context(), window.navigator.userAgent);
+    snapshot = submission?.diagnostics ?? diagnostics.snapshot(options.context(), window.navigator.userAgent);
     status.textContent = "Review your message and logs before sending.";
     update();
     dialog.showModal();
     message.focus();
-    if (include.checked) void collect();
+    if (include.checked && !submission) void collect();
+  });
+  send.addEventListener("click", async () => {
+    if (sending || collecting || !dialog.open || !message.value.trim()) return;
+    const report = { message: message.value, diagnostics: include.checked ? snapshot : null };
+    if (!submission || submission.message !== report.message || submission.diagnostics !== report.diagnostics) {
+      submission = { id: window.crypto.randomUUID(), ...report };
+    }
+    const pending = submission, token = openSequence;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 20_000);
+    sending = true; update();
+    status.textContent = "Sending your feedback…";
+    try {
+      if (!options.submit) throw new Error("unavailable");
+      const result = await options.submit(pending, controller.signal) as { accepted?: boolean; id?: string };
+      if (result?.accepted !== true || result.id !== pending.id) throw new Error("unconfirmed");
+      if (submission === pending) { submission = null; message.value = ""; }
+      if (dialog.open && token === openSequence) status.textContent = "Feedback sent. Thank you!";
+    } catch (error) {
+      if (dialog.open && token === openSequence) status.textContent = (error as { code?: string })?.code === "feedback_unavailable"
+        ? "Direct feedback is not available in this installation yet. Your message is still here; you can use the email alternatives below."
+        : "Feedback delivery could not be confirmed. Your message is still here. Try sending again.";
+    } finally {
+      window.clearTimeout(timer); sending = false; update();
+    }
   });
   async function collect() {
     if (!options.collectHost || !dialog.open || !include.checked) return;
@@ -140,7 +175,7 @@ export function installFeedback(options: {
       })]);
       if (controller.signal.aborted || !dialog.open || token !== openSequence || !include.checked) return;
       snapshot = diagnostics.snapshot(options.context(), window.navigator.userAgent, Array.isArray(host?.sources) ? host.sources : [], host?.runtime);
-      status.textContent = "Review the report: each source states whether its evidence is available. Only your email app sends it.";
+      status.textContent = "Review your message and diagnostic log, then choose Send feedback.";
       update();
     } catch {
       if (dialog.open && token === openSequence && include.checked) {
@@ -182,19 +217,25 @@ export function installFeedback(options: {
 export const feedbackMarkup = String.raw`
 <dialog id="feedback-dialog" class="document-dialog" aria-labelledby="feedback-title" aria-describedby="feedback-description">
   <h2 id="feedback-title">Send beta feedback</h2>
-  <p id="feedback-description">Bug, idea, or something confusing? Email <strong>jumpybrain@agentmail.to</strong>.</p>
+  <p id="feedback-description">Bug, idea, or something confusing? Send a report directly to the jumpyBrain team.</p>
   <label for="feedback-message">What happened, or what would you like to see?</label>
   <textarea id="feedback-message" maxlength="4000" placeholder="What were you trying to do? What happened instead?"></textarea>
   <label class="feedback-check"><input id="feedback-include-logs" type="checkbox" checked /> Include diagnostic log</label>
   <p>App details and recent failures from this tab, plus sanitized local host events when available. No note text, searches, keys, paths, raw logs, or crash dumps. Preview lists source coverage and any omissions. Browser history resets on reload.</p>
   <details><summary>Preview diagnostic log</summary><textarea id="feedback-logs" aria-label="Diagnostic log attachment" readonly spellcheck="false"></textarea></details>
-  <p>Download an email draft with the log attached, then open it in your email app to review and send. The email-app fallback includes logs in the message instead.</p>
+  <p>Send shares your message and the diagnostic log above, if included, with the jumpyBrain team.</p>
   <div class="dialog-actions">
-    <button id="feedback-download" class="button button-primary" type="button">Download email draft</button>
-    <a id="feedback-mailto" class="quiet-button">Open email app</a>
+    <button id="feedback-send" class="button button-primary" type="button">Send feedback</button>
     <button id="feedback-close" class="quiet-button" type="button">Close</button>
   </div>
   <p id="feedback-status" role="status" aria-live="polite"></p>
+  <details><summary>Email alternatives</summary>
+    <p>Email <strong>jumpybrain@agentmail.to</strong> manually, or use a configured desktop email app. These alternatives do not send automatically.</p>
+    <div class="dialog-actions">
+      <button id="feedback-download" class="quiet-button" type="button">Download email draft</button>
+      <a id="feedback-mailto" class="quiet-button">Open email app</a>
+    </div>
+  </details>
 </dialog>`;
 
 export const feedbackStyles = String.raw`

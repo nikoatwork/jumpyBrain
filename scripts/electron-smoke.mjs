@@ -17,6 +17,7 @@ const temporary = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jumpybrai
 const root = path.join(temporary, 'memory');
 const support = path.join(temporary, 'support');
 let gateway;
+const feedbackReports = [];
 try {
   await mkdir(support, { mode: 0o700 });
   await createServerMemoryRuntime({ root }).initializeMemoryRoot();
@@ -26,6 +27,7 @@ try {
   const controlKey = randomBytes(32).toString('hex');
   gateway = await startCompanionGateway({ runtimeRoot: repo, directory: support,
     initialRoot: root, port: 0, controlKey,
+    feedbackSender: async report => { feedbackReports.push(report); },
     credentials: { get: async () => null, set: async () => {}, delete: async () => {}, selectFolder: async () => null },
   });
   const setupRoot = path.join(temporary, 'Chosen local brain');
@@ -55,6 +57,10 @@ try {
   assert.equal(code, 0, output);
   const result = JSON.parse(await readFile(path.join(temporary, 'result.json'), 'utf8'));
   assert.equal(result.ok, true, result.error);
+  assert.equal(feedbackReports.length, 1);
+  assert.equal(feedbackReports[0].message, 'Electron feedback');
+  assert.ok(JSON.parse(feedbackReports[0].diagnostics).events);
+  assert.ok(!JSON.stringify(feedbackReports).includes(controlKey));
   assert.match(await readFile(note, 'utf8'), /Saved from Electron/);
   const deadline = Date.now() + 5000;
   while (gateway.coordinator.tabs.size && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));

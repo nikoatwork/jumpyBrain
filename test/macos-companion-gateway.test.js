@@ -367,3 +367,22 @@ test('only the native owner can prepare shutdown; cancellation preserves target 
   assert.equal((await f.native('/companion/register', { tabId: 'too-late', generation: f.gateway.coordinator.generation })).status, 409);
   assert.equal((await fetch(f.remote.url + '/health')).status, 200);
 });
+
+test('direct feedback uses authenticated fenced gateway delivery without remote write permission', async t => {
+  const sent = [];
+  const f = await fixture(t, { feedbackSender: async report => { sent.push(report); } });
+  const profile = await f.save({ name: 'Offline read-only', kind: 'remote', url: 'https://offline.invalid', key: 'private-remote-key', allowWrites: false });
+  await f.native('/companion/switch', { id: profile.profiles.at(-1).id });
+  const generation = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'feedback-tab', generation });
+  const report = { id: '12345678-1234-4234-8234-123456789abc', message: 'Cannot connect', diagnostics: null };
+  const headers = { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'feedback-tab' };
+  const response = await f.browser('/feedback', report, headers);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { accepted: true, id: report.id });
+  assert.deepEqual(sent, [report]);
+  assert.equal((await fetch(f.gateway.url + '/feedback', { method: 'POST', body: JSON.stringify(report) })).status, 403);
+  assert.equal((await f.browser('/feedback', report, { ...headers, Origin: 'https://evil.invalid' })).status, 403);
+  assert.equal((await f.browser('/feedback', report, { ...headers, 'X-Companion-Generation': String(generation - 1) })).status, 409);
+  assert.equal(sent.length, 1);
+});

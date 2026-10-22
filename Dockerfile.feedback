@@ -1,0 +1,16 @@
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+RUN npx tsc -p tsconfig.json
+
+FROM node:22-slim
+WORKDIR /app
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=3002
+COPY package.json ./
+COPY --from=build /app/dist ./dist
+COPY scripts/feedback-relay.mjs ./scripts/feedback-relay.mjs
+EXPOSE 3002
+CMD ["node", "scripts/feedback-relay.mjs"]

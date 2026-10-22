@@ -1,0 +1,40 @@
+services:
+  feedback:
+    image: jumpybrain-feedback:local
+    container_name: jumpybrain-feedback
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3002"
+    user: node
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 128m
+    pids_limit: 64
+    networks: [coolify]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: 1m
+        max-file: "2"
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: coolify
+      traefik.http.routers.jumpybrain-feedback.rule: Host(`${JUMPYBRAIN_FEEDBACK_HOST:?Set JUMPYBRAIN_FEEDBACK_HOST in the deployment .env}`) && (Path(`/support/feedback`) || Path(`/support/health`))
+      traefik.http.routers.jumpybrain-feedback.entrypoints: https
+      traefik.http.routers.jumpybrain-feedback.priority: "100"
+      traefik.http.routers.jumpybrain-feedback.tls: "true"
+      traefik.http.routers.jumpybrain-feedback.tls.certresolver: letsencrypt
+      traefik.http.routers.jumpybrain-feedback.middlewares: jumpybrain-feedback-prefix
+      traefik.http.middlewares.jumpybrain-feedback-prefix.stripprefix.prefixes: /support
+      traefik.http.services.jumpybrain-feedback.loadbalancer.server.port: "3002"
+networks:
+  coolify:
+    external: true

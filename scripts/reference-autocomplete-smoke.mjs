@@ -128,17 +128,21 @@ try {
       await page.waitForTimeout(100); assert.equal(await menu(page).isVisible(), false);
       assert.equal(await editorMarkdown(page), "[[alph");
     });
-    await check("auth/error/empty feedback and stale results stay inline", async (page) => {
-      for (const [mode, message] of [["auth", /Connect with an access key/], ["error", /Search is unavailable/], ["ready", /Index may be stale/]]) {
+    await check("auth/error/empty feedback stays inline; stale results show only options", async (page) => {
+      for (const [mode, message] of [["auth", /Connect with an access key/], ["error", /Search is unavailable/], ["ready", null]]) {
         await page.evaluate((value) => { window.mode = value; transportStale = true; }, mode);
         await load(page, "[[alpha"); await selectEditorText(page, 7);
         await page.waitForFunction(() => popup.state.status !== "loading" && popup.state.status !== "idle");
-        assert.match(await menu(page).innerText(), message);
+        if (message) assert.match(await menu(page).innerText(), message);
+        else {
+          assert.equal(await menu(page).getByRole("status").isVisible(), false);
+          assert.equal(await menu(page).innerText(), "Alpha\nBeta");
+        }
         assert.equal(await page.evaluate(() => document.activeElement.id), "note-editor");
       }
       await page.evaluate(() => { fixtureResults = []; });
       await page.keyboard.type("x"); await page.waitForFunction(() => popup.state.active && popup.state.query === "alphax" && popup.state.status === "ready");
-      assert.match(await menu(page).innerText(), /No notes found/);
+      assert.match(await menu(page).innerText(), /No indexed matches yet/);
     });
     await check("composition guards and unsafe titles block insertion", async (page) => {
       await load(page, "[[alp"); await selectEditorText(page, 5); await ready(page);

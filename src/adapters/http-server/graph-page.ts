@@ -195,6 +195,7 @@ const feedbackDiagnostics = JumpyBrainBrowser.createFeedbackDiagnostics();
 const feedback = JumpyBrainBrowser.installFeedback({ document, window, diagnostics: feedbackDiagnostics,
   context: () => ({ view: state.view, connection: connectionStatus, companion: companionMode }),
   onOpen: () => cancelReferenceInteraction(),
+  submit: (report, signal) => graphJson("/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(report), signal }),
   collectHost: companionMode ? (signal) => graphJson("/companion/diagnostics", { signal }) : undefined });
 ${companion ? companionPrelude : ""}
 const apiKeyInput = $("api-key");
@@ -221,7 +222,6 @@ const map = JumpyBrainBrowser.createMapController({
 });
 const { loadGraph, queueGraphLayout } = map;
 map.connect();
-$("reload").addEventListener("click", loadGraph);
 const graphFilters = $("graph-filters");
 document.addEventListener("click", (event) => {
   if (graphFilters.open && !graphFilters.contains(event.target)) graphFilters.open = false;
@@ -232,8 +232,6 @@ graphFilters.addEventListener("keydown", (event) => {
     graphFilters.querySelector("summary").focus();
   }
 });
-for (const id of ["query", "focus", "include-unresolved", "include-orphans"]) $(id).addEventListener("change", loadGraph);
-for (const id of ["query", "focus"]) $(id).addEventListener("keydown", (event) => { if (event.key === "Enter") loadGraph(); });
 $("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
 const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
   onChange: (markdown) => state.editor?.input(markdown),

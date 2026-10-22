@@ -39,6 +39,8 @@ Verification: `node --test test/{macos-companion-connections,macos-companion-gat
 
 ## Browser lifecycle controls
 
+Direct support feedback uses authenticated, Origin-checked, generation/tab-fenced `POST /feedback`, handled by the gateway itself. It forwards only the explicitly submitted report to the configured support relay, even if the selected brain is offline/read-only, without starting a local engine or forwarding remote credentials. It participates in the coordinator's in-flight drain. The relay URL is public package configuration generated at build time; native process environment filtering remains intact. Mail credentials exist only on the central relay. See [deployment](../../docs/feedback-delivery.md).
+
 The route allowlist includes document DELETE as a write, forwarding its bounded JSON body and If-Match under the same generation/tab admission and target allowWrites policy as PUT. Read-only profiles cannot delete. GET `?deletePreview=1` remains observational. Browser deletion/reload actions settle before switch acknowledgement; destructive actions recheck current editor/scope/write authorization before submission. Expired-session UI offers direct Retry and Recover draft controls without moving a pending draft to a new generation.
 
 ## Unified desktop hosting and shutdown

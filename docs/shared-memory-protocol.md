@@ -343,7 +343,7 @@ See [browser verification](../src/adapters/http-server/browser.docs.md#browser-v
 
 ### `GET /memories/all/recent`
 
-Authenticated read-only recent-note discovery scans canonical Markdown through server-memory, without consulting the search index. The response is `{ memory: "all", target: "remote", root: "remote:all", notes: [...] }`, with at most eight unique-ID notes containing `id`, `title`, root-relative `file`, and optional date fields. The cap is not query-configurable; no body, frontmatter, index status, or server filesystem root is returned. Other methods return 405 after authentication; failures return generic 500 `recent_failed`. Ordering and canonical eligibility belong to the [server-memory contract](../src/app/server-memory/server-memory.docs.md).
+Authenticated read-only recent-note discovery scans canonical Markdown through server-memory, without consulting the search index. The response is `{ memory: "all", target: "remote", root: "remote:all", notes: [...] }`, with at most eight unique-ID notes containing `id`, `title`, root-relative `file`, and optional `updatedAt`/`createdAt` from valid update/creation metadata. Evidence `date` is not a file-activity timestamp. Each file appears once with its current metadata; no event history, editor identity, or deletion log is retained. The cap is not query-configurable; no body, frontmatter, index status, or server filesystem root is returned. Other methods return 405 after authentication; failures return generic 500 `recent_failed`. Ordering and canonical eligibility belong to the [server-memory contract](../src/app/server-memory/server-memory.docs.md).
 
 ### `POST /memories/all/search`
 

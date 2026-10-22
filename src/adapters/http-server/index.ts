@@ -9,8 +9,10 @@ import { createDiagnosticStore, newDiagnosticId, type DiagnosticStore } from "..
 import { diagnosticId } from "../diagnostics/events.js";
 import { diagnosticRequestContext, diagnosticServerLogger } from "../diagnostics/server-logging.js";
 import { readDiagnosticBuildInfo } from "../diagnostics/build-info.js";
+import { createFeedbackForwarder, createFeedbackHandler, type FeedbackSender } from "./feedback-delivery.js";
 
 export interface JumpyBrainHttpServerOptions {
+  feedbackSender?: FeedbackSender;
   root: string;
   apiKeys: string[];
   indexRunner?: RemoteIndexRunner;
@@ -50,6 +52,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   };
 
   const requests = new Set<AbortController>();
+  const feedback = createFeedbackHandler(options.feedbackSender ?? createFeedbackForwarder());
   const handlers = new Set<Promise<void>>();
   let shuttingDown = false;
   const server = http.createServer((request, response) => diagnosticRequestContext.run(diagnosticId(request.headers["x-jumpybrain-request"]) ?? newDiagnosticId(), async () => {
@@ -68,7 +71,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
     const startedAt = performance.now();
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
-      await routeRequest({ request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal: controller.signal, searchTimeoutMs: options.searchTimeoutMs });
+      await routeRequest({ request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal: controller.signal, searchTimeoutMs: options.searchTimeoutMs, feedback });
     } catch (error) {
       logger.error("http_unhandled_error", { method: request.method, path: url.pathname, code: "server_misconfigured" });
       writeJson(response, 500, errorResponse("server_misconfigured", "Server request failed."));

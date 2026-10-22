@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- Authenticated `POST /feedback` is a support transport, independent of canonical memory operations. `feedback-delivery.ts` bounds/validates reports, limits concurrent/rate admission, forwards to one configured HTTPS relay without app credentials or redirects, and acknowledges only confirmed acceptance. The standalone relay keeps AgentMail credentials server-side and fixes the recipient. See [feedback delivery](../../../docs/feedback-delivery.md). Reports are never indexed or written into a brain.
+
 - Notes POST forwards optional untrusted `date` to app validation without string coercion or fallback. Document error mapping allowlists known domain codes; unexpected native I/O errors return generic messages so paths/content cannot escape through error text.
 
 - Own server lifecycle, authentication, request decoding, response encoding, safe error mapping, and the content-free nonce-protected browser shell.

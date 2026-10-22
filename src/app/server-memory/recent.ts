@@ -32,7 +32,8 @@ export async function recentServerMemory(options: { root: string }): Promise<Rem
     // Count even hidden matches: the editor lookup would reject their duplicate IDs.
     if (document.relativePath.split("/").some((part) => part.startsWith("."))) continue;
     const updatedAt = firstValidDate(metadata.updated_at, metadata.updatedAt);
-    const createdAt = firstValidDate(metadata.created_at, metadata.createdAt, metadata.date);
+    // Evidence dates describe the knowledge, not when this file was written.
+    const createdAt = firstValidDate(metadata.created_at, metadata.createdAt);
     const date = updatedAt ?? createdAt;
     candidates.push({
       note: {

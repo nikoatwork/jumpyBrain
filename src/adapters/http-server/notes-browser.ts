@@ -32,8 +32,7 @@ export const notesStyles = String.raw`
     .sidebar-page { display: flex; align-items: center; min-width: 0; border-radius: 5px; }
     .sidebar-page:hover, .sidebar-page:focus-within { background: var(--surface-hover); }
     .sidebar-page:has([aria-current="page"]) { background: var(--control-fill); }
-    .sidebar-page-link { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 31px; gap: 8px; padding: 5px 4px 5px 10px; color: var(--ink-soft); text-decoration: none; font-size: 13px; line-height: 21px; border-radius: 5px; }
-    .sidebar-page-link::before { content: ""; width: 8px; height: 10px; border: 1px solid currentColor; border-radius: 2px; opacity: .45; flex-shrink: 0; }
+    .sidebar-page-link { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 31px; padding: 5px 4px 5px 10px; color: var(--ink-soft); text-decoration: none; font-size: 13px; line-height: 21px; border-radius: 5px; }
     .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sidebar-page-link[aria-current="page"] { color: var(--ink); }
     .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 6px; margin-right: 2px; border: 0; border-radius: 4px; color: var(--ink-soft); background: transparent; opacity: 0; }
@@ -59,14 +58,15 @@ export const notesStyles = String.raw`
     #home-search { margin-top: 10px; background: transparent; color: var(--ink-soft); }
     #home-search:hover { background: var(--surface-hover); color: var(--ink); }
     .recent-notes { width: min(100%, 560px); margin: 40px auto 0; text-align: left; }
-    .recent-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .recent-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
     .recent-heading h2 { margin: 0; font-size: 13px; font-weight: 650; }
-    .recent-heading span, #recent-message { color: var(--ink-soft); font-size: 12px; }
+    .recent-heading .quiet-button, .recent-description, #recent-message { color: var(--ink-soft); font-size: 12px; }
+    .recent-description { margin: 0 0 6px; }
     #recent-list { list-style: none; margin: 0; padding: 0; }
     .recent-link { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 10px; margin-inline: -10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
     .recent-link:hover { background: var(--surface-hover); }
     .recent-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .recent-link time { flex-shrink: 0; color: var(--ink-soft); font-size: 12px; }
+    .recent-link .recent-date { flex-shrink: 0; color: var(--ink-soft); font-size: 12px; }
     kbd { font: inherit; color: var(--ink); }
     .home-action kbd { flex-shrink: 0; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; font-weight: 400; color: inherit; }
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
@@ -295,8 +295,9 @@ export const notesViews = String.raw`
       </button>
     </div>
     <section class="recent-notes" aria-labelledby="recent-title">
-      <div class="recent-heading"><h2 id="recent-title">Recent notes</h2><span>Latest first</span></div>
-      <ul id="recent-list" aria-label="Recent notes"></ul>
+      <div class="recent-heading"><h2 id="recent-title">Recent activity</h2><button id="recent-refresh" class="quiet-button" aria-label="Refresh recent activity">Refresh</button></div>
+      <p class="recent-description">Latest update per file · Up to 8 files</p>
+      <ul id="recent-list" aria-label="Recent activity"></ul>
       <p id="recent-message" role="status" aria-live="polite"></p>
       <button id="recent-retry" class="quiet-button" hidden>Retry</button>
       <button id="recent-connect" class="quiet-button" hidden>Connect</button>
@@ -374,15 +375,18 @@ function renderRecentNotes(recent) {
     link.title = title.textContent + (note.file ? " · " + note.file : "");
     link.append(title);
     const date = note.updatedAt || note.createdAt;
-    if (date && Number.isFinite(Date.parse(date))) {
-      const time = document.createElement("time");
+    const dated = date && Number.isFinite(Date.parse(date));
+    const time = document.createElement(dated ? "time" : "span");
+    time.className = "recent-date";
+    if (dated) {
       time.dateTime = date;
       // Date-only metadata must not shift a day in the browser's timezone.
       const value = new Date(date.length === 10 ? date + "T12:00:00" : date);
-      time.textContent = value.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(value.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) });
-      time.title = (note.updatedAt ? "Edited " : "Created ") + value.toLocaleString();
-      link.append(time);
-    }
+      const label = note.updatedAt ? "Updated " : "Created ";
+      time.textContent = label + value.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(value.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) });
+      time.title = label + (date.length === 10 ? value.toLocaleDateString() : value.toLocaleString());
+    } else time.textContent = "Date unknown";
+    link.append(time);
     link.addEventListener("click", (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
@@ -391,13 +395,15 @@ function renderRecentNotes(recent) {
     item.append(link);
     list.append(item);
   }
-  $("recent-message").textContent = recent.status === "loading" ? "Loading recent notes…"
-    : recent.status === "auth" ? "Connect to see your recent notes."
-    : recent.status === "error" ? "Could not load recent notes."
+  $("recent-message").textContent = recent.status === "loading" ? "Loading recent activity…"
+    : recent.status === "auth" ? "Connect to see recent activity."
+    : recent.status === "error" ? "Could not load recent activity."
     : recent.notes.length ? "" : "No notes yet. Create your first note above.";
   $("recent-message").hidden = recent.status === "ready" && recent.notes.length > 0;
   $("recent-retry").hidden = recent.status !== "error";
   $("recent-connect").hidden = recent.status !== "auth";
+  $("recent-refresh").hidden = recent.status === "auth";
+  $("recent-refresh").disabled = recent.status === "loading";
 }
 
 // Search and navigation controllers have injected effects for deterministic tests.
@@ -716,6 +722,7 @@ const recentNotes = createRecentNotes({
   onChange: renderRecentNotes,
 });
 $("recent-retry").addEventListener("click", () => recentNotes.load());
+$("recent-refresh").addEventListener("click", () => recentNotes.load());
 $("recent-connect").addEventListener("click", () => openConnection(false));
 
 function openSearch(mode = "navigate", range = null) {

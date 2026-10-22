@@ -8,6 +8,10 @@
 
 - Clarified local privacy boundaries, app/CLI use of one brain, existing-install reuse, and agent-assisted setup in the installation guides and new FAQ.
 
+## 2026-10-22 — Direct feedback delivery
+
+- Feedback now sends directly through a VPS relay, with optional diagnostics, private mail credentials, and drafts retained when delivery cannot be confirmed. Relay URLs and deployment hostnames are explicitly configured; private company hostnames are not bundled by default.
+
 ## 2026-10-22 — Release request policy
 
 - Release requests default to a complete patch publication with synchronized CLI/runtime and Mac app versions, verified GitHub release notes, tag, and artifact.
@@ -15,6 +19,18 @@
 ## 2026-10-18 — Completed task archive
 
 - Archived ten completed task lists, including the two superseded Electron stages; retained outstanding implementation and manual QA work in `tasks/todo/`.
+
+## 2026-10-17 — Live graph filtering
+
+- Graph title/tag and connection-focus filters refresh after three typed characters with a short debounce; clearing refreshes too, while Enter remains immediate. Build, 37 graph tests, and desktop/narrow graph browser checks passed.
+
+## 2026-10-17 — Recent activity
+
+- Home shows each file's latest metadata-based activity with explicit refresh and date labels; retained history and contributor tracking are deferred.
+
+## 2026-10-17 — Sidebar page rows
+
+- Removed the decorative empty box before pinned and recent page titles; sidebar browser checks passed in both themes and narrow layouts.
 
 ## 2026-10-17 — Memory lifecycle controls
 

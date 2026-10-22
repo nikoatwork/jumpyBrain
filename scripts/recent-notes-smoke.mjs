@@ -116,6 +116,50 @@ try {
     const original = path.join(root, "notes/3.md");
     await writeFile(original, (await readFile(original, "utf8")).replace(/^updated_at:.*$/m, 'updated_at: "2024-01-03T00:00:00Z"'));
   }
+  // Metadata-only activity: real filesystem changes, with no index or history.
+  await rm(path.join(root, "notes"), { recursive: true });
+  await mkdir(path.join(root, "notes"));
+  for (const width of [1280, 390]) {
+    const paths = ["updated", "created", "unknown"].map((name) => path.join(root, "notes", name + ".md"));
+    const contents = [
+      'updated_at: "2024-03-02"',
+      'created_at: "2024-02-01"\ndate: "1990-01-01"',
+      'date: "2099-01-01"',
+    ].map((metadata, n) => ["---", `id: mem_80000000-0000-4000-8000-${String(n + 1).padStart(12, "0")}`,
+      `title: Activity ${n + 1}`, metadata, "type: note", "---", "Current body.", ""].join("\n"));
+    for (let n = 0; n < paths.length; n++) await writeFile(paths[n], contents[n]);
+    const page = await browser.newPage({ viewport: { width, height: 820 }, timezoneId: "America/Los_Angeles" });
+    await page.addInitScript((key) => localStorage.setItem("jumpybrain.graph.apiKey", key), key);
+    await page.goto(server.url);
+    await page.locator(".recent-link").nth(2).waitFor();
+    assert.equal(await page.locator("#recent-title").innerText(), "Recent activity");
+    assert.deepEqual(await page.locator(".recent-date").allTextContents(), ["Updated Mar 2, 2024", "Created Feb 1, 2024", "Date unknown"]);
+    assert.deepEqual(await page.locator(".recent-link > span:first-child").allTextContents(), ["Activity 1", "Activity 2", "Activity 3"]);
+    // Leaving timestamp metadata unchanged must not invent a new edit time.
+    await writeFile(paths[2], contents[2].replace("Activity 3", "Externally renamed"));
+    await page.getByRole("button", { name: "Refresh recent activity", exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll(".recent-link > span:first-child")[2]?.textContent === "Externally renamed");
+    assert.equal(await page.locator(".recent-date").last().innerText(), "Date unknown");
+    // A metadata update moves the same file to the top, without another row.
+    await writeFile(paths[2], contents[2].replace('date: "2099-01-01"', 'date: "1990-01-01"\nupdated_at: "2024-04-01"'));
+    await page.locator("#recent-refresh").click();
+    await page.waitForFunction(() => document.querySelector(".recent-link > span")?.textContent === "Activity 3");
+    assert.equal(await page.locator(".recent-link").count(), 3);
+    assert.equal(await page.locator(".recent-date").first().innerText(), "Updated Apr 1, 2024");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) {
+      await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `activity-${width}.png`) });
+    }
+    await rm(paths[2]);
+    await page.locator("#recent-refresh").click();
+    await page.waitForFunction(() => document.querySelectorAll(".recent-link").length === 2);
+    await rm(paths[0]); await rm(paths[1]);
+    await page.locator("#recent-refresh").click();
+    await page.waitForFunction(() => document.querySelector("#recent-message").textContent.startsWith("No notes yet."));
+    assert.equal(await page.locator(".recent-link").count(), 0);
+    await page.close();
+    console.log(`PASS metadata-only activity ${width}px`);
+  }
 } finally {
   if (browser) await browser.close();
   if (server) await server.close();

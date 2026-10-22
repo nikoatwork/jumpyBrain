@@ -4,7 +4,15 @@ import { gzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
 
 const { version } = JSON.parse(await readFile("package.json", "utf8"));
+// Public routing configuration only; the native helper deliberately drops shell env.
+const feedbackUrl = process.env.JUMPYBRAIN_FEEDBACK_URL ?? "";
+if (feedbackUrl) {
+  const url = new URL(feedbackUrl);
+  if (url.protocol !== "https:" || url.username || url.password || url.hash) throw new Error("Feedback URL must use HTTPS without credentials or a fragment.");
+}
+await writeFile("dist/adapters/http-server/feedback-config.json", JSON.stringify({ url: feedbackUrl }));
 const fingerprint = createHash("sha256").update(version);
+fingerprint.update(feedbackUrl);
 for (const name of (await readdir("src", { recursive: true })).filter((name) => name.endsWith(".ts")).sort()) fingerprint.update(name).update(await readFile(`src/${name}`));
 const buildId = fingerprint.digest("hex").slice(0, 16);
 await writeFile("dist/adapters/diagnostics/build-info.json", JSON.stringify({ version, build: buildId }));
