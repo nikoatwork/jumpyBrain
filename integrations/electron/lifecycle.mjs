@@ -1,5 +1,5 @@
 // Testable save-before-stop policy. Window closure is separate from application quit.
-export function createQuitFlow({ getHost, control, closeWindows, cancelClose, flush, exit, showError }) {
+export function createQuitFlow({ getHost, control, closeWindows, cancelClose, flush, beforeStop = async () => {}, exit, showError }) {
   let pending = null;
   return () => pending ??= (async () => {
     const host = getHost();
@@ -18,6 +18,7 @@ export function createQuitFlow({ getHost, control, closeWindows, cancelClose, fl
       // A slow unload dialog may outlive the preparation lease. Revalidate and
       // hold admission closed before stopping; never assume a stale save barrier.
       if (lease) await control(host.connection, 'shutdown', { action: 'commit', id: lease });
+      await beforeStop();
       await host?.stop();
       exit();
     } catch (error) {

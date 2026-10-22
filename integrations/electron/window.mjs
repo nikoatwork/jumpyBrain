@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, Menu, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 
-export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics } = {}) {
+export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, openUpdates } = {}) {
   const window = new BrowserWindow({
     title: 'jumpyBrain', icon: fileURLToPath(new URL('./assets/app-icon.png', import.meta.url)), width: 1200, height: 860, minWidth: 480, minHeight: 480,
     show: false, backgroundColor: '#f7f4ed',
@@ -17,7 +17,16 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   contents.on('render-process-gone', (_event, details) => record(details.reason, { exitCode: details.exitCode }));
   contents.on('unresponsive', () => record('unresponsive'));
   contents.on('did-fail-load', (_event, _code, _description, _url, isMainFrame) => { if (isMainFrame) record('load_failed'); });
-  contents.on('did-finish-load', () => { void diagnostics?.checkRenderer(contents); });
+  contents.on('did-finish-load', () => {
+    void diagnostics?.checkRenderer(contents);
+    if (openUpdates && isAppNavigation(contents.getURL(), origin)) void contents.executeJavaScript(`(() => {
+      const parent = document.querySelector('.nav-preferences');
+      if (!parent || document.getElementById('desktop-updates')) return;
+      const button = document.createElement('button'); button.id = 'desktop-updates';
+      button.className = 'quiet-button nav-item'; button.textContent = 'Updates'; button.setAttribute('aria-haspopup', 'dialog');
+      button.addEventListener('click', () => { location.href = 'jumpybrain-update://open'; }); parent.append(button);
+    })()`);
+  });
   const session = contents.session;
   // The UI is served entirely by the installed gateway. It needs no external
   // network access, Node bridge, preload script, or remote frames. The only
@@ -44,6 +53,9 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   contents.once('destroyed', () => session.removeListener('will-download', onDownload));
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
   contents.on('will-navigate', (event, url) => {
+    if (url === 'jumpybrain-update://open' && openUpdates && isAppNavigation(contents.getURL(), origin)) {
+      event.preventDefault(); openUpdates(); return;
+    }
     if (isFeedbackMailto(url) && isAppNavigation(contents.getURL(), origin)) {
       event.preventDefault();
       void openFeedbackEmail(url).catch(() => dialog.showMessageBox(window, {
@@ -55,7 +67,7 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     if (!isAppNavigation(url, origin)) event.preventDefault();
   });
   contents.on('will-frame-navigate', (event) => {
-    if (!event.isMainFrame || (!isAppNavigation(event.url, origin) && !isFeedbackMailto(event.url))) event.preventDefault();
+    if (!event.isMainFrame || (!isAppNavigation(event.url, origin) && !isFeedbackMailto(event.url) && !(openUpdates && event.url === 'jumpybrain-update://open'))) event.preventDefault();
   });
   contents.on('will-redirect', (event) => event.preventDefault());
   contents.on('will-attach-webview', (event) => event.preventDefault());
@@ -78,10 +90,11 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   return { window, loaded };
 }
 
-export function setApplicationMenu({ app, getWindow, reconnect, settings }) {
+export function setApplicationMenu({ app, getWindow, reconnect, settings, updates }) {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'jumpyBrain', submenu: [
       { label: 'About jumpyBrain', click: () => app.showAboutPanel() },
+      ...(updates ? [{ label: 'Update jumpyBrain…', click: updates }] : []),
       { type: 'separator' },
       { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => {
         if (settings) { settings(); return; }

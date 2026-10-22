@@ -4,6 +4,9 @@ const distDirPrefix = (...segments) => `${distFile(...segments)}/`;
 
 export const requiredLocalPackFiles = Object.freeze([
   "package/package.json",
+  ...['package.json', 'package-lock.json', 'install.mjs', 'desktop-install.py', 'application.mjs', 'updater.mjs', 'update-worker.mjs',
+    'update-policy.mjs', 'update-release.mjs', 'update-transaction.py', 'update-window.mjs', 'update-preload.cjs', 'update.html', 'update.css',
+    'update-renderer.js', 'assets/app-icon.icns'].map(file => `package/integrations/electron/${file}`),
   "package/install.sh",
   "package/uninstall.sh",
   "package/scripts/public-install.mjs",
@@ -110,7 +113,7 @@ export const requiredLocalPackFiles = Object.freeze([
 const staleTopLevelDistDirs = ["canonical", "setup", "retrieval", "processing", "writing", "qmd", "client", "logging"];
 const staleServerProtocolModules = ["http", "auto-index", "idempotency", "state"];
 
-export const forbiddenLocalPackPathPrefixes = Object.freeze(staleTopLevelDistDirs.map((dir) => distDirPrefix(dir)));
+export const forbiddenLocalPackPathPrefixes = Object.freeze([...staleTopLevelDistDirs.map((dir) => distDirPrefix(dir)), 'package/integrations/electron/node_modules/']);
 
 export const forbiddenLocalPackFiles = Object.freeze([
   ...moduleFiles("package-info"),

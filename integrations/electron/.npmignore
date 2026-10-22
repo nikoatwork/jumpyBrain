@@ -1,0 +1,4 @@
+node_modules/
+__pycache__/
+smoke-*.mjs
+test_*.py

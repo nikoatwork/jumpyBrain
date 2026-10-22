@@ -1,0 +1,174 @@
+import path from 'node:path';
+import os from 'node:os';
+import { spawn } from 'node:child_process';
+import { mkdir, mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
+import { discoverRelease, compareVersions } from './update-release.mjs';
+import { cliPolicy, readJSON, regular, installedVersion, alive, overlaps } from './update-policy.mjs';
+import { atomicJSON } from './update-worker.mjs';
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+const files = ['update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'desktop-host.mjs', 'host.mjs'];
+
+export function createDesktopUpdater({ resources, appVersion, home = os.homedir(), discover = discoverRelease, onRestart, spawnWorker = spawn }) {
+  const appPath = path.join(home, 'Applications/jumpyBrain.app');
+  const root = path.join(home, '.jumpybrain');
+  const updates = path.join(home, 'Library/Application Support/jumpyBrain Updates');
+  let state = { phase: 'idle', detail: 'Check for a published jumpyBrain release.' }, release, directory, busy = null;
+  let restart = false;
+  async function installed() {
+    const cli = await cliPolicy(home);
+    return { app: appVersion || await installedVersion(path.join(resources, 'runtime')), runtime: await installedVersion(path.join(resources, 'runtime')), cli: cli.version, cliPolicy: cli };
+  }
+  async function latest() {
+    if (directory) return;
+    const entries = await readdir(updates).catch(() => []);
+    const candidates = [];
+    for (const name of entries.filter(n => /^update-[\w-]+$/.test(n))) {
+      const dir = path.join(updates, name);
+      const value = await readJSON(path.join(dir, 'state.json')).catch(() => null);
+      if (value) candidates.push({ dir, value });
+    }
+    candidates.sort((a, b) => b.value.updatedAt - a.value.updatedAt);
+    if (candidates[0]) directory = candidates[0].dir;
+  }
+  async function snapshot() {
+    await latest();
+    if (directory) {
+      const value = await readJSON(path.join(directory, 'state.json')).catch(() => null);
+      if (value && value.updatedAt > (state.updatedAt || 0) && !['checking', 'available', 'current'].includes(state.phase)) {
+        state = value;
+      }
+      if (state.pid && !alive(state.pid)) {
+          const journal = await readJSON(path.join(directory, 'transaction.json')).catch(() => null);
+          const recovery = journal && !['success', 'rolled-back'].includes(journal.phase);
+          if (recovery || ['preparing', 'ready', 'updating'].includes(state.phase)) state = { ...state, phase: 'failed', recovery: !!recovery, detail: 'The updater was interrupted. Retry preparation, or Recover if replacement had started. Your previous installation is retained.' };
+      }
+    }
+    const versions = await installed();
+    return { ...state, installed: versions, available: release?.version || state.version || null, notes: release?.notes || '', logAvailable: !!directory,
+      canPrepare: !!release && ['available', 'failed'].includes(state.phase) && !state.recovery, canRecover: !!state.recovery };
+  }
+  async function check() {
+    const current = await snapshot();
+    if (['preparing', 'ready', 'updating'].includes(current.phase) || current.canRecover) return current;
+    state = { phase: 'checking', detail: 'Checking public releases, including beta releases…' };
+    try {
+      release = await discover();
+      const versions = await installed();
+      const newer = compareVersions(release.version, versions.app) > 0;
+      state = { phase: newer ? 'available' : 'current', detail: newer ? 'A published release is available.' : 'The app is up to date with published releases.' };
+    } catch (error) { state = { phase: 'failed', detail: error.message, updatedAt: Date.now() }; }
+    return snapshot();
+  }
+  async function launch(recovering, appOnly) {
+    if (process.platform !== 'darwin') throw new Error('GUI updates require macOS 13 or later.');
+    if (path.resolve(resources) !== path.join(appPath, 'Contents/Resources')) throw new Error('This app is running from a development/custom location. Install it in your personal Applications folder before using GUI updates.');
+    await regular(appPath, { directory: true });
+    const versions = await installed();
+    if (!recovering && (!release || compareVersions(release.version, versions.app) <= 0)) throw new Error('Check for a newer published release first.');
+    if (!recovering && versions.cliPolicy.kind !== 'managed' && !appOnly) throw new Error('Choose “Update app only” to preserve the missing/custom/pinned CLI.');
+    if (versions.cliPolicy.kind === 'managed' && appOnly) throw new Error('A supported managed CLI updates together with the app.');
+    await mkdir(updates, { recursive: true, mode: 0o700 });
+    const stat = await regular(updates, { directory: true });
+    if (stat.mode & 0o077) throw new Error('The Updates folder must be private to your user. Repair its permissions before updating.');
+    await mkdir(root, { recursive: true }); await regular(root, { directory: true });
+    const lock = path.join(root, '.installer-lock');
+    let acquired = false;
+    try {
+      try { await mkdir(lock, { mode: 0o700 }); acquired = true; }
+      catch (error) {
+        if (error.code !== 'EEXIST') throw error;
+        const owner = await readJSON(path.join(lock, 'desktop.json')).catch(() => null);
+        if (!owner || alive(owner.pid) || !owner.directory.startsWith(updates + path.sep)) throw new Error('Another installer/update holds the installation lock. Wait for it to finish. Unknown locks require installation repair.');
+        const child = await readJSON(path.join(owner.directory, 'child.json')).catch(() => null);
+        if (child?.pid && alive(child.pid)) throw new Error('A previous build is still running. Wait for it to finish, then retry.');
+        const journal = await readJSON(path.join(owner.directory, 'transaction.json')).catch(() => null);
+        if (journal && !['success', 'rolled-back'].includes(journal.phase) && !recovering) throw new Error('An interrupted installation needs recovery first.');
+        // Claim an abandoned, proven desktop lock without removing/recreating it.
+        await mkdir(path.join(lock, 'reclaim'), { mode: 0o700 }); acquired = true;
+        if (recovering) directory = owner.directory;
+      }
+      if (!recovering) directory = await mkdtemp(path.join(updates, 'update-'));
+      if (!directory) throw new Error('No update is available to recover.');
+      const configFile = path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json');
+      const native = await readJSON(configFile);
+      if (!path.isAbsolute(native.node || '') || !path.isAbsolute(native.qmd || '')) throw new Error('Repair the app’s Node/QMD prerequisites before updating.');
+      for (const preserved of [native.supportDirectory, native.memoryRoot]) {
+        if (!path.isAbsolute(preserved || '') || [appPath, directory].some(p => overlaps(p, preserved) || overlaps(preserved, p))) throw new Error('App data overlaps the update destination. Move the installation before updating.');
+      }
+      if (!recovering && versions.cliPolicy.kind === 'managed' && [native.node, native.qmd, native.memoryRoot, native.supportDirectory].some(p => overlaps(path.join(root, 'app'), p))) {
+        throw new Error('Node, QMD, or app data is stored inside the CLI replacement folder. Move these prerequisites/data outside the CLI installation before updating.');
+      }
+      const configuration = { ...native, legacyLaunchAgent: native.legacyLaunchAgent ?? native.launchAgent ?? path.join(home, 'Library/LaunchAgents/local.jumpybrain.companion.plist'), label: 'local.jumpybrain.companion', launchAgent: path.join(home, 'Library/LaunchAgents/local.jumpybrain.desktop.plist') };
+      let request = recovering ? await readJSON(path.join(directory, 'request.json')) : { home, appPath, node: native.node, release, configuration,
+        installed: versions, cli: versions.cliPolicy, updateCLI: versions.cliPolicy.kind === 'managed', preparedAt: new Date().toISOString() };
+      request = { ...request, parentPid: process.pid };
+      for (const file of files) await writeFile(path.join(directory, file), await readFile(new URL(file, import.meta.url)), { mode: 0o600 });
+      for (const name of ['cancel', 'proceed', 'ack.json', 'state.json']) await rm(path.join(directory, name), { force: true });
+      await atomicJSON(path.join(directory, 'request.json'), request);
+      await atomicJSON(path.join(lock, 'desktop.json'), { directory, pid: process.pid });
+      await rm(path.join(lock, 'reclaim'), { recursive: true, force: true });
+      const child = spawnWorker(native.node, [path.join(directory, 'update-worker.mjs'), directory, ...(recovering ? ['--recover'] : [])], {
+        cwd: directory, detached: true, stdio: 'ignore', env: { HOME: home, PATH: `${path.dirname(native.node)}:/usr/bin:/bin:/usr/sbin:/sbin` },
+      });
+      await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
+      child.unref();
+      // Persist the child ownership before returning; duplicate GUI/CLI calls see it.
+      await atomicJSON(path.join(lock, 'desktop.json'), { directory, pid: child.pid });
+      state = { phase: 'preparing', detail: recovering ? 'Preparing recovery…' : 'Preparing the selected release…', pid: child.pid, updatedAt: Date.now() };
+      return snapshot();
+    } catch (error) {
+      if (acquired) {
+        const owner = await readJSON(path.join(lock, 'desktop.json')).catch(() => null);
+        if (!owner || owner.pid === process.pid || !alive(owner.pid)) await rm(lock, { recursive: true, force: true });
+      }
+      throw error;
+    }
+  }
+  async function action(name) {
+    if (name === 'status') return snapshot();
+    if (busy) return busy;
+    busy = (async () => {
+      try {
+        const current = await snapshot();
+        if (name === 'check') return await check();
+        if (name === 'prepare' || name === 'app-only') {
+          if (['preparing', 'ready', 'updating'].includes(current.phase)) return current;
+          return await launch(false, name === 'app-only');
+        }
+        if (name === 'recover' && current.canRecover) return await launch(true, false);
+        if (name === 'cancel' && ['preparing', 'ready'].includes(current.phase)) {
+          await writeFile(path.join(directory, 'cancel'), 'cancel', { mode: 0o600 });
+          return { ...current, detail: 'Canceling preparation…' };
+        }
+        if (name === 'restart' && current.phase === 'ready') { restart = true; onRestart(); return current; }
+        throw new Error('That update action is unavailable. Refresh and try again.');
+      } catch (error) { state = { phase: 'failed', detail: error.message, updatedAt: Date.now() }; return { ...state, installed: await installed() }; }
+    })().finally(() => { busy = null; });
+    return busy;
+  }
+  async function beforeStop() {
+    if (!restart) {
+      const current = await snapshot();
+      if (['preparing', 'ready'].includes(current.phase)) await writeFile(path.join(directory, 'cancel'), 'cancel', { mode: 0o600 });
+      return;
+    }
+    const current = await snapshot();
+    if (current.phase !== 'ready' || !alive(current.pid)) throw new Error('The prepared updater is no longer ready. Check again.');
+    await writeFile(path.join(directory, 'proceed'), 'install', { mode: 0o600 });
+    const end = Date.now() + 5000;
+    while (Date.now() < end) {
+      const ack = await readJSON(path.join(directory, 'ack.json')).catch(() => null);
+      if (ack && ack.pid === current.pid && ack.expires > Date.now() && alive(ack.pid)) return;
+      await pause(50);
+    }
+    throw new Error('The updater did not acknowledge restart. The app will stay open.');
+  }
+  async function cancelRestart() {
+    if (restart && directory) {
+      const proceed = await readFile(path.join(directory, 'proceed')).catch(() => null);
+      if (proceed) await writeFile(path.join(directory, 'cancel'), 'cancel', { mode: 0o600 });
+    }
+    restart = false;
+  }
+  return { action, snapshot, beforeStop, cancelRestart, logPath: () => directory && path.join(directory, 'update.log') };
+}

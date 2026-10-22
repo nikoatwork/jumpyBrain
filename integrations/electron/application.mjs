@@ -8,6 +8,8 @@ import { createEditorWindow, setApplicationMenu } from './window.mjs';
 import { startElectronDiagnostics } from './diagnostics.mjs';
 import { createOnboardingWindow } from './onboarding.mjs';
 import { setupComplete, finishSetup } from './setup.mjs';
+import { createDesktopUpdater } from './updater.mjs';
+import { createUpdateWindow } from './update-window.mjs';
 
 export function startDesktopApplication({ resourceDirectory, userData, background = process.argv.includes('--background') } = {}) {
 app.setName('jumpyBrain');
@@ -19,6 +21,14 @@ let startupError = null;
 let diagnostics = null, tray = null, healthTimer = null, polling = false;
 let quitting = false, quitReady = false, status = 'Starting…';
 const resources = resourceDirectory ?? (app.isPackaged ? process.resourcesPath : fileURLToPath(new URL('../../.local-pack/desktop/jumpyBrain.app/Contents/Resources', import.meta.url)));
+const updater = createDesktopUpdater({ resources, appVersion: app.getVersion(), onRestart: () => app.quit() });
+let updateWindow = null;
+function openUpdates() {
+  if (quitting) return;
+  if (updateWindow && !updateWindow.isDestroyed()) { updateWindow.show(); updateWindow.focus(); return; }
+  updateWindow = createUpdateWindow(updater);
+  updateWindow.once('closed', () => { updateWindow = null; });
+}
 process.on('uncaughtExceptionMonitor', () => { diagnostics?.record({ operation: 'exception', severity: 'error', outcome: 'failed', code: 'error' }); void diagnostics?.flush(); });
 
 async function ensureHost() {
@@ -57,7 +67,7 @@ async function openEditor(settings = false) {
       await welcome.loaded;
       if (!await welcome.completed || quitting) return;
     }
-    const editor = createEditorWindow(connection, { diagnostics });
+    const editor = createEditorWindow(connection, { diagnostics, openUpdates });
     window = editor.window;
     window.on('closed', () => { if (window === editor.window) window = null; });
     await editor.loaded;
@@ -85,7 +95,7 @@ async function refreshTray() {
     { type: 'separator' },
     { label: 'Start at Login', type: 'checkbox', checked: login, enabled: !!config && app.isPackaged && !quitting,
       click: (item) => void setLoginEnabled(config.launchAgent, process.execPath, item.checked).then(refreshTray).catch(showError) },
-    { label: 'Update jumpyBrain…', click: () => void dialog.showMessageBox({ message: 'Update from your checkout', detail: 'Pull your chosen revision, quit jumpyBrain, then run npm run desktop:setup. This rebuilds and updates the whole Mac app together. Your brains and connections are retained.' }) },
+    { label: 'Update jumpyBrain…', enabled: !quitting, click: openUpdates },
     { label: 'Show Logs', enabled: !!config, click: () => shell.showItemInFolder(path.join(config.supportDirectory, 'server.log')) },
     { type: 'separator' }, { label: 'Quit jumpyBrain', enabled: !quitting, click: () => app.quit() },
   ]));
@@ -104,7 +114,8 @@ const quit = createQuitFlow({
     })));
     return results.every(Boolean);
   },
-  cancelClose: () => { quitting = false; void refreshTray(); },
+  cancelClose: () => { quitting = false; void updater.cancelRestart(); void refreshTray(); },
+  beforeStop: () => updater.beforeStop(),
   flush: async () => { diagnostics?.record({ operation: 'shutdown', severity: 'info', outcome: 'ok', code: 'none' }); await diagnostics?.flush(); },
   exit: () => { clearInterval(healthTimer); tray?.destroy(); quitReady = true; app.quit(); }, showError,
 });
@@ -124,7 +135,7 @@ else {
   app.whenReady().then(async () => {
     const icon = nativeImage.createFromPath(path.join(resources, 'MenuBarBrain.png')).resize({ width: 18, height: 18 });
     icon.setTemplateImage(true); tray = new Tray(icon);
-    setApplicationMenu({ app, getWindow: () => window, reconnect: () => void openEditor(), settings: () => void openEditor(true) });
+    setApplicationMenu({ app, getWindow: () => window, reconnect: () => void openEditor(), settings: () => void openEditor(true), updates: openUpdates });
     await refreshTray();
     healthTimer = setInterval(async () => {
       if (polling || quitting || !host?.isAlive()) return;
@@ -141,5 +152,5 @@ else {
   }).catch(() => { app.quit(); });
 }
 
-return { openEditor, quit: () => app.quit(), getHost: () => host, getTray: () => tray, getStartupError: () => startupError };
+return { openEditor, openUpdates, updater, quit: () => app.quit(), getHost: () => host, getTray: () => tray, getStartupError: () => startupError };
 }

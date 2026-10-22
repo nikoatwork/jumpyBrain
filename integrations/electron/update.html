@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'">
+<title>jumpyBrain Updates</title><link rel="stylesheet" href="update.css"></head>
+<body><main><p class="eyebrow">JUMPYBRAIN · UPDATES</p><h1>Keep your brain up to date.</h1>
+<p>Prepare an update while you work. Restart when your notes are saved.</p>
+<dl id="versions"><dt>Mac app</dt><dd id="app-version">Checking…</dd><dt>Bundled runtime</dt><dd id="runtime-version">Checking…</dd><dt>CLI</dt><dd id="cli-version">Checking…</dd><dt>Available release</dt><dd id="available-version">Not checked</dd></dl>
+<section class="status" aria-live="polite" aria-atomic="true"><strong id="phase">Checking</strong><p id="detail"></p></section>
+<p id="cli-policy"></p><div class="actions"><button id="check">Check for updates</button><button id="prepare" hidden>Prepare update</button><button id="app-only" hidden>Update app only</button><button id="restart" hidden>Restart and install</button><button id="recover" hidden>Recover previous installation</button><button id="cancel" hidden>Cancel preparation</button><button id="defer" hidden>Restart later</button></div>
+<details><summary>Release notes</summary><pre id="notes">Check for updates to see release notes.</pre></details>
+<button id="log" class="secondary" hidden>Show private update log</button>
+<p class="footnote">Local build · macOS 13+ · Node 22.12+, npm, Python 3 and Xcode Command Line Tools required. This distribution is locally signed, not notarized. Memory, connections, login preference, and agent settings are preserved.</p>
+</main><script src="update-renderer.js"></script></body></html>
