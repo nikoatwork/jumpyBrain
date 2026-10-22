@@ -30,9 +30,8 @@ ${noteAttentionStyles}
     .app-nav .sidebar-icon { justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: var(--space-2); }
     .nav-appearance { display: flex; }
     .nav-library { flex: 1; min-height: 80px; overflow: auto; scrollbar-width: thin; }
-    .nav-library section + section { margin-top: var(--space-5); }
-    .nav-library h2 { margin: 0 var(--space-3) var(--space-1); font-size: var(--text-caption); font-weight: var(--weight-regular); color: var(--ink-faint); letter-spacing: .025em; }
     .nav-library ul { list-style: none; margin: 0; padding: 0; }
+    .nav-library ul:not(:empty) + ul, .sidebar-page + .sidebar-page { margin-top: var(--space-1); }
     .sidebar-empty { margin: var(--space-1) var(--space-3); font-size: var(--text-caption); line-height: 1.5; color: var(--ink-faint); }
     .sidebar-page { display: flex; align-items: center; min-width: 0; border-radius: var(--radius-sm); }
     .sidebar-page:hover, .sidebar-page:focus-within { background: var(--surface-hover); }
@@ -170,11 +169,9 @@ ${noteAttentionStyles}
       .nav-tools { flex-direction: row; align-items: center; gap: var(--space-1); }
       .nav-pages { grid-row: 2; grid-column: 1; flex-direction: row; }
       .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
-      .nav-library section { display: flex; align-items: center; gap: var(--space-1); }
-      .nav-library section + section { margin-top: var(--space-1); }
-      .nav-library h2 { flex: 0 0 46px; margin: 0; }
-      .nav-library ul { display: flex; min-width: 0; overflow-x: auto; }
+      .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
       .sidebar-page { flex: 0 0 auto; max-width: 190px; }
+      .sidebar-page + .sidebar-page { margin-top: 0; }
       .sidebar-page-link { min-height: var(--control-height); }
       .sidebar-empty { margin: var(--space-1); }
       .nav-preferences { display: contents; }
@@ -207,15 +204,9 @@ export const notesMarkup = String.raw`
     <a id="notes-link" class="quiet-button nav-item" href="/">Home</a>
   </div>
   <div class="nav-library" aria-label="Your pages">
-    <section aria-labelledby="sidebar-pinned-heading">
-      <h2 id="sidebar-pinned-heading">Pinned</h2>
-      <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
-    </section>
-    <section aria-labelledby="sidebar-recent-heading">
-      <h2 id="sidebar-recent-heading">Attention</h2>
-      <ul id="sidebar-recent" aria-label="Notes needing attention"></ul>
-      <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
-    </section>
+    <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
+    <ul id="sidebar-recent" aria-label="Notes needing attention"></ul>
+    <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
   </div>
   <div class="nav-preferences">
     <a id="graph-link" class="quiet-button nav-item" href="/graph">Graph</a>

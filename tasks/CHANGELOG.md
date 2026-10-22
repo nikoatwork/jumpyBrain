@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Continuous sidebar list
+
+- Removed sidebar section headings and unified note spacing, keeping pinned notes first; finalized [the sidebar layout task](done/2026-10-23_tasks-sidebar-continuous-list.md).
+
 ## 2026-10-23 — v0.3.6 beta release
 
 - Published [v0.3.6](done/releases/v0.3.6.md) with bounded Mac Back navigation, page-reference creation, shared graph search, note attention, and simpler sidebar/update controls.
