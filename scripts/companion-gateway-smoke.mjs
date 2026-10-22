@@ -226,7 +226,7 @@ try {
     const conflict = second.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/documents/"));
     await appendEditorText(second, "Retained B conflicting draft");
     assert.equal((await conflict).status(), 412, "must exercise real optimistic-concurrency conflict");
-    await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Save failed");
+    await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
     const writes = traffic.filter((item) => item.method === "PUT").length;
     await row("Local brain").getByRole("button", { name: "Use this brain", exact: true }).click();
     await settings.waitForFunction(() => document.getElementById("companion-feedback").textContent.includes("unsaved or unconfirmed"));
@@ -265,7 +265,7 @@ try {
     const conflict = second.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/documents/"));
     await appendEditorText(second, "Retained remote conflicting draft");
     assert.equal((await conflict).status(), 412);
-    await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Save failed");
+    await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
     const before = gateway.state(), beforeCredentials = [...keys.entries()];
     const response = await native("/companion/profiles", {
       profile: { ...r, key: repairedKey }, revision: before.revision,
