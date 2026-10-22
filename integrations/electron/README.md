@@ -29,11 +29,17 @@ npm run desktop:setup
 open "$HOME/Applications/jumpyBrain.app"
 ```
 
-For updates, select/pull the desired revision in the checkout, **Quit jumpyBrain**, and rerun `npm run desktop:setup`. Setup builds the editor/runtime and complete Mac bundle together. The menu's **Update jumpyBrain…** explains this flow. There is no automatic download/updater or signed/notarized distribution yet.
+## GUI updates and recovery
 
-When using the managed `~/.jumpybrain/app` source, update it with `~/.jumpybrain/bin/jumpybrain update`, then rebuild the app there with `npm run desktop:setup`. Run these sequentially with the app quit. App and CLI updates are separate, so updating only the CLI does not replace the runtime bundled in the Mac app.
+Open **Updates** in the sidebar or **Update jumpyBrain…** in the native application/tray menu. The same operation shows installed app/runtime/CLI versions, the available release, release notes, and progress. **Prepare update** downloads and verifies a published release and builds its app in the background. **Restart later** defers installation; **Cancel preparation** discards the job before handoff. **Restart and install** waits for saves in every registered editor tab. Failed or unresponsive drafts and canceled closes keep the old installation running.
 
-Fresh setup provisions the CLI and external Node/QMD prerequisites through the existing installer without agent integrations or an initial index. Existing CLI installations and targets are retained. The Mac app bundles its own compiled copy of the same runtime, so CLI updates and app updates are independent. The checkout is unnecessary for launching the installed app; external Node and QMD must remain available.
+A supported default managed CLI updates with the app. Custom sources, pinned refs, foreign launchers, and missing CLI installations receive an explicit **Update app only** choice. The updater preserves memory, connections, Keychain references, login preference, CLI targets, source/ref policy, and agent integrations. It never indexes memory or updates an independently hosted server. The CLI command remains available for developers and CLI-only users; it does not update the unified app bundle.
+
+Requires macOS 13+, Node 22.12+, npm, Python 3.9+, Xcode Command Line Tools, external QMD, and 3 GB free. Downloads come from public GitHub releases (including beta releases) and npm/Electron dependency hosts. No GitHub login, checkout, or Terminal is needed for an ordinary GUI update. Local ad-hoc signing remains the supported distribution; notarization and Intel hardware validation are separate gates. Older apps without this UI need one `desktop:setup` from source to bootstrap it.
+
+Preparation failures leave the installation intact. Publication uses journaled atomic exchanges and retains previous components under `~/Library/Application Support/jumpyBrain Updates/update-*`. A failure after publication attempts rollback. An interrupted transaction blocks normal startup and offers **Recover previous installation** in Updates; recovery uses the same safe restart barrier. Unknown or live installer locks are not removed. **Show private update log** reveals bounded build/error evidence; these logs are not uploaded automatically. Keep recovery folders until the update is verified. If external tools changed a recorded recovery path, restore from the retained components only after resolving that conflict; the updater will not overwrite it.
+
+Fresh setup provisions the CLI and external search prerequisites without agent integrations or an initial index; an existing CLI is reused. Development/source updates still use a chosen revision and `npm run desktop:setup` after quitting. The checkout is unnecessary for launching the installed app or receiving its next supported published release.
 
 ## Migration from the two-app beta
 
@@ -73,6 +79,7 @@ node --test test/desktop-lifecycle.test.js test/electron-host.test.js test/elect
 python3 -B integrations/electron/test_desktop_install.py
 npm run smoke:electron
 npm run smoke:desktop
+node scripts/desktop-update-smoke.mjs
 ```
 
 Tests use disposable memory. The desktop smoke runs the production application lifecycle and signed internal host through background launch, blocked quit, close/reopen, explicit quit, parent crash, and recovery. Native Keychain/RPC coverage remains in `integrations/macos-companion/test_connections_native.py`. Public signing/notarization, Intel hardware, physical login/logout, and arbitrary historical Keychain signing identities need separate validation.

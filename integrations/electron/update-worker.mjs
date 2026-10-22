@@ -15,56 +15,62 @@ export async function atomicJSON(file, value) {
   await writeFile(temporary, JSON.stringify(value) + '\n', { mode: 0o600 });
   await rename(temporary, file);
 }
-export async function runWorker(directory, { recovering = false } = {}) {
+export async function runWorker(directory, { recovering = false, notifyFailure, diskSpace = statfs, download = boundedFetch } = {}) {
   const request = await readJSON(path.join(directory, 'request.json'));
   const root = path.join(request.home, '.jumpybrain');
   const lock = path.join(root, '.installer-lock');
   const env = { HOME: request.home, PATH: `${path.dirname(request.node)}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
     LANG: 'en_US.UTF-8', JUMPYBRAIN_QMD_BIN: request.configuration.qmd, JUMPYBRAIN_NO_UPDATE_CHECK: '1',
     npm_config_audit: 'false', npm_config_fund: 'false' };
-  let log = '', stopped = false, launched = null, published = false;
+  let log = Buffer.alloc(0), stopped = false, launched = null, published = false;
   const controller = new AbortController();
   const status = async (phase, detail) => atomicJSON(path.join(directory, 'state.json'), { phase, detail, pid: process.pid, version: request.release.version, updatedAt: Date.now() });
-  const output = bytes => { log = (log + bytes.toString()).slice(-256 * 1024); };
+  const output = bytes => { log = Buffer.concat([log, Buffer.isBuffer(bytes) ? bytes : Buffer.from(String(bytes))]).subarray(-256 * 1024); };
   async function run(command, args, cwd = directory, timeout = 20 * 60 * 1000) {
     if (controller.signal.aborted) throw new Error('Update preparation canceled.');
     const child = spawn(command, args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    await atomicJSON(path.join(directory, 'child.json'), { pid: child.pid || null });
     child.stdout.on('data', output); child.stderr.on('data', output);
+    const completed = new Promise((resolve, reject) => { child.once('error', reject); child.once('close', code => code === 0 ? resolve() : reject(new Error(`${path.basename(command)} did not complete. Check the private update log and retry. Repair Node 22.12+, npm, Python 3, Xcode Command Line Tools or external QMD if missing.`))); });
+    // Install listeners before any filesystem await (ENOENT may arrive immediately).
+    void completed.catch(() => {});
     const kill = () => { try { process.kill(-child.pid, 'SIGKILL'); } catch {} };
     const timer = setTimeout(kill, timeout);
     controller.signal.addEventListener('abort', kill, { once: true });
     try {
-      await new Promise((resolve, reject) => { child.once('error', reject); child.once('close', code => code === 0 ? resolve() : reject(new Error(`${path.basename(command)} did not complete. Check the private update log and retry. Install Node 22.12+, npm, Python 3 and Xcode Command Line Tools if missing.`))); });
+      await atomicJSON(path.join(directory, 'child.json'), { pid: child.pid || null });
+      if (controller.signal.aborted) kill();
+      await completed;
     } finally {
       clearTimeout(timer); controller.signal.removeEventListener('abort', kill);
       await rm(path.join(directory, 'child.json'), { force: true });
       await writeFile(path.join(directory, 'update.log'), log, { mode: 0o600 });
     }
   }
-  const monitor = setInterval(async () => {
+  let monitor;
+  try {
+  const ownedLock = await readJSON(path.join(lock, 'desktop.json'));
+  if (ownedLock.directory !== directory || ![request.parentPid, process.pid].includes(ownedLock.pid)) throw new Error('Updater lock changed.');
+  await atomicJSON(path.join(lock, 'desktop.json'), { directory, pid: process.pid });
+  monitor = setInterval(async () => {
     try {
       if (!stopped && (!alive(request.parentPid) || await readFile(path.join(directory, 'cancel'), 'utf8').catch(() => '') === 'cancel')) controller.abort();
     } catch { controller.abort(); }
   }, 300);
-  const ownedLock = await readJSON(path.join(lock, 'desktop.json'));
-  if (ownedLock.directory !== directory) throw new Error('Updater lock changed.');
-  await atomicJSON(path.join(lock, 'desktop.json'), { directory, pid: process.pid });
-  try {
     if (!recovering) {
       await status('preparing', 'Checking prerequisites and free space… You can keep editing.');
-      const space = await statfs(directory);
+      const space = await diskSpace(directory);
       if (space.bavail * space.bsize < 3 * 1024 ** 3) throw new Error('At least 3 GB of free space is needed to prepare and retain the previous installation. Free space and retry.');
       for (const [cmd, args] of [[request.node, ['-e', 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||a===22&&b>=12?0:1)']], ['npm', ['--version']], ['python3', ['--version']], ['/usr/bin/xcrun', ['--find', 'swiftc']]]) await run(cmd, args, directory, 15000);
       await status('preparing', `Downloading verified release ${request.release.version}…`);
-      const bytes = await boundedFetch(request.release.url, { signal: controller.signal, limit: 128 * 1024 * 1024, timeout: 120000 });
+      const bytes = await download(request.release.url, { signal: controller.signal, limit: 128 * 1024 * 1024, timeout: 120000 });
       verifyArtifact(bytes, request.release);
       await writeFile(path.join(directory, 'release.tgz'), bytes, { mode: 0o600 });
       await run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'extract', directory]);
       const source = path.join(directory, 'unpacked/package'), electron = path.join(source, 'integrations/electron');
       if (await installedVersion(source) !== request.release.version || await installedVersion(electron) !== request.release.version) throw new Error('Release app and runtime versions do not match. Nothing was installed.');
       // A supported next release must carry its updater too.
-      for (const file of ['update-worker.mjs', 'update-transaction.py', 'package-lock.json']) await readFile(path.join(electron, file));
+      try { for (const file of ['update-worker.mjs', 'update-transaction.py', 'package-lock.json']) await readFile(path.join(electron, file)); }
+      catch { throw new Error('This release lacks the desktop updater build resources. Nothing was installed. Check again after a compatible release is published.'); }
       await run(request.node, [path.join(source, 'dist/cli.js'), '--version'], source, 20000);
       await status('preparing', 'Building the Mac app for this Mac… You can keep editing.');
       await run('npm', ['ci', '--include=dev'], electron);
@@ -86,6 +92,7 @@ export async function runWorker(directory, { recovering = false } = {}) {
           await delay(100);
         }
         if (alive(request.parentPid)) throw new Error('The app did not finish closing. Nothing was replaced.');
+        if (await readFile(path.join(directory, 'cancel'), 'utf8').catch(() => '') === 'cancel') throw new Error('Restart canceled. Nothing was replaced.');
         break;
       }
       await delay(200);
@@ -110,16 +117,20 @@ export async function runWorker(directory, { recovering = false } = {}) {
       await installedHost.stop();
     }
     await status('updating', 'Reopening jumpyBrain and checking its local service…');
-    launched = spawn(path.join(request.appPath, 'Contents/MacOS/jumpyBrain'), [], { env, detached: true, stdio: 'ignore' });
+    const launchInstance = randomUUID();
+    await atomicJSON(path.join(directory, 'launch.json'), { instance: launchInstance, pid: process.pid });
+    launched = spawn(path.join(request.appPath, 'Contents/MacOS/jumpyBrain'), ['--background'], { env: { ...env, JUMPYBRAIN_UPDATE_INSTANCE: launchInstance }, detached: true, stdio: 'ignore' });
     let launchError = null; launched.on('error', error => { launchError = error; });
     const config = await bundledHost(path.join(request.appPath, 'Contents/Resources'));
     const key = await readControlKey(config.supportDirectory);
     const deadline = Date.now() + 45000; let ready = false;
     while (Date.now() < deadline && !launchError && launched.exitCode === null) {
-      try { const value = await probeCompanion(config.origin, key); if (value.hostInstance) { ready = true; break; } } catch {}
+      try { const value = await probeCompanion(config.origin, key); if (value.hostInstance === launchInstance) { ready = true; break; } } catch {}
       await delay(200);
     }
     if (!ready) throw new Error('Relaunch did not become ready. Previous components will be restored; open jumpyBrain again after recovery.');
+    // Only show the editor after its specific new host has authenticated.
+    await run('/usr/bin/open', [request.appPath], directory, 15000);
     launched.unref();
     if (published) {
       const journal = await readJSON(path.join(directory, 'transaction.json'));
@@ -135,16 +146,20 @@ export async function runWorker(directory, { recovering = false } = {}) {
     }
     let recoveryError = null;
     try {
-      if (published) await run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'rollback', directory]);
+      const journal = await readJSON(path.join(directory, 'transaction.json')).catch(() => null);
+      if (journal && !['success', 'rolled-back'].includes(journal.phase)) await run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'rollback', directory]);
     } catch (failure) { recoveryError = failure; }
     await status('failed', `${error.message}${recoveryError ? ' Automatic recovery failed. Keep the update folder and use Recover in Updates.' : published ? ' Previous components restored. Open jumpyBrain again.' : ''}`);
     output('\n' + error.message);
     if (stopped) {
       // Arguments are data, never interpolated into AppleScript. Failure to
       // display a notification cannot change the durable installation outcome.
+      if (notifyFailure) await notifyFailure(error.message);
+      else {
       const alert = spawn('/usr/bin/osascript', ['-e', 'on run argv\ndisplay alert "jumpyBrain update needs attention" message (item 1 of argv) buttons {"OK"} default button "OK"\nend run',
         `${error.message}\nOpen jumpyBrain → Updates to inspect status or recover.\nPrivate log: ${path.join(directory, 'update.log')}`], { env, detached: true, stdio: 'ignore' });
       alert.on('error', () => {}); alert.unref();
+      }
     }
   } finally {
     clearInterval(monitor);

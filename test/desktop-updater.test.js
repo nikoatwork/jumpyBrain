@@ -6,8 +6,9 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { selectRelease, discoverRelease, verifyArtifact, compareVersions, SOURCE } from '../integrations/electron/update-release.mjs';
 import { cliPolicy } from '../integrations/electron/update-policy.mjs';
-import { createDesktopUpdater } from '../integrations/electron/updater.mjs';
+import { createDesktopUpdater, needsUpdate } from '../integrations/electron/updater.mjs';
 import { createQuitFlow } from '../integrations/electron/lifecycle.mjs';
+import { runWorker } from '../integrations/electron/update-worker.mjs';
 
 function release(version, extra = {}) {
   return { tag_name: 'v' + version, id: 1, published_at: '2026-10-22', prerelease: version.startsWith('0.'),
@@ -21,6 +22,13 @@ test('release selection includes numeric beta releases and excludes drafts and a
   for (const change of [{ digest: null }, { size: 1024 ** 3 }, { browser_download_url: 'https://evil.invalid/file' }]) {
     const r = release('0.4.0'); Object.assign(r.assets[0], change); assert.throws(() => selectRelease([r]), /verifiable/);
   }
+});
+test('current app can align an older managed CLI without downgrading an ahead-of-release app', () => {
+  const installed = { app: '0.3.4', runtime: '0.3.4', cli: '0.3.3', cliPolicy: { kind: 'managed' } };
+  assert.equal(needsUpdate('0.3.4', installed), true);
+  assert.equal(needsUpdate('0.3.4', { ...installed, cli: '0.3.4' }), false);
+  assert.equal(needsUpdate('0.3.3', installed), false);
+  assert.equal(needsUpdate('0.3.4', { ...installed, cliPolicy: { kind: 'pinned' } }), false);
 });
 test('bounded unauthenticated discovery handles offline, rate limits, and corrupt artifacts', async () => {
   const urls = [];
@@ -71,16 +79,16 @@ test('checking is observational and duplicate clicks share one operation', async
   const locked = await updater.action('prepare'); assert.match(locked.detail, /lock/);
 });
 test('updater handoff occurs only after all-tab save and lease commit; errors retain host', async () => {
-  for (const failure of ['save', 'close', 'handoff', null]) {
+  for (const failure of ['save', 'close', 'handoff', 'cancel-io', null]) {
     const events = [];
     const quit = createQuitFlow({ getHost: () => ({ isAlive: () => true, stop: async () => events.push('stop') }),
       control: async (_c, _r, body) => { events.push(body.action); if (failure === 'save' && body.action === 'prepare') throw new Error('failed draft'); return { id: 'lease' }; },
       closeWindows: async () => { events.push('close'); return failure !== 'close'; }, flush: async () => {},
-      beforeStop: async () => { events.push('handoff'); if (failure === 'handoff') throw new Error('worker died'); },
-      cancelClose: () => events.push('resume'), showError: async () => {}, exit: () => events.push('exit') });
+      beforeStop: async () => { events.push('handoff'); if (failure === 'handoff' || failure === 'cancel-io') throw new Error('worker died'); },
+      cancelClose: () => { events.push('resume'); if (failure === 'cancel-io') throw new Error('disk full while canceling'); }, showError: async () => {}, exit: () => events.push('exit') });
     await quit();
     assert.equal(events.includes('stop'), failure === null);
-    assert.equal(events.includes('handoff'), failure === null || failure === 'handoff');
+    assert.equal(events.includes('handoff'), failure === null || failure === 'handoff' || failure === 'cancel-io');
     if (!failure) assert.deepEqual(events, ['prepare','close','commit','handoff','stop','exit']);
   }
 });
@@ -88,4 +96,57 @@ test('Python archive and interrupted exchange recovery tests', { skip: process.p
   const { execFile } = await import('node:child_process'); const { promisify } = await import('node:util');
   const { stderr } = await promisify(execFile)('python3', ['-B', 'integrations/electron/test_update_transaction.py']);
   assert.match(stderr, /OK/);
+});
+
+test('background worker failures retain installation and release only their own locks', { skip: process.platform !== 'darwin' }, async t => {
+  for (const failure of ['disk', 'prerequisite', 'artifact', 'offline']) {
+    const f = await fixture(t), directory = path.join(f.home, 'update'); await mkdir(directory);
+    const lock = path.join(f.root, '.installer-lock'); await mkdir(lock);
+    await writeFile(path.join(lock, 'desktop.json'), JSON.stringify({ directory, pid: process.pid }));
+    await writeFile(path.join(directory, 'request.json'), JSON.stringify({ home: f.home, parentPid: process.pid, node: failure === 'prerequisite' ? '/missing-jumpybrain-node' : process.execPath,
+      configuration: { qmd: '/unused/qmd' }, release: selectRelease([release('0.3.4')]) }));
+    const before = await readFile(path.join(f.app, 'package.json'));
+    await runWorker(directory, { diskSpace: async () => ({ bavail: failure === 'disk' ? 0 : 10 ** 8, bsize: 4096 }),
+      download: async () => { if (failure === 'offline') throw new Error('Network unavailable. Retry.'); return Buffer.from('evil'); }, notifyFailure: async () => assert.fail('preparation must not notify/relaunch') });
+    const state = JSON.parse(await readFile(path.join(directory, 'state.json')));
+    assert.equal(state.phase, 'failed');
+    assert.match(state.detail, { disk: /3 GB/, prerequisite: /ENOENT|did not complete/, artifact: /verification failed/, offline: /Network unavailable/ }[failure]);
+    assert.deepEqual(await readFile(path.join(f.app, 'package.json')), before);
+    await assert.rejects(readFile(path.join(lock, 'desktop.json')), { code: 'ENOENT' });
+  }
+});
+
+test('interrupted publication blocks ordinary startup and exposes GUI recovery; a worker launch nonce is required', async t => {
+  const f = await fixture(t), updates = path.join(f.home, 'Library/Application Support/jumpyBrain Updates'), directory = path.join(updates, 'update-fixture');
+  await mkdir(directory, { recursive: true }); await mkdir(path.join(f.root, '.installer-lock'));
+  await writeFile(path.join(f.root, '.installer-lock/desktop.json'), JSON.stringify({ directory, pid: process.pid }));
+  await writeFile(path.join(directory, 'transaction.json'), '{"phase":"published","exchanges":[]}');
+  await writeFile(path.join(directory, 'launch.json'), JSON.stringify({ pid: process.pid, instance: 'expected' }));
+  const updater = createDesktopUpdater({ home: f.home, resources: path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources') });
+  assert.equal(await updater.blocksStartup(), true);
+  assert.equal(await updater.blocksStartup('foreign'), true);
+  assert.equal(await updater.blocksStartup('expected'), false);
+  await writeFile(path.join(f.root, '.installer-lock/desktop.json'), JSON.stringify({ directory, pid: 2147483647 }));
+  assert.equal(await updater.blocksStartup('expected'), true);
+  assert.equal((await updater.snapshot()).canRecover, true);
+  await writeFile(path.join(directory, 'transaction.json'), '{"phase":"success","exchanges":[]}');
+  assert.equal(await updater.blocksStartup(), false, 'a crash after durable success must not strand the app');
+});
+
+test('GUI clicks are not lost during status polling and late status cannot overwrite action results', async () => {
+  const { runInNewContext } = await import('node:vm');
+  const elements = new Map(), requests = [];
+  const element = id => { if (!elements.has(id)) elements.set(id, { textContent: '', hidden: false, disabled: false, addEventListener() {} }); return elements.get(id); };
+  const context = { document: { getElementById: element, querySelectorAll: () => [] }, setInterval() {}, window: {
+    close() {}, jumpyBrainUpdate: { action: name => new Promise(resolve => requests.push({ name, resolve })) },
+  } };
+  runInNewContext(await readFile(new URL('../integrations/electron/update-renderer.js', import.meta.url), 'utf8'), context);
+  assert.equal(requests[0].name, 'status');
+  const checking = context.act('check');
+  assert.equal(requests[1].name, 'check');
+  assert.equal(element('phase').textContent, 'Checking for updates');
+  requests[1].resolve({ phase: 'current', detail: 'Current', installed: {} }); await checking;
+  requests[0].resolve({ phase: 'idle', detail: 'Stale result', installed: {} });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(element('phase').textContent, 'Up to date'); assert.equal(element('detail').textContent, 'Current');
 });

@@ -1,5 +1,5 @@
 const $ = id => document.getElementById(id);
-let pending = false;
+let pending = false, polling = false, revision = 0;
 const labels = { idle:'Updates', checking:'Checking for updates', current:'Up to date', available:'Update available', preparing:'Preparing update', ready:'Ready to restart', updating:'Updating', success:'Update complete', recovered:'Recovery complete', failed:'Update needs attention' };
 function render(value) {
   for (const key of ['app', 'runtime', 'cli']) $(key + '-version').textContent = value.installed?.[key] || 'Not installed / unknown';
@@ -17,10 +17,15 @@ function render(value) {
   $('log').hidden = !value.logAvailable;
 }
 async function act(name) {
-  if (pending) return; pending = true;
-  try { render(await window.jumpyBrainUpdate.action(name)); }
-  catch { $('phase').textContent = 'Update unavailable'; $('detail').textContent = 'The desktop updater did not respond. Close and reopen Updates to retry.'; }
-  finally { pending = false; }
+  const read = name === 'status';
+  if (pending || (read && polling)) return;
+  const request = ++revision;
+  if (read) polling = true; else pending = true;
+  if (name === 'check') { $('phase').textContent = labels.checking; $('detail').textContent = 'Checking public releases, including beta releases…'; }
+  if (name !== 'status') for (const button of document.querySelectorAll('.actions button')) button.disabled = true;
+  try { const value = await window.jumpyBrainUpdate.action(name); if (request === revision) render(value); }
+  catch { if (request === revision) { $('phase').textContent = 'Update unavailable'; $('detail').textContent = 'The desktop updater did not respond. Close and reopen Updates to retry.'; } }
+  finally { if (read) polling = false; else { pending = false; for (const button of document.querySelectorAll('.actions button')) button.disabled = false; } }
 }
 for (const id of ['check','prepare','app-only','restart','recover','cancel','log']) $(id).addEventListener('click', () => act(id));
 $('defer').addEventListener('click', () => window.close());

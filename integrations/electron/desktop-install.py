@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build internal native assets; transactionally install one stopped Mac app."""
 import argparse
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 import json
 import os
 from pathlib import Path
@@ -113,7 +113,22 @@ def validate_agent(agent, label, executable, background=False):
         raise SafetyError(f'Refusing an unrelated login item: {agent}')
     return True
 
+@contextmanager
+def installation_lock(home):
+    root = home / '.jumpybrain'
+    root.mkdir(parents=True, exist_ok=True)
+    if root.is_symlink(): raise SafetyError('Refusing a linked CLI install root.')
+    lock = root / '.installer-lock'
+    try: lock.mkdir(mode=0o700)
+    except FileExistsError: raise SafetyError('Another CLI/app installer or GUI update is active. Wait for it to finish.')
+    try: yield
+    finally: lock.rmdir()
+
 def install_bundle(built, home, *, inspect_running=running_apps, unload_legacy=True):
+    with installation_lock(home):
+        return _install_bundle(built, home, inspect_running=inspect_running, unload_legacy=unload_legacy)
+
+def _install_bundle(built, home, *, inspect_running=running_apps, unload_legacy=True):
     target = home / 'Applications/jumpyBrain.app'
     if info(built).get('CFBundleIdentifier') != DESKTOP:
         raise SafetyError('The build is not a jumpyBrain desktop bundle.')

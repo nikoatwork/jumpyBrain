@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — GUI updates
+
+- Mac app updates now prepare published releases in the background and coordinate safe restart, managed CLI replacement, and recovery through the GUI.
+
 ## 2026-10-22 — Completed task archive
 
 - Finalized and archived [direct feedback delivery](done/2026-10-22_tasks-direct-feedback.md) and [local companion QA](done/2026-10-22_tasks-local-companion-qa.md); separate manual-device and cross-browser validation remains tracked.

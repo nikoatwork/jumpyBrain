@@ -36,7 +36,8 @@
     "desktop:pack": "npm --prefix integrations/electron run pack",
     "electron:install:local": "npm --prefix integrations/electron run install:local",
     "smoke:electron": "node scripts/electron-smoke.mjs",
-    "smoke:desktop": "node scripts/unified-desktop-smoke.mjs"
+    "smoke:desktop": "node scripts/unified-desktop-smoke.mjs",
+    "smoke:desktop-update": "npm run build && node scripts/desktop-update-smoke.mjs"
   },
   "files": [
     "dist",

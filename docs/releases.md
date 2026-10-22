@@ -11,7 +11,9 @@ All 0.x releases are beta GitHub prereleases. Numeric versions remain `major.min
 
 The release command requires a clean `master`, a writable `origin`, and `gh` authenticated as an account with write access to this repository (SSH push access alone is insufficient). Account permissions are checked before changing the version. It fetches remote tags, rejects remote divergence and existing version tags, bumps the root and Electron package.json/package-lock.json together, runs `npm test`, builds/validates the tarball, creates the release commit/tag, atomically pushes branch/tag, then publishes a GitHub release with the tarball. It uses `docs/releases/vX.Y.Z.md` if present, otherwise generated GitHub notes. No npm publication or machine-specific native app bundle is uploaded.
 
-The installer still tracks its recorded Git source/ref (normally master), not GitHub release assets. Tags and release notes provide stable checkpoints. Local-source installations stay local-source installations until explicitly changed.
+The CLI installer still tracks its recorded Git source/ref (normally master). The Mac GUI updater selects a published numeric release from the releases list, including 0.x prereleases; it never uses `/latest` or branch HEAD. The release must provide exactly one `jumpybrain-X.Y.Z.tgz` uploaded asset with a GitHub SHA-256 digest. Its compiled runtime, Electron sources/lockfile, updater, native build sources, and resources supply the entire update. Pack validation rejects missing desktop resources and nested Electron node_modules. No native auto-update feed is assumed.
+
+GUI updates record the selected release/asset/digest in the managed CLI manifest but preserve its original source/ref policy. Subsequent explicit CLI updates still follow that policy. Local-source/pinned/unowned CLIs require the GUI's app-only choice. Distribution hashing authenticates bytes from the selected public GitHub release; it is not code signing or notarization.
 
 ## Default for release requests
 

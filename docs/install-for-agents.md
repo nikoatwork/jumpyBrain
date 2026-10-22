@@ -43,3 +43,7 @@ If the folder choice needs the user's interaction, complete the authorized build
 - For the app, closing the window leaves the menu bar running; **Quit jumpyBrain** stops its owned services. Link the [update instructions](install.md#update) when relevant.
 
 Do not claim that live installation, app launch, semantic search, or cloud isolation was tested unless you actually verified it. Repository instructions help an agent complete authorized work; they do not override its tool permissions.
+
+## Subsequent Mac updates
+
+Use the installed app’s **Updates** screen for ordinary Mac updates. It prepares a published release, coordinates a supported managed CLI, and waits for all-tab saves before restart. Explain its app-only choice for custom/pinned/missing CLIs without changing their source or ref. Inspect the reported app/runtime/CLI versions after completion; do not report success from only one component. Use the documented CLI/source workflows for CLI-only/developer installs or the one-time bootstrap of older apps lacking this screen. Never infer release publication from a request to update the installed app.

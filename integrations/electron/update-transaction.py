@@ -26,15 +26,16 @@ def atomic(file, value):
 
 def extract(archive, directory):
     with tarfile.open(archive, 'r:gz') as source:
-        members = source.getmembers()
-        if len(members) > 20000 or sum(m.size for m in members) > 512 * 1024 * 1024:
-            raise ValueError('Release expands beyond its supported limit.')
-        seen = set()
-        for member in members:
+        members, seen, size = [], set(), 0
+        for member in source:
+            members.append(member); size += member.size
+            if len(members) > 20000 or size > 512 * 1024 * 1024:
+                raise ValueError('Release expands beyond its supported limit.')
             parts = PurePosixPath(member.name).parts
-            if not parts or parts[0] != 'package' or '..' in parts or '\\' in member.name or member.name in seen or not (member.isfile() or member.isdir()):
+            normalized = str(PurePosixPath(member.name))
+            if not parts or parts[0] != 'package' or '..' in parts or '\\' in member.name or normalized in seen or not (member.isfile() or member.isdir()):
                 raise ValueError('Release archive contains unsafe or duplicate entries.')
-            seen.add(member.name)
+            seen.add(normalized)
         directory.mkdir(mode=0o700)
         for member in members:
             destination = directory.joinpath(*PurePosixPath(member.name).parts)

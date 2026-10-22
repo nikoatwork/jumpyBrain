@@ -90,4 +90,9 @@ class InstallationTests(unittest.TestCase):
             with self.assertRaises(installer.SafetyError): self.install()
         self.assertEqual(installer.info(self.app)['CFBundleIdentifier'], installer.LEGACY)
 
+    def test_gui_or_cli_installer_lock_blocks_desktop_publication(self):
+        with installer.installation_lock(self.home):
+            with self.assertRaisesRegex(installer.SafetyError, 'Another CLI/app'): self.install()
+        self.assertEqual(installer.info(self.app)['CFBundleIdentifier'], installer.LEGACY)
+
 if __name__ == '__main__': unittest.main()

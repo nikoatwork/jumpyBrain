@@ -1,42 +1,37 @@
 # GUI updates for the Mac app and CLI
 
-Status: paused at the user's request on 2026-10-22. Implementation was authorized and a work-in-progress checkpoint is present; this capability is **not ready to release**. No installed-machine update or release publication was performed.
+Status: complete and verified on Apple Silicon (2026-10-22). The original checkpoint was `6535097`; work resumed after the user's pause. No user installation or published release was changed.
 
-## Resume checkpoint — 2026-10-22
+## Implemented contract
 
-The user requested end-to-end implementation and testing, then asked to stop at a checkpoint. Resume this task rather than treating the current implementation as complete. Preserve the substantial unrelated changes already in the working tree (feedback, sidebar/editor, graph, recent notes, docs and changelog).
+- One desktop operation serves the sidebar, native app menu, and tray. Its separate sandboxed local window exposes fixed, sender/main-frame/URL-checked IPC actions. Hosted/browser sessions get no updater bridge; release notes are text.
+- Discover published numeric GitHub releases, including 0.x beta releases; pin one asset URL/ID, size and SHA-256 digest. Download the compiled runtime plus desktop/native build resources, then build locally using the Electron lockfile. No branch HEAD, checkout, credentials, notarized binary or stable-only feed is assumed.
+- Keep the editor usable during preparation; cancellation and restart deferral precede installation. An acknowledged handoff follows all-tab saves, window closure and shutdown lease commit. The copied external worker waits for parent exit. Parent death before handoff cancels preparation.
+- The public CLI installer, GUI updater and source-based desktop publication share `.installer-lock`. Native publication/recovery also holds the native service lock. Custom/pinned/missing/unowned CLIs require an explicit app-only action; supported managed CLIs update with the app. Preserve source/ref policy, CLI targets, agent integrations, login preference, connection/Keychain references and Markdown. Never downgrade a newer managed CLI or implicitly index/update a hosted server.
+- Journal device/inode identities before macOS atomic exchanges of CLI runtime, manifest and app. Retain previous components; rollback is repeatable even if recovery is interrupted. Incomplete publication fences normal startup and offers GUI recovery. Relaunch success requires the exact worker-issued native host nonce and matching installed component versions.
+- Local prerequisites: macOS 13+, Node 22.12+, npm, Python 3.9+, Xcode Command Line Tools, external QMD and 3 GB free. Logs are private and bounded at 256 KiB per job. Recovery folders remain under `~/Library/Application Support/jumpyBrain Updates`.
 
-### Implemented so far
+## Verification — 2026-10-22
 
-- Public GitHub release discovery includes numeric 0.x beta releases, excludes drafts/branch HEAD, selects one asset, and requires its exact size and GitHub SHA-256 digest. Public API observation: v0.3.4/v0.3.3/v0.3.2 have digest-bearing tarballs. No account/token needed.
-- New Electron updater modules cover CLI ownership/source/ref policy, private background staging, a shared `.installer-lock`, digest verification, bounded download/log handling, native preparation, an external helper, and write-ahead component exchange/recovery journals.
-- macOS atomic exchanges keep both old and new components present. Recovery uses recorded filesystem identities and is repeatable if recovery itself is interrupted. Previous app/CLI/manifest remain in the private update workspace.
-- Native menu and an Electron-only sidebar Updates button open one sandboxed update window. Its IPC accepts fixed action names only from that window's main frame. Ordinary browser/hosted sessions receive no updater capability.
-- The existing all-tab quit/save barrier has a `beforeStop` handoff after lease commit. A failed save, close veto, or missing helper acknowledgement blocks replacement.
-- Custom/pinned/missing/unmanaged CLI cases explicitly offer app-only updating; a recognized default managed CLI is coordinated with the app. No source/ref retargeting, agent setup or index command is added.
-- Package validation now requires updater/Desktop resources. `integrations/electron/.npmignore` excludes nested dependencies and test fixtures; the observed dry-run package was about 2.7 MB, with its Electron lockfile and no nested node_modules.
+- Full `npm test`: 1,080 passed, one skipped, zero failed (1,081 total). The final focused updater/lifecycle run passed all 17 tests (10 updater, 7 lifecycle), including GUI polling/action-race and cancellation-I/O coverage, 6 Python archive/publication/recovery tests, and 6 desktop installer tests.
+- `npm run smoke:electron`: passed existing onboarding, renderer isolation, navigation, feedback, editor/save and close-guard checks.
+- `npm run smoke:desktop`: passed normal/background lifecycle, save-blocked quit, close/reopen, parent crash and recovery with the signed internal host.
+- `npm run desktop:pack`: passed native build reuse, local signing and signature verification on Apple Silicon.
+- `npm run cli:pack`: passed; 179 required distribution resources verified, including the updater and Electron lockfile, with nested node_modules excluded.
+- Disposable installed GUI scenarios passed using immutable local release assets: coordinated 0.3.3 → 0.3.4 update; pinned CLI app-only update (app/runtime 0.3.4, CLI 0.3.3); failed relaunch with automatic restoration of both old components; helper killed after publication followed by recovery through the GUI; app killed before handoff with unchanged installation.
+- The final successful flow imports production code from the installed ASAR and verifies that the new ASAR retains every next-update helper, including `update-transaction.py` (the packager previously excluded all Python files). It also exercises sidebar/native menu equivalence, sandbox/IPC rejection, preparation cancellation, restart deferral, failed-save and unresponsive registered tabs. The runner checks preserved canonical Markdown, CLI targets, agent settings, login preference, control key and source/ref policy, plus actual CLI execution/version.
+- Screenshots and machine-readable results: `.local-pack/update-smoke/<mode>/`. Test commands: `node scripts/desktop-update-smoke.mjs [success|app-only|relaunch-failure|helper-crash|app-crash]`; `npm run smoke:desktop-update` builds then runs success. Fixture homes are isolated and removed after success; failures retain evidence.
 
-### Measured checks
+## Explicit distribution and device limits
 
-- `npm run build` passed (editor 160,261 bytes gzip in this working tree).
-- `node --test test/desktop-updater.test.js` passed all 6 tests, including its 4 Python archive/transaction tests. Coverage: beta selection, malformed/rate-limited/offline release responses, digest failures, CLI ownership cases, duplicate check calls, installer lock refusal, handoff ordering, archive traversal/link/device/duplicate rejection, interruption at each exchange, recovery interruption, and foreign-path refusal.
-- `test/desktop-lifecycle.test.js` passed all 7 tests, including the existing native installer migration/rollback checks.
-- The focused packaging test run passed its packaging tests; the initial two updater fixture failures were corrected by resolving macOS's temporary-directory symlink, then all 6 updater tests passed.
-- `node --check` passed for `updater.mjs` and `update-worker.mjs` before the last checkpoint edits; rerun final checks when resuming.
-- Full `npm test` was started with output at `/tmp/jb-gui-update-tests.log`, but stopped with its children on the user's pause request. **No complete-suite pass is claimed.**
-- No production GUI upgrade, Electron updater UI smoke, packaged updater build, relaunch, or real release-to-release upgrade has yet been exercised. No changes to the user's installed app/CLI/configuration were made.
+- Fixture versions describe locally built immutable test artifacts, not an update of the user's installed app or a newly published GitHub release. A live public old→next release upgrade requires a later release containing this capability; publication was not requested.
+- Public signing/notarization, Intel hardware, physical login/logout and arbitrary historical Keychain signing identities remain separate manual gates. Existing Keychain identities/references are preserved; an ad-hoc signature change may still require explicit credential repair in Settings.
+- Unknown/stale foreign locks and externally changed recovery identities fail closed with repair guidance. Recovery folders are retained; deleting them is an explicit user maintenance action.
+- Other concurrent editor/docs/RAM-budget work in the checkout is outside this task and must not be included in its commit.
 
-### Resume here / known review gaps
+## Implementation map
 
-1. Review the unfinished implementation before running it against anything except disposable homes. In particular audit worker ownership/status races, abandoned-lock reclamation, recovery/error presentation, cancellation after handoff, subprocess cleanup, and publication/relaunch failure paths.
-2. `update-worker.mjs` currently checks relaunch using any authenticated gateway `hostInstance`; strengthen proof that readiness belongs to the newly launched app, and confirm each component's actual version before claiming success. Test failed relaunch and rollback with owned-process/native-lock checks.
-3. Check that native prerequisites/configuration normalization match `desktop-install.py` in an actual staged build; ensure the copied helper has everything it needs outside both replacement trees. Prove that readiness probes cannot implicitly index or alter canonical memory/settings.
-4. Add disposable installed-app GUI tests for sidebar/menu entry, sandbox/IPC fencing, multiple tabs, dirty/failed/unresponsive drafts, restart deferral/cancellation, helper/app crashes, disk/build/publication failure, CLI/app partial outcomes, login and Keychain/config preservation. Test actual npm artifact extraction/build rather than only source fixtures.
-5. Add a disposable old-to-new GUI upgrade runner using immutable local release fixtures. A live published upgrade requires a subsequent release containing these updater resources; do not publish or update the user's installation merely to satisfy the test. Record that distinction and physical OS/signing limits honestly.
-6. Finish the supported contract and owning docs (`electron.docs.md` still says no automatic updater), installation/FAQ/release guidance, and fresh-install next-release compatibility. No source-module or release-policy docs were updated yet.
-7. Run the focused tests, full `npm test`, package validation, and existing Electron/unified-desktop smoke workflows after corrections. Update acceptance checkboxes only with evidence. Do not archive or mark shipped yet.
-
-New implementation files: `integrations/electron/{updater,update-release,update-policy,update-worker,update-window}.mjs`, `update-transaction.py`, `update-preload.cjs`, `update-renderer.js`, `update.html`, `update.css`, `.npmignore`. Tests: `test/desktop-updater.test.js` and `integrations/electron/test_update_transaction.py`. Existing changes: Electron application/window/lifecycle wiring and `scripts/local-pack-manifest.mjs`.
+`integrations/electron/{updater,update-release,update-policy,update-worker,update-window}.mjs`, `update-transaction.py`, `update-preload.cjs`, `update-renderer.js`, `update.html`, `update.css`, and `.npmignore`; application/window/lifecycle/desktop-host wiring; desktop installer lock; distribution manifest. Regression tests: `test/desktop-updater.test.js`, `test_update_transaction.py`, `test_desktop_install.py`, and the disposable `scripts/desktop-update-smoke.mjs` runner with excluded Electron smoke entrypoints. Owning/install/FAQ/release docs describe the supported GUI path and developer CLI path.
 
 ## Goal
 
@@ -49,7 +44,7 @@ Let a person update jumpyBrain from the Mac app without opening Terminal or mana
 - Updating through the Mac app should also update the CLI along the way, without separate commands or repeated routine confirmations.
 - Preserve local Markdown, selected brains, connection credentials, agent integrations, and CLI target configuration.
 
-## Current evidence
+## Starting evidence (before implementation)
 
 - `integrations/electron/application.mjs` currently handles **Update jumpyBrain…** by showing instructions to pull a checkout, quit, and run `npm run desktop:setup`. It performs no update.
 - The current shared browser/sidebar has no desktop update control. The Electron editor intentionally has no general renderer filesystem or process bridge.
@@ -82,19 +77,19 @@ Let a person update jumpyBrain from the Mac app without opening Terminal or mana
 
 ## Tasks
 
-- [/] 1.0 Define the smallest supported update contract.
+- [x] 1.0 Define the smallest supported update contract.
   - [x] 1.1 Read architecture and owning docs; map reusable legacy updater/installer mechanisms and the unified-app gaps.
-  - [/] 1.2 Choose release discovery, immutable artifact/provenance verification, and the initial distribution path: background build with existing prerequisites or published native artifacts. Record signing/notarization and hardware limits honestly; do not make either approach an assumed prerequisite without evidence.
-  - [/] 1.3 Define coordinated app/CLI staging, commit order, locks, rollback, and restart recovery. Specify missing/custom/pinned CLI handling and beta-release selection without silently switching installation policy.
-- [/] 2.0 Implement the GUI entry and bounded update state.
-  - [/] 2.1 Add sidebar/Settings availability, installed/available versions, release notes, progress, retry, and restart deferral; wire the native menu to the same operation.
-  - [/] 2.2 Expose only an authenticated desktop update capability. Ordinary hosted/browser sessions cannot execute local commands; renderer-provided shell commands, arbitrary sources, or paths are not accepted.
-- [/] 3.0 Stage and apply one release in the background.
-  - [/] 3.1 Prepare validated app and CLI updates outside replacement directories, with cancellation before installation, bounded private logs, and duplicate-job exclusion.
-  - [/] 3.2 Reuse the all-tab save/quit barrier and owned-process checks; hand off installation to a helper that survives app/CLI replacement without opening Terminal.
-  - [/] 3.3 Apply the coordinated update, retain rollback/recovery evidence, restore prior working components on failure where supported, and verify versions/readiness before reporting success or reopening.
-- [/] 4.0 Verify the complete experience and document it.
-  - [/] 4.1 Test current/newer/beta releases, offline/rate-limited checks, invalid artifacts, missing prerequisites, custom/pinned/no CLI, repeated clicks, and concurrent updater exclusion.
-  - [/] 4.2 Test dirty/failed drafts, multiple editor tabs, cancellation, app/CLI replacement failures, helper/app crashes, interrupted updates, rollback, login/Keychain preservation, and accurate partial outcomes using disposable installations.
-  - [ ] 4.3 Exercise an installed old-to-new release upgrade through the actual GUI; verify relaunch, matching component versions, CLI operation, and unchanged memory/configuration. Keep physical OS/signing gates explicit.
-  - [ ] 4.4 Update owning docs and installation guidance to make GUI updates the Mac default, retaining the CLI developer workflow. Record measured verification and limitations here; add a changelog highlight when the capability ships.
+  - [x] 1.2 Choose release discovery, immutable artifact/provenance verification, and the initial distribution path: background build with existing prerequisites or published native artifacts. Record signing/notarization and hardware limits honestly; do not make either approach an assumed prerequisite without evidence.
+  - [x] 1.3 Define coordinated app/CLI staging, commit order, locks, rollback, and restart recovery. Specify missing/custom/pinned CLI handling and beta-release selection without silently switching installation policy.
+- [x] 2.0 Implement the GUI entry and bounded update state.
+  - [x] 2.1 Add sidebar/Settings availability, installed/available versions, release notes, progress, retry, and restart deferral; wire the native menu to the same operation.
+  - [x] 2.2 Expose only an authenticated desktop update capability. Ordinary hosted/browser sessions cannot execute local commands; renderer-provided shell commands, arbitrary sources, or paths are not accepted.
+- [x] 3.0 Stage and apply one release in the background.
+  - [x] 3.1 Prepare validated app and CLI updates outside replacement directories, with cancellation before installation, bounded private logs, and duplicate-job exclusion.
+  - [x] 3.2 Reuse the all-tab save/quit barrier and owned-process checks; hand off installation to a helper that survives app/CLI replacement without opening Terminal.
+  - [x] 3.3 Apply the coordinated update, retain rollback/recovery evidence, restore prior working components on failure where supported, and verify versions/readiness before reporting success or reopening.
+- [x] 4.0 Verify the complete experience and document it.
+  - [x] 4.1 Test current/newer/beta releases, offline/rate-limited checks, invalid artifacts, missing prerequisites, custom/pinned/no CLI, repeated clicks, and concurrent updater exclusion.
+  - [x] 4.2 Test dirty/failed drafts, multiple editor tabs, cancellation, app/CLI replacement failures, helper/app crashes, interrupted updates, rollback, login/Keychain preservation, and accurate partial outcomes using disposable installations.
+  - [x] 4.3 Exercise an installed old-to-new release upgrade through the actual GUI; verify relaunch, matching component versions, CLI operation, and unchanged memory/configuration. Keep physical OS/signing gates explicit.
+  - [x] 4.4 Update owning docs and installation guidance to make GUI updates the Mac default, retaining the CLI developer workflow. Record measured verification and limitations here; add a changelog highlight when the capability ships.

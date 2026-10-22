@@ -41,14 +41,14 @@ export function desktopControl({ origin, key }, route, body, { timeoutMs = 22000
   });
 }
 
-export async function startDesktopHost(config, { spawnHost = spawn, probe = probeCompanion, deadlineMs = 25000, onExit = () => {} } = {}) {
+export async function startDesktopHost(config, { spawnHost = spawn, probe = probeCompanion, deadlineMs = 25000, onExit = () => {}, instance = randomUUID() } = {}) {
+  if (!/^[0-9a-f-]{36}$/i.test(instance)) throw new Error('Invalid desktop instance.');
   const key = await readControlKey(config.supportDirectory);
   try { await probe(config.origin, key); }
   catch (error) { if (error.code !== 'ECONNREFUSED') throw error; return launch(); }
   throw new Error('Another jumpyBrain service is using this port. Quit the older app before opening jumpyBrain.');
 
   async function launch() {
-    const instance = randomUUID();
     // No inherited credentials, renderer arguments, shell, detached child, or PID adoption.
     const child = spawnHost(config.executable, ['--desktop-host'], {
       env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LANG: 'en_US.UTF-8', JUMPYBRAIN_DESKTOP_INSTANCE: instance }, stdio: ['ignore', 'ignore', 'ignore'],

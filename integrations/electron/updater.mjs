@@ -1,12 +1,17 @@
 import path from 'node:path';
 import os from 'node:os';
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile, rm, readdir, realpath } from 'node:fs/promises';
 import { discoverRelease, compareVersions } from './update-release.mjs';
 import { cliPolicy, readJSON, regular, installedVersion, alive, overlaps } from './update-policy.mjs';
 import { atomicJSON } from './update-worker.mjs';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const files = ['update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'desktop-host.mjs', 'host.mjs'];
+export function needsUpdate(version, installed) {
+  if (compareVersions(version, installed.app) < 0 || compareVersions(version, installed.runtime) < 0) return false;
+  return compareVersions(version, installed.app) > 0 || compareVersions(version, installed.runtime) > 0
+    || (installed.cliPolicy.kind === 'managed' && compareVersions(version, installed.cli) > 0);
+}
 
 export function createDesktopUpdater({ resources, appVersion, home = os.homedir(), discover = discoverRelease, onRestart, spawnWorker = spawn }) {
   const appPath = path.join(home, 'Applications/jumpyBrain.app');
@@ -20,6 +25,10 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
   }
   async function latest() {
     if (directory) return;
+    const owner = await readJSON(path.join(root, '.installer-lock/desktop.json')).catch(() => null);
+    if (owner && path.dirname(owner.directory || '') === updates && /^update-[\w-]+$/.test(path.basename(owner.directory))) {
+      directory = owner.directory; return;
+    }
     const entries = await readdir(updates).catch(() => []);
     const candidates = [];
     for (const name of entries.filter(n => /^update-[\w-]+$/.test(n))) {
@@ -34,14 +43,17 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     await latest();
     if (directory) {
       const value = await readJSON(path.join(directory, 'state.json')).catch(() => null);
-      if (value && value.updatedAt > (state.updatedAt || 0) && !['checking', 'available', 'current'].includes(state.phase)) {
+      if (value && ((['preparing','ready','updating'].includes(value.phase) && alive(value.pid)) || (value.updatedAt > (state.updatedAt || 0) && !['checking', 'available', 'current'].includes(state.phase)))) {
         state = value;
       }
-      if (state.pid && !alive(state.pid)) {
+      const owner = await readJSON(path.join(root, '.installer-lock/desktop.json')).catch(() => null);
+      if ((state.pid && !alive(state.pid)) || (owner?.directory === directory && !alive(owner.pid))) {
           const journal = await readJSON(path.join(directory, 'transaction.json')).catch(() => null);
           const recovery = journal && !['success', 'rolled-back'].includes(journal.phase);
-          if (recovery || ['preparing', 'ready', 'updating'].includes(state.phase)) state = { ...state, phase: 'failed', recovery: !!recovery, detail: 'The updater was interrupted. Retry preparation, or Recover if replacement had started. Your previous installation is retained.' };
+          if (journal?.phase === 'success' && state.phase === 'updating') state = { ...state, phase: 'success', detail: 'The update was verified before the helper stopped. Installed versions are shown below.' };
+          else if (recovery || ['preparing', 'ready', 'updating'].includes(state.phase)) state = { ...state, phase: 'failed', recovery: !!recovery, detail: 'The updater was interrupted. Retry preparation, or Recover if replacement had started. Your previous installation is retained.' };
       }
+      if (!release && state.phase !== 'checking') release = (await readJSON(path.join(directory, 'request.json')).catch(() => null))?.release;
     }
     const versions = await installed();
     return { ...state, installed: versions, available: release?.version || state.version || null, notes: release?.notes || '', logAvailable: !!directory,
@@ -51,10 +63,11 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     const current = await snapshot();
     if (['preparing', 'ready', 'updating'].includes(current.phase) || current.canRecover) return current;
     state = { phase: 'checking', detail: 'Checking public releases, including beta releases…' };
+    release = null;
     try {
       release = await discover();
       const versions = await installed();
-      const newer = compareVersions(release.version, versions.app) > 0;
+      const newer = needsUpdate(release.version, versions);
       state = { phase: newer ? 'available' : 'current', detail: newer ? 'A published release is available.' : 'The app is up to date with published releases.' };
     } catch (error) { state = { phase: 'failed', detail: error.message, updatedAt: Date.now() }; }
     return snapshot();
@@ -63,8 +76,10 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     if (process.platform !== 'darwin') throw new Error('GUI updates require macOS 13 or later.');
     if (path.resolve(resources) !== path.join(appPath, 'Contents/Resources')) throw new Error('This app is running from a development/custom location. Install it in your personal Applications folder before using GUI updates.');
     await regular(appPath, { directory: true });
+    if (await realpath(appPath) !== appPath) throw new Error('GUI updates require an unlinked app in your personal Applications folder.');
     const versions = await installed();
-    if (!recovering && (!release || compareVersions(release.version, versions.app) <= 0)) throw new Error('Check for a newer published release first.');
+    if (!recovering && (!release || !needsUpdate(release.version, versions))) throw new Error('Check for a newer published release first.');
+    if (!recovering && versions.cliPolicy.kind === 'managed' && compareVersions(versions.cli, release.version) > 0) throw new Error('Your managed CLI is newer than this release. Wait for a matching published release; the GUI will not downgrade it.');
     if (!recovering && versions.cliPolicy.kind !== 'managed' && !appOnly) throw new Error('Choose “Update app only” to preserve the missing/custom/pinned CLI.');
     if (versions.cliPolicy.kind === 'managed' && appOnly) throw new Error('A supported managed CLI updates together with the app.');
     await mkdir(updates, { recursive: true, mode: 0o700 });
@@ -77,8 +92,9 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
       try { await mkdir(lock, { mode: 0o700 }); acquired = true; }
       catch (error) {
         if (error.code !== 'EEXIST') throw error;
+        await regular(lock, { directory: true });
         const owner = await readJSON(path.join(lock, 'desktop.json')).catch(() => null);
-        if (!owner || alive(owner.pid) || !owner.directory.startsWith(updates + path.sep)) throw new Error('Another installer/update holds the installation lock. Wait for it to finish. Unknown locks require installation repair.');
+        if (!owner || alive(owner.pid) || path.dirname(owner.directory || '') !== updates) throw new Error('Another installer/update holds the installation lock. Wait for it to finish. Unknown locks require installation repair.');
         const child = await readJSON(path.join(owner.directory, 'child.json')).catch(() => null);
         if (child?.pid && alive(child.pid)) throw new Error('A previous build is still running. Wait for it to finish, then retry.');
         const journal = await readJSON(path.join(owner.directory, 'transaction.json')).catch(() => null);
@@ -119,7 +135,8 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     } catch (error) {
       if (acquired) {
         const owner = await readJSON(path.join(lock, 'desktop.json')).catch(() => null);
-        if (!owner || owner.pid === process.pid || !alive(owner.pid)) await rm(lock, { recursive: true, force: true });
+        const journal = directory && await readJSON(path.join(directory, 'transaction.json')).catch(() => null);
+        if ((!journal || ['success','rolled-back'].includes(journal.phase)) && (!owner || owner.pid === process.pid || !alive(owner.pid))) await rm(lock, { recursive: true, force: true });
       }
       throw error;
     }
@@ -164,11 +181,23 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     throw new Error('The updater did not acknowledge restart. The app will stay open.');
   }
   async function cancelRestart() {
-    if (restart && directory) {
+    const wasRestarting = restart;
+    restart = false;
+    if (wasRestarting && directory) {
       const proceed = await readFile(path.join(directory, 'proceed')).catch(() => null);
       if (proceed) await writeFile(path.join(directory, 'cancel'), 'cancel', { mode: 0o600 });
     }
-    restart = false;
   }
-  return { action, snapshot, beforeStop, cancelRestart, logPath: () => directory && path.join(directory, 'update.log') };
+  async function blocksStartup(instance) {
+    const owner = await readJSON(path.join(root, '.installer-lock/desktop.json')).catch(() => null);
+    if (!owner || path.dirname(owner.directory || '') !== updates) return false;
+    const journal = await readJSON(path.join(owner.directory, 'transaction.json')).catch(() => null);
+    const progress = await readJSON(path.join(owner.directory, 'state.json')).catch(() => null);
+    if (journal?.phase === 'success') return false;
+    const child = await readJSON(path.join(owner.directory, 'child.json')).catch(() => null);
+    if ((!journal || journal.phase === 'rolled-back') && !(progress?.phase === 'updating' && (alive(owner.pid) || alive(child?.pid)))) return false;
+    const launch = await readJSON(path.join(owner.directory, 'launch.json')).catch(() => null);
+    return !(instance && launch?.instance === instance && launch.pid === owner.pid && alive(owner.pid));
+  }
+  return { action, snapshot, beforeStop, cancelRestart, blocksStartup, logPath: () => directory && path.join(directory, 'update.log') };
 }

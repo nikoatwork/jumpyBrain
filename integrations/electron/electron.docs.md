@@ -15,6 +15,16 @@
 
 ## Non-responsibilities
 
-No alternate memory engine/editor, implicit sync or remote writes, CLI/agent retargeting, public signing/notarization, automatic updater, or crash-persistent drafts. External Node/QMD remain prerequisites. The bundled runtime is the same app code with its own release lifecycle; CLI-only installation does not need Electron or a Mac app.
+No alternate memory engine/editor, implicit sync or remote writes, CLI/agent retargeting, public signing/notarization, unattended updates, or crash-persistent drafts. External Node/QMD remain prerequisites. The bundled runtime is the same app code with its own release lifecycle; CLI-only installation does not need Electron or a Mac app.
 
 The native companion sources remain available for internal hosting and legacy migration/maintenance. Their standalone installer is not the new user-facing Mac setup path. Current packaging supports the private per-user installation; global/custom legacy locations require explicit migration.
+
+## User-initiated updates
+
+`updater.mjs` owns one operation shared by the sidebar and native menus. The editor retains no preload/IPC bridge: a native-intercepted navigation opens `update-window.mjs`. That sandboxed local window has one sender/main-frame/URL-checked IPC channel with fixed actions; it accepts no commands, URLs, release versions, or filesystem paths from renderers. Release notes are text. Hosted/browser sessions cannot install software.
+
+`update-release.mjs` discovers published numeric releases, including beta releases, and pins an asset ID, URL, size, and SHA-256 digest. `update-policy.mjs` recognizes the exact default installer manifest/shim, protects custom/pinned CLI policy and data paths, and reports actual component versions. `update-worker.mjs` is copied with its dependencies into a private support workspace outside both replacement trees. It owns the shared CLI `.installer-lock` from preparation through verification. A background npm/Electron/native build uses the release's lockfile and compiled runtime. Parent death/cancellation before an acknowledged safe-quit handoff prevents publication.
+
+`lifecycle.mjs` invokes updater handoff only after all-tab save preparation, window closure and lease commit; failed handoff retains the host. The external worker waits for parent exit, verifies staged/installed native readiness using owned children, and delegates exchanges to `update-transaction.py` under the native lock. A write-ahead journal stores inode/device identities before each atomic macOS exchange, so rollback can repeat after interruption. CLI shim/config/integrations, login items, Keychain, and Markdown are never exchanged. Normal startup is fenced while replacement/recovery is incomplete; only a matching worker-issued launch nonce admits the verification launch. Success requires that new app's exact authenticated host instance plus matching installed component versions.
+
+Keep private logs bounded (256 KiB per job); previous components and journals remain in the Updates workspace for recovery. They are installation evidence, not canonical memory. Failed builds may need Node/npm/Python/Xcode/QMD repair or free disk space. Unknown locks, changed recovery identities and newer managed CLI versions fail closed. `scripts/desktop-update-smoke.mjs` uses disposable homes and immutable local release fixtures; production receives no fixture environment bypass. A live published release upgrade and Intel/notarized/keychain-history gates must not be inferred from fixture coverage.

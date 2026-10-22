@@ -11,7 +11,7 @@ import { setupComplete, finishSetup } from './setup.mjs';
 import { createDesktopUpdater } from './updater.mjs';
 import { createUpdateWindow } from './update-window.mjs';
 
-export function startDesktopApplication({ resourceDirectory, userData, background = process.argv.includes('--background') } = {}) {
+export function startDesktopApplication({ resourceDirectory, userData, background = process.argv.includes('--background'), updaterOptions = {} } = {}) {
 app.setName('jumpyBrain');
 app.setAboutPanelOptions({ applicationName: 'jumpyBrain', applicationVersion: app.getVersion(), copyright: 'Your thoughts, connected. Markdown stays yours.' });
 // Preserve the existing Electron editor preferences and first-run state.
@@ -21,7 +21,9 @@ let startupError = null;
 let diagnostics = null, tray = null, healthTimer = null, polling = false;
 let quitting = false, quitReady = false, status = 'Starting…';
 const resources = resourceDirectory ?? (app.isPackaged ? process.resourcesPath : fileURLToPath(new URL('../../.local-pack/desktop/jumpyBrain.app/Contents/Resources', import.meta.url)));
-const updater = createDesktopUpdater({ resources, appVersion: app.getVersion(), onRestart: () => app.quit() });
+const updater = createDesktopUpdater({ resources, appVersion: app.getVersion(), ...updaterOptions, onRestart: () => app.quit() });
+const updateInstance = process.env.JUMPYBRAIN_UPDATE_INSTANCE;
+delete process.env.JUMPYBRAIN_UPDATE_INSTANCE;
 let updateWindow = null;
 function openUpdates() {
   if (quitting) return;
@@ -32,12 +34,13 @@ function openUpdates() {
 process.on('uncaughtExceptionMonitor', () => { diagnostics?.record({ operation: 'exception', severity: 'error', outcome: 'failed', code: 'error' }); void diagnostics?.flush(); });
 
 async function ensureHost() {
+  if (await updater.blocksStartup(updateInstance)) throw new Error('An installation is pending. Open Updates to finish or recover it.');
   if (host?.isAlive()) return host;
   return starting ??= (async () => {
     startupError = null;
     config = await bundledHost(resources);
     diagnostics ??= await startElectronDiagnostics(config, { directory: app.getPath('userData'), version: app.getVersion() }).catch(() => null);
-    host = await startDesktopHost(config, { onExit: () => { status = 'Local service stopped'; void refreshTray(); } });
+    host = await startDesktopHost(config, { ...(updateInstance ? { instance: updateInstance } : {}), onExit: () => { status = 'Local service stopped'; void refreshTray(); } });
     diagnostics?.connect(host.connection);
     return host;
   })().catch((error) => { startupError = error; throw error; }).finally(() => { starting = null; });
@@ -114,7 +117,7 @@ const quit = createQuitFlow({
     })));
     return results.every(Boolean);
   },
-  cancelClose: () => { quitting = false; void updater.cancelRestart(); void refreshTray(); },
+  cancelClose: async () => { try { await updater.cancelRestart(); } finally { quitting = false; void refreshTray(); } },
   beforeStop: () => updater.beforeStop(),
   flush: async () => { diagnostics?.record({ operation: 'shutdown', severity: 'info', outcome: 'ok', code: 'none' }); await diagnostics?.flush(); },
   exit: () => { clearInterval(healthTimer); tray?.destroy(); quitReady = true; app.quit(); }, showError,
@@ -137,6 +140,7 @@ else {
     icon.setTemplateImage(true); tray = new Tray(icon);
     setApplicationMenu({ app, getWindow: () => window, reconnect: () => void openEditor(), settings: () => void openEditor(true), updates: openUpdates });
     await refreshTray();
+    if (await updater.blocksStartup(updateInstance)) { openUpdates(); return; }
     healthTimer = setInterval(async () => {
       if (polling || quitting || !host?.isAlive()) return;
       polling = true;
