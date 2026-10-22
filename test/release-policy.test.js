@@ -23,18 +23,21 @@ async function fixture(t, failTests = false, canPublish = true) {
   await mkdir(path.join(root, "scripts")); await mkdir(path.join(root, "bin"));
   for (const file of ["release.mjs", "release-policy.mjs"]) await copyFile(new URL(`../scripts/${file}`, import.meta.url), path.join(root, "scripts", file));
   await writeFile(path.join(root, "package.json"), JSON.stringify({version:"0.3.0"}));
+  await mkdir(path.join(root, "integrations/electron"), { recursive: true });
+  await writeFile(path.join(root, "integrations/electron/package.json"), JSON.stringify({version:"0.3.0"}));
   const mock = `#!${process.execPath}
 const fs=require('fs'),path=require('path');
 const command=path.basename(process.argv[1]),args=process.argv.slice(2);
 fs.appendFileSync('calls.jsonl',JSON.stringify([command,...args])+'\\n');
 if(command==='git') {
- if(args[0]==='status' && fs.existsSync('bumped')) console.log(' M package.json\\n M package-lock.json');
+ if(args[0]==='status' && fs.existsSync('bumped')) console.log(' M package.json\\n M package-lock.json\\n M integrations/electron/package.json\\n M integrations/electron/package-lock.json');
  if(args[0]==='branch') console.log('master');
 }
 if(command==='gh' && args[0]==='repo') console.log('fixture/jumpybrain');
 if(command==='gh' && args[0]==='api') console.log(process.env.CAN_PUBLISH);
 if(command==='npm') {
- if(args[0]==='version') {fs.writeFileSync('bumped','yes');fs.writeFileSync('package.json',JSON.stringify({version:args[1]}));}
+ const prefix=args[0]==='--prefix'?args[1]:'.', operation=args[0]==='--prefix'?args.slice(2):args;
+ if(operation[0]==='version') {fs.writeFileSync('bumped','yes');fs.writeFileSync(path.join(prefix,'package.json'),JSON.stringify({version:operation[1]}));}
  if(args[0]==='test' && process.env.FAIL_TESTS==='1') process.exit(1);
  if(args[1]==='cli:pack') {fs.mkdirSync('.local-pack',{recursive:true});fs.writeFileSync('.local-pack/latest.json',JSON.stringify({tarballPath:path.resolve('.local-pack/fixture.tgz')}));}
 }
@@ -49,6 +52,10 @@ test("release validates before commit and atomically pushes branch/tag before be
   const f=await fixture(t); const result=f.run([]); assert.equal(result.status,0,result.stderr);
   const calls=await f.calls();
   assert.ok(calls.find(c=>c[0]==='npm'&&c[1]==='version'&&c[2]==='0.3.1'));
+  assert.equal(JSON.parse(await readFile(path.join(f.root,'integrations/electron/package.json'),'utf8')).version,'0.3.1');
+  const desktopBump=calls.findIndex(c=>c[0]==='npm'&&c[1]==='--prefix'&&c[2]==='integrations/electron'&&c[3]==='version');
+  assert.ok(desktopBump>=0 && desktopBump<calls.findIndex(c=>c[0]==='npm'&&c[1]==='test'));
+  assert.deepEqual(calls.find(c=>c[0]==='git'&&c[1]==='add'),['git','add','--','package.json','package-lock.json','integrations/electron/package.json','integrations/electron/package-lock.json']);
   const index=(tool,verb)=>calls.findIndex(c=>c[0]===tool&&c[1]===verb);
   assert.ok(index('npm','test')<index('git','commit'));
   const tagIndex=calls.findIndex(c=>c[0]==='git'&&c[1]==='tag'&&c[2]==='-a');

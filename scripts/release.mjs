@@ -8,6 +8,7 @@ import { nextReleaseVersion, releaseOptions } from "./release-policy.mjs";
 const cwd = fileURLToPath(new URL("..", import.meta.url));
 const capture = (command, args) => execFileSync(command, args, { cwd, encoding: "utf8" }).trimEnd();
 const run = (command, args) => execFileSync(command, args, { cwd, stdio: "inherit" });
+const versionFiles = ["package.json", "package-lock.json", "integrations/electron/package.json", "integrations/electron/package-lock.json"];
 try {
   const options = releaseOptions(process.argv.slice(2));
   const current = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8")).version;
@@ -28,13 +29,14 @@ try {
     throw new Error(`The active GitHub CLI account cannot publish releases to ${repository}. Sign in with an account that has write access before releasing.`);
   }
   run("npm", ["version", next, "--no-git-tag-version", "--ignore-scripts"]);
+  run("npm", ["--prefix", "integrations/electron", "version", next, "--no-git-tag-version", "--ignore-scripts"]);
   run("npm", ["test"]);
   run("npm", ["run", "cli:pack"]);
   const changes = capture("git", ["status", "--porcelain"]);
-  if (changes.split("\n").some(line => !["package.json", "package-lock.json"].includes(line.slice(3)))) {
+  if (changes.split("\n").some(line => !versionFiles.includes(line.slice(3)))) {
     throw new Error("Files changed during release beyond version metadata; inspect them before committing or publishing.");
   }
-  run("git", ["add", "--", "package.json", "package-lock.json"]);
+  run("git", ["add", "--", ...versionFiles]);
   run("npm", ["run", "guard:staged"]);
   run("git", ["commit", "-m", `release: ${tag}${next.startsWith("0.") ? " (beta)" : ""}`]);
   run("git", ["tag", "-a", tag, "-m", `jumpyBrain ${tag}`]);
