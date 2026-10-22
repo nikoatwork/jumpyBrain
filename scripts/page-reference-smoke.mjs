@@ -549,7 +549,9 @@ async function inlineFeedback(page) {
     await saved(page);
     await gate.release();
     await options(page).filter({ hasText: target.title }).first().waitFor({ state: "visible" });
-    await inlineStatus(page, /stale/);
+    await page.waitForFunction(() => referenceAutocomplete.state.stale);
+    assert.equal(await popup(page).locator("[role=status]").isVisible(), false,
+      "matching suggestions omit status text while retaining stale-index state");
   } finally { await gate.close(); }
   await page.keyboard.press("Escape");
   await beginInline(page, "Empty: ", "zzqneverindexedreference987654");
