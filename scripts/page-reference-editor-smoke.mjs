@@ -54,6 +54,53 @@ try {
         console.error(`FAIL ${width}px ${name}: ${error.message}`);
       } finally { await page.close(); }
     }
+    await check("Markdown paste renders immediately and survives undo/redo and reload", async (page) => {
+      await load(page, "Replace me");
+      await selectEditorText(page, 0, 10);
+      const source = "# Pasted heading\n\n## Smaller heading\nKeep **bold** and _italic_ with [[Exact **title**]].\n\n- retained list\n```md\n# code, not heading\n**literal**\n```\n";
+      await paste(page, source.replace(/\n/g, "\r\n"));
+      assert.equal(await page.locator("#note-editor h1").innerText(), "Pasted heading");
+      assert.equal(await page.locator("#note-editor h2").innerText(), "Smaller heading");
+      assert.equal(await page.locator("#note-editor .editor-bold").innerText(), "bold");
+      assert.equal(await page.locator("#note-editor .editor-italic").innerText(), "italic");
+      assert.equal(await editorMarkdown(page), source);
+      await undoEditor(page);
+      assert.equal(await editorMarkdown(page), "Replace me");
+      await redo(page);
+      assert.equal(await editorMarkdown(page), source);
+      await load(page, await editorMarkdown(page));
+      assert.equal(await page.locator("#note-editor h2").innerText(), "Smaller heading");
+      assert.equal(await editorMarkdown(page), source);
+    });
+    await check("inline Markdown paste replaces only the selection and leaves caret at insertion", async (page) => {
+      await load(page, "Before replace after");
+      await selectEditorText(page, 7, 14);
+      await paste(page, "**bold** and *italic*");
+      assert.equal(await editorMarkdown(page), "Before **bold** and *italic* after");
+      assert.deepEqual(await editorSelection(page), [22, 22]);
+      await undoEditor(page);
+      assert.equal(await editorMarkdown(page), "Before replace after");
+    });
+    await check("paste within code stays literal while whole-block replacement parses", async (page) => {
+      await load(page, "```md\ncode\n```");
+      await selectEditorText(page, 9);
+      await paste(page, " **literal**");
+      assert.equal(await editorMarkdown(page), "```md\ncode **literal**\n```");
+      assert.equal(await page.locator("#note-editor .editor-bold").count(), 0);
+      await load(page, "- old literal block");
+      await selectEditorText(page, 0, 19);
+      await paste(page, "## New heading");
+      assert.equal(await page.locator("#note-editor h2").innerText(), "New heading");
+    });
+    await check("empty and read-only clipboard events cannot change the document", async (page) => {
+      await load(page, "Keep this");
+      await selectEditorText(page, 0, 9);
+      await paste(page, "");
+      assert.equal(await editorMarkdown(page), "Keep this");
+      await page.evaluate(() => richEditor.setReadOnly(true));
+      await paste(page, "## Changed");
+      assert.equal(await editorMarkdown(page), "Keep this");
+    });
     await check("load, click/tap, punctuation, and no change notifications", async (page) => {
       const source = "# [[Heading]]\n\nPlain [[Alpha]] and [[β_日本語]] end.\n- [[Bullet]] + [[Second]]\n  - [[Nested]]\n    - [[Deep]]\n\n[[snake_case **literal**]]\n";
       await load(page, source);

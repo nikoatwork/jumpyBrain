@@ -135,6 +135,17 @@ try {
       await page.locator("#note-name").focus();
       await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `lexical-${width}.png`) });
     }
+    // Pasted Markdown must render before saving and persist in the real note.
+    const pasted = "# Pasted heading\n\n## Pasted section\nKeep **bold** and *italic*.\n";
+    await replaceEditorText(page, pasted);
+    assert.equal(await page.locator("#note-editor h1").innerText(), "Pasted heading");
+    assert.equal(await page.locator("#note-editor h2").innerText(), "Pasted section");
+    await saved(page);
+    assert.equal(await editorMarkdown(page), pasted);
+    await page.reload();
+    await page.locator("#note-editor").waitFor({ state: "visible" });
+    assert.equal(await page.locator("#note-editor h2").innerText(), "Pasted section");
+    assert.equal(await editorMarkdown(page), pasted);
     // Clipboard HTML cannot introduce executable markup or fetch images.
     await page.locator("#note-editor").focus();
     await page.locator("#note-editor").evaluate((element) => {

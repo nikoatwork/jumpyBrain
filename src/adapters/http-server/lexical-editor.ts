@@ -1,6 +1,6 @@
 // Browser-only adapter. Bundled separately; never imported by the server runtime.
 import {
-  $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
+  $addUpdateTag, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
   COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORY_PUSH_TAG, IS_CODE, PASTE_COMMAND,
   ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, getDOMTextNode, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection,
@@ -270,8 +270,6 @@ export function createNoteEditor(element: HTMLElement, options: {
     });
     notifyReferenceContext();
   }));
-  // Paste text, not arbitrary clipboard HTML/styles/images. Multi-line Markdown is
-  // parsed on load; paste remains safe visible text and is one undoable operation.
   // Do not expose formats that our Markdown subset cannot save.
   cleanups.push(editor.registerCommand(FORMAT_TEXT_COMMAND, (format) => {
     if (format !== "bold" && format !== "italic") return true;
@@ -280,11 +278,32 @@ export function createNoteEditor(element: HTMLElement, options: {
   }, COMMAND_PRIORITY_HIGH));
   cleanups.push(editor.registerCommand(PASTE_COMMAND, (event) => {
     if (!event) return false;
+    if (!editor.isEditable()) return true;
     const transfer = "clipboardData" in event ? event.clipboardData : "dataTransfer" in event ? event.dataTransfer : null;
     if (!transfer) return false;
     event.preventDefault();
     const selection = $getSelection();
-    if ($isRangeSelection(selection)) selection.insertRawText(transfer.getData("text/plain"));
+    const text = transfer.getData("text/plain").replace(/\r\n?/g, "\n");
+    if ($isRangeSelection(selection) && text) {
+      $addUpdateTag(HISTORY_PUSH_TAG);
+      const anchorBlock = selection.anchor.getNode().getTopLevelElement();
+      const focusBlock = selection.focus.getNode().getTopLevelElement();
+      // An insertion within an existing literal/code block must stay literal.
+      // Replacing a whole block (or note) can introduce formatted Markdown.
+      const withinLiteral = anchorBlock instanceof LiteralMarkdownNode && anchorBlock === focusBlock
+        && (selection.isCollapsed() || selection.getTextContent() !== anchorBlock.getTextContent());
+      if (withinLiteral) selection.insertRawText(text);
+      else {
+        const nodes = parseMarkdown(text);
+        // A literal fragment pasted into an existing rich block must not turn
+        // its surrounding text into a literal block and erase its formatting.
+        const fragment = nodes.length === 1 && nodes[0] instanceof LiteralMarkdownNode
+          && anchorBlock === focusBlock && anchorBlock && !anchorBlock.isEmpty()
+          && (selection.isCollapsed() || selection.getTextContent() !== anchorBlock.getTextContent());
+        if (fragment) selection.insertRawText(text);
+        else selection.insertNodes(nodes);
+      }
+    }
     return true;
   }, COMMAND_PRIORITY_HIGH));
 
@@ -439,6 +458,35 @@ export function createNoteEditor(element: HTMLElement, options: {
     element.removeEventListener("focusin", focusReference);
   });
 
+  // Loading and pasting share the same conservative Markdown grammar.
+  function parseMarkdown(value: string): LexicalNode[] {
+    const nodes: LexicalNode[] = [];
+    let fence: { char: string; length: number } | null = null;
+    for (const line of value.split("\n")) {
+      const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+      const withoutReferences = line.replace(/\[\[[^\[\]\r\n]+\]\]/g, "");
+      const literal = Boolean(fence || marker || /^(?: {4}|\t|\s*(?:>|[-+*]\s|\d+[.)]\s|\|))/.test(line)
+        || /[\[\]<>`\\~]|^\s*(?:---+|===+|\*\*\*+|___+)\s*$/.test(withoutReferences));
+      let node: LexicalNode;
+      if (literal) node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
+      else {
+        node = $generateNodesFromMarkdownString(line, syntax, true)[0] || $createParagraphNode();
+        // Unmatched delimiters may belong to multiline emphasis or unsupported
+        // syntax: leave their whole line literal rather than half-interpreting it.
+        if ($isElementNode(node) && node.getAllTextNodes().some((text) => !(text instanceof PageReferenceNode) && /\*|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/u.test(text.getTextContent()))) {
+          node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
+        }
+      }
+      nodes.push(node);
+      sources.set(node.getKey(), { original: line, snapshot: snapshot(node) });
+      if (marker) {
+        if (!fence) fence = { char: marker[1][0], length: marker[1].length };
+        else if (marker[1][0] === fence.char && marker[1].length >= fence.length && /^\s*(?:`+|~+)\s*$/.test(line)) fence = null;
+      }
+    }
+    return nodes;
+  }
+
   let highlightTimer: number | undefined;
   const api = {
     getMarkdown: () => markdown,
@@ -448,29 +496,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       sources.clear(); lastSelection = null;
       editor.update(() => {
         const root = $getRoot(); root.clear();
-        let fence: { char: string; length: number } | null = null;
-        for (const line of value.split("\n")) {
-          const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
-          const withoutReferences = line.replace(/\[\[[^\[\]\r\n]+\]\]/g, "");
-          const literal = Boolean(fence || marker || /^(?: {4}|\t|\s*(?:>|[-+*]\s|\d+[.)]\s|\|))/.test(line)
-            || /[\[\]<>`\\~]|^\s*(?:---+|===+|\*\*\*+|___+)\s*$/.test(withoutReferences));
-          let node: LexicalNode;
-          if (literal) node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
-          else {
-            node = $generateNodesFromMarkdownString(line, syntax, true)[0] || $createParagraphNode();
-            // Unmatched delimiters may belong to multiline emphasis or unsupported
-            // syntax: leave their whole line literal rather than half-interpreting it.
-            if ($isElementNode(node) && node.getAllTextNodes().some((text) => !(text instanceof PageReferenceNode) && /\*|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/u.test(text.getTextContent()))) {
-              node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
-            }
-          }
-          root.append(node);
-          sources.set(node.getKey(), { original: line, snapshot: "" });
-          if (marker) {
-            if (!fence) fence = { char: marker[1][0], length: marker[1].length };
-            else if (marker[1][0] === fence.char && marker[1].length >= fence.length && /^\s*(?:`+|~+)\s*$/.test(line)) fence = null;
-          }
-        }
+        root.append(...parseMarkdown(value));
         scanReferences();
         for (const node of root.getChildren()) sources.get(node.getKey())!.snapshot = snapshot(node);
         $setSelection(null);

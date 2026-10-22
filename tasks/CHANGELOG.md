@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Markdown paste
+
+- Pasted Markdown now renders supported headings and emphasis immediately, using the same parser as note loading; selection replacement, undo/redo, code literals, and canonical save/reload remain covered by desktop/mobile browser checks.
+
 ## 2026-10-22 — Local installation guidance
 
 - Clarified local privacy boundaries, app/CLI use of one brain, existing-install reuse, and agent-assisted setup in the installation guides and new FAQ.
