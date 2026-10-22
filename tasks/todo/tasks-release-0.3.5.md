@@ -9,7 +9,7 @@
 - [x] Full test suite: 1,105 passed, one skipped, zero failed.
 - [x] Complete core-flow and applicable change-specific release gates; retain logs and screenshots under `.local-pack/release-qa/`, `.local-pack/update-smoke/`, `.local-pack/update-ui/`.
 - [x] Release dry run selects the unused next patch `0.3.4 → 0.3.5`.
-- [ ] Obtain explicit same-day publication override.
+- [x] Obtain explicit same-day publication override: user approved “do it” after reviewing the prepared v0.3.5 candidate.
 - [ ] Run full `npm run release`, verify published tag/notes/asset/version/digest, archive exact shipped notes and QA, reset only shipped pending notes, commit/push bookkeeping.
 
 ## Snapshot and environment
@@ -20,9 +20,9 @@
 - Initial validation was discarded: shared dependency symlinks omitted license metadata, and an overlapping pack build removed files during tests. Repeated with checkout-local root dependencies and sequential builds; the complete suite passed.
 - Candidate CLI ↔ browser roundtrip passed: remember, search/open, browser edit/save, compact recall and content-hash-guarded expand; explicit lexical reindex preserved canonical bytes. Disposable hosted CLI checks passed read-only recall/write rejection, invalid key, and offline errors.
 
-## Publication blocker
+## Publication authorization
 
-`v0.3.4` was published 2026-10-22 at 08:30:24 UTC (10:30:24 Europe/Berlin); `v0.3.2` and `v0.3.3` were also published that day. `docs/releases.md` requires an explicit user override for an additional release on the same Europe/Berlin day. No new version bump, tag, push, publication, installed-app update, or memory write has been performed.
+`v0.3.4` was published 2026-10-22 at 08:30:24 UTC (10:30:24 Europe/Berlin); `v0.3.2` and `v0.3.3` were also published that day. `docs/releases.md` requires an explicit user override for an additional release on the same Europe/Berlin day. The user explicitly approved the additional v0.3.5 publication after candidate validation. Publication proceeds from the isolated checkout; the installed app and personal memory are outside this operation.
 
 ## Limits
 
@@ -71,5 +71,5 @@ All applicable automated release gates passed. The tested runtime stays byte-ide
 - Logs/results: `/tmp/jumpybrain-release-20261022/.local-pack/release-qa/`; screenshots in its `screenshots/` subdirectory. Initial failed reference screenshots remain as diagnostic evidence alongside later passing runs.
 - Native update screens: `.local-pack/update-ui/`; installed update evidence: `.local-pack/update-smoke/<mode>/result.json` and screenshots.
 - Public notes for review: `tasks/todo/release-next.md` (five curated bullets). No published artifacts or notes have been changed.
-- Rechecked GitHub after validation: v0.3.4 is still latest. GitHub publishing access is available (ADMIN); the explicit same-day override is the only publication prerequisite still outstanding.
-- Once authorized, use this isolated checkout for full `npm run release`; verify tag/notes/asset/digest, then archive exact shipped notes to `tasks/done/releases/v0.3.5.md` and this QA evidence separately as `v0.3.5.qa.md`. Clear only shipped bullets and commit/push bookkeeping. Do not bump again if the release already exists.
+- Rechecked GitHub after validation: v0.3.4 is still latest. GitHub publishing access is available (ADMIN); the user subsequently provided the explicit same-day override.
+- Authorization received; use this isolated checkout for full `npm run release`; verify tag/notes/asset/digest, then archive exact shipped notes to `tasks/done/releases/v0.3.5.md` and this QA evidence separately as `v0.3.5.qa.md`. Clear only shipped bullets and commit/push bookkeeping. Do not bump again if the release already exists.
