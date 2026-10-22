@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { startCompanionGateway } from "../integrations/macos-companion/gateway.mjs";
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
-import { appendEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
+import { appendEditorText, editorMarkdown, replaceEditorText } from "./editor-smoke-helpers.mjs";
 
 const runtimeRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const controlKey = randomBytes(32).toString("hex");
@@ -222,9 +222,11 @@ try {
   });
   await check("real 412 conflict blocks UI and native switches without overwrite", async () => {
     await openEditor(editor, ids[0], b.id); await openEditor(second, ids[0], b.id);
-    await appendEditorText(editor, "Confirmed B first writer"); await saved(editor);
+    // Concurrent appends can merge safely. Replace the same source line so this
+    // fixture proves the overlapping-edit review and switch barrier instead.
+    await replaceEditorText(editor, "Confirmed B first writer\n"); await saved(editor);
     const conflict = second.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/documents/"));
-    await appendEditorText(second, "Retained B conflicting draft");
+    await replaceEditorText(second, "Retained B conflicting draft\n");
     assert.equal((await conflict).status(), 412, "must exercise real optimistic-concurrency conflict");
     await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
     const writes = traffic.filter((item) => item.method === "PUT").length;
@@ -261,9 +263,9 @@ try {
   await check("failed remote save blocks active key repair without changing credentials", async () => {
     second = await context.newPage();
     await openEditor(editor, ids[0], r.id); await openEditor(second, ids[0], r.id);
-    await appendEditorText(editor, "Confirmed remote first writer"); await saved(editor);
+    await replaceEditorText(editor, "Confirmed remote first writer\n"); await saved(editor);
     const conflict = second.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/documents/"));
-    await appendEditorText(second, "Retained remote conflicting draft");
+    await replaceEditorText(second, "Retained remote conflicting draft\n");
     assert.equal((await conflict).status(), 412);
     await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
     const before = gateway.state(), beforeCredentials = [...keys.entries()];
@@ -370,7 +372,14 @@ try {
   await check("secrets absent DOM/storage/state; browser requests fenced", noSecrets);
 } catch (error) {
   failures.push({ stage, message: error.message });
-  console.error("  FAIL - " + stage + ": " + error.message);
+  console.error("  FAIL - " + stage + ": " + (error.stack || error.message));
+  if (second && !second.isClosed()) console.error("  conflict state: " + JSON.stringify(await second.evaluate(() => ({
+    visibility: document.visibilityState, active: document.activeElement?.id,
+    status: document.getElementById("note-save-state")?.textContent,
+    dirty: state.editor?.state.dirty, code: state.editor?.state.saveErrorCode,
+    frozen: companionFrozen, canApply: externalUpdates.canApply(),
+    selected: !getSelection()?.isCollapsed,
+  })).catch(() => null)));
   process.exitCode = 1;
 } finally {
   // Close browser before coordinator/server: no leftover tabs, Chromium, or roots.
