@@ -10,3 +10,5 @@ export { installPageNavigation } from "./browser-page-navigation.js";
 export { installDocumentActions } from "./document-actions.js";
 export { installExternalDocumentUpdates } from "./external-document-updates.js";
 export { createFeedbackDiagnostics, installFeedback, diagnosticBuildInfo } from "./feedback.js";
+
+export { installNoteAttention } from "./note-attention.js";

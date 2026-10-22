@@ -12,7 +12,7 @@ import { createServerMemoryRuntime } from '../dist/server/index.js';
 import { loginPlist } from '../integrations/electron/login.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const mode = process.argv[2] || 'success';
-if (!['success','app-only','relaunch-failure','helper-crash','app-crash'].includes(mode)) throw new Error('Unsupported smoke mode');
+if (!['success','app-only','relaunch-failure','helper-crash','app-crash','cli-open','cli-closed'].includes(mode)) throw new Error('Unsupported smoke mode');
 const asar = await import(path.join(repo, 'integrations/electron/node_modules/@electron/asar/lib/asar.js'));
 const home = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-update-smoke-')));
 const artifactDir = path.join(repo, '.local-pack/update-smoke', mode); await mkdir(artifactDir, { recursive: true });
@@ -28,6 +28,7 @@ try {
   await mkdir(support, { mode: 0o700 }); await mkdir(path.join(root, 'bin'), { recursive: true });
   await createServerMemoryRuntime({ root: memory }).initializeMemoryRoot();
   await writeFile(path.join(memory, 'notes/keep.md'), '---\nid: 11111111-1111-4111-8111-111111111111\ntype: note\ntitle: Keep me\n---\nCanonical bytes must survive.\n');
+  await writeFile(path.join(memory, 'notes/work.md'), '---\nid: mem_22222222-2222-4222-8222-222222222222\ntype: note\ntitle: Working while preparing\n---\nKeep editing.\n');
   await writeFile(path.join(support, 'api-key'), randomBytes(32).toString('hex'), { mode: 0o600 });
   const socket = net.createServer(); await new Promise(resolve => socket.listen(0, '127.0.0.1', resolve));
   const port = socket.address().port; await new Promise(resolve => socket.close(resolve));
@@ -78,7 +79,19 @@ try {
   const protectedPaths = [path.join(memory, 'notes/keep.md'), cliConfigPath, integration, launchAgent, path.join(support, 'api-key')];
   const before = await Promise.all(protectedPaths.map(file => readFile(file)));
   const env = { ...process.env, HOME: home }; delete env.ELECTRON_RUN_AS_NODE;
-  child = spawn(path.join(appPath, 'Contents/MacOS/jumpyBrain'), [], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  if (mode === 'cli-closed') {
+    const preview = execFileSync('node', [path.join(root, 'app/dist/cli.js'), 'update', '--home', home, '--dry-run'], { env, encoding: 'utf8' });
+    assert.match(preview, /Paired Mac update preview/);
+    const entry = path.join(home, 'run-cli.mjs');
+    await writeFile(entry, `
+      import { pairedInstallation, runPairedUpdate } from ${JSON.stringify(path.join(root, 'app/integrations/electron/update-cli.mjs'))};
+      import { createDesktopUpdater } from ${JSON.stringify(path.join(root, 'app/integrations/electron/updater.mjs'))};
+      import { spawn } from 'node:child_process';
+      const options = ${JSON.stringify({ home, installRoot: root, source: 'https://github.com/nikoatwork/jumpyBrain.git', ref: 'master' })};
+      await runPairedUpdate({ ...options, installation: await pairedInstallation(options), createUpdater: options => createDesktopUpdater({ ...options, discover: async () => (${JSON.stringify(release)}), spawnWorker: (node, args, options) => spawn(node, [${JSON.stringify(path.join(repo, 'integrations/electron/smoke-update-worker.mjs'))}, ...args], options) }) });
+    `);
+    child = spawn('node', [entry], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  } else child = spawn(path.join(appPath, 'Contents/MacOS/jumpyBrain'), [], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   child.stdout.on('data', data => process.stdout.write(data));
   let stderr = ''; child.stderr.on('data', data => { stderr = (stderr + data).slice(-16000); });
   const deadline = Date.now() + 15 * 60 * 1000;
@@ -108,12 +121,13 @@ try {
   }
   assert.ok(report, 'installed upgrade timed out'); assert.equal(report.ok, true, report?.error);
   for (let i = 0; i < protectedPaths.length; i++) assert.deepEqual(await readFile(protectedPaths[i]), before[i], protectedPaths[i]);
+  if (mode === 'success') assert.deepEqual(await readFile(path.join(memory, 'notes/work.md')), await readFile(path.join(home, 'work-before.md')));
   const recovered = ['relaunch-failure', 'helper-crash', 'app-crash'].includes(mode);
   const expectedCLI = recovered || mode === 'app-only' ? oldVersion : nextVersion;
   assert.equal(JSON.parse(await readFile(path.join(root, 'app/package.json'))).version, expectedCLI);
   assert.equal(JSON.parse(await readFile(path.join(resources, 'runtime/package.json'))).version, recovered ? oldVersion : nextVersion);
   const installedFiles = new Set(asar.listPackage(path.join(resources, 'app.asar')));
-  for (const file of ['updater.mjs', 'update-worker.mjs', 'update-transaction.py', 'update-release.mjs', 'update-policy.mjs', 'desktop-host.mjs', 'host.mjs']) {
+  for (const file of ['updater.mjs', 'update-worker.mjs', 'update-transaction.py', 'update-release.mjs', 'update-policy.mjs', 'desktop-host.mjs', 'host.mjs', 'update-inline.mjs', 'update-control.mjs', 'update-cli.mjs']) {
     assert.ok(installedFiles.has('/' + file), `Updated app must retain its next-update helper: ${file}`);
   }
   assert.equal(execFileSync(cliPath, ['--version'], { env, encoding: 'utf8' }).trim(), expectedCLI);

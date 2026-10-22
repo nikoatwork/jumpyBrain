@@ -330,6 +330,7 @@ Query parameters:
 - `focus=pages/topic.md` limits to a local graph around a file, title, or basename.
 - `depth=2` controls local graph traversal depth when `focus` is set.
 - `query=release`, `path=pages/`, `type=page`, and `tags=architecture,graph` filter nodes.
+- Repeated `files=pages/topic.md&files=notes/source.md` selects exact root-relative files before focus/orphan filtering and the node cap. `files=` explicitly selects no nodes; omitting `files` leaves file selection unrestricted. Paths are compared against canonical graph nodes, never read as arbitrary file paths. The browser uses shared app search results for this selection, without also applying the literal metadata `query` filter.
 - `edgeTypes=wiki-link,markdown-link` filters explicit link edge kinds.
 - `includeUnresolved=0` hides virtual unresolved-link targets.
 - `includeOrphans=0` hides document nodes with no visible edges.
@@ -340,6 +341,20 @@ Response nodes use root-relative file IDs for Markdown documents plus virtual `u
 ### Graph UI smoke validation
 
 See [browser verification](../src/adapters/http-server/browser.docs.md#browser-verification) for production editor/reference/map smokes, fixture setup, and manual rollout limits.
+
+### `GET /memories/all/attention`
+
+Authenticated observational discovery returns `{ memory: "all", target: "remote", root: "remote:all", notes: [...] }`, with at most eight canonical notes containing `id`, `title`, root-relative `file`, optional valid `updatedAt`/`createdAt`, and resolved `attentionAt` when dated. Selection scans fresh canonical metadata without QMD or a body payload. Bare frontmatter `attention_at: null` excludes settled notes; future timezone-explicit timestamps exclude snoozed notes until due. Missing fields follow edit/creation recency; invalid external values conservatively follow recency. Active notes sort by effective attention time descending, then stable path; undated notes sort last. Eligibility excludes hidden paths and ambiguous IDs before limiting. Optional `nextWakeAt` is the earliest eligible future deadline across the entire scan. Optional `warnings: [{ code: "invalid_attention_at", id }]` covers displayed invalid overrides without echoing values/content. Unknown query limits do not change the cap. Other methods return 405; failures return generic 500 `attention_failed`. This is separate from Home recent activity, search and knowledge validity.
+
+### `PATCH /memories/all/documents/:id`
+
+Authenticated attention-only changes require `If-Match: sha256:<64 hex>` from a prior document read and exactly one intent:
+
+- `{ "action": "settle" }` writes explicit YAML null.
+- `{ "action": "snooze", "until": "2026-12-01T09:00:00.000Z" }` writes a future timezone-explicit instant normalized to UTC. Calendar rollover, timezone-free/date-only, invalid/past/equal-now timestamps and extra fields are rejected.
+- `{ "action": "reactivate" }` removes the override and follows ordinary edit recency again.
+
+Publication uses the same queue, guarded file identities and atomic replacement as content saves. Attention changes preserve body bytes, unknown metadata/comments, title and edit timestamps. Ordinary content/title saves retain omitted attention overrides, while explicit submitted metadata values remain editable through the existing document operation. Success returns the complete published GET document packet (`content`, `frontmatter`, `contentHash`, identity/title/type/file and safe target fields), plus `oldContentHash`, `newContentHash`, `indexed: false`, and conservative stale `index` state. The packet describes publication directly; it does not re-read a potentially newer revision. Missing If-Match returns 428, stale/unsafe identity 412, invalid intent 422, missing ID 404 and duplicate ID 409. Unsupported media/body errors follow PUT. Stale attempts never recreate deleted notes or overwrite later content. The companion gateway admits PATCH only for an authorized writable target and live registered tab/generation, including its bounded request body and If-Match.
 
 ### `GET /memories/all/recent`
 

@@ -1,3 +1,4 @@
+import { designSystemStyles } from "./browser-design-system.js";
 import { GRAPH_NODE_TONES } from "./map-controller.js";
 import { readFileSync } from "node:fs";
 import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
@@ -25,46 +26,48 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg" />
   <script nonce="${nonce}">${themeBootstrap}${sidebarBootstrap}</script>
   <style nonce="${nonce}">
+    ${designSystemStyles}
     ${themeStyles}
     * { box-sizing: border-box; }
     html, body { height: 100%; }
-    body { margin: 0; overflow: hidden; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
+    body { margin: 0; overflow: hidden; font: var(--text-body)/var(--leading-ui) var(--font-ui); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
     button, input, textarea, select { font: inherit; }
+    strong, b { font-weight: var(--weight-semibold); }
     button { cursor: pointer; }
     button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
     [hidden] { display: none !important; }
 
     /* Quiet map chrome shares the home screen's foundation. */
-    h1 { margin: 0; color: var(--ink); font-size: 20px; line-height: 1.25; letter-spacing: -.025em; font-weight: 600; }
+    h1, dialog h2 { margin: 0; color: var(--ink); font-size: var(--text-heading); line-height: var(--leading-heading); letter-spacing: -.025em; font-weight: var(--weight-semibold); }
     #graph-header { position: relative; z-index: 10; background: var(--surface); }
     .map-heading { flex: 1 0 220px; }
-    .map-heading p { margin: 4px 0 0; color: var(--ink-soft); font-size: 12px; }
-    .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: 8px 24px; background: var(--surface); color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; pointer-events: none; }
-    #graph-notice { padding: 0 24px 12px; color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; }
+    .map-heading p { margin: var(--space-1) 0 0; color: var(--ink-soft); font-size: var(--text-caption); }
+    .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: var(--space-2) var(--space-6); background: var(--surface); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; pointer-events: none; }
+    #graph-notice { padding: 0 var(--space-6) var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
     #graph-notice p { margin: 0; }
-    #graph-warnings { margin: 4px 0; padding-left: 18px; }
+    #graph-warnings { margin: var(--space-1) 0; padding-left: var(--space-4); }
 
     /* Reusable controls and toolbar groups. */
-    input { height: 36px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
+    input { font-size: var(--text-ui); height: var(--control-height); padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
     input::placeholder { color: var(--ink-faint); opacity: 1; }
     input:hover { border-color: var(--ink-faint); }
     input:focus { border-color: var(--focus-ring); }
-    .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 20px 24px; }
+    .toolbar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-6); }
     #query { width: 230px; min-width: 0; background: transparent; border-color: var(--line); }
     #graph-filters { position: relative; }
     #graph-filters summary { cursor: pointer; }
     #graph-filters[open] summary { background: var(--surface-hover); }
-    .map-options { position: absolute; z-index: 1; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-lg); }
-    .map-options label { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--ink-soft); font-size: 12px; }
+    .map-options { position: absolute; z-index: 1; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-lg); }
+    .map-options label { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); }
     .map-options .focus-field { display: block; }
-    #focus { display: block; width: 100%; margin-top: 6px; }
+    #focus { display: block; width: 100%; margin-top: var(--space-1); }
     .map-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
-    .map-options p { margin: 0; color: var(--ink-faint); font-size: 12px; }
-    .button { height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: 680; font-size: 12px; transition: background .15s ease, border-color .15s ease; }
+    .map-options p { margin: 0; color: var(--ink-faint); font-size: var(--text-caption); }
+    .button { height: var(--control-height); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 0 var(--space-4); border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: var(--weight-semibold); font-size: var(--text-ui); transition: background .15s ease, border-color .15s ease; }
     .button-primary { background: var(--control-fill); border-color: var(--line); color: var(--ink); box-shadow: none; }
     .button-primary:hover { background: var(--surface-hover); border-color: var(--line-strong); }
-    .button svg, .icon-button svg { width: 15px; height: 15px; }
-    .icon-button { width: 34px; height: 34px; display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); }
+    .button svg, .icon-button svg { width: var(--icon-size); height: var(--icon-size); }
+    .icon-button { width: var(--control-compact); height: var(--control-compact); display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); }
     .icon-button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
 
     main { display: flex; min-height: 0; }
@@ -72,12 +75,12 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     #graph-wrap::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: var(--map-wash); background: radial-gradient(ellipse at 24% 28%, var(--edge), transparent 56%), radial-gradient(ellipse at 78% 34%, var(--edge-link), transparent 54%), radial-gradient(ellipse at 52% 84%, var(--edge-end), transparent 54%); }
     #graph { position: relative; display: block; width: 100%; height: 100%; cursor: grab; }
     #graph:active { cursor: grabbing; }
-    .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; pointer-events: none; }
-    .stats { color: var(--ink-soft); font-size: 12px; background: transparent; }
-    .stats strong { font-weight: 500; font-variant-numeric: tabular-nums; }
-    .canvas-tools { display: flex; gap: 4px; background: var(--surface); pointer-events: auto; }
-    .helper { position: absolute; right: 24px; bottom: 62px; margin: 0; color: var(--ink-faint); font-size: 11px; pointer-events: none; }
-    .error { margin: 0; padding: 0 24px 12px; color: var(--error-ink); font-size: 13px; overflow-wrap: anywhere; }
+    .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); pointer-events: none; }
+    .stats { color: var(--ink-soft); font-size: var(--text-caption); background: transparent; }
+    .stats strong { font-weight: var(--weight-regular); font-variant-numeric: tabular-nums; }
+    .canvas-tools { display: flex; gap: var(--space-1); background: var(--surface); pointer-events: auto; }
+    .helper { position: absolute; right: 24px; bottom: 62px; margin: 0; color: var(--ink-faint); font-size: var(--text-caption); pointer-events: none; }
+    .error { margin: 0; padding: 0 var(--space-6) var(--space-3); color: var(--error-ink); font-size: var(--text-ui); overflow-wrap: anywhere; }
     #graph-empty { position: absolute; top: 40%; left: 24px; right: 24px; text-align: center; color: var(--ink-soft); pointer-events: none; }
     .sr-status { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
@@ -91,21 +94,24 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .node .node-halo { pointer-events: none; opacity: .7; transition: opacity .15s ease; }
     .node .node-sheen { fill: url(#map-node-light); pointer-events: none; }
     .node.unresolved .node-core { fill: var(--node-unresolved); stroke-dasharray: 3 2; }
-    .node text { fill: var(--ink-soft); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; font-size: 11px; font-weight: 640; letter-spacing: -.01em; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
+    .node text { fill: var(--ink-soft); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; font-size: var(--text-caption); font-weight: var(--weight-semibold); letter-spacing: -.01em; opacity: 0; pointer-events: none; transition: opacity .15s ease; }
     .node.show-label text, .node:hover text, .node:focus text, .node.selected text { opacity: 1; pointer-events: auto; }
     .node:hover .node-core, .node:focus-visible .node-core, .node.selected .node-core { stroke: var(--focus-ring); stroke-width: 4; }
     .node:hover .node-halo, .node:focus-visible .node-halo, .node.selected .node-halo { opacity: 1; }
-    .node.selected text { fill: var(--ink); font-weight: 760; }
+    .node.selected text { fill: var(--ink); font-weight: var(--weight-semibold); }
 
     @media (max-width: 680px) {
-      .toolbar { padding: 12px 16px; gap: 6px; }
-      .map-heading { flex-basis: 100%; margin-bottom: 8px; }
+      .toolbar { padding: var(--space-3) var(--space-4); gap: var(--space-1); }
+      .map-heading { flex-basis: 100%; margin-bottom: var(--space-2); }
       #query { flex: 1 0 100%; width: 100%; order: 1; }
       #graph-filters { position: static; }
       .map-options { right: 16px; top: calc(100% - 4px); }
       .canvas-bottom { left: 16px; right: 16px; }
-      .helper { left: 16px; right: auto; font-size: 10px; }
-      .graph-feedback, #graph-notice, .error { padding-inline: 16px; }
+      .helper { left: 16px; right: auto; font-size: var(--text-caption); }
+      .graph-feedback, #graph-notice, .error { padding-inline: var(--space-4); }
+    }
+    @media (max-width: 680px) and (max-height: 680px) {
+      .map-options { top: auto; bottom: calc(100% - 4px); }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
@@ -128,7 +134,7 @@ ${feedbackMarkup}
       <p>Your notes and how they connect.</p>
     </div>
     <button id="open-dream" class="quiet-button" type="button" aria-haspopup="dialog" aria-controls="dream-handoff">Consolidate notes (Dream)…</button>
-    <input id="query" data-testid="graph-query" aria-label="Filter map by title or tag" placeholder="Filter notes…" />
+    <input id="query" data-testid="graph-query" aria-label="Search notes on the map" placeholder="Search notes…" />
     <details id="graph-filters">
       <summary class="quiet-button">Filters</summary>
       <div class="map-options">
@@ -217,7 +223,15 @@ let connectionStatus = activeApiKey ? "checking" : "disconnected";
 
 const map = JumpyBrainBrowser.createMapController({
   state, element: $, document, window,
-  fetchGraph: (url) => graphJson(url), setStatus,
+  fetchGraph: (url, signal) => graphJson(url, { signal }),
+  searchNotes: async (query, signal) => {
+    const packet = await searchMemoryNotes(query, signal);
+    const warnings = [];
+    if (packet.localOnly) warnings.push("Showing matching saves from this tab. Server search is unavailable.");
+    else if (packet.index?.stale) warnings.push("Search index is out of date. Refresh the search index to include recent edits.");
+    if (packet.retrieval?.status === "partial") warnings.push("Search results may be incomplete.");
+    return { files: normalizeNoteResults(packet.results).map(result => result.file).filter(Boolean), warnings };
+  }, setStatus,
   onReady: (ready) => { window.__jumpyBrainGraphReady = ready; }, openNode: selectNode,
 });
 const { loadGraph, queueGraphLayout } = map;

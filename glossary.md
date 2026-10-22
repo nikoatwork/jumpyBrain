@@ -4,6 +4,14 @@
 
 A named, Mac-app destination profile (called a companion profile in the internal protocol) for an existing local Markdown root or remote memory origin. One profile is active across companion editor tabs; switching does not sync memory or change CLI/agent targets. Destination replacement receives a new profile identity so old note links cannot open on a different brain. Remote connectivity and explicit editing/index permission are separate.
 
+## Note attention
+
+The sidebar's canonical resurfacing state, stored in Markdown `attention_at`: absent follows edit/creation recency, a future timestamp snoozes until due, and explicit YAML null settles indefinitely. Bring back removes the override. Attention changes preserve content edit dates and do not hide notes from search, graph or direct links. Pins are separate local navigation preferences and remain visible. Home Recent activity continues to describe content edits.
+
+## Graph search
+
+A map selection made from the same authenticated search and normalized results used by global search, including recent confirmed saves. Body and semantic matches can select graph notes; semantic availability follows the existing retrieval/index readiness. Graph focus/orphan filters may narrow that selection further. This does not introduce a separate ranking engine or similarity threshold.
+
 ## Recent activity
 
 A read-only home view of up to eight current Markdown files ordered by their latest valid update or creation metadata, with one entry per file. It retains no change history, block attribution, or unread state. Evidence dates and filesystem copy times do not establish edit recency. See [activity-feed scope](tasks/done/2026-10-18_tasks-knowledge-activity-feed.md).

@@ -57,7 +57,7 @@ Let a person update jumpyBrain from the Mac app without opening Terminal or mana
 - `scripts/setup-desktop.mjs` builds and installs the app, but reuses an existing CLI without updating it. The app bundles a separate copy of the same runtime; updating the CLI alone leaves that bundle unchanged.
 - The older standalone companion has `update-check.mjs` and `menu-update.mjs`: bounded availability checks and a background handoff that survives runtime replacement. Inspect and reuse suitable ownership, logging, and recovery mechanisms; its legacy installation path does not already update the unified app.
 - `scripts/release.mjs` now publishes a tagged GitHub release with matching root/Electron versions and a CLI/runtime source tarball. There is no published portable signed/notarized Mac binary. GUI installation must handle the actual available artifacts rather than assume an Electron auto-update feed exists.
-- Related scope: [portable installation](tasks-portable-installation-project-integration.md), [unified Mac app](../done/2026-10-18_tasks-unified-macos-app.md), and [release policy](../../docs/releases.md).
+- Related scope: [portable installation](../todo/tasks-portable-installation-project-integration.md), [unified Mac app](2026-10-18_tasks-unified-macos-app.md), and [release policy](../../docs/releases.md).
 
 ## Acceptance criteria
 

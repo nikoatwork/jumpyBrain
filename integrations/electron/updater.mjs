@@ -1,11 +1,13 @@
 import path from 'node:path';
 import os from 'node:os';
-import { spawn } from 'node:child_process';
+import { spawn, execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { mkdir, mkdtemp, readFile, writeFile, rm, readdir, realpath } from 'node:fs/promises';
 import { discoverRelease, compareVersions } from './update-release.mjs';
 import { cliPolicy, readJSON, regular, installedVersion, alive, overlaps } from './update-policy.mjs';
 import { atomicJSON } from './update-worker.mjs';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+const execute = promisify(execFile);
 const files = ['update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'desktop-host.mjs', 'host.mjs'];
 export function needsUpdate(version, installed) {
   if (compareVersions(version, installed.app) < 0 || compareVersions(version, installed.runtime) < 0) return false;
@@ -13,15 +15,20 @@ export function needsUpdate(version, installed) {
     || (installed.cliPolicy.kind === 'managed' && compareVersions(version, installed.cli) > 0);
 }
 
-export function createDesktopUpdater({ resources, appVersion, home = os.homedir(), discover = discoverRelease, onRestart, spawnWorker = spawn }) {
+export function createDesktopUpdater({ resources, appVersion, home = os.homedir(), discover = discoverRelease, onRestart, spawnWorker = spawn, entrypoint = 'app' }) {
   const appPath = path.join(home, 'Applications/jumpyBrain.app');
   const root = path.join(home, '.jumpybrain');
   const updates = path.join(home, 'Library/Application Support/jumpyBrain Updates');
   let state = { phase: 'idle', detail: 'Check for a published jumpyBrain release.' }, release, directory, busy = null;
-  let restart = false;
+  let restart = false, restartError = null;
   async function installed() {
     const cli = await cliPolicy(home);
-    return { app: appVersion || await installedVersion(path.join(resources, 'runtime')), runtime: await installedVersion(path.join(resources, 'runtime')), cli: cli.version, cliPolicy: cli };
+    // A closed-app CLI transaction outlives the exchange: its constructor's
+    // appVersion describes the old bundle, so re-read the actual installed one.
+    const app = entrypoint === 'cli'
+      ? (await execute('/usr/bin/plutil', ['-extract', 'CFBundleShortVersionString', 'raw', '-o', '-', path.join(appPath, 'Contents/Info.plist')], { timeout: 10000 })).stdout.trim()
+      : appVersion || await installedVersion(path.join(resources, 'runtime'));
+    return { app, runtime: await installedVersion(path.join(resources, 'runtime')), cli: cli.version, cliPolicy: cli };
   }
   async function latest() {
     if (directory) return;
@@ -56,8 +63,18 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
       if (!release && state.phase !== 'checking') release = (await readJSON(path.join(directory, 'request.json')).catch(() => null))?.release;
     }
     const versions = await installed();
-    return { ...state, installed: versions, available: release?.version || state.version || null, notes: release?.notes || '', logAvailable: !!directory,
-      canPrepare: !!release && ['available', 'failed'].includes(state.phase) && !state.recovery, canRecover: !!state.recovery };
+    const canPrepare = !!release && ['available', 'failed'].includes(state.phase) && !state.recovery;
+    const working = ['checking', 'preparing', 'updating'].includes(state.phase);
+    const actions = [
+      ...(!working && state.phase !== 'ready' && !state.recovery ? ['check'] : []),
+      ...(canPrepare ? [versions.cliPolicy.kind === 'managed' ? 'update' : 'app-only'] : []),
+      ...(['preparing', 'ready'].includes(state.phase) ? ['cancel'] : []),
+      ...(state.phase === 'ready' ? ['restart'] : []),
+      ...(state.recovery ? ['recover'] : []),
+      ...(directory ? ['log'] : []),
+    ];
+    return { ...state, restartError, installed: versions, available: release?.version || state.version || null, notes: release?.notes || '', logAvailable: !!directory,
+      canPrepare, canRecover: !!state.recovery, actions };
   }
   async function check() {
     const current = await snapshot();
@@ -116,8 +133,10 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
       }
       const configuration = { ...native, legacyLaunchAgent: native.legacyLaunchAgent ?? native.launchAgent ?? path.join(home, 'Library/LaunchAgents/local.jumpybrain.companion.plist'), label: 'local.jumpybrain.companion', launchAgent: path.join(home, 'Library/LaunchAgents/local.jumpybrain.desktop.plist') };
       let request = recovering ? await readJSON(path.join(directory, 'request.json')) : { home, appPath, node: native.node, release, configuration,
-        installed: versions, cli: versions.cliPolicy, updateCLI: versions.cliPolicy.kind === 'managed', preparedAt: new Date().toISOString() };
-      request = { ...request, parentPid: process.pid };
+        installed: versions, cli: versions.cliPolicy, updateCLI: versions.cliPolicy.kind === 'managed', entrypoint, preparedAt: new Date().toISOString() };
+      // A GUI recovery of an interrupted CLI transaction must use the app's
+      // safe shutdown handoff rather than retain the old CLI parent policy.
+      request = { ...request, parentPid: process.pid, entrypoint };
       for (const file of files) await writeFile(path.join(directory, file), await readFile(new URL(file, import.meta.url)), { mode: 0o600 });
       for (const name of ['cancel', 'proceed', 'ack.json', 'state.json']) await rm(path.join(directory, name), { force: true });
       await atomicJSON(path.join(directory, 'request.json'), request);
@@ -148,6 +167,14 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
       try {
         const current = await snapshot();
         if (name === 'check') return await check();
+        if (name === 'update') {
+          if (['preparing', 'ready', 'updating'].includes(current.phase) || current.canRecover) return current;
+          // Download the release that was offered; a second discovery must not
+          // silently select a different target after the user clicked its icon.
+          const checked = current.canPrepare ? current : await check();
+          if (!checked.canPrepare || checked.installed.cliPolicy.kind !== 'managed') return checked;
+          return await launch(false, false);
+        }
         if (name === 'prepare' || name === 'app-only') {
           if (['preparing', 'ready', 'updating'].includes(current.phase)) return current;
           return await launch(false, name === 'app-only');
@@ -157,7 +184,7 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
           await writeFile(path.join(directory, 'cancel'), 'cancel', { mode: 0o600 });
           return { ...current, detail: 'Canceling preparation…' };
         }
-        if (name === 'restart' && current.phase === 'ready') { restart = true; onRestart(); return current; }
+        if (name === 'restart' && current.phase === 'ready') { restartError = null; restart = true; onRestart?.(); return current; }
         throw new Error('That update action is unavailable. Refresh and try again.');
       } catch (error) { state = { phase: 'failed', detail: error.message, updatedAt: Date.now() }; return { ...state, installed: await installed() }; }
     })().finally(() => { busy = null; });
@@ -199,5 +226,14 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     const launch = await readJSON(path.join(owner.directory, 'launch.json')).catch(() => null);
     return !(instance && launch?.instance === instance && launch.pid === owner.pid && alive(owner.pid));
   }
-  return { action, snapshot, beforeStop, cancelRestart, blocksStartup, logPath: () => directory && path.join(directory, 'update.log') };
+  async function cliPreparationPending() {
+    const owner = await readJSON(path.join(root, '.installer-lock/desktop.json')).catch(() => null);
+    if (!owner || !alive(owner.pid) || path.dirname(owner.directory || '') !== updates) return false;
+    const request = await readJSON(path.join(owner.directory, 'request.json')).catch(() => null);
+    const progress = await readJSON(path.join(owner.directory, 'state.json')).catch(() => null);
+    // The lock/request are durable before the worker's first progress packet.
+    // Fence that launch interval too, so an editor cannot start mid-CLI update.
+    return request?.entrypoint === 'cli' && (!progress || ['preparing', 'ready', 'updating'].includes(progress.phase));
+  }
+  return { action, snapshot, beforeStop, cancelRestart, blocksStartup, cliPreparationPending, reportRestartFailure: async message => { restartError = message; }, logPath: () => directory && path.join(directory, 'update.log') };
 }

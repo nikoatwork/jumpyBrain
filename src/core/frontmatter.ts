@@ -43,6 +43,7 @@ export function parseFrontmatter(content: string): ParsedFrontmatter {
 
 function parseFrontmatterValue(raw: string): FrontmatterValue {
   const value = raw.trim();
+  if (value === "null") return null;
   if (value === "true") return true;
   if (value === "false") return false;
   if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);

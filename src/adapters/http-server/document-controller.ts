@@ -371,6 +371,20 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     if (isCurrent() && editorState.externalStatus === "updated") { editorState.externalStatus = ""; emit(); }
   }
 
+  /** Adopt a confirmed metadata-only publication without rehydrating writing/caret. */
+  function acceptMetadata(payload: DocumentPayload, expectedHash: string) {
+    if (!isCurrent() || !editorState.loaded || editorState.dirty || editorState.saveInFlight
+      || editorState.unconfirmedSave || editorState.autoSaveBlocked || editorState.contentHash !== expectedHash) return false;
+    if (typeof payload.content !== "string" || typeof payload.contentHash !== "string" || typeof payload.title !== "string") return false;
+    const parts = options.splitDocument(payload.content);
+    if (parts.body !== editorState.savedBody || payload.title !== editorState.savedTitle) return false;
+    editorState.reconcileToken++;
+    setConfirmedBaseline(payload.contentHash, payload.title, parts);
+    editorState.saveStatus = "saved";
+    emit();
+    return true;
+  }
+
   /** Explicit user-authorized discard; never writes or advances a stale hash to retry. */
   async function reloadSaved(allowed: () => boolean = () => true) {
     if (!isCurrent() || editorState.saveInFlight) return false;
@@ -394,7 +408,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     editorState.reconcileToken += 1;
   }
 
-  return { state: editorState, hydrate, input, inputTitle, setEditing, setNavigationPending, startSave, flush, retry, reconcile, acceptExternal, clearExternalNotice, hasPending, reloadSaved, cancel };
+  return { state: editorState, hydrate, input, inputTitle, setEditing, setNavigationPending, startSave, flush, retry, reconcile, acceptExternal, acceptMetadata, clearExternalNotice, hasPending, reloadSaved, cancel };
 }
 
 export function splitEditableDocument(content: string) {

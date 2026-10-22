@@ -19,13 +19,22 @@ export async function validateDreamHandoff({ browser, url, apiKey, screenshotDir
     page.on("response", (response) => {
       if (response.status() >= 400) errors.push(`HTTP ${response.status()}: ${new URL(response.url()).pathname}`);
     });
-    page.on("requestfailed", (request) => errors.push(`Failed request: ${new URL(request.url()).pathname}`));
+    page.on("requestfailed", (request) => {
+      const pathname = new URL(request.url()).pathname;
+      // Setup/Back cancel superseded metadata lists; the handoff quiet window
+      // still fails on every attempted request, including these routes.
+      if (!quiet && request.method() === "GET" && request.failure()?.errorText === "net::ERR_ABORTED"
+          && ["/memories/all/recent", "/memories/all/attention"].includes(pathname)) return;
+      errors.push(`Failed request: ${pathname}`);
+    });
     // Fail safely if a shortcut regresses: never let a test create a note or run
     // maintenance. Real same-origin GETs supply the home and graph fixtures.
     await page.route("**/*", async (route) => {
       const request = route.request();
       const target = new URL(request.url());
-      if (quiet || target.origin !== origin || !["GET", "HEAD"].includes(request.method())) {
+      const read = ["GET", "HEAD"].includes(request.method())
+        || (request.method() === "POST" && target.pathname === "/memories/all/search");
+      if (quiet || target.origin !== origin || !read) {
         blocked.push(`${request.method()} ${target.pathname}`);
         await route.abort();
       } else if (target.pathname === "/favicon.ico") {

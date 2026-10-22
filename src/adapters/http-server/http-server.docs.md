@@ -12,6 +12,8 @@
 - Discriminate JSON parser errors by internal class; untrusted `statusCode`/`body` fields must never become responses or logged error codes.
 - Follow the [public protocol](../../../docs/shared-memory-protocol.md) for schemas, auth, CSP, compatibility, and errors; follow the [browser contract](browser.docs.md) for editor/map/companion state and verification.
 
+- Authenticated `GET /memories/all/attention` delegates metadata selection to app/server-memory; `PATCH /memories/all/documents/:id` requires If-Match, parses strict attention intent and uses the shared write queue. Route handlers do not implement attention semantics or rewrite Markdown. See the public protocol for packets and errors.
+
 ## Non-responsibilities
 
 - Do not own canonical publication/frontmatter policy, app workflows, CLI parsing, or QMD internals.

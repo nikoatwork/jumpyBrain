@@ -66,17 +66,17 @@ Do not index for a no-op. If a write/index fails, report it honestly, including 
 export const dreamStyles = String.raw`
     #dream-handoff { width: min(680px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); padding: 0; overflow: hidden; }
     #dream-handoff[open] { display: flex; flex-direction: column; }
-    .dream-title { flex-shrink: 0; padding: 20px 24px 0; }
-    #dream-handoff h2 { margin: 0; font-size: 20px; }
-    #dream-handoff p { margin: 12px 0; }
-    .dream-content { min-height: 0; overflow: auto; padding: 0 24px 12px; }
-    .dream-footer { flex-shrink: 0; padding: 16px 24px; border-top: 1px solid var(--line); }
-    .dream-scope { padding: 12px; border: 1px solid var(--line); border-radius: 6px; overflow-wrap: anywhere; }
-    .dream-scope p { margin: 4px 0 !important; }
-    .dream-help { color: var(--ink-soft); font-size: 12px; }
-    #dream-preview { display: block; width: 100%; min-height: 160px; height: 22dvh; margin-top: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); resize: vertical; font: 12px/1.6 ui-monospace, monospace; }
-    .dream-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-    #dream-feedback { font-size: 13px; margin-bottom: 0 !important; }
+    .dream-title { flex-shrink: 0; padding: var(--space-5) var(--space-6) 0; }
+    #dream-handoff h2 { margin: 0; font-size: var(--text-heading); }
+    #dream-handoff p { margin: var(--space-3) 0; }
+    .dream-content { min-height: 0; overflow: auto; padding: 0 var(--space-6) var(--space-3); }
+    .dream-footer { flex-shrink: 0; padding: var(--space-4) var(--space-6); border-top: 1px solid var(--line); }
+    .dream-scope { padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+    .dream-scope p { margin: var(--space-1) 0 !important; }
+    .dream-help { color: var(--ink-soft); font-size: var(--text-caption); }
+    #dream-preview { display: block; width: 100%; min-height: 160px; height: 22dvh; margin-top: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); resize: vertical; font: var(--text-caption)/1.6 var(--font-mono); }
+    .dream-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    #dream-feedback { font-size: var(--text-ui); margin-bottom: 0 !important; }
     #dream-feedback:empty { display: none; }
     #dream-feedback[data-error="true"] { color: var(--error-ink); }
 `;

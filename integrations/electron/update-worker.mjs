@@ -69,7 +69,7 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       const source = path.join(directory, 'unpacked/package'), electron = path.join(source, 'integrations/electron');
       if (await installedVersion(source) !== request.release.version || await installedVersion(electron) !== request.release.version) throw new Error('Release app and runtime versions do not match. Nothing was installed.');
       // A supported next release must carry its updater too.
-      try { for (const file of ['update-worker.mjs', 'update-transaction.py', 'package-lock.json']) await readFile(path.join(electron, file)); }
+      try { for (const file of ['update-worker.mjs', 'update-transaction.py', 'update-control.mjs', 'update-inline.mjs', 'update-cli.mjs', 'package-lock.json']) await readFile(path.join(electron, file)); }
       catch { throw new Error('This release lacks the desktop updater build resources. Nothing was installed. Check again after a compatible release is published.'); }
       await run(request.node, [path.join(source, 'dist/cli.js'), '--version'], source, 20000);
       await status('preparing', 'Building the Mac app for this Mac… You can keep editing.');
@@ -87,11 +87,11 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
         // Once authorized, parent exit is expected; a crash without proceed never installs.
         stopped = true; clearInterval(monitor);
         const end = Date.now() + 45000;
-        while (alive(request.parentPid) && Date.now() < end) {
+        while (request.entrypoint !== 'cli' && alive(request.parentPid) && Date.now() < end) {
           if (await readFile(path.join(directory, 'cancel'), 'utf8').catch(() => '') === 'cancel') throw new Error('Restart canceled. Nothing was replaced.');
           await delay(100);
         }
-        if (alive(request.parentPid)) throw new Error('The app did not finish closing. Nothing was replaced.');
+        if (request.entrypoint !== 'cli' && alive(request.parentPid)) throw new Error('The app did not finish closing. Nothing was replaced.');
         if (await readFile(path.join(directory, 'cancel'), 'utf8').catch(() => '') === 'cancel') throw new Error('Restart canceled. Nothing was replaced.');
         break;
       }

@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { stringArg, type ParsedCliArgs } from "./args.js";
 
@@ -33,6 +33,19 @@ interface InstallManifest {
 export async function updateCli(args: ParsedCliArgs): Promise<void> {
   const plan = await installerUpdatePlan(args);
 
+  // Installation orchestration stays outside memory/runtime policy. Both Mac
+  // entry points compose the same updater, immutable release and transaction.
+  const desktopModule = path.join(plan.appRoot, "integrations/electron/update-cli.mjs");
+  if (process.platform === "darwin" && existsSync(desktopModule)) {
+    const desktop = await import(pathToFileURL(desktopModule).href);
+    const options = { home: plan.home, installRoot: plan.installRoot, source: plan.source, ref: plan.ref, dryRun: plan.dryRun };
+    const installation = await desktop.pairedInstallation(options);
+    if (installation) {
+      await desktop.runPairedUpdate({ ...options, installation });
+      return;
+    }
+  }
+
   if (plan.dryRun) {
     printUpdatePlan(plan);
   } else {
@@ -51,6 +64,7 @@ export async function updateCli(args: ParsedCliArgs): Promise<void> {
 }
 
 interface InstallerUpdatePlan {
+  home: string;
   appRoot: string;
   installerScript: string;
   manifestPath: string;
@@ -111,6 +125,7 @@ export async function installerUpdatePlan(args: ParsedCliArgs): Promise<Installe
   if (manifest.installerOptions?.skipInitialIndex) installerArgs.push("--skip-initial-index");
 
   return {
+    home,
     appRoot,
     installerScript,
     manifestPath,

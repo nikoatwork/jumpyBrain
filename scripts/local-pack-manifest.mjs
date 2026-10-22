@@ -5,7 +5,7 @@ const distDirPrefix = (...segments) => `${distFile(...segments)}/`;
 export const requiredLocalPackFiles = Object.freeze([
   "package/package.json",
   ...['package.json', 'package-lock.json', 'install.mjs', 'desktop-install.py', 'application.mjs', 'updater.mjs', 'update-worker.mjs',
-    'update-policy.mjs', 'update-release.mjs', 'update-transaction.py', 'update-window.mjs', 'update-preload.cjs', 'update.html', 'update.css',
+    'update-policy.mjs', 'update-cli.mjs', 'update-control.mjs', 'update-inline.mjs', 'update-release.mjs', 'update-transaction.py', 'update-window.mjs', 'update-preload.cjs', 'update.html', 'update.css',
     'update-renderer.js', 'assets/app-icon.icns'].map(file => `package/integrations/electron/${file}`),
   "package/install.sh",
   "package/uninstall.sh",

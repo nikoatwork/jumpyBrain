@@ -75,12 +75,10 @@ class PageReferenceNode extends TextNode {
       element.setAttribute("role", "link");
       element.tabIndex = 0;
       element.dataset.pageReference = "true";
-      element.style.textDecoration = "underline";
       element.style.cursor = "pointer";
       element.title = "Follow page reference (click or Tab then Enter)";
     } else {
       for (const attribute of ["role", "tabindex", "data-page-reference", "title"]) element.removeAttribute(attribute);
-      element.style.textDecoration = "";
       element.style.cursor = "";
     }
   }

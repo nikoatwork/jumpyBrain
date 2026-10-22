@@ -108,6 +108,10 @@ const server = createServer(async (request, response) => {
         json(response, { results: [{ provenance: { file: "notes/fixture.md", metadata: { id, title: "Fixture " + activeId } }, snippet: "Synthetic search result" }], index: { stale: false } }); return;
       }
       if (url.pathname === "/memories/all/recent") { json(response, { notes: [{ id, title: "Fixture " + activeId, createdAt: "2026-01-01" }] }); return; }
+      if (url.pathname === "/memories/all/attention") {
+        assert.equal(request.method, "GET");
+        json(response, { memory: "all", target: "remote", root: "remote:all", notes: [{ id, title: "Fixture " + activeId, file: "notes/fixture.md", createdAt: "2026-01-01", attentionAt: "2026-01-01" }] }); return;
+      }
       if (url.pathname === "/memories/all/notes") {
         if (failCapture) { error(response, "fixture_unconfirmed_creation", 503); return; }
         json(response, { id }); return;
@@ -148,13 +152,13 @@ try {
   settings.on("pageerror", (exception) => pageErrors.push(exception.message));
   await settings.goto(origin + "/settings#companion=fixture-token");
   await settings.locator("#companion-profiles strong").first().waitFor();
-  await settings.locator("#color-theme").selectOption("dark");
+  if (await settings.locator("html").getAttribute("data-theme") !== "dark") await settings.locator("#color-theme").click();
   assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(28, 27, 25)");
   assert.equal(await settings.locator("#companion-kind").evaluate((el) => getComputedStyle(el).color), "rgb(216, 208, 192)");
   await settings.waitForFunction(() => getComputedStyle(document.querySelector("#companion-name")).backgroundColor === "rgb(28, 27, 25)");
-  await settings.locator("#color-theme").selectOption("light");
+  await settings.locator("#color-theme").click();
   assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(230, 218, 196)");
-  await settings.locator("#color-theme").selectOption("system");
+  await settings.evaluate(() => colorTheme.setPreference("system"));
   assert.equal(new URL(settings.url()).hash, "");
   assert.equal(await settings.evaluate(() => localStorage.getItem("jumpybrain.graph.apiKey")), null, "legacy local-server credential must be forgotten");
   assert.equal(requests.some((item) => item.path.startsWith("/memories/")), false, "settings startup needs no memory fetch");

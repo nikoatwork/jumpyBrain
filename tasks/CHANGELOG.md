@@ -1,5 +1,22 @@
 # Task Changelog
 
+## 2026-10-22 — Shared graph search
+
+- Graph filtering now reuses app search and recent saves, including body and available semantic matches, with cancellation and bounded graph selection.
+
+
+## 2026-10-22 — Note attention
+
+- Notes can be settled or snoozed in canonical Markdown and return to the sidebar when due, independently of local visit history.
+
+## 2026-10-22 — Shared Mac/CLI updater
+
+- App and CLI updates share release preparation, coordinated installation and verified restart, with inline progress and all-tab save protection.
+
+## 2026-10-22 — Browser design system
+
+- Browser navigation, settings and dialogs share typography, spacing and control tokens, with compact sidebar utility icons.
+
 ## 2026-10-22 — Batched releases
 
 - Completed changes accumulate in one pending Markdown note; verified releases archive their notes, with at most one publication per day by default.

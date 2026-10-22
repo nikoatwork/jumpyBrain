@@ -359,7 +359,7 @@ async function validateMobile() {
     // Scope this expected failure to that fixture and the injected credential,
     // including an in-flight response that arrives after credentials recover.
     if (response.status() === 401 && request.method() === "GET"
-        && new URL(response.url()).pathname === `/memories/all/documents/${fixture.id}`
+        && [`/memories/all/documents/${fixture.id}`, "/memories/all/attention"].includes(new URL(response.url()).pathname)
         && request.headers().authorization === `Bearer ${wrongKey}`) return true;
     if (allowedConnectionChecks > 0 && response.status() === 401 && request.method() === "GET"
         && new URL(response.url()).pathname === "/memories/all/recent") {
@@ -593,7 +593,14 @@ function collectBrowserErrors(page, expectedHttpFailure = () => false) {
     if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) errors.push(message.text());
   });
   page.on("pageerror", (error) => errors.push(error.message));
-  page.on("requestfailed", (request) => errors.push(`request failed: ${request.method()} ${request.url()} (${request.failure()?.errorText || "unknown"})`));
+  page.on("requestfailed", (request) => {
+    const code = request.failure()?.errorText || "unknown";
+    // Navigation/scope refresh deliberately abort superseded metadata lists.
+    // Keep unexpected transport failures and every mutation failure visible.
+    if (request.method() === "GET" && code === "net::ERR_ABORTED"
+        && ["/memories/all/recent", "/memories/all/attention"].includes(new URL(request.url()).pathname)) return;
+    errors.push(`request failed: ${request.method()} ${request.url()} (${code})`);
+  });
   page.on("response", (response) => {
     if (response.status() >= 400 && !expectedHttpFailure(response)) {
       errors.push(`HTTP ${response.status()}: ${response.request().method()} ${response.url()}`);
@@ -616,6 +623,7 @@ async function runGraphSmoke() {
       JUMPYBRAIN_GRAPH_SMOKE_URL: server.url,
       JUMPYBRAIN_GRAPH_SMOKE_API_KEY: apiKey,
       JUMPYBRAIN_GRAPH_SMOKE_NODE_ID: fixtures.desktop.file,
+      JUMPYBRAIN_GRAPH_SMOKE_BODY_QUERY: fixtures.desktop.query,
     },
   });
   const result = await new Promise((resolve, reject) => {

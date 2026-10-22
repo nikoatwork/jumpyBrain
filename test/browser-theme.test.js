@@ -6,7 +6,7 @@ import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 
 function harness({ stored = null, dark = false, blocked = false } = {}) {
   const listeners = {}, values = new Map(stored === null ? [] : [["jumpybrain.theme", stored]]);
-  const control = { value: "system" }, root = { dataset: {} };
+  const control = { attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } }, root = { dataset: {} };
   const media = { matches: dark, addEventListener: (type, callback) => { listeners.media = callback; } };
   const context = vm.createContext({
     window: { matchMedia: () => media, addEventListener: (type, callback) => { listeners[type] = callback; } },
@@ -19,6 +19,7 @@ function harness({ stored = null, dark = false, blocked = false } = {}) {
   });
   vm.runInContext(themeBootstrap, context);
   return { root, control, values,
+    toggle: () => vm.runInContext("colorTheme.toggle()", context),
     choose: (value) => vm.runInContext(`colorTheme.setPreference(${JSON.stringify(value)})`, context),
     os(value) { media.matches = value; listeners.media(); },
     storage(key, newValue) { listeners.storage({ key, newValue }); },
@@ -33,10 +34,10 @@ test("theme resolves before visible content and every script retains the CSP non
       assert.equal(script[1], ' nonce="themenonce"');
       assert.doesNotThrow(() => new vm.Script(script[2]));
     }
-    assert.match(html, /id="color-theme" aria-label="Color theme"/);
-    assert.match(html, /value="system">System/);
-    assert.match(html, /value="light">Light/);
-    assert.match(html, /value="dark">Dark/);
+    assert.match(html, /<button id="color-theme" type="button" aria-label="Switch color theme"/);
+    assert.match(html, /class="theme-sun"/);
+    assert.match(html, /class="theme-moon"/);
+    assert.doesNotMatch(html, /<select id="color-theme"/);
   }
   assert.match(themeStyles, /@media \(prefers-color-scheme: dark\)/, "CSS also follows the OS without JavaScript");
 });
@@ -44,7 +45,7 @@ test("theme resolves before visible content and every script retains the CSP non
 test("system theme follows live OS changes; explicit choices persist and override the OS", () => {
   const h = harness({ dark: true });
   assert.equal(h.root.dataset.theme, "dark");
-  assert.equal(h.control.value, "system");
+  assert.equal(h.root.dataset.themePreference, "system");
   h.os(false); assert.equal(h.root.dataset.theme, "light");
   h.choose("dark"); h.os(false);
   assert.equal(h.root.dataset.theme, "dark");
@@ -61,13 +62,30 @@ test("system theme follows live OS changes; explicit choices persist and overrid
 test("cross-tab changes, clearing storage, malformed preferences and blocked storage are safe", () => {
   const h = harness({ stored: "dark" });
   h.storage("unrelated", "light"); assert.equal(h.root.dataset.theme, "dark");
-  h.storage("jumpybrain.theme", "light"); assert.equal(h.control.value, "light");
-  h.storage(null, null); assert.equal(h.control.value, "system");
+  h.storage("jumpybrain.theme", "light"); assert.equal(h.root.dataset.themePreference, "light");
+  h.storage(null, null); assert.equal(h.root.dataset.themePreference, "system");
   assert.equal(harness({ stored: "bad", dark: true }).root.dataset.theme, "dark");
   const blocked = harness({ blocked: true });
   assert.doesNotThrow(() => blocked.choose("dark"));
   assert.equal(blocked.root.dataset.theme, "dark");
-  blocked.choose("invalid"); assert.equal(blocked.control.value, "system");
+  blocked.choose("invalid"); assert.equal(blocked.root.dataset.themePreference, "system");
+});
+
+test("icon activation exits System using the resolved appearance and updates its accessible action", () => {
+  const h = harness({ dark: true });
+  assert.equal(h.root.dataset.themePreference, "system");
+  assert.equal(h.values.has("jumpybrain.theme"), false, "merely rendering System does not replace the preference");
+  assert.equal(h.control.attributes["aria-label"], "Switch to light theme");
+  h.toggle();
+  assert.equal(h.root.dataset.theme, "light");
+  assert.equal(h.root.dataset.themePreference, "light");
+  assert.equal(h.values.get("jumpybrain.theme"), "light");
+  assert.equal(h.control.title, "Switch to dark theme");
+  h.os(true);
+  assert.equal(h.root.dataset.theme, "light", "explicit toggle keeps the chosen appearance");
+  h.toggle();
+  assert.equal(h.root.dataset.theme, "dark");
+  assert.equal(h.control.attributes["aria-label"], "Switch to light theme");
 });
 
 function contrast(a, b) {

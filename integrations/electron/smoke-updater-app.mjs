@@ -23,7 +23,12 @@ export async function run(fixturePath) {
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   const until = async (check, timeout = 30000) => { const end = Date.now() + timeout; while (Date.now() < end) { if (await check()) return; await pause(100); } throw new Error('UI condition timed out: ' + JSON.stringify(await application.updater.snapshot())); };
   const updateWindow = () => BrowserWindow.getAllWindows().find(w => w.webContents.getURL().endsWith('/update.html'));
-  const click = async id => updateWindow().webContents.executeJavaScript(`document.getElementById(${JSON.stringify(id)}).click()`);
+  let editor;
+  const click = async id => {
+    const recovery = updateWindow();
+    const ids = { update: 'desktop-updates', restart: 'desktop-updates', recover: 'desktop-updates', 'app-only': 'desktop-update-app-only', cancel: 'desktop-update-cancel' };
+    return (recovery || editor).webContents.executeJavaScript(`document.getElementById(${JSON.stringify(recovery ? id : ids[id])}).click()`);
+  };
   const post = async (route, body) => {
     const { origin, key } = application.getHost().connection;
     const response = await fetch(origin + '/companion/' + route, { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -47,43 +52,64 @@ export async function run(fixturePath) {
       }
       if (app.getVersion() === fixture.nextVersion) {
         await until(async () => (await application.updater.snapshot()).phase === 'success');
-        application.openUpdates(); await until(() => updateWindow()?.webContents.getURL().endsWith('/update.html'));
-        await until(async () => await updateWindow().webContents.executeJavaScript('document.getElementById("phase").textContent === "Update complete"'));
+        await until(async () => { editor = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('http:')); return editor && !editor.webContents.isLoadingMainFrame() && await editor.webContents.executeJavaScript('!!document.getElementById("desktop-update-panel")'); });
+        editor.show(); await pause(250);
+        if (fixture.mode === 'app-only') await until(async () => await editor.webContents.executeJavaScript('document.getElementById("desktop-update-status").textContent.includes("Your CLI stays unchanged")'));
         const state = await application.updater.snapshot();
         assert.equal(state.installed.app, fixture.nextVersion); assert.equal(state.installed.runtime, fixture.nextVersion); assert.equal(state.installed.cli, fixture.mode === 'app-only' ? fixture.oldVersion : fixture.nextVersion);
-        await writeFile(path.join(fixture.artifactDir, 'success.png'), (await updateWindow().webContents.capturePage()).toPNG());
+        await writeFile(path.join(fixture.artifactDir, 'success.png'), (await (editor || updateWindow()).webContents.capturePage()).toPNG());
         await writeFile(path.join(fixture.home, 'result.json'), JSON.stringify({ ok: true, versions: state.installed, guiRestart: true }));
         app.quit(); return;
       }
-      let editor;
       await until(async () => { editor = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('http:')); return editor && await editor.webContents.executeJavaScript('typeof companionRegistered !== "undefined" && companionRegistered && !!document.getElementById("desktop-updates")'); });
       assert.equal(await editor.webContents.executeJavaScript('typeof window.jumpyBrainUpdate'), 'undefined');
-      await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").click()');
-      await until(() => updateWindow());
-      Menu.getApplicationMenu().items[0].submenu.items.find(item => item.label === 'Update jumpyBrain…').click();
-      assert.equal(BrowserWindow.getAllWindows().filter(w => w === updateWindow()).length, 1);
-      await until(async () => await updateWindow().webContents.executeJavaScript('typeof window.jumpyBrainUpdate !== "undefined"'));
-      assert.equal(await updateWindow().webContents.executeJavaScript('typeof require'), 'undefined');
-      const rejected = await updateWindow().webContents.executeJavaScript('window.jumpyBrainUpdate.action({command:"touch /tmp/no"}).then(()=>false,()=>true)'); assert.equal(rejected, true);
-      await click('check'); await until(async () => (await application.updater.snapshot()).phase === 'available');
-      const prepareAction = fixture.mode === 'app-only' ? 'app-only' : 'prepare';
-      await click(prepareAction); await until(async () => (await application.updater.snapshot()).phase === 'preparing');
-      await until(async () => await updateWindow().webContents.executeJavaScript('!document.getElementById("cancel").hidden'));
-      await click('cancel'); await until(async () => (await application.updater.snapshot()).phase === 'failed');
-      await pause(1000); await click('check'); await until(async () => (await application.updater.snapshot()).phase === 'available');
-      await click(prepareAction);
+      assert.equal(await editor.webContents.executeJavaScript('typeof require'), 'undefined');
+      if (fixture.mode === 'cli-open') {
+        const cli = spawn('node', [path.join(fixture.home, '.jumpybrain/app/dist/cli.js'), 'update', '--home', fixture.home], { env: { ...process.env, HOME: fixture.home }, stdio: ['ignore', 'pipe', 'pipe'] });
+        let output = ''; cli.stdout.on('data', d => { output += d; }); cli.stderr.on('data', d => { output += d; });
+        const completed = new Promise((resolve, reject) => { cli.once('error', reject); cli.once('exit', code => code === 0 ? resolve() : reject(new Error(output))); });
+        await completed;
+        assert.match(output, /Prepared; restart needed/); assert.match(output, /not installed yet/);
+        await writeFile(path.join(fixture.artifactDir, 'cli-output.txt'), output);
+      } else {
+        await click('update');
+        if (fixture.mode === 'app-only') {
+          await until(async () => (await application.updater.snapshot()).phase === 'available');
+          await click('app-only');
+        }
+        await until(async () => (await application.updater.snapshot()).phase === 'preparing');
+        Menu.getApplicationMenu().items[0].submenu.items.find(item => item.label === 'Check for updates…').click();
+        assert.equal(updateWindow(), undefined, 'ordinary updates never open a popup');
+      }
+      if (fixture.mode === 'success') {
+        await editor.webContents.executeJavaScript('navigation.navigate(companionScopeUrl("/?note=mem_22222222-2222-4222-8222-222222222222"))');
+        await until(async () => await editor.webContents.executeJavaScript('state.editor?.state.loaded && document.getElementById("note-editor").isContentEditable'));
+        await editor.webContents.executeJavaScript(`(() => {
+          const element = document.getElementById('note-editor'); element.focus();
+          const range = document.createRange(); range.selectNodeContents(element); range.collapse(false);
+          const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+        })()`);
+        await pause(100);
+        await editor.webContents.insertText(' Edited during preparation.');
+        await until(async () => await editor.webContents.executeJavaScript('richEditor.getMarkdown().includes("Edited during preparation.") && state.editor.state.saveStatus === "saved" && !state.editor.state.dirty'));
+        const bytes = await readFile(path.join(fixture.home, 'memory/notes/work.md'));
+        assert.match(bytes.toString(), /Edited during preparation/);
+        await writeFile(path.join(fixture.home, 'work-before.md'), bytes);
+        assert.ok(['preparing', 'ready'].includes((await application.updater.snapshot()).phase));
+      }
       await until(async () => { const s = await application.updater.snapshot(); if (s.phase === 'failed') throw new Error(s.detail); return s.phase === 'ready'; }, 12 * 60 * 1000);
       assert.ok(application.getHost().isAlive(), 'editor service stays usable during preparation');
       if (fixture.mode === 'app-crash') { process.kill(process.pid, 'SIGKILL'); return; }
-      await writeFile(path.join(fixture.artifactDir, 'ready.png'), (await updateWindow().webContents.capturePage()).toPNG());
-      await click('defer'); await until(() => !updateWindow()); application.openUpdates(); await until(() => updateWindow());
-      await until(async () => await updateWindow().webContents.executeJavaScript('!document.getElementById("restart").hidden'));
+      await writeFile(path.join(fixture.artifactDir, 'ready.png'), (await (editor || updateWindow()).webContents.capturePage()).toPNG());
+      await until(async () => await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").getAttribute("aria-label") === "Relaunch to apply update"'));
+      assert.equal(updateWindow(), undefined);
       const before = await desktopControl(application.getHost().connection, 'state');
       await post('register', { tabId: 'failed-draft-tab', generation: before.generation });
       await click('restart');
       let state; await until(async () => { state = await desktopControl(application.getHost().connection, 'state'); return state.phase === 'preparing'; });
       await post('ack', { tabId: 'failed-draft-tab', switchId: state.switchId, ok: false });
-      await until(() => messages.some(m => m.message === 'jumpyBrain is still running'));
+      await until(async () => !!(await application.updater.snapshot()).restartError);
+      assert.equal(messages.length, 0, 'failed saves are explained inline');
       assert.ok(application.getHost().isAlive());
       assert.equal((await application.updater.snapshot()).phase, 'ready');
       await post('unregister', { tabId: 'failed-draft-tab', generation: before.generation });
@@ -92,7 +118,9 @@ export async function run(fixturePath) {
         const count = messages.length;
         await post('register', { tabId: 'unresponsive-tab', generation: before.generation });
         await click('restart');
-        await until(() => messages.length > count, 25000);
+        await until(async () => (await desktopControl(application.getHost().connection, 'state')).phase === 'preparing');
+        await until(async () => !!(await application.updater.snapshot()).restartError, 25000);
+        assert.equal(messages.length, count, 'unresponsive saves are explained inline');
         assert.ok(application.getHost().isAlive());
         assert.equal((await application.updater.snapshot()).phase, 'ready');
         await post('unregister', { tabId: 'unresponsive-tab', generation: before.generation });

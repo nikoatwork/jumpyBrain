@@ -17,7 +17,7 @@ let browser, server;
 try {
   await initializeMemoryRoot(root);
   await mkdir(path.join(root, "pages"), { recursive: true });
-  for (let i = 0; i < ids.length; i++) await writeFile(path.join(root, `pages/page-${i}.md`), `---\nid: ${ids[i]}\ntype: note\ntitle: ${JSON.stringify(titles[i])}\ncreated: 2026-10-16\n---\nA quiet place for useful context.\n`);
+  for (let i = 0; i < ids.length; i++) await writeFile(path.join(root, `pages/page-${i}.md`), `---\nid: ${ids[i]}\ntype: note\ntitle: ${JSON.stringify(titles[i])}\nupdated_at: 2026-10-16T00:00:${String(i).padStart(2, "0")}Z\n---\nA quiet place for useful context.\n`);
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
   const context = await browser.newContext({ viewport: { width: 1280, height: 850 } });
@@ -25,9 +25,18 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(`${server.url}/?note=${ids[0]}#apiKey=${apiKey}`);
   await page.locator("#note-editor").waitFor();
+  await page.locator("#toggle-sidebar").click();
+  assert.equal(await page.locator("#app-sidebar").isVisible(), false);
+  await page.reload(); await page.locator("#note-editor").waitFor();
+  assert.equal(await page.locator("#app-sidebar").isVisible(), false, "collapsed sidebar preference survives reload");
+  await page.locator("#toggle-sidebar").click();
+  assert.equal(await page.locator("#app-sidebar").isVisible(), true);
+  await page.evaluate(() => { window.sidebarEditor = richEditor; });
+  await page.locator("#toggle-sidebar").click(); await page.locator("#toggle-sidebar").click();
+  assert.equal(await page.evaluate(() => window.sidebarEditor === richEditor), true, "sidebar toggle preserves editor instance");
   await page.locator("#pin-current-page").click();
   assert.equal(await page.locator("#sidebar-pinned a").innerText(), titles[0]);
-  assert.equal(await page.locator("#sidebar-recent a").count(), 0);
+  await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent a").length === 8);
   for (let i = 1; i < ids.length; i++) {
     await page.evaluate((id) => navigation.navigate("/?note=" + id), ids[i]);
     await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[i]);
@@ -75,7 +84,7 @@ try {
   const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
   if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
   for (const theme of ["light", "dark"]) {
-    await page.locator("#color-theme").selectOption(theme);
+    if (await page.locator("html").getAttribute("data-theme") !== theme) await page.locator("#color-theme").click();
     if (screenshotDir) await page.screenshot({ path: path.join(screenshotDir, `sidebar-${theme}.png`) });
   }
   await page.setViewportSize({ width: 390, height: 850 });
@@ -91,7 +100,7 @@ try {
   if (screenshotDir) await page.screenshot({ path: path.join(screenshotDir, "sidebar-narrow.png") });
   await context.close();
   assert.deepEqual(errors, []);
-  console.log("Sidebar smoke: PASS (visited order, pins, rename, reload, cross-tab, failed-save guard, themes, narrow layout)");
+  console.log("Sidebar smoke: PASS (canonical attention order, pins, rename, reload, cross-tab, failed-save guard, themes, narrow layout)");
 } finally {
   if (browser) await browser.close();
   if (server) await server.close();

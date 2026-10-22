@@ -1,4 +1,5 @@
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id-format.js";
+import { createAttentionList, type AttentionPage } from "./browser-attention.js";
 
 type Page = { id: string; title: string };
 type History = { pinned: Page[]; recent: Page[] };
@@ -86,6 +87,10 @@ export function createPageHistory(options: { scope(): string | null; storage(): 
 export function installPageNavigation(options: {
   document: Document; window: Window; scope(): string | null;
   href(id: string): string; navigate(url: string): void;
+  fetchAttention?(signal: AbortSignal): Promise<unknown>; attentionScope?(): string | null;
+  enabled?(): boolean; writable?(): boolean;
+  onAttentionUpdated?(): void;
+  onAction?(action: "settle" | "snooze", page: AttentionPage, anchor: HTMLElement): void;
 }) {
   const { document, window } = options;
   const element = (id: string) => document.getElementById(id)!;
@@ -93,37 +98,87 @@ export function installPageNavigation(options: {
   let current: Page | null = null;
   let selected: string | null = null;
   const history = createPageHistory({ scope: options.scope, storage: () => window.localStorage, onChange: render });
+  const signatures = new Map<string, string>();
+  const attention = options.fetchAttention ? createAttentionList({
+    scope: options.attentionScope || options.scope,
+    enabled: () => !document.hidden && (options.enabled?.() ?? true),
+    now: () => Date.now(), fetch: options.fetchAttention,
+    setTimer: (callback, delay) => window.setTimeout(callback, delay), clearTimer: timer => window.clearTimeout(timer),
+    onChange: state => { render(); if (state.status === "ready") options.onAttentionUpdated?.(); },
+  }) : null;
   function render() {
     const snapshot = history.snapshot();
+    if (attention) snapshot.recent = attention.state.notes
+      .filter(page => !snapshot.pinned.some(pin => pin.id === page.id)).map(page => ({ id: page.id, title: page.title || page.file || "Untitled" }));
     const focused = document.activeElement as HTMLElement | null;
     const focusId = focused?.dataset.pagePin;
     const focusLink = focused?.dataset.pageLink;
+    const focusAction = focused?.dataset.pageAction;
     for (const section of ["pinned", "recent"] as const) {
       const list = element("sidebar-" + section);
-      list.replaceChildren();
-      for (const page of snapshot[section]) {
-        const row = document.createElement("li"); row.className = "sidebar-page";
-        const link = document.createElement("a");
-        link.className = "sidebar-page-link"; link.href = options.href(page.id); link.title = page.title; link.dataset.pageLink = page.id;
-        if (page.id === selected) link.setAttribute("aria-current", "page");
-        const title = document.createElement("span"); title.textContent = page.title;
-        link.append(title);
-        link.addEventListener("click", (event) => {
-          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-          event.preventDefault(); options.navigate(link.getAttribute("href")!);
-        });
-        const pin = document.createElement("button");
-        const pinned = section === "pinned";
-        pin.type = "button"; pin.className = "sidebar-page-pin"; pin.dataset.pagePin = page.id;
-        pin.innerHTML = pinIcon;
-        pin.setAttribute("aria-pressed", String(pinned));
-        pin.title = (pinned ? "Unpin " : "Pin ") + page.title;
-        pin.setAttribute("aria-label", pin.title);
-        pin.disabled = !pinned && snapshot.pinned.length >= 50;
-        pin.addEventListener("click", () => history.toggle(page));
-        row.append(link, pin); list.append(row);
+      const signature = JSON.stringify(snapshot[section]);
+      if (signature !== signatures.get(section)) {
+        signatures.set(section, signature); list.replaceChildren();
+        for (const page of snapshot[section]) {
+          const row = document.createElement("li"); row.className = "sidebar-page";
+          const link = document.createElement("a");
+          link.className = "sidebar-page-link"; link.href = options.href(page.id); link.title = page.title; link.dataset.pageLink = page.id;
+          if (page.id === selected) link.setAttribute("aria-current", "page");
+          const title = document.createElement("span"); title.textContent = page.title;
+          link.append(title);
+          link.addEventListener("click", (event) => {
+            if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            event.preventDefault(); options.navigate(link.getAttribute("href")!);
+          });
+          const pin = document.createElement("button");
+          const pinned = section === "pinned";
+          pin.type = "button"; pin.className = "sidebar-page-pin"; pin.dataset.pagePin = page.id;
+          pin.innerHTML = pinIcon;
+          pin.setAttribute("aria-pressed", String(pinned));
+          pin.title = (pinned ? "Unpin " : "Pin ") + page.title;
+          pin.setAttribute("aria-label", pin.title);
+          pin.disabled = !pinned && snapshot.pinned.length >= 50;
+          pin.addEventListener("click", () => history.toggle(page));
+          const actions = document.createElement("span"); actions.className = "sidebar-page-actions";
+          actions.append(pin);
+          if (attention && section === "recent" && options.onAction) {
+            for (const action of ["snooze", "settle"] as const) {
+              const button = document.createElement("button");
+              button.type = "button"; button.className = "sidebar-page-action"; button.dataset.attentionAction = action;
+              button.dataset.pageAction = page.id + ":" + action;
+              button.title = (action === "snooze" ? "Snooze " : "Settle ") + page.title;
+              button.setAttribute("aria-label", button.title);
+              button.innerHTML = action === "snooze"
+                ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+              button.addEventListener("click", () => options.onAction!(action, page, button));
+              actions.append(button);
+            }
+          }
+          row.append(link, actions); list.append(row);
+        }
       }
-      element("sidebar-" + section + "-empty").hidden = snapshot[section].length > 0;
+      for (const link of list.querySelectorAll<HTMLElement>("[data-page-link]")) {
+        if (link.dataset.pageLink === selected) link.setAttribute("aria-current", "page");
+        else link.removeAttribute("aria-current");
+      }
+      for (const button of list.querySelectorAll<HTMLButtonElement>("[data-attention-action]")) button.disabled = !(options.writable?.() ?? true);
+      for (const button of list.querySelectorAll<HTMLButtonElement>("[data-page-pin]")) button.disabled = section !== "pinned" && snapshot.pinned.length >= 50;
+      const empty = element("sidebar-" + section + "-empty");
+      if (empty) {
+        empty.hidden = snapshot[section].length > 0;
+        if (attention && section === "recent") {
+          const message = attention.state.status === "loading" ? "Loading…" : attention.state.status === "error" ? attention.state.message : "";
+          if (empty.dataset.message !== message) {
+            empty.dataset.message = message; empty.replaceChildren();
+            empty.textContent = message;
+            if (attention.state.status === "error") {
+              const retry = document.createElement("button"); retry.className = "quiet-button"; retry.type = "button"; retry.textContent = "Retry";
+              retry.addEventListener("click", () => void attention.load()); empty.append(retry);
+            }
+          }
+        }
+      }
     }
     const pinned = snapshot.pinned.some((page) => page.id === current?.id);
     pinCurrent.hidden = !current;
@@ -131,21 +186,30 @@ export function installPageNavigation(options: {
     pinCurrent.setAttribute("aria-pressed", String(pinned));
     pinCurrent.title = pinned ? "Unpin page" : "Pin page";
     pinCurrent.setAttribute("aria-label", pinCurrent.title);
-    if (focusId || focusLink) {
-      const replacement = [...document.querySelectorAll<HTMLElement>(focusId ? "[data-page-pin]" : "[data-page-link]")]
-        .find((item) => focusId ? item.dataset.pagePin === focusId : item.dataset.pageLink === focusLink);
+    if ((focusId || focusLink || focusAction) && !focused?.isConnected) {
+      const replacement = [...document.querySelectorAll<HTMLElement>(focusId ? "[data-page-pin]" : focusLink ? "[data-page-link]" : "[data-page-action]")]
+        .find((item) => focusId ? item.dataset.pagePin === focusId : focusLink ? item.dataset.pageLink === focusLink : item.dataset.pageAction === focusAction);
       (replacement || element("notes-link")).focus({ preventScroll: true });
     }
   }
   pinCurrent.innerHTML = pinIcon;
   pinCurrent.addEventListener("click", () => { if (current) history.toggle(current); });
   window.addEventListener("storage", (event) => history.storageChanged(event));
+  if (attention) {
+    const resume = () => { void attention.load(); };
+    window.addEventListener("focus", resume); window.addEventListener("pageshow", resume);
+    window.addEventListener("pagehide", () => attention.cancel());
+    document.addEventListener("visibilitychange", () => { if (document.hidden) attention.cancel(); else resume(); });
+    void attention.load();
+  }
   render();
   return {
-    select(id: string | null) { selected = id; current = null; render(); },
+    select(id: string | null) { selected = id; current = null; render(); if (attention) void attention.load(); },
     visit(page: Page) { current = page; selected = page.id; if (!history.visit(page)) render(); },
     rename(page: Page) { if (current?.id === page.id) current = page; history.rename(page); },
-    remove(id: string) { if (current?.id === id) current = null; history.remove(id); },
-    refresh() { current = null; render(); },
+    remove(id: string) { if (current?.id === id) current = null; history.remove(id); if (attention) void attention.load(); },
+    refresh() { current = null; render(); if (attention) void attention.load(); },
+    reloadAttention() { if (attention) void attention.load(); },
+    sync: render,
   };
 }

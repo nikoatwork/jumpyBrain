@@ -9,6 +9,12 @@ import { cliPolicy } from '../integrations/electron/update-policy.mjs';
 import { createDesktopUpdater, needsUpdate } from '../integrations/electron/updater.mjs';
 import { createQuitFlow } from '../integrations/electron/lifecycle.mjs';
 import { runWorker } from '../integrations/electron/update-worker.mjs';
+import { nativeUpdateAction } from '../integrations/electron/update-inline.mjs';
+
+test('inline native capability accepts only fixed actions without paths, credentials or arguments', () => {
+  for (const action of ['check', 'update', 'app-only', 'cancel', 'restart', 'recover', 'log']) assert.equal(nativeUpdateAction('jumpybrain-update://' + action), action);
+  for (const url of ['https://update', 'jumpybrain-update://shell', 'jumpybrain-update://update/', 'jumpybrain-update://update/file', 'jumpybrain-update://update?target=x', 'jumpybrain-update://update#x', 'jumpybrain-update://user@update', 'jumpybrain-update://update:123', 'not a URL']) assert.equal(nativeUpdateAction(url), null, url);
+});
 
 function release(version, extra = {}) {
   return { tag_name: 'v' + version, id: 1, published_at: '2026-10-22', prerelease: version.startsWith('0.'),
@@ -74,6 +80,7 @@ test('checking is observational and duplicate clicks share one operation', async
   const updater = createDesktopUpdater({ home: f.home, resources, discover: async () => { checks++; return selectRelease([release('0.3.4')]); } });
   await Promise.all([updater.action('check'), updater.action('check')]);
   const state = await updater.snapshot(); assert.equal(checks, 1); assert.equal(state.phase, 'available'); assert.equal(state.canPrepare, true);
+  assert.deepEqual(state.actions, ['check', 'update']);
   assert.deepEqual(await readFile(path.join(f.root, 'install-manifest.json')), before);
   await mkdir(path.join(f.root, '.installer-lock'));
   const locked = await updater.action('prepare'); assert.match(locked.detail, /lock/);
@@ -133,6 +140,19 @@ test('interrupted publication blocks ordinary startup and exposes GUI recovery; 
   assert.equal(await updater.blocksStartup(), false, 'a crash after durable success must not strand the app');
 });
 
+test('closed-CLI preparation fences app startup before the worker writes its first status', async t => {
+  const f = await fixture(t), directory = path.join(f.home, 'Library/Application Support/jumpyBrain Updates/update-early');
+  await mkdir(directory, { recursive: true }); await mkdir(path.join(f.root, '.installer-lock'));
+  await writeFile(path.join(f.root, '.installer-lock/desktop.json'), JSON.stringify({ directory, pid: process.pid }));
+  await writeFile(path.join(directory, 'request.json'), JSON.stringify({ entrypoint: 'cli' }));
+  const updater = createDesktopUpdater({ home: f.home, resources: '/unused' });
+  assert.equal(await updater.cliPreparationPending(), true);
+  await writeFile(path.join(directory, 'state.json'), JSON.stringify({ phase: 'ready' }));
+  assert.equal(await updater.cliPreparationPending(), true);
+  await writeFile(path.join(directory, 'state.json'), JSON.stringify({ phase: 'success' }));
+  assert.equal(await updater.cliPreparationPending(), false);
+});
+
 test('GUI clicks are not lost during status polling and late status cannot overwrite action results', async () => {
   const { runInNewContext } = await import('node:vm');
   const elements = new Map(), requests = [];
@@ -149,4 +169,104 @@ test('GUI clicks are not lost during status polling and late status cannot overw
   requests[0].resolve({ phase: 'idle', detail: 'Stale result', installed: {} });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(element('phase').textContent, 'Up to date'); assert.equal(element('detail').textContent, 'Current');
+});
+
+test('one-click update pins one release, prepares once and preserves pinned CLI exceptions', { skip: process.platform !== 'darwin' }, async t => {
+  for (const pinned of [false, true]) {
+    const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
+    await mkdir(path.join(resources, 'runtime'), { recursive: true });
+    await writeFile(path.join(resources, 'runtime/package.json'), '{"version":"0.3.3"}');
+    await mkdir(path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources'), { recursive: true });
+    await writeFile(path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json'), JSON.stringify({ node: process.execPath, qmd: '/external/qmd', memoryRoot: path.join(f.home, 'memory'), supportDirectory: path.join(f.home, 'support') }));
+    if (pinned) { f.manifest.ref = 'v0.3.3'; await f.save(); }
+    let checks = 0, launches = 0;
+    const { EventEmitter } = await import('node:events');
+    const updater = createDesktopUpdater({ home: f.home, resources, discover: async () => { checks++; return selectRelease([release('0.3.4')]); },
+      spawnWorker: () => { launches++; const child = new EventEmitter(); child.pid = process.pid; child.unref = () => {}; process.nextTick(() => child.emit('spawn')); return child; } });
+    const offered = await updater.action('check');
+    assert.deepEqual(offered.actions, ['check', pinned ? 'app-only' : 'update']);
+    const [a, b] = await Promise.all([updater.action('update'), updater.action('update')]);
+    assert.equal(checks, 1); assert.equal(launches, pinned ? 0 : 1); assert.equal(a.phase, b.phase);
+    assert.equal(a.phase, pinned ? 'available' : 'preparing');
+    if (!pinned) {
+      const owner = JSON.parse(await readFile(path.join(f.root, '.installer-lock/desktop.json')));
+      const request = JSON.parse(await readFile(path.join(owner.directory, 'request.json')));
+      assert.equal(request.release.version, '0.3.4'); assert.equal(request.updateCLI, true);
+      await updater.action('update'); assert.equal(launches, 1); assert.equal(checks, 1);
+      await writeFile(path.join(owner.directory, 'request.json'), JSON.stringify({ ...request, entrypoint: 'cli' }));
+      await writeFile(path.join(owner.directory, 'transaction.json'), '{"phase":"published","exchanges":[]}');
+      await writeFile(path.join(owner.directory, 'state.json'), JSON.stringify({ phase: 'updating', pid: 2147483647, updatedAt: Date.now() }));
+      await writeFile(path.join(f.root, '.installer-lock/desktop.json'), JSON.stringify({ directory: owner.directory, pid: 2147483647 }));
+      assert.equal((await updater.action('recover')).phase, 'preparing');
+      assert.equal(JSON.parse(await readFile(path.join(owner.directory, 'request.json'))).entrypoint, 'app', 'GUI recovery of a CLI job must wait for app exit');
+    } else assert.equal(a.installed.cliPolicy.kind, 'pinned');
+  }
+});
+
+test('private desktop channel accepts only fixed actions and shares the app operation', async t => {
+  const { serveDesktopUpdates, requestDesktopUpdate } = await import('../integrations/electron/update-control.mjs');
+  const f = await fixture(t), calls = [];
+  assert.equal(await requestDesktopUpdate(f.home, 'status'), null);
+  const previousMask = process.umask();
+  const close = await serveDesktopUpdates(f.home, { action: async name => { calls.push(name); return { phase: name === 'update' ? 'ready' : 'idle' }; } });
+  try {
+    assert.equal(process.umask(), previousMask, 'binding restores the caller umask');
+    const { lstat } = await import('node:fs/promises');
+    assert.equal((await lstat(path.join(f.root, 'u.sock'))).mode & 0o777, 0o600);
+    assert.equal((await requestDesktopUpdate(f.home, 'update')).phase, 'ready');
+    assert.equal((await requestDesktopUpdate(f.home, 'status')).phase, 'idle');
+    assert.deepEqual(calls, ['update', 'status']);
+    await assert.rejects(requestDesktopUpdate(f.home, 'shell'), /Unsupported/);
+    await assert.rejects(serveDesktopUpdates(f.home, { action() {} }), /Another app/);
+  } finally { await close(); }
+  await symlink('/dev/null', path.join(f.root, 'u.sock'));
+  await assert.rejects(requestDesktopUpdate(f.home, 'status'), /Unsafe/);
+});
+
+test('desktop update channel decodes release text split across UTF-8 chunks', async t => {
+  const { createServer } = await import('node:net');
+  const { chmod } = await import('node:fs/promises');
+  const { requestDesktopUpdate } = await import('../integrations/electron/update-control.mjs');
+  const f = await fixture(t), socket = path.join(f.root, 'u.sock');
+  const detail = 'Ready 🌙 — keep editing';
+  const packet = Buffer.from(JSON.stringify({ state: { phase: 'ready', detail } }) + '\n');
+  const split = packet.indexOf(Buffer.from('🌙')) + 1;
+  const server = createServer(client => client.once('data', () => {
+    client.write(packet.subarray(0, split));
+    setTimeout(() => client.end(packet.subarray(split)), 10);
+  }));
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(socket, resolve); });
+  await chmod(socket, 0o600);
+  try { assert.equal((await requestDesktopUpdate(f.home, 'status')).detail, detail); }
+  finally { await new Promise(resolve => server.close(resolve)); }
+});
+
+test('CLI reports prepared rather than installed while app runs; dry-run has no operation', async () => {
+  const { runPairedUpdate } = await import('../integrations/electron/update-cli.mjs');
+  const lines = [], calls = [];
+  const options = { home: '/unused', report: line => lines.push(line), createUpdater: () => assert.fail('open app owns the updater'),
+    request: async (_home, action) => { calls.push(action); return { phase: 'ready', detail: 'Ready' }; } };
+  await runPairedUpdate(options);
+  assert.match(lines.at(-1), /not installed yet/); assert.deepEqual(calls, ['update']);
+  calls.length = 0; await runPairedUpdate({ ...options, dryRun: true }); assert.equal(calls.length, 0);
+  await assert.rejects(runPairedUpdate({ ...options, request: async () => ({ phase: 'failed', detail: 'Do not downgrade' }) }), /Do not downgrade/);
+  await assert.rejects(runPairedUpdate({ ...options, request: async () => ({ phase: 'success', available: '0.3.4', installed: { app: '0.3.3', runtime: '0.3.4', cli: '0.3.4' } }) }), /versions do not agree/);
+  await runPairedUpdate({ ...options, request: async () => ({ phase: 'success', available: '0.3.4', installed: { app: '0.3.4', runtime: '0.3.4', cli: '0.3.4' } }) });
+  assert.match(lines.at(-1), /installed and startup verified/);
+});
+
+test('paired CLI detection leaves CLI-only installs alone and protects pinned/source policy', { skip: process.platform !== 'darwin' }, async t => {
+  const { pairedInstallation } = await import('../integrations/electron/update-cli.mjs');
+  const f = await fixture(t), options = { home: f.home, installRoot: f.root, source: SOURCE, ref: 'master' };
+  assert.equal(await pairedInstallation(options), null);
+  const app = path.join(f.home, 'Applications/jumpyBrain.app'); await mkdir(path.join(app, 'Contents'), { recursive: true });
+  await writeFile(path.join(app, 'Contents/Info.plist'), '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>local.jumpybrain.desktop</string><key>CFBundleShortVersionString</key><string>0.3.3</string></dict></plist>');
+  assert.equal((await pairedInstallation(options)).appVersion, '0.3.3');
+  const before = await readFile(path.join(f.root, 'install-manifest.json'));
+  await assert.rejects(pairedInstallation({ ...options, ref: 'v0.3.3' }), /Nothing was changed/);
+  await assert.rejects(pairedInstallation({ ...options, source: '/developer/checkout' }), /Nothing was changed/);
+  assert.deepEqual(await readFile(path.join(f.root, 'install-manifest.json')), before);
+  f.manifest.ref = 'v0.3.3'; await f.save();
+  await assert.rejects(pairedInstallation(options), /Nothing was changed/);
+  assert.equal(await pairedInstallation({ ...options, installRoot: path.join(f.home, 'custom-root') }), null);
 });

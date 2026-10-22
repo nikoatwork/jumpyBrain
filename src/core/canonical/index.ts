@@ -25,6 +25,7 @@ export {
   type CanonicalMarkdownSnapshot,
   readMarkdownDocuments,
   replaceCanonicalMemoryDocumentById,
+  patchCanonicalMemoryDocumentAttention,
   deleteCanonicalMemoryDocumentById,
   resolveMemoryRoot,
   resolveCanonicalMemoryDocumentByTitle,

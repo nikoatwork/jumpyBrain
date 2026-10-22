@@ -12,6 +12,7 @@ export const HTTP_MEMORY_ROUTES = {
   compactRecall: `${MEMORY_PREFIX}/recall/compact`,
   expand: `${MEMORY_PREFIX}/expand`,
   notes: `${MEMORY_PREFIX}/notes`,
+  attention: `${MEMORY_PREFIX}/attention`,
   recent: `${MEMORY_PREFIX}/recent`,
   resolveTitle: `${MEMORY_PREFIX}/resolve-title`,
   wrapups: `${MEMORY_PREFIX}/wrapups`,

@@ -31,7 +31,7 @@ The release command requires a clean `master`, a writable `origin`, and `gh` aut
 
 The CLI installer still tracks its recorded Git source/ref (normally master). The Mac GUI updater selects a published numeric release from the releases list, including 0.x prereleases; it never uses `/latest` or branch HEAD. The release must provide exactly one `jumpybrain-X.Y.Z.tgz` uploaded asset with a GitHub SHA-256 digest. Its compiled runtime, Electron sources/lockfile, updater, native build sources, and resources supply the entire update. Pack validation rejects missing desktop resources and nested Electron node_modules. No native auto-update feed is assumed.
 
-GUI updates record the selected release/asset/digest in the managed CLI manifest but preserve its original source/ref policy. Subsequent explicit CLI updates still follow that policy. Local-source/pinned/unowned CLIs require the GUI's app-only choice. Distribution hashing authenticates bytes from the selected public GitHub release; it is not code signing or notarization.
+GUI updates record the selected release/asset/digest in the managed CLI manifest but preserve its original source/ref policy. Ordinary CLI updates for a standard paired Mac installation use the same published-release operation; CLI-only installs retain the recorded source/ref workflow. Explicit paired source/ref overrides stop rather than splitting component versions. Local-source/pinned/unowned CLIs require the GUI's app-only choice. Distribution hashing authenticates bytes from the selected public GitHub release; it is not code signing or notarization.
 
 ## Default for release requests
 

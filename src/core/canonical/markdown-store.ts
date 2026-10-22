@@ -4,6 +4,7 @@ import { lstat, open, readdir, readFile, realpath, rename, stat, unlink } from "
 import path from "node:path";
 import { normalizedDocumentTitle } from "../document-title.js";
 export { normalizedDocumentTitle } from "../document-title.js";
+import { patchMemoryAttention, validateMemoryAttentionAction, type MemoryAttentionAction } from "../attention.js";
 import { mergeMemoryDocumentUpdate } from "../document-update.js";
 import { isValidMemoryDocumentId } from "../document-id.js";
 import { parseFrontmatter } from "../frontmatter.js";
@@ -296,6 +297,34 @@ export async function replaceCanonicalMemoryDocumentById(
   }
   const root = await resolveMemoryRoot(rootArg);
   return withCanonicalMutation(root, () => replaceCanonicalMemoryDocument(root, id, submittedContent, options));
+}
+
+/** Metadata-only attention change, using the same guarded queue/lock/atomic publisher as content saves. */
+export async function patchCanonicalMemoryDocumentAttention(
+  rootArg: string, id: string, options: { ifMatch: string; mutation: MemoryAttentionAction },
+): Promise<MemoryDocumentReadResult & { oldContentHash: MemoryDocumentContentHash; newContentHash: MemoryDocumentContentHash }> {
+  if (!/^sha256:[0-9a-f]{64}$/.test(options.ifMatch ?? "")) {
+    throw new MemoryDocumentLookupError("precondition_required", "Attention changes require the content hash from a prior read.");
+  }
+  const root = await resolveMemoryRoot(rootArg);
+  return withCanonicalMutation(root, async () => {
+    const mutation = validateMemoryAttentionAction(options.mutation, Date.now());
+    if (!mutation) throw new MemoryDocumentLookupError("validation_failed", "Invalid attention action or snooze timestamp.");
+    const location = await findCanonicalMemoryDocumentById(root, id);
+    const original = await replacementSnapshot(location);
+    const oldContentHash = hashMemoryDocumentContent(original.bytes);
+    if (oldContentHash !== options.ifMatch) throw replacementConflict(location, oldContentHash);
+    let source: string;
+    try { source = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(original.bytes); }
+    catch { throw new MemoryDocumentLookupError("validation_failed", "Attention changes require a valid UTF-8 Markdown document."); }
+    const content = patchMemoryAttention(source, mutation);
+    await atomicWriteUtf8File(location, content, original, oldContentHash);
+    const frontmatter = parseFrontmatter(content).frontmatter;
+    const contentHash = hashMemoryDocumentContent(content);
+    return { root, target: "local", id, file: location.file, type: memoryTypeForPath(location.file, frontmatter),
+      title: typeof frontmatter.title === "string" ? frontmatter.title : "", frontmatter, content, contentHash,
+      oldContentHash, newContentHash: contentHash };
+  });
 }
 
 async function withCanonicalMutation<T>(root: string, operation: () => Promise<T>): Promise<T> {

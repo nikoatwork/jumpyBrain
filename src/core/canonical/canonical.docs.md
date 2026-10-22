@@ -25,6 +25,10 @@
 
 Metadata-only `readMarkdownDocument` scans fresh frontmatter in 4 KiB positional reads, stopping after the closing delimiter or a non-frontmatter first line. A header exceeding 64 KiB falls back to the full parser, preserving legacy oversized/unterminated-header semantics rather than truncating metadata. The ordinary path avoids reading/normalizing the body; there is no persistent cache or changed duplicate/exclusion policy. Abort checks occur between reads. Full document/edit/index snapshots still read canonical bytes as before.
 
+## Attention metadata publication
+
+`patchCanonicalMemoryDocumentAttention(root, id, { ifMatch, mutation })` reuses the content replacement queue, guarded snapshots, lock and atomic publisher. It accepts only settle, a future timezone-explicit snooze, or reactivate; a current canonical hash is mandatory. It changes only `attention_at` header lines, retaining unknown metadata/comments, content timestamps, body bytes and mixed line endings. Invalid UTF-8 is rejected. Reactivate removes every matching header key; settle writes bare `null`. The returned full document packet and hashes describe the published bytes, without a follow-up read race. Core does not schedule wakeups or use an index. The existing cooperating-filesystem-writer limits also apply.
+
 ## Guarded evidence expansion
 
 `expandCanonicalMemoryDocument(root, { id, expectedContentHash, startLine?, endLine?, sectionLine?, maxBytes? })` is read-only and uses canonical ID lookup, never the retrieval index. Missing/duplicate/invalid IDs retain lookup errors; no IDs are guessed or stamped. Expansion opts into the existing canonical reader's `guarded` mode, reusing update snapshots for regular single-link file, no-symlink ancestor/inode, and frontmatter-ID checks. The full editing read contract remains unchanged. Hash/identity conflicts return `precondition_failed` with an explicit refresh requirement. Invalid UTF-8 is rejected rather than silently replaced. These checks are not an atomic snapshot against hostile filesystem writers; canonical scans/full source reads remain unbounded input work.

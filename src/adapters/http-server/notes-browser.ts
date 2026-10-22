@@ -1,91 +1,96 @@
 import { brainOutlineSvg } from "./favicon.js";
 import { themeMarkup } from "./browser-theme.js";
+import { noteAttentionMarkup, noteAttentionStyles, noteAttentionToolbarMarkup } from "./note-attention-view.js";
 
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
 export const notesStyles = String.raw`
+${noteAttentionStyles}
     body { display: flex; height: 100dvh; }
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-    .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 18px; padding: 20px 12px 12px; border-right: 1px solid var(--line); overflow: auto; }
+    .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
     :root[data-sidebar-collapsed="true"] .app-nav { display: none; }
     .workspace-toolbar { display: flex; align-items: center; flex: 0 0 auto; min-height: 48px; }
-    #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 32px; height: 32px; margin: 8px 12px; padding: 6px; }
+    #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); margin: var(--space-2) var(--space-3); padding: var(--space-1); }
     #toggle-sidebar svg { width: 20px; height: 20px; }
-    .workspace-brand { display: flex; align-items: center; flex: 0 0 auto; margin: 12px 24px 12px auto; color: var(--ink-soft); }
+    .workspace-brand { display: flex; align-items: center; flex: 0 0 auto; margin: var(--space-3) var(--space-6) var(--space-3) auto; color: var(--ink-soft); }
     .workspace-brand svg { display: block; width: 24px; height: 24px; }
     .nav-brand { min-width: 0; }
-    .app-nav .home-link { display: block; padding: 4px 10px; font-weight: 650; background: transparent; color: var(--ink); }
-    .nav-tools, .nav-pages, .nav-preferences { display: flex; flex-direction: column; gap: 2px; }
-    .nav-preferences { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line); flex-shrink: 0; }
-    .app-nav .nav-item { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 5px 10px; font-size: 13px; text-align: left; background: transparent; }
-    .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .app-nav .home-link { display: block; font-size: var(--text-body); padding: var(--space-1) var(--space-3); font-weight: var(--weight-semibold); background: transparent; color: var(--ink); }
+    .home-link small { font-size: var(--text-caption); font-weight: var(--weight-regular); }
+    .nav-tools, .nav-pages, .nav-preferences { display: flex; flex-direction: column; gap: var(--space-1); }
+    .nav-tools { flex-direction: row; align-items: center; gap: var(--space-2); }
+    .nav-utilities { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+    .nav-preferences { margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--line); flex-shrink: 0; }
+    .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
+    .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     .app-nav .nav-item:hover, .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
     .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); color: var(--ink); }
     .app-nav #new-note:hover { background: var(--surface-hover); }
-    .app-nav kbd { margin-left: auto; font-size: 11px; color: var(--ink-faint); }
-    .nav-appearance { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; color: var(--ink-soft); font-size: 12px; }
+    .app-nav .sidebar-icon { justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: var(--space-2); }
+    .nav-appearance { display: flex; }
     .nav-library { flex: 1; min-height: 80px; overflow: auto; scrollbar-width: thin; }
-    .nav-library section + section { margin-top: 20px; }
-    .nav-library h2 { margin: 0 10px 6px; font-size: 11px; font-weight: 550; color: var(--ink-faint); letter-spacing: .025em; }
+    .nav-library section + section { margin-top: var(--space-5); }
+    .nav-library h2 { margin: 0 var(--space-3) var(--space-1); font-size: var(--text-caption); font-weight: var(--weight-regular); color: var(--ink-faint); letter-spacing: .025em; }
     .nav-library ul { list-style: none; margin: 0; padding: 0; }
-    .sidebar-empty { margin: 5px 10px; font-size: 12px; line-height: 1.5; color: var(--ink-faint); }
-    .sidebar-page { display: flex; align-items: center; min-width: 0; border-radius: 5px; }
+    .sidebar-empty { margin: var(--space-1) var(--space-3); font-size: var(--text-caption); line-height: 1.5; color: var(--ink-faint); }
+    .sidebar-page { display: flex; align-items: center; min-width: 0; border-radius: var(--radius-sm); }
     .sidebar-page:hover, .sidebar-page:focus-within { background: var(--surface-hover); }
     .sidebar-page:has([aria-current="page"]) { background: var(--control-fill); }
-    .sidebar-page-link { display: flex; align-items: center; flex: 1; min-width: 0; min-height: 31px; padding: 5px 4px 5px 10px; color: var(--ink-soft); text-decoration: none; font-size: 13px; line-height: 21px; border-radius: 5px; }
+    .sidebar-page-link { display: flex; align-items: center; flex: 1; min-width: 0; min-height: var(--control-height); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3); color: var(--ink-soft); text-decoration: none; font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); border-radius: var(--radius-sm); }
     .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sidebar-page-link[aria-current="page"] { color: var(--ink); }
-    .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 6px; margin-right: 2px; border: 0; border-radius: 4px; color: var(--ink-soft); background: transparent; opacity: 0; }
+    .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 var(--control-compact); width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); margin-right: var(--space-0-5); border: 0; border-radius: var(--radius-sm); color: var(--ink-soft); background: transparent; opacity: 0; }
     .sidebar-page-pin svg, #pin-current-page svg { width: 16px; height: 16px; }
     .sidebar-page:hover .sidebar-page-pin, .sidebar-page:focus-within .sidebar-page-pin, .sidebar-page-pin[aria-pressed="true"] { opacity: 1; }
     .sidebar-page-pin:hover { background: var(--control-fill); color: var(--ink); }
-    #pin-current-page { display: grid; place-items: center; width: 30px; height: 30px; padding: 6px; background: transparent; }
+    #pin-current-page { display: grid; place-items: center; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); background: transparent; }
     #pin-current-page[aria-pressed="true"] { background: var(--control-fill); color: var(--ink); }
     @media (hover: none) { .sidebar-page-pin { opacity: 1; } }
-    .document-status { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: 8px; min-height: 48px; padding: 8px 24px; }
+    .document-status { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 48px; padding: var(--space-2) var(--space-6); }
     body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
-    .quiet-button { border: 0; border-radius: 6px; padding: 8px 10px; background: var(--control-fill); color: var(--ink-soft); text-decoration: none; font: inherit; cursor: pointer; }
+    .quiet-button { border: 0; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--control-fill); color: var(--ink-soft); text-decoration: none; font: inherit; font-size: var(--text-ui); line-height: var(--leading-ui); min-height: var(--control-height); cursor: pointer; }
     .quiet-button:hover { background: var(--surface-hover); color: var(--ink); }
-    .home { width: 100%; overflow: auto; padding: clamp(28px, 8vh, 80px) 24px 48px; text-align: center; }
+    .home { width: 100%; overflow: auto; padding: clamp(var(--space-8), 8vh, 80px) var(--space-6) var(--space-12); text-align: center; }
     .home-actions { width: min(100%, 560px); margin: 0 auto; text-align: left; }
-    .home-actions h1 { margin: 0 0 24px; font-size: clamp(24px, 4vw, 30px); line-height: 1.25; font-weight: 600; letter-spacing: -.035em; }
-    .home-action { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 10px; text-align: left; font-size: 15px; }
+    .home-actions h1 { margin: 0 0 var(--space-6); font-size: var(--text-display); line-height: var(--leading-heading); font-weight: var(--weight-semibold); letter-spacing: -.035em; }
+    .home-action { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 56px; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); text-align: left; font-size: var(--text-body); }
     .home-action-label { flex: 1; }
     .home-action-icon { width: 20px; height: 20px; flex: 0 0 auto; }
-    #home-new { background: var(--control-fill); color: var(--ink); font-weight: 600; }
+    #home-new { background: var(--control-fill); color: var(--ink); font-weight: var(--weight-semibold); }
     #home-new:hover { background: var(--surface-hover); border-color: var(--line-strong); }
-    #home-search { margin-top: 10px; background: transparent; color: var(--ink-soft); }
+    #home-search { margin-top: var(--space-3); background: transparent; color: var(--ink-soft); }
     #home-search:hover { background: var(--surface-hover); color: var(--ink); }
-    .recent-notes { width: min(100%, 560px); margin: 40px auto 0; text-align: left; }
-    .recent-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-    .recent-heading h2 { margin: 0; font-size: 13px; font-weight: 650; }
-    .recent-heading .quiet-button, .recent-description, #recent-message { color: var(--ink-soft); font-size: 12px; }
-    .recent-description { margin: 0 0 6px; }
+    .recent-notes { width: min(100%, 560px); margin: var(--space-10) auto 0; text-align: left; }
+    .recent-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-1); }
+    .recent-heading h2 { margin: 0; font-size: var(--text-ui); font-weight: var(--weight-semibold); }
+    .recent-description, #recent-message { color: var(--ink-soft); font-size: var(--text-caption); }
+    .recent-description { margin: 0 0 var(--space-1); }
     #recent-list { list-style: none; margin: 0; padding: 0; }
-    .recent-link { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 13px 10px; margin-inline: -10px; border-radius: 6px; color: var(--ink); text-decoration: none; }
+    .recent-link { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) var(--space-3); margin-inline: calc(-1 * var(--space-3)); border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; }
     .recent-link:hover { background: var(--surface-hover); }
     .recent-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .recent-link .recent-date { flex-shrink: 0; color: var(--ink-soft); font-size: 12px; }
+    .recent-link .recent-date { flex-shrink: 0; color: var(--ink-soft); font-size: var(--text-caption); }
     kbd { font: inherit; color: var(--ink); }
-    .home-action kbd { flex-shrink: 0; padding: 3px 7px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; font-weight: 400; color: inherit; }
+    .home-action kbd { flex-shrink: 0; padding: var(--space-1) var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: var(--text-caption); font-weight: var(--weight-regular); color: inherit; }
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
     main, body[data-view="graph"] main { flex: 1; height: auto; min-height: 0; }
-    #note-panel { --writing-font: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif; width: 100%; min-width: 0; overflow: auto; scrollbar-gutter: stable; scrollbar-color: var(--line-strong) transparent; scroll-padding-block: 32px; }
-    .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(40px, 7vh, 80px) 40px max(160px, 30vh); }
-    #note-title { margin: 0 0 24px; color: var(--ink); font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
-    #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 24px; padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
-    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: 8px 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--writing-font); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #note-panel { --writing-font: var(--font-writing); width: 100%; min-width: 0; overflow: auto; scrollbar-gutter: stable; scrollbar-color: var(--line-strong) transparent; scroll-padding-block: var(--space-8); }
+    .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(var(--space-10), 7vh, 80px) var(--space-10) max(160px, 30vh); }
+    #note-title { margin: 0 0 var(--space-6); color: var(--ink); font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
+    #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 var(--space-6); padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
+    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: var(--space-2) 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--writing-font); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
     /* Each block is a source line; intentional blank lines supply paragraph spacing. */
     #note-editor p { margin: 0; min-height: 1.8em; }
-    #note-editor > * { scroll-margin-block: 32px; }
-    #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .6em 0 .25em; line-height: 1.35; font-weight: 600; letter-spacing: -.02em; }
+    #note-editor > * { scroll-margin-block: var(--space-8); }
+    #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .6em 0 .25em; line-height: 1.35; font-weight: var(--weight-semibold); letter-spacing: -.02em; }
     #note-editor > :first-child { margin-top: 0; }
     #note-editor h1 { font-size: 32px; }
     #note-editor h2 { font-size: 27px; }
     #note-editor h3 { font-size: 23px; }
     #note-editor h4, #note-editor h5, #note-editor h6 { font-size: 20px; }
-    .editor-bold { font-weight: 700; }
+    .editor-bold, #note-editor strong, #note-editor b { font-weight: var(--weight-writing-bold); }
     .editor-italic { font-style: italic; }
     #note-editor > .external-change { border-radius: 3px; animation: external-change-fade 4s ease-out forwards; }
     @keyframes external-change-fade {
@@ -95,97 +100,98 @@ export const notesStyles = String.raw`
     @media (prefers-reduced-motion: reduce) {
       #note-editor > .external-change { animation: none; background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
     }
-    #note-external-state { color: var(--ink-soft); font-size: 12px; }
-    .markdown-literal, .markdown-reference { text-decoration: underline dotted var(--line-strong); text-underline-offset: 4px; }
+    #note-external-state { color: var(--ink-soft); font-size: var(--text-caption); }
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
+    .markdown-reference[data-page-reference="true"]:hover { background: var(--surface-hover); }
     ::highlight(jumpybrain-reference-markers) { color: color-mix(in srgb, var(--ink) 24%, var(--surface)); }
     .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    #reference-message { color: var(--ink-soft); font-size: 13px; }
+    #reference-message { color: var(--ink-soft); font-size: var(--text-ui); }
     #reference-message[data-error="true"] { color: var(--error-ink); }
     .markdown-literal::selection { background: var(--surface-hover); }
-    #format-controls { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 0 0 24px -8px; }
-    #format-controls button { min-height: 36px; padding: 8px; background: transparent; font-size: 12px; }
+    #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; margin: 0 0 var(--space-6) calc(-1 * var(--space-2)); }
+    #format-controls button { min-height: var(--control-height); padding: var(--space-2); background: transparent; font-size: var(--text-ui); }
     #format-controls button:hover, #format-controls button:focus-visible { background: var(--control-fill); color: var(--ink); }
-    #format-controls [data-format="h3"] { margin-right: 8px; }
+    #format-controls [data-format="h3"] { margin-right: var(--space-2); }
     #format-controls #insert-reference { margin: 0 0 0 auto; }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
-    .note-actions { font-size: 12px; align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-    .document-dialog { padding: 24px; }
+    .note-actions { font-size: var(--text-caption); align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+    .document-dialog { padding: var(--space-6); }
     .document-dialog h2 { margin-top: 0; }
-    .document-dialog textarea { width: 100%; min-height: 120px; resize: vertical; background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: 8px; }
-    .document-dialog label { display: block; margin-block: 12px; }
-    .document-dialog .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .document-dialog textarea { width: 100%; min-height: 120px; resize: vertical; background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: var(--space-2); }
+    .document-dialog label { display: block; margin-block: var(--space-3); }
+    .document-dialog .dialog-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
     #delete-confirm { color: var(--error-ink); }
-    #note-save-error { color: var(--error-ink); font-size: 13px; }
+    #note-save-error { color: var(--error-ink); font-size: var(--text-ui); }
     #note-save-error[data-review="true"] { color: var(--ink-soft); }
-    .capture-feedback { margin: 0; padding: 0 24px; font-size: 12px; color: var(--ink-soft); }
+    .capture-feedback { margin: 0; padding: 0 var(--space-6); font-size: var(--text-caption); color: var(--ink-soft); }
     .capture-feedback[data-error="true"] { color: var(--error-ink); }
-    #insert-reference { margin: 0 0 12px -10px; font-size: 12px; }
+    #insert-reference { margin: 0 0 var(--space-3) calc(-1 * var(--space-3)); font-size: var(--text-ui); }
     button:disabled { cursor: wait; opacity: .65; }
-    .save-state { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
+    .save-state { color: var(--ink-soft); font-size: var(--text-caption); white-space: nowrap; }
     .save-state[data-state="failed"], #note-message[data-error="true"] { color: var(--error-ink); }
     #note-message { color: var(--ink-soft); white-space: pre-wrap; }
-    #note-file { margin: 28px 0 8px; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12px; }
-    .note-frontmatter { margin-top: 24px; color: var(--ink-soft); font-size: 12px; }
+    #note-file { margin: var(--space-8) 0 var(--space-2); color: var(--ink-soft); overflow-wrap: anywhere; font-size: var(--text-caption); }
+    .note-frontmatter { margin-top: var(--space-6); color: var(--ink-soft); font-size: var(--text-caption); }
     .note-frontmatter summary { cursor: pointer; width: fit-content; }
     .note-frontmatter pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-    dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
+    dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
     dialog::backdrop { background: var(--backdrop); }
     #note-search { margin-top: min(15vh, 100px); }
-    .dialog-head { display: flex; align-items: center; gap: 8px; padding: 16px; border-bottom: 1px solid var(--line); }
-    #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: 16px; }
+    .dialog-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); border-bottom: 1px solid var(--line); }
+    #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: var(--text-section); }
     #note-search-input:focus-visible { outline: 2px solid var(--focus-ring); }
-    #search-results { list-style: none; padding: 6px; margin: 0; max-height: 45dvh; overflow: auto; }
-    .search-result { padding: 12px; border-radius: 8px; cursor: pointer; }
+    #search-results { list-style: none; padding: var(--space-1); margin: 0; max-height: 45dvh; overflow: auto; }
+    .search-result { padding: var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
     .search-result[aria-selected="true"] { background: var(--surface-hover); }
     .search-result[aria-disabled="true"] { cursor: default; color: var(--ink-soft); }
     .search-result strong, .search-result span, .search-result small { display: block; overflow-wrap: anywhere; }
-    .search-result strong { font-size: 14px; font-weight: 650; }
-    .search-result span { font-size: 13px; color: var(--ink-soft); margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .search-result small { margin-top: 4px; color: var(--ink-soft); font-size: 11px; }
-    .search-footer { padding: 12px 18px; font-size: 12px; color: var(--ink-soft); }
+    .search-result strong { font-size: var(--text-body); font-weight: var(--weight-semibold); }
+    .search-result span { font-size: var(--text-ui); color: var(--ink-soft); margin-top: var(--space-1); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .search-result small { margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--text-caption); }
+    .search-footer { padding: var(--space-3) var(--space-4); font-size: var(--text-caption); color: var(--ink-soft); }
     .search-footer p { margin: 0; }
-    #search-freshness { margin-top: 6px; }
-    #connection { padding: 24px; }
-    #connection h2 { margin: 0 0 8px; font-size: 20px; }
+    #search-freshness { margin-top: var(--space-1); }
+    #connection { padding: var(--space-6); }
+    #connection h2 { margin: 0 0 var(--space-2); font-size: var(--text-heading); }
     #connection p { color: var(--ink-soft); }
-    #connection label { display: block; margin: 20px 0 8px; }
+    #connection label { display: block; margin: var(--space-5) 0 var(--space-2); }
     #open-connection[data-state="connected"] { color: var(--ink); }
-    .connection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
-    #api-key { width: 100%; display: block; margin-top: 8px; font-size: 16px; }
+    .connection-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-5); }
+    #api-key { width: 100%; display: block; margin-top: var(--space-2); font-size: var(--text-section); }
     @media (max-width: 680px) {
       body { flex-direction: column; }
-      .app-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; padding: 12px; border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+      .app-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: var(--space-3) var(--space-4); padding: var(--space-3); border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
       :root[data-sidebar-collapsed="true"] .app-nav { display: grid; }
       #toggle-sidebar { display: none; }
       .workspace-toolbar { min-height: 40px; }
-      .workspace-brand { margin: 8px 16px 8px auto; }
+      .workspace-brand { margin: var(--space-2) var(--space-4) var(--space-2) auto; }
       .app-nav .home-link { padding-inline: 0; }
-      .nav-tools { flex-direction: row; align-items: center; gap: 4px; }
+      .nav-tools { flex-direction: row; align-items: center; gap: var(--space-1); }
       .nav-pages { grid-row: 2; grid-column: 1; flex-direction: row; }
       .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
-      .nav-library section { display: flex; align-items: center; gap: 4px; }
-      .nav-library section + section { margin-top: 4px; }
+      .nav-library section { display: flex; align-items: center; gap: var(--space-1); }
+      .nav-library section + section { margin-top: var(--space-1); }
       .nav-library h2 { flex: 0 0 46px; margin: 0; }
       .nav-library ul { display: flex; min-width: 0; overflow-x: auto; }
       .sidebar-page { flex: 0 0 auto; max-width: 190px; }
-      .sidebar-page-link { min-height: 36px; }
-      .sidebar-empty { margin: 4px; }
+      .sidebar-page-link { min-height: var(--control-height); }
+      .sidebar-empty { margin: var(--space-1); }
       .nav-preferences { display: contents; }
       .nav-preferences #graph-link { grid-row: 2; grid-column: 2; justify-content: center; }
       .nav-preferences #open-connection { grid-row: 4; grid-column: 1; }
       .nav-preferences #open-feedback { grid-row: 4; grid-column: 2; }
-      .nav-appearance { grid-row: 5; grid-column: 1 / -1; padding: 0; border-top: 1px solid var(--line); padding-top: 6px; }
-      .app-nav .nav-item { padding: 8px; font-size: 12px; min-height: 40px; gap: 6px; }
+      .nav-utilities { grid-row: 5; grid-column: 1 / -1; margin-top: 0; }
+      .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
+      .app-nav .sidebar-icon, #color-theme { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
       .nav-item svg { width: 16px; height: 16px; }
       #open-search kbd { display: none; }
-      .document-status { padding-inline: 16px; flex-wrap: wrap; }
-      .note-column { padding: 32px 24px max(120px, 25vh); }
+      .document-status { padding-inline: var(--space-4); flex-wrap: wrap; }
+      .note-column { padding: var(--space-8) var(--space-6) max(120px, 25vh); }
       #note-editor { font-size: 18px; }
-      #format-controls { gap: 2px; margin-bottom: 20px; }
+      #format-controls { gap: var(--space-0-5); margin-bottom: var(--space-5); }
       #format-controls #insert-reference { margin-left: 0; }
-      .save-state { font-size: 11px; }
-      #note-search { margin-top: 16px; max-height: calc(100dvh - 32px); }
+      .save-state { font-size: var(--text-caption); }
+      #note-search { margin-top: var(--space-4); max-height: calc(100dvh - 32px); }
     }
 `;
 
@@ -193,8 +199,8 @@ export const notesMarkup = String.raw`
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
   <div class="nav-brand"><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain <small>(beta)</small></a></div>
   <div class="nav-tools" role="group" aria-label="Note actions">
-    <button id="new-note" class="quiet-button nav-item">New note</button>
-    <button id="open-search" class="quiet-button nav-item" aria-label="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Search <kbd class="shortcut"></kbd></button>
+    <button id="new-note" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button id="open-search" type="button" class="quiet-button nav-item sidebar-icon" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
   </div>
   <div class="nav-pages" role="group" aria-label="Views">
     <a id="notes-link" class="quiet-button nav-item" href="/">Home</a>
@@ -203,19 +209,18 @@ export const notesMarkup = String.raw`
     <section aria-labelledby="sidebar-pinned-heading">
       <h2 id="sidebar-pinned-heading">Pinned</h2>
       <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
-      <p id="sidebar-pinned-empty" class="sidebar-empty">Pin pages to keep them here.</p>
     </section>
     <section aria-labelledby="sidebar-recent-heading">
-      <h2 id="sidebar-recent-heading">Recent</h2>
-      <ul id="sidebar-recent" aria-label="Recently visited pages"></ul>
-      <p id="sidebar-recent-empty" class="sidebar-empty">Pages you open appear here.</p>
+      <h2 id="sidebar-recent-heading">Attention</h2>
+      <ul id="sidebar-recent" aria-label="Notes needing attention"></ul>
+      <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
     </section>
   </div>
   <div class="nav-preferences">
-    <a id="graph-link" class="quiet-button nav-item" href="/graph"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 3-7 10L6 6Z" stroke="currentColor" stroke-width="1.4"/><circle cx="6" cy="6" r="2.5" fill="var(--surface)" stroke="currentColor" stroke-width="1.4"/><circle cx="18" cy="9" r="2.5" fill="var(--surface)" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="19" r="2.5" fill="var(--surface)" stroke="currentColor" stroke-width="1.4"/></svg>Graph</a>
+    <a id="graph-link" class="quiet-button nav-item" href="/graph">Graph</a>
     <button id="open-connection" class="quiet-button nav-item" aria-label="Connect · Connection settings" aria-haspopup="dialog">Connect</button>
     <button id="open-feedback" class="quiet-button nav-item" aria-haspopup="dialog" aria-controls="feedback-dialog">Feedback</button>
-    <div class="nav-appearance"><span>Appearance</span>${themeMarkup}</div>
+    <div class="nav-utilities" role="group" aria-label="App utilities"><div class="nav-appearance">${themeMarkup}</div></div>
   </div>
 </nav>
 <div class="app-workspace">
@@ -228,8 +233,10 @@ export const notesMarkup = String.raw`
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
 </div>
+${noteAttentionToolbarMarkup}
 <span class="workspace-brand" role="img" aria-label="jumpyBrain" title="jumpyBrain">${brainOutlineSvg}</span>
 </div>
+${noteAttentionMarkup}
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">
   <div class="dialog-head">
@@ -634,7 +641,10 @@ for (const id of ["home-new", "new-note"]) {
   $(id).setAttribute("aria-keyshortcuts", appleKeyboard ? "Meta+Enter" : "Control+Enter");
   $(id).title = "New note · " + newShortcut;
 }
-for (const id of ["home-search", "open-search"]) $(id).setAttribute("aria-keyshortcuts", appleKeyboard ? "Meta+K" : "Control+K");
+for (const id of ["home-search", "open-search"]) {
+  $(id).setAttribute("aria-keyshortcuts", appleKeyboard ? "Meta+K" : "Control+K");
+  $(id).title = "Search notes · " + shortcut;
+}
 const noteSearch = createNoteSearch({
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
@@ -974,6 +984,12 @@ const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   },
   href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
   navigate: (url) => { navigation.navigate(url); },
+  attentionScope: () => activeApiKey ? String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted") : null,
+  enabled: () => state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
+  writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()) && !documentActions.isBusy(),
+  fetchAttention: (signal) => graphJson("/memories/all/attention", { signal }),
+  onAttentionUpdated: () => noteAttention.sync(),
+  onAction: (action, page, anchor) => noteAttention.act(action, page, anchor),
 });
 window.addEventListener("popstate", (event) => {
   feedback.close(false);
@@ -1013,9 +1029,10 @@ function showPage(url) {
   if (connectionDialog.open) closeConnection();
   const target = new URL(url, location.origin);
   const documentId = target.searchParams.get("note");
-  sidebarPages.select(documentId);
+  $("note-attention-controls").hidden = true;
   if (typeof companionMode !== "undefined" && companionMode && state.view === "settings" && !/^\/settings\/?$/.test(target.pathname)) companionClearForm();
   state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
+  sidebarPages.select(documentId);
   document.body.dataset.view = state.view;
   if (state.view !== "graph") map.suspend();
   if (typeof companionMode !== "undefined" && companionMode) $("companion-settings").hidden = state.view !== "settings";
@@ -1040,7 +1057,7 @@ function showPage(url) {
     renderCompanionSettings();
     $("companion-heading").focus();
   } else if (state.view === "graph") {
-    if (!state.graph) loadGraph(); else queueGraphLayout(0, true);
+    if (!map.hasCurrentGraph()) loadGraph(); else queueGraphLayout(0, true);
     $("query").focus({ preventScroll: true });
   } else {
     $("home-new").focus();
@@ -1095,6 +1112,7 @@ async function showNote(documentId, focusEnd = false) {
       },
       onSaved: (payload) => {
         sidebarPages.rename({ id: documentId, title: editor.state.savedTitle });
+        sidebarPages.reloadAttention();
         recentWrites.remember({ id: documentId, title: editor.state.savedTitle, body: editor.state.savedBody, file: String(payload.file || $("note-file").textContent || "") });
         state.graph = null;
         noteSearch.markStale(); referenceAutocomplete.markStale();
@@ -1160,6 +1178,8 @@ function syncEditorUi(editorState) {
   const companionLocked = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
   const needsReview = editorState.saveStatus === "failed" && editorState.saveErrorCode === "precondition_failed";
   if (!state.editor || state.editor.state !== editorState) return;
+  noteAttention.sync();
+  sidebarPages.sync();
   if (typeof feedbackDiagnostics !== "undefined") {
     const marker = editorState.saveStatus + ":" + editorState.unconfirmedSave + ":" + editorState.saveErrorCode;
     if (state.lastDiagnosticSave !== marker) {
@@ -1244,7 +1264,8 @@ async function newNote() {
     if (!opened) throw new Error("navigation_blocked");
     noteCapture.complete();
     message.hidden = true;
-    $("new-note").textContent = "New note";
+    $("new-note").setAttribute("aria-label", "New note");
+    $("new-note").title = "New note · " + newShortcut;
   } catch (error) {
     message.dataset.error = "true";
     message.textContent = Number(error.status) === 401 || Number(error.status) === 403
@@ -1252,7 +1273,8 @@ async function newNote() {
       : error.message === "navigation_blocked"
         ? "Could not leave the current note. Retry any failed save, then try New note again."
         : "Could not confirm note creation. Check your connection and retry New note; the same request will be reused.";
-    $("new-note").textContent = "Retry new note";
+    $("new-note").setAttribute("aria-label", "Retry new note");
+    $("new-note").title = "Retry new note · " + newShortcut;
   } finally {
     creatingNote = false;
     for (const id of ["new-note", "home-new"]) $(id).disabled = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
@@ -1311,7 +1333,7 @@ $("search-refresh-index").addEventListener("click", async () => {
     if (revision === credentialRevision && searchDialog.open) noteSearch.state.feedback = "Index refresh could not be confirmed. Check the connection before trying again.";
   } finally { searchIndexRefreshing = false; if (searchDialog.open) renderNoteSearch(noteSearch.state); }
 });
-const documentActions = installDocumentActions({
+const lifecycleActions = installDocumentActions({
   document, editor: () => state.editor,
   writable: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()),
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
@@ -1326,6 +1348,21 @@ const documentActions = installDocumentActions({
     $("capture-message").hidden = false;
   },
 });
+const noteAttention = JumpyBrainBrowser.installNoteAttention({
+  document, editor: () => state.editor,
+  writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()),
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
+  blocked: () => lifecycleActions.isBusy() || lifecycleActions.isOpen() || navigation.isBusy() || creatingNote || searchDialog.open || connectionDialog.open || dreamDialog.open || feedback.isOpen(),
+  json: graphJson,
+  changed: () => sidebarPages.reloadAttention(),
+  onBusy: () => sidebarPages.sync(),
+});
+const documentActions = {
+  ...lifecycleActions,
+  close() { lifecycleActions.close(); noteAttention.close(); },
+  isOpen: () => lifecycleActions.isOpen() || noteAttention.isOpen(),
+  isBusy: () => lifecycleActions.isBusy() || noteAttention.isBusy(),
+};
 const externalUpdates = JumpyBrainBrowser.installExternalDocumentUpdates({
   onReadFailure: (details) => feedbackDiagnostics.event("external_refresh", { severity: "warn", outcome: "failed", code: details.timeout ? "timeout" : details.code || "network" }),
   document, editor: () => state.view === "note" ? state.editor : null,
@@ -1335,6 +1372,7 @@ const externalUpdates = JumpyBrainBrowser.installExternalDocumentUpdates({
   read: readGraphDocument,
   onUpdated: () => {
     sidebarPages.rename({ id: state.editor.state.documentId, title: state.editor.state.savedTitle });
+    sidebarPages.reloadAttention();
     state.graph = null;
     recentWrites.remove(state.editor.state.documentId);
     noteSearch.markStale(); referenceAutocomplete.markStale();

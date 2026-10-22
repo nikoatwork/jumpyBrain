@@ -12,6 +12,7 @@ import vm from "node:vm";
 import { graphMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback.js";
+import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 
 function pageScript() {
   return [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
@@ -301,14 +302,16 @@ function graphNoticeHarness() {
   };
   const context = vm.createContext({
     $: element, document: { createElement: () => ({ textContent: "" }) },
-    state: { graphToken: 0, view: "graph" }, window: {}, graphUrl: () => "/graph.json", render() {},
+    state: { graphToken: 0, view: "graph", layoutTimer: null }, window: {}, graphUrl: () => "/graph.json", render() {},
   });
   vm.runInContext(extractFunction(pageScript(), "setStatus"), context);
   context.state.view = "home"; // Notice/load tests do not need SVG layout.
   for (const id of ["query", "focus"]) element(id).value = "";
   Object.assign(context, createMapController({ state: context.state, element,
     document: context.document, window: context.window,
-    fetchGraph: url => context.graphJson(url), setStatus: (...args) => context.setStatus(...args),
+    fetchGraph: (url, signal) => context.graphJson(url, signal),
+    searchNotes: (query, signal) => context.searchNotes(query, signal),
+    setStatus: (...args) => context.setStatus(...args),
     onReady: ready => { context.window.__jumpyBrainGraphReady = ready; },
   }));
   return { context, element };
@@ -318,6 +321,81 @@ function noticePacket(overrides = {}) {
   return { nodes: [{ nodeKind: "document" }, { nodeKind: "document" }, { nodeKind: "unresolved" }], edges: [],
     stats: { documents: 1636 }, options: { limit: 3 }, warnings: ["Graph response was limited to 3 nodes."], ...overrides };
 }
+
+test("map search passes shared search matches to graph assembly without literal refiltering and preserves partial warnings", async () => {
+  const { context, element } = graphNoticeHarness();
+  element("query").value = "health";
+  const requests = [];
+  context.searchNotes = async (query, signal) => {
+    assert.equal(query, "health"); assert.equal(signal.aborted, false);
+    return { files: ["notes/sleep & exercise.md"], warnings: ["Search results may be incomplete."] };
+  };
+  context.graphJson = async (url, signal) => {
+    requests.push(new URL(url, "http://localhost")); assert.equal(signal.aborted, false);
+    return noticePacket({ warnings: [], nodes: [{ nodeKind: "document", file: "notes/sleep & exercise.md" }] });
+  };
+  await context.loadGraph();
+  assert.equal(context.hasCurrentGraph(), true);
+  assert.equal(requests[0].searchParams.has("query"), false);
+  assert.deepEqual(requests[0].searchParams.getAll("files"), ["", "notes/sleep & exercise.md"]);
+  assert.equal(context.state.graph.nodes.length, 1);
+  assert.deepEqual(element("graph-warnings").children.map(row => row.textContent), ["Search results may be incomplete."]);
+
+  context.searchNotes = async () => ({ files: [], warnings: [] });
+  await context.loadGraph();
+  assert.deepEqual(requests[1].searchParams.getAll("files"), [""]);
+  context.searchNotes = async () => { throw new Error("Search unavailable"); };
+  await context.loadGraph();
+  assert.equal(requests.length, 2, "failed search cannot fall back to a literal or unfiltered graph");
+  assert.equal(element("error").hidden, false);
+});
+
+test("superseded and suspended map searches are aborted and cannot fetch or publish late graphs", async () => {
+  const { context, element } = graphNoticeHarness();
+  element("query").value = "health";
+  const pending = deferred(); let signal; let calls = 0;
+  context.searchNotes = (_query, requestedSignal) => { signal = requestedSignal; return pending.promise; };
+  context.graphJson = async () => { calls++; return noticePacket(); };
+  const first = context.loadGraph();
+  element("query").value = "";
+  await context.loadGraph();
+  assert.equal(context.hasCurrentGraph(), true);
+  assert.equal(signal.aborted, true);
+  pending.resolve({ files: ["notes/old.md"], warnings: [] }); await first;
+  assert.equal(calls, 1, "late search must not start a graph request");
+  const second = deferred();
+  element("query").value = "sleep";
+  assert.equal(context.hasCurrentGraph(), false, "Back must refresh when the displayed packet belongs to older filters");
+  context.searchNotes = (_query, requestedSignal) => { signal = requestedSignal; return second.promise; };
+  const leaving = context.loadGraph();
+  context.suspend();
+  assert.equal(signal.aborted, true);
+  second.resolve({ files: [], warnings: [] }); await leaving;
+  assert.equal(calls, 1);
+});
+
+test("HTTP graph file selection applies before the node cap and empty selection returns no nodes", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-graph-search-"));
+  let server;
+  try {
+    await initializeMemoryRoot(root); await writeGraphFixture(root);
+    server = await startJumpyBrainHttpServer({ root, apiKeys: ["fixture"], port: 0, autoIndex: false });
+    const request = async params => {
+      const response = await fetch(server.url + "/memories/all/graph.json?" + params, { headers: { Authorization: "Bearer fixture" } });
+      assert.equal(response.status, 200); return response.json();
+    };
+    const unfiltered = await request("limit=1");
+    const file = ["pages/alpha.md", "notes/beta.md", "notes/gamma.md", "notes/orphan.md"].find(file => file !== unfiltered.nodes[0].file);
+    const selected = await request(new URLSearchParams({ limit: "1", files: file }));
+    assert.deepEqual(selected.nodes.map(node => node.file), [file]);
+    assert.equal(selected.stats.documents, 4);
+    const connected = await request(new URLSearchParams([["files", "pages/alpha.md"], ["files", "notes/beta.md"]]));
+    assert.equal(connected.nodes.length, 2); assert.equal(connected.edges.length, 2);
+    const empty = await request("files=");
+    assert.deepEqual(empty.nodes, []); assert.deepEqual(empty.edges, []);
+    assert.equal((await request("files=..%2Foutside.md")).nodes.length, 0);
+  } finally { if (server) await server.close(); await rm(root, { recursive: true, force: true }); }
+});
 
 test("map notice exposes global/shown note counts, server warnings and a narrowing hint without counting unresolved targets as notes", () => {
   const html = graphPageHtml("testnonce");
@@ -920,6 +998,7 @@ function mapFilterHarness() {
   const map = createMapController({ state, element, document: {},
     window: { addEventListener() {}, setTimeout: clock.setTimer, clearTimeout: clock.clearTimer },
     fetchGraph(url) { requests.push(new URL(url, "http://localhost")); const request = deferred(); pending.push(request); return request.promise; },
+    searchNotes: async () => ({ files: ["notes/body-match.md"], warnings: [] }),
     setStatus() {}, onReady() {},
   });
   map.connect();
@@ -968,8 +1047,9 @@ test("map typing waits for three characters, debounces, retains filters and refr
   h.clock.advance(249);
   assert.equal(h.requests.length, 0);
   h.clock.advance(1);
+  await Promise.resolve();
   assert.deepEqual(Object.fromEntries(h.requests[0].searchParams), {
-    query: "abcd", focus: "Selected note", includeUnresolved: "1", includeOrphans: "0",
+    files: "notes/body-match.md", focus: "Selected note", includeUnresolved: "1", includeOrphans: "0",
   });
   h.fire("query", "change");
   assert.equal(h.requests.length, 1, "blur should not repeat the automatic request");

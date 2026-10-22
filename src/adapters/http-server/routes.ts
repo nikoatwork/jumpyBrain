@@ -7,6 +7,7 @@ import { HTTP_MEMORY_ROUTES, decodeMemoryDocumentPath, decodeMemoryDreamBatchPat
 import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
 import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, previewServerMemoryDeletion, deleteServerMemoryDocument, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
+import { attentionServerMemory, patchServerMemoryAttention } from "../../app/server-memory/attention.js";
 import { compactSearchServerMemory } from "../../app/server-memory/compact.js";
 import { expandServerMemoryDocument } from "../../app/server-memory/expansion.js";
 import type { ExpansionOptions } from "../../core/canonical/expansion.js";
@@ -175,6 +176,16 @@ export async function routeRequest(context: { request: IncomingMessage; response
       // Configuration/root errors must not reach the outer diagnostic logger.
       writeJson(response, 500, errorResponse("resolve_title_failed", "Remote title lookup failed."));
     }
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.attention) {
+    if (request.method !== "GET") {
+      writeJson(response, 405, errorResponse("method_not_allowed", "Use GET for /memories/all/attention."));
+      return;
+    }
+    try { writeJson(response, 200, await attentionServerMemory({ root })); }
+    catch { writeJson(response, 500, errorResponse("attention_failed", "Remote attention notes failed.")); }
     return;
   }
 
@@ -348,6 +359,20 @@ export async function routeRequest(context: { request: IncomingMessage; response
       return;
     }
 
+    if (request.method === "PATCH") {
+      const ifMatch = ifMatchHeader(request);
+      if (!ifMatch) { writeJson(response, 428, errorResponse("precondition_required", "Attention changes require If-Match from a prior read.")); return; }
+      const mutation = await parseJsonBody(request);
+      if (isJsonError(mutation)) { writeJson(response, mutation.statusCode, mutation.body); return; }
+      try {
+        writeJson(response, 200, await enqueueWrite(() => patchServerMemoryAttention({ root, id, ifMatch, mutation })));
+      } catch (error) {
+        const mapped = documentUpdateErrorResponse(error);
+        writeJson(response, mapped.statusCode, mapped.body);
+      }
+      return;
+    }
+
     if (request.method === "PUT") {
       const ifMatch = ifMatchHeader(request);
       if (!ifMatch) {
@@ -399,7 +424,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       return;
     }
 
-    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET, PUT or DELETE for ${url.pathname}.`));
+    writeJson(response, 405, errorResponse("method_not_allowed", `Use GET, PUT, PATCH or DELETE for ${url.pathname}.`));
     return;
   }
 
@@ -788,6 +813,7 @@ function graphOptionsFromSearchParams(url: URL) {
   return {
     focus: stringSearchParam(url, "focus") || undefined,
     query: stringSearchParam(url, "query") || undefined,
+    files: url.searchParams.has("files") ? url.searchParams.getAll("files").filter(Boolean) : undefined,
     type: stringSearchParam(url, "type") || undefined,
     path: stringSearchParam(url, "path") || undefined,
     tags: stringListSearchParam(url, "tags"),

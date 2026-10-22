@@ -115,10 +115,10 @@ export function nativeCredentials(input = process.stdin, output = process.stdout
 }
 
 function allowedMemoryRoute(method, pathname) {
-  if (method === 'GET' && /^\/memories\/all\/(status|recent|overview|tree|graph\.json|dream\/window)$/.test(pathname)) return { write: false };
+  if (method === 'GET' && /^\/memories\/all\/(status|recent|attention|overview|tree|graph\.json|dream\/window)$/.test(pathname)) return { write: false };
   if (method === 'POST' && /^\/memories\/all\/(search|recall|recall\/compact|expand|resolve-title)$/.test(pathname)) return { write: false };
   if (method === 'GET' && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: false };
-  if (['PUT', 'DELETE'].includes(method) && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: true };
+  if (['PUT', 'PATCH', 'DELETE'].includes(method) && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: true };
   if (method === 'POST' && /^\/memories\/all\/(notes|index)$/.test(pathname)) return { write: true };
   return null;
 }
@@ -411,7 +411,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       try {
         const profile = active();
         if (policy.write && !profile?.allowWrites) failure('write_not_authorized', 'This brain is read only. Explicit editing approval is required in Settings.', 403);
-        const body = ['POST','PUT','DELETE'].includes(request.method) ? await bytes(request, MAX_BODY) : undefined;
+        const body = ['POST','PUT','PATCH','DELETE'].includes(request.method) ? await bytes(request, MAX_BODY) : undefined;
         const headers = {};
         for (const name of ['content-type','if-match','idempotency-key']) if (request.headers[name]) headers[name] = request.headers[name];
         headers['X-JumpyBrain-Request'] = requestId;

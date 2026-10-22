@@ -10,6 +10,9 @@
 - Keep Markdown memory files canonical and treat indexes, caches, and SQLite/QMD state as rebuildable derived data.
 - Provide the import surface that application/runtime code can depend on without choosing a retrieval backend.
 
+- `attention.ts` owns explicit `attention_at` policy: absent follows valid edit/creation recency, timezone-explicit timestamp snoozes until due, and bare YAML `null` settles. Quoted `"null"` remains a string and invalid overrides fall back to normal recency with a safe list warning. It also validates strict settle/snooze/reactivate intent and patches only header lines.
+- Frontmatter scalar values support explicit bare `null`; existing string/date/ID/array consumers retain their type guards and nullish fallbacks. Ordinary body/title merges retain an omitted `attention_at`; explicitly submitted values remain editable. Reactivation removes the field through the guarded attention operation.
+
 ## Non-responsibilities
 
 - Do not export QMD-backed indexing, search, recall, processing operations, app-level write/dream workflows, or app/transport-specific result types through the core barrel.

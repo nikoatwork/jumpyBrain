@@ -1,4 +1,4 @@
-export type FrontmatterValue = string | number | boolean | string[];
+export type FrontmatterValue = string | number | boolean | string[] | null;
 
 export type Frontmatter = Record<string, FrontmatterValue>;
 
@@ -163,6 +163,8 @@ export interface MemoryGraphOptions {
   type?: string;
   path?: string;
   query?: string;
+  /** Exact root-relative graph files; an empty list selects no nodes. */
+  files?: string[];
   includeUnresolved?: boolean;
   includeOrphans?: boolean;
   limit?: number;

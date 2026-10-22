@@ -19,6 +19,7 @@ const palettes = {
   dark: { surface: "rgb(28, 27, 25)", control: "rgb(37, 36, 34)", hover: "rgb(46, 45, 42)", ink: "rgb(216, 208, 192)" },
 };
 async function assertPalette(page, theme) {
+  await page.mouse.move(0, 0); // Compare resting palette, even immediately after toggling the icon.
   await page.waitForFunction((theme) => document.documentElement.dataset.theme === theme, theme);
   const palette = palettes[theme];
   for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "#note-editor", "#note-name", "#note-search", "#connection", "#dream-handoff", "#dream-preview"]) {
@@ -29,6 +30,27 @@ async function assertPalette(page, theme) {
   }
   assert.equal(await page.locator("body").evaluate((el) => getComputedStyle(el).color), palette.ink);
   assert.equal(await page.locator("html").evaluate((el) => getComputedStyle(el).colorScheme), theme);
+  const roles = await page.locator("#notes-link, #graph-link, #open-connection, #open-feedback").evaluateAll((elements) => elements.map((element) => {
+    const style = getComputedStyle(element);
+    return { family: style.fontFamily, size: style.fontSize, weight: style.fontWeight, leading: style.lineHeight };
+  }));
+  for (const role of roles) assert.deepEqual(role, roles[0], "ordinary sidebar destinations share one typography role");
+  assert.equal(roles[0].weight, "400");
+  assert.equal(roles[0].size, "13px");
+  assert.equal(await page.locator("#sidebar-pinned-empty").count(), 0, "Pinned has no helper text");
+  for (const [selector, name] of [["#new-note", "New note"], ["#open-search", "Search notes"]]) {
+    assert.equal(await page.locator(selector).getAttribute("aria-label"), name);
+    assert.equal(await page.locator(selector).innerText(), "", "compact note actions contain only icons");
+    assert.equal(await page.locator(selector + " svg").count(), 1);
+  }
+  const create = await page.locator("#new-note").boundingBox(), search = await page.locator("#open-search").boundingBox();
+  assert.equal(create.y, search.y, "Search and New note occupy one row");
+  assert.ok(create.x + create.width <= search.x, "icon targets do not overlap");
+  const themeAction = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
+  assert.equal(await page.locator("#color-theme").getAttribute("aria-label"), themeAction);
+  assert.equal(await page.locator("#color-theme .theme-sun").isVisible(), theme === "dark");
+  assert.equal(await page.locator("#color-theme .theme-moon").isVisible(), theme === "light");
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "navigation fits viewport");
 }
 try {
   await initializeMemoryRoot(root);
@@ -37,7 +59,7 @@ try {
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
   const chromium = await loadPlaywrightChromium();
   browser = await launchPlaywrightChromium({ chromium });
-  for (const width of [1280, 390]) {
+  for (const width of [1280, 390, 320]) {
     for (const scheme of ["light", "dark"]) {
       const context = await browser.newContext({ viewport: { width, height: 850 }, colorScheme: scheme });
       const page = await context.newPage();
@@ -48,20 +70,22 @@ try {
       const opposite = scheme === "dark" ? "light" : "dark";
       await page.emulateMedia({ colorScheme: opposite });
       await assertPalette(page, opposite);
-      await page.locator("#color-theme").selectOption(scheme);
+      await page.locator("#color-theme").click();
       await assertPalette(page, scheme);
       await page.reload();
       await assertPalette(page, scheme);
-      assert.equal(await page.locator("#color-theme").inputValue(), scheme);
+      assert.equal(await page.locator("html").getAttribute("data-theme-preference"), scheme);
       // The preference synchronizes across tabs, including returning to System.
       const second = await context.newPage();
       await second.goto(server.url);
-      await second.locator("#color-theme").selectOption(opposite);
+      await second.locator("#color-theme").click();
       await assertPalette(page, opposite);
-      await second.locator("#color-theme").selectOption("system");
-      await page.waitForFunction(() => document.querySelector("#color-theme").value === "system");
+      await second.evaluate(() => localStorage.removeItem("jumpybrain.theme"));
+      await page.waitForFunction(() => document.documentElement.dataset.themePreference === "system");
       await second.close();
       await assertPalette(page, opposite);
+      await page.locator("#color-theme").focus();
+      assert.equal(await page.locator("#color-theme").evaluate((el) => getComputedStyle(el).outlineStyle), "solid");
       await page.locator("#home-new").focus();
       assert.equal(await page.locator("#home-new").evaluate((el) => getComputedStyle(el).outlineStyle), "solid");
       assert.ok(await page.locator("#color-theme").evaluate((el) => el.getBoundingClientRect().right <= innerWidth), "theme control fits narrow navigation");
@@ -102,7 +126,7 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(server.url);
   await assertPalette(page, "dark");
-  await page.locator("#color-theme").selectOption("light");
+  await page.locator("#color-theme").click();
   await assertPalette(page, "light");
   await context.close();
   assert.deepEqual(errors, []);

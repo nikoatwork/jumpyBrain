@@ -12,6 +12,7 @@ import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-r
 const rawUrl = process.env.JUMPYBRAIN_GRAPH_SMOKE_URL;
 const apiKey = process.env.JUMPYBRAIN_GRAPH_SMOKE_API_KEY;
 const expectedNodeId = process.env.JUMPYBRAIN_GRAPH_SMOKE_NODE_ID;
+const bodyQuery = process.env.JUMPYBRAIN_GRAPH_SMOKE_BODY_QUERY;
 const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
 
 if (!rawUrl || !apiKey) {
@@ -88,14 +89,18 @@ async function validateGraph(width) {
     await query.fill(prefix.slice(0, 2));
     await page.waitForTimeout(350);
     assert.equal(requests.length, 0, "two characters should not trigger live filtering");
-    const filtered = page.waitForResponse((response) => new URL(response.url()).searchParams.get("query") === prefix);
+    const searchResponse = page.waitForResponse((response) => response.url().endsWith("/memories/all/search") && response.request().postDataJSON()?.query === prefix);
+    const filtered = page.waitForResponse((response) => response.url().includes("/graph.json?") && new URL(response.url()).searchParams.has("files"));
     await query.fill(prefix);
+    const searchPacket = await (await searchResponse).json();
     const filteredPacket = await (await filtered).json();
+    const expectedFiles = await page.evaluate(results => normalizeNoteResults(results).map(hit => hit.file).filter(Boolean), searchPacket.results);
+    assert.deepEqual(filteredPacket.nodes.map(node => node.file).sort(), [...expectedFiles].sort(), "graph uses the same normalized search matches");
     const expectedIds = filteredPacket.nodes.map(node => node.id).sort();
     await page.waitForFunction((ids) => JSON.stringify([...document.querySelectorAll('[data-testid="graph-node"]')]
       .map(node => node.dataset.nodeId).sort()) === JSON.stringify(ids), expectedIds);
     assert.equal(await query.evaluate(input => document.activeElement === input), true, "typing should retain field focus");
-    const cleared = page.waitForResponse((response) => response.url().includes("/graph.json?") && !new URL(response.url()).searchParams.has("query"));
+    const cleared = page.waitForResponse((response) => response.url().includes("/graph.json?") && !new URL(response.url()).searchParams.has("files"));
     await query.fill("");
     await cleared;
     await page.getByTestId("graph-ready").waitFor({ state: "visible" });
@@ -103,6 +108,18 @@ async function validateGraph(width) {
     page.off("request", recordGraph);
   }
   console.log("  ok - live graph filter from the third character, focus retention and clear");
+  if (bodyQuery) {
+    assert.ok(!String(selectedNode.title).toLowerCase().includes(bodyQuery.toLowerCase()), "query must be absent from the note title");
+    const searched = page.waitForResponse(response => response.url().includes("/graph.json?") && new URL(response.url()).searchParams.has("files"));
+    await query.fill(bodyQuery); await query.press("Enter");
+    const packet = await (await searched).json();
+    assert.ok(packet.nodes.some(node => node.id === selectedNode.id), "shared search must find the body-only note on the map");
+    await page.getByTestId("graph-ready").waitFor({ state: "visible" });
+    const cleared = page.waitForResponse(response => response.url().includes("/graph.json?") && !new URL(response.url()).searchParams.has("files"));
+    await query.fill(""); await query.press("Enter"); await cleared;
+    await page.getByTestId("graph-ready").waitFor({ state: "visible" });
+    console.log("  ok - body-only query finds the same note through shared app search");
+  }
   assert.equal(await page.locator("#depth").count(), 0);
   await page.locator("#graph-filters summary").click();
   const options = await page.locator(".map-options").boundingBox();

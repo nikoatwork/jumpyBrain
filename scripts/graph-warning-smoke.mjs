@@ -1,11 +1,11 @@
 // Production HTTP graph + browser shell, with 501 disposable Markdown notes.
-// No QMD/index build, installed app, personal memory, or CLI configuration needed.
+// Uses an isolated lexical index; no installed app, personal memory or CLI configuration changes.
 // npm run build && npx --package=playwright node scripts/graph-warning-smoke.mjs
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { initializeMemoryRoot } from "../dist/runtime/index.js";
+import { indexMemory, initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 
@@ -16,6 +16,7 @@ try {
   await initializeMemoryRoot(root);
   await Promise.all(Array.from({ length: 501 }, (_, index) => writeFile(path.join(root, "notes", `fixture-${String(index).padStart(3, "0")}.md`),
     `---\ntitle: "${index < 3 ? "Narrow" : "Synthetic"} fixture ${index}"\ntype: "note"\n---\n\nDisposable graph warning fixture.\n`)));
+  await indexMemory(root, { indexing: { mode: "lexical" } });
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
   const chromium = await loadPlaywrightChromium();
   browser = await launchPlaywrightChromium({ chromium });
@@ -71,10 +72,12 @@ try {
       assert.doesNotMatch(await page.locator("#graph-notice").innerText(), /matching notes|omitted notes/);
       await visibleNotice(page, width);
       await page.locator("#graph-filters summary").click();
-      assert.equal(await page.locator("#focus").evaluate((input) => {
+      const focusHit = await page.locator("#focus").evaluate((input) => {
         const rect = input.getBoundingClientRect();
-        return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === input;
-      }), true, "persistent notices must not cover the filters panel");
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        return { visible: hit === input, rect: rect.toJSON(), hit: hit?.tagName, viewport: innerHeight };
+      });
+      assert.equal(focusHit.visible, true, "persistent notices must not cover the filters panel: " + JSON.stringify(focusHit));
       await page.keyboard.press("Escape");
 
       let resolve;

@@ -1,8 +1,9 @@
 import { BrowserWindow, dialog, Menu, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
+import { mountInlineUpdates, nativeUpdateAction } from './update-inline.mjs';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 
-export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, openUpdates } = {}) {
+export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, updater } = {}) {
   const window = new BrowserWindow({
     title: 'jumpyBrain', icon: fileURLToPath(new URL('./assets/app-icon.png', import.meta.url)), width: 1200, height: 860, minWidth: 480, minHeight: 480,
     show: false, backgroundColor: '#f7f4ed',
@@ -17,16 +18,22 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   contents.on('render-process-gone', (_event, details) => record(details.reason, { exitCode: details.exitCode }));
   contents.on('unresponsive', () => record('unresponsive'));
   contents.on('did-fail-load', (_event, _code, _description, _url, isMainFrame) => { if (isMainFrame) record('load_failed'); });
-  contents.on('did-finish-load', () => {
-    void diagnostics?.checkRenderer(contents);
-    if (openUpdates && isAppNavigation(contents.getURL(), origin)) void contents.executeJavaScript(`(() => {
-      const parent = document.querySelector('.nav-preferences');
-      if (!parent || document.getElementById('desktop-updates')) return;
-      const button = document.createElement('button'); button.id = 'desktop-updates';
-      button.className = 'quiet-button nav-item'; button.textContent = 'Updates'; button.setAttribute('aria-haspopup', 'dialog');
-      button.addEventListener('click', () => { location.href = 'jumpybrain-update://open'; }); parent.append(button);
-    })()`);
-  });
+  let updatePolling = false, updateActing = false, updateGeneration = 0;
+  async function publishUpdate() {
+    if (!updater || updatePolling || updateActing || contents.isDestroyed() || !isAppNavigation(contents.getURL(), origin)) return;
+    updatePolling = true;
+    const generation = updateGeneration;
+    try {
+      const state = await updater.snapshot();
+      if (generation === updateGeneration && !updateActing && !contents.isDestroyed() && isAppNavigation(contents.getURL(), origin)) {
+        await contents.executeJavaScript(`(${mountInlineUpdates.toString()})(); document.dispatchEvent(new CustomEvent('jumpybrain-update-state', { detail: ${JSON.stringify(state).replaceAll('<', '\\u003c')} }));`);
+      }
+    } catch { /* Navigation/destruction is allowed while preparing. */ }
+    finally { updatePolling = false; }
+  }
+  contents.on('did-finish-load', () => { void diagnostics?.checkRenderer(contents); void publishUpdate(); });
+  const updateTimer = updater ? setInterval(publishUpdate, 1000) : null;
+  contents.once('destroyed', () => clearInterval(updateTimer));
   const session = contents.session;
   // The UI is served entirely by the installed gateway. It needs no external
   // network access, Node bridge, preload script, or remote frames. The only
@@ -53,8 +60,20 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   contents.once('destroyed', () => session.removeListener('will-download', onDownload));
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
   contents.on('will-navigate', (event, url) => {
-    if (url === 'jumpybrain-update://open' && openUpdates && isAppNavigation(contents.getURL(), origin)) {
-      event.preventDefault(); openUpdates(); return;
+    const action = nativeUpdateAction(url);
+    if (action && updater && isAppNavigation(contents.getURL(), origin)) {
+      event.preventDefault();
+      if (updateActing) return;
+      updateActing = true; updateGeneration++;
+      void (async () => {
+        try {
+          const current = await updater.snapshot();
+          if (!current.actions?.includes(action)) return;
+          if (action === 'log') { const file = updater.logPath(); if (file) shell.showItemInFolder(file); }
+          else await updater.action(action);
+        } finally { updateActing = false; void publishUpdate(); }
+      })().catch(() => {});
+      return;
     }
     if (isFeedbackMailto(url) && isAppNavigation(contents.getURL(), origin)) {
       event.preventDefault();
@@ -67,7 +86,7 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     if (!isAppNavigation(url, origin)) event.preventDefault();
   });
   contents.on('will-frame-navigate', (event) => {
-    if (!event.isMainFrame || (!isAppNavigation(event.url, origin) && !isFeedbackMailto(event.url) && !(openUpdates && event.url === 'jumpybrain-update://open'))) event.preventDefault();
+    if (!event.isMainFrame || (!isAppNavigation(event.url, origin) && !isFeedbackMailto(event.url) && !(updater && nativeUpdateAction(event.url)))) event.preventDefault();
   });
   contents.on('will-redirect', (event) => event.preventDefault());
   contents.on('will-attach-webview', (event) => event.preventDefault());
@@ -94,7 +113,7 @@ export function setApplicationMenu({ app, getWindow, reconnect, settings, update
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'jumpyBrain', submenu: [
       { label: 'About jumpyBrain', click: () => app.showAboutPanel() },
-      ...(updates ? [{ label: 'Update jumpyBrain…', click: updates }] : []),
+      ...(updates ? [{ label: 'Check for updates…', click: updates }] : []),
       { type: 'separator' },
       { label: 'Settings…', accelerator: 'CommandOrControl+,', click: () => {
         if (settings) { settings(); return; }

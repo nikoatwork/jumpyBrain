@@ -10,6 +10,7 @@ import { createOnboardingWindow } from './onboarding.mjs';
 import { setupComplete, finishSetup } from './setup.mjs';
 import { createDesktopUpdater } from './updater.mjs';
 import { createUpdateWindow } from './update-window.mjs';
+import { serveDesktopUpdates } from './update-control.mjs';
 
 export function startDesktopApplication({ resourceDirectory, userData, background = process.argv.includes('--background'), updaterOptions = {} } = {}) {
 app.setName('jumpyBrain');
@@ -18,18 +19,24 @@ app.setAboutPanelOptions({ applicationName: 'jumpyBrain', applicationVersion: ap
 app.setPath('userData', userData ?? path.join(app.getPath('appData'), 'jumpyBrain Electron Prototype'));
 let window = null, opening = false, host = null, starting = null, config = null;
 let startupError = null;
-let diagnostics = null, tray = null, healthTimer = null, polling = false;
+let diagnostics = null, tray = null, healthTimer = null, polling = false, closeUpdateControl = null;
 let quitting = false, quitReady = false, status = 'Starting…';
 const resources = resourceDirectory ?? (app.isPackaged ? process.resourcesPath : fileURLToPath(new URL('../../.local-pack/desktop/jumpyBrain.app/Contents/Resources', import.meta.url)));
 const updater = createDesktopUpdater({ resources, appVersion: app.getVersion(), ...updaterOptions, onRestart: () => app.quit() });
 const updateInstance = process.env.JUMPYBRAIN_UPDATE_INSTANCE;
 delete process.env.JUMPYBRAIN_UPDATE_INSTANCE;
 let updateWindow = null;
-function openUpdates() {
+function openRecovery() {
   if (quitting) return;
   if (updateWindow && !updateWindow.isDestroyed()) { updateWindow.show(); updateWindow.focus(); return; }
   updateWindow = createUpdateWindow(updater);
   updateWindow.once('closed', () => { updateWindow = null; });
+}
+async function openUpdates() {
+  if (quitting) return;
+  if (await updater.blocksStartup(updateInstance)) { openRecovery(); return; }
+  await openEditor();
+  await updater.action('check');
 }
 process.on('uncaughtExceptionMonitor', () => { diagnostics?.record({ operation: 'exception', severity: 'error', outcome: 'failed', code: 'error' }); void diagnostics?.flush(); });
 
@@ -70,7 +77,7 @@ async function openEditor(settings = false) {
       await welcome.loaded;
       if (!await welcome.completed || quitting) return;
     }
-    const editor = createEditorWindow(connection, { diagnostics, openUpdates });
+    const editor = createEditorWindow(connection, { diagnostics, updater });
     window = editor.window;
     window.on('closed', () => { if (window === editor.window) window = null; });
     await editor.loaded;
@@ -98,12 +105,16 @@ async function refreshTray() {
     { type: 'separator' },
     { label: 'Start at Login', type: 'checkbox', checked: login, enabled: !!config && app.isPackaged && !quitting,
       click: (item) => void setLoginEnabled(config.launchAgent, process.execPath, item.checked).then(refreshTray).catch(showError) },
-    { label: 'Update jumpyBrain…', enabled: !quitting, click: openUpdates },
+    { label: 'Check for updates…', enabled: !quitting, click: openUpdates },
     { label: 'Show Logs', enabled: !!config, click: () => shell.showItemInFolder(path.join(config.supportDirectory, 'server.log')) },
     { type: 'separator' }, { label: 'Quit jumpyBrain', enabled: !quitting, click: () => app.quit() },
   ]));
 }
-const showError = (error) => dialog.showMessageBox({ type: 'warning', message: 'jumpyBrain is still running', detail: error.message });
+const showError = async (error) => {
+  await updater.reportRestartFailure(error.message);
+  if ((await updater.snapshot()).phase === 'ready' && window && !window.isDestroyed()) return;
+  return dialog.showMessageBox({ type: 'warning', message: 'jumpyBrain is still running', detail: error.message });
+};
 
 const quit = createQuitFlow({
   getHost: () => host, control: desktopControl,
@@ -120,7 +131,7 @@ const quit = createQuitFlow({
   cancelClose: async () => { try { await updater.cancelRestart(); } finally { quitting = false; void refreshTray(); } },
   beforeStop: () => updater.beforeStop(),
   flush: async () => { diagnostics?.record({ operation: 'shutdown', severity: 'info', outcome: 'ok', code: 'none' }); await diagnostics?.flush(); },
-  exit: () => { clearInterval(healthTimer); tray?.destroy(); quitReady = true; app.quit(); }, showError,
+  exit: () => { void closeUpdateControl?.(); clearInterval(healthTimer); tray?.destroy(); quitReady = true; app.quit(); }, showError,
 });
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -136,11 +147,20 @@ else {
   app.on('second-instance', (_event, argv) => { if (!argv.includes('--background')) void openEditor(); });
   app.on('activate', () => { if (app.isReady()) void openEditor(); });
   app.whenReady().then(async () => {
+    // The closed-app CLI operation owns installation. Do not start a service or
+    // acquire the app lock while it builds; its verified launch reopens us.
+    if (!updateInstance && await updater.cliPreparationPending()) { app.exit(0); return; }
     const icon = nativeImage.createFromPath(path.join(resources, 'MenuBarBrain.png')).resize({ width: 18, height: 18 });
     icon.setTemplateImage(true); tray = new Tray(icon);
     setApplicationMenu({ app, getWindow: () => window, reconnect: () => void openEditor(), settings: () => void openEditor(true), updates: openUpdates });
     await refreshTray();
-    if (await updater.blocksStartup(updateInstance)) { openUpdates(); return; }
+    closeUpdateControl = await serveDesktopUpdates(updaterOptions.home ?? app.getPath('home'), updater);
+    if (await updater.blocksStartup(updateInstance)) { openRecovery(); return; }
+    // Discovery is observational. Preparation always waits for an explicit
+    // sidebar download action or the supported CLI update command.
+    void updater.snapshot().then(state => {
+      if (['idle', 'current', 'canceled'].includes(state.phase)) return updater.action('check');
+    }).catch(() => {});
     healthTimer = setInterval(async () => {
       if (polling || quitting || !host?.isAlive()) return;
       polling = true;

@@ -347,3 +347,5 @@ export async function deleteServerMemoryDocument(options: { root: string; id: st
   catch { return { ...result, root: "remote:all" as const, target: "remote" as const, memory: "all" as const,
     indexing: { status: "failed" as const, diagnostic: "Note removed. Index bookkeeping failed; refresh the index." } }; }
 }
+
+export { attentionServerMemory, patchServerMemoryAttention, type RemoteMemoryAttentionNote, type RemoteMemoryAttentionPacket } from "./attention.js";

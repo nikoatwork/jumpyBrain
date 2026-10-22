@@ -23,7 +23,8 @@ interface MapElements {
 export interface MapControllerOptions {
   state: MapState; element<K extends keyof MapElements>(id: K): MapElements[K];
   document: Document; window: Window;
-  fetchGraph(url: string): Promise<MemoryGraphResult>;
+  fetchGraph(url: string, signal: AbortSignal): Promise<MemoryGraphResult>;
+  searchNotes(query: string, signal: AbortSignal): Promise<{ files: string[]; warnings: string[] }>;
   setStatus(text: string, isError?: boolean, errorText?: string): void;
   onReady(ready: boolean): void; openNode(node: MemoryGraphNode): void;
 }
@@ -31,6 +32,14 @@ export function createMapController(options: MapControllerOptions) {
   const { state, element: $, document, window } = options;
   let filterTimer: number | null = null;
   let requestedUrl: string | null = null;
+  let loadedUrl: string | null = null;
+  let request: AbortController | null = null;
+  function cancelRequest() {
+    state.graphToken++;
+    request?.abort();
+    request = null;
+    $("reload").disabled = false;
+  }
   function cancelFilterTimer() {
     if (filterTimer !== null) window.clearTimeout(filterTimer);
     filterTimer = null;
@@ -38,6 +47,8 @@ export function createMapController(options: MapControllerOptions) {
 
   function queueFilter(input: HTMLInputElement) {
     cancelFilterTimer();
+    cancelRequest();
+    requestedUrl = null;
     const length = Array.from(input.value.trim()).length;
     if (length > 0 && length < 3) return;
     filterTimer = window.setTimeout(() => {
@@ -85,16 +96,33 @@ export function createMapController(options: MapControllerOptions) {
 
   async function loadGraph() {
     cancelFilterTimer();
+    cancelRequest();
     requestedUrl = graphUrl();
     const token = ++state.graphToken;
+    const controller = new AbortController();
+    request = controller;
     renderGraphNotice(null);
     options.setStatus("loading");
     $("ready").hidden = true;
     $("reload").disabled = true;
     try {
-      const payload = await options.fetchGraph(requestedUrl);
+      const params = new URLSearchParams(requestedUrl.split("?")[1]);
+      const query = params.get("query");
+      let warnings: string[] = [];
+      if (query) {
+        const matches = await options.searchNotes(query, controller.signal);
+        if (token !== state.graphToken) return;
+        params.delete("query");
+        // Keep an explicit empty list: no search hits must never mean the whole map.
+        params.set("files", "");
+        for (const file of matches.files) params.append("files", file);
+        warnings = matches.warnings;
+      }
+      const payload = await options.fetchGraph(HTTP_MEMORY_ROUTES.graphJson + "?" + params, controller.signal);
       if (token !== state.graphToken) return;
+      if (warnings.length) payload.warnings = [...(payload.warnings ?? []), ...warnings];
       state.graph = payload;
+      loadedUrl = requestedUrl;
       renderGraphNotice(payload);
       options.setStatus("loaded");
       if (state.view === "graph") render(payload);
@@ -107,7 +135,7 @@ export function createMapController(options: MapControllerOptions) {
       options.setStatus("error", true, String(message || error));
       options.onReady(false);
     } finally {
-      if (token === state.graphToken) $("reload").disabled = false;
+      if (token === state.graphToken) { request = null; $("reload").disabled = false; }
     }
   }
 
@@ -244,6 +272,7 @@ export function createMapController(options: MapControllerOptions) {
 
   function suspend() {
     cancelFilterTimer();
+    cancelRequest();
     if (state.layoutTimer !== null) window.clearTimeout(state.layoutTimer);
     state.layoutTimer = null;
     state.dragging = null;
@@ -288,7 +317,7 @@ export function createMapController(options: MapControllerOptions) {
   for (const id of ["query", "focus"] as const) {
     const input = $(id);
     let composing = false;
-    input.addEventListener("compositionstart", () => { composing = true; cancelFilterTimer(); });
+    input.addEventListener("compositionstart", () => { composing = true; cancelFilterTimer(); cancelRequest(); requestedUrl = null; });
     input.addEventListener("compositionend", () => { composing = false; queueFilter(input); });
     input.addEventListener("input", (event) => {
       if (!composing && !(event as InputEvent).isComposing) queueFilter(input);
@@ -310,5 +339,6 @@ export function createMapController(options: MapControllerOptions) {
   $("reset-view").addEventListener("click", () => { state.pan = { x: 0, y: 0 }; state.scale = 1; updateViewport(); });
   window.addEventListener("resize", () => queueGraphLayout(80));
   }
-  return { graphUrl, loadGraph, renderGraphNotice, render, focusGraphNode, queueGraphLayout, suspend, zoomGraph, onGraphWheel, updateViewport, connect };
+  function hasCurrentGraph() { return Boolean(state.graph) && loadedUrl === graphUrl(); }
+  return { graphUrl, loadGraph, hasCurrentGraph, renderGraphNotice, render, focusGraphNode, queueGraphLayout, suspend, zoomGraph, onGraphWheel, updateViewport, connect };
 }

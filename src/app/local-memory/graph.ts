@@ -129,7 +129,10 @@ function filterGraph(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[], options
     filteredEdges = filteredEdges.filter((edge) => !unresolved.has(edge.source) && !unresolved.has(edge.target));
   }
 
-  nodeIds = new Set(nodes.filter((node) => nodeIds.has(node.id) && nodeMatchesFilters(node, options)).map((node) => node.id));
+  const files = options.files === undefined ? undefined : new Set(options.files);
+  nodeIds = new Set(nodes.filter((node) => nodeIds.has(node.id)
+    && (!files || (node.file !== undefined && files.has(node.file)))
+    && nodeMatchesFilters(node, options)).map((node) => node.id));
   filteredEdges = filteredEdges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
 
   if (options.focus) {

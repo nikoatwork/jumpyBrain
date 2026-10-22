@@ -166,15 +166,15 @@ This is an advisory client-side guard against accidental writes, not authorizati
 
 ## Update
 
-For the Mac app, open **Updates** in the sidebar or **Update jumpyBrain…** in its native menu. Check the installed/available versions and release notes, choose **Prepare update**, then **Restart and install** when ready. Preparation runs in the background; **Restart later** keeps the editor usable. All registered editor tabs must confirm their saves before replacement.
+For the Mac app, click the sidebar’s **Download update** icon when a release is available. Keep editing while it prepares; the icon becomes **Relaunch to apply update** when ready. Preparation is not installation: leaving it ready defers replacement, and all registered editor tabs must confirm their saves before relaunch. **Check for updates…** in the native menu checks manually without opening a popup. Inline details show exceptions, progress and recovery actions; verified success follows actual installation and startup.
 
 GUI updates download one published GitHub release (including 0.x beta releases), verify its SHA-256 digest, and build the app locally. They update the bundled runtime and the default managed CLI together. A custom, pinned, missing, or unowned CLI receives an explicit **Update app only** choice. Its source/ref and files remain unchanged. GUI updates never downgrade a newer managed CLI, change targets, rewrite agent integrations, index memory, or update hosted servers.
 
-This supports `~/Applications/jumpyBrain.app` on macOS 13+, with Node 22.12+, npm, Python 3.9+, Xcode Command Line Tools, working external QMD, and at least 3 GB free. It needs no checkout or GitHub login after initial setup. Builds are locally signed, not publicly signed/notarized. Older apps without the Updates screen need one source setup to obtain this capability. The next release must contain the desktop updater resources; incomplete releases fail before installation.
+This supports `~/Applications/jumpyBrain.app` on macOS 13+, with Node 22.12+, npm, Python 3.9+, Xcode Command Line Tools, working external QMD, and at least 3 GB free. It needs no checkout or GitHub login after initial setup. Builds are locally signed, not publicly signed/notarized. Older apps without the shared updater need one source setup (`npm run desktop:setup`, after quitting the app) to obtain this capability. This bootstrap is separate from normal future updates. The next release must contain the desktop updater resources; incomplete releases fail before installation.
 
-Failures appear in Updates with a private log. An interrupted replacement offers **Recover previous installation**, then a safe restart. Previous components and journals remain under `~/Library/Application Support/jumpyBrain Updates`; keep them until the update is verified. Unknown installer locks require repair rather than automatic deletion. See the [Mac app guide](../integrations/electron/README.md#gui-updates-and-recovery).
+Failures appear inline with retry and a private log in Update details. An interrupted replacement offers **Recover previous installation**, then a safe restart. Previous components and journals remain under `~/Library/Application Support/jumpyBrain Updates`; keep them until the update is verified. Unknown installer locks require repair rather than automatic deletion. See the [Mac app guide](../integrations/electron/README.md#gui-updates-and-recovery).
 
-CLI-only users and developers can still update independently:
+The CLI uses the same paired operation for an existing standard Mac installation:
 
 ```bash
 ~/.jumpybrain/bin/jumpybrain update
@@ -186,11 +186,13 @@ Preview the update without writing files:
 ~/.jumpybrain/bin/jumpybrain update --dry-run
 ```
 
-CLI updates use the source/ref recorded in `~/.jumpybrain/install-manifest.json`—normally GitHub `master`. The CLI detects custom install locations; use `--install-root <path>` to select another. Rerunning the public installer follows the same update path, without reinitializing memory or rewriting agent integrations.
+With the Mac app running (including window-closed/menu-bar mode), the CLI prepares through that app and reports **Prepared; restart needed**, never installed success. Use **Relaunch to apply update** in the app when ready. With the app quit, the CLI prepares and installs both components, reopens the app, and waits for verified startup and matching versions. Both entry points select the same immutable published release asset and digest.
+
+CLI-only installations retain the source/ref recorded in `~/.jumpybrain/install-manifest.json`—normally GitHub `master`—and remain CLI-only. The CLI detects custom install locations; use `--install-root <path>` to select another. A paired Mac installation with a custom/pinned/unowned CLI or explicit source/ref override stops with guidance; use the app’s explicit **Update app only** exception to preserve that policy, or keep developer CLI work in a separate CLI-only installation. Rerunning the public installer remains the source-based installer workflow; use `jumpybrain update` for coordinated unified Mac updates.
 
 **Older standalone companion installs:** their CLI updater retains legacy shared-runtime support. Migrate to the unified Mac app with `npm run desktop:setup` after quitting the old apps; see the [migration guide](../integrations/electron/README.md#migration-from-the-two-app-beta).
 
-For intentional version changes, pass `--ref <ref>` or set `JUMPYBRAIN_INSTALL_REF`. The downloaded bootstrap uses current `master` independently; `JUMPYBRAIN_INSTALLER_REF` overrides its version. Source/development checkouts instead use `git pull && npm install && npm run build`.
+For intentional CLI-only version changes, pass `--ref <ref>` or set `JUMPYBRAIN_INSTALL_REF`. The downloaded bootstrap uses current `master` independently; `JUMPYBRAIN_INSTALLER_REF` overrides its version. Source/development checkouts instead use `git pull && npm install && npm run build`.
 
 ## Uninstall
 

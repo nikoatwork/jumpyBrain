@@ -215,6 +215,8 @@ test('remote profile keys stay out of state/file/browser, read-only writes block
   const read = await f.memory('documents/' + id); assert.match((await read.json()).content, /Body remote/);
   assert.equal((await f.memory('notes', { type: 'note', body: '', dailyDate: '2026-01-01' })).status, 403);
   assert.equal((await f.memory('documents/' + id, { apply: true }, 'tab-a', gen, 'DELETE')).status, 403);
+  assert.equal((await f.memory('attention')).status, 200);
+  assert.equal((await f.memory('documents/' + id, { action: 'settle' }, 'tab-a', gen, 'PATCH')).status, 403);
   assert.ok(!(await readFile(path.join(f.directory, 'connections.json'), 'utf8')).includes('remote-test-key'));
   assert.ok(!JSON.stringify(await (await f.native('/companion/state')).json()).includes('remote-test-key'));
   f.gateway.coordinator.unregister('tab-a', gen);
@@ -406,4 +408,28 @@ test('direct feedback uses authenticated fenced gateway delivery without remote 
   assert.equal((await f.browser('/feedback', report, { ...headers, Origin: 'https://evil.invalid' })).status, 403);
   assert.equal((await f.browser('/feedback', report, { ...headers, 'X-Companion-Generation': String(generation - 1) })).status, 409);
   assert.equal(sent.length, 1);
+});
+
+
+test('gateway attention PATCH forwards body/hash, fences generation/tab and keeps other targets untouched', async t => {
+  const f = await fixture(t);
+  const generation = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'attention-tab', generation });
+  const before = await (await f.memory('documents/' + id, undefined, 'attention-tab', generation)).json();
+  const list = await f.memory('attention', undefined, 'attention-tab', generation);
+  assert.equal(list.status, 200);
+  assert.equal((await list.json()).notes[0].id, id);
+  const headers = { 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'attention-tab', 'If-Match': before.contentHash };
+  const patch = (overrides = {}) => f.browser('/memories/all/documents/' + id, { action: 'settle' }, { ...headers, ...overrides }, 'PATCH');
+  assert.equal((await patch({ 'X-Companion-Generation': String(generation - 1) })).status, 409);
+  assert.equal((await patch({ 'X-Companion-Tab': 'unknown-tab' })).status, 409);
+  const response = await patch();
+  assert.equal(response.status, 200, await response.clone().text());
+  const settled = await response.json();
+  assert.equal(settled.frontmatter.attention_at, null);
+  assert.notEqual(settled.contentHash, before.contentHash);
+  assert.match(settled.content, /Body a/);
+  assert.equal((await (await f.memory('attention', undefined, 'attention-tab', generation)).json()).notes.length, 0);
+  assert.doesNotMatch(await readFile(path.join(f.roots[1], 'notes/fixture.md'), 'utf8'), /attention_at/);
+  assert.doesNotMatch(await readFile(path.join(f.roots[2], 'notes/fixture.md'), 'utf8'), /attention_at/);
 });

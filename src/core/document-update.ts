@@ -45,7 +45,7 @@ export function mergeMemoryDocumentUpdate(
   }
   // Body-only edits retain evidence dates and dream classification. These are
   // editable metadata: an explicitly submitted value still replaces the old one.
-  for (const key of ["dream", "date"]) {
+  for (const key of ["dream", "date", "attention_at"]) {
     if (!merged.has(key) && Object.hasOwn(existing.frontmatter, key)) {
       merged.set(key, existing.frontmatter[key]!);
     }

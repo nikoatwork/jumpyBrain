@@ -8,7 +8,10 @@ import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback
 const html = graphPageHtml("fixture", "settings", { companion: true });
 const script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals) {
-  const context = vm.createContext({ feedback: { close() {}, isOpen: () => false }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
+  const context = vm.createContext({ feedback: { close() {}, isOpen: () => false },
+    sidebarPages: { sync() {} }, noteAttention: { sync() {} },
+    documentActions: { close() {}, isOpen: () => false, isBusy: () => false },
+    feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
   vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }
@@ -251,6 +254,18 @@ test("healthy idle snapshots preserve dialogs and reference interactions while s
   assert.equal(element("home-new").disabled, false);
   context.companionApplyState({ ...context.companionState, active: { allowWrites: false } });
   assert.equal(element("home-new").disabled, true, "unchanged lock state must not skip permission updates");
+});
+
+test("healthy idle polling keeps the editor locked while a note metadata action is in flight", () => {
+  const { context } = interactionHarness();
+  let busy = true;
+  context.documentActions = { isBusy: () => busy };
+  context.state.editor.state.navigationPending = true;
+  context.state.editor.setNavigationPending = value => { context.state.editor.state.navigationPending = value; };
+  context.companionLock(false);
+  assert.equal(context.state.editor.state.navigationPending, true);
+  busy = false; context.companionLock(false);
+  assert.equal(context.state.editor.state.navigationPending, false);
 });
 
 test("entering preparing or session fencing cancels interactions once and preserves the switch barrier", () => {

@@ -45,6 +45,8 @@ Direct support feedback uses authenticated, Origin-checked, generation/tab-fence
 
 The route allowlist includes document DELETE as a write, forwarding its bounded JSON body and If-Match under the same generation/tab admission and target allowWrites policy as PUT. Read-only profiles cannot delete. GET `?deletePreview=1` remains observational. Browser deletion/reload actions settle before switch acknowledgement; destructive actions recheck current editor/scope/write authorization before submission. Expired-session UI offers direct Retry and Recover draft controls without moving a pending draft to a new generation.
 
+GET `/memories/all/attention` is observational. Document PATCH is a write with its bounded JSON body and If-Match forwarded under the same generation/tab admission, drain and target-specific `allowWrites` policy as PUT/DELETE. Remote read-only profiles can discover attention but cannot settle, snooze or reactivate.
+
 ## Unified desktop hosting and shutdown
 
 The bundled Swift helper runs with `--desktop-host`: no separate menu/update/login UI, runtime resolved within the enclosing app, and a parent watchdog. Electron verifies its fresh host-instance identifier in authenticated gateway state; an existing service is never adopted. Standalone mode remains for legacy installations and maintenance.
