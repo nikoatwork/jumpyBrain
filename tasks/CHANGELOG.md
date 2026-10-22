@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Release request policy
+
+- Release requests default to a complete patch publication with synchronized CLI/runtime and Mac app versions, verified GitHub release notes, tag, and artifact.
+
 ## 2026-10-18 — Completed task archive
 
 - Archived ten completed task lists, including the two superseded Electron stages; retained outstanding implementation and manual QA work in `tasks/todo/`.

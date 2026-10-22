@@ -13,6 +13,18 @@ The release command requires a clean `master`, a writable `origin`, and `gh` aut
 
 The installer still tracks its recorded Git source/ref (normally master), not GitHub release assets. Tags and release notes provide stable checkpoints. Local-source installations stay local-source installations until explicitly changed.
 
+## Default for release requests
+
+When the user asks to “ship a new version”, “release”, or “bump a release”, complete the full `npm run release` workflow. Default to the next patch release unless the user specifies a minor release; major releases still require explicit approval.
+
+- Bump the CLI/runtime and Mac app to the same version, including both package manifests and lockfiles.
+- Validate the release snapshot, pack the distribution, commit the versions, create an annotated tag, push branch and tag, and publish the GitHub release with notes and its artifact.
+- Verify the published release and artifact before reporting it shipped. A Git push, a CLI-only version bump, or a local install alone does not complete a release request.
+- Use a clean checkout for the agreed release scope when unrelated work is uncommitted; preserve that work. Do not silently include unfinished features to satisfy the clean-tree check.
+- Reserve `cli:version` and `cli:release:local` for explicitly requested local CLI/dogfood builds. Updating an installed app is a separate operation from publishing a release.
+
+Ordinary commits and documentation updates still do not automatically trigger releases. This policy governs an explicit release request.
+
 ## Recovery
 
 Failure stops subsequent steps and retains evidence; the script never resets commits, deletes tags, force-pushes, or retries publication automatically.
