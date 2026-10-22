@@ -39,8 +39,11 @@ export async function prepareRestart(prepared, { node, home, parentPid = process
   const cancel = async () => {
     await writeFile(path.join(prepared.stage, 'cancelled'), 'cancelled\n', { mode: 0o600 });
     // Wait for this owned child before another attempt can reuse handoff markers.
-    if (!failed) child.kill('SIGTERM');
-    await ended;
+    child.ref();
+    try {
+      if (!failed) child.kill('SIGTERM');
+      await ended;
+    } finally { child.unref(); }
   };
   try {
     const deadline = Date.now() + 5000;

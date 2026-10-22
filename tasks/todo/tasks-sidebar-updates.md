@@ -30,4 +30,5 @@ Show software update availability at the bottom-right of the Mac app sidebar, wi
 
 - The final swap/relaunch uses the existing transactional installer, covered by its migration/rollback tests and handoff ordering tests; the user's installed app was not replaced for end-to-end testing.
 - Preparation requires local Mac build tools. Staged readiness currently lasts for the desktop process; quitting without choosing Restart requires preparing again. Abandoned stage directories remain in app user data until removed when no update process is running.
+- Genuine Node 22 validation caught an unreferenced-child cancellation wait; the helper is now referenced until cancellation cleanup finishes. The existing real-child regression covers this behavior.
 - Publication authorized on 2026-10-22 as patch release 0.3.4 through the full release workflow. See `docs/releases/v0.3.4.md`; this task list remains here pending archival preference.
