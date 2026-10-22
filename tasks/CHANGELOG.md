@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Browser design system
+
+- Browser navigation, settings and dialogs now share typography, spacing and control tokens; sidebar preferences use consistent rows and a single theme selector.
+
 ## 2026-10-22 — Batched releases
 
 - Completed changes accumulate in one pending Markdown note; verified releases archive their notes, with at most one publication per day by default.

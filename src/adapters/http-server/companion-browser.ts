@@ -1,21 +1,21 @@
 // Companion-only loopback control UI. No target credential is ever read into this shell.
 export const companionStyles = String.raw`
-  #companion-settings { width: 100%; overflow: auto; padding: 32px 24px 64px; }
+  #companion-settings { width: 100%; overflow: auto; padding: var(--space-8) var(--space-6) var(--space-16); }
   .companion-column { max-width: 760px; margin: auto; }
-  #companion-settings h2 { font-size: 16px; margin-top: 28px; }
-  .companion-profile { border-bottom: 1px solid var(--line); padding: 16px 0; }
-  .companion-profile p { margin: 4px 0 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
-  .companion-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  #companion-settings h2 { font-size: var(--text-section); margin-top: var(--space-8); }
+  .companion-profile { border-bottom: 1px solid var(--line); padding: var(--space-4) 0; }
+  .companion-profile p { margin: var(--space-1) 0 var(--space-3); color: var(--ink-soft); overflow-wrap: anywhere; }
+  .companion-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   #companion-fields { border: 0; padding: 0; margin: 0; }
-  #companion-form label { display: block; margin: 16px 0; }
-  #companion-form input:not([type=checkbox]), #companion-form select { display: block; width: 100%; margin-top: 6px; }
-  #companion-form select { padding: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; }
+  #companion-form label { display: block; margin: var(--space-4) 0; }
+  #companion-form input:not([type=checkbox]), #companion-form select { display: block; width: 100%; margin-top: var(--space-1); }
+  #companion-form select { min-height: var(--control-height); font-size: var(--text-ui); padding: var(--space-2); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
   #companion-form input[type=checkbox] { height: auto; }
-  #companion-banner { padding: 8px 24px; margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
+  #companion-banner { padding: var(--space-2) var(--space-6); margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
   #companion-banner[data-error=true], #companion-feedback[data-error=true] { color: var(--error-ink); }
-  #companion-active { display: block; padding: 4px 10px 0; color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; }
-  @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: 11px; } }
-  .companion-search { padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+  #companion-active { display: block; padding: var(--space-1) var(--space-3) 0; color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
+  @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
+  .companion-search { padding-bottom: var(--space-6); border-bottom: 1px solid var(--line); }
   #companion-index-target, #companion-index-feedback { color: var(--ink-soft); overflow-wrap: anywhere; }
   #companion-index-feedback[data-error=true] { color: var(--error-ink); }
 `;

@@ -239,8 +239,8 @@ export const feedbackMarkup = String.raw`
 </dialog>`;
 
 export const feedbackStyles = String.raw`
-  #feedback-dialog p { color: var(--ink-soft); font-size: 13px; overflow-wrap: anywhere; }
-  #feedback-dialog .feedback-check { display: flex; align-items: center; gap: 8px; }
+  #feedback-dialog p { color: var(--ink-soft); font-size: var(--text-body); overflow-wrap: anywhere; }
+  #feedback-dialog .feedback-check { display: flex; align-items: center; gap: var(--space-2); }
   #feedback-include-logs { width: 16px; height: 16px; accent-color: var(--accent); }
-  #feedback-logs { font-size: 12px; }
+  #feedback-logs { font-size: var(--text-caption); }
 `;

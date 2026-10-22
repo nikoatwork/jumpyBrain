@@ -72,19 +72,15 @@ export const themeStyles = String.raw`
       --backdrop: rgba(40, 36, 24, .24);
       --shadow-sm: 0 1px 3px rgba(40, 36, 24, .08);
       --shadow-lg: 0 16px 48px rgba(40, 36, 24, .16), 0 2px 8px rgba(40, 36, 24, .08);
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
-      --ease: cubic-bezier(.2, .8, .2, 1);
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) { ${darkColors} }
     }
     :root[data-theme="dark"] { ${darkColors} }
     ::selection { background: var(--selection-fill); }
-    .theme-control { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-soft); }
-    .theme-control svg { width: 16px; height: 16px; flex-shrink: 0; }
-    #color-theme { max-width: 90px; padding: 7px 3px; border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); font: inherit; font-size: 12px; cursor: pointer; }
+    .theme-control { position: relative; display: flex; align-items: center; width: 100%; color: var(--ink-soft); }
+    .theme-control svg { position: absolute; left: var(--space-3); width: var(--icon-size); height: var(--icon-size); pointer-events: none; }
+    #color-theme { width: 100%; min-height: var(--control-height); padding: 0 var(--space-2) 0 var(--control-height); border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); font: inherit; font-size: var(--text-ui); cursor: pointer; }
     #color-theme:hover { background: var(--surface-hover); color: var(--ink); }
     #color-theme:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
 `;
