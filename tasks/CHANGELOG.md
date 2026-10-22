@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-22 — Batched releases
+
+- Completed changes accumulate in one pending Markdown note; verified releases archive their notes, with at most one publication per day by default.
+
 ## 2026-10-22 — GUI updates
 
 - Mac app updates now prepare published releases in the background and coordinate safe restart, managed CLI replacement, and recovery through the GUI.

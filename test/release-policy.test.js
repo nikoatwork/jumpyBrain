@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, mkdir, copyFile, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, copyFile, writeFile, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -64,6 +64,7 @@ test("release validates before commit and atomically pushes branch/tag before be
   assert.deepEqual(calls.find(c=>c[0]==='git'&&c[1]==='push'),['git','push','--atomic','origin','HEAD:refs/heads/master','refs/tags/v0.3.1']);
   const published=calls.find(c=>c[0]==='gh'&&c[1]==='release');
   assert.ok(published.includes('--prerelease'));assert.ok(published.includes('--verify-tag'));
+  assert.ok(published.includes('--generate-notes'));
   assert.ok(index('git','push')<index('gh','release'));
 });
 
@@ -86,4 +87,36 @@ test("read-only GitHub authentication fails before bumping or publishing",async 
   assert.match(result.stderr,/account cannot publish/);
   assert.equal(JSON.parse(await readFile(path.join(f.root,'package.json'),'utf8')).version,'0.3.0');
   assert.ok(!(await f.calls()).some(c=>c[0]==='npm'||c[1]==='push'||c[1]==='commit'));
+});
+
+test("release publishes curated pending notes, with legacy notes as a fallback", async t => {
+  for (const pending of [true, false]) {
+    const f = await fixture(t);
+    const legacy = path.join(f.root, 'docs/releases/v0.3.1.md');
+    await mkdir(path.dirname(legacy), { recursive: true });
+    await writeFile(legacy, '# Legacy notes\n\n- Earlier release workflow.\n');
+    const queued = path.join(f.root, 'tasks/todo/release-next.md');
+    const body = '# Changes\n\n- A simpler update screen.\n';
+    if (pending) {
+      await mkdir(path.dirname(queued), { recursive: true });
+      await writeFile(queued, body);
+    }
+    const result = f.run([]);
+    assert.equal(result.status, 0, result.stderr);
+    const publication = (await f.calls()).find(c => c[0] === 'gh' && c[1] === 'release');
+    assert.equal(publication[publication.indexOf('--notes-file') + 1], await realpath(pending ? queued : legacy));
+    assert.ok(!publication.includes('--generate-notes'));
+    if (pending) assert.equal(await readFile(queued, 'utf8'), body, 'retain notes until publication is verified and archived');
+  }
+});
+
+test("an empty pending release stops before any version or publication changes", async t => {
+  const f = await fixture(t);
+  await mkdir(path.join(f.root, 'tasks/todo'), { recursive: true });
+  await writeFile(path.join(f.root, 'tasks/todo/release-next.md'), '# Changes\n');
+  const result = f.run([]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /No changes queued/);
+  assert.equal(JSON.parse(await readFile(path.join(f.root, 'package.json'), 'utf8')).version, '0.3.0');
+  await assert.rejects(readFile(path.join(f.root, 'calls.jsonl')), { code: 'ENOENT' });
 });
