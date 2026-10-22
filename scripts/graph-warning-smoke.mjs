@@ -36,22 +36,18 @@ try {
       assert.equal(await page.locator("#graph-notice").count(), 1, "map needs an accessible persistent notice region");
       assert.equal(await page.locator("#graph-notice").getAttribute("role"), "status");
       assert.equal(await page.locator("#graph-notice").getAttribute("aria-atomic"), "true");
-      assert.equal(await page.locator("#graph-scope").innerText(), "500 notes shown · 501 notes in this brain.");
-      assert.match(await page.locator("#graph-warnings").innerText(), /limited to 500 nodes/);
-      assert.match(await page.locator("#graph-limit-hint").innerText(), /Filter to narrow the view/);
-      await visibleNotice(page, width);
+      assert.equal(await page.locator("#graph-scope, #graph-limit-hint").count(), 0);
+      assert.equal(await page.locator("#graph-notice").isVisible(), false);
 
       await filter(page, "Narrow");
       assert.equal(await page.getByTestId("graph-node-count").innerText(), "3");
-      assert.equal(await page.locator("#graph-scope").innerText(), "3 notes shown · 501 notes in this brain.");
       assert.doesNotMatch(await page.locator("#graph-warnings").innerText(), /limited to/);
-      assert.equal(await page.locator("#graph-limit-hint").isVisible(), false);
       await filter(page, "no such fixture");
       assert.equal(await page.getByTestId("graph-node-count").innerText(), "0");
       assert.match(await page.locator("#graph-empty").innerText(), /No notes match/);
-      assert.equal(await page.locator("#graph-scope").innerText(), "0 notes shown · 501 notes in this brain.");
+      assert.doesNotMatch(await page.locator("#graph-warnings").innerText(), /limited to/);
       await filter(page, "");
-      assert.match(await page.locator("#graph-warnings").innerText(), /limited to 500 nodes/);
+      assert.equal(await page.locator("#graph-notice").isVisible(), false);
 
       // Read-only response fixtures for edge cases not produced by this simple brain.
       let packet = { ...capped, nodes: capped.nodes.slice(0, 2), edges: [], stats: { documents: 1636 },
@@ -66,7 +62,7 @@ try {
       await page.route(pattern, respond);
       await refresh(page);
       assert.equal(await page.getByTestId("graph-node-count").innerText(), "2", "unresolved nodes are not notes");
-      assert.equal(await page.locator("#graph-scope").innerText(), "2 notes shown · 1,636 notes in this brain.");
+      assert.doesNotMatch(await page.locator("#graph-warnings").innerText(), /limited to/);
       assert.equal(await page.locator("#graph-notice img").count(), 0, "warnings must remain text, not HTML");
       assert.ok((await page.locator("#graph-warnings").innerText()).includes('<img src=x onerror="alert(1)">'));
       assert.doesNotMatch(await page.locator("#graph-notice").innerText(), /matching notes|omitted notes/);
@@ -86,14 +82,14 @@ try {
       const started = page.waitForRequest((request) => request.url().includes("/graph.json?"));
       await page.getByTestId("graph-reload").click();
       await started;
-      assert.equal(await page.locator("#graph-notice").isVisible(), false, "loading removes stale scope/warnings");
+      assert.equal(await page.locator("#graph-notice").isVisible(), false, "loading removes stale warnings");
       packet = { ...packet, nodes: packet.nodes.slice(0, 2), stats: { documents: 2 }, warnings: [] };
       resolve(); release = null; releaseGraph = null;
       await page.getByTestId("graph-ready").waitFor({ state: "visible" });
       assert.equal(await page.locator("#graph-notice").isVisible(), false, "uncapped complete graph clears the notice");
       assert.equal(await page.locator("#graph-warnings").textContent(), "");
 
-      packet = { ...packet, stats: { documents: 1636 }, warnings: ["Graph response was limited to 3 nodes."] };
+      packet = { ...packet, stats: { documents: 1636 }, warnings: ["Search results may be incomplete."] };
       await refresh(page);
       assert.equal(await page.locator("#graph-notice").isVisible(), true);
       await page.unroute(pattern, respond);
@@ -101,16 +97,16 @@ try {
       await page.route(pattern, fail);
       await page.getByTestId("graph-reload").click();
       await page.getByTestId("graph-error").waitFor({ state: "visible" });
-      assert.equal(await page.locator("#graph-notice").isVisible(), false, "failure clears success warnings/counts");
+      assert.equal(await page.locator("#graph-notice").isVisible(), false, "failure clears success warnings");
       assert.equal(await page.getByTestId("graph-ready").isVisible(), false);
       // A layout of cached nodes must not resurrect a successful notice after failure.
       await page.evaluate(() => map.render(state.graph, true));
       assert.equal(await page.locator("#graph-notice").isVisible(), false);
       await page.unroute(pattern, fail);
       await refresh(page);
-      assert.equal(await page.locator("#graph-notice").isVisible(), true, "retry restores the current response notice");
+      assert.equal(await page.locator("#graph-notice").isVisible(), false, "retrying the real capped graph keeps limit notices hidden");
       assert.deepEqual(errors, []);
-      console.log(`PASS ${width}px capped real graph, filtered/global totals, empty/uncapped, unresolved, safe text, refresh/failure/retry`);
+      console.log(`PASS ${width}px capped real graph without verbose notices, filtering, empty/uncapped, unresolved, safe text, refresh/failure/retry`);
     } finally { if (releaseGraph) releaseGraph(); await page.close(); }
   }
   console.log("graph warning smoke: PASS (501 disposable notes; default 500-node cap unchanged)");

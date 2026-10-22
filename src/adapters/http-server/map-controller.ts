@@ -16,7 +16,7 @@ interface MapElements {
   query: HTMLInputElement; focus: HTMLInputElement;
   "include-unresolved": HTMLInputElement; "include-orphans": HTMLInputElement;
   reload: HTMLButtonElement; ready: HTMLElement;
-  "graph-scope": HTMLElement; "graph-warnings": HTMLElement; "graph-limit-hint": HTMLElement;
+  "graph-warnings": HTMLElement;
   "graph-notice": HTMLElement; "graph-node-count": HTMLElement; "graph-edge-count": HTMLElement;
   "graph-empty": HTMLElement; "zoom-in": HTMLButtonElement; "zoom-out": HTMLButtonElement; "reset-view": HTMLButtonElement;
 }
@@ -69,18 +69,9 @@ export function createMapController(options: MapControllerOptions) {
   }
 
   function renderGraphNotice(graph: MemoryGraphResult | null) {
-    const shown = graph?.nodes.filter((node) => node.nodeKind === "document").length || 0;
-    const total = graph?.stats?.documents;
     const warnings = [...new Set((Array.isArray(graph?.warnings) ? graph.warnings : [])
-      .filter((warning) => typeof warning === "string" && warning.trim()))];
-    const limit = graph?.options?.limit;
-    const limited = typeof limit === "number" && Number.isSafeInteger(limit) && limit > 0
-      && warnings.includes("Graph response was limited to " + limit + " nodes.");
-    // documents counts the entire brain, not matches; unresolved nodes consume cap space too.
-    const scope = typeof total === "number" && Number.isSafeInteger(total) && total >= shown && (shown < total || limited)
-      ? shown.toLocaleString("en-US") + " notes shown · " + total.toLocaleString("en-US") + " notes in this brain." : "";
-    $("graph-scope").textContent = scope;
-    $("graph-scope").hidden = !scope;
+      .filter((warning) => typeof warning === "string" && warning.trim()
+        && !/^Graph response was limited to \d+ nodes\.$/.test(warning)))];
     const list = $("graph-warnings");
     list.replaceChildren();
     for (const warning of warnings) {
@@ -89,9 +80,7 @@ export function createMapController(options: MapControllerOptions) {
       list.append(row);
     }
     list.hidden = !warnings.length;
-    $("graph-limit-hint").textContent = limited ? "Filter to narrow the view." : "";
-    $("graph-limit-hint").hidden = !limited;
-    $("graph-notice").hidden = !scope && !warnings.length;
+    $("graph-notice").hidden = !warnings.length;
   }
 
   async function loadGraph() {

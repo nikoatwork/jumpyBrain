@@ -397,39 +397,22 @@ test("HTTP graph file selection applies before the node cap and empty selection 
   } finally { if (server) await server.close(); await rm(root, { recursive: true, force: true }); }
 });
 
-test("map notice exposes global/shown note counts, server warnings and a narrowing hint without counting unresolved targets as notes", () => {
+test("map omits count summaries, node-limit warnings and narrowing hints", () => {
   const html = graphPageHtml("testnonce");
-  assert.match(html, /id="graph-notice"[^>]*role="status"[^>]*aria-atomic="true"/);
+  assert.doesNotMatch(html, /id="graph-scope"|id="graph-limit-hint"/);
   const { context, element } = graphNoticeHarness();
-  context.renderGraphNotice(noticePacket());
-  assert.equal(element("graph-notice").hidden, false);
-  assert.equal(element("graph-scope").textContent, "2 notes shown · 1,636 notes in this brain.");
-  assert.deepEqual(element("graph-warnings").children.map((row) => row.textContent), ["Graph response was limited to 3 nodes."]);
-  assert.match(element("graph-limit-hint").textContent, /Filter to narrow the view/);
-  assert.equal(element("graph-limit-hint").hidden, false);
-});
-
-test("filtered totals are explicitly whole-brain counts, not matching totals; cap hints follow warnings rather than inferred counts", () => {
-  const { context, element } = graphNoticeHarness();
-  context.renderGraphNotice(noticePacket({ warnings: [], options: { limit: 2, query: "specific" } }));
-  assert.equal(element("graph-scope").textContent, "2 notes shown · 1,636 notes in this brain.");
-  assert.equal(element("graph-warnings").hidden, true);
-  assert.equal(element("graph-limit-hint").hidden, true, "fewer shown notes or hitting the numeric limit does not prove truncation");
-  context.renderGraphNotice(noticePacket({ nodes: [], warnings: [], options: { query: "no match" } }));
-  assert.equal(element("graph-scope").textContent, "0 notes shown · 1,636 notes in this brain.");
-  context.renderGraphNotice(noticePacket({ stats: { documents: 2 }, warnings: [] }));
-  assert.equal(element("graph-notice").hidden, true, "uncapped complete map needs no extra notice");
-  assert.equal(element("graph-scope").textContent, "");
-  assert.equal(element("graph-warnings").children.length, 0);
+  for (const packet of [noticePacket(), noticePacket({ warnings: [] }), noticePacket({ nodes: [] }), null]) {
+    context.renderGraphNotice(packet);
+    assert.equal(element("graph-notice").hidden, true);
+    assert.equal(element("graph-warnings").children.length, 0);
+  }
 });
 
 test("map warnings remain text and tolerate missing/invalid optional metadata without inventing totals", () => {
   const { context, element } = graphNoticeHarness();
   const warning = '<img src=x onerror="alert(1)">';
   context.renderGraphNotice(noticePacket({ stats: { documents: "1636" }, options: {}, warnings: [warning, warning, null, 5, "  "] }));
-  assert.equal(element("graph-scope").textContent, "");
   assert.deepEqual(element("graph-warnings").children.map((row) => row.textContent), [warning]);
-  assert.equal(element("graph-limit-hint").hidden, true);
   for (const stats of [undefined, { documents: -1 }, { documents: 1 }, { documents: 1.5 }]) {
     context.renderGraphNotice(noticePacket({ stats, warnings: undefined }));
     assert.equal(element("graph-notice").hidden, true);
@@ -440,19 +423,19 @@ test("map warnings remain text and tolerate missing/invalid optional metadata wi
 
 test("map refresh clears old notices; failed refresh and stale responses cannot restore a success notice", async () => {
   const { context, element } = graphNoticeHarness();
-  context.graphJson = async () => noticePacket();
+  context.graphJson = async () => noticePacket({ warnings: ["Search results may be incomplete."] });
   await context.loadGraph();
   assert.equal(element("graph-notice").hidden, false);
   const stale = deferred(), fresh = deferred();
   context.graphJson = () => stale.promise;
   const first = context.loadGraph();
-  assert.equal(element("graph-notice").hidden, true, "loading clears stale scope/warnings");
+  assert.equal(element("graph-notice").hidden, true, "loading clears stale warnings");
   context.graphJson = () => fresh.promise;
   const second = context.loadGraph();
   fresh.resolve(noticePacket({ stats: { documents: 2 }, warnings: [] }));
   await second;
-  stale.resolve(noticePacket()); await first;
-  assert.equal(element("graph-notice").hidden, true, "outdated response cannot restore the cap warning");
+  stale.resolve(noticePacket({ warnings: ["Search results may be incomplete."] })); await first;
+  assert.equal(element("graph-notice").hidden, true, "outdated response cannot restore a notice");
   context.graphJson = async () => { throw new Error("Synthetic graph failure"); };
   await context.loadGraph();
   assert.equal(element("graph-notice").hidden, true);

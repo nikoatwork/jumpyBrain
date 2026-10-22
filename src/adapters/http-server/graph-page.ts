@@ -44,7 +44,6 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .map-heading p { margin: var(--space-1) 0 0; color: var(--ink-soft); font-size: var(--text-caption); }
     .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: var(--space-2) var(--space-6); background: var(--surface); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; pointer-events: none; }
     #graph-notice { padding: 0 var(--space-6) var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
-    #graph-notice p { margin: 0; }
     #graph-warnings { margin: var(--space-1) 0; padding-left: var(--space-4); }
 
     /* Reusable controls and toolbar groups. */
@@ -147,9 +146,7 @@ ${feedbackMarkup}
     <button id="reload" data-testid="graph-reload" class="quiet-button" title="Refresh notes and connections">Refresh</button>
   </div>
   <div id="graph-notice" role="status" aria-atomic="true" hidden>
-    <p id="graph-scope" hidden></p>
     <ul id="graph-warnings" hidden></ul>
-    <p id="graph-limit-hint" hidden></p>
   </div>
   <p id="status" data-testid="graph-status" class="graph-feedback" role="status" hidden></p>
   <p id="ready" data-testid="graph-ready" class="sr-status" aria-live="polite" hidden>Map loaded.</p>
