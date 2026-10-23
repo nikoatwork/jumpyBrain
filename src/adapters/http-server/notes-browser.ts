@@ -1,6 +1,6 @@
 import { brainOutlineSvg } from "./favicon.js";
 import { themeMarkup } from "./browser-theme.js";
-import { noteAttentionMarkup, noteAttentionStyles, noteAttentionToolbarMarkup } from "./note-attention-view.js";
+import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
 
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
@@ -40,11 +40,9 @@ ${noteAttentionStyles}
     .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sidebar-page-link[aria-current="page"] { color: var(--ink); }
     .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 var(--control-compact); width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); margin-right: var(--space-0-5); border: 0; border-radius: var(--radius-sm); color: var(--ink-soft); background: transparent; opacity: 0; }
-    .sidebar-page-pin svg, #pin-current-page svg { width: 16px; height: 16px; }
+    .sidebar-page-pin svg { width: 16px; height: 16px; }
     .sidebar-page:hover .sidebar-page-pin, .sidebar-page:focus-within .sidebar-page-pin, .sidebar-page-pin[aria-pressed="true"] { opacity: 1; }
     .sidebar-page-pin:hover { background: var(--control-fill); color: var(--ink); }
-    #pin-current-page { display: grid; place-items: center; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); background: transparent; }
-    #pin-current-page[aria-pressed="true"] { background: var(--control-fill); color: var(--ink); }
     @media (hover: none) { .sidebar-page-pin { opacity: 1; } }
     .document-status { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 48px; padding: var(--space-2) var(--space-6); }
     body:not([data-view="note"]) .document-status { display: none; }
@@ -104,8 +102,6 @@ ${noteAttentionStyles}
     .markdown-reference[data-page-reference="true"]:hover { background: var(--surface-hover); }
     ::highlight(jumpybrain-reference-markers) { color: color-mix(in srgb, var(--ink) 24%, var(--surface)); }
     .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    #reference-message { color: var(--ink-soft); font-size: var(--text-ui); }
-    #reference-message[data-error="true"] { color: var(--error-ink); }
     #reference-creation-status { color: var(--error-ink); font-size: var(--text-ui); }
     .markdown-literal::selection { background: var(--surface-hover); }
     #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; margin: 0 0 var(--space-6) calc(-1 * var(--space-2)); }
@@ -114,6 +110,13 @@ ${noteAttentionStyles}
     #format-controls [data-format="h3"] { margin-right: var(--space-2); }
     #format-controls #insert-reference { margin: 0 0 0 auto; }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
+    .note-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); }
+    .note-icon svg { width: var(--icon-size); height: var(--icon-size); }
+    #app-toast { position: fixed; z-index: 100; right: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2); width: max-content; max-width: min(560px, calc(100vw - 32px)); padding: var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: var(--text-ui)/var(--leading-ui) var(--font-ui); }
+    #app-toast[hidden], .note-icon[hidden] { display: none; }
+    #toast-message { min-width: 0; overflow-wrap: anywhere; }
+    #app-toast[data-error="true"] #toast-message { color: var(--error-ink); }
+    #toast-action, #toast-close { flex-shrink: 0; }
     .note-actions { font-size: var(--text-caption); align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
     .document-dialog { padding: var(--space-6); }
     .document-dialog h2 { margin-top: 0; }
@@ -219,16 +222,15 @@ export const notesMarkup = String.raw`
 <div class="workspace-toolbar">
 <button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button>
 <div class="document-status" role="group" aria-label="Save status">
-  <button id="pin-current-page" class="quiet-button" type="button" aria-label="Pin page" aria-pressed="false" title="Pin page" hidden></button>
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <span id="note-external-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
 </div>
-${noteAttentionToolbarMarkup}
 <span class="workspace-brand" role="img" aria-label="jumpyBrain" title="jumpyBrain">${brainOutlineSvg}</span>
 </div>
 ${noteAttentionMarkup}
+<div id="app-toast" hidden><span id="toast-message" role="status" aria-live="polite" aria-atomic="true"></span><button id="toast-action" class="quiet-button" type="button" hidden></button><button id="toast-close" class="quiet-button note-icon" type="button" aria-label="Dismiss notification" title="Dismiss notification"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">
   <div class="dialog-head">
@@ -307,8 +309,7 @@ export const notesViews = String.raw`
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
       <textarea id="note-name" aria-label="Page name" aria-describedby="note-save-error" aria-multiline="false" rows="1" autocomplete="off" hidden></textarea>
       <p id="note-save-error" role="status" aria-live="polite" hidden></p>
-      <div class="note-actions"><button id="copy-note-draft" class="quiet-button" hidden>Copy draft</button><button id="delete-note" class="quiet-button" hidden>Delete note…</button><span id="draft-copy-status" role="status" aria-live="polite"></span></div>
-      <p id="reference-message" role="status" aria-live="polite" hidden></p>
+      <div class="note-actions"><button id="copy-note-draft" class="quiet-button note-icon" type="button" aria-label="Copy draft" title="Copy draft" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg></button><button id="delete-note" class="quiet-button note-icon" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
       <div id="reference-creation-status" hidden>
         <p role="status" aria-live="polite">A linked page could not be created. Your source note is retained. Retry page creation before leaving this note.</p>
         <button id="reference-creation-retry" class="quiet-button">Retry page creation</button>
@@ -322,7 +323,7 @@ export const notesViews = String.raw`
         <button class="quiet-button" data-format="h3" aria-label="Small heading">H3</button>
         <button class="quiet-button" data-format="bold" aria-label="Bold"><strong>B</strong></button>
         <button class="quiet-button" data-format="italic" aria-label="Italic"><em>I</em></button>
-        <button id="insert-reference" class="quiet-button" hidden>[[ ]] Insert page reference</button>
+        <button id="insert-reference" class="quiet-button note-icon" type="button" aria-label="Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       </div>
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
       <details id="note-metadata" class="note-frontmatter" hidden>
@@ -687,11 +688,10 @@ function referenceTargetCreated() {
   sidebarPages.reloadAttention();
 }
 function referenceMessage(text, error = false) {
-  const message = $("reference-message");
-  message.textContent = text;
-  message.dataset.error = String(error);
-  message.hidden = !text;
+  if (text) toast.show("reference", text, { error });
+  else toast.clear("reference");
 }
+
 function cancelReferenceInteraction() {
   referenceAutocomplete.dismiss();
   if (referenceRequest) referenceRequest.abort();
@@ -1012,6 +1012,7 @@ const navigation = createPageNavigation({
   push: (entry) => history.pushState({ jumpyBrainIndex: entry.index }, "", entry.url),
   show: showPage,
 });
+let documentActions;
 const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   document, window,
   scope: () => {
@@ -1024,7 +1025,7 @@ const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   navigate: (url) => { navigation.navigate(url); },
   attentionScope: () => activeApiKey ? String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted") : null,
   enabled: () => state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
-  writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()) && !documentActions.isBusy(),
+  writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()) && !documentActions?.isBusy(),
   fetchAttention: (signal) => graphJson("/memories/all/attention", { signal }),
   onAttentionUpdated: () => noteAttention.sync(),
   onAction: (action, page, anchor) => noteAttention.act(action, page, anchor),
@@ -1067,7 +1068,6 @@ function showPage(url) {
   if (connectionDialog.open) closeConnection();
   const target = new URL(url, location.origin);
   const documentId = target.searchParams.get("note");
-  $("note-attention-controls").hidden = true;
   if (typeof companionMode !== "undefined" && companionMode && state.view === "settings" && !/^\/settings\/?$/.test(target.pathname)) companionClearForm();
   state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
   sidebarPages.select(documentId);
@@ -1116,7 +1116,7 @@ async function showNote(documentId, focusEnd = false) {
     if (state.editor) state.editor.cancel();
     state.editor = null;
     $("note-title").textContent = "";
-    $("draft-copy-status").textContent = "";
+    toast.clear("draft");
     $("note-title").hidden = false;
     $("note-name").hidden = true;
     $("note-save-error").hidden = true;
@@ -1385,15 +1385,14 @@ const lifecycleActions = installDocumentActions({
   document, editor: () => state.editor,
   writable: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()),
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
-  json: graphJson,
+  json: graphJson, toast,
   onDeleted: async (id, message) => {
     sidebarPages.remove(id);
     recentWrites.remove(id); noteSearch.markStale(); referenceAutocomplete.markStale();
     state.graph = null;
     if (state.editor?.state.documentId === id) { state.editor.cancel(); state.editor = null; }
     await navigation.navigate("/");
-    $("capture-message").textContent = message;
-    $("capture-message").hidden = false;
+    toast.show("deletion", message);
   },
 });
 const noteAttention = JumpyBrainBrowser.installNoteAttention({
@@ -1401,11 +1400,11 @@ const noteAttention = JumpyBrainBrowser.installNoteAttention({
   writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()),
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   blocked: () => lifecycleActions.isBusy() || lifecycleActions.isOpen() || navigation.isBusy() || creatingNote || searchDialog.open || connectionDialog.open || dreamDialog.open || feedback.isOpen(),
-  json: graphJson,
+  json: graphJson, toast,
   changed: () => sidebarPages.reloadAttention(),
   onBusy: () => sidebarPages.sync(),
 });
-const documentActions = {
+documentActions = {
   ...lifecycleActions,
   close() { lifecycleActions.close(); noteAttention.close(); },
   isOpen: () => lifecycleActions.isOpen() || noteAttention.isOpen(),

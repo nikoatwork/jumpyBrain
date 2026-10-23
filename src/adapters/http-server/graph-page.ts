@@ -198,6 +198,7 @@ const recentWrites = createRecentWriteSearch({
 const searchMemoryNotes = (query, signal) => recentWrites.search(query, signal);
 const $ = (id) => document.getElementById(id);
 ${themeScript}
+const toast = JumpyBrainBrowser.installToast(document, () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"));
 const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const companionMode = ${companion};
 const feedbackDiagnostics = JumpyBrainBrowser.createFeedbackDiagnostics();

@@ -225,7 +225,7 @@ async function readOnly(f, mobile) {
   try {
     assert.equal(await page.locator("#note-editor").getAttribute("contenteditable"), "false");
     await activate(page, title, mobile);
-    await page.waitForFunction(() => /read.only|permission|no page|missing|not found/i.test(document.querySelector("#reference-message")?.textContent || ""));
+    await page.waitForFunction(() => /read.only|permission|no page|missing|not found/i.test(document.querySelector("#toast-message")?.textContent || ""));
     assert.equal(new URL(page.url()).searchParams.get("note"), source.id);
     const denied = await page.evaluate(async title => {
       const response = await fetch("/memories/all/ensure-title", { method: "POST", headers: { "Content-Type": "application/json", "X-Companion-Generation": String(companionState.generation), "X-Companion-Tab": companionTabId }, body: JSON.stringify({ title }) });

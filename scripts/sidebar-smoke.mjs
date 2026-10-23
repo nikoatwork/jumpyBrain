@@ -17,7 +17,7 @@ let browser, server;
 try {
   await initializeMemoryRoot(root);
   await mkdir(path.join(root, "pages"), { recursive: true });
-  for (let i = 0; i < ids.length; i++) await writeFile(path.join(root, `pages/page-${i}.md`), `---\nid: ${ids[i]}\ntype: note\ntitle: ${JSON.stringify(titles[i])}\nupdated_at: 2026-10-16T00:00:${String(i).padStart(2, "0")}Z\n---\nA quiet place for useful context.\n`);
+  for (let i = 0; i < ids.length; i++) await writeFile(path.join(root, `pages/page-${i}.md`), `---\nid: ${ids[i]}\ntype: note\ntitle: ${JSON.stringify(titles[i])}\nupdated_at: 2026-10-16T00:00:${String(i === 0 ? 59 : i).padStart(2, "0")}Z\n---\nA quiet place for useful context.\n`);
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
   const context = await browser.newContext({ viewport: { width: 1280, height: 850 } });
@@ -34,14 +34,15 @@ try {
   await page.evaluate(() => { window.sidebarEditor = richEditor; });
   await page.locator("#toggle-sidebar").click(); await page.locator("#toggle-sidebar").click();
   assert.equal(await page.evaluate(() => window.sidebarEditor === richEditor), true, "sidebar toggle preserves editor instance");
-  await page.locator("#pin-current-page").click();
+  await page.locator(`[data-page-link="${ids[0]}"]`).hover();
+  await page.locator(`[data-page-pin="${ids[0]}"]`).click();
   assert.equal(await page.locator("#sidebar-pinned a").innerText(), titles[0]);
-  await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent a").length === 8);
+  await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent a").length === 7);
   for (let i = 1; i < ids.length; i++) {
     await page.evaluate((id) => navigation.navigate("/?note=" + id), ids[i]);
     await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[i]);
   }
-  assert.equal(await page.locator("#sidebar-recent a").count(), 8);
+  assert.equal(await page.locator("#sidebar-recent a").count(), 7);
   assert.equal(await page.locator("#sidebar-recent a").first().innerText(), titles.at(-1));
   assert.equal(await page.locator("#sidebar-recent img").count(), 0);
   await page.locator("#sidebar-pinned a").click();
@@ -57,13 +58,14 @@ try {
   // Cross-tab unpin is reflected without disturbing the open editor.
   const second = await context.newPage();
   await second.goto(server.url);
-  await second.locator("#sidebar-pinned button").click();
+  await second.locator("#sidebar-pinned [data-page-pin]").click();
   await page.waitForFunction(() => document.querySelectorAll("#sidebar-pinned a").length === 0);
   await second.close();
-  await page.locator("#pin-current-page").click();
+  await page.locator(`[data-page-link="${ids[0]}"]`).hover();
+  await page.locator(`[data-page-pin="${ids[0]}"]`).click();
   await page.reload();
   await page.locator("#note-editor").waitFor();
-  assert.equal(await page.locator("#pin-current-page").getAttribute("aria-pressed"), "true");
+  assert.equal(await page.locator(`#sidebar-pinned [data-page-pin="${ids[0]}"]`).getAttribute("aria-pressed"), "true");
   // A failed save blocks page-row navigation and retains the draft and current row.
   await page.route("**/memories/all/documents/**", async (route) => {
     if (route.request().method() === "PUT") await route.fulfill({ status: 500, contentType: "application/json", body: '{"error":{"message":"Fixture save unavailable"}}' });

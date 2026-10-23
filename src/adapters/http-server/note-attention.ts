@@ -2,6 +2,7 @@ import { parseFrontmatter } from "../../core/frontmatter.js";
 import { attentionTimestamp } from "../../core/attention.js";
 import { memoryDocumentPath } from "../http-protocol.js";
 import { splitEditableDocument, type createDocumentEditor } from "./document-controller.js";
+import type { Toast } from "./browser-toast.js";
 import type { AttentionPage } from "./browser-attention.js";
 
 type Editor = ReturnType<typeof createDocumentEditor>;
@@ -43,20 +44,18 @@ function attentionValue(prefix: string): "settled" | string | undefined {
 export function installNoteAttention(options: {
   document: Document; editor(): Editor | null; writable(): boolean; scope(): string;
   blocked(): boolean; json(url: string, options?: RequestInit): Promise<unknown>;
-  changed(): void; onBusy(): void;
+  changed(): void; onBusy(): void; toast: Toast;
 }) {
   const doc = options.document, win = doc.defaultView!;
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => doc.getElementById(id) as T;
   const dialog = $<HTMLDialogElement>("note-snooze");
   let busy = false, bound: { page: AttentionPage; scope: string; anchor: HTMLElement } | null = null;
-  let pendingFocus: string | null = null, waitingForSave = false;
-  let undo: { id: string; action: Action; scope: string } | null = null;
-  function message(text: string, error = false) {
-    $("attention-message").textContent = text; $("attention-feedback").hidden = !text;
-    $("attention-feedback").dataset.error = String(error);
-    $("attention-undo").hidden = !undo;
+  let waitingForSave = false;
+  function message(text: string, error = false, undo?: () => void) {
+    options.toast.show("attention", text, { error, action: undo ? { label: "Undo", run: undo } : undefined });
   }
   function close() {
+    options.toast.sync();
     const anchor = bound?.anchor;
     bound = null; dialog.close(); $("snooze-options").replaceChildren();
     $<HTMLInputElement>("snooze-datetime").value = "";
@@ -64,34 +63,17 @@ export function installNoteAttention(options: {
   }
   function sync() {
     const editor = options.editor();
-    $("note-attention-controls").hidden = !editor?.state.loaded;
-    const value = editor ? attentionValue(editor.state.frontmatterPrefix) : undefined;
-    const snoozed = value && value !== "settled" && Date.parse(value) > Date.now();
-    if (doc.activeElement === $("settle-current-page") && value === "settled") pendingFocus = "reactivate-current-page";
-    if (doc.activeElement === $("reactivate-current-page") && value !== "settled" && !snoozed) pendingFocus = "settle-current-page";
-    $("note-attention-state").textContent = value === "settled" ? "Settled" : snoozed ? "Snoozed" : "";
-    $("note-attention-state").title = snoozed ? "Returns " + new Date(value!).toLocaleString() : "";
-    $("settle-current-page").hidden = value === "settled";
-    $("reactivate-current-page").hidden = value !== "settled" && !snoozed;
-    for (const id of ["settle-current-page", "snooze-current-page", "reactivate-current-page", "attention-undo"]) $<HTMLButtonElement>(id).disabled = busy || !options.writable() || Boolean(editor?.state.navigationPending);
-    if (pendingFocus && !busy && editor?.state.loaded && !editor.state.navigationPending && options.writable()) {
-      let target = $<HTMLButtonElement>(pendingFocus); pendingFocus = null;
-      if (target.hidden) target = $<HTMLButtonElement>($("settle-current-page").hidden ? "reactivate-current-page" : "settle-current-page");
-      if (!target.hidden) target.focus({ preventScroll: true });
-    }
-    if (waitingForSave && !busy && editor?.state.saveStatus === "saved" && !editor.state.dirty) { waitingForSave = false; message(""); }
+    options.toast.sync();
+    options.toast.disableAction(busy || !options.writable() || Boolean(editor?.state.navigationPending));
+    if (waitingForSave && !busy && editor?.state.saveStatus === "saved" && !editor.state.dirty) { waitingForSave = false; options.toast.clear("attention"); }
     if (bound && (bound.scope !== options.scope() || !options.writable())) close();
-    if (undo && undo.scope !== options.scope()) { undo = null; message(""); }
   }
+
   async function apply(id: string, action: Action, isUndo = false) {
     if (busy || !options.writable() || options.blocked()) return;
     const editor = options.editor(), scope = options.scope();
     if (editor?.state.navigationPending) return;
-    const focusedId = (doc.activeElement as HTMLElement | null)?.id;
-    if (editor?.state.documentId === id && ["settle-current-page", "reactivate-current-page", "snooze-current-page"].includes(focusedId || "")) {
-      pendingFocus = action.action === "settle" ? "reactivate-current-page" : action.action === "reactivate" ? "settle-current-page" : focusedId!;
-    }
-    busy = true; waitingForSave = false; undo = null; message("Saving…");
+    busy = true; waitingForSave = false; message("Saving…");
     const valid = () => options.scope() === scope && options.editor() === editor && !editor?.state.cancelled && options.writable();
     editor?.setNavigationPending(true); sync(); options.onBusy();
     try {
@@ -108,9 +90,10 @@ export function installNoteAttention(options: {
       if (!valid()) return;
       if (result.id !== id || typeof result.contentHash !== "string" || typeof result.content !== "string") throw new Error("The attention change could not be confirmed. Reopen the note to check its state.");
       if (editor?.state.documentId === id && !editor.acceptMetadata(result, saved.contentHash)) throw new Error("The note changed while saving. Reopen it to check its attention state.");
-      if (!isUndo) undo = { id, scope, action: prior === "settled" ? { action: "settle" } : prior && Date.parse(prior) > Date.now() ? { action: "snooze", until: prior } : { action: "reactivate" } };
+      const previous: Action = prior === "settled" ? { action: "settle" } : prior && Date.parse(prior) > Date.now() ? { action: "snooze", until: prior } : { action: "reactivate" };
       message(isUndo ? "Attention change undone." : action.action === "settle" ? "Settled. Pinned pages stay visible."
-        : action.action === "snooze" ? "Snoozed until " + new Date(action.until).toLocaleString() + ". Pinned pages stay visible." : "Note brought back.");
+        : action.action === "snooze" ? "Snoozed until " + new Date(action.until).toLocaleString() + ". Pinned pages stay visible." : "Note brought back.", false,
+        isUndo ? undefined : () => { if (options.scope() === scope) void apply(id, previous, true); });
       options.changed();
     } catch (error) {
       if (!valid()) return;
@@ -118,7 +101,6 @@ export function installNoteAttention(options: {
         : error instanceof Error && !(error as { status?: number }).status ? error.message : "Could not confirm the attention change. Check the connection, then reopen the note before retrying.", true);
     } finally {
       busy = false;
-      if (!valid()) pendingFocus = null;
       if (options.editor() === editor && !editor?.state.cancelled) editor?.setNavigationPending(false);
       sync(); options.onBusy();
     }
@@ -161,11 +143,6 @@ export function installNoteAttention(options: {
   $("snooze-close").addEventListener("click", close);
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
   dialog.addEventListener("click", event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) close(); } });
-  const current = () => { const s = options.editor()?.state; return s?.loaded ? { id: s.documentId, title: s.title } : null; };
-  $("snooze-current-page").addEventListener("click", () => { const page = current(); if (page) open(page, $("snooze-current-page")); });
-  $("settle-current-page").addEventListener("click", () => { const page = current(); if (page) void apply(page.id, { action: "settle" }); });
-  $("reactivate-current-page").addEventListener("click", () => { const page = current(); if (page) void apply(page.id, { action: "reactivate" }); });
-  $("attention-undo").addEventListener("click", () => { const previous = undo; if (previous && previous.scope === options.scope()) void apply(previous.id, previous.action, true); });
   return { sync, close, isBusy: () => busy, isOpen: () => dialog.open,
     act(action: "settle" | "snooze", page: AttentionPage, anchor: HTMLElement) { if (action === "snooze") open(page, anchor); else void apply(page.id, { action: "settle" }); },
   };

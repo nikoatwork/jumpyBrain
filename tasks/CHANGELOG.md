@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Temporary note feedback and compact controls
+
+- Added expiring, dismissible note toasts and simplified note detail actions; finalized [feedback/control cleanup](done/2026-10-23_tasks-mac-detail-feedback.md).
+
 ## 2026-10-23 — Installed feedback delivery failure
 
 - The actual Mac feedback test found a missing bundled relay URL; recorded [failed delivery evidence](done/2026-10-23_tasks-installed-feedback-e2e.md) and tracked the release-configuration repair.

@@ -498,6 +498,11 @@ function referenceHarness({ dirty = true } = {}) {
     });
     return elements.get(id);
   };
+  const notice = { hidden: true, textContent: "", dataset: {} };
+  const toast = {
+    show(source, text, options = {}) { notice.hidden = false; notice.textContent = text; notice.dataset.error = String(Boolean(options.error)); },
+    clear() { notice.hidden = true; notice.textContent = ""; },
+  };
   const writes = [], resolves = [], reads = [], pushes = [], shows = [];
   const timers = new Map();
   let timer = 0, dismissed = 0;
@@ -517,7 +522,7 @@ function referenceHarness({ dirty = true } = {}) {
     "isValidMemoryDocumentId", "showNote", "noteLoadError", "setConnectionKey",
     "closeConnection", "maskApiKey", "renderConnection", "openConnection", "openSearch",
   ], {
-    $, state, window, richEditor, AbortController, document: { title: "", activeElement: null },
+    $, state, window, richEditor, toast, AbortController, document: { title: "", activeElement: null },
     credentialRevision: 0, referenceRequest: null, stagedReferenceNote: null,
     activeApiKey: "old-key", connectionStatus: "connected", apiKeyInput: $("api-key"),
     localStorage: { setItem() {}, removeItem() {} }, reopenSearch: false,
@@ -558,7 +563,7 @@ function referenceHarness({ dirty = true } = {}) {
     go() { assert.fail("unexpected history traversal"); },
   });
   return {
-    context, $, state, origin, writes, resolves, reads, pushes, shows, richEditor,
+    context, $, notice, state, origin, writes, resolves, reads, pushes, shows, richEditor,
     get dismissed() { return dismissed; },
     activate(title = "Beta") { return context.activatePageReference(title); },
     async saved() { writes.at(-1).resolve({ newContentHash: "saved-hash" }); await tick(); },
@@ -611,7 +616,7 @@ test("page references save first, resolve freshly, preflight, and consume the st
   assert.equal(h.origin.state.cancelled, true);
   assert.equal(h.context.stagedReferenceNote, null);
   assert.equal(h.context.referenceRequest, null);
-  assert.equal(h.$("reference-message").hidden, true);
+  assert.equal(h.notice.hidden, true);
   assert.ok(h.dismissed >= 2);
 });
 
@@ -656,7 +661,7 @@ test("Mac missing references retain source on read-only, ambiguous, failed or ca
     await opening;
     assertRetained(h, "Original body");
     assert.equal(h.reads.length, 0);
-    if (outcome === "read-only") assert.match(h.$("reference-message").textContent, /read only/);
+    if (outcome === "read-only") assert.match(h.notice.textContent, /read only/);
   }
 });
 
@@ -669,7 +674,7 @@ test("failed saves retain the dirty draft and never resolve a page reference", a
   assert.equal(h.origin.state.dirty, true);
   assert.equal(h.origin.state.saveStatus, "failed");
   assert.equal(h.resolves.length, 0);
-  assert.match(h.$("reference-message").textContent, /Save failed/);
+  assert.match(h.notice.textContent, /Save failed/);
   await h.activate();
   assert.equal(h.writes.length, 1, "blocked autosave requires explicit retry");
   assert.equal(h.resolves.length, 0);
@@ -701,9 +706,9 @@ test("reference resolve/preflight failures retain the current editor and unlock 
     await opening;
     assertRetained(h);
     assert.equal(h.reads.length, scenario.preflight ? 1 : 0);
-    assert.match(h.$("reference-message").textContent, scenario.message || /could not be opened/);
-    assert.doesNotMatch(h.$("reference-message").textContent, /private server detail/);
-    assert.equal(h.$("reference-message").dataset.error, "true");
+    assert.match(h.notice.textContent, scenario.message || /could not be opened/);
+    assert.doesNotMatch(h.notice.textContent, /private server detail/);
+    assert.equal(h.notice.dataset.error, "true");
   });
 });
 
@@ -752,7 +757,7 @@ test("credentials and modal openings cancel pending references, including transp
       if (phase === "preflight") h.reads[0].resolve(h.payload);
       await opening;
       assertRetained(h);
-      assert.equal(h.$("reference-message").hidden, true, "canceled responses must not show stale feedback");
+      assert.equal(h.notice.hidden, true, "canceled responses must not show stale feedback");
       assert.equal(h.resolves.length, phase === "save" ? 0 : 1);
       assert.equal(h.reads.length, phase === "preflight" ? 1 : 0);
     });

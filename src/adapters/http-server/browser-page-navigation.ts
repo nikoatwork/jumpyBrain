@@ -94,8 +94,6 @@ export function installPageNavigation(options: {
 }) {
   const { document, window } = options;
   const element = (id: string) => document.getElementById(id)!;
-  const pinCurrent = element("pin-current-page") as HTMLButtonElement;
-  let current: Page | null = null;
   let selected: string | null = null;
   const history = createPageHistory({ scope: options.scope, storage: () => window.localStorage, onChange: render });
   const signatures = new Map<string, string>();
@@ -141,7 +139,7 @@ export function installPageNavigation(options: {
           pin.addEventListener("click", () => history.toggle(page));
           const actions = document.createElement("span"); actions.className = "sidebar-page-actions";
           actions.append(pin);
-          if (attention && section === "recent" && options.onAction) {
+          if (attention && options.onAction) {
             for (const action of ["snooze", "settle"] as const) {
               const button = document.createElement("button");
               button.type = "button"; button.className = "sidebar-page-action"; button.dataset.attentionAction = action;
@@ -180,20 +178,12 @@ export function installPageNavigation(options: {
         }
       }
     }
-    const pinned = snapshot.pinned.some((page) => page.id === current?.id);
-    pinCurrent.hidden = !current;
-    pinCurrent.disabled = !pinned && snapshot.pinned.length >= 50;
-    pinCurrent.setAttribute("aria-pressed", String(pinned));
-    pinCurrent.title = pinned ? "Unpin page" : "Pin page";
-    pinCurrent.setAttribute("aria-label", pinCurrent.title);
     if ((focusId || focusLink || focusAction) && !focused?.isConnected) {
       const replacement = [...document.querySelectorAll<HTMLElement>(focusId ? "[data-page-pin]" : focusLink ? "[data-page-link]" : "[data-page-action]")]
         .find((item) => focusId ? item.dataset.pagePin === focusId : focusLink ? item.dataset.pageLink === focusLink : item.dataset.pageAction === focusAction);
       (replacement || element("notes-link")).focus({ preventScroll: true });
     }
   }
-  pinCurrent.innerHTML = pinIcon;
-  pinCurrent.addEventListener("click", () => { if (current) history.toggle(current); });
   window.addEventListener("storage", (event) => history.storageChanged(event));
   if (attention) {
     const resume = () => { void attention.load(); };
@@ -204,11 +194,11 @@ export function installPageNavigation(options: {
   }
   render();
   return {
-    select(id: string | null) { selected = id; current = null; render(); if (attention) void attention.load(); },
-    visit(page: Page) { current = page; selected = page.id; if (!history.visit(page)) render(); },
-    rename(page: Page) { if (current?.id === page.id) current = page; history.rename(page); },
-    remove(id: string) { if (current?.id === id) current = null; history.remove(id); if (attention) void attention.load(); },
-    refresh() { current = null; render(); if (attention) void attention.load(); },
+    select(id: string | null) { selected = id; render(); if (attention) void attention.load(); },
+    visit(page: Page) { selected = page.id; if (!history.visit(page)) render(); },
+    rename(page: Page) { history.rename(page); },
+    remove(id: string) { history.remove(id); if (attention) void attention.load(); },
+    refresh() { render(); if (attention) void attention.load(); },
     reloadAttention() { if (attention) void attention.load(); },
     sync: render,
   };

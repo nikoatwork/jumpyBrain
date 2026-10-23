@@ -29,17 +29,30 @@ async function saved() {
   await page.waitForFunction(() => state.editor?.state.loaded && !state.editor.state.navigationPending && !state.editor.state.dirty && state.editor.state.saveStatus === "saved");
 }
 async function settled() {
-  await page.waitForFunction(() => !state.editor?.state.navigationPending && document.querySelector("#note-attention-state").textContent === "Settled");
+  await page.waitForFunction(() => !state.editor?.state.navigationPending && state.editor?.state.frontmatterPrefix.includes("attention_at: null"));
 }
 async function bringBack() {
-  await page.locator("#reactivate-current-page").focus();
-  await page.keyboard.press("Enter");
-  await page.waitForFunction(() => !state.editor?.state.navigationPending && document.querySelector("#attention-message").textContent === "Note brought back.");
-  await page.waitForFunction(() => document.activeElement?.id === "settle-current-page");
+  // Reset fixture state after testing persistence; the removed toolbar has no reactivation action.
+  const current = await json(documentPath(ids[0]));
+  await json(documentPath(ids[0]), { method: "PATCH", headers: { "If-Match": current.contentHash }, body: JSON.stringify({ action: "reactivate" }) });
+  await page.reload(); await page.locator("#note-editor").waitFor();
+}
+async function sidebarAction(action) {
+  await page.locator(`[data-page-link="${ids[0]}"]`).hover();
+  await page.locator(`[data-page-action="${ids[0]}:${action}"]`).click();
+}
+async function pin() {
+  await page.locator(`[data-page-link="${ids[0]}"]`).hover();
+  await page.locator(`[data-page-pin="${ids[0]}"]`).click();
 }
 async function assertFits(label) {
   const sizes = await page.evaluate(() => ({ viewport: innerWidth, document: document.documentElement.scrollWidth, body: document.body.scrollWidth }));
   assert.ok(sizes.document <= sizes.viewport && sizes.body <= sizes.viewport, `${label}: no horizontal page overflow ${JSON.stringify(sizes)}`);
+  const toast = page.locator("#app-toast");
+  if (await toast.isVisible()) {
+    const box = await toast.boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= page.viewportSize().width + 1, `${label}: toast fits width`);
+  }
   const dialog = page.locator("#note-snooze");
   if (await dialog.isVisible()) {
     const box = await dialog.boundingBox();
@@ -69,10 +82,10 @@ try {
   const surface = await page.locator("#note-editor").elementHandle();
   await selectEditorText(page, 6);
   const caret = await editorSelection(page);
-  await page.locator("#settle-current-page").focus();
+  await row(ids[0]).hover();
+  await page.locator(`[data-page-action="${ids[0]}:settle"]`).focus();
   await page.keyboard.press("Enter");
   await settled();
-  await page.waitForFunction(() => document.activeElement?.id === "reactivate-current-page");
   await row(ids[0]).waitFor({ state: "detached" });
   assert.equal(await editorMarkdown(page), body, "settling preserves editor body");
   assert.deepEqual(await editorSelection(page), caret, "settling preserves the editor caret");
@@ -92,36 +105,36 @@ try {
   assert.equal(Object.hasOwn((await json(documentPath(ids[0]))).frontmatter, "attention_at"), false);
 
   // Pins are scope-local navigation, independent of canonical attention state.
-  await page.locator("#pin-current-page").click();
+  await pin();
   await row(ids[0], "pinned").waitFor();
-  await page.locator("#settle-current-page").click();
+  await sidebarAction("settle");
   await settled();
   assert.equal(await row(ids[0], "pinned").count(), 1);
   assert.equal(await row(ids[0]).count(), 0);
   await page.reload(); await page.locator("#note-editor").waitFor(); await settled();
   assert.equal(await row(ids[0], "pinned").count(), 1, "pin and settled state both survive reload");
-  await page.locator("#pin-current-page").click();
+  await pin();
   assert.equal(await row(ids[0], "pinned").count(), 0);
   assert.equal(await row(ids[0]).count(), 0, "unpinning does not reactivate settled notes");
   await bringBack(); await row(ids[0]).waitFor();
 
   // Real menu choices publish the exact displayed local-time instants.
   for (const label of ["In 1 hour", "In 3 hours", "Tomorrow", "Next week"]) {
-    await page.locator("#snooze-current-page").click();
+    await sidebarAction("snooze");
     await page.locator("#note-snooze").waitFor();
     assert.deepEqual(await page.locator("#snooze-options button span").allTextContents(), ["In 1 hour", "In 3 hours", "Tomorrow", "Next week", "Custom…"]);
     const choice = page.getByRole("menuitem", { name: new RegExp(`^${label}`) });
     const until = await choice.locator("time").getAttribute("datetime");
     assert.ok(await choice.locator("time").innerText(), "menu shows the local return time");
     await choice.click();
-    await page.waitForFunction(() => !state.editor?.state.navigationPending && document.querySelector("#note-attention-state").textContent === "Snoozed");
+    await page.waitForFunction(() => !state.editor?.state.navigationPending && state.editor?.state.frontmatterPrefix.includes("attention_at:") && !state.editor.state.frontmatterPrefix.includes("attention_at: null"));
     await row(ids[0]).waitFor({ state: "detached" });
     assert.equal((await json(documentPath(ids[0]))).frontmatter.attention_at, until);
     assert.equal(await editorMarkdown(page), body);
     await bringBack(); await row(ids[0]).waitFor();
   }
 
-  await page.locator("#snooze-current-page").click();
+  await sidebarAction("snooze");
   await page.getByRole("menuitem", { name: "Custom…", exact: true }).click();
   await page.locator("#snooze-datetime").fill("2020-01-01T10:00");
   const patchCount = patches.length;
@@ -135,7 +148,7 @@ try {
   });
   await page.locator("#snooze-datetime").fill(custom.local);
   await page.locator('#snooze-custom button[type="submit"]').click();
-  await page.waitForFunction(() => !state.editor?.state.navigationPending && document.querySelector("#note-attention-state").textContent === "Snoozed");
+  await page.waitForFunction(() => !state.editor?.state.navigationPending && state.editor?.state.frontmatterPrefix.includes("attention_at:") && !state.editor.state.frontmatterPrefix.includes("attention_at: null"));
   assert.equal((await json(documentPath(ids[0]))).frontmatter.attention_at, custom.iso);
   await bringBack();
 
@@ -158,13 +171,12 @@ try {
   const currentUntil = new Date(Date.now() + 5_000).toISOString();
   await json(documentPath(ids[0]), { method: "PATCH", headers: { "If-Match": currentNote.contentHash }, body: JSON.stringify({ action: "snooze", until: currentUntil }) });
   await page.reload(); await page.locator("#note-editor").waitFor();
-  await page.waitForFunction(() => document.querySelector("#note-attention-state").textContent === "Snoozed");
-  assert.equal(await page.locator("#reactivate-current-page").isVisible(), true);
+  await page.waitForFunction(() => state.editor?.state.frontmatterPrefix.includes("attention_at:") && !state.editor.state.frontmatterPrefix.includes("attention_at: null"));
+  assert.equal(await page.locator("#note-attention-controls, #pin-current-page").count(), 0);
   await row(ids[0]).waitFor({ state: "detached" });
   await selectEditorText(page, 9);
   const currentCaret = await editorSelection(page);
   await row(ids[0]).waitFor({ timeout: 10_000 });
-  await page.waitForFunction(() => document.querySelector("#note-attention-state").textContent === "" && document.querySelector("#reactivate-current-page").hidden);
   assert.equal(await editorMarkdown(page), body, "current-note expiry preserves body");
   assert.deepEqual(await editorSelection(page), currentCaret, "current-note expiry preserves caret");
   assert.equal((await json(documentPath(ids[0]))).frontmatter.attention_at, currentUntil, "expiry is observational rather than a metadata rewrite");
@@ -180,28 +192,48 @@ try {
   });
   await appendEditorText(page, " Keep this unsaved draft.");
   const draft = await editorMarkdown(page), beforeFailed = patches.length;
-  await page.locator("#settle-current-page").click();
+  await sidebarAction("settle");
   await page.waitForFunction(() => !state.editor?.state.navigationPending && state.editor.state.saveStatus === "failed");
   assert.equal(patches.length, beforeFailed, "failed save prevents attention PATCH");
   assert.equal(await editorMarkdown(page), draft);
   assert.equal(Object.hasOwn((await json(documentPath(ids[0]))).frontmatter, "attention_at"), false);
   await page.unroute("**/memories/all/documents/**");
   await page.locator("#note-retry").click(); await saved();
-  await page.waitForFunction(() => document.querySelector("#attention-feedback").hidden);
-  await page.locator("#settle-current-page").click(); await settled();
+  await page.waitForFunction(() => document.querySelector("#app-toast").hidden);
+  await sidebarAction("settle"); await settled();
   assert.equal(await editorMarkdown(page), draft, "recovered attention mutation retains the saved draft");
-  await page.locator("#attention-undo").click();
+  await page.locator("#toast-action").click();
   await row(ids[0]).waitFor();
   assert.equal(Object.hasOwn((await json(documentPath(ids[0]))).frontmatter, "attention_at"), false, "Undo removes the settled override");
   assert.equal(await editorMarkdown(page), draft, "Undo retains recovered writing");
+
+  // Real action confirmations must expire without another navigation or action.
+  for (const [id, label] of [["copy-note-draft", "Copy draft"], ["delete-note", "Delete note"], ["insert-reference", "Insert page reference"]]) {
+    assert.equal(await page.locator("#" + id).textContent(), "");
+    assert.equal(await page.locator("#" + id).getAttribute("aria-label"), label);
+  }
+  await sidebarAction("snooze");
+  await page.getByRole("menuitem", { name: /^In 1 hour/ }).click();
+  await page.waitForFunction(() => document.querySelector("#toast-message").textContent.startsWith("Snoozed until"));
+  await page.locator("#note-name").focus(); await page.mouse.move(1, 1);
+  await page.locator("#app-toast").waitFor({ state: "hidden", timeout: 10_000 });
+  assert.equal(await page.locator("#toast-action").isVisible(), false, "expired Undo disappears too");
+  await bringBack(); await row(ids[0]).waitFor();
+  await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async text => { window.copiedFixtureDraft = text; } } }));
+  await page.locator("#copy-note-draft").click();
+  await page.waitForFunction(() => document.querySelector("#toast-message").textContent === "Draft copied.");
+  assert.equal(await page.evaluate(() => window.copiedFixtureDraft), titles[0] + "\n\n" + draft);
+  await page.mouse.move(1, 1);
+  await page.locator("#app-toast").waitFor({ state: "hidden", timeout: 6_000 });
 
   for (const theme of ["light", "dark"]) {
     if (await page.locator("html").getAttribute("data-theme") !== theme) await page.locator("#color-theme").click();
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({ width, height: 850 });
+      await page.evaluate(() => toast.show("layout", "Snoozed until 24/10/2026, 09:00. Pinned pages stay visible.", { action: { label: "Undo", run() {} } }));
       await assertFits(`${theme} ${width}`);
       await page.screenshot({ path: path.join(screenshots, `attention-${theme}-${width}.png`), fullPage: true });
-      await page.locator("#snooze-current-page").click();
+      await sidebarAction("snooze");
       await assertFits(`${theme} ${width} presets`);
       await page.screenshot({ path: path.join(screenshots, `snooze-${theme}-${width}.png`), fullPage: true });
       await page.getByRole("menuitem", { name: "Custom…", exact: true }).click();
@@ -210,8 +242,9 @@ try {
     }
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ status: "PASS", checks: "settle/direct-link/reactivate, exact metadata/body/caret, independent persistent pins, snooze presets/custom, unvisited/current-note deadline wake, keyboard focus transfer, failed-save draft guard/recovery, two themes, desktop/390/320 layout", patches: patches.length, screenshots }));
+  console.log(JSON.stringify({ status: "PASS", checks: "settle/direct-link/reactivate, exact metadata/body/caret, independent persistent pins, snooze presets/custom, unvisited/current-note deadline wake, sidebar keyboard focus recovery, failed-save draft guard/recovery, icon labels, real snooze/copy toast expiry, two themes, desktop/390/320 layout", patches: patches.length, screenshots }));
 } catch (error) {
+  console.error("attention failure", page?.url(), errors, await page?.evaluate(() => ({ view: state.view, focus: document.activeElement?.id, hash: state.editor?.state.contentHash })).catch(() => null));
   if (page && !page.isClosed()) await page.screenshot({ path: path.join(screenshots, "failure.png"), fullPage: true }).catch(() => {});
   throw error;
 } finally {

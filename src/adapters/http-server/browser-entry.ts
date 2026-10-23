@@ -15,3 +15,5 @@ export { createFeedbackDiagnostics, installFeedback, diagnosticBuildInfo } from 
 export { installNoteAttention } from "./note-attention.js";
 
 export { installSearchMaintenance } from "./search-maintenance.js";
+
+export { installToast } from "./browser-toast.js";

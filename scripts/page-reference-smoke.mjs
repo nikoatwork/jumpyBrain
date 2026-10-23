@@ -49,7 +49,7 @@ try {
   try {
     await open(preflight);
     assert.equal(await preflight.evaluate(() => typeof window.installReferenceAutocomplete), "function", "rebuild dist: production autocomplete bundle is required");
-    assert.equal(await preflight.locator("#reference-message").count(), 1, "rebuild dist: production navigation feedback is required");
+    assert.equal(await preflight.locator("#toast-message").count(), 1, "rebuild dist: production navigation feedback is required");
     assert.equal(await preflight.locator(popupSelector).count(), 1, "production shell must install autocomplete");
     assert.ok(await preflight.locator(referenceSelector).count(), "production editor must recognize references");
   } finally { await preflight.close(); }
@@ -129,7 +129,7 @@ async function markdownIs(page, value) {
 }
 async function feedback(page, pattern = /./) {
   await page.waitForFunction((pattern) => {
-    const element = document.querySelector("#reference-message");
+    const element = document.querySelector("#toast-message");
     return element && !element.hidden && new RegExp(pattern, "i").test(element.textContent);
   }, pattern.source);
 }
@@ -226,7 +226,7 @@ async function run(name, test, mobile) {
       anchor: getSelection()?.anchorNode?.parentElement?.outerHTML,
       active: document.activeElement?.id, popup: { visible: !document.querySelector("[data-reference-autocomplete]")?.hidden,
         text: document.querySelector("[data-reference-autocomplete]")?.textContent },
-      feedback: document.querySelector("#reference-message")?.textContent,
+      feedback: document.querySelector("#toast-message")?.textContent,
       save: document.querySelector("#note-save-state")?.textContent,
     })).catch(() => null)));
     const dir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
@@ -363,7 +363,7 @@ async function deletedTarget(page, { mobile, requests }) {
     await rm(fixturePath(target));
     await gate.release();
     await page.waitForFunction(() => /no longer|not found|could not|unavailable/i.test(
-      document.querySelector("#reference-message")?.textContent + " " + document.querySelector("#note-message")?.textContent));
+      document.querySelector("#toast-message")?.textContent + " " + document.querySelector("#note-message")?.textContent));
     assert.ok(requests.some((request) => request.method() === "GET" && endpoint(request, `documents/${target.id}`)), "deletion is exercised after found and before actual GET");
     if (new URL(page.url()).searchParams.get("note") !== source.id) { await page.goBack(); await opened(page); }
     assert.equal(await editorMarkdown(page), draft, "GET race must not lose the saved source draft");

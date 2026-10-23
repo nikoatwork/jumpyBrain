@@ -2,10 +2,12 @@ import type { createDocumentEditor } from "./document-controller.js";
 import { splitEditableDocument } from "./document-controller.js";
 import { memoryDocumentPath } from "../http-protocol.js";
 import type { MemoryDocumentDeletePreview, MemoryDocumentDeleteResult, MemoryDocumentReadResult } from "../../types.js";
+import type { Toast } from "./browser-toast.js";
 type Editor = ReturnType<typeof createDocumentEditor>;
 export function installDocumentActions(options: {
   document: Document; editor(): Editor | null; writable(): boolean; scope(): string;
   json(url: string, options?: RequestInit): Promise<unknown>;
+  toast: Toast;
   onDeleted(id: string, message: string): Promise<void>;
 }) {
   const doc = options.document;
@@ -33,7 +35,7 @@ export function installDocumentActions(options: {
     try {
       await doc.defaultView!.navigator.clipboard.writeText(text);
       if (!valid(editor, scope)) return;
-      $("draft-copy-status").textContent = "Draft copied.";
+      options.toast.show("draft", "Draft copied.");
       if (recovery.open && bound === editor) $("recovery-message").textContent = "Draft copied.";
     } catch {
       if (!valid(editor, scope)) return;
