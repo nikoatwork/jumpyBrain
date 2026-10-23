@@ -1,3 +1,4 @@
+import { browserIcons } from "./browser-icons.js";
 import { brainOutlineSvg } from "./favicon.js";
 import { themeMarkup } from "./browser-theme.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
@@ -18,10 +19,10 @@ ${noteAttentionStyles}
     .nav-brand { min-width: 0; }
     .app-nav .home-link { display: block; font-size: var(--text-body); padding: var(--space-1) var(--space-3); font-weight: var(--weight-semibold); background: transparent; color: var(--ink); }
     .home-link small { font-size: var(--text-caption); font-weight: var(--weight-regular); }
-    .nav-tools, .nav-pages, .nav-preferences { display: flex; flex-direction: column; gap: var(--space-1); }
+    .nav-tools, .nav-preferences { display: flex; flex-direction: column; gap: var(--space-1); }
     .nav-tools { flex-direction: row; align-items: center; gap: var(--space-2); }
-    .nav-utilities { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
-    .nav-preferences { margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--line); flex-shrink: 0; }
+    .nav-utilities { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; }
+    .nav-preferences { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--line); flex-shrink: 0; }
     .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     .app-nav .nav-item:hover, .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
@@ -158,7 +159,12 @@ ${noteAttentionStyles}
     #connection h2 { margin: 0 0 var(--space-2); font-size: var(--text-heading); }
     #connection p { color: var(--ink-soft); }
     #connection label { display: block; margin: var(--space-5) 0 var(--space-2); }
-    #open-connection[data-state="connected"] { color: var(--ink); }
+    #open-connection { position: relative; }
+    .connection-dot { display: inline-block; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: var(--ink-faint); }
+    #open-connection .connection-dot { position: absolute; top: 5px; right: 5px; }
+    [data-state="connected"] > .connection-dot { background: var(--status-connected); }
+    [data-state="checking"] > .connection-dot { background: var(--ink-faint); }
+    [data-state="disconnected"] > .connection-dot, [data-state="unavailable"] > .connection-dot { background: var(--error-ink); }
     .connection-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-5); }
     #api-key { width: 100%; display: block; margin-top: var(--space-2); font-size: var(--text-section); }
     @media (max-width: 680px) {
@@ -170,18 +176,14 @@ ${noteAttentionStyles}
       .workspace-brand { margin: var(--space-2) var(--space-4) var(--space-2) auto; }
       .app-nav .home-link { padding-inline: 0; }
       .nav-tools { flex-direction: row; align-items: center; gap: var(--space-1); }
-      .nav-pages { grid-row: 2; grid-column: 1; flex-direction: row; }
-      .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
+      .nav-library { grid-row: 2; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
       .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
       .sidebar-page { flex: 0 0 auto; max-width: 190px; }
       .sidebar-page + .sidebar-page { margin-top: 0; }
       .sidebar-page-link { min-height: var(--control-height); }
       .sidebar-empty { margin: var(--space-1); }
-      .nav-preferences { display: contents; }
-      .nav-preferences #graph-link { grid-row: 2; grid-column: 2; justify-content: center; }
-      .nav-preferences #open-connection { grid-row: 4; grid-column: 1; }
-      .nav-preferences #open-feedback { grid-row: 4; grid-column: 2; }
-      .nav-utilities { grid-row: 5; grid-column: 1 / -1; margin-top: 0; }
+      .nav-preferences { grid-row: 3; grid-column: 1 / -1; margin-top: 0; padding-top: var(--space-2); }
+      .nav-utilities { margin-left: auto; }
       .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
       .app-nav .sidebar-icon, #color-theme { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
       .nav-item svg { width: 16px; height: 16px; }
@@ -200,11 +202,9 @@ export const notesMarkup = String.raw`
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
   <div class="nav-brand"><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain <small>(beta)</small></a></div>
   <div class="nav-tools" role="group" aria-label="Note actions">
+    <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
     <button id="new-note" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button id="open-search" type="button" class="quiet-button nav-item sidebar-icon" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
-  </div>
-  <div class="nav-pages" role="group" aria-label="Views">
-    <a id="notes-link" class="quiet-button nav-item" href="/">Home</a>
   </div>
   <div class="nav-library" aria-label="Your pages">
     <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
@@ -212,9 +212,9 @@ export const notesMarkup = String.raw`
     <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
   </div>
   <div class="nav-preferences">
-    <a id="graph-link" class="quiet-button nav-item" href="/graph">Graph</a>
-    <button id="open-connection" class="quiet-button nav-item" aria-label="Connect · Connection settings" aria-haspopup="dialog">Connect</button>
-    <button id="open-feedback" class="quiet-button nav-item" aria-haspopup="dialog" aria-controls="feedback-dialog">Feedback</button>
+    <a id="graph-link" class="quiet-button nav-item sidebar-icon" href="/graph" aria-label="Graph" title="Graph">${browserIcons.graph}</a>
+    <button id="open-connection" class="quiet-button nav-item sidebar-icon" aria-label="Connect · Connection settings" title="Connection settings" aria-haspopup="dialog">${browserIcons.settings}<span class="connection-dot" aria-hidden="true"></span></button>
+    <button id="open-feedback" class="quiet-button nav-item sidebar-icon" aria-label="Feedback" title="Feedback" aria-haspopup="dialog" aria-controls="feedback-dialog">${browserIcons.feedback}</button>
     <div class="nav-utilities" role="group" aria-label="App utilities"><div class="nav-appearance">${themeMarkup}</div></div>
   </div>
 </nav>
@@ -235,7 +235,7 @@ ${noteAttentionMarkup}
 <dialog id="note-search" aria-label="Search notes">
   <div class="dialog-head">
     <input id="note-search-input" aria-label="Search titles and contents" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="search-results" autocomplete="off" placeholder="Search your memory…" />
-    <button id="close-search" class="quiet-button" aria-label="Close search">Esc</button>
+    <button id="close-search" class="quiet-button note-icon" aria-label="Close search" title="Close search (Esc)">${browserIcons.close}</button>
   </div>
   <ul id="search-results" role="listbox" aria-label="Matching notes"></ul>
   <div class="search-footer">
@@ -296,8 +296,7 @@ export const notesViews = String.raw`
       </button>
     </div>
     <section class="recent-notes" aria-labelledby="recent-title">
-      <div class="recent-heading"><h2 id="recent-title">Recent activity</h2><button id="recent-refresh" class="quiet-button" aria-label="Refresh recent activity">Refresh</button></div>
-      <p class="recent-description">Latest update per file · Up to 8 files</p>
+      <div class="recent-heading"><h2 id="recent-title">Recent activity</h2><button id="recent-refresh" class="quiet-button note-icon" aria-label="Refresh recent activity" title="Refresh recent activity">${browserIcons.refresh}</button></div>
       <ul id="recent-list" aria-label="Recent activity"></ul>
       <p id="recent-message" role="status" aria-live="polite"></p>
       <button id="recent-retry" class="quiet-button" hidden>Retry</button>
@@ -903,7 +902,7 @@ function renderConnection() {
   const connected = connectionStatus === "connected";
   const label = connected ? "Connected" : connectionStatus === "checking" ? "Connecting…" : "Connect";
   const button = $("open-connection");
-  button.textContent = label;
+  button.title = label + " · Connection settings";
   button.dataset.state = connectionStatus;
   button.setAttribute("aria-label", label + " · Connection settings");
   $("connection-title").textContent = connected ? "Connection settings" : "Connect to your memory";

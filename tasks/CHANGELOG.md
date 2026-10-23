@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Quieter interface controls
+
+- Moved Home into the icon row, replaced connected text with a muted green dot, and compacted navigation, Settings and graph controls; finalized [the interface pass](done/2026-10-23_tasks-interface-polish.md).
+
 ## 2026-10-23 — Feedback delivery and dialog
 
 - Restored packaged Mac feedback delivery, simplified the dialog, and added API inbox checks; [installed-app delivery and verification](done/2026-10-23_tasks-feedback-release-configuration.md).

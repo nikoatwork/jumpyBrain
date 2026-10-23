@@ -1,10 +1,14 @@
+import { browserIcons } from "./browser-icons.js";
+
 // Companion-only loopback control UI. No target credential is ever read into this shell.
 export const companionStyles = String.raw`
   #companion-settings { width: 100%; overflow: auto; padding: var(--space-8) var(--space-6) var(--space-16); }
   .companion-column { max-width: 760px; margin: auto; }
   #companion-settings h2 { font-size: var(--text-section); margin-top: var(--space-8); }
-  .companion-profile { border-bottom: 1px solid var(--line); padding: var(--space-4) 0; }
-  .companion-profile p { margin: var(--space-1) 0 var(--space-3); color: var(--ink-soft); overflow-wrap: anywhere; }
+  .companion-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-4); align-items: center; border-bottom: 1px solid var(--line); padding: var(--space-4) 0; }
+  .companion-profile p { grid-column: 1; margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--ink-soft); overflow-wrap: anywhere; }
+  .companion-profile > .companion-actions { grid-column: 2; grid-row: 1 / 3; gap: var(--space-1); }
+  .companion-profile strong { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); }
   .companion-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   #companion-fields { border: 0; padding: 0; margin: 0; }
   #companion-form label { display: block; margin: var(--space-4) 0; }
@@ -13,9 +17,19 @@ export const companionStyles = String.raw`
   #companion-form input[type=checkbox] { height: auto; }
   #companion-banner { padding: var(--space-2) var(--space-6); margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
   #companion-banner[data-error=true], #companion-feedback[data-error=true] { color: var(--error-ink); }
-  #companion-active { display: block; padding: var(--space-1) var(--space-3) 0; color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
+  #companion-active { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) 0; color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
   @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
-  .companion-search { padding-bottom: var(--space-6); border-bottom: 1px solid var(--line); }
+  .companion-search { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
+  #companion-settings .companion-search h2 { margin: 0; margin-right: auto; }
+  #companion-index-target { flex-basis: 100%; margin: 0; font-size: var(--text-caption); }
+  #companion-index-feedback:empty, #companion-feedback:empty { display: none; }
+  .companion-add { margin-top: var(--space-6); }
+  .companion-add > summary { width: fit-content; cursor: pointer; font-size: var(--text-ui); color: var(--ink-soft); padding-block: var(--space-2); }
+  #companion-settings > .companion-column > h1 { margin-bottom: var(--space-6); }
+  #companion-form { max-width: 520px; }
+  #companion-form p { color: var(--ink-soft); font-size: var(--text-caption); }
+  @media (max-width: 680px) { .companion-actions .note-icon, #companion-refresh-index { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
+  @media (max-width: 480px) { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
   #companion-index-target, #companion-index-feedback { color: var(--ink-soft); overflow-wrap: anywhere; }
   #companion-index-feedback[data-error=true] { color: var(--error-ink); }
 `;
@@ -26,16 +40,16 @@ export const companionMarkup = String.raw`
     <h1 id="companion-heading" tabindex="-1">Settings</h1>
     <section class="companion-search" aria-labelledby="companion-search-heading">
       <h2 id="companion-search-heading">Search index</h2>
-      <p id="companion-index-target">Connect to a brain to refresh its search index.</p>
-      <button id="companion-refresh-index" class="quiet-button" type="button" disabled>Refresh search index</button>
+      <button id="companion-refresh-index" class="quiet-button note-icon" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
+      <p id="companion-index-target">Connect to a brain to refresh search.</p>
       <p id="companion-index-feedback" role="status" aria-live="polite"></p>
     </section>
     <h2>Brain connections</h2>
-    <p>One active brain across companion tabs. CLI and agent targets are unchanged.</p>
     <p id="companion-feedback" role="status" aria-live="polite"></p>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
     <div id="companion-profiles" aria-label="Saved brains"></div>
-    <h2 id="companion-form-heading">Add connection</h2>
+    <details id="companion-add" class="companion-add">
+    <summary id="companion-form-heading">Add connection</summary>
     <form id="companion-form">
       <fieldset id="companion-fields">
         <label>Name<input id="companion-name" required maxlength="120" autocomplete="off" /></label>
@@ -43,21 +57,21 @@ export const companionMarkup = String.raw`
         <div id="companion-local-fields">
           <label>Existing memory folder<input id="companion-root" autocomplete="off" /></label>
           <button id="companion-folder" class="quiet-button" type="button">Choose folder…</button>
-          <p>No folders are created or initialized.</p>
         </div>
         <div id="companion-remote-fields" hidden>
           <label>Memory server URL<input id="companion-url" type="url" placeholder="https://memory.example.com" autocomplete="off" /></label>
           <label>Access key<input id="companion-key" type="password" autocomplete="new-password" /></label>
-          <p>Write-only Keychain credential. Leave blank when editing to preserve the existing key.</p>
+          <p>Stored in Keychain. Leave blank to keep the saved key.</p>
           <label><input id="companion-writes" type="checkbox" /> I explicitly authorize editing, creating and deleting notes, and refreshing the search index on this remote brain.</label>
           <p>Saving, testing, or selecting a connection does not authorize global/team memory writes.</p>
         </div>
         <div class="companion-actions">
           <button class="button button-primary" type="submit">Save connection</button>
-          <button id="companion-cancel" class="quiet-button" type="button">Cancel / clear</button>
+          <button id="companion-cancel" class="quiet-button" type="button">Cancel</button>
         </div>
       </fieldset>
     </form>
+    </details>
   </div>
 </section>
 `;
@@ -109,6 +123,7 @@ companionRecovery.append(sessionRetry, sessionCopy);
 companionBanner.after(companionRecovery);
 const companionActiveLabel = document.createElement("span");
 companionActiveLabel.id = "companion-active";
+companionActiveLabel.setAttribute("role", "img");
 $("home-link").after(companionActiveLabel);
 $("open-connection").removeAttribute("aria-haspopup");
 $("connection").hidden = true;
@@ -149,14 +164,27 @@ function companionHealthText(health) {
   return String(health.status || health.phase || (health.ok === true ? "connected" : health.ok === false ? "offline" : "unknown"));
 }
 function renderCompanionConnection() {
-  $("open-connection").textContent = "Settings";
+  $("open-connection").title = "Settings";
   $("open-connection").setAttribute("aria-label", "Settings");
-  $("open-connection").dataset.state = companionSessionFailed ? "disconnected" : connectionStatus;
   const active = companionState?.active;
-  if ($("companion-active")) $("companion-active").textContent = active
-    ? active.name + " · " + (companionSessionFailed ? "session unavailable" : connectionStatus === "connected" ? "connected" : companionHealthText(companionState.health))
-      + (active.kind === "remote" && active.allowWrites !== true ? " · read only" : "")
-    : "Companion session";
+  const health = companionSessionFailed ? "session unavailable"
+    : ["disconnected", "unavailable"].includes(connectionStatus) ? connectionStatus : companionHealthText(companionState?.health);
+  const displayState = health === "connected" ? "connected"
+    : ["Not tested", "unknown", "checking", "starting"].includes(health) ? "checking" : "unavailable";
+  $("open-connection").dataset.state = displayState;
+  if ($("companion-active")) {
+    const status = $("companion-active");
+    const label = (active?.name || "Companion session") + " · " + health
+      + (active?.kind === "remote" && active.allowWrites !== true ? " · read only" : "");
+    status.textContent = (active?.name || "Companion session")
+      + (health === "connected" ? "" : " · " + health)
+      + (active?.kind === "remote" && active.allowWrites !== true ? " · read only" : "");
+    status.dataset.state = displayState;
+    status.setAttribute("aria-label", label);
+    status.title = label;
+    const dot = document.createElement("span"); dot.className = "connection-dot"; dot.setAttribute("aria-hidden", "true");
+    status.prepend(dot);
+  }
 }
 function companionLock(value) {
   const enteringFrozen = value && !companionFrozen;
@@ -366,6 +394,7 @@ function companionClearForm() {
   companionRemoteDestination = "";
   $("companion-kind").disabled = false;
   $("companion-form-heading").textContent = "Add connection";
+  $("companion-add").open = false;
   companionFormKind();
 }
 async function companionAction(work) {
@@ -389,10 +418,11 @@ function companionCanRefreshIndex() {
 function renderCompanionIndex() {
   const active = companionState?.active;
   $("companion-refresh-index").disabled = !companionCanRefreshIndex();
-  $("companion-refresh-index").textContent = companionIndexRefreshing ? "Refreshing search index…" : "Refresh search index";
+  $("companion-refresh-index").setAttribute("aria-label", companionIndexRefreshing ? "Refreshing search index…" : "Refresh search index");
+  $("companion-refresh-index").setAttribute("aria-busy", String(companionIndexRefreshing));
   $("companion-index-target").textContent = active
-    ? "Refresh “" + active.name + "” after external edits or when recent notes are missing from search."
-      + (active.allowWrites !== true ? " This brain is read only; explicit editing authorization is required." : "")
+    ? "Missing recent edits? Refresh search for “" + active.name + "”."
+      + (active.allowWrites !== true ? " This brain is read only; editing permission required." : "")
       + (companionHealthText(companionState.health) !== "connected" ? " Connect to this brain before refreshing." : "")
     : "Connect to a brain to refresh its search index.";
 }
@@ -428,38 +458,45 @@ function renderCompanionSettings() {
   for (const profile of companionState.profiles) {
     const row = document.createElement("section"); row.className = "companion-profile";
     const name = document.createElement("strong");
-    name.textContent = profile.name + (profile.id === companionState.activeId ? " · Active" : "");
+    name.textContent = profile.name;
+    if (profile.id === companionState.activeId) {
+      const active = document.createElement("span"); active.className = "connection-dot";
+      active.style.background = "var(--ink-soft)"; active.setAttribute("role", "img"); active.setAttribute("aria-label", "Active brain"); active.title = "Active brain";
+      name.append(active);
+    }
     const detail = document.createElement("p");
-    detail.textContent = (profile.kind === "local" ? "Local · " + profile.root : "Remote · " + profile.url)
-      + " · " + companionHealthText(companionHealth.get(profile.id) || (profile.id === companionState.activeId ? companionState.health : null))
-      + (profile.kind === "remote" ? profile.allowWrites === true ? " · Editing authorized" : " · Read only" : "");
+    detail.textContent = (profile.kind === "local" ? profile.root : profile.url)
+      + (companionHealth.has(profile.id) ? " · " + companionHealthText(companionHealth.get(profile.id))
+        : profile.id === companionState.activeId && companionHealthText(companionState.health) !== "connected" ? " · " + companionHealthText(companionState.health) : "")
+      + (profile.kind === "remote" ? profile.allowWrites === true ? " · Can edit" : " · Read only" : "");
     const actions = document.createElement("div"); actions.className = "companion-actions";
-    const button = (label, action, disabled = false) => {
+    const button = (label, glyph, action, disabled = false) => {
       const control = document.createElement("button"); control.type = "button";
-      control.className = "quiet-button"; control.textContent = label;
+      control.className = "quiet-button note-icon"; control.innerHTML = glyph;
+      control.setAttribute("aria-label", label); control.title = label;
       control.disabled = disabled || companionActionBusy || companionFrozen || companionSessionFailed;
       control.addEventListener("click", action); actions.append(control);
     };
-    button("Use this brain", () => companionAction(async () => {
+    button("Use this brain", '${browserIcons.check}', () => companionAction(async () => {
       companionMessage("Requesting a loss-safe switch across all tabs…");
       companionApplyState(await companionControl("switch", { id: profile.id }));
     }), profile.id === companionState.activeId);
-    button("Edit", () => {
+    button("Edit", '${browserIcons.edit}', () => {
       companionClearForm(); companionEditId = profile.id; companionEditRevision = companionState.revision;
       $("companion-name").value = profile.name;
       $("companion-kind").value = profile.kind; $("companion-kind").disabled = true;
       $("companion-root").value = profile.root || ""; $("companion-url").value = profile.url || "";
       companionRemoteDestination = profile.url || "";
       $("companion-writes").checked = profile.allowWrites === true;
-      $("companion-form-heading").textContent = "Edit connection"; companionFormKind(); $("companion-name").focus();
+      $("companion-form-heading").textContent = "Edit connection"; $("companion-add").open = true; companionFormKind(); $("companion-name").focus();
     });
-    button("Test connection", () => companionAction(async () => {
+    button("Test connection", '${browserIcons.connect}', () => companionAction(async () => {
       companionMessage("Checking " + profile.name + "…");
       const result = await companionControl("test", { id: profile.id });
       companionHealth.set(profile.id, result.health);
       companionMessage(profile.name + ": " + companionHealthText(result.health));
     }));
-    button("Remove", () => companionAction(async () => {
+    button("Remove", '${browserIcons.remove}', () => companionAction(async () => {
       if (!confirm("Remove connection “" + profile.name + "”? Memory files and server authorization are not deleted.")) return;
       companionApplyState(await companionControl("remove", { id: profile.id, revision: companionState.revision }));
       companionClearForm(); companionMessage("Connection removed. Memory was not deleted.");

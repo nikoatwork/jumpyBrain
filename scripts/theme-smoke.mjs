@@ -111,7 +111,7 @@ try {
       await page.waitForFunction(() => window.__jumpyBrainGraphReady === true);
       await assertPalette(page, opposite);
       await page.getByTestId("graph-node").first().waitFor();
-      assert.equal(await page.locator(".node text").first().evaluate((el) => getComputedStyle(el).stroke), palettes[opposite].surface);
+      assert.equal(await page.locator(".graph-labels text").first().evaluate((el) => getComputedStyle(el).stroke), palettes[opposite].surface);
       if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) {
         await mkdir(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, { recursive: true });
         await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `ember-${opposite}-${width}-map.png`) });

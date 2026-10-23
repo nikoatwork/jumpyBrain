@@ -1,3 +1,4 @@
+import { browserIcons } from "./browser-icons.js";
 import { designSystemStyles } from "./browser-design-system.js";
 import { GRAPH_NODE_TONES } from "./map-controller.js";
 import { readFileSync } from "node:fs";
@@ -41,7 +42,6 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     h1, dialog h2 { margin: 0; color: var(--ink); font-size: var(--text-heading); line-height: var(--leading-heading); letter-spacing: -.025em; font-weight: var(--weight-semibold); }
     #graph-header { position: relative; z-index: 10; background: var(--surface); }
     .map-heading { flex: 1 0 220px; }
-    .map-heading p { margin: var(--space-1) 0 0; color: var(--ink-soft); font-size: var(--text-caption); }
     .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: var(--space-2) var(--space-6); background: var(--surface); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; pointer-events: none; }
     #graph-notice { padding: 0 var(--space-6) var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
     #graph-warnings { margin: var(--space-1) 0; padding-left: var(--space-4); }
@@ -54,7 +54,8 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .toolbar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-6); }
     #query { width: 230px; min-width: 0; background: transparent; border-color: var(--line); }
     #graph-filters { position: relative; }
-    #graph-filters summary { cursor: pointer; }
+    #graph-filters summary { cursor: pointer; list-style: none; }
+    #graph-filters summary::-webkit-details-marker { display: none; }
     #graph-filters[open] summary { background: var(--surface-hover); }
     .map-options { position: absolute; z-index: 1; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-lg); }
     .map-options label { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); }
@@ -134,12 +135,11 @@ ${feedbackMarkup}
   <div class="toolbar" aria-label="Map controls">
     <div class="map-heading">
       <h1>Memory map</h1>
-      <p>Your notes and how they connect.</p>
     </div>
-    <button id="open-dream" class="quiet-button" type="button" aria-haspopup="dialog" aria-controls="dream-handoff">Consolidate notes (Dream)…</button>
+    <button id="open-dream" class="quiet-button note-icon" type="button" aria-label="Consolidate notes (Dream)" title="Consolidate notes (Dream)" aria-haspopup="dialog" aria-controls="dream-handoff">${browserIcons.dream}</button>
     <input id="query" data-testid="graph-query" aria-label="Search notes on the map" placeholder="Search notes…" />
     <details id="graph-filters">
-      <summary class="quiet-button">Filters</summary>
+      <summary class="quiet-button note-icon" aria-label="Filters" title="Filters">${browserIcons.filters}</summary>
       <div class="map-options">
         <label class="focus-field">Show connections around<input id="focus" data-testid="graph-focus" placeholder="Note title or file" /></label>
         <label><input id="include-orphans" data-testid="graph-include-orphans" type="checkbox" checked />Notes without connections</label>
@@ -148,7 +148,7 @@ ${feedbackMarkup}
       </div>
     </details>
     <button id="graph-index-state" class="icon-button" aria-label="Search maintenance" hidden>↻</button>
-    <button id="reload" data-testid="graph-reload" class="quiet-button" title="Refresh notes and connections">Refresh</button>
+    <button id="reload" data-testid="graph-reload" class="quiet-button note-icon" aria-label="Refresh notes and connections" title="Refresh notes and connections">${browserIcons.refresh}</button>
   </div>
   <div id="graph-notice" role="status" aria-atomic="true" hidden>
     <ul id="graph-warnings" hidden></ul>

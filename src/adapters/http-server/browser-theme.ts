@@ -12,6 +12,7 @@ const darkColors = String.raw`
       --focus-ring: #e08060;
       --accent: #e08060;
       --selection-fill: #e0806040;
+      --status-connected: #819b87;
       --error-ink: #d69999;
       --error-fill: #322827;
       --error-line: #b07878;
@@ -49,6 +50,7 @@ export const themeStyles = String.raw`
       --focus-ring: #b84c30;
       --accent: #b84c30;
       --selection-fill: #b84c3033;
+      --status-connected: #617e65;
       --error-ink: #783c3c;
       --error-fill: #d9c5b2;
       --error-line: #905050;

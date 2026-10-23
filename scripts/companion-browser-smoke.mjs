@@ -158,6 +158,7 @@ try {
   settings.on("pageerror", (exception) => pageErrors.push(exception.message));
   await settings.goto(origin + "/settings#companion=fixture-token");
   await settings.locator("#companion-profiles strong").first().waitFor();
+  assert.equal(await settings.locator("#companion-active").getAttribute("data-state"), "connected", "Settings uses confirmed host health before any memory request");
   if (await settings.locator("html").getAttribute("data-theme") !== "dark") await settings.locator("#color-theme").click();
   assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(28, 27, 25)");
   assert.equal(await settings.locator("#companion-kind").evaluate((el) => getComputedStyle(el).color), "rgb(216, 208, 192)");
@@ -178,6 +179,7 @@ try {
   await settings.waitForFunction(() => document.getElementById("companion-index-feedback").dataset.error === "true");
   await settings.waitForFunction(() => !document.getElementById("companion-refresh-index").disabled);
   failIndex = false;
+  await settings.locator("#companion-form-heading").click();
   await settings.locator("#companion-folder").click();
   await settings.waitForFunction((root) => document.getElementById("companion-root").value === root, path.join(root, "picked"));
   await settings.locator("#companion-kind").selectOption("remote");
@@ -310,6 +312,7 @@ try {
   await settings.locator(".companion-profile").filter({ hasText: "Fixture remote" }).getByRole("button", { name: "Use this brain", exact: true }).click();
   await settings.waitForURL("**/settings?brain=r");
   await settings.locator("#companion-profiles strong").first().waitFor();
+  assert.equal(await settings.locator("#companion-active").getAttribute("data-state"), "connected", "Settings uses confirmed host health before any memory request");
   assert.equal(await settings.locator("#companion-refresh-index").isDisabled(), true);
   assert.match(await settings.locator("#companion-index-target").textContent(), /read only/);
   const readOnly = await context.newPage(); readOnly.on("pageerror", (exception) => pageErrors.push(exception.message));

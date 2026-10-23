@@ -181,7 +181,7 @@ test("shell composes one graph action and integrates native dialog guards withou
   const html = graphPageHtml("dream-test-nonce");
   assert.equal((html.match(/id="open-dream"/g) || []).length, 1);
   assert.match(html, /<header id="graph-header">[\s\S]*?id="open-dream"[\s\S]*?<\/header>/);
-  assert.match(html, /aria-controls="dream-handoff">Consolidate notes \(Dream\)…/);
+  assert.match(html, /aria-label="Consolidate notes \(Dream\)"[^>]*aria-controls="dream-handoff">/);
   assert.match(html, /<dialog id="dream-handoff" aria-labelledby="dream-heading"/);
   assert.match(html, /<textarea id="dream-preview" readonly/);
   assert.match(html, /\[searchDialog, connectionDialog, dreamDialog, \$\("feedback-dialog"\)\]/);

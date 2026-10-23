@@ -89,7 +89,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
     connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) },
   });
   context.renderConnection();
-  assert.equal($("open-connection").textContent, "Connected");
+  assert.equal($("open-connection")["aria-label"], "Connected · Connection settings");
   assert.equal($("disconnect").hidden, false);
   context.closeConnection();
   assert.equal(context.apiKeyInput.value, "saved-key");
@@ -100,7 +100,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   assert.equal(context.apiKeyInput.value, "");
   assert.equal(context.credentialRevision, 1);
   assert.equal(graphResets, 1, "credential changes evict the prior graph scope");
-  assert.equal($("open-connection").textContent, "Connect");
+  assert.equal($("open-connection")["aria-label"], "Connect · Connection settings");
   assert.equal($("disconnect").hidden, true);
   assert.deepEqual(removed, ["jumpybrain.graph.apiKey"]);
   context.localStorage.removeItem = () => { throw new Error("storage blocked"); };
