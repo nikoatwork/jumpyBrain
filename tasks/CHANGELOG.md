@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Mac update discovery after installation
+
+- Fixed startup discovery after completed updates so an old success record cannot hide newer releases; finalized [the regression fix](done/2026-10-23_tasks-update-startup-discovery.md).
+
 ## 2026-10-23 — v0.3.7 beta release
 
 - Published [v0.3.7](done/releases/v0.3.7.md) with a continuous sidebar list, graph topic exploration and automatic background search-index refresh; [release QA and limits](done/releases/v0.3.7.qa.md).

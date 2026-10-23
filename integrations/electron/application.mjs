@@ -158,9 +158,7 @@ else {
     if (await updater.blocksStartup(updateInstance)) { openRecovery(); return; }
     // Discovery is observational. Preparation always waits for an explicit
     // sidebar download action or the supported CLI update command.
-    void updater.snapshot().then(state => {
-      if (['idle', 'current', 'canceled'].includes(state.phase)) return updater.action('check');
-    }).catch(() => {});
+    void updater.checkOnStartup().catch(() => {});
     healthTimer = setInterval(async () => {
       if (polling || quitting || !host?.isAlive()) return;
       polling = true;

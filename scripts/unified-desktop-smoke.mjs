@@ -35,8 +35,18 @@ try {
   const result = path.join(temporary, 'result.json'); const configFile = path.join(temporary, 'fixture.json');
   const entry = path.join(temporary, 'app'); await mkdir(entry);
   await writeFile(path.join(entry, 'package.json'), JSON.stringify({ name: 'jumpybrain-unified-smoke', type: 'module', main: path.join(repo, 'integrations/electron/smoke-unified-app.mjs') }));
+  const installedVersion = JSON.parse(await readFile(path.join(resources, 'runtime/package.json'), 'utf8')).version;
+  const next = installedVersion.split('.').map(Number); next[2]++;
+  const release = { version: next.join('.'), notes: 'A newer disposable release.' };
+  const completed = path.join(temporary, 'Library/Application Support/jumpyBrain Updates/update-completed');
+  await mkdir(completed, { recursive: true });
+  await writeFile(path.join(completed, 'state.json'), JSON.stringify({ phase: 'success', pid: 2147483647, updatedAt: Date.now(), detail: 'Update installed and verified.' }));
+  await writeFile(path.join(completed, 'transaction.json'), JSON.stringify({ phase: 'success' }));
+  await writeFile(path.join(completed, 'request.json'), JSON.stringify({ release: { version: installedVersion } }));
+  const screenshot = path.join(repo, '.local-pack/update-startup/startup-update.png');
+  await mkdir(path.dirname(screenshot), { recursive: true });
   for (const mode of ['normal', 'crash', 'recovery']) {
-    await writeFile(configFile, JSON.stringify({ resources, userData, result, mode }));
+    await writeFile(configFile, JSON.stringify({ resources, userData, result, mode, home: temporary, installedVersion, release, screenshot }));
     const env = { ...process.env, JUMPYBRAIN_UNIFIED_SMOKE: configFile }; delete env.ELECTRON_RUN_AS_NODE;
     child = spawn(electron, [entry], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     child.stdout.on('data', (chunk) => process.stdout.write(chunk));

@@ -78,12 +78,54 @@ test('checking is observational and duplicate clicks share one operation', async
   const before = await readFile(path.join(f.root, 'install-manifest.json'));
   let checks = 0;
   const updater = createDesktopUpdater({ home: f.home, resources, discover: async () => { checks++; return selectRelease([release('0.3.4')]); } });
-  await Promise.all([updater.action('check'), updater.action('check')]);
+  await Promise.all([updater.checkOnStartup(), updater.action('check')]);
   const state = await updater.snapshot(); assert.equal(checks, 1); assert.equal(state.phase, 'available'); assert.equal(state.canPrepare, true);
   assert.deepEqual(state.actions, ['check', 'update']);
   assert.deepEqual(await readFile(path.join(f.root, 'install-manifest.json')), before);
   await mkdir(path.join(f.root, '.installer-lock'));
   const locked = await updater.action('prepare'); assert.match(locked.detail, /lock/);
+});
+test('startup discovers newer releases after persisted success or recovery without preparing software', async t => {
+  for (const phase of ['success', 'recovered']) await t.test(phase, async t => {
+    const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
+    await mkdir(path.join(resources, 'runtime'), { recursive: true });
+    await writeFile(path.join(resources, 'runtime/package.json'), '{"version":"0.3.3"}');
+    const directory = path.join(f.home, 'Library/Application Support/jumpyBrain Updates/update-completed');
+    await mkdir(directory, { recursive: true });
+    const state = JSON.stringify({ phase, pid: 2147483647, updatedAt: Date.now(), detail: 'Previous update completed.' });
+    const request = JSON.stringify({ release: selectRelease([release('0.3.3')]) });
+    await writeFile(path.join(directory, 'state.json'), state);
+    await writeFile(path.join(directory, 'request.json'), request);
+    await writeFile(path.join(directory, 'transaction.json'), JSON.stringify({ phase: phase === 'success' ? 'success' : 'rolled-back' }));
+    let checks = 0;
+    const updater = createDesktopUpdater({ home: f.home, resources,
+      discover: async () => { checks++; return selectRelease([release('0.3.4')]); },
+      spawnWorker: () => assert.fail('discovery must not download or prepare software') });
+    assert.equal((await updater.snapshot()).phase, phase, 'reproduce the restored terminal state');
+    const offered = await updater.checkOnStartup();
+    assert.equal(checks, 1); assert.equal(offered.phase, 'available'); assert.equal(offered.available, '0.3.4');
+    assert.ok(offered.actions.includes('update'));
+    assert.equal((await updater.snapshot()).available, '0.3.4', 'old transaction must not overwrite the new offer');
+    assert.equal(await readFile(path.join(directory, 'state.json'), 'utf8'), state);
+    assert.equal(await readFile(path.join(directory, 'request.json'), 'utf8'), request);
+  });
+});
+test('startup discovery preserves active updates, failed preparation and interrupted recovery', async t => {
+  for (const phase of ['preparing', 'ready', 'updating', 'failed', 'interrupted']) await t.test(phase, async t => {
+    const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
+    await mkdir(path.join(resources, 'runtime'), { recursive: true });
+    await writeFile(path.join(resources, 'runtime/package.json'), '{"version":"0.3.3"}');
+    const directory = path.join(f.home, 'Library/Application Support/jumpyBrain Updates/update-pending');
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, 'state.json'), JSON.stringify({ phase: phase === 'interrupted' ? 'updating' : phase,
+      pid: phase === 'interrupted' ? 2147483647 : process.pid, updatedAt: Date.now(), detail: 'Keep update actions.' }));
+    if (phase === 'interrupted') await writeFile(path.join(directory, 'transaction.json'), JSON.stringify({ phase: 'published' }));
+    const updater = createDesktopUpdater({ home: f.home, resources,
+      discover: async () => assert.fail('pending work and failures must not be replaced by startup discovery') });
+    const before = await updater.snapshot();
+    assert.deepEqual(await updater.checkOnStartup(), before);
+    if (phase === 'interrupted') assert.equal(before.canRecover, true);
+  });
 });
 test('updater handoff occurs only after all-tab save and lease commit; errors retain host', async () => {
   for (const failure of ['save', 'close', 'handoff', 'cancel-io', null]) {

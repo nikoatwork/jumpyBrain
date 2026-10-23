@@ -89,6 +89,13 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     } catch (error) { state = { phase: 'failed', detail: error.message, updatedAt: Date.now() }; }
     return snapshot();
   }
+  async function checkOnStartup() {
+    const current = await snapshot();
+    // Completed transaction records survive relaunch; they must not suppress
+    // discovery forever. Preserve pending work and actionable failures/recovery.
+    if (!current.canRecover && ['idle', 'current', 'canceled', 'success', 'recovered'].includes(current.phase)) return action('check');
+    return current;
+  }
   async function launch(recovering, appOnly) {
     if (process.platform !== 'darwin') throw new Error('GUI updates require macOS 13 or later.');
     if (path.resolve(resources) !== path.join(appPath, 'Contents/Resources')) throw new Error('This app is running from a development/custom location. Install it in your personal Applications folder before using GUI updates.');
@@ -235,5 +242,5 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     // Fence that launch interval too, so an editor cannot start mid-CLI update.
     return request?.entrypoint === 'cli' && (!progress || ['preparing', 'ready', 'updating'].includes(progress.phase));
   }
-  return { action, snapshot, beforeStop, cancelRestart, blocksStartup, cliPreparationPending, reportRestartFailure: async message => { restartError = message; }, logPath: () => directory && path.join(directory, 'update.log') };
+  return { action, snapshot, checkOnStartup, beforeStop, cancelRestart, blocksStartup, cliPreparationPending, reportRestartFailure: async message => { restartError = message; }, logPath: () => directory && path.join(directory, 'update.log') };
 }

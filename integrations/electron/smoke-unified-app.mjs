@@ -9,7 +9,11 @@ const fixture = JSON.parse(await readFile(process.env.JUMPYBRAIN_UNIFIED_SMOKE, 
 let failure, messages = [], stage = 'startup';
 const mark = (value) => { stage = value; console.log('Unified smoke: ' + value); };
 dialog.showMessageBox = async (options) => { messages.push(options); return { response: 0 }; };
-const application = startDesktopApplication({ resourceDirectory: fixture.resources, userData: fixture.userData, background: true });
+let releaseChecks = 0;
+const application = startDesktopApplication({ resourceDirectory: fixture.resources, userData: fixture.userData, background: true,
+  updaterOptions: { home: fixture.home, appVersion: fixture.installedVersion,
+    discover: async () => { releaseChecks++; return fixture.release; },
+    spawnWorker: () => assert.fail('startup discovery must not prepare an update') } });
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(check, timeout = 20000) { const end = Date.now() + timeout; while (Date.now() < end) { if (await check()) return; await pause(50); } throw new Error('Unified lifecycle condition timed out: ' + stage + ' (' + messages.map(item => item.detail).join('; ') + ')'); }
 async function post(route, body) {
@@ -23,6 +27,10 @@ try {
   await until(() => { if (application.getStartupError()) throw application.getStartupError(); return application.getHost()?.isAlive(); });
   assert.equal(BrowserWindow.getAllWindows().length, 0, 'login launch must not open a window');
   assert.ok(application.getTray() && !application.getTray().isDestroyed());
+  mark('discover release after completed update');
+  await until(async () => (await application.updater.snapshot()).phase === 'available');
+  assert.equal(releaseChecks, 1, 'startup must discover once despite the persisted successful update');
+  assert.equal((await application.updater.snapshot()).available, fixture.release.version);
   if (fixture.mode === 'crash') {
     await writeFile(fixture.result, JSON.stringify({ ok: true, mode: 'crash' }));
     process.kill(process.pid, 'SIGKILL');
@@ -33,6 +41,8 @@ try {
       return window && await window.webContents.executeJavaScript('typeof companionRegistered !== "undefined" && companionRegistered && !companionFrozen');
     });
     let window = BrowserWindow.getAllWindows()[0];
+    await until(async () => await window.webContents.executeJavaScript('!!document.getElementById("desktop-updates") && !document.getElementById("desktop-updates").hidden'));
+    await writeFile(fixture.screenshot, (await window.webContents.capturePage()).toPNG());
     const connection = application.getHost().connection;
     const before = await desktopControl(connection, 'state');
     mark('blocked quit'); await post('register', { tabId: 'unsaved-browser', generation: before.generation });
