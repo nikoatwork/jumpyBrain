@@ -103,6 +103,8 @@ Comparison refuses incomplete coverage and mismatched hardware, workload, driver
 
 The 2026-10-22 investigation has two explicitly recorded driver groups. [Frozen workload v1](workload-v1.mjs) completed all nine 0/100/1,000-note baseline runs; its 10,000-note attempt raced document loading and failed, so that attempt is excluded. The corrected current driver waits for loaded, visible, editable content. A second large attempt exposed the production gateway's implicit five-minute fetch timeout, before its existing 610-second index deadline. The index streaming fix is applied equally to the large control and optimized snapshots; their driver also uses explicit-deadline HTTP. Completing the older smaller comparison requires v1 and the original gateway on both sides. `--counts 0,100,1000` on the report selects those recorded corpora and preserves the original selection in the summary; it never converts a failed run into a success. Compare each group independently before combining aggregate cells. The published identities record both source/driver groups; no completed before/after aggregate is claimed. v1 is retained only for that artifact's reproducibility; use the corrected default for new benchmarks or regenerate both controls and optimized runs with it.
 
+The comparison also reports RSS medians and sampled maxima for each whole stage, separately from settled physical footprint and active-work physical peaks. Each RSS range summarizes three per-run statistics; it is not a settled-only RSS measurement. Budget checks require successful post-run artifact verification even when memory readings fall below every limit.
+
 For cancellation, use a new disposable root and an already provisioned model:
 
 ```sh

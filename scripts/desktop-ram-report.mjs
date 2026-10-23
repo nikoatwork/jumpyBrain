@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 export function checkBudgets(summary, budgets) {
   const violations=[];
+  if(summary.artifactVerified!==true)violations.push({reason:'missing or failed post-run artifact verification'});
   for(const key of ['machine','settings','modelHash']) {
     if(budgets.scope?.[key]!==undefined&&!isDeepStrictEqual(summary[key],budgets.scope[key]))violations.push({reason:'unmatched budget scope',field:key});
   }

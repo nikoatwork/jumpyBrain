@@ -9,6 +9,7 @@ function suite() {
     driverSha256:'same-driver',samplerSha256:'same-sampler',modelHash:null,engines:{qmd:'same-package',electron:'same-electron',node:'same-node'},sourceSha256:'source',
     runs:[1,2,3].map(repetition=>({run:`0-${repetition}`,complete:true,descendantsExited:true,samples:1000,rejectedSamples:0,
       stages:names.map(name=>({name,end:1000,latencyMs:100,activeCpuNs:1000000,roles:{gateway:{median:20}},detail:{results:0,readiness:{modes:['lexical']},retrieval:{status:'complete'}},
+        rss:{median:300+repetition,max:400+repetition},
         settled:{samples:100,median:100+repetition},active:{samples:10,max:200+repetition}}))}))};
 }
 
@@ -18,6 +19,8 @@ test('comparison uses replicate medians/ranges and rejects unmatched execution i
   const result=compareSuites(before,after),home=result.comparisons.find(s=>s.stage==='home');
   assert.deepEqual(home.baseline.settledBytes,{median:102,min:101,max:103});
   assert.deepEqual(home.optimized.settledBytes,{median:101,min:90,max:103});
+  assert.deepEqual(home.baseline.stageRssMedianBytes,{median:302,min:301,max:303});
+  assert.deepEqual(home.optimized.stageRssPeakBytes,{median:402,min:401,max:403});
   assert.equal(home.settledChangeBytes,-1);
   for(const key of ['driverSha256','samplerSha256','modelHash','engines','machine']) {
     const changed=suite();changed[key]='different';

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 function suite() {
   const names=['cold-background','home','note-edit-save','graph-pan-zoom-resize','graph-exit','lexical-index','lexical-search','semantic-index','semantic-search','minimized','restored','closed-window','reopen','recovery','explicit-quit'];
-  return {host:'electron',settings:{counts:[100],repetitions:1,semantic:true},runs:[{
+  return {host:'electron',artifactVerified:true,settings:{counts:[100],repetitions:1,semantic:true},runs:[{
     run:'100-1',complete:true,descendantsExited:true,samples:1000,rejectedSamples:1,
     stages:names.map(name=>({name,end:1000,settled:{samples:100,median:100},active:{samples:10,max:200},
       detail:{results:5,readiness:{modes:['lexical','semantic']},retrieval:{status:'complete'}}})),
@@ -57,6 +57,13 @@ test('RAM checks reject partial semantic retrieval even when semantic readiness 
   assert.equal(checkBudgets(summary,budgets).violations[0].stage,'semantic-search');
 });
 
+test('RAM budgets require successful post-run artifact verification even below all memory limits',()=>{
+  for(const value of [undefined,false]) {
+    const summary=suite();summary.artifactVerified=value;
+    assert.deepEqual(checkBudgets(summary,budgets).violations,[{reason:'missing or failed post-run artifact verification'}]);
+  }
+});
+
 test('empty corpora and the unindexed native prototype have explicit applicable stages',()=>{
   const summary=suite();summary.host='wkwebview';summary.settings.counts=[0];summary.settings.semantic=false;
   summary.runs[0].run='0-1';
@@ -87,13 +94,16 @@ test('RAM report streams simultaneous counters, excludes raced totals, and measu
     const start=index*1000;
     events.push({type:'start',name,timeMs:start});
     if(name==='explicit-quit') {samples.push({timeMs:start+200,processes:[],complete:true,physical:0,rss:0,sampleMs:1});continue;}
-    events.push({type:'operation-end',name,timeMs:start+300,latencyMs:300},{type:'end',name,timeMs:start+900});
+    events.push({type:'operation-end',name,timeMs:start+300,latencyMs:300,
+      detail:name==='lexical-search'?{results:0,readiness:{modes:['lexical']},retrieval:{status:'complete'}}:undefined},
+      {type:'end',name,timeMs:start+900});
     for(const offset of [100,500])samples.push({timeMs:start+offset,processes,complete:true,physical:100,rss:160,sampleMs:1});
     samples.push({timeMs:start+600,processes,complete:false,physical:9999,rss:9999,sampleMs:1});
   }
   const manifest={source:{sha256:'source'},driver:{sha256:'driver'},settings:{counts:[0],repetitions:1,semantic:false},machine:{cpu:'test'},modelHash:null};
   await Promise.all([
     writeFile(path.join(root,'manifest.json'),JSON.stringify(manifest)),
+    writeFile(path.join(root,'verification.json'),'{"ok":true}'),
     writeFile(path.join(run,'events.jsonl'),events.map(JSON.stringify).join('\n')+'\n'),
     writeFile(path.join(run,'samples.jsonl'),samples.map(JSON.stringify).join('\n')+'\n'),
     writeFile(path.join(run,'result.json'),'{"ok":true}'),
@@ -109,9 +119,16 @@ test('RAM report streams simultaneous counters, excludes raced totals, and measu
   assert.equal(result.stages.at(-1).latencyMs,200);
   assert.equal(result.descendantsExited,true);
   const budgetsFile=path.join(root,'budgets.json');
+  await writeFile(budgetsFile,JSON.stringify({maxRejectedSampleFraction:0.5,stages:{}}));
+  await promisify(execFile)(process.execPath,[report,'--input',root,'--output',output,'--budgets',budgetsFile]);
+  assert.deepEqual(JSON.parse(await readFile(output,'utf8')).budgetCheck.violations,[]);
   await writeFile(budgetsFile,JSON.stringify({maxRejectedSampleFraction:0.5,stages:{home:{settledBytes:99}}}));
   await assert.rejects(promisify(execFile)(process.execPath,[report,'--input',root,'--output',output,'--budgets',budgetsFile]),{code:1});
   assert.ok(JSON.parse(await readFile(output,'utf8')).budgetCheck.violations.some(v=>v.stage==='home'&&v.metric==='settled'));
+  await writeFile(budgetsFile,JSON.stringify({maxRejectedSampleFraction:0.5,stages:{}}));
+  await rm(path.join(root,'verification.json'));
+  await assert.rejects(promisify(execFile)(process.execPath,[report,'--input',root,'--output',output,'--budgets',budgetsFile]),{code:1});
+  assert.deepEqual(JSON.parse(await readFile(output,'utf8')).budgetCheck.violations,[{reason:'missing or failed post-run artifact verification'}]);
   manifest.settings.counts=[0,10000];
   await writeFile(path.join(root,'manifest.json'),JSON.stringify(manifest));
   await promisify(execFile)(process.execPath,[report,'--input',root,'--output',output,'--counts','0']);

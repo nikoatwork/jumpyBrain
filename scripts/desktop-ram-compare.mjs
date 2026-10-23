@@ -27,6 +27,8 @@ export function compareSuites(before,after) {
     const roles=[...new Set(stages.flatMap(stage=>Object.keys(stage.roles??{})))];
     return {repetitions:stages.length,settledBytes:statistics(stages.map(stage=>stage.settled.median)),
       activePeakBytes:statistics(stages.map(stage=>stage.active.max)),latencyMs:statistics(stages.map(stage=>stage.latencyMs)),
+      stageRssMedianBytes:statistics(stages.map(stage=>stage.rss?.median)),
+      stageRssPeakBytes:statistics(stages.map(stage=>stage.rss?.max)),
       activeCpuMs:statistics(stages.map(stage=>stage.activeCpuNs/1e6)),
       roles:Object.fromEntries(roles.map(role=>[role,statistics(stages.map(stage=>stage.roles[role]?.median))])),
       graphDom:statistics(stages.map(stage=>stage.telemetry?.renderer?.graphDom)),

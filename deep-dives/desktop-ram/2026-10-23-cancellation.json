@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-23",
+  "kind": "real-model-cancellation",
+  "sourceSha256": "be45152ce304f688d67c4164277b64bab21c12f450a4261752465ba1a6107001",
+  "probeSha256": "1527070999a7f40c1060f7dfd368835fb741f1400f3808d8ba0257a1a41df3d8",
+  "samplerSha256": "169a08579da0edfcb051b402803709095746c6065482e19076996b4df4d1dc7c",
+  "machine": {
+    "os": "15.7.7",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "ram": 19327352832
+  },
+  "engines": {
+    "node": "aa7c3390685f1388f3b898b7d7f84edf95fcee4aa062725aa56dee348afbe6be",
+    "qmdVersion": "2.8.3",
+    "qmd": "4dbf00c90ece2451bd81f6456e889f5554f3e6f409cf16813bf7daf622a4760f"
+  },
+  "corpusNotes": 1000,
+  "modelHash": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+  "cancelThresholdBytes": 400000000,
+  "observedWorkerPhysicalBytes": 681430336,
+  "cancellationToObservedTreeExitMs": 105.31591796875,
+  "descendantsExited": true,
+  "lockReleased": true,
+  "firstGenerationUnpublished": true,
+  "cliExit": {
+    "code": 1,
+    "signal": null
+  },
+  "limitations": [
+    "100 ms non-atomic sampling can miss short-lived descendants; timing is to the observed empty tree.",
+    "SIGTERM cancellation only; no SIGKILL or escaping-process-group claim.",
+    "Diagnostic probe on the frozen first-iteration runtime, not the current checkout or a whole-desktop savings measurement."
+  ]
+}
