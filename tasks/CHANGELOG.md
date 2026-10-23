@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Bounded desktop RAM study
+
+- Recorded matched RAM measurements and kept Electron; [closed the bounded study](done/2026-10-23_tasks-desktop-ram-follow-up.md) with default-deadline acceptance and production budgets explicitly unproven.
+
 ## 2026-10-23 — Relevance-driven graph results
 
 - Removed the twelve-note display cap while retaining stricter relevance matching; finalized [the graph result-count adjustment](done/2026-10-23_tasks-graph-search-no-display-cap.md).

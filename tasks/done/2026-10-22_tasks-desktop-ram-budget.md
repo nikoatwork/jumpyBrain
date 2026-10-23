@@ -1,6 +1,6 @@
 # Desktop RAM budget — first iteration
 
-Completed 2026-10-22 as a bounded first iteration at the user's request. Implemented and validated metadata/graph allocation improvements, hidden graph cleanup and long-index forwarding. Remaining matched acceptance, soak/GPU/native experiments and numerical budgets are explicitly deferred to [the follow-up task](../todo/tasks-desktop-ram-follow-up.md). See [first-iteration results](../../deep-dives/desktop-ram/first-iteration.md). This is ready for release review, not a claim that a release was published.
+Completed 2026-10-22 as a bounded first iteration at the user's request. Implemented and validated metadata/graph allocation improvements, hidden graph cleanup and long-index forwarding. Remaining matched acceptance, soak/GPU/native experiments and numerical budgets are explicitly deferred to [the follow-up task](../done/2026-10-23_tasks-desktop-ram-follow-up.md). See [first-iteration results](../../deep-dives/desktop-ram/first-iteration.md). This is ready for release review, not a claim that a release was published.
 
 ## Goal
 

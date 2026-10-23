@@ -1,0 +1,2246 @@
+{
+  "schema": 1,
+  "machine": {
+    "os": "15.7.7",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "ram": 19327352832
+  },
+  "settings": {
+    "counts": [
+      10000
+    ],
+    "repetitions": 3,
+    "settleSeconds": 15,
+    "recoverySeconds": 300,
+    "soakSeconds": 0,
+    "semantic": true,
+    "indexTimeoutMs": 900000,
+    "gatewayIndexTimeoutMs": 910000,
+    "driverRequestTimeoutMs": 950000
+  },
+  "driverSha256": "3c3668ec712d59442f6a77eb10b3524b87abd4834bb4aed36ebfdb2b88210595",
+  "samplerSha256": "169a08579da0edfcb051b402803709095746c6065482e19076996b4df4d1dc7c",
+  "engines": {
+    "electron": "12aa325561098c5dc5b175e465225b1b61e8f4090ce6d5dade89887e0eec8ab7",
+    "electronVersion": "44.8.0",
+    "node": "aa7c3390685f1388f3b898b7d7f84edf95fcee4aa062725aa56dee348afbe6be",
+    "qmdVersion": "2.8.3",
+    "qmd": "4dbf00c90ece2451bd81f6456e889f5554f3e6f409cf16813bf7daf622a4760f"
+  },
+  "modelHash": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+  "sources": {
+    "baseline": "24256f2d055ff4c24228f23159b87d1608129c25ea00c46bf28837266d88d4de",
+    "optimized": "3cc4dd8711724e45907611f7c6d01649f4c3ca72b4b63c0671c230b4d4b97906"
+  },
+  "units": "decimal bytes and milliseconds; medians/ranges across repetitions; simultaneous sampled physical footprint",
+  "comparisons": [
+    {
+      "notes": 10000,
+      "stage": "cold-background",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 117135744,
+          "min": 116201792,
+          "max": 124672448
+        },
+        "activePeakBytes": {
+          "median": 166711488,
+          "min": 166482304,
+          "max": 167842240
+        },
+        "latencyMs": {
+          "median": 606.939417,
+          "min": 506.395875,
+          "max": 613.0092500000001
+        },
+        "stageRssMedianBytes": {
+          "median": 332218368,
+          "min": 330481664,
+          "max": 332251136
+        },
+        "stageRssPeakBytes": {
+          "median": 334823424,
+          "min": 333463552,
+          "max": 335708160
+        },
+        "activeCpuMs": {
+          "median": 9.561598,
+          "min": 8.68646,
+          "max": 10.423211
+        },
+        "roles": {
+          "gateway": {
+            "median": 44233024,
+            "min": 43528448,
+            "max": 52294144
+          },
+          "native-helper": {
+            "median": 11487488,
+            "min": 11208896,
+            "max": 11520256
+          },
+          "Utility": {
+            "median": 6293376,
+            "min": 6260544,
+            "max": 6326208
+          },
+          "GPU": {
+            "median": 19777600,
+            "min": 19613696,
+            "max": 19777600
+          },
+          "Browser": {
+            "median": 34705216,
+            "min": 34426496,
+            "max": 34721472
+          }
+        },
+        "graphDom": null,
+        "rendererHeap": null
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 124311168,
+          "min": 115939648,
+          "max": 125212864
+        },
+        "activePeakBytes": {
+          "median": 167908032,
+          "min": 164597696,
+          "max": 169038336
+        },
+        "latencyMs": {
+          "median": 510.655791,
+          "min": 509.25258399999996,
+          "max": 612.0588339999999
+        },
+        "stageRssMedianBytes": {
+          "median": 332333056,
+          "min": 332005376,
+          "max": 332611584
+        },
+        "stageRssPeakBytes": {
+          "median": 335085568,
+          "min": 334479360,
+          "max": 335347712
+        },
+        "activeCpuMs": {
+          "median": 8.990534,
+          "min": 8.405616,
+          "max": 9.480494
+        },
+        "roles": {
+          "gateway": {
+            "median": 53047616,
+            "min": 43200768,
+            "max": 53325760
+          },
+          "native-helper": {
+            "median": 10995840,
+            "min": 10979456,
+            "max": 11307264
+          },
+          "Utility": {
+            "median": 6375296,
+            "min": 6358912,
+            "max": 6424576
+          },
+          "GPU": {
+            "median": 19580864,
+            "min": 19269568,
+            "max": 19597376
+          },
+          "Browser": {
+            "median": 34492160,
+            "min": 34459264,
+            "max": 34705088
+          }
+        },
+        "graphDom": null,
+        "rendererHeap": null
+      },
+      "settledChangeBytes": 7175424
+    },
+    {
+      "notes": 10000,
+      "stage": "home",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 381011520,
+          "min": 378750400,
+          "max": 386991360
+        },
+        "activePeakBytes": {
+          "median": 463078528,
+          "min": 461980416,
+          "max": 468174144
+        },
+        "latencyMs": {
+          "median": 1590.5081660000014,
+          "min": 1217.4387499999993,
+          "max": 1784.3802920000016
+        },
+        "stageRssMedianBytes": {
+          "median": 535347200,
+          "min": 520749056,
+          "max": 555335680
+        },
+        "stageRssPeakBytes": {
+          "median": 549683200,
+          "min": 522289152,
+          "max": 556154880
+        },
+        "activeCpuMs": {
+          "median": 28.963203,
+          "min": 27.097152,
+          "max": 30.62686
+        },
+        "roles": {
+          "Tab": {
+            "median": 41454592,
+            "min": 41143360,
+            "max": 42208320
+          },
+          "gateway": {
+            "median": 66523200,
+            "min": 65949504,
+            "max": 71782144
+          },
+          "native-helper": {
+            "median": 11585792,
+            "min": 11421952,
+            "max": 11634944
+          },
+          "Utility": {
+            "median": 7604224,
+            "min": 7505856,
+            "max": 7636864
+          },
+          "GPU": {
+            "median": 206145856,
+            "min": 205474304,
+            "max": 206391744
+          },
+          "Browser": {
+            "median": 46878528,
+            "min": 46845888,
+            "max": 47206336
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 3902672,
+          "min": 3887984,
+          "max": 3938808
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 383353920,
+          "min": 379651456,
+          "max": 384796224
+        },
+        "activePeakBytes": {
+          "median": 465584512,
+          "min": 459162560,
+          "max": 466929024
+        },
+        "latencyMs": {
+          "median": 1579.0426250000019,
+          "min": 1106.403042,
+          "max": 1635.8915830000005
+        },
+        "stageRssMedianBytes": {
+          "median": 535445504,
+          "min": 520192000,
+          "max": 559267840
+        },
+        "stageRssPeakBytes": {
+          "median": 545341440,
+          "min": 538673152,
+          "max": 559923200
+        },
+        "activeCpuMs": {
+          "median": 26.389608,
+          "min": 26.385762,
+          "max": 27.254976
+        },
+        "roles": {
+          "Tab": {
+            "median": 41389056,
+            "min": 41126976,
+            "max": 41979008
+          },
+          "gateway": {
+            "median": 69308160,
+            "min": 65326848,
+            "max": 71765952
+          },
+          "native-helper": {
+            "median": 11274368,
+            "min": 11143296,
+            "max": 11438336
+          },
+          "Utility": {
+            "median": 7636928,
+            "min": 7571456,
+            "max": 7702528
+          },
+          "GPU": {
+            "median": 206244096,
+            "min": 205867520,
+            "max": 206997824
+          },
+          "Browser": {
+            "median": 46763968,
+            "min": 46223296,
+            "max": 47239168
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 3933507,
+          "min": 3916521,
+          "max": 3945791
+        }
+      },
+      "settledChangeBytes": 2342400
+    },
+    {
+      "notes": 10000,
+      "stage": "note-edit-save",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 481732288,
+          "min": 475766336,
+          "max": 482549120
+        },
+        "activePeakBytes": {
+          "median": 554948224,
+          "min": 554699648,
+          "max": 566894848
+        },
+        "latencyMs": {
+          "median": 3431.175707999999,
+          "min": 2875.269542000002,
+          "max": 3608.7240829999973
+        },
+        "stageRssMedianBytes": {
+          "median": 563298304,
+          "min": 562708480,
+          "max": 565166080
+        },
+        "stageRssPeakBytes": {
+          "median": 570654720,
+          "min": 566411264,
+          "max": 611909632
+        },
+        "activeCpuMs": {
+          "median": 84.243887,
+          "min": 84.080436,
+          "max": 85.833765
+        },
+        "roles": {
+          "Tab": {
+            "median": 51956928,
+            "min": 51711168,
+            "max": 52120832
+          },
+          "gateway": {
+            "median": 131049152,
+            "min": 129181504,
+            "max": 141309248
+          },
+          "native-helper": {
+            "median": 11667712,
+            "min": 11438336,
+            "max": 11667712
+          },
+          "Utility": {
+            "median": 7735296,
+            "min": 7604160,
+            "max": 7751552
+          },
+          "GPU": {
+            "median": 229476864,
+            "min": 229132672,
+            "max": 234818112
+          },
+          "Browser": {
+            "median": 44830656,
+            "min": 44502848,
+            "max": 45617088
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 4225143,
+          "min": 4225119,
+          "max": 4233491
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 471063488,
+          "min": 466687616,
+          "max": 474865024
+        },
+        "activePeakBytes": {
+          "median": 550849664,
+          "min": 544926912,
+          "max": 560339392
+        },
+        "latencyMs": {
+          "median": 3298.5153340000033,
+          "min": 3252.222584000003,
+          "max": 3387.733750000003
+        },
+        "stageRssMedianBytes": {
+          "median": 584105984,
+          "min": 568049664,
+          "max": 644268032
+        },
+        "stageRssPeakBytes": {
+          "median": 602079232,
+          "min": 569868288,
+          "max": 645873664
+        },
+        "activeCpuMs": {
+          "median": 73.581118,
+          "min": 72.994176,
+          "max": 73.969286
+        },
+        "roles": {
+          "Tab": {
+            "median": 51875008,
+            "min": 51399872,
+            "max": 52792640
+          },
+          "gateway": {
+            "median": 123233344,
+            "min": 117381248,
+            "max": 126019072
+          },
+          "native-helper": {
+            "median": 11339904,
+            "min": 11176064,
+            "max": 11503872
+          },
+          "Utility": {
+            "median": 7702528,
+            "min": 7702464,
+            "max": 7784448
+          },
+          "GPU": {
+            "median": 230443392,
+            "min": 230050240,
+            "max": 230935168
+          },
+          "Browser": {
+            "median": 45895680,
+            "min": 44879808,
+            "max": 46026688
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 4233076,
+          "min": 4223876,
+          "max": 4235012
+        }
+      },
+      "settledChangeBytes": -10668800
+    },
+    {
+      "notes": 10000,
+      "stage": "graph-pan-zoom-resize",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 650205824,
+          "min": 632151680,
+          "max": 651435648
+        },
+        "activePeakBytes": {
+          "median": 1182931520,
+          "min": 1175247104,
+          "max": 1221877376
+        },
+        "latencyMs": {
+          "median": 3028.647041999997,
+          "min": 2880.106375000003,
+          "max": 3048.070249999997
+        },
+        "stageRssMedianBytes": {
+          "median": 880197632,
+          "min": 848232448,
+          "max": 891764736
+        },
+        "stageRssPeakBytes": {
+          "median": 932904960,
+          "min": 926646272,
+          "max": 934756352
+        },
+        "activeCpuMs": {
+          "median": 73.411989,
+          "min": 71.612813,
+          "max": 73.626648
+        },
+        "roles": {
+          "Tab": {
+            "median": 102141376,
+            "min": 101371328,
+            "max": 102337984
+          },
+          "gateway": {
+            "median": 226221632,
+            "min": 223437504,
+            "max": 226386432
+          },
+          "native-helper": {
+            "median": 11651328,
+            "min": 11454720,
+            "max": 11667712
+          },
+          "Utility": {
+            "median": 7505920,
+            "min": 7440320,
+            "max": 7554944
+          },
+          "GPU": {
+            "median": 260541952,
+            "min": 245534208,
+            "max": 260705856
+          },
+          "Browser": {
+            "median": 42782656,
+            "min": 42159936,
+            "max": 43241408
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 4958517,
+          "min": 4950219,
+          "max": 4959015
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 617431552,
+          "min": 602260544,
+          "max": 621159168
+        },
+        "activePeakBytes": {
+          "median": 1041081728,
+          "min": 1037845440,
+          "max": 1123893760
+        },
+        "latencyMs": {
+          "median": 2260.408292,
+          "min": 2257.2406670000055,
+          "max": 2443.6522909999985
+        },
+        "stageRssMedianBytes": {
+          "median": 802553856,
+          "min": 789463040,
+          "max": 804913152
+        },
+        "stageRssPeakBytes": {
+          "median": 854474752,
+          "min": 833142784,
+          "max": 866762752
+        },
+        "activeCpuMs": {
+          "median": 56.663879,
+          "min": 54.939456,
+          "max": 59.954546
+        },
+        "roles": {
+          "Tab": {
+            "median": 136924736,
+            "min": 136809920,
+            "max": 137088512
+          },
+          "gateway": {
+            "median": 159107136,
+            "min": 157385984,
+            "max": 180692992
+          },
+          "native-helper": {
+            "median": 11274368,
+            "min": 11192448,
+            "max": 11569408
+          },
+          "Utility": {
+            "median": 7555072,
+            "min": 7555008,
+            "max": 7669760
+          },
+          "GPU": {
+            "median": 244895232,
+            "min": 241634496,
+            "max": 260460032
+          },
+          "Browser": {
+            "median": 42946496,
+            "min": 42569664,
+            "max": 43323392
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 4940242,
+          "min": 4939582,
+          "max": 4942144
+        }
+      },
+      "settledChangeBytes": -32774272
+    },
+    {
+      "notes": 10000,
+      "stage": "graph-exit",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 620584320,
+          "min": 617635584,
+          "max": 635593856
+        },
+        "activePeakBytes": {
+          "median": 695786048,
+          "min": 691576576,
+          "max": 721265728
+        },
+        "latencyMs": {
+          "median": 823.4820829999953,
+          "min": 723.695000000007,
+          "max": 1434.7844999999943
+        },
+        "stageRssMedianBytes": {
+          "median": 880852992,
+          "min": 719011840,
+          "max": 894287872
+        },
+        "stageRssPeakBytes": {
+          "median": 882360320,
+          "min": 862027776,
+          "max": 896417792
+        },
+        "activeCpuMs": {
+          "median": 18.711756,
+          "min": 17.889163,
+          "max": 21.101057
+        },
+        "roles": {
+          "Tab": {
+            "median": 78908864,
+            "min": 78695872,
+            "max": 80285120
+          },
+          "gateway": {
+            "median": 222093568,
+            "min": 221881152,
+            "max": 224208832
+          },
+          "native-helper": {
+            "median": 11651328,
+            "min": 11487488,
+            "max": 11667712
+          },
+          "Utility": {
+            "median": 7489536,
+            "min": 7440320,
+            "max": 7554944
+          },
+          "GPU": {
+            "median": 256495168,
+            "min": 254479872,
+            "max": 267095552
+          },
+          "Browser": {
+            "median": 43077568,
+            "min": 42569536,
+            "max": 43651008
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 5189139,
+          "min": 5187769,
+          "max": 5203820
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 552405056,
+          "min": 531103040,
+          "max": 566593024
+        },
+        "activePeakBytes": {
+          "median": 639223104,
+          "min": 637405248,
+          "max": 645980928
+        },
+        "latencyMs": {
+          "median": 1035.88683399999,
+          "min": 621.109958999994,
+          "max": 1331.5225839999912
+        },
+        "stageRssMedianBytes": {
+          "median": 766853120,
+          "min": 672563200,
+          "max": 785088512
+        },
+        "stageRssPeakBytes": {
+          "median": 804208640,
+          "min": 788611072,
+          "max": 805863424
+        },
+        "activeCpuMs": {
+          "median": 16.378409,
+          "min": 16.082794,
+          "max": 17.00436
+        },
+        "roles": {
+          "Tab": {
+            "median": 82808320,
+            "min": 81268352,
+            "max": 83168704
+          },
+          "gateway": {
+            "median": 151833728,
+            "min": 134136384,
+            "max": 153585856
+          },
+          "native-helper": {
+            "median": 11290752,
+            "min": 11192448,
+            "max": 11569408
+          },
+          "Utility": {
+            "median": 7538688,
+            "min": 7538688,
+            "max": 7555008
+          },
+          "GPU": {
+            "median": 255774144,
+            "min": 252185792,
+            "max": 268160512
+          },
+          "Browser": {
+            "median": 43159488,
+            "min": 42880960,
+            "max": 43618304
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 5181597,
+          "min": 5176435,
+          "max": 5195082
+        }
+      },
+      "settledChangeBytes": -68179264
+    },
+    {
+      "notes": 10000,
+      "stage": "lexical-index",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 657474112,
+          "min": 647868032,
+          "max": 668389760
+        },
+        "activePeakBytes": {
+          "median": 1347670208,
+          "min": 1343313408,
+          "max": 1377481600
+        },
+        "latencyMs": {
+          "median": 4444.19537500001,
+          "min": 4199.259208000003,
+          "max": 4638.059125
+        },
+        "stageRssMedianBytes": {
+          "median": 775913472,
+          "min": 769884160,
+          "max": 808714240
+        },
+        "stageRssPeakBytes": {
+          "median": 1579581440,
+          "min": 1427046400,
+          "max": 1676656640
+        },
+        "activeCpuMs": {
+          "median": 93.290607,
+          "min": 91.845064,
+          "max": 101.892502
+        },
+        "roles": {
+          "Tab": {
+            "median": 79039936,
+            "min": 78237120,
+            "max": 79891904
+          },
+          "gateway": {
+            "median": 260818240,
+            "min": 240185664,
+            "max": 277583040
+          },
+          "native-helper": {
+            "median": 11667712,
+            "min": 11454720,
+            "max": 11667712
+          },
+          "Utility": {
+            "median": 7489536,
+            "min": 7440320,
+            "max": 7538560
+          },
+          "GPU": {
+            "median": 253709888,
+            "min": 249187840,
+            "max": 263933440
+          },
+          "Browser": {
+            "median": 44519488,
+            "min": 44503168,
+            "max": 44880000
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 5418261,
+          "min": 5408407,
+          "max": 5433306
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 627727296,
+          "min": 621980352,
+          "max": 650094720
+        },
+        "activePeakBytes": {
+          "median": 1353819136,
+          "min": 1340275776,
+          "max": 1354302784
+        },
+        "latencyMs": {
+          "median": 4099.640417000002,
+          "min": 3934.866292000006,
+          "max": 4592.3032079999975
+        },
+        "stageRssMedianBytes": {
+          "median": 767934464,
+          "min": 745308160,
+          "max": 928841728
+        },
+        "stageRssPeakBytes": {
+          "median": 1477296128,
+          "min": 1387970560,
+          "max": 1785790464
+        },
+        "activeCpuMs": {
+          "median": 93.112365,
+          "min": 92.450859,
+          "max": 93.119484
+        },
+        "roles": {
+          "Tab": {
+            "median": 78663104,
+            "min": 76828160,
+            "max": 80088704
+          },
+          "gateway": {
+            "median": 244427392,
+            "min": 237383296,
+            "max": 245178432
+          },
+          "native-helper": {
+            "median": 11290752,
+            "min": 11208832,
+            "max": 11569408
+          },
+          "Utility": {
+            "median": 7538688,
+            "min": 7538688,
+            "max": 7555008
+          },
+          "GPU": {
+            "median": 242830784,
+            "min": 242388160,
+            "max": 262376960
+          },
+          "Browser": {
+            "median": 44716160,
+            "min": 44716096,
+            "max": 44798080
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 5403543,
+          "min": 5397133,
+          "max": 5424192
+        }
+      },
+      "settledChangeBytes": -29746816
+    },
+    {
+      "notes": 10000,
+      "stage": "lexical-search",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 594335104,
+          "min": 583978368,
+          "max": 610492352
+        },
+        "activePeakBytes": {
+          "median": 645120768,
+          "min": 629619008,
+          "max": 720998336
+        },
+        "latencyMs": {
+          "median": 383.4217920000083,
+          "min": 366.8244580000028,
+          "max": 612.012333000006
+        },
+        "stageRssMedianBytes": {
+          "median": 740327424,
+          "min": 732053504,
+          "max": 745635840
+        },
+        "stageRssPeakBytes": {
+          "median": 865697792,
+          "min": 836894720,
+          "max": 918863872
+        },
+        "activeCpuMs": {
+          "median": 9.141153,
+          "min": 8.930228,
+          "max": 15.378551
+        },
+        "roles": {
+          "Tab": {
+            "median": 76680640,
+            "min": 76025280,
+            "max": 77860288
+          },
+          "gateway": {
+            "median": 206873216,
+            "min": 192745536,
+            "max": 207214720
+          },
+          "native-helper": {
+            "median": 11667712,
+            "min": 11454720,
+            "max": 11667712
+          },
+          "Utility": {
+            "median": 7505920,
+            "min": 7456704,
+            "max": 7554944
+          },
+          "GPU": {
+            "median": 250482304,
+            "min": 246795776,
+            "max": 261213696
+          },
+          "Browser": {
+            "median": 45355136,
+            "min": 45125760,
+            "max": 45535360
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 5603123,
+          "min": 5593281,
+          "max": 5618168
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 579667648,
+          "min": 576868736,
+          "max": 596267840
+        },
+        "activePeakBytes": {
+          "median": 623681920,
+          "min": 589268864,
+          "max": 626000640
+        },
+        "latencyMs": {
+          "median": 356.68208300000697,
+          "min": 323.9288330000127,
+          "max": 360.26220899999316
+        },
+        "stageRssMedianBytes": {
+          "median": 754597888,
+          "min": 722239488,
+          "max": 912031744
+        },
+        "stageRssPeakBytes": {
+          "median": 833028096,
+          "min": 810778624,
+          "max": 941899776
+        },
+        "activeCpuMs": {
+          "median": 6.467871,
+          "min": 5.996498,
+          "max": 9.298879
+        },
+        "roles": {
+          "Tab": {
+            "median": 77483648,
+            "min": 76729792,
+            "max": 77581824
+          },
+          "gateway": {
+            "median": 195335488,
+            "min": 195250944,
+            "max": 195695936
+          },
+          "native-helper": {
+            "median": 11257984,
+            "min": 11208832,
+            "max": 11569408
+          },
+          "Utility": {
+            "median": 7555072,
+            "min": 7555072,
+            "max": 7571392
+          },
+          "GPU": {
+            "median": 242388160,
+            "min": 240127360,
+            "max": 259296768
+          },
+          "Browser": {
+            "median": 44978368,
+            "min": 44929152,
+            "max": 45420672
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 5588461,
+          "min": 5582127,
+          "max": 5600426
+        }
+      },
+      "settledChangeBytes": -14667456
+    },
+    {
+      "notes": 10000,
+      "stage": "semantic-index",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 665995648,
+          "min": 665508480,
+          "max": 681381440
+        },
+        "activePeakBytes": {
+          "median": 5978638656,
+          "min": 5866338944,
+          "max": 6010455936
+        },
+        "latencyMs": {
+          "median": 739681.0448340001,
+          "min": 578673.7059589999,
+          "max": 739728.6572499999
+        },
+        "stageRssMedianBytes": {
+          "median": 1842053120,
+          "min": 1772683264,
+          "max": 1892499456
+        },
+        "stageRssPeakBytes": {
+          "median": 2706309120,
+          "min": 2586787840,
+          "max": 2835824640
+        },
+        "activeCpuMs": {
+          "median": 3813.757162,
+          "min": 3315.454144,
+          "max": 3852.859894
+        },
+        "roles": {
+          "Tab": {
+            "median": 82513344,
+            "min": 81022400,
+            "max": 83447232
+          },
+          "gateway": {
+            "median": 266390592,
+            "min": 257088896,
+            "max": 266899712
+          },
+          "native-helper": {
+            "median": 11831552,
+            "min": 11684096,
+            "max": 11962624
+          },
+          "Utility": {
+            "median": 7636928,
+            "min": 7587840,
+            "max": 7784320
+          },
+          "GPU": {
+            "median": 250793600,
+            "min": 247025216,
+            "max": 261295616
+          },
+          "Browser": {
+            "median": 50827392,
+            "min": 50483328,
+            "max": 50827392
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 4972982,
+          "min": 4440712,
+          "max": 5422126
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 658708544,
+          "min": 656710720,
+          "max": 667867776
+        },
+        "activePeakBytes": {
+          "median": 5925882048,
+          "min": 5902979904,
+          "max": 5979226944
+        },
+        "latencyMs": {
+          "median": 574014.9911250001,
+          "min": 573759.949334,
+          "max": 575306.084792
+        },
+        "stageRssMedianBytes": {
+          "median": 1892466688,
+          "min": 1844609024,
+          "max": 1922596864
+        },
+        "stageRssPeakBytes": {
+          "median": 2962276352,
+          "min": 2584657920,
+          "max": 2993209344
+        },
+        "activeCpuMs": {
+          "median": 3276.00672,
+          "min": 3265.999968,
+          "max": 3298.526519
+        },
+        "roles": {
+          "Tab": {
+            "median": 80678528,
+            "min": 79613376,
+            "max": 80858624
+          },
+          "gateway": {
+            "median": 268525568,
+            "min": 266099840,
+            "max": 268901504
+          },
+          "native-helper": {
+            "median": 11389056,
+            "min": 11208960,
+            "max": 11503744
+          },
+          "Utility": {
+            "median": 7620608,
+            "min": 7587840,
+            "max": 7669696
+          },
+          "GPU": {
+            "median": 242470080,
+            "min": 239865216,
+            "max": 249875968
+          },
+          "Browser": {
+            "median": 49565824,
+            "min": 49549440,
+            "max": 50221248
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 4696795,
+          "min": 4574939,
+          "max": 4792209
+        }
+      },
+      "settledChangeBytes": -7287104
+    },
+    {
+      "notes": 10000,
+      "stage": "semantic-search",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 609282752,
+          "min": 602837120,
+          "max": 613356800
+        },
+        "activePeakBytes": {
+          "median": 966192384,
+          "min": 958636736,
+          "max": 1037030528
+        },
+        "latencyMs": {
+          "median": 3640.9160830000183,
+          "min": 3548.463708000025,
+          "max": 3838.831917000003
+        },
+        "stageRssMedianBytes": {
+          "median": 619855872,
+          "min": 579518464,
+          "max": 652083200
+        },
+        "stageRssPeakBytes": {
+          "median": 1586511872,
+          "min": 1533837312,
+          "max": 1621409792
+        },
+        "activeCpuMs": {
+          "median": 120.398314,
+          "min": 116.744993,
+          "max": 128.332222
+        },
+        "roles": {
+          "Tab": {
+            "median": 81399232,
+            "min": 79875520,
+            "max": 83676608
+          },
+          "gateway": {
+            "median": 203315136,
+            "min": 201960960,
+            "max": 203543360
+          },
+          "native-helper": {
+            "median": 11880704,
+            "min": 11667712,
+            "max": 11913472
+          },
+          "Utility": {
+            "median": 7636928,
+            "min": 7587840,
+            "max": 7784320
+          },
+          "GPU": {
+            "median": 250793600,
+            "min": 247057984,
+            "max": 257117696
+          },
+          "Browser": {
+            "median": 51384448,
+            "min": 49942656,
+            "max": 51433600
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 4651232,
+          "min": 4451866,
+          "max": 5183418
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 588505088,
+          "min": 584441408,
+          "max": 603185088
+        },
+        "activePeakBytes": {
+          "median": 978646016,
+          "min": 904504000,
+          "max": 982707968
+        },
+        "latencyMs": {
+          "median": 3610.6713329999475,
+          "min": 3597.0384169999743,
+          "max": 3682.824542000075
+        },
+        "stageRssMedianBytes": {
+          "median": 624410624,
+          "min": 565968896,
+          "max": 629751808
+        },
+        "stageRssPeakBytes": {
+          "median": 1558691840,
+          "min": 1503969280,
+          "max": 1566212096
+        },
+        "activeCpuMs": {
+          "median": 109.723864,
+          "min": 107.419708,
+          "max": 111.176549
+        },
+        "roles": {
+          "Tab": {
+            "median": 80825856,
+            "min": 79613376,
+            "max": 80825984
+          },
+          "gateway": {
+            "median": 199615424,
+            "min": 191881792,
+            "max": 203268608
+          },
+          "native-helper": {
+            "median": 11487424,
+            "min": 11225344,
+            "max": 11503744
+          },
+          "Utility": {
+            "median": 7604224,
+            "min": 7587840,
+            "max": 7636928
+          },
+          "GPU": {
+            "median": 242502848,
+            "min": 239897984,
+            "max": 249859584
+          },
+          "Browser": {
+            "median": 50073728,
+            "min": 50041024,
+            "max": 50188416
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 4899119,
+          "min": 4785523,
+          "max": 4999417
+        }
+      },
+      "settledChangeBytes": -20777664
+    },
+    {
+      "notes": 10000,
+      "stage": "minimized",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 459972800,
+          "min": 453264320,
+          "max": 465930560
+        },
+        "activePeakBytes": {
+          "median": 588710848,
+          "min": 583605312,
+          "max": 609309952
+        },
+        "latencyMs": {
+          "median": 618.9634170000209,
+          "min": 613.9730419999687,
+          "max": 630.7062089999672
+        },
+        "stageRssMedianBytes": {
+          "median": 608305152,
+          "min": 571621376,
+          "max": 643514368
+        },
+        "stageRssPeakBytes": {
+          "median": 616153088,
+          "min": 583876608,
+          "max": 658636800
+        },
+        "activeCpuMs": {
+          "median": 0.266545,
+          "min": 0.263521,
+          "max": 0.321345
+        },
+        "roles": {
+          "Tab": {
+            "median": 80629184,
+            "min": 79662528,
+            "max": 83496384
+          },
+          "gateway": {
+            "median": 191137664,
+            "min": 190729216,
+            "max": 191407040
+          },
+          "native-helper": {
+            "median": 11847936,
+            "min": 11667712,
+            "max": 11913472
+          },
+          "Utility": {
+            "median": 7636928,
+            "min": 7587840,
+            "max": 7784320
+          },
+          "GPU": {
+            "median": 118541888,
+            "min": 110431744,
+            "max": 121769472
+          },
+          "Browser": {
+            "median": 50679936,
+            "min": 50253952,
+            "max": 50876544
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 4668996,
+          "min": 4577652,
+          "max": 4775950
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 443733888,
+          "min": 439275840,
+          "max": 459249280
+        },
+        "activePeakBytes": {
+          "median": 641832320,
+          "min": 583209344,
+          "max": 651203456
+        },
+        "latencyMs": {
+          "median": 617.8621660000645,
+          "min": 608.8492920000572,
+          "max": 619.5869579999708
+        },
+        "stageRssMedianBytes": {
+          "median": 622821376,
+          "min": 561545216,
+          "max": 626393088
+        },
+        "stageRssPeakBytes": {
+          "median": 623460352,
+          "min": 568492032,
+          "max": 630374400
+        },
+        "activeCpuMs": {
+          "median": 0.34987,
+          "min": 0.314404,
+          "max": 5.29174
+        },
+        "roles": {
+          "Tab": {
+            "median": 80662144,
+            "min": 79384000,
+            "max": 80776704
+          },
+          "gateway": {
+            "median": 190502336,
+            "min": 187570496,
+            "max": 190781568
+          },
+          "native-helper": {
+            "median": 11487424,
+            "min": 11241728,
+            "max": 11536512
+          },
+          "Utility": {
+            "median": 7604224,
+            "min": 7587840,
+            "max": 7636928
+          },
+          "GPU": {
+            "median": 107089280,
+            "min": 98405568,
+            "max": 119311872
+          },
+          "Browser": {
+            "median": 49713280,
+            "min": 49598592,
+            "max": 49991872
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 5023717,
+          "min": 4910069,
+          "max": 5123851
+        }
+      },
+      "settledChangeBytes": -16238912
+    },
+    {
+      "notes": 10000,
+      "stage": "restored",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 609503872,
+          "min": 568335424,
+          "max": 615614848
+        },
+        "activePeakBytes": {
+          "median": 465914240,
+          "min": 457083456,
+          "max": 466673856
+        },
+        "latencyMs": {
+          "median": 552.5130409999983,
+          "min": 548.9699590000091,
+          "max": 557.764124999987
+        },
+        "stageRssMedianBytes": {
+          "median": 609058816,
+          "min": 582057984,
+          "max": 654508032
+        },
+        "stageRssPeakBytes": {
+          "median": 627900416,
+          "min": 587644928,
+          "max": 662077440
+        },
+        "activeCpuMs": {
+          "median": 0.262287,
+          "min": 0.259286,
+          "max": 0.374296
+        },
+        "roles": {
+          "Tab": {
+            "median": 79990208,
+            "min": 79891904,
+            "max": 83299776
+          },
+          "gateway": {
+            "median": 190843968,
+            "min": 179707584,
+            "max": 191793728
+          },
+          "native-helper": {
+            "median": 11815168,
+            "min": 11667712,
+            "max": 11913472
+          },
+          "Utility": {
+            "median": 7604224,
+            "min": 7604160,
+            "max": 7751552
+          },
+          "GPU": {
+            "median": 262901248,
+            "min": 225185344,
+            "max": 272109056
+          },
+          "Browser": {
+            "median": 50909312,
+            "min": 49877120,
+            "max": 50974848
+          }
+        },
+        "graphDom": {
+          "median": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererHeap": {
+          "median": 4837214,
+          "min": 4745794,
+          "max": 4944404
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 595515328,
+          "min": 561976128,
+          "max": 608294336
+        },
+        "activePeakBytes": {
+          "median": 443258752,
+          "min": 441275456,
+          "max": 466638592
+        },
+        "latencyMs": {
+          "median": 548.5795840000501,
+          "min": 548.0974169999827,
+          "max": 549.0211250000866
+        },
+        "stageRssMedianBytes": {
+          "median": 633913344,
+          "min": 574849024,
+          "max": 640253952
+        },
+        "stageRssPeakBytes": {
+          "median": 641564672,
+          "min": 583581696,
+          "max": 648445952
+        },
+        "activeCpuMs": {
+          "median": 0.296597,
+          "min": 0.256556,
+          "max": 6.674109
+        },
+        "roles": {
+          "Tab": {
+            "median": 81219200,
+            "min": 79744448,
+            "max": 81251840
+          },
+          "gateway": {
+            "median": 189978432,
+            "min": 186603904,
+            "max": 191682368
+          },
+          "native-helper": {
+            "median": 11503808,
+            "min": 11241728,
+            "max": 11552896
+          },
+          "Utility": {
+            "median": 7604224,
+            "min": 7587840,
+            "max": 7636928
+          },
+          "GPU": {
+            "median": 258641344,
+            "min": 219958464,
+            "max": 269078080
+          },
+          "Browser": {
+            "median": 49877120,
+            "min": 49844352,
+            "max": 50008256
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 4653329,
+          "min": 4563967,
+          "max": 5078315
+        }
+      },
+      "settledChangeBytes": -13988544
+    },
+    {
+      "notes": 10000,
+      "stage": "closed-window",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 327875648,
+          "min": 321703680,
+          "max": 338689088
+        },
+        "activePeakBytes": {
+          "median": 578931008,
+          "min": 564889408,
+          "max": 606476544
+        },
+        "latencyMs": {
+          "median": 205.03758300002664,
+          "min": 204.24924999999348,
+          "max": 206.88095799996518
+        },
+        "stageRssMedianBytes": {
+          "median": 475693056,
+          "min": 474218496,
+          "max": 522600448
+        },
+        "stageRssPeakBytes": {
+          "median": 594903040,
+          "min": 582500352,
+          "max": 656228352
+        },
+        "activeCpuMs": {
+          "median": 1.033436,
+          "min": 0.472269,
+          "max": 3.518726
+        },
+        "roles": {
+          "gateway": {
+            "median": 191499392,
+            "min": 180576320,
+            "max": 194514112
+          },
+          "native-helper": {
+            "median": 11782400,
+            "min": 11667712,
+            "max": 11913472
+          },
+          "Utility": {
+            "median": 7538688,
+            "min": 7489472,
+            "max": 7636864
+          },
+          "GPU": {
+            "median": 64048704,
+            "min": 63065600,
+            "max": 77975104
+          },
+          "Browser": {
+            "median": 50909312,
+            "min": 49811584,
+            "max": 50942080
+          }
+        },
+        "graphDom": null,
+        "rendererHeap": null
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 322799168,
+          "min": 313985088,
+          "max": 325470272
+        },
+        "activePeakBytes": {
+          "median": 557552448,
+          "min": 553866688,
+          "max": 565204352
+        },
+        "latencyMs": {
+          "median": 204.3631250000326,
+          "min": 204.1785830000881,
+          "max": 210.68625000002794
+        },
+        "stageRssMedianBytes": {
+          "median": 508542976,
+          "min": 475643904,
+          "max": 518455296
+        },
+        "stageRssPeakBytes": {
+          "median": 635305984,
+          "min": 577748992,
+          "max": 641286144
+        },
+        "activeCpuMs": {
+          "median": 0.727483,
+          "min": 0.563278,
+          "max": 0.970883
+        },
+        "roles": {
+          "gateway": {
+            "median": 190732416,
+            "min": 186407296,
+            "max": 192010304
+          },
+          "native-helper": {
+            "median": 11503808,
+            "min": 11241728,
+            "max": 11552896
+          },
+          "Utility": {
+            "median": 7538688,
+            "min": 7522304,
+            "max": 7571392
+          },
+          "GPU": {
+            "median": 61902016,
+            "min": 58559936,
+            "max": 66702912
+          },
+          "Browser": {
+            "median": 49811648,
+            "min": 49254528,
+            "max": 49893504
+          }
+        },
+        "graphDom": null,
+        "rendererHeap": null
+      },
+      "settledChangeBytes": -5076480
+    },
+    {
+      "notes": 10000,
+      "stage": "reopen",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 532957952,
+          "min": 528208000,
+          "max": 535536064
+        },
+        "activePeakBytes": {
+          "median": 620874112,
+          "min": 602245312,
+          "max": 621503296
+        },
+        "latencyMs": {
+          "median": 1710.2858749999432,
+          "min": 1653.9502499999944,
+          "max": 1710.4621669999324
+        },
+        "stageRssMedianBytes": {
+          "median": 615923712,
+          "min": 536461312,
+          "max": 619266048
+        },
+        "stageRssPeakBytes": {
+          "median": 627654656,
+          "min": 615333888,
+          "max": 650018816
+        },
+        "activeCpuMs": {
+          "median": 28.258178,
+          "min": 27.094135,
+          "max": 28.835392
+        },
+        "roles": {
+          "Tab": {
+            "median": 41372864,
+            "min": 41323584,
+            "max": 41553024
+          },
+          "gateway": {
+            "median": 192406976,
+            "min": 181212096,
+            "max": 197562176
+          },
+          "native-helper": {
+            "median": 11815168,
+            "min": 11700480,
+            "max": 11913472
+          },
+          "Utility": {
+            "median": 7702528,
+            "min": 7669696,
+            "max": 7800704
+          },
+          "GPU": {
+            "median": 227511936,
+            "min": 222629376,
+            "max": 234475072
+          },
+          "Browser": {
+            "median": 51335296,
+            "min": 51122304,
+            "max": 51368064
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 3921660,
+          "min": 3909040,
+          "max": 3926640
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 538908992,
+          "min": 522524992,
+          "max": 540662400
+        },
+        "activePeakBytes": {
+          "median": 623039296,
+          "min": 614520128,
+          "max": 625399040
+        },
+        "latencyMs": {
+          "median": 1644.908666000003,
+          "min": 1603.1440419999417,
+          "max": 1780.51800000004
+        },
+        "stageRssMedianBytes": {
+          "median": 652230656,
+          "min": 620019712,
+          "max": 655867904
+        },
+        "stageRssPeakBytes": {
+          "median": 659947520,
+          "min": 627818496,
+          "max": 664420352
+        },
+        "activeCpuMs": {
+          "median": 27.92557,
+          "min": 22.713733,
+          "max": 28.112745
+        },
+        "roles": {
+          "Tab": {
+            "median": 41454848,
+            "min": 41356480,
+            "max": 42388608
+          },
+          "gateway": {
+            "median": 196550080,
+            "min": 190094848,
+            "max": 198221504
+          },
+          "native-helper": {
+            "median": 11503808,
+            "min": 11241728,
+            "max": 11552896
+          },
+          "Utility": {
+            "median": 7686080,
+            "min": 7653376,
+            "max": 7686144
+          },
+          "GPU": {
+            "median": 221056192,
+            "min": 220843456,
+            "max": 234688128
+          },
+          "Browser": {
+            "median": 50319488,
+            "min": 50172032,
+            "max": 50712768
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 3920345,
+          "min": 3877960,
+          "max": 3928173
+        }
+      },
+      "settledChangeBytes": 5951040
+    },
+    {
+      "notes": 10000,
+      "stage": "recovery",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 537960512,
+          "min": 520703360,
+          "max": 543445248
+        },
+        "activePeakBytes": {
+          "median": 604736640,
+          "min": 551669888,
+          "max": 612294528
+        },
+        "latencyMs": {
+          "median": 300002.06700000004,
+          "min": 300001.30316600006,
+          "max": 300002.815041
+        },
+        "stageRssMedianBytes": {
+          "median": 567132160,
+          "min": 547618816,
+          "max": 609173504
+        },
+        "stageRssPeakBytes": {
+          "median": 626278400,
+          "min": 567427072,
+          "max": 640876544
+        },
+        "activeCpuMs": {
+          "median": 597.101471,
+          "min": 592.068092,
+          "max": 634.244472
+        },
+        "roles": {
+          "Tab": {
+            "median": 47385728,
+            "min": 47336640,
+            "max": 47811840
+          },
+          "gateway": {
+            "median": 189764608,
+            "min": 180195520,
+            "max": 197141248
+          },
+          "native-helper": {
+            "median": 11864320,
+            "min": 11585792,
+            "max": 12388608
+          },
+          "Utility": {
+            "median": 7669760,
+            "min": 7669696,
+            "max": 7800704
+          },
+          "GPU": {
+            "median": 222613120,
+            "min": 220270144,
+            "max": 233934464
+          },
+          "Browser": {
+            "median": 53760128,
+            "min": 52449408,
+            "max": 53760128
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 3732890,
+          "min": 3725411,
+          "max": 3760647
+        }
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": {
+          "median": 522197632,
+          "min": 517724672,
+          "max": 529340928
+        },
+        "activePeakBytes": {
+          "median": 602445888,
+          "min": 593124032,
+          "max": 603494272
+        },
+        "latencyMs": {
+          "median": 300002.00691699993,
+          "min": 300001.36491600017,
+          "max": 300002.5774170001
+        },
+        "stageRssMedianBytes": {
+          "median": 582713344,
+          "min": 553664512,
+          "max": 597016576
+        },
+        "stageRssPeakBytes": {
+          "median": 636780544,
+          "min": 609533952,
+          "max": 663781376
+        },
+        "activeCpuMs": {
+          "median": 622.396186,
+          "min": 620.667583,
+          "max": 650.937407
+        },
+        "roles": {
+          "Tab": {
+            "median": 47222080,
+            "min": 47041728,
+            "max": 47533376
+          },
+          "gateway": {
+            "median": 184180096,
+            "min": 177692288,
+            "max": 187227904
+          },
+          "native-helper": {
+            "median": 11421888,
+            "min": 11077888,
+            "max": 11503744
+          },
+          "Utility": {
+            "median": 7718912,
+            "min": 7669760,
+            "max": 7735232
+          },
+          "GPU": {
+            "median": 220466368,
+            "min": 216305088,
+            "max": 225971840
+          },
+          "Browser": {
+            "median": 52777088,
+            "min": 52613248,
+            "max": 52957376
+          }
+        },
+        "graphDom": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererHeap": {
+          "median": 3745287,
+          "min": 3708017,
+          "max": 3785648
+        }
+      },
+      "settledChangeBytes": -15762880
+    },
+    {
+      "notes": 10000,
+      "stage": "explicit-quit",
+      "baseline": {
+        "repetitions": 3,
+        "settledBytes": null,
+        "activePeakBytes": {
+          "median": 601279872,
+          "min": 599023552,
+          "max": 621367616
+        },
+        "latencyMs": {
+          "median": 759.72509765625,
+          "min": 505.27490234375,
+          "max": 930.654052734375
+        },
+        "stageRssMedianBytes": {
+          "median": 524156928,
+          "min": 453476352,
+          "max": 554909696
+        },
+        "stageRssPeakBytes": {
+          "median": 558891008,
+          "min": 529940480,
+          "max": 565018624
+        },
+        "activeCpuMs": {
+          "median": 2.945995,
+          "min": 2.923212,
+          "max": 3.232498
+        },
+        "roles": {},
+        "graphDom": null,
+        "rendererHeap": null
+      },
+      "optimized": {
+        "repetitions": 3,
+        "settledBytes": null,
+        "activePeakBytes": {
+          "median": 587455104,
+          "min": 583654080,
+          "max": 612195264
+        },
+        "latencyMs": {
+          "median": 976.56396484375,
+          "min": 391.177978515625,
+          "max": 1005.4208984375
+        },
+        "stageRssMedianBytes": {
+          "median": 567083008,
+          "min": 263225344,
+          "max": 572751872
+        },
+        "stageRssPeakBytes": {
+          "median": 571097088,
+          "min": 563265536,
+          "max": 576831488
+        },
+        "activeCpuMs": {
+          "median": 2.692019,
+          "min": 2.105188,
+          "max": 2.696652
+        },
+        "roles": {},
+        "graphDom": null,
+        "rendererHeap": null
+      },
+      "settledChangeBytes": null
+    }
+  ],
+  "date": "2026-10-23",
+  "coverage": {
+    "notes": [
+      10000
+    ],
+    "repetitions": 3,
+    "optimizedCompletedRuns": 3,
+    "newControlCompletedRuns": 3,
+    "artifactVerified": true,
+    "descendantsExited": true,
+    "semanticRetrievalComplete": true,
+    "defaultDeadlineAccepted": false
+  },
+  "limitations": [
+    "Matched diagnostic pair with 900s backend, 910s gateway and 950s driver deadlines on both sides; default-deadline optimized attempt failed and remains excluded.",
+    "Disposable frozen first-iteration source copies, excluding later product changes.",
+    "Warm/uncontrolled filesystem cache, focus/GPU, memory pressure and unrelated user/app load; fixed control-then-optimized order.",
+    "Three per-run statistics per cell; physical footprint is kernel-attributed, non-atomic and not unique system DRAM.",
+    "No leak-freedom, native-host parity or production numerical budget claim."
+  ]
+}

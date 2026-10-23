@@ -2,7 +2,7 @@
 
 `scripts/desktop-ram-fixtures.mjs` prepares deterministic seeds. `desktop-ram-benchmark.mjs` runs the isolated production Electron/native-helper/runtime stack; `desktop-ram-report.mjs` summarizes simultaneous samples and checks explicit budgets. The native and GPU commands are separate experiments. Fixture preparation alone supplies no RAM result.
 
-Iteration status: all twelve baseline repetitions completed and are [published as reviewed aggregates](2026-10-22-workload-baseline.json). The user deferred full matched optimized acceptance, soak/GPU/native experiments and adoption of numerical budgets to [the follow-up task](../../tasks/todo/tasks-desktop-ram-follow-up.md). Tools described below are available; their existence does not mean those experiments passed.
+Iteration status: all twelve original baseline repetitions are [published as reviewed aggregates](2026-10-22-workload-baseline.json). The [bounded follow-up result](2026-10-23-bounded-result.md) subsequently completed matched groups across all four corpora, with an explicitly longer diagnostic deadline for the large group. The default large-index deadline failed. The user closed the investigation; soak/GPU/native experiments and production numerical budget adoption were deferred in [the archived task](../../tasks/done/2026-10-23_tasks-desktop-ram-follow-up.md). Tools described below are available; their existence does not mean those experiments passed.
 
 ## Prepare and verify
 
@@ -107,7 +107,7 @@ The comparison also reports RSS medians and sampled maxima for each whole stage,
 
 The [2026-10-23 partial follow-up](2026-10-23-follow-up.md) completed matched 0/100-note comparisons. Its first 1,000-note attempt hit the old driver's editor-readiness race and is excluded. The replacement queue uses the corrected driver and shared gateway fix on **both** new control and optimized 1,000-note suites. Retained 0/100-note old-driver results remain their own matched group; do not compare corrected 1,000-note results against the older 1,000-note baseline.
 
-The corrected 1,000-note pair subsequently completed. The first corrected 10,000-note optimized attempt reached the backend's 600-second index deadline and is excluded. Fresh large control/optimized diagnostic suites now use identical 900/910/950-second backend/gateway/driver deadlines in disposable source copies; [their hashes and limits](2026-10-23-extended-deadline-protocol.json) are recorded. This is a separate matched configuration and cannot establish default-deadline acceptance. No production default is changed.
+The corrected 1,000-note pair subsequently completed. The first corrected 10,000-note optimized attempt reached the backend's 600-second index deadline and is excluded. Completed fresh large control/optimized diagnostic suites used identical 900/910/950-second backend/gateway/driver deadlines in disposable source copies; [their hashes and limits](2026-10-23-extended-deadline-protocol.json) are recorded. This is a separate matched configuration and cannot establish default-deadline acceptance. No production default is changed.
 
 For cancellation, use a new disposable root and an already provisioned model:
 

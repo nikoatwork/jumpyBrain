@@ -2,7 +2,7 @@
 
 Measured 2026-10-23 on Apple M3 Pro, 18 GiB RAM, macOS 15.7.7 arm64, Electron 44.8.0, Node 26.7.0 and QMD 2.8.3. Three changed-snapshot and three clean-HEAD baseline disposable 1,000-note runs completed; every sampled owned process tree drained on guarded quit. All 956 changed-snapshot and 959 baseline samples were complete, with zero rejected samples, and both suites passed post-run artifact/dependency fingerprint verification.
 
-This is a short comparison of the old and new user defaults, **not an equal-node renderer experiment or the full desktop RAM acceptance program**. Two-second observation windows and five-second recovery do not establish long-term equilibrium, leak freedom or a general whole-app guarantee. The existing [desktop RAM follow-up](../../tasks/todo/tasks-desktop-ram-follow-up.md) retains the broader semantic/model, long-recovery and soak work.
+This is a short comparison of the old and new user defaults, **not an equal-node renderer experiment or the full desktop RAM acceptance program**. Two-second observation windows and five-second recovery do not establish long-term equilibrium, leak freedom or a general whole-app guarantee. The closed bounded [desktop RAM follow-up](../../tasks/done/2026-10-23_tasks-desktop-ram-follow-up.md) records broader semantic/model measurements and the explicitly deferred soak/host work.
 
 ## Snapshot and reproduction
 

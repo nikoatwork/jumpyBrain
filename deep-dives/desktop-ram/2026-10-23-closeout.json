@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "closedAt": "2026-10-23T15:03:43.188Z",
+  "scope": "User-requested bounded wind-down; remaining experiments explicitly deferred.",
+  "machine": {
+    "os": "15.7.7",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "ram": 19327352832
+  },
+  "modelHash": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+  "samplerSha256": "169a08579da0edfcb051b402803709095746c6065482e19076996b4df4d1dc7c",
+  "engines": {
+    "electron": "12aa325561098c5dc5b175e465225b1b61e8f4090ce6d5dade89887e0eec8ab7",
+    "electronVersion": "44.8.0",
+    "node": "aa7c3390685f1388f3b898b7d7f84edf95fcee4aa062725aa56dee348afbe6be",
+    "qmdVersion": "2.8.3",
+    "qmd": "4dbf00c90ece2451bd81f6456e889f5554f3e6f409cf16813bf7daf622a4760f"
+  },
+  "counts": [
+    0,
+    100,
+    1000,
+    10000
+  ],
+  "repetitions": 3,
+  "optimizedCompletedRuns": 12,
+  "matchedControlRuns": 12,
+  "groups": [
+    {
+      "notes": [
+        0,
+        100
+      ],
+      "evidence": "2026-10-23-comparison-0-100.json"
+    },
+    {
+      "notes": [
+        1000
+      ],
+      "evidence": "2026-10-23-comparison-1000.json"
+    },
+    {
+      "notes": [
+        10000
+      ],
+      "evidence": "2026-10-23-comparison-10000.json",
+      "indexTimeoutMs": 900000
+    }
+  ],
+  "artifactVerified": true,
+  "completeSemanticRetrieval": true,
+  "observedDescendantsExited": true,
+  "remainingBenchmarkOrMonitorCommands": 0,
+  "provisionalDiagnosticBudgetCheck": {
+    "violations": []
+  },
+  "productionBudgetsAdopted": false,
+  "defaultLargeDeadlineAccepted": false,
+  "decisions": [
+    "Keep Electron and existing background-service contract.",
+    "No general whole-desktop reduction or 100 MB total claim.",
+    "Stop additional RAM optimization and experiments for this iteration."
+  ],
+  "deferred": [
+    "30-minute soak",
+    "GPU memory-infra trace",
+    "matched native-host comparison and OS parity",
+    "additional lazy loading/metadata/cache work",
+    "production numerical budget adoption"
+  ]
+}

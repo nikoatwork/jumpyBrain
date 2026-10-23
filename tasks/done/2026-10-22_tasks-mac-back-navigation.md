@@ -25,7 +25,7 @@ Let the Mac app return to the last viewed page using a mouse Back button or the 
 - `src/architecture.docs.md`, `src/adapters/http-server/browser.docs.md` — architecture and browser navigation contracts to read before source edits.
 - `scripts/mac-back-navigation-smoke.mjs`, `integrations/electron/smoke-back-navigation.mjs` — disposable production-window/gateway input, save, history and retention checks.
 - `test/electron-back-navigation.test.js`, `test/notes-browser.test.js`, `test/companion-browser.test.js` — native wiring and guarded traversal regressions.
-- [Desktop RAM follow-up](../todo/tasks-desktop-ram-follow-up.md) — coordinate any retention finding without expanding this ticket into the full RAM program.
+- [Desktop RAM follow-up](../done/2026-10-23_tasks-desktop-ram-follow-up.md) — coordinate any retention finding without expanding this ticket into the full RAM program.
 
 ## Tasks
 

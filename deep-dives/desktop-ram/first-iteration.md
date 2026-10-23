@@ -1,6 +1,6 @@
 # Desktop RAM: first iteration — 2026-10-22
 
-The first iteration reduces metadata/body-reading and graph allocation work, releases hidden graph rendering resources, and fixes long-index forwarding. It is functionally validated. **Matched whole-desktop RAM savings, numeric regression budgets, leak freedom and the 100 MB target remain unverified.** The user deferred the larger measurement/host program to [a follow-up task](../../tasks/todo/tasks-desktop-ram-follow-up.md).
+The first iteration reduces metadata/body-reading and graph allocation work, releases hidden graph rendering resources, and fixes long-index forwarding. It is functionally validated. **Matched whole-desktop RAM savings, numeric regression budgets, leak freedom and the 100 MB target remain unverified.** The [bounded follow-up result](2026-10-23-bounded-result.md) records later matched measurements and remaining limits. The user closed the larger measurement/host program in [the archived follow-up task](../../tasks/done/2026-10-23_tasks-desktop-ram-follow-up.md).
 
 ## Implemented behavior
 

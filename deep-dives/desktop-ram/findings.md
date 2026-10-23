@@ -48,4 +48,4 @@ python3 deep-dives/desktop-ram/measure-macos.py MAIN_PID \
 
 The sampler is read-only and does not drive workloads. It fails on missing/inaccessible process measurements rather than silently reporting a partial total. `footprint` inspection itself adds some observation overhead; the per-process counters are collected close together, not atomically. For workload benchmarks, add faster sampling and operation peak telemetry to catch brief child processes and allocation bursts.
 
-Implemented changes and their limits are recorded in [the first iteration](first-iteration.md). Further work is tracked in [the RAM follow-up task](../../tasks/todo/tasks-desktop-ram-follow-up.md).
+Implemented changes and their limits are recorded in [the first iteration](first-iteration.md). The [bounded follow-up result](2026-10-23-bounded-result.md) and deferred checks are recorded in [the archived RAM task](../../tasks/done/2026-10-23_tasks-desktop-ram-follow-up.md).
