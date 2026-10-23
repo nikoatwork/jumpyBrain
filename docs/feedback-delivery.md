@@ -2,6 +2,8 @@
 
 Feedback now has an explicit **Send feedback** action. Opening the dialog only collects the existing bounded diagnostic preview. Sending uploads the message and, unless excluded, exactly that diagnostic report to the support service. Failed or unconfirmed requests keep the draft for retry. Email-app and `.eml` alternatives remain secondary.
 
+To query received feedback, follow [Check AgentMail feedback](check-feedback.md) for the inbox, verified browser access, fallback and test-message filtering.
+
 ## Deployment status
 
 The relay is deployed on the existing VPS under the deployment-configured hostname at `/support/feedback`. Its health route, `/support/health`, reports `deliveryConfigured:true`. The AgentMail key named **jumpyBrain feedback relay** permits only **Message Send**, scoped to `jumpybrain@agentmail.to`. The existing memory service is unchanged. The local Mac app has been rebuilt, installed, and reopened with direct Feedback visible and this endpoint bundled. On 2026-10-22, one explicitly authorized test through the installed app’s bundled forwarder and live relay was accepted by AgentMail and verified in the destination inbox. Its downloaded diagnostics attachment exactly matched the synthetic report; no personal notes or real diagnostics were sent. Configured health alone does not verify delivery.

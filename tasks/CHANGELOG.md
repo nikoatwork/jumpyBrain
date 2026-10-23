@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Feedback query instructions
+
+- Documented the AgentMail inbox-checking procedure and linked agent guidance; finalized [access, reporting rules and verification limits](done/2026-10-23_tasks-feedback-query-instructions.md).
+
 ## 2026-10-23 — Mac update discovery after installation
 
 - Fixed startup discovery after completed updates so an old success record cannot hide newer releases; finalized [the regression fix](done/2026-10-23_tasks-update-startup-discovery.md).
