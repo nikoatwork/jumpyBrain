@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "createdAt": "2026-10-23T13:05:18.470Z",
+  "reason": "Default 600-second semantic indexing expired under current machine conditions; both large-corpus sides receive identical longer diagnostic deadlines.",
+  "deadlineMs": {
+    "backend": 900000,
+    "gateway": 910000,
+    "driver": 950000
+  },
+  "snapshots": [
+    {
+      "role": "baseline",
+      "originalSha256": "67dad1c4a14e9735d3926cf2f79a0cee89069c8340932e82e29a44b4565ee797",
+      "sha256": "24256f2d055ff4c24228f23159b87d1608129c25ea00c46bf28837266d88d4de",
+      "gatewaySha256": "7286251fceb7c0317c0fc07abc989c39b475296bccfba5f735fb196b4dc5b79f"
+    },
+    {
+      "role": "optimized",
+      "originalSha256": "be45152ce304f688d67c4164277b64bab21c12f450a4261752465ba1a6107001",
+      "sha256": "3cc4dd8711724e45907611f7c6d01649f4c3ca72b4b63c0671c230b4d4b97906",
+      "gatewaySha256": "7286251fceb7c0317c0fc07abc989c39b475296bccfba5f735fb196b4dc5b79f"
+    }
+  ],
+  "originalDriverSha256": "51b5e6e6db309e011c779212e05bd6b5aa18104363fd4116e9363936c6e318a1",
+  "driverSha256": "3c3668ec712d59442f6a77eb10b3524b87abd4834bb4aed36ebfdb2b88210595",
+  "limits": [
+    "Benchmark-only source copies; production defaults unchanged.",
+    "Default-deadline large gate remains failed; longer diagnostic pair is not proof of default-deadline acceptance.",
+    "Both new large control and optimized runs required; never compare this new driver/deadline against the older control."
+  ]
+}
