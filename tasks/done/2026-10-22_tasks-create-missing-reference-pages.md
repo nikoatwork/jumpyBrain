@@ -6,6 +6,8 @@ In the Mac app, clicking `[[alla]]` when no page has that title should create an
 
 Status: implemented and verified 2026-10-22. No installation or release performed.
 
+Reverified against current HEAD on 2026-10-23; see the follow-up verification below. The former `tasks/todo/tasks-create-missing-reference-pages.md` path is obsolete; this archive remains the canonical task record.
+
 ## Current behavior
 
 - Writable Mac reference activation creates a missing target after the source save, validates the target and opens it. Read-only connections retain the source with permission feedback.
@@ -93,3 +95,16 @@ Tested the working-tree implementation over `640ae50`, build `3795f1fc248e0a91` 
 - `git diff --check`: passed.
 
 The new 14-scenario production smoke was rerun against the final controller/rebase bundle; the final full suite also includes the last fixes. Physical Mac app installation, actual native Keychain/folder UI, real keyboard/IME/assistive technology, Safari/Firefox and real hosted deployment were not exercised. Synthetic browser/Chromium CDP input is not physical IME validation. Cross-process title locking and atomicity against external rename/delete remain unsupported; one host queue is the tested concurrency boundary. Existing [manual reference QA](../todo/tasks-page-reference-manual-qa.md) remains separate. No release, installation, account messaging or memory write was performed.
+
+## Follow-up verification — 2026-10-23
+
+The requested todo path was already archived by implementation commit `c450fc544b9dd64f8f98bbe3997ed2066a1a8cc0`. Audited the completed requirements against current HEAD `214cf7df288ba5e43b079aba991539549416bdd8` and reverified that snapshot, version 0.3.6, build `14598887705f8ca5`. No implementation changes were needed.
+
+- `npm test`: build passed; 1,197 tests passed, one skipped, zero failed (1,198 total). Bundle: 516,721 bytes minified / 170,876 bytes gzip, within the current repository gate.
+- `npx --package=playwright node scripts/missing-reference-pages-smoke.mjs`: all 14 production engine/gateway/editor scenarios passed at 1280px desktop and 390px touch, including confirmed-save ordering, click/create/edit/reload, inert syntax, failed-save recovery, uncertain-response retry and read-only protection.
+- `npx --package=playwright node scripts/page-reference-editor-smoke.mjs`: all 54 editor scenarios passed.
+- `npx --package=playwright node scripts/reference-autocomplete-smoke.mjs`: all 36 desktop/narrow scenarios passed.
+- `npx --package=playwright node scripts/companion-browser-smoke.mjs`: passed, including two-tab save/freeze, generation fencing, uncertain creation, conflicts and read-only behavior.
+- `git diff --check`: passed. The original archive, changelog link, owning docs and shipped v0.3.6 release notes already describe this behavior; no stale repository links to the former todo path were found before this explanatory note. No new capability or pending release note is introduced by this verification-only follow-up.
+
+The original manual/native-device, physical IME, alternate-browser, hosted-deployment and cross-process concurrency limits remain. Browser checks used disposable memory roots; no installation, publication or personal/global memory write was performed.
