@@ -37,7 +37,7 @@ function loadGraphViewportRuntime({ scale = 1.5, pan = { x: 37, y: -24 }, rect =
     state: { scale, pan: { ...pan } },
     $(id) { assert.ok(elements[id], "unexpected DOM dependency: " + id); return elements[id]; },
   };
-  const map = createMapController({ state: ctx.state, element: ctx.$, document: {}, window: { addEventListener() {} } });
+  const map = createMapController({ state: ctx.state, element: ctx.$, document: { addEventListener() {} }, window: { addEventListener() {} } });
   map.connect();
   return { ...ctx, ...map, rect, listeners, transforms };
 }
@@ -293,16 +293,17 @@ test("graph page uses quiet map controls with native filters and no depth UI", (
   assert.match(html, /prefers-reduced-motion/);
 });
 
-function graphNoticeHarness() {
+function graphNoticeHarness(options = {}) {
+  const clock = createManualClock();
   const elements = new Map();
   const element = (id) => {
-    if (!elements.has(id)) elements.set(id, { textContent: "", hidden: true, children: [],
+    if (!elements.has(id)) elements.set(id, { textContent: "", hidden: true, children: [], setAttribute() {},
       replaceChildren() { this.children = []; }, append(child) { this.children.push(child); } });
     return elements.get(id);
   };
   const context = vm.createContext({
     $: element, document: { createElement: () => ({ textContent: "" }) },
-    state: { graphToken: 0, view: "graph", layoutTimer: null }, window: {}, graphUrl: () => "/graph.json", render() {},
+    state: { graphToken: 0, view: "graph", layoutTimer: null }, window: { setTimeout: clock.setTimer, clearTimeout: clock.clearTimer }, graphUrl: () => "/graph.json", render() {},
   });
   vm.runInContext(extractFunction(pageScript(), "setStatus"), context);
   context.state.view = "home"; // Notice/load tests do not need SVG layout.
@@ -313,8 +314,9 @@ function graphNoticeHarness() {
     searchNotes: (query, signal) => context.searchNotes(query, signal),
     setStatus: (...args) => context.setStatus(...args),
     onReady: ready => { context.window.__jumpyBrainGraphReady = ready; },
+    ...options,
   }));
-  return { context, element };
+  return { context, element, clock };
 }
 
 function noticePacket(overrides = {}) {
@@ -322,13 +324,13 @@ function noticePacket(overrides = {}) {
     stats: { documents: 1636 }, options: { limit: 3 }, warnings: ["Graph response was limited to 3 nodes."], ...overrides };
 }
 
-test("map search passes shared search matches to graph assembly without literal refiltering and preserves partial warnings", async () => {
+test("map search passes shared matches as neighborhood seeds and removes generic incomplete warnings", async () => {
   const { context, element } = graphNoticeHarness();
   element("query").value = "health";
   const requests = [];
   context.searchNotes = async (query, signal) => {
     assert.equal(query, "health"); assert.equal(signal.aborted, false);
-    return { files: ["notes/sleep & exercise.md"], warnings: ["Search results may be incomplete."] };
+    return { files: ["notes/sleep & exercise.md"], warnings: ["Search results may be incomplete."], details: ["Recent edits are being indexed"] };
   };
   context.graphJson = async (url, signal) => {
     requests.push(new URL(url, "http://localhost")); assert.equal(signal.aborted, false);
@@ -337,13 +339,16 @@ test("map search passes shared search matches to graph assembly without literal 
   await context.loadGraph();
   assert.equal(context.hasCurrentGraph(), true);
   assert.equal(requests[0].searchParams.has("query"), false);
-  assert.deepEqual(requests[0].searchParams.getAll("files"), ["", "notes/sleep & exercise.md"]);
+  assert.deepEqual(requests[0].searchParams.getAll("seeds"), ["", "notes/sleep & exercise.md"]);
   assert.equal(context.state.graph.nodes.length, 1);
-  assert.deepEqual(element("graph-warnings").children.map(row => row.textContent), ["Search results may be incomplete."]);
+  assert.match(element("reload").title, /Recent edits are being indexed/);
+  assert.deepEqual(element("graph-warnings").children.map(row => row.textContent), []);
+  assert.equal(requests[0].searchParams.get("neighborLimit"), "60");
+  assert.equal(requests[0].searchParams.has("files"), false);
 
   context.searchNotes = async () => ({ files: [], warnings: [] });
   await context.loadGraph();
-  assert.deepEqual(requests[1].searchParams.getAll("files"), [""]);
+  assert.deepEqual(requests[1].searchParams.getAll("seeds"), [""]);
   context.searchNotes = async () => { throw new Error("Search unavailable"); };
   await context.loadGraph();
   assert.equal(requests.length, 2, "failed search cannot fall back to a literal or unfiltered graph");
@@ -372,6 +377,42 @@ test("superseded and suspended map searches are aborted and cannot fetch or publ
   assert.equal(signal.aborted, true);
   second.resolve({ files: [], warnings: [] }); await leaving;
   assert.equal(calls, 1);
+});
+
+test("brain scope changes abort pending work and evict cached graph, camera and success identity", async () => {
+  let scope = "brain-a";
+  const h = graphNoticeHarness({ scope: () => scope });
+  const pending = deferred(); let signal;
+  h.context.graphJson = async () => noticePacket({ warnings: [] });
+  await h.context.loadGraph();
+  assert.equal(h.context.hasCurrentGraph(), true);
+  h.context.state.pan = { x: 17, y: 22 }; h.context.state.scale = 2;
+  h.context.graphJson = (_url, requestedSignal) => { signal = requestedSignal; return pending.promise; };
+  const oldBrain = h.context.loadGraph();
+  scope = "brain-b";
+  assert.equal(h.context.hasCurrentGraph(), false);
+  assert.equal(signal.aborted, true);
+  assert.equal(h.context.state.graph, null);
+  assert.deepEqual(h.context.state.pan, { x: 0, y: 0 });
+  assert.equal(h.context.state.scale, 1);
+  pending.resolve(noticePacket({ warnings: ["Previous brain warning"] }));
+  await oldBrain;
+  assert.equal(h.context.state.graph, null, "late old-brain packet cannot revive a graph");
+  assert.equal(h.element("graph-notice").hidden, true);
+  assert.equal(h.clock.pending, 0, "settled aborted requests release delayed updating indicators");
+});
+
+test("graph shared-search seeds preserve rank and stop at the explicit sixty-match budget", async () => {
+  const h = graphNoticeHarness();
+  const files = Array.from({ length: 85 }, (_, index) => `notes/ranked-${index}.md`);
+  h.element("query").value = "health";
+  h.context.searchNotes = async () => ({ files, warnings: [] });
+  let requested;
+  h.context.graphJson = async url => { requested = new URL(url, "http://test"); return noticePacket({ nodes: [], warnings: [] }); };
+  await h.context.loadGraph();
+  assert.deepEqual(requested.searchParams.getAll("seeds"), ["", ...files.slice(0, 60)]);
+  assert.equal(requested.searchParams.get("neighborLimit"), "60");
+  assert.equal(requested.searchParams.get("includeSnippets"), "0");
 });
 
 test("HTTP graph file selection applies before the node cap and empty selection returns no nodes", async () => {
@@ -423,7 +464,7 @@ test("map warnings remain text and tolerate missing/invalid optional metadata wi
 
 test("map refresh clears old notices; failed refresh and stale responses cannot restore a success notice", async () => {
   const { context, element } = graphNoticeHarness();
-  context.graphJson = async () => noticePacket({ warnings: ["Search results may be incomplete."] });
+  context.graphJson = async () => noticePacket({ warnings: ["Some linked targets are unavailable."] });
   await context.loadGraph();
   assert.equal(element("graph-notice").hidden, false);
   const stale = deferred(), fresh = deferred();
@@ -434,7 +475,7 @@ test("map refresh clears old notices; failed refresh and stale responses cannot 
   const second = context.loadGraph();
   fresh.resolve(noticePacket({ stats: { documents: 2 }, warnings: [] }));
   await second;
-  stale.resolve(noticePacket({ warnings: ["Search results may be incomplete."] })); await first;
+  stale.resolve(noticePacket({ warnings: ["Some linked targets are unavailable."] })); await first;
   assert.equal(element("graph-notice").hidden, true, "outdated response cannot restore a notice");
   context.graphJson = async () => { throw new Error("Synthetic graph failure"); };
   await context.loadGraph();
@@ -512,7 +553,7 @@ test("zoom buttons anchor to the SVG center and plus/minus are reversible", () =
 
 test("zoom uses the clamped ratio at both bounds and never drifts at a limit", () => {
   for (const { scale, factor, limit } of [
-    { scale: 3.8, factor: 1.2, limit: 4 },
+    { scale: 7.8, factor: 1.2, limit: 8 },
     { scale: .21, factor: .5, limit: .2 },
   ]) {
     const h = loadGraphViewportRuntime({ scale });
@@ -568,29 +609,56 @@ test("graph URL needs no depth control and retains inclusion defaults and encode
   Object.assign(ctx, createMapController({ element: ctx.$ }));
   const defaults = new URL(ctx.graphUrl(), "http://localhost");
   assert.equal(defaults.pathname, "/memories/all/graph.json");
-  assert.deepEqual(Object.fromEntries(defaults.searchParams), { includeUnresolved: "1", includeOrphans: "1" });
+  assert.deepEqual(Object.fromEntries(defaults.searchParams), { includeUnresolved: "1", includeOrphans: "1", includeSnippets: "0", limit: "10000", edgeLimit: "20000" });
   controls.query.value = "  tag & title  ";
   controls.focus.value = "  pages/a b.md  ";
   controls["include-unresolved"].checked = false;
   controls["include-orphans"].checked = false;
   assert.deepEqual(Object.fromEntries(new URL(ctx.graphUrl(), "http://localhost").searchParams), {
-    query: "tag & title", focus: "pages/a b.md", includeUnresolved: "0", includeOrphans: "0",
+    query: "tag & title", focus: "pages/a b.md", includeUnresolved: "0", includeOrphans: "0", includeSnippets: "0", limit: "10000", edgeLimit: "20000",
   });
 });
 
-test("graph focus restoration selects the matching node or falls back to the map filter", () => {
-  const focused = [];
-  const node = (id) => ({
-    getAttribute(name) { assert.equal(name, "data-node-id"); return id; },
-    focus(options) { focused.push({ id, preventScroll: options.preventScroll }); },
-  });
-  const controls = { viewport: { children: [node(null), node("pages/a.md"), node("pages/b.md")] }, query: node("query") };
-  const ctx = { $: (id) => controls[id] };
-  Object.assign(ctx, createMapController({ element: ctx.$ }));
-  ctx.focusGraphNode("pages/b.md");
-  ctx.focusGraphNode("missing.md");
-  ctx.focusGraphNode(null);
-  assert.deepEqual(focused, [{ id: "pages/b.md", preventScroll: true }, { id: "query", preventScroll: true }, { id: "query", preventScroll: true }]);
+function graphRenderHarness() {
+  const focused = [], elements = new Map();
+  function node(tag = "g") {
+    const attributes = new Map();
+    return { tag, children: [], style: { setProperty() {} }, classList: { add() {}, remove() {} },
+      setAttribute(name, value) { attributes.set(name, value); }, getAttribute(name) { return attributes.get(name) ?? null; },
+      append(...children) { this.children.push(...children); },
+      insertBefore(child) { this.children.push(child); }, replaceChildren() { this.children = []; }, remove() {},
+      querySelector(tag) { return this.children.find(child => child.tag === tag); },
+      getBoundingClientRect() { return { left: 0, top: 0, width: 800, height: 600 }; },
+      focus(options) { focused.push({ id: attributes.get("data-node-id") ?? "query", preventScroll: options.preventScroll }); },
+    };
+  }
+  const element = id => { if (!elements.has(id)) elements.set(id, Object.assign(node(id), { value: "", checked: true })); return elements.get(id); };
+  const state = { view: "graph", graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1 };
+  const map = createMapController({ state, element, document: { createElementNS(_namespace, tag) { return node(tag); } }, window: {} });
+  return { map, state, focused, element };
+}
+
+test("graph focus restoration selects a rendered identity and falls back to the map filter", () => {
+  const h = graphRenderHarness();
+  const graph = { nodes: ["pages/a.md", "pages/b.md"].map(id => ({ id, title: id, nodeKind: "document", degree: 0 })), edges: [] };
+  h.map.render(graph);
+  h.map.focusGraphNode("pages/b.md");
+  h.map.focusGraphNode("missing.md");
+  h.map.focusGraphNode(null);
+  assert.deepEqual(h.focused, [{ id: "pages/b.md", preventScroll: true }, { id: "query", preventScroll: true }, { id: "query", preventScroll: true }]);
+});
+
+test("graph reconciliation retains surviving node targets, camera and updated accessible titles", () => {
+  const h = graphRenderHarness();
+  const node = { id: "notes/health.md", title: "Health", nodeKind: "document", degree: 0 };
+  h.map.render({ nodes: [node], edges: [] });
+  const target = h.element("viewport").children.find(child => child.getAttribute("data-node-id") === node.id);
+  h.state.pan = { x: 25, y: -30 }; h.state.scale = 1.75;
+  h.map.render({ nodes: [{ ...node, title: "Health and sleep" }], edges: [] }, true);
+  assert.equal(h.element("viewport").children.find(child => child.getAttribute("data-node-id") === node.id), target);
+  assert.equal(target.getAttribute("aria-label"), "Health and sleep, memory note");
+  assert.deepEqual(h.state.pan, { x: 25, y: -30 });
+  assert.equal(h.state.scale, 1.75);
 });
 
 test("notes editing stays in the HTTP shell with persistent rich editing and native dialogs", () => {
@@ -971,14 +1039,14 @@ function mapFilterHarness() {
   const listeners = new Map(), elements = new Map(), requests = [];
   const state = { view: "graph", graphToken: 0 };
   const element = id => {
-    if (!elements.has(id)) elements.set(id, { value: "", checked: true,
+    if (!elements.has(id)) elements.set(id, { value: "", checked: true, setAttribute() {},
       replaceChildren() {},
       addEventListener(type, callback) { listeners.set(id + ":" + type, callback); },
     });
     return elements.get(id);
   };
   const pending = [];
-  const map = createMapController({ state, element, document: {},
+  const map = createMapController({ state, element, document: { addEventListener() {} },
     window: { addEventListener() {}, setTimeout: clock.setTimer, clearTimeout: clock.clearTimer },
     fetchGraph(url) { requests.push(new URL(url, "http://localhost")); const request = deferred(); pending.push(request); return request.promise; },
     searchNotes: async () => ({ files: ["notes/body-match.md"], warnings: [] }),
@@ -1012,35 +1080,42 @@ test("leaving graph releases SVG and pending timers while preserving bounded his
   assert.equal(h.element("query").value, "query"); assert.equal(h.requests.length, 0);
 });
 
-test("map typing waits for three characters, debounces, retains filters and refreshes on clear", async () => {
+test("map typing supports every committed letter, debounces bursts, retains filters and refreshes on clear", async () => {
   const h = mapFilterHarness();
-  for (const value of ["a", "ab", "  ab  "]) {
-    h.element("query").value = value;
-    h.fire("query", "input");
-    h.clock.advance(300);
-  }
+  h.element("query").value = "h";
+  h.fire("query", "input");
+  h.clock.advance(249);
   assert.equal(h.requests.length, 0);
-  h.element("query").value = "abc";
+  h.element("query").value = "he";
+  h.fire("query", "input");
+  h.clock.advance(249);
+  assert.equal(h.requests.length, 0, "a newer letter replaces pending backend work");
+  h.clock.advance(1);
+  await Promise.resolve();
+  assert.equal(h.requests.length, 1, "short committed queries reach shared search");
+  h.element("query").value = "health";
   h.fire("query", "input");
   h.clock.advance(200);
-  h.element("query").value = "abcd";
+  h.element("query").value = "health sleep";
   h.fire("query", "input");
   h.element("focus").value = "Selected note";
   h.element("include-orphans").checked = false;
   h.clock.advance(249);
-  assert.equal(h.requests.length, 0);
+  assert.equal(h.requests.length, 1);
   h.clock.advance(1);
   await Promise.resolve();
-  assert.deepEqual(Object.fromEntries(h.requests[0].searchParams), {
-    files: "notes/body-match.md", focus: "Selected note", includeUnresolved: "1", includeOrphans: "0",
+  assert.deepEqual(Object.fromEntries(h.requests[1].searchParams), {
+    seeds: "notes/body-match.md", neighborLimit: "60", focus: "Selected note", includeUnresolved: "1", includeOrphans: "0",
+    includeSnippets: "0", limit: "10000", edgeLimit: "20000",
   });
   h.fire("query", "change");
-  assert.equal(h.requests.length, 1, "blur should not repeat the automatic request");
+  assert.equal(h.requests.length, 2, "blur should not repeat the automatic request");
   h.element("query").value = "";
   h.fire("query", "input");
   h.clock.advance(250);
-  assert.equal(h.requests.length, 2);
-  assert.equal(h.requests[1].searchParams.has("query"), false);
+  assert.equal(h.requests.length, 3);
+  assert.equal(h.requests[2].searchParams.has("query"), false);
+  assert.equal(h.requests[2].searchParams.has("seeds"), false);
   await h.finish();
 });
 
@@ -1061,28 +1136,29 @@ test("map focus typing handles composition, immediate search and canceled or hid
   h.element("focus").value = "an";
   h.fire("focus", "input");
   h.clock.advance(300);
-  assert.equal(h.requests.length, 1, "dropping below the threshold cancels pending typing");
+  assert.equal(h.requests.length, 2, "shorter focus text replaces the pending request");
+  assert.equal(h.requests[1].searchParams.get("focus"), "an");
   let prevented = false;
   h.fire("focus", "keydown", { key: "Enter", preventDefault() { prevented = true; } });
   assert.equal(prevented, true);
-  assert.equal(h.requests[1].searchParams.get("focus"), "an");
+  assert.equal(h.requests[2].searchParams.get("focus"), "an");
   h.element("focus").value = "third";
   h.fire("focus", "input");
   h.fire("reload", "click");
   h.clock.advance(300);
-  assert.equal(h.requests.length, 3, "refresh cancels the duplicate typing request");
+  assert.equal(h.requests.length, 4, "refresh cancels the duplicate typing request");
   h.element("query").value = "next";
   h.fire("query", "input");
   h.state.view = "note";
   h.clock.advance(300);
-  assert.equal(h.requests.length, 3, "queued typing stays inert after navigation");
+  assert.equal(h.requests.length, 4, "queued typing stays inert after navigation");
   await h.finish();
 });
 
 test("map resize queues an 80ms guarded layout through the injected clock", () => {
   const callbacks = new Map(), timers = [];
   const state = { graph: { nodes: [] }, view: "graph" };
-  const map = createMapController({ state, element: () => ({ addEventListener() {} }), document: {},
+  const map = createMapController({ state, element: () => ({ addEventListener() {} }), document: { addEventListener() {} },
     window: { addEventListener: (name, callback) => callbacks.set(name, callback),
       setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }, clearTimeout() {} },
   });

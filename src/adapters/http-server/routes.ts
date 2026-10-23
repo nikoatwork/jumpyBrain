@@ -28,7 +28,7 @@ interface JsonError {
 
 export const RESPONSE_ERROR_CODE = Symbol("jumpybrain.responseErrorCode");
 
-export async function routeRequest(context: { request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number; feedback?: (request: IncomingMessage, response: ServerResponse) => Promise<void> }): Promise<void> {
+export async function routeRequest(context: { request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number; feedback?: (request: IncomingMessage, response: ServerResponse) => Promise<void>; onMemoryWrite?: () => void; onMemoryActivity?: () => void; maintenance?: () => { enabled: boolean; indexing: boolean; failed: boolean } }): Promise<void> {
   const { request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal, searchTimeoutMs } = context;
   const url = new URL(request.url ?? "/", "http://localhost");
 
@@ -150,7 +150,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
   }
 
   if (request.method === "GET" && url.pathname === HTTP_MEMORY_ROUTES.status) {
-    writeJson(response, 200, await serverMemoryStatus(root));
+    writeJson(response, 200, { ...await serverMemoryStatus(root), ...(context.maintenance ? { maintenance: context.maintenance() } : {}) });
     return;
   }
 
@@ -198,7 +198,9 @@ export async function routeRequest(context: { request: IncomingMessage; response
         return;
       }
       const title = parsedBody.title;
-      writeJson(response, 200, await enqueueWrite(() => ensureServerMemoryTitle({ root, title })));
+      const packet = await enqueueWrite(() => ensureServerMemoryTitle({ root, title }));
+      if ("created" in packet && packet.created) context.onMemoryWrite?.();
+      writeJson(response, 200, packet);
     } catch {
       writeJson(response, 500, errorResponse("ensure_title_failed", "Page creation could not be confirmed. Retry the same title to resolve its current page."));
     }
@@ -377,7 +379,9 @@ export async function routeRequest(context: { request: IncomingMessage; response
         writeJson(response, 400, errorResponse("validation_failed", "Permanent deletion requires only { apply: true }.")); return;
       }
       try {
-        writeJson(response, 200, await enqueueWrite(() => deleteServerMemoryDocument({ root, id, ifMatch, apply: true })));
+        const packet = await enqueueWrite(() => deleteServerMemoryDocument({ root, id, ifMatch, apply: true }));
+        context.onMemoryWrite?.();
+        writeJson(response, 200, packet);
       } catch (error) {
         const mapped = documentUpdateErrorResponse(error);
         writeJson(response, mapped.statusCode, mapped.body);
@@ -391,7 +395,9 @@ export async function routeRequest(context: { request: IncomingMessage; response
       const mutation = await parseJsonBody(request);
       if (isJsonError(mutation)) { writeJson(response, mutation.statusCode, mutation.body); return; }
       try {
-        writeJson(response, 200, await enqueueWrite(() => patchServerMemoryAttention({ root, id, ifMatch, mutation })));
+        const packet = await enqueueWrite(() => patchServerMemoryAttention({ root, id, ifMatch, mutation }));
+        context.onMemoryWrite?.();
+        writeJson(response, 200, packet);
       } catch (error) {
         const mapped = documentUpdateErrorResponse(error);
         writeJson(response, mapped.statusCode, mapped.body);
@@ -425,6 +431,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
       try {
         const packet = await enqueueWrite(() => updateServerMemoryDocument({ root, id, content, ifMatch }));
+        context.onMemoryWrite?.();
         logger.info("remote_document_update_success", {
           method: request.method,
           path: url.pathname,
@@ -466,8 +473,9 @@ export async function routeRequest(context: { request: IncomingMessage; response
       return;
     }
     try {
-      writeJson(response, 200, await graphServerMemory({ root, graph: graphOptions }));
+      writeJson(response, 200, await graphServerMemory({ root, graph: graphOptions, signal }));
     } catch {
+      if (signal?.aborted) return;
       writeJson(response, 500, errorResponse("graph_failed", "Remote graph failed."));
     }
     return;
@@ -540,6 +548,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
   }
 
   if (request.method === "POST" && (url.pathname === HTTP_MEMORY_ROUTES.search || url.pathname === HTTP_MEMORY_ROUTES.recall)) {
+    context.onMemoryActivity?.();
     const parsedBody = await parseJsonBody(request);
     if (isJsonError(parsedBody)) {
       writeJson(response, parsedBody.statusCode, parsedBody.body);
@@ -639,6 +648,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       return;
     }
 
+    context.onMemoryWrite?.();
     const result = idempotency.result as Record<string, unknown>;
     const index = result.index as { stale?: boolean } | undefined;
     logger.info("remote_write_success", {
@@ -833,6 +843,10 @@ function graphOptionsFromSearchParams(url: URL) {
   if (depth instanceof Error) return depth;
   const limit = optionalPositiveIntegerSearchParam(url, "limit");
   if (limit instanceof Error) return limit;
+  const neighborLimit = optionalNonnegativeIntegerSearchParam(url, "neighborLimit");
+  if (neighborLimit instanceof Error) return neighborLimit;
+  const edgeLimit = optionalNonnegativeIntegerSearchParam(url, "edgeLimit");
+  if (edgeLimit instanceof Error) return edgeLimit;
   const edgeTypes = stringListSearchParam(url, "edgeTypes") ?? stringListSearchParam(url, "edge-types");
   const allowedEdgeTypes = new Set(["markdown-link", "wiki-link"]);
   if (edgeTypes?.some((edgeType) => !allowedEdgeTypes.has(edgeType))) return new Error("edgeTypes may only include markdown-link or wiki-link.");
@@ -840,6 +854,10 @@ function graphOptionsFromSearchParams(url: URL) {
     focus: stringSearchParam(url, "focus") || undefined,
     query: stringSearchParam(url, "query") || undefined,
     files: url.searchParams.has("files") ? url.searchParams.getAll("files").filter(Boolean) : undefined,
+    seeds: url.searchParams.has("seeds") ? url.searchParams.getAll("seeds").filter(Boolean) : undefined,
+    neighborLimit,
+    edgeLimit,
+    includeSnippets: optionalBooleanSearchParam(url, "includeSnippets"),
     type: stringSearchParam(url, "type") || undefined,
     path: stringSearchParam(url, "path") || undefined,
     tags: stringListSearchParam(url, "tags"),
@@ -849,6 +867,14 @@ function graphOptionsFromSearchParams(url: URL) {
     depth,
     limit,
   };
+}
+
+function optionalNonnegativeIntegerSearchParam(url: URL, key: string): number | undefined | Error {
+  const value = url.searchParams.get(key);
+  if (value === null || value === "") return undefined;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) return new Error(`${key} must be a nonnegative integer.`);
+  return parsed;
 }
 
 function stringSearchParam(url: URL, key: string): string {

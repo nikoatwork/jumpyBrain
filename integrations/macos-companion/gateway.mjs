@@ -174,7 +174,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       } catch { failure('offline', 'The selected local memory folder is unavailable.', 503); }
       await stopLocal();
       localKey = randomBytes(32).toString('hex');
-      local = await localStart({ root: profile.root, apiKeys: [localKey], host: '127.0.0.1', port: 0, autoIndex: false });
+      local = await localStart({ root: profile.root, apiKeys: [localKey], host: '127.0.0.1', port: 0 });
       localProfile = profile.id;
     }
     return { url: local.url, key: localKey };

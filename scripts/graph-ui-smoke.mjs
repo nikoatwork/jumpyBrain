@@ -86,36 +86,37 @@ async function validateGraph(width) {
   const recordGraph = (request) => { if (request.url().includes("/graph.json?")) requests.push(request); };
   page.on("request", recordGraph);
   try {
-    await query.fill(prefix.slice(0, 2));
-    await page.waitForTimeout(350);
-    assert.equal(requests.length, 0, "two characters should not trigger live filtering");
+    const firstCharacter = page.waitForResponse(response => response.url().includes("/graph.json?") && new URL(response.url()).searchParams.has("seeds"));
+    await query.fill(prefix.slice(0, 1));
+    await firstCharacter;
+    assert.ok(requests.length > 0, "the first committed character triggers shared search and a neighborhood request");
     const searchResponse = page.waitForResponse((response) => response.url().endsWith("/memories/all/search") && response.request().postDataJSON()?.query === prefix);
-    const filtered = page.waitForResponse((response) => response.url().includes("/graph.json?") && new URL(response.url()).searchParams.has("files"));
+    const filtered = page.waitForResponse((response) => response.url().includes("/graph.json?") && new URL(response.url()).searchParams.has("seeds"));
     await query.fill(prefix);
     const searchPacket = await (await searchResponse).json();
     const filteredPacket = await (await filtered).json();
-    const expectedFiles = await page.evaluate(results => normalizeNoteResults(results).map(hit => hit.file).filter(Boolean), searchPacket.results);
-    assert.deepEqual(filteredPacket.nodes.map(node => node.file).sort(), [...expectedFiles].sort(), "graph uses the same normalized search matches");
+    const expectedFiles = await page.evaluate(results => normalizeNoteResults(results, 60).map(hit => hit.file).filter(Boolean), searchPacket.results);
+    assert.deepEqual(filteredPacket.nodes.filter(node => node.match === "direct").map(node => node.file).sort(), [...expectedFiles].sort(), "graph uses the same normalized search matches");
     const expectedIds = filteredPacket.nodes.map(node => node.id).sort();
     await page.waitForFunction((ids) => JSON.stringify([...document.querySelectorAll('[data-testid="graph-node"]')]
       .map(node => node.dataset.nodeId).sort()) === JSON.stringify(ids), expectedIds);
     assert.equal(await query.evaluate(input => document.activeElement === input), true, "typing should retain field focus");
-    const cleared = page.waitForResponse((response) => response.url().includes("/graph.json?") && !new URL(response.url()).searchParams.has("files"));
+    const cleared = page.waitForResponse((response) => response.url().includes("/graph.json?") && !new URL(response.url()).searchParams.has("seeds"));
     await query.fill("");
     await cleared;
     await page.getByTestId("graph-ready").waitFor({ state: "visible" });
   } finally {
     page.off("request", recordGraph);
   }
-  console.log("  ok - live graph filter from the third character, focus retention and clear");
+  console.log("  ok - live graph filter from the first character, focus retention and clear");
   if (bodyQuery) {
     assert.ok(!String(selectedNode.title).toLowerCase().includes(bodyQuery.toLowerCase()), "query must be absent from the note title");
-    const searched = page.waitForResponse(response => response.url().includes("/graph.json?") && new URL(response.url()).searchParams.has("files"));
+    const searched = page.waitForResponse(response => response.url().includes("/graph.json?") && new URL(response.url()).searchParams.has("seeds"));
     await query.fill(bodyQuery); await query.press("Enter");
     const packet = await (await searched).json();
     assert.ok(packet.nodes.some(node => node.id === selectedNode.id), "shared search must find the body-only note on the map");
     await page.getByTestId("graph-ready").waitFor({ state: "visible" });
-    const cleared = page.waitForResponse(response => response.url().includes("/graph.json?") && !new URL(response.url()).searchParams.has("files"));
+    const cleared = page.waitForResponse(response => response.url().includes("/graph.json?") && !new URL(response.url()).searchParams.has("seeds"));
     await query.fill(""); await query.press("Enter"); await cleared;
     await page.getByTestId("graph-ready").waitFor({ state: "visible" });
     console.log("  ok - body-only query finds the same note through shared app search");
@@ -215,13 +216,23 @@ async function validateMapStates(targetPage, width) {
         : "Work note " + (index + 1) + " — decisions, discoveries and follow-ups",
     }));
     nodes.push({ ...selectedNode, id: "missing-visual-note", nodeKind: "unresolved", documentId: undefined, title: "Missing follow-up", degree: 1 });
-    packet = { ...graph, nodes, edges: nodes.slice(0, 49).map((node, index) => ({ source: node.id, target: nodes[index + 1].id, kind: "markdown-link", count: 1 })) };
-    packet.edges.push({ source: nodes[0].id, target: "missing-visual-note", kind: "markdown-link", count: 1 });
+    packet = { ...graph, nodes, edges: nodes.slice(0, 49).map((node, index) => ({ id: "fixture-edge-" + index, source: node.id, target: nodes[index + 1].id, kind: "markdown-link", count: 1 })) };
+    packet.edges.push({ id: "fixture-edge-missing", source: nodes[0].id, target: "missing-visual-note", kind: "markdown-link", count: 1 });
     await reloadGraph(targetPage);
     assert.equal(await targetPage.getByTestId("graph-node").count(), 61);
     assert.equal(await targetPage.getByTestId("graph-node-count").innerText(), "60", "missing targets are not existing notes");
     assert.equal(await targetPage.locator("#viewport img").count(), 0, "titles must remain text, not HTML");
-    assert.ok(await targetPage.locator(".node text").evaluateAll((labels) => labels.some((label) => label.textContent.endsWith("…"))));
+    assert.equal(await targetPage.getByTestId("graph-edge").count(), 50, "keyed edge rendering retains every fixture relationship");
+    // Focus must reveal the complete accessible identity even in crowded layouts.
+    const longNode = targetPage.locator('[data-testid="graph-node"][data-node-id="visual-0"]');
+    await longNode.focus();
+    const longLabel = targetPage.locator('.graph-title[data-node-id="visual-0"]');
+    await longLabel.waitFor({ state: "visible" });
+    assert.equal(await longLabel.getAttribute("aria-label"), nodes[0].title);
+    const labelGeometry = await longLabel.evaluate(el => ({ width: el.getBoundingClientRect().width, lines: el.querySelectorAll("tspan").length, text: el.textContent }));
+    assert.ok(labelGeometry.width <= 226 && labelGeometry.lines <= 2, "long labels stay within bounded width and at most two lines");
+    assert.ok(labelGeometry.text.endsWith("…") || labelGeometry.lines === 2, "long labels wrap before truncation where space permits");
+    assert.equal(await longLabel.evaluate(el => getComputedStyle(el).fontSize), "12px", "labels use a comfortable fixed font");
     await capture(targetPage, "map-dense-" + width + ".png");
     await targetPage.locator(".node.unresolved").focus();
     await targetPage.keyboard.press("Enter");

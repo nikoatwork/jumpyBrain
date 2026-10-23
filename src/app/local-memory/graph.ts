@@ -20,27 +20,48 @@ import type {
 const DEFAULT_GRAPH_LIMIT = 500;
 const DEFAULT_LOCAL_DEPTH = 1;
 const SNIPPET_LENGTH = 160;
+const DEFAULT_NEIGHBOR_LIMIT = 60;
+const LEAN_NODE_LIMIT = 10_000;
+const LEAN_EDGE_LIMIT = 20_000;
+// Reserve room below the companion's 16 MiB response cap for envelope/degree fields.
+const LEAN_DATA_BYTES = 11 * 1024 * 1024;
 
-export async function graphMemory(rootArg: string, options: MemoryGraphOptions = {}): Promise<MemoryGraphResult> {
+/** Count the real HTTP serializer's indentation for a record nested in nodes/edges.
+ * Each independent envelope slightly overcounts separators; compact JSON would
+ * undercount arbitrary tag arrays and could exceed the companion wire cap. */
+export function graphRecordWireBytes(record: MemoryGraphNode | MemoryGraphEdge): number {
+  return Buffer.byteLength(JSON.stringify({ nodes: [record] }, null, 2), "utf8");
+}
+
+export async function graphMemory(rootArg: string, options: MemoryGraphOptions = {}, execution: { signal?: AbortSignal } = {}): Promise<MemoryGraphResult> {
+  const { signal } = execution;
+  signal?.throwIfAborted();
   const root = await resolveMemoryRoot(rootArg);
   const status = await memoryRootStatus(root);
+  signal?.throwIfAborted();
   if (status.compatible) await assertCompatibleMemoryRoot(root);
   const sourceRoot = status.compatible ? await resolveIndexRoot(root) : root;
-  const documents = status.compatible ? await readMarkdownDocuments(sourceRoot) : [];
+  const documents = status.compatible ? await readMarkdownDocuments(sourceRoot, signal) : [];
   const manifest = await tryLoadManifest(root);
+  signal?.throwIfAborted();
   const indexedFiles = new Set(manifest?.documents.map((document) => document.relativePath) ?? []);
   const normalizedOptions = normalizeGraphOptions(options);
 
-  const built = await buildGraph(documents, indexedFiles, normalizedOptions.includeUnresolved);
+  const built = await buildGraph(documents, indexedFiles, normalizedOptions.includeUnresolved, signal);
+  signal?.throwIfAborted();
   const filtered = filterGraph(built.nodes, built.edges, normalizedOptions);
   // Presentation fields cannot affect filtering/order. Read them only for returned documents.
-  const byPath = new Map(documents.map((document) => [document.relativePath, document]));
-  for (const node of filtered.nodes) {
-    const document = byPath.get(node.id);
-    if (!document) continue;
-    node.snippet = snippetFor(await readFile(document.absolutePath, "utf8"), document.bodyStartLine);
-    if (!node.updatedAt) node.updatedAt = (await stat(document.absolutePath).catch(() => undefined))?.mtime.toISOString();
+  if (normalizedOptions.includeSnippets) {
+    const byPath = new Map(documents.map((document) => [document.relativePath, document]));
+    for (const node of filtered.nodes) {
+      signal?.throwIfAborted();
+      const document = byPath.get(node.id);
+      if (!document) continue;
+      node.snippet = snippetFor(await readFile(document.absolutePath, { encoding: "utf8", signal }), document.bodyStartLine);
+      if (!node.updatedAt) node.updatedAt = (await stat(document.absolutePath).catch(() => undefined))?.mtime.toISOString();
+    }
   }
+  signal?.throwIfAborted();
 
   return {
     root,
@@ -50,20 +71,23 @@ export async function graphMemory(rootArg: string, options: MemoryGraphOptions =
     nodes: filtered.nodes,
     edges: filtered.edges,
     stats: graphStats(documents.length, filtered.nodes, filtered.edges),
-    warnings: graphWarnings(status.compatible, documents.length, built.nodes.length, filtered.nodes.length, normalizedOptions.limit, Boolean(manifest)),
+    warnings: graphWarnings(status.compatible, documents.length, filtered.truncation, normalizedOptions.limit, Boolean(manifest)),
+    ...(filtered.truncation ? { truncation: filtered.truncation } : {}),
     options: normalizedOptions,
   };
 }
 
-interface NormalizedGraphOptions extends Required<Pick<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "limit">>, Omit<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "limit"> {
+interface NormalizedGraphOptions extends Required<Pick<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "includeSnippets" | "neighborLimit" | "limit">>, Omit<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "includeSnippets" | "neighborLimit" | "limit"> {
   edgeTypes?: MemoryConnectionEdgeKind[];
   tags?: string[];
 }
 
-async function buildGraph(documents: MarkdownDocument[], indexedFiles: Set<string>, includeUnresolved: boolean): Promise<{ nodes: MemoryGraphNode[]; edges: MemoryGraphEdge[] }> {
+async function buildGraph(documents: MarkdownDocument[], indexedFiles: Set<string>, includeUnresolved: boolean, signal?: AbortSignal): Promise<{ nodes: MemoryGraphNode[]; edges: MemoryGraphEdge[] }> {
+  signal?.throwIfAborted();
   const nodeMap = new Map<string, MemoryGraphNode>();
   for (const document of documents) nodeMap.set(document.relativePath, documentNode(document, indexedFiles.has(document.relativePath)));
-  const collected = await collectConnections(documents, undefined, { neighbors: false });
+  const collected = await collectConnections(documents, undefined, { neighbors: false, signal });
+  signal?.throwIfAborted();
   const edgeCounts = new Map<string, MemoryGraphEdge>();
   for (const edge of collected.edges) {
     const id = edgeId(edge.source, edge.target, edge.kind);
@@ -118,7 +142,7 @@ function unresolvedNode(rawTarget: string, id: string): MemoryGraphNode {
   };
 }
 
-function filterGraph(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[], options: NormalizedGraphOptions): { nodes: MemoryGraphNode[]; edges: MemoryGraphEdge[] } {
+function filterGraph(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[], options: NormalizedGraphOptions): { nodes: MemoryGraphNode[]; edges: MemoryGraphEdge[]; truncation?: { nodes: boolean; edges: boolean; bytes: boolean } } {
   const edgeTypes = new Set(options.edgeTypes ?? ["markdown-link", "wiki-link"]);
   let nodeIds = new Set(nodes.map((node) => node.id));
   let filteredEdges = edges.filter((edge) => edgeTypes.has(edge.kind));
@@ -152,14 +176,62 @@ function filterGraph(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[], options
     filteredEdges = filteredEdges.filter((edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target));
   }
 
-  let filteredNodes = nodes.filter((node) => nodeIds.has(node.id)).sort(compareNodes);
-  if (filteredNodes.length > options.limit) {
-    const keep = new Set(filteredNodes.slice(0, options.limit).map((node) => node.id));
-    filteredNodes = filteredNodes.filter((node) => keep.has(node.id));
-    filteredEdges = filteredEdges.filter((edge) => keep.has(edge.source) && keep.has(edge.target));
+  let filteredNodes = nodes.filter((node) => nodeIds.has(node.id));
+  if (options.seeds !== undefined) {
+    filteredNodes = seedNeighborhood(filteredNodes, filteredEdges, options.seeds, options.neighborLimit);
   }
+  const truncation = { nodes: filteredNodes.length > options.limit, edges: false, bytes: false };
+  filteredNodes = filteredNodes.slice(0, options.limit);
+  // Keep whole records rather than silently truncating titles, paths or tags.
+  let bytes = 0;
+  if (!options.includeSnippets) filteredNodes = filteredNodes.filter((node) => {
+    const size = graphRecordWireBytes(node);
+    if (bytes + size > LEAN_DATA_BYTES) { truncation.bytes = true; return false; }
+    bytes += size;
+    return true;
+  });
+  const keep = new Set(filteredNodes.map((node) => node.id));
+  filteredEdges = filteredEdges.filter((edge) => keep.has(edge.source) && keep.has(edge.target));
+  if (options.edgeLimit !== undefined && filteredEdges.length > options.edgeLimit) {
+    truncation.edges = true;
+    filteredEdges = filteredEdges.slice(0, options.edgeLimit);
+  }
+  if (!options.includeSnippets) filteredEdges = filteredEdges.filter((edge) => {
+    const size = graphRecordWireBytes(edge);
+    if (bytes + size > LEAN_DATA_BYTES) { truncation.bytes = true; return false; }
+    bytes += size;
+    return true;
+  });
+  return { nodes: applyDegrees(filteredNodes, filteredEdges), edges: filteredEdges,
+    ...(Object.values(truncation).some(Boolean) ? { truncation } : {}) };
+}
 
-  return { nodes: applyDegrees(filteredNodes, filteredEdges), edges: filteredEdges.sort(compareEdges) };
+/** Fair one-hop expansion: each ranked seed gets a turn before a hub gets another neighbor. */
+function seedNeighborhood(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[], seeds: string[], neighborLimit: number): MemoryGraphNode[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const direct = [...new Set(seeds)].map((seed) => byId.get(seed)).filter((node): node is MemoryGraphNode => node?.nodeKind === "document");
+  const seen = new Set(direct.map((node) => node.id));
+  const adjacent = new Map(direct.map((node) => [node.id, [] as string[]]));
+  for (const edge of edges) {
+    adjacent.get(edge.source)?.push(edge.target);
+    adjacent.get(edge.target)?.push(edge.source);
+  }
+  const context: MemoryGraphNode[] = [];
+  let active = direct.map((node) => ({ neighbors: adjacent.get(node.id)!, cursor: 0 }));
+  while (active.length && context.length < neighborLimit) {
+    const next: typeof active = [];
+    for (const seed of active) {
+      while (seed.cursor < seed.neighbors.length && seen.has(seed.neighbors[seed.cursor]!)) seed.cursor++;
+      if (seed.cursor >= seed.neighbors.length) continue;
+      const id = seed.neighbors[seed.cursor++]!;
+      const node = byId.get(id);
+      if (node) { seen.add(id); context.push({ ...node, match: "context" }); }
+      if (seed.cursor < seed.neighbors.length) next.push(seed);
+      if (context.length >= neighborLimit) break;
+    }
+    active = next;
+  }
+  return [...direct.map((node) => ({ ...node, match: "direct" as const })), ...context];
 }
 
 function nodeMatchesFilters(node: MemoryGraphNode, options: NormalizedGraphOptions): boolean {
@@ -200,8 +272,8 @@ function localGraphNodeIds(focus: string, edges: MemoryGraphEdge[], depth: numbe
 
   const seen = new Set([focus]);
   const queue: { id: string; distance: number }[] = [{ id: focus, distance: 0 }];
-  while (queue.length > 0) {
-    const current = queue.shift()!;
+  for (let cursor = 0; cursor < queue.length; cursor++) {
+    const current = queue[cursor]!;
     if (current.distance >= depth) continue;
     for (const next of neighbors.get(current.id) ?? []) {
       if (seen.has(next)) continue;
@@ -243,12 +315,14 @@ function graphStats(documentCount: number, nodes: MemoryGraphNode[], edges: Memo
   };
 }
 
-function graphWarnings(compatible: boolean, documentCount: number, builtNodes: number, returnedNodes: number, limit: number, hasManifest: boolean): string[] {
+function graphWarnings(compatible: boolean, documentCount: number, truncation: { nodes: boolean; edges: boolean; bytes: boolean } | undefined, limit: number, hasManifest: boolean): string[] {
   const warnings: string[] = [];
   if (!compatible) warnings.push("Memory root is not compatible with this jumpyBrain CLI.");
   if (!hasManifest) warnings.push("Memory index manifest is missing; graph indexed flags may be false until `jumpybrain index` runs.");
   if (documentCount === 0) warnings.push("No Markdown memory documents found.");
-  if (builtNodes > limit && returnedNodes === limit) warnings.push(`Graph response was limited to ${limit} nodes.`);
+  if (truncation?.nodes) warnings.push(`Graph response was limited to ${limit} nodes.`);
+  if (truncation?.edges) warnings.push("Graph response reached its edge limit.");
+  if (truncation?.bytes) warnings.push("Graph response reached its byte budget; some records were omitted.");
   return warnings;
 }
 
@@ -264,8 +338,19 @@ function normalizeGraphOptions(options: MemoryGraphOptions): NormalizedGraphOpti
     depth: positiveInteger(options.depth, DEFAULT_LOCAL_DEPTH),
     includeUnresolved: options.includeUnresolved ?? true,
     includeOrphans: options.includeOrphans ?? true,
-    limit: positiveInteger(options.limit, DEFAULT_GRAPH_LIMIT),
+    includeSnippets: options.includeSnippets ?? true,
+    neighborLimit: nonnegativeInteger(options.neighborLimit, DEFAULT_NEIGHBOR_LIMIT),
+    edgeLimit: options.includeSnippets === false ? Math.min(nonnegativeInteger(options.edgeLimit, LEAN_EDGE_LIMIT), LEAN_EDGE_LIMIT) : optionalNonnegativeInteger(options.edgeLimit),
+    limit: Math.min(positiveInteger(options.limit, DEFAULT_GRAPH_LIMIT), options.includeSnippets === false ? LEAN_NODE_LIMIT : Number.MAX_SAFE_INTEGER),
   };
+}
+
+function optionalNonnegativeInteger(value: number | undefined): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
+function nonnegativeInteger(value: number | undefined, fallback: number): number {
+  return optionalNonnegativeInteger(value) ?? fallback;
 }
 
 function normalizeEdgeTypes(edgeTypes: MemoryConnectionEdgeKind[] | undefined): MemoryConnectionEdgeKind[] | undefined {

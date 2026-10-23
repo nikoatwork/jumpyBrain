@@ -2,7 +2,7 @@
 export interface RecentWrite { id: string; title: string; file: string; body: string }
 type Hit = { provenance?: { metadata?: { id?: string; title?: unknown }; file?: string }; [key: string]: unknown };
 type Packet = { results?: Hit[]; index?: { stale?: boolean }; readiness?: { freshness?: string }; localOnly?: boolean; [key: string]: unknown };
-export function createRecentWriteSearch(options: { scope(): string; fetch(query: string, signal: AbortSignal): Promise<unknown> }) {
+export function createRecentWriteSearch(options: { scope(): string; fetch(query: string, signal: AbortSignal, limit?: number): Promise<unknown> }) {
   const saved = new Map<string, RecentWrite>();
   const deleted = new Set<string>();
   let scope = "", revision = 0;
@@ -17,11 +17,11 @@ export function createRecentWriteSearch(options: { scope(): string; fetch(query:
     current(); revision++; saved.delete(id); deleted.add(id);
     if (deleted.size > 50) deleted.delete(deleted.values().next().value!);
   }
-  async function search(query: string, signal: AbortSignal): Promise<Packet> {
+  async function search(query: string, signal: AbortSignal, limit = 24): Promise<Packet> {
     signal.throwIfAborted();
     current(); const startedScope = scope, startedRevision = revision;
     let packet: Packet;
-    try { packet = await options.fetch(query, signal) as Packet; }
+    try { packet = await options.fetch(query, signal, limit) as Packet; }
     catch (error) {
       if (signal.aborted || startedScope !== options.scope()) throw error;
       // Explicit partial fallback, only if we can actually supply a local match.
@@ -44,7 +44,7 @@ export function createRecentWriteSearch(options: { scope(): string; fetch(query:
         // Changed titles/bodies supersede old indexed matches, even if the new
         // content no longer matches this query.
         return !id || (!saved.has(id) && !deleted.has(id) && !localIds.has(id));
-      })].sort((a, b) => titleRank(b.provenance?.metadata?.title, query) - titleRank(a.provenance?.metadata?.title, query)).slice(0, 24) };
+      })].sort((a, b) => titleRank(b.provenance?.metadata?.title, query) - titleRank(a.provenance?.metadata?.title, query)).slice(0, Math.max(1, Math.min(120, limit))) };
   }
   function titleRank(title: unknown, query: string): number {
     if (typeof title !== "string") return 0;

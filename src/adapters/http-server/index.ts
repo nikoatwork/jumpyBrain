@@ -20,6 +20,10 @@ export interface JumpyBrainHttpServerOptions {
   diagnostics?: DiagnosticStore;
   searchTimeoutMs?: number;
   indexTimeoutMs?: number;
+  /** Host-owned maintenance hooks; authenticated routes only signal activity. */
+  onMemoryWrite?: () => void;
+  onMemoryActivity?: () => void;
+  maintenance?: () => { enabled: boolean; indexing: boolean; failed: boolean };
 }
 
 export interface StartedJumpyBrainHttpServer {
@@ -71,7 +75,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
     const startedAt = performance.now();
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
-      await routeRequest({ request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal: controller.signal, searchTimeoutMs: options.searchTimeoutMs, feedback });
+      await routeRequest({ request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal: controller.signal, searchTimeoutMs: options.searchTimeoutMs, feedback, onMemoryWrite: options.onMemoryWrite, onMemoryActivity: options.onMemoryActivity, maintenance: options.maintenance });
     } catch (error) {
       logger.error("http_unhandled_error", { method: request.method, path: url.pathname, code: "server_misconfigured" });
       writeJson(response, 500, errorResponse("server_misconfigured", "Server request failed."));
@@ -112,7 +116,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
   return server;
 }
 
-export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions & { host?: string; port?: number; autoIndex?: false | { intervalMs?: number; startTimer?: boolean } }): Promise<StartedJumpyBrainHttpServer> {
+export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions & { host?: string; port?: number; autoIndex?: false | { intervalMs?: number; startTimer?: boolean; quietMs?: number; maxDeferralMs?: number; startupMs?: number } }): Promise<StartedJumpyBrainHttpServer> {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 3787;
   const root = options.root.trim();
@@ -124,22 +128,44 @@ export async function startJumpyBrainHttpServer(options: JumpyBrainHttpServerOpt
     timeoutMs: options.indexTimeoutMs,
     logger: (level, event, details) => indexLogger.log(level, `auto_index_${event}`, details),
   });
-  const server = createJumpyBrainHttpServer({ ...options, root, indexRunner, logger, diagnostics });
-  const autoIndex = options.autoIndex === false ? undefined : startRemoteAutoIndexer({
+  let autoIndex: RemoteAutoIndexer | undefined;
+
+  const server = createJumpyBrainHttpServer({ ...options, root, indexRunner, logger, diagnostics,
+    onMemoryWrite: () => { autoIndex?.notifyWrite(); options.onMemoryWrite?.(); },
+    onMemoryActivity: () => { autoIndex?.notifyActivity(); options.onMemoryActivity?.(); },
+    maintenance: () => autoIndex?.status() ?? options.maintenance?.() ?? ({ enabled: false, indexing: indexRunner.isIndexing(), failed: false }),
+  });
+  autoIndex = options.autoIndex === false ? undefined : startRemoteAutoIndexer({
     root,
     indexRunner,
     intervalMs: options.autoIndex?.intervalMs,
     startTimer: options.autoIndex?.startTimer,
+    quietMs: options.autoIndex?.quietMs,
+    maxDeferralMs: options.autoIndex?.maxDeferralMs,
+    startupMs: options.autoIndex?.startupMs,
     logger: (level, event, details) => indexLogger.log(level, `auto_index_${event}`, details),
   });
 
-  await new Promise<void>((resolve, reject) => {
+
+  // Direct server.close and the convenience close() both stop scheduled work
+  // before runner shutdown, so no timer can join a draining runner.
+  const closeServer = server.close.bind(server);
+  server.close = ((callback?: (error?: Error) => void) => {
+    autoIndex?.stop();
+    return closeServer(callback);
+  }) as typeof server.close;
+
+  try { await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, host, () => {
       server.off("error", reject);
       resolve();
     });
-  });
+  }); } catch (error) {
+    autoIndex?.stop();
+    await indexRunner.stop?.();
+    throw error;
+  }
 
   const address = server.address() as AddressInfo;
   const url = `http://${address.address}:${address.port}`;

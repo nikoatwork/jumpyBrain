@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Graph topic exploration
+
+- Added linked topic exploration, adaptive titles and dense rendering with automatic background search maintenance; finalized [implementation and measured limits](done/2026-10-23_tasks-graph-topic-exploration.md).
+
 ## 2026-10-23 — Continuous sidebar list
 
 - Removed sidebar section headings and unified note spacing, keeping pinned notes first; finalized [the sidebar layout task](done/2026-10-23_tasks-sidebar-continuous-list.md).

@@ -4,6 +4,15 @@ import type { IndexMemoryOptions, IndexMemoryResult } from "../../types.js";
 import { invalidateRemoteIndex, markRemoteIndexFresh, readRemoteIndexState, type RemoteIndexState } from "./state.js";
 
 export const REMOTE_AUTO_INDEX_INTERVAL_MS = 5 * 60 * 1000;
+export const REMOTE_AUTO_INDEX_QUIET_MS = 5_000;
+export const REMOTE_AUTO_INDEX_MAX_DEFERRAL_MS = 30_000;
+export const REMOTE_AUTO_INDEX_STARTUP_MS = 1_000;
+
+export interface AutoIndexClock {
+  now(): number;
+  setTimeout(callback: () => void, delayMs: number): ReturnType<typeof setTimeout>;
+  clearTimeout(timer: ReturnType<typeof setTimeout>): void;
+}
 
 type LogLevel = "info" | "warn" | "error";
 export type RemoteAutoIndexLogger = (level: LogLevel, event: string, details?: Record<string, unknown>) => void;
@@ -21,6 +30,9 @@ export interface RemoteIndexRunner {
 
 export interface RemoteAutoIndexer {
   tick(): Promise<"indexed" | "skipped-not-stale" | "failed">;
+  notifyWrite(): void;
+  notifyActivity(): void;
+  status(): { enabled: boolean; indexing: boolean; failed: boolean };
   stop(): void;
 }
 
@@ -122,46 +134,135 @@ export function startRemoteAutoIndexer(options: {
   root: string;
   indexRunner: RemoteIndexRunner;
   intervalMs?: number;
+  quietMs?: number;
+  maxDeferralMs?: number;
+  startupMs?: number;
   readState?: (root: string) => Promise<RemoteIndexState>;
   logger?: RemoteAutoIndexLogger;
   startTimer?: boolean;
+  clock?: AutoIndexClock;
 }): RemoteAutoIndexer {
   const intervalMs = options.intervalMs ?? REMOTE_AUTO_INDEX_INTERVAL_MS;
+  const quietMs = options.quietMs ?? REMOTE_AUTO_INDEX_QUIET_MS;
+  const maxDeferralMs = options.maxDeferralMs ?? REMOTE_AUTO_INDEX_MAX_DEFERRAL_MS;
   const readState = options.readState ?? readRemoteIndexState;
   const logger = options.logger ?? defaultAutoIndexLogger;
-  let stopped = false;
-  const callers = new Set<AbortController>();
-
-  const tick = async (): Promise<"indexed" | "skipped-not-stale" | "failed"> => {
-    if (stopped) return "skipped-not-stale";
-    const controller = new AbortController();
-    callers.add(controller);
-    const scope = executionScope("index", { signal: controller.signal });
-    try {
-      const state = await readExecution(readState(options.root), scope.signal);
-      // Actual canonical discovery/repair belongs to the joined, admitted runner,
-      // never an unbounded preflight scan trusting the legacy stale flag.
-      const run = await options.indexRunner.indexNow("auto", { signal: scope.signal });
-      if (!state.stale && !run.result.work && run.result.readiness?.freshness === "fresh") {
-        logger("info", "skipped-not-stale", { lastIndexedAt: state.lastIndexedAt });
-        return "skipped-not-stale";
-      }
-      return "indexed";
-    } catch (error) {
-      logger("error", "tick-failed", { code: error instanceof MemoryExecutionError ? error.code : "index_failed" });
-      return "failed";
-    } finally { scope.dispose(); callers.delete(controller); }
+  const clock: AutoIndexClock = options.clock ?? {
+    now: () => Date.now(),
+    setTimeout: (callback, delay) => setTimeout(callback, delay),
+    clearTimeout: timer => clearTimeout(timer),
   };
+  const automatic = options.startTimer !== false;
+  let stopped = false;
+  let active: Promise<"indexed" | "skipped-not-stale" | "failed"> | undefined;
+  let controller: AbortController | undefined;
+  let scheduled: ReturnType<typeof setTimeout> | undefined;
+  let reconciliation: ReturnType<typeof setTimeout> | undefined;
+  let pendingSince: number | undefined;
+  let pendingAt: number | undefined;
+  let writeGeneration = 0;
+  let failures = 0;
+  let retryAt = 0;
 
-  const timer = options.startTimer === false ? undefined : setInterval(() => { void tick(); }, intervalMs);
-  timer?.unref?.();
+  function clearScheduled() {
+    if (scheduled !== undefined) clock.clearTimeout(scheduled);
+    scheduled = undefined;
+  }
+
+  function arm() {
+    clearScheduled();
+    if (!automatic || stopped || active || pendingAt === undefined) return;
+    scheduled = clock.setTimeout(() => {
+      scheduled = undefined;
+      void tick();
+    }, Math.max(0, Math.max(pendingAt, retryAt) - clock.now()));
+    scheduled?.unref?.();
+  }
+
+  function request(delayMs: number) {
+    if (stopped) return;
+    const now = clock.now();
+    pendingSince ??= now;
+    pendingAt = Math.min(now + delayMs, pendingSince + maxDeferralMs);
+    arm();
+  }
+
+  // One promise/controller per maintenance tick, even if many timers/callers
+  // arrive while a model job is active. They do not consume runner waiters.
+  function tick(): Promise<"indexed" | "skipped-not-stale" | "failed"> {
+    if (stopped) return Promise.resolve("skipped-not-stale");
+    if (active) return active;
+    clearScheduled();
+    pendingSince = pendingAt = undefined;
+    const generation = writeGeneration;
+    const owner = new AbortController();
+    controller = owner;
+    const scope = executionScope("index", { signal: owner.signal });
+    active = Promise.resolve().then(async () => {
+      try {
+        const state = await readExecution(readState(options.root), scope.signal);
+        // Canonical discovery belongs to the joined, admitted ensure workflow;
+        // legacy stale:false alone cannot detect external CLI/filesystem edits.
+        const run = await options.indexRunner.indexNow("auto", { signal: scope.signal });
+        failures = 0;
+        retryAt = 0;
+        if (run.index.stale || run.result.readiness?.freshness === "stale") request(quietMs);
+        if (!state.stale && !run.result.work && run.result.readiness?.freshness === "fresh") {
+          logger("info", "skipped-not-stale", { lastIndexedAt: state.lastIndexedAt });
+          return "skipped-not-stale" as const;
+        }
+        return "indexed" as const;
+      } catch (error) {
+        if (!stopped) {
+          failures++;
+          // Backoff is host-owned; explicit tick/Settings retry may run sooner.
+          retryAt = clock.now() + Math.min(intervalMs, quietMs * 2 ** Math.min(failures - 1, 10));
+          request(quietMs);
+          logger("error", "tick-failed", { code: error instanceof MemoryExecutionError ? error.code : "index_failed" });
+        }
+        return "failed" as const;
+      } finally {
+        scope.dispose();
+        controller = undefined;
+        active = undefined;
+        // Confirmed writes that raced with publication need another ensure.
+        if (!stopped && writeGeneration !== generation && pendingAt === undefined) request(quietMs);
+        arm();
+      }
+    });
+    return active;
+  }
+
+  function reconcile() {
+    if (!automatic || stopped) return;
+    reconciliation = clock.setTimeout(() => {
+      if (pendingAt === undefined && !active) request(0);
+      reconcile();
+    }, intervalMs);
+    reconciliation?.unref?.();
+  }
+
+  if (automatic) {
+    request(options.startupMs ?? REMOTE_AUTO_INDEX_STARTUP_MS);
+    reconcile();
+  }
 
   return {
     tick,
+    notifyWrite() { writeGeneration++; request(quietMs); },
+    notifyActivity() {
+      // Activity can defer queued work only, with the original maximum lag.
+      // Never abort/restart an active semantic worker because a key was typed.
+      if (pendingAt !== undefined) request(quietMs);
+    },
+    status: () => ({ enabled: automatic, indexing: options.indexRunner.isIndexing(), failed: failures > 0 }),
     stop() {
       stopped = true;
-      for (const controller of callers) controller.abort();
-      if (timer) clearInterval(timer);
+      clearScheduled();
+      if (reconciliation !== undefined) clock.clearTimeout(reconciliation);
+      reconciliation = undefined;
+      pendingSince = pendingAt = undefined;
+      controller?.abort(new MemoryExecutionError("execution_aborted"));
     },
   };
 }

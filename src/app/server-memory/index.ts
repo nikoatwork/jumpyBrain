@@ -223,8 +223,8 @@ export async function overviewServerMemory(options: { root: string; overview?: M
   };
 }
 
-export async function graphServerMemory(options: { root: string; graph?: MemoryGraphOptions }): Promise<RemoteMemoryGraphPacket> {
-  const result = await graphMemory(options.root, options.graph);
+export async function graphServerMemory(options: { root: string; graph?: MemoryGraphOptions; signal?: AbortSignal }): Promise<RemoteMemoryGraphPacket> {
+  const result = await graphMemory(options.root, options.graph, { signal: options.signal });
   return {
     ...result,
     memory: "all",

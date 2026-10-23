@@ -1,0 +1,443 @@
+{
+  "date": "2026-10-23T07:23:16.707Z",
+  "commit": "da7f90d6b27bb952b06c59fc6d6018f7ffa09774",
+  "sourceDiff": "",
+  "build": {
+    "version": "0.3.6",
+    "build": "ef97cc64f0190dc6"
+  },
+  "bundleSha256": "86188704be14836704f63b3ab79c00ba2de931f9c91e93d289a8d1b06608d8ba",
+  "driverSha256": "9cef126e2b187fb0e4fea562ceaf3a2642c0d7fe52b644592e1ef972394186b9",
+  "node": "v26.7.0",
+  "platform": "darwin",
+  "cpu": "Apple M3 Pro",
+  "totalMemory": 19327352832,
+  "viewport": {
+    "width": 1280,
+    "height": 844
+  },
+  "rows": [
+    {
+      "size": 100,
+      "rep": 0,
+      "assemblyMs": 27.47241699999995,
+      "packetBytes": 61380,
+      "nodes": 105,
+      "edges": 166,
+      "nodeRss": 181764096,
+      "nodeHeap": 53820392,
+      "nodeRssBefore": 158711808,
+      "cpu": {
+        "user": 113179,
+        "system": 33102
+      },
+      "renderMs": 3.5,
+      "frames": [
+        10.200000017881393,
+        15.599999994039536,
+        16.69999998807907,
+        16.700000017881393,
+        16.5,
+        16.799999982118607,
+        16.599999994039536,
+        16.700000017881393
+      ],
+      "dom": 1128,
+      "labels": 12,
+      "rendererHeap": 4678948,
+      "counters": {
+        "documents": 4,
+        "nodes": 3659,
+        "jsEventListeners": 854
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 100,
+      "rep": 1,
+      "assemblyMs": 24.514875000000302,
+      "packetBytes": 61380,
+      "nodes": 105,
+      "edges": 166,
+      "nodeRss": 203309056,
+      "nodeHeap": 54430120,
+      "nodeRssBefore": 181829632,
+      "cpu": {
+        "user": 115647,
+        "system": 44489
+      },
+      "renderMs": 3.2999999821186066,
+      "frames": [
+        13,
+        14.5,
+        16.700000017881393,
+        17.400000005960464,
+        16,
+        16.69999998807907,
+        17.400000005960464,
+        15.900000005960464
+      ],
+      "dom": 1128,
+      "labels": 12,
+      "rendererHeap": 4678764,
+      "counters": {
+        "documents": 4,
+        "nodes": 3659,
+        "jsEventListeners": 854
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 100,
+      "rep": 2,
+      "assemblyMs": 19.004749999999603,
+      "packetBytes": 61380,
+      "nodes": 105,
+      "edges": 166,
+      "nodeRss": 226017280,
+      "nodeHeap": 67521048,
+      "nodeRssBefore": 203374592,
+      "cpu": {
+        "user": 72794,
+        "system": 42400
+      },
+      "renderMs": 3.300000011920929,
+      "frames": [
+        2.5999999940395355,
+        11.900000005960464,
+        16.899999976158142,
+        16.400000005960464,
+        16.599999994039536,
+        16.599999994039536,
+        16.69999998807907,
+        16.700000017881393
+      ],
+      "dom": 1128,
+      "labels": 12,
+      "rendererHeap": 4668084,
+      "counters": {
+        "documents": 4,
+        "nodes": 3659,
+        "jsEventListeners": 854
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 500,
+      "rep": 0,
+      "assemblyMs": 83.19558400000005,
+      "packetBytes": 314261,
+      "nodes": 524,
+      "edges": 884,
+      "nodeRss": 212008960,
+      "nodeHeap": 44629104,
+      "nodeRssBefore": 226476032,
+      "cpu": {
+        "user": 238655,
+        "system": 155013
+      },
+      "renderMs": 15.599999994039536,
+      "frames": [
+        13,
+        11.799999982118607,
+        13.400000005960464,
+        55.70000001788139,
+        13.899999976158142,
+        44.80000001192093,
+        32.69999998807907,
+        33.80000001192093
+      ],
+      "dom": 5796,
+      "labels": 10,
+      "rendererHeap": 5016884,
+      "counters": {
+        "documents": 4,
+        "nodes": 10459,
+        "jsEventListeners": 1796
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 500,
+      "rep": 1,
+      "assemblyMs": 82.69708399999945,
+      "packetBytes": 314261,
+      "nodes": 524,
+      "edges": 884,
+      "nodeRss": 217694208,
+      "nodeHeap": 40778832,
+      "nodeRssBefore": 212008960,
+      "cpu": {
+        "user": 250530,
+        "system": 154149
+      },
+      "renderMs": 15.199999988079071,
+      "frames": [
+        12.5,
+        11.300000011920929,
+        12.300000011920929,
+        55.69999998807907,
+        13.300000011920929,
+        34.79999998211861,
+        39.80000001192093,
+        36.19999998807907
+      ],
+      "dom": 5796,
+      "labels": 10,
+      "rendererHeap": 5017724,
+      "counters": {
+        "documents": 1,
+        "nodes": 7745,
+        "jsEventListeners": 1796
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 500,
+      "rep": 2,
+      "assemblyMs": 81.51487499999985,
+      "packetBytes": 314261,
+      "nodes": 524,
+      "edges": 884,
+      "nodeRss": 225492992,
+      "nodeHeap": 50339784,
+      "nodeRssBefore": 217694208,
+      "cpu": {
+        "user": 225409,
+        "system": 132258
+      },
+      "renderMs": 14.899999976158142,
+      "frames": [
+        12.200000017881393,
+        11.199999988079071,
+        12.5,
+        57.80000001192093,
+        14.799999982118607,
+        34.400000005960464,
+        37,
+        31.80000001192093
+      ],
+      "dom": 5796,
+      "labels": 10,
+      "rendererHeap": 5017984,
+      "counters": {
+        "documents": 4,
+        "nodes": 10459,
+        "jsEventListeners": 1796
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 1650,
+      "rep": 0,
+      "assemblyMs": 276.01520900000014,
+      "packetBytes": 1042911,
+      "nodes": 1728,
+      "edges": 2946,
+      "nodeRss": 262340608,
+      "nodeHeap": 71985848,
+      "nodeRssBefore": 225656832,
+      "cpu": {
+        "user": 637676,
+        "system": 533216
+      },
+      "renderMs": 51.10000002384186,
+      "frames": [
+        42.5,
+        40.599999994039536,
+        41.79999998211861,
+        203.80000001192093,
+        45.19999998807907,
+        177.5,
+        36.30000001192093,
+        83.19999998807907
+      ],
+      "dom": 19206,
+      "labels": 9,
+      "rendererHeap": 12257404,
+      "counters": {
+        "documents": 1,
+        "nodes": 46228,
+        "jsEventListeners": 10592
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 1650,
+      "rep": 1,
+      "assemblyMs": 274.63704099999995,
+      "packetBytes": 1042911,
+      "nodes": 1728,
+      "edges": 2946,
+      "nodeRss": 304250880,
+      "nodeHeap": 122084072,
+      "nodeRssBefore": 262356992,
+      "cpu": {
+        "user": 535962,
+        "system": 476861
+      },
+      "renderMs": 55.5,
+      "frames": [
+        41.599999994039536,
+        42.400000005960464,
+        44.80000001192093,
+        206.7999999821186,
+        135.5,
+        35.30000001192093,
+        122.40000000596046,
+        77
+      ],
+      "dom": 19206,
+      "labels": 9,
+      "rendererHeap": 12195832,
+      "counters": {
+        "documents": 1,
+        "nodes": 46228,
+        "jsEventListeners": 10592
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 1650,
+      "rep": 2,
+      "assemblyMs": 272.7130419999994,
+      "packetBytes": 1042911,
+      "nodes": 1728,
+      "edges": 2946,
+      "nodeRss": 345014272,
+      "nodeHeap": 144955000,
+      "nodeRssBefore": 304283648,
+      "cpu": {
+        "user": 542862,
+        "system": 474645
+      },
+      "renderMs": 54.80000001192093,
+      "frames": [
+        42,
+        39.400000005960464,
+        44.099999994039536,
+        203.90000000596046,
+        48.5,
+        181.09999999403954,
+        36.900000005960464,
+        79.7999999821186
+      ],
+      "dom": 19206,
+      "labels": 9,
+      "rendererHeap": 12236704,
+      "counters": {
+        "documents": 1,
+        "nodes": 46228,
+        "jsEventListeners": 10592
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 10000,
+      "rep": 0,
+      "assemblyMs": 1661.2909579999996,
+      "packetBytes": 6179231,
+      "nodes": 10000,
+      "edges": 17400,
+      "nodeRss": 392527872,
+      "nodeHeap": 83132544,
+      "nodeRssBefore": 337788928,
+      "cpu": {
+        "user": 2742635,
+        "system": 2090778
+      },
+      "renderMs": 311.59999999403954,
+      "frames": [
+        262.90000000596046,
+        405.39999997615814,
+        420.90000000596046,
+        790.2000000178814,
+        247.89999997615814,
+        525.8999999761581,
+        595.7000000178814,
+        458.7999999821186
+      ],
+      "dom": 112200,
+      "labels": 9,
+      "rendererHeap": 63823492,
+      "counters": {
+        "documents": 1,
+        "nodes": 265304,
+        "jsEventListeners": 60224
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 10000,
+      "rep": 1,
+      "assemblyMs": 2107.272624999998,
+      "packetBytes": 6179231,
+      "nodes": 10000,
+      "edges": 17400,
+      "nodeRss": 352174080,
+      "nodeHeap": 66082304,
+      "nodeRssBefore": 392593408,
+      "cpu": {
+        "user": 3423264,
+        "system": 3319823
+      },
+      "renderMs": 296.90000000596046,
+      "frames": [
+        255.2000000178814,
+        401.5,
+        418.59999999403954,
+        780.2999999821186,
+        236.10000002384186,
+        525.8999999761581,
+        575.5,
+        460.10000002384186
+      ],
+      "dom": 112200,
+      "labels": 9,
+      "rendererHeap": 63835276,
+      "counters": {
+        "documents": 1,
+        "nodes": 265304,
+        "jsEventListeners": 60224
+      },
+      "hiddenChildren": 0
+    },
+    {
+      "size": 10000,
+      "rep": 2,
+      "assemblyMs": 2092.8847499999974,
+      "packetBytes": 6179231,
+      "nodes": 10000,
+      "edges": 17400,
+      "nodeRss": 288653312,
+      "nodeHeap": 95955200,
+      "nodeRssBefore": 352174080,
+      "cpu": {
+        "user": 3395645,
+        "system": 3369753
+      },
+      "renderMs": 321.09999999403954,
+      "frames": [
+        296.59999999403954,
+        417,
+        423.80000001192093,
+        844.1999999880791,
+        239.7000000178814,
+        523.9000000059605,
+        581,
+        464.2999999821186
+      ],
+      "dom": 112200,
+      "labels": 9,
+      "rendererHeap": 63888584,
+      "counters": {
+        "documents": 1,
+        "nodes": 265304,
+        "jsEventListeners": 60224
+      },
+      "hiddenChildren": 0
+    }
+  ],
+  "limitations": "Single-process Node RSS and renderer JS heap are separate diagnostics, not whole-desktop physical footprint; no production GC. Three repetitions, disposable synthetic notes; lexical/semantic indexing and remote latency are measured separately.",
+  "browser": "156.0.8078.4"
+}

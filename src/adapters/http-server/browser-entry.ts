@@ -13,3 +13,5 @@ export { installExternalDocumentUpdates } from "./external-document-updates.js";
 export { createFeedbackDiagnostics, installFeedback, diagnosticBuildInfo } from "./feedback.js";
 
 export { installNoteAttention } from "./note-attention.js";
+
+export { installSearchMaintenance } from "./search-maintenance.js";

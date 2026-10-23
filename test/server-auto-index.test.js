@@ -154,3 +154,54 @@ test("server auto-index tick can refresh stale state after a remote write", asyn
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
+
+test("host automatically publishes body-only saves and external writes without a manual index request", async () => {
+  const serverModule = await loadServerModule();
+  const { writeFile } = await import('node:fs/promises');
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-background-index-'));
+  await serverModule.createServerMemoryRuntime({ root: tempRoot }).initializeMemoryRoot();
+  const started = await serverModule.startJumpyBrainHttpServer({
+    root: tempRoot, apiKeys: ['secret'], port: 0,
+    // Short fixture timings exercise production scheduling, not a manual tick.
+    autoIndex: { startupMs: 20, quietMs: 20, intervalMs: 1000, maxDeferralMs: 100 },
+  });
+  const headers = { Authorization: 'Bearer secret', 'Content-Type': 'application/json' };
+  async function waitForPublication(previous) {
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline) {
+      const state = await serverModule.readRemoteIndexState(tempRoot);
+      if (!state.stale && state.lastIndexedAt && state.lastIndexedAt !== previous) return state;
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    assert.fail('background publication did not become fresh');
+  }
+  async function search(query) {
+    const response = await fetch(`${started.url}/memories/all/search`, {
+      method: 'POST', headers, body: JSON.stringify({ query, limit: 10 }),
+    });
+    assert.equal(response.status, 200);
+    return response.json();
+  }
+  try {
+    const created = await fetch(`${started.url}/memories/all/notes`, {
+      method: 'POST', headers: { ...headers, 'Idempotency-Key': 'background-test' },
+      body: JSON.stringify({ type: 'finding', title: 'A neutral title', body: 'quartzbodyonlytoken' }),
+    });
+    assert.equal(created.status, 200);
+    const saved = await created.json();
+    assert.equal(saved.saved, true);
+    const first = await waitForPublication();
+    const bodySearch = await search('quartzbodyonlytoken');
+    assert.ok(bodySearch.results.some(result => result.provenance.file === saved.file));
+    await writeFile(path.join(tempRoot, 'pages', 'external.md'), '---\nid: external-index-test\ntitle: External page\n---\nexternalbodyonlytoken\n');
+    await waitForPublication(first.lastIndexedAt);
+    const externalSearch = await search('externalbodyonlytoken');
+    assert.ok(externalSearch.results.some(result => result.provenance.file.endsWith('external.md')));
+    const status = await (await fetch(`${started.url}/memories/all/status`, { headers })).json();
+    assert.equal(status.maintenance.enabled, true);
+    assert.equal(status.maintenance.failed, false);
+  } finally {
+    await started.close();
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+});

@@ -31,8 +31,8 @@ try {
       const capped = await (await responseSeen).json();
       await page.getByTestId("graph-ready").waitFor({ state: "visible" });
       assert.equal(capped.stats.documents, 501);
-      assert.equal(capped.nodes.length, 500, "server default cap must stay bounded");
-      assert.equal(capped.options.limit, 500);
+      assert.equal(capped.nodes.length, 501, "lean overview includes the complete fixture brain");
+      assert.equal(capped.options.limit, 10000);
       assert.equal(await page.locator("#graph-notice").count(), 1, "map needs an accessible persistent notice region");
       assert.equal(await page.locator("#graph-notice").getAttribute("role"), "status");
       assert.equal(await page.locator("#graph-notice").getAttribute("aria-atomic"), "true");
@@ -89,7 +89,7 @@ try {
       assert.equal(await page.locator("#graph-notice").isVisible(), false, "uncapped complete graph clears the notice");
       assert.equal(await page.locator("#graph-warnings").textContent(), "");
 
-      packet = { ...packet, stats: { documents: 1636 }, warnings: ["Search results may be incomplete."] };
+      packet = { ...packet, stats: { documents: 1636 }, warnings: ["Synthetic recoverable warning."] };
       await refresh(page);
       assert.equal(await page.locator("#graph-notice").isVisible(), true);
       await page.unroute(pattern, respond);
@@ -109,7 +109,7 @@ try {
       console.log(`PASS ${width}px capped real graph without verbose notices, filtering, empty/uncapped, unresolved, safe text, refresh/failure/retry`);
     } finally { if (releaseGraph) releaseGraph(); await page.close(); }
   }
-  console.log("graph warning smoke: PASS (501 disposable notes; default 500-node cap unchanged)");
+  console.log("graph warning smoke: PASS (501 disposable notes; all 501 notes shown; API default cap unchanged)");
 } finally {
   if (browser) await browser.close();
   if (server) await server.close();

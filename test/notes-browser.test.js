@@ -7,7 +7,7 @@ import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback
 
 const script = [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals = {}) {
-  const context = vm.createContext({ feedback: { close() {}, isOpen: () => false }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
+  const context = vm.createContext({ feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
   vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }
@@ -82,8 +82,9 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
     return elements.get(id);
   };
   const removed = [];
+  let graphResets = 0;
   const context = runtime(["renderConnection", "maskApiKey", "closeConnection", "setConnectionKey"], {
-    $, cancelReferenceInteraction() {}, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
+    $, map: { reset() { graphResets++; } }, cancelReferenceInteraction() {}, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
     apiKeyInput: { value: "unsaved-edit", type: "text" },
     connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) },
   });
@@ -98,6 +99,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   assert.equal(context.activeApiKey, "");
   assert.equal(context.apiKeyInput.value, "");
   assert.equal(context.credentialRevision, 1);
+  assert.equal(graphResets, 1, "credential changes evict the prior graph scope");
   assert.equal($("open-connection").textContent, "Connect");
   assert.equal($("disconnect").hidden, true);
   assert.deepEqual(removed, ["jumpybrain.graph.apiKey"]);

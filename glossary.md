@@ -10,7 +10,11 @@ The sidebar's canonical resurfacing state, stored in Markdown `attention_at`: ab
 
 ## Graph search
 
-A map selection made from the same authenticated search and normalized results used by global search, including recent confirmed saves. Body and semantic matches can select graph notes; semantic availability follows the existing retrieval/index readiness. Graph focus/orphan filters may narrow that selection further. This does not introduce a separate ranking engine or similarity threshold.
+A map selection made from shared authenticated search and normalized results, including recent confirmed saves. The map requests a larger bounded candidate set than the global search list and distinguishes direct matches from their one-hop linked context. Body and semantic matches can select notes; only canonical Markdown links form edges. Focus/orphan filters may narrow the view further. This adds no separate ranking engine or similarity threshold.
+
+## Background search maintenance
+
+Host-owned incremental indexing of derived state after quiet writes and on periodic canonical reconciliation. Canonical saves complete separately. Browser status observation adopts a confirmed fresh generation without starting an index mutation or expanding remote permissions. Quiet scheduling bounds when work starts, not completion time or model memory.
 
 ## Recent activity
 

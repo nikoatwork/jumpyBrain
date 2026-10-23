@@ -165,6 +165,14 @@ export interface MemoryGraphOptions {
   query?: string;
   /** Exact root-relative graph files; an empty list selects no nodes. */
   files?: string[];
+  /** Ranked root-relative direct matches; adds their one-hop linked context. [] selects nothing. */
+  seeds?: string[];
+  /** Maximum additional one-hop nodes for seed selection (default 60; zero disables context). */
+  neighborLimit?: number;
+  /** False omits snippet reads and stat-only timestamp fallbacks for lean graph delivery. */
+  includeSnippets?: boolean;
+  /** Optional visible-edge cap; lean delivery also has a 20,000-edge ceiling. */
+  edgeLimit?: number;
   includeUnresolved?: boolean;
   includeOrphans?: boolean;
   limit?: number;
@@ -234,6 +242,8 @@ export interface MemoryGraphNode {
   createdAt?: string;
   updatedAt?: string;
   snippet?: string;
+  /** Present only for seed-plus-neighborhood selection. */
+  match?: "direct" | "context";
   degree: number;
   inDegree: number;
   outDegree: number;
@@ -268,6 +278,8 @@ export interface MemoryGraphResult {
   edges: MemoryGraphEdge[];
   stats: MemoryGraphStats;
   warnings: string[];
+  /** Explicit response caps; absent for an uncapped view. Meaningful fields are never shortened. */
+  truncation?: { nodes: boolean; edges: boolean; bytes: boolean };
   options: Required<Pick<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "limit">> & Omit<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "limit">;
 }
 

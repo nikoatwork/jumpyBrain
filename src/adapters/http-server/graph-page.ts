@@ -72,7 +72,11 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     main { display: flex; min-height: 0; }
     #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--surface); }
     #graph-wrap::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: var(--map-wash); background: radial-gradient(ellipse at 24% 28%, var(--edge), transparent 56%), radial-gradient(ellipse at 78% 34%, var(--edge-link), transparent 54%), radial-gradient(ellipse at 52% 84%, var(--edge-end), transparent 54%); }
-    #graph { position: relative; display: block; width: 100%; height: 100%; cursor: grab; }
+    #graph-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .graph-title { fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; font: 600 12px var(--font-ui); cursor: pointer; pointer-events: auto; }
+    .match-context .node-core { opacity: .45; }
+    #graph[aria-busy="true"] .graph-title { opacity: .55; }
+    #graph { position: relative; display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
     #graph:active { cursor: grabbing; }
     .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); pointer-events: none; }
     .stats { color: var(--ink-soft); font-size: var(--text-caption); background: transparent; }
@@ -143,6 +147,7 @@ ${feedbackMarkup}
         <p>Dashed dots are links to notes that don't exist yet.</p>
       </div>
     </details>
+    <button id="graph-index-state" class="icon-button" aria-label="Search maintenance" hidden>↻</button>
     <button id="reload" data-testid="graph-reload" class="quiet-button" title="Refresh notes and connections">Refresh</button>
   </div>
   <div id="graph-notice" role="status" aria-atomic="true" hidden>
@@ -154,7 +159,8 @@ ${feedbackMarkup}
 </header>
 <main>
   <section id="graph-wrap" aria-label="Memory map">
-    <svg id="graph" data-testid="graph-svg" role="group" aria-label="Notes and their connections">
+    <canvas id="graph-canvas" aria-hidden="true" hidden></canvas>
+    <svg id="graph" tabindex="0" data-testid="graph-svg" role="group" aria-label="Notes and their connections. Use arrow keys to explore notes and Enter to open.">
       <defs>
         <linearGradient id="map-threads" gradientUnits="userSpaceOnUse" x1="12%" y1="8%" x2="88%" y2="92%"><stop stop-color="var(--edge)"/><stop offset=".5" stop-color="var(--edge-link)"/><stop offset="1" stop-color="var(--edge-end)"/></linearGradient>
         <radialGradient id="map-node-light" cx="30%" cy="24%" r="78%"><stop stop-color="var(--node-light)" stop-opacity=".72"/><stop offset=".38" stop-color="var(--node-light)" stop-opacity=".18"/><stop offset=".72" stop-color="var(--node-shade)" stop-opacity="0"/><stop offset="1" stop-color="var(--node-shade)" stop-opacity=".24"/></radialGradient>
@@ -218,16 +224,25 @@ let activeApiKey = companionMode ? "companion-session" : apiKeyInput.value.trim(
 let credentialRevision = 0;
 let connectionStatus = activeApiKey ? "checking" : "disconnected";
 
+let searchMaintenance = null;
 const map = JumpyBrainBrowser.createMapController({
   state, element: $, document, window,
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : ""),
   fetchGraph: (url, signal) => graphJson(url, { signal }),
   searchNotes: async (query, signal) => {
-    const packet = await searchMemoryNotes(query, signal);
+    const packet = await recentWrites.search(query, signal, 120);
     const warnings = [];
     if (packet.localOnly) warnings.push("Showing matching saves from this tab. Server search is unavailable.");
-    else if (packet.index?.stale) warnings.push("Search index is out of date. Refresh the search index to include recent edits.");
-    if (packet.retrieval?.status === "partial") warnings.push("Search results may be incomplete.");
-    return { files: normalizeNoteResults(packet.results).map(result => result.file).filter(Boolean), warnings };
+    const descriptions = {
+      index_not_fresh: "Recent edits are being indexed",
+      semantic_coverage_incomplete: "Semantic coverage is still updating",
+      semantic_query_failed_lexical_fallback: "Semantic search is unavailable; text matches are shown",
+      read_only_lexical_fallback: "This connection uses read-only text search",
+      query_constraints_lexical_only: "This query uses text search to preserve its constraints",
+    };
+    const details = (packet.retrieval?.warnings || []).map(code => descriptions[code]).filter(Boolean);
+    if ((packet.retrieval?.warnings || []).includes("semantic_query_failed_lexical_fallback")) warnings.push("Semantic search is unavailable. Text matches are shown; retry with Refresh.");
+    return { files: normalizeNoteResults(packet.results, 60).map(result => result.file).filter(Boolean), warnings, details, updating: Boolean(packet.index?.stale) };
   }, setStatus,
   onReady: (ready) => { window.__jumpyBrainGraphReady = ready; }, openNode: selectNode,
 });
@@ -405,6 +420,25 @@ function isValidMemoryDocumentId(value) {
 ${dreamScript}
 ${notesScript}
 ${documentActionsScript}
+searchMaintenance = JumpyBrainBrowser.installSearchMaintenance({
+  document, window,
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : ""),
+  enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen)) && !dreamDialog.open && !connectionDialog.open && !feedback.isOpen() && (state.view === "graph" || searchDialog.open),
+  read: signal => graphJson("/memories/all/status", { signal }),
+  onFresh: () => {
+    map.invalidateTopology();
+    if (state.view === "graph") loadGraph();
+    if (searchDialog.open && $("note-search-input").value.trim()) noteSearch.query($("note-search-input").value, true);
+  },
+  onState: status => {
+    const control = $("graph-index-state");
+    control.hidden = status === "ready" || status === "updating";
+    control.title = status === "failed" ? "Search could not update. Open search to retry." : "Search is unavailable. Open search for recovery.";
+    control.setAttribute("aria-label", control.title);
+  },
+});
+$("graph-index-state").addEventListener("click", () => openSearch());
+for (const dialog of [dreamDialog, connectionDialog, $("feedback-dialog")]) dialog.addEventListener("toggle", () => { if (dialog.open) searchMaintenance.suspend(); else searchMaintenance.resume(); });
 if (!companionMode) showPage(initialEntry.url);
 ${companion ? companionScript : ""}
 </script>

@@ -410,7 +410,7 @@ function renderRecentNotes(recent) {
 }
 
 // Search and navigation controllers have injected effects for deterministic tests.
-function normalizeNoteResults(results) {
+function normalizeNoteResults(results, limit = 12) {
   const seen = new Set();
   const normalized = (Array.isArray(results) ? results : []).flatMap((hit) => {
     const metadata = hit.provenance?.metadata || {};
@@ -422,7 +422,7 @@ function normalizeNoteResults(results) {
     return [{ documentId, file, title: String(metadata.title || file.split("/").pop() || "Untitled"), referenceTitle: typeof metadata.title === "string" ? metadata.title : null, snippet: String(hit.snippet || "") }];
   });
   // Prefer usable notes without hiding unavailable legacy documents altogether.
-  return [...normalized.filter((result) => result.documentId), ...normalized.filter((result) => !result.documentId)].slice(0, 12);
+  return [...normalized.filter((result) => result.documentId), ...normalized.filter((result) => !result.documentId)].slice(0, limit);
 }
 
 function createNoteSearch(options) {
@@ -785,6 +785,7 @@ function openSearch(mode = "navigate", range = null) {
     $("note-search-input").value = range.query;
   }
   searchDialog.showModal();
+  if (typeof searchMaintenance !== "undefined") searchMaintenance?.check();
   $("note-search-input").focus();
   $("note-search-input").select();
   noteSearch.query($("note-search-input").value);
@@ -793,6 +794,7 @@ function openSearch(mode = "navigate", range = null) {
 function closeSearch(restoreFocus = true) {
   noteSearch.cancel();
   searchDialog.close();
+  if (typeof searchMaintenance !== "undefined") searchMaintenance?.check();
   if (!restoreFocus) return;
   if (searchOrigin?.isConnected && !searchOrigin.closest("[hidden]")) searchOrigin.focus({ preventScroll: true });
   if (searchOrigin === $("note-editor") && searchDocument === state.editor && searchSelection) {
@@ -958,6 +960,7 @@ function setConnectionKey(key) {
   activeApiKey = key;
   credentialRevision++;
   recentWrites.reset();
+  map.reset();
   sidebarPages.refresh();
   documentActions.close();
   connectionStatus = activeApiKey ? "checking" : "disconnected";
@@ -1069,6 +1072,7 @@ function showPage(url) {
   state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
   sidebarPages.select(documentId);
   document.body.dataset.view = state.view;
+  if (typeof searchMaintenance !== "undefined") searchMaintenance?.check();
   if (state.view !== "graph") map.suspend();
   if (typeof companionMode !== "undefined" && companionMode) $("companion-settings").hidden = state.view !== "settings";
   $("home").hidden = state.view !== "home";

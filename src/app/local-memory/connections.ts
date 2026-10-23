@@ -3,14 +3,18 @@ import { buildCanonicalLinkTargetLookup, extractCanonicalLinks, resolveCanonical
 import type { MarkdownDocument, MemoryConnectionEdge, MemoryConnectionEdgeKind } from "../../types.js";
 
 /** Canonical connection policy shared by lightweight overview and graph projections. */
-export async function collectConnections(documents: MarkdownDocument[], visit?: (document: MarkdownDocument, content: string) => Promise<void>, options: { neighbors?: boolean } = {}) {
+export async function collectConnections(documents: MarkdownDocument[], visit?: (document: MarkdownDocument, content: string) => Promise<void>, options: { neighbors?: boolean; signal?: AbortSignal } = {}) {
+  const { signal } = options;
+  signal?.throwIfAborted();
   const lookup = buildCanonicalLinkTargetLookup(documents);
   const edgeCounts = new Map<string, MemoryConnectionEdge>();
   const unresolved: Array<{ source: string; target: string; kind: MemoryConnectionEdgeKind }> = [];
   const neighbors = new Map<string, Set<string>>();
   for (const document of documents) {
-    const content = await readFile(document.absolutePath, "utf8");
+    signal?.throwIfAborted();
+    const content = await readFile(document.absolutePath, { encoding: "utf8", signal });
     await visit?.(document, content);
+    signal?.throwIfAborted();
     for (const reference of extractCanonicalLinks(content)) {
       const target = resolveCanonicalLinkTarget(document.relativePath, reference.target, reference.kind, lookup);
       if (target === document.relativePath) continue;
@@ -29,6 +33,7 @@ export async function collectConnections(documents: MarkdownDocument[], visit?: 
       }
     }
   }
+  signal?.throwIfAborted();
   const edges = [...edgeCounts.values()].sort((a, b) => a.source.localeCompare(b.source) || a.target.localeCompare(b.target) || a.kind.localeCompare(b.kind));
   return { edges, unresolved, neighbors };
 }

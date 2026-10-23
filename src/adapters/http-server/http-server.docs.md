@@ -30,6 +30,8 @@ See the [protocol reference](../../../docs/shared-memory-protocol.md#index-stale
 
 ## Execution lifecycle
 
+The started host owns one background index scheduler, with optional configuration or complete `autoIndex:false` opt-out. Only authenticated confirmed canonical write routes signal `onMemoryWrite`; foreground document/search routes may signal `onMemoryActivity`. Signals schedule work without granting remote clients index authority. Status includes safe host maintenance booleans; existing index timestamps/readiness describe publication. Direct server close, convenience close and listen failure stop scheduled work before runner drain. Low-level `createJumpyBrainHttpServer` retains its embedding contract and does not create its own maintenance timer.
+
 See the [protocol reference](../../../docs/shared-memory-protocol.md#backend-execution-limits).
 
 ## Strict read-only retrieval

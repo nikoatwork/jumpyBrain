@@ -1,0 +1,146 @@
+{
+  "baselineBuild": {
+    "version": "0.3.6",
+    "build": "ef97cc64f0190dc6"
+  },
+  "optimizedBuild": {
+    "version": "0.3.6",
+    "build": "14598887705f8ca5"
+  },
+  "driverSha256": "9cef126e2b187fb0e4fea562ceaf3a2642c0d7fe52b644592e1ef972394186b9",
+  "rows": [
+    {
+      "size": 100,
+      "nodes": 105,
+      "edges": 166,
+      "assemblyMedianMs": {
+        "before": 24.514875000000302,
+        "after": 14.216208000000051
+      },
+      "dom": {
+        "before": 1128,
+        "after": 598
+      },
+      "framesMs": {
+        "before": [
+          2.5999999940395355,
+          17.400000005960464
+        ],
+        "after": [
+          3.7000000178813934,
+          18.899999976158142
+        ]
+      },
+      "rendererHeapMiB": [
+        4.66387939453125,
+        5.388439178466797,
+        5.406105041503906
+      ],
+      "nodeRssMiB": [
+        177.390625,
+        185.953125,
+        208.421875
+      ]
+    },
+    {
+      "size": 500,
+      "nodes": 524,
+      "edges": 884,
+      "assemblyMedianMs": {
+        "before": 82.69708399999945,
+        "after": 53.18441699999994
+      },
+      "dom": {
+        "before": 5796,
+        "after": 536
+      },
+      "framesMs": {
+        "before": [
+          11.199999988079071,
+          57.80000001192093
+        ],
+        "after": [
+          8.599999994039536,
+          18.80000001192093
+        ]
+      },
+      "rendererHeapMiB": [
+        7.029987335205078,
+        9.167858123779297,
+        8.969642639160156
+      ],
+      "nodeRssMiB": [
+        229.328125,
+        240.375,
+        250.59375
+      ]
+    },
+    {
+      "size": 1650,
+      "nodes": 1728,
+      "edges": 2946,
+      "assemblyMedianMs": {
+        "before": 274.63704099999995,
+        "after": 177.20629100000042
+      },
+      "dom": {
+        "before": 19206,
+        "after": 581
+      },
+      "framesMs": {
+        "before": [
+          35.30000001192093,
+          206.7999999821186
+        ],
+        "after": [
+          11.900000005960464,
+          19.899999976158142
+        ]
+      },
+      "rendererHeapMiB": [
+        16.899368286132812,
+        11.087303161621094,
+        16.899341583251953
+      ],
+      "nodeRssMiB": [
+        284.890625,
+        306.234375,
+        312.171875
+      ]
+    },
+    {
+      "size": 10000,
+      "nodes": 10000,
+      "edges": 17400,
+      "assemblyMedianMs": {
+        "before": 2092.8847499999974,
+        "after": 1316.0281670000004
+      },
+      "dom": {
+        "before": 112200,
+        "after": 581
+      },
+      "framesMs": {
+        "before": [
+          236.10000002384186,
+          844.1999999880791
+        ],
+        "after": [
+          21.200000017881393,
+          86.80000001192093
+        ]
+      },
+      "rendererHeapMiB": [
+        66.65761184692383,
+        66.67597961425781,
+        67.39845275878906
+      ],
+      "nodeRssMiB": [
+        505.21875,
+        662.671875,
+        840.796875
+      ]
+    }
+  ],
+  "limitations": "Synthetic browser diagnostics only; no total RAM savings claim. Canvas paint is frame-deferred, so synchronous scene-update timings alone do not compare painting cost. Stress first frames allow100ms, later frames40ms; regular fixtures33ms. Node+Playwright RSS includes allocation/GC churn and is not server-only or desktop physical footprint."
+}
