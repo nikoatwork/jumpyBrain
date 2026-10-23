@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Icon-only desktop updates
+
+- Removed sidebar update text/details and added a subtle glow for download/restart readiness; finalized [the updater presentation](done/2026-10-23_tasks-icon-only-updates.md).
+
 ## 2026-10-23 — Quieter interface controls
 
 - Moved Home into the icon row, replaced connected text with a muted green dot, and compacted navigation, Settings and graph controls; finalized [the interface pass](done/2026-10-23_tasks-interface-polish.md).

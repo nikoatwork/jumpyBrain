@@ -41,11 +41,15 @@ try {
       assert.equal(await evaluate('Boolean(window.untrusted)'), false);
       assert.equal(await evaluate('typeof require'), 'undefined');
       assert.equal(BrowserWindow.getAllWindows().length, 1);
-      if (phase === 'preparing' || phase === 'ready') {
+      assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false, 'no update text panel is mounted');
+      assert.equal(await evaluate('document.getElementById("desktop-updates").textContent'), '');
+      assert.equal(await evaluate('document.getElementById("desktop-updates").dataset.attention'), String(['available', 'ready'].includes(phase)));
+      const glow = await evaluate('getComputedStyle(document.getElementById("desktop-updates")).boxShadow');
+      assert.equal(glow !== 'none', ['available', 'ready'].includes(phase), 'only download/restart readiness glows');
+      if (phase === 'preparing' || phase === 'ready' || phase === 'available') {
         assert.equal(await evaluate('document.querySelector("main").inert'), false);
-        assert.equal(await evaluate('document.getElementById("desktop-updates").getAttribute("aria-label")'), phase === 'ready' ? 'Relaunch to apply update' : 'Preparing update');
+        assert.equal(await evaluate('document.getElementById("desktop-updates").getAttribute("aria-label")'), phase === 'ready' ? 'Relaunch to apply update' : phase === 'available' ? 'Download update' : 'Preparing update');
         assert.equal(await evaluate('document.getElementById("desktop-updates").textContent'), '');
-        await evaluate('document.getElementById("desktop-update-details").open = false');
         await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
         await writeFile(path.join(output, `${phase}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
       }
@@ -59,14 +63,20 @@ try {
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
   await pause(200); assert.equal(calls.at(-1), 'update');
   state = { phase: 'available', actions: ['app-only', 'check'], canPrepare: true, installed: { ...installed, cliPolicy: { kind: 'pinned', detail: 'Pinned CLI unchanged.' } } }; await pause(1150);
-  assert.equal(await evaluate('document.getElementById("desktop-update-app-only").hidden'), false);
-  assert.equal(await evaluate('document.getElementById("desktop-update-details").open'), true);
-  await evaluate('document.getElementById("desktop-update-app-only").click()'); await pause(100); assert.equal(calls.at(-1), 'app-only');
+  assert.match(await evaluate('document.getElementById("desktop-updates").getAttribute("aria-label")'), /Update app only; CLI stays unchanged/);
+  assert.equal(await evaluate('document.getElementById("desktop-updates").dataset.attention'), 'true');
+  await evaluate('document.getElementById("desktop-updates").click()'); await pause(100); assert.equal(calls.at(-1), 'app-only');
   for (const phase of ['success', 'recovered']) {
     state = { ...state, phase, actions: ['check'] }; await pause(1150);
-    assert.equal(await evaluate('document.getElementById("desktop-update-status").textContent.includes("Your CLI stays unchanged")'), true);
+    assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false);
     assert.equal(await evaluate('document.getElementById("desktop-updates").hidden'), true);
   }
+  state = { phase: 'ready', actions: ['restart'], installed, restartError: 'A note has an unsaved draft.' }; await pause(1150);
+  assert.match(await evaluate('document.getElementById("desktop-updates").title'), /unsaved draft/);
+  assert.equal(await evaluate('document.getElementById("desktop-updates").disabled'), false, 'blocked restart can be retried');
+  state = { phase: 'failed', canRecover: true, actions: ['recover'], installed }; await pause(1150);
+  await evaluate('document.getElementById("desktop-updates").click()'); await pause(100); assert.equal(calls.at(-1), 'recover');
+  state = { phase: 'success', actions: ['check'], installed }; await pause(1150);
   // Unrecognized schemes/actions/arguments never reach the native capability.
   const count = calls.length;
   await evaluate("location.href = 'jumpybrain-update://update?url=https://evil.invalid'"); await pause(100); assert.equal(calls.length, count);
@@ -100,9 +110,14 @@ try {
   window.setMinimumSize(0, 0);
   for (const width of [390, 320]) {
     window.setContentSize(width, 860); await pause(100);
-    assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+    for (const phase of ['available', 'preparing', 'ready', 'failed', 'success']) {
+      state = { phase, installed, actions: phase === 'ready' ? ['restart'] : phase === 'available' ? ['update'] : phase === 'preparing' ? [] : ['check'], detail: 'An update could not be confirmed.' };
+      await pause(1150);
+      assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+      assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false);
+    }
   }
-  console.log('Inline updater UI PASS: production shell, both themes, keyboard, working/ready, pinned exception, literal notes, restricted actions. Screenshots:', output);
+  console.log('Inline updater UI PASS: production shell, both themes, keyboard, icon-only states/glow, pinned exception, failed restart/recovery, restricted actions. Screenshots:', output);
   window.destroy(); server.close(); await rm(profile, { recursive: true, force: true }); app.exit(0);
 } catch (error) { console.error(error); window?.destroy(); server.close(); app.exit(1); }
 

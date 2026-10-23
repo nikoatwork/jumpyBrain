@@ -26,7 +26,7 @@ export async function run(fixturePath) {
   let editor;
   const click = async id => {
     const recovery = updateWindow();
-    const ids = { update: 'desktop-updates', restart: 'desktop-updates', recover: 'desktop-updates', 'app-only': 'desktop-update-app-only', cancel: 'desktop-update-cancel' };
+    const ids = { update: 'desktop-updates', restart: 'desktop-updates', recover: 'desktop-updates', 'app-only': 'desktop-updates' };
     return (recovery || editor).webContents.executeJavaScript(`document.getElementById(${JSON.stringify(recovery ? id : ids[id])}).click()`);
   };
   const post = async (route, body) => {
@@ -52,9 +52,10 @@ export async function run(fixturePath) {
       }
       if (app.getVersion() === fixture.nextVersion) {
         await until(async () => (await application.updater.snapshot()).phase === 'success');
-        await until(async () => { editor = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('http:')); return editor && !editor.webContents.isLoadingMainFrame() && await editor.webContents.executeJavaScript('!!document.getElementById("desktop-update-panel")'); });
+        await until(async () => { editor = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('http:')); return editor && !editor.webContents.isLoadingMainFrame() && await editor.webContents.executeJavaScript('!!document.getElementById("desktop-updates")'); });
         editor.show(); await pause(250);
-        if (fixture.mode === 'app-only') await until(async () => await editor.webContents.executeJavaScript('document.getElementById("desktop-update-status").textContent.includes("Your CLI stays unchanged")'));
+        assert.equal(await editor.webContents.executeJavaScript('!!document.getElementById("desktop-update-panel")'), false);
+        assert.equal(await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").hidden'), true);
         const state = await application.updater.snapshot();
         assert.equal(state.installed.app, fixture.nextVersion); assert.equal(state.installed.runtime, fixture.nextVersion); assert.equal(state.installed.cli, fixture.mode === 'app-only' ? fixture.oldVersion : fixture.nextVersion);
         await writeFile(path.join(fixture.artifactDir, 'success.png'), (await (editor || updateWindow()).webContents.capturePage()).toPNG());
@@ -109,7 +110,7 @@ export async function run(fixturePath) {
       let state; await until(async () => { state = await desktopControl(application.getHost().connection, 'state'); return state.phase === 'preparing'; });
       await post('ack', { tabId: 'failed-draft-tab', switchId: state.switchId, ok: false });
       await until(async () => !!(await application.updater.snapshot()).restartError);
-      assert.equal(messages.length, 0, 'failed saves are explained inline');
+      assert.equal(messages.length, 0, 'failed saves remain in the update tooltip');
       assert.ok(application.getHost().isAlive());
       assert.equal((await application.updater.snapshot()).phase, 'ready');
       await post('unregister', { tabId: 'failed-draft-tab', generation: before.generation });
@@ -120,7 +121,7 @@ export async function run(fixturePath) {
         await click('restart');
         await until(async () => (await desktopControl(application.getHost().connection, 'state')).phase === 'preparing');
         await until(async () => !!(await application.updater.snapshot()).restartError, 25000);
-        assert.equal(messages.length, count, 'unresponsive saves are explained inline');
+        assert.equal(messages.length, count, 'unresponsive saves remain in the update tooltip');
         assert.ok(application.getHost().isAlive());
         assert.equal((await application.updater.snapshot()).phase, 'ready');
         await post('unregister', { tabId: 'unresponsive-tab', generation: before.generation });

@@ -4,3 +4,4 @@
 - The Mac app checks for newer releases on launch after a completed update, so an old success message no longer hides the next available update.
 - Note confirmations now dismiss automatically, including Snooze/Undo, copied drafts, deletion and reference feedback. Pin/Snooze/Settle stay in the sidebar; note detail uses copy, delete and add-reference icons.
 - Quieter interface: Home joins New note and Search as a house icon, connected brains use a muted green dot, and navigation, Settings and graph controls use compact icons with tooltips.
+- Desktop updates stay icon-only: a subtle glow signals download or restart readiness, with no sidebar status messages or Update details section.
