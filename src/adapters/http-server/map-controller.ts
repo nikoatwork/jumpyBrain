@@ -2,7 +2,7 @@
 import type { MemoryGraphNode, MemoryGraphResult } from "../../types.js";
 import { HTTP_MEMORY_ROUTES } from "../http-protocol.js";
 import { layoutGraph, type GraphPosition } from "./graph-layout.js";
-import { GRAPH_SEARCH_LIMIT, graphLexicalMatch } from "./graph-search.js";
+import { graphLexicalMatch } from "./graph-search.js";
 import { placeGraphLabels } from "./graph-labels.js";
 const GRAPH_DOCUMENT_TONES = [
   "page",
@@ -227,8 +227,7 @@ export function createMapController(options: MapControllerOptions) {
         (node) =>
           node.nodeKind === "document" &&
           graphLexicalMatch(query, node.title),
-      )
-      .slice(0, GRAPH_SEARCH_LIMIT);
+      );
     if (!direct.length) {
       provisional = true;
       $("graph-empty").hidden = true;
@@ -311,7 +310,7 @@ export function createMapController(options: MapControllerOptions) {
         if (token !== state.graphToken) return;
         params.delete("query");
         params.set("seeds", "");
-        for (const file of matches.files.slice(0, GRAPH_SEARCH_LIMIT))
+        for (const file of matches.files)
           params.append("seeds", file);
         params.set("neighborLimit", "0");
         warnings = matches.warnings;

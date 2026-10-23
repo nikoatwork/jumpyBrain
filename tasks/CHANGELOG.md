@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-23 — Relevance-driven graph results
+
+- Removed the twelve-note display cap while retaining stricter relevance matching; finalized [the graph result-count adjustment](done/2026-10-23_tasks-graph-search-no-display-cap.md).
+
 ## 2026-10-23 — Conservative graph search
 
 - Tightened graph search to twelve strong matches without nonmatching neighbor expansion; finalized [selection policy and verification](done/2026-10-23_tasks-graph-search-precision.md).

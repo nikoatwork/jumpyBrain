@@ -10,7 +10,7 @@ The sidebar's canonical resurfacing state, stored in Markdown `attention_at`: ab
 
 ## Graph search
 
-A map selection made from shared authenticated search and normalized results, including recent confirmed saves. The map requests a larger bounded candidate set than the global search list, then applies a conservative display gate and keeps at most 12 direct matches. Full-query title/body matches and strong base-score semantic matches can select notes. Nonmatching neighbors stay out of search; only canonical Markdown links between retained notes form edges. Focus/orphan filters may narrow the view further. This reuses shared ranking; its base-score cutoff is a display heuristic, not a calibrated similarity distance.
+A map selection made from shared authenticated search and normalized results, including recent confirmed saves. The map requests a larger bounded candidate set than the global search list, then applies a conservative display gate and keeps all qualifying direct matches without an additional display-count cap. Existing retrieval and graph safety budgets still bound coverage. Full-query title/body matches and strong base-score semantic matches can select notes. Nonmatching neighbors stay out of search; only canonical Markdown links between retained notes form edges. Focus/orphan filters may narrow the view further. This reuses shared ranking; its base-score cutoff is a display heuristic, not a calibrated similarity distance.
 
 ## Background search maintenance
 

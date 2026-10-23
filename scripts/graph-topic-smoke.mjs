@@ -99,8 +99,8 @@ try {
     await query.fill("health");
     await ready(page);
     assert.ok(
-      (await page.locator(".match-direct").count()) === 12,
-      "graph caps strong topic matches at twelve",
+      (await page.locator(".match-direct").count()) === 17,
+      "all seventeen qualifying notes survive without a display cap",
     );
     assert.ok(
       (await page.locator(".match-context").count()) === 0,

@@ -1,5 +1,4 @@
 // Graph-only presentation policy over shared search results; no new retrieval engine.
-export const GRAPH_SEARCH_LIMIT = 12;
 const SEMANTIC_SCORE_FLOOR = 0.75;
 const SEMANTIC_RELATIVE_FLOOR = 0.85;
 interface GraphSearchHit {

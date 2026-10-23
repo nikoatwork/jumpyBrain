@@ -243,7 +243,7 @@ const map = JumpyBrainBrowser.createMapController({
     };
     const details = (packet.retrieval?.warnings || []).map(code => descriptions[code]).filter(Boolean);
     if ((packet.retrieval?.warnings || []).includes("semantic_query_failed_lexical_fallback")) warnings.push("Semantic search is unavailable. Text matches are shown; retry with Refresh.");
-    return { files: normalizeNoteResults(JumpyBrainBrowser.selectGraphSearchResults(query, packet.results), 12).map(result => result.file).filter(Boolean), warnings, details, updating: Boolean(packet.index?.stale) };
+    return { files: normalizeNoteResults(JumpyBrainBrowser.selectGraphSearchResults(query, packet.results), Infinity).map(result => result.file).filter(Boolean), warnings, details, updating: Boolean(packet.index?.stale) };
   }, setStatus,
   onReady: (ready) => { window.__jumpyBrainGraphReady = ready; }, openNode: selectNode,
 });

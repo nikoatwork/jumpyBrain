@@ -402,7 +402,7 @@ test("brain scope changes abort pending work and evict cached graph, camera and 
   assert.equal(h.clock.pending, 0, "settled aborted requests release delayed updating indicators");
 });
 
-test("graph shared-search seeds preserve rank and stop at the conservative twelve-match budget", async () => {
+test("graph shared-search seeds preserve rank and retain all qualifying matches without a display cap", async () => {
   const h = graphNoticeHarness();
   const files = Array.from({ length: 85 }, (_, index) => `notes/ranked-${index}.md`);
   h.element("query").value = "health";
@@ -410,7 +410,7 @@ test("graph shared-search seeds preserve rank and stop at the conservative twelv
   let requested;
   h.context.graphJson = async url => { requested = new URL(url, "http://test"); return noticePacket({ nodes: [], warnings: [] }); };
   await h.context.loadGraph();
-  assert.deepEqual(requested.searchParams.getAll("seeds"), ["", ...files.slice(0, 12)]);
+  assert.deepEqual(requested.searchParams.getAll("seeds"), ["", ...files]);
   assert.equal(requested.searchParams.get("neighborLimit"), "0");
   assert.equal(requested.searchParams.get("includeSnippets"), "0");
 });
