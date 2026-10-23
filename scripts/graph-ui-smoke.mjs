@@ -95,8 +95,8 @@ async function validateGraph(width) {
     await query.fill(prefix);
     const searchPacket = await (await searchResponse).json();
     const filteredPacket = await (await filtered).json();
-    const expectedFiles = await page.evaluate(results => normalizeNoteResults(results, 60).map(hit => hit.file).filter(Boolean), searchPacket.results);
-    assert.deepEqual(filteredPacket.nodes.filter(node => node.match === "direct").map(node => node.file).sort(), [...expectedFiles].sort(), "graph uses the same normalized search matches");
+    const expectedFiles = await page.evaluate(({ query, results }) => normalizeNoteResults(JumpyBrainBrowser.selectGraphSearchResults(query, results), 12).map(hit => hit.file).filter(Boolean), { query: prefix, results: searchPacket.results });
+    assert.deepEqual(filteredPacket.nodes.filter(node => node.match === "direct").map(node => node.file).sort(), [...expectedFiles].sort(), "graph applies conservative selection before normalizing shared search matches");
     const expectedIds = filteredPacket.nodes.map(node => node.id).sort();
     await page.waitForFunction((ids) => JSON.stringify([...document.querySelectorAll('[data-testid="graph-node"]')]
       .map(node => node.dataset.nodeId).sort()) === JSON.stringify(ids), expectedIds);

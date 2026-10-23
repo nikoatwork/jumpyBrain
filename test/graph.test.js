@@ -283,7 +283,7 @@ test("graph page uses quiet map controls with native filters and no depth UI", (
   }
   assert.match(html, /class="toolbar" aria-label="Map controls"/);
   assert.match(html, /<h1>Memory map<\/h1>/);
-  assert.match(html, /<details id="graph-filters">\s*<summary[^>]*>Filters<\/summary>/);
+  assert.match(html, /<details id="graph-filters">\s*<summary[^>]*aria-label="Filters"/);
   for (const id of ["include-orphans", "include-unresolved"]) {
     assert.match(html, new RegExp(`id="${id}"[^>]*type="checkbox"[^>]*checked`));
   }
@@ -343,7 +343,7 @@ test("map search passes shared matches as neighborhood seeds and removes generic
   assert.equal(context.state.graph.nodes.length, 1);
   assert.match(element("reload").title, /Recent edits are being indexed/);
   assert.deepEqual(element("graph-warnings").children.map(row => row.textContent), []);
-  assert.equal(requests[0].searchParams.get("neighborLimit"), "60");
+  assert.equal(requests[0].searchParams.get("neighborLimit"), "0");
   assert.equal(requests[0].searchParams.has("files"), false);
 
   context.searchNotes = async () => ({ files: [], warnings: [] });
@@ -402,7 +402,7 @@ test("brain scope changes abort pending work and evict cached graph, camera and 
   assert.equal(h.clock.pending, 0, "settled aborted requests release delayed updating indicators");
 });
 
-test("graph shared-search seeds preserve rank and stop at the explicit sixty-match budget", async () => {
+test("graph shared-search seeds preserve rank and stop at the conservative twelve-match budget", async () => {
   const h = graphNoticeHarness();
   const files = Array.from({ length: 85 }, (_, index) => `notes/ranked-${index}.md`);
   h.element("query").value = "health";
@@ -410,8 +410,8 @@ test("graph shared-search seeds preserve rank and stop at the explicit sixty-mat
   let requested;
   h.context.graphJson = async url => { requested = new URL(url, "http://test"); return noticePacket({ nodes: [], warnings: [] }); };
   await h.context.loadGraph();
-  assert.deepEqual(requested.searchParams.getAll("seeds"), ["", ...files.slice(0, 60)]);
-  assert.equal(requested.searchParams.get("neighborLimit"), "60");
+  assert.deepEqual(requested.searchParams.getAll("seeds"), ["", ...files.slice(0, 12)]);
+  assert.equal(requested.searchParams.get("neighborLimit"), "0");
   assert.equal(requested.searchParams.get("includeSnippets"), "0");
 });
 
@@ -1105,7 +1105,7 @@ test("map typing supports every committed letter, debounces bursts, retains filt
   h.clock.advance(1);
   await Promise.resolve();
   assert.deepEqual(Object.fromEntries(h.requests[1].searchParams), {
-    seeds: "notes/body-match.md", neighborLimit: "60", focus: "Selected note", includeUnresolved: "1", includeOrphans: "0",
+    seeds: "notes/body-match.md", neighborLimit: "0", focus: "Selected note", includeUnresolved: "1", includeOrphans: "0",
     includeSnippets: "0", limit: "10000", edgeLimit: "20000",
   });
   h.fire("query", "change");

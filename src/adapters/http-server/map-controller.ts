@@ -2,6 +2,7 @@
 import type { MemoryGraphNode, MemoryGraphResult } from "../../types.js";
 import { HTTP_MEMORY_ROUTES } from "../http-protocol.js";
 import { layoutGraph, type GraphPosition } from "./graph-layout.js";
+import { GRAPH_SEARCH_LIMIT, graphLexicalMatch } from "./graph-search.js";
 import { placeGraphLabels } from "./graph-labels.js";
 const GRAPH_DOCUMENT_TONES = [
   "page",
@@ -225,28 +226,16 @@ export function createMapController(options: MapControllerOptions) {
       .filter(
         (node) =>
           node.nodeKind === "document" &&
-          query
-            .split(/\s+/)
-            .every((term) =>
-              node.title.normalize("NFKC").toLocaleLowerCase().includes(term),
-            ),
+          graphLexicalMatch(query, node.title),
       )
-      .slice(0, 60);
+      .slice(0, GRAPH_SEARCH_LIMIT);
     if (!direct.length) {
       provisional = true;
       $("graph-empty").hidden = true;
       return;
     }
-    const ids = new Set(direct.map((node) => node.id)),
-      context = new Set<string>();
-    for (const edge of overview.edges) {
-      if (ids.has(edge.source) && !ids.has(edge.target))
-        context.add(edge.target);
-      if (ids.has(edge.target) && !ids.has(edge.source))
-        context.add(edge.source);
-      if (context.size >= 60) break;
-    }
-    const keep = new Set([...ids, ...context]);
+    const ids = new Set(direct.map((node) => node.id));
+    const keep = ids;
     let projectedNodes = overview.nodes.filter(
       (node) =>
         keep.has(node.id) &&
@@ -322,9 +311,9 @@ export function createMapController(options: MapControllerOptions) {
         if (token !== state.graphToken) return;
         params.delete("query");
         params.set("seeds", "");
-        for (const file of matches.files.slice(0, 60))
+        for (const file of matches.files.slice(0, GRAPH_SEARCH_LIMIT))
           params.append("seeds", file);
-        params.set("neighborLimit", "60");
+        params.set("neighborLimit", "0");
         warnings = matches.warnings;
         details = matches.details ?? [];
       }

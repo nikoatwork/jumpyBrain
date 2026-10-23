@@ -37,7 +37,7 @@ export function createRecentWriteSearch(options: { scope(): string; fetch(query:
     }
     const local = [...saved.values()].reverse().filter(note => matches(note, query));
     const localIds = new Set(local.map(note => note.id));
-    return { ...packet, results: [...local.map(note => ({ id: note.id, snippet: note.body.slice(0, 240),
+    return { ...packet, results: [...local.map(note => ({ id: note.id, confirmedWriteMatch: true, snippet: note.body.slice(0, 240),
       provenance: { file: note.file, metadata: { id: note.id, title: note.title } } })),
       ...(packet.results ?? []).filter(hit => {
         const id = hit.provenance?.metadata?.id;

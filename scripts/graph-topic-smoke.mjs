@@ -26,6 +26,7 @@ const note = (i) =>
   JSON.stringify(title(i)) +
   "\n---\n\n" +
   (i % 100 === 0 && i + 1 < 1650 ? "[[" + title(i + 1) + "]]" : "") +
+  (i === 0 ? "\n[[Health topic 100]]" : "") +
   "\nCanonical evidence " +
   i +
   ".\n";
@@ -69,7 +70,24 @@ try {
       (await page.locator("#viewport").locator("*").count()) < 1500,
       "dense view keeps DOM bounded",
     );
+    // Controlled semantic packet through the production browser search/graph seams.
+    const semanticHandler = async route => {
+      const request = route.request().postDataJSON();
+      if (request.query !== "rest recovery") return route.continue();
+      const results = [0, 100, 200, ...Array.from({ length: 117 }, (_, n) => n + 1)]
+        .map((i, rank) => ({ id: String(i), score: rank < 3 ? 1 : 10,
+          scoreBreakdown: { qmdScore: rank < 3 ? [.95, .9, .82][rank] : .6 },
+          snippet: "A paraphrase", provenance: { file: "notes/" + i + ".md", metadata: { id: id(i), title: title(i) } } }));
+      await route.fulfill({ json: { results, index: { stale: false }, readiness: { freshness: "fresh" } } });
+    };
+    await page.route("**/memories/all/search", semanticHandler);
     const query = page.locator("#query");
+    await query.fill("rest recovery");
+    await ready(page);
+    assert.equal(await page.locator("#graph-node-count").innerText(), "3", "three strong semantic notes survive 117 weak hits");
+    assert.equal(await page.locator(".match-context").count(), 0);
+    assert.equal(await page.locator('[data-testid="graph-edge"]').count(), 1);
+    await page.unroute("**/memories/all/search", semanticHandler);
     await query.fill("h");
     assert.equal(
       await page.locator("#graph").getAttribute("aria-busy"),
@@ -81,14 +99,14 @@ try {
     await query.fill("health");
     await ready(page);
     assert.ok(
-      (await page.locator(".match-direct").count()) >= 17,
-      "shared search selects topic notes",
+      (await page.locator(".match-direct").count()) === 12,
+      "graph caps strong topic matches at twelve",
     );
     assert.ok(
-      (await page.locator(".match-context").count()) > 0,
-      "linked nonmatching notes remain context",
+      (await page.locator(".match-context").count()) === 0,
+      "nonmatching neighbors stay out of search",
     );
-    assert.ok((await page.locator('[data-testid="graph-edge"]').count()) > 0);
+    assert.ok(await page.locator('[data-testid="graph-edge"]').count() > 0, "links between retained matches remain visible");
     assert.equal(
       await query.evaluate((n) => n === document.activeElement),
       true,
@@ -100,9 +118,9 @@ try {
       await query.fill("Health and sleep");
       await ready(page);
       await page.waitForFunction(
-        () => document.querySelectorAll(".graph-title").length >= 2,
+        () => document.querySelectorAll(".graph-title").length >= 1,
       );
-      assert.equal(await page.locator("#graph-node-count").innerText(), "2");
+      assert.equal(await page.locator("#graph-node-count").innerText(), "1");
       const labels = await page
         .locator(".graph-title")
         .evaluateAll((ns) =>
@@ -171,7 +189,8 @@ try {
     await page.waitForFunction(
       async () => {
         await searchMaintenance.check();
-        return document.querySelector("#graph-node-count").textContent === "2";
+        return document.querySelector("#graph-node-count").textContent === "1"
+          && document.querySelector("#graph").getAttribute("aria-busy") === "false";
       },
       {},
       { timeout: 15000, polling: 200 },
@@ -211,7 +230,7 @@ try {
     await writeFile(path.join(root, "notes", "0.md"), note(0));
     await server.autoIndex.tick();
     console.log(
-      `PASS ${width}px:1650notes, topic neighbors, fixed labels/themes, camera/history, external refresh, cancellation, hidden cleanup`,
+      `PASS ${width}px:1650notes, conservative semantic selection, fixed labels/themes, camera/history, external refresh, cancellation, hidden cleanup`,
     );
   }
 } finally {
