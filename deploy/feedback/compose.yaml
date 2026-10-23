@@ -27,7 +27,7 @@ services:
     labels:
       traefik.enable: "true"
       traefik.docker.network: coolify
-      traefik.http.routers.jumpybrain-feedback.rule: Host(`${JUMPYBRAIN_FEEDBACK_HOST:?Set JUMPYBRAIN_FEEDBACK_HOST in the deployment .env}`) && (Path(`/support/feedback`) || Path(`/support/health`))
+      traefik.http.routers.jumpybrain-feedback.rule: (Host(`${JUMPYBRAIN_FEEDBACK_HOST:?Set JUMPYBRAIN_FEEDBACK_HOST in the deployment .env}`) || Host(`${JUMPYBRAIN_FEEDBACK_PUBLIC_HOST:-${JUMPYBRAIN_FEEDBACK_HOST}}`)) && (Path(`/support/feedback`) || Path(`/support/health`))
       traefik.http.routers.jumpybrain-feedback.entrypoints: https
       traefik.http.routers.jumpybrain-feedback.priority: "100"
       traefik.http.routers.jumpybrain-feedback.tls: "true"

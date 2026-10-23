@@ -93,45 +93,34 @@ export function installFeedback(options: {
   const dialog = element<HTMLDialogElement>("feedback-dialog");
   const message = element<HTMLTextAreaElement>("feedback-message");
   const include = element<HTMLInputElement>("feedback-include-logs");
-  const preview = element<HTMLTextAreaElement>("feedback-logs");
-  const mail = element<HTMLAnchorElement>("feedback-mailto");
   const status = element<HTMLElement>("feedback-status");
   const send = element<HTMLButtonElement>("feedback-send");
   let sending = false;
   let submission: { id: string; message: string; diagnostics: string | null } | null = null;
   let snapshot = "", openSequence = 0, collecting = false;
   let collection: AbortController | null = null;
-  const download = element<HTMLButtonElement>("feedback-download");
   function update() {
     send.disabled = sending || collecting || !message.value.trim();
     send.textContent = sending ? "Sending…" : "Send feedback";
     message.disabled = sending;
     include.disabled = sending;
     element<HTMLButtonElement>("feedback-close").disabled = sending;
-    preview.value = include.checked ? snapshot : "";
-    preview.closest("details")!.hidden = !include.checked;
-    const fallback = feedbackMailto(message.value, include.checked ? snapshot : null);
-    // Long mailto URIs are not portable; the EML remains the complete attachment path.
-    mail.href = fallback.length <= 8000 ? fallback : feedbackMailto(message.value, null);
-    mail.textContent = fallback.length <= 8000 ? "Open email app" : "Open email app (message only)";
-    try { feedbackEmailDraft(message.value, include.checked ? snapshot : null); download.disabled = collecting; }
-    catch { download.disabled = true; status.textContent = "Shorten your message or exclude diagnostics to fit the email draft limit."; }
+    dialog.dataset.collecting = String(collecting);
+    status.hidden = !status.textContent;
   }
   function close(restoreFocus = true) {
     if (sending && restoreFocus) return;
     if (!dialog.open) return;
     openSequence++; collection?.abort(); collection = null; collecting = false;
     dialog.close();
-    preview.value = "";
     snapshot = "";
-    mail.removeAttribute("href");
     if (restoreFocus) element("open-feedback").focus({ preventScroll: true });
   }
   element("open-feedback").addEventListener("click", () => {
     if (sending || dialog.open || document.querySelector("dialog[open]")) return;
     options.onOpen?.();
     snapshot = submission?.diagnostics ?? diagnostics.snapshot(options.context(), window.navigator.userAgent);
-    status.textContent = "Review your message and logs before sending.";
+    status.textContent = "";
     update();
     dialog.showModal();
     message.focus();
@@ -147,7 +136,7 @@ export function installFeedback(options: {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 20_000);
     sending = true; update();
-    status.textContent = "Sending your feedback…";
+    status.textContent = "";
     try {
       if (!options.submit) throw new Error("unavailable");
       const result = await options.submit(pending, controller.signal) as { accepted?: boolean; id?: string };
@@ -156,8 +145,8 @@ export function installFeedback(options: {
       if (dialog.open && token === openSequence) status.textContent = "Feedback sent. Thank you!";
     } catch (error) {
       if (dialog.open && token === openSequence) status.textContent = (error as { code?: string })?.code === "feedback_unavailable"
-        ? "Direct feedback is not available in this installation yet. Your message is still here; you can use the email alternatives below."
-        : "Feedback delivery could not be confirmed. Your message is still here. Try sending again.";
+        ? "Feedback is temporarily unavailable. Your message is still here."
+        : "Couldn’t confirm delivery. Your message is still here. Try again.";
     } finally {
       window.clearTimeout(timer); sending = false; update();
     }
@@ -168,19 +157,16 @@ export function installFeedback(options: {
     const token = ++openSequence, controller = new AbortController(); collection = controller;
     const timer = window.setTimeout(() => controller.abort(), 2000);
     collecting = true; update();
-    status.textContent = "Collecting available local diagnostics…";
     try {
       const host = await Promise.race([options.collectHost(controller.signal), new Promise<never>((_, reject) => {
         controller.signal.addEventListener("abort", () => reject(new Error("diagnostics unavailable")), { once: true });
       })]);
       if (controller.signal.aborted || !dialog.open || token !== openSequence || !include.checked) return;
       snapshot = diagnostics.snapshot(options.context(), window.navigator.userAgent, Array.isArray(host?.sources) ? host.sources : [], host?.runtime);
-      status.textContent = "Review your message and diagnostic log, then choose Send feedback.";
       update();
     } catch {
       if (dialog.open && token === openSequence && include.checked) {
         snapshot = diagnostics.snapshot(options.context(), window.navigator.userAgent, [{ component: "gateway", availability: "unavailable", events: [], dropped: 0, failures: 1, truncatedBytes: 0 }]);
-        status.textContent = "Local host diagnostics are unavailable. You can still send the browser report.";
         update();
       }
     } finally { window.clearTimeout(timer); if (collection === controller) { collection = null; collecting = false; if (dialog.open) update(); } }
@@ -191,21 +177,9 @@ export function installFeedback(options: {
   dialog.addEventListener("keydown", (event) => event.stopPropagation());
   message.addEventListener("input", update);
   include.addEventListener("change", () => {
-    if (!include.checked) { openSequence++; collection?.abort(); collection = null; collecting = false; status.textContent = "Diagnostic logs excluded."; }
+    if (!include.checked) { openSequence++; collection?.abort(); collection = null; collecting = false; }
     update();
     if (include.checked) void collect();
-  });
-  mail.addEventListener("click", () => { status.textContent = "Your email app was requested. If it does not open, download the email draft or copy your message and email jumpybrain@agentmail.to. Nothing has been sent by jumpyBrain."; });
-  element("feedback-download").addEventListener("click", () => {
-    let draft;
-    try { draft = feedbackEmailDraft(message.value, include.checked ? snapshot : null); }
-    catch { status.textContent = "Shorten your message or exclude diagnostics to fit the email draft limit."; return; }
-    const url = URL.createObjectURL(new Blob([draft], { type: "message/rfc822" }));
-    const link = document.createElement("a");
-    link.href = url; link.download = "jumpybrain-feedback.eml";
-    document.body.append(link); link.click(); link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    status.textContent = "Email draft download requested. Open the .eml file in your email app, review it, and send. Some apps require Edit as new; if unsupported, use Open email app. Nothing has been sent by jumpyBrain.";
   });
   // Error messages/stacks may contain note text or credentials; record only the event.
   window.addEventListener("error", (event) => diagnostics.event("exception", { severity: "error", outcome: "failed", code: diagnosticErrorKind(event.error),
@@ -215,32 +189,36 @@ export function installFeedback(options: {
 }
 
 export const feedbackMarkup = String.raw`
-<dialog id="feedback-dialog" class="document-dialog" aria-labelledby="feedback-title" aria-describedby="feedback-description">
-  <h2 id="feedback-title">Send beta feedback</h2>
-  <p id="feedback-description">Bug, idea, or something confusing? Send a report directly to the jumpyBrain team.</p>
-  <label for="feedback-message">What happened, or what would you like to see?</label>
-  <textarea id="feedback-message" maxlength="4000" placeholder="What were you trying to do? What happened instead?"></textarea>
-  <label class="feedback-check"><input id="feedback-include-logs" type="checkbox" checked /> Include diagnostic log</label>
-  <p>App details and recent failures from this tab, plus sanitized local host events when available. No note text, searches, keys, paths, raw logs, or crash dumps. Preview lists source coverage and any omissions. Browser history resets on reload.</p>
-  <details><summary>Preview diagnostic log</summary><textarea id="feedback-logs" aria-label="Diagnostic log attachment" readonly spellcheck="false"></textarea></details>
-  <p>Send shares your message and the diagnostic log above, if included, with the jumpyBrain team.</p>
+<dialog id="feedback-dialog" class="document-dialog" aria-labelledby="feedback-title">
+  <button id="feedback-close" class="icon-button" type="button" aria-label="Close feedback"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+  <h2 id="feedback-title">Feedback</h2>
+  <textarea id="feedback-message" aria-label="Your feedback" maxlength="4000" placeholder="What could be better?"></textarea>
+  <div class="feedback-options">
+    <label class="feedback-check"><input id="feedback-include-logs" type="checkbox" checked /> Include logs</label>
+    <span class="feedback-info">
+      <button class="icon-button" type="button" aria-label="About diagnostic logs" aria-describedby="feedback-logs-info"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v6M12 7v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      <span id="feedback-logs-info" role="tooltip">App version and recent errors help us troubleshoot. No note content, searches, passwords or raw logs.</span>
+    </span>
+  </div>
   <div class="dialog-actions">
     <button id="feedback-send" class="button button-primary" type="button">Send feedback</button>
-    <button id="feedback-close" class="quiet-button" type="button">Close</button>
   </div>
-  <p id="feedback-status" role="status" aria-live="polite"></p>
-  <details><summary>Email alternatives</summary>
-    <p>Email <strong>jumpybrain@agentmail.to</strong> manually, or use a configured desktop email app. These alternatives do not send automatically.</p>
-    <div class="dialog-actions">
-      <button id="feedback-download" class="quiet-button" type="button">Download email draft</button>
-      <a id="feedback-mailto" class="quiet-button">Open email app</a>
-    </div>
-  </details>
+  <p id="feedback-status" role="status" aria-live="polite" hidden></p>
 </dialog>`;
 
 export const feedbackStyles = String.raw`
   #feedback-dialog p { color: var(--ink-soft); font-size: var(--text-body); overflow-wrap: anywhere; }
+  #feedback-dialog { position: relative; width: min(440px, calc(100vw - var(--space-8))); }
+  #feedback-title { margin: 0 var(--space-10) var(--space-5) 0; }
+  #feedback-close { position: absolute; top: var(--space-4); right: var(--space-4); border-color: transparent; background: transparent; }
+  #feedback-message { min-height: 140px; margin: 0 0 var(--space-3); resize: vertical; }
+  #feedback-dialog .feedback-options { display: flex; align-items: center; gap: var(--space-1); }
   #feedback-dialog .feedback-check { display: flex; align-items: center; gap: var(--space-2); }
   #feedback-include-logs { width: 16px; height: 16px; accent-color: var(--accent); }
-  #feedback-logs { font-size: var(--text-caption); }
+  #feedback-dialog .feedback-info { position: relative; display: inline-flex; }
+  #feedback-dialog .feedback-info button { border-color: transparent; background: transparent; }
+  #feedback-logs-info { visibility: hidden; position: absolute; z-index: 1; bottom: calc(100% + var(--space-1)); left: 50%; transform: translateX(-50%); width: min(240px, calc(100vw - var(--space-16))); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink-soft); font-size: var(--text-caption); line-height: 1.5; box-shadow: var(--shadow-sm); pointer-events: none; }
+  #feedback-dialog .feedback-info:hover #feedback-logs-info, #feedback-dialog .feedback-info:focus-within #feedback-logs-info { visibility: visible; }
+  #feedback-dialog .dialog-actions { justify-content: flex-end; margin-top: var(--space-4); }
+  #feedback-status { margin: var(--space-3) 0 0; }
 `;

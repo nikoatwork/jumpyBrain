@@ -45,7 +45,7 @@ Inspect the changed screens in light/dark mode, at a narrow width, and by keyboa
 | Editor, references, map or Dream | Relevant `npm run smoke:lexical`, `npm run smoke:page-references`, `npm run smoke:graph-editor`; for Dream run `npx --package=playwright node scripts/dream-handoff-smoke.mjs`. Verify the explicit handoff and scope, with no implicit memory write. |
 | Retrieval/indexing | `npm run smoke:semantic-index` with existing absolute `JUMPYBRAIN_QMD_BIN` and `JUMPYBRAIN_SMOKE_MODEL` paths. Verify real model retrieval and stale-index repair; lexical or mocked tests do not prove semantic behavior. |
 | Connections/auth/hosted memory | `npx --package=playwright node scripts/companion-gateway-smoke.mjs`; also use CLI against a disposable local server to recall with a read-only target, reject writes, and expose invalid-key/offline errors without losing local drafts. |
-| Feedback/diagnostics | `npm run smoke:diagnostics` → success/failure, retry with retained draft, explicit diagnostic choice. Use a test receiver; do not send test messages to real recipients. |
+| Feedback/diagnostics | `npm run smoke:diagnostics` → compact dialog, hover/focus logs explanation, success/failure, retry with retained draft, explicit diagnostic choice and actual submitted attachment. `npm run cli:pack` verifies the tarball's feedback configuration against the intended public default/override; official releases must not disable delivery. Use a test receiver for automated checks. A live test requires explicit user authorization and must be matched in the inbox through [the AgentMail API command](check-feedback.md). |
 
 ## Record and decide
 

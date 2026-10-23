@@ -13,7 +13,6 @@ app.setPath('userData', config.userData);
 app.on('window-all-closed', () => {}); // Keep the test host alive between welcome/editor windows.
 const checks = [];
 let window, closeChoice = false, closePrompts = 0;
-const feedbackEmails = [];
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const js = async (script) => {
   try { return await window.webContents.executeJavaScript(script, true); }
@@ -84,7 +83,7 @@ try {
   console.log('Electron smoke: editor start');
   checks.push('local-first onboarding, sandboxed bridge, cancel/invalid folder, explicit creation, relaunch, prerequisite recovery');
   const editor = createEditorWindow(config, { confirmClose: () => { closePrompts++; return closeChoice; },
-    openFeedbackEmail: async (url) => { feedbackEmails.push(url); }, diagnostics });
+    diagnostics });
   window = editor.window;
   setApplicationMenu({ app, getWindow: () => window, reconnect: () => {} });
   await editor.loaded;
@@ -111,30 +110,11 @@ try {
 
   await js('document.getElementById("open-feedback").click()');
   await until('document.getElementById("feedback-dialog").open');
-  await until('!document.getElementById("feedback-download").disabled');
+  await until('document.getElementById("feedback-dialog").dataset.collecting === "false"');
   assert.equal(await js('document.getElementById("feedback-include-logs").checked'), true);
   await js('document.getElementById("feedback-message").value = "Electron feedback"; document.getElementById("feedback-message").dispatchEvent(new Event("input"))');
-  const emailPath = path.join(config.userData, 'jumpybrain-feedback.eml');
-  const downloaded = new Promise((resolve, reject) => {
-    window.webContents.session.once('will-download', (event, item) => {
-      if (event.defaultPrevented) { reject(new Error('Feedback download was denied')); return; }
-      item.setSavePath(emailPath);
-      item.once('done', (_event, state) => state === 'completed' ? resolve() : reject(new Error('Feedback download failed: ' + state)));
-    });
-  });
-  await js('document.getElementById("feedback-download").click()');
-  await downloaded;
-  const email = await readFile(emailPath, 'utf8');
-  assert.match(email, /To: jumpybrain@agentmail.to/);
-  assert.match(email, /Content-Disposition: attachment; filename="jumpybrain-diagnostics.txt"/);
-  assert.ok(!email.includes(config.key));
-  await js('document.getElementById("feedback-mailto").click()');
-  const emailDeadline = Date.now() + 3000;
-  while (!feedbackEmails.length && Date.now() < emailDeadline) await pause(40);
-  assert.equal(feedbackEmails.length, 1);
-  assert.equal(new URL(feedbackEmails[0]).pathname, 'jumpybrain@agentmail.to');
-  assert.match(new URL(feedbackEmails[0]).searchParams.get('body'), /Electron feedback/);
-  assert.equal(new URL(window.webContents.getURL()).origin, config.origin);
+  assert.equal(await js('document.querySelectorAll("#feedback-dialog details").length'), 0);
+  assert.equal(await js('document.getElementById("feedback-close").getAttribute("aria-label")'), 'Close feedback');
   await js('document.getElementById("feedback-send").click()');
   await until('document.getElementById("feedback-status").textContent.includes("Feedback sent")');
   assert.equal(await js('document.getElementById("feedback-message").value'), '');
@@ -143,7 +123,7 @@ try {
   const denied = new Promise((resolve) => window.webContents.session.once('will-download', (event) => resolve(event.defaultPrevented)));
   await js('(() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["blocked"], {type:"text/plain"})); a.download = "other.txt"; a.click(); })()');
   assert.equal(await denied, true);
-  checks.push('direct feedback through gateway, attachment download, fixed-recipient email handoff, other downloads denied');
+  checks.push('compact feedback dialog, direct feedback and diagnostic attachment through gateway, other downloads denied');
 
   const settingsItem = Menu.getApplicationMenu().items[0].submenu.items.find((item) => item.label === 'Settings…');
   settingsItem.click();

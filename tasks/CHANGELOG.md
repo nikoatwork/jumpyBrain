@@ -1,5 +1,8 @@
 # Task Changelog
 
+## 2026-10-23 — Feedback delivery and dialog
+
+- Restored packaged Mac feedback delivery, simplified the dialog, and added API inbox checks; [installed-app delivery and verification](done/2026-10-23_tasks-feedback-release-configuration.md).
 ## 2026-10-23 — Temporary note feedback and compact controls
 
 - Added expiring, dismissible note toasts and simplified note detail actions; finalized [feedback/control cleanup](done/2026-10-23_tasks-mac-detail-feedback.md).

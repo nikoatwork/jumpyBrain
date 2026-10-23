@@ -1,6 +1,6 @@
 # Installed Mac feedback end-to-end check
 
-Status: test completed and archived on 2026-10-23; **delivery failed**. Repair remains open in [feedback release configuration](../todo/tasks-feedback-release-configuration.md).
+Status: original test completed and archived on 2026-10-23; **delivery failed**. The subsequent [feedback release-configuration repair](2026-10-23_tasks-feedback-release-configuration.md) restored local delivery and verified a new test through the actual Mac UI and AgentMail API.
 
 ## Goal
 

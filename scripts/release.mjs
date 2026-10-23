@@ -11,6 +11,7 @@ const run = (command, args) => execFileSync(command, args, { cwd, stdio: "inheri
 const versionFiles = ["package.json", "package-lock.json", "integrations/electron/package.json", "integrations/electron/package-lock.json"];
 try {
   const options = releaseOptions(process.argv.slice(2));
+  if (process.env.JUMPYBRAIN_FEEDBACK_URL === '') throw new Error('Official releases must include a working feedback destination; an explicitly disabled custom build cannot be published by this workflow.');
   const current = JSON.parse(readFileSync(path.join(cwd, "package.json"), "utf8")).version;
   const next = nextReleaseVersion(current, options.bump, options.approveMajor);
   const tag = `v${next}`;

@@ -30,6 +30,11 @@ const CONTENT_PATTERN_ALLOWANCES = [
     patternName: "personal Coolify/domain URL",
     text: "https://demojumpybrain.juttu.co",
   },
+  {
+    file: "package.json",
+    patternName: "personal Coolify/domain URL",
+    text: "https://demojumpybrain.juttu.co/support/feedback",
+  },
 ];
 
 const HIGH_CONFIDENCE_PATTERNS = [

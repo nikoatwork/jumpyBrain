@@ -48,6 +48,12 @@ test("precommit guard allows only the intentional public demo host in the README
   assert.match(mixedLineFindings[0].reason, /personal Coolify/);
 });
 
+test('precommit guard allows the public support endpoint only in package metadata', () => {
+  assert.deepEqual(scanText('package.json', '"feedbackUrl": "https://demojumpybrain.juttu.co/support/feedback"'), []);
+  assert.ok(scanText('package.json', '"privateHost": "https://memory.juttu.co"').length);
+  assert.ok(scanText('docs/private.md', 'https://demojumpybrain.juttu.co/support/feedback').length);
+});
+
 test("precommit guard flags public operational breadcrumbs in task logs", () => {
   const findings = scanText("tasks/done/tasks-cloud.md", [
     "Deployed to VPS 89.167.65.196 with root@89.167.65.196.",

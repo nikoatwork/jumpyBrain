@@ -2,14 +2,12 @@ import { build } from "esbuild";
 import { readFile, writeFile, readdir } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
+import { resolveFeedbackUrl } from './feedback-config.mjs';
 
-const { version } = JSON.parse(await readFile("package.json", "utf8"));
+const pkg = JSON.parse(await readFile("package.json", "utf8"));
+const { version } = pkg;
 // Public routing configuration only; the native helper deliberately drops shell env.
-const feedbackUrl = process.env.JUMPYBRAIN_FEEDBACK_URL ?? "";
-if (feedbackUrl) {
-  const url = new URL(feedbackUrl);
-  if (url.protocol !== "https:" || url.username || url.password || url.hash) throw new Error("Feedback URL must use HTTPS without credentials or a fragment.");
-}
+const feedbackUrl = resolveFeedbackUrl(pkg);
 await writeFile("dist/adapters/http-server/feedback-config.json", JSON.stringify({ url: feedbackUrl }));
 const fingerprint = createHash("sha256").update(version);
 fingerprint.update(feedbackUrl);

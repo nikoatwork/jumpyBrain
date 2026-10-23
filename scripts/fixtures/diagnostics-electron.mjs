@@ -2,7 +2,6 @@
 import { app } from 'electron';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
-import path from 'node:path';
 import { createEditorWindow } from '../../integrations/electron/window.mjs';
 import { startElectronDiagnostics } from '../../integrations/electron/diagnostics.mjs';
 const config = JSON.parse(await readFile(process.env.JUMPYBRAIN_DIAGNOSTICS_FIXTURE, 'utf8'));
@@ -35,42 +34,38 @@ async function run() {
     stage = 'feedback collection';
     await js(`window.dispatchEvent(new ErrorEvent('error', { error: new TypeError('private body ${config.key}'), filename: location.origin + '/?note=private', lineno: 10, colno: 20 })); window.dispatchEvent(new PromiseRejectionEvent('unhandledrejection', { promise: Promise.resolve(), reason: new RangeError('private body') }));`);
     await js('document.getElementById("open-feedback").click()');
-    await until('!document.getElementById("feedback-download").disabled');
-    const report = JSON.parse(await js('document.getElementById("feedback-logs").value'));
+    await until('document.getElementById("feedback-dialog").dataset.collecting === "false"');
+    async function send(message) {
+      await js(`document.getElementById("feedback-message").value = ${JSON.stringify(message)}; document.getElementById("feedback-message").dispatchEvent(new Event("input")); document.getElementById("feedback-send").click()`);
+      await until('document.getElementById("feedback-status").textContent.includes("Feedback sent")');
+      return JSON.parse(await readFile(config.received, 'utf8'));
+    }
+    const first = await send('Synthetic diagnostics test');
+    const report = JSON.parse(first.diagnostics);
     for (const code of ['bootstrap_failed', 'unresponsive']) assert.ok(report.events.some((e) => e.component === 'electron' && e.code === code));
     assert.ok(report.events.some((e) => e.component === 'electron' && ['crashed', 'killed', 'abnormal-exit'].includes(e.code)));
     assert.ok(report.events.some((e) => e.component === 'browser' && e.code === 'type_error' && e.operation === 'exception' && e.line === 10));
     assert.ok(report.events.some((e) => e.operation === 'rejection' && e.code === 'range_error'));
     assert.doesNotMatch(JSON.stringify(report), /private|d_[a-f0-9]{32}/); assert.ok(!JSON.stringify(report).includes(config.key));
-    const frozen = await js('document.getElementById("feedback-logs").value');
+    const frozen = first.diagnostics;
     await js('feedbackDiagnostics.event("exception", {severity:"error",outcome:"failed",code:"syntax_error"})');
-    assert.equal(await js('document.getElementById("feedback-logs").value'), frozen);
-    stage = 'attachment download';
-    await js('document.getElementById("feedback-message").value = "🐐".repeat(2000); document.getElementById("feedback-message").dispatchEvent(new Event("input"))');
-    const target = path.join(config.userData, 'email.eml');
-    const download = new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('download timeout')), 5000);
-      window.webContents.session.once('will-download', (event, item) => {
-        if (event.defaultPrevented) { clearTimeout(timer); reject(new Error('download denied')); return; }
-        item.setSavePath(target); item.once('done', (_event, state) => { clearTimeout(timer); state === 'completed' ? resolve() : reject(new Error('download failed')); });
-      });
-    });
-    await js('document.getElementById("feedback-download").click()'); await download;
-    const email = await readFile(target, 'utf8'); assert.ok(Buffer.byteLength(email) <= 65536);
-    const parts = [...email.matchAll(/Content-Transfer-Encoding: base64\r\n\r\n([A-Za-z0-9+/=\r\n]*?)\r\n--/g)].map((m) => Buffer.from(m[1], 'base64').toString('utf8'));
-    assert.equal(parts[1], frozen); assert.doesNotMatch(parts[1], /private/);
+    stage = 'frozen attachment submission';
+    const second = await send('🐐'.repeat(2000));
+    assert.equal(second.diagnostics, frozen);
+    assert.ok(Buffer.byteLength(JSON.stringify(second)) <= 65536);
     stage = 'collection opt-out and cancellation';
     await js('document.getElementById("feedback-close").click(); document.getElementById("open-feedback").click(); document.getElementById("feedback-include-logs").click()');
-    await pause(250);
-    assert.equal(await js('document.getElementById("feedback-logs").value'), '');
-    assert.equal(await js('document.getElementById("feedback-mailto").href.includes("Diagnostic")'), false);
+    const without = await send('No diagnostics');
+    assert.equal(without.diagnostics, null);
     await js('document.getElementById("feedback-include-logs").click(); document.getElementById("feedback-close").click()');
-    await pause(250); assert.equal(await js('document.getElementById("feedback-logs").value'), '');
+    await pause(250);
+    assert.equal(await js('document.getElementById("feedback-dialog").open'), false);
+    assert.deepEqual(JSON.parse(await readFile(config.received, 'utf8')), without);
     await diagnostics.store.flush();
     window.destroy();
     await writeFile(config.result, JSON.stringify({ ok: true, stage: 'complete' })); app.exit(0);
-  } catch {
-    await writeFile(config.result, JSON.stringify({ ok: false, stage })); app.exit(1);
+  } catch (error) {
+    await writeFile(config.result, JSON.stringify({ ok: false, stage, error: String(error.message).replaceAll(config.key, '[fixture-key]') })); app.exit(1);
   }
 }
 void run();

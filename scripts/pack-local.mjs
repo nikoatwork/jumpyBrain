@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { forbiddenLocalPackFiles, forbiddenLocalPackPathPrefixes, requiredLocalPackFiles, validateLocalPackFiles } from "./local-pack-manifest.mjs";
+import { validatePackFeedbackConfig } from './feedback-config.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(repoRoot, ".local-pack");
@@ -19,6 +20,8 @@ const tarballName = packInfo.filename;
 const tarballPath = path.join(outDir, tarballName);
 const tarballFiles = listTarballFiles(tarballPath);
 validateLocalPackFiles(tarballFiles);
+const feedbackConfig = JSON.parse(run('tar', ['-xOf', tarballPath, 'package/dist/adapters/http-server/feedback-config.json'], { capture: true }).stdout);
+const feedback = validatePackFeedbackConfig(feedbackConfig, pkg);
 
 const metadata = {
   name: pkg.name,
@@ -31,6 +34,7 @@ const metadata = {
   verifiedFiles: requiredLocalPackFiles,
   forbiddenFilesChecked: forbiddenLocalPackFiles,
   forbiddenPathPrefixesChecked: forbiddenLocalPackPathPrefixes,
+  feedbackConfigured: feedback.configured,
 };
 
 await writeFile(path.join(outDir, "latest.json"), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");

@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Markdown-native memory for coding agents.",
+  "jumpybrain": {
+    "feedbackUrl": "https://demojumpybrain.juttu.co/support/feedback"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
@@ -18,6 +21,7 @@
     "smoke:theme": "npm run build && npx --package=playwright node scripts/theme-smoke.mjs",
     "smoke:sidebar": "npm run build && npx --package=playwright node scripts/sidebar-smoke.mjs",
     "smoke:feedback": "npm run build && npx --package=playwright node scripts/feedback-smoke.mjs",
+    "feedback:inbox": "node scripts/check-feedback.mjs",
     "smoke:diagnostics": "npm run build && node --test test/diagnostics.test.js && npx --package=playwright node scripts/feedback-smoke.mjs && node scripts/diagnostics-electron-smoke.mjs",
     "smoke:graph-editor": "npm run build && npx --package=playwright node scripts/graph-editor-smoke.mjs",
     "smoke:daily-capture": "npm run build && npx --package=playwright node scripts/daily-capture-smoke.mjs",
