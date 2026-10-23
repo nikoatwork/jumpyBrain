@@ -105,6 +105,8 @@ The 2026-10-22 investigation has two explicitly recorded driver groups. [Frozen 
 
 The comparison also reports RSS medians and sampled maxima for each whole stage, separately from settled physical footprint and active-work physical peaks. Each RSS range summarizes three per-run statistics; it is not a settled-only RSS measurement. Budget checks require successful post-run artifact verification even when memory readings fall below every limit.
 
+The [2026-10-23 partial follow-up](2026-10-23-follow-up.md) completed matched 0/100-note comparisons. Its first 1,000-note attempt hit the old driver's editor-readiness race and is excluded. The replacement queue uses the corrected driver and shared gateway fix on **both** new control and optimized 1,000-note suites. Retained 0/100-note old-driver results remain their own matched group; do not compare corrected 1,000-note results against the older 1,000-note baseline.
+
 For cancellation, use a new disposable root and an already provisioned model:
 
 ```sh
