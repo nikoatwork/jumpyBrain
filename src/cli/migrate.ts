@@ -12,6 +12,7 @@ export async function migrateCli(args: ParsedCliArgs, localMemory: LocalMemoryTr
   const result = await localMemory.migrateLogseq(source, root, {
     apply: args.apply === true,
     failOnConflict: args["fail-on-conflict"] === true,
+    ...(args["body-format"] !== undefined ? { bodyFormat: stringArg(args, "body-format") as "readable" | "preserve" } : {}),
   });
   if (args.json === true) {
     console.log(JSON.stringify(result, null, 2));
@@ -19,6 +20,7 @@ export async function migrateCli(args: ParsedCliArgs, localMemory: LocalMemoryTr
     const lines = [
       `Logseq migration ${result.dryRun ? "dry-run" : result.applied ? "applied" : "not applied"}: ${result.pages} pages → notes, ${result.journals} journals → sessions`,
       `Actions: create ${result.created}, overwrite ${result.overwritten}, delete ${result.deleted}, unchanged ${result.unchanged}`,
+      `Body format: ${result.conversion.bodyFormat} v${result.conversion.bodyVersion}; changed ${result.conversion.changedDocuments}, preserved ${result.conversion.preservedDocuments}, with limitations ${result.conversion.unsupportedDocuments}; outline markers removed ${result.conversion.removedOutlineMarkers}, nested blocks retained ${result.conversion.retainedNestedBlocks}`,
       `Destination: ${result.root}`,
       `Documents: ${result.sourceDocuments} source, ${result.outputDocuments} output; bytes: ${result.sourceBytes} source, ${result.outputBytes} output`,
       "Warning: Markdown only; assets, configuration, backups, root Markdown, and other non-Markdown files are omitted. References are not rewritten.",
@@ -27,7 +29,7 @@ export async function migrateCli(args: ParsedCliArgs, localMemory: LocalMemoryTr
       ...result.errors.map((error) => `Error: ${error}`),
     ];
     if (result.dryRun) {
-      lines.push(`Apply: jumpybrain migrate logseq --source ${shellQuote(path.resolve(source))} --root ${shellQuote(result.root)} --apply${args["fail-on-conflict"] === true ? " --fail-on-conflict" : ""}`);
+      lines.push(`Apply: jumpybrain migrate logseq --source ${shellQuote(path.resolve(source))} --root ${shellQuote(result.root)} --body-format ${result.conversion.bodyFormat} --apply${args["fail-on-conflict"] === true ? " --fail-on-conflict" : ""}`);
     }
     if (result.applied) {
       lines.push(`Manifest: ${result.manifest}`, "Index not rebuilt. Run separately:", `jumpybrain index --root ${shellQuote(result.root)}`);

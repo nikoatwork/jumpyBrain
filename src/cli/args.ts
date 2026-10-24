@@ -135,7 +135,7 @@ function parseMigrationArgs(argv: string[]): ParsedCliArgs {
   }
   const args: ParsedCliArgs = { _: [] };
   const booleans = new Set(["apply", "fail-on-conflict", "json"]);
-  const strings = new Set(["source", "root"]);
+  const strings = new Set(["source", "root", "body-format"]);
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) {
@@ -163,11 +163,12 @@ function parseMigrationArgs(argv: string[]): ParsedCliArgs {
     }
   }
   if (args._.length !== 2 || args._[1] !== "logseq") {
-    throw new Error("Usage: jumpybrain migrate logseq --source <vault> --root <memory-root> [--apply] [--fail-on-conflict] [--json]");
+    throw new Error("Usage: jumpybrain migrate logseq --source <vault> --root <memory-root> [--body-format readable|preserve] [--apply] [--fail-on-conflict] [--json]");
   }
-  for (const key of strings) {
+  for (const key of ["source", "root"]) {
     if (typeof args[key] !== "string") throw new Error(`--${key} is required.`);
   }
+  if (args["body-format"] !== undefined && args["body-format"] !== "readable" && args["body-format"] !== "preserve") throw new Error("--body-format must be readable or preserve.");
   return args;
 }
 

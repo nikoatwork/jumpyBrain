@@ -1,12 +1,14 @@
 import { createHash } from "node:crypto";
 import { generateMemoryDocumentId, isValidMemoryDocumentId } from "../document-id.js";
 import { parseFrontmatter } from "../frontmatter.js";
-import type { LogseqMigrationDocument, LogseqMigrationEntry, LogseqMigrationManifest } from "./types.js";
+import { convertLogseqBody, LOGSEQ_BODY_VERSION, type LogseqBodyConversion } from "./body.js";
+import type { LogseqBodyFormat, LogseqMigrationDocument, LogseqMigrationEntry, LogseqMigrationManifest } from "./types.js";
 export type * from "./types.js";
+export { convertLogseqBody, LOGSEQ_BODY_VERSION } from "./body.js";
 
 // This is durable deletion-ownership metadata, NOT a rebuildable index/cache.
 export const LOGSEQ_MIGRATION_MANIFEST = ".logseq-migration-manifest.json";
-export const LOGSEQ_IMPORTER_VERSION = 1;
+export const LOGSEQ_IMPORTER_VERSION = 2;
 export const hashMigrationBytes = (bytes: Buffer): string => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 const HASH = /^sha256:[a-f0-9]{64}$/;
 
@@ -69,7 +71,7 @@ export function renderLogseqEnvelope(body: Buffer, document: Omit<LogseqMigratio
   const header = `---\n${Object.entries(fields).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join("\n")}\n---\n`;
   const output = Buffer.concat([Buffer.from(header), body]);
   const parsed = parseLogseqEnvelope(output);
-  if (hashMigrationBytes(parsed.body) !== document.sourceHash || Object.entries(fields).some(([key, value]) => parsed.metadata[key] !== value)) {
+  if (hashMigrationBytes(parsed.body) !== document.bodyHash || parsed.body.length !== document.bodyBytes || Object.entries(fields).some(([key, value]) => parsed.metadata[key] !== value)) {
     throw new Error("Migration envelope verification failed.");
   }
   // Also ensure normal canonical parsing agrees on every field; source frontmatter stays in the body.
@@ -84,30 +86,35 @@ export function migrationDocumentIdentity(bytes: Buffer): { id?: string; created
   return { ...(isValidMemoryDocumentId(parsed.id) ? { id: parsed.id } : {}), ...(timestamp(parsed.created_at) ? { createdAt: parsed.created_at } : {}) };
 }
 
-export function planLogseqDocument(input: { sourcePath: string; body: Buffer; current?: Buffer; prior?: LogseqMigrationDocument; now: string }): { entry: LogseqMigrationEntry; output: Buffer } {
+export function planLogseqDocument(input: { sourcePath: string; body: Buffer; current?: Buffer; prior?: LogseqMigrationDocument; now: string; bodyFormat?: LogseqBodyFormat }): { entry: LogseqMigrationEntry; output: Buffer; conversion: LogseqBodyConversion } {
   const { sourcePath, body, current, prior, now } = input;
   const mapped = mapLogseqPath(sourcePath);
   const sourceHash = hashMigrationBytes(body);
+  const bodyFormat = input.bodyFormat ?? "readable";
+  if (bodyFormat !== "readable" && bodyFormat !== "preserve") throw new Error("Invalid Logseq body format; use readable or preserve.");
+  const bodyVersion = bodyFormat === "preserve" ? 0 : LOGSEQ_BODY_VERSION;
+  const conversion = convertLogseqBody(body, bodyFormat);
+  const bodyHash = hashMigrationBytes(conversion.body);
   const currentHash = current === undefined ? undefined : hashMigrationBytes(current);
   const observed = {
     ...(currentHash ? { destinationHash: currentHash } : {}),
     ...(prior ? { previousSourceHash: prior.sourceHash, previousOutputHash: prior.outputHash } : {}),
   };
-  if (prior && sourceHash === prior.sourceHash && currentHash === prior.outputHash && prior.sourceBytes === body.length && prior.outputBytes === current!.length && current!.equals(renderLogseqEnvelope(body, prior))) {
-    return { entry: { ...prior, ...observed, action: "unchanged", conflict: false }, output: current! };
+  if (prior && sourceHash === prior.sourceHash && currentHash === prior.outputHash && prior.bodyFormat === bodyFormat && prior.bodyVersion === bodyVersion && prior.bodyHash === bodyHash && prior.bodyBytes === conversion.body.length && prior.sourceBytes === body.length && prior.outputBytes === current!.length && current!.equals(renderLogseqEnvelope(conversion.body, prior))) {
+    return { entry: { ...prior, ...observed, action: "unchanged", conflict: false }, output: current!, conversion };
   }
   const identity = current === undefined ? {} : migrationDocumentIdentity(current);
   const document = {
     sourcePath, ...mapped, id: identity.id ?? prior?.id ?? generateMemoryDocumentId(),
     createdAt: identity.createdAt ?? prior?.createdAt ?? now,
     updatedAt: prior && now <= prior.updatedAt ? new Date(Date.parse(prior.updatedAt) + 1).toISOString() : now,
-    sourceHash, sourceBytes: body.length,
+    sourceHash, sourceBytes: body.length, bodyFormat, bodyVersion, bodyHash, bodyBytes: conversion.body.length,
   };
-  const output = renderLogseqEnvelope(body, document);
+  const output = renderLogseqEnvelope(conversion.body, document);
   return { entry: { ...document, ...observed, outputHash: hashMigrationBytes(output), outputBytes: output.length,
     action: current === undefined ? "create" : "overwrite",
     conflict: current !== undefined && (!prior || prior.outputHash !== currentHash),
-  }, output };
+  }, output, conversion };
 }
 
 /** Strictly validate ownership before it can authorize deletion. Never echo untrusted JSON. */
@@ -115,21 +122,24 @@ export function parseLogseqManifest(bytes: Buffer): LogseqMigrationManifest {
   const invalid = () => new Error("Invalid or unsupported Logseq migration ownership manifest; restore a trusted manifest before retrying.");
   let value: LogseqMigrationManifest;
   try { value = JSON.parse(bytes.toString("utf8")); } catch { throw invalid(); }
-  if (!value || value.version !== 1 || value.importer !== "jumpybrain-logseq" || value.importerVersion !== 1 || !timestamp(value.migratedAt) || !Array.isArray(value.entries) || !value.counts) throw invalid();
+  if (!value || ![1, 2].includes(value.version) || value.importer !== "jumpybrain-logseq" || value.importerVersion !== value.version || !timestamp(value.migratedAt) || !Array.isArray(value.entries) || !value.counts) throw invalid();
   for (const key of ["created", "overwritten", "deleted", "unchanged", "warnings"] as const) if (!Number.isSafeInteger(value.counts[key]) || value.counts[key] < 0) throw invalid();
   const sourceKeys = new Set<string>(), outputKeys = new Set<string>(), ids = new Set<string>();
   for (const entry of value.entries) {
     if (!entry || !validMigrationPath(entry.sourcePath, ["pages", "journals"]) || !validMigrationPath(entry.outputPath, ["notes", "sessions"])) throw invalid();
     const expected = mapLogseqPath(entry.sourcePath);
     if (entry.outputPath !== expected.outputPath || entry.type !== expected.type || entry.title !== expected.title || entry.date !== expected.date || !isValidMemoryDocumentId(entry.id) || !timestamp(entry.createdAt) || !timestamp(entry.updatedAt) || !HASH.test(entry.sourceHash) || !HASH.test(entry.outputHash) || !Number.isSafeInteger(entry.sourceBytes) || entry.sourceBytes < 0 || !Number.isSafeInteger(entry.outputBytes) || entry.outputBytes < 0) throw invalid();
+    if (value.version === 2 && ((entry.bodyFormat !== "readable" && entry.bodyFormat !== "preserve") || entry.bodyVersion !== (entry.bodyFormat === "preserve" ? 0 : LOGSEQ_BODY_VERSION) || !HASH.test(entry.bodyHash) || !Number.isSafeInteger(entry.bodyBytes) || entry.bodyBytes < 0 || entry.bodyBytes > entry.outputBytes || (entry.bodyFormat === "preserve" && (entry.bodyHash !== entry.sourceHash || entry.bodyBytes !== entry.sourceBytes)))) throw invalid();
     const sourceKey = migrationPathKey(entry.sourcePath), outputKey = migrationPathKey(entry.outputPath);
     if (sourceKeys.has(sourceKey) || outputKeys.has(outputKey) || ids.has(entry.id)) throw invalid();
     sourceKeys.add(sourceKey); outputKeys.add(outputKey); ids.add(entry.id);
   }
   // Drop unknown fields, so even a hand-edited manifest cannot leak bodies into results.
-  return { version: 1, importer: "jumpybrain-logseq", importerVersion: 1, migratedAt: value.migratedAt,
+  return { version: value.version, importer: "jumpybrain-logseq", importerVersion: value.importerVersion, migratedAt: value.migratedAt,
     counts: { created: value.counts.created, overwritten: value.counts.overwritten, deleted: value.counts.deleted, unchanged: value.counts.unchanged, warnings: value.counts.warnings },
-    entries: value.entries.map(entry => ({ sourcePath: entry.sourcePath, outputPath: entry.outputPath, type: entry.type, title: entry.title, ...(entry.date ? { date: entry.date } : {}), id: entry.id, createdAt: entry.createdAt, updatedAt: entry.updatedAt, sourceHash: entry.sourceHash, outputHash: entry.outputHash, sourceBytes: entry.sourceBytes, outputBytes: entry.outputBytes })) };
+    entries: value.entries.map(entry => ({ sourcePath: entry.sourcePath, outputPath: entry.outputPath, type: entry.type, title: entry.title, ...(entry.date ? { date: entry.date } : {}), id: entry.id, createdAt: entry.createdAt, updatedAt: entry.updatedAt, sourceHash: entry.sourceHash, outputHash: entry.outputHash, sourceBytes: entry.sourceBytes, outputBytes: entry.outputBytes,
+      ...(value.version === 1 ? { bodyFormat: "preserve" as const, bodyVersion: 0, bodyHash: entry.sourceHash, bodyBytes: entry.sourceBytes } : { bodyFormat: entry.bodyFormat, bodyVersion: entry.bodyVersion, bodyHash: entry.bodyHash, bodyBytes: entry.bodyBytes }),
+    })) };
 }
 
 /** Counts only: never expose referenced targets or snippets in diagnostics. */

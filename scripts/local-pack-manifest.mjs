@@ -21,6 +21,7 @@ export const requiredLocalPackFiles = Object.freeze([
   ...moduleFiles("app", "migration", "transaction"),
   ...moduleFiles("core", "migration", "index"),
   ...moduleFiles("core", "migration", "types"),
+  ...moduleFiles("core", "migration", "body"),
   "package/scripts/remote-target-origin.mjs",
   "package/scripts/qmd-install-check.mjs",
   "package/scripts/macos-companion.mjs",

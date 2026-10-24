@@ -44,14 +44,14 @@ test("migration: allowlist, dry-run, byte envelopes, metadata and no source writ
   await put(source, "pages/.support/hidden.md", "not imported");
   await put(source, "pages/non-markdown.txt", "not imported");
   const before = await tree(source);
-  const plan = await migrateLogseq(source, root);
+  const plan = await migrateLogseq(source, root, { bodyFormat: "preserve" });
   assert.equal(plan.dryRun, true); assert.equal(plan.applied, false);
   assert.equal(plan.sourceDocuments, 6); assert.equal(plan.pages, 5); assert.equal(plan.journals, 1); assert.equal(plan.created, 6);
   await assert.rejects(lstat(root), { code: "ENOENT" });
   assert.match(plan.warnings.join("\n"), /assets=1, config\/support=1, backups=1/);
   assert.match(plan.warnings.join("\n"), /unresolved wiki links=1, omitted local asset references=1/);
   assert.doesNotMatch(JSON.stringify(plan), /omitted-private-bytes|source yaml|property::|old private backup/);
-  const result = await migrateLogseq(source, root, { apply: true });
+  const result = await migrateLogseq(source, root, { apply: true, bodyFormat: "preserve" });
   assert.equal(result.applied, true); assert.equal(result.indexed, false);
   const manifest = parseLogseqManifest(await readFile(path.join(root, LOGSEQ_MIGRATION_MANIFEST)));
   assert.equal(new Set(result.entries.map(entry => entry.id)).size, 6);

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Readable Logseq imports
+
+- Logseq imports convert outer prose outlines into readable Markdown, with exact-preservation mode and safe identity-preserving upgrades; [implementation and verification](done/2026-10-24_tasks-logseq-readable-import.md).
+
 ## 2026-10-24 — Living topic evidence
 
 - Dream pages expose bounded [source-version checks](done/2026-10-24_tasks-living-topic-pages.md) through local/hosted CLI and browser, with visible limitations and guarded no-op preservation.

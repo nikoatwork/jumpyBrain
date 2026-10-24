@@ -41,7 +41,7 @@ async function fixture(t) {
   await writeFile(path.join(source, "logseq/config.edn"), "{}\n");
   await writeFile(path.join(source, "root.md"), "synthetic omitted root document");
   await writeFile(path.join(source, "pages/not-markdown.txt"), "synthetic omitted text");
-  return { temp, source, root, args: ["migrate", "logseq", "--source", source, "--root", root] };
+  return { temp, source, root, args: ["migrate", "logseq", "--source", source, "--root", root, "--body-format", "preserve"] };
 }
 
 function quote(value) {
@@ -56,7 +56,7 @@ test("Logseq CLI human and JSON dry-runs are compact, quoted, body-free and non-
   assert.ok(human.stdout.includes(`Destination: ${root}`));
   assert.match(human.stdout, /assets.*configuration.*backups.*omitted/);
   assert.match(human.stdout, /source wins.*overwritten.*delete/s);
-  assert.ok(human.stdout.includes(`Apply: jumpybrain migrate logseq --source ${quote(source)} --root ${quote(root)} --apply --fail-on-conflict`));
+  assert.ok(human.stdout.includes(`Apply: jumpybrain migrate logseq --source ${quote(source)} --root ${quote(root)} --body-format preserve --apply --fail-on-conflict`));
   const packet = JSON.parse(invoke([...args, "--json"]).stdout);
   assert.equal(packet.dryRun, true);
   assert.equal(packet.applied, false);

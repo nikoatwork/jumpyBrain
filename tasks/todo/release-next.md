@@ -1,5 +1,7 @@
 # Changes
 
+- Logseq imports turn outer prose outlines into readable Markdown, with exact-preservation mode, conversion previews and safe upgrades that retain note identities.
+
 - Living topic pages can check cited source versions through the CLI or browser, showing changed, missing, ambiguous and partial evidence while preserving ordinary guarded editing.
 
 - Feedback sends directly from packaged Mac apps, with a simpler dialog, optional logs, a short information tooltip and a top-right close control.

@@ -80,10 +80,10 @@ Status/doctor report freshness, available modes, embedding coverage, and safe fa
 ## Logseq migration (local only)
 
 ```bash
-jumpybrain migrate logseq --source <vault> --root <memory-root> [--apply] [--fail-on-conflict] [--json]
+jumpybrain migrate logseq --source <vault> --root <memory-root> [--body-format readable|preserve] [--apply] [--fail-on-conflict] [--json]
 ```
 
-Default is a non-mutating dry-run. Import classic Logseq `pages/**/*.md` into `notes/` and `journals/**/*.md` into `sessions/`, preserving source body bytes under a new frontmatter envelope. `--apply` explicitly writes the destination; the source stays untouched. Reruns overwrite mapped destination edits by default and delete missing-source outputs owned by the prior manifest. `--fail-on-conflict` provides a conservative destination-conflict check, not a merge.
+Default is a non-mutating dry-run. Import classic Logseq `pages/**/*.md` into `notes/` and `journals/**/*.md` into `sessions/`, under a new frontmatter envelope. Default `readable` removes outer prose/heading outline dashes; tasks, child lists, code and opaque syntax retain structure with explicit limitations. `--body-format preserve` retains exact original body bytes. Format values are strict; previews pin the selected format and report converted/preserved/limited counts. Trusted version-one imports can upgrade with stable IDs; unchanged sources can still need output conversion. `--apply` explicitly writes the destination; the source stays untouched. Reruns overwrite mapped destination edits by default and delete missing-source outputs owned by the prior manifest. `--fail-on-conflict` provides a conservative destination-conflict check, not a merge.
 
 Both paths are required; booleans accept bare flags or explicit `true`/`false`, not arbitrary strings. Remote flags are rejected before policy/credentials/network. JSON returns the app plan/result (counts, relative mappings/hashes, warnings/errors, manifest, `dryRun`, `applied`, `indexed: false`) without bodies. After successful apply, ordinary local recall/search repairs derived state automatically; run `jumpybrain index --root <memory-root>` explicitly to index immediately or configure policy. See [Logseq migration](logseq-migration.md) for limitations, asset omissions, manifest ownership, and safe reruns.
 
