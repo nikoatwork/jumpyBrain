@@ -115,11 +115,12 @@ ${noteAttentionStyles}
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
     .note-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); }
     .note-icon svg { width: var(--icon-size); height: var(--icon-size); }
-    #app-toast { position: fixed; z-index: 100; right: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2); width: max-content; max-width: min(560px, calc(100vw - 32px)); padding: var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: var(--text-ui)/var(--leading-ui) var(--font-ui); }
+    #app-toast { position: fixed; z-index: 100; left: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2); width: max-content; max-width: min(360px, calc(100vw - 32px)); padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: var(--text-ui)/var(--leading-ui) var(--font-ui); }
     #app-toast[hidden], .note-icon[hidden] { display: none; }
     #toast-message { min-width: 0; overflow-wrap: anywhere; }
     #app-toast[data-error="true"] #toast-message { color: var(--error-ink); }
     #toast-action, #toast-close { flex-shrink: 0; }
+    .app-version { margin: var(--space-6) 0 0; padding-top: var(--space-4); border-top: 1px solid var(--line); color: var(--ink-soft); font-size: var(--text-caption); }
     .note-actions { font-size: var(--text-caption); align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
     .document-dialog { padding: var(--space-6); }
     .document-dialog h2 { margin-top: 0; }
@@ -261,6 +262,7 @@ ${noteAttentionMarkup}
       <button id="disconnect" class="quiet-button" type="button" hidden>Disconnect</button>
       <button id="close-connection" class="quiet-button" type="button">Cancel</button>
     </div>
+    <p class="app-version" data-app-version></p>
   </form>
 </dialog>
 `;

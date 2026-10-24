@@ -3,7 +3,7 @@
 // npm run build && npx --package=playwright node scripts/companion-browser-smoke.mjs
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
@@ -11,6 +11,7 @@ import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-r
 import { appendEditorText, replaceEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-companion-browser-"));
+const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 const id = "mem_a0000000-0000-4000-8000-000000000001";
 const profiles = [
   { id: "a", name: "Fixture A", kind: "local", root: path.join(root, "a"), allowWrites: true },
@@ -158,6 +159,7 @@ try {
   settings.on("pageerror", (exception) => pageErrors.push(exception.message));
   await settings.goto(origin + "/settings#companion=fixture-token");
   await settings.locator("#companion-profiles strong").first().waitFor();
+  assert.equal(await settings.locator("#companion-settings [data-app-version]").textContent(), "jumpyBrain · Version " + version);
   assert.equal(await settings.locator("#companion-active").getAttribute("data-state"), "connected", "Settings uses confirmed host health before any memory request");
   if (await settings.locator("html").getAttribute("data-theme") !== "dark") await settings.locator("#color-theme").click();
   assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(28, 27, 25)");

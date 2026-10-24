@@ -28,7 +28,7 @@ export function mountInlineUpdates() {
   const glyph = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   for (const [name, value] of Object.entries({ viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.7', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) glyph.setAttribute(name, value);
   const stroke = document.createElementNS('http://www.w3.org/2000/svg', 'path'); glyph.append(stroke); primary.append(glyph); utilities.append(primary);
-  let state = { phase: 'idle', actions: [] }, pending = false;
+  let state = { phase: 'idle', actions: [] }, pending = false, lastNotice = '';
   function action() {
     return state.phase === 'ready' ? 'restart' : state.canRecover ? 'recover'
       : state.actions.includes('update') ? 'update' : state.actions.includes('app-only') ? 'app-only' : 'check';
@@ -44,6 +44,10 @@ export function mountInlineUpdates() {
     const next = event.detail;
     if (!next || typeof next.phase !== 'string' || !Array.isArray(next.actions)) return;
     state = next; pending = false;
+    const version = state.installed?.app;
+    if (typeof version === 'string') {
+      for (const element of document.querySelectorAll('[data-app-version]')) element.textContent = 'jumpyBrain · Version ' + version;
+    }
     const working = ['preparing', 'updating', 'checking'].includes(state.phase);
     const failed = state.phase === 'failed' || !!state.restartError;
     const quiet = ['idle', 'current', 'success', 'recovered', 'canceled'].includes(state.phase);
@@ -53,6 +57,13 @@ export function mountInlineUpdates() {
         : selected === 'app-only' ? 'Update app only; CLI stays unchanged' : failed ? 'Retry update' : 'Download update';
     const detail = state.restartError ? 'Relaunch paused: ' + state.restartError + ' Resolve pending saves, then retry.'
       : failed ? state.detail : selected === 'app-only' ? state.installed?.cliPolicy?.detail : '';
+    const notice = failed ? detail : state.phase === 'success' ? 'Update installed successfully.'
+      : state.phase === 'recovered' ? 'Previous installation restored.' : '';
+    const noticeKey = [state.phase, state.updatedAt, notice].join(':');
+    if (notice && noticeKey !== lastNotice) {
+      lastNotice = noticeKey;
+      document.dispatchEvent(new CustomEvent('jumpybrain-update-notice', { detail: { text: notice, error: failed } }));
+    }
     primary.hidden = quiet;
     primary.disabled = working || !state.actions.includes(selected);
     primary.setAttribute('aria-label', label + (detail ? ': ' + detail : ''));

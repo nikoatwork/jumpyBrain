@@ -72,6 +72,7 @@ export const companionMarkup = String.raw`
       </fieldset>
     </form>
     </details>
+    <p class="app-version" data-app-version></p>
   </div>
 </section>
 `;

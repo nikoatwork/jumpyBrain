@@ -31,6 +31,8 @@ try {
   const evaluate = expression => window.webContents.executeJavaScript(expression);
   const wait = async expression => { const deadline = Date.now() + 6000; while (Date.now() < deadline) { if (await evaluate(expression)) return; await pause(50); } throw new Error('UI timeout: ' + expression); };
   await wait('!!document.getElementById("desktop-updates")');
+  assert.equal(await evaluate('document.querySelector("#connection [data-app-version]").textContent'), 'jumpyBrain · Version 0.3.3', 'native app version overrides the browser build version');
+  const sidebarBounds = await evaluate('JSON.stringify(document.getElementById("app-sidebar").getBoundingClientRect().toJSON())');
   for (const theme of ['light', 'dark']) {
     await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
     for (const phase of ['idle', 'current', 'available', 'checking', 'preparing', 'ready', 'success', 'failed']) {
@@ -54,6 +56,16 @@ try {
         await writeFile(path.join(output, `${phase}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
       }
       if (['idle', 'current', 'success'].includes(phase)) assert.equal(await evaluate('document.getElementById("desktop-updates").hidden'), true);
+      if (phase === 'success') {
+        assert.equal(await evaluate('document.getElementById("toast-message").textContent'), 'Update installed successfully.');
+        assert.equal(await evaluate('document.getElementById("app-toast").hidden'), false);
+        assert.equal(await evaluate('getComputedStyle(document.getElementById("app-toast")).position'), 'fixed');
+        assert.equal(await evaluate('document.getElementById("app-toast").getBoundingClientRect().left'), 16);
+        assert.equal(await evaluate('JSON.stringify(document.getElementById("app-sidebar").getBoundingClientRect().toJSON())'), sidebarBounds, 'notifications never move the sidebar');
+        await writeFile(path.join(output, `notification-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+        await pause(4500);
+        assert.equal(await evaluate('document.getElementById("app-toast").hidden'), true, 'polling does not replay or prolong success');
+      }
     }
   }
   state = { phase: 'available', actions: ['update', 'check'], installed }; await pause(1150);
@@ -115,9 +127,11 @@ try {
       await pause(1150);
       assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
       assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false);
+      const bounds = await evaluate('(() => { const r = document.getElementById("app-toast").getBoundingClientRect(); return { left: r.left, right: r.right }; })()');
+      assert.ok(bounds.left >= 0 && bounds.right <= width, 'notification fits the narrow viewport');
     }
   }
-  console.log('Inline updater UI PASS: production shell, both themes, keyboard, icon-only states/glow, pinned exception, failed restart/recovery, restricted actions. Screenshots:', output);
+  console.log('Inline updater UI PASS: production shell, both themes, keyboard, icon-only states/glow, floating completion/expiry without polling replay, Settings version, pinned exception, failed restart/recovery, draft stability, restricted actions, narrow layout. Screenshots:', output);
   window.destroy(); server.close(); await rm(profile, { recursive: true, force: true }); app.exit(0);
 } catch (error) { console.error(error); window?.destroy(); server.close(); app.exit(1); }
 

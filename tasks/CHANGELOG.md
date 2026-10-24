@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Floating feedback and Settings version
+
+- Moved temporary feedback into compact bottom-left overlays and exposed the installed Mac version in Settings; [implementation and verification](done/2026-10-24_tasks-floating-status-version.md).
+
 ## 2026-10-24 — Readable Logseq imports
 
 - Logseq imports convert outer prose outlines into readable Markdown, with exact-preservation mode and safe identity-preserving upgrades; [implementation and verification](done/2026-10-24_tasks-logseq-readable-import.md).
