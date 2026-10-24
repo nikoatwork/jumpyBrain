@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Installed Mac upgrade compatibility
+
+- Incoming Mac releases supply the pinned extension compiler through the existing installed updater; [compatibility fix and verification](done/2026-10-24_tasks-updater-compiler-distribution.md).
+
 ## 2026-10-24 — Recognizable note search
 
 - Search shows readable previews, edit dates and declared editors, with date/editor filters and bounded paging; [implementation and verification](done/2026-10-24_tasks-search-result-recognition.md).

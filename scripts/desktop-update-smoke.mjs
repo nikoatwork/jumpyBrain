@@ -12,10 +12,12 @@ import { createServerMemoryRuntime } from '../dist/server/index.js';
 import { loginPlist } from '../integrations/electron/login.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const mode = process.argv[2] || 'success';
+const existingClient = process.argv[3] === '--client-v0.3.7';
+if (process.argv.length > (existingClient ? 4 : 3) || (existingClient && mode !== 'success')) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7 (success only)]');
 if (!['success','app-only','relaunch-failure','helper-crash','app-crash','cli-open','cli-closed'].includes(mode)) throw new Error('Unsupported smoke mode');
 const asar = await import(path.join(repo, 'integrations/electron/node_modules/@electron/asar/lib/asar.js'));
 const home = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-update-smoke-')));
-const artifactDir = path.join(repo, '.local-pack/update-smoke', mode); await mkdir(artifactDir, { recursive: true });
+const artifactDir = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : mode); await mkdir(artifactDir, { recursive: true });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 let child, server, success = false;
 console.log('Disposable update home:', home);
@@ -47,7 +49,8 @@ try {
   await writeFile(path.join(source, 'integrations/electron/main.mjs'), entry);
   const pkg = JSON.parse(await readFile(path.join(source, 'package.json'), 'utf8'));
   const electronPkg = JSON.parse(await readFile(path.join(source, 'integrations/electron/package.json'), 'utf8'));
-  const oldVersion = '0.3.3', nextVersion = '0.3.4';
+  const oldVersion = existingClient ? '0.3.7' : '0.3.3', nextVersion = existingClient ? '0.3.8' : '0.3.4';
+  assert.equal(pack.files.some(file => /(^|\/)node_modules\//.test(file.path)), false, 'incoming release must not borrow checkout dependencies');
   await json(path.join(source, 'package.json'), { ...pkg, version: oldVersion });
   await json(path.join(source, 'integrations/electron/package.json'), { ...electronPkg, version: oldVersion });
   await rm(path.join(resources, 'runtime/dist'), { recursive: true });
@@ -60,7 +63,20 @@ try {
   const integration = path.join(home, 'agent-skill.md'); await writeFile(integration, 'Preserve agent integration');
   await json(path.join(root, 'install-manifest.json'), { version: 1, installer: 'jumpybrain-installer', source: 'https://github.com/nikoatwork/jumpyBrain.git', ref: mode === 'app-only' ? 'v0.3.3' : 'master', scope: 'global', integrationMode: 'auto', installRoot: root,
     appDir: path.join(root, 'app'), binDir: path.join(root, 'bin'), cliPath, cliConfigPath, memoryRoot: memory, integrations: [{ kind: 'fixture', path: integration }], installedVersion: oldVersion });
+  // Optional compatibility gate executes the exact published worker, never a
+  // repaired candidate worker. It still installs only the incoming Electron lock.
+  const workerFile = path.join(source, 'integrations/electron/update-worker.mjs');
+  const candidateWorker = await readFile(workerFile);
+  let clientWorkerDigest;
+  if (existingClient) {
+    const publishedWorker = execFileSync('git', ['show', 'v0.3.7:integrations/electron/update-worker.mjs'], { cwd: repo });
+    clientWorkerDigest = createHash('sha256').update(publishedWorker).digest('hex');
+    assert.equal(clientWorkerDigest, '9d184e089d493220ffff00ed3d0def06424e99f26949575add64a60b76750858');
+    await writeFile(workerFile, publishedWorker);
+  }
   await rm(path.join(resources, 'app.asar')); await asar.createPackage(path.join(source, 'integrations/electron'), path.join(resources, 'app.asar'));
+  await writeFile(workerFile, candidateWorker);
+
   execFileSync('/usr/libexec/PlistBuddy', ['-c', `Set :CFBundleShortVersionString ${oldVersion}`, path.join(appPath, 'Contents/Info.plist')]);
   execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', appPath], { stdio: 'pipe' });
   execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', appPath], { stdio: 'pipe' });
@@ -133,7 +149,7 @@ try {
   assert.equal(execFileSync(cliPath, ['--version'], { env, encoding: 'utf8' }).trim(), expectedCLI);
   const manifest = JSON.parse(await readFile(path.join(root, 'install-manifest.json')));
   assert.equal(manifest.source, 'https://github.com/nikoatwork/jumpyBrain.git'); assert.equal(manifest.ref, mode === 'app-only' ? 'v0.3.3' : 'master');
-  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true });
+  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
   success = true; console.log('Installed GUI update: PASS', JSON.stringify(report));
 } finally {
   server?.close();
