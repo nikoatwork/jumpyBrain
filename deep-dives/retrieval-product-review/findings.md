@@ -7,8 +7,8 @@ Reviewed 2026-10-10 against commit `7580f13`. This remains a research snapshot; 
 1. [Reliable, incremental semantic indexing](../../tasks/done/2026-10-10_tasks-semantic-index-reliability.md)
 2. [Budgeted recall and precise evidence expansion](../../tasks/done/2026-10-11_tasks-budgeted-recall-and-expansion.md)
 3. [Explicit temporal retrieval and evidence integrity](../../tasks/done/2026-10-11_tasks-temporal-retrieval-correctness.md)
-4. [Bounded, responsive retrieval execution](../../tasks/todo/tasks-bounded-retrieval-execution.md)
-5. [Evidence-gated contextual indexing](../../tasks/todo/tasks-contextual-indexing-evaluation.md)
+4. [Bounded, responsive retrieval execution](../../tasks/done/2026-10-11_tasks-bounded-retrieval-execution.md)
+5. [Evidence-gated contextual indexing](../../tasks/done/2026-10-24_tasks-contextual-indexing-evaluation.md)
 
 Default execution order is 1 → 2 → 3 → 4 → 5. Tickets 2 and the processing repairs in 3 can start independently; coordinate the shared QMD execution seam between 1 and 4. Ticket 5 is deliberately evidence-gated and may conclude with no production change. Deployment/companion fixes are not bundled into these retrieval tickets.
 

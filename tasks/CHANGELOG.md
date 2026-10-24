@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Contextual indexing evaluation
+
+- Retained existing indexing after [contextual enrichment showed no adoption evidence](done/2026-10-24_tasks-contextual-indexing-evaluation.md); independent review preserves alias/ancestor excerpt gaps.
+
 ## 2026-10-24 — Completed task reconciliation
 
 - Archived the completed [original sidebar updater](done/2026-10-24_tasks-sidebar-updates.md) and removed the stale active [browser design-system](done/2026-10-22_tasks-browser-design-system.md) duplicate, preserving verification and successor history.
