@@ -4,6 +4,17 @@ import http from 'node:http';
 import { lstat, readdir, realpath, readFile, mkdir, writeFile, rename } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
+export const desktopRepairInstructions = 'Desktop setup needs repair. Ask your agent: “Add the jumpyBrain Mac app to my existing brain using docs/install-for-agents.md.” With the default CLI installation, run cd "$HOME/.jumpybrain/app" then npm run desktop:setup. If it is absent, follow https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install.md for public source setup. Reopen jumpyBrain when setup finishes.';
+
+// Raw host/filesystem errors can contain private paths. Keep them in main-process
+// startup state; show only actionable, known reasons on user-facing surfaces.
+export function desktopStartupMessage(error) {
+  if (error?.code === 'ERR_DESKTOP_UPDATE_SOCKET_PATH') return error.message;
+  const reason = /^Another jumpyBrain service|^The local port belongs/u.test(error?.message || '')
+    ? error.message : 'The local brain service could not start.';
+  return reason + ' ' + desktopRepairInstructions;
+}
+
 export async function inspectBrainFolder(folder) {
   if (typeof folder !== 'string' || !path.isAbsolute(folder)) throw new Error('Choose a local folder.');
   const root = await realpath(folder);

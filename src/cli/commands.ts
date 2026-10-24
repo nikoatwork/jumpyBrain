@@ -9,7 +9,7 @@ import { migrateCli } from "./migrate.js";
 import { runRecipe } from "./recipes.js";
 import { enforceRemoteAccessPolicy } from "./remote-access-policy.js";
 import { serveCli } from "./serve.js";
-import { requireLocalRoot } from "./targets.js";
+import { memoryRootInspectionMessage, requireLocalRoot } from "./targets.js";
 import { updateCli } from "./update.js";
 import { usage } from "./usage.js";
 
@@ -17,6 +17,16 @@ const localMemory = createLocalMemoryTransport();
 
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
+  try { await dispatchCli(args); }
+  catch (error) {
+    const root = typeof args.root === "string" && !args["target-url"] && !args["remote-url"] ? args.root.trim() : undefined;
+    const message = root ? memoryRootInspectionMessage(error, root) : undefined;
+    if (message) throw new Error(message);
+    throw error;
+  }
+}
+
+async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   const command = args._[0];
 
   if (command === "extensions") {
@@ -57,6 +67,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     const result = await doctorReport(args, localMemory);
     if (args.json) console.log(JSON.stringify(result, null, 2));
     else console.log(formatDoctorReport(result));
+    if (args.check && !result.ok) process.exitCode = 1;
     return;
   }
 

@@ -4,7 +4,7 @@ export function usage(): string {
     "  jumpybrain --version",
     "  jumpybrain instructions",
     "  jumpybrain extensions --help",
-    "  jumpybrain doctor [--root <memory-root>] [--json]",
+    "  jumpybrain doctor [--root <memory-root>] [--json] [--check]",
     "  jumpybrain update [--dry-run] [--install-root <path>]",
     "  jumpybrain serve --root <memory-root> --host 127.0.0.1 --port 3787",
     "  jumpybrain run memory:remember --type finding --title \"...\"",

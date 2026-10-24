@@ -7,6 +7,7 @@ export interface ParsedCliArgs {
 }
 
 export function parseArgs(argv: string[]): ParsedCliArgs {
+  if (argv[0] === "doctor") return parseDoctorArgs(argv);
   if (argv[0] === "extensions") return parseExtensionsArgs(argv);
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
@@ -47,6 +48,26 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     throw new Error("--apply must not be repeated.");
   }
   return args._[0] === "migrate" ? parseMigrationArgs(argv) : args;
+}
+
+function parseDoctorArgs(argv: string[]): ParsedCliArgs {
+  const args: ParsedCliArgs = { _: ["doctor"] };
+  for (let index = 1; index < argv.length; index++) {
+    const token = argv[index]!;
+    if (!token.startsWith("--")) throw new Error(`Unexpected doctor argument: ${token}. Boolean flags take no value.`);
+    const equal = token.indexOf("="), key = token.slice(2, equal < 0 ? undefined : equal);
+    if (!["root", "json", "check"].includes(key)) throw new Error(`Unknown doctor flag --${key}.`);
+    if (Object.hasOwn(args, key)) throw new Error(`--${key} must not be repeated.`);
+    if (key !== "root") {
+      if (equal >= 0) throw new Error(`--${key} is a boolean flag and takes no value.`);
+      args[key] = true;
+    } else {
+      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+      if (!value || value.startsWith("--") || !value.trim()) throw new Error("--root requires a non-empty value.");
+      args.root = value;
+    }
+  }
+  return args;
 }
 
 function parseRememberArgs(argv: string[]): ParsedCliArgs {

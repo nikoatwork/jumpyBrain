@@ -14,6 +14,16 @@ The installer renders `skills/jumpybrain-memory/SKILL.md` into the Codex/Claude 
 
 Rendered skills keep human-readable paths separate from shell-quoted executable/root arguments. Pi's configured defaults are JavaScript string literals passed to `spawn`, so the installer escapes those as JavaScript rather than shell syntax. Installer commands and the managed CLI launcher likewise preserve literal paths.
 
+### Personal saves and shared destinations
+
+“Remember that the community event is on 18 November” authorizes saving that fact to the configured personal local brain without another permission question. A machine-wide (`--scope global`) installation describes where software/integrations are installed; it does not make personal local notes shared memory. Keep the year unspecified when the user did not supply one.
+
+For a day/month-only event, answer with the day/month and “year unspecified.” Do not estimate a likely year from the current date, filename, `created_at`, `updated_at`, or a “stated on”/writing date. Even a qualified guess adds unsupported event information. Give a year only when the source states it or explicitly links that event to a complete date. Do not append today's “stated on” date to a captured fact unless the user/source supplied it; frontmatter already records writing time.
+
+Setup/check requests authorize no sample note. Ordinary conversation, recall, or useful session findings do not authorize spontaneous capture or a wrapup. Authorization to remember one fact does not authorize an extra session summary.
+
+Shared/global/team/remote destinations require explicit destination authorization, even when hosted on this machine. A generic “remember this” request does not authorize a shared write. Apply authorization already supplied; when only a shared destination is configured and permission is missing, ask which destination is intended before writing. Pi's local tools use the configured local root; its separate `jumpybrain_global_*` tools target remote team memory and require that explicit authorization. These are agent guidance rules, not a storage ACL; actual device/server write policies still apply.
+
 ## Agent MD hint
 
 If you do not use the installer skills/extensions, put a short hint like this in `AGENTS.md`, `CLAUDE.md`, Codex instructions, Cloth instructions, or another agent-readable project file:
@@ -27,7 +37,7 @@ jumpybrain run memory:recall --topic "<current task/topic>" --limit 5 --compact
 
 Answer from sufficient snippets with source citations. Compact is byte-bounded, not always smaller than text. If evidence is incomplete, narrow the query on the same target, then use available compact expansion.id/expansion.expectedContentHash for guarded expansion. Text citations alone are not expansion handles; local file tools may read cited ranges after resolving the source root. Read a whole file only when broader context is needed.
 
-Use explicit, bounded recall only. Remember writes memory; recall reads memory. Do not silently inject memory, and do not memorize secrets, credentials, raw chat noise, or vague status updates. At session end, consider a strict wrapup via `jumpybrain run memory:wrapup` if durable findings, decisions, conflicts, or open questions were created.
+Use explicit, bounded recall only. Remember writes memory; recall reads memory. An explicit remember request authorizes the configured personal local save, including a machine-wide personal installation. Setup alone authorizes no sample write. Shared/global/team/remote writes require explicit destination authorization. Do not silently inject memory or capture spontaneously, and do not memorize secrets, credentials, raw chat noise, or vague status updates. Write a session wrapup via `jumpybrain run memory:wrapup` only when the user has authorized it for that destination.
 ```
 
 The CLI can print a copyable version:
@@ -43,6 +53,12 @@ jumpybrain instructions
 - Pi global extensions in `~/.pi/agent/extensions/` can be reloaded with `/reload` when supported; otherwise restart Pi.
 - If the agent cannot find `jumpybrain`, use the absolute CLI path printed by the installer or add `~/.jumpybrain/bin` to `PATH`.
 - If recall fails because QMD is missing, install QMD or set `JUMPYBRAIN_QMD_BIN=/path/to/qmd`.
+
+File generation, host discovery, and model activation are separate checks. `doctor` reports integration-file presence, not proof that Claude/Codex loaded a skill or selected it for a request. Inspect JSON `ok` and individual findings; exit 0 alone does not prove a healthy setup. For a project installation, check the skill paths in that project; a global-file diagnostic does not establish project discovery.
+
+For a first-time Claude Code user, start at the public [project README](https://github.com/nikoatwork/jumpyBrain#start-your-own-brain) and its copyable [installation request](install-for-agents.md). After verified setup, restart/reload the host, open the configured project when using project scope, and ask “Remember that the community event is on 18 November.” In a fresh session ask “When is the community event?” A successful answer cites the saved note and preserves that no year was specified. This is a user-authorized first fact, not an installer-created sample.
+
+If the skill is not selected, explicitly ask “Use the jumpybrain-memory skill to check my jumpyBrain installation,” then inspect its configured CLI/root and run bounded recall there. Do not reinstall or repeat a saved write merely because activation failed. Record separately whether the host discovered the skill, whether it used it, and whether a fresh-session answer came from retrieved evidence. Authentication failures block the real model test; a CLI-only remember/recall test cannot establish Claude activation.
 
 ## Memory overview before exploration
 
@@ -153,7 +169,7 @@ For hosted/shared memory, use the same workflow with `--target-url`/`--remote-ur
 
 ## Remote shared memory workflow
 
-For a hosted/shared memory server, agents still use the CLI and visible recall. Set the API key outside committed config:
+For a hosted/shared memory server, agents still use the CLI and visible recall. Writes below require explicit authorization for this shared destination. Set the API key outside committed config:
 
 ```bash
 export JUMPYBRAIN_API_KEY="<remote-api-key>"
@@ -251,7 +267,7 @@ For hosted/shared deployments, scheduled processing should run inside the server
 
 ## End-of-session wrapup
 
-At the end of a session, the active agent should draft memory from the visible current context only. Capture durable learnings only:
+When the user has authorized an end-of-session wrapup to the selected destination, the active agent should draft memory from the visible current context only. Useful findings alone do not authorize capture, and remembering one fact does not authorize an additional session summary. Capture durable learnings only:
 
 1. findings
 2. decisions
@@ -286,7 +302,7 @@ MD
 
 ### Copyable wrapup prompt
 
-Use this prompt near the end of a coding-agent session:
+Use this prompt near the end of a coding-agent session. Submitting it authorizes the described wrapup to the selected personal local root; a shared/global/team/remote destination needs explicit authorization for that destination:
 
 ```text
 Review only the visible current session. Do not memorize secrets, credentials, tokens, raw chat noise, or vague status updates. First run:

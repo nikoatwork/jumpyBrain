@@ -661,7 +661,9 @@ test("public uninstaller validates every recorded removal path before mutation",
     const state = await fixture();
     try {
       const result = runNode(uninstallScript, ["--install-root", state.installRoot, "--home", state.home, "--dry-run"], { env: { HOME: state.home } });
-      assert.match(result.stdout, /jumpyBrain uninstall complete/);
+      assert.match(result.stdout, /jumpyBrain uninstall dry run complete\. No changes made/);
+      assert.match(result.stdout, /Would remove:/);
+      assert.doesNotMatch(result.stdout, /jumpyBrain uninstall complete|^Removed:/m);
       assert.equal(existsSync(path.join(state.installRoot, "app")), true);
       assert.equal(existsSync(path.join(state.installRoot, "memory", "jumpybrain.json")), true);
       assert.equal(existsSync(state.manifestPath), true);

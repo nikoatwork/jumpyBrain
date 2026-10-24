@@ -3,7 +3,12 @@ import net from 'node:net';
 import path from 'node:path';
 import { mkdir, lstat, chmod, unlink, realpath } from 'node:fs/promises';
 import { regular } from './update-policy.mjs';
-const socketPath = home => path.join(home, '.jumpybrain/u.sock');
+function socketPath(home) {
+  const value = path.join(home, '.jumpybrain/u.sock');
+  const maximum = process.platform === 'darwin' ? 103 : 107;
+  if (Buffer.byteLength(value) > maximum) throw Object.assign(new Error('The CLI update connection cannot start because its home-folder path is too long. Use a shorter supported installation/home location, then reopen jumpyBrain. Your notes have not been changed.'), { code: 'ERR_DESKTOP_UPDATE_SOCKET_PATH' });
+  return value;
+}
 async function socketInfo(home) {
   const root = path.join(home, '.jumpybrain');
   await regular(root, { directory: true });
@@ -14,6 +19,7 @@ async function socketInfo(home) {
 }
 export async function requestDesktopUpdate(home, action) {
   if (!['status', 'update'].includes(action)) throw new Error('Unsupported desktop update request.');
+  socketPath(home); // Reject overlong paths before inspection or connection.
   try { await socketInfo(home); }
   catch (error) { if (error.code === 'ENOENT') return null; throw error; }
   return new Promise((resolve, reject) => {
@@ -37,6 +43,7 @@ export async function requestDesktopUpdate(home, action) {
   });
 }
 export async function serveDesktopUpdates(home, updater) {
+  socketPath(home); // Reject before creating installation directories or binding.
   await mkdir(path.join(home, '.jumpybrain'), { recursive: true });
   const previous = await socketInfo(home).catch(error => { if (error.code === 'ENOENT') return null; throw error; });
   if (previous) {

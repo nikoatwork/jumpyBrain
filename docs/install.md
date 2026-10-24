@@ -62,7 +62,7 @@ export PATH="$HOME/.jumpybrain/bin:$PATH"
 Then verify:
 
 ```bash
-~/.jumpybrain/bin/jumpybrain doctor
+~/.jumpybrain/bin/jumpybrain doctor --check
 ~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "what should I remember?" --limit 5
 ```
 
@@ -73,6 +73,8 @@ The installer's completion summary includes that restart reminder and natural-la
 ### macOS desktop app (beta)
 
 Requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Check with `node --version`, `npm --version`, `git --version`, `python3 --version`, and `xcrun --find swiftc`. If Xcode command-line tools are missing, run `xcode-select --install` and finish Apple's installer first.
+
+From your existing installation or source checkout, `npm run desktop:setup -- --check` checks these requirements together without installing or changing settings. Setup also runs this preflight before making changes, reports missing tools together, and checks the minimum Python and macOS versions.
 
 **Already installed the CLI with the default installer?** Reuse its source directory. Quit any running jumpyBrain app, then:
 
@@ -203,6 +205,8 @@ For intentional CLI-only version changes, pass `--ref <ref>` or set `JUMPYBRAIN_
 The unified Mac app has its own bundled runtime and can remain installed when removing the CLI. To remove it, disable **Start at Login**, quit, and move `~/Applications/jumpyBrain.app` to Trash. Its connections/support directory, Keychain items, and Markdown remain. An older standalone companion still depends on the managed CLI runtime and must be [removed first](../integrations/macos-companion/README.md#remove).
 
 Uninstall requires a valid, supported `install-manifest.json` whose recorded install root and owned paths match the selected root. It fails closed before deleting anything when that ownership proof is missing, malformed, unsupported, or inconsistent. A valid uninstall removes only the recorded app, shim, CLI policy config, manifest, and integration files. It preserves Markdown memory by default.
+
+An uninstall dry run labels removals and optional memory deletion as planned, reports that no changes were made, and leaves the installation and notes in place.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/uninstall.sh | bash

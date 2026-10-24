@@ -18,6 +18,8 @@ npm run desktop:setup
 open "$HOME/Applications/jumpyBrain.app"
 ```
 
+To check requirements before installing, run `npm run desktop:setup -- --check` from that source directory. It reports missing tools together and changes no installation or settings.
+
 In onboarding choose the existing `~/.jumpybrain/memory` folder, or the actual memory root from your CLI setup. Press **⌘⇧G** in the folder chooser to enter the path. No second clone is needed. See the [installation guide](../../docs/install.md#macos-desktop-app-beta) for prerequisite checks and custom-install limitations.
 
 **No existing CLI install?** Clone once:

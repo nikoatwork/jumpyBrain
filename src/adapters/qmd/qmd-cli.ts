@@ -20,14 +20,14 @@ export function resolveQmdSdk(): string {
   const bin = resolveQmdBinary();
   const candidate = path.isAbsolute(bin) || bin.includes(path.sep) ? bin
     : (process.env.PATH ?? "").split(path.delimiter).map(dir => path.join(dir, bin)).find(file => existsSync(file));
-  if (!candidate || !existsSync(candidate)) throw new Error("qmd CLI is required. Install with `npm install -g @tobilu/qmd@2.8.3` or set JUMPYBRAIN_QMD_BIN.");
+  if (!candidate || !existsSync(candidate)) throw new Error(qmdSetupMessage("qmd CLI is required."));
   let dir = path.dirname(realpathSync(candidate));
   while (true) {
     const pkg = path.join(dir, "package.json");
     if (existsSync(pkg)) {
       const info = JSON.parse(readFileSync(pkg, "utf8"));
       if (info.name === "@tobilu/qmd") {
-        if (info.version !== SUPPORTED_QMD_VERSION) throw new Error("Unsupported QMD version; install @tobilu/qmd@2.8.3 before indexing or searching.");
+        if (info.version !== SUPPORTED_QMD_VERSION) throw new Error(qmdSetupMessage("Unsupported QMD version; @tobilu/qmd@2.8.3 is required before indexing or searching."));
         return path.join(dir, "dist", "index.js");
       }
     }
@@ -35,7 +35,12 @@ export function resolveQmdSdk(): string {
     if (parent === dir) break;
     dir = parent;
   }
-  throw new Error("QMD indexing requires the @tobilu/qmd@2.8.3 package (CLI and SDK together); check JUMPYBRAIN_QMD_BIN.");
+  throw new Error(qmdSetupMessage("QMD indexing requires the @tobilu/qmd@2.8.3 package (CLI and SDK together)."));
+}
+
+function qmdSetupMessage(reason: string): string {
+  const override = process.env.JUMPYBRAIN_QMD_BIN?.trim();
+  return `${reason} ${override ? `Selected JUMPYBRAIN_QMD_BIN=${JSON.stringify(override)}. Correct this override or run \`unset JUMPYBRAIN_QMD_BIN\` to use normal resolution, then retry. ` : ""}If still unavailable, install with \`npm install -g @tobilu/qmd@2.8.3\` or set JUMPYBRAIN_QMD_BIN to its CLI.`;
 }
 
 export async function runQmd(root: string, args: string[], model?: string): Promise<{ stdout: string; stderr: string }> {

@@ -123,6 +123,7 @@ function registerMemoryToolset(pi: ExtensionAPI, options: ToolsetOptions) {
     promptGuidelines: [
       `Use ${options.prefix}_recall when ${options.promptTarget} would materially improve the answer.`,
       "Keep recall explicit and bounded; do not silently inject memory.",
+      "When an event has a day/month but no year, report the year as unspecified. Do not estimate a likely year from current date, note filename, created_at, updated_at or stated-on/writing date. Give a year only when the source supports that event year; a caveat does not support a guess.",
     ],
     parameters: Type.Object({
       topic: Type.String({ description: "Current task/topic to recall memory for." }),
@@ -158,8 +159,9 @@ function registerMemoryToolset(pi: ExtensionAPI, options: ToolsetOptions) {
     promptGuidelines: [
       options.target === "global"
         ? `Use ${options.prefix}_remember only when the user explicitly commands a global/team/remote memory write. Do not treat ordinary approval to remember as approval to write global memory.`
-        : `Use ${options.prefix}_remember only when the user explicitly asks to remember/store something durable in ${options.promptTarget} or clearly approves writing there.`,
+        : `An explicit remember request authorizes that fact's save to the configured personal local brain without repeating consent. Setup/check alone authorizes no sample write. A machine-wide install is not a shared destination. Shared/global/team/remote destinations, even on this machine, still require explicit destination authorization. Use ${options.prefix}_remember only for authorized durable capture in ${options.promptTarget}.`,
       "Never store secrets, credentials, tokens, raw chat noise, or vague transient status in jumpyBrain memory.",
+      "Preserve an unspecified event year. Do not append a current stated-on date unless the user/source supplied it; frontmatter records writing time separately.",
     ],
     parameters: Type.Object({
       type: writeTypeSchema,
@@ -180,11 +182,11 @@ function registerMemoryToolset(pi: ExtensionAPI, options: ToolsetOptions) {
     description: `Write an end-of-session wrapup to ${options.descriptionTarget}.`,
     promptSnippet: options.target === "global"
       ? `Write a strict durable wrapup to ${options.promptTarget} only when the user explicitly commands a global/team/remote memory write.`
-      : `At session end, write a strict durable wrapup to ${options.promptTarget} after recall, if useful and approved.`,
+      : `Only when the user has authorized a session wrapup to ${options.promptTarget}, recall related evidence and write the strict durable wrapup.`,
     promptGuidelines: [
       options.target === "global"
         ? `Use ${options.prefix}_wrapup only on explicit user command to commit global/team/remote memory; do not auto-write global wrapups at session end.`
-        : `Use ${options.prefix}_wrapup at session end only for durable findings, decisions, conflicts/corrections, and open questions that belong in ${options.promptTarget}.`,
+        : `Use ${options.prefix}_wrapup only with session-wrapup authorization for this destination. Useful findings or remembering one fact do not authorize an additional session summary. Shared destinations still require explicit destination authorization.`,
       "The body must include strict Markdown sections: ## Findings, ## Decisions, ## Conflicts / Corrections, ## Open Questions.",
     ],
     parameters: Type.Object({

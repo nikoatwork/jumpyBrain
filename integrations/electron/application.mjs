@@ -8,7 +8,7 @@ import { loginEnabled, setLoginEnabled } from './login.mjs';
 import { createEditorWindow, setApplicationMenu } from './window.mjs';
 import { startElectronDiagnostics } from './diagnostics.mjs';
 import { createOnboardingWindow } from './onboarding.mjs';
-import { setupComplete, finishSetup } from './setup.mjs';
+import { setupComplete, finishSetup, desktopStartupMessage } from './setup.mjs';
 import { createDesktopUpdater } from './updater.mjs';
 import { createUpdateWindow } from './update-window.mjs';
 import { serveDesktopUpdates } from './update-control.mjs';
@@ -90,7 +90,7 @@ async function openEditor(settings = false) {
   } catch (error) {
     status = 'Local service unavailable';
     diagnostics?.record({ operation: 'startup', severity: 'error', outcome: 'failed', code: 'bootstrap_failed' });
-    if (!quitting) await notify({ source: 'desktop-startup', text: 'Could not open jumpyBrain. Check the local service and installed app. Run npm run desktop:setup from your checkout to repair the installation. ' + (window ? '' : error.message) });
+    if (!quitting) await notify({ source: 'desktop-startup', text: desktopStartupMessage(error) });
   } finally { opening = false; void refreshTray(); }
 }
 
@@ -113,9 +113,10 @@ async function refreshTray() {
   ]));
 }
 const showError = async (error) => {
-  await updater.reportRestartFailure(error.message);
+  const detail = error === startupError ? desktopStartupMessage(error) : error.message;
+  await updater.reportRestartFailure(detail);
   if ((await updater.snapshot()).phase === 'ready' && window && !window.isDestroyed()) return;
-  return notify({ source: 'desktop-operation', severity: 'warning', text: 'jumpyBrain is still running. ' + error.message });
+  return notify({ source: 'desktop-operation', severity: 'warning', text: 'jumpyBrain is still running. ' + detail });
 };
 
 const quit = createQuitFlow({
@@ -173,7 +174,13 @@ else {
     if (background) {
       try { await ensureHost(); } catch { status = 'Local service unavailable'; await refreshTray(); }
     } else await openEditor();
-  }).catch(() => { app.quit(); });
+  }).catch(async error => {
+    startupError = error;
+    status = 'Startup needs attention';
+    const text = desktopStartupMessage(error);
+    await notify({ source: 'desktop-startup', text }).catch(() => { console.error(text); });
+    app.quit();
+  });
 }
 
 return { openEditor, openUpdates, updater, quit: () => app.quit(), getHost: () => host, getTray: () => tray, getStartupError: () => startupError };

@@ -47,9 +47,9 @@ async function main(argv = process.argv.slice(2)) {
 
   if (await removePath(manifestPath, { dryRun: options.dryRun })) removed.push(manifestPath);
 
-  console.log("jumpyBrain uninstall complete.");
+  console.log(options.dryRun ? "jumpyBrain uninstall dry run complete. No changes made." : "jumpyBrain uninstall complete.");
   if (removed.length > 0) {
-    console.log("Removed:");
+    console.log(options.dryRun ? "Would remove:" : "Removed:");
     for (const item of removed) console.log(`- ${item}`);
   }
   if (missing.length > 0) {
@@ -62,7 +62,7 @@ async function main(argv = process.argv.slice(2)) {
     console.log("Pass --delete-memory to remove configured jumpyBrain memory roots too.");
   }
   if (deletedMemory.length > 0) {
-    console.log("Memory deleted:");
+    console.log(options.dryRun ? "Would delete memory:" : "Memory deleted:");
     for (const item of deletedMemory) console.log(`- ${item}`);
   }
 }

@@ -1,0 +1,76 @@
+{
+  "baseCommit": "695bae9ef15f9bc7bd2408ee14651a37f27d0639",
+  "scope": "Merged working source; per-check timing and limits in followup-results.md",
+  "distTreeSha256": "73beae6a09d1462bcabb29c470fd76aa32678a815c2b90eea1c2bd81c8515200",
+  "distHashMethod": "sorted relative dist paths + NUL + file bytes + NUL",
+  "codeFilesSha256": {
+    "integrations/electron/application.mjs": "74c8822dde9f5f9dd91d843ed8e38f8f2ebb43708c4e4bb723c1b521a04125d7",
+    "integrations/electron/onboarding.mjs": "c972246c222081432603756e45f8f51b9db142844499ceb7cc13a61e53043749",
+    "integrations/electron/setup.mjs": "293b0c292c219e7bcc347741133ba138db0844c165928935adbcc9de726b0df9",
+    "integrations/electron/smoke-onboarding.mjs": "74d96f171676227b1f7e650487e2e0212b939be35138b59114eedf5d32531733",
+    "integrations/electron/update-control.mjs": "b6c572c2337ed71120889ef75c2dd1de2754fc1cf4a1b50849a171daa2803307",
+    "integrations/pi/jumpybrain-memory.ts": "05820446babec7b583e6800c77f7dfc08a7034be5c6e5c8835bbcb4ac1f2c93e",
+    "scripts/claude-onboarding-smoke.mjs": "84774cc8cf43b3eeeaa68adefb1586e33b1a91c36a4dbc7aaaaac112e12b1b63",
+    "scripts/desktop-onboarding-smoke.mjs": "d62f9629e253c463a61eaeb48d8bbc180d8ddee8ffb634ca29128e0ae992f258",
+    "scripts/desktop-prerequisites.mjs": "ca81a2326959dc7fc68bf414a713d20cabb0495566549dc49b691bab606d06f9",
+    "scripts/onboarding-install-smoke.mjs": "b95dc054d7272945e99b7b12fa00340ec70b18652a7ee33d3fee215361f42be3",
+    "scripts/public-uninstall.mjs": "77786a04088d8e9deb8e9436dbc843eb6f2c162187e6b3fc86bd174c0304c07b",
+    "scripts/setup-desktop.mjs": "f2ff74bbadaf42bbb759acea7bba45c1170b4b00247bd552b66e3b7a5fe0fec0",
+    "src/adapters/qmd/qmd-cli.ts": "1814925697d485d62ace94949ed70294bbd687e66d5dab640ab6163b875dab3c",
+    "src/cli/args.ts": "5835efa2568ca8d2e199d714451da226dc63ad1a04d17b6ea538358c0e4d6b32",
+    "src/cli/commands.ts": "31bb08e416ae05f659d231ab579c06ae88af8aa24711899cd7b3c42fa08be76d",
+    "src/cli/doctor.ts": "b885c9640081633fe011107b33248bd4804d0db12da943fb40e9201f0816cca0",
+    "src/cli/instructions.ts": "32bb90d05f3b1846c22a07ee9f0157d3eba06d630875f9f98eb6478883cf299d",
+    "src/cli/targets.ts": "95736567f2a5299ef0ede20059d7a3da359d1751cf351c70a6fe7e28dc109c37",
+    "src/cli/usage.ts": "61f7e16d7e8dc9e7d89f8ea12cfa8952982cb5cdf8361d5ea1e58db4740372e4",
+    "test/cli-doctor-followup.test.js": "c8f450068563374d31e3a60e20c2f10c894cb0570edd5a2a3da21170bc048905",
+    "test/desktop-prerequisites.test.js": "e494bd6f51f066ae2e2eaf4784af767c8c0b5fab1b1091a3102eefffbf020615",
+    "test/desktop-startup-recovery.test.js": "be479e5cd9bbde4a1b7f7e4cc96e3e5203358a6d9ab640501d6eaec0aa6e2d88",
+    "test/install-scripts.test.js": "ccc5f332091c541a4c2d20e65ae012aeea24f20d02b1a3c0489993208ebc28fb",
+    "test/onboarding-guidance.test.js": "beda4f32726b9d901d9f506253608324cf10e7f8effb4318774487a8377d1c8a"
+  },
+  "claudeRetest": {
+    "checks": {
+      "threeIndependentInvocations": true,
+      "realModelCompletedAll": true,
+      "projectSkillDiscoveredAll": true,
+      "actualSkillActivatedAll": true,
+      "noSampleCapture": true,
+      "exactlyOneCapturedMemory": true,
+      "canonicalUnchangedByRecall": true,
+      "citedRetrievedSource": true,
+      "correctEventDayMonth": true,
+      "explicitUnknownYear": true,
+      "noSpeculativeEventYear": true,
+      "finalAnswer": "The community event is on **18 November**. Your memory doesn't give a year.\n\nSource: `notes/2026-10-24-community-event-date.md`, lines 12\u201314 of your personal local memory. The note was written on 2026-10-24, but that's only when it was saved, not the event year."
+    },
+    "provenance": {
+      "node": "v26.7.0",
+      "platform": "darwin/arm64",
+      "distCliSha256": "c7f140475299559b647d454c5bbf47381315267a1f3d5a999149b92cd167c797",
+      "skillTemplateSha256": "155a5e219f33a9c124d637b4148aa892106c0191ce28caa680d3b1dfcacce8f8",
+      "sourceMethod": "Allowlisted copy of current local source; --skip-build reuses supplied fresh dist; no shared build",
+      "defaultAccountOnly": true,
+      "permissionBypass": false,
+      "generatedSkillSha256": "d26d77c5f95671f3b51c941cbb83ec497458251a9df9625c4ceed2f2678c7ca1"
+    }
+  },
+  "validation": {
+    "fullSuite": {
+      "tests": 1368,
+      "passed": 1367,
+      "skipped": 1,
+      "failed": 0
+    },
+    "finalTemporalFocused": {
+      "passed": 24,
+      "failed": 0
+    },
+    "node22Bounded": {
+      "passed": 28,
+      "failed": 0
+    },
+    "linux": "blocked: Docker daemon unavailable",
+    "native": "actual chooser on unchanged earlier candidate; final merged packaged helper/lifecycle/failure checks passed"
+  }
+}

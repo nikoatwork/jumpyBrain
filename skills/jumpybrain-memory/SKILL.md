@@ -1,6 +1,6 @@
 ---
 name: jumpybrain-memory
-description: Use jumpyBrain local Markdown memory through the CLI. Trigger when a task may depend on prior decisions, project conventions, past bugs, handoffs, preferences, or when the user asks to remember or recall durable context. Also use when helping install jumpyBrain or add its Mac app to an existing CLI installation.
+description: Use jumpyBrain local Markdown memory through the CLI. Trigger when a task may depend on prior decisions, project conventions, past bugs, handoffs, preferences, or when the user asks to remember or recall durable context, including previously saved personal facts without naming jumpyBrain. Also use when helping install jumpyBrain or add its Mac app to an existing CLI installation.
 ---
 
 # jumpyBrain Memory
@@ -24,6 +24,8 @@ For installation, adding the Mac app, or setup troubleshooting, follow the [agen
 - Do not promise that data can leave only through a memory server: recalled excerpts enter the agent's context and may reach its cloud provider. Explicit remote connections, feedback submissions, and user-chosen file sync are separate sharing paths; installation/updates download software. See the [FAQ](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/faq.md).
 
 ## Recall before acting
+
+When answering from memory, preserve missing date information. If an event has a day and month but no year, answer with that day/month and say the year was not specified. Do not estimate a “likely” year from today's date, a note filename, `created_at`, `updated_at`, or a “stated on”/writing date. Give an event year only when source evidence states it or explicitly links the event to a complete date. A caveat does not make an unsupported year estimate part of the evidence.
 
 When project memory could materially help, run visible bounded recall before planning or editing:
 
@@ -73,7 +75,13 @@ When authoring authorized memory, use real Markdown headings, separate paragraph
 
 ## Remember durable context
 
-Only write local/project memory when the user explicitly asks or clearly approves. Only write global/team/remote memory when the user explicitly asks for global/team/remote memory to be updated. Do not memorize secrets, credentials, tokens, raw chat noise, or vague transient status.
+An explicit request such as “Remember that the community event is on 18 November” authorizes saving that fact to the configured personal local memory root, without asking for the same permission again. A machine-wide (`--scope global`) installation can still use a personal local brain; installation scope is not a shared-memory destination.
+
+For a day/month-only fact, preserve the unspecified year. Do not append a current “stated on” date to the body unless the user/source supplied it; frontmatter already records writing time. Recording time is not the event year.
+
+Only write local/project memory when the user explicitly asks or clearly approves. Setup or an installation check alone authorizes no sample memory. Do not capture spontaneously or treat ordinary conversation, recall, or useful session findings as permission to write.
+
+Shared/global/team/remote destinations require explicit destination authorization, even if physically stored on this machine. An ordinary “remember this” request does not authorize a shared write. Continue within authorization already given; if the configured destination is shared and authorization is missing, ask which destination the user intends before writing. Do not memorize secrets, credentials, tokens, raw chat noise, or vague transient status.
 
 ```bash
 printf '%s\n' "<durable finding, decision, or preference>" \
@@ -90,7 +98,7 @@ When asked to connect notes or refresh topical synthesis, use the optional [how-
 
 ## End-of-session wrapup
 
-If durable findings, decisions, conflicts/corrections, or open questions were created, first recall likely duplicates/conflicts, then write strict Markdown sections:
+Only when the user has authorized a session wrapup to this destination, recall likely duplicates/conflicts, then write durable findings, decisions, conflicts/corrections, and open questions as strict Markdown sections. Useful findings alone do not authorize a wrapup. Authorization to remember one fact does not authorize an additional session summary.
 
 ```bash
 __JUMPYBRAIN_CLI_COMMAND__ recall --root __JUMPYBRAIN_ROOT_ARGUMENT__ --topic "<session topic>" --limit 5

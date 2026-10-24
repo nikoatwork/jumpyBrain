@@ -1,7 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inspectBrainFolder, activateLocalBrain, companionControl } from './setup.mjs';
+import { inspectBrainFolder, activateLocalBrain, companionControl, desktopRepairInstructions } from './setup.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const page = new URL('./onboarding.html', import.meta.url).href;
@@ -19,7 +19,7 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
   const success = () => { settled = true; resolve(true); };
   const handlers = {
     status: async () => {
-      if (!connection) return { error: setupError || 'Desktop setup needs repair. Ask your agent: “Add the jumpyBrain Mac app to my existing brain using docs/install-for-agents.md.” With the default CLI installation, run cd "$HOME/.jumpybrain/app" then npm run desktop:setup. If it is absent, follow https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install.md for public source setup. Reopen jumpyBrain when setup finishes.' };
+      if (!connection) return { error: setupError || desktopRepairInstructions };
       try {
         const state = await control(connection);
         return { active: state.profiles.find((profile) => profile.id === state.activeId) || null };

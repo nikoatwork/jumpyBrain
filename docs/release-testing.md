@@ -41,6 +41,10 @@ Inspect the changed screens in light/dark mode, at a narrow width, and by keyboa
 
 ## Extra checks when the area changes
 
+For first-use onboarding, run `JUMPYBRAIN_QMD_BIN=/absolute/path/qmd node scripts/onboarding-install-smoke.mjs` against built source. It downloads the candidate bootstrap/helpers over real loopback HTTP and exercises isolated source installation, first save/recall/expansion, managed update, deletion preview and note-preserving uninstall. It reuses provisioned tools/QMD and is not a clean-machine or live GitHub install test.
+
+After a fresh `desktop:pack`, `node scripts/desktop-onboarding-smoke.mjs .local-pack/desktop/jumpyBrain.app/Contents/Resources` exercises packaged modules with a real isolated native helper: existing/new brains, app/CLI roundtrip, relaunch, missing-helper restoration, startup recovery and overlong socket failure. Its normal mode injects picker results. The optional third argument `physical` uses an isolated QA app and waits for native input; record actual chooser actions separately. Use only fictional fixture paths and preserve the user's installed app. Authenticated Claude discovery/activation and fresh-conversation recall require separate real-model evidence; generated commands alone cannot establish them.
+
 | Changed area | Run / verify |
 | --- | --- |
 | Updater, installer, lifecycle or package contents | `node scripts/desktop-update-smoke.mjs <mode>` for **each** of `app-only`, `relaunch-failure`, `helper-crash`, `app-crash`. Verify pinned CLI preservation, rollback/recovery, no false success, and retained next-update helpers. For incoming installer compatibility with v0.3.7, also run `node scripts/desktop-update-smoke.mjs success --client-v0.3.7`; this uses the hash-pinned published worker against the node_modules-free incoming package. |

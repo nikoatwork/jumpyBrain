@@ -18,7 +18,7 @@ When discussing privacy, add the relevant boundary: a cloud assistant may send r
 4. If nothing is installed, use the standard local installer for agents/app + agents, or the public HTTPS checkout route for app-only. Do not use the public demo installer for private local setup. Do not invent an npm registry installation; jumpyBrain is not currently published there.
 5. For custom install locations, inspect before adapting commands: desktop setup currently checks/provisions the default managed installation. Do not promise custom-root reuse that the setup script does not implement.
 
-Read `doctor` findings (or JSON `ok`), not only its exit status: it currently exits 0 even when required checks need attention. A dry-run summary is a plan, not an installation. Do not hand setup back as complete until the actual CLI and local recall work. An empty new brain is a successful search check; do not save a sample memory unless the user asks.
+Use `doctor --root "<actual-root>" --check --json` on current versions: required-check failures exit nonzero while preserving the report. Default `doctor` retains exit 0 for compatibility; on older versions inspect JSON `ok` and findings. Doctor checks version/root readiness and integration-file presence, not actual retrieval or host activation. A dry-run summary is a plan, not an installation. Do not hand setup back as complete until the actual CLI and local recall work. An empty new brain is a successful search check; do not save a sample memory unless the user asks.
 
 ## Carry out the authorized request
 
@@ -38,7 +38,7 @@ If the folder choice needs the user's interaction, complete the authorized build
 
 ## Verify and finish clearly
 
-- Run the installed CLI's `doctor` and bounded `recall --root "<actual-root>" --topic "installation check" --limit 5`. For local verification, omit remote-target flags. A new brain returning no matches is normal.
+- Run the installed CLI's `doctor --root "<actual-root>" --check` and bounded `recall --root "<actual-root>" --topic "installation check" --limit 5`. For local verification, omit remote-target flags. A new brain returning no matches is normal. On older versions without `--check`, inspect `doctor --json` instead of treating exit 0 as success.
 - Verify the desktop bundle exists and, when available, that it launches and shows the intended folder. Separate verified build/install results from any remaining interactive onboarding.
 - Report the app location, actual memory root, and installed/skipped agent integrations from observed output. Restart/reload an already-running agent to load new integrations. Do not write a sample memory merely to test a read-only setup check.
 - Explain that text search is ready; optional local semantic search can be configured later. An unrelated npm update notice is not an installation failure and is not a reason to upgrade npm during this task.

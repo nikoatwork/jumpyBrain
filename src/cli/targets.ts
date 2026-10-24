@@ -1,3 +1,5 @@
+import path from "node:path";
+
 export interface CliArgs {
   [key: string]: string | boolean | string[] | undefined;
 }
@@ -57,4 +59,22 @@ function stringFlag(args: CliArgs, key: string): string | undefined {
     return trimmed;
   }
   throw new Error(`--${key} requires a value.`);
+}
+
+/** Only diagnose the selected root itself, never a missing configured index or source file. */
+export function memoryRootInspectionMessage(error: unknown, root: string): string | undefined {
+  const failure = error as NodeJS.ErrnoException;
+  const resolved = path.resolve(root);
+  if (failure?.syscall === "realpath" && failure.path === resolved && failure.code === "ENOENT") {
+    const quoted = `'${resolved.replace(/'/gu, `'"'"'`)}'`;
+    return `Memory root does not exist: ${JSON.stringify(resolved)}. Initialize this same root with: jumpybrain init --root ${quoted}`;
+  }
+  if (failure?.code === "EACCES" || failure?.code === "EPERM") return "Permission denied while inspecting memory root; check access to the selected folder.";
+  // Core reads from the real root, which can differ from the requested symlink path.
+  if (failure instanceof Error && /^Failed to read [\s\S]+[/\\]jumpybrain\.json:/u.test(failure.message)) {
+    return /\b(?:EACCES|EPERM)\b/u.test(failure.message)
+      ? "Permission denied reading jumpybrain.json in the selected memory root; check folder/config access."
+      : "Unable to read or parse jumpybrain.json in the selected memory root; inspect and correct that config.";
+  }
+  return undefined;
 }
