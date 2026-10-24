@@ -37,7 +37,7 @@ try {
   const screenshot = path.join(repo, '.local-pack/desktop/welcome.png');
   await mkdir(path.dirname(screenshot), { recursive: true });
   const configPath = path.join(temporary, 'fixture.json');
-  await writeFile(configPath, JSON.stringify({ origin: gateway.url, key: controlKey, id, runtimeRoot: repo, setupRoot, invalidRoot, screenshot, runtimeRoot: repo,
+  await writeFile(configPath, JSON.stringify({ origin: gateway.url, key: controlKey, id, runtimeRoot: repo, setupRoot, existingRoot: root, invalidRoot, screenshot,
     userData: path.join(temporary, 'electron'), result: path.join(temporary, 'result.json') }), { mode: 0o600 });
   const env = { ...process.env, JUMPYBRAIN_ELECTRON_SMOKE_FIXTURE: configPath };
   delete env.ELECTRON_RUN_AS_NODE;

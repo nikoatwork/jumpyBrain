@@ -19,7 +19,7 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
   const success = () => { settled = true; resolve(true); };
   const handlers = {
     status: async () => {
-      if (!connection) return { error: setupError || 'The local helper is missing. Run npm run desktop:setup from your private Git checkout, then reopen jumpyBrain.' };
+      if (!connection) return { error: setupError || 'Desktop setup needs repair. Ask your agent: “Add the jumpyBrain Mac app to my existing brain using docs/install-for-agents.md.” With the default CLI installation, run cd "$HOME/.jumpybrain/app" then npm run desktop:setup. If it is absent, follow https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install.md for public source setup. Reopen jumpyBrain when setup finishes.' };
       try {
         const state = await control(connection);
         return { active: state.profiles.find((profile) => profile.id === state.activeId) || null };

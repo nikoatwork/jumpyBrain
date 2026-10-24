@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — First-time onboarding
+
+- Clarified agent-assisted setup and same-brain Desktop selection, and fixed literal-path installer commands and misleading preview completion; [synthetic journeys and validation](done/2026-10-24_tasks-synthetic-onboarding.md).
+
 ## 2026-10-24 — Extension examples and upgrade contracts
 
 - Added Candy Pink and Pomodoro, froze API v1 compatibility checks, and repaired paired-update CLI compilation; [review, evidence and remaining hardening](done/2026-10-24_tasks-extension-examples-contract-review.md).

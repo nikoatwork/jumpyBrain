@@ -37,6 +37,8 @@ try {
   await welcome.loaded;
   await until('!document.getElementById("choose").disabled');
   assert.equal(await js('document.getElementById("open").disabled'), true);
+  assert.match(await js('document.getElementById("agent-folder-hint").textContent'), /~\/\.jumpybrain\/memory.*⌘⇧G.*~\/\.jumpybrain\/app/);
+  assert.match(await js('document.getElementById("setup-detail").textContent'), /agents keep their current folder/);
   assert.equal(await js('typeof require'), 'undefined');
   assert.equal(await js('fetch("https://example.com").then(() => false, () => true)'), true);
   await js('window.open("https://example.com")');
@@ -50,6 +52,27 @@ try {
   await until('document.getElementById("message").textContent.includes("empty folder")');
   assert.equal(await js('document.getElementById("open").disabled'), true);
   assert.equal(await readFile(path.join(config.invalidRoot, 'keep.txt'), 'utf8'), 'Untouched');
+  // Existing CLI brain: choose and open exactly the same canonical files.
+  const existingNote = path.join(config.existingRoot, 'notes/electron-fixture.md');
+  const existingBytes = await readFile(existingNote, 'utf8');
+  choice = { canceled: false, filePaths: [config.existingRoot] };
+  await js('document.getElementById("choose").click()');
+  await until('!document.getElementById("open").disabled');
+  assert.match(await js('document.getElementById("open").textContent'), /Open my local brain/);
+  assert.match(await js('document.getElementById("setup-detail").textContent'), /agents keep their current folder/);
+  await js('document.getElementById("open").click()');
+  assert.equal(await welcome.completed, true);
+  assert.equal((await companionControl(config)).active.root, config.existingRoot);
+  assert.equal(await readFile(existingNote, 'utf8'), existingBytes);
+  { const closed = new Promise((resolve) => window.once('closed', resolve)); window.close(); await closed; }
+  welcome = createOnboardingWindow(config, { chooseFolder: async () => choice });
+  window = welcome.window; await welcome.loaded;
+  await until('!document.getElementById("choose").disabled');
+  window.setSize(680, 620);
+  await pause(100);
+  assert.equal(await js('document.getElementById("open").getBoundingClientRect().bottom <= innerHeight'), true, 'primary action is visible at the minimum window size');
+  assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'), true);
+  await writeFile(config.screenshot.replace('.png', '-small.png'), (await window.webContents.capturePage()).toPNG());
   choice = { canceled: false, filePaths: [config.setupRoot] };
   await js('document.getElementById("choose").click()');
   await until('!document.getElementById("open").disabled');
@@ -75,6 +98,9 @@ try {
   welcome = createOnboardingWindow(null);
   window = welcome.window; await welcome.loaded;
   await until('document.getElementById("message").textContent.includes("desktop:setup")');
+  const recovery = await js('document.getElementById("message").textContent');
+  assert.match(recovery, /existing brain.*\.jumpybrain\/app.*public source setup/);
+  assert.doesNotMatch(recovery, /private Git checkout/);
   assert.equal(await js('document.getElementById("choose").hidden'), true);
   { const closed = new Promise((resolve) => window.once('closed', resolve)); window.close(); await closed; }
   assert.equal(await welcome.completed, false);

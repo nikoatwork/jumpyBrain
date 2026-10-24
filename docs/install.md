@@ -68,6 +68,8 @@ Then verify:
 
 An empty result is expected for a new brain. Restart/reload an assistant that was already running so it can discover its new integration. Text search is ready immediately; local semantic search is an optional later step.
 
+The installer's completion summary includes that restart reminder and natural-language remember/recall prompts. It does not save sample notes. A dry run labels integrations as planned and prints verification for after installation; it does not report an installed brain. Printed shell commands preserve literal paths, including spaces and quotes.
+
 ### macOS desktop app (beta)
 
 Requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Check with `node --version`, `npm --version`, `git --version`, `python3 --version`, and `xcrun --find swiftc`. If Xcode command-line tools are missing, run `xcode-select --install` and finish Apple's installer first.

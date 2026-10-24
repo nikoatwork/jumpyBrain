@@ -10,7 +10,9 @@ The installer sets up harness-specific integration files without editing broad g
 - **Claude Code:** Agent Skill at `~/.claude/skills/jumpybrain-memory/SKILL.md` for global installs, or `.claude/skills/jumpybrain-memory/SKILL.md` for project installs.
 - **Pi:** TypeScript extension at `~/.pi/agent/extensions/jumpybrain-memory.ts` for global installs, or `.pi/extensions/jumpybrain-memory.ts` for project installs. The extension exposes recall/search/remember/wrapup/index tools plus `/memory-*` slash commands.
 
-The installer renders `skills/jumpybrain-memory/SKILL.md` into the Codex/Claude skill paths with configured CLI/root placeholders. Existing installed copies do not change when repository guidance changes: rerun the integration installer from the updated package, then restart or reload the agent. Pi uses its separate extension asset; this skill update does not change its tool descriptions.
+The installer renders `skills/jumpybrain-memory/SKILL.md` into the Codex/Claude skill paths with configured CLI/root placeholders. Existing installed copies do not change when repository guidance changes, and managed updates preserve integrations. Refresh an existing skill explicitly from the updated template while retaining its configured CLI/root, then restart or reload the agent. Pi uses its separate extension asset; this skill update does not change its tool descriptions.
+
+Rendered skills keep human-readable paths separate from shell-quoted executable/root arguments. Pi's configured defaults are JavaScript string literals passed to `spawn`, so the installer escapes those as JavaScript rather than shell syntax. Installer commands and the managed CLI launcher likewise preserve literal paths.
 
 ## Agent MD hint
 

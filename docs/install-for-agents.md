@@ -18,6 +18,8 @@ When discussing privacy, add the relevant boundary: a cloud assistant may send r
 4. If nothing is installed, use the standard local installer for agents/app + agents, or the public HTTPS checkout route for app-only. Do not use the public demo installer for private local setup. Do not invent an npm registry installation; jumpyBrain is not currently published there.
 5. For custom install locations, inspect before adapting commands: desktop setup currently checks/provisions the default managed installation. Do not promise custom-root reuse that the setup script does not implement.
 
+Read `doctor` findings (or JSON `ok`), not only its exit status: it currently exits 0 even when required checks need attention. A dry-run summary is a plan, not an installation. Do not hand setup back as complete until the actual CLI and local recall work. An empty new brain is a successful search check; do not save a sample memory unless the user asks.
+
 ## Carry out the authorized request
 
 “Install it” or “go ahead” authorizes the described installation and its necessary routine checks. Continue through that scope without repeatedly asking the same question. Ask only when information or a materially different action needs the user's decision, or when your host actually requires approval. Do not add a generic workplace-IT approval gate without an applicable device policy or user concern.

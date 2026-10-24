@@ -90,6 +90,12 @@ The app is [MIT licensed](LICENSE). Run it locally, host it on your own infrastr
 
 **One brain, two ways to use it:** the app is your writing window; the CLI lets your agents use the same Markdown folder. Use either or both. App + agents? Install the CLI below, then add the app from its existing source directory. [Step-by-step installation](docs/install.md) · [Instructions for your agent](docs/install-for-agents.md)
 
+**Using Claude Code without wanting to learn terminal commands?** Paste this into your assistant:
+
+> Install jumpyBrain for me using https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install-for-agents.md. Reuse my existing brain if I have one, and check that local search works. Explain any missing requirements in plain language.
+
+After setup, restart an assistant that was already open. Ask it to remember one real decision, then ask it to recall that decision in a fresh session. Setup itself does not save an example memory. Adding the Mac app later? Ask: “Add the jumpyBrain Mac app to my existing brain using the same installation guide.”
+
 ### On your Mac
 
 The [macOS desktop app (beta)](integrations/electron/README.md) opens with **Your brain. Your folder.** Choose a new folder or an existing brain, then start writing. Add other local or shared brains in Settings later.

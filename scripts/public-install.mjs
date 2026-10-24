@@ -88,7 +88,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
     return;
   }
 
-  log(`Installing jumpyBrain (${scope})`);
+  log(`${options.dryRun ? "Dry run: planning jumpyBrain installation" : "Installing jumpyBrain"} (${scope})`);
   log(`Install root: ${installRoot}`);
   log(`Memory root: ${memoryRoot}`);
   const policyPlan = await planRemoteAccessPolicy(cliConfigPath, options);
@@ -105,6 +105,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
   }
 
   const qmdAvailable = await ensureQmd({ appDir, skipInstall: options.skipQmdInstall, dryRun: options.dryRun });
+  summary.searchReady = qmdAvailable && !options.skipInitialIndex;
   if (!options.dryRun && qmdAvailable && !options.skipInitialIndex) await indexMemoryRoot({ cliPath, memoryRoot });
 
   const integrationPlan = planIntegrations({ integrations, scope, home, cwd });
@@ -385,7 +386,7 @@ async function writeCliShim({ cliPath, appDir, cliConfigPath }) {
     "if [ -z \"${JUMPYBRAIN_CLI_CONFIG+x}\" ]; then",
     `  export JUMPYBRAIN_CLI_CONFIG=${shellQuote(cliConfigPath)}`,
     "fi",
-    `exec node ${JSON.stringify(cliTarget)} "$@"`,
+    `exec node ${shellQuote(cliTarget)} "$@"`,
     "",
   ].join("\n"), "utf8");
   await chmod(cliPath, 0o755);
@@ -536,35 +537,50 @@ function detectedHarnesses(home) {
 async function installIntegration({ item, memoryRoot, cliPath, appDir }) {
   await mkdir(path.dirname(item.path), { recursive: true });
   const assetPath = item.asset === "skill" ? path.join(appDir, "skills", "jumpybrain-memory", "SKILL.md") : path.join(appDir, "integrations", "pi", "jumpybrain-memory.ts");
-  const rendered = renderTemplate(await readFile(assetPath, "utf8"), { memoryRoot, cliPath });
+  const rendered = renderTemplate(await readFile(assetPath, "utf8"), { memoryRoot, cliPath, asset: item.asset });
   await writeFile(item.path, rendered, "utf8");
 }
 
-function renderTemplate(content, { memoryRoot, cliPath }) {
+function renderTemplate(content, { memoryRoot, cliPath, asset }) {
+  // Skills contain shell examples; Pi contains JS string literals passed to spawn.
+  // Keep display paths separate from executable syntax in either language.
+  if (asset === "skill") return content
+    .replaceAll("__JUMPYBRAIN_CLI_COMMAND__", () => shellQuote(cliPath))
+    .replaceAll("__JUMPYBRAIN_ROOT_ARGUMENT__", () => shellQuote(memoryRoot))
+    .replaceAll("__JUMPYBRAIN_MEMORY_ROOT__", () => memoryRoot)
+    .replaceAll("__JUMPYBRAIN_CLI__", () => cliPath);
   return content
-    .replaceAll("__JUMPYBRAIN_MEMORY_ROOT__", memoryRoot)
-    .replaceAll("__JUMPYBRAIN_CLI__", cliPath);
+    .replaceAll("__JUMPYBRAIN_MEMORY_ROOT__", () => JSON.stringify(memoryRoot).slice(1, -1))
+    .replaceAll("__JUMPYBRAIN_CLI__", () => JSON.stringify(cliPath).slice(1, -1));
 }
 
 function printSummary(summary) {
-  console.log("\njumpyBrain install complete.");
+  console.log(summary.dryRun ? "\njumpyBrain install dry run complete. No changes made." : "\njumpyBrain install complete.");
   console.log(`Memory root: ${summary.memoryRoot}`);
   console.log(`CLI: ${summary.cliPath}`);
   console.log(`CLI policy: ${summary.cliPolicy}`);
   if (summary.integrations.length > 0) {
-    console.log("Integrations installed:");
+    console.log(summary.dryRun ? "Integrations planned (would install):" : "Integrations installed:");
     for (const item of summary.integrations) console.log(`- ${item}`);
   } else {
-    console.log("Integrations installed: none");
+    console.log(summary.dryRun ? "Integrations planned: none" : "Integrations installed: none");
   }
   if (summary.skippedIntegrations.length > 0) {
     console.log("Integrations skipped:");
     for (const item of summary.skippedIntegrations) console.log(`- ${item}`);
   }
-  console.log("\nTry:");
-  console.log(`${summary.cliPath} recall --root ${JSON.stringify(summary.memoryRoot)} --topic "what should I remember?" --limit 5`);
+  if (!summary.dryRun) {
+    console.log(summary.searchReady ? "Local text search is ready. A semantic model is optional." : "Local text search still needs its search dependency or initial index; check doctor before handing setup back.");
+    if (summary.integrations.length) {
+      console.log("\nRestart or reload any assistant that was already open so it can discover its new integration.");
+      console.log('Then ask: "Use jumpyBrain to remember that we chose weekly releases because smaller changes are easier to review."');
+      console.log('In a fresh session, ask: "Use jumpyBrain to recall what we decided about releases."');
+    }
+  }
+  console.log(summary.dryRun ? "\nAfter installing, verify with (an empty new brain has no matches):" : "\nTry (an empty new brain has no matches):");
+  console.log(`${shellQuote(summary.cliPath)} recall --root ${shellQuote(summary.memoryRoot)} --topic "what should I remember?" --limit 5`);
   console.log("\nTip: add the CLI bin directory to PATH if desired:");
-  console.log(`export PATH=${JSON.stringify(summary.binDir)}:$PATH`);
+  console.log(`export PATH=${shellQuote(summary.binDir)}:"$PATH"`);
 }
 
 async function readInstallManifest(filePath, expectedPaths) {

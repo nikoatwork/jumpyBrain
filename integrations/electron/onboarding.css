@@ -37,5 +37,5 @@ button:focus-visible { outline: 3px solid #bd7a83; outline-offset: 3px; }
 .ownership { font-size: 10px; text-align: center; color: var(--muted); margin: 22px 0 0; }
 [hidden] { display: none !important; }
 @media (prefers-color-scheme: dark) { :root { --paper: #252524; --surface: #2c2c2a; --ink: #eee9df; --muted: #aaa69d; --line: #43423d; --tint: #20201f; --error: #f6a5a5; } }
-@media (max-width: 740px) { aside { padding: 30px 24px; } main { padding: 36px 28px; } h2 { font-size: 31px; } .brand { font-size: 16px; } }
+@media (max-width: 740px) { body { grid-template-columns: 1fr; } aside { display: none; } main { width: 100%; padding: 24px 32px; margin: auto; } h2 { font-size: 31px; margin: 16px 0 12px; } .lead { margin-bottom: 18px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

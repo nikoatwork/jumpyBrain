@@ -18,7 +18,7 @@ $('choose').addEventListener('click', () => action(async () => {
   $('folder-path').textContent = result.root; $('folder-path').hidden = false;
   $('choose').textContent = 'Change folder…';
   $('open').textContent = result.existing ? 'Open my local brain →' : 'Create my local brain →';
-  $('setup-detail').textContent = result.existing ? 'Your existing Markdown stays in place. This folder becomes the active brain in the app.' : 'Ready to create your brain here. We’ll add notes, pages, and a few other Markdown folders, plus jumpybrain.json and a .gitignore entry for rebuildable state.';
+  $('setup-detail').textContent = (result.existing ? 'Your existing Markdown stays in place. This folder becomes the active brain in the app.' : 'Ready to create your brain here. We’ll add Markdown folders and a small configuration file.') + ' Your agents keep their current folder setting; choose the same folder to share notes.';
 }));
 $('open').addEventListener('click', () => action(async () => {
   message(selected?.existing ? 'Opening your brain…' : 'Creating your local brain…');
