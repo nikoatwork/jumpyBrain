@@ -92,6 +92,7 @@ async function closePage(page) {
 }
 async function addProfile(name, kind, destination, key, writes = false) {
   const oldRevision = gateway.state().revision;
+  await settings.locator("#companion-add").evaluate(item => { item.open = true; });
   await settings.locator("#companion-name").fill(name);
   await settings.locator("#companion-kind").selectOption(kind);
   if (kind === "local") {
@@ -231,7 +232,7 @@ try {
     await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
     const writes = traffic.filter((item) => item.method === "PUT").length;
     await row("Local brain").getByRole("button", { name: "Use this brain", exact: true }).click();
-    await settings.waitForFunction(() => document.getElementById("companion-feedback").textContent.includes("unsaved or unconfirmed"));
+    await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("unsaved or unconfirmed"));
     await ready(second);
     assert.equal(gateway.state().activeId, b.id);
     const response = await native("/companion/switch", { id: a });
@@ -340,7 +341,7 @@ try {
     await editor.goto(gateway.url + "/?brain=" + b.id + "&note=" + ids[0]);
     await ready(editor);
     assert.equal(new URL(editor.url()).searchParams.has("note"), false);
-    assert.match(await editor.locator("#companion-banner").textContent(), /not scoped/);
+    assert.match(await editor.locator("#toast-message").textContent(), /not scoped/);
     assert.doesNotMatch(await editor.locator("body").innerText(), /Replacement private body/);
     b = changed;
   });

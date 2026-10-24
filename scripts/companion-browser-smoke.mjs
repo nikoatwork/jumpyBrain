@@ -184,13 +184,16 @@ try {
   await settings.locator(".companion-profile").first().getByRole("button", { name: "Edit", exact: true }).focus();
   await idlePolls(settings);
   assert.equal(await settings.evaluate(() => document.activeElement?.getAttribute("aria-label")), "Edit", "idle polls retain focused row controls");
+  await settings.locator("#companion-brain-switch").focus();
+  await idlePolls(settings);
+  assert.equal(await settings.evaluate(() => document.activeElement?.id), "companion-brain-switch", "idle health polls keep the switcher mounted and focused");
   for (const theme of ["light", "dark"]) {
     await settings.evaluate((value) => colorTheme.setPreference(value), theme);
     for (const width of [1280, 390, 320]) {
       await settings.setViewportSize({ width, height: 900 });
       const layout = await settings.locator("#companion-settings").evaluate((el) => {
         const controls = [...el.querySelectorAll(".note-icon")];
-        return { fits: el.scrollWidth <= el.clientWidth, controls: controls.map(item => {
+        return { fits: el.scrollWidth <= el.clientWidth && document.documentElement.scrollWidth <= innerWidth, controls: controls.map(item => {
           const box = item.getBoundingClientRect();
           return { width: box.width, height: box.height, text: item.textContent.trim(), label: item.getAttribute("aria-label"), fits: box.left >= 0 && box.right <= innerWidth };
         }) };

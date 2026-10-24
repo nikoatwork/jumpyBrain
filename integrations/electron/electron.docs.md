@@ -28,6 +28,8 @@ The internal gateway composes the [extension app host](../../src/app/extensions/
 
 `npm run build` then `node scripts/mac-back-navigation-smoke.mjs` exercises the production sandboxed window/gateway against disposable brains: Chromium mouse input/default suppression, native swipe-event dispatch, five-step boundary/branching, failed-save Retry, deleted targets, real brain switching, tab cleanup, and repeated note/graph resource samples. Optional `--baseline-window <path>` loads a prior window module for matched host comparisons. Raw heap/process samples precede test-only diagnostic GC used to distinguish reachable DOM/listeners from garbage awaiting collection. This is fixture coverage, not physical mouse/trackpad verification or a whole-desktop physical-footprint budget.
 
+`npm run build` then `node scripts/connection-usability-smoke.mjs` exercises add/validation/rename/test/switch/remove in the production sandboxed window against real disposable local and loopback remote engines, including a dirty note flushed before sidebar switching. `--inspect` pauses for manual native inspection. The runner isolates Electron user data, uses test credential/picker seams and checks that connection removal preserves all Markdown. See [browser verification](../../src/adapters/http-server/browser.docs.md#connection-usability-verification).
+
 The native companion sources remain available for internal hosting and legacy migration/maintenance. Their standalone installer is not the new user-facing Mac setup path. Current packaging supports the private per-user installation; global/custom legacy locations require explicit migration.
 
 ## System messages

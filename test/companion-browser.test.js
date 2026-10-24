@@ -360,3 +360,20 @@ test("Dream uses the actual authorized remote URL, never the gateway/local folde
   context.companionState.active.allowWrites = true;
   assert.equal(context.companionDreamTarget(), "https://fixture.example");
 });
+
+
+test("quick brain selection shares the guarded switch action and ignores unknown/current destinations", async () => {
+  const requests = [];
+  const context = runtime(["companionSwitchBrain", "companionAction"], {
+    companionState: { activeId: "personal", profiles: [{ id: "personal" }, { id: "work" }] },
+    companionActionBusy: false, companionFrozen: false, companionRegistered: true, companionSessionFailed: false,
+    state: {}, $: () => ({}), companionMessage() {}, renderCompanionSettings() {},
+    companionControl: async (route, body) => { requests.push({ route, body }); return {}; }, companionApplyState() {},
+  });
+  await context.companionSwitchBrain("personal"); await context.companionSwitchBrain("unknown");
+  assert.equal(requests.length, 0);
+  context.companionFrozen = true; await context.companionSwitchBrain("work");
+  assert.equal(requests.length, 0, "a preparing/fenced tab cannot start a switch");
+  context.companionFrozen = false; await context.companionSwitchBrain("work");
+  assert.deepEqual(JSON.parse(JSON.stringify(requests)), [{ route: "switch", body: { id: "work" } }]);
+});

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Easier brain switching
+
+- Added direct sidebar brain switching, optional connection names and clearer add/remove behavior, with native Mac flow coverage; [flow review](done/2026-10-24_tasks-connection-usability.md).
+
 ## 2026-10-24 — Lean Settings
 
 - Simplified Settings into compact brain rows and extension controls, with one refresh icon and less routine copy; [implementation](done/2026-10-24_tasks-settings-cleanup.md).
