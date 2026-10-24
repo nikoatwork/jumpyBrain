@@ -173,7 +173,7 @@ async function validateGraph(width) {
   if (await unresolved.count()) {
     await unresolved.first().focus();
     await page.keyboard.press("Enter");
-    assert.match(await page.getByTestId("graph-status").innerText(), /doesn't exist yet:/i);
+    assert.match(await page.locator("#toast-message").innerText(), /doesn't exist yet:/i);
     assert.match(new URL(page.url()).pathname, /^\/graph\/?$/);
     console.log("  ok - unresolved node remains non-navigable");
   }
@@ -236,7 +236,7 @@ async function validateMapStates(targetPage, width) {
     await capture(targetPage, "map-dense-" + width + ".png");
     await targetPage.locator(".node.unresolved").focus();
     await targetPage.keyboard.press("Enter");
-    assert.match(await targetPage.getByTestId("graph-status").innerText(), /doesn't exist yet/);
+    assert.match(await targetPage.locator("#toast-message").innerText(), /doesn't exist yet/);
     await targetPage.locator("#graph-filters summary").click();
     assert.equal(await targetPage.locator("#focus").evaluate((input) => {
       const r = input.getBoundingClientRect();
@@ -258,6 +258,11 @@ async function readCamera(targetPage) {
 }
 
 async function validateCamera(targetPage) {
+  // A caller with auto-indexing disabled can have a persistent stale-index notice.
+  // Dismiss it through its real control before checking the map controls below it.
+  if (await targetPage.locator("#app-toast").isVisible() && await targetPage.locator("#app-toast").getAttribute("data-source") === "search-maintenance") {
+    await targetPage.locator("#toast-close").click();
+  }
   const rect = await targetPage.getByTestId("graph-svg").boundingBox();
   const anchor = { x: rect.width * .62, y: rect.height * .45 };
   const close = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < .75, message + ": " + actual + " vs " + expected);

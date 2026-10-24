@@ -87,6 +87,11 @@ export async function validateDreamHandoff({ browser, url, apiKey, screenshotDir
       assert.equal((await filtered).status(), 200);
       await readyGraph(page);
       assert.ok(await page.getByTestId("graph-node").count() > 0, "filtered real graph remains behind dialog");
+      // This caller disables automatic indexing; dismiss its persistent stale-index
+      // notice through the UI before exercising the narrow map controls below it.
+      if (await page.locator("#app-toast").isVisible() && await page.locator("#app-toast").getAttribute("data-source") === "search-maintenance") {
+        await page.locator("#toast-close").click();
+      }
       const originalCamera = await page.locator("#viewport").getAttribute("transform");
       await page.locator("#zoom-in").click();
       assert.notEqual(await page.locator("#viewport").getAttribute("transform"), originalCamera);
@@ -116,11 +121,15 @@ export async function validateDreamHandoff({ browser, url, apiKey, screenshotDir
       assert.equal(await page.locator("#dream-feedback").innerText(), "");
       await assertLayout(page);
 
-      // Explicit forward/backward boundary wraps, including readonly preview.
+      // Explicit forward/backward boundary wraps, including topic and readonly preview.
       await page.keyboard.press("Tab");
       await assertFocus(page, "dream-close");
       await page.keyboard.press("Tab");
+      await assertFocus(page, "dream-topic");
+      await page.keyboard.press("Tab");
       await assertFocus(page, "dream-preview");
+      await page.keyboard.press("Shift+Tab");
+      await assertFocus(page, "dream-topic");
       await page.keyboard.press("Shift+Tab");
       await assertFocus(page, "dream-close");
       await page.keyboard.press("Shift+Tab");

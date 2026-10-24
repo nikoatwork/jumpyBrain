@@ -77,7 +77,12 @@ try {
   await page.locator('#delete-cancel').click();assert.ok(await readMemoryDocument(root,id));
   await page.locator('#delete-note').click();await page.waitForFunction(()=>!document.getElementById('delete-confirm').disabled);
   await page.locator('#delete-confirm').click();await page.locator('#home').waitFor({state:'visible'});
-  assert.match(await page.locator('#toast-message').innerText(),/Note deleted/);
+  // autoIndex:false intentionally leaves a stale index. Its persistent warning
+  // takes priority over confirmations in the shared system-message component.
+  if (await page.locator('#app-toast').getAttribute('data-source') === 'search-maintenance') {
+    await page.locator('#toast-close').click();
+  }
+  await page.locator('#toast-message').filter({hasText:'Note deleted'}).waitFor();
   await assert.rejects(readMemoryDocument(root,id),e=>e.code==='missing_id');
   assert.equal(await readFile(path.join(root,'notes/hashed-target.md'),'utf8'),target);
   await page.locator('#home-search').click();await page.locator('#note-search-input').fill('QA lifecycle created');

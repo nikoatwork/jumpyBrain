@@ -50,7 +50,9 @@ try {
     let state;
     await until(async () => { state = await desktopControl(connection, 'state'); return state.phase === 'preparing'; });
     await post('ack', { tabId: 'unsaved-browser', switchId: state.switchId, ok: false });
-    await until(() => messages.some((message) => message.message === 'jumpyBrain is still running'));
+    await until(async () => await window.webContents.executeJavaScript(
+      'document.getElementById("app-toast").dataset.source === "desktop-operation" && document.getElementById("toast-message").textContent.includes("jumpyBrain is still running.")'));
+    assert.equal(messages.length, 0, 'the available shell presents the blocked-quit warning');
     assert.ok(application.getHost().isAlive()); assert.equal(window.isDestroyed(), false);
     await post('unregister', { tabId: 'unsaved-browser', generation: before.generation });
     await until(async () => await window.webContents.executeJavaScript('!companionFrozen'));
