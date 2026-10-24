@@ -20,7 +20,7 @@ for (const [sourcePath, title] of [
 ]) {
   test(`Logseq canonical metadata matches planned envelope: ${sourcePath}`, () => {
     for (const body of bodies) {
-      const { entry, output } = planLogseqDocument({ sourcePath, body, now });
+      const { entry, output } = planLogseqDocument({ sourcePath, body, now, bodyFormat: "preserve" });
       assert.equal(entry.title, title);
       const expected = {
         id: entry.id,

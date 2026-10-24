@@ -84,6 +84,6 @@ test("migration supports POSIX colon filenames without decoding them into destin
   await writeFile(path.join(source, "pages", "Topic: detail.md"), "- body\r\n");
   const result = await migrateLogseq(source, root, { apply: true });
   assert.equal(result.created, 2);
-  assert.equal(parseLogseqEnvelope(await readFile(path.join(root, "notes/Topic: detail.md"))).body.toString(), "- body\r\n");
+  assert.equal(parseLogseqEnvelope(await readFile(path.join(root, "notes/Topic: detail.md"))).body.toString(), "body\r\n");
   assert.equal((await migrateLogseq(source, root, { apply: true })).unchanged, 2);
 });

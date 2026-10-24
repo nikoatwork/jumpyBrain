@@ -207,6 +207,10 @@ const browserScriptNonce = document.currentScript.nonce;
 let extensionUI = null;
 const browserCommands = JumpyBrainBrowser.createBrowserCommands(() => toast.show("extensions", "Command failed. Check the connection and try again.", { error: true }));
 const toast = JumpyBrainBrowser.installToast(document, () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"));
+for (const element of document.querySelectorAll("[data-app-version]")) element.textContent = "jumpyBrain · Version " + JumpyBrainBrowser.diagnosticBuildInfo().version;
+document.addEventListener("jumpybrain-update-notice", (event) => {
+  if (typeof event.detail?.text === "string") toast.show("desktop-update", event.detail.text, { error: event.detail.error === true });
+});
 const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const companionMode = ${companion};
 const feedbackDiagnostics = JumpyBrainBrowser.createFeedbackDiagnostics();

@@ -1,19 +1,19 @@
 import path from "node:path";
 import { DEFAULT_MEMORY_DIRS, CURRENT_MEMORY_SCHEMA_VERSION } from "../../core/memory-root/index.js";
-import { LOGSEQ_MIGRATION_MANIFEST, analyzeLogseqReferences, migrationDocumentIdentity, migrationPathKey, parseLogseqManifest, planLogseqDocument, type LogseqMigrationDocument, type LogseqMigrationEntry, type LogseqMigrationManifest, type LogseqMigrationResult } from "../../core/migration/index.js";
+import { LOGSEQ_MIGRATION_MANIFEST, LOGSEQ_IMPORTER_VERSION, LOGSEQ_BODY_VERSION, analyzeLogseqReferences, migrationDocumentIdentity, migrationPathKey, parseLogseqManifest, planLogseqDocument, type LogseqMigrationDocument, type LogseqMigrationEntry, type LogseqMigrationManifest, type LogseqMigrationResult, type LogseqMigrationOptions } from "../../core/migration/index.js";
 import { discoverLogseq } from "./discovery.js";
 import { assertSnapshot, fail, isWithin, MigrationError, safePath, snapshot, statIfPresent, type Snapshot } from "./filesystem.js";
 import { applyTransaction, transactionPath, type LogseqMigrationHooks, type Mutation } from "./transaction.js";
 
-export type { LogseqMigrationAction, LogseqMigrationDocument, LogseqMigrationEntry, LogseqMigrationManifest, LogseqMigrationResult } from "../../core/migration/index.js";
+export type { LogseqMigrationAction, LogseqMigrationDocument, LogseqMigrationEntry, LogseqMigrationManifest, LogseqMigrationResult, LogseqMigrationOptions, LogseqBodyFormat } from "../../core/migration/index.js";
 export type { LogseqMigrationHooks, LogseqMigrationStep } from "./transaction.js";
 
-export async function migrateLogseq(source: string, root: string, options: { apply?: boolean; failOnConflict?: boolean } = {}): Promise<LogseqMigrationResult> {
+export async function migrateLogseq(source: string, root: string, options: LogseqMigrationOptions = {}): Promise<LogseqMigrationResult> {
   return migrateLogseqWithHooks(source, root, options);
 }
 
 /** Internal failure-injection seam. Runtime should export only migrateLogseq and result types. */
-export async function migrateLogseqWithHooks(sourceArg: string, rootArg: string, options: { apply?: boolean; failOnConflict?: boolean } = {}, hooks?: LogseqMigrationHooks): Promise<LogseqMigrationResult> {
+export async function migrateLogseqWithHooks(sourceArg: string, rootArg: string, options: LogseqMigrationOptions = {}, hooks?: LogseqMigrationHooks): Promise<LogseqMigrationResult> {
   try {
     return await migrate(sourceArg, rootArg, options, hooks);
   } catch (error) {
@@ -48,7 +48,11 @@ async function validateDestination(root: string): Promise<{ config?: Snapshot; i
   return { config, ignore };
 }
 
-async function migrate(sourceArg: string, rootArg: string, options: { apply?: boolean; failOnConflict?: boolean }, hooks?: LogseqMigrationHooks): Promise<LogseqMigrationResult> {
+async function migrate(sourceArg: string, rootArg: string, options: LogseqMigrationOptions, hooks?: LogseqMigrationHooks): Promise<LogseqMigrationResult> {
+  const bodyFormat = options.bodyFormat ?? "readable";
+  if (bodyFormat !== "readable" && bodyFormat !== "preserve") fail("Invalid Logseq body format; use readable or preserve.");
+  const conversion: LogseqMigrationResult["conversion"] = { bodyFormat, bodyVersion: bodyFormat === "preserve" ? 0 : LOGSEQ_BODY_VERSION, changedDocuments: 0, preservedDocuments: 0, unsupportedDocuments: 0, removedOutlineMarkers: 0, retainedNestedBlocks: 0 };
+  const conversionWarnings = new Set<string>();
   if (typeof sourceArg !== "string" || !sourceArg.trim() || typeof rootArg !== "string" || !rootArg.trim() || /[\x00-\x1f\x7f]/.test(sourceArg + rootArg)) fail("A valid local Logseq --source and separate destination --root are required.");
   const source = path.resolve(sourceArg), root = path.resolve(rootArg);
   if (isWithin(source, root) || isWithin(root, source)) fail("Source and destination must be separate, non-overlapping directories.");
@@ -82,7 +86,13 @@ async function migrate(sourceArg: string, rootArg: string, options: { apply?: bo
     const outputPath = document.sourcePath.replace(/^pages\//, "notes/").replace(/^journals\//, "sessions/");
     const current = await snapshot(path.join(root, outputPath));
     destinationStates.set(outputPath, current);
-    const planned = planLogseqDocument({ sourcePath: document.sourcePath, body: document.body, current: current?.bytes, prior: previous, now });
+    const planned = planLogseqDocument({ sourcePath: document.sourcePath, body: document.body, current: current?.bytes, prior: previous, now, bodyFormat });
+    if (planned.entry.bodyHash === planned.entry.sourceHash) conversion.preservedDocuments++;
+    else conversion.changedDocuments++;
+    if (planned.conversion.warnings.length) conversion.unsupportedDocuments++;
+    conversion.removedOutlineMarkers += planned.conversion.removedOutlineMarkers;
+    conversion.retainedNestedBlocks += planned.conversion.retainedNestedBlocks;
+    for (const warning of planned.conversion.warnings) conversionWarnings.add(warning);
     if (ids.has(planned.entry.id)) fail("Duplicate mapped destination document identity; repair IDs before migration.");
     ids.add(planned.entry.id);
     outputKeys.add(migrationPathKey(outputPath));
@@ -108,9 +118,11 @@ async function migrate(sourceArg: string, rootArg: string, options: { apply?: bo
     unchanged: entries.filter(entry => entry.action === "unchanged").length,
   };
   const manifestEntries: LogseqMigrationDocument[] = entries.filter(entry => entry.action !== "delete").map(({ action: _action, conflict: _conflict, destinationHash: _destinationHash, previousSourceHash: _previousSourceHash, previousOutputHash: _previousOutputHash, ...entry }) => entry);
-  const manifest: LogseqMigrationManifest = { version: 1, importer: "jumpybrain-logseq", importerVersion: 1, migratedAt: now, entries: manifestEntries, counts: { ...counts, warnings: warnings.length } };
+  warnings.push(...conversionWarnings);
+  if (prior?.entries.some(entry => entry.bodyFormat !== bodyFormat || entry.bodyVersion !== conversion.bodyVersion)) warnings.push("Body policy upgrade: unchanged source files can overwrite mapped outputs; review conflicts before applying.");
+  const manifest: LogseqMigrationManifest = { version: 2, importer: "jumpybrain-logseq", importerVersion: LOGSEQ_IMPORTER_VERSION, migratedAt: now, entries: manifestEntries, counts: { ...counts, warnings: warnings.length } };
   // Preserve manifest bytes/timestamp on identical reruns. Its counts describe the last actual reconciliation.
-  const manifestChanged = !prior || counts.created + counts.overwritten + counts.deleted > 0;
+  const manifestChanged = !prior || prior.version !== manifest.version || counts.created + counts.overwritten + counts.deleted > 0;
   if (manifestChanged) mutations.push({ relative: LOGSEQ_MIGRATION_MANIFEST, before: manifestBefore, after: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`), manifest: true });
   const pages = sourceDiscovery.documents.filter(document => document.sourcePath.startsWith("pages/")).length;
   const result: LogseqMigrationResult = {
@@ -118,7 +130,7 @@ async function migrate(sourceArg: string, rootArg: string, options: { apply?: bo
     outputDocuments: manifestEntries.length, pages, journals: sourceDiscovery.documents.length - pages,
     ...counts, sourceBytes: manifestEntries.reduce((sum, entry) => sum + entry.sourceBytes, 0),
     outputBytes: manifestEntries.reduce((sum, entry) => sum + entry.outputBytes, 0),
-    warnings, errors: [], entries, manifest: LOGSEQ_MIGRATION_MANIFEST, indexed: false,
+    warnings, errors: [], entries, manifest: LOGSEQ_MIGRATION_MANIFEST, indexed: false, conversion,
   };
   if (!options.apply) return result;
   if (mutations.length || !setup.config) {

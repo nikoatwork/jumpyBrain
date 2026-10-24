@@ -15,6 +15,7 @@ import type {
   IndexMemoryOptions,
   IndexMemoryResult,
   LogseqMigrationResult,
+  LogseqMigrationOptions,
   MemoryNoteDraft,
   MemoryOverviewOptions,
   MemoryOverviewResult,
@@ -35,7 +36,7 @@ import type {
 export type { SearchResult };
 
 export interface LocalMemoryTransport {
-  migrateLogseq(source: string, root: string, options?: { apply?: boolean; failOnConflict?: boolean }): Promise<LogseqMigrationResult>;
+  migrateLogseq(source: string, root: string, options?: LogseqMigrationOptions): Promise<LogseqMigrationResult>;
   initializeMemoryRoot(rootArg: string, options?: { force?: boolean }): Promise<MemoryRootInitResult>;
   memoryRootStatus(rootArg: string): Promise<MemoryRootStatus>;
   findMemoryRoot(startArg?: string): Promise<string>;
