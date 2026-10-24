@@ -116,7 +116,7 @@ export function nativeCredentials(input = process.stdin, output = process.stdout
 
 function allowedMemoryRoute(method, pathname) {
   if (method === 'GET' && /^\/memories\/all\/(status|recent|attention|overview|tree|graph\.json|dream\/window)$/.test(pathname)) return { write: false };
-  if (method === 'POST' && /^\/memories\/all\/(search|recall|recall\/compact|expand|resolve-title)$/.test(pathname)) return { write: false };
+  if (method === 'POST' && /^\/memories\/all\/(search|recall|recall\/compact|expand|resolve-title|dream\/sources\/check)$/.test(pathname)) return { write: false };
   if (method === 'GET' && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: false };
   if (['PUT', 'PATCH', 'DELETE'].includes(method) && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: true };
   if (method === 'POST' && /^\/memories\/all\/(notes|index|ensure-title)$/.test(pathname)) return { write: true };

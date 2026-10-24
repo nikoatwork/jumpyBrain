@@ -58,7 +58,7 @@ function writeHumanDocumentRead(result: MemoryDocumentReadResult): void {
 }
 
 function writeHumanDocumentUpdate(result: MemoryDocumentUpdateResult): void {
-  console.log(`Updated memory document: ${result.file}`);
+  console.log(`${result.unchanged ? "Unchanged" : "Updated"} memory document: ${result.file}`);
   console.log(`ID: ${result.id}`);
   console.log(`Old-Content-Hash: ${result.oldContentHash}`);
   console.log(`New-Content-Hash: ${result.newContentHash}`);

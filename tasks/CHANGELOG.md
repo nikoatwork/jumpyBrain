@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Living topic evidence
+
+- Dream pages expose bounded [source-version checks](done/2026-10-24_tasks-living-topic-pages.md) through local/hosted CLI and browser, with visible limitations and guarded no-op preservation.
+
 ## 2026-10-24 — Contextual indexing evaluation
 
 - Retained existing indexing after [contextual enrichment showed no adoption evidence](done/2026-10-24_tasks-contextual-indexing-evaluation.md); independent review preserves alias/ancestor excerpt gaps.

@@ -442,6 +442,8 @@ export interface MemoryDocumentIndexState {
 }
 
 export interface MemoryDocumentUpdateResult extends MemoryDocumentTargetMetadata {
+  /** Exact unchanged submission; no canonical publication or index mutation occurred. */
+  unchanged?: true;
   id: string;
   file: string;
   oldContentHash: MemoryDocumentContentHash;

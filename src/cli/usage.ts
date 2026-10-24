@@ -23,6 +23,8 @@ export function usage(): string {
     "  jumpybrain show --root <memory-root> --id <mem_id> [--json]",
     "  jumpybrain show --target-url <url> --id <mem_id> [--json]",
     "  jumpybrain dream --root <memory-root>|--target-url <url> [--from t-0d|YYYY-MM-DD] [--days 3] [--date-basis evidence|modified] [--offset 0] [--out dream-window.json] [--json]",
+    "  jumpybrain dream --root <memory-root>|--target-url <url> --check-sources --id <dream-page-id> [--json]",
+    "  cat revised.md | jumpybrain dream --root <memory-root>|--target-url <url> --check-sources --draft --page-file pages/topic.md [--json]",
     "  cat body.md | jumpybrain remember --root <memory-root>|--target-url <url> --type page --dream --title \"Topic map\"",
     "  cat revised.md | jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> [--json]",
     "  cat revised.md | jumpybrain update --target-url <url> --id <mem_id> --if-match <contentHash> [--json]",

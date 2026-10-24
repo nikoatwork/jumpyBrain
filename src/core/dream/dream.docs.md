@@ -16,3 +16,7 @@
 - Do not read or write dream state, batch JSON, or Markdown file bodies.
 - Do not import app workflows, CLI formatting, server protocol code, HTTP/logging/package adapters, QMD internals, or model/provider code.
 - Do not classify the dream marker as truth or a write permission, or promise exhaustive historical coverage.
+
+## Living-page source policy
+
+`source-references.ts` owns the minimal inline Markdown fingerprint grammar, code masking via canonical Markdown structure, exact canonical ID/path resolution and unchanged/changed/missing/ambiguous/not_checked comparison. Duplicate IDs remain ambiguous even with a path citation. Distinct cited versions and unversioned occurrences cannot share hashes. No claim registry, revision retention, or truth inference. See [contract and budgets](../../../docs/living-topic-pages.md).

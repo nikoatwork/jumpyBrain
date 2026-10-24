@@ -84,6 +84,8 @@ ${noteAttentionStyles}
     #note-editor > * { scroll-margin-block: var(--space-8); }
     #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .6em 0 .25em; line-height: 1.35; font-weight: var(--weight-semibold); letter-spacing: -.02em; }
     #note-editor > :first-child { margin-top: 0; }
+    #living-sources { overflow-wrap: anywhere; font-size: var(--text-ui); margin-top: var(--space-5); }
+    #living-sources li { margin-block: var(--space-2); }
     #note-editor h1 { font-size: 32px; }
     #note-editor h2 { font-size: 27px; }
     #note-editor h3 { font-size: 23px; }
@@ -325,6 +327,13 @@ export const notesViews = String.raw`
         <button id="insert-reference" class="quiet-button note-icon" type="button" aria-label="Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       </div>
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
+      <details id="living-sources" class="note-frontmatter" hidden>
+        <summary>Sources · version checks</summary>
+        <p>Follow evidence beside each claim. Latest substantive change and open questions remain in the page above.</p>
+        <button id="check-living-sources" class="quiet-button" type="button">Check source versions</button>
+        <p id="living-sources-status" role="status" aria-live="polite"></p>
+        <ul id="living-sources-list"></ul>
+      </details>
       <details id="note-metadata" class="note-frontmatter" hidden>
         <summary>Metadata · read only</summary>
         <p id="note-file"></p>
@@ -958,6 +967,7 @@ function setConnectionKey(key) {
   key = key.trim();
   activeApiKey = key;
   credentialRevision++;
+  livingSources.sync();
   recentWrites.reset();
   map.reset();
   sidebarPages.refresh();
@@ -1012,6 +1022,13 @@ const navigation = createPageNavigation({
   show: showPage,
 });
 let documentActions;
+const livingSources = JumpyBrainBrowser.installLivingSources({
+  document, editor: () => state.editor,
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
+  enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
+  json: (url, options) => graphJson(url, options),
+  navigate: (id) => navigation.navigate("/?note=" + encodeURIComponent(id)),
+});
 const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   document, window,
   scope: () => {
@@ -1122,6 +1139,9 @@ async function showNote(documentId, focusEnd = false) {
     $("note-editor").hidden = true;
     richEditor.setMarkdown("", true);
     $("format-controls").hidden = true;
+    $("living-sources").hidden = true;
+    $("living-sources-list").textContent = "";
+    $("living-sources-status").textContent = "";
     $("note-metadata").hidden = true;
     $("note-metadata").open = false;
     $("note-retry").hidden = true;
@@ -1224,6 +1244,7 @@ function syncEditorUi(editorState) {
   if (!state.editor || state.editor.state !== editorState) return;
   noteAttention.sync();
   sidebarPages.sync();
+  livingSources.sync();
   if (typeof feedbackDiagnostics !== "undefined") {
     const marker = editorState.saveStatus + ":" + editorState.unconfirmedSave + ":" + editorState.saveErrorCode;
     if (state.lastDiagnosticSave !== marker) {

@@ -38,3 +38,7 @@ Export `TemporalQuery`, `TemporalResolution`, `TemporalCoverage`, `TemporalRetri
 ## Deletion surface
 
 Export observational `previewMemoryDocumentDeletion(root,id)` and permanent single-document `deleteMemoryDocument(root,id,{ifMatch,apply:true})`, plus preview/result types. They use the same canonical root and optimistic publication policy as editing, without CLI/HTTP dependencies. Confirmed removal and derived-index status are separate outcomes.
+
+## Living-page checks
+
+Export local `checkDreamSources(root, request)` and `SourceCheckRequest`/`SourceCheckResult` from the shared app/core seams. It is observational, without synthesis, scheduling, indexing or publishing.

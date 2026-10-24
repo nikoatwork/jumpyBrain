@@ -53,3 +53,7 @@ Rich and compact searches forward optional `temporal` after core validation. `te
 ## Deletion transport
 
 `previewMemoryDocumentDeletion(id)` uses authenticated GET on the document path with `?deletePreview=1`; `deleteMemoryDocument(id,{ifMatch,apply:true})` sends authenticated DELETE with `If-Match` and JSON `{apply:true}`. Missing/changed/duplicate identity failures propagate. Neither method automatically retries removal or refreshes indexing; callers repair the index independently of a confirmed removal.
+
+## Living-page checks
+
+`checkDreamSources(request)` POSTs saved-page ID or draft content/file to the source-check route. Unsupported 404/405 endpoints and malformed envelopes fail with upgrade guidance and no fallback or simulated check. This read does not grant write authorization.

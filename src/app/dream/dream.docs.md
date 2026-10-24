@@ -18,3 +18,7 @@
 - Do not parse CLI flags, format command output, authenticate HTTP requests, choose HTTP status codes, or log requests.
 - Do not import QMD internals, AI/model providers, prompt templates, or scheduler/background job code.
 - Do not apply dreamed edits or impose dream-specific write ACLs. Callers use explicit normal document create/update flows, preserve source provenance, and obtain authorization before global/team/remote writes.
+
+## Living topic sources
+
+`source-check.ts` exposes `checkDreamSources(root, {id} | {content,file})` for explicit saved Dream-page or draft checks. Compose canonical bounded reads with core reference comparisons, returning only root-relative provenance, transient checked time, page hash, per-source outcomes and partial/unread/omission counts. No state/index writes, source ID assignment, model calls or implicit publication. Version-pass limits: 64 KiB page, 32 references, 500 files, 256 KiB/file, 4 MiB successful/reserved read bytes. Existing selected-ID discovery and directory enumeration remain corpus scans outside these byte limits. Incomplete source passes cannot establish uniqueness/absence and conservatively return not_checked. See [workflow/limitations](../../../docs/living-topic-pages.md).

@@ -64,7 +64,7 @@ jumpybrain show --root "$ROOT" --id "$ID" --json
 ```
 
 Use the file-level `provenance.metadata.id`, not a search hit/chunk ID, for `show` and `update`.
-Inspect useful linked sources and relevant existing pages within budget before choosing a write or no-op. Prefer updating an existing relevant dream page over duplicating it; if it already covers the useful evidence, leave it unchanged.
+For living topic maintenance, name the topic or select a canonical Dream page explicitly. If several pages fit, report ambiguity; never automatically merge/delete them. Inspect useful linked sources and relevant existing pages within budget before choosing a write or no-op. Prefer updating an existing relevant dream page over duplicating it; if it already covers the useful evidence, leave it unchanged.
 Normal/shallow retrieval favors relevant dream maps; deep and explicit source/historical queries keep evidence accessible without the dream boost.
 A summary and its cited source are not independent corroboration. Check originals for exact details. Canonical inline/reference/wiki links and unique memory-ID targets identify provenance without requiring a particular source heading; valid links alone do not support every claim. Lint answer candidates are bounded lexical evidence plus rationale, never resolutions; keep questions open until evidence is reviewed. `process --mode synthesize` is an extractive source map, not a substitute for this agent review or semantic reconciliation.
 
@@ -72,7 +72,11 @@ A summary and its cited source are not independent corroboration. Check original
 
 - Leave source notes/journals and non-dream human-authored pages alone in ordinary dreaming. Suggest corrections separately; explicit user requests can authorize another editing workflow. This is soft preservation, not an ACL.
 - Skip trivial/redundant material. No mandatory daily/weekly summary; a no-op is a useful result.
+- Read the current whole page and retain human meaning, including customer commitments and explicit contradictions. If safe reconciliation is unclear, leave it unchanged and report why; hashes cannot judge semantic preservation.
 - Keep each output concise and topical: synthesis, dated evidence, contradictions/uncertainty, and readable source links with IDs or relative paths.
+- Put canonical `## Latest substantive change` and `## Open questions` sections in the body, plus a separate synthesis date. Replace the latest explanation only for substantive changes; do not append a refresh ledger.
+- Use claim-adjacent inline Markdown links with full canonical fingerprints in double-quoted link titles: `[decision](mem_<uuid> "sha256:<64 lowercase hex>")`. Prefer unique IDs; exact canonical paths support ID-less sources without source edits. Hash full original bytes, never truncated packets. Unversioned/wiki/reference-style links remain navigable but are not version-checked.
+- Before each write, run `jumpybrain dream --root "$ROOT" --check-sources --draft --page-file pages/topic.md --json < revised.md` (body.md for creation; actual existing file for updates). Count this among the five follow-up reads. Changed sources require rereading/reconsideration within budget or leaving the page unchanged. Qualify missing historical evidence; expose ambiguous/not_checked outcomes and partial coverage. The checker is best effort, not a mandatory write ACL: sources may change after checks; hashes do not retain old bytes or establish truth. Recheck a saved page with `jumpybrain dream --root "$ROOT" --check-sources --id "$ID" --json`; browser Sources offers the same read-only operation without changing edit time.
 - Distinguish dated intentions from current facts; never assume an old task is still open. Retain historical dates and prior useful evidence when adding material.
 - Use YAML boolean `dream: true`, normally with `type: page` in `pages/`. Strings and `[[dream]]` links do not classify a page.
 - Preserve stable IDs and normal creation/update timestamps. Add a lightweight “Evidence period: YYYY-MM-DD … YYYY-MM-DD (UTC)” body line; do not backdate creation to make old evidence look current.

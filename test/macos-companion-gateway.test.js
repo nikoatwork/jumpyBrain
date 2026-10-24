@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { hashMemoryDocumentContent } from '../dist/core/canonical/markdown-store.js';
 import test from 'node:test';
-import { mkdtemp, mkdir, readFile, writeFile, rm, realpath, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm, realpath, symlink, stat } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer as createHttpsServer } from 'node:https';
 import os from 'node:os';
@@ -505,4 +506,58 @@ test('gateway attention PATCH forwards body/hash, fences generation/tab and keep
   assert.equal((await (await f.memory('attention', undefined, 'attention-tab', generation)).json()).notes.length, 0);
   assert.doesNotMatch(await readFile(path.join(f.roots[1], 'notes/fixture.md'), 'utf8'), /attention_at/);
   assert.doesNotMatch(await readFile(path.join(f.roots[2], 'notes/fixture.md'), 'utf8'), /attention_at/);
+});
+
+
+for (const kind of ['local', 'remote']) test(`source-version checks forward saved/draft requests on a read-only ${kind} companion profile`, async t => {
+  const route = '/memories/all/dream/sources/check', forwarded = [];
+  const f = await fixture(t, { fetchImpl: async (url, options) => {
+    if (url.endsWith(route)) forwarded.push({ url, method: options.method, body: JSON.parse(options.body.toString()), headers: options.headers });
+    return fetch(url, options);
+  } });
+  const root = kind === 'local' ? f.roots[0] : f.roots[2];
+  const sourceFile = path.join(root, 'notes/fixture.md'), pageFile = path.join(root, 'pages/topic.md');
+  const source = await readFile(sourceFile);
+  const pageId = 'mem_a0000000-0000-4000-8000-000000000002';
+  const content = `---\nid: ${pageId}\ntype: page\ntitle: Companion source check\ndream: true\n---\nCurrent evidence. [source](${id} "${hashMemoryDocumentContent(source)}")\n`;
+  await writeFile(pageFile, content);
+  const before = { page: await stat(pageFile), source: await stat(sourceFile) };
+  if (kind === 'remote') {
+    const saved = await f.save({ name: 'Read-only remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key', allowWrites: false });
+    const profile = saved.profiles.find(profile => profile.kind === 'remote');
+    assert.equal((await f.native('/companion/switch', { id: profile.id })).status, 200);
+  } else {
+    const profile = f.gateway.store.snapshot().profiles.find(profile => profile.kind === 'local');
+    await f.save({ id: profile.id, name: 'Read-only local', kind: 'local', root, allowWrites: false });
+  }
+  assert.equal(f.gateway.store.snapshot().profiles.find(profile => profile.id === f.gateway.store.snapshot().activeId).allowWrites, false);
+  const generation = f.gateway.coordinator.generation, tab = 'source-check-tab';
+  await f.browser('/companion/register', { tabId: tab, generation });
+  for (const request of [{ id: pageId }, { content, file: 'pages/topic.md' }]) {
+    const response = await f.memory('dream/sources/check', request, tab, generation);
+    assert.equal(response.status, 200, await response.clone().text());
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const packet = await response.json();
+    assert.equal(packet.sources[0].status, 'unchanged');
+    assert.equal(packet.sources[0].expectedHash, hashMemoryDocumentContent(source));
+    assert.equal(packet.coverage, 'complete');
+    assert.equal(JSON.stringify(packet).includes(root), false);
+  }
+  assert.equal(forwarded.length, 2);
+  assert.equal(forwarded[0].method, 'POST');
+  assert.deepEqual(forwarded.map(request => request.body), [{ id: pageId }, { content, file: 'pages/topic.md' }]);
+  assert.ok(forwarded.every(request => request.url.endsWith(route) && request.headers.Authorization !== 'Bearer ' + controlKey));
+  if (kind === 'remote') assert.equal(forwarded[0].headers.Authorization, 'Bearer remote-test-key');
+  assert.equal((await f.memory('dream/sources/check', { id: pageId }, tab, generation - 1)).status, 409);
+  assert.equal((await f.memory('dream/sources/check', { id: pageId }, 'unknown-tab', generation)).status, 409);
+  assert.equal((await f.browser(route, { id: pageId }, { Origin: 'https://evil.invalid' })).status, 403);
+  assert.equal((await fetch(f.gateway.url + route, { method: 'POST', headers: { Origin: f.gateway.url, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: pageId }) })).status, 401);
+  assert.equal((await f.memory('dream/sources/check', undefined, tab, generation)).status, 404, 'only the explicit POST is admitted');
+  assert.equal((await f.memory('dream/sources/delete', { id: pageId }, tab, generation)).status, 404);
+  assert.equal((await f.memory('notes', { type: 'note', body: 'Not authorized' }, tab, generation)).status, 403);
+  assert.equal(forwarded.length, 2, 'rejected routes/scopes and writes never reach the target');
+  assert.equal(await readFile(pageFile, 'utf8'), content);
+  assert.deepEqual(await readFile(sourceFile), source);
+  assert.equal((await stat(pageFile)).mtimeMs, before.page.mtimeMs);
+  assert.equal((await stat(sourceFile)).mtimeMs, before.source.mtimeMs);
 });

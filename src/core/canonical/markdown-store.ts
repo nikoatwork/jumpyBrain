@@ -371,6 +371,13 @@ async function replaceCanonicalMemoryDocument(
   if (options.ifMatch !== undefined && options.ifMatch !== oldContentHash) {
     throw replacementConflict(location, oldContentHash);
   }
+  // An exact no-op still checks destination identity/hash, but never republishes bytes or edit time.
+  if (submittedContent === oldBytes.toString("utf8")) {
+    const updated = parseFrontmatter(submittedContent).frontmatter.updated_at;
+    return { unchanged: true, root: options.rootLabel ?? root, target: options.target ?? "local", ...(options.memory ? { memory: options.memory } : {}),
+      id, file: location.file, oldContentHash, newContentHash: oldContentHash,
+      updatedAt: typeof updated === "string" ? updated : "", indexed: false };
+  }
   const merged = mergeMemoryDocumentUpdate(oldBytes.toString("utf8"), submittedContent, { updatedAt: options.updatedAt });
 
   // Compare the merged metadata against canonical files, never the derived index.
@@ -632,4 +639,37 @@ async function fsyncDirectoryBestEffort(dir: string): Promise<void> {
 
 export function normalizeRelative(root: string, absolutePath: string): string {
   return path.relative(root, absolutePath).split(path.sep).join("/");
+}
+
+/** Bounded observational read; rejects symlinks, hardlinks, special files and changing bytes. */
+export async function readBoundedCanonicalSource(root: string, absolutePath: string, maxBytes: number): Promise<Buffer> {
+  const relative = path.relative(root, absolutePath);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) throw new Error("Invalid canonical source.");
+  const parents = relative.split(path.sep).slice(0, -1);
+  const verifyParents = async () => {
+    let current = root;
+    for (const part of parents) {
+      current = path.join(current, part);
+      const entry = await lstat(current);
+      if (!entry.isDirectory() || entry.isSymbolicLink()) throw new Error("Unsafe canonical ancestor.");
+    }
+    if (await realpath(path.dirname(absolutePath)) !== path.dirname(absolutePath)) throw new Error("Changed canonical ancestor.");
+  };
+  await verifyParents();
+  const handle = await open(absolutePath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const before = await handle.stat();
+    if (!before.isFile() || before.nlink !== 1 || before.size > maxBytes) throw new Error("Source unavailable within byte budget.");
+    const buffer = Buffer.alloc(before.size);
+    let length = 0;
+    while (length < buffer.length) {
+      const read = await handle.read(buffer, length, buffer.length - length, length);
+      if (!read.bytesRead) break;
+      length += read.bytesRead;
+    }
+    const after = await handle.stat(), current = await lstat(absolutePath);
+    await verifyParents();
+    if (length !== before.size || after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs || current.ino !== after.ino || current.dev !== after.dev || current.isSymbolicLink()) throw new Error("Canonical source changed during read.");
+    return buffer.subarray(0, length);
+  } finally { await handle.close(); }
 }

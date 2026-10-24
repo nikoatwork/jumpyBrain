@@ -50,6 +50,7 @@ export interface LocalMemoryTransport {
   deleteMemoryDocument: typeof runtime.deleteMemoryDocument;
   readMemoryDocument(rootArg: string, id: string): Promise<MemoryDocumentReadResult>;
   updateMemoryDocument(rootArg: string, id: string, content: string, options?: { ifMatch?: string; contentHash?: string }): Promise<MemoryDocumentUpdateResult>;
+  checkDreamSources: typeof runtime.checkDreamSources;
   getDreamWindow(rootArg: string, request?: DreamWindowRequest): Promise<DreamWindow>;
   getDreamStatus(rootArg: string): Promise<DreamStatus>;
   createDreamBatch(rootArg: string, request?: DreamCreateRequest): Promise<DreamBatch>;
@@ -87,6 +88,7 @@ export function createLocalMemoryTransport(): LocalMemoryTransport {
     previewMemoryDocumentDeletion: runtime.previewMemoryDocumentDeletion,
     deleteMemoryDocument: runtime.deleteMemoryDocument,
     updateMemoryDocument: runtime.updateMemoryDocument,
+    checkDreamSources: runtime.checkDreamSources,
     getDreamWindow: (rootArg, request) => runtime.getDreamWindow({ root: rootArg, request }),
     getDreamStatus: (rootArg) => runtime.getDreamStatus({ root: rootArg }),
     createDreamBatch: (rootArg, request) => runtime.createDreamBatch({ root: rootArg, request }),

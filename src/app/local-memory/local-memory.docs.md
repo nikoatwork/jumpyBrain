@@ -57,3 +57,7 @@ Local search validates/resolves optional `temporal` before root/backend access a
 ## Guarded deletion
 
 `document-delete.ts` exposes observational `previewMemoryDocumentDeletion` and explicitly applied `deleteMemoryDocument` through the local runtime. Preview uses guarded canonical ID reads and bounded examples (20) of inbound canonical links and declared relationship matches. Counts are advisory, not a complete dependency graph; preview and apply are separate reads. Removal delegates to core publication safeguards, leaves surviving bytes/links unchanged, and reports `removed:true`, `indexed:false`, stale index and pending indexing. Ordinary readiness detects the changed canonical set; reconcile with incremental index, never by repeating deletion.
+
+## Exact no-op updates
+
+Normal updates still require the prior destination hash. An exact unchanged-content submission returns `unchanged:true` without canonical publication/edit-time changes; stale submissions still fail. This is byte equality, not semantic reconciliation or source checking. Explicit living-page source checks belong to app/dream and never refresh indexes.

@@ -63,3 +63,7 @@ Status/index/search packets preserve existing `index` metadata and add safe `rea
 ## Deletion
 
 Server preview/apply reuse the local-memory deletion operations. Packets replace the local root with `remote:all`. Apply runs inside the HTTP write queue as well as core replacement exclusion. After canonical removal, stale-index bookkeeping failures return successful removal with `indexing.status:failed` and static guidance; they never report canonical failure or retry deletion. No deletion replay ledger, cascade, or implicit global/team authorization is introduced.
+
+## Living-page checks
+
+Expose the identical shared `checkDreamSources(root,request)` through the server runtime without a local-root envelope, write queue or index work. Exact no-op document updates read existing index state instead of marking it stale; hosts skip write-maintenance notifications for `unchanged:true`.

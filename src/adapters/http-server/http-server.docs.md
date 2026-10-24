@@ -45,3 +45,7 @@ See the [protocol reference](../../../docs/shared-memory-protocol.md#post-memori
 ## Temporal retrieval protocol
 
 See the [protocol reference](../../../docs/shared-memory-protocol.md#temporal-retrieval-options).
+
+## Living-page checks
+
+Authenticated POST `/memories/all/dream/sources/check` delegates to shared app policy, outside the write queue, with no-store responses and existing JSON/error limits. Bodies accept only `id` OR `content,file`, never a caller root. The content-free shell includes an on-demand source panel; no server model or scheduler. See [protocol](../../../docs/shared-memory-protocol.md#living-page-source-checks).

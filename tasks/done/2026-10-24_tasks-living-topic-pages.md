@@ -1,6 +1,6 @@
 # Living topic pages with visible evidence
 
-Status: proposed, captured 2026-10-16. Feature ticket; implementation has not started.
+Status: completed 2026-10-24. Implemented the orchestrator-selected minimal L1–L5 design; canonical source checks, reader presentation, local/hosted/companion parity, reviewed examples and validation are complete.
 
 ## Goal
 
@@ -152,6 +152,16 @@ For each L1–L5, record the selected option, user-visible promise, accepted lim
 
 Walk through the release-plan example with a confirmed new decision, a contradictory suggestion, a human edit, a missing source, a source changed during drafting, and a no-op. Verify both supported local and hosted paths, source/destination races, retained human meaning, and explicitly incomplete coverage. Deterministic tests can establish reference and concurrency behavior; semantic quality also needs reviewed example outputs.
 
+## Accepted implementation choices — 2026-10-24
+
+These supersede the open preparation above; selected by the orchestrator before implementation.
+
+- **L1:** Claim-adjacent ordinary Markdown inline links with an optional title containing the full canonical `sha256:<64 lowercase hex>` fingerprint: `[decision](mem_<uuid> "sha256:…")`. Prefer unique IDs; exact canonical paths support ID-less evidence without modifying sources. Other ordinary link forms remain navigable but are explicitly not version-checked. No claim registry or retained source revisions.
+- **L2:** Explicit read-only `dream --check-sources` for an existing Dream page or a stdin draft, used immediately before ordinary publication and on demand by readers. Return unchanged/changed/missing/ambiguous/not_checked per reference and partial coverage. Checks compare current bytes, never truth. No transaction spans checking and saving: sources can change after a check; no historical bytes or snapshot promise. Publication remains ordinary remember/update; the checklist does not turn checks into a mandatory ACL.
+- **L3:** Whole-page guarded editing. Read the current Dream page, retain human meaning, customer commitments, prior decisions and uncertainty. Stale destination tokens force reread/reconciliation; semantic preservation requires agent review. Ordinary Dream scope excludes non-Dream human pages. No proposals, ownership sections or automatic merging.
+- **L4:** Canonical `## Latest substantive change` and `## Open questions` body sections, plus separate synthesis/evidence dates. Update the explanation only for meaningful changes; no-op skips mutation/indexing. Source checks are transient and never rewrite timestamps. An exact unchanged-content submission also preserves bytes.
+- **L5:** Explicit topic or selected existing Dream page; bounded related recall plus the existing Dream window, not automatic selection. Ambiguous pages are reported. Hosted handoff retains exact-origin authorization; local entry stays explicit CLI root (no invented companion root). Agent budget: 10 primary files, 8,000 bytes each / 40,000 total source-body bytes, five follow-up reads, two writes, ten minutes best effort; checks count as reads. Checker version-pass limits: 64 KiB page, 32 returned references, 500 attempted canonical files, 256 KiB per file, 4 MiB successful/reserved source reads. Directory discovery and existing saved-page ID lookup are not a corpus-size/total-I/O/time bound. Any unreadable/oversized unrelated file, >500 canonical files or exhausted 4 MiB makes all versioned references not_checked conservatively; this is not a targeted-source-only scan. No new scheduler/database/model runtime.
+
 ## Acceptance criteria
 
 - A user can create or refresh a topic overview using relevant, bounded source evidence and the existing agent/CLI workflow.
@@ -173,23 +183,46 @@ Walk through the release-plan example with a confirmed new decision, a contradic
 
 ## Tasks
 
-- [ ] 0.0 Agree the broad architecture with product and engineering before implementation
+- [x] 0.0 Agree the broad architecture with product and engineering before implementation
   - [x] 0.1 Prepare current/proposed flows, the release-plan example, architectural gaps, and options in this task list.
-  - [ ] 0.2 Resolve L1/L2: evidence granularity, source freshness, and limits of historical/source-version guarantees.
-  - [ ] 0.3 Resolve L3–L5: human/agent ownership, change explanations, topic selection and eligible pages, budgets, and local/hosted entry points.
-  - [ ] 0.4 Record agreed choices and align acceptance criteria and tasks; recommendations above are not approval.
-- [ ] 1.0 Establish the smallest useful maintenance workflow
-  - [ ] 1.1 Inspect current dreaming, provenance, page editing, and source navigation; identify gaps rather than duplicating existing capabilities.
-  - [ ] 1.2 Define a concrete example covering initial synthesis, additional evidence, a changed decision, and an unresolved contradiction.
-  - [ ] 1.3 Decide how change summaries and source freshness are represented, keeping durable knowledge in Markdown and derived state disposable. Record limits of historical reconstruction.
-- [ ] 2.0 Make topic maintenance evidence-aware
-  - [ ] 2.1 Extend the existing bounded workflow to find and update the relevant topic page, preserve human content, and avoid duplicate overviews.
-  - [ ] 2.2 Preserve traceable sources, historical qualifications, disagreements, and open questions; make changed/missing evidence explicit.
-  - [ ] 2.3 Produce a concise account of substantive changes without rewriting pages for cosmetic or no-op differences.
-  - [ ] 2.4 Implement the agreed L1/L2 source representation and bounded checking contract, distinguish source checks from destination protection, and expose the chosen partial/changed/missing outcomes consistently.
-- [ ] 3.0 Expose the result to readers
-  - [ ] 3.1 Add a focused presentation for sources, substantive changes, and unresolved questions using the existing editor/navigation surfaces.
-  - [ ] 3.2 Keep synthesis date and source-check status distinct from a claim of verified truth or completeness.
-- [ ] 4.0 Verify and document
-  - [ ] 4.1 Validate conflicting evidence, historical changes, missing sources, no-op runs, concurrent human edits, and local/hosted authorization parity.
-  - [ ] 4.2 Review the browser experience and update owning docs, Dream guidance, and glossary only where contracts change. Record verification and remaining limitations here.
+  - [x] 0.2 Resolve L1/L2: evidence granularity, source freshness, and limits of historical/source-version guarantees.
+  - [x] 0.3 Resolve L3–L5: human/agent ownership, change explanations, topic selection and eligible pages, budgets, and local/hosted entry points.
+  - [x] 0.4 Record agreed choices and align acceptance criteria and tasks; recommendations above are not approval.
+- [x] 1.0 Establish the smallest useful maintenance workflow
+  - [x] 1.1 Inspect current dreaming, provenance, page editing, and source navigation; identify gaps rather than duplicating existing capabilities.
+  - [x] 1.2 Define a concrete example covering initial synthesis, additional evidence, a changed decision, and an unresolved contradiction.
+  - [x] 1.3 Decide how change summaries and source freshness are represented, keeping durable knowledge in Markdown and derived state disposable. Record limits of historical reconstruction.
+- [x] 2.0 Make topic maintenance evidence-aware
+  - [x] 2.1 Extend the existing bounded workflow to find and update the relevant topic page, preserve human content, and avoid duplicate overviews.
+  - [x] 2.2 Preserve traceable sources, historical qualifications, disagreements, and open questions; make changed/missing evidence explicit.
+  - [x] 2.3 Produce a concise account of substantive changes without rewriting pages for cosmetic or no-op differences.
+  - [x] 2.4 Implement the agreed L1/L2 source representation and bounded checking contract, distinguish source checks from destination protection, and expose the chosen partial/changed/missing outcomes consistently.
+- [x] 3.0 Expose the result to readers
+  - [x] 3.1 Add a focused presentation for sources, substantive changes, and unresolved questions using the existing editor/navigation surfaces.
+  - [x] 3.2 Keep synthesis date and source-check status distinct from a claim of verified truth or completeness.
+- [x] 4.0 Verify and document
+  - [x] 4.1 Validate conflicting evidence, historical changes, missing sources, no-op runs, concurrent human edits, and local/hosted authorization parity.
+  - [x] 4.2 Review the browser experience and update owning docs, Dream guidance, and glossary only where contracts change. Record verification and remaining limitations here.
+
+## Completion outcome
+
+Implemented shared read-only source checks and transient browser presentation, preserving ordinary Dream synthesis/authorization, human meaning review, guarded whole-page editing and exact no-op bytes. All required tasks below are complete; accepted limits remain explicit. No external blocker remains.
+
+## Implementation and reviewed evidence — 2026-10-24
+
+- Added core fingerprint parsing/exact canonical ID/path comparison and bounded observational canonical reads, shared app checks, local runtime/CLI and hosted runtime/HTTP parity. No source edits, model calls, scheduler, proposal state or second canonical page type. Draft checks are explicit pre-publication workflow operations, not a mandatory publication ACL.
+- Browser Sources uses transient saved-page version results, current-source navigation, readable titles, missing/changed/ambiguous/not_checked outcomes and coverage counts. Results are fenced to page/hash/draft revision/credential scope. Dirty/unconfirmed drafts cannot initiate saved-page checks. Hosted handoff offers a literal topic/page selection; local companion behavior remains its explicit CLI explanation.
+- Exact unchanged-content updates retain canonical bytes/edit time, return `unchanged:true`, and skip hosted stale-index/bookkeeping notification. Stale destination hashes still reject. Cosmetic/semantic no-op decisions remain the external agent's responsibility.
+- [User workflow and schema](../../docs/living-topic-pages.md); [reviewed semantic walkthrough](../../deep-dives/living-topic-pages/review.md). Separate original-plan/proposal/confirmed-decision fixture notes carry individual citations. Reviewed initial uncertainty, explicit confirmed supersession, merely-newer suggestion, retained human notice/approval meaning, qualified missing-source history, changed drafting evidence, and no-op output. These editorial examples do not establish arbitrary-agent synthesis quality.
+- Companion integration review caught the missing gateway allowlist route before archiving. Added only POST `/memories/all/dream/sources/check` as `write:false`; real saved/draft requests now round-trip through read-only local and remote profiles, with existing auth/Origin/generation/tab/drain protections and unchanged mutation denial. Focused gateway/connections/browser tests: 61/61 pass (`/tmp/living-companion-focused.log`).
+- New implementation: `src/core/dream/source-references.ts`, `src/app/dream/source-check.ts`, `src/adapters/http-server/living-sources.ts`; deterministic checker/transport/CLI and controller tests in `test/living-topic-pages.test.js` and `test/living-sources-browser.test.js`; disposable production-server browser fixture/smoke in `scripts/living-topic-pages-{fixture,smoke}.mjs`.
+
+## Verification and remaining limits
+
+- Tested source build fingerprint: `790bd6ef182a9424`, package 0.3.7; companion gateway SHA-256 `44bd8fe368974e9f469517c3d9fc84ae2bc541a650977b9f61b387377e5922d7`. Base implementation snapshot was `ccc7174`; the separate diagnostics fixture prerequisite is local cherry-pick `248bcd5` of parent's `8ae1a42`. Parent already owns the prerequisite; integrate only this task's implementation commit.
+- Focused checker/CLI/HTTP suite: 14/14 pass, including deterministic source mutation during a bounded read; direct-core fixtures use resolved canonical macOS temp paths. Other focused Dream/skill/browser/license/controller tests passed and are included in the full run.
+- Final full `npm test`: **1,244 tests, 1,243 pass, 0 fail, 1 skip**, 45.56 seconds, including the source-race and companion-route regressions. Log: `/tmp/living-pages-npm-test-final.log`. `git diff --check` passed.
+- Production browser smoke passed on the final build using a disposable real HTTP server, ordinary canonical files and real Lexical import/edit/export/autosave. Fingerprint survived a human edit on its own citation line; preexisting customer notice text remained. Check requests emitted no PUT/PATCH/DELETE; unchanged/changed/missing outcomes, current-source navigation, non-Dream scope and explicit topic handoff passed. Both themes at 1280/390/320px passed overflow assertions; all six screenshots were reviewed at `/tmp/jumpybrain-living-qa/`. Run log: `/tmp/living-browser-final3.log`.
+- T3 preview-first: status/open/navigation succeeded; two consecutive snapshot calls returned `Preview automation snapshot timed out after 15000ms.` Switched to the repository Playwright runner and its already-installed package; no installation occurred. The initial dependency symlink hid esbuild license paths, causing one full-suite failure; a worktree-local copy of existing dependencies corrected this and later license checks passed. No dependency/package manifest changed.
+- The standard optional real-QMD 2.8.3 test remains skipped unless `JUMPYBRAIN_TEST_QMD_BIN` is explicitly provisioned; no claim of new real-model evaluation. Source checking itself needs no QMD/provider. Local/hosted parity is tested with the shared engine over authenticated loopback HTTP, not a live VPS rollout. Other browsers, assistive technology, physical devices and native companion OS capabilities are outside this task's QA.
+- Checks compare file versions only. Incomplete full-root source passes conservatively make every versioned target not_checked, even when an unrelated file caused the omission. Existing ID discovery/directory enumeration remain outside version-pass byte/corpus/time limits. Exact historical source bytes are not retained; source changes after checking remain possible. Destination guards cannot establish semantic preservation or atomic multi-file consistency. No global/team/remote memory writes, push, release or installation performed. Unrelated root task deletion was not touched.

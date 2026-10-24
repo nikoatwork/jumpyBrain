@@ -8,6 +8,7 @@ export interface ParsedCliArgs {
 export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
+  if (operation === "dream" && argv.some(token => /^--(?:check-sources|draft|page-file|id)(?:=|$)/u.test(token))) return parseDreamSourceArgs(argv);
   if (operation === "remember") return parseRememberArgs(argv);
   if (operation === "delete") return parseDeleteArgs(argv);
   if (operation === "expand" || (["recall", "search"].includes(operation)
@@ -189,5 +190,25 @@ function parseDeleteArgs(argv: string[]): ParsedCliArgs {
   }
   if (!args.id) throw new Error("--id is required.");
   if (args.apply && !/^sha256:[0-9a-f]{64}$/.test(String(args["if-match"] ?? ""))) throw new Error("Deletion requires --if-match <contentHash> from a prior read.");
+  return args;
+}
+
+function parseDreamSourceArgs(argv: string[]): ParsedCliArgs {
+  const args: ParsedCliArgs = { _: [argv[0]!] };
+  const values = new Set(["root", "target-url", "remote-url", "id", "page-file"]);
+  for (let index = 1; index < argv.length; index++) {
+    const token = argv[index]!;
+    if (!token.startsWith("--")) throw new Error("Source checks accept flags only.");
+    const equal = token.indexOf("="), key = token.slice(2, equal < 0 ? undefined : equal);
+    if (Object.hasOwn(args, key)) throw new Error(`--${key} must not be repeated.`);
+    if (["check-sources", "draft", "json"].includes(key)) {
+      if (equal >= 0) throw new Error(`--${key} takes no value.`);
+      args[key] = true;
+    } else if (values.has(key)) {
+      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+      if (!value || value.startsWith("--")) throw new Error(`--${key} requires a value.`);
+      args[key] = value;
+    } else throw new Error(`Unknown source-check flag --${key}.`);
+  }
   return args;
 }

@@ -1,3 +1,4 @@
+import { checkDreamSources } from "../../app/server-memory/index.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import type { TemporalQuery } from "../../types.js";
 import { MemoryExecutionError } from "../../app/server-memory/index.js";
@@ -230,6 +231,20 @@ export async function routeRequest(context: { request: IncomingMessage; response
     return;
   }
 
+  if (url.pathname === HTTP_MEMORY_ROUTES.dreamSources) {
+    response.setHeader("cache-control", "no-store");
+    if (request.method !== "POST") { writeJson(response, 405, errorResponse("method_not_allowed", "Use POST for source checks.")); return; }
+    try {
+      const body = await parseJsonBody(request);
+      if (isJsonError(body)) { writeJson(response, body.statusCode, body.body); return; }
+      writeJson(response, 200, await checkDreamSources(root, body));
+    } catch (error) {
+      const mapped = documentUpdateErrorResponse(error);
+      writeJson(response, mapped.statusCode, mapped.body);
+    }
+    return;
+  }
+
   if (url.pathname === HTTP_MEMORY_ROUTES.dreamWindow) {
     if (request.method !== "GET") {
       writeJson(response, 405, errorResponse("method_not_allowed", "Use GET for stateless dream windows."));
@@ -431,7 +446,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
       try {
         const packet = await enqueueWrite(() => updateServerMemoryDocument({ root, id, content, ifMatch }));
-        context.onMemoryWrite?.();
+        if (!packet.unchanged) context.onMemoryWrite?.();
         logger.info("remote_document_update_success", {
           method: request.method,
           path: url.pathname,

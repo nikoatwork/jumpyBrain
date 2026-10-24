@@ -33,7 +33,7 @@ test("skill examples use supported commands and only the window/create/edit flag
   const commands = await read("src/cli/commands.ts");
   const allowed = {
     status: ["root", "json"],
-    dream: ["root", "from", "days", "date-basis", "offset", "max-files", "bytes-per-file", "max-total-bytes", "out", "json"],
+    dream: ["check-sources", "draft", "page-file", "id", "root", "from", "days", "date-basis", "offset", "max-files", "bytes-per-file", "max-total-bytes", "out", "json"],
     recall: ["root", "topic", "depth", "limit", "json"],
     search: ["root", "query", "depth", "limit", "json"],
     show: ["root", "id", "json"],

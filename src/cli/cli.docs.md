@@ -52,3 +52,7 @@ Local search/index execution deadlines can be set with `JUMPYBRAIN_SEARCH_TIMEOU
 ## Delete command
 
 `delete --id <id>` and `run memory:delete` preview only. `--apply --if-match <prior hash>` authorizes permanent removal of exactly one canonical file; no path/glob/force input, Trash, cascade or automatic retry. Delete flags are strict: unknown/repeated/missing values, valued booleans and unexpected positional arguments fail before target credentials or stdin. Device read-only policy classifies deletion as a mutation (including the deletion preview command); preview itself uses a read-only GET. Output distinguishes confirmed removal from pending/failed indexing.
+
+## Living-page checks
+
+`dream --check-sources --id <Dream-page-ID>` or `--draft --page-file pages/topic.md` (stdin) calls the same local/hosted checker. Strict argument parsing rejects duplicate/unknown/valued Boolean flags before target credentials or stdin. The Dream read-only allowlist covers this observational operation; ordinary writes keep existing authorization. Exact unchanged updates print Unchanged and do not claim publication. See [living-page workflow](../../docs/living-topic-pages.md).

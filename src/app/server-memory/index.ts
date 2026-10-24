@@ -1,3 +1,4 @@
+import { checkDreamSources } from "../dream/source-check.js";
 import { findMemoryRoot, initializeMemoryRoot } from "../../core/memory-root/index.js";
 import { memoryStatus, graphMemory, indexMemory, overviewMemory, previewMemoryDocumentDeletion, deleteMemoryDocument, readMemoryDocument, searchMemory, updateMemoryDocument } from "../local-memory/index.js";
 import { processMemory } from "../processing/index.js";
@@ -75,6 +76,7 @@ export interface ServerMemoryRuntime {
   deleteMemoryDocument(id: string, options: { ifMatch: string; apply: true }): Promise<import("../../types.js").MemoryDocumentDeleteResult>;
   readMemoryDocument(id: string): Promise<RemoteMemoryDocumentReadPacket>;
   updateMemoryDocument(id: string, content: string, options: ServerMemoryDocumentUpdateOptions): Promise<RemoteMemoryDocumentUpdatePacket>;
+  checkDreamSources(request: import("../../core/dream/source-references.js").SourceCheckRequest): Promise<import("../../core/dream/source-references.js").SourceCheckResult>;
   getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
   getDreamStatus(): Promise<DreamStatus>;
   createDreamBatch(request?: DreamCreateRequest): Promise<DreamBatch>;
@@ -170,6 +172,7 @@ export function createServerMemoryRuntime(options: ServerMemoryRuntimeOptions): 
     deleteMemoryDocument: (id, options) => deleteServerMemoryDocument({ root, id, ...options }),
     readMemoryDocument: (id) => readServerMemoryDocument({ root, id }),
     updateMemoryDocument: (id, content, updateOptions) => updateServerMemoryDocument({ root, id, content, ...updateOptions }),
+    checkDreamSources: (request) => checkDreamSources(root, request),
     getDreamWindow: (request) => getDreamWindow({ root, request }),
     getDreamStatus: () => getDreamStatus({ root }),
     createDreamBatch: (request) => createDreamBatch({ root, request }),
@@ -256,7 +259,7 @@ export async function updateServerMemoryDocument(options: {
     contentHash: options.contentHash,
     updatedAt: options.updatedAt,
   });
-  const index = await markRemoteIndexStale(options.root);
+  const index = result.unchanged ? await readRemoteIndexState(options.root) : await markRemoteIndexStale(options.root);
   return {
     ...result,
     memory: "all",
@@ -350,3 +353,5 @@ export async function deleteServerMemoryDocument(options: { root: string; id: st
 }
 
 export { attentionServerMemory, patchServerMemoryAttention, type RemoteMemoryAttentionNote, type RemoteMemoryAttentionPacket } from "./attention.js";
+
+export { checkDreamSources } from "../dream/source-check.js";

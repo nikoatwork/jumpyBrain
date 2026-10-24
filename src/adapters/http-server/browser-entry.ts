@@ -19,3 +19,5 @@ export { installSearchMaintenance } from "./search-maintenance.js";
 export { installToast } from "./browser-toast.js";
 
 export { selectGraphSearchResults } from "./graph-search.js";
+
+export { installLivingSources } from "./living-sources.js";

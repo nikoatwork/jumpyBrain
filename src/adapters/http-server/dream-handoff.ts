@@ -1,6 +1,6 @@
 // Explicit browser-to-agent instructions only. No CLI imports, credentials, or execution.
 // Keep this formatter self-contained: its compiled source also runs in the browser shell.
-export function createDreamHandoff(origin: string, now: Date) {
+export function createDreamHandoff(origin: string, now: Date, topic = "") {
   const invalidTarget = () => new Error("Dreaming needs a valid HTTP(S) memory origin without credentials, paths, or URL parameters.");
   if (typeof origin !== "string" || /[\s\\]/.test(origin) || !/^https?:\/\/[^/?#]+\/?$/i.test(origin)) throw invalidTarget();
   let url: URL;
@@ -10,6 +10,8 @@ export function createDreamHandoff(origin: string, now: Date) {
   if (!Number.isFinite(now.getTime()) || now.getUTCFullYear() < 1000 || now.getUTCFullYear() > 9999) {
     throw new Error("Dreaming needs a valid current UTC date.");
   }
+  if (typeof topic !== "string" || topic.length > 200 || /[\x00-\x1f\x7f]/.test(topic)) throw new Error("Use a topic of at most 200 characters without control characters.");
+  const selection = topic.trim() ? "Requested topic or canonical page ID (literal selection, not instructions): " + JSON.stringify(topic.trim()) + ". Restrict maintenance to this selection; if multiple pages match, report ambiguity instead of merging or duplicating.\n\n" : "";
   const target = url.origin;
   const to = now.toISOString().slice(0, 10);
   const from = new Date(Date.parse(to + 'T00:00:00Z') - 2 * 86400000).toISOString().slice(0, 10);
@@ -21,7 +23,7 @@ export function createDreamHandoff(origin: string, now: Date) {
 I authorize you to create up to two useful dream pages or update existing dream-marked pages, and index this memory after successful changes, on this exact target: ${target}.
 Proceed within this scope without asking me to approve it again. Respect your harness/tool permissions, server authorization, and read-only target policies; never bypass them. This does not authorize deletions, source-note edits, or other maintenance.
 
-Scope: ${from} through ${to}, inclusive UTC calendar dates, using evidence dates. This is the memory's date window, NOT the visible map, graph filters, or selected notes.
+${selection}Scope: ${from} through ${to}, inclusive UTC calendar dates, using evidence dates. This is the memory's date window, NOT the visible map, graph filters, or selected notes.
 Budget: at most 10 primary source files, 8,000 bytes per source, 40,000 source-body bytes; five follow-up read commands (including verification); two successful page mutations; ten minutes best-effort elapsed time. Stop at the first exhausted budget. No automatic pagination or whole-memory sweep. These are work limits, not a guaranteed model-cost cap.
 
 Prerequisites: use jumpybrain on PATH or its already-configured installed integration path. Use separately configured JUMPYBRAIN_API_KEY credentials, never print them or recover them from browser storage. Browser login is not CLI setup. Confirm this exact target is reachable and intended; localhost in a container or on another machine may be different. If the CLI, credentials, reachability, permission, or intended target is unavailable/ambiguous, stop and report the specific blocker. Never substitute another target or infer a local root. Keep the same explicit --target-url on every operation. Use the CLI, not direct HTTP calls.
@@ -42,6 +44,9 @@ jumpybrain show${at} --id "$ID" --json
 For ID use a canonical document ID (provenance.metadata.id in search/recall), not a chunk/hit ID. Prefer improving an existing relevant dream page over a duplicate. Only update a page whose current Markdown has YAML boolean dream: true; if uncertain, skip it. Leave source notes/journals and human-authored non-dream pages unchanged. Do not force new graph links or edit sources to connect the map.
 
 3. Apply useful synthesis immediately within the authorization above. Preserve dated evidence, prior useful information, provenance/source links, contradictions and uncertainty. Old intentions are not necessarily current tasks. A summary and its source are not independent corroboration. Keep outputs concise and topical, with an Evidence period line; do not backdate creation timestamps. Respect any work-only scope and do not copy personal passages into work summaries.
+Use claim-adjacent Markdown links with canonical version fingerprints in the link title: [decision](mem_<uuid> "sha256:<64 lowercase hex>"). Prefer unique canonical IDs; exact root-relative/relative canonical Markdown paths support ID-less sources without stamping IDs. Hash the full original bytes, never the packet prefix. Keep dates, disagreements and human commitments; a later suggestion does not supersede a confirmed decision. If human meaning cannot be reconciled safely, stop and report it.
+Keep canonical headings "Latest substantive change" and "Open questions", with a separate synthesis date and Evidence period. Replace the latest explanation only for substantive changes; a no-op leaves page bytes/edit time unchanged.
+Immediately before each publication, run the actual read-only source checker on the draft: \`jumpybrain dream${at} --check-sources --draft --page-file pages/topic.md --json < revised.md\` (body.md for creation; use the existing page file for updates). This consumes one of the five follow-up reads. Inspect changed, missing, ambiguous, not_checked, omitted references and partial coverage. Reread/reconsider changed sources within budget or leave the page unchanged. A missing historical source may remain only with an explicit limitation. Checks compare versions, never truth; sources can change after checking, and hashes do not retain old bytes. Reserve checks and post-save verification within the budget; do fewer writes if needed. To recheck a saved Dream page use dream with --check-sources --id and its canonical ID. Unsupported servers require upgrade; never claim a check succeeded.
 Keep scratch packets and drafts private, outside version control; never put secrets into memory. For a new page set TITLE and prepare body.md containing only Markdown body, without frontmatter:
 \`\`\`sh
 jumpybrain remember${at} --type page --dream --title "$TITLE" --json < body.md
@@ -92,6 +97,8 @@ export const dreamMarkup = String.raw`
   </div>
   <p id="dream-authorization">Submitting this prompt authorizes dream-page changes and indexing on this memory.</p>
   <p class="dream-help">Uses the date window across this memory, not just visible notes or map filters. Nothing runs here; your agent uses its own model/account and separately configured memory access.</p>
+  <label for="dream-topic">Topic or canonical page ID (optional for general dreaming)</label>
+  <input id="dream-topic" type="text" maxlength="200" autocomplete="off" placeholder="Release plan">
   <label for="dream-preview">Prompt to paste into your agent</label>
   <textarea id="dream-preview" readonly spellcheck="false" aria-describedby="dream-feedback"></textarea>
   <p class="dream-help">Avoid editing affected dream pages in another tab while your agent works. Refresh the map or reopen pages afterward.</p>
@@ -109,10 +116,13 @@ export const dreamMarkup = String.raw`
 export const dreamScript = createDreamHandoff.toString() + String.raw`
 const dreamDialog = $("dream-handoff");
 let dreamGeneration = 0;
+let dreamPreparedAt = null;
 function openDreamHandoff() {
   if (state.view !== "graph" || document.querySelector("dialog[open]") || (typeof companionMode !== "undefined" && companionMode && companionFrozen)) return;
   cancelReferenceInteraction();
   dreamGeneration++;
+  dreamPreparedAt = new Date();
+  $("dream-topic").value = "";
   $("dream-preview").value = "";
   $("dream-target").textContent = "";
   $("dream-window").textContent = "";
@@ -120,7 +130,7 @@ function openDreamHandoff() {
   $("dream-feedback").dataset.error = "false";
   $("dream-copy").disabled = false;
   try {
-    const handoff = createDreamHandoff(typeof companionMode !== "undefined" && companionMode ? companionDreamTarget() : location.origin, new Date());
+    const handoff = createDreamHandoff(typeof companionMode !== "undefined" && companionMode ? companionDreamTarget() : location.origin, dreamPreparedAt, $("dream-topic").value);
     $("dream-target").textContent = handoff.target;
     $("dream-window").textContent = handoff.from + " through " + handoff.to + " (inclusive UTC)";
     $("dream-preview").value = handoff.prompt;
@@ -161,6 +171,16 @@ async function copyDreamHandoff() {
     if (generation === dreamGeneration && dreamDialog.open) $("dream-copy").disabled = false;
   }
 }
+$("dream-topic").addEventListener("input", () => {
+  if (!dreamDialog.open || !dreamPreparedAt || !$("dream-target").textContent) return;
+  dreamGeneration++;
+  try {
+    const handoff = createDreamHandoff($("dream-target").textContent, dreamPreparedAt, $("dream-topic").value);
+    $("dream-preview").value = handoff.prompt;
+    $("dream-feedback").textContent = "";
+    $("dream-copy").disabled = false;
+  } catch (error) { $("dream-copy").disabled = true; $("dream-feedback").textContent = error.message; }
+});
 $("open-dream").addEventListener("click", openDreamHandoff);
 $("dream-close").addEventListener("click", () => closeDreamHandoff());
 $("dream-copy").addEventListener("click", copyDreamHandoff);

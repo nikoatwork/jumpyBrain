@@ -62,6 +62,7 @@ export interface RemoteMemoryTransport {
   deleteMemoryDocument(id: string, options: { ifMatch: string; apply: true }): Promise<import("../../types.js").MemoryDocumentDeleteResult>;
   readMemoryDocument(id: string): Promise<MemoryDocumentReadResult & Record<string, unknown>>;
   updateMemoryDocument(id: string, content: string, options: { ifMatch: string }): Promise<MemoryDocumentUpdateResult & Record<string, unknown>>;
+  checkDreamSources(request: import("../../core/dream/source-references.js").SourceCheckRequest): Promise<import("../../core/dream/source-references.js").SourceCheckResult>;
   getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
   getDreamStatus(): Promise<DreamStatus & Record<string, unknown>>;
   createDreamBatch(request?: DreamCreateRequest): Promise<DreamBatch & Record<string, unknown>>;
@@ -215,6 +216,16 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       headers: { "If-Match": updateOptions.ifMatch },
       body: JSON.stringify({ content }),
     }) as Promise<MemoryDocumentUpdateResult & Record<string, unknown>>,
+    checkDreamSources: async (sourceRequest) => {
+      try {
+        const packet = await request(HTTP_MEMORY_ROUTES.dreamSources, { method: "POST", body: JSON.stringify(sourceRequest) });
+        if (!packet.page || typeof packet.checkedAt !== "string" || !Array.isArray(packet.sources) || !["complete", "partial"].includes(String(packet.coverage))) throw new Error("Remote server returned an unsupported source-check response. Upgrade the server; no check was recorded.");
+        return packet as unknown as import("../../core/dream/source-references.js").SourceCheckResult;
+      } catch (error) {
+        if (error instanceof RemoteMemoryError && [404, 405].includes(error.status) && error.code !== "missing_id") throw new Error("Remote server does not support source checks. Upgrade the server; no check was recorded.", { cause: error });
+        throw error;
+      }
+    },
     getDreamWindow: async (windowRequest = {}) => {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(windowRequest)) {

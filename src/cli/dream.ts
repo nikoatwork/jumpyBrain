@@ -1,3 +1,4 @@
+import { readStdin } from "./stdin.js";
 import { writeFile } from "node:fs/promises";
 import type { DreamWindow, DreamWindowRequest } from "../types.js";
 import type { ParsedCliArgs } from "./args.js";
@@ -8,6 +9,18 @@ const LEGACY_FLAGS = ["status", "complete", "abandon", "force", "apply-manifest"
 const VALUE_FLAGS = ["root", "target-url", "remote-url", "from", "days", "date-basis", "offset", "max-files", "bytes-per-file", "max-total-bytes", "out"];
 
 export async function dreamCli(args: ParsedCliArgs, localMemory: LocalMemoryTransport): Promise<void> {
+  if (args["check-sources"] !== undefined || args.draft !== undefined || args["page-file"] !== undefined || args.id !== undefined) {
+    const allowed = ["_", "check-sources", "id", "draft", "page-file", "root", "target-url", "remote-url", "json"];
+    if (Object.keys(args).some(key => !allowed.includes(key)) || args._.length !== 1 || args["check-sources"] !== true || (args.json !== undefined && args.json !== true) || (args.draft !== undefined && args.draft !== true)) throw new Error("Use dream --check-sources --id <dream-page-id> OR --draft --page-file pages/topic.md; flags take no values.");
+    for (const key of ["id", "page-file", "root", "target-url", "remote-url"]) optionalValue(args, key);
+    if (Boolean(args.id) === Boolean(args.draft) || (args.draft ? !args["page-file"] : args["page-file"] !== undefined)) throw new Error("Select one saved Dream page with --id OR stdin --draft --page-file pages/topic.md.");
+    const target = await commandMemoryTarget(args, localMemory);
+    const request = args.draft ? { content: readStdin(), file: optionalValue(args, "page-file")! } : { id: optionalValue(args, "id")! };
+    const packet = target.kind === "remote" ? await target.memory.checkDreamSources(request) : await localMemory.checkDreamSources(target.root, request);
+    if (args.json) console.log(JSON.stringify(packet, null, 2));
+    else console.log([`Source versions checked at ${packet.checkedAt} · ${packet.coverage} coverage`, ...packet.sources.map(source => `- ${source.target}: ${source.status}${source.reason ? " (" + source.reason + ")" : ""}`), ...packet.warnings].join("\n"));
+    return;
+  }
   for (const flag of LEGACY_FLAGS) {
     if (args[flag] !== undefined) throw new Error(`dream --${flag} is deprecated. Dream now reads stateless UTC windows: dream --from t-0d --days 3 --out dream-window.json. No completion is needed. Apply edits with remember/update, then index. Legacy batch data is untouched; legacy runtime/HTTP APIs remain available for compatibility.`);
   }

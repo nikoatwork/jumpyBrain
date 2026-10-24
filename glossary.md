@@ -59,3 +59,7 @@ An explicitly requested, resolved UTC half-open evidence interval: inclusive low
 ## Dream window
 
 A stateless, bounded context request over inclusive UTC calendar dates. `--from` selects the newest day and `--days` counts backward: `--from t-1d --days 3` covers T-1 through T-3. Overlap and revisits are intentional; retrieval records no dreamed/completed status. Evidence dates and filesystem modification dates are separate selection modes.
+
+## Source version check
+
+An explicit observational comparison of current canonical file bytes with a fingerprint stored in a claim-adjacent Markdown link title on a Dream page. Changed/missing/ambiguous/not-checked outcomes and partial coverage remain visible. Checked time is transient, distinct from synthesis/evidence dates and truth; no old bytes or multi-file snapshot are retained. See [living topic pages](docs/living-topic-pages.md).
