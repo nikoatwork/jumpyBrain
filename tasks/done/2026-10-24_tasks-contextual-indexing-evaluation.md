@@ -79,6 +79,12 @@ Test whether inexpensive document/section context improves retrieval of ambiguou
 - The quoted-hyphen and unrelated temporal-relaxation misses, plus independently identified alias/ancestor excerpt subject-binding unknowns, remain visible baseline limits. No indexing arm fixes them; a new output/interaction hypothesis needs its own frozen evaluation rather than tuning this heldout set. Future corrective work needs its own source/constraint contracts; no unconditional enrichment follow-up is authorized by these results.
 - Pending release notes intentionally unchanged: no user behavior shipped. The scoped completion-decision changelog entry records the no-adoption outcome; no release bullet is appropriate.
 
+### Parent integration verification
+
+Integrated this decision as `4af6aeb`, followed by living topic pages `28a7669`. Final combined snapshot `0d02bd9` passed `npm test`: **1,244 tests, 1,243 passed, 0 failed, 1 optional QMD skip**, 52.664 seconds; log `/tmp/jumpybrain-orchestrator-integrated-tests-final.log`. The parent independently verified the external archive SHA-256 against the recorded `27ab03d6ff2a59694bf1421b9f4cc6e6ec961f6d1d9903add42e90283866726b`. This integration run adds no retrieval-quality or semantic-enrichment claim to the frozen evaluation.
+
+The initial combined run hit an existing evidence-date test cleanup race (`ENOTEMPTY` while diagnostics were still writing); its log is retained at `/tmp/jumpybrain-orchestrator-integrated-tests.log`. Test-only `0d02bd9` closes the server before deleting that fixture; isolated 4/4 and the full rerun passed. The unrelated root task deletion remains unstaged, and no push, release, installation or memory write was performed.
+
 ## Tasks
 
 - [x] 1.0 Establish the failure class and evaluation gate
