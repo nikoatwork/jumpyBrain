@@ -192,6 +192,7 @@ async function validateDesktop() {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
+          recognition: { version: 1, candidateLimit: 120, candidates: 16, matched: 16, partial: true, metadataUnavailable: 16 },
           results: [...idless, searchHit(fixture, "Controlled fresh search response")],
           index: { stale: false },
         }),
@@ -228,7 +229,7 @@ async function validateDesktop() {
     await controlledResult.waitFor({ state: "visible", timeout: 15_000 });
     assert.match(await controlledResult.innerText(), new RegExp(fixture.title));
     assert.equal(await controlledResult.getAttribute("aria-disabled"), "false", "usable result should lead ID-less hits");
-    assert.equal(await page.locator("#search-results [role='option']").count(), 12, "ID-less hits may fill only the remaining result slots");
+    assert.equal(await page.locator("#search-results [role='option']").count(), 16, "usable and legacy results fit within the current 24-result page");
     assert.equal(await page.locator("#search-freshness").isVisible(), false, "controlled packet starts fresh");
 
     releaseDelayedPut();

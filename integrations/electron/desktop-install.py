@@ -74,13 +74,17 @@ def copy_extension_compiler(source, runtime):
     architecture = {'arm64': 'arm64', 'x86_64': 'x64'}.get(os.uname().machine)
     if not architecture:
         raise SafetyError('Unsupported Mac architecture for extension preparation.')
-    compiler = source / 'node_modules/esbuild'
+    # Existing released workers install only the incoming Electron lockfile before
+    # calling install.mjs. Keep build prerequisites there, never in root node_modules.
+    electron = source / 'integrations/electron'
+    compiler = electron / 'node_modules/esbuild'
     native_name = f'@esbuild/darwin-{architecture}'
-    native = source / 'node_modules' / native_name
+    native = electron / 'node_modules' / native_name
     metadata = json.loads(regular(compiler / 'package.json').read_text())
     platform_metadata = json.loads(regular(native / 'package.json').read_text())
     expected = json.loads(regular(source / 'package.json').read_text()).get('dependencies', {}).get('esbuild')
-    if metadata.get('name') != 'esbuild' or metadata.get('version') != expected or platform_metadata.get('name') != native_name or platform_metadata.get('version') != expected:
+    build_version = json.loads(regular(electron / 'package.json').read_text()).get('devDependencies', {}).get('esbuild')
+    if build_version != expected or metadata.get('name') != 'esbuild' or metadata.get('version') != expected or platform_metadata.get('name') != native_name or platform_metadata.get('version') != expected:
         raise SafetyError('Extension compiler dependencies do not match the pinned runtime version.')
     regular(compiler / 'lib/main.js')
     regular(native / 'bin/esbuild')

@@ -1,5 +1,13 @@
 # Task Changelog
 
+## 2026-10-24 — v0.3.8 beta
+
+- Published search recognition, executable extensions, living pages, import and Mac interface improvements; [release notes](done/releases/v0.3.8.md) and [verification](done/releases/v0.3.8.qa.md).
+
+## 2026-10-24 — Installed Mac upgrade compatibility
+
+- Incoming Mac releases supply the pinned extension compiler through the existing installed updater; [compatibility fix and verification](done/2026-10-24_tasks-updater-compiler-distribution.md).
+
 ## 2026-10-24 — Easier brain switching
 
 - Added direct sidebar brain switching, optional connection names and clearer add/remove behavior, with native Mac flow coverage; [flow review](done/2026-10-24_tasks-connection-usability.md).

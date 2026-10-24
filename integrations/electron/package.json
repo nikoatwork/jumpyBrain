@@ -1,6 +1,6 @@
 {
   "name": "jumpybrain-desktop",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "private": true,
   "type": "module",
   "main": "main.mjs",
@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",
-    "electron": "44.8.0"
+    "electron": "44.8.0",
+    "esbuild": "0.28.2"
   }
 }

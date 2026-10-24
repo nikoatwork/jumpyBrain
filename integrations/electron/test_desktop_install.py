@@ -119,12 +119,29 @@ class CompilerSnapshotTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn('relocated compiler passed', result.stdout)
 
+    def test_incoming_distribution_needs_only_electron_build_dependencies(self):
+        with tempfile.TemporaryDirectory(prefix='jb-incoming-compiler-') as directory:
+            source = Path(directory) / 'package'; runtime = Path(directory) / 'runtime'
+            source.mkdir(); runtime.mkdir()
+            shutil.copy2(installer.SOURCE / 'package.json', source / 'package.json')
+            electron = source / 'integrations/electron'; electron.mkdir(parents=True)
+            shutil.copy2(installer.SOURCE / 'integrations/electron/package.json', electron / 'package.json')
+            (electron / 'node_modules').symlink_to(installer.SOURCE / 'integrations/electron/node_modules', target_is_directory=True)
+            self.assertFalse((source / 'node_modules').exists())
+            installer.copy_extension_compiler(source, runtime)
+            self.assertTrue((runtime / 'node_modules/esbuild/lib/main.js').is_file())
+            # Missing production prerequisites must fail before replacement; do not
+            # fetch packages or fall back to an unpinned root compiler here.
+            (electron / 'node_modules').unlink()
+            with self.assertRaises(installer.SafetyError):
+                installer.copy_extension_compiler(source, Path(directory) / 'missing-runtime')
+
     def test_snapshot_rejects_a_different_pinned_compiler(self):
         with tempfile.TemporaryDirectory(prefix='jb-extension-compiler-version-') as directory:
             source = Path(directory) / 'source'; runtime = Path(directory) / 'runtime'
             source.mkdir(); runtime.mkdir()
             (source / 'package.json').write_text('{"dependencies":{"esbuild":"0.0.0"}}')
-            (source / 'node_modules').symlink_to(installer.SOURCE / 'node_modules', target_is_directory=True)
+            (source / 'integrations').symlink_to(installer.SOURCE / 'integrations', target_is_directory=True)
             with self.assertRaisesRegex(installer.SafetyError, 'pinned runtime version'):
                 installer.copy_extension_compiler(source, runtime)
 
