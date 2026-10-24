@@ -65,6 +65,10 @@ Closing a window retains its pending-draft confirmation and keeps the services r
 
 **Start at Login** controls the next login. **Show Logs** reveals the private service log. An occupied/unauthenticated port is an error; the app never adopts another process. If its service stopped, reopen the app window to retry startup; existing drafts still require explicit recovery across a restarted session.
 
+## Extensions
+
+Add optional themes and tools through [trusted local extensions](../../docs/extensions.md). The guide includes installation, a minimal author setup, Candy Pink and Pomodoro examples, and the API v1 upgrade contract. Keep linked extension sources outside the app/CLI installation.
+
 ## Development and verification
 
 ```sh

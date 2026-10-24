@@ -1,0 +1,33 @@
+import { createRequire as __jbCreateRequire } from "node:module"; const require = __jbCreateRequire(import.meta.url);
+
+// ../dist/extensions/index.js
+var EXTENSION_API_VERSION = 1;
+
+// main.ts
+var activate = (api) => {
+  if (api.version !== EXTENSION_API_VERSION) throw Error("Unsupported API");
+  api.registerPanel({ id: "details", title: "Version one details" });
+  api.registerTheme({ id: "pink", name: "Version one pink", appearance: "light", colors: { surface: "#fff1f7", accent: "#a51862" } });
+  api.on("document.saved", async (event) => {
+    await api.state.set("saved", event.document?.id ?? null);
+  });
+  api.registerCommand({ id: "inspect", title: "Inspect version one", slot: "note.actions", shortcut: "Mod+Shift+Y", handler: async (_, context) => {
+    const result = await context.memory.search({ query: "compatibility", limit: 2 });
+    const saved = await context.memory.read(context.document.id);
+    return { panel: { id: "details", data: { version: api.version, results: result.results, hash: saved.hash, state: await api.state.get("kept") ?? null } } };
+  } });
+  api.registerCommand({ id: "write", title: "Version one write", slot: "sidebar.actions", handler: async (_, context) => {
+    const saved = await context.memory.create({ type: "note", body: "v1 body", idempotencyKey: "v1-key" });
+    await context.memory.update({ id: context.document.id, content: "v1 updated", ifMatch: "v1-hash" });
+    return { message: JSON.stringify(saved) };
+  } });
+  api.registerCommand({ id: "remember", title: "Keep version one state", handler: async (input) => {
+    await api.state.set("kept", input);
+  } });
+  api.onDispose(() => {
+  });
+};
+var main_default = activate;
+export {
+  main_default as default
+};

@@ -82,7 +82,7 @@ Want help connecting a growing collection? The optional [how-to-dream skill](ski
 
 Your brain is a folder of readable Markdown. You can inspect it, edit it, back it up, move it, and version it with tools you already use. Search indexes and embeddings are rebuildable.
 
-The app is [MIT licensed](LICENSE). Run it locally, host it on your own infrastructure, change the editor, build an integration, or fork it for your own workflow. Your knowledge stays portable, and you choose the agents that work with it.
+The app is [MIT licensed](LICENSE). Run it locally, host it on your own infrastructure, change the editor, build an integration, or fork it for your own workflow. Your knowledge stays portable, and you choose the agents that work with it. Add optional palettes and tools with [trusted local extensions](docs/extensions.md), including Candy Pink and a Pomodoro timer.
 
 **Local first, with no jumpyBrain account required.** Local notes and search stay on your computer. Installing the app or CLI does not upload your brain or enable cloud sync. A shared brain is a server you explicitly connect to. Notes recalled into a cloud AI assistant are handled by that assistant; sending feedback and choosing cloud-synced folders are also separate sharing choices. [Privacy FAQ →](docs/faq.md#when-can-data-leave-my-computer)
 
@@ -104,7 +104,7 @@ open "$HOME/Applications/jumpyBrain.app"
 
 Choose `~/.jumpybrain/memory` in the app to open the same brain your agents use (or your actual configured root). No second clone or copy of your notes is needed. Starting with the app only? Follow the [public source setup](docs/install.md#macos-desktop-app-beta).
 
-The Mac beta currently builds locally and requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Closing the window keeps your brain live in the menu bar; Quit stops its local services. The app bundles its own runtime code, and app/CLI updates are separate. See the [Desktop guide](integrations/electron/README.md) for details. App folder selection does not change your agent's CLI target.
+The Mac beta currently builds locally and requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Closing the window keeps your brain live in the menu bar; Quit stops its local services. The app bundles its own runtime code; supported managed app/CLI pairs update together, while CLI-only and custom installations retain their own update policy. See the [Desktop guide](integrations/electron/README.md) for details. App folder selection does not change your agent's CLI target.
 
 ### With your agent, on macOS or Linux
 

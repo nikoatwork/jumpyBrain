@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "id": "pomodoro",
+  "name": "Pomodoro",
+  "version": "1.0.0",
+  "main": "main.ts",
+  "ui": "ui.ts",
+  "capabilities": []
+}

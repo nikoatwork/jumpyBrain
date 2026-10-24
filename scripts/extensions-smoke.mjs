@@ -27,7 +27,7 @@ try {
   await page.locator('[data-extension-slot="note.actions"]').getByRole('button', { name: 'Related notes', exact: true }).waitFor();
   const snapshot = await native('/companion/extensions');
   const related = snapshot.extensions.find(item => item.commands.some(command => command.title === 'Related notes'));
-  const palette = snapshot.extensions.find(item => item.themes.length);
+  const palette = snapshot.extensions.find(item => item.id === 'ember-plum');
   assert.ok(related && palette); assert.equal(related.status, 'active'); assert.equal(palette.status, 'active');
   const openRelated = () => page.locator('[data-extension-slot="note.actions"]').getByRole('button', { name: 'Related notes', exact: true }).click();
   const panel = page.locator('#extension-panel');
@@ -62,6 +62,38 @@ try {
   assert.equal(await editorMarkdown(page), draft);
   assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(33, 29, 41)');
   checks.push('executable palette changes tokens without replacing editor or draft');
+
+  // New examples use public contributions only, with no feature-specific host branch.
+  const candy = snapshot.extensions.find(item => item.id === 'candy-pink');
+  assert.equal(candy.status, 'active');
+  await page.evaluate(value => {
+    const select = document.getElementById('extension-theme'); select.value = value; select.dispatchEvent(new Event('change'));
+  }, candy.id + ':' + candy.themes[0].id);
+  assert.equal(await page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(255, 241, 247)');
+  const openTimer = () => page.locator('[data-extension-slot="sidebar.actions"]').getByRole('button', { name: 'Pomodoro', exact: true }).click();
+  await openTimer();
+  await panel.getByRole('timer').filter({ hasText: '25:00' }).waitFor();
+  await panel.getByRole('button', { name: 'Start focus', exact: true }).click();
+  await panel.getByRole('button', { name: 'Pause', exact: true }).waitFor();
+  await page.waitForFunction(() => document.querySelector('[role="timer"]')?.textContent !== '25:00');
+  await panel.getByRole('button', { name: 'Pause', exact: true }).click();
+  await panel.getByRole('button', { name: 'Resume', exact: true }).waitFor();
+  const pausedTimer = await panel.getByRole('timer').innerText();
+  await page.getByRole('button', { name: 'Close extension panel', exact: true }).click();
+  await openTimer();
+  assert.equal(await panel.getByRole('timer').innerText(), pausedTimer);
+  await panel.getByRole('button', { name: 'Reset', exact: true }).click();
+  await panel.getByRole('timer').filter({ hasText: '25:00' }).waitFor();
+  await panel.getByRole('button', { name: 'Break · 5 min', exact: true }).click();
+  await panel.getByRole('timer').filter({ hasText: '05:00' }).waitFor();
+  for (const width of [1280, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Pomodoro ${width} fits`);
+    await page.screenshot({ path: path.join(output, `candy-pomodoro-${width}.png`), fullPage: true });
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole('button', { name: 'Close extension panel', exact: true }).click();
+  checks.push('Candy Pink tokens and Pomodoro start/countdown/pause/reopen/reset/break, at 1280/390/320');
 
   // Failed canonical saves must still block extension-requested navigation.
   await page.waitForFunction(() => state.editor?.state.saveStatus === 'saved');

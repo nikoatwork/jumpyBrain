@@ -5,11 +5,12 @@ import os from 'node:os';
 import http from 'node:http';
 import net from 'node:net';
 import { mkdtemp, realpath, mkdir, cp, readFile, writeFile, rm, readdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { createServerMemoryRuntime } from '../dist/server/index.js';
 import { loginPlist } from '../integrations/electron/login.mjs';
+import { seedV1Extension, v1Context } from './extensions-v1-fixture.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const mode = process.argv[2] || 'success';
 const existingClient = process.argv[3] === '--client-v0.3.7';
@@ -57,6 +58,9 @@ try {
   await cp(path.join(source, 'dist'), path.join(resources, 'runtime/dist'), { recursive: true });
   await json(path.join(resources, 'runtime/package.json'), { ...pkg, version: oldVersion });
   await cp(source, path.join(root, 'app'), { recursive: true });
+  // Model a working source-installed old CLI, including its lazy production compiler.
+  // The incoming release remains node_modules-free and installs only Electron dependencies.
+  await cp(path.join(resources, 'runtime/node_modules'), path.join(root, 'app/node_modules'), { recursive: true });
   const cliPath = path.join(root, 'bin/jumpybrain'), cliConfigPath = path.join(root, 'cli-config.json');
   await writeFile(cliPath, `#!/usr/bin/env sh\nif [ -z "\${JUMPYBRAIN_CLI_CONFIG+x}" ]; then\n  export JUMPYBRAIN_CLI_CONFIG='${cliConfigPath}'\nfi\nexec node ${JSON.stringify(path.join(root, 'app/dist/cli.js'))} "$@"\n`, { mode: 0o755 });
   await json(cliConfigPath, { schemaVersion: 1, remoteTargets: [{ origin: 'https://example.invalid', access: 'read-only' }] });
@@ -92,7 +96,9 @@ try {
     url: `http://127.0.0.1:${server.address().port}/release.tgz`, notes: 'Disposable immutable GUI upgrade fixture. <script>must remain text</script>' };
   const userData = path.join(home, 'user-data'); await mkdir(userData); await json(path.join(userData, 'desktop-setup.json'), { version: 1 });
   await json(fixturePath, { home, userData, support, oldVersion, nextVersion, release, artifactDir, mode });
-  const protectedPaths = [path.join(memory, 'notes/keep.md'), cliConfigPath, integration, launchAgent, path.join(support, 'api-key')];
+  const extensionDirectory = path.join(support, 'extensions');
+  const extensionFiles = await seedV1Extension(extensionDirectory, path.join(home, 'extension-packages/v1'));
+  const protectedPaths = [...extensionFiles.filter(file => !file.endsWith('/state/v1-contract.json')), path.join(memory, 'notes/keep.md'), cliConfigPath, integration, launchAgent, path.join(support, 'api-key')];
   const before = await Promise.all(protectedPaths.map(file => readFile(file)));
   const env = { ...process.env, HOME: home }; delete env.ELECTRON_RUN_AS_NODE;
   if (mode === 'cli-closed') {
@@ -138,6 +144,15 @@ try {
   assert.ok(report, 'installed upgrade timed out'); assert.equal(report.ok, true, report?.error);
   for (let i = 0; i < protectedPaths.length; i++) assert.deepEqual(await readFile(protectedPaths[i]), before[i], protectedPaths[i]);
   if (mode === 'success') assert.deepEqual(await readFile(path.join(memory, 'notes/work.md')), await readFile(path.join(home, 'work-before.md')));
+  // Invoke the frozen external package through the installed replacement runtime, not checkout code.
+  const { createExtensionHost } = await import(pathToFileURL(path.join(resources, 'runtime/dist/app/extensions/index.js')).href);
+  const extensionHost = await createExtensionHost({ directory: extensionDirectory });
+  try {
+    assert.equal(extensionHost.snapshot().extensions.find(item => item.id === 'v1-disabled').status, 'disabled');
+    const result = await extensionHost.invoke('v1-contract', 'inspect', null, v1Context());
+    assert.deepEqual(result.panel.data.state, { from: 'v1' });
+    assert.equal(result.panel.data.version, 1);
+  } finally { await extensionHost.dispose(); }
   const recovered = ['relaunch-failure', 'helper-crash', 'app-crash'].includes(mode);
   const expectedCLI = recovered || mode === 'app-only' ? oldVersion : nextVersion;
   assert.equal(JSON.parse(await readFile(path.join(root, 'app/package.json'))).version, expectedCLI);
@@ -147,9 +162,11 @@ try {
     assert.ok(installedFiles.has('/' + file), `Updated app must retain its next-update helper: ${file}`);
   }
   assert.equal(execFileSync(cliPath, ['--version'], { env, encoding: 'utf8' }).trim(), expectedCLI);
+  const cliExtension = JSON.parse(execFileSync(cliPath, ['extensions', 'install', '--source', path.join(home, 'extension-packages/v1'), '--directory', path.join(home, 'cli-extension-check/extensions'), '--json'], { env, encoding: 'utf8' }));
+  assert.ok(cliExtension.prepared.revision, 'installed CLI must compile a fresh TS/UI extension after upgrade');
   const manifest = JSON.parse(await readFile(path.join(root, 'install-manifest.json')));
   assert.equal(manifest.source, 'https://github.com/nikoatwork/jumpyBrain.git'); assert.equal(manifest.ref, mode === 'app-only' ? 'v0.3.3' : 'master');
-  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
+  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
   success = true; console.log('Installed GUI update: PASS', JSON.stringify(report));
 } finally {
   server?.close();

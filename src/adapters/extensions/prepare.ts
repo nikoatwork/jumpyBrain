@@ -2,6 +2,7 @@ import { mkdir, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { checkedFile, contained, ExtensionPackageError } from "./validation.js";
 import { cacheBytes, isExtensionSafeMode, pruneExtensionCache, type InstalledExtension, type PreparedExtension } from "./registry.js";
 
@@ -13,7 +14,15 @@ export async function prepareExtension(directory: string, entry: InstalledExtens
   if (await pruneExtensionCache(directory, entry.manifest.id, entry.prepared?.revision) >= 8) throw new ExtensionPackageError("Extension cache revision limit reached; close other hosts and reload.");
   const sourceRoot = await realpath(entry.source);
   const sdk = await realpath(fileURLToPath(new URL("../../extensions/index.js", import.meta.url)));
-  const { build, stop } = await import("esbuild");
+  let compiler: typeof import("esbuild");
+  try { compiler = await import("esbuild"); }
+  catch (error) {
+    // Published paired updates install build dependencies under Electron. Reuse
+    // that pinned compiler when the managed CLI has no root node_modules.
+    if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND") throw error;
+    compiler = createRequire(new URL("../../../integrations/electron/package.json", import.meta.url))("esbuild") as typeof import("esbuild");
+  }
+  const { build, stop } = compiler;
   preparations++;
   const revision = randomUUID();
   const parent = path.join(directory, "cache", entry.manifest.id);

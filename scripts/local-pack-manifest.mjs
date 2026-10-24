@@ -14,6 +14,7 @@ export const requiredLocalPackFiles = Object.freeze([
   ...moduleFiles("adapters", "extensions", "prepare"),
   ...moduleFiles("adapters", "extensions", "validation"),
   ...moduleFiles("cli", "extensions"),
+  ...["candy-pink", "pomodoro"].flatMap(id => ["jumpybrain-extension.json", "main.ts", "README.md", ...(id === "pomodoro" ? ["ui.ts"] : [])].map(file => `package/examples/extensions/${id}/${file}`)),
   "package/examples/extensions/ember-plum/jumpybrain-extension.json",
   "package/examples/extensions/ember-plum/main.ts",
   "package/examples/extensions/related-notes/jumpybrain-extension.json",

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Extension examples and upgrade contracts
+
+- Added Candy Pink and Pomodoro, froze API v1 compatibility checks, and repaired paired-update CLI compilation; [review, evidence and remaining hardening](done/2026-10-24_tasks-extension-examples-contract-review.md).
+
 ## 2026-10-24 — v0.3.8 beta
 
 - Published search recognition, executable extensions, living pages, import and Mac interface improvements; [release notes](done/releases/v0.3.8.md) and [verification](done/releases/v0.3.8.qa.md).

@@ -59,7 +59,47 @@ export default activate;
 
 Select the command from its contributed button or the extension's Settings entry. Local contribution IDs are namespaced as `hello:greet`. `apiVersion: 1` is the compatibility gate; unsupported versions are rejected before activation. The package's numeric `version` identifies its own release.
 
-The public SDK is [src/extensions/index.ts](../src/extensions/index.ts), distributed separately as `jumpybrain/extensions.js` with TypeScript declarations. It imports no compiler, desktop host or memory engine. A TypeScript editor can use a local jumpyBrain development dependency for completion; source preparation recognizes the SDK import without requiring a second installed host copy.
+The public SDK is distributed as `jumpybrain/extensions.js` with TypeScript declarations (`extensions.d.ts` and `dist/extensions/index.d.ts` in an installed distribution). It imports no compiler, desktop host or memory engine. Source preparation recognizes the SDK import without requiring a second installed host copy. For editor completion and a separate type check, see the setup below. Compilation alone does not type-check TypeScript.
+
+## Author setup and edit loop
+
+Keep your package in a permanent directory outside the replaceable app/CLI installation, for example `~/jumpybrain-extensions/hello`. Installation links that directory; it does not copy your code. Do not develop inside `~/.jumpybrain/app`, `jumpyBrain.app`, an extracted release, or an extension cache: upgrades replace those locations.
+
+From the directory containing your manifest and `main.ts`, set up an optional local type-checking dependency. jumpyBrain is distributed through its installer and release archives, not the npm registry:
+
+```sh
+npm init -y
+npm pkg set type=module
+npm install --save-dev "$HOME/.jumpybrain/app" typescript
+```
+
+Replace the SDK path with your existing checkout or unpacked release containing `extensions.d.ts` and built `dist/` if you use another installation. This dependency supplies types; the running app supplies the host. Create `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["*.ts"]
+}
+```
+
+Run `npx tsc`, then `jumpybrain extensions install --source "$PWD"`. Open the Mac app and use the contributed button. After edits, run `npx tsc` and `jumpybrain extensions reload`; there is no source watcher. Install once per package ID; subsequent edits use reload. Open Settings → Extensions to select a theme or adjust command placement/shortcuts. A CLI-only installation can prepare packages, but has no desktop UI host.
+
+## Compatibility across upgrades
+
+API version 1 is a supported contract independent of the CLI/app package version, including during beta. Patch and minor software upgrades must continue accepting existing v1 manifests and preserve the meaning of existing SDK methods, command/panel lifetimes, named slots, semantic theme roles, capability checks and write authorization. New features may be additive; optional additions cannot become required for an existing v1 package. Do not change an installed extension's ID to migrate it.
+
+Updates preserve the external registry, enabled/disabled choices and namespaced state under the support directory, plus device-local UI preferences in the existing app profile. Cache output is derived; it may be rebuilt from the linked package. Keep source and package-local dependencies available in that stable directory. The app does not update extension sources/dependencies. Factories should be idempotent: current updater readiness probes can activate them more than once before actual relaunch, and those state changes are outside bundle rollback. Extension authors own migrations of their own JSON state and should retain unknown fields where practical; backing up Markdown alone does not back up extension state.
+
+A breaking API requires a new `apiVersion` and an explicit migration plan while retaining the v1 host path for existing packages. Unsupported API versions are rejected before execution. Do not edit the frozen v1 compatibility fixture to make a breaking change pass. The release gates in [release testing](release-testing.md) check the historical consumer against the candidate host and an installed update; a version number alone is insufficient evidence.
+
+This promise covers the public API and supported package imports. Private host/editor modules, arbitrary CSS selectors, undeclared filesystem/process side effects and third-party dependency behavior are outside it. Downgrades to software predating executable extensions or to an extension version that cannot read its newer state are not guaranteed; preserve backups and follow that extension's migration guidance. CLI-only upgrades do not upgrade an independently running/custom Mac app; the active desktop host determines available APIs.
 
 ## Commands and scoped memory
 
@@ -84,9 +124,9 @@ Declare a panel with `api.registerPanel({id, title})` and an optional `ui` entry
 
 The render function receives a container, JSON data and a UI context with `signal`, `document`, `execute(commandId,input)` and guarded `openNote(id)`. Return a disposer for listeners/resources you own. Build UI with DOM/text APIs and shared semantic tokens. Do not import private editor controllers or create an alternative save/navigation implementation.
 
-Named action slots are `sidebar.actions` and `note.actions`. Panel contributions, commands and shortcuts are removed on disable/reload. Closing a panel aborts its context and restores focus; document/brain changes invalidate stale UI. These APIs do not expose raw Electron, native IPC, Keychain, an arbitrary authenticated-fetch client or editor replacement.
+Named action slots are `sidebar.actions` (left sidebar button) and `note.actions` (note toolbar button). Both open commands/panels; v1 has no persistent inline/sidebar widget or top-right timer mount. A panel closes on note/brain navigation; keep ongoing timer state in the Node factory if it must survive panel closure. Do not mount into private shell DOM to imitate an unsupported slot. Panel contributions, commands and shortcuts are removed on disable/reload. Closing a panel aborts its context and restores focus; document/brain changes invalidate stale UI. These APIs do not expose raw Electron, native IPC, Keychain, an arbitrary authenticated-fetch client or editor replacement.
 
-`api.on(type, handler)` observes `document.changed`, `document.saved`, `theme.changed` and `scope.changed`. The gateway announces committed brain/permission generations; the host delivers a scope notification once per generation, independently of how many tabs register. Notifications do not gate canonical saves or transform retrieval policy, and event contexts do not authorize writes. Unsubscribe using the returned disposer. `api.onDispose(fn)` owns activation cleanup; a factory may also return a disposer. Keep cleanup idempotent.
+`api.on(type, handler)` observes `document.changed`, `document.saved`, `theme.changed` and `scope.changed`. The gateway announces committed brain/permission generations; the host delivers a scope notification once per generation, independently of how many tabs register. Event contexts do not authorize writes or transform retrieval policy. Keep handlers short and cancellation-aware: the current gateway awaits scope observers, so slow observers can delay a guarded brain switch or quit. Unsubscribe using the returned disposer. `api.onDispose(fn)` owns activation cleanup; a factory may also return a disposer. Keep cleanup idempotent.
 
 `api.state.get(key)` / `set(key, json)` store bounded, namespaced extension state. Keep brain-specific values keyed by an appropriate scope and discard transient document data when that scope changes.
 
@@ -94,10 +134,19 @@ Themes use `api.registerTheme({id,name,appearance,colors})`. Colors map approved
 
 ## Working examples
 
+- [Candy Pink](../examples/extensions/candy-pink/) registers a playful strawberry-pink palette.
+- [Pomodoro](../examples/extensions/pomodoro/) adds a left-sidebar timer button, with focus/break controls in a panel. The timer uses no memory permission.
 - [Ember Plum](../examples/extensions/ember-plum/) registers a palette from an executable factory.
 - [Related notes](../examples/extensions/related-notes/) registers a command/shortcut, explicitly searches the current note's title or a user-edited query, excludes the current note, and renders/open results in its own UI entry. Query construction and feature presentation live entirely in the package.
 
 ```sh
+# From a source checkout or unpacked distribution: copy once to a stable location.
+mkdir -p "$HOME/jumpybrain-extensions"
+cp -R ./examples/extensions/candy-pink ./examples/extensions/pomodoro "$HOME/jumpybrain-extensions/"
+jumpybrain extensions install --source "$HOME/jumpybrain-extensions/candy-pink"
+jumpybrain extensions install --source "$HOME/jumpybrain-extensions/pomodoro"
+
+# Other examples (copy outside a replaceable installation before installing there):
 jumpybrain extensions install --source ./examples/extensions/ember-plum
 jumpybrain extensions install --source ./examples/extensions/related-notes
 ```
@@ -106,9 +155,9 @@ Use the same public contract for optional human-facing workflows. Keep canonical
 
 ## Reload and recovery
 
-Reload prepares a new module revision before replacing a working activation. A failed preparation/activation is reported against the extension; a usable previous activation is retained where possible. Disable removes owned contributions and cancels supported work. The host cannot undo arbitrary filesystem/process side effects performed by trusted Node code.
+Reload prepares a new module revision before replacing a working activation. A failed preparation/activation is reported against the extension; a usable previous activation is retained in the running host where possible. A failed factory candidate is currently persisted by preparation, so that fallback is not guaranteed after restart; restore the working source and reload before restarting. Disable removes owned contributions and cancels supported work. The host cannot undo arbitrary filesystem/process side effects performed by trusted Node code.
 
-For safe startup, create the `disabled` marker inside the extensions directory before starting the app. It is checked before compilation/factory loading. Remove the marker and explicitly reload when the package is repaired. This marker pauses executable packages, not canonical memory or the ordinary editor.
+For safe startup, create the `disabled` marker inside the extensions directory before starting the app. It is checked before compilation/factory loading. Remove the marker and explicitly reload when the package is repaired. This marker pauses executable packages, not canonical memory or the ordinary editor. If both registry files are corrupt, the current host still cannot start in safe mode: quit, preserve/rename `registry.json` and `registry.backup.json` for recovery, then start with an empty registry and explicitly reinstall trusted packages. Namespaced state remains separate.
 
 Node's ESM module cache cannot be unloaded. The host permits 64 module import attempts before requiring a normal guarded desktop restart; failed attempts count too. Prepared files have separate disk limits: 4 MiB per revision, at most eight retained revisions per package and 256 MiB total cache output. Recent/current/live-host revisions are protected during pruning. At the disk cap, stop the host and remove unused cache revisions before reloading. User state is separate and retained.
 
@@ -116,4 +165,4 @@ The host cannot preempt synchronous blocking JavaScript or contain `process.exit
 
 ## Verification
 
-Build first, then run `node --test test/extension-gateway.test.js test/extensions*.test.js` for focused package/runtime/transport checks. `npx --package=playwright node scripts/extensions-smoke.mjs` exercises the examples through the production gateway against disposable canonical Markdown and a real lexical index. `node scripts/extensions-desktop-smoke.mjs` uses the production Electron window, and the focused controller smoke covers never-settling UI promises and persisted-page lifecycle restoration. Desktop/resource checks and measured limits are recorded in the implementing task; they do not establish physical-device or assistive-technology parity, arbitrary-package safety, or a whole-app resource budget.
+Build first, then run `node --test test/extension-gateway.test.js test/extensions*.test.js test/extension-examples.test.js` for focused package/runtime/transport checks. `npx --package=playwright node scripts/extensions-smoke.mjs` exercises the examples through the production gateway against disposable canonical Markdown and a real lexical index. `node scripts/extensions-desktop-smoke.mjs` uses the production Electron window, and the focused controller smoke covers never-settling UI promises and persisted-page lifecycle restoration. Desktop/resource checks and measured limits are recorded in the implementing task; they do not establish physical-device or assistive-technology parity, arbitrary-package safety, or a whole-app resource budget.
