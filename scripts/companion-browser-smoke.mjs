@@ -3,7 +3,7 @@
 // npm run build && npx --package=playwright node scripts/companion-browser-smoke.mjs
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
@@ -24,7 +24,7 @@ let switchSequence = 0, pendingSwitch = null, failWrites = false, failCapture = 
 let failIndex = false, searchDelay = 0;
 const tabs = new Map(), requests = [], profileWrites = [], violations = [], pollCounts = new Map();
 const snapshot = () => ({ profiles, activeId, generation, revision, phase, switchId, target,
-  health: { status: "connected" }, active: profiles.find((item) => item.id === activeId) });
+  extensions: { revision: "fixture-extensions-1" }, health: { status: "connected" }, active: profiles.find((item) => item.id === activeId) });
 const json = (response, body, status = 200) => {
   response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" });
   response.end(JSON.stringify(body));
@@ -56,6 +56,8 @@ const server = createServer(async (request, response) => {
     if (!request.headers.cookie?.includes("fixture-session=ok")) { error(response, "session_required", 401); return; }
     if (url.pathname.startsWith("/companion/")) {
       const route = url.pathname.slice(11);
+      if (route === "extensions") { json(response, { apiVersion: 1, revision: "fixture-extensions-1", safeMode: false, extensions: [] }); return; }
+      if (route === "extensions/event") { json(response, {}); return; }
       if (route === "state") { json(response, snapshot()); return; }
       if (route === "register") { tabs.set(body.tabId, { generation: body.generation }); json(response, snapshot()); return; }
       if (route === "poll") {
@@ -106,7 +108,7 @@ const server = createServer(async (request, response) => {
       }
       if (url.pathname === "/memories/all/search") {
         await new Promise((resolve) => setTimeout(resolve, searchDelay));
-        json(response, { results: [{ provenance: { file: "notes/fixture.md", metadata: { id, title: "Fixture " + activeId } }, snippet: "Synthetic search result" }], index: { stale: false } }); return;
+        json(response, { results: [{ provenance: { file: "notes/fixture.md", metadata: { id, title: "Fixture " + activeId } }, snippet: "Synthetic search result" }], recognition: { version: 1, candidateLimit: 120, candidates: 1, matched: 1, partial: true, metadataUnavailable: 1 }, index: { stale: false } }); return;
       }
       if (url.pathname === "/memories/all/ensure-title") {
         assert.equal(request.method, "POST");
@@ -171,6 +173,38 @@ try {
   assert.equal(new URL(settings.url()).hash, "");
   assert.equal(await settings.evaluate(() => localStorage.getItem("jumpybrain.graph.apiKey")), null, "legacy local-server credential must be forgotten");
   assert.equal(requests.some((item) => item.path.startsWith("/memories/")), false, "settings startup needs no memory fetch");
+  await settings.waitForFunction(() => document.getElementById("extension-status").textContent === "No extensions installed.");
+  assert.equal(await settings.locator(".extension-palette").isVisible(), false, "no palette control without custom themes");
+  // Inspect the shipped Settings, including long destinations and touch-sized icon actions.
+  const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
+  if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
+  assert.equal(await settings.getByRole("list", { name: "Saved brains" }).count(), 1);
+  assert.equal(await settings.locator(".companion-header").getByRole("button", { name: "Refresh search index", exact: true }).count(), 1);
+  assert.equal(await settings.locator("#companion-add").getAttribute("open"), null);
+  await settings.locator(".companion-profile").first().getByRole("button", { name: "Edit", exact: true }).focus();
+  await idlePolls(settings);
+  assert.equal(await settings.evaluate(() => document.activeElement?.getAttribute("aria-label")), "Edit", "idle polls retain focused row controls");
+  for (const theme of ["light", "dark"]) {
+    await settings.evaluate((value) => colorTheme.setPreference(value), theme);
+    for (const width of [1280, 390, 320]) {
+      await settings.setViewportSize({ width, height: 900 });
+      const layout = await settings.locator("#companion-settings").evaluate((el) => {
+        const controls = [...el.querySelectorAll(".note-icon")];
+        return { fits: el.scrollWidth <= el.clientWidth, controls: controls.map(item => {
+          const box = item.getBoundingClientRect();
+          return { width: box.width, height: box.height, text: item.textContent.trim(), label: item.getAttribute("aria-label"), fits: box.left >= 0 && box.right <= innerWidth };
+        }) };
+      });
+      assert.equal(layout.fits, true, theme + " " + width + " Settings overflow");
+      for (const control of layout.controls) {
+        assert.ok(control.label && !control.text && control.fits, "named, visible icon actions");
+        assert.ok(control.width >= (width <= 680 ? 40 : 32) && control.height >= (width <= 680 ? 40 : 32));
+      }
+      if (screenshotDir) await settings.screenshot({ path: path.join(screenshotDir, "settings-" + theme + "-" + width + ".png"), fullPage: true });
+    }
+  }
+  await settings.setViewportSize({ width: 1280, height: 900 });
+  await settings.evaluate(() => colorTheme.setPreference("system"));
   await settings.locator("#companion-refresh-index").click();
   await settings.waitForFunction(() => document.getElementById("companion-refresh-index").disabled);
   assert.equal(await settings.locator("#companion-name").isDisabled(), true);
@@ -316,7 +350,7 @@ try {
   await settings.locator("#companion-profiles strong").first().waitFor();
   assert.equal(await settings.locator("#companion-active").getAttribute("data-state"), "connected", "Settings uses confirmed host health before any memory request");
   assert.equal(await settings.locator("#companion-refresh-index").isDisabled(), true);
-  assert.match(await settings.locator("#companion-index-target").textContent(), /read only/);
+  assert.match(await settings.locator("#companion-refresh-index").getAttribute("title"), /read only/);
   const readOnly = await context.newPage(); readOnly.on("pageerror", (exception) => pageErrors.push(exception.message));
   await readOnly.goto(origin + "/?note=" + id + "&brain=r"); await readOnly.locator("#note-editor").waitFor();
   assert.equal(await readOnly.locator("#note-editor").getAttribute("contenteditable"), "false");

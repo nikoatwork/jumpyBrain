@@ -78,7 +78,9 @@ try {
     document.documentElement.dataset.theme = 'dark';
   });
   assert.deepEqual(await page.evaluate(() => calls), [], 'absent signal is silent, including lifecycle events');
+  assert.equal(await page.locator('.extension-palette').isVisible(), false, 'palette stays hidden before custom themes are available');
   await page.evaluate(() => sync());
+  assert.equal(await page.locator('.extension-palette').isVisible(), true, 'custom themes reveal the palette control');
   await page.evaluate(async () => { for (let i = 0; i < 20; i++) await sync(); });
   assert.equal(await page.evaluate(() => calls.filter(call => call.url === '/companion/extensions').length), 1, 'healthy state polling never refetches same descriptor revision');
   assert.equal(await page.evaluate(() => calls.filter(call => call.body?.event?.type === 'document.changed').length), 1, 'initial descriptor activation delivers the current document once');

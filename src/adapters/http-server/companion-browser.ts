@@ -5,11 +5,17 @@ import { browserIcons } from "./browser-icons.js";
 export const companionStyles = String.raw`
   #companion-settings { width: 100%; overflow: auto; padding: var(--space-8) var(--space-6) var(--space-16); }
   .companion-column { max-width: 760px; margin: auto; }
-  #companion-settings h2 { font-size: var(--text-section); margin-top: var(--space-8); }
-  .companion-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-4); align-items: center; border-bottom: 1px solid var(--line); padding: var(--space-4) 0; }
-  .companion-profile p { grid-column: 1; margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--ink-soft); overflow-wrap: anywhere; }
+  #companion-settings h2 { font-size: var(--text-section); margin: 0; }
+  .settings-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+  .companion-header { margin-bottom: var(--space-8); }
+  .companion-header h1 { margin: 0; }
+  #companion-profiles { list-style: none; padding: 0; margin: var(--space-2) 0 0; }
+  .companion-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-4); align-items: center; border-bottom: 1px solid var(--line); padding: var(--space-3) 0; }
+  .companion-profile p { grid-column: 1; margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--ink-soft); display: flex; gap: var(--space-2); }
+  .companion-path { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .companion-profile-status { flex-shrink: 0; max-width: 50%; overflow-wrap: anywhere; }
   .companion-profile > .companion-actions { grid-column: 2; grid-row: 1 / 3; gap: var(--space-1); }
-  .companion-profile strong { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); }
+  .companion-profile strong { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); overflow-wrap: anywhere; }
   .companion-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   #companion-fields { border: 0; padding: 0; margin: 0; }
   #companion-form label { display: block; margin: var(--space-4) 0; }
@@ -18,32 +24,24 @@ export const companionStyles = String.raw`
   #companion-form input[type=checkbox] { height: auto; }
   #companion-active { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) 0; color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
   @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
-  .companion-search { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
-  #companion-settings .companion-search h2 { margin: 0; margin-right: auto; }
-  #companion-index-target { flex-basis: 100%; margin: 0; font-size: var(--text-caption); }
-  .companion-add { margin-top: var(--space-6); }
+  .companion-add { margin-top: var(--space-2); }
   .companion-add > summary { width: fit-content; cursor: pointer; font-size: var(--text-ui); color: var(--ink-soft); padding-block: var(--space-2); }
-  #companion-settings > .companion-column > h1 { margin-bottom: var(--space-6); }
   #companion-form { max-width: 520px; }
   #companion-form p { color: var(--ink-soft); font-size: var(--text-caption); }
-  @media (max-width: 680px) { .companion-actions .note-icon, #companion-refresh-index { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
+  @media (max-width: 680px) { #companion-settings .note-icon { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
   @media (max-width: 480px) { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
-  #companion-index-target { color: var(--ink-soft); overflow-wrap: anywhere; }
 `;
 
 export const companionMarkup = String.raw`
 <section id="companion-settings" aria-labelledby="companion-heading" hidden>
   <div class="companion-column">
-    <h1 id="companion-heading" tabindex="-1">Settings</h1>
-    <section class="companion-search" aria-labelledby="companion-search-heading">
-      <h2 id="companion-search-heading">Search index</h2>
+    <header class="settings-heading companion-header">
+      <h1 id="companion-heading" tabindex="-1">Settings</h1>
       <button id="companion-refresh-index" class="quiet-button note-icon" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
-      <p id="companion-index-target">Connect to a brain to refresh search.</p>
-    </section>
-    ${extensionSettingsMarkup}
+    </header>
     <h2>Brain connections</h2>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
-    <div id="companion-profiles" aria-label="Saved brains"></div>
+    <ul id="companion-profiles" aria-label="Saved brains"></ul>
     <details id="companion-add" class="companion-add">
     <summary id="companion-form-heading">Add connection</summary>
     <form id="companion-form">
@@ -57,9 +55,8 @@ export const companionMarkup = String.raw`
         <div id="companion-remote-fields" hidden>
           <label>Memory server URL<input id="companion-url" type="url" placeholder="https://memory.example.com" autocomplete="off" /></label>
           <label>Access key<input id="companion-key" type="password" autocomplete="new-password" /></label>
-          <p>Stored in Keychain. Leave blank to keep the saved key.</p>
-          <label><input id="companion-writes" type="checkbox" /> I explicitly authorize editing, creating and deleting notes, and refreshing the search index on this remote brain.</label>
-          <p>Saving, testing, or selecting a connection does not authorize global/team memory writes.</p>
+          <p>Saved in Keychain. Blank keeps the current key.</p>
+          <label><input id="companion-writes" type="checkbox" /> I authorize note changes and search refresh on this brain.</label>
         </div>
         <div class="companion-actions">
           <button class="button button-primary" type="submit">Save connection</button>
@@ -68,6 +65,7 @@ export const companionMarkup = String.raw`
       </fieldset>
     </form>
     </details>
+    ${extensionSettingsMarkup}
     <p class="app-version" data-app-version></p>
   </div>
 </section>
@@ -409,11 +407,13 @@ function renderCompanionIndex() {
   $("companion-refresh-index").disabled = !companionCanRefreshIndex();
   $("companion-refresh-index").setAttribute("aria-label", companionIndexRefreshing ? "Refreshing search index…" : "Refresh search index");
   $("companion-refresh-index").setAttribute("aria-busy", String(companionIndexRefreshing));
-  $("companion-index-target").textContent = active
-    ? "Missing recent edits? Refresh search for “" + active.name + "”."
-      + (active.allowWrites !== true ? " This brain is read only; editing permission required." : "")
-      + (companionHealthText(companionState.health) !== "connected" ? " Connect to this brain before refreshing." : "")
-    : "Connect to a brain to refresh its search index.";
+  const label = companionIndexRefreshing ? "Refreshing search index…" : "Refresh search index";
+  const reason = !active ? "Connect to a brain first."
+    : active.allowWrites !== true ? "This brain is read only."
+    : companionSessionFailed ? "Reconnect the companion session first."
+    : companionHealthText(companionState.health) !== "connected" ? "Connect to this brain first." : "";
+  $("companion-refresh-index").setAttribute("aria-description", (active?.name || "") + (reason ? " · " + reason : ""));
+  $("companion-refresh-index").title = label + (active ? " · " + active.name : "") + (reason ? " · " + reason : "");
 }
 async function companionRefreshIndex() {
   if (!companionCanRefreshIndex()) return;
@@ -442,19 +442,31 @@ function renderCompanionSettings() {
   list.dataset.signature = signature;
   list.replaceChildren();
   for (const profile of companionState.profiles) {
-    const row = document.createElement("section"); row.className = "companion-profile";
+    const row = document.createElement("li"); row.className = "companion-profile";
     const name = document.createElement("strong");
     name.textContent = profile.name;
-    if (profile.id === companionState.activeId) {
-      const active = document.createElement("span"); active.className = "connection-dot";
-      active.style.background = "var(--ink-soft)"; active.setAttribute("role", "img"); active.setAttribute("aria-label", "Active brain"); active.title = "Active brain";
-      name.append(active);
-    }
+    const isActive = profile.id === companionState.activeId;
+    if (isActive) row.setAttribute("aria-current", "true");
+    const health = isActive ? companionSessionFailed ? "session unavailable" : companionHealthText(companionState.health)
+      : companionHealthText(companionHealth.get(profile.id));
+    const status = document.createElement("span"); status.className = "connection-dot";
+    status.setAttribute("role", "img");
+    status.setAttribute("aria-label", (isActive ? "Active brain · " : "") + health);
+    status.title = status.getAttribute("aria-label");
+    name.dataset.state = health === "connected" ? "connected"
+      : ["Not tested", "unknown", "checking", "starting"].includes(health) ? "checking" : "unavailable";
+    name.prepend(status);
     const detail = document.createElement("p");
-    detail.textContent = (profile.kind === "local" ? profile.root : profile.url)
-      + (companionHealth.has(profile.id) ? " · " + companionHealthText(companionHealth.get(profile.id))
-        : profile.id === companionState.activeId && companionHealthText(companionState.health) !== "connected" ? " · " + companionHealthText(companionState.health) : "")
-      + (profile.kind === "remote" ? profile.allowWrites === true ? " · Can edit" : " · Read only" : "");
+    const destination = document.createElement("span"); destination.className = "companion-path";
+    destination.textContent = profile.kind === "local" ? profile.root : profile.url;
+    destination.title = destination.textContent;
+    detail.append(destination);
+    const statusText = [!["connected", "Not tested"].includes(health) ? health : "",
+      profile.kind === "remote" && profile.allowWrites !== true ? "Read only" : ""].filter(Boolean).join(" · ");
+    if (statusText) {
+      const caption = document.createElement("span"); caption.className = "companion-profile-status";
+      caption.textContent = statusText; detail.append(caption);
+    }
     const actions = document.createElement("div"); actions.className = "companion-actions";
     const button = (label, glyph, action, disabled = false) => {
       const control = document.createElement("button"); control.type = "button";
@@ -519,7 +531,7 @@ $("companion-form").addEventListener("submit", (event) => {
     }
     $("companion-key").value = "";
     companionApplyState(await companionControl("profiles", { profile, revision: companionEditRevision ?? companionState.revision }));
-    companionClearForm(); companionMessage("Connection saved. Selection and write approval remain explicit.");
+    companionClearForm(); companionMessage("Connection saved.");
   });
 });
 $("companion-refresh-index").addEventListener("click", companionRefreshIndex);

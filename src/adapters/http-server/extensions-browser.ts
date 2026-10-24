@@ -309,6 +309,7 @@ export function installExtensionsBrowser(options: Options) {
       const area = doc.querySelector('[data-extension-slot="' + slot + '"]') as HTMLElement | null;
       if (area) button(command.title, () => commands.execute(id), area);
     }
+    themeSelect.closest("label")!.hidden = themeSelect.options.length <= 1;
     themeSelect.value = prefs.theme;
     settings.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>("button, input, select").forEach(item => { item.disabled = busy || !current(); });
     themeSelect.disabled = !current() || busy;

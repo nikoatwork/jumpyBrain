@@ -1,7 +1,11 @@
+import { browserIcons } from "./browser-icons.js";
+
 export const extensionStyles = String.raw`
   .extension-slot { display: flex; flex-wrap: wrap; gap: var(--space-1); }
   .extension-slot:empty { display: none; }
-  #extension-settings { margin-top: var(--space-6); border-top: 1px solid var(--line); }
+  #extension-settings { margin-top: var(--space-8); }
+  #extension-status:empty { display: none; }
+  .extension-palette { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-block: var(--space-3); font-size: var(--text-ui); color: var(--ink-soft); }
   .extension-item { border-bottom: 1px solid var(--line); padding-block: var(--space-3); }
   .extension-item summary { cursor: pointer; overflow-wrap: anywhere; }
   .extension-item p, #extension-status { font-size: var(--text-caption); color: var(--ink-soft); overflow-wrap: anywhere; }
@@ -21,10 +25,12 @@ export const extensionStyles = String.raw`
 `;
 export const extensionSettingsMarkup = String.raw`
 <section id="extension-settings" aria-labelledby="extension-heading">
-  <h2 id="extension-heading">Extensions</h2>
-  <div class="companion-actions"><button id="extension-reload" class="quiet-button" type="button">Reload extensions</button></div>
-  <p id="extension-status" role="status" aria-live="polite">Connecting…</p>
-  <label>Palette <select id="extension-theme" aria-label="Extension palette"><option value="">Built-in appearance</option></select></label>
+  <header class="settings-heading">
+    <h2 id="extension-heading">Extensions</h2>
+    <button id="extension-reload" class="quiet-button note-icon" type="button" aria-label="Reload extensions" title="Reload extensions" disabled>${browserIcons.refresh}</button>
+  </header>
+  <p id="extension-status" role="status" aria-live="polite"></p>
+  <label class="extension-palette" hidden>Palette <select id="extension-theme" aria-label="Extension palette"><option value="">Built-in appearance</option></select></label>
   <div id="extension-list"></div>
 </section>`;
 export const extensionPanelMarkup = String.raw`

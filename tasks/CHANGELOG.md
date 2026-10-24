@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Lean Settings
+
+- Simplified Settings into compact brain rows and extension controls, with one refresh icon and less routine copy; [implementation](done/2026-10-24_tasks-settings-cleanup.md).
+
 ## 2026-10-24 — Recognizable note search
 
 - Search shows readable previews, edit dates and declared editors, with date/editor filters and bounded paging; [implementation and verification](done/2026-10-24_tasks-search-result-recognition.md).
