@@ -65,9 +65,10 @@ test('remember and recipe parse dates strictly before credentials or stdin', () 
 });
 
 test('HTTP, client, direct CLI and recipe retain evidence dates and reject malformed payloads', async t => {
+  let server;
+  t.after(() => server?.close());
   const root = await fixture(t);
-  const server = await startJumpyBrainHttpServer({ root, apiKeys: ['test-key'], port: 0, autoIndex: false });
-  t.after(() => server.close());
+  server = await startJumpyBrainHttpServer({ root, apiKeys: ['test-key'], port: 0, autoIndex: false });
   const remote = createRemoteMemoryTransport({ url: server.url, apiKey: 'test-key' });
   const date = '2024-03-01T01:30:00+02:00';
   const saved = await remote.rememberMemory({ ...draft, date });
