@@ -207,9 +207,15 @@ Report resolved UTC dates/basis, changed IDs/paths, no-ops, index status, date f
 
 Old CLI batch flags (`--status`, `--complete`, `--abandon`, `--force`, `--apply-manifest`) fail with guidance. Legacy runtime/HTTP batch APIs and old state remain for compatibility, not the new workflow. Unsupported old servers fail clearly with no batch fallback. See [CLI flags](cli-commands.md#dreaming--consolidation-workflow).
 
+## Importing Obsidian memory: implementation handoff
+
+Obsidian import is planned; `migrate obsidian` is not currently supported. When tasked with implementing it or improving Logseq readability, start with the [Obsidian import handoff](obsidian-migration.md) and execute the [active import task list](../tasks/todo/tasks-obsidian-logseq-imports.md). They cover source discovery, canonical metadata, outline cleanup, existing-import upgrades, retrieval/editor visibility, reruns and end-to-end verification. Do not run invented commands or treat this plan as authorization to migrate a user's vault.
+
 ## Importing Logseq memory explicitly
 
 Use the [local-only Logseq migration workflow](logseq-migration.md) when the user requests a one-way import of a classic file graph. Never initialize, stamp IDs, or index the source graph itself.
+
+Current Logseq imports preserve all body bytes, including outline dashes. Readable conversion is tracked in the [import task list](../tasks/todo/tasks-obsidian-logseq-imports.md); do not promise it or silently apply a blanket dash-removal pass.
 
 ```bash
 jumpybrain migrate logseq --source <vault> --root <separate-memory-root> --json
