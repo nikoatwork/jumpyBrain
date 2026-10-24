@@ -36,6 +36,8 @@ export function usage(): string {
     "",
     "  recall/search (including recipes): --from <date> --to <date> --reference-date <YYYY-MM-DD> --order relevance|chronological",
     "  Date-only bounds include the day; timestamp uppers exclude it. Relative t-Nd requires --reference-date.",
+    "  remember/update: --actor human|agent|unknown [--actor-id <id>] [--actor-name <name>] declares the writer; omitted edits become unknown.",
+    "  rich recall/search: --recognition [--last-editor human|agent|unknown|you] [--editor-id <id>] [--edited-from YYYY-MM-DD] [--edited-to YYYY-MM-DD] [--date-field edited|created] [--time-zone <IANA>] [--sort relevance|edited] [--offset <n>] (up to 120 ranked candidates, partial).",
     "  recall/search: --no-refresh skips automatic local index repair; hosted reads never repair.",
     "  recall/search: --read-only forbids derived writes; lexical-only, published closed generation required.",
     "  recall/search (including recipes): --compact [--max-bytes <n>] [--diagnostics]",

@@ -1,3 +1,5 @@
+import { currentMemoryEditor } from "../contribution.js";
+import { metadataDate } from "./metadata-date.js";
 import { createHash, randomUUID } from "node:crypto";
 import { constants, type Stats } from "node:fs";
 import { lstat, open, readdir, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
@@ -277,6 +279,7 @@ export async function resolveCanonicalMemoryDocumentByTitle(rootArg: string, tit
 }
 
 export interface ReplaceCanonicalMemoryDocumentOptions extends ReadCanonicalMemoryDocumentOptions {
+  actor?: import("../../types.js").MemoryActor;
   updatedAt?: string;
   /** Optional for direct core callers; app updates require the prior read token. */
   ifMatch?: MemoryDocumentContentHash | string;
@@ -376,9 +379,10 @@ async function replaceCanonicalMemoryDocument(
     const updated = parseFrontmatter(submittedContent).frontmatter.updated_at;
     return { unchanged: true, root: options.rootLabel ?? root, target: options.target ?? "local", ...(options.memory ? { memory: options.memory } : {}),
       id, file: location.file, oldContentHash, newContentHash: oldContentHash,
+      recognition: { metadataStatus: "current", updatedAt: metadataDate(updated), createdAt: metadataDate(parseFrontmatter(submittedContent).frontmatter.created_at), editor: currentMemoryEditor(submittedContent) },
       updatedAt: typeof updated === "string" ? updated : "", indexed: false };
   }
-  const merged = mergeMemoryDocumentUpdate(oldBytes.toString("utf8"), submittedContent, { updatedAt: options.updatedAt });
+  const merged = mergeMemoryDocumentUpdate(oldBytes.toString("utf8"), submittedContent, { updatedAt: options.updatedAt, actor: options.actor });
 
   // Compare the merged metadata against canonical files, never the derived index.
   // Equivalent titles are not renames: legacy duplicates must remain body-editable.
@@ -414,6 +418,7 @@ async function replaceCanonicalMemoryDocument(
     file: location.file,
     oldContentHash,
     newContentHash: hashMemoryDocumentContent(newBytes),
+    recognition: { metadataStatus: "current", updatedAt: metadataDate(merged.frontmatter.updated_at), createdAt: metadataDate(merged.frontmatter.created_at) ?? metadataDate(merged.frontmatter.createdAt), editor: currentMemoryEditor(merged.content) },
     updatedAt: merged.updatedAt,
     indexed: false,
     index: { stale: true, indexed: false },

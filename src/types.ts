@@ -37,9 +37,47 @@ export interface ScoreBreakdown {
   driver: string;
 }
 
+export interface MemoryActor {
+  /** Declared, not authenticated identity. */
+  kind: "human" | "agent";
+  id?: string;
+  name?: string;
+}
+
+export interface SearchRecognitionOptions {
+  editor?: "human" | "agent" | "unknown" | "you";
+  actorId?: string;
+  dateField?: "edited" | "created";
+  /** Inclusive calendar days in timeZone. */
+  from?: string;
+  to?: string;
+  timeZone?: string;
+  sort?: "relevance" | "edited";
+  offset?: number;
+}
+export interface SearchRecognitionMetadata {
+  updatedAt?: string;
+  createdAt?: string;
+  editor?: MemoryActor;
+  metadataStatus: "current" | "unavailable";
+  /** UI-only current body prefix; never replaces cited recall evidence. */
+  preview?: string;
+}
+export interface SearchRecognitionScope {
+  version: 1;
+  options: SearchRecognitionOptions;
+  candidateLimit: number;
+  candidates: number;
+  matched: number;
+  partial: true;
+  nextOffset?: number;
+  metadataUnavailable: number;
+}
+
 export interface SearchResult {
   id: string;
   score: number;
+  recognition?: SearchRecognitionMetadata;
   snippet: string;
   provenance: Provenance;
   /** Additional distinct evidence from this file; the primary remains snippet/provenance. */
@@ -95,6 +133,7 @@ export interface IndexMemoryResult {
 export interface SearchMemoryResult {
   root: string;
   query: string;
+  recognition?: SearchRecognitionScope;
   depth?: RetrievalDepth;
   results: SearchResult[];
   temporal?: TemporalRetrieval;
@@ -103,6 +142,8 @@ export interface SearchMemoryResult {
 }
 
 export interface SearchMemoryOptions extends ExecutionOptions {
+  /** Opt-in human search display/filtering over bounded ranked candidates. */
+  recognition?: SearchRecognitionOptions;
   /** Default true locally: repair derived state within the search deadline. False never repairs. */
   refresh?: boolean;
   /** Strict no-derived-writes, lexical-only published-generation read; implies no refresh. */
@@ -318,6 +359,7 @@ export type MemoryConfidence = "user-reviewed" | "agent-drafted";
 export type MemoryReviewStatus = "user-review-recommended";
 
 export interface MemoryNoteDraft {
+  actor?: MemoryActor;
   /** Declared evidence date, independent of writer-owned creation/edit timestamps. */
   date?: string;
   dream?: boolean;
@@ -422,6 +464,7 @@ export interface MemoryDocumentTargetMetadata {
 export type MemoryDocumentContentHash = `sha256:${string}`;
 
 export interface MemoryDocumentReadResult extends MemoryDocumentTargetMetadata {
+  recognition?: SearchRecognitionMetadata;
   id: string;
   file: string;
   type: MemoryNoteType;
@@ -442,6 +485,7 @@ export interface MemoryDocumentIndexState {
 }
 
 export interface MemoryDocumentUpdateResult extends MemoryDocumentTargetMetadata {
+  recognition?: SearchRecognitionMetadata;
   /** Exact unchanged submission; no canonical publication or index mutation occurred. */
   unchanged?: true;
   id: string;

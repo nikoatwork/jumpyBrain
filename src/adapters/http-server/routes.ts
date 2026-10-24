@@ -1,3 +1,5 @@
+import { normalizeMemoryActor } from "../../core/contribution.js";
+import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { checkDreamSources } from "../../app/server-memory/index.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import type { TemporalQuery } from "../../types.js";
@@ -444,8 +446,11 @@ export async function routeRequest(context: { request: IncomingMessage; response
         return;
       }
 
+      if (parsedBody.actor !== undefined) {
+        try { normalizeMemoryActor(parsedBody.actor); } catch { writeJson(response, 422, errorResponse("invalid_actor", "Invalid declared editor.")); return; }
+      }
       try {
-        const packet = await enqueueWrite(() => updateServerMemoryDocument({ root, id, content, ifMatch }));
+        const packet = await enqueueWrite(() => updateServerMemoryDocument({ root, id, content, ifMatch, actor: normalizeMemoryActor(parsedBody.actor) }));
         if (!packet.unchanged) context.onMemoryWrite?.();
         logger.info("remote_document_update_success", {
           method: request.method,
@@ -590,8 +595,12 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
     try {
       resolveTemporalQuery(body.temporal as TemporalQuery | undefined);
-      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall, readOnly: body.readOnly as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined, signal, timeoutMs: searchTimeoutMs }));
+      const recognition = normalizeRecognitionOptions(body.recognition);
+      writeJson(response, 200, await searchServerMemory({ root, query, limit, depth, recall, recognition, readOnly: body.readOnly as boolean | undefined, temporal: body.temporal as TemporalQuery | undefined, signal, timeoutMs: searchTimeoutMs }));
     } catch (error) {
+      if ((error as { code?: string }).code === "invalid_recognition") {
+        writeJson(response, 400, errorResponse("invalid_recognition", "Invalid search date/editor filters or sort.")); return;
+      }
       if ((error as { code?: string }).code === "invalid_temporal") {
         writeJson(response, 400, errorResponse("invalid_temporal", "Invalid temporal query. Use real ISO dates, timezone-explicit timestamps, and an explicit referenceDate for relative bounds."));
         return;
@@ -632,6 +641,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
               draft: {
                 type: parsedBody.dailyDate === undefined ? stringField(parsedBody, "type") : parsedBody.type,
                 dream: optionalBooleanField(parsedBody, "dream"),
+                actor: normalizeMemoryActor(parsedBody.actor),
                 date: parsedBody.date,
                 title: parsedBody.dailyDate === undefined ? stringField(parsedBody, "title") : parsedBody.title,
                 body: parsedBody.dailyDate === undefined ? stringField(parsedBody, "body") : parsedBody.body,

@@ -1,8 +1,10 @@
+import { matchesRecognition, normalizeRecognitionOptions } from "../../core/search-recognition.js";
+import type { SearchRecognitionOptions, SearchRecognitionMetadata, SearchRecognitionScope } from "../../types.js";
 // Bounded tab-only projection of confirmed writes, never canonical or persistent memory.
-export interface RecentWrite { id: string; title: string; file: string; body: string }
-type Hit = { provenance?: { metadata?: { id?: string; title?: unknown }; file?: string }; [key: string]: unknown };
-type Packet = { results?: Hit[]; index?: { stale?: boolean }; readiness?: { freshness?: string }; localOnly?: boolean; [key: string]: unknown };
-export function createRecentWriteSearch(options: { scope(): string; fetch(query: string, signal: AbortSignal, limit?: number): Promise<unknown> }) {
+export interface RecentWrite { id: string; title: string; file: string; body: string; recognition?: SearchRecognitionMetadata }
+type Hit = { recognition?: SearchRecognitionMetadata; provenance?: { metadata?: { id?: string; title?: unknown }; file?: string }; [key: string]: unknown };
+type Packet = { recognition?: SearchRecognitionScope; results?: Hit[]; index?: { stale?: boolean }; readiness?: { freshness?: string }; localOnly?: boolean; [key: string]: unknown };
+export function createRecentWriteSearch(options: { scope(): string; fetch(query: string, signal: AbortSignal, limit?: number, recognition?: SearchRecognitionOptions): Promise<unknown> }) {
   const saved = new Map<string, RecentWrite>();
   const deleted = new Set<string>();
   let scope = "", revision = 0;
@@ -17,11 +19,12 @@ export function createRecentWriteSearch(options: { scope(): string; fetch(query:
     current(); revision++; saved.delete(id); deleted.add(id);
     if (deleted.size > 50) deleted.delete(deleted.values().next().value!);
   }
-  async function search(query: string, signal: AbortSignal, limit = 24): Promise<Packet> {
+  async function search(query: string, signal: AbortSignal, limit = 24, input?: SearchRecognitionOptions): Promise<Packet> {
+    const recognition = normalizeRecognitionOptions(input);
     signal.throwIfAborted();
     current(); const startedScope = scope, startedRevision = revision;
     let packet: Packet;
-    try { packet = await options.fetch(query, signal, limit) as Packet; }
+    try { packet = await options.fetch(query, signal, recognition ? 120 : limit, recognition ? { ...recognition, offset: 0 } : undefined) as Packet; }
     catch (error) {
       if (signal.aborted || startedScope !== options.scope()) throw error;
       // Explicit partial fallback, only if we can actually supply a local match.
@@ -37,14 +40,26 @@ export function createRecentWriteSearch(options: { scope(): string; fetch(query:
     }
     const local = [...saved.values()].reverse().filter(note => matches(note, query));
     const localIds = new Set(local.map(note => note.id));
-    return { ...packet, results: [...local.map(note => ({ id: note.id, confirmedWriteMatch: true, snippet: note.body.slice(0, 240),
+    let results: Hit[] = [...local.map(note => ({ id: note.id, confirmedWriteMatch: true, snippet: note.body.slice(0, recognition ? 8192 : 240), ...(note.recognition ? { recognition: { ...note.recognition, preview: note.body.slice(0, 8192) } } : {}),
       provenance: { file: note.file, metadata: { id: note.id, title: note.title } } })),
       ...(packet.results ?? []).filter(hit => {
         const id = hit.provenance?.metadata?.id;
         // Changed titles/bodies supersede old indexed matches, even if the new
         // content no longer matches this query.
         return !id || (!saved.has(id) && !deleted.has(id) && !localIds.has(id));
-      })].sort((a, b) => titleRank(b.provenance?.metadata?.title, query) - titleRank(a.provenance?.metadata?.title, query)).slice(0, Math.max(1, Math.min(120, limit))) };
+      })].sort((a, b) => titleRank(b.provenance?.metadata?.title, query) - titleRank(a.provenance?.metadata?.title, query));
+    if (recognition) {
+      if (!packet.localOnly && packet.recognition?.version !== 1) throw Object.assign(new Error("Server does not support search recognition; upgrade it."), { code: "unsupported_recognition" });
+      results = results.filter(hit => matchesRecognition(hit.recognition ?? { metadataStatus: "unavailable" }, recognition));
+      if (recognition.sort === "edited") results.sort((a, b) => {
+        const delta = (b.recognition?.updatedAt ? Date.parse(b.recognition.updatedAt) : -Infinity) - (a.recognition?.updatedAt ? Date.parse(a.recognition.updatedAt) : -Infinity);
+        return (Number.isNaN(delta) ? 0 : delta) || String(a.provenance?.file).localeCompare(String(b.provenance?.file));
+      });
+      results = results.slice(0, 120);
+      const offset = recognition.offset ?? 0;
+      return { ...packet, recognition: { version: 1, options: recognition, candidateLimit: 120, candidates: packet.recognition?.candidates ?? 0, matched: results.length, partial: true, metadataUnavailable: packet.recognition?.metadataUnavailable ?? 0, ...(offset + limit < results.length ? { nextOffset: offset + limit } : {}) }, results: results.slice(offset, offset + limit) };
+    }
+    return { ...packet, results: results.slice(0, Math.max(1, Math.min(120, limit))) };
   }
   function titleRank(title: unknown, query: string): number {
     if (typeof title !== "string") return 0;

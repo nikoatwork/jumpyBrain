@@ -299,3 +299,26 @@ Deletion is permanent: there is no Trash/Undo; recovery needs your own backup/Gi
 ## Living topic pages and source checks
 
 `dream --check-sources --id <dream-page-id> [--json]` checks a saved Dream page. `dream --check-sources --draft --page-file pages/topic.md [--json]` reads a draft from stdin for a pre-publication check. Both use the normal explicit `--root` or `--target-url`. This read-only operation returns transient source-version outcomes and honest partial coverage; it does not publish, index, verify truth, retain old bytes or close the race before saving. See [schema, examples and budgets](living-topic-pages.md). Exact unchanged-content update submissions return `unchanged:true` without changing bytes/edit time; stale destination hashes still fail.
+
+## Recognizing notes in search
+
+Rich search/recall can show and narrow by declared edit context:
+
+```bash
+jumpybrain search --root ./memory --query mistral --recognition --json
+jumpybrain search --root ./memory --query mistral --last-editor human --edited-from 2026-10-23 --edited-to 2026-10-23 --time-zone Europe/Berlin --sort edited --limit 24 --json
+jumpybrain search --target-url https://brain.example --query mistral --last-editor agent --sort edited --offset 24 --json
+```
+
+Options: `--recognition`, `--last-editor human|agent|unknown|you`, `--editor-id <id>` (required for you), `--edited-from/--edited-to YYYY-MM-DD`, `--date-field edited|created`, `--time-zone <IANA-zone>` (UTC by default), `--sort relevance|edited`, and `--offset <n>`. Date bounds are inclusive in the chosen timezone; with `--date-field created` they filter creation, despite the date flag names. These options compose with `--read-only` or `--no-refresh`, but require rich results; omit `--compact`. Existing `--from/--to` still mean **evidence dates**.
+
+Recognition always declares partial coverage over up to 120 ranked candidates, filters before the page cap, and returns optional `recognition.nextOffset`. A filtered empty result does not mean no matching note exists anywhere. Unknown dates sort last; missing/invalid dates fail a date filter. There is no retained edit history.
+
+Declare the writer on supported creation/update flows:
+
+```bash
+cat body.md | jumpybrain remember --root ./memory --type finding --title 'Mistral research' --actor agent --actor-name Codex
+cat revised.md | jumpybrain update --root ./memory --id mem_... --if-match sha256:... --actor human --actor-id personal-editor
+```
+
+`--actor human|agent|unknown` plus optional `--actor-id/--actor-name` supplies declared provenance, not verified identity. Omission/unknown on an edit clears last-editor attribution; it never inherits a previous human editor. Human callers can choose an ID and query it with `--last-editor you --editor-id personal-editor`. The app's You label uses its own browser-local ID and is not a shared account identity. For agent-created Dream pages, pass `--actor agent` explicitly. Imported/legacy authorship stays unknown.

@@ -1,3 +1,4 @@
+import { stampMemoryActor } from "../../core/contribution.js";
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
@@ -40,7 +41,7 @@ export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemory
 
   const id = generateMemoryDocumentId();
   const now = new Date().toISOString();
-  const markdown = renderMarkdownDocument([
+  const markdown = stampMemoryActor(renderMarkdownDocument([
     ["id", id],
     ["type", type],
     ["dream", normalizeDreamMarker(draft.dream)],
@@ -52,7 +53,7 @@ export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemory
     ["confidence", draft.dream === true ? MEMORY_CONFIDENCE.agentDrafted : MEMORY_CONFIDENCE.userReviewed],
     ["review", draft.dream === true ? MEMORY_REVIEW.userReviewRecommended : undefined],
     ["tags", draft.tags ?? []],
-  ], [`# ${options.heading ?? title}`, "", body].join("\n"));
+  ], [`# ${options.heading ?? title}`, "", body].join("\n")), draft.actor, true);
 
   const dir = path.join(root, directoryForType(type));
   const writtenAbsolute = await writeUniqueMarkdownFile(dir, remoteBaseName(now, title, id), markdown);
@@ -72,7 +73,7 @@ export async function writeRemoteSessionWrapup(rootArg: string, draft: RemoteWra
   const id = generateMemoryDocumentId();
   const now = new Date().toISOString();
   const storedBody = [`# ${title}`, "", sourceBody, ""].join("\n");
-  const markdown = renderMarkdownDocument([
+  const markdown = stampMemoryActor(renderMarkdownDocument([
     ["id", id],
     ["type", "session"],
     ["title", title],
@@ -83,7 +84,7 @@ export async function writeRemoteSessionWrapup(rootArg: string, draft: RemoteWra
     ["review", MEMORY_REVIEW.userReviewRecommended],
     ["tags", draft.tags ?? []],
     ["recall_topic", draft.recallTopic],
-  ], storedBody);
+  ], storedBody), { kind: "agent" }, true);
 
   const writtenAbsolute = await writeUniqueMarkdownFile(path.join(root, "sessions"), remoteBaseName(now, title, id), markdown);
   return {

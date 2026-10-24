@@ -42,3 +42,7 @@ Export observational `previewMemoryDocumentDeletion(root,id)` and permanent sing
 ## Living-page checks
 
 Export local `checkDreamSources(root, request)` and `SourceCheckRequest`/`SourceCheckResult` from the shared app/core seams. It is observational, without synthesis, scheduling, indexing or publishing.
+
+## Recognition types
+
+The public local runtime re-exports `MemoryActor`, `SearchRecognitionOptions`, `SearchRecognitionMetadata` and `SearchRecognitionScope`. Existing note/update/search app operations accept the optional declared-actor/recognition fields; no new protocol or CLI dependency enters the runtime.

@@ -1,3 +1,4 @@
+import { stampMemoryActor } from "../../core/contribution.js";
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
@@ -27,7 +28,7 @@ export async function rememberMemory(rootArg: string, options: MemoryNoteDraft):
   const id = generateMemoryDocumentId();
   const now = new Date().toISOString();
   const dir = path.join(root, directoryForType(type));
-  const markdown = renderMarkdownDocument([
+  const markdown = stampMemoryActor(renderMarkdownDocument([
     ["id", id],
     ["type", type],
     ["dream", normalizeDreamMarker(options.dream)],
@@ -39,7 +40,7 @@ export async function rememberMemory(rootArg: string, options: MemoryNoteDraft):
     ["confidence", options.dream === true ? MEMORY_CONFIDENCE.agentDrafted : MEMORY_CONFIDENCE.userReviewed],
     ["review", options.dream === true ? MEMORY_REVIEW.userReviewRecommended : undefined],
     ["tags", options.tags ?? []],
-  ], [`# ${title}`, "", body].join("\n"));
+  ], [`# ${title}`, "", body].join("\n")), options.actor, true);
 
   const writtenAbsolute = await writeUniqueMarkdownFile(dir, `${now.slice(0, 10)}-${slug(title, "untitled")}`, markdown);
   return { id, file: normalizeRelative(root, writtenAbsolute), ...pendingCreationIndex() };
@@ -59,7 +60,7 @@ export async function writeSessionWrapup(rootArg: string, draft: WrapupDraft): P
   const now = new Date().toISOString();
   const dir = path.join(root, "sessions");
   const storedBody = [`# ${title}`, "", sourceBody, ""].join("\n");
-  const markdown = renderMarkdownDocument([
+  const markdown = stampMemoryActor(renderMarkdownDocument([
     ["id", id],
     ["type", "session"],
     ["title", title],
@@ -70,7 +71,7 @@ export async function writeSessionWrapup(rootArg: string, draft: WrapupDraft): P
     ["review", MEMORY_REVIEW.userReviewRecommended],
     ["tags", draft.tags ?? []],
     ["recall_topic", draft.recallTopic],
-  ], storedBody);
+  ], storedBody), { kind: "agent" }, true);
 
   const writtenAbsolute = await writeUniqueMarkdownFile(dir, `${now.slice(0, 10)}-${slug(title, "session-wrapup")}`, markdown);
 

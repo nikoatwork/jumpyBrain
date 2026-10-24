@@ -22,3 +22,7 @@
 ## Complexity and compatibility
 
 One canonical eligibility pool replaces duplicated direct/QMD scope checks. Core retains ownership of strict ISO validation, dream classification, structural excerpts, and protected metadata updates; no shared types or new date-provenance contract are introduced. Existing process-owned page identity, creation/evidence dates and dream metadata remain intact on updates; true dream/reviewed/human destinations remain protected collisions. Citation metadata changes can update a map even when body quotations are unchanged. The source scan remains corpus-wide and QMD discovery bounded; snippets and source maps do not prove complete review or reconcile conflicts. Previously Date.parse-accepted ambiguous/impossible dates are now rejected for cutoffs and excluded from scoped sources.
+
+## Output attribution
+
+New extractive maps and guarded refreshes declare `{kind:"agent",name:"jumpyBrain processing"}` through core contribution policy. Existing creator declarations survive refreshes; unchanged maps remain byte-stable. Lint and ID-stamping maintenance do not establish human authorship. ID/timestamp changes that lack a new declaration invalidate any existing last-editor revision digest.

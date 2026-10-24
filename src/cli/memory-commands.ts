@@ -1,3 +1,4 @@
+import { recognitionFromArgs } from "./recognition.js";
 import path from "node:path";
 import { pendingCreationIndex } from "../runtime/index.js";
 import { temporalOptions } from "./temporal.js";
@@ -35,7 +36,9 @@ export async function runMemoryCommand(
   options: { allowDiscovery?: boolean } = {},
 ): Promise<void> {
   const temporal = command === "recall" || command === "search" ? temporalOptions(args) : undefined;
+  const recognition = command === "recall" || command === "search" ? recognitionFromArgs(args) : undefined;
   const compact = command === "recall" || command === "search" ? compactOptions(args) : undefined;
+  if (recognition && compact) throw new Error("Search recognition filters require rich results; omit --compact.");
   const expansion = command === "expand" ? expansionOptions(args) : undefined;
   if (command === "process") {
     const selected = resolveCliTarget(args, { allowDiscovery: options.allowDiscovery });
@@ -107,8 +110,8 @@ export async function runMemoryCommand(
       return;
     }
     const result = target.kind === "remote"
-      ? await target.memory.searchMemory(query, limit, { depth, mode: command, ...(args["read-only"] ? { readOnly: true } : {}), ...(temporal ? { temporal } : {}) })
-      : await localMemory.searchMemory(target.root, query, limit, { depth, ...(args["read-only"] ? { readOnly: true } : {}), ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
+      ? await target.memory.searchMemory(query, limit, { depth, ...(recognition ? { recognition } : {}), mode: command, ...(args["read-only"] ? { readOnly: true } : {}), ...(temporal ? { temporal } : {}) })
+      : await localMemory.searchMemory(target.root, query, limit, { depth, ...(recognition ? { recognition } : {}), ...(args["read-only"] ? { readOnly: true } : {}), ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
     if (args.json) console.log(JSON.stringify({ ...result, mode: command }, null, 2));
     else {
       if (command === "recall") console.log(`Prior memory scan for: ${query}\n`);
@@ -117,6 +120,7 @@ export async function runMemoryCommand(
         console.log(`Evidence interval (UTC): [${interval.from ?? "unbounded"}, ${interval.toExclusive ?? "unbounded"}); order: ${interval.order}${interval.referenceDate ? `; reference date: ${interval.referenceDate}` : ""}`);
         console.log(`Temporal coverage: ${coverage.eligibleDocuments} eligible; ${coverage.excludedUndated} undated and ${coverage.excludedInvalid} invalid excluded; ${coverage.unvisitedDocuments} unvisited (not a match count).`);
       }
+      if (result.recognition) console.log(`Search recognition: up to ${result.recognition.candidateLimit} ranked candidates; other matches may exist. ${result.recognition.matched} matches within candidates.${result.recognition.nextOffset !== undefined ? ` Next offset: ${result.recognition.nextOffset}.` : ""}`);
       printRetrievalWarnings(result);
       console.log(formatHumanResults(result.results, { temporal: Boolean(temporal) }));
     }

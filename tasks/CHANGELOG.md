@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Recognizable note search
+
+- Search shows readable previews, edit dates and declared editors, with date/editor filters and bounded paging; [implementation and verification](done/2026-10-24_tasks-search-result-recognition.md).
+
 ## 2026-10-24 — Shared system messages
 
 - Unified Mac/editor system warnings and notifications behind one scoped dispatcher with shared priority, dismissal and lifecycle; [implementation and verification](done/2026-10-24_tasks-shared-system-messages.md).

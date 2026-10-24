@@ -1,7 +1,9 @@
+import { ATTRIBUTION_KEYS, stampMemoryActor } from "./contribution.js";
 import { parseFrontmatter } from "./frontmatter.js";
-import type { Frontmatter, FrontmatterValue } from "../types.js";
+import type { Frontmatter, FrontmatterValue, MemoryActor } from "../types.js";
 
 export const PROTECTED_MEMORY_DOCUMENT_FRONTMATTER_KEYS = [
+  "creator_kind", "creator_id", "creator_name",
   "id",
   "type",
   "created_at",
@@ -16,6 +18,7 @@ export const PROTECTED_MEMORY_DOCUMENT_FRONTMATTER_KEYS = [
 
 export interface MergeMemoryDocumentUpdateOptions {
   updatedAt?: string;
+  actor?: MemoryActor;
 }
 
 export interface MergeMemoryDocumentUpdateResult {
@@ -35,7 +38,7 @@ export function mergeMemoryDocumentUpdate(
 
   const merged = new Map<string, FrontmatterValue>();
   for (const [key, value] of Object.entries(submitted.frontmatter)) {
-    merged.set(key, value);
+    if (!(ATTRIBUTION_KEYS as readonly string[]).includes(key)) merged.set(key, value);
   }
 
   for (const key of PROTECTED_MEMORY_DOCUMENT_FRONTMATTER_KEYS) {
@@ -52,9 +55,10 @@ export function mergeMemoryDocumentUpdate(
   }
   merged.set("updated_at", updatedAt);
 
-  const frontmatter: Frontmatter = Object.fromEntries(merged.entries());
+  const content = stampMemoryActor(renderMergedMarkdownDocument([...merged.entries()], submitted.body, submitted.lineEnding), options.actor);
+  const frontmatter = parseFrontmatter(content).frontmatter;
   return {
-    content: renderMergedMarkdownDocument([...merged.entries()], submitted.body, submitted.lineEnding),
+    content,
     updatedAt,
     frontmatter,
   };

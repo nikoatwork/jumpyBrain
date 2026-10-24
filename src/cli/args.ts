@@ -14,7 +14,7 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
   if (operation === "remember") return parseRememberArgs(argv);
   if (operation === "delete") return parseDeleteArgs(argv);
   if (operation === "expand" || (["recall", "search"].includes(operation)
-    && argv.some(token => /^--(?:compact|max-bytes|diagnostics|no-refresh|read-only|from|to|reference-date|order)(?:=|$)/u.test(token)))) {
+    && argv.some(token => /^--(?:compact|max-bytes|diagnostics|no-refresh|read-only|from|to|reference-date|order|recognition|last-editor|editor-id|edited-from|edited-to|date-field|time-zone|sort|offset)(?:=|$)/u.test(token)))) {
     return parseBoundedReadArgs(argv, operation);
   }
   const args: ParsedCliArgs = { _: [] };
@@ -52,7 +52,7 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
 function parseRememberArgs(argv: string[]): ParsedCliArgs {
   const positional = argv[0] === "run" ? 2 : 1;
   const args: ParsedCliArgs = { _: argv.slice(0, positional) };
-  const values = new Set(["root", "target-url", "remote-url", "type", "title", "tag", "date"]);
+  const values = new Set(["root", "target-url", "remote-url", "type", "title", "tag", "date", "actor", "actor-id", "actor-name"]);
   for (let index = positional; index < argv.length; index++) {
     const token = argv[index]!;
     if (!token.startsWith("--")) throw new Error(`Unexpected remember argument: ${token}.`);
@@ -108,9 +108,9 @@ export function stringListArg(args: ParsedCliArgs, key: string): string[] {
 function parseBoundedReadArgs(argv: string[], operation: string): ParsedCliArgs {
   const positional = argv[0] === "run" ? 2 : 1;
   const args: ParsedCliArgs = { _: argv.slice(0, positional) };
-  const booleans = new Set(operation === "expand" ? ["json"] : ["json", "compact", "diagnostics", "no-refresh", "read-only"]);
+  const booleans = new Set(operation === "expand" ? ["json"] : ["json", "compact", "diagnostics", "no-refresh", "read-only", "recognition"]);
   const values = new Set(["root", "target-url", "remote-url", "max-bytes", ...(operation === "expand"
-    ? ["id", "if-match", "start-line", "end-line", "section-line"] : ["topic", "query", "limit", "depth", "from", "to", "reference-date", "order"])]);
+    ? ["id", "if-match", "start-line", "end-line", "section-line"] : ["topic", "query", "limit", "depth", "from", "to", "reference-date", "order", "last-editor", "editor-id", "edited-from", "edited-to", "date-field", "time-zone", "sort", "offset"])]);
   for (let index = positional; index < argv.length; index++) {
     const token = argv[index];
     if (!token.startsWith("--")) throw new Error(`Unexpected bounded-read argument: ${token}.`);

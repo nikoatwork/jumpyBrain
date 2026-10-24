@@ -1,3 +1,7 @@
+import { metadataDate } from "../../core/canonical/metadata-date.js";
+import { normalizeMemoryActor, currentMemoryEditor } from "../../core/contribution.js";
+import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
+import { recognizeSearchResults } from "./search-recognition.js";
 import { readCanonicalMemoryDocumentById, discoverMarkdownIndexInputs, replaceCanonicalMemoryDocumentById, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot, memoryRootStatus, resolveIndexRoot } from "../../core/memory-root/index.js";
 import { withQmdOperation, readExecution, executionSignal, checkExecution, buildQmdIndex, loadManifest, recoverQmdIndex, searchQmdIndex } from "../../adapters/qmd/index.js";
@@ -10,6 +14,7 @@ import { processMemory } from "../processing/index.js";
 import type { IndexMemoryOptions, RetrievalOutcome, RetrievalReadiness, IndexMemoryResult, MemoryDocumentContentHash, MemoryDocumentEditError, MemoryDocumentEditErrorCode, MemoryDocumentReadResult, MemoryDocumentUpdateResult, ProcessMemoryResult, SearchMemoryOptions, SearchMemoryResult } from "../../types.js";
 
 export interface UpdateMemoryDocumentOptions {
+  actor?: import("../../types.js").MemoryActor;
   /** Optimistic-concurrency token from a prior document read/show result. */
   ifMatch?: MemoryDocumentContentHash | string;
   /** Alias for callers that store the read-result field name directly. */
@@ -77,6 +82,7 @@ export async function indexMemory(rootArg: string, options: IndexMemoryOptions =
 
 export async function searchMemory(rootArg: string, query: string, limit: number, options: SearchMemoryOptions = {}): Promise<SearchMemoryResult> {
   if (options.readOnly !== undefined && typeof options.readOnly !== "boolean") throw new Error("readOnly must be boolean.");
+  const recognition = normalizeRecognitionOptions(options.recognition);
   return withQmdOperation(rootArg, "search", options, async () => {
   const interval = resolveTemporalQuery(options.temporal);
   const temporal: TemporalRetrieval | undefined = interval ? { interval, coverage: {
@@ -89,7 +95,7 @@ export async function searchMemory(rootArg: string, query: string, limit: number
   const depth = normalizeRetrievalDepth(options.depth);
   const retrieval: RetrievalOutcome = { status: "complete", warnings: [] };
   let readiness!: RetrievalReadiness;
-  const results = await searchQmdIndex(root, query, limit, { depth, outcome: retrieval, temporal, readOnly: options.readOnly, recover: options.refresh !== false,
+  const results = await searchQmdIndex(root, query, recognition ? 120 : limit, { depth, outcome: retrieval, temporal, readOnly: options.readOnly, recover: options.refresh !== false,
     inspect: async manifest => { readiness = await retrievalReadiness(root, manifest); },
   });
   if (options.readOnly) {
@@ -99,14 +105,17 @@ export async function searchMemory(rootArg: string, query: string, limit: number
   if (readiness.freshness !== "fresh") retrieval.warnings.push("index_not_fresh");
   if (readiness.embedding === "incomplete" || readiness.embedding === "unknown") retrieval.warnings.push("semantic_coverage_incomplete");
   if (retrieval.warnings.length) retrieval.status = "partial";
-  return { root, query, depth, results, readiness, retrieval, ...(temporal ? { temporal } : {}) };
+  const recognized = recognition ? await recognizeSearchResults(root, results, limit, recognition, executionSignal()) : undefined;
+  if (recognized) { retrieval.status = "partial"; retrieval.warnings.push("recognition_bounded_candidates"); }
+  return { root, query, depth, results: recognized?.results ?? results, readiness, retrieval, ...(recognized ? { recognition: recognized.scope } : {}), ...(temporal ? { temporal } : {}) };
   });
 }
 
 export async function readMemoryDocument(rootArg: string, id: string): Promise<MemoryDocumentReadResult> {
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
-  return readCanonicalMemoryDocumentById(root, id);
+  const document = await readCanonicalMemoryDocumentById(root, id);
+  return { ...document, recognition: { metadataStatus: "current", updatedAt: metadataDate(document.frontmatter.updated_at) ?? metadataDate(document.frontmatter.updatedAt), createdAt: metadataDate(document.frontmatter.created_at) ?? metadataDate(document.frontmatter.createdAt), editor: currentMemoryEditor(document.content) } };
 }
 
 export async function updateMemoryDocument(
@@ -115,6 +124,7 @@ export async function updateMemoryDocument(
   content: string,
   options: UpdateMemoryDocumentOptions = {},
 ): Promise<MemoryDocumentUpdateResult> {
+  const actor = normalizeMemoryActor(options.actor);
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
   const ifMatch = options.ifMatch ?? options.contentHash;
@@ -127,7 +137,7 @@ export async function updateMemoryDocument(
   }
 
   try {
-    return await replaceCanonicalMemoryDocumentById(root, id, content, { ifMatch, updatedAt: options.updatedAt });
+    return await replaceCanonicalMemoryDocumentById(root, id, content, { ifMatch, updatedAt: options.updatedAt, actor });
   } catch (error) {
     // Keep the public precondition error shape for conflicts discovered at publication.
     if ((error as MemoryDocumentEditError).code === "precondition_failed") {

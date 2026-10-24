@@ -61,3 +61,11 @@ Local search validates/resolves optional `temporal` before root/backend access a
 ## Exact no-op updates
 
 Normal updates still require the prior destination hash. An exact unchanged-content submission returns `unchanged:true` without canonical publication/edit-time changes; stale submissions still fail. This is byte equality, not semantic reconciliation or source checking. Explicit living-page source checks belong to app/dream and never refresh indexes.
+
+## Human search recognition
+
+Rich search accepts opt-in `recognition` calendar/editor/sort/paging options. Validate before backend access, request up to 120 shared ranked candidates, then perform targeted current-source reads and filter/sort before the requested page limit (maximum 120). Default rich/compact recall ranking and evidence text stay unchanged. Recognition never substitutes display text for cited snippets.
+
+`search-recognition.ts` reads only candidate paths at the configured retrieval root, verifies current ID/title against each hit, rejects unsafe/outside-canonical paths and invalid UTF-8, and returns optional dates/current declared editor plus an 8192-character body prefix for UI display. Reads are sequential, cancellation-aware, at most 1 MiB per file/8 MiB aggregate; oversized, changed or unavailable sources produce `metadataStatus: unavailable`, not guessed timestamps/editors. It adds no persistent cache, per-result HTTP request or additional root-wide identity scan. It does not newly guarantee unique IDs or a multi-file snapshot; existing editor GET still validates identity.
+
+The version-1 acknowledgement echoes normalized options, `candidateLimit:120`, candidate/match/unavailable counts, `partial:true`, and optional `nextOffset`. Filters operate over these ranked candidates, not the entire corpus; `recognition_bounded_candidates` always marks partial retrieval, including zero matches. Relevance is default; edit sorting puts unknown dates last and uses file-path ties. Date-only values retain calendar meaning; timestamp dates resolve in the requested IANA timezone. Evidence-date `temporal` remains separate.

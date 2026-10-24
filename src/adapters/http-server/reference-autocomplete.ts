@@ -1,10 +1,11 @@
 // Browser-only, framework-free presentation over the injected notes search controller.
 // Recognition, source offsets, and undoable replacement belong to the editor bridge.
 import type { createNoteEditor } from "./lexical-editor.js";
+import { searchPreview } from "./search-presentation.js";
 import { referenceEligibility } from "./reference-policy.js";
 
 type Bridge = Pick<ReturnType<typeof createNoteEditor>, "autocompleteRange" | "subscribeReferenceContext" | "captureSelection" | "getMarkdown" | "insertReference" | "restoreSelection">;
-type Result = { documentId: string | null; title: string; referenceTitle: string | null };
+type Result = { documentId: string | null; title: string; referenceTitle: string | null; snippet?: string };
 type SearchState = { query: string; status: string; results: Result[]; selected: number; stale: boolean; message: string };
 type Search = {
   state: SearchState;
@@ -147,7 +148,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   }
   function render() {
     const state = search.state;
-    const key = JSON.stringify(state.results.map((result) => [result.documentId, result.title, result.referenceTitle]));
+    const key = JSON.stringify(state.results.map((result) => [result.documentId, result.title, result.referenceTitle, result.snippet]));
     // Freshness/selection refreshes must never detach a pointer's click target.
     // Defer even a changed result set until release; acceptance checks its identity.
     if (key !== renderedKey && !gesture && !pendingTap) {
@@ -161,7 +162,13 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
         row.id = id + "-option-" + index;
         row.dataset.index = String(index);
         row.setAttribute("role", "option");
-        if (row.textContent !== result.title) row.textContent = result.title;
+        const preview = result.snippet ? searchPreview(result.snippet, result.title, state.query).slice(0, 100) : "";
+        const text = result.title + (preview ? "\n" + preview : "");
+        if (row.dataset.preview !== text) {
+          row.dataset.preview = text; row.replaceChildren();
+          const title = doc.createElement("div"); title.textContent = result.title; row.append(title);
+          if (preview) { const context = doc.createElement("small"); context.textContent = preview; context.style.cssText = "display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-soft)"; row.append(context); }
+        }
         row.style.cssText = "padding:7px;cursor:pointer;overflow-wrap:anywhere";
         return row;
       }));

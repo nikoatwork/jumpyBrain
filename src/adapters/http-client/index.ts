@@ -1,3 +1,4 @@
+import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import { normalizeEvidenceDate } from "../../core/writing/metadata.js";
 import { validTemporalResponse } from "./temporal-response.js";
@@ -61,7 +62,7 @@ export interface RemoteMemoryTransport {
   previewMemoryDocumentDeletion(id: string): Promise<import("../../types.js").MemoryDocumentDeletePreview>;
   deleteMemoryDocument(id: string, options: { ifMatch: string; apply: true }): Promise<import("../../types.js").MemoryDocumentDeleteResult>;
   readMemoryDocument(id: string): Promise<MemoryDocumentReadResult & Record<string, unknown>>;
-  updateMemoryDocument(id: string, content: string, options: { ifMatch: string }): Promise<MemoryDocumentUpdateResult & Record<string, unknown>>;
+  updateMemoryDocument(id: string, content: string, options: { ifMatch: string; actor?: import("../../types.js").MemoryActor }): Promise<MemoryDocumentUpdateResult & Record<string, unknown>>;
   checkDreamSources(request: import("../../core/dream/source-references.js").SourceCheckRequest): Promise<import("../../core/dream/source-references.js").SourceCheckResult>;
   getDreamWindow(request?: DreamWindowRequest): Promise<DreamWindow>;
   getDreamStatus(): Promise<DreamStatus & Record<string, unknown>>;
@@ -186,12 +187,15 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     searchMemory: async (query, limit, searchOptions = {}) => execute(searchOptions, false, async signal => {
       if (searchOptions.readOnly !== undefined && typeof searchOptions.readOnly !== "boolean") throw new Error("readOnly must be boolean.");
       resolveTemporalQuery(searchOptions.temporal);
+      const recognition = normalizeRecognitionOptions(searchOptions.recognition);
       if (searchOptions.readOnly === true) await assertReadOnlySupport(signal);
       const mode = searchOptions.mode ?? "search";
-      const body = { ...(searchOptions.readOnly === true ? { readOnly: true } : {}), ...(searchOptions.temporal ? { temporal: searchOptions.temporal } : {}), ...(mode === "recall"
+      const body = { ...(recognition ? { recognition } : {}), ...(searchOptions.readOnly === true ? { readOnly: true } : {}), ...(searchOptions.temporal ? { temporal: searchOptions.temporal } : {}), ...(mode === "recall"
         ? { topic: query, limit, depth: searchOptions.depth ?? "normal" }
         : { query, limit, depth: searchOptions.depth ?? "normal" }) };
       const packet = await requestInScope(mode === "recall" ? HTTP_MEMORY_ROUTES.recall : HTTP_MEMORY_ROUTES.search, { method: "POST", body: JSON.stringify(body) }, signal);
+      if (recognition && (packet.recognition as { version?: number; options?: unknown })?.version !== 1) throw new RemoteMemoryError(502, "unsupported_recognition", "Remote server did not honor search recognition. Upgrade the server; no unfiltered fallback was attempted.");
+      if (recognition && JSON.stringify((packet.recognition as { options?: unknown }).options) !== JSON.stringify(recognition)) throw new RemoteMemoryError(502, "unsupported_recognition", "Remote search filter scope did not match the request.");
       if (searchOptions.temporal && !validTemporalResponse(packet.temporal, searchOptions.temporal)) {
         throw new RemoteMemoryError(502, "unsupported_temporal", "Remote server did not honor the temporal scope. Upgrade the server; no unfiltered fallback was attempted.");
       }
@@ -214,7 +218,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     updateMemoryDocument: (id, content, updateOptions) => request(memoryDocumentPath(id), {
       method: "PUT",
       headers: { "If-Match": updateOptions.ifMatch },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, ...(updateOptions.actor ? { actor: updateOptions.actor } : {}) }),
     }) as Promise<MemoryDocumentUpdateResult & Record<string, unknown>>,
     checkDreamSources: async (sourceRequest) => {
       try {

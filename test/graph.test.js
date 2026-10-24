@@ -707,6 +707,7 @@ test("graph document transport centralizes optional Bearer auth and PUT precondi
   const requests = [];
   const ctx = {
     feedbackDiagnostics: createFeedbackDiagnostics(),
+    browserActor: { kind: "human", id: "browser:fixture" },
     activeApiKey: "secret", credentialRevision: 0, connectionStatus: "checking",
     renderConnection: () => {},
     fetch: async (url, options) => {
@@ -730,7 +731,7 @@ test("graph document transport centralizes optional Bearer auth and PUT precondi
   assert.equal(requests[0].options.headers.Authorization, "Bearer secret");
   assert.equal(requests[0].options.headers["Content-Type"], "application/json");
   assert.equal(requests[0].options.headers["If-Match"], "sha256:old");
-  assert.deepEqual(JSON.parse(requests[0].options.body), { content: "# Changed\n" });
+  assert.deepEqual(JSON.parse(requests[0].options.body), { content: "# Changed\n", actor: { kind: "human", id: "browser:fixture" } });
 
   ctx.activeApiKey = "";
   await ctx.graphFetch("/memories/all/graph.json");

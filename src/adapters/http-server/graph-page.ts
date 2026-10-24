@@ -195,6 +195,8 @@ ${lexicalBundle}
 ${companion ? extensionBundle : ""}
 ${sidebarScript}
 const { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
+let browserActor;
+try { browserActor = JumpyBrainBrowser.browserMemoryActor(window.localStorage); } catch { browserActor = { kind: "human" }; }
 const recentWrites = createRecentWriteSearch({
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
   fetch: createBrowserSearchRequest((url, options) => graphJson(url, options)),
@@ -375,7 +377,7 @@ function writeGraphDocument(documentId, content, contentHash) {
   return graphJson(documentUrl(documentId), {
     method: "PUT",
     headers: { "Content-Type": "application/json", "If-Match": contentHash },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, actor: browserActor }),
   });
 }
 

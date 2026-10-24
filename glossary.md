@@ -32,9 +32,9 @@ Host-owned incremental indexing of derived state after quiet writes and on perio
 
 A read-only home view of up to eight current Markdown files ordered by their latest valid update or creation metadata, with one entry per file. It retains no change history, block attribution, or unread state. Evidence dates and filesystem copy times do not establish edit recency. See [activity-feed scope](tasks/done/2026-10-18_tasks-knowledge-activity-feed.md).
 
-## Contribution actor (deferred)
+## Contribution actor
 
-A proposed human or agent attribution under an owner's credential scope. Personal-key fingerprints and stable agent IDs were explored but remain unimplemented and are outside the metadata-only recent-activity scope. Current metadata does not establish a verified last editor or contributor history.
+Optional declared human/agent provenance for a supported write, with an optional actor ID/name. Canonical Markdown retains creator and latest editor; a revision digest invalidates stale last-editor claims after untracked content changes. It is not verified identity, a permission or a retained contributor history. The app's “You” label requires the same browser-local identity. Legacy/external unknowns stay unknown. See [memory format](docs/memory-format.md#declared-creator-and-last-editor).
 
 ## Support diagnostic report
 

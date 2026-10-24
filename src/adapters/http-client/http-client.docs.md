@@ -57,3 +57,7 @@ Rich and compact searches forward optional `temporal` after core validation. `te
 ## Living-page checks
 
 `checkDreamSources(request)` POSTs saved-page ID or draft content/file to the source-check route. Unsupported 404/405 endpoints and malformed envelopes fail with upgrade guidance and no fallback or simulated check. This read does not grant write authorization.
+
+## Recognition acknowledgement
+
+Rich search forwards normalized opt-in `recognition` options and requires a version-1 acknowledgement with the same options. Older/ignoring servers fail with explicit upgrade guidance; no unfiltered fallback. Document updates forward optional declared `actor` alongside `content` and existing If-Match; note drafts already share the same optional actor. These claims never change authorization.

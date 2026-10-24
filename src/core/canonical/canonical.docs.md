@@ -55,3 +55,7 @@ Wiki references first resolve unique normalized metadata titles with a valid glo
 ## Observational version reads and no-ops
 
 `readBoundedCanonicalSource` rejects symlink ancestors/files, hardlinks and special files, bounds allocation/reads, and checks handle/path identity and byte-size/time stability. It does not lock external writers or freeze multiple files. Exact unchanged-content updates check the existing destination token first, then return `unchanged:true` without publication or timestamp changes; no semantic/cosmetic comparison is attempted.
+
+## Declared content editor
+
+Canonical replacement forwards the optional validated actor to core merge policy and returns current `recognition` date/editor metadata over the bytes actually published. Exact no-ops return the existing declaration without changing timestamps or editor. Attention publication retains its independent byte-preserving policy; contribution hashing deliberately excludes `attention_at`. This does not establish verified identity, retained change history or attribution for untracked external writes.

@@ -21,3 +21,7 @@
 - Do not parse CLI flags, HTTP requests, or idempotency headers.
 - Do not implement pure Markdown/frontmatter policy that belongs in core writing.
 - Do not expose remote writer helpers through the local runtime/package surface.
+
+## Declared actors
+
+Note creation accepts optional `{kind:"human"|"agent",id?,name?}` `actor`; omission means unknown, regardless of CLI, source, confidence or folder. Both writers stamp canonical creator/last-editor declarations and revision digest before atomic publication. Session wrapup records an agent declaration for the automated session-writing operation; deterministic process output declares the processing agent. Dream callers should explicitly declare their agent on remember/update. Imported historical files are not backfilled. See [memory format](../../../docs/memory-format.md#declared-creator-and-last-editor).

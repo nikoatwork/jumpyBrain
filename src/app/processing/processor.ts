@@ -1,3 +1,4 @@
+import { stampMemoryActor } from "../../core/contribution.js";
 import { randomUUID } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -77,10 +78,10 @@ async function synthesizeMemory(root: string, options: ProcessMemoryOptions): Pr
     source: "jumpybrain-process", created_at: now, updated_at: now,
     confidence: MEMORY_CONFIDENCE.agentDrafted, tags: distinctiveTokens(topic).slice(0, 8),
   };
-  const markdown = renderMarkdownDocument(Object.entries(metadata), body);
+  const markdown = stampMemoryActor(renderMarkdownDocument(Object.entries(metadata), body), { kind: "agent", name: "jumpyBrain processing" }, !existing);
   let written = pageFile;
   if (existing) {
-    await updateMemoryDocument(root, String(metadata.id), markdown, { ifMatch: hashMemoryDocumentContent(existing.content), updatedAt: now });
+    await updateMemoryDocument(root, String(metadata.id), markdown, { ifMatch: hashMemoryDocumentContent(existing.content), updatedAt: now, actor: { kind: "agent", name: "jumpyBrain processing" } });
   } else {
     // Approved exclusive-create seam: even a last-moment collision never overwrites another page.
     written = await writeUniqueMarkdownFile(path.dirname(pageFile), path.basename(pageFile, ".md"), markdown);

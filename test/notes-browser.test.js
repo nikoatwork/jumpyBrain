@@ -2,6 +2,7 @@ import { shellFunctions } from "./browser-shell-helpers.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
+import { searchPreview, resultEditContext } from "../dist/adapters/http-server/search-presentation.js";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback.js";
 
@@ -287,12 +288,13 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   }
   const elements = new Map();
   const $ = (id) => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
-  const { renderNoteSearch } = runtime(["renderNoteSearch"], { $, document: { createElement: element }, chooseSearchResult() {}, searchMode: "navigate" });
+  const { renderNoteSearch } = runtime(["renderNoteSearch"], {
+    browserActor: {}, searchOffset: 0, JumpyBrainBrowser: { searchPreview, resultEditContext, appendSearchHighlight: (element, text) => { element.textContent = text; } }, $, document: { createElement: element }, chooseSearchResult() {}, searchMode: "navigate" });
   const malicious = '<script>alert("x")</script>';
   const search = { results: [{ documentId: docA, title: malicious, snippet: malicious, file: malicious }], selected: 0, status: "ready", message: "ready", stale: true };
   renderNoteSearch(search);
   const row = $("search-results").children[0];
-  assert.deepEqual(row.children.map((child) => child.textContent), [malicious, malicious, malicious]);
+  assert.deepEqual(row.children.map((child) => child.textContent), [malicious, "No preview text", "Edit date unknown · Editor unknown", malicious]);
   assert.equal(row.attrs["aria-selected"], "true");
   assert.equal($("search-freshness").hidden, false);
   search.stale = false;

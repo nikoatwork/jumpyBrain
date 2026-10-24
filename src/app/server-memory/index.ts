@@ -143,6 +143,7 @@ export type RemoteMemoryDocumentReadPacket = Omit<MemoryDocumentReadResult, "roo
 };
 
 export interface ServerMemoryDocumentUpdateOptions {
+  actor?: import("../../types.js").MemoryActor;
   ifMatch?: MemoryDocumentContentHash | string;
   contentHash?: MemoryDocumentContentHash | string;
   updatedAt?: string;
@@ -253,11 +254,13 @@ export async function updateServerMemoryDocument(options: {
   ifMatch?: MemoryDocumentContentHash | string;
   contentHash?: MemoryDocumentContentHash | string;
   updatedAt?: string;
+  actor?: import("../../types.js").MemoryActor;
 }): Promise<RemoteMemoryDocumentUpdatePacket> {
   const result = await updateMemoryDocument(options.root, options.id, options.content, {
     ifMatch: options.ifMatch,
     contentHash: options.contentHash,
     updatedAt: options.updatedAt,
+    actor: options.actor,
   });
   const index = result.unchanged ? await readRemoteIndexState(options.root) : await markRemoteIndexStale(options.root);
   return {
@@ -276,10 +279,11 @@ export async function searchServerMemory(options: ExecutionOptions & {
   limit: number;
   depth?: RetrievalDepth | string;
   recall?: boolean;
+  recognition?: SearchMemoryOptions["recognition"];
   temporal?: SearchMemoryOptions["temporal"];
   readOnly?: boolean;
 }): Promise<RemoteMemorySearchPacket> {
-  const searchOptions: SearchMemoryOptions = { refresh: false, readOnly: options.readOnly, depth: options.depth, temporal: options.temporal, signal: options.signal, timeoutMs: options.timeoutMs };
+  const searchOptions: SearchMemoryOptions = { recognition: options.recognition, refresh: false, readOnly: options.readOnly, depth: options.depth, temporal: options.temporal, signal: options.signal, timeoutMs: options.timeoutMs };
   const result = await searchMemory(options.root, options.query, options.limit, searchOptions);
   const index = await readRemoteIndexState(result.root);
   return {
@@ -291,6 +295,7 @@ export async function searchServerMemory(options: ExecutionOptions & {
     depth: result.depth,
     index,
     results: result.results,
+    ...(result.recognition ? { recognition: result.recognition } : {}),
     readiness: result.readiness,
     retrieval: result.retrieval,
     ...(result.temporal ? { temporal: result.temporal } : {}),

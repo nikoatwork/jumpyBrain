@@ -662,7 +662,7 @@ async function touchScrolling(page) {
     assert.equal(await editorMarkdown(page), draft, "touch scrolling must not choose the initial option");
     assert.equal(await popup(page).isVisible(), true);
     assert.ok(await popup(page).evaluate((element, start) => element.scrollTop > start, start), "Chromium native touch gesture actually scrolled the popup");
-    const row = options(page).last(), title = await row.textContent();
+    const row = options(page).last(), title = await row.locator(":scope > div").textContent();
     await row.scrollIntoViewIfNeeded(); await row.tap();
     await popup(page).waitFor({ state: "hidden" });
     await markdownIs(page, `Touch: [[${title}]]`);

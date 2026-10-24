@@ -67,3 +67,7 @@ Server preview/apply reuse the local-memory deletion operations. Packets replace
 ## Living-page checks
 
 Expose the identical shared `checkDreamSources(root,request)` through the server runtime without a local-root envelope, write queue or index work. Exact no-op document updates read existing index state instead of marking it stale; hosts skip write-maintenance notifications for `unchanged:true`.
+
+## Search recognition and declared editors
+
+Hosted rich search forwards the same opt-in recognition options to local-memory and returns its versioned bounded-scope acknowledgement unchanged. HTTP remains a thin decoder. Current per-hit metadata is observational and read-only; hosted reads never repair indexes. Document PUT accepts the optional declared actor, reuses the existing content-hash guard, and returns date/editor context for the confirmed revision. Notes POST forwards an optional actor through existing validated/idempotent creation. No credentials imply human identity and no actor grants write permission. Home Recent activity retains its existing date-only packet; it does not become a change-history or contributor feed.

@@ -1,3 +1,4 @@
+import { actorFromArgs } from "./recognition.js";
 import type { MemoryDocumentReadResult, MemoryDocumentUpdateResult } from "../types.js";
 import { stringArg, type ParsedCliArgs } from "./args.js";
 import type { LocalMemoryTransport } from "./local-transport.js";
@@ -31,11 +32,12 @@ export async function updateMemoryDocumentFromArgs(
     throw new Error("jumpybrain update requires --if-match <contentHash> from `jumpybrain show`. Re-run `jumpybrain show` before retrying.");
   }
 
+  const actor = actorFromArgs(args);
   const content = readStdin();
   try {
     const result = target.kind === "remote"
-      ? await target.memory.updateMemoryDocument(id, content, { ifMatch })
-      : await localMemory.updateMemoryDocument(target.root, id, content, { ifMatch });
+      ? await target.memory.updateMemoryDocument(id, content, { ifMatch, ...(actor ? { actor } : {}) })
+      : await localMemory.updateMemoryDocument(target.root, id, content, { ifMatch, ...(actor ? { actor } : {}) });
     if (args.json) {
       console.log(JSON.stringify(result, null, 2));
       return;

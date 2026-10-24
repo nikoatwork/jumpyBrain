@@ -1,5 +1,7 @@
 # Changes
 
+- Search results show readable Markdown previews, edit times and declared human/agent editors, with date/editor filters, recent-edit sorting and paging over explicitly bounded matches. New app edits can be recognized as yours; legacy or untracked edits stay unknown.
+
 - Mac app warnings and notifications share one message component, with consistent priority, dismissal, deduplication and protection against stale brain actions.
 
 - The Mac app supports trusted local TypeScript/JavaScript extensions with commands, shortcuts, panels and themes; includes Related notes and Ember Plum examples, explicit CLI management and recovery controls.

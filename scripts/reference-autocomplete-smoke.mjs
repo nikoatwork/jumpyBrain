@@ -224,7 +224,8 @@ try {
         if (message) assert.match(await menu(page).innerText(), message);
         else {
           assert.equal(await menu(page).getByRole("status").isVisible(), false);
-          assert.equal(await menu(page).innerText(), "Alpha\nBeta");
+          assert.deepEqual(await menu(page).locator('[role="option"] > div').allTextContents(), ["Alpha", "Beta"]);
+          assert.deepEqual(await menu(page).locator('[role="option"] > small').allTextContents(), ["Fixture result", "Fixture result"]);
         }
         assert.equal(await page.evaluate(() => document.activeElement.id), "note-editor");
       }

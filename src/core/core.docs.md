@@ -18,3 +18,9 @@
 - Do not export QMD-backed indexing, search, recall, processing operations, app-level write/dream workflows, or app/transport-specific result types through the core barrel.
 - Do not import CLI command parsing, app orchestration, server protocol code, HTTP/logging/package adapters, or QMD adapter internals.
 - Do not own hosted/server deployment concerns.
+
+## Contribution and search recognition policy
+
+`contribution.ts` validates optional declared `MemoryActor` values and owns canonical creator/last-editor stamping plus revision checking. This is provenance, never authentication or an ACL. The digest covers parsed metadata and normalized body, excluding contribution fields and `attention_at`; untracked body/title/timestamp changes invalidate the last editor. Guarded document merging protects existing creator fields, ignores submitted attribution, and replaces last editor from the explicit write option (omission clears it). Exact no-ops and the separate attention operation retain attribution.
+
+`search-recognition.ts` owns browser-safe strict optional edit/creation calendar-day predicates, declared-editor matching, timezone validation and the 120-candidate constant. It does not retrieve, scan, rank or authenticate users.
