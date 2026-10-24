@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Extension recovery and lifecycle hardening
+
+- Preserved last-working extensions across restart, made corrupt-registry safe mode usable, suppressed current updater probe execution, and clarified author contracts while freeing switch/quit from observers; [recovery verification](done/2026-10-24_tasks-extension-upgrade-recovery.md) and [lifecycle/SDK verification](done/2026-10-24_tasks-extension-contract-followup.md).
+
 ## 2026-10-24 — First-time onboarding
 
 - Clarified agent-assisted setup and same-brain Desktop selection, and fixed literal-path installer commands and misleading preview completion; [synthetic journeys and validation](done/2026-10-24_tasks-synthetic-onboarding.md).

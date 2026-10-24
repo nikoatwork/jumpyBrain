@@ -41,7 +41,7 @@ export function desktopControl({ origin, key }, route, body, { timeoutMs = 22000
   });
 }
 
-export async function startDesktopHost(config, { spawnHost = spawn, probe = probeCompanion, deadlineMs = 25000, onExit = () => {}, instance = randomUUID() } = {}) {
+export async function startDesktopHost(config, { spawnHost = spawn, probe = probeCompanion, deadlineMs = 25000, onExit = () => {}, instance = randomUUID(), readinessOnly = false } = {}) {
   if (!/^[0-9a-f-]{36}$/i.test(instance)) throw new Error('Invalid desktop instance.');
   const key = await readControlKey(config.supportDirectory);
   try { await probe(config.origin, key); }
@@ -51,7 +51,7 @@ export async function startDesktopHost(config, { spawnHost = spawn, probe = prob
   async function launch() {
     // No inherited credentials, renderer arguments, shell, detached child, or PID adoption.
     const child = spawnHost(config.executable, ['--desktop-host'], {
-      env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LANG: 'en_US.UTF-8', JUMPYBRAIN_DESKTOP_INSTANCE: instance }, stdio: ['ignore', 'ignore', 'ignore'],
+      env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LANG: 'en_US.UTF-8', JUMPYBRAIN_DESKTOP_INSTANCE: instance, ...(readinessOnly ? { JUMPYBRAIN_READINESS_ONLY: '1' } : {}) }, stdio: ['ignore', 'ignore', 'ignore'],
     });
     let exited = false, stopping = null;
     const ended = new Promise((resolve) => {

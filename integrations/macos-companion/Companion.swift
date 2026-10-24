@@ -495,6 +495,9 @@ final class Companion: NSObject, NSApplicationDelegate {
         if desktopHost, let instance = ProcessInfo.processInfo.environment["JUMPYBRAIN_DESKTOP_INSTANCE"] {
             p.environment?["JUMPYBRAIN_DESKTOP_INSTANCE"] = instance
         }
+        if desktopHost, ProcessInfo.processInfo.environment["JUMPYBRAIN_READINESS_ONLY"] == "1" {
+            p.environment?["JUMPYBRAIN_READINESS_ONLY"] = "1"
+        }
         p.standardInput = FileHandle.nullDevice
         p.standardOutput = output ?? FileHandle.nullDevice
         p.standardError = output ?? FileHandle.nullDevice

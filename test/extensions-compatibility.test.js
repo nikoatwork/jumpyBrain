@@ -48,7 +48,17 @@ test('frozen v1 installed cache, state and commands survive host replacement and
   const dispose = render(container, { old: true }, { signal: controller.signal, document: null });
   assert.equal(container.textContent, '{"old":true}'); controller.abort(); assert.equal(container.textContent, ''); dispose();
   await host.dispose();
-  for (let i = 0; i < files.length; i++) assert.deepEqual(await readFile(files[i]), before[i]);
+  for (let i = 0; i < files.length; i++) {
+    if (/registry(?:\.backup)?\.json$/.test(files[i])) {
+      const upgraded = JSON.parse(await readFile(files[i]));
+      const old = JSON.parse(before[i]);
+      assert.deepEqual(upgraded.entries[0].successful, { manifest: upgraded.entries[0].manifest, prepared: { revision: v1Revision } });
+      for (const entry of upgraded.entries) delete entry.successful;
+      // Validation fills the historical optional capabilities list without changing policy.
+      for (const entry of old.entries) entry.manifest.capabilities ??= [];
+      assert.deepEqual(upgraded, old);
+    } else assert.deepEqual(await readFile(files[i]), before[i]);
+  }
   await cp(new URL('../scripts/fixtures/extensions-v1/source/', import.meta.url), source, { recursive: true });
   host = await createExtensionHost({ directory });
   await host.reload();
@@ -73,4 +83,20 @@ test('frozen v1 installed cache, state and commands survive host replacement and
   assert.equal(host.snapshot().extensions.find(item => item.id === 'v1-disabled').status, 'active');
   const state = JSON.parse(await readFile(path.join(directory, 'state/v1-contract.json'), 'utf8'));
   assert.deepEqual(state, { kept: { from: 'v1' }, saved: 'v1-note' });
+});
+
+test('current SDK discovers write outcomes and theme roles; confirmed/uncertain creation example never retries', async () => {
+  execFileSync(process.execPath, ['node_modules/typescript/bin/tsc', '--ignoreConfig', '--noEmit', '--strict', '--skipLibCheck', '--target', 'ES2022', '--module', 'NodeNext', '--moduleResolution', 'NodeNext', 'scripts/fixtures/extensions-current-contract.ts']);
+  const { build, stop } = await import('esbuild');
+  try {
+    const output = await build({entryPoints:['scripts/fixtures/extensions-current-contract.ts'],bundle:true,write:false,platform:'node',format:'esm'});
+    const { createConfirmedNote, updateMessage } = await import('data:text/javascript;base64,' + Buffer.from(output.outputFiles[0].text).toString('base64'));
+    const input = {type:'note',body:'body',idempotencyKey:'persisted-original-key'};
+    let calls = 0;
+    const context = {memory:{create:async received => { calls++; assert.equal(received,input); return {id:'confirmed-id',saved:true,indexed:false,indexing:{status:'failed'}}; }}};
+    assert.match(await createConfirmedNote(context,input), /Saved confirmed-id; indexing failed/); assert.equal(calls,1);
+    context.memory.create = async received => { calls++; assert.equal(received.idempotencyKey,input.idempotencyKey); throw Error('response lost'); };
+    assert.match(await createConfirmedNote(context,input), /unconfirmed.*original key/); assert.equal(calls,2);
+    assert.equal(updateMessage({id:'id',unchanged:true,indexed:false,newContentHash:'hash'}),'Unchanged');
+  } finally { stop(); }
 });

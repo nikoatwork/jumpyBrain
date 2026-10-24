@@ -14,6 +14,9 @@ export class SwitchCoordinator {
   pending = null;
   inFlight = 0;
   closing = false;
+  transitionListeners = new Set();
+  onTransition(listener) { this.transitionListeners.add(listener); return () => this.transitionListeners.delete(listener); }
+  notifyTransition() { for (const listener of this.transitionListeners) listener(); }
   constructor({ timeoutMs = 15000 } = {}) { this.timeoutMs = timeoutMs; }
   state() { return { generation: this.generation, phase: this.pending ? 'preparing' : 'idle', switchId: this.pending?.id ?? null }; }
   fence(generation) {
@@ -76,6 +79,7 @@ export class SwitchCoordinator {
     const pending = { id: randomUUID(), targetId, committing: false };
     const barrier = new Promise((resolve, reject) => { pending.resolve = resolve; pending.reject = reject; });
     this.pending = pending;
+    this.notifyTransition();
     const timer = setTimeout(() => pending.reject(new ControlError('save_timeout', 'A tab did not confirm its save. Wake or close unused tabs, then retry.')), this.timeoutMs);
     try {
       this.check();
@@ -98,6 +102,7 @@ export class SwitchCoordinator {
     const pending = { id: randomUUID(), shutdown: true, committing: false };
     const barrier = new Promise((resolve, reject) => { pending.resolve = resolve; pending.reject = reject; });
     this.pending = pending;
+    this.notifyTransition();
     const timer = setTimeout(() => pending.reject(new ControlError('save_timeout', 'An editor did not confirm its save. Reopen its tab and resolve pending work before quitting.')), this.timeoutMs);
     try {
       this.check();
@@ -126,6 +131,7 @@ export class SwitchCoordinator {
   }
   close() {
     this.closing = true;
+    this.notifyTransition();
     clearTimeout(this.pending?.lease);
     this.pending?.reject(new ControlError('shutting_down', 'The companion is shutting down.', 503));
   }

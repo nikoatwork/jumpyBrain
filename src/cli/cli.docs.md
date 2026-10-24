@@ -36,6 +36,7 @@ Local search/recall (rich, compact, and recipes) automatically repair missing/st
 
 Local search/index execution deadlines can be set with `JUMPYBRAIN_SEARCH_TIMEOUT_MS`/`JUMPYBRAIN_INDEX_TIMEOUT_MS`; serve forwards validated host configuration. Local index/search/compact transport owns per-operation SIGINT/SIGTERM cancellation and removes those listeners on completion. Library runtime never installs OS signal handlers. No new effort/depth or queue flags. Remote CLI transport defaults to 70-second reads / 610-second index; server deadlines are server-owned. See [execution contract](../../docs/technical.md#bounded-retrieval-execution). CLI doctor/update retain their separate synchronous non-retrieval probes/installers; they are not part of server QMD admission.
 
+
 ## Non-responsibilities
 
 - Do not import QMD adapter internals or manage QMD cache/config paths directly.
@@ -63,6 +64,8 @@ Local search/index execution deadlines can be set with `JUMPYBRAIN_SEARCH_TIMEOU
 `extensions` is dispatched before remote access policy or credential resolution, and its management module/app seam is dynamically imported only for that command. Strict parsing in `args.ts` rejects unrelated remote flags (including malformed/repeated spellings), unknown commands/flags, missing/repeated values and valued booleans before filesystem access. `extensions --help` and command `--help` expose the local-only contract.
 
 `extensions install --source <local-package>` (or `link`) records/prepares an explicit local directory; `list`, `enable|disable|remove --id <id>` and `reload` share the app extension-management seam. Default storage is `~/Library/Application Support/jumpyBrain Companion/extensions`; `--directory` overrides that extension directory for fixtures/nonstandard hosts. No npm/git fetch or dependency install runs. CLI never executes a factory: a live companion owns activation and receives authenticated reload/manage requests; closed-host reload only prepares code. Removal preserves namespaced extension state. `extensions/disabled` permits safe startup and management of a broken package. JSON output is valid for void management outcomes too.
+
+`extensions check --source <package> [--json]` bypasses live-host discovery and calls the explicit app check seam. It compiles into disposable storage, never registers/activates code, and reports at most five file/line/column reasons without source lines/notes/stacks. Failure exits 1; ordinary install/reload and browser errors remain sanitized.
 
 The gateway's private support-directory control descriptor locates the exact live host, with its native control key read from the same private directory. Current generation is explicit, redirects are refused, and a live-host transport/auth failure is not treated as permission to mutate offline. This is separate from remote brain credentials and read/write policy. See [gateway extension protocol](../../integrations/macos-companion/gateway.docs.md#executable-extensions).
 

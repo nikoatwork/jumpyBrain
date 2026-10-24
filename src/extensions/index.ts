@@ -12,11 +12,25 @@ export interface ExtensionSearchResult { results: Array<{ id: string; title: str
 export interface ExtensionReadResult { id: string; content: string; hash: string; }
 export interface ExtensionCreateInput { type: "note"; title?: string; body: string; idempotencyKey: string; }
 export interface ExtensionUpdateInput { id: string; content: string; ifMatch: string; }
+/** Confirmed canonical creation; indexing can independently be pending or failed. */
+export type ExtensionCreateResult = {
+  id: string;
+  saved: true;
+  indexed: boolean;
+  indexing: { status: "indexed" | "pending" | "failed"; diagnostic?: { code: string; message: string; recovery: string } };
+} & { [key: string]: Json };
+/** A resolved update confirms publication, or an exact no-op when unchanged is true. */
+export type ExtensionUpdateResult = {
+  id: string;
+  unchanged?: true;
+  newContentHash: string;
+  indexed: boolean;
+} & { [key: string]: Json };
 export interface ExtensionMemory {
   search(input: ExtensionSearchInput): Promise<ExtensionSearchResult>;
   read(id: string): Promise<ExtensionReadResult>;
-  create(input: ExtensionCreateInput): Promise<Json>;
-  update(input: ExtensionUpdateInput): Promise<Json>;
+  create(input: ExtensionCreateInput): Promise<ExtensionCreateResult>;
+  update(input: ExtensionUpdateInput): Promise<ExtensionUpdateResult>;
 }
 export interface ExtensionContext {
   readonly signal: AbortSignal;
@@ -37,7 +51,10 @@ export interface ExtensionCommand {
   handler(input: Json, context: ExtensionContext): Promise<ExtensionCommandResult | void> | ExtensionCommandResult | void;
 }
 export interface ExtensionPanel { id: string; title: string; }
-export interface ExtensionTheme { id: string; name: string; appearance: "light" | "dark"; colors: Record<string, string>; }
+/** Semantic color roles supported by API v1; optional -- prefixes are accepted. */
+export const EXTENSION_THEME_ROLES = ["ink", "ink-soft", "ink-faint", "surface", "control-fill", "surface-hover", "focus-ring", "accent", "selection-fill", "status-connected", "error-ink", "error-fill", "error-line", "line", "line-strong", "edge", "edge-link", "edge-end", "node-page", "node-decision", "node-finding", "node-preference", "node-session", "node-note", "node-unresolved", "edge-shadow", "edge-highlight", "node-light", "node-shade", "backdrop"] as const;
+export type ExtensionThemeRole = typeof EXTENSION_THEME_ROLES[number];
+export interface ExtensionTheme { id: string; name: string; appearance: "light" | "dark"; colors: Partial<Record<ExtensionThemeRole | `--${ExtensionThemeRole}`, string>>; }
 export interface ExtensionEvent { type: ExtensionEventName; document?: ExtensionDocument | null; theme?: string; }
 export interface ExtensionAPI {
   readonly version: typeof EXTENSION_API_VERSION;
@@ -84,4 +101,4 @@ export interface ExtensionDescriptor {
   ui?: string;
   capabilities: ExtensionCapability[];
 }
-export interface ExtensionSnapshot { apiVersion: 1; revision: string; safeMode: boolean; extensions: ExtensionDescriptor[]; }
+export interface ExtensionSnapshot { apiVersion: 1; revision: string; safeMode: boolean; recovery?: string; extensions: ExtensionDescriptor[]; }

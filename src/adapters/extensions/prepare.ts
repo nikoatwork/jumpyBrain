@@ -3,15 +3,28 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import type { LocalCompilationDiagnostic } from "./validation.js";
 import { checkedFile, contained, ExtensionPackageError } from "./validation.js";
 import { cacheBytes, isExtensionSafeMode, pruneExtensionCache, type InstalledExtension, type PreparedExtension } from "./registry.js";
 
 let preparations = 0;
 
+// Explicit local author tooling only. Do not include source lines, notes or stacks.
+function localDiagnostics(error: unknown, sourceRoot: string): LocalCompilationDiagnostic[] {
+  const errors = (error as { errors?: import("esbuild").Message[] })?.errors;
+  if (!Array.isArray(errors)) return [];
+  const clean = (value: string, max: number) => value.replace(/[\x00-\x1f\x7f]/g, " ").slice(0, max);
+  return errors.slice(0, 5).map(item => {
+    const location = item.location;
+    const file = location?.file && !location.file.startsWith("<") ? path.relative(sourceRoot, path.resolve(sourceRoot, location.file)) : undefined;
+    return { reason: clean(String(item.text), 240), ...(file && contained(sourceRoot, path.resolve(sourceRoot, file)) ? { file: clean(file, 240), line: location!.line, column: location!.column + 1 } : {}) };
+  });
+}
+
 /** esbuild is intentionally imported only by this explicit preparation path. */
 export async function prepareExtension(directory: string, entry: InstalledExtension): Promise<PreparedExtension> {
   if (await isExtensionSafeMode(directory)) throw new ExtensionPackageError("Extension safe mode prevents compilation.");
-  if (await pruneExtensionCache(directory, entry.manifest.id, entry.prepared?.revision) >= 8) throw new ExtensionPackageError("Extension cache revision limit reached; close other hosts and reload.");
+  if (await pruneExtensionCache(directory, entry.manifest.id, [entry.prepared?.revision, entry.successful?.prepared.revision].filter((revision): revision is string => !!revision)) >= 8) throw new ExtensionPackageError("Extension cache revision limit reached; close other hosts and reload.");
   const sourceRoot = await realpath(entry.source);
   const sdk = await realpath(fileURLToPath(new URL("../../extensions/index.js", import.meta.url)));
   let compiler: typeof import("esbuild");
@@ -60,7 +73,7 @@ export async function prepareExtension(directory: string, entry: InstalledExtens
     return { revision };
   } catch (error) {
     if (error instanceof ExtensionPackageError) throw error;
-    throw new ExtensionPackageError("Extension compilation failed; check package entries and local dependencies.", { cause: error });
+    throw new ExtensionPackageError("Extension compilation failed; check package entries and local dependencies.", { cause: error, localDiagnostics: localDiagnostics(error, sourceRoot) });
   } finally {
     try { await rm(temporary, { recursive: true, force: true }); }
     finally { preparations--; if (preparations === 0) stop(); }

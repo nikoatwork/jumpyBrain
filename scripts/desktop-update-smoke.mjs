@@ -10,6 +10,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { createServerMemoryRuntime } from '../dist/server/index.js';
 import { loginPlist } from '../integrations/electron/login.mjs';
+import { installExtension } from '../dist/app/extensions/index.js';
 import { seedV1Extension, v1Context } from './extensions-v1-fixture.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const mode = process.argv[2] || 'success';
@@ -98,6 +99,13 @@ try {
   await json(fixturePath, { home, userData, support, oldVersion, nextVersion, release, artifactDir, mode });
   const extensionDirectory = path.join(support, 'extensions');
   const extensionFiles = await seedV1Extension(extensionDirectory, path.join(home, 'extension-packages/v1'));
+  const auditSource = path.join(home, 'extension-packages/probe-audit');
+  const auditFile = path.join(home, 'extension-activations.jsonl');
+  await mkdir(auditSource, { recursive: true });
+  await json(path.join(auditSource, 'jumpybrain-extension.json'), {apiVersion:1,id:'probe-audit',name:'Probe audit',version:'1.0.0',main:'main.ts',ui:'ui.ts'});
+  await writeFile(path.join(auditSource, 'main.ts'), `import { appendFileSync } from 'node:fs'; export default async api => { const migrations = Number(await api.state.get('migrations') ?? 0) + 1; await api.state.set('migrations',migrations); appendFileSync(${JSON.stringify(auditFile)}, JSON.stringify({migrations,readinessOnly:process.env.JUMPYBRAIN_READINESS_ONLY === '1'})+'\\n'); api.registerPanel({id:'details',title:'Upgrade audit'}); api.registerCommand({id:'show',title:'Open upgrade audit',slot:'note.actions',handler:()=>({panel:{id:'details',data:{verified:true}}})}); };`);
+  await writeFile(path.join(auditSource,'ui.ts'), `export default api => { api.registerPanel('details',(container,data)=>{container.textContent=JSON.stringify(data)}); };`);
+  await installExtension({directory:extensionDirectory,source:auditSource});
   const protectedPaths = [...extensionFiles.filter(file => !file.endsWith('/state/v1-contract.json')), path.join(memory, 'notes/keep.md'), cliConfigPath, integration, launchAgent, path.join(support, 'api-key')];
   const before = await Promise.all(protectedPaths.map(file => readFile(file)));
   const env = { ...process.env, HOME: home }; delete env.ELECTRON_RUN_AS_NODE;
@@ -142,7 +150,33 @@ try {
     await pause(500);
   }
   assert.ok(report, 'installed upgrade timed out'); assert.equal(report.ok, true, report?.error);
-  for (let i = 0; i < protectedPaths.length; i++) assert.deepEqual(await readFile(protectedPaths[i]), before[i], protectedPaths[i]);
+  for (let i = 0; i < protectedPaths.length; i++) {
+    const after = await readFile(protectedPaths[i]);
+    if (/registry(?:\.backup)?\.json$/.test(protectedPaths[i])) {
+      const actual = JSON.parse(after), original = JSON.parse(before[i]);
+      for (const entry of actual.entries) {
+        if (entry.successful) assert.deepEqual(entry.successful, {manifest:entry.manifest,prepared:entry.prepared});
+        delete entry.successful;
+      }
+      assert.deepEqual(actual, original);
+    } else assert.deepEqual(after, before[i], protectedPaths[i]);
+  }
+  if (mode === 'relaunch-failure') {
+    await json(fixturePath, { ...JSON.parse(await readFile(fixturePath)), verifyRollback: true });
+    child = spawn(path.join(appPath, 'Contents/MacOS/jumpyBrain'), [], { env, stdio: ['ignore','pipe','pipe'] });
+    const deadline = Date.now() + 60000;
+    while (Date.now() < deadline && !await readFile(path.join(home,'profile-result.json')).catch(()=>null)) await pause(100);
+    const profile = JSON.parse(await readFile(path.join(home,'profile-result.json')));
+    assert.equal(profile.ok,true,profile.error); report.profilePreferences = true;
+    await new Promise(resolve => child.exitCode !== null ? resolve() : child.once('exit',resolve));
+  }
+  if (['success','relaunch-failure'].includes(mode)) {
+    const activations = (await readFile(auditFile,'utf8')).trim().split('\n').map(JSON.parse);
+    // Legacy published workers do not request suppression; retain that explicit compatibility limit.
+    if (!existingClient) { assert.equal(activations.length,2, 'only the original and actual relaunch may activate/migrate extensions'); assert.equal(activations.some(item=>item.readinessOnly),false); assert.deepEqual(activations.map(item=>item.migrations),[1,2]); assert.equal(JSON.parse(await readFile(path.join(extensionDirectory,'state/probe-audit.json'))).migrations,2); }
+    if (existingClient) { assert.equal(activations.length,4, 'historical workers retain their documented two probe activations'); assert.deepEqual(activations.map(item=>item.migrations),[1,2,3,4]); }
+    report.extensionActivationCount = activations.length;
+  }
   if (mode === 'success') assert.deepEqual(await readFile(path.join(memory, 'notes/work.md')), await readFile(path.join(home, 'work-before.md')));
   // Invoke the frozen external package through the installed replacement runtime, not checkout code.
   const { createExtensionHost } = await import(pathToFileURL(path.join(resources, 'runtime/dist/app/extensions/index.js')).href);
@@ -166,7 +200,7 @@ try {
   assert.ok(cliExtension.prepared.revision, 'installed CLI must compile a fresh TS/UI extension after upgrade');
   const manifest = JSON.parse(await readFile(path.join(root, 'install-manifest.json')));
   assert.equal(manifest.source, 'https://github.com/nikoatwork/jumpyBrain.git'); assert.equal(manifest.ref, mode === 'app-only' ? 'v0.3.3' : 'master');
-  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
+  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, profilePreferences: ['success','relaunch-failure'].includes(mode), probeActivationSuppressed: !existingClient && ['success','relaunch-failure'].includes(mode), existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
   success = true; console.log('Installed GUI update: PASS', JSON.stringify(report));
 } finally {
   server?.close();

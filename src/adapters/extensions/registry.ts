@@ -1,6 +1,6 @@
-import { access, mkdir, open, readFile, readdir, realpath, rename, rm, stat } from "node:fs/promises";
+import { access, mkdir, mkdtemp, open, readFile, readdir, realpath, rename, rm, stat } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import type { ExtensionManifest, Json } from "../../extensions/index.js";
 import { assertId, checkedFile, ExtensionPackageError, jsonValue, validateManifest } from "./validation.js";
@@ -8,7 +8,7 @@ import { assertId, checkedFile, ExtensionPackageError, jsonValue, validateManife
 export const DEFAULT_EXTENSION_DIRECTORY = path.join(homedir(), "Library/Application Support/jumpyBrain Companion/extensions");
 export interface ExtensionDirectoryOptions { directory: string; }
 export interface PreparedExtension { revision: string; }
-export interface InstalledExtension { manifest: ExtensionManifest; source: string; enabled: boolean; prepared?: PreparedExtension; error?: string; }
+export interface InstalledExtension { manifest: ExtensionManifest; source: string; enabled: boolean; prepared?: PreparedExtension; successful?: { manifest: ExtensionManifest; prepared: PreparedExtension }; error?: string; }
 export interface ExtensionRegistry { version: 1; entries: InstalledExtension[]; }
 const queues = new Map<string, Promise<unknown>>();
 
@@ -63,8 +63,14 @@ function validateRegistry(value: unknown): ExtensionRegistry {
   return { version: 1, entries: registry.entries.map((entry) => {
     const manifest = validateManifest(entry.manifest);
     if (ids.has(manifest.id) || typeof entry.source !== "string" || !path.isAbsolute(entry.source) || typeof entry.enabled !== "boolean" || (entry.prepared && !/^[a-f0-9-]{36}$/.test(entry.prepared.revision))) throw new ExtensionPackageError("Invalid extension registry entry.");
+    let successful: InstalledExtension["successful"];
+    if (entry.successful) {
+      const successfulManifest = validateManifest(entry.successful.manifest);
+      if (successfulManifest.id !== manifest.id || !/^[a-f0-9-]{36}$/.test(entry.successful.prepared?.revision)) throw new ExtensionPackageError("Invalid successful extension revision.");
+      successful = { manifest: successfulManifest, prepared: { revision: entry.successful.prepared.revision } };
+    }
     ids.add(manifest.id);
-    return { manifest, source: entry.source, enabled: entry.enabled, ...(entry.prepared ? { prepared: { revision: entry.prepared.revision } } : {}), ...(entry.error ? { error: "Extension preparation failed; fix the local package and reload." } : {}) };
+    return { manifest, source: entry.source, enabled: entry.enabled, ...(entry.prepared ? { prepared: { revision: entry.prepared.revision } } : {}), ...(successful ? { successful } : {}), ...(entry.error ? { error: "Extension preparation failed; fix the local package and reload." } : {}) };
   }) };
 }
 export async function readRegistry(directory: string): Promise<ExtensionRegistry> {
@@ -82,6 +88,18 @@ export async function writeRegistry(directory: string, registry: ExtensionRegist
   // Backup is independently atomic and always a complete known-good registry.
   await atomicJson(path.join(directory, "registry.backup.json"), validated);
   await atomicJson(path.join(directory, "registry.json"), validated);
+}
+/** Record only a factory-validated candidate that still belongs to this registry entry. */
+export async function confirmExtensionActivation(directory: string, candidate: InstalledExtension): Promise<void> {
+  await withRegistryLock(directory, async () => {
+    const registry = await readRegistry(directory);
+    const entry = registry.entries.find(item => item.manifest.id === candidate.manifest.id);
+    if (!entry?.enabled || !candidate.prepared || entry.prepared?.revision !== candidate.prepared.revision
+      || JSON.stringify(entry.manifest) !== JSON.stringify(candidate.manifest)) throw new ExtensionPackageError("Extension candidate changed during activation; reload.");
+    if (entry.successful?.prepared.revision === candidate.prepared.revision) return;
+    entry.successful = { manifest: candidate.manifest, prepared: candidate.prepared };
+    await writeRegistry(directory, registry);
+  });
 }
 export async function isExtensionSafeMode(directory: string, explicit = false): Promise<boolean> {
   if (explicit) return true;
@@ -116,7 +134,7 @@ export async function leasePreparedExtension(directory: string, id: string, revi
   });
 }
 /** Keep the last three revisions plus live host leases; fail closed at eight revisions. */
-export async function pruneExtensionCache(directory: string, id: string, preserve?: string): Promise<number> {
+export async function pruneExtensionCache(directory: string, id: string, preserve: string[] = []): Promise<number> {
   assertId(id);
   const root = path.join(directory, "cache", id);
   const revisions = await readdir(root, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return []; throw error; });
@@ -134,7 +152,7 @@ export async function pruneExtensionCache(directory: string, id: string, preserv
       try { process.kill(Number(match[1]), 0); leased = true; }
       catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") await rm(path.join(folder, name), { force: true }); else leased = true; }
     }
-    if (index < 3 || item.revision === preserve || leased) retained++;
+    if (index < 3 || preserve.includes(item.revision) || leased) retained++;
     else await rm(folder, { recursive: true, force: true });
   }
   return retained;
@@ -153,6 +171,16 @@ export async function cacheBytes(directory: string): Promise<number> {
 }
 export async function listExtensions({ directory }: ExtensionDirectoryOptions): Promise<InstalledExtension[]> {
   return (await readRegistry(directory)).entries;
+}
+/** Compile in disposable storage, without registering or executing package code. */
+export async function checkExtension(source: string): Promise<{ ok: true }> {
+  const local = await readLocalPackage(source);
+  const directory = await mkdtemp(path.join(tmpdir(), "jumpybrain-extension-check-"));
+  try {
+    const { prepareExtension } = await import("./prepare.js");
+    await prepareExtension(directory, { ...local, enabled: true });
+    return { ok: true };
+  } finally { await rm(directory, { recursive: true, force: true }); }
 }
 export async function installExtension({ directory, source }: ExtensionDirectoryOptions & { source: string }): Promise<InstalledExtension> {
   return withRegistryLock(directory, async () => {

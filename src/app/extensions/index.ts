@@ -6,15 +6,16 @@ import { randomUUID } from "node:crypto";
 import {
   assertId, ExtensionPackageError, extensionState, isExtensionSafeMode, jsonValue,
   listExtensions, prepareExtensions, preparedFile, setExtensionEnabled, removeExtension,
-  text, leasePreparedExtension, type InstalledExtension,
+  text, leasePreparedExtension, confirmExtensionActivation, type InstalledExtension,
 } from "../../adapters/extensions/index.js";
+import { EXTENSION_THEME_ROLES } from "../../extensions/index.js";
 import type {
   Dispose, ExtensionAPI, ExtensionCommand, ExtensionCommandResult, ExtensionContext,
   ExtensionDescriptor, ExtensionEvent, ExtensionEventName, ExtensionFactory, ExtensionPanel,
   ExtensionSnapshot, ExtensionTheme, Json,
 } from "../../extensions/index.js";
 
-export { DEFAULT_EXTENSION_DIRECTORY, installExtension, listExtensions, setExtensionEnabled, removeExtension, prepareExtensions } from "../../adapters/extensions/index.js";
+export { DEFAULT_EXTENSION_DIRECTORY, installExtension, checkExtension, listExtensions, setExtensionEnabled, removeExtension, prepareExtensions } from "../../adapters/extensions/index.js";
 export type { InstalledExtension, ExtensionDirectoryOptions } from "../../adapters/extensions/index.js";
 export interface ExtensionHost {
   snapshot(): ExtensionSnapshot;
@@ -24,6 +25,7 @@ export interface ExtensionHost {
   dispose(): Promise<void>;
   invoke(extensionId: string, commandId: string, input: unknown, context: ExtensionContext): Promise<ExtensionCommandResult | void>;
   emit(event: ExtensionEvent, context: ExtensionContext): Promise<void>;
+  cancelObservations(): void;
   asset(id: string, revision: string): Promise<string>;
 }
 type EventHandler = (event: ExtensionEvent, context: ExtensionContext) => void | Promise<void>;
@@ -42,7 +44,7 @@ interface Activation {
 }
 const eventNames: ExtensionEventName[] = ["document.changed", "document.saved", "theme.changed", "scope.changed"];
 // The renderer applies these existing semantic color roles; layout/CSS injection is not an API.
-const themeTokens = new Set(["ink", "ink-soft", "ink-faint", "surface", "control-fill", "surface-hover", "focus-ring", "accent", "selection-fill", "status-connected", "error-ink", "error-fill", "error-line", "line", "line-strong", "edge", "edge-link", "edge-end", "node-page", "node-decision", "node-finding", "node-preference", "node-session", "node-note", "node-unresolved", "edge-shadow", "edge-highlight", "node-light", "node-shade", "backdrop"]);
+const themeTokens: ReadonlySet<string> = new Set(EXTENSION_THEME_ROLES);
 const clone = <T>(value: T): T => structuredClone(value);
 const stale = () => new ExtensionPackageError("Extension activation or invocation is no longer current.", { code: "extension_stale" });
 
@@ -66,6 +68,7 @@ export async function createExtensionHost({ directory, safeMode: explicitSafeMod
   let safeMode = await isExtensionSafeMode(directory, explicitSafeMode);
   let revision = randomUUID();
   let entries: InstalledExtension[] = [];
+  let recovery: string | undefined;
   let queue: Promise<unknown> = Promise.resolve();
   let imports = 0;
   let scope: { generation: number; brainId: string } | undefined;
@@ -73,6 +76,7 @@ export async function createExtensionHost({ directory, safeMode: explicitSafeMod
   const active = new Map<string, Activation>();
   const errors = new Map<string, string>();
   const pending = new Set<AbortController>();
+  const observations = new Set<AbortController>();
   const changed = () => { revision = randomUUID(); };
   function live(): void { if (disposed) throw new ExtensionPackageError("Extension host is disposed."); }
   function guard(activation: Activation): void {
@@ -186,12 +190,18 @@ export async function createExtensionHost({ directory, safeMode: explicitSafeMod
         ...(activation && manifest.ui ? { ui: `/companion/extensions/assets/${manifest.id}/${current}.js` } : {}), capabilities: [...(manifest.capabilities ?? [])],
       };
     });
-    return { apiVersion: 1, revision, safeMode, extensions };
+    return { apiVersion: 1, revision, safeMode, extensions, ...(recovery ? { recovery } : {}) };
   }
   async function refresh(compile: boolean): Promise<ExtensionSnapshot> {
     live();
     safeMode = await isExtensionSafeMode(directory, explicitSafeMode);
-    entries = await listExtensions({ directory });
+    recovery = undefined;
+    try { entries = await listExtensions({ directory }); }
+    catch (error) {
+      if (!safeMode) throw error;
+      entries = [];
+      recovery = "Extension registry is unreadable. Safe mode is active; preserve registry.json and registry.backup.json and restore a valid copy before enabling extensions.";
+    }
     if (!safeMode && (compile || entries.some((entry) => entry.enabled && !entry.prepared))) entries = await prepareExtensions({ directory, safeMode: explicitSafeMode });
     safeMode = await isExtensionSafeMode(directory, explicitSafeMode);
     for (const [id, activation] of active) {
@@ -203,12 +213,21 @@ export async function createExtensionHost({ directory, safeMode: explicitSafeMod
       if (previous?.revision === entry.prepared?.revision) continue;
       try {
         const next = await activate(entry);
+        try { await confirmExtensionActivation(directory, entry); }
+        catch (error) { await cleanup(next); throw error; }
         next.phase = "active";
         active.set(entry.manifest.id, next);
         errors.delete(entry.manifest.id);
         if (previous) await cleanup(previous);
       } catch (error) {
-        errors.set(entry.manifest.id, error instanceof ExtensionPackageError ? error.message : "Extension activation failed; fix the local factory and reload.");
+        errors.set(entry.manifest.id, "Extension activation failed; fix the local factory and reload.");
+        if (!previous && entry.successful && entry.successful.prepared.revision !== entry.prepared?.revision) {
+          try {
+            const fallback = await activate({ ...entry, ...entry.successful });
+            fallback.phase = "active";
+            active.set(entry.manifest.id, fallback);
+          } catch { /* Keep the diagnostic; never publish success for a failed fallback. */ }
+        }
       }
     }
     changed();
@@ -271,8 +290,37 @@ export async function createExtensionHost({ directory, safeMode: explicitSafeMod
     pending.add(controller);
     return { context: wrapped, check, close() { controller.abort(); pending.delete(controller); } };
   }
+  async function notify(event: ExtensionEvent, context: ExtensionContext, deadline = Date.now() + 3000): Promise<void> {
+    live();
+    if (!event || !eventNames.includes(event.type)) throw new ExtensionPackageError("Unknown extension event.");
+    const controller = new AbortController();
+    observations.add(controller);
+    context = { ...context, signal: AbortSignal.any([context.signal, controller.signal]) };
+    try {
+      const transitioned = observeScope(context);
+      if (transitioned && event.type !== "scope.changed") await notify({ type: "scope.changed" }, context, deadline);
+      if (event.type === "scope.changed") {
+        if (notifiedGeneration === context.scope.generation) return;
+        notifiedGeneration = context.scope.generation;
+      }
+      const observed = jsonValue(event) as unknown as ExtensionEvent;
+      handlers: for (const activation of active.values()) for (const handler of [...(activation.events.get(event.type) ?? [])]) {
+        if (context.signal.aborted || Date.now() >= deadline) break handlers;
+        const invocation = scoped(activation, context, true);
+        try { await bounded(Promise.resolve().then(() => { invocation.check(); return handler(clone(observed), invocation.context); }), invocation.context.signal, Math.max(1, deadline - Date.now())); invocation.check(); }
+        catch {
+          if (!invocation.context.signal.aborted) {
+            const message = "Extension event handler failed; reload the package if it persists.";
+            if (activation.error !== message) { activation.error = message; changed(); }
+          }
+        }
+        finally { invocation.close(); }
+      }
+    } finally { controller.abort(); observations.delete(controller); }
+  }
   const host: ExtensionHost = {
     snapshot,
+    cancelObservations() { for (const controller of observations) controller.abort(); },
     reload: () => serial(() => refresh(true)),
     setEnabled: (id, enabled) => serial(async () => { live(); await setExtensionEnabled({ directory, id, enabled }); return refresh(enabled); }),
     remove: (id) => serial(async () => { live(); await removeExtension({ directory, id }); errors.delete(id); return refresh(false); }),
@@ -280,6 +328,7 @@ export async function createExtensionHost({ directory, safeMode: explicitSafeMod
       if (disposed) return;
       // Fence immediately, even when another management operation is queued.
       disposed = true;
+      host.cancelObservations();
       for (const controller of pending) controller.abort();
       for (const activation of active.values()) activation.controller.abort();
       await serial(async () => { const previous = [...active.values()]; active.clear(); await Promise.all(previous.map(cleanup)); changed(); });
@@ -309,26 +358,7 @@ export async function createExtensionHost({ directory, safeMode: explicitSafeMod
         throw new ExtensionPackageError("Extension command failed.", { cause: error, code: "extension_failed" });
       } finally { invocation.close(); }
     },
-    async emit(event, context) {
-      live();
-      if (!event || !eventNames.includes(event.type)) throw new ExtensionPackageError("Unknown extension event.");
-      const transitioned = observeScope(context);
-      if (transitioned && event.type !== "scope.changed") await host.emit({ type: "scope.changed" }, context);
-      if (event.type === "scope.changed") {
-        if (notifiedGeneration === context.scope.generation) return;
-        notifiedGeneration = context.scope.generation;
-      }
-      const observed = jsonValue(event) as unknown as ExtensionEvent;
-      for (const activation of active.values()) for (const handler of [...(activation.events.get(event.type) ?? [])]) {
-        const invocation = scoped(activation, context, true);
-        try { await bounded(Promise.resolve().then(() => { invocation.check(); return handler(clone(observed), invocation.context); }), invocation.context.signal, 3000); invocation.check(); }
-        catch {
-          const message = "Extension event handler failed; reload the package if it persists.";
-          if (activation.error !== message) { activation.error = message; changed(); }
-        }
-        finally { invocation.close(); }
-      }
-    },
+    emit: (event, context) => notify(event, context),
     async asset(id, assetRevision) {
       live(); assertId(id);
       const activation = active.get(id);

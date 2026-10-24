@@ -167,3 +167,49 @@ test('upstream conflict status and packet survive wrapper failures; acknowledged
   await assert.rejects(context.memory.read(documentId), /confirmed/);
   wait.resolve(); await invocation.operation; await switching;
 });
+
+test('never-settling observations cannot hold switch or quit; their admitted reads still drain', async () => {
+  for (const transition of ['switch', 'quit']) for (const reading of [false, true]) {
+    const started = deferred(), settled = deferred(), handler = deferred(); let context, read;
+    const f = fixture({ emit: async (_event, current) => {
+      context = current;
+      if (reading) { read = current.memory.read(documentId); void read.catch(() => {}); }
+      started.resolve(); await handler.promise;
+    }, targetFetch: async () => { await settled.promise; return { status: 200, body: Buffer.from(JSON.stringify({content:'old',contentHash:hash})) }; } });
+    f.coordinator.unregister('tab', f.coordinator.generation);
+    const observing = f.adapter.scopeChanged(); await started.promise;
+    assert.equal(f.coordinator.inFlight, reading ? 1 : 0);
+    let completed = false;
+    const changing = (transition === 'switch' ? f.coordinator.switch('b', async () => { f.profile.id = 'b'; }) : f.coordinator.prepareShutdown()).then(value => { completed = true; return value; });
+    assert.equal(context.signal.aborted, true);
+    await assert.rejects(context.memory.read(documentId), /cancelled/);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(completed, !reading);
+    settled.resolve(); const lease = await changing;
+    if (reading) await assert.rejects(read, /cancelled/);
+    assert.equal(f.coordinator.inFlight, 0);
+    if (transition === 'quit') f.coordinator.cancelShutdown(lease);
+    handler.resolve(); await observing; await f.adapter.dispose();
+  }
+});
+
+test('an admitted canonical write drains before clean-tab switch and quit commit', async () => {
+  for (const transition of ['switch','quit']) {
+    const started=deferred(),settled=deferred(); let context;
+    const f=fixture({invoke:async (_e,_c,_i,current)=>{
+      context=current;
+      const saved=await current.memory.create({type:'note',body:'canonical',idempotencyKey:'one-write'});
+      assert.equal(saved.saved,true);
+    },targetFetch:async()=>{started.resolve();await settled.promise;return {status:200,body:Buffer.from('{"saved":true}')};}});
+    f.coordinator.unregister('tab',f.coordinator.generation);
+    const request=f.request('/companion/extensions/invoke',{extensionId:'fixture',commandId:'run',allowWrites:true},{native:true});
+    await started.promise; let completed=false;
+    const changing=(transition==='switch'?f.coordinator.switch('b',async()=>{f.profile.id='b';}):f.coordinator.prepareShutdown()).then(value=>{completed=true;return value;});
+    await new Promise(resolve=>setImmediate(resolve)); assert.equal(completed,false); assert.ok(f.coordinator.inFlight>=1);
+    settled.resolve(); await request.operation; const lease=await changing;
+    assert.equal(completed,true); assert.equal(f.coordinator.inFlight,0);
+    await assert.rejects(context.memory.create({type:'note',body:'late',idempotencyKey:'late'}),/cancelled/);
+    if(transition==='quit')f.coordinator.cancelShutdown(lease);
+    await f.adapter.dispose();
+  }
+});

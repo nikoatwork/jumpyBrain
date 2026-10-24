@@ -5,3 +5,4 @@
 - A sidebar selector makes switching between multiple brains easier. Adding a connection infers its name, keeps validation errors beside the form and offers an explicit Switch action.
 - New optional Candy Pink and Pomodoro extensions add a playful palette and a sidebar focus timer; the author guide now explains setup and API v1 compatibility across upgrades.
 - Paired app/CLI updates keep new extension installation and TypeScript compilation working.
+- Extensions recover their last working revision after restart, safe mode opens with damaged registries, and current updater probes skip extension execution. Authors get typed save outcomes, discoverable theme roles and a local compilation check; slow observers no longer hold brain switching or quit.

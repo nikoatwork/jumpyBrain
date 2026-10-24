@@ -104,7 +104,7 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
         const current = await cliPolicy(request.home);
         if (current.kind !== 'managed' || current.manifestHash !== request.cli.manifestHash || current.shimHash !== request.cli.shimHash) throw new Error('CLI ownership or configuration changed. Nothing was installed.');
       }
-      const stagedHost = await startDesktopHost(await bundledHost(path.join(directory, 'built/jumpyBrain.app/Contents/Resources')));
+      const stagedHost = await startDesktopHost(await bundledHost(path.join(directory, 'built/jumpyBrain.app/Contents/Resources')), { readinessOnly: true });
       await stagedHost.stop();
       await status('updating', 'Installing the prepared app and CLI. Previous versions are retained for recovery…');
       await run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'publish', directory]);
@@ -113,7 +113,7 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       if (await installedVersion(path.join(request.appPath, 'Contents/Resources/runtime')) !== expected
         || (request.updateCLI && await installedVersion(path.join(root, 'app')) !== expected)) throw new Error('Installed component versions do not match. Restoring the previous installation.');
       if (request.updateCLI) await run(request.node, [path.join(root, 'app/dist/cli.js'), '--version'], directory, 20000);
-      const installedHost = await startDesktopHost(await bundledHost(path.join(request.appPath, 'Contents/Resources')));
+      const installedHost = await startDesktopHost(await bundledHost(path.join(request.appPath, 'Contents/Resources')), { readinessOnly: true });
       await installedHost.stop();
     }
     await status('updating', 'Reopening jumpyBrain and checking its local service…');

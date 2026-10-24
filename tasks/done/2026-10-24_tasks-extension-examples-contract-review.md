@@ -33,10 +33,10 @@ API v1 compatibility is now independent of the CLI/app version. A frozen histori
 
 The final reviewer found that the initially hand-bundled fixture omitted production's `createRequire` banner. Before freezing/committing it, recaptured SDK declarations and both cached assets by running the baseline commit's production `installExtension()` / `prepareExtension()` inside an isolated git archive. The corrected tests pass; this fixture is now the immutable starting baseline.
 
-Deferred evidence-backed work remains active, rather than being represented as completed hardening:
+The evidence-backed findings were captured separately at review completion; the follow-up hardening is now completed in:
 
-- [Upgrade/recovery](../todo/tasks-extension-upgrade-recovery.md): durable last-good activation after restart, corrupt-registry safe mode, suppressing execution during updater readiness probes, and app-profile palette/shortcut/placement verification.
-- [Contract/lifecycle follow-up](../todo/tasks-extension-contract-followup.md): observational callbacks retaining transition admissions, discoverable write results, bounded local compiler diagnostics, public theme-role vocabulary, and future mixed-host negotiation.
+- [Upgrade/recovery](2026-10-24_tasks-extension-upgrade-recovery.md): durable last-good activation after restart, corrupt-registry safe mode, suppressing execution during updater readiness probes, and app-profile palette/shortcut/placement verification.
+- [Contract/lifecycle follow-up](2026-10-24_tasks-extension-contract-followup.md): observational callbacks retaining transition admissions, discoverable write results, bounded local compiler diagnostics, public theme-role vocabulary, and future mixed-host negotiation.
 
 Pomodoro placement is a left-sidebar button opening a panel. Persistent sidebar widgets or top-right detail mounts are not API v1 contracts. The timer has focus/break, start/pause/resume/reset, persisted wall-clock deadlines and cleanup. It waits for explicit starts of subsequent intervals. No sound/notification/alarm-service claim; other tabs refresh when reopened/controlled.
 
@@ -57,4 +57,4 @@ Initial verification exposed a missing workspace-local Electron esbuild dependen
 
 ## Remaining limits
 
-No public release, push, user installation or full release-matrix certification was requested. These checks do not prove arbitrary third-party code/dependencies, physical sleep, assistive technology, Intel, native login/Keychain history, a live published asset upgrade, or palette/shortcut preferences through rollback. Actual BFCache restoration was not observed in Chromium's navigation run; deterministic persisted-page lifecycle coverage passed. Upgrade readiness activation and restart-recovery gaps remain explicitly documented above and in active lists. Representative frozen-v1 evidence supports preserving a clear contract; it is not an unlimited guarantee about trusted code side effects.
+No public release, push, user installation or full release-matrix certification was requested. These checks do not prove arbitrary third-party code/dependencies, physical sleep, assistive technology, Intel, native login/Keychain history, a live published asset upgrade, or palette/shortcut preferences through rollback. Actual BFCache restoration was not observed in Chromium's navigation run; deterministic persisted-page lifecycle coverage passed. Upgrade readiness activation and restart-recovery findings from this snapshot were subsequently resolved in the linked follow-up archives. Representative frozen-v1 evidence supports preserving a clear contract; it is not an unlimited guarantee about trusted code side effects.

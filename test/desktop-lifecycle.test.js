@@ -103,3 +103,15 @@ test('desktop installation migration and rollback regressions', { skip: process.
   const { stderr } = await promisify(execFile)('python3', ['-B', 'integrations/electron/test_desktop_install.py']);
   assert.match(stderr, /OK/);
 });
+
+test('readiness-only native launches carry an explicit internal flag; ordinary launches omit it', async t => {
+  for (const readinessOnly of [false, true]) {
+    const config = await fixture(t); let calls = 0, instance;
+    const child = new EventEmitter(); child.kill = () => child.emit('exit', 0);
+    const host = await startDesktopHost(config, { readinessOnly,
+      spawnHost: (_file, _args, options) => { instance = options.env.JUMPYBRAIN_DESKTOP_INSTANCE; assert.equal(options.env.JUMPYBRAIN_READINESS_ONLY, readinessOnly ? '1' : undefined); return child; },
+      probe: async () => { if (!calls++) throw Object.assign(new Error(), {code:'ECONNREFUSED'}); return {hostInstance:instance}; },
+    });
+    await host.stop();
+  }
+});

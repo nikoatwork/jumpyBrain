@@ -79,6 +79,7 @@ export function extensionsUsage(): string {
   return [
     "Usage:",
     "  jumpybrain extensions install --source <local-package> [--directory <extensions-directory>] [--json]",
+    "  jumpybrain extensions check --source <local-package> [--json]",
     "  jumpybrain extensions list [--directory <extensions-directory>] [--json]",
     "  jumpybrain extensions enable|disable|remove --id <extension-id> [--directory <extensions-directory>] [--json]",
     "  jumpybrain extensions reload [--directory <extensions-directory>] [--json]",

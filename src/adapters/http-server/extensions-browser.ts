@@ -1,8 +1,9 @@
+import { EXTENSION_THEME_ROLES } from "../../extensions/index.js";
 import type { Dispose, ExtensionCommandResult, ExtensionDescriptor, ExtensionDocument, ExtensionEvent, ExtensionPanelRenderer, ExtensionSnapshot, ExtensionUIFactory, Json } from "../../extensions/index.js";
 import type { createBrowserCommands } from "./browser-commands.js";
 
 const preferenceKey = "jumpybrain.extensions.v1";
-const tokens = new Set("ink ink-soft ink-faint surface control-fill surface-hover focus-ring accent selection-fill status-connected error-ink error-fill error-line line line-strong edge edge-link edge-end node-page node-decision node-finding node-preference node-session node-note node-unresolved edge-shadow edge-highlight node-light node-shade backdrop".split(" "));
+const tokens: ReadonlySet<string> = new Set(EXTENSION_THEME_ROLES);
 interface Preferences { version: 1; order: string[]; shortcuts: Record<string, string>; slots: Record<string, string>; theme: string; }
 export function extensionPreferences(value: unknown): Preferences {
   const raw = value as Partial<Preferences> | null;
@@ -11,7 +12,7 @@ export function extensionPreferences(value: unknown): Preferences {
   return { version: 1, order: raw?.version === 1 && Array.isArray(raw.order) ? raw.order.filter((id): id is string => typeof id === "string").slice(0, 200) : [],
     shortcuts: raw?.version === 1 ? strings(raw.shortcuts) : {}, slots: raw?.version === 1 ? strings(raw.slots) : {}, theme: raw?.version === 1 && typeof raw.theme === "string" ? raw.theme : "" };
 }
-export function extensionThemeColors(colors: Record<string, string>): Array<[string, string]> {
+export function extensionThemeColors(colors: Partial<Record<string, string>>): Array<[string, string]> {
   return Object.entries(colors).flatMap(([key, value]) => {
     const token = key.replace(/^--/, "");
     return tokens.has(token) && typeof value === "string" && /^#(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.test(value) ? [["--" + token, value] as [string, string]] : [];
@@ -324,7 +325,7 @@ export function installExtensionsBrowser(options: Options) {
     if (!next.safeMode) for (const descriptor of next.extensions) {
       if (descriptor.enabled && descriptor.status === "active") activations.set(descriptor.id, { descriptor, controller: new AbortController(), uiController: new AbortController(), uiDisposers: [], disposers: [], renderers: new Map() });
     }
-    message(next.safeMode ? "Extensions are paused in safe mode." : next.extensions.length ? "" : "No extensions installed.");
+    message(next.safeMode ? next.recovery?.slice(0, 512) || "Extensions are paused in safe mode." : next.extensions.length ? "" : "No extensions installed.");
     render(); applyTheme();
     documentChanged();
   }

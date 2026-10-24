@@ -20,6 +20,9 @@ Stable fixture hooks: `#extension-settings`, `#extension-list`, `#extension-stat
 
 Focused verification: `npx tsc --noEmit` and `npx --package=playwright node scripts/extensions-browser-controller-smoke.mjs`. The smoke bundles controller and view sources directly without changing `dist`; it covers throwing document-observer revision feedback, never-resolving factory/renderer cancellation, late cleanup and stale contexts, and repeated persisted hide/show restoration alongside normal command/theme behavior.
 
+Theme validation consumes the SDK `EXTENSION_THEME_ROLES` tuple. A safe-mode snapshot may include bounded `recovery` guidance; it is rendered as text and is optional for older hosts. Device-local preferences retain schema v1 and semantic contribution IDs through replacement/rollback.
+
+
 ## Non-responsibilities
 
 No arbitrary browser-path installation, host/module preparation, raw privileged fetch, editor replacement, memory/write policy, feature-specific Related notes logic or hosted extension activation. Runtime/gateway own authoritative registration/capability/revision checks. Current SDK declares writes at package level, so UI confirmation conservatively applies to each command in a write-capable package and submits `allowWrites` for that invocation only; target policy remains independent. Same-origin extension code is trusted, not sandboxed. The renderer does not promise to preempt blocking code or undo unmanaged extension side effects.

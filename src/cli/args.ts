@@ -225,9 +225,9 @@ export function parseExtensionsArgs(argv: string[]): ParsedCliArgs {
     if (argv.length > (command ? 2 : 1)) throw new Error("Unexpected extension help argument.");
     return { _: ["extensions"], help: true };
   }
-  if (!["install", "link", "list", "enable", "disable", "remove", "reload"].includes(command)) throw new Error(`Unknown extensions command '${command}'.\n${extensionsUsage()}`);
+  if (!["check", "install", "link", "list", "enable", "disable", "remove", "reload"].includes(command)) throw new Error(`Unknown extensions command '${command}'.\n${extensionsUsage()}`);
   const args: ParsedCliArgs = { _: ["extensions", command] };
-  const values = new Set(["directory", ...(["install", "link"].includes(command) ? ["source"] : ["enable", "disable", "remove"].includes(command) ? ["id"] : [])]);
+  const values = new Set(["directory", ...(["check", "install", "link"].includes(command) ? ["source"] : ["enable", "disable", "remove"].includes(command) ? ["id"] : [])]);
   for (let index = 2; index < argv.length; index++) {
     const token = argv[index]!;
     if (!token.startsWith("--")) throw new Error(`Unexpected extensions argument: ${token}.`);
@@ -242,7 +242,7 @@ export function parseExtensionsArgs(argv: string[]): ParsedCliArgs {
       args[key] = value;
     } else throw new Error(`Unknown extensions flag --${key}.`);
   }
-  const required = ["install", "link"].includes(command) ? "source" : ["enable", "disable", "remove"].includes(command) ? "id" : null;
+  const required = ["check", "install", "link"].includes(command) ? "source" : ["enable", "disable", "remove"].includes(command) ? "id" : null;
   if (!args.help && required && !args[required]) throw new Error(`--${required} is required.`);
   if (args.id && (!/^[a-z0-9][a-z0-9._-]{0,79}$/.test(String(args.id)) || ["__proto__", "constructor", "prototype"].includes(String(args.id)))) throw new Error("Invalid extension ID.");
   return args;

@@ -94,3 +94,72 @@ test('safe mode prepares/manages broken packages without executing top-level or 
   const result = JSON.parse((await cli(['disable', '--id', 'cli-fixture', '--directory', f.directory, '--json'])).stdout);
   assert.equal(result.safeMode, true); assert.equal(result.extensions[0].enabled, false);
 });
+
+test('explicit local check reports bounded locations and reasons, executes no code and ignores live host descriptors', async t => {
+  const f = await fixture(t);
+  // A broken live-host pointer must not prevent independent local author checks.
+  await writeFile(path.join(f.support, 'extensions-control.json'), 'broken');
+  const run = (...args) => cli(['check', '--source', f.source, '--directory', f.directory, ...args]);
+  await run(); await assert.rejects(access(f.executed + '.module'));
+  for (const source of ['const secret = "PRIVATE_SOURCE_MARKER";\nexport default () => { const broken = ; };', 'import missing from "missing-local-dependency";\nexport default () => missing();']) {
+    await writeFile(path.join(f.source, 'main.ts'), source);
+    await assert.rejects(run('--json'), error => {
+      const result = JSON.parse(error.stdout);
+      assert.equal(result.ok, false); assert.ok(result.diagnostics.length > 0 && result.diagnostics.length <= 5);
+      assert.equal(result.diagnostics[0].file, 'main.ts'); assert.ok(result.diagnostics[0].line >= 1);
+      assert.match(result.diagnostics[0].reason, /Unexpected|Could not resolve/);
+      assert.equal(error.stdout.includes('PRIVATE_SOURCE_MARKER'), false); return true;
+    });
+    await assert.rejects(run(), error => /main.ts:\d+:\d+:/.test(error.stderr));
+  }
+  await assert.rejects(access(f.executed)); await assert.rejects(access(path.join(f.directory, 'registry.json')));
+});
+
+test('readiness probes suppress factory/state migration, including repeated probes and a damaged registry', async t => {
+  const f = await fixture(t);
+  await cli(['install', '--source', f.source, '--directory', f.directory]);
+  for (let i = 0; i < 2; i++) {
+    const gateway = await startCompanionGateway({runtimeRoot:repo, directory:f.support, port:0, controlKey:key, readinessOnly:true, credentials:{get:async()=>null}});
+    assert.equal(gateway.state().extensions.safeMode, true); await gateway.close();
+    await assert.rejects(access(f.executed)); await assert.rejects(access(f.executed + '.module'));
+    await assert.rejects(access(path.join(f.directory, 'disabled')));
+  }
+  const actual = await startCompanionGateway({runtimeRoot:repo,directory:f.support,port:0,controlKey:key,credentials:{get:async()=>null}});
+  assert.equal(await readFile(f.executed, 'utf8'), 'activated'); await actual.close();
+  for (const file of ['registry.json','registry.backup.json']) await writeFile(path.join(f.directory,file),'damaged');
+  await writeFile(path.join(f.directory,'disabled'),'');
+  const safe = await startCompanionGateway({runtimeRoot:repo,directory:f.support,port:0,controlKey:key,credentials:{get:async()=>null}});
+  const response = await fetch(safe.url + '/'); assert.equal(response.status,200); assert.match(await response.text(), /note-editor/);
+  await safe.close();
+  for (const file of ['registry.json','registry.backup.json']) assert.equal(await readFile(path.join(f.directory,file),'utf8'),'damaged');
+});
+
+test('current CLI manages an older desktop with the frozen v1 envelope and ignores additive snapshot fields', async t => {
+  const { createServer } = await import('node:http');
+  const { createExtensionGateway } = await import('../scripts/fixtures/extensions-management-v1/extensions-gateway.mjs');
+  const { SwitchCoordinator } = await import('../scripts/fixtures/extensions-management-v1/switch-coordinator.mjs');
+  const f = await fixture(t), coordinator = new SwitchCoordinator();
+  let recovery, enabled = true;
+  const snapshot = () => ({apiVersion:1,revision:'historical',safeMode:false,extensions:[{id:'fixture',enabled}], ...(recovery ? {recovery} : {})});
+  const host = {snapshot,reload:async()=>snapshot(),setEnabled:async (_id,value)=>{enabled=value;return snapshot();}};
+  const json = (res,status,packet) => {res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(packet));};
+  const adapter = createExtensionGateway({host,coordinator,active:()=>({id:'brain'}),json,
+    jsonBody:async req => {let body='';for await(const chunk of req)body+=chunk;return JSON.parse(body);}});
+  const server = createServer(async (req,res) => {
+    try {
+      assert.equal(req.headers.authorization,'Bearer '+key);
+      const url = new URL(req.url,'http://localhost');
+      if(url.pathname==='/companion/state') json(res,200,{generation:coordinator.generation});
+      else assert.equal(await adapter.handle(req,res,url,{native:true}),true);
+    } catch(error) {json(res,400,{error:{message:error.message}});}
+  });
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  await writeFile(path.join(f.support,'api-key'),key,{mode:0o600});
+  await writeFile(path.join(f.support,'extensions-control.json'),JSON.stringify({version:1,directory:f.support,origin:`http://127.0.0.1:${server.address().port}`,pid:process.pid}),{mode:0o600});
+  const run = (...args) => cli([...args,'--directory',f.directory,'--json']);
+  assert.equal(JSON.parse((await run('reload')).stdout).apiVersion,1);
+  assert.equal(JSON.parse((await run('disable','--id','fixture')).stdout).extensions[0].enabled,false);
+  recovery='Optional newer-host recovery detail';
+  assert.equal(JSON.parse((await run('list')).stdout).recovery,recovery);
+});

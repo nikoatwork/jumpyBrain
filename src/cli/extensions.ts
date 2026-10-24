@@ -56,6 +56,21 @@ export async function extensionsCli(args: ParsedCliArgs): Promise<void> {
   const supplied = typeof args.directory === "string" ? args.directory : path.join(os.homedir(), "Library/Application Support/jumpyBrain Companion/extensions");
   const directory = path.resolve(supplied === "~" ? os.homedir() : supplied.startsWith("~/") ? path.join(os.homedir(), supplied.slice(2)) : supplied);
   const command = args._[1]!;
+  if (command === "check") {
+    const manager = await import("../app/extensions/index.js");
+    const source = String(args.source);
+    try {
+      const result = await manager.checkExtension(path.resolve(source.startsWith("~/") ? path.join(os.homedir(), source.slice(2)) : source));
+      console.log(args.json ? JSON.stringify(result) : "Extension compilation passed. No package code was executed.");
+    } catch (error) {
+      const diagnostics = error && typeof error === "object" && "localDiagnostics" in error ? error.localDiagnostics as Array<{ file?: string; line?: number; column?: number; reason: string }> : [];
+      const message = error instanceof Error ? error.message : "Extension check failed.";
+      if (args.json) console.log(JSON.stringify({ ok: false, error: message, diagnostics }));
+      else console.error([message, ...(diagnostics ?? []).map(item => `${item.file ?? "package"}${item.line ? `:${item.line}:${item.column}` : ""}: ${item.reason}`)].join("\n"));
+      process.exitCode = 1;
+    }
+    return;
+  }
   const companion = await liveCompanion(directory);
   // This app management seam prepares trusted packages, but never activates factories in the CLI.
   const manager = await import("../app/extensions/index.js");

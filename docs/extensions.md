@@ -11,6 +11,7 @@ An extension is trusted local TypeScript/JavaScript code. Node entries run insid
 Packages are explicitly registered from local directories. The directory is linked for development: editing source takes effect on an explicit reload. The app does not load code from memory files, a cloned project, attachments or a remote server. npm/git fetching, automatic updates and a marketplace are not part of this version.
 
 ```sh
+jumpybrain extensions check --source /absolute/path/to/my-extension
 jumpybrain extensions install --source /absolute/path/to/my-extension
 jumpybrain extensions list
 jumpybrain extensions reload
@@ -89,17 +90,21 @@ Replace the SDK path with your existing checkout or unpacked release containing 
 }
 ```
 
+Use `jumpybrain extensions check --source "$PWD"` for an independent compilation check: it creates disposable output, never registers or executes the package, and reports up to five package-relative file/line/column reasons (240 characters each). `--json` returns structured diagnostics and exit status 1 on failure. Source lines, compiler notes and stacks are omitted. Install/reload and browser/remote responses retain generic diagnostics. This check uses the CLI compiler even when Desktop is closed, older, or unavailable; it does not prove activation on that host.
+
 Run `npx tsc`, then `jumpybrain extensions install --source "$PWD"`. Open the Mac app and use the contributed button. After edits, run `npx tsc` and `jumpybrain extensions reload`; there is no source watcher. Install once per package ID; subsequent edits use reload. Open Settings → Extensions to select a theme or adjust command placement/shortcuts. A CLI-only installation can prepare packages, but has no desktop UI host.
 
 ## Compatibility across upgrades
 
 API version 1 is a supported contract independent of the CLI/app package version, including during beta. Patch and minor software upgrades must continue accepting existing v1 manifests and preserve the meaning of existing SDK methods, command/panel lifetimes, named slots, semantic theme roles, capability checks and write authorization. New features may be additive; optional additions cannot become required for an existing v1 package. Do not change an installed extension's ID to migrate it.
 
-Updates preserve the external registry, enabled/disabled choices and namespaced state under the support directory, plus device-local UI preferences in the existing app profile. Cache output is derived; it may be rebuilt from the linked package. Keep source and package-local dependencies available in that stable directory. The app does not update extension sources/dependencies. Factories should be idempotent: current updater readiness probes can activate them more than once before actual relaunch, and those state changes are outside bundle rollback. Extension authors own migrations of their own JSON state and should retain unknown fields where practical; backing up Markdown alone does not back up extension state.
+Updates preserve the external registry, enabled/disabled choices and namespaced state under the support directory, plus device-local UI preferences in the existing app profile. Cache output is derived; it may be rebuilt from the linked package. Keep source and package-local dependencies available in that stable directory. The app does not update extension sources/dependencies. Readiness probes issued by the current updater suppress extension compilation and activation using an internal launch option, without changing the safe-mode marker. Actual application launches still activate packages. Older already-published workers that do not request that option can still activate factories during probes; upgrading them cannot retroactively add this protection. Factories should remain idempotent, and actual-launch state migrations remain outside bundle rollback. Extension authors own migrations of their own JSON state and should retain unknown fields where practical; backing up Markdown alone does not back up extension state.
 
 A breaking API requires a new `apiVersion` and an explicit migration plan while retaining the v1 host path for existing packages. Unsupported API versions are rejected before execution. Do not edit the frozen v1 compatibility fixture to make a breaking change pass. The release gates in [release testing](release-testing.md) check the historical consumer against the candidate host and an installed update; a version number alone is insufficient evidence.
 
 This promise covers the public API and supported package imports. Private host/editor modules, arbitrary CSS selectors, undeclared filesystem/process side effects and third-party dependency behavior are outside it. Downgrades to software predating executable extensions or to an extension version that cannot read its newer state are not guaranteed; preserve backups and follow that extension's migration guidance. CLI-only upgrades do not upgrade an independently running/custom Mac app; the active desktop host determines available APIs.
+
+Negotiate through `apiVersion: 1`, rather than CLI/app package versions. Existing v1 methods and fields remain required; additions to host APIs must be optional and feature-detected (`typeof api.optionalMethod === "function"`) before use. A newer SDK cannot supply missing methods to an older running host. There is no general version-range framework or newer-host-only method in this change. Manifest fields are strict: unknown keys are rejected. Management request keys/actions are strict too; clients must not send new fields/actions without a future explicit capability signal. Snapshots/results are extensible: ignore unknown response fields and tolerate absent optional ones, such as `snapshot.recovery`. Current CLI management retains the original requests; a frozen historical gateway tests mixed-host behavior. Downgrading to an older registry writer can discard the new last-successful metadata; back up the support directory before such a downgrade.
 
 ## Commands and scoped memory
 
@@ -112,11 +117,33 @@ The handler receives JSON input and a fresh context:
 - `document`: UI-supplied current note ID/title. It can reflect a draft title; it is not an authenticated canonical snapshot. Use `memory.read(id)` for saved Markdown and its hash. Unsaved body text is not exposed by v1.
 - `memory.search({query, limit})`: bounded existing retrieval with canonical IDs, titles, excerpts and available freshness/partial status. It does not create an index, ranker or graph belonging to the extension.
 - `memory.read(id)`: saved canonical content and hash.
-- `memory.create({type:"note", title?, body, idempotencyKey})` and `memory.update({id, content, ifMatch})`: existing canonical publication, idempotency/concurrency and saved/indexed outcome contracts.
+- `memory.create({type:"note", title?, body, idempotencyKey})` returns `ExtensionCreateResult`: confirmed `saved: true`, canonical `id`, `indexed`, and `indexing.status` (`indexed`, `pending`, `failed`) with optional safe diagnostic.
+- `memory.update({id, content, ifMatch})` returns `ExtensionUpdateResult`: canonical `id`, `newContentHash`, `indexed`, and optional `unchanged: true` for an exact no-op. A resolved changed update confirms publication; `indexed: false` means derived retrieval is not confirmed fresh. Extra transport fields remain opaque JSON; public types do not require filesystem paths or credentials.
 
 Declare `memory.read` for search/read and `memory.write` for creation/update. Each write-capable command requires explicit user authorization for that invocation and remains subject to the selected brain's write policy. Installation and event delivery do not grant permission to write global/team/remote memory. A read-only remote brain stays read-only.
 
 Never automatically retry an uncertain creation with a new idempotency key or ignore an update conflict. Indexing failure is separate from a confirmed canonical save. A captured context becomes unusable when its invocation/activation or brain scope ends; asynchronous continuations must not reuse it.
+
+Persist a key for each logical creation before calling the command; keep the same input/key while its outcome is unresolved. This example makes one attempt, recognizes a confirmed save with failed indexing, and never creates a replacement on a lost response:
+
+```ts
+import type { ExtensionContext, ExtensionCreateInput } from "jumpybrain/extensions.js";
+
+async function createConfirmedNote(context: ExtensionContext, input: ExtensionCreateInput) {
+  try {
+    const saved = await context.memory.create(input);
+    if (saved.saved === true && saved.indexing.status === "failed") {
+      return `Saved ${saved.id}; refresh the same brain index. Do not recreate.`;
+    }
+    return `Saved ${saved.id}; indexing ${saved.indexing.status}.`;
+  } catch {
+    // Keep the original persisted input/key; reconcile the uncertain outcome.
+    return "Creation is unconfirmed. Do not retry with a new key.";
+  }
+}
+```
+
+A `creation_replay_failed` diagnostic confirms the save but warns that reusing even the original key may be unsafe. Keep the returned ID and repair derived replay storage; indexing repair never requires another creation.
 
 ## Panels, events and themes
 
@@ -126,11 +153,11 @@ The render function receives a container, JSON data and a UI context with `signa
 
 Named action slots are `sidebar.actions` (left sidebar button) and `note.actions` (note toolbar button). Both open commands/panels; v1 has no persistent inline/sidebar widget or top-right timer mount. A panel closes on note/brain navigation; keep ongoing timer state in the Node factory if it must survive panel closure. Do not mount into private shell DOM to imitate an unsupported slot. Panel contributions, commands and shortcuts are removed on disable/reload. Closing a panel aborts its context and restores focus; document/brain changes invalidate stale UI. These APIs do not expose raw Electron, native IPC, Keychain, an arbitrary authenticated-fetch client or editor replacement.
 
-`api.on(type, handler)` observes `document.changed`, `document.saved`, `theme.changed` and `scope.changed`. The gateway announces committed brain/permission generations; the host delivers a scope notification once per generation, independently of how many tabs register. Event contexts do not authorize writes or transform retrieval policy. Keep handlers short and cancellation-aware: the current gateway awaits scope observers, so slow observers can delay a guarded brain switch or quit. Unsubscribe using the returned disposer. `api.onDispose(fn)` owns activation cleanup; a factory may also return a disposer. Keep cleanup idempotent.
+`api.on(type, handler)` observes `document.changed`, `document.saved`, `theme.changed` and `scope.changed`. The gateway announces committed brain/permission generations; the host delivers a scope notification once per generation, independently of how many tabs register. Event contexts do not authorize writes or transform retrieval policy. Keep handlers short and cancellation-aware. One notification has a total three-second budget across all handlers, including any preceding scope notification. Switch/quit cancels observations and fences retained contexts; callback lifetime does not pin admission. Actual admitted memory requests still drain before transition. Later handlers can be skipped after cancellation or deadline expiry. Unsubscribe using the returned disposer. `api.onDispose(fn)` owns activation cleanup; a factory may also return a disposer. Keep cleanup idempotent.
 
 `api.state.get(key)` / `set(key, json)` store bounded, namespaced extension state. Keep brain-specific values keyed by an appropriate scope and discard transient document data when that scope changes.
 
-Themes use `api.registerTheme({id,name,appearance,colors})`. Colors map approved existing semantic roles, such as `surface`, `ink`, `accent`, `focus-ring` and error/graph roles, to hex values. Arbitrary CSS is not required. Selecting a palette updates tokens and redraws a visible graph without recreating the editor. Disabling it restores the built-in appearance.
+Themes use `api.registerTheme({id,name,appearance,colors})`. Colors map `ExtensionThemeRole` names from the exported `EXTENSION_THEME_ROLES` tuple to hex values. Both plain and optional `--` prefixes are supported. The accepted roles are `ink`, `ink-soft`, `ink-faint`, `surface`, `control-fill`, `surface-hover`, `focus-ring`, `accent`, `selection-fill`, `status-connected`, `error-ink`, `error-fill`, `error-line`, `line`, `line-strong`, `edge`, `edge-link`, `edge-end`, `node-page`, `node-decision`, `node-finding`, `node-preference`, `node-session`, `node-note`, `node-unresolved`, `edge-shadow`, `edge-highlight`, `node-light`, `node-shade`, and `backdrop`. The host and renderer validate from that same SDK list. Arbitrary CSS is not required. Selecting a palette updates tokens and redraws a visible graph without recreating the editor. Disabling it restores the built-in appearance.
 
 ## Working examples
 
@@ -155,11 +182,11 @@ Use the same public contract for optional human-facing workflows. Keep canonical
 
 ## Reload and recovery
 
-Reload prepares a new module revision before replacing a working activation. A failed preparation/activation is reported against the extension; a usable previous activation is retained in the running host where possible. A failed factory candidate is currently persisted by preparation, so that fallback is not guaranteed after restart; restore the working source and reload before restarting. Disable removes owned contributions and cancels supported work. The host cannot undo arbitrary filesystem/process side effects performed by trusted Node code.
+Reload prepares a new module revision before replacing a working activation. A failed preparation/activation is reported against the extension; a usable previous activation is retained in the running host where possible. The registry separately tracks the prepared candidate and the last successfully activated manifest/revision. A factory success is recorded only if the registry still owns that candidate. After restart, a failed candidate falls back to the successful revision with its original commands, capabilities and UI assets; repeated failed reloads retain that fallback. Successful replacement releases the previous activation and fallback protection. This is code/manifest recovery, not a rollback of extension-owned state migrations or unmanaged side effects. Disable removes owned contributions and cancels supported work. The host cannot undo arbitrary filesystem/process side effects performed by trusted Node code.
 
-For safe startup, create the `disabled` marker inside the extensions directory before starting the app. It is checked before compilation/factory loading. Remove the marker and explicitly reload when the package is repaired. This marker pauses executable packages, not canonical memory or the ordinary editor. If both registry files are corrupt, the current host still cannot start in safe mode: quit, preserve/rename `registry.json` and `registry.backup.json` for recovery, then start with an empty registry and explicitly reinstall trusted packages. Namespaced state remains separate.
+For safe startup, create the `disabled` marker inside the extensions directory before starting the app. It is checked before compilation/factory loading. Remove the marker and explicitly reload when the package is repaired. This marker pauses executable packages, not canonical memory or the ordinary editor. If both registry files are corrupt, safe mode starts an empty execution set and shows a bounded recovery diagnostic, leaving both damaged files intact. Back up the support directory, then restore a valid registry copy before removing the marker. If no copy is recoverable, quit and preserve/rename both damaged registries before explicitly reinstalling trusted packages. Ordinary management outside that recovery path still fails explicitly; safe startup does not silently repair or overwrite a registry. Namespaced state remains separate.
 
-Node's ESM module cache cannot be unloaded. The host permits 64 module import attempts before requiring a normal guarded desktop restart; failed attempts count too. Prepared files have separate disk limits: 4 MiB per revision, at most eight retained revisions per package and 256 MiB total cache output. Recent/current/live-host revisions are protected during pruning. At the disk cap, stop the host and remove unused cache revisions before reloading. User state is separate and retained.
+Node's ESM module cache cannot be unloaded. The host permits 64 module import attempts before requiring a normal guarded desktop restart; failed attempts count too. Prepared files have separate disk limits: 4 MiB per revision, at most eight retained revisions per package and 256 MiB total cache output. Recent/candidate/last-successful/live-host revisions are protected during pruning. At the disk cap, stop the host and remove unused cache revisions before reloading. User state is separate and retained.
 
 The host cannot preempt synchronous blocking JavaScript or contain `process.exit()` from a trusted same-process extension. Use the safe-start marker and normal process recovery for such failures; ordinary handler-error recovery is a narrower guarantee.
 

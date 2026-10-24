@@ -34,6 +34,38 @@ export async function run(fixturePath) {
     const response = await fetch(origin + '/companion/' + route, { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal(response.status, 200); return response.json();
   };
+  const verifyPreferences = async (seed = false) => {
+    await application.openEditor();
+    await until(async () => { editor = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('http:')); return editor && await editor.webContents.executeJavaScript('typeof navigation !== "undefined" && companionRegistered'); });
+    await editor.webContents.executeJavaScript('navigation.navigate(companionScopeUrl("/settings"))');
+    await until(async () => await editor.webContents.executeJavaScript(`!!document.querySelector('#extension-theme option[value="v1-contract:pink"]')`));
+    if (seed) await editor.webContents.executeJavaScript(`(() => {
+      const change = (element,value) => { element.value=value; element.dispatchEvent(new Event('change',{bubbles:true})); };
+      change(document.getElementById('extension-theme'),'v1-contract:pink');
+      change(document.querySelector('[aria-label="Open upgrade audit placement"]'),'sidebar.actions');
+      change(document.querySelector('[aria-label="Open upgrade audit shortcut"]'),'Mod+Shift+U');
+    })()`);
+    const prefs = await editor.webContents.executeJavaScript('JSON.parse(localStorage.getItem("jumpybrain.extensions.v1"))');
+    assert.equal(prefs.theme,'v1-contract:pink'); assert.equal(prefs.slots['probe-audit:show'],'sidebar.actions'); assert.equal(prefs.shortcuts['probe-audit:show'],'Mod+Shift+U');
+    assert.equal(await editor.webContents.executeJavaScript('document.documentElement.style.getPropertyValue("--surface")'),'#fff1f7');
+    assert.equal(await editor.webContents.executeJavaScript(`!!document.querySelector('[data-extension-slot="sidebar.actions"] button[title="Open upgrade audit"]') || [...document.querySelectorAll('[data-extension-slot="sidebar.actions"] button')].some(b=>b.textContent==="Open upgrade audit")`),true);
+    if (seed) await writeFile(path.join(fixture.home,'profile-before.json'),JSON.stringify(prefs));
+    else assert.deepEqual(prefs,JSON.parse(await readFile(path.join(fixture.home,'profile-before.json'))));
+    // Exercise the persisted shortcut through the production dispatcher and frozen package panel.
+    await editor.webContents.executeJavaScript('navigation.navigate(companionScopeUrl("/?note=mem_22222222-2222-4222-8222-222222222222"))');
+    await until(async () => await editor.webContents.executeJavaScript(`state.view !== "settings" && companionRegistered && !companionFrozen && state.editor?.state.loaded && state.editor.state.documentId === "mem_22222222-2222-4222-8222-222222222222" && !!document.querySelector('[data-extension-slot="sidebar.actions"] button')`));
+    await editor.webContents.executeJavaScript('window.confirm=()=>true; window.__upgradeKeys=[];document.addEventListener("keydown",e=>window.__upgradeKeys.push({key:e.key,meta:e.metaKey,shift:e.shiftKey}),true); document.getElementById("note-editor").blur(); document.body.focus()');
+    editor.show(); editor.focus(); editor.webContents.focus(); await pause(200);
+    editor.webContents.sendInputEvent({type:'keyDown',keyCode:'U',modifiers:['meta','shift']});
+    editor.webContents.sendInputEvent({type:'keyUp',keyCode:'U',modifiers:['meta','shift']});
+    try {
+    await until(async () => await editor.webContents.executeJavaScript(`document.getElementById("extension-panel").open && document.getElementById("extension-panel-content").textContent.includes('"verified":true')`));
+    } catch(error) {
+      const observed = await editor.webContents.executeJavaScript(`({view:state.view,frozen:companionFrozen,keys:window.__upgradeKeys,panel:document.getElementById("extension-panel").open,content:document.getElementById("extension-panel-content").textContent,status:document.getElementById("extension-status").textContent,body:document.body.innerText.slice(-2000)})`);
+      throw new Error(error.message + " Renderer: " + JSON.stringify(observed));
+    }
+    await editor.webContents.executeJavaScript('document.getElementById("extension-panel-close").click()');
+  };
   void (async () => {
     try {
       if (fixture.mode === 'helper-crash' && app.getVersion() === fixture.nextVersion) {
@@ -45,6 +77,11 @@ export async function run(fixturePath) {
         await click('restart'); return;
       }
       await until(() => { if (application.getStartupError()) throw application.getStartupError(); return application.getHost()?.isAlive(); });
+      if (fixture.verifyRollback) {
+        await verifyPreferences();
+        await writeFile(path.join(fixture.home,'profile-result.json'),JSON.stringify({ok:true}));
+        app.quit(); return;
+      }
       if (fixture.mode === 'helper-crash' && await readFile(path.join(fixture.home, 'continue')).catch(() => null)) {
         await until(async () => (await application.updater.snapshot()).phase === 'recovered');
         await writeFile(path.join(fixture.home, 'result.json'), JSON.stringify({ ok: true, recoveryThroughGUI: true }));
@@ -56,6 +93,7 @@ export async function run(fixturePath) {
         editor.show(); await pause(250);
         assert.equal(await editor.webContents.executeJavaScript('!!document.getElementById("desktop-update-panel")'), false);
         assert.equal(await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").hidden'), true);
+        if (fixture.mode === 'success') await verifyPreferences();
         const state = await application.updater.snapshot();
         assert.equal(state.installed.app, fixture.nextVersion); assert.equal(state.installed.runtime, fixture.nextVersion); assert.equal(state.installed.cli, fixture.mode === 'app-only' ? fixture.oldVersion : fixture.nextVersion);
         await writeFile(path.join(fixture.artifactDir, 'success.png'), (await (editor || updateWindow()).webContents.capturePage()).toPNG());
@@ -63,6 +101,7 @@ export async function run(fixturePath) {
         app.quit(); return;
       }
       await until(async () => { editor = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('http:')); return editor && await editor.webContents.executeJavaScript('typeof companionRegistered !== "undefined" && companionRegistered && !!document.getElementById("desktop-updates")'); });
+      if (['success','relaunch-failure'].includes(fixture.mode)) await verifyPreferences(true);
       assert.equal(await editor.webContents.executeJavaScript('typeof window.jumpyBrainUpdate'), 'undefined');
       assert.equal(await editor.webContents.executeJavaScript('typeof require'), 'undefined');
       if (fixture.mode === 'cli-open') {
@@ -129,7 +168,7 @@ export async function run(fixturePath) {
       }
       await click('restart');
     } catch (error) {
-      await writeFile(path.join(fixture.home, 'result.json'), JSON.stringify({ ok: false, error: error.stack }));
+      await writeFile(path.join(fixture.home, fixture.verifyRollback ? 'profile-result.json' : 'result.json'), JSON.stringify({ ok: false, error: error.stack }));
       await application.updater.action('cancel').catch(() => {});
       await application.getHost()?.stop(); app.exit(1);
     }

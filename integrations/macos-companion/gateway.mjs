@@ -124,7 +124,7 @@ function allowedMemoryRoute(method, pathname) {
   return null;
 }
 
-export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance, feedbackSender, safeMode = false } = {}) {
+export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance, feedbackSender, safeMode = false, readinessOnly = false } = {}) {
   if (!path.isAbsolute(runtimeRoot || '') || !/^[0-9a-f]{64}$/i.test(controlKey || '')) throw new Error('Invalid companion bootstrap.');
   // /var is a legitimate macOS alias; the persistence seam itself rejects symlinks.
   directory = await realpath(directory);
@@ -223,7 +223,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       failure(controller.signal.aborted ? 'target_timeout' : 'offline', controller.signal.aborted ? 'Brain request timed out.' : 'The selected brain is unavailable.', controller.signal.aborted ? 504 : 503);
     } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', abort); controllers.delete(controller); }
   };
-  const extensionHost = await createExtensionHost({ directory: path.join(directory, 'extensions'), safeMode });
+  const extensionHost = await createExtensionHost({ directory: path.join(directory, 'extensions'), safeMode: safeMode || readinessOnly });
   const extensions = createExtensionGateway({ host: extensionHost, coordinator, active, targetFetch, jsonBody, json });
   const testProfile = async (profile) => {
     // Inactive local testing is an observational marker check; never switch/start a second engine.
@@ -516,6 +516,6 @@ if (entryPath && import.meta.url === pathToFileURL(entryPath).href) {
   watchdog.unref();
   process.once('SIGTERM', stop); process.once('SIGINT', stop);
   try {
-    gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot, port: Number(port), controlKey: process.env.JUMPYBRAIN_SERVER_API_KEYS, credentials, hostInstance: process.env.JUMPYBRAIN_DESKTOP_INSTANCE });
+    gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot, port: Number(port), controlKey: process.env.JUMPYBRAIN_SERVER_API_KEYS, credentials, hostInstance: process.env.JUMPYBRAIN_DESKTOP_INSTANCE, readinessOnly: process.env.JUMPYBRAIN_READINESS_ONLY === '1' });
   } catch { process.stderr.write('Companion gateway could not start. Check private profile data and runtime installation.\n'); credentials.close(); process.exit(1); }
 }

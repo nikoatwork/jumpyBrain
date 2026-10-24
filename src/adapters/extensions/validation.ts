@@ -2,10 +2,12 @@ import { realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import type { ExtensionManifest, Json } from "../../extensions/index.js";
 
+export interface LocalCompilationDiagnostic { file?: string; line?: number; column?: number; reason: string; }
 export class ExtensionPackageError extends Error {
+  readonly localDiagnostics?: LocalCompilationDiagnostic[];
   readonly code: "extension_invalid" | "extension_permission_denied" | "extension_stale" | "extension_failed";
-  constructor(message: string, options?: ErrorOptions & { code?: ExtensionPackageError["code"] }) {
-    super(message, options); this.name = "ExtensionPackageError"; this.code = options?.code ?? "extension_invalid";
+  constructor(message: string, options?: ErrorOptions & { code?: ExtensionPackageError["code"]; localDiagnostics?: LocalCompilationDiagnostic[] }) {
+    super(message, options); this.name = "ExtensionPackageError"; this.code = options?.code ?? "extension_invalid"; this.localDiagnostics = options?.localDiagnostics;
   }
 }
 export const validId = (id: unknown): id is string => typeof id === "string" && /^[a-z0-9][a-z0-9._-]{0,79}$/.test(id) && ![".", "..", "__proto__", "constructor", "prototype"].includes(id);

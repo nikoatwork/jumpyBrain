@@ -18,6 +18,10 @@ export function createExtensionGateway({ host, coordinator, active, targetFetch,
   const cancel = extensionId => {
     for (const session of sessions) if (!extensionId || session.extensionId === null || session.extensionId === extensionId) session.controller.abort();
   };
+  const unsubscribe = coordinator.onTransition(() => {
+    host.cancelObservations?.();
+    for (const session of sessions) if (session.extensionId === null) session.controller.abort();
+  });
   const signal = () => {
     const { revision, safeMode } = host.snapshot();
     return { revision, safeMode };
@@ -26,6 +30,9 @@ export function createExtensionGateway({ host, coordinator, active, targetFetch,
     const generation = request ? Number(request.headers['x-companion-generation']) : coordinator.generation;
     const tabId = request?.headers['x-companion-tab'];
     const finish = coordinator.enter(generation, tabId, auth.native);
+    // Observers validate admission, but only their actual memory requests pin the target.
+    // Transition cancellation fences callbacks; admitted transport still drains below.
+    if (extensionId === null) finish();
     const profile = active();
     if (!profile) { finish(); fail('offline', 'No brain is selected.', 503); }
     const session = { extensionId, controller: new AbortController(), pending: new Set(), done: false };
@@ -121,7 +128,7 @@ export function createExtensionGateway({ host, coordinator, active, targetFetch,
       catch { /* Observational hooks never roll back an already committed selection. */ }
       finally { await scope?.close(); }
     },
-    async dispose() { cancel(); await host.dispose(); },
+    async dispose() { unsubscribe(); cancel(); await host.dispose(); },
     async handle(request, response, url, auth) {
       if (url.pathname !== '/companion/extensions' && !url.pathname.startsWith('/companion/extensions/')) return false;
       const asset = /^\/companion\/extensions\/assets\/([a-zA-Z0-9][a-zA-Z0-9._-]{0,79})\/([a-zA-Z0-9_-]{1,128})\.js$/.exec(url.pathname);

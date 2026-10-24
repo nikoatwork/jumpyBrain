@@ -54,6 +54,7 @@ Extension management is desktop-local and accepts `--directory <extensions-direc
 
 | Command | Human explanation |
 | --- | --- |
+| `jumpybrain extensions check --source <local-package>` | Compile in disposable storage without registration/execution or live-host access; bounded local file/line diagnostics, exit 1 on failure. |
 | `jumpybrain extensions install --source <local-package>` | Register/link an explicit local TS/JS package and prepare its code. `link` is an alias. An active companion owns activation; offline preparation executes no factory. |
 | `jumpybrain extensions list` | List configured packages or the matching live host's status. |
 | `jumpybrain extensions enable --id <id>` | Enable a configured package. |

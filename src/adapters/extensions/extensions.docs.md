@@ -10,6 +10,9 @@
 - Cache immutable UUID revisions. Preparation prunes older unreferenced revisions, retaining the newest three, the registry's prior prepared revision, and revisions leased by live host PIDs. Dead PID leases are removed. At eight retained revisions preparation fails until hosts release leases. A revision's combined main/UI output is at most 4 MiB; generated output across the entire cache is capped at 256 MiB, including removed packages. At the cap, stop the host and delete unused cache revisions before reloading. Interrupted preparation directories for the current package are removed before the next preparation. Temporary output adds at most one 4 MiB revision during publication under the directory lock. Live revision leases avoid invalidating UI assets held by another process.
 - Keep state namespaced by package ID, JSON-only, limited to 1 MiB per extension (256 KiB per value). State writes check activation validity before publication. State is local extension configuration, with no canonical memory semantics or automatic shared writes.
 
+Candidate `manifest`/`prepared` and optional `successful: {manifest, prepared}` share one registry entry. Only factory-validated candidates still owned by that entry can be confirmed under the registry lock; preparation never declares activation success. Pruning protects both revisions independently of live PID leases. Older writers may drop successful metadata on downgrade. Explicit local `checkExtension` compiles in disposable storage without execution; bounded package-relative compiler locations/reasons are attached only for local author tooling, never persisted in registry errors or browser descriptors.
+
+
 ## Non-responsibilities
 
 - Do not execute factories, grant memory authorization, route HTTP, render UI or select brain scope here.

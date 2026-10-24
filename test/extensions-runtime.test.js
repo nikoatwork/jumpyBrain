@@ -307,3 +307,99 @@ test("state reads accept the same 1 MiB aggregate budget as writes", async t => 
   await host.dispose(); await f.host();
   assert.equal(await probe().api.state.get("first"), first); assert.equal(await probe().api.state.get("second"), second);
 });
+
+test("last successful manifest and assets survive failing reload, restart and cache pruning", async t => {
+  const f = await fixture(t, { manifest: { ui: "ui.ts" }, main: `export default api => { api.registerCommand({id:'hello',title:'Old',handler:async (_,ctx)=>({message:(await ctx.memory.read('old')).content})}); };` });
+  await writeFile(path.join(f.source, 'ui.ts'), 'export default () => {};');
+  await installExtension(f); let host = await f.host();
+  const original = host.snapshot().extensions[0];
+  const asset = await host.asset('fixture', original.revision);
+  await writeFile(path.join(f.source, 'jumpybrain-extension.json'), JSON.stringify({ ...f.manifest, capabilities: [], version: '2.0.0' }));
+  await f.main(`export default api => {api.registerCommand({id:'bad',title:'Bad',handler(){}}); throw Error('factory failed')};`);
+  await host.reload(); await host.dispose();
+  const restarted = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", `
+    import {createExtensionHost} from ${JSON.stringify(new URL('../dist/app/extensions/index.js', import.meta.url).href)};
+    ${context.toString()}
+    const host=await createExtensionHost({directory:${JSON.stringify(f.directory)}});
+    try { console.log(JSON.stringify({snapshot:host.snapshot(),result:await host.invoke('fixture','hello',null,context()),asset:await host.asset('fixture',${JSON.stringify(original.revision)})})); }
+    finally {await host.dispose()}
+  `]);
+  const recovered = JSON.parse(restarted.stdout);
+  assert.equal(recovered.snapshot.extensions[0].revision, original.revision);
+  assert.deepEqual(recovered.snapshot.extensions[0].capabilities, original.capabilities);
+  assert.deepEqual(recovered.result, {message:'body'}); assert.equal(recovered.asset, asset);
+  host = await f.host();
+  // Repeated preparations must protect last-good even after it falls outside the newest three.
+  for (let i = 0; i < 5; i++) await host.reload();
+  const fallback = host.snapshot().extensions[0];
+  assert.equal(fallback.revision, original.revision); assert.equal(fallback.version, '1.0.0');
+  assert.deepEqual(fallback.capabilities, original.capabilities);
+  assert.deepEqual(await host.invoke('fixture', 'hello', null, context()), { message: 'body' });
+  assert.equal(await host.asset('fixture', original.revision), asset);
+  const retained = (await listExtensions(f))[0];
+  assert.equal(retained.successful.prepared.revision, original.revision);
+  assert.notEqual(retained.prepared.revision, original.revision);
+  await f.main(`export default api => api.registerCommand({id:'new',title:'New',handler:()=>({message:'new'})});`);
+  await host.reload(); const replacement = host.snapshot().extensions[0];
+  assert.equal(replacement.version, '2.0.0'); assert.deepEqual(replacement.capabilities, []);
+  assert.equal((await listExtensions(f))[0].successful.prepared.revision, replacement.revision);
+  await assert.rejects(host.asset('fixture', original.revision), /stale/);
+  await host.reload(); await host.reload(); await host.reload();
+  await assert.rejects(readFile(path.join(f.directory, 'cache/fixture', original.revision, 'main.mjs')), { code: 'ENOENT' });
+  await host.dispose(); host = await f.host();
+  assert.deepEqual(await host.invoke('fixture', 'new', null, context()), { message: 'new' });
+});
+
+test("explicit and marker safe mode tolerate damaged registries without preparation or repair", async t => {
+  const f = await fixture(t);
+  await installExtension(f);
+  await f.main('this is invalid and must not compile');
+  for (const file of ['registry.json', 'registry.backup.json']) await writeFile(path.join(f.directory, file), 'damaged ' + file);
+  for (const explicit of [true, false]) {
+    if (!explicit) await writeFile(path.join(f.directory, 'disabled'), '');
+    const host = await f.host({ safeMode: explicit });
+    assert.equal(host.snapshot().safeMode, true); assert.deepEqual(host.snapshot().extensions, []);
+    assert.match(host.snapshot().recovery, /preserve registry.json/);
+    await host.reload(); await host.dispose();
+    for (const file of ['registry.json', 'registry.backup.json']) assert.equal(await readFile(path.join(f.directory, file), 'utf8'), 'damaged ' + file);
+  }
+  await assert.rejects(listExtensions(f), /unreadable/);
+  await assert.rejects(setExtensionEnabled({ ...f, id: 'fixture', enabled: false }), /unreadable/);
+});
+
+test("one notification has one total deadline across all observers and cancels retained contexts", async t => {
+  const f = await fixture(t, { main: `export default api => {
+    const p=globalThis[Symbol.for('jumpybrain.extension.test')]; p.calls=0;
+    for(let i=0;i<5;i++) api.on('scope.changed', (_,ctx)=>{p.calls++;p.context=ctx;return new Promise(()=>{})});
+  };` });
+  await installExtension(f); const host = await f.host(); const started = Date.now();
+  await host.emit({ type: 'scope.changed' }, context());
+  assert.ok(Date.now() - started < 5500); assert.equal(probe().calls, 1);
+  assert.equal(probe().context.signal.aborted, true);
+  await host.emit({ type: 'scope.changed' }, context()); assert.equal(probe().calls, 1);
+});
+
+test("transition cancellation also releases observations nested inside an admitted command", async t => {
+  const { createExtensionGateway } = await import('../integrations/macos-companion/extensions-gateway.mjs');
+  const { SwitchCoordinator } = await import('../integrations/macos-companion/switch-coordinator.mjs');
+  const { EventEmitter } = await import('node:events');
+  const f = await fixture(t, {main:`export default api => {
+    api.on('scope.changed', (_,ctx)=>{const p=globalThis[Symbol.for('jumpybrain.extension.test')];p.observed=ctx;return new Promise(()=>{})});
+    api.registerCommand({id:'hello',title:'Hello',handler:()=>({message:'done'})});
+  };`});
+  await installExtension(f); const host = await f.host();
+  const coordinator = new SwitchCoordinator({timeoutMs:100});
+  const adapter = createExtensionGateway({host,coordinator,active:()=>({id:'brain',allowWrites:true}),
+    jsonBody:async()=>({extensionId:'fixture',commandId:'hello'}),json:()=>{},targetFetch:()=>assert.fail()});
+  t.after(()=>adapter.dispose());
+  const request=Object.assign(new EventEmitter(),{method:'POST',headers:{'x-companion-generation':String(coordinator.generation)}});
+  const response=Object.assign(new EventEmitter(),{writableEnded:false});
+  const invocation=adapter.handle(request,response,new URL('http://localhost/companion/extensions/invoke'),{native:true});
+  while(!probe().observed)await new Promise(resolve=>setImmediate(resolve));
+  const shutdown=coordinator.prepareShutdown();
+  assert.equal(probe().observed.signal.aborted,true);
+  const lease=await shutdown; await invocation;
+  assert.equal(coordinator.inFlight,0); assert.equal(host.snapshot().extensions[0].error,undefined);
+  await assert.rejects(probe().observed.memory.read('old'),error=>error.code==='extension_stale');
+  coordinator.cancelShutdown(lease);
+});
