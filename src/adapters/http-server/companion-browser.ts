@@ -16,14 +16,11 @@ export const companionStyles = String.raw`
   #companion-form input:not([type=checkbox]), #companion-form select { display: block; width: 100%; margin-top: var(--space-1); }
   #companion-form select { min-height: var(--control-height); font-size: var(--text-ui); padding: var(--space-2); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
   #companion-form input[type=checkbox] { height: auto; }
-  #companion-banner { padding: var(--space-2) var(--space-6); margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
-  #companion-banner[data-error=true], #companion-feedback[data-error=true] { color: var(--error-ink); }
   #companion-active { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) 0; color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
   @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
   .companion-search { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
   #companion-settings .companion-search h2 { margin: 0; margin-right: auto; }
   #companion-index-target { flex-basis: 100%; margin: 0; font-size: var(--text-caption); }
-  #companion-index-feedback:empty, #companion-feedback:empty { display: none; }
   .companion-add { margin-top: var(--space-6); }
   .companion-add > summary { width: fit-content; cursor: pointer; font-size: var(--text-ui); color: var(--ink-soft); padding-block: var(--space-2); }
   #companion-settings > .companion-column > h1 { margin-bottom: var(--space-6); }
@@ -31,8 +28,7 @@ export const companionStyles = String.raw`
   #companion-form p { color: var(--ink-soft); font-size: var(--text-caption); }
   @media (max-width: 680px) { .companion-actions .note-icon, #companion-refresh-index { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
   @media (max-width: 480px) { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
-  #companion-index-target, #companion-index-feedback { color: var(--ink-soft); overflow-wrap: anywhere; }
-  #companion-index-feedback[data-error=true] { color: var(--error-ink); }
+  #companion-index-target { color: var(--ink-soft); overflow-wrap: anywhere; }
 `;
 
 export const companionMarkup = String.raw`
@@ -43,11 +39,9 @@ export const companionMarkup = String.raw`
       <h2 id="companion-search-heading">Search index</h2>
       <button id="companion-refresh-index" class="quiet-button note-icon" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
       <p id="companion-index-target">Connect to a brain to refresh search.</p>
-      <p id="companion-index-feedback" role="status" aria-live="polite"></p>
     </section>
     ${extensionSettingsMarkup}
     <h2>Brain connections</h2>
-    <p id="companion-feedback" role="status" aria-live="polite"></p>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
     <div id="companion-profiles" aria-label="Saved brains"></div>
     <details id="companion-add" class="companion-add">
@@ -106,12 +100,6 @@ const companionAcknowledged = new Set();
 `;
 
 export const companionScript = String.raw`
-const companionBanner = document.createElement("p");
-companionBanner.id = "companion-banner";
-companionBanner.setAttribute("role", "status");
-companionBanner.setAttribute("aria-live", "polite");
-companionBanner.hidden = true;
-document.querySelector(".app-workspace").prepend(companionBanner);
 const companionRecovery = document.createElement("div");
 companionRecovery.id = "companion-recovery";
 companionRecovery.className = "companion-actions";
@@ -123,7 +111,7 @@ const sessionCopy = document.createElement("button");
 sessionCopy.className = "quiet-button"; sessionCopy.textContent = "Recover draft";
 sessionCopy.addEventListener("click", () => documentActions.openRecovery());
 companionRecovery.append(sessionRetry, sessionCopy);
-companionBanner.after(companionRecovery);
+document.querySelector(".app-workspace").prepend(companionRecovery);
 const companionActiveLabel = document.createElement("span");
 companionActiveLabel.id = "companion-active";
 companionActiveLabel.setAttribute("role", "img");
@@ -132,14 +120,11 @@ $("open-connection").removeAttribute("aria-haspopup");
 $("connection").hidden = true;
 
 function companionMessage(text, error = false) {
-  companionBanner.textContent = text;
-  companionBanner.hidden = !text;
-  companionBanner.dataset.error = String(error);
+  if (text) systemMessages.dispatch({ source: "companion", text, severity: error ? "error" : "info", duration: companionSessionFailed ? 0 : undefined });
+  else systemMessages.clear("companion");
   companionRecovery.hidden = !companionSessionFailed;
   sessionCopy.hidden = !state.editor?.state.loaded;
   sessionRetry.disabled = companionStarting;
-  $("companion-feedback").textContent = text;
-  $("companion-feedback").dataset.error = String(error);
 }
 function companionDreamTarget() {
   if (companionState?.active?.kind !== "remote") throw new Error("Dream handoff is unavailable for local companion folders. Use the CLI with an explicitly chosen local memory root; the companion gateway is not an agent endpoint.");
@@ -435,15 +420,12 @@ async function companionRefreshIndex() {
   await companionAction(async () => {
     companionIndexRefreshing = true;
     renderCompanionIndex();
-    const feedback = $("companion-index-feedback");
-    feedback.dataset.error = "false";
-    feedback.textContent = "Refreshing the selected brain’s search index…";
+    systemMessages.dispatch({ source: "search-index", text: "Refreshing the selected brain’s search index…", duration: 0 });
     try {
       await graphJson("/memories/all/index", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      feedback.textContent = "Search index refreshed. Edits made during the refresh may need another refresh.";
+      systemMessages.dispatch({ source: "search-index", text: "Search index refreshed. Edits made during the refresh may need another refresh.", severity: "success" });
     } catch {
-      feedback.dataset.error = "true";
-      feedback.textContent = "Search refresh could not be confirmed. Check this brain’s connection and editing permission before trying again.";
+      systemMessages.dispatch({ source: "search-index", text: "Search refresh could not be confirmed. Check this brain’s connection and editing permission before trying again.", severity: "error" });
     } finally {
       companionIndexRefreshing = false;
     }

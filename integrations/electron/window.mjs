@@ -1,3 +1,4 @@
+import { createSystemMessages } from './system-messages.mjs';
 import { BrowserWindow, dialog, Menu, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { mountInlineUpdates, nativeUpdateAction } from './update-inline.mjs';
@@ -15,6 +16,8 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     },
   });
   const contents = window.webContents;
+  const notify = createSystemMessages({ getWindow: () => window, getOrigin: () => origin,
+    fallback: options => dialog.showMessageBox(window, options) });
   installBackNavigation(window, origin);
   const record = (code, details = {}) => diagnostics?.record({ operation: 'renderer', severity: 'error', outcome: 'failed', code, ...details });
   contents.on('render-process-gone', (_event, details) => record(details.reason, { exitCode: details.exitCode }));
@@ -74,15 +77,13 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
           if (action === 'log') { const file = updater.logPath(); if (file) shell.showItemInFolder(file); }
           else await updater.action(action);
         } finally { updateActing = false; void publishUpdate(); }
-      })().catch(() => {});
+      })().catch(() => notify({ source: 'desktop-update-action', text: 'The update action could not be completed. Check Updates and try again.' }));
       return;
     }
     if (isFeedbackMailto(url) && isAppNavigation(contents.getURL(), origin)) {
       event.preventDefault();
-      void openFeedbackEmail(url).catch(() => dialog.showMessageBox(window, {
-        type: 'info', message: 'Could not open an email app',
-        detail: 'Download the feedback email draft, or email jumpybrain@agentmail.to manually.',
-      }));
+      void openFeedbackEmail(url).catch(() => notify({ source: 'feedback-email', severity: 'error',
+        text: 'Could not open an email app. Download the feedback email draft, or email jumpybrain@agentmail.to manually.' }));
       return;
     }
     if (!isAppNavigation(url, origin)) event.preventDefault();

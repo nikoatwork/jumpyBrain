@@ -1,5 +1,7 @@
 # Changes
 
+- Mac app warnings and notifications share one message component, with consistent priority, dismissal, deduplication and protection against stale brain actions.
+
 - The Mac app supports trusted local TypeScript/JavaScript extensions with commands, shortcuts, panels and themes; includes Related notes and Ember Plum examples, explicit CLI management and recovery controls.
 - Logseq imports turn outer prose outlines into readable Markdown, with exact-preservation mode, conversion previews and safe upgrades that retain note identities.
 

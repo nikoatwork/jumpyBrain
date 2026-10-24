@@ -174,11 +174,11 @@ try {
   await settings.locator("#companion-refresh-index").click();
   await settings.waitForFunction(() => document.getElementById("companion-refresh-index").disabled);
   assert.equal(await settings.locator("#companion-name").isDisabled(), true);
-  await settings.waitForFunction(() => document.getElementById("companion-index-feedback").textContent.includes("Search index refreshed"));
+  await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("Search index refreshed"));
   assert.equal(requests.filter((item) => item.path === "/memories/all/index").length, 1);
   failIndex = true;
   await settings.locator("#companion-refresh-index").click();
-  await settings.waitForFunction(() => document.getElementById("companion-index-feedback").dataset.error === "true");
+  await settings.waitForFunction(() => document.getElementById("app-toast").dataset.error === "true");
   await settings.waitForFunction(() => !document.getElementById("companion-refresh-index").disabled);
   failIndex = false;
   await settings.locator("#companion-form-heading").click();
@@ -190,7 +190,7 @@ try {
   await settings.locator("#companion-url").fill("https://disposable.invalid");
   await settings.locator("#companion-key").fill("fixture-secret-write-only");
   await settings.locator("#companion-form button[type=submit]").click();
-  await settings.waitForFunction(() => document.getElementById("companion-feedback").textContent.includes("Connection saved"));
+  await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("Connection saved"));
   assert.equal(profileWrites[0].profile.allowWrites, false);
   assert.equal(await settings.locator("#companion-key").inputValue(), "");
   await settings.waitForFunction(() => document.getElementById("companion-profiles").textContent.includes("Disposable remote"));
@@ -198,7 +198,7 @@ try {
   await savedRow.getByRole("button", { name: "Edit", exact: true }).click();
   assert.equal(await settings.locator("#companion-key").inputValue(), "");
   await settings.locator("#companion-form button[type=submit]").click();
-  await settings.waitForFunction(() => document.getElementById("companion-feedback").textContent.includes("Connection saved"));
+  await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("Connection saved"));
   assert.equal(Object.hasOwn(profileWrites[1].profile, "key"), false, "blank preserves existing key");
 
   const editor = await context.newPage(); editor.on("pageerror", (exception) => pageErrors.push(exception.message));
@@ -279,7 +279,7 @@ try {
   await editor.locator("#home-new").click();
   await editor.waitForFunction(() => document.getElementById("capture-message").textContent.includes("Could not confirm note creation"));
   await settings.locator(".companion-profile").filter({ hasText: "Fixture A" }).getByRole("button", { name: "Use this brain", exact: true }).click();
-  await settings.waitForFunction(() => document.getElementById("companion-feedback").textContent.includes("switch_blocked"));
+  await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("switch_blocked"));
   assert.equal(activeId, "b", "unconfirmed creation blocks switch");
   failCapture = false;
   await editor.waitForFunction(() => !document.querySelector("main").inert);
@@ -299,7 +299,7 @@ try {
   await conflictEditor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
   const writesBefore = requests.filter((item) => item.headers["if-match"]).length;
   await settings.locator(".companion-profile").filter({ hasText: "Fixture A" }).getByRole("button", { name: "Use this brain", exact: true }).click();
-  await settings.waitForFunction(() => document.getElementById("companion-feedback").textContent.includes("switch_blocked"));
+  await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("switch_blocked"));
   await conflictEditor.waitForFunction(() => document.getElementById("note-editor").getAttribute("contenteditable") === "true");
   assert.equal(activeId, "b");
   assert.match(await editorMarkdown(conflictEditor), /Conflict retained draft/);
@@ -330,7 +330,7 @@ try {
   await readOnly.goto(origin + "/?note=" + id + "&brain=a");
   await readOnly.locator("#home").waitFor();
   assert.equal(requests.filter((item) => item.path.includes("/documents/")).length, readsBefore);
-  assert.match(await readOnly.locator("#companion-banner").textContent(), /not scoped/);
+  assert.match(await readOnly.locator("#toast-message").textContent(), /not scoped/);
   pollDelay = 1100;
   await new Promise((resolve) => setTimeout(resolve, 2600));
   assert.deepEqual(violations, []);
@@ -339,14 +339,14 @@ try {
   const failure = await unauthenticated.newPage();
   await failure.goto(origin + "/settings#companion=expired-token");
   await failure.locator("#companion-reconnect").waitFor();
-  assert.match(await failure.locator("#companion-feedback").textContent(), /session unavailable/);
+  assert.match(await failure.locator("#toast-message").textContent(), /session unavailable/);
   assert.equal(new URL(failure.url()).hash, "");
   await failure.locator("#companion-recovery").waitFor({ state: "visible" });
-  assert.match(await failure.locator("#companion-feedback").textContent(), /Retry only works if the existing session cookie is still valid/);
+  assert.match(await failure.locator("#toast-message").textContent(), /Retry only works if the existing session cookie is still valid/);
   assert.equal(await failure.locator("#companion-recovery").getByRole("button", { name: "Retry companion session", exact: true }).isEnabled(), true);
   await failure.locator("#companion-recovery").getByRole("button", { name: "Retry companion session", exact: true }).click();
   await failure.waitForFunction(() => !document.querySelector("#companion-recovery button").disabled);
-  assert.match(await failure.locator("#companion-feedback").textContent(), /Reopen the editor from the companion menu/);
+  assert.match(await failure.locator("#toast-message").textContent(), /Reopen the editor from the companion menu/);
   await unauthenticated.close();
   console.log("companion browser smoke: PASS (registration, settings, keys, idle Search/query/reference/Dream survival, two-tab freeze/flush, uncertain creation, conflict block, generation reload, read-only, stale links, serialized polls, session failure)");
 } finally {

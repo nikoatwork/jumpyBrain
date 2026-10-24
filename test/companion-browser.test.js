@@ -98,7 +98,8 @@ test("Settings refresh uses fenced memory transport, prevents repeats, and repor
   const context = runtime(["companionRefreshIndex", "companionAction"], {
     companionActionBusy: false, companionFrozen: false, companionRegistered: true, companionSessionFailed: false,
     companionIndexRefreshing: false, state: {},
-    $: (id) => id === "companion-index-feedback" ? feedback : fields,
+    $: () => fields,
+    systemMessages: { dispatch(value) { feedback.textContent = value.text; feedback.dataset.error = String(value.severity === "error"); } },
     companionCanRefreshIndex: () => !context.companionActionBusy,
     renderCompanionIndex() {}, renderCompanionSettings() {}, companionMessage() {},
     graphJson: async (...args) => { calls.push(args); return pending.promise; },

@@ -302,6 +302,7 @@ function graphNoticeHarness(options = {}) {
     return elements.get(id);
   };
   const context = vm.createContext({
+    systemMessages: { dispatch() {}, clear() {} },
     $: element, document: { createElement: () => ({ textContent: "" }) },
     state: { graphToken: 0, view: "graph", layoutTimer: null }, window: { setTimeout: clock.setTimer, clearTimeout: clock.clearTimer }, graphUrl: () => "/graph.json", render() {},
   });
@@ -312,10 +313,12 @@ function graphNoticeHarness(options = {}) {
     document: context.document, window: context.window,
     fetchGraph: (url, signal) => context.graphJson(url, signal),
     searchNotes: (query, signal) => context.searchNotes(query, signal),
+    onWarnings: warnings => { context.warnings = warnings; },
     setStatus: (...args) => context.setStatus(...args),
     onReady: ready => { context.window.__jumpyBrainGraphReady = ready; },
     ...options,
   }));
+  context.warnings = [];
   return { context, element, clock };
 }
 
@@ -342,7 +345,7 @@ test("map search passes shared matches as neighborhood seeds and removes generic
   assert.deepEqual(requests[0].searchParams.getAll("seeds"), ["", "notes/sleep & exercise.md"]);
   assert.equal(context.state.graph.nodes.length, 1);
   assert.match(element("reload").title, /Recent edits are being indexed/);
-  assert.deepEqual(element("graph-warnings").children.map(row => row.textContent), []);
+  assert.deepEqual(context.warnings, []);
   assert.equal(requests[0].searchParams.get("neighborLimit"), "0");
   assert.equal(requests[0].searchParams.has("files"), false);
 
@@ -398,7 +401,7 @@ test("brain scope changes abort pending work and evict cached graph, camera and 
   pending.resolve(noticePacket({ warnings: ["Previous brain warning"] }));
   await oldBrain;
   assert.equal(h.context.state.graph, null, "late old-brain packet cannot revive a graph");
-  assert.equal(h.element("graph-notice").hidden, true);
+  assert.deepEqual(h.context.warnings, []);
   assert.equal(h.clock.pending, 0, "settled aborted requests release delayed updating indicators");
 });
 
@@ -444,8 +447,8 @@ test("map omits count summaries, node-limit warnings and narrowing hints", () =>
   const { context, element } = graphNoticeHarness();
   for (const packet of [noticePacket(), noticePacket({ warnings: [] }), noticePacket({ nodes: [] }), null]) {
     context.renderGraphNotice(packet);
-    assert.equal(element("graph-notice").hidden, true);
-    assert.equal(element("graph-warnings").children.length, 0);
+    assert.deepEqual(context.warnings, []);
+    assert.doesNotMatch(html, /id="graph-warnings"|id="graph-notice"/);
   }
 });
 
@@ -453,33 +456,33 @@ test("map warnings remain text and tolerate missing/invalid optional metadata wi
   const { context, element } = graphNoticeHarness();
   const warning = '<img src=x onerror="alert(1)">';
   context.renderGraphNotice(noticePacket({ stats: { documents: "1636" }, options: {}, warnings: [warning, warning, null, 5, "  "] }));
-  assert.deepEqual(element("graph-warnings").children.map((row) => row.textContent), [warning]);
+  assert.deepEqual(context.warnings, [warning]);
   for (const stats of [undefined, { documents: -1 }, { documents: 1 }, { documents: 1.5 }]) {
     context.renderGraphNotice(noticePacket({ stats, warnings: undefined }));
-    assert.equal(element("graph-notice").hidden, true);
+    assert.deepEqual(context.warnings, []);
   }
   context.renderGraphNotice(null);
-  assert.equal(element("graph-notice").hidden, true);
+  assert.deepEqual(context.warnings, []);
 });
 
 test("map refresh clears old notices; failed refresh and stale responses cannot restore a success notice", async () => {
   const { context, element } = graphNoticeHarness();
   context.graphJson = async () => noticePacket({ warnings: ["Some linked targets are unavailable."] });
   await context.loadGraph();
-  assert.equal(element("graph-notice").hidden, false);
+  assert.deepEqual(context.warnings, ["Some linked targets are unavailable."]);
   const stale = deferred(), fresh = deferred();
   context.graphJson = () => stale.promise;
   const first = context.loadGraph();
-  assert.equal(element("graph-notice").hidden, true, "loading clears stale warnings");
+  assert.deepEqual(context.warnings, [], "loading clears stale warnings");
   context.graphJson = () => fresh.promise;
   const second = context.loadGraph();
   fresh.resolve(noticePacket({ stats: { documents: 2 }, warnings: [] }));
   await second;
   stale.resolve(noticePacket({ warnings: ["Some linked targets are unavailable."] })); await first;
-  assert.equal(element("graph-notice").hidden, true, "outdated response cannot restore a notice");
+  assert.deepEqual(context.warnings, [], "outdated response cannot restore a notice");
   context.graphJson = async () => { throw new Error("Synthetic graph failure"); };
   await context.loadGraph();
-  assert.equal(element("graph-notice").hidden, true);
+  assert.deepEqual(context.warnings, []);
   assert.equal(element("ready").hidden, true);
   assert.equal(element("error").hidden, false);
   assert.equal(context.window.__jumpyBrainGraphReady, false);
@@ -679,15 +682,24 @@ test("notes editing stays in the HTTP shell with persistent rich editing and nat
   assert.match(html, /Scroll to zoom · Drag to move · Select a note to open/);
 });
 
-test("graph page keeps unresolved and missing-ID nodes non-editable", () => {
-  const script = pageScript();
-  const ctx = {};
+test("graph page keeps unresolved and missing-ID nodes non-editable and dispatches shared warnings", async () => {
+  const script = pageScript(), messages = [], navigations = [];
+  const ctx = {
+    systemMessages: { dispatch: message => messages.push(message), clear() {} },
+    navigation: { navigate: async url => { navigations.push(url); return true; } }, state: {},
+  };
   vm.createContext(ctx);
   vm.runInContext(extractFunction(script, "isValidMemoryDocumentId"), ctx);
-  assert.equal(ctx.isValidMemoryDocumentId("mem_a0000000-0000-4000-8000-000000000001"), true);
-  for (const value of [undefined, "pages/alpha.md", "mem_not-a-uuid"]) assert.equal(ctx.isValidMemoryDocumentId(value), false);
-  assert.match(script, /if \(node\.nodeKind === "unresolved"\)[\s\S]*setStatus\("This linked note doesn't exist yet:/);
-  assert.match(script, /if \(!isValidMemoryDocumentId\(node\.documentId\)\)[\s\S]*missing a valid memory ID/);
+  vm.runInContext(extractFunction(script, "selectNode"), ctx);
+  const documentId = "mem_a0000000-0000-4000-8000-000000000001";
+  await ctx.selectNode({ nodeKind: "unresolved", title: "Missing" });
+  await ctx.selectNode({ nodeKind: "document", documentId: "pages/alpha.md" });
+  assert.equal(navigations.length, 0);
+  assert.equal(messages.length, 2);
+  assert.ok(messages.every(message => message.source === "graph-selection" && message.severity === "warning"));
+  await ctx.selectNode({ id: "node", nodeKind: "document", documentId });
+  assert.deepEqual(navigations, ["/?note=" + documentId]);
+  assert.equal(ctx.state.selected, "node");
 });
 
 test("graph document transport centralizes optional Bearer auth and PUT preconditions", async () => {

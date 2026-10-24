@@ -33,21 +33,21 @@ try {
       assert.equal(capped.stats.documents, 501);
       assert.equal(capped.nodes.length, 501, "lean overview includes the complete fixture brain");
       assert.equal(capped.options.limit, 10000);
-      assert.equal(await page.locator("#graph-notice").count(), 1, "map needs an accessible persistent notice region");
-      assert.equal(await page.locator("#graph-notice").getAttribute("role"), "status");
-      assert.equal(await page.locator("#graph-notice").getAttribute("aria-atomic"), "true");
+      assert.equal(await page.locator("#app-toast").count(), 1, "one shared message component");
+      assert.equal(await page.locator("#toast-message").getAttribute("role"), "status");
+      assert.equal(await page.locator("#toast-message").getAttribute("aria-atomic"), "true");
       assert.equal(await page.locator("#graph-scope, #graph-limit-hint").count(), 0);
-      assert.equal(await page.locator("#graph-notice").isVisible(), false);
+      assert.equal(await page.locator('#app-toast[data-source="graph-warnings"]').isVisible(), false);
 
       await filter(page, "Narrow");
       assert.equal(await page.getByTestId("graph-node-count").innerText(), "3");
-      assert.doesNotMatch(await page.locator("#graph-warnings").innerText(), /limited to/);
+      assert.doesNotMatch(await page.locator("#toast-message").innerText(), /limited to/);
       await filter(page, "no such fixture");
       assert.equal(await page.getByTestId("graph-node-count").innerText(), "0");
       assert.match(await page.locator("#graph-empty").innerText(), /No notes match/);
-      assert.doesNotMatch(await page.locator("#graph-warnings").innerText(), /limited to/);
+      assert.doesNotMatch(await page.locator("#toast-message").innerText(), /limited to/);
       await filter(page, "");
-      assert.equal(await page.locator("#graph-notice").isVisible(), false);
+      assert.equal(await page.locator('#app-toast[data-source="graph-warnings"]').isVisible(), false);
 
       // Read-only response fixtures for edge cases not produced by this simple brain.
       let packet = { ...capped, nodes: capped.nodes.slice(0, 2), edges: [], stats: { documents: 1636 },
@@ -62,10 +62,10 @@ try {
       await page.route(pattern, respond);
       await refresh(page);
       assert.equal(await page.getByTestId("graph-node-count").innerText(), "2", "unresolved nodes are not notes");
-      assert.doesNotMatch(await page.locator("#graph-warnings").innerText(), /limited to/);
-      assert.equal(await page.locator("#graph-notice img").count(), 0, "warnings must remain text, not HTML");
-      assert.ok((await page.locator("#graph-warnings").innerText()).includes('<img src=x onerror="alert(1)">'));
-      assert.doesNotMatch(await page.locator("#graph-notice").innerText(), /matching notes|omitted notes/);
+      assert.doesNotMatch(await page.locator("#toast-message").innerText(), /limited to/);
+      assert.equal(await page.locator("#app-toast img").count(), 0, "warnings must remain text, not HTML");
+      assert.ok((await page.locator("#toast-message").innerText()).includes('<img src=x onerror="alert(1)">'));
+      assert.doesNotMatch(await page.locator("#app-toast").innerText(), /matching notes|omitted notes/);
       await visibleNotice(page, width);
       await page.locator("#graph-filters summary").click();
       const focusHit = await page.locator("#focus").evaluate((input) => {
@@ -82,29 +82,29 @@ try {
       const started = page.waitForRequest((request) => request.url().includes("/graph.json?"));
       await page.getByTestId("graph-reload").click();
       await started;
-      assert.equal(await page.locator("#graph-notice").isVisible(), false, "loading removes stale warnings");
+      assert.equal(await page.locator('#app-toast[data-source="graph-warnings"]').isVisible(), false, "loading removes stale warnings");
       packet = { ...packet, nodes: packet.nodes.slice(0, 2), stats: { documents: 2 }, warnings: [] };
       resolve(); release = null; releaseGraph = null;
       await page.getByTestId("graph-ready").waitFor({ state: "visible" });
-      assert.equal(await page.locator("#graph-notice").isVisible(), false, "uncapped complete graph clears the notice");
-      assert.equal(await page.locator("#graph-warnings").textContent(), "");
+      assert.equal(await page.locator('#app-toast[data-source="graph-warnings"]').isVisible(), false, "uncapped complete graph clears the notice");
+      assert.doesNotMatch(await page.locator("#toast-message").textContent(), /onerror=/);
 
       packet = { ...packet, stats: { documents: 1636 }, warnings: ["Synthetic recoverable warning."] };
       await refresh(page);
-      assert.equal(await page.locator("#graph-notice").isVisible(), true);
+      assert.equal(await page.locator("#app-toast").isVisible(), true);
       await page.unroute(pattern, respond);
       const fail = (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { message: "Synthetic graph failure" } }) });
       await page.route(pattern, fail);
       await page.getByTestId("graph-reload").click();
       await page.getByTestId("graph-error").waitFor({ state: "visible" });
-      assert.equal(await page.locator("#graph-notice").isVisible(), false, "failure clears success warnings");
+      assert.match(await page.locator("#toast-message").textContent(), /load this view/, "failures also use the shared component");
       assert.equal(await page.getByTestId("graph-ready").isVisible(), false);
       // A layout of cached nodes must not resurrect a successful notice after failure.
       await page.evaluate(() => map.render(state.graph, true));
-      assert.equal(await page.locator("#graph-notice").isVisible(), false);
+      assert.match(await page.locator("#toast-message").textContent(), /load this view/);
       await page.unroute(pattern, fail);
       await refresh(page);
-      assert.equal(await page.locator("#graph-notice").isVisible(), false, "retrying the real capped graph keeps limit notices hidden");
+      assert.equal(await page.locator('#app-toast[data-source="graph-warnings"]').isVisible(), false, "retrying the real capped graph keeps limit notices hidden");
       assert.deepEqual(errors, []);
       console.log(`PASS ${width}px capped real graph without verbose notices, filtering, empty/uncapped, unresolved, safe text, refresh/failure/retry`);
     } finally { if (releaseGraph) releaseGraph(); await page.close(); }
@@ -128,9 +128,8 @@ async function filter(page, query) {
   await page.getByTestId("graph-error").waitFor({ state: "hidden" });
 }
 async function visibleNotice(page, width) {
-  const box = await page.locator("#graph-notice").boundingBox();
+  const box = await page.locator("#app-toast").boundingBox();
   assert.ok(box && box.width > 0 && box.height > 0 && box.x >= 0 && box.x + box.width <= width, "notice must be visible and fit viewport");
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, "no page overflow");
-  const graph = await page.getByTestId("graph-svg").boundingBox();
-  assert.ok(box.y + box.height <= graph.y + 1, "notice must take layout space rather than obscure graph content");
+  assert.equal(await page.locator("#app-toast").evaluate(node => getComputedStyle(node).position), "absolute", "warnings share the floating system component");
 }

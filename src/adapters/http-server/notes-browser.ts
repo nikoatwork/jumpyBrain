@@ -115,11 +115,7 @@ ${noteAttentionStyles}
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
     .note-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); }
     .note-icon svg { width: var(--icon-size); height: var(--icon-size); }
-    #app-toast { position: fixed; z-index: 100; left: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2); width: max-content; max-width: min(360px, calc(100vw - 32px)); padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: var(--text-ui)/var(--leading-ui) var(--font-ui); }
-    #app-toast[hidden], .note-icon[hidden] { display: none; }
-    #toast-message { min-width: 0; overflow-wrap: anywhere; }
-    #app-toast[data-error="true"] #toast-message { color: var(--error-ink); }
-    #toast-action, #toast-close { flex-shrink: 0; }
+    .note-icon[hidden] { display: none; }
     .app-version { margin: var(--space-6) 0 0; padding-top: var(--space-4); border-top: 1px solid var(--line); color: var(--ink-soft); font-size: var(--text-caption); }
     .note-actions { font-size: var(--text-caption); align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
     .document-dialog { padding: var(--space-6); }
@@ -233,7 +229,6 @@ export const notesMarkup = String.raw`
 <span class="workspace-brand" role="img" aria-label="jumpyBrain" title="jumpyBrain">${brainOutlineSvg}</span>
 </div>
 ${noteAttentionMarkup}
-<div id="app-toast" hidden><span id="toast-message" role="status" aria-live="polite" aria-atomic="true"></span><button id="toast-action" class="quiet-button" type="button" hidden></button><button id="toast-close" class="quiet-button note-icon" type="button" aria-label="Dismiss notification" title="Dismiss notification"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">
   <div class="dialog-head">
@@ -973,6 +968,7 @@ function setConnectionKey(key) {
   key = key.trim();
   activeApiKey = key;
   credentialRevision++;
+  systemMessages.sync();
   livingSources.sync();
   recentWrites.reset();
   map.reset();

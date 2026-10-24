@@ -45,8 +45,6 @@ interface MapElements {
   "include-orphans": HTMLInputElement;
   reload: HTMLButtonElement;
   ready: HTMLElement;
-  "graph-warnings": HTMLElement;
-  "graph-notice": HTMLElement;
   "graph-node-count": HTMLElement;
   "graph-edge-count": HTMLElement;
   "graph-empty": HTMLElement;
@@ -65,6 +63,7 @@ export interface MapControllerOptions {
     query: string,
     signal: AbortSignal,
   ): Promise<{ files: string[]; warnings: string[]; updating?: boolean; details?: string[] }>;
+  onWarnings?(warnings: string[]): void;
   setStatus(text: string, isError?: boolean, errorText?: string): void;
   onReady(ready: boolean): void;
   openNode(node: MemoryGraphNode): void;
@@ -193,15 +192,7 @@ export function createMapController(options: MapControllerOptions) {
         ),
       ),
     ];
-    const list = $("graph-warnings");
-    list.replaceChildren();
-    for (const warning of warnings) {
-      const row = document.createElement("li");
-      row.textContent = warning;
-      list.append(row);
-    }
-    list.hidden = !warnings.length;
-    $("graph-notice").hidden = !warnings.length;
+    options.onWarnings?.(warnings);
     // Scope/cap details stay on demand, with no extra persistent chrome.
     const truncation = graph?.truncation;
     $("reload").title =
@@ -790,6 +781,7 @@ export function createMapController(options: MapControllerOptions) {
     }, delay || 0);
   }
   function suspend() {
+    options.onWarnings?.([]);
     cancelFilterTimer();
     cancelRequest();
     if (state.layoutTimer !== null) window.clearTimeout(state.layoutTimer);

@@ -62,7 +62,7 @@ export function mountInlineUpdates() {
     const noticeKey = [state.phase, state.updatedAt, notice].join(':');
     if (notice && noticeKey !== lastNotice) {
       lastNotice = noticeKey;
-      document.dispatchEvent(new CustomEvent('jumpybrain-update-notice', { detail: { text: notice, error: failed } }));
+      document.dispatchEvent(new CustomEvent('jumpybrain-system-message', { detail: { source: 'desktop-update', text: notice, severity: failed ? 'error' : 'success', scope: 'app', revision: [state.phase, state.updatedAt].join(':') } }));
     }
     primary.hidden = quiet;
     primary.disabled = working || !state.actions.includes(selected);

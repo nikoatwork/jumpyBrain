@@ -16,6 +16,7 @@ export { installNoteAttention } from "./note-attention.js";
 
 export { installSearchMaintenance } from "./search-maintenance.js";
 
+export { installSystemMessages } from "./browser-system-messages.js";
 export { installToast } from "./browser-toast.js";
 
 export { selectGraphSearchResults } from "./graph-search.js";

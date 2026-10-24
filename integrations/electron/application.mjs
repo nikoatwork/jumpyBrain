@@ -1,3 +1,4 @@
+import { createSystemMessages } from './system-messages.mjs';
 import { app, BrowserWindow, dialog, Menu, Tray, nativeImage, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +19,8 @@ app.setAboutPanelOptions({ applicationName: 'jumpyBrain', applicationVersion: ap
 // Preserve the existing Electron editor preferences and first-run state.
 app.setPath('userData', userData ?? path.join(app.getPath('appData'), 'jumpyBrain Electron Prototype'));
 let window = null, opening = false, host = null, starting = null, config = null;
+const notify = createSystemMessages({ getWindow: () => window, getOrigin: () => host?.connection?.origin,
+  fallback: options => dialog.showMessageBox(options) });
 let startupError = null;
 let diagnostics = null, tray = null, healthTimer = null, polling = false, closeUpdateControl = null;
 let quitting = false, quitReady = false, status = 'Starting…';
@@ -87,8 +90,7 @@ async function openEditor(settings = false) {
   } catch (error) {
     status = 'Local service unavailable';
     diagnostics?.record({ operation: 'startup', severity: 'error', outcome: 'failed', code: 'bootstrap_failed' });
-    if (!quitting) await dialog.showMessageBox({ type: 'error', title: 'jumpyBrain', message: 'Could not open jumpyBrain',
-      detail: 'Check the local service and installed app. Run npm run desktop:setup from your checkout to repair the installation. ' + (window ? '' : error.message) });
+    if (!quitting) await notify({ source: 'desktop-startup', text: 'Could not open jumpyBrain. Check the local service and installed app. Run npm run desktop:setup from your checkout to repair the installation. ' + (window ? '' : error.message) });
   } finally { opening = false; void refreshTray(); }
 }
 
@@ -113,7 +115,7 @@ async function refreshTray() {
 const showError = async (error) => {
   await updater.reportRestartFailure(error.message);
   if ((await updater.snapshot()).phase === 'ready' && window && !window.isDestroyed()) return;
-  return dialog.showMessageBox({ type: 'warning', message: 'jumpyBrain is still running', detail: error.message });
+  return notify({ source: 'desktop-operation', severity: 'warning', text: 'jumpyBrain is still running. ' + error.message });
 };
 
 const quit = createQuitFlow({

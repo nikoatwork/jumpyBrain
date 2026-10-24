@@ -1,3 +1,4 @@
+import { systemMessageMarkup, systemMessageStyles } from "./browser-system-messages.js";
 import { extensionStyles, extensionPanelMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { designSystemStyles } from "./browser-design-system.js";
@@ -31,6 +32,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   <style nonce="${nonce}">
     ${designSystemStyles}
     ${themeStyles}
+    ${systemMessageStyles}
     ${companion ? extensionStyles : ""}
     * { box-sizing: border-box; }
     html, body { height: 100%; }
@@ -46,8 +48,6 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     #graph-header { position: relative; z-index: 10; background: var(--surface); }
     .map-heading { flex: 1 0 220px; }
     .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: var(--space-2) var(--space-6); background: var(--surface); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; pointer-events: none; }
-    #graph-notice { padding: 0 var(--space-6) var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
-    #graph-warnings { margin: var(--space-1) 0; padding-left: var(--space-4); }
 
     /* Reusable controls and toolbar groups. */
     input { font-size: var(--text-ui); height: var(--control-height); padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
@@ -115,7 +115,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
       .map-options { right: 16px; top: calc(100% - 4px); }
       .canvas-bottom { left: 16px; right: 16px; }
       .helper { left: 16px; right: auto; font-size: var(--text-caption); }
-      .graph-feedback, #graph-notice, .error { padding-inline: var(--space-4); }
+      .graph-feedback, .error { padding-inline: var(--space-4); }
     }
     @media (max-width: 680px) and (max-height: 680px) {
       .map-options { top: auto; bottom: calc(100% - 4px); }
@@ -135,6 +135,7 @@ ${documentActionsMarkup}
 ${companion ? extensionPanelMarkup : ""}
 ${dreamMarkup}
 ${feedbackMarkup}
+${systemMessageMarkup}
 <header id="graph-header">
   <div class="toolbar" aria-label="Map controls">
     <div class="map-heading">
@@ -154,9 +155,7 @@ ${feedbackMarkup}
     <button id="graph-index-state" class="icon-button" aria-label="Search maintenance" hidden>↻</button>
     <button id="reload" data-testid="graph-reload" class="quiet-button note-icon" aria-label="Refresh notes and connections" title="Refresh notes and connections">${browserIcons.refresh}</button>
   </div>
-  <div id="graph-notice" role="status" aria-atomic="true" hidden>
-    <ul id="graph-warnings" hidden></ul>
-  </div>
+
   <p id="status" data-testid="graph-status" class="graph-feedback" role="status" hidden></p>
   <p id="ready" data-testid="graph-ready" class="sr-status" aria-live="polite" hidden>Map loaded.</p>
   <p id="error" data-testid="graph-error" class="error" role="alert" hidden></p>
@@ -206,11 +205,10 @@ ${themeScript}
 const browserScriptNonce = document.currentScript.nonce;
 let extensionUI = null;
 const browserCommands = JumpyBrainBrowser.createBrowserCommands(() => toast.show("extensions", "Command failed. Check the connection and try again.", { error: true }));
-const toast = JumpyBrainBrowser.installToast(document, () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"));
+const systemMessages = JumpyBrainBrowser.installSystemMessages(document, () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"));
+const toast = systemMessages;
 for (const element of document.querySelectorAll("[data-app-version]")) element.textContent = "jumpyBrain · Version " + JumpyBrainBrowser.diagnosticBuildInfo().version;
-document.addEventListener("jumpybrain-update-notice", (event) => {
-  if (typeof event.detail?.text === "string") toast.show("desktop-update", event.detail.text, { error: event.detail.error === true });
-});
+
 const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const companionMode = ${companion};
 const feedbackDiagnostics = JumpyBrainBrowser.createFeedbackDiagnostics();
@@ -257,6 +255,10 @@ const map = JumpyBrainBrowser.createMapController({
     if ((packet.retrieval?.warnings || []).includes("semantic_query_failed_lexical_fallback")) warnings.push("Semantic search is unavailable. Text matches are shown; retry with Refresh.");
     return { files: normalizeNoteResults(JumpyBrainBrowser.selectGraphSearchResults(query, packet.results), Infinity).map(result => result.file).filter(Boolean), warnings, details, updating: Boolean(packet.index?.stale) };
   }, setStatus,
+  onWarnings: warnings => {
+    if (warnings.length) systemMessages.dispatch({ source: "graph-warnings", text: warnings.join("\\n"), severity: "warning" });
+    else systemMessages.clear("graph-warnings");
+  },
   onReady: (ready) => { window.__jumpyBrainGraphReady = ready; }, openNode: selectNode,
 });
 const { loadGraph, queueGraphLayout } = map;
@@ -384,8 +386,10 @@ function setStatus(text, isError, errorText) {
   if (isError) {
     $("error").textContent = errorText || text;
     $("error").hidden = false;
+    systemMessages.dispatch({ source: "graph-error", text: errorText || text, severity: "error" });
   } else {
     $("error").hidden = true;
+    systemMessages.clear("graph-error");
   }
 }
 
@@ -393,13 +397,14 @@ function setStatus(text, isError, errorText) {
 
 async function selectNode(node) {
   if (node.nodeKind === "unresolved") {
-    setStatus("This linked note doesn't exist yet: " + (node.title || node.id));
+    systemMessages.dispatch({ source: "graph-selection", text: "This linked note doesn't exist yet: " + (node.title || node.id), severity: "warning", duration: 8_000 });
     return;
   }
   if (!isValidMemoryDocumentId(node.documentId)) {
-    setStatus("This document is missing a valid memory ID.");
+    systemMessages.dispatch({ source: "graph-selection", text: "This document is missing a valid memory ID.", severity: "warning", duration: 8_000 });
     return;
   }
+  systemMessages.clear("graph-selection");
   if (await navigation.navigate("/?note=" + encodeURIComponent(node.documentId))) state.selected = node.id;
 }
 
@@ -448,6 +453,8 @@ searchMaintenance = JumpyBrainBrowser.installSearchMaintenance({
     control.hidden = status === "ready" || status === "updating";
     control.title = status === "failed" ? "Search could not update. Open search to retry." : "Search is unavailable. Open search for recovery.";
     control.setAttribute("aria-label", control.title);
+    if (status === "failed" || status === "unavailable") systemMessages.dispatch({ source: "search-maintenance", text: control.title, severity: "warning" });
+    else systemMessages.clear("search-maintenance");
   },
 });
 $("graph-index-state").addEventListener("click", () => browserCommands.execute("search.open"));

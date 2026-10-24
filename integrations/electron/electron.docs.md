@@ -30,6 +30,12 @@ The internal gateway composes the [extension app host](../../src/app/extensions/
 
 The native companion sources remain available for internal hosting and legacy migration/maintenance. Their standalone installer is not the new user-facing Mac setup path. Current packaging supports the private per-user installation; global/custom legacy locations require explicit migration.
 
+## System messages
+
+`system-messages.mjs` routes native host/window notices to the owned same-origin editor's shared `browser-system-messages.ts` component using the data-only `jumpybrain-system-message` event. Delivery checks the window, contents and gateway origin, escapes serialized data and bounds text; a missing/unavailable shell falls back through the injected native dialog presenter. Startup/onboarding/crashed-renderer failures therefore remain visible. `application.mjs` and `window.mjs` use this dispatcher for operational failures; `update-inline.mjs` emits the same event with app scope and operation revision, retaining its existing fixed action checks. Graph, session/connection and index notices use the same renderer component. No preload, generic IPC action, network endpoint or extra polling is introduced.
+
+The destructive draft-close choice, onboarding field feedback and startup-blocking update recovery remain separate workflows. The shared dispatcher does not approve a close/restart, weaken a save barrier or grant remote write permission. `test/desktop-system-messages.test.js` covers safe delivery and native fallback. The production `smoke-inline-updates.mjs` additionally exercises native/renderer warnings, one component, priority, action/focus behavior, text safety and brain/app scope fencing in both themes.
+
 ## User-initiated updates
 
 `updater.mjs` owns one operation shared by the sidebar, native menus and supported paired CLI. Its read-only snapshot exposes `phase`, `detail`, installed app/runtime/CLI policy and versions, available release/notes, restart errors and an authoritative `actions` array. Fixed actions are `check`, `update`, `app-only`, `cancel`, `restart`, `recover`, and `log`. Checking never prepares software; a download click pins the release already offered. `checkOnStartup()` checks once when idle/current/canceled or after a persisted successful/recovered update, preserving active jobs and actionable failures/recovery. There is no recurring release-discovery timer; renderer polling only observes local updater state. The native **Check for updates…** menu remains available when the sidebar action is hidden.

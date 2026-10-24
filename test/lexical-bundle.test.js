@@ -10,9 +10,9 @@ const bundle = await readFile(new URL("../dist/adapters/http-server/editor-bundl
 test("editor bundle is self-contained, production-sized, and safe to inline under the shell nonce", () => {
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
-  // Topic layout/labels, dense Canvas rendering and the status observer add
-  // ~5 KB over the reviewed165,904-byte bundle; no new dependency/runtime.
-  assert.ok(gzipSync(bundle).length < 172_000, "review editor weight if the production bundle exceeds172 KB gzip");
+  // Shared message lifecycle/queue replaces separate producers: ~1.6 KB gzip
+  // over the reviewed 171,068-byte bundle, with no new dependency/runtime.
+  assert.ok(gzipSync(bundle).length < 174_000, "review editor weight if the production bundle exceeds 174 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Shared system messages
+
+- Unified Mac/editor system warnings and notifications behind one scoped dispatcher with shared priority, dismissal and lifecycle; [implementation and verification](done/2026-10-24_tasks-shared-system-messages.md).
+
 ## 2026-10-24 — Release guidance organization
 
 - Moved recurring [lean beta guidance](../docs/lean-beta-releases.md) into release documentation; archived the superseded planning list with implementation limits preserved.

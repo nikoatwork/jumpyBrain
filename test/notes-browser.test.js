@@ -84,7 +84,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   const removed = [];
   let graphResets = 0;
   const context = runtime(["renderConnection", "maskApiKey", "closeConnection", "setConnectionKey"], {
-    $, map: { reset() { graphResets++; } }, cancelReferenceInteraction() {}, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
+    $, systemMessages: { sync() {} }, map: { reset() { graphResets++; } }, cancelReferenceInteraction() {}, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
     apiKeyInput: { value: "unsaved-edit", type: "text" },
     connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) },
   });
@@ -522,7 +522,7 @@ function referenceHarness({ dirty = true } = {}) {
     "isValidMemoryDocumentId", "showNote", "noteLoadError", "setConnectionKey",
     "closeConnection", "maskApiKey", "renderConnection", "openConnection", "openSearch",
   ], {
-    $, state, window, richEditor, toast, AbortController, document: { title: "", activeElement: null },
+    $, state, window, richEditor, toast, systemMessages: { sync() {} }, AbortController, document: { title: "", activeElement: null },
     credentialRevision: 0, referenceRequest: null, stagedReferenceNote: null,
     activeApiKey: "old-key", connectionStatus: "connected", apiKeyInput: $("api-key"),
     localStorage: { setItem() {}, removeItem() {} }, reopenSearch: false,

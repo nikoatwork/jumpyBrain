@@ -1,5 +1,9 @@
 # Glossary
 
+## System message
+
+Tab-local app feedback dispatched with a stable source key through one shared component. Severity controls priority; repeated outcomes are deduplicated, and brain scope fences stale messages/actions. Desktop installation/host results explicitly use app scope. Messages do not own canonical save state, form validation or authorization. See [the browser contract](src/adapters/http-server/browser.docs.md#system-messages).
+
 ## Extension
 
 An explicitly installed, trusted local TS/JS package that registers optional commands, events, panels or themes through the public jumpyBrain API. The desktop gateway owns executable activation; browser contributions have separate mount/dispose lifetimes. A package's capabilities are supported-operation declarations, not a sandbox. Memory semantics and write authorization remain core/app/target-owned. See [authoring](docs/extensions.md).

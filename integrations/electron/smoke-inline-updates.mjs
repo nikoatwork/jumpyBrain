@@ -5,6 +5,7 @@ import http from 'node:http';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { publishSystemMessage } from './system-messages.mjs';
 import { createEditorWindow } from './window.mjs';
 import { graphPageHtml } from '../../dist/adapters/http-server/graph-page.js';
 async function run() {
@@ -59,8 +60,8 @@ try {
       if (phase === 'success') {
         assert.equal(await evaluate('document.getElementById("toast-message").textContent'), 'Update installed successfully.');
         assert.equal(await evaluate('document.getElementById("app-toast").hidden'), false);
-        assert.equal(await evaluate('getComputedStyle(document.getElementById("app-toast")).position'), 'fixed');
-        assert.equal(await evaluate('document.getElementById("app-toast").getBoundingClientRect().left'), 16);
+        assert.equal(await evaluate('getComputedStyle(document.getElementById("app-toast")).position'), 'absolute');
+        assert.equal(await evaluate('document.getElementById("app-toast").getBoundingClientRect().left - document.querySelector(".app-workspace").getBoundingClientRect().left'), 16);
         assert.equal(await evaluate('JSON.stringify(document.getElementById("app-sidebar").getBoundingClientRect().toJSON())'), sidebarBounds, 'notifications never move the sidebar');
         await writeFile(path.join(output, `notification-${theme}.png`), (await window.webContents.capturePage()).toPNG());
         await pause(4500);
@@ -116,7 +117,7 @@ try {
   assert.equal(calls.length, beforeAction + 1);
   updater.snapshot = async () => state; onAction = undefined;
   // Native update rendering never replaces editor nodes or the focused draft.
-  await evaluate("window.testDraft = document.createElement('textarea'); testDraft.value = 'unsaved draft'; document.querySelector('main').append(testDraft); testDraft.focus(); testDraft.setSelectionRange(2, 7)");
+  await evaluate("window.testDraft = document.createElement('textarea'); testDraft.value = 'unsaved draft'; testDraft.style.cssText = 'position: fixed; left: -9999px; width: 1px; height: 1px'; document.querySelector('main').append(testDraft); testDraft.focus(); testDraft.setSelectionRange(2, 7)");
   state = { phase: 'preparing', actions: ['cancel'], installed }; await pause(1150);
   assert.equal(await evaluate("document.activeElement === testDraft && testDraft.value === 'unsaved draft' && testDraft.selectionStart === 2 && testDraft.selectionEnd === 7"), true);
   window.setMinimumSize(0, 0);
@@ -131,7 +132,33 @@ try {
       assert.ok(bounds.left >= 0 && bounds.right <= width, 'notification fits the narrow viewport');
     }
   }
-  console.log('Inline updater UI PASS: production shell, both themes, keyboard, icon-only states/glow, floating completion/expiry without polling replay, Settings version, pinned exception, failed restart/recovery, draft stability, restricted actions, narrow layout. Screenshots:', output);
+  // Every native/renderer producer uses the same component and scope fence.
+  state = { phase: 'idle', actions: ['check'], installed }; await pause(1150);
+  await evaluate('systemMessages.clear()');
+  for (const theme of ['light', 'dark']) {
+    await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
+    assert.equal(await publishSystemMessage(window, origin, { source: 'native-warning', text: 'A system warning. <img src=x onerror="window.injected=true">', severity: 'warning' }), true);
+    await evaluate('systemMessages.dispatch({ source: "brain-warning", text: "Search needs attention", severity: "warning", action: { label: "Retry", run() { window.retryCalls = (window.retryCalls || 0) + 1; } } })');
+    assert.equal(await evaluate('document.querySelectorAll("#app-toast").length'), 1);
+    assert.equal(await evaluate('document.getElementById("app-toast").dataset.source'), 'brain-warning');
+    await evaluate('document.getElementById("toast-action").focus(); document.getElementById("toast-action").click()');
+    assert.equal(await evaluate('window.retryCalls'), theme === 'light' ? 1 : 2);
+    await evaluate('credentialRevision++; systemMessages.sync()');
+    assert.equal(await evaluate('document.getElementById("app-toast").dataset.source'), 'native-warning', 'brain warnings/actions are fenced while app warnings survive');
+    assert.equal(await evaluate('document.querySelectorAll("#app-toast img").length'), 0);
+    assert.equal(await evaluate('Boolean(window.injected)'), false);
+    assert.equal(await evaluate("testDraft.value === 'unsaved draft' && testDraft.selectionStart === 2 && testDraft.selectionEnd === 7"), true);
+    for (const width of [1200, 390, 320]) {
+      window.setContentSize(width, 860); await pause(100);
+      assert.equal(await evaluate('(() => { const nav = document.getElementById("graph-link"), r = nav.getBoundingClientRect(); return nav.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })()'), true, 'persistent warnings never cover navigation');
+      assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+      await writeFile(path.join(output, `system-warning-${theme}-${width}.png`), (await window.webContents.capturePage()).toPNG());
+    }
+    await evaluate('document.getElementById("toast-close").click()');
+    assert.equal(await evaluate('document.getElementById("app-toast").hidden'), true);
+    await evaluate('systemMessages.clear()');
+  }
+  console.log('Inline updater UI PASS: production shell, both themes, keyboard, icon-only states/glow, floating completion/expiry without polling replay, Settings version, pinned exception, failed restart/recovery, draft stability, restricted actions, narrow layout, shared native/renderer messages, warning priority, safe text and brain/app scope fencing. Screenshots:', output);
   window.destroy(); server.close(); await rm(profile, { recursive: true, force: true }); app.exit(0);
 } catch (error) { console.error(error); window?.destroy(); server.close(); app.exit(1); }
 
