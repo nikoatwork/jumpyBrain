@@ -4,7 +4,7 @@ Status: deferred. Create the plan now; do not execute it or make it a default re
 
 ## Goal
 
-Bring back broader, repeatable release testing when the product's usage or observed bugs justify the cost, building on [the lean beta release workflow](tasks-lean-beta-releases.md).
+Bring back broader, repeatable release testing when the product's usage or observed bugs justify the cost, building on [the lean beta release workflow](../../docs/lean-beta-releases.md).
 
 ## Activation trigger
 

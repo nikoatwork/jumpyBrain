@@ -29,7 +29,7 @@ Updating from either the Mac app or `jumpybrain update` keeps the installed Mac 
   - [x] 2.4 Integrate the icon consumer and verify prepared versus installed truthfully. The interface task list owns visual state, popup removal and on-demand details; avoid implementing a duplicate UI here.
 - [x] 3.0 Verify and document the supported experience.
   - [x] 3.1 Exercise both GUI→paired update and CLI→paired update on disposable installations. Check working while preparing, explicit restart, matching versions, failed-save blocking and unchanged Markdown/settings. Reuse one fixture and existing focused recovery regressions instead of inventing another broad release suite.
-  - [x] 3.2 Cover CLI-only, custom/pinned CLI, concurrent attempts and recovery at the shared seam. Inspect the inline control by keyboard and in both themes; retain deeper fault testing as an explicit option under [lean beta releases](../todo/tasks-lean-beta-releases.md).
+  - [x] 3.2 Cover CLI-only, custom/pinned CLI, concurrent attempts and recovery at the shared seam. Inspect the inline control by keyboard and in both themes; retain deeper fault testing as an explicit option under [lean beta releases](../../docs/lean-beta-releases.md).
   - [x] 3.3 Update install/update guidance and owning module docs. Explain the one-time old-app bootstrap separately. Record results and remaining limits here; add a user-facing pending release note when implemented.
 
 ## Acceptance

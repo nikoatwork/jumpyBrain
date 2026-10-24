@@ -2,6 +2,8 @@
 
 Run this on the agreed release snapshot before publishing, following [the release routine](releases.md). Test actual app/CLI behavior and saved Markdown; a successful build or a screenshot alone is not an end-to-end pass.
 
+Apply [lean beta release guidance](lean-beta-releases.md) when planning verification and reusing evidence. The commands and gates below remain the current requirements; proposed tooling improvements are not implemented by that guidance.
+
 ## Prepare
 
 - Record commit, Node/QMD versions, macOS version and architecture. Use disposable memory, CLI config, app profile, and installation paths; never fault-test personal notes or a live shared brain.

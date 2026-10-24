@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Release guidance organization
+
+- Moved recurring [lean beta guidance](../docs/lean-beta-releases.md) into release documentation; archived the superseded planning list with implementation limits preserved.
+
 ## 2026-10-24 — Executable desktop extensions
 
 - Added a public extension API for trusted local commands, panels and themes, with CLI management and runnable examples; [implementation and validation](done/2026-10-24_tasks-executable-extensions.md).

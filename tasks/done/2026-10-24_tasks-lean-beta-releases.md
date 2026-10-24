@@ -1,12 +1,20 @@
 # Lean beta releases
 
-## Goal
+## Disposition — 2026-10-24
+
+Superseded as an active task list at the user's request: recurring release guidance belongs in the release documentation. [Lean beta release guidance](../../docs/lean-beta-releases.md) now owns that guidance and is linked from the release process and agent instructions.
+
+The original unchecked proposals below are retained as history, not completed implementation or gates to repeat before each release. Release scripts and existing required checks are unchanged. Outstanding automation improvements and the unmeasured reduction target are recorded in the standing document.
+
+Verification: reviewed release/pack scripts and testing instructions; checked changed Markdown links, stale references and whitespace. This was a documentation reorganization; no product tests, timing benchmark or publication were run. Unrelated task files were preserved.
+
+## Original goal
 
 Cut routine release verification time and operator effort by roughly 80% for the current beta of about five users. Keep a short, repeatable ship path with enough evidence that core memory behavior works and the published package is the one tested.
 
 ## Session lessons and direction
 
-- User direction, 2026-10-22: the current process is too intense for this stage; optimize for frequent small releases. Broader release testing belongs in [a deferred scale-up plan](tasks-release-testing-at-scale.md).
+- User direction, 2026-10-22: the current process is too intense for this stage; optimize for frequent small releases. Broader release testing belongs in [a deferred scale-up plan](../todo/tasks-release-testing-at-scale.md).
 - v0.3.5 ran 21 packaging/smoke commands totaling about 768 seconds, in addition to the full test suite and publication workflow. Five installed-updater scenarios alone took about 417 seconds. These are one-machine observations, not a universal timing promise.
 - The first full test suite was repeated by the release command; many smoke wrappers rebuilt the same source. Packaging also overlapped a test run once and removed files being tested. Use one build owner and reuse valid evidence for the exact source/artifact.
 - Some delays were fixture drift: a reference smoke expected a removed status banner, and a conflict smoke used appends that now merge safely. Keep assertions focused on user outcomes and repair stale fixtures when behavior intentionally changes.

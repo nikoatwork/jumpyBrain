@@ -2,6 +2,8 @@
 
 Use `npm run release` after committing the work to release. It defaults to a **patch** bump: `0.3.0 → 0.3.1`. Ordinary Git commits do not release automatically; this command owns the version commit, annotated tag, push, and GitHub release together.
 
+Read [lean beta release guidance](lean-beta-releases.md) when preparing each beta release; use [release testing](release-testing.md) for the current commands and required gates.
+
 ## Batch release routine
 
 Accumulate commits between releases. Default to **at most one published release per Europe/Berlin calendar day**, and skip days without worthwhile ready changes. Release only when the user asks to ship; a second release on the same day requires an explicit override, such as an urgent fix. This is an agent/manual convention, not a timer or a rate limit enforced by the script.
