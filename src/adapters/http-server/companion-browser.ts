@@ -1,3 +1,4 @@
+import { extensionSettingsMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
 
 // Companion-only loopback control UI. No target credential is ever read into this shell.
@@ -44,6 +45,7 @@ export const companionMarkup = String.raw`
       <p id="companion-index-target">Connect to a brain to refresh search.</p>
       <p id="companion-index-feedback" role="status" aria-live="polite"></p>
     </section>
+    ${extensionSettingsMarkup}
     <h2>Brain connections</h2>
     <p id="companion-feedback" role="status" aria-live="polite"></p>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
@@ -189,6 +191,7 @@ function renderCompanionConnection() {
 function companionLock(value) {
   const enteringFrozen = value && !companionFrozen;
   companionFrozen = value;
+  syncCompanionExtensions();
   if (!value && state.editor?.state.navigationPending && !navigation.isBusy() && !documentActions.isBusy()) state.editor.setNavigationPending(false);
   // Healthy polls still sync permissions, but must not dismiss live interactions.
   if (enteringFrozen) {

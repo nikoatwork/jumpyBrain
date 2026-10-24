@@ -62,7 +62,10 @@
     "scripts/qmd-install-check.mjs",
     "scripts/macos-companion.mjs",
     "scripts/remote-target-origin.mjs",
-    "scripts/public-uninstall.mjs"
+    "scripts/public-uninstall.mjs",
+    "extensions.js",
+    "extensions.d.ts",
+    "examples/extensions"
   ],
   "engines": {
     "node": ">=22"
@@ -74,9 +77,11 @@
     "@lexical/rich-text": "0.51.0",
     "@lexical/selection": "0.51.0",
     "@types/node": "^25.9.1",
-    "esbuild": "0.28.2",
     "fast-check": "^4.8.0",
     "lexical": "0.51.0",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "esbuild": "0.28.2"
   }
 }

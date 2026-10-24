@@ -1,5 +1,7 @@
 # Changes
 
+- The Mac app supports trusted local TypeScript/JavaScript extensions with commands, shortcuts, panels and themes; includes Related notes and Ember Plum examples, explicit CLI management and recovery controls.
+
 - Living topic pages can check cited source versions through the CLI or browser, showing changed, missing, ambiguous and partial evidence while preserving ordinary guarded editing.
 
 - Feedback sends directly from packaged Mac apps, with a simpler dialog, optional logs, a short information tooltip and a top-right close control.

@@ -12,6 +12,8 @@ Choose your starting point:
 
 Software installation/updates download code and dependencies. A remote brain requires an explicitly selected server; it does not sync your personal brain. Notes recalled into a cloud AI assistant are handled by that assistant, and sending feedback or choosing a cloud-synced folder can also send data outside your computer. See the [privacy and installation FAQ](faq.md#when-can-data-leave-my-computer). Agents helping with setup should follow the [agent installation guide](install-for-agents.md).
 
+The Mac app also supports explicitly installed [local executable extensions](extensions.md) for optional commands, panels and themes. Extension packages are trusted code and use a separate local configuration directory; installing the CLI or opening a brain does not automatically install extensions.
+
 ## Fast path: installer script
 
 Install the CLI first, then optionally add the [macOS desktop app (beta)](#macos-desktop-app-beta). The installer builds jumpyBrain locally and sets up memory, search, and detected agent integrations. jumpyBrain is not published to npm.

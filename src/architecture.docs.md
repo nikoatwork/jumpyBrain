@@ -75,3 +75,11 @@ For browser changes, follow the [HTTP adapter map](adapters/http-server/http-ser
 ## Mac app ownership
 
 The unified Electron bundle owns the desktop window, menu bar, login preference, and lifecycle. An internal Swift helper owns Keychain/folder capabilities and a child gateway over the bundled copy of this same runtime. Closing the window keeps the service available; explicit quit uses the all-tab save barrier before stopping owned children. Parent watchdogs prevent orphan services. CLI-only installation and separately hosted servers remain independent. See [the desktop boundary](../integrations/electron/electron.docs.md).
+
+## Executable extension ownership
+
+`src/extensions/` is the host-independent public contract. `src/adapters/extensions/` owns local package/manifest/state/cache I/O and lazy compilation; `src/app/extensions/` owns executable activation, registration, invocation and disposal. The desktop gateway composes one host and supplies scoped operations through its existing authenticated target transport. Extension code is explicitly installed and trusted; capability declarations do not sandbox same-process Node or same-origin browser code.
+
+CLI extension-management commands use the focused app seam and are loaded only on explicit `extensions` dispatch. Normal runtime imports, CLI memory commands and ordinary hosted servers never construct the desktop extension host. Core imports none of the extension layers. Public contract, app and adapter imports have separate architecture-test classifications, keeping the new boundary explicit rather than widening general app/core dependency rules.
+
+The shared browser owns the action dispatcher, named contribution slots and optional nonce-protected extension UI/panel lifetimes. Its executable-extension presentation bundle is embedded only in companion shells; the ordinary editor bundle keeps its existing size gate. Native capabilities, draft protection, canonical concurrency and remote write approval remain with their existing owners. See [the author guide](../docs/extensions.md) and [extension host docs](app/extensions/extensions.docs.md).

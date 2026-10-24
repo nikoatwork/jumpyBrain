@@ -873,8 +873,9 @@ async function chooseSearchResult(result) {
   } finally { selectingResult = false; }
 }
 
-$("open-search").addEventListener("click", openSearch);
-$("home-search").addEventListener("click", openSearch);
+browserCommands.register({ id: "search.open", title: "Open search", shortcut: "Mod+K", run: () => { if (searchDialog.open) closeSearch(); else openSearch(); } });
+$("open-search").addEventListener("click", () => browserCommands.execute("search.open"));
+$("home-search").addEventListener("click", () => browserCommands.execute("search.open"));
 $("close-search").addEventListener("click", () => closeSearch());
 searchDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeSearch(); });
 searchDialog.addEventListener("click", (event) => { if (event.target === searchDialog) closeSearch(); });
@@ -890,12 +891,15 @@ function handleNoteShortcut(event) {
   if (feedback.isOpen()) return;
   if (documentActions.isOpen() || documentActions.isBusy()) return;
   if (typeof companionMode !== "undefined" && companionMode && (companionFrozen || state.view === "settings")) return;
+  if (!searchDialog.open && !connectionDialog.open && !dreamDialog.open && !document.querySelector("dialog[open]")) {
+    if (browserCommands.shortcut(event)) return;
+  }
   if (event.defaultPrevented || event.isComposing || event.altKey || event.shiftKey || !(event.metaKey || event.ctrlKey)) return;
   if (event.key.toLowerCase() === "k") {
     if (connectionDialog.open || dreamDialog.open) return;
     event.preventDefault();
     event.stopPropagation();
-    if (!event.repeat) { if (searchDialog.open) closeSearch(); else openSearch(); }
+    if (!event.repeat) browserCommands.execute("search.open");
   } else if (event.key === "Enter") {
     if (searchDialog.open || connectionDialog.open || dreamDialog.open || feedback.isOpen()) return;
     event.preventDefault();
@@ -1105,6 +1109,7 @@ function showPage(url) {
   state.noteToken++;
   if (state.editor) state.editor.cancel();
   state.editor = null;
+  extensionUI?.documentChanged();
   $("note-retry").hidden = true;
   $("note-recover").hidden = true;
   document.title = state.view === "graph" ? "Memory map · jumpyBrain" : "Notes · jumpyBrain";
@@ -1131,6 +1136,7 @@ async function showNote(documentId, focusEnd = false) {
     const token = ++state.noteToken;
     if (state.editor) state.editor.cancel();
     state.editor = null;
+    extensionUI?.documentChanged();
     $("note-title").textContent = "";
     toast.clear("draft");
     $("note-title").hidden = false;
@@ -1174,6 +1180,7 @@ async function showNote(documentId, focusEnd = false) {
         richEditor.setExternalMarkdown(body);
       },
       onSaved: (payload) => {
+        extensionUI?.emit({ type: "document.saved", document: { id: documentId, title: editor.state.savedTitle } });
         sidebarPages.rename({ id: documentId, title: editor.state.savedTitle });
         sidebarPages.reloadAttention();
         recentWrites.remember({ id: documentId, title: editor.state.savedTitle, body: editor.state.savedBody, file: String(payload.file || $("note-file").textContent || "") });
@@ -1242,6 +1249,7 @@ function syncEditorUi(editorState) {
   const companionLocked = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
   const needsReview = editorState.saveStatus === "failed" && editorState.saveErrorCode === "precondition_failed";
   if (!state.editor || state.editor.state !== editorState) return;
+  extensionUI?.documentChanged();
   noteAttention.sync();
   sidebarPages.sync();
   livingSources.sync();

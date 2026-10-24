@@ -48,6 +48,19 @@ The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local adv
 | `jumpybrain serve --root <memory-root> --host <host> --port <port> [--api-key <key>] [--public-base-url <url>] [--init]` | Start a jumpyBrain HTTP server backed by a server-local Markdown memory root. Use `--init` to initialize the root before serving. |
 | `jumpybrain run memory:<recipe> ...` | Run a memory recipe command, usually from an agent integration or workspace-discovered memory root. See the `run memory:*` section below. |
 
+## Desktop extensions
+
+Extension management is desktop-local and accepts `--directory <extensions-directory>` and `--json`. It rejects memory-root/remote-target flags; normal memory commands do not activate extensions. The default directory is `~/Library/Application Support/jumpyBrain Companion/extensions`. See [extension authoring and trust](extensions.md).
+
+| Command | Human explanation |
+| --- | --- |
+| `jumpybrain extensions install --source <local-package>` | Register/link an explicit local TS/JS package and prepare its code. `link` is an alias. An active companion owns activation; offline preparation executes no factory. |
+| `jumpybrain extensions list` | List configured packages or the matching live host's status. |
+| `jumpybrain extensions enable --id <id>` | Enable a configured package. |
+| `jumpybrain extensions disable --id <id>` | Disable it and remove its owned capabilities from an active host. |
+| `jumpybrain extensions reload` | Prepare source changes and reload the matching host, or prepare offline for its next start. |
+| `jumpybrain extensions remove --id <id>` | Unregister a package while preserving its local extension state. |
+
 ## Local memory setup and status
 
 | Command | Human explanation |

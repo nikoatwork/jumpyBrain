@@ -63,7 +63,7 @@ class Fixture(unittest.TestCase):
         source = path / "integrations/macos-companion"
         source.mkdir(parents=True)
         (source / "Companion.swift").write_text(f"// {version} source\n")
-        for helper in ("gateway.mjs", "connections.mjs", "switch-coordinator.mjs", "menu-update.mjs",
+        for helper in ("gateway.mjs", "extensions-gateway.mjs", "connections.mjs", "switch-coordinator.mjs", "menu-update.mjs",
                        "update-check.mjs", "install.py", "update.py", "uninstall.py", "lifecycle.py"):
             (source / helper).write_text(f"// {version} {helper}\n")
 
@@ -303,7 +303,7 @@ class UninstallTests(Fixture):
 class RuntimeClosureTests(Fixture):
     def test_gateway_and_lifecycle_dependencies_are_required_independently(self):
         source = self.stage / "integrations/macos-companion"
-        for name in ("Companion.swift", "gateway.mjs", "connections.mjs", "switch-coordinator.mjs",
+        for name in ("Companion.swift", "gateway.mjs", "extensions-gateway.mjs", "connections.mjs", "switch-coordinator.mjs",
                      "menu-update.mjs", "update-check.mjs", "install.py", "update.py", "uninstall.py", "lifecycle.py"):
             with self.subTest(missing=name):
                 dependency = source / name

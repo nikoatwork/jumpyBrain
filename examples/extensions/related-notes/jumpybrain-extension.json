@@ -1,0 +1,9 @@
+{
+  "apiVersion": 1,
+  "id": "related-notes",
+  "name": "Related notes",
+  "version": "1.0.0",
+  "main": "main.ts",
+  "ui": "ui.ts",
+  "capabilities": ["memory.read"]
+}

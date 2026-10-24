@@ -56,3 +56,11 @@ Local search/index execution deadlines can be set with `JUMPYBRAIN_SEARCH_TIMEOU
 ## Living-page checks
 
 `dream --check-sources --id <Dream-page-ID>` or `--draft --page-file pages/topic.md` (stdin) calls the same local/hosted checker. Strict argument parsing rejects duplicate/unknown/valued Boolean flags before target credentials or stdin. The Dream read-only allowlist covers this observational operation; ordinary writes keep existing authorization. Exact unchanged updates print Unchanged and do not claim publication. See [living-page workflow](../../docs/living-topic-pages.md).
+
+## Desktop extension management
+
+`extensions` is dispatched before remote access policy or credential resolution, and its management module/app seam is dynamically imported only for that command. Strict parsing in `args.ts` rejects unrelated remote flags (including malformed/repeated spellings), unknown commands/flags, missing/repeated values and valued booleans before filesystem access. `extensions --help` and command `--help` expose the local-only contract.
+
+`extensions install --source <local-package>` (or `link`) records/prepares an explicit local directory; `list`, `enable|disable|remove --id <id>` and `reload` share the app extension-management seam. Default storage is `~/Library/Application Support/jumpyBrain Companion/extensions`; `--directory` overrides that extension directory for fixtures/nonstandard hosts. No npm/git fetch or dependency install runs. CLI never executes a factory: a live companion owns activation and receives authenticated reload/manage requests; closed-host reload only prepares code. Removal preserves namespaced extension state. `extensions/disabled` permits safe startup and management of a broken package. JSON output is valid for void management outcomes too.
+
+The gateway's private support-directory control descriptor locates the exact live host, with its native control key read from the same private directory. Current generation is explicit, redirects are refused, and a live-host transport/auth failure is not treated as permission to mutate offline. This is separate from remote brain credentials and read/write policy. See [gateway extension protocol](../../integrations/macos-companion/gateway.docs.md#executable-extensions).

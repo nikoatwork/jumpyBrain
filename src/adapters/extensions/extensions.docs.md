@@ -1,0 +1,17 @@
+# Local executable packages
+
+## Responsibilities
+
+- Own the explicit local directory registry, manifest validation, preparation cache and extension-local JSON state. `directory` is the extensions support directory, never a brain root. Sources are canonical absolute local directories; v1 does not fetch npm/git packages or install their dependencies.
+- Validate API version 1, package versions, IDs, declared memory capabilities, JS/TS entry files and real filesystem containment before registration. Bundled imports stay inside the package and its already installed local dependencies, except the public SDK `jumpybrain/extensions.js`. Node built-ins remain available to trusted main code. Nonliteral dynamic imports/native addons are not a portable supported authoring boundary.
+- Compile TS/JS to Node 22 ESM and optional browser IIFE only through lazy production esbuild. Install/list/prepare never execute factories or package entrypoints. The IIFE ends with `globalThis.JumpyBrainExtensions.register(id, defaultFactory)` and uses normal script/CSP handling in the renderer. Concurrent in-process preparations share the compiler; the last preparation stops its helper process, including on build failure.
+- Honor `disabled` before compiler import/preparation, including install in safe mode (manifest registration only). Explicit host safe mode skips preparation too. Entries default to enabled; safe mode suppresses execution independently of persisted preference.
+- Serialize writes across processes using a bounded lock with dead-process recovery. Publish complete JSON via temporary-file sync and atomic rename. Maintain a separately atomic known-good registry backup; malformed current JSON falls back to it, while unreadable current and backup fail explicitly. Removal retains user state and cached revisions, allowing reinstall/recovery without deleting user data.
+- Cache immutable UUID revisions. Preparation prunes older unreferenced revisions, retaining the newest three, the registry's prior prepared revision, and revisions leased by live host PIDs. Dead PID leases are removed. At eight retained revisions preparation fails until hosts release leases. A revision's combined main/UI output is at most 4 MiB; generated output across the entire cache is capped at 256 MiB, including removed packages. At the cap, stop the host and delete unused cache revisions before reloading. Interrupted preparation directories for the current package are removed before the next preparation. Temporary output adds at most one 4 MiB revision during publication under the directory lock. Live revision leases avoid invalidating UI assets held by another process.
+- Keep state namespaced by package ID, JSON-only, limited to 1 MiB per extension (256 KiB per value). State writes check activation validity before publication. State is local extension configuration, with no canonical memory semantics or automatic shared writes.
+
+## Non-responsibilities
+
+- Do not execute factories, grant memory authorization, route HTTP, render UI or select brain scope here.
+- Capability declarations and path checks do not sandbox trusted code. esbuild does not run package lifecycle scripts, but imported main/UI dependencies execute in the trusted host when loaded. Arbitrary blocking code, native process crashes and unmanaged side effects remain possible.
+- Do not automatically delete active cache assets or user state, update dependencies, watch source files or alter CLI/runtime behavior without explicit extension management.

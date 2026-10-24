@@ -1,5 +1,13 @@
 # Glossary
 
+## Extension
+
+An explicitly installed, trusted local TS/JS package that registers optional commands, events, panels or themes through the public jumpyBrain API. The desktop gateway owns executable activation; browser contributions have separate mount/dispose lifetimes. A package's capabilities are supported-operation declarations, not a sandbox. Memory semantics and write authorization remain core/app/target-owned. See [authoring](docs/extensions.md).
+
+## Extension host
+
+The desktop-composed app service that activates one factory per enabled package revision and owns registrations, scoped invocation and cleanup across browser tabs. Ordinary CLI memory commands and hosted servers do not construct it. Package manifests, linked source paths, compiled caches and namespaced state live outside canonical memory and the replaceable app bundle.
+
 ## Brain connection
 
 A named, Mac-app destination profile (called a companion profile in the internal protocol) for an existing local Markdown root or remote memory origin. One profile is active across companion editor tabs; switching does not sync memory or change CLI/agent targets. Destination replacement receives a new profile identity so old note links cannot open on a different brain. Remote connectivity and explicit editing/index permission are separate.

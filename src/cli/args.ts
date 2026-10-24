@@ -1,3 +1,4 @@
+import { extensionsUsage } from "./usage.js";
 import { normalizeEvidenceDate } from "../core/writing/metadata.js";
 
 export interface ParsedCliArgs {
@@ -6,6 +7,7 @@ export interface ParsedCliArgs {
 }
 
 export function parseArgs(argv: string[]): ParsedCliArgs {
+  if (argv[0] === "extensions") return parseExtensionsArgs(argv);
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
   if (operation === "dream" && argv.some(token => /^--(?:check-sources|draft|page-file|id)(?:=|$)/u.test(token))) return parseDreamSourceArgs(argv);
@@ -210,5 +212,37 @@ function parseDreamSourceArgs(argv: string[]): ParsedCliArgs {
       args[key] = value;
     } else throw new Error(`Unknown source-check flag --${key}.`);
   }
+  return args;
+}
+
+export function parseExtensionsArgs(argv: string[]): ParsedCliArgs {
+  if (argv.some(token => /^--(?:target-url|remote-url)(?:=|$)/u.test(token))) {
+    throw new Error("Extensions are desktop-local; --target-url and --remote-url are not supported.");
+  }
+  const command = argv[1];
+  if (!command || command === "help" || command === "--help") {
+    if (argv.length > (command ? 2 : 1)) throw new Error("Unexpected extension help argument.");
+    return { _: ["extensions"], help: true };
+  }
+  if (!["install", "link", "list", "enable", "disable", "remove", "reload"].includes(command)) throw new Error(`Unknown extensions command '${command}'.\n${extensionsUsage()}`);
+  const args: ParsedCliArgs = { _: ["extensions", command] };
+  const values = new Set(["directory", ...(["install", "link"].includes(command) ? ["source"] : ["enable", "disable", "remove"].includes(command) ? ["id"] : [])]);
+  for (let index = 2; index < argv.length; index++) {
+    const token = argv[index]!;
+    if (!token.startsWith("--")) throw new Error(`Unexpected extensions argument: ${token}.`);
+    const equal = token.indexOf("="), key = token.slice(2, equal < 0 ? undefined : equal);
+    if (Object.hasOwn(args, key)) throw new Error(`--${key} must not be repeated.`);
+    if (["json", "help"].includes(key)) {
+      if (equal >= 0) throw new Error(`--${key} takes no value.`);
+      args[key] = true;
+    } else if (values.has(key)) {
+      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+      if (!value || value.startsWith("--") || !value.trim()) throw new Error(`--${key} requires a value.`);
+      args[key] = value;
+    } else throw new Error(`Unknown extensions flag --${key}.`);
+  }
+  const required = ["install", "link"].includes(command) ? "source" : ["enable", "disable", "remove"].includes(command) ? "id" : null;
+  if (!args.help && required && !args[required]) throw new Error(`--${required} is required.`);
+  if (args.id && (!/^[a-z0-9][a-z0-9._-]{0,79}$/.test(String(args.id)) || ["__proto__", "constructor", "prototype"].includes(String(args.id)))) throw new Error("Invalid extension ID.");
   return args;
 }

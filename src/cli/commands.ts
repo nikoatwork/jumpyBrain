@@ -19,6 +19,12 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
   const command = args._[0];
 
+  if (command === "extensions") {
+    const { extensionsCli } = await import("./extensions.js");
+    await extensionsCli(args);
+    return;
+  }
+
   // Local-only migration must reject remote flags before policy or credentials.
   if (command === "migrate") {
     await migrateCli(args, localMemory);

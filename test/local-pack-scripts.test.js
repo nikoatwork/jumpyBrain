@@ -93,7 +93,7 @@ for (const resource of [
   "install.sh", "uninstall.sh", "scripts/public-install.mjs", "scripts/public-uninstall.mjs",
   "scripts/macos-companion.mjs", "scripts/qmd-install-check.mjs", "scripts/remote-target-origin.mjs",
   ...["Companion.swift", "install.py", "update.py", "uninstall.py", "lifecycle.py",
-    "menu-update.mjs", "update-check.mjs", "gateway.mjs", "connections.mjs", "switch-coordinator.mjs"]
+    "menu-update.mjs", "update-check.mjs", "gateway.mjs", "extensions-gateway.mjs", "connections.mjs", "switch-coordinator.mjs"]
     .map((file) => `integrations/macos-companion/${file}`),
 ]) {
   test(`local pack rejects omission of indispensable resource ${resource}`, () => {

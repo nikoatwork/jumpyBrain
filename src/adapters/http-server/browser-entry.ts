@@ -21,3 +21,5 @@ export { installToast } from "./browser-toast.js";
 export { selectGraphSearchResults } from "./graph-search.js";
 
 export { installLivingSources } from "./living-sources.js";
+
+export { createBrowserCommands } from "./browser-commands.js";

@@ -69,17 +69,45 @@ def configuration(home):
     result.update(label=LEGACY, launchAgent=str(home / 'Library/LaunchAgents/local.jumpybrain.desktop.plist'))
     return result
 
+def copy_extension_compiler(source, runtime):
+    """Snapshot only the lazy compiler and this Mac's binary, not development dependencies."""
+    architecture = {'arm64': 'arm64', 'x86_64': 'x64'}.get(os.uname().machine)
+    if not architecture:
+        raise SafetyError('Unsupported Mac architecture for extension preparation.')
+    compiler = source / 'node_modules/esbuild'
+    native_name = f'@esbuild/darwin-{architecture}'
+    native = source / 'node_modules' / native_name
+    metadata = json.loads(regular(compiler / 'package.json').read_text())
+    platform_metadata = json.loads(regular(native / 'package.json').read_text())
+    expected = json.loads(regular(source / 'package.json').read_text()).get('dependencies', {}).get('esbuild')
+    if metadata.get('name') != 'esbuild' or metadata.get('version') != expected or platform_metadata.get('name') != native_name or platform_metadata.get('version') != expected:
+        raise SafetyError('Extension compiler dependencies do not match the pinned runtime version.')
+    regular(compiler / 'lib/main.js')
+    regular(native / 'bin/esbuild')
+    target = runtime / 'node_modules/esbuild'
+    target.mkdir(parents=True)
+    shutil.copytree(compiler / 'lib', target / 'lib')
+    for name in ('package.json', 'LICENSE.md'):
+        shutil.copy2(regular(compiler / name), target / name)
+    # lib/main.js resolves the optional platform package directly. Omit the duplicate
+    # compiler/bin copy; there is one native executable in the runtime snapshot.
+    platform_target = runtime / 'node_modules' / native_name
+    platform_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(native, platform_target)
+
 def prepare(bundle, home, source=SOURCE):
     config = configuration(home)
     resources = bundle / 'Contents/Resources'
     runtime = resources / 'runtime'
     runtime.mkdir()
-    # Snapshot compiled app code. No CLI installation, memory, node_modules, or credentials.
+    # Snapshot compiled code and the one lazy extension compiler. No CLI install,
+    # memory, arbitrary node_modules tree, or credentials.
     shutil.copytree(source / 'dist', runtime / 'dist')
     shutil.copy2(source / 'package.json', runtime / 'package.json')
+    copy_extension_compiler(source, runtime)
     native = runtime / 'integrations/macos-companion'
     native.mkdir(parents=True)
-    for name in ('gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs'):
+    for name in ('gateway.mjs', 'extensions-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs'):
         shutil.copy2(source / 'integrations/macos-companion' / name, native / name)
     config['runtimeRoot'] = str(runtime)
     with build_workspace() as scratch:

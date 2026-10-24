@@ -64,6 +64,12 @@ try {
     assert.equal((await desktopControl(connection, 'state')).generation, before.generation);
     mark('settings'); await application.openEditor(true);
     await until(async () => await window.webContents.executeJavaScript('location.pathname === "/settings"'));
+    mark('packaged extensions');
+    await until(async () => await window.webContents.executeJavaScript('document.getElementById("extension-list")?.textContent.includes("Related notes · active")'));
+    await window.webContents.executeJavaScript(`document.querySelectorAll('#extension-list details').forEach(item=>item.open=true); [...document.querySelectorAll('#extension-list button')].find(item=>item.textContent==='Related notes').click()`);
+    await until(async () => await window.webContents.executeJavaScript('!!document.querySelector("#extension-panel[open] #extension-panel-content input")'));
+    assert.match(await window.webContents.executeJavaScript('document.getElementById("extension-panel-content").textContent'), /Open a saved note/);
+    await window.webContents.executeJavaScript('document.getElementById("extension-panel-close").click()');
     console.log('Unified desktop: background launch, tray, reopen, blocked quit, close keeps service, settings, safe quit');
     app.quit();
   }

@@ -61,7 +61,7 @@ def validate_runtime(runtime, require_companion_source=True):
         raise SafetyError(f"Not a compiled jumpybrain runtime: {runtime}")
     if require_companion_source:
         source = runtime / "integrations/macos-companion"
-        for helper in ("Companion.swift", "gateway.mjs", "connections.mjs", "switch-coordinator.mjs",
+        for helper in ("Companion.swift", "gateway.mjs", "extensions-gateway.mjs", "connections.mjs", "switch-coordinator.mjs",
                        "menu-update.mjs", "update-check.mjs", "install.py", "update.py", "uninstall.py", "lifecycle.py"):
             regular(source / helper)
     return package

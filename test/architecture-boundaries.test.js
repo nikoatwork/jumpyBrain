@@ -69,6 +69,9 @@ function isStaleArchitecturePath(file) {
 
 function sourceLayer(file) {
   if (file === "src/index.ts") return "package-entrypoint";
+  if (file.startsWith("src/extensions/")) return "extension-contract";
+  if (file.startsWith("src/app/extensions/")) return "extension-app";
+  if (file.startsWith("src/adapters/extensions/")) return "extension-adapter";
   if (isCliPath(file)) return "cli-boundary";
   if (isServerPath(file)) return "server-boundary";
   if (isAppPath(file)) return "app-use-case";
@@ -85,18 +88,34 @@ function sourceLayer(file) {
 
 const approvedLayerImports = new Map([
   ["package-entrypoint", new Set(["runtime-app"])],
-  ["cli-boundary", new Set(["cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter"])],
+  ["cli-boundary", new Set(["cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app"])],
   ["http-protocol-adapter", new Set(["http-protocol-adapter"])],
   ["http-client-adapter", new Set(["http-client-adapter", "http-protocol-adapter", "core-domain"])],
   ["server-boundary", new Set(["server-boundary", "app-use-case", "core-domain", "http-server-adapter", "infrastructure-adapter"])],
-  ["http-server-adapter", new Set(["http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter"])],
+  ["http-server-adapter", new Set(["http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter", "extension-contract"])],
   ["runtime-app", new Set(["runtime-app", "app-use-case", "core-domain", "infrastructure-adapter"])],
   ["app-use-case", new Set(["app-use-case", "core-domain", "qmd-adapter", "diagnostics-adapter"])],
   ["qmd-adapter", new Set(["qmd-adapter", "core-domain"])],
   ["core-domain", new Set(["core-domain"])],
   ["infrastructure-adapter", new Set(["infrastructure-adapter"])],
   ["diagnostics-adapter", new Set(["diagnostics-adapter", "infrastructure-adapter"])],
+  ["extension-contract", new Set(["extension-contract"])],
+  ["extension-app", new Set(["extension-app", "extension-adapter", "extension-contract"])],
+  ["extension-adapter", new Set(["extension-adapter", "extension-contract"])],
 ]);
+
+test("extension SDK is host independent and ordinary runtime/core never load desktop extensions", async () => {
+  const contracts = await importsIn("extensions");
+  assertNoImportEdges(contracts, edge => !edge.target || sourceLayer(edge.target) !== "extension-contract",
+    "public extension contracts must not import host or infrastructure modules");
+  for (const entry of ["src/index.ts", "src/runtime/index.ts", "src/server/index.ts"]) {
+    const graph = await sourceImportGraph(path.join(srcRoot, "..", entry));
+    assert.deepEqual(graph.filter(file => ["extension-app", "extension-adapter"].includes(sourceLayer(file))), [], `${entry} must not load desktop extensions`);
+  }
+  for (const edge of await importsIn("core")) {
+    assert.ok(!["extension-contract", "extension-app", "extension-adapter"].includes(sourceLayer(edge.target ?? "")), "canonical core stays extension independent");
+  }
+});
 
 test("package entrypoint reaches runtime without importing CLI or server code", async () => {
   const graph = await sourceImportGraph(`${srcRoot}/index.ts`);

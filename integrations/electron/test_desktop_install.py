@@ -3,6 +3,9 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import shutil
+import subprocess
+import sys
 import tempfile
 import tarfile
 import unittest
@@ -94,5 +97,35 @@ class InstallationTests(unittest.TestCase):
         with installer.installation_lock(self.home):
             with self.assertRaisesRegex(installer.SafetyError, 'Another CLI/app'): self.install()
         self.assertEqual(installer.info(self.app)['CFBundleIdentifier'], installer.LEGACY)
+
+@unittest.skipUnless(sys.platform == 'darwin', 'Mac compiler snapshot')
+class CompilerSnapshotTests(unittest.TestCase):
+    def test_snapshot_compiles_typescript_without_source_node_modules(self):
+        # Exercise the actual relocated compiler/binary, not a manifest-only fixture.
+        with tempfile.TemporaryDirectory(prefix='jb-extension-compiler-') as directory:
+            runtime = Path(directory) / 'runtime'
+            runtime.mkdir()
+            (runtime / 'package.json').write_text('{"type":"module"}')
+            installer.copy_extension_compiler(installer.SOURCE, runtime)
+            packages = sorted(path.name for path in (runtime / 'node_modules').iterdir())
+            self.assertEqual(packages, ['@esbuild', 'esbuild'])
+            self.assertFalse((runtime / 'node_modules/esbuild/bin').exists())
+            result = subprocess.run([shutil.which('node'), '--input-type=module', '-e',
+                'import {transform,stop} from "esbuild"; '
+                'try { const output=await transform("const value: number = 42",{loader:"ts"}); '
+                'if(output.code.includes(": number") || !output.code.includes("42")) throw Error("TypeScript preparation failed"); '
+                'console.log("relocated compiler passed"); } finally {stop();}'],
+                cwd=runtime, capture_output=True, text=True, timeout=20)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('relocated compiler passed', result.stdout)
+
+    def test_snapshot_rejects_a_different_pinned_compiler(self):
+        with tempfile.TemporaryDirectory(prefix='jb-extension-compiler-version-') as directory:
+            source = Path(directory) / 'source'; runtime = Path(directory) / 'runtime'
+            source.mkdir(); runtime.mkdir()
+            (source / 'package.json').write_text('{"dependencies":{"esbuild":"0.0.0"}}')
+            (source / 'node_modules').symlink_to(installer.SOURCE / 'node_modules', target_is_directory=True)
+            with self.assertRaisesRegex(installer.SafetyError, 'pinned runtime version'):
+                installer.copy_extension_compiler(source, runtime)
 
 if __name__ == '__main__': unittest.main()

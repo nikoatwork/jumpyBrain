@@ -1,3 +1,4 @@
+import { extensionStyles, extensionPanelMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { designSystemStyles } from "./browser-design-system.js";
 import { GRAPH_NODE_TONES } from "./map-controller.js";
@@ -10,6 +11,7 @@ import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
 import { feedbackMarkup, feedbackStyles } from "./feedback.js";
 
+const extensionBundle = readFileSync(new URL("./extensions-bundle.js", import.meta.url), "utf8");
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
 const graphNodeGlows = GRAPH_NODE_TONES.map((type) =>
   `<radialGradient id="map-glow-${type}"><stop stop-color="var(--node-${type})" stop-opacity=".2"/><stop offset=".45" stop-color="var(--node-${type})" stop-opacity=".08"/><stop offset="1" stop-color="var(--node-${type})" stop-opacity="0"/></radialGradient>`
@@ -29,6 +31,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   <style nonce="${nonce}">
     ${designSystemStyles}
     ${themeStyles}
+    ${companion ? extensionStyles : ""}
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body { margin: 0; overflow: hidden; font: var(--text-body)/var(--leading-ui) var(--font-ui); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
@@ -127,8 +130,9 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   </style>
 </head>
 <body data-view="home">
-${notesMarkup}
+${companion ? notesMarkup.replace('<div class="nav-tools"', '<div class="extension-slot" data-extension-slot="sidebar.actions" aria-label="Extension sidebar actions"></div><div class="nav-tools"') : notesMarkup}
 ${documentActionsMarkup}
+${companion ? extensionPanelMarkup : ""}
 ${dreamMarkup}
 ${feedbackMarkup}
 <header id="graph-header">
@@ -183,12 +187,13 @@ ${feedbackMarkup}
     </div>
     <p class="helper">Scroll to zoom · Drag to move · Select a note to open</p>
   </section>
-  ${notesViews}
+  ${companion ? notesViews.replace('<div class="note-actions">', '<div class="extension-slot" data-extension-slot="note.actions" aria-label="Extension note actions"></div><div class="note-actions">') : notesViews}
   ${companion ? companionMarkup : ""}
 </main>
 </div>
 <script nonce="${nonce}">
 ${lexicalBundle}
+${companion ? extensionBundle : ""}
 ${sidebarScript}
 const { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
 const recentWrites = createRecentWriteSearch({
@@ -198,6 +203,9 @@ const recentWrites = createRecentWriteSearch({
 const searchMemoryNotes = (query, signal) => recentWrites.search(query, signal);
 const $ = (id) => document.getElementById(id);
 ${themeScript}
+const browserScriptNonce = document.currentScript.nonce;
+let extensionUI = null;
+const browserCommands = JumpyBrainBrowser.createBrowserCommands(() => toast.show("extensions", "Command failed. Check the connection and try again.", { error: true }));
 const toast = JumpyBrainBrowser.installToast(document, () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"));
 const state = { view: "home", graph: null, graphToken: 0, selected: null, pan: { x: 0, y: 0 }, scale: 1, dragging: null, noteToken: 0, layoutTimer: null, editor: null };
 const companionMode = ${companion};
@@ -438,9 +446,33 @@ searchMaintenance = JumpyBrainBrowser.installSearchMaintenance({
     control.setAttribute("aria-label", control.title);
   },
 });
-$("graph-index-state").addEventListener("click", () => openSearch());
+$("graph-index-state").addEventListener("click", () => browserCommands.execute("search.open"));
 for (const dialog of [dreamDialog, connectionDialog, $("feedback-dialog")]) dialog.addEventListener("toggle", () => { if (dialog.open) searchMaintenance.suspend(); else searchMaintenance.resume(); });
 if (!companionMode) showPage(initialEntry.url);
+${companion ? String.raw`
+function syncCompanionExtensions() {
+  if (!extensionUI) {
+    if (!companionRegistered || !companionState?.extensions?.revision) return;
+    extensionUI = JumpyBrainExtensionBrowser.installExtensionsBrowser({
+      document, window, nonce: browserScriptNonce, commands: browserCommands,
+      request: graphJson,
+      scope: () => companionRegistered && !companionFrozen && !companionSessionFailed && companionState?.activeId
+        ? JSON.stringify([companionState.generation, companionState.activeId, companionTabId]) : null,
+      currentDocument: () => state.view === "note" && state.editor?.state.loaded
+        ? { id: state.editor.state.documentId, title: (state.editor.state.title || state.editor.state.savedTitle || "Untitled").slice(0, 512) } : null,
+      writable: () => !companionReadOnly(),
+      openNote: async id => {
+        if (!isValidMemoryDocumentId(id) || companionFrozen || companionSessionFailed) return false;
+        return navigation.navigate(companionScopeUrl("/?note=" + encodeURIComponent(id)));
+      },
+      restoreTheme: () => colorTheme.syncControl(),
+      redrawGraph: () => { if (state.view === "graph") queueGraphLayout(0, true); },
+      report: message => toast.show("extensions", message),
+    });
+  }
+  extensionUI.sync(companionState?.extensions?.revision);
+}
+` : ""}
 ${companion ? companionScript : ""}
 </script>
 </body>

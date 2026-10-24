@@ -70,7 +70,7 @@ def main():
         shutil.copy2(source_runtime / "package.json", runtime / "package.json")
         integration = runtime / "integrations/macos-companion"
         integration.mkdir(parents=True)
-        for helper in ["gateway.mjs", "connections.mjs", "switch-coordinator.mjs"]:
+        for helper in ["gateway.mjs", "extensions-gateway.mjs", "connections.mjs", "switch-coordinator.mjs"]:
             shutil.copy2(source_runtime / "integrations/macos-companion" / helper, integration / helper)
         cli = runtime / "dist/cli.js"
         assert not (resources / "runtime").exists(), "App must not contain a bundled runtime snapshot"

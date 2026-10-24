@@ -18,6 +18,14 @@
 
 No alternate memory engine/editor, implicit sync or remote writes, CLI/agent retargeting, public signing/notarization, unattended updates, or crash-persistent drafts. External Node/QMD remain prerequisites. The bundled runtime is the same app code with its own release lifecycle; CLI-only installation does not need Electron or a Mac app.
 
+## Executable extensions
+
+The internal gateway composes the [extension app host](../../src/app/extensions/extensions.docs.md) against `<support>/extensions`; Electron keeps the same sandboxed renderer, no preload/Node bridge and existing shutdown/update barrier. The shared shell embeds a separate nonce-protected extension presentation bundle only in companion mode. A browser extension panel is trusted same-origin code, not an Electron/native capability.
+
+`desktop-install.py` snapshots the pinned esbuild library and one matching Mac platform executable into the bundled runtime for lazy TS/JS package preparation. It does not copy the development dependency tree or depend on compiler modules resolving from a source checkout. The relocated compiler regression executes actual TypeScript preparation from a standalone temporary runtime and checks version mismatch rejection. Local package source/enablement/state remain in app support across runtime/app replacement.
+
+`node scripts/extensions-desktop-smoke.mjs` exercises executable example packages, nonce UI loading, real lexical results, native keyboard dispatch, repeated panel cleanup, disable, and two actual sandboxed windows acknowledging shutdown preparation. Its process samples cover the harness gateway/memory engine and Electron tree, excluding the sampler; the Swift helper, login/tray/updater and physical devices are not instantiated by that diagnostic. It is not a whole-installed-app resource budget or long-run leak proof.
+
 `npm run build` then `node scripts/mac-back-navigation-smoke.mjs` exercises the production sandboxed window/gateway against disposable brains: Chromium mouse input/default suppression, native swipe-event dispatch, five-step boundary/branching, failed-save Retry, deleted targets, real brain switching, tab cleanup, and repeated note/graph resource samples. Optional `--baseline-window <path>` loads a prior window module for matched host comparisons. Raw heap/process samples precede test-only diagnostic GC used to distinguish reachable DOM/listeners from garbage awaiting collection. This is fixture coverage, not physical mouse/trackpad verification or a whole-desktop physical-footprint budget.
 
 The native companion sources remain available for internal hosting and legacy migration/maintenance. Their standalone installer is not the new user-facing Mac setup path. Current packaging supports the private per-user installation; global/custom legacy locations require explicit migration.

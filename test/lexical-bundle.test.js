@@ -22,13 +22,23 @@ test("editor bundle is self-contained, production-sized, and safe to inline unde
   assert.doesNotMatch(html, /<textarea id="note-editor"/);
 });
 
-test("bundled third-party code ships license notices without production npm dependencies", async () => {
+test("bundled editor code ships license notices without production editor dependencies", async () => {
   const notices = await readFile(new URL("../dist/adapters/http-server/editor-LICENSES.txt", import.meta.url), "utf8");
   assert.match(notices, /node_modules\/lexical/);
   assert.match(notices, /Permission is hereby granted/);
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-  assert.equal(Object.keys(pkg.dependencies || {}).length, 0);
+  assert.deepEqual(pkg.dependencies, { esbuild: "0.28.2" }, "only the lazily loaded extension compiler is a production dependency");
+  assert.doesNotMatch(bundle, /node_modules\/esbuild|JumpyBrainExtensionBrowser/, "ordinary editor does not embed the extension compiler or renderer");
   for (const [name, version] of Object.entries(pkg.devDependencies)) {
     if (name === "lexical" || name.startsWith("@lexical/")) assert.equal(version, pkg.devDependencies.lexical);
   }
+});
+
+test("optional extension renderer is nonce-safe and only embedded by the desktop companion", async () => {
+  const extensions = await readFile(new URL("../dist/adapters/http-server/extensions-bundle.js", import.meta.url), "utf8");
+  assert.doesNotThrow(() => new vm.Script(extensions));
+  assert.doesNotMatch(extensions, /<\/script/i);
+  assert.ok(gzipSync(extensions).length < 6_000, "review optional desktop extension renderer growth beyond 6 KB gzip");
+  assert.equal(graphPageHtml("extensions").includes(extensions), false);
+  assert.equal(graphPageHtml("extensions", "home", { companion: true }).includes(extensions), true);
 });

@@ -4,14 +4,16 @@ import path from 'node:path';
 import os from 'node:os';
 import net from 'node:net';
 import { mkdtemp, realpath, mkdir, cp, readFile, writeFile, symlink, rm } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { createServerMemoryRuntime } from '../dist/server/index.js';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const electron = createRequire(new URL('../integrations/electron/package.json', import.meta.url))('electron');
-const built = path.join(repo, '.local-pack/desktop/jumpyBrain.app/Contents/Resources');
+const args = process.argv.slice(2);
+assert.ok(args.length === 0 || (args.length === 2 && args[0] === '--resources'), 'Usage: node scripts/unified-desktop-smoke.mjs [--resources <built-resources>]');
+const built = args.length ? path.resolve(args[1]) : path.join(repo, '.local-pack/desktop/jumpyBrain.app/Contents/Resources');
 const temporary = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-unified-smoke-')));
 let child;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -23,6 +25,9 @@ try {
   const nativeConfigFile = path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json');
   const nativeConfig = JSON.parse(await readFile(nativeConfigFile, 'utf8'));
   const support = path.join(temporary, 'support'); await mkdir(support, { mode: 0o700 });
+  // Resolve preparation from the relocated, packaged runtime and its own compiler.
+  const { installExtension } = await import(pathToFileURL(path.join(built, 'runtime/dist/app/extensions/index.js')).href);
+  for (const name of ['ember-plum', 'related-notes']) await installExtension({ directory: path.join(support, 'extensions'), source: path.join(repo, 'examples/extensions', name) });
   const root = path.join(temporary, 'memory'); await createServerMemoryRuntime({ root }).initializeMemoryRoot();
   await writeFile(path.join(support, 'api-key'), randomBytes(32).toString('hex'), { mode: 0o600 });
   const socket = net.createServer(); await new Promise((resolve) => socket.listen(0, '127.0.0.1', resolve));

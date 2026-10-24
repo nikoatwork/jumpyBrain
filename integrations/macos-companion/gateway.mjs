@@ -2,10 +2,11 @@
 import http from 'node:http';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { lstat, realpath } from 'node:fs/promises';
+import { lstat, realpath, readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { ConnectionStore } from './connections.mjs';
 import { SwitchCoordinator, ControlError } from './switch-coordinator.mjs';
+import { createExtensionGateway } from './extensions-gateway.mjs';
 
 const MAX_BODY = 1024 * 1024;
 const MAX_RESPONSE = 16 * 1024 * 1024;
@@ -123,7 +124,7 @@ function allowedMemoryRoute(method, pathname) {
   return null;
 }
 
-export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance, feedbackSender } = {}) {
+export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance, feedbackSender, safeMode = false } = {}) {
   if (!path.isAbsolute(runtimeRoot || '') || !/^[0-9a-f]{64}$/i.test(controlKey || '')) throw new Error('Invalid companion bootstrap.');
   // /var is a legitimate macOS alias; the persistence seam itself rejects symlinks.
   directory = await realpath(directory);
@@ -133,6 +134,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const { brainFaviconSvg } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/favicon.js')).href);
   const { startJumpyBrainHttpServer } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/server/index.js')).href);
   const { createFeedbackForwarder, createFeedbackHandler } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/feedback-delivery.js')).href);
+  const { createExtensionHost } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/extensions/index.js')).href);
   const feedback = createFeedbackHandler(feedbackSender ?? createFeedbackForwarder());
   const { createDiagnosticStore, newDiagnosticId, readNativeDiagnosticSnapshot } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/store.js')).href);
   const { diagnosticId, diagnosticOperation, diagnosticCode, statusCode, sanitizeDiagnosticEvent } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/events.js')).href);
@@ -181,8 +183,11 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   };
   // All requests to a local target are serialized through one startup promise too.
   let targetTail = Promise.resolve();
-  const resolveDestination = (profile) => {
-    const result = targetTail.then(() => destination(profile));
+  const resolveDestination = (profile, signal) => {
+    const result = targetTail.then(() => {
+      if (signal?.aborted) failure('target_timeout', 'Brain request timed out.', 504);
+      return destination(profile);
+    });
     targetTail = result.catch(() => {});
     return result;
   };
@@ -190,9 +195,13 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     const started = performance.now();
     const diagnosticRequest = diagnosticId(options.headers?.['X-JumpyBrain-Request']);
     const controller = new AbortController(); controllers.add(controller);
-    const timer = setTimeout(() => controller.abort(), deadline);
+    const abort = () => controller.abort();
+    options.signal?.addEventListener('abort', abort, { once: true });
+    if (options.signal?.aborted) abort();
+    const timer = setTimeout(abort, deadline);
     try {
-      const dest = await resolveDestination(profile);
+      const dest = await resolveDestination(profile, controller.signal);
+      if (options.signal?.aborted) failure('extension_cancelled', 'Extension operation was cancelled.', 409);
       if (controller.signal.aborted) failure('target_timeout', 'Brain request timed out.', 504);
       const transport = fetchImpl === fetch && route.split('?')[0].endsWith('/index') ? fetchIndexTarget : fetchImpl;
       const response = await transport(dest.url + route, { ...options, headers: { ...options.headers, Authorization: 'Bearer ' + dest.key }, redirect: 'manual', signal: controller.signal });
@@ -200,6 +209,8 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       let body;
       try { body = await bytes(response.body || [], MAX_RESPONSE); }
       catch (error) { controller.abort(); throw error; }
+      if (options.signal?.aborted) failure('extension_cancelled', 'Extension operation was cancelled.', 409);
+      if (controller.signal.aborted) failure('target_timeout', 'Brain request timed out.', 504);
       // Do not send upstream cookies, authentication challenges, or redirects to the shell.
       diagnostics.record({ operation: diagnosticOperation(route, options.method), request: diagnosticRequest, status: response.status, durationMs: performance.now() - started,
         severity: response.ok ? 'info' : 'warn', outcome: response.ok ? 'ok' : 'failed', code: statusCode(response.status) });
@@ -207,10 +218,13 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     } catch (error) {
       diagnostics.record({ operation: diagnosticOperation(route, options.method), request: diagnosticRequest, durationMs: performance.now() - started,
         severity: 'warn', outcome: 'failed', code: error instanceof ControlError ? diagnosticCode(error.code) : controller.signal.aborted ? 'target_timeout' : 'offline' });
+      if (options.signal?.aborted) failure('extension_cancelled', 'Extension operation was cancelled.', 409);
       if (error instanceof ControlError) throw error;
       failure(controller.signal.aborted ? 'target_timeout' : 'offline', controller.signal.aborted ? 'Brain request timed out.' : 'The selected brain is unavailable.', controller.signal.aborted ? 504 : 503);
-    } finally { clearTimeout(timer); controllers.delete(controller); }
+    } finally { clearTimeout(timer); options.signal?.removeEventListener('abort', abort); controllers.delete(controller); }
   };
+  const extensionHost = await createExtensionHost({ directory: path.join(directory, 'extensions'), safeMode });
+  const extensions = createExtensionGateway({ host: extensionHost, coordinator, active, targetFetch, jsonBody, json });
   const testProfile = async (profile) => {
     // Inactive local testing is an observational marker check; never switch/start a second engine.
     if (profile?.kind === 'local' && profile.id !== store.snapshot().activeId) {
@@ -236,7 +250,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   };
   const state = () => {
     const snapshot = store.snapshot(); const profile = active();
-    return { ...snapshot, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), health, ...(hostInstance ? { hostInstance } : {}),
+    return { ...snapshot, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), extensions: extensions.signal(), health, ...(hostInstance ? { hostInstance } : {}),
       target: profile?.kind === 'remote' ? profile.url : null };
   };
   const change = async (operation) => {
@@ -255,6 +269,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       health = 'offline'; healthAt = 0;
       try { await stopLocal(); } catch { /* Selection remains committed and safely offline. */ }
     });
+    void extensions.scopeChanged();
     await refreshHealth();
     return state();
   });
@@ -292,6 +307,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       }
       if (request.method === 'GET' && url.pathname === '/health') { json(response, 200, { ok: !stopping }); return; }
       const auth = authenticate(request, url.pathname);
+      if (await extensions.handle(request, response, url, auth)) return;
       if (url.pathname === '/feedback') {
         const finish = coordinator.enter(auth.native ? coordinator.generation : Number(request.headers['x-companion-generation']), request.headers['x-companion-tab'], auth.native);
         try { await feedback(request, response); } finally { finish(); }
@@ -382,6 +398,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
                   health = 'offline'; healthAt = 0;
                   try { await stopLocal(); } catch {}
                 });
+                void extensions.scopeChanged();
               } else await store.save(input, body.revision);
             });
             json(response, 200, state()); return;
@@ -421,10 +438,19 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
         response.end(packet.body);
       } finally { finish(); }
     } catch (error) {
+      // Runtime attributes factory failures, retaining trusted transport errors as causes.
+      // Unwrap only this adapter's own error class, never arbitrary extension status fields.
+      const seen = new Set();
+      for (let cause = error; cause && !seen.has(cause) && seen.size < 8; cause = cause.cause) {
+        if (cause instanceof ControlError) { error = cause; break; }
+        seen.add(cause);
+      }
       errorCode = diagnosticCode(error?.code);
+      const extensionError = error?.name === 'ExtensionPackageError';
       const known = error instanceof ControlError || error?.name === 'ConnectionError';
-      const status = error instanceof ControlError ? error.status : error?.code === 'REVISION_CONFLICT' ? 409 : known ? 400 : 500;
-      json(response, status, { error: { code: known ? error.code : 'companion_failed', message: known ? error.message : 'Companion operation failed.' } });
+      const extensionCode = ['extension_permission_denied', 'extension_stale'].includes(error?.code) ? error.code : 'extension_failed';
+      const status = error instanceof ControlError ? error.status : extensionError ? (extensionCode === 'extension_permission_denied' ? 403 : extensionCode === 'extension_stale' ? 409 : 400) : error?.code === 'REVISION_CONFLICT' ? 409 : known ? 400 : 500;
+      json(response, status, error instanceof ControlError && error.packet ? error.packet : { error: { code: known ? error.code : extensionError ? extensionCode : 'companion_failed', message: known ? error.message : extensionError ? 'Extension operation failed. Check the installed package or reload extensions.' : 'Companion operation failed.' } });
     } finally {
       if (url.pathname !== '/health' && !['/', '/graph', '/settings', '/favicon.svg', '/companion/diagnostics'].includes(url.pathname)) diagnostics.record({
         operation: diagnosticOperation(url.pathname, request.method), request: requestId, status: response.statusCode,
@@ -438,20 +464,38 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     requests.add(operation); void operation.finally(() => requests.delete(operation));
   });
   server.requestTimeout = 30000; server.headersTimeout = 15000;
-  await new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(port, '127.0.0.1', () => { server.off('error', reject); resolve(); });
-  });
+  try {
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(port, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+    });
+  } catch (error) { await extensions.dispose(); throw error; }
   origin = `http://127.0.0.1:${server.address().port}`; cookieName = 'jumpybrain_companion_' + server.address().port;
+  // A private pointer lets local CLI management find this exact support-directory host.
+  // The native control capability remains in api-key; never publish it here.
+  const controlFile = path.join(directory, 'extensions-control.json');
+  const controlIdentity = randomBytes(16).toString('hex');
+  const controlPacket = JSON.stringify({ version: 1, directory, origin, pid: process.pid, identity: controlIdentity });
+  const controlTemporary = controlFile + '.' + controlIdentity;
+  try {
+    await writeFile(controlTemporary, controlPacket, { mode: 0o600, flag: 'wx' });
+    await rename(controlTemporary, controlFile);
+  } catch (error) {
+    await unlink(controlTemporary).catch(() => {});
+    server.closeAllConnections(); server.close(); await extensions.dispose(); throw error;
+  }
+  void extensions.scopeChanged();
   return { url: origin, server, store, coordinator, state, diagnostics,
     close: async () => {
-      stopping = true; coordinator.close();
+      stopping = true; coordinator.close(); extensions.cancel();
       for (const controller of controllers) controller.abort();
       const closed = new Promise((resolve) => server.close(resolve));
       server.closeAllConnections(); // Also abort incomplete request-body receipt before draining handlers.
       await Promise.allSettled([...requests]);
+      await extensions.dispose();
       await healthPending; await targetTail; await stopLocal();
       server.closeAllConnections(); await closed;
+      try { if (await readFile(controlFile, 'utf8') === controlPacket) await unlink(controlFile); } catch {}
       diagnostics.record({ operation: 'shutdown', severity: 'info', outcome: 'ok', code: 'none' });
       await Promise.all([diagnostics.flush(), electronDiagnostics.flush()]);
     } };

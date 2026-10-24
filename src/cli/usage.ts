@@ -3,6 +3,7 @@ export function usage(): string {
     "Usage:",
     "  jumpybrain --version",
     "  jumpybrain instructions",
+    "  jumpybrain extensions --help",
     "  jumpybrain doctor [--root <memory-root>] [--json]",
     "  jumpybrain update [--dry-run] [--install-root <path>]",
     "  jumpybrain serve --root <memory-root> --host 127.0.0.1 --port 3787",
@@ -69,5 +70,21 @@ export function runUsage(): string {
     "  Compact and expand: always compact JSON + one LF, no banners; --json is optional.",
     "  maxBytes: 1024-65536 UTF-8 bytes (default 8192), including envelope/diagnostics/LF, not tokens.",
     "  HTTP headers/error packets are outside the successful cap; legacy text/JSON is unchanged.",
+  ].join("\n");
+}
+
+export function extensionsUsage(): string {
+  return [
+    "Usage:",
+    "  jumpybrain extensions install --source <local-package> [--directory <extensions-directory>] [--json]",
+    "  jumpybrain extensions list [--directory <extensions-directory>] [--json]",
+    "  jumpybrain extensions enable|disable|remove --id <extension-id> [--directory <extensions-directory>] [--json]",
+    "  jumpybrain extensions reload [--directory <extensions-directory>] [--json]",
+    "",
+    "Trusted local TypeScript/JavaScript packages only; no npm/git fetching.",
+    "Default directory: ~/Library/Application Support/jumpyBrain Companion/extensions",
+    "Install/link and offline management prepare packages without executing factories.",
+    "An active companion owns activation; reload prepares packages when it is closed.",
+    "Removal preserves extension state. Use the extensions/disabled marker for safe startup.",
   ].join("\n");
 }
