@@ -108,6 +108,7 @@ test('healthy background reads coalesce for thirty seconds without suppressing e
 });
 
 test('managed directory/segment links, hardlinks, corruption and oversized source files fail safely', async (t) => {
+  t.mock.method(Date, 'now', () => Date.parse(at));
   const root = await fixture(t), outside = path.join(root, 'outside'); await mkdir(outside, { mode: 0o700 });
   await symlink(outside, path.join(root, 'linked'));
   const linked = createDiagnosticStore({ directory: path.join(root, 'linked'), component: 'server' }); linked.record(event()); await linked.flush();
