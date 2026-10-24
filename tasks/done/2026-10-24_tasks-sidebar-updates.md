@@ -1,5 +1,7 @@
 # Desktop sidebar updates
 
+Status: completed; archived 2026-10-24. The original app-only updater shipped in v0.3.4 and was subsequently replaced by the [coordinated Mac/CLI updater](2026-10-22_tasks-unified-mac-cli-update-experience.md) and [inline update control](2026-10-22_tasks-inline-desktop-update-control.md). The decisions and verification below describe the original implementation, including its historical limits.
+
 ## Goal
 
 Show software update availability at the bottom-right of the Mac app sidebar, with explicit installation and a separate restart action.
@@ -31,4 +33,10 @@ Show software update availability at the bottom-right of the Mac app sidebar, wi
 - The final swap/relaunch uses the existing transactional installer, covered by its migration/rollback tests and handoff ordering tests; the user's installed app was not replaced for end-to-end testing.
 - Preparation requires local Mac build tools. Staged readiness currently lasts for the desktop process; quitting without choosing Restart requires preparing again. Abandoned stage directories remain in app user data until removed when no update process is running.
 - Genuine Node 22 validation caught an unreferenced-child cancellation wait; the helper is now referenced until cancellation cleanup finishes. The existing real-child regression covers this behavior.
-- Publication authorized on 2026-10-22 as patch release 0.3.4 through the full release workflow. See `docs/releases/v0.3.4.md`; this task list remains here pending archival preference.
+- Published v0.3.4 on 2026-10-22; local tag resolves to `3bbb0f2`. See the [original release notes](../../docs/releases/v0.3.4.md) and [subsequent release QA](releases/v0.3.5.qa.md), which records the earlier publication and replacement of the app-only updater.
+
+## Finalization — 2026-10-24
+
+- Original implementation: `d416e4d`; cancellation cleanup fix: `b60ab5b`. Historical checks above cover that implementation; later updater behavior and installed-fixture verification belong to the successor archives linked above.
+- Reviewed repository snapshot `86dc87b`; all required original tasks are complete. Removed the obsolete archival-preference hold under the [current task workflow](../../docs/task-workflow.md).
+- Finalization changes task documentation only. Archive links and diff whitespace were checked; no new runtime tests, installation or release was performed. Historical limitations remain recorded rather than being treated as current updater policy.

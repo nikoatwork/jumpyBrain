@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-24 — Completed task reconciliation
+
+- Archived the completed [original sidebar updater](done/2026-10-24_tasks-sidebar-updates.md) and removed the stale active [browser design-system](done/2026-10-22_tasks-browser-design-system.md) duplicate, preserving verification and successor history.
+
 ## 2026-10-23 — Bounded desktop RAM study
 
 - Recorded matched RAM measurements and kept Electron; [closed the bounded study](done/2026-10-23_tasks-desktop-ram-follow-up.md) with default-deadline acceptance and production budgets explicitly unproven.

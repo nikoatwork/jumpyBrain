@@ -48,3 +48,9 @@ Follow-up implementation: removed the medium/bold interface tokens, retained reg
 Follow-up verification so far: TypeScript no-emit check, changed-script syntax checks, source theme behavior and whitespace passed. Expanded production theme smoke asserts equal computed navigation typography at 1280/390/320px in both palettes. The coordinated build passed, then all five theme tests and the expanded production theme smoke passed. Computed navigation role equality, accessible glyph actions, 1280/390/320px in both themes, persisted/cross-tab/OS theme behavior, storage failure, and preserved draft/caret/dialog/map behavior are verified. Visually inspected desktop dark and 320px light screenshots under `/tmp/jumpybrain-sidebar-attention-qa`.
 
 Release-note candidate: “A quieter sidebar puts Search and New note together as icons, adds a sun/moon theme toggle, removes empty-Pinned helper text, and gives interface controls consistent typography.”
+
+## Archive reconciliation — 2026-10-24
+
+Removed the stale active copy after confirming it exactly matched the baseline above. This archive retains the completed typography follow-up as well. The baseline implementation is committed in `fbdf58f`; [v0.3.5 QA](releases/v0.3.5.qa.md) records the tested runtime snapshot and publication, and [combined master integration](2026-10-22_tasks-combined-master-integration.md) records verification of the later `2719e2b` integration merged in `10a6a57`.
+
+Reconciliation reviewed repository snapshot `86dc87b`. Only task documentation changed; archive links and diff whitespace were checked, with no new runtime tests or broader device/browser claims. Existing verification limits above remain applicable.
