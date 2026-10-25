@@ -61,60 +61,45 @@ try {
       const preview = await page.locator("#search-results .search-result-preview").first().innerText();
       assert.doesNotMatch(preview, /(?:^|\s)#{1,6} |\*\*|^- /);
       const layout = await page.locator("#search-results li").filter({ has: page.locator(".search-result-age") }).first().evaluate(row => {
-        const title = row.querySelector("strong"), age = row.querySelector(".search-result-age"), preview = row.querySelector(".search-result-preview");
+        const icon = row.querySelector(".search-result-icon"), content = row.querySelector(".search-result-content"), title = row.querySelector("strong"), age = row.querySelector(".search-result-age"), preview = row.querySelector(".search-result-preview");
         const style = getComputedStyle(preview), bounds = row.getBoundingClientRect(), ageBounds = age.getBoundingClientRect();
-        return { age: age.textContent, ageRight: ageBounds.right, rowRight: bounds.right, titleRight: title.getBoundingClientRect().right,
+        return { age: age.textContent, ageRight: ageBounds.right, ageCenter: ageBounds.y + ageBounds.height / 2, rowCenter: bounds.y + bounds.height / 2, iconRight: icon.getBoundingClientRect().right, contentLeft: content.getBoundingClientRect().left, rowRight: bounds.right, titleRight: title.getBoundingClientRect().right,
           previewHeight: preview.clientHeight, lineHeight: parseFloat(style.lineHeight), nowrap: style.whiteSpace, ellipsis: style.textOverflow, overflow: row.scrollWidth > row.clientWidth };
       });
       assert.equal(layout.age, "1d");
       assert.ok(layout.ageRight > layout.titleRight && layout.rowRight - layout.ageRight <= 13, "edit age stays at the right edge");
+      assert.ok(Math.abs(layout.ageCenter - layout.rowCenter) < 1, "edit age is centered in its own column");
+      assert.ok(layout.iconRight < layout.contentLeft, "note icon has a separate left column");
       assert.equal(layout.nowrap, "nowrap"); assert.equal(layout.ellipsis, "ellipsis");
       assert.ok(layout.previewHeight <= layout.lineHeight + 1, "preview occupies one line");
       assert.equal(layout.overflow, false, "long titles and paths do not overflow the row");
+      assert.equal(await page.locator("#note-search select, #search-custom-dates, .search-result-editor").count(), 0, "search has no filter controls or author metadata");
+      const unknown = page.locator("#search-results li").filter({ has: page.getByText("Mistral research note 06", { exact: true }) });
+      assert.equal(await unknown.locator(".search-result-age").count(), 0);
+      assert.doesNotMatch(await unknown.innerText(), /Editor unknown|Edit date unknown/);
       await page.screenshot({ path: path.join(output, `search-${width}-${theme}.png`) });
       const nextBox = await page.locator("#search-next").boundingBox(), dialogBox = await page.locator("#note-search").boundingBox();
       assert.ok(nextBox.y + nextBox.height <= dialogBox.y + dialogBox.height, "paging remains visible inside the dialog");
       await page.locator("#search-next").click();
       await page.waitForFunction(() => document.querySelector("#search-previous")?.hidden === false && document.querySelectorAll("#search-results li").length > 0 && document.querySelectorAll("#search-results li").length < 24);
-      await page.locator("#search-editor").selectOption("you");
-      await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1);
-      assert.match(await page.locator("#search-results").innerText(), /You/);
-      await page.locator("#search-date").selectOption("yesterday");
-      await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1 && !document.querySelector("#search-results").getAttribute("aria-busy").includes("true"));
-      assert.equal(await page.locator(".search-result-age").innerText(), "1d");
-      await page.screenshot({ path: path.join(output, `search-human-${width}-${theme}.png`) });
-      await page.locator("#search-sort").selectOption("edited");
-      await page.locator("#search-date").selectOption("custom");
-      await page.locator("#search-from").fill("2099-10-24");
-      await page.locator("#search-to").fill("2026-10-23");
-      await page.locator("#search-to").blur();
-      await page.waitForFunction(() => document.querySelector("#search-message").textContent.includes("Choose valid dates"));
-      await page.locator("#search-from").fill("2000-01-01");
-      await page.locator("#search-to").fill("2099-12-31");
-      await page.locator("#search-to").blur();
-      await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1 && document.querySelector("#search-results").getAttribute("aria-busy") === "false");
-      await page.locator("#search-date").selectOption("yesterday");
-      await page.locator("#search-date-field").selectOption("created");
-      await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 0 && document.querySelector("#search-results").getAttribute("aria-busy") === "false");
-      await page.locator("#search-clear").click();
+      await page.locator("#search-previous").click();
       await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 24);
-      await page.locator("#search-editor").selectOption("unknown");
-      await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1);
-      assert.doesNotMatch(await page.locator("#search-results").innerText(), /Editor unknown|Edit date unknown/);
-      assert.equal(await page.locator(".search-result-editor, .search-result-age").count(), 0);
-      await page.locator("#search-clear").click();
-      await page.locator("#search-editor").selectOption("you");
-      await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1);
-      await page.locator("#note-search-input").press("ArrowDown"); await page.locator("#note-search-input").press("Enter");
+      await page.locator("#note-search-input").fill(notes[0].title);
+      await page.waitForFunction(title => document.querySelector("#search-results strong")?.textContent === title, notes[0].title);
+      await page.locator("#note-search-input").press("ArrowDown");
+      await page.locator("#note-search-input").press("ArrowUp");
+      await page.locator("#note-search-input").press("Enter");
       await page.locator("#note-editor").waitFor({ state: "visible" });
+      assert.equal(await page.locator("#note-name").inputValue(), notes[0].title);
       assert.equal(await readFile(path.join(root, notes[0].file), "utf8"), notes[0].content, "searching/opening never writes notes");
       if (width === 1280 && theme === "dark") {
         await replaceEditorText(page, "Mistral freshly edited personal application note");
         await page.waitForFunction(() => document.querySelector("#note-save-state")?.textContent === "Saved");
         await page.locator("#open-search").click();
         await page.locator("#note-search-input").fill("freshly edited personal");
-        await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1);
-        assert.match(await page.locator("#search-results").innerText(), /(?:now|\d+[mh]).*You/s);
+        await page.waitForFunction(() => [...document.querySelectorAll(".search-result-preview")].some(node => node.textContent.includes("freshly edited personal")));
+        const savedRow = page.locator("#search-results li").filter({ hasText: "freshly edited personal" });
+        assert.match(await savedRow.locator(".search-result-age").innerText(), /^(?:now|\d+[mh])$/);
         assert.match(await page.locator("#search-results").innerText(), /freshly edited personal/);
         // Reset the fixture and refresh the index for the next layout.
         await writeFile(path.join(root, notes[0].file), notes[0].content);
@@ -125,6 +110,6 @@ try {
       console.log(`PASS search recognition ${width}px ${theme}`);
     }
     assert.deepEqual(errors, []);
-    console.log(`PASS real immutable-read search, bounded paging, date/editor filters, plain-text previews, confirmed-save attribution. Screenshots: ${output}`);
+    console.log(`PASS real immutable-read search, bounded paging, keyboard opening, filter-free search, plain-text previews, confirmed-save freshness. Screenshots: ${output}`);
   }
 } finally { await browser?.close(); await server?.close(); await rm(root, { recursive: true, force: true }); }

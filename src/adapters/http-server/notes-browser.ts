@@ -139,32 +139,29 @@ ${noteAttentionStyles}
     .note-frontmatter pre { white-space: pre-wrap; overflow-wrap: anywhere; }
     dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
     dialog::backdrop { background: var(--backdrop); }
-    .search-controls { display: flex; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); }
-    .search-controls label { min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-caption); color: var(--ink-soft); }
-    .search-controls select, .search-controls input { min-width: 0; max-width: 100%; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: var(--space-2); }
-    #search-custom-dates:not([hidden]) { display: flex; flex-wrap: wrap; gap: var(--space-2); width: 100%; }
     .search-result mark { color: inherit; background: color-mix(in srgb, var(--accent) 18%, transparent); }
     #search-coverage { margin-top: var(--space-2); }
-    #note-search { margin-top: min(15vh, 100px); }
+    #note-search { width: min(760px, calc(100vw - 32px)); max-height: min(740px, calc(100dvh - 64px)); margin-top: min(12vh, 100px); }
     #note-search[open] { display: flex; flex-direction: column; }
-    #note-search > .dialog-head, #note-search > .search-controls, #note-search > .search-footer { flex-shrink: 0; }
+    #note-search > .dialog-head, #note-search > .search-footer { flex-shrink: 0; }
     .dialog-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); border-bottom: 1px solid var(--line); }
+    .search-input-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink-soft); }
+    .search-input-icon svg { display: block; width: 100%; height: 100%; }
     #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: var(--text-section); }
     #note-search-input:focus-visible { outline: 2px solid var(--focus-ring); }
-    #search-results { list-style: none; padding: var(--space-1); margin: 0; max-height: 45dvh; min-height: 0; flex: 1 1 auto; overflow: auto; }
-    .search-result { padding: var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
+    #search-results { list-style: none; padding: var(--space-1); margin: 0; max-height: 55dvh; min-height: 0; flex: 1 1 auto; overflow: auto; }
+    .search-result { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
     .search-result[aria-selected="true"] { background: var(--surface-hover); }
     .search-result[aria-disabled="true"] { cursor: default; color: var(--ink-soft); }
-    .search-result-heading, .search-result-meta { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; }
-    .search-result strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); font-weight: var(--weight-semibold); }
+    .search-result-icon { width: 20px; height: 20px; align-self: start; margin-top: var(--space-0-5); color: var(--ink-soft); }
+    .search-result-content { min-width: 0; }
+    .search-result strong { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-section); font-weight: var(--weight-regular); }
     .search-result-preview { display: block; margin-top: var(--space-1); font-size: var(--text-ui); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .search-result small { color: var(--ink-soft); font-size: var(--text-caption); }
-    .search-result-age { flex-shrink: 0; font-variant-numeric: tabular-nums; }
-    .search-result-meta { margin-top: var(--space-1); }
-    .search-result-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .search-result-editor { flex-shrink: 0; }
+    .search-result-age { grid-column: 3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .search-result-path { display: block; margin-top: var(--space-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .search-result-unavailable { display: block; margin-top: var(--space-1); }
-    .search-footer { padding: var(--space-3) var(--space-4); font-size: var(--text-caption); color: var(--ink-soft); }
+    .search-footer { border-top: 1px solid var(--line); background: var(--control-fill); padding: var(--space-3) var(--space-4); font-size: var(--text-caption); color: var(--ink-soft); }
     .search-footer p { margin: 0; }
     #connection { padding: var(--space-6); }
     #connection h2 { margin: 0 0 var(--space-2); font-size: var(--text-heading); }
@@ -244,17 +241,10 @@ ${noteAttentionMarkup}
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
 <dialog id="note-search" aria-label="Search notes">
   <div class="dialog-head">
+    <span class="search-input-icon" aria-hidden="true">${browserIcons.search}</span>
     <input id="note-search-input" aria-label="Search titles and contents" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="search-results" autocomplete="off" placeholder="Search your memory…" />
     <button id="search-refresh-index" type="button" class="quiet-button note-icon" aria-label="Reindex memory" title="Reindex memory" hidden>${browserIcons.refresh}</button>
     <button id="close-search" class="quiet-button note-icon" aria-label="Close search" title="Close search (Esc)">${browserIcons.close}</button>
-  </div>
-  <div class="search-controls" aria-label="Narrow search">
-    <label><span>Date</span><select id="search-date-field" aria-label="Date field"><option value="edited">Last edited</option><option value="created">Created</option></select></label>
-    <label><span>When</span><select id="search-date" aria-label="Date range"><option value="">Any time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">Last 7 days</option><option value="custom">Custom dates</option></select></label>
-    <label><span>Last editor</span><select id="search-editor" aria-label="Last editor"><option value="">Anyone</option><option value="you">You</option><option value="human">Human</option><option value="agent">Agent</option><option value="unknown">Unknown</option></select></label>
-    <label><span>Sort</span><select id="search-sort" aria-label="Sort results"><option value="relevance">Relevance</option><option value="edited">Recently edited</option></select></label>
-    <button id="search-clear" type="button" class="quiet-button" hidden>Clear filters</button>
-    <div id="search-custom-dates" hidden><label>From<input id="search-from" type="date" /></label><label>Through<input id="search-to" type="date" /></label></div>
   </div>
   <ul id="search-results" role="listbox" aria-label="Matching notes"></ul>
   <div class="search-footer">
@@ -509,8 +499,8 @@ function createNoteSearch(options) {
       } catch (error) {
         if (token !== generation) return;
         search.status = Number(error.status) === 401 || Number(error.status) === 403 ? "auth" : "error";
-        search.message = error.code === "invalid_recognition" ? "Choose valid dates, with From on or before Through."
-          : error.code === "unsupported_recognition" ? "This server needs an update to support date and editor filters."
+        search.message = error.code === "invalid_recognition" ? "Could not load this page of results. Retry search."
+          : error.code === "unsupported_recognition" ? "This server needs an update to support paged search."
           : search.status === "auth" ? "Connect with an access key to search your memory."
           : Number(error.status) === 500 ? "Search is unavailable. The server may need its index built. Retry or ask the server operator."
           : "Search failed. Check your connection and retry.";
@@ -677,14 +667,13 @@ for (const id of ["home-search", "open-search"]) {
   $(id).setAttribute("aria-keyshortcuts", appleKeyboard ? "Meta+K" : "Control+K");
   $(id).title = "Search notes · " + shortcut;
 }
-const searchControls = JumpyBrainBrowser.searchRecognitionControls(document, browserActor.id);
 let searchOffset = 0;
 const noteSearch = createNoteSearch({
   resultLimit: 24,
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
   abortController: () => new AbortController(),
-  fetch: (query, signal) => recentWrites.search(query, signal, 24, searchControls.options(searchOffset)),
+  fetch: (query, signal) => recentWrites.search(query, signal, 24, { offset: searchOffset }),
   onChange: renderNoteSearch,
 });
 
@@ -851,30 +840,27 @@ function renderNoteSearch(search) {
       item.className = "search-result";
       item.setAttribute("role", "option");
       item.setAttribute("aria-disabled", String(!result.documentId));
-      const heading = document.createElement("div"); heading.className = "search-result-heading";
+      const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      for (const [key, value] of Object.entries({ class: "search-result-icon", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) icon.setAttribute(key, value);
+      const outline = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      outline.setAttribute("d", "M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8M8 16h6"); icon.append(outline);
+      const content = document.createElement("div"); content.className = "search-result-content";
       const title = document.createElement("strong"); JumpyBrainBrowser.appendSearchHighlight(title, result.title, search.query);
       title.title = result.title;
-      const snippet = document.createElement("span");
-      snippet.className = "search-result-preview";
+      const snippet = document.createElement("span"); snippet.className = "search-result-preview";
       JumpyBrainBrowser.appendSearchHighlight(snippet, JumpyBrainBrowser.searchPreview(result.snippet, result.title, search.query, result.recognition?.preview || ""), search.query);
-      const edit = document.createElement("small"), editContext = JumpyBrainBrowser.resultEditContext(result.recognition, browserActor.id);
-      edit.className = "search-result-age";
-      edit.textContent = editContext.label;
-      edit.title = editContext.details; edit.setAttribute("aria-label", editContext.details);
-      heading.append(title);
-      if (editContext.label) heading.append(edit);
-      const context = document.createElement("div"); context.className = "search-result-meta";
       const file = document.createElement("small"); file.className = "search-result-path"; file.textContent = result.file; file.title = result.file;
-      context.append(file);
-      if (editContext.editor) {
-        const editor = document.createElement("small"); editor.className = "search-result-editor"; editor.textContent = editContext.editor;
-        editor.title = editContext.details; editor.setAttribute("aria-label", editContext.details);
-        context.append(editor);
-      }
-      item.append(heading, snippet, context);
+      content.append(title, snippet, file);
       if (!result.documentId) {
         const unavailable = document.createElement("small"); unavailable.className = "search-result-unavailable"; unavailable.textContent = "Unavailable: missing memory ID";
-        item.append(unavailable);
+        content.append(unavailable);
+      }
+      item.append(icon, content);
+      const editContext = JumpyBrainBrowser.resultEditContext(result.recognition);
+      if (editContext.label) {
+        const edit = document.createElement("small"); edit.className = "search-result-age"; edit.textContent = editContext.label;
+        edit.title = editContext.details; edit.setAttribute("aria-label", editContext.details);
+        item.append(edit);
       }
       item.addEventListener("click", () => chooseSearchResult(result));
       list.append(item);
@@ -939,12 +925,6 @@ $("note-search-input").addEventListener("keydown", (event) => {
   if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); noteSearch.move(event.key === "ArrowDown" ? 1 : -1); }
   if (event.key === "Enter") { event.preventDefault(); chooseSearchResult(noteSearch.state.results[noteSearch.state.selected]); }
 });
-for (const id of ["search-date", "search-editor", "search-sort", "search-from", "search-to", "search-date-field"]) $(id).addEventListener("change", () => {
-  $("search-custom-dates").hidden = $("search-date").value !== "custom";
-  $("search-clear").hidden = !$("search-date").value && !$("search-editor").value && $("search-sort").value === "relevance" && $("search-date-field").value === "edited";
-  searchOffset = 0; noteSearch.query($("note-search-input").value, true);
-});
-$("search-clear").addEventListener("click", () => { searchControls.clear(); searchOffset = 0; $("search-custom-dates").hidden = true; $("search-clear").hidden = true; noteSearch.query($("note-search-input").value, true); });
 $("search-previous").addEventListener("click", () => { searchOffset = Math.max(0, searchOffset - 24); noteSearch.query($("note-search-input").value, true); });
 $("search-next").addEventListener("click", () => { if (noteSearch.state.recognition?.nextOffset !== undefined) { searchOffset = noteSearch.state.recognition.nextOffset; noteSearch.query($("note-search-input").value, true); } });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));

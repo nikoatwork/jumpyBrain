@@ -2,6 +2,7 @@
 const icon = (body: string): string => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 export const browserIcons = {
+  search: icon('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>'),
   home: icon('<path d="m3 10 9-7 9 7v10H3V10Zm6 10v-7h6v7"/>'),
   graph: icon('<circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="19" r="2.5"/><path d="M7.5 6h9M6 8l5 9m7-9-5 9"/>'),
   settings: icon('<path d="m9 3-.6 2.4-2 .9L4 5.6 2.5 8.2 4.3 10v2l-1.8 1.8L4 16.4l2.4-.7 2 .9L9 19h3l.6-2.4 2-.9 2.4.7 1.5-2.6L16.7 12v-2l1.8-1.8L17 5.6l-2.4.7-2-.9L12 3H9Z" transform="translate(1.5 1)"/><circle cx="12" cy="12" r="3"/>'),

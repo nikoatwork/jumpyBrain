@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-25 — Simpler search layout
+
+- Matched the search reference with note icons, a separate age column and a wider dialog; removed browser filters and author/creation details. [Implementation and verification](done/2026-10-25_tasks-search-reference-layout.md).
+
 ## 2026-10-25 — Structured search results
 
 - Compacted results into title/relative-age headers, one-line previews and path/known-editor metadata; [implementation and verification](done/2026-10-25_tasks-compact-search-results.md).

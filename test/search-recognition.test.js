@@ -76,22 +76,22 @@ test("strict calendar dates and local day filtering retain timezone/DST meaning"
   assert.equal(matchesRecognition({ updatedAt: "2026-10-23", editor: agent }, filter), false);
   assert.equal(matchesRecognition({ createdAt: "2026-10-23", editor: human }, filter), false, "creation does not become edit time");
   assert.equal(matchesRecognition({ updatedAt: "invalid", editor: human }, filter), false);
-  const context = resultEditContext({ updatedAt: "2026-10-23", createdAt: "2026-10-01", editor: human }, human.id, new Date(2026, 9, 24, 12));
+  const context = resultEditContext({ updatedAt: "2026-10-23", createdAt: "2026-10-01", editor: human }, new Date(2026, 9, 24, 12));
   assert.equal(context.label, "1d");
-  assert.equal(context.editor, "You");
-  assert.match(context.details, /Created 2026-10-01/);
+  assert.equal(context.details, "Last edited 2026-10-23");
+  assert.doesNotMatch(context.details, /Created|Declared editor/);
   assert.equal(resultEditContext({ updatedAt: "2026-02-30" }).label, "");
-  assert.equal(resultEditContext({}).editor, "");
+  assert.equal(resultEditContext({}).details, "");
   assert.doesNotMatch(resultEditContext({}).details, /Editor unknown/);
   const now = new Date(2026, 9, 25, 12);
-  assert.equal(resultEditContext({ updatedAt: "2026-10-22" }, undefined, now).label, "3d");
-  assert.equal(resultEditContext({ updatedAt: "2026-10-24" }, undefined, now).label, "1d");
-  assert.equal(resultEditContext({ updatedAt: "2026-10-28" }, undefined, now).label, "in 3d");
-  assert.equal(resultEditContext({ updatedAt: "2026-10-25" }, undefined, now).label, "Today");
+  assert.equal(resultEditContext({ updatedAt: "2026-10-22" }, now).label, "3d");
+  assert.equal(resultEditContext({ updatedAt: "2026-10-24" }, now).label, "1d");
+  assert.equal(resultEditContext({ updatedAt: "2026-10-28" }, now).label, "in 3d");
+  assert.equal(resultEditContext({ updatedAt: "2026-10-25" }, now).label, "Today");
   for (const [minutes, expected] of [[0, "now"], [12, "12m"], [180, "3h"], [-120, "in 2h"]]) {
-    assert.equal(resultEditContext({ updatedAt: new Date(now.getTime() - minutes * 60000).toISOString() }, undefined, now).label, expected);
+    assert.equal(resultEditContext({ updatedAt: new Date(now.getTime() - minutes * 60000).toISOString() }, now).label, expected);
   }
-  assert.equal(resultEditContext({ createdAt: "2026-10-22" }, undefined, now).label, "", "creation never substitutes for edit time");
+  assert.equal(resultEditContext({ createdAt: "2026-10-22" }, now).label, "", "creation never substitutes for edit time");
 });
 
 test("CLI attribution and recognition options are explicit and compose with strict read-only flags", () => {

@@ -289,18 +289,19 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   const elements = new Map();
   const $ = (id) => { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); };
   const { renderNoteSearch } = runtime(["renderNoteSearch"], {
-    browserActor: {}, searchOffset: 0, JumpyBrainBrowser: { searchPreview, resultEditContext, appendSearchHighlight: (element, text) => { element.textContent = text; } }, $, document: { createElement: element }, chooseSearchResult() {}, searchMode: "navigate" });
+    browserActor: {}, searchOffset: 0, JumpyBrainBrowser: { searchPreview, resultEditContext, appendSearchHighlight: (element, text) => { element.textContent = text; } }, $, document: { createElement: element, createElementNS: element }, chooseSearchResult() {}, searchMode: "navigate" });
   const malicious = '<script>alert("x")</script>';
   const search = { results: [{ documentId: docA, title: malicious, snippet: malicious, file: malicious }], selected: 0, status: "ready", message: "ready", stale: true };
   renderNoteSearch(search);
   const row = $("search-results").children[0];
-  assert.equal(row.children[0].className, "search-result-heading");
-  assert.deepEqual(row.children[0].children.map(child => child.textContent), [malicious]);
-  assert.equal(row.children[0].children[0].title, malicious);
-  assert.equal(row.children[1].className, "search-result-preview");
-  assert.equal(row.children[1].textContent, "No preview text");
-  assert.deepEqual(row.children[2].children.map(child => child.textContent), [malicious]);
-  assert.equal(row.children[2].children[0].title, malicious);
+  assert.equal(row.children[0].attrs["class"], "search-result-icon");
+  assert.equal(row.children[0].attrs["aria-hidden"], "true");
+  const content = row.children[1];
+  assert.equal(content.className, "search-result-content");
+  assert.deepEqual(content.children.map(child => child.textContent), [malicious, "No preview text", malicious]);
+  assert.equal(content.children[0].title, malicious);
+  assert.equal(content.children[1].className, "search-result-preview");
+  assert.equal(content.children[2].title, malicious);
   assert.equal(row.attrs["aria-selected"], "true");
   assert.equal($("search-refresh-index").hidden, false);
   search.stale = false;
@@ -314,15 +315,15 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   renderNoteSearch(search);
   assert.notEqual($("search-results").children[0], row, "a new query's results should replace old rows");
   const known = $("search-results").children[0];
-  assert.equal(known.children[0].children[1].className, "search-result-age");
-  assert.match(known.children[0].children[1].attrs["aria-label"], /Last edited 2026-10-22/);
-  assert.deepEqual(known.children[2].children.map(child => child.textContent), ["notes/beta.md", "Agent"]);
-  assert.match(known.children[2].children[1].title, /Declared editor: Agent/);
+  assert.equal(known.children[2].className, "search-result-age");
+  assert.match(known.children[2].attrs["aria-label"], /Last edited 2026-10-22/);
+  assert.doesNotMatch(known.children[2].title, /Declared editor|Created/);
+  assert.deepEqual(known.children[1].children.map(child => child.textContent), ["Beta", "new", "notes/beta.md"]);
   search.results = [{ title: "Unavailable", snippet: "body", file: "notes/missing.md" }];
   renderNoteSearch(search);
   const unavailable = $("search-results").children[0];
   assert.equal(unavailable.attrs["aria-disabled"], "true");
-  assert.equal(unavailable.children[3].textContent, "Unavailable: missing memory ID");
+  assert.equal(unavailable.children[1].children[3].textContent, "Unavailable: missing memory ID");
 });
 
 test("choosing a result navigates to its detail URL and explains save-guard rejection", async () => {

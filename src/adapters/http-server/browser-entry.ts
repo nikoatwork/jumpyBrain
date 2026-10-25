@@ -25,4 +25,4 @@ export { installLivingSources } from "./living-sources.js";
 
 export { createBrowserCommands } from "./browser-commands.js";
 
-export { searchPreview, readablePreview, appendSearchHighlight, resultEditContext, browserMemoryActor, searchRecognitionControls } from "./search-presentation.js";
+export { searchPreview, readablePreview, appendSearchHighlight, resultEditContext, browserMemoryActor } from "./search-presentation.js";
