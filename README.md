@@ -182,7 +182,7 @@ Local use needs no jumpyBrain account or subscription. Shared brains run on infr
 - [Installation and privacy FAQ](docs/faq.md) · [Agent installation instructions](docs/install-for-agents.md)
 - [macOS desktop app](integrations/electron/README.md)
 - [Using jumpyBrain with agents](docs/agent-workflows.md)
-- [Logseq import](docs/logseq-migration.md) · [Obsidian import plan](docs/obsidian-migration.md)
+- [Logseq import](docs/logseq-migration.md) · [Obsidian import](docs/obsidian-migration.md)
 - [Optional how-to-dream skill installation](docs/install.md#optional-how-to-dream-skill)
 - [CLI command reference](docs/cli-commands.md)
 - [Shared-brain quickstart](docs/cloud-shared-memory.md) · [Protocol reference](docs/shared-memory-protocol.md)

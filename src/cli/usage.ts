@@ -10,6 +10,7 @@ export function usage(): string {
     "  jumpybrain run memory:remember --type finding --title \"...\"",
     "  jumpybrain run memory:recall --topic \"...\" --limit 5",
     "  jumpybrain init --root <memory-root>",
+    "  jumpybrain migrate obsidian --source <vault> --root <memory-root> [--apply] [--fail-on-conflict] [--json]",
     "  jumpybrain migrate logseq --source <vault> --root <memory-root> [--body-format readable|preserve] [--apply] [--fail-on-conflict] [--json]",
     "  jumpybrain index --root <memory-root> [--rebuild] [--lexical | --semantic-model <absolute-local-path>] [--json]",
     "  jumpybrain index --target-url <url> [--rebuild] [--json] (policy is configured server-local)",

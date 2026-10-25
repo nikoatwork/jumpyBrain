@@ -154,7 +154,7 @@ function parseBoundedReadArgs(argv: string[], operation: string): ParsedCliArgs 
 // Keep migration strict without changing legacy argument behavior for other commands.
 function parseMigrationArgs(argv: string[]): ParsedCliArgs {
   if (argv.some((token) => /^--(?:target-url|remote-url)(?:=|$)/.test(token))) {
-    throw new Error("Logseq migration is local-only; --target-url and --remote-url are not supported. Use --source and --root.");
+    throw new Error("Migration is local-only; --target-url and --remote-url are not supported. Use --source and --root.");
   }
   const args: ParsedCliArgs = { _: [] };
   const booleans = new Set(["apply", "fail-on-conflict", "json"]);
@@ -185,12 +185,13 @@ function parseMigrationArgs(argv: string[]): ParsedCliArgs {
       args[key] = value;
     }
   }
-  if (args._.length !== 2 || args._[1] !== "logseq") {
-    throw new Error("Usage: jumpybrain migrate logseq --source <vault> --root <memory-root> [--body-format readable|preserve] [--apply] [--fail-on-conflict] [--json]");
+  if (args._.length !== 2 || !["logseq", "obsidian"].includes(args._[1])) {
+    throw new Error("Usage: jumpybrain migrate <logseq|obsidian> --source <vault> --root <memory-root> [--body-format readable|preserve] [--apply] [--fail-on-conflict] [--json]");
   }
   for (const key of ["source", "root"]) {
     if (typeof args[key] !== "string") throw new Error(`--${key} is required.`);
   }
+  if (args._[1] === "obsidian" && args["body-format"] !== undefined) throw new Error("--body-format is Logseq-only; Obsidian always preserves source bytes.");
   if (args["body-format"] !== undefined && args["body-format"] !== "readable" && args["body-format"] !== "preserve") throw new Error("--body-format must be readable or preserve.");
   return args;
 }

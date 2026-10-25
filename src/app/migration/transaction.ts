@@ -34,12 +34,14 @@ async function removePrivateTree(directory: string): Promise<void> {
 
 export async function applyTransaction(input: {
   root: string;
+  importer?: "logseq" | "obsidian";
   mutations: Mutation[];
   initialize: boolean;
   configBefore?: Snapshot;
   ignoreBefore?: Snapshot;
   hooks?: LogseqMigrationHooks;
   revalidate: () => Promise<void>;
+  revalidateSource?: () => Promise<void>;
 }): Promise<void> {
   const { root, hooks } = input;
   const lock = transactionPath(root);
@@ -49,7 +51,7 @@ export async function applyTransaction(input: {
   let status = "preparing";
   async function persist(): Promise<void> {
     const receipt = {
-      version: 1, kind: "jumpybrain-logseq-transaction", status, rootName: path.basename(root),
+      version: 1, kind: `jumpybrain-${input.importer ?? "logseq"}-transaction`, status, rootName: path.basename(root),
       // Recovery uses relative mappings only; backups contain private canonical bytes and are mode 0600.
       directories: madeDirectories.map(dir => ({ relative: path.relative(path.dirname(root), dir.path), dev: dir.dev, ino: dir.ino })),
       operations: operations.map(op => ({ relative: op.relative, backup: op.backup,
@@ -145,7 +147,7 @@ export async function applyTransaction(input: {
   try {
     await safePath(lock);
     await ensureDirectory(path.dirname(lock));
-    try { await mkdir(lock, { mode: 0o700 }); } catch { fail("Logseq migration transaction already exists or cannot be acquired; inspect retained recovery data before retrying."); }
+    try { await mkdir(lock, { mode: 0o700 }); } catch { fail("Migration transaction already exists or cannot be acquired; inspect retained recovery data before retrying."); }
     acquired = true;
     await persist();
     await input.revalidate();
@@ -163,15 +165,18 @@ export async function applyTransaction(input: {
       if (ignore.hash !== input.ignoreBefore?.hash) await mutate({ relative: ".gitignore", before: input.ignoreBefore, after: ignore.bytes }, false);
       await hooks?.onStep?.("after-init", { writes, deletes });
     }
+    await input.revalidateSource?.();
     status = "applying";
     await persist();
     for (const mutation of input.mutations) {
       if (mutation.manifest) {
+        await input.revalidateSource?.();
         for (const op of operations) if (op.completed) await assertSnapshot(path.join(root, op.relative), op.installed);
       }
       await mutate(mutation);
     }
     for (const op of operations) if (op.completed) await assertSnapshot(path.join(root, op.relative), op.installed);
+    await input.revalidateSource?.();
     status = "committed";
     await persist();
   } catch {

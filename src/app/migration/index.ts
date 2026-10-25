@@ -1,6 +1,9 @@
 import path from "node:path";
 import { DEFAULT_MEMORY_DIRS, CURRENT_MEMORY_SCHEMA_VERSION } from "../../core/memory-root/index.js";
 import { LOGSEQ_MIGRATION_MANIFEST, LOGSEQ_IMPORTER_VERSION, LOGSEQ_BODY_VERSION, analyzeLogseqReferences, migrationDocumentIdentity, migrationPathKey, parseLogseqManifest, planLogseqDocument, type LogseqMigrationDocument, type LogseqMigrationEntry, type LogseqMigrationManifest, type LogseqMigrationResult, type LogseqMigrationOptions } from "../../core/migration/index.js";
+import { parseFrontmatter } from "../../core/frontmatter.js";
+import { OBSIDIAN_MIGRATION_MANIFEST, analyzeObsidianReferences, hashMigrationBytes, mapObsidianPath, parseObsidianManifest, planObsidianDocument, type ObsidianMigrationManifest, type ObsidianMigrationOptions, type ObsidianMigrationResult } from "../../core/migration/index.js";
+import { discoverObsidian } from "./obsidian-discovery.js";
 import { discoverLogseq } from "./discovery.js";
 import { assertSnapshot, fail, isWithin, MigrationError, safePath, snapshot, statIfPresent, type Snapshot } from "./filesystem.js";
 import { applyTransaction, transactionPath, type LogseqMigrationHooks, type Mutation } from "./transaction.js";
@@ -8,20 +11,38 @@ import { applyTransaction, transactionPath, type LogseqMigrationHooks, type Muta
 export type { LogseqMigrationAction, LogseqMigrationDocument, LogseqMigrationEntry, LogseqMigrationManifest, LogseqMigrationResult, LogseqMigrationOptions, LogseqBodyFormat } from "../../core/migration/index.js";
 export type { LogseqMigrationHooks, LogseqMigrationStep } from "./transaction.js";
 
+export type { ObsidianMigrationResult, ObsidianMigrationOptions } from "../../core/migration/index.js";
+
+export async function migrateObsidian(source: string, root: string, options: ObsidianMigrationOptions = {}): Promise<ObsidianMigrationResult> {
+  return migrateObsidianWithHooks(source, root, options);
+}
+
+/** Internal testing seam; not a runtime export. */
+export async function migrateObsidianWithHooks(source: string, root: string, options: ObsidianMigrationOptions = {}, hooks?: LogseqMigrationHooks): Promise<ObsidianMigrationResult> {
+  const result = await migrateWithHooks(source, root, options, hooks, "obsidian");
+  const { pages: _pages, journals: _journals, conversion: _conversion, ...common } = result;
+  return { ...common, notes: result.sourceDocuments, references: result.references!, omissions: result.omissions! };
+}
+
 export async function migrateLogseq(source: string, root: string, options: LogseqMigrationOptions = {}): Promise<LogseqMigrationResult> {
   return migrateLogseqWithHooks(source, root, options);
 }
 
 /** Internal failure-injection seam. Runtime should export only migrateLogseq and result types. */
 export async function migrateLogseqWithHooks(sourceArg: string, rootArg: string, options: LogseqMigrationOptions = {}, hooks?: LogseqMigrationHooks): Promise<LogseqMigrationResult> {
+  return migrateWithHooks(sourceArg, rootArg, options, hooks, "logseq");
+}
+
+type ImportResult = LogseqMigrationResult & Partial<Pick<ObsidianMigrationResult, "references" | "omissions">>;
+async function migrateWithHooks(sourceArg: string, rootArg: string, options: LogseqMigrationOptions, hooks: LogseqMigrationHooks | undefined, kind: "logseq" | "obsidian"): Promise<ImportResult> {
   try {
-    return await migrate(sourceArg, rootArg, options, hooks);
+    return await migrate(sourceArg, rootArg, options, hooks, kind);
   } catch (error) {
     // Never return fs paths, parsed configuration values, source filenames, bodies, or arbitrary hook errors.
     if (error instanceof MigrationError) throw error;
     const message = error instanceof Error ? error.message : "";
-    if (/^(Unsafe Logseq source-relative path\.|Invalid (?:or unsupported Logseq migration ownership manifest|migration envelope)|Canonical envelope verification failed\.|Migration envelope verification failed\.)/.test(message)) throw new MigrationError(message.slice(0, 240));
-    throw new MigrationError("Logseq migration preflight or filesystem operation failed. Check readable regular files, root compatibility, permissions, and concurrent writers; no source files are written.");
+    if (/^(Unsafe (?:Logseq|Obsidian) source-relative path\.|Invalid (?:or unsupported (?:Logseq|Obsidian) migration ownership manifest|migration envelope)|Canonical envelope verification failed\.|Migration envelope verification failed\.)/.test(message)) throw new MigrationError(message.slice(0, 240));
+    throw new MigrationError(`${kind === "logseq" ? "Logseq" : "Obsidian"} migration preflight or filesystem operation failed. Check readable regular files, root compatibility, permissions, and concurrent writers; no source files are written.`);
   }
 }
 
@@ -48,31 +69,45 @@ async function validateDestination(root: string): Promise<{ config?: Snapshot; i
   return { config, ignore };
 }
 
-async function migrate(sourceArg: string, rootArg: string, options: LogseqMigrationOptions, hooks?: LogseqMigrationHooks): Promise<LogseqMigrationResult> {
-  const bodyFormat = options.bodyFormat ?? "readable";
+async function migrate(sourceArg: string, rootArg: string, options: LogseqMigrationOptions, hooks: LogseqMigrationHooks | undefined, kind: "logseq" | "obsidian"): Promise<ImportResult> {
+  const obsidian = kind === "obsidian";
+  const label = obsidian ? "Obsidian" : "Logseq";
+  const manifestName = obsidian ? OBSIDIAN_MIGRATION_MANIFEST : LOGSEQ_MIGRATION_MANIFEST;
+  const discover = obsidian ? discoverObsidian : discoverLogseq;
+  const bodyFormat = obsidian ? "preserve" : options.bodyFormat ?? "readable";
   if (bodyFormat !== "readable" && bodyFormat !== "preserve") fail("Invalid Logseq body format; use readable or preserve.");
   const conversion: LogseqMigrationResult["conversion"] = { bodyFormat, bodyVersion: bodyFormat === "preserve" ? 0 : LOGSEQ_BODY_VERSION, changedDocuments: 0, preservedDocuments: 0, unsupportedDocuments: 0, removedOutlineMarkers: 0, retainedNestedBlocks: 0 };
   const conversionWarnings = new Set<string>();
-  if (typeof sourceArg !== "string" || !sourceArg.trim() || typeof rootArg !== "string" || !rootArg.trim() || /[\x00-\x1f\x7f]/.test(sourceArg + rootArg)) fail("A valid local Logseq --source and separate destination --root are required.");
+  if (typeof sourceArg !== "string" || !sourceArg.trim() || typeof rootArg !== "string" || !rootArg.trim() || /[\x00-\x1f\x7f]/.test(sourceArg + rootArg)) fail(`A valid local ${label} --source and separate destination --root are required.`);
   const source = path.resolve(sourceArg), root = path.resolve(rootArg);
   if (isWithin(source, root) || isWithin(root, source)) fail("Source and destination must be separate, non-overlapping directories.");
   if (root === path.parse(root).root) fail("Filesystem root cannot be a migration destination.");
   await safePath(source);
   await safePath(root);
   await safePath(transactionPath(root));
-  if (await statIfPresent(transactionPath(root))) fail("A retained Logseq migration transaction exists next to the destination. Stop writers and recover it before any dry-run or apply.");
+  if (await statIfPresent(transactionPath(root))) fail("A retained migration transaction exists next to the destination. Stop writers and recover it before any dry-run or apply.");
   const setup = await validateDestination(root);
-  const sourceDiscovery = await discoverLogseq(source);
-  const references = analyzeLogseqReferences(sourceDiscovery.documents);
+  const sourceDiscovery = await discover(source);
+  const references = analyzeLogseqReferences(obsidian ? [] : sourceDiscovery.documents);
+  const obsidianReferences = obsidian ? analyzeObsidianReferences(sourceDiscovery.documents) : undefined;
   if (references.likelyDatabaseMirror) fail("Likely Logseq database-graph Markdown mirror detected; only classic file graphs are supported.");
   const warnings = [
-    "Logseq is authoritative: mapped destination-only edits are overwritten by default; removed source documents delete identity-verified manifest-owned outputs.",
+    `${label} is authoritative: mapped destination-only edits are overwritten by default; removed source documents delete identity-verified manifest-owned outputs.`,
     ...sourceDiscovery.warnings,
-    `References preserved as text: wiki links=${references.wikiLinks}, unresolved wiki links=${references.unresolvedWikiLinks}, omitted local asset references=${references.omittedAssetReferences}. Attachments are not copied.`,
+    ...(obsidian ? ["References and original YAML remain source text. Aliases, headings, blocks and embeds are not Obsidian rendering/graph parity. Attachments are not copied; vault-root Markdown links may need rewriting after relocation under notes/.", `Reference diagnostics (advisory syntax counts): ${JSON.stringify(obsidianReferences)}.`] : [`References preserved as text: wiki links=${references.wikiLinks}, unresolved wiki links=${references.unresolvedWikiLinks}, omitted local asset references=${references.omittedAssetReferences}. Attachments are not copied.`]),
     "No index is built. After a successful apply, run jumpybrain index --root <destination>.",
   ];
-  const manifestBefore = await snapshot(path.join(root, LOGSEQ_MIGRATION_MANIFEST));
-  const prior = manifestBefore ? parseLogseqManifest(manifestBefore.bytes) : undefined;
+  const manifestBefore = await snapshot(path.join(root, manifestName));
+  const prior = manifestBefore ? (obsidian ? parseObsidianManifest(manifestBefore.bytes) : parseLogseqManifest(manifestBefore.bytes)) : undefined;
+  const sourceIdentity = hashMigrationBytes(Buffer.from(source));
+  if (prior && "sourceIdentity" in prior && prior.sourceIdentity !== sourceIdentity) fail("This manifest belongs to a different Obsidian vault path; use its original source path or a separate destination. Do not retarget ownership by deleting the manifest.");
+  // Validate even on first import and even when the other importer owns no current mapping.
+  const otherName = obsidian ? LOGSEQ_MIGRATION_MANIFEST : OBSIDIAN_MIGRATION_MANIFEST;
+  const otherBefore = await snapshot(path.join(root, otherName));
+  const other = otherBefore ? (obsidian ? parseLogseqManifest(otherBefore.bytes) : parseObsidianManifest(otherBefore.bytes)) : undefined;
+  const otherKeys = new Set(other?.entries.map(entry => migrationPathKey(entry.outputPath)) ?? []);
+  const assertOwnership = (outputPath: string) => { if (otherKeys.has(migrationPathKey(outputPath))) fail("Destination mapping is owned by another importer; use a separate root or non-overlapping source mappings."); };
+  for (const entry of prior?.entries ?? []) assertOwnership(entry.outputPath);
   const priorBySource = new Map(prior?.entries.map(entry => [entry.sourcePath, entry]) ?? []);
   const currentSources = new Set(sourceDiscovery.documents.map(document => document.sourcePath));
   const entries: LogseqMigrationEntry[] = [];
@@ -83,10 +118,15 @@ async function migrate(sourceArg: string, rootArg: string, options: LogseqMigrat
   for (const document of sourceDiscovery.documents) {
     const previous = priorBySource.get(document.sourcePath);
     // Pure planning determines exact fixed output paths; read only that mapped destination.
-    const outputPath = document.sourcePath.replace(/^pages\//, "notes/").replace(/^journals\//, "sessions/");
+    const outputPath = obsidian ? mapObsidianPath(document.sourcePath).outputPath : document.sourcePath.replace(/^pages\//, "notes/").replace(/^journals\//, "sessions/");
+    assertOwnership(outputPath);
     const current = await snapshot(path.join(root, outputPath));
+    if (current) {
+      const marker = parseFrontmatter(current.bytes.subarray(0, 65536).toString("utf8")).frontmatter.source;
+      if (marker === (obsidian ? "logseq-migration" : "obsidian-migration")) fail("Mapped destination belongs to another importer envelope; use a separate destination.");
+    }
     destinationStates.set(outputPath, current);
-    const planned = planLogseqDocument({ sourcePath: document.sourcePath, body: document.body, current: current?.bytes, prior: previous, now, bodyFormat });
+    const planned = obsidian ? { ...planObsidianDocument({ sourcePath: document.sourcePath, body: document.body, current: current?.bytes, prior: previous, now }), conversion: { warnings: [] as string[], removedOutlineMarkers: 0, retainedNestedBlocks: 0 } } : planLogseqDocument({ sourcePath: document.sourcePath, body: document.body, current: current?.bytes, prior: previous, now, bodyFormat });
     if (planned.entry.bodyHash === planned.entry.sourceHash) conversion.preservedDocuments++;
     else conversion.changedDocuments++;
     if (planned.conversion.warnings.length) conversion.unsupportedDocuments++;
@@ -120,29 +160,34 @@ async function migrate(sourceArg: string, rootArg: string, options: LogseqMigrat
   const manifestEntries: LogseqMigrationDocument[] = entries.filter(entry => entry.action !== "delete").map(({ action: _action, conflict: _conflict, destinationHash: _destinationHash, previousSourceHash: _previousSourceHash, previousOutputHash: _previousOutputHash, ...entry }) => entry);
   warnings.push(...conversionWarnings);
   if (prior?.entries.some(entry => entry.bodyFormat !== bodyFormat || entry.bodyVersion !== conversion.bodyVersion)) warnings.push("Body policy upgrade: unchanged source files can overwrite mapped outputs; review conflicts before applying.");
-  const manifest: LogseqMigrationManifest = { version: 2, importer: "jumpybrain-logseq", importerVersion: LOGSEQ_IMPORTER_VERSION, migratedAt: now, entries: manifestEntries, counts: { ...counts, warnings: warnings.length } };
+  const manifest: LogseqMigrationManifest | ObsidianMigrationManifest = obsidian ? { version: 1, importer: "jumpybrain-obsidian", importerVersion: 1, sourceIdentity, migratedAt: now, entries: manifestEntries, counts: { ...counts, warnings: warnings.length } } : { version: 2, importer: "jumpybrain-logseq", importerVersion: LOGSEQ_IMPORTER_VERSION, migratedAt: now, entries: manifestEntries, counts: { ...counts, warnings: warnings.length } };
   // Preserve manifest bytes/timestamp on identical reruns. Its counts describe the last actual reconciliation.
   const manifestChanged = !prior || prior.version !== manifest.version || counts.created + counts.overwritten + counts.deleted > 0;
-  if (manifestChanged) mutations.push({ relative: LOGSEQ_MIGRATION_MANIFEST, before: manifestBefore, after: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`), manifest: true });
+  if (manifestChanged) mutations.push({ relative: manifestName, before: manifestBefore, after: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`), manifest: true });
   const pages = sourceDiscovery.documents.filter(document => document.sourcePath.startsWith("pages/")).length;
-  const result: LogseqMigrationResult = {
+  const result: ImportResult = {
     dryRun: !options.apply, applied: false, root, sourceDocuments: sourceDiscovery.documents.length,
     outputDocuments: manifestEntries.length, pages, journals: sourceDiscovery.documents.length - pages,
     ...counts, sourceBytes: manifestEntries.reduce((sum, entry) => sum + entry.sourceBytes, 0),
     outputBytes: manifestEntries.reduce((sum, entry) => sum + entry.outputBytes, 0),
-    warnings, errors: [], entries, manifest: LOGSEQ_MIGRATION_MANIFEST, indexed: false, conversion,
+    warnings, errors: [], entries, manifest: manifestName, indexed: false, conversion,
+    ...(obsidian ? { references: obsidianReferences, omissions: sourceDiscovery.omissions } : {}),
+  };
+  const revalidateSource = async () => {
+    // Recheck only allowlisted bodies and both formats' shared ownership boundary.
+    await assertSnapshot(path.join(root, otherName), otherBefore);
+    const fresh = await discover(source);
+    if (fresh.documents.length !== sourceDiscovery.documents.length || fresh.documents.some((document, index) => document.sourcePath !== sourceDiscovery.documents[index]!.sourcePath || document.snapshot.hash !== sourceDiscovery.documents[index]!.snapshot.hash)) fail(`${label} source changed after preflight; retry from a stable source.`);
   };
   if (!options.apply) return result;
   if (mutations.length || !setup.config) {
-    await applyTransaction({ root, mutations, initialize: !setup.config, configBefore: setup.config, ignoreBefore: setup.ignore, hooks,
+    await applyTransaction({ root, importer: kind, revalidateSource, mutations, initialize: !setup.config, configBefore: setup.config, ignoreBefore: setup.ignore, hooks,
       revalidate: async () => {
         await assertSnapshot(path.join(root, "jumpybrain.json"), setup.config);
         if (!setup.config) await assertSnapshot(path.join(root, ".gitignore"), setup.ignore);
-        await assertSnapshot(path.join(root, LOGSEQ_MIGRATION_MANIFEST), manifestBefore);
+        await assertSnapshot(path.join(root, manifestName), manifestBefore);
         for (const [relative, state] of destinationStates) await assertSnapshot(path.join(root, relative), state);
-        // Reread only allowlisted bodies; detect source additions/removals as well as edits before publication.
-        const fresh = await discoverLogseq(source);
-        if (fresh.documents.length !== sourceDiscovery.documents.length || fresh.documents.some((document, index) => document.sourcePath !== sourceDiscovery.documents[index]!.sourcePath || document.snapshot.hash !== sourceDiscovery.documents[index]!.snapshot.hash)) fail("Logseq source changed after preflight; retry from a stable source.");
+        await revalidateSource();
       },
     });
   }

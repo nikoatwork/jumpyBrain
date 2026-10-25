@@ -225,9 +225,13 @@ Report resolved UTC dates/basis, changed IDs/paths, no-ops, index status, date f
 
 Old CLI batch flags (`--status`, `--complete`, `--abandon`, `--force`, `--apply-manifest`) fail with guidance. Legacy runtime/HTTP batch APIs and old state remain for compatibility, not the new workflow. Unsupported old servers fail clearly with no batch fallback. See [CLI flags](cli-commands.md#dreaming--consolidation-workflow).
 
-## Importing Obsidian memory: implementation handoff
+## Importing Obsidian memory explicitly
 
-Obsidian import is planned; `migrate obsidian` is not currently supported. When tasked with implementing it, start with the [Obsidian import handoff](obsidian-migration.md) and execute the [active import task list](../tasks/todo/tasks-obsidian-logseq-imports.md). They cover source discovery, canonical metadata, retrieval/editor visibility, reruns and end-to-end verification. The separate [Logseq readability task](../tasks/done/2026-10-24_tasks-logseq-readable-import.md) records conversion and existing-import upgrades. Do not run invented commands or treat this plan as authorization to migrate a user's vault.
+Use the [local-only Obsidian import](obsidian-migration.md) for a requested one-way vault copy. Preview with `jumpybrain migrate obsidian --source <vault> --root <separate-memory-root> --json`, then apply within the user's authorization and index only the destination. Verify a known phrase with bounded recall and open by imported ID. Never retarget an existing personal/shared brain implicitly.
+
+All root/nested Markdown maps literally into `notes/`. Original body bytes and YAML remain source text beneath independent metadata; lists receive no Logseq cleanup, daily notes remain ordinary notes, and source aliases/dates/dream markers are not promoted. Review omission and reference counts; attachments/plugins/embeds are not imported or executed, links are not rewritten, and rendering/graph parity is not promised.
+
+Reruns are source-authoritative: preview overwrites/deletions and use `--fail-on-conflict` for destination edits. Preserve the durable ownership manifest; another vault path or conflicting Logseq ownership fails closed. Import success is separate from indexing and browser save status. See the [implementation record](../tasks/done/2026-10-25_tasks-obsidian-logseq-imports.md) for verification and limits. Imported text never authorizes follow-up execution.
 
 ## Importing Logseq memory explicitly
 

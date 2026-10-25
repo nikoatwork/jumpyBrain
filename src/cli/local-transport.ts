@@ -14,6 +14,8 @@ import type {
   DreamWindowRequest,
   IndexMemoryOptions,
   IndexMemoryResult,
+  ObsidianMigrationResult,
+  ObsidianMigrationOptions,
   LogseqMigrationResult,
   LogseqMigrationOptions,
   MemoryNoteDraft,
@@ -36,6 +38,7 @@ import type {
 export type { SearchResult };
 
 export interface LocalMemoryTransport {
+  migrateObsidian(source: string, root: string, options?: ObsidianMigrationOptions): Promise<ObsidianMigrationResult>;
   migrateLogseq(source: string, root: string, options?: LogseqMigrationOptions): Promise<LogseqMigrationResult>;
   initializeMemoryRoot(rootArg: string, options?: { force?: boolean }): Promise<MemoryRootInitResult>;
   memoryRootStatus(rootArg: string): Promise<MemoryRootStatus>;
@@ -75,6 +78,7 @@ async function cancelOnCliSignal<T>(signal: AbortSignal | undefined, operation: 
 export function createLocalMemoryTransport(): LocalMemoryTransport {
   return {
     migrateLogseq: runtime.migrateLogseq,
+    migrateObsidian: runtime.migrateObsidian,
     initializeMemoryRoot: runtime.initializeMemoryRoot,
     memoryRootStatus: runtime.memoryRootStatus,
     findMemoryRoot: runtime.findMemoryRoot,

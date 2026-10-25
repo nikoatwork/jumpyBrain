@@ -2,7 +2,7 @@
 
 ## Goal and scope
 
-Implement the Logseq portion of the [original import plan](../todo/tasks-obsidian-logseq-imports.md): readable outline prose by default, an explicit exact-preservation mode, and safe upgrades/reruns of existing imports. The user requested this scope on 2026-10-24; Obsidian implementation remains a separate active task.
+Implement the Logseq portion of the [original import plan](2026-10-25_tasks-obsidian-logseq-imports.md): readable outline prose by default, an explicit exact-preservation mode, and safe upgrades/reruns of existing imports. The user requested this scope on 2026-10-24; Obsidian implementation remained separate at this snapshot; its later completion is recorded in the linked import task.
 
 ## Decisions
 
@@ -35,7 +35,7 @@ Implement the Logseq portion of the [original import plan](../todo/tasks-obsidia
 
 ## Outcome
 
-Completed on 2026-10-24. Logseq imports default to readable outer-outline conversion with strict readable/preserve controls, bounded diagnostics, original/converted/output hashes, version-two ownership, trusted version-one upgrade paths, stable identities and byte-stable reruns. The separate Obsidian list remains active; no Obsidian command was added.
+Completed on 2026-10-24. Logseq imports default to readable outer-outline conversion with strict readable/preserve controls, bounded diagnostics, original/converted/output hashes, version-two ownership, trusted version-one upgrade paths, stable identities and byte-stable reruns. The separate Obsidian list remained active at that snapshot; no Obsidian command was added by this Logseq change.
 
 ## Verification
 

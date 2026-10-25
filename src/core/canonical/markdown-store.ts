@@ -16,6 +16,8 @@ export { parseFrontmatter } from "../frontmatter.js";
 
 const IGNORED_DIRS = new Set([
   ".git",
+  ".obsidian",
+  ".trash",
   ".jumpybrain",
   ".qmd",
   "node_modules",
@@ -138,19 +140,19 @@ async function readMarkdownMetadata(file: string, signal?: AbortSignal) {
 export interface CanonicalMarkdownIndexInput {
   absolutePath: string;
   /** Excluded names require exact migration-envelope eligibility at snapshot time. */
-  importedLogseqOnly?: boolean;
+  importedMigrationOnly?: boolean;
 }
 
 /** Discovery without content reads; validate exceptional envelopes with locked snapshots. */
 export async function discoverMarkdownIndexInputs(root: string, signal?: AbortSignal): Promise<CanonicalMarkdownIndexInput[]> {
   const deferredMigration = new Set<string>();
   const files = await walkMarkdownFiles(root, [root], { signal, deferredMigration });
-  return files.map(absolutePath => ({ absolutePath, ...(deferredMigration.has(absolutePath) ? { importedLogseqOnly: true } : {}) }));
+  return files.map(absolutePath => ({ absolutePath, ...(deferredMigration.has(absolutePath) ? { importedMigrationOnly: true } : {}) }));
 }
 
 export async function readCanonicalMarkdownIndexInput(root: string, input: CanonicalMarkdownIndexInput, signal?: AbortSignal) {
   const snapshot = await readCanonicalMarkdownSnapshot(root, input.absolutePath, signal);
-  return input.importedLogseqOnly && !isImportedLogseqFrontmatter(snapshot.relativePath, snapshot.frontmatter) ? undefined : snapshot;
+  return input.importedMigrationOnly && !isImportedMigrationFrontmatter(snapshot.relativePath, snapshot.frontmatter) ? undefined : snapshot;
 }
 
 export interface CanonicalMarkdownSnapshot extends MarkdownDocument {
@@ -455,21 +457,25 @@ function memoryTypeForPath(relativePath: string, frontmatter: Frontmatter): Memo
   return "note";
 }
 
-function isLogseqOutputPath(relative: string): boolean {
+function isImportOutputPath(relative: string): boolean {
   const parts = relative.split("/");
   return (parts[0] === "notes" || parts[0] === "sessions") &&
     parts.every((part) => !!part && !part.startsWith("."));
 }
 
-async function isImportedLogseqDocument(root: string, absolute: string, signal?: AbortSignal): Promise<boolean> {
+async function isImportedMigrationDocument(root: string, absolute: string, signal?: AbortSignal): Promise<boolean> {
   const relative = normalizeRelative(root, absolute);
-  if (!isLogseqOutputPath(relative)) return false;
+  if (!isImportOutputPath(relative)) return false;
   const { frontmatter } = await readMarkdownDocument(root, absolute, signal);
-  return isImportedLogseqFrontmatter(relative, frontmatter);
+  return isImportedMigrationFrontmatter(relative, frontmatter);
 }
 
-function isImportedLogseqFrontmatter(relative: string, frontmatter: Frontmatter): boolean {
-  if (!isLogseqOutputPath(relative)) return false;
+function isImportedMigrationFrontmatter(relative: string, frontmatter: Frontmatter): boolean {
+  if (!isImportOutputPath(relative)) return false;
+  if (frontmatter.source === "obsidian-migration") {
+    return relative.startsWith("notes/") && isValidMemoryDocumentId(frontmatter.id) && frontmatter.type === "note" &&
+      frontmatter.source_path === relative.slice("notes/".length);
+  }
   const journal = relative.startsWith("sessions/");
   const sourcePath = `${journal ? "journals" : "pages"}/${relative.slice(relative.indexOf("/") + 1)}`;
   return frontmatter.source === "logseq-migration" && isValidMemoryDocumentId(frontmatter.id) &&
@@ -497,15 +503,15 @@ async function walkMarkdownFiles(root: string, starts: string[], options: { igno
       const ignored = IGNORED_DIRS.has(entry.name);
       if (entry.isDirectory()) {
         // Reopen only nonhidden migration paths, and retain exclusion state for descendants.
-        if ((ignored || importsOnly) && !isLogseqOutputPath(relative)) continue;
+        if ((ignored || importsOnly) && !isImportOutputPath(relative)) continue;
         await walk(absolute, importsOnly || ignored);
         continue;
       }
       if (ignored || !entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
       const excluded = importsOnly || IGNORED_FILE_PATTERNS.some((pattern) => pattern.test(relative));
       if (excluded && options.deferredMigration) {
-        if (isLogseqOutputPath(relative)) { options.deferredMigration.add(absolute); results.push(absolute); }
-      } else if (!excluded || await isImportedLogseqDocument(root, absolute, options.signal)) results.push(absolute);
+        if (isImportOutputPath(relative)) { options.deferredMigration.add(absolute); results.push(absolute); }
+      } else if (!excluded || await isImportedMigrationDocument(root, absolute, options.signal)) results.push(absolute);
     }
   }
 

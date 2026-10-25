@@ -4,7 +4,7 @@ import { migrationPathKey, mapLogseqPath } from "../../core/migration/index.js";
 import { fail, safePath, snapshot, statIfPresent, type Snapshot } from "./filesystem.js";
 
 export interface SourceDocument { sourcePath: string; body: Buffer; snapshot: Snapshot }
-export interface Discovery { documents: SourceDocument[]; warnings: string[] }
+export interface Discovery { documents: SourceDocument[]; warnings: string[]; omissions?: import("../../core/migration/index.js").ObsidianOmissions }
 
 export async function discoverLogseq(source: string): Promise<Discovery> {
   await safePath(source);

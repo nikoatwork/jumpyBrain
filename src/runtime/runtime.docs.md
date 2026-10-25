@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- Export local `migrateObsidian(source, root, { apply?, failOnConflict? })` with `ObsidianMigrationOptions` and `ObsidianMigrationResult` through the same app seam. It preserves source bodies and has no remote transport or automatic indexing. Test hooks are not public.
+
 - Compose the local application surface from core APIs, local app write workflows, local memory index/search/overview/document operations, processing operations, and host package metadata injection for setup.
 - Export local `migrateLogseq(source, root, { apply?, failOnConflict?, bodyFormat? })` and `LogseqMigrationResult` from the app migration seam. Export `LogseqMigrationOptions` and `LogseqBodyFormat` too; readable is the default and preserve is explicit byte fidelity. Migration is dry-run-first, never indexes, and does not expose a remote writer.
 - Keep the package entrypoint able to re-export one runtime surface without importing CLI command parsing.

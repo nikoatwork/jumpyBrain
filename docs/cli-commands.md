@@ -97,6 +97,16 @@ Doctor's `integrations`/`integrationsScope: "global"` report only home-directory
 
 A missing explicit local root produces a shell-quoted `jumpybrain init --root '<same-path>'` hint and remains absent until you initialize it explicitly. Config parse/access errors stay distinct and do not select another root. If `JUMPYBRAIN_QMD_BIN` selects a bad engine, correct that override or `unset JUMPYBRAIN_QMD_BIN` and retry before reinstalling QMD; an override continues to take priority after a reinstall.
 
+## Obsidian import (local only)
+
+```text
+jumpybrain migrate obsidian --source <vault> --root <memory-root> [--apply] [--fail-on-conflict] [--json]
+```
+
+Default is a non-mutating preview. Recursively import regular root/nested Markdown into literal `notes/<relative>` paths; source YAML and body bytes are preserved beneath independent jumpyBrain metadata. Daily notes remain ordinary notes. Hidden support, symlinks and non-Markdown/attachments are omitted; hardlinked/special active files, unsafe paths, overlapping roots and collisions fail. No plugin evaluation, attachment copy or link rewriting occurs. Source aliases, dates and protected properties remain body text.
+
+Both paths are required. Unknown/repeated flags and Obsidian `--body-format` fail; booleans accept bare flags or explicit true/false. Remote flags are rejected before credentials/network. Apply is transactional and source-authoritative, with stable managed IDs, no-op reruns and identity-checked removal reconciliation. `--fail-on-conflict` blocks independent destination edits. Separate versioned ownership refuses a different vault path and overlapping Logseq mappings. JSON contains counts, relative metadata/hashes, advisory reference/omission counts and `indexed: false`, never bodies. Index only the destination afterward. See [Obsidian import](obsidian-migration.md) for examples, recovery and rendering/graph limits.
+
 ## Logseq migration (local only)
 
 ```bash

@@ -77,6 +77,12 @@ Keep important qualifications close to the claims they govern, and make paragrap
 
 Recall excerpts remain bounded at 1,000 characters; a larger compact aggregate byte budget does not lengthen them. Conditional expansion returns exact **whole lines** or a bounded prefix of a heading section, not substrings. Its envelope/JSON escaping also consume space. A first requested line too large for the maximum 65536-byte packet cannot be recovered by continuation; a section prefix may stop before the anchor. Prefer manageable source lines and meaningful paragraph/section boundaries for selective follow-ups. These are authoring recommendations, not automatic rewrites or a reason to modify imported sources during reads. See [CLI bounds](cli-commands.md#compact-recallsearch-and-conditional-expansion).
 
+## Imported Obsidian documents
+
+[`migrate obsidian`](obsidian-migration.md) maps every nonhidden regular vault Markdown file to `notes/<literal-relative-path>`, always `type: "note"`. Its generated envelope supplies an independent ID, literal relative-path title, `source: "obsidian-migration"`, `source_path`, `created_at` and `updated_at`. The complete original file, including YAML, follows as exact body bytes. Source aliases/tags, IDs, types, dream/confidence/attention fields and dates never become canonical control metadata. Daily notes do not acquire event dates or session type. No user-reviewed status is inferred.
+
+Version-one `.obsidian-migration-manifest.json` records source/body/output hashes, stable identities, a source-path digest and durable deletion ownership outside derived state. Preserve it with Markdown backups. Source-wins reruns, fail-on-conflict and identity-checked removals use the same transaction boundary as Logseq. Both formats refuse overlapping ownership. Canonical discovery also recognizes exact Obsidian envelopes at normally excluded nonhidden `notes/` paths without needing a manifest/index; hidden support directories and symlinks stay excluded; import exceptions never reopen hidden paths.
+
 ## Imported Logseq documents
 
 [`migrate logseq`](logseq-migration.md) maps classic Logseq `pages/<relative>.md` to `notes/<relative>.md` (`type: "note"`) and `journals/<relative>.md` to `sessions/<relative>.md` (`type: "session"`). Imported journals are not wrapup documents and do not require wrapup sections. Imported Logseq pages are not synthesized jumpyBrain pages.

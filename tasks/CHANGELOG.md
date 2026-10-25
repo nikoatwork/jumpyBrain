@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-25 — Obsidian vault import
+
+- Added local byte-preserving Obsidian import with transactional reruns, separate ownership, canonical retrieval/editor visibility and mixed-import guards; [implementation and verification](done/2026-10-25_tasks-obsidian-logseq-imports.md).
+
 ## 2026-10-25 — Shared dropdowns
 
 - Settings and brain switching share themed dropdowns with parent-fitting controls and menus; [implementation and verification](done/2026-10-25_tasks-shared-dropdowns.md).

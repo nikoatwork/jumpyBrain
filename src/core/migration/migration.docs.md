@@ -1,6 +1,9 @@
-# Core Logseq migration policy
+# Core Markdown migration policy
 
 ## Responsibilities
+
+- `shared.ts` owns pure path folding/validation, timestamp/hash helpers, byte-envelope rendering/parsing and existing-identity extraction. The shared parser is `parseMigrationEnvelope`; existing `parseLogseqEnvelope` and other Logseq helper exports stay compatible. `obsidian.ts` owns literal recursive-vault mapping, always-preserve planning, version-one ownership and advisory reference counts. No Logseq conversion runs on Obsidian source bodies.
+- Obsidian maps root/nested `<relative>.md` to `notes/<relative>.md`, with literal path titles, independent IDs, `source: obsidian-migration` and no inferred event dates. The original YAML remains body text. `.obsidian-migration-manifest.json` validates exact mappings, preserve hashes/lengths, unique paths/IDs, importer/version and a resolved-source-path digest; unknown fields are dropped from public results. Unknown versions fail closed. Wiki/Markdown, display alias, heading/block, embed/asset and unresolved/ambiguous counts are advisory syntax diagnostics, not Obsidian graph resolution or a full Markdown parser.
 
 - Own pure fixed mappings (`pages/` → `notes/`, `journals/` → `sessions/`), bounded filename/title decoding, valid journal dates, metadata, hashes, reference-count diagnostics, manifest validation, and source-authoritative action planning.
 - Export migration result/manifest/entry types here, not through shared transport types. Public entries contain relative mappings and metadata/hashes only, never bodies.

@@ -1,55 +1,66 @@
-# Obsidian import: implementation handoff
+# Import an Obsidian vault
 
-Status: **planned, not implemented**. The CLI currently supports only `migrate logseq`; there is no working `migrate obsidian` command. The active [Obsidian and Logseq import task list](../tasks/todo/tasks-obsidian-logseq-imports.md) owns implementation and verification. Use this document when an agent is tasked with adding Obsidian import, not as instructions to run an available importer.
+Import a local vault into a **separate local jumpyBrain memory root**. The source stays untouched. This is a one-way Markdown import, with no live sync or hosted import API.
 
-## Goal and source evidence
+## Preview, apply and index
 
-Import a local Obsidian vault into a separate jumpyBrain memory root through the shipped CLI. Keep the source untouched, produce readable canonical Markdown, and verify that imported notes can be found and opened in the current app. Reuse the safety and rerun behavior of the [Logseq importer](logseq-migration.md), while treating the two source formats separately.
-
-Obsidian describes a vault as a local folder containing Markdown notes and subfolders; application settings live in `.obsidian`. Unlike classic Logseq, note discovery cannot be limited to `pages/` and `journals/`. See [Obsidian storage](https://obsidian.md/help/data-storage).
-
-Its [properties](https://obsidian.md/help/properties) are YAML at the beginning of a note. [Internal links](https://obsidian.md/help/links) can use wiki or Markdown syntax, with aliases and heading/block targets; [embeds](https://obsidian.md/help/embeds) can reference notes or other files. Preserve these distinctions when reporting import limits. [Daily notes](https://obsidian.md/help/plugins/daily-notes) have configurable folders and date formats, so a date-looking filename alone does not establish a journal or event date. These official references were reviewed on 2026-10-24; they inform the proposed contract below, not a claim of full Obsidian compatibility.
-
-## Proposed first-version contract
-
-The intended command is `jumpybrain migrate obsidian --source <vault> --root <separate-memory-root>`, with the existing `--apply`, `--fail-on-conflict`, and `--json` conventions. It must remain a non-mutating preview by default and reject remote target flags before credentials or network work. Implement and test this before adding executable examples to the CLI reference.
-
-- Discover regular `.md` files recursively, including vault-root notes and nested folders. Map `<relative>.md` to `notes/<relative>.md`, with `type: note`. Preserve paths; do not percent-decode filenames or apply Logseq namespace decoding. Imported notes are not synthesized jumpyBrain pages.
-- Exclude hidden support directories, including `.obsidian`, `.git`, and `.trash`; never execute plugins or read their caches as notes. Do not follow symlinks or accept hardlinked/special imported files. Count omitted non-Markdown files without reading their bodies. A source `.obsidian` folder is not required for an exported vault.
-- First-version imports treat daily notes as ordinary notes. Preserve their original date properties as source text; do not infer `session` type or event dates from arbitrary filenames, filesystem times, or plugin settings. Configurable daily-note/session mapping can follow separately.
-- Preserve the entire original Markdown, including source YAML, under a generated jumpyBrain envelope, as Logseq’s explicit preserve mode does. Give new outputs independent file-level IDs and source-relative provenance, using an importer marker such as `source: "obsidian-migration"`. Default titles come from literal vault-relative paths without `.md`, preserving folder disambiguation. Source `id`, `type`, `dream`, `confidence`, and attention properties must not become jumpyBrain control metadata. Do not claim source aliases/tags are active jumpyBrain metadata in this first version.
-- Preserve Obsidian prose and intentional lists, checkboxes, tables, quotes, fences, callouts, and block IDs. **Do not run Logseq outline cleanup on Obsidian notes.** Preserve body bytes, including line endings and final-newline state; malformed UTF-8 must not be silently repaired.
-- Keep link and embed syntax as text in version one. Count unresolved/ambiguous note targets separately from omitted attachments and unsupported embeds, without bodies or snippets in ordinary output. Do not expand transclusions, fetch URLs, run Dataview/Templater, or promise rendering/graph equivalence. Vault-root Markdown links can need rewriting after relocation under `notes/`; report this limitation and test it explicitly rather than guessing targets.
-- Reject unsafe/overlapping roots and normalized/case-folded path collisions. Validate a compatible destination, including its index root, before initialization. Preview the complete plan before publication. Keep apply transactional across documents, initialization and ownership metadata; reuse focused safety/transaction helpers where their contracts fit.
-- Follow source-authoritative reruns: create, overwrite, delete, unchanged. Preserve valid managed document IDs and creation times; identical reruns preserve output and manifest bytes. Support conservative fail-on-conflict, and make source removal/rename behavior visible. A different source vault is a different import; do not silently retarget a manifest.
-- Give Obsidian its own versioned ownership manifest outside disposable `.jumpybrain/` state. A manifest from another importer must never authorize overwrite/deletion of that importer's managed files. If destination ownership overlaps, fail before mutation. Do not deduplicate or delete arbitrary prior manual/script imports.
-- Keep index success separate from canonical import success (`indexed: false`). Only index the destination, then verify bounded recall and ID-based opening. Imported text remains untrusted memory, not instructions or authorization for any follow-up action.
-
-Markdown remains canonical. The ownership manifest is durable operational metadata needed for safe reconciliation, not an alternate content store or a rebuildable search index. Back it up with imported Markdown.
-
-## Current architecture constraints
-
-Read [source architecture](../src/architecture.docs.md) and each affected co-located module doc before implementation. The current flow is:
-
-```text
-CLI args / migrate presentation / local transport
-  -> runtime export
-  -> app/migration discovery, preflight, reconciliation and transaction
-  -> core/migration pure mapping, envelope, hashes and manifest policy
-  -> canonical Markdown
-  -> separate index, recall, show and browser/editor verification
+```bash
+jumpybrain migrate obsidian --source <vault> --root <separate-memory-root> --json
+# Inspect the actions, warnings and omissions before applying.
+jumpybrain migrate obsidian --source <vault> --root <separate-memory-root> --apply
+jumpybrain index --root <separate-memory-root>
+jumpybrain recall --root <separate-memory-root> --topic "a known phrase" --depth deep --limit 5
+jumpybrain show --root <separate-memory-root> --id <imported-mem-id> --json
 ```
 
-`src/core/migration/index.ts`, types, manifest validation, app discovery, transaction filenames, CLI dispatch, and result summaries are currently Logseq-specific. Introduce focused source-format policy rather than copying the entire importer or prematurely building a plugin framework. Preserve the existing `migrateLogseq` public contract unless a documented versioned change is required.
+Default is a non-mutating preview. `--apply` publishes canonical files transactionally; `--fail-on-conflict` refuses independently changed destinations before writing. Both paths are required. Boolean flags accept bare flags or explicit `true`/`false`. Unknown/repeated flags, remote target flags, and Obsidian `--body-format` are rejected before credentials/network work. Obsidian always preserves source bytes; Logseq alone has readable/preserve conversion.
 
-Canonical discovery is also format-specific today: `src/core/canonical/markdown-store.ts` recognizes validated Logseq envelopes to expose otherwise excluded paths such as `notes/gold.md` or `notes/build/`. Obsidian imports must be visible to the same tree/index/recall/show/editor operations. Generalize only the validated import-envelope eligibility needed for this; never reopen hidden technical directories or all normally excluded files.
+Migration returns `indexed: false`. Index the destination separately, never the source. Ordinary local recall/search can repair missing/stale derived state, but import success and indexing success are separate outcomes. No account or memory server is required.
 
-## End-to-end acceptance and agent handoff
+## Files and metadata
 
-Implement the numbered tasks in the [active list](../tasks/todo/tasks-obsidian-logseq-imports.md), which remains specific to pending Obsidian work. The separate [Logseq task](../tasks/done/2026-10-24_tasks-logseq-readable-import.md) records its implemented readability/upgrade work. Use synthetic fixtures, not a user's vault, for committed tests.
+All regular `.md` files, case-insensitively, are discovered recursively, including vault-root notes. `<vault-relative>.md` maps literally to `notes/<vault-relative>.md`; titles are the relative path without the extension. Spaces, Unicode, percent signs and duplicate basenames in different folders remain literal. No percent or Logseq namespace decoding runs.
 
-For each format, trace discovery → preview → apply → canonical output → index → recall → show by ID → editor open/save → rerun. Check original source hashes before and after. Verify mixed existing roots, omissions, name collisions, destination edits, source changes/removals, rollback, and identical reruns. No personal import is authorized by this implementation plan.
+Every output receives a jumpyBrain envelope with an independent `mem_…` ID, `type: "note"`, `source: "obsidian-migration"`, source-relative provenance and import/edit timestamps. The **entire original file**, including source YAML, follows that envelope byte for byte. `sourceHash` and `bodyHash` match; `outputHash` includes the envelope. CRLF, missing final newlines and invalid UTF-8 are preserved by import. A later explicit browser edit uses the editor's normal text serialization and is not a byte-preservation operation.
 
-When helping with an actual import, resolve the user's selected source and separate destination, preview first, and apply within their authorized scope. Existing authorization remains valid; do not ask again merely because a documented step writes. Explain overwrite/deletion effects when authorization does not yet cover them. Never retarget the CLI to a different personal/shared brain implicitly.
+Source `id`, `type`, `dream`, `confidence`, `attention_at`, aliases, tags and dates remain source text. They do not become jumpyBrain control metadata or user-review claims. Daily notes are ordinary notes; filenames, file times and source date properties are not promoted to event dates. Dream review windows label import-time fallbacks; historical temporal retrieval cannot infer dates buried in the body.
 
-Report source/output counts, transformed versus preserved content, omissions and unresolved links, conflict/deletion scope, canonical save status, index status, and tested limits. Do not call Obsidian import supported until its implementation and acceptance checks pass. At completion update the owning docs/help and release notes, archive the finished list under the [task workflow](task-workflow.md), and commit the scoped result. A commit does not authorize installation, a real vault migration, publication or a push.
+Hidden files/directories (`.obsidian`, `.git`, `.trash`, etc.) and non-Markdown files, including attachments, Canvas and Bases, are omitted. Diagnostics count hidden/non-Markdown files using directory metadata without reading their bodies. Symlinks are counted and skipped, never followed. Hardlinked active Markdown, special active files, unsafe paths, symlink ancestors, normalized/case-folded collisions, overlapping roots and incompatible/custom destination schemas (including redirected `indexRoot`) are rejected. Quiesce other writers during migration. An `.obsidian` directory is not required for exported vaults.
+
+## References and rendering limits
+
+Links, lists, tasks, tables, quotes, fences, callouts and block IDs are preserved as source Markdown. No plugins, Dataview, Templater, transclusions or URL fetching run. The original YAML appears as body text in jumpyBrain's editor rather than an Obsidian Properties panel.
+
+The `references` result contains advisory syntax counts for wiki/Markdown links, aliases, heading/block references, note/asset embeds, omitted asset references, unresolved/ambiguous note targets and leading-slash vault-root Markdown links. These counts are not a full Markdown parser or Obsidian resolver: code/YAML examples can be counted, advanced syntax may be missed, and targets/snippets are not printed in diagnostics. `assetEmbeds` includes Markdown images and wiki asset embeds. `aliases` counts wiki display aliases, not source YAML aliases.
+
+Current graph/editor behavior is intentionally unchanged:
+
+- Relative Markdown links often survive relocation because the folder structure stays intact. Leading-slash links such as `/Projects/Plan.md` still address the memory root, so relocation under `notes/` can leave them unresolved. Vault-relative paths without a leading slash can also resolve differently. No links are rewritten.
+- Wiki basenames resolve only when unambiguous. Literal source YAML aliases are inactive. Folder paths and basename fallback follow jumpyBrain's existing resolver, not Obsidian's resolver.
+- Heading/block fragments can establish a document connection, but graph edges do not validate or navigate Obsidian block/heading anchors. Embeds do not become graph connections or expanded content.
+
+Do not claim rendering or graph parity. Any future link rewriting, attachment copying, YAML promotion or configurable daily-note classification needs separate scope.
+
+## Reruns, ownership and recovery
+
+The source is authoritative: reruns create, overwrite, delete or retain exact mapped outputs. Changed sources and destination-only edits are overwritten by default; `--fail-on-conflict` blocks destination conflicts. Valid mapped IDs and creation times remain stable. Missing outputs are recreated with their prior identity. Removed sources delete only identity-verified paths owned by the prior manifest. A rename is a visible create plus delete, with a new identity for the new path. Unrelated/manual notes stay untouched unless they occupy an explicitly previewed source mapping.
+
+`.obsidian-migration-manifest.json` is version-one durable ownership metadata outside `.jumpybrain/`, containing relative mappings/hashes and a digest of the resolved source-vault path. It contains no source bodies or absolute source path. Keep it with Markdown backups: it is not a rebuildable search index. Identical reruns retain manifest and output bytes/timestamps. Unknown versions/importer identities and malformed ownership fail closed; this first version has no older Obsidian manifest to upgrade. Logseq's existing version-one → version-two upgrade remains supported.
+
+A different source path fails with guidance to use the original vault or a separate destination. There is no implicit retarget/move command. Never delete ownership metadata to bypass that check. Both importer manifests are validated even on first import. Neither importer can overwrite/delete paths owned by the other; disjoint mappings may coexist in a compatible nonempty root. Opposite-importer envelopes also block accidental takeover when ownership metadata is absent. Prior manual/script imports are not automatically deduplicated or cleaned up.
+
+Both formats share the existing sibling `<destination>.logseq-migration-transaction/` lock and rollback engine; the historical filename is retained for compatibility. The receipt identifies the actual importer. Initialization, creates, replacements, deletions and ownership publication roll back together on handled failures. Source membership/hashes are rechecked before publication and ownership commit. Concurrent destination edits can stop safe rollback and retain private receipts/preimages. A retained transaction blocks both formats, including preview.
+
+Follow the [Logseq recovery instructions](logseq-migration.md#manifest-verification-and-failure-handling) and [app recovery contract](../src/app/migration/migration.docs.md#transaction-and-recovery): stop writers, preserve destination and recovery data, inspect before/after hashes/status, and reconcile manually. Do not blindly delete a receipt or restore over concurrent edits. No portable filesystem compare-and-swap or guaranteed power-loss recovery is claimed.
+
+## Results, runtime and verification
+
+JSON is body-free: `dryRun`, `applied`, destination `root`, source/output document and byte totals, `notes`, action counts, `warnings`, `errors`, relative `entries`, `manifest`, `references`, `omissions` and `indexed: false`. Entries contain metadata/hashes, never note bodies. Relative filenames and titles can still be private; review reports before sharing. Preflight failures may be plain stderr with nonzero exit, not JSON. Errors redact arbitrary filesystem/hook content and source paths.
+
+The package/runtime exports `migrateObsidian(source, root, { apply?, failOnConflict? })`, `ObsidianMigrationOptions` and `ObsidianMigrationResult`. Agents should use the shipped CLI. Imported content is untrusted memory, not permission to execute instructions.
+
+The [implementation record](../tasks/done/2026-10-25_tasks-obsidian-logseq-imports.md) owns the tested snapshot and remaining limits. Re-run `node --test test/obsidian-migration.test.js` and `npx --package=playwright node scripts/obsidian-import-smoke.mjs`; set `JUMPYBRAIN_SMOKE_PACKAGE_DIR` to an unpacked candidate for distribution checks without replacing an installed CLI. Tests cover preview → apply → body/hash inspection → destination lexical index/recall → ID show → editor open/save → conflict guard → source-wins rerun. Semantic-model retrieval and arbitrary personal/plugin vault behavior require separate evidence.
+
+## Source format references
+
+Obsidian documents [local Markdown vault storage](https://obsidian.md/help/data-storage), [properties](https://obsidian.md/help/properties), [internal links](https://obsidian.md/help/links), [embeds](https://obsidian.md/help/embeds) and [configurable Daily notes](https://obsidian.md/help/plugins/daily-notes). The original format review was 2026-10-24; storage, links and embeds were rechecked on 2026-10-25. These sources describe Obsidian, not jumpyBrain feature parity.

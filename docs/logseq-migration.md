@@ -109,6 +109,10 @@ After any failed apply, stop and inspect the reported error and destination befo
 
 Automatic recovery from a killed process, power loss, disk failure, or concurrent edits is **not guaranteed**. Keep an independent backup of destination-only content. Clean recreation restores source-derived content, not destination-only edits or old IDs. Never delete or “repair” the source graph as migration cleanup.
 
+## Shared destinations with Obsidian
+
+[Obsidian import](obsidian-migration.md) preserves prose/list bytes and uses separate version-one ownership. Both formats validate the other manifest and refuse overlapping mappings, including first imports and missing managed outputs. Opposite-importer envelopes also refuse takeover without a manifest. Disjoint mappings can coexist. Both share the historical `.logseq-migration-transaction` sibling lock; receipts identify the importer and retained recovery state blocks either command. Logseq readable/preserve defaults and version-one → version-two upgrades remain unchanged.
+
 ## JSON and runtime contract
 
 `--json` prints the app result without CLI-added fields or note bodies:

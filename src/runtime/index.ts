@@ -49,8 +49,8 @@ export async function initializeMemoryRoot(rootArg: string, options: { force?: b
   return initializeCoreMemoryRoot(rootArg, { ...options, packageVersion: await packageVersion() });
 }
 
-export { migrateLogseq } from "../app/migration/index.js";
-export type { LogseqMigrationResult, LogseqMigrationOptions, LogseqBodyFormat } from "../app/migration/index.js";
+export { migrateLogseq, migrateObsidian } from "../app/migration/index.js";
+export type { LogseqMigrationResult, LogseqMigrationOptions, LogseqBodyFormat, ObsidianMigrationResult, ObsidianMigrationOptions } from "../app/migration/index.js";
 
 export type { DreamWorkflowConfig } from "../app/dream/index.js";
 
