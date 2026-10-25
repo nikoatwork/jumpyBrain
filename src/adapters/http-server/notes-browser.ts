@@ -101,6 +101,16 @@ ${noteAttentionStyles}
       #note-editor > .external-change { animation: none; background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
     }
     #note-external-state { color: var(--ink-soft); font-size: var(--text-caption); }
+    #note-editor .editor-inline-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; background: var(--control-fill); border-radius: var(--radius-sm); padding: 0 var(--space-1); }
+    #note-editor .markdown-literal code, #note-editor .markdown-literal .editor-inline-code, #note-editor .markdown-code-block .editor-inline-code, #note-editor .markdown-reference { font: inherit; background: transparent; padding: 0; border-radius: 0; }
+    #note-editor .markdown-code-block { box-sizing: border-box; max-width: 100%; margin: var(--space-2) 0; padding: var(--space-3); overflow-x: auto; white-space: pre; overflow-wrap: normal; border-radius: var(--radius-sm); background: var(--control-fill); font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    #note-editor .markdown-code-block code { font: inherit; background: transparent; padding: 0; }
+    #note-editor .markdown-task { display: flex; align-items: baseline; gap: var(--space-2); }
+    .markdown-task > span { min-width: 0; flex: 1; }
+    .markdown-task > button { flex: 0 0 var(--space-6); width: var(--space-6); height: var(--space-6); min-height: 0; display: inline-grid; place-items: center; font: var(--text-ui)/1 var(--font-ui); align-self: flex-start; margin-top: .35em; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
+    .markdown-task > button[aria-checked="true"] { background: var(--control-fill); }
+    .markdown-task > button[aria-checked="true"]::after { content: "✓"; }
+    .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
     .markdown-reference[data-page-reference="true"]:hover { background: var(--surface-hover); }
     ::highlight(jumpybrain-reference-markers) { color: color-mix(in srgb, var(--ink) 24%, var(--surface)); }
@@ -333,6 +343,9 @@ export const notesViews = String.raw`
         <button class="quiet-button" data-format="h3" aria-label="Small heading">H3</button>
         <button class="quiet-button" data-format="bold" aria-label="Bold"><strong>B</strong></button>
         <button class="quiet-button" data-format="italic" aria-label="Italic"><em>I</em></button>
+        <button class="quiet-button" data-format="task" aria-label="Task checkbox" title="Task checkbox">☑</button>
+        <button class="quiet-button" data-format="code" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
+        <button class="quiet-button" data-format="code-block" aria-label="Code block" title="Code block">{ }</button>
         <button id="insert-reference" class="quiet-button note-icon" type="button" aria-label="Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       </div>
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>

@@ -18,7 +18,7 @@ const profiles = [
   { id: "b", name: "Fixture B", kind: "local", root: path.join(root, "b"), allowWrites: true },
   { id: "r", name: "Fixture remote", kind: "remote", url: "https://fixture.invalid", allowWrites: false },
 ];
-const documents = new Map(["a", "b", "r"].map((brain) => [brain, { content: `Fixture ${brain}\n`, hash: "h1" }]));
+const documents = new Map(["a", "b", "r"].map((brain) => [brain, { content: `Fixture ${brain}\n` + (brain === "r" ? "- [ ] Read-only task\n```js\n[[Inert]]\n```\n" : ""), hash: "h1" }]));
 let activeId = "a", generation = 1, revision = 1, phase = "idle", switchId = null, target = null;
 let switchSequence = 0, pendingSwitch = null, failWrites = false, failCapture = false, writeDelay = 0, pollDelay = 0;
 let failIndex = false, searchDelay = 0;
@@ -294,7 +294,9 @@ try {
   await editor.locator("#dream-close").click();
   await editor.goto(origin + "/?note=" + id + "&brain=a");
   await editor.locator("#note-editor").waitFor();
-  await appendEditorText(editor, "Pending A draft");
+  await replaceEditorText(editor, (await editorMarkdown(editor)) + "\n- [ ] Pending A task\n```js\n[[Inert code]]\n```\nPending A draft");
+  await editor.getByRole("checkbox").waitFor();
+  assert.equal(await editor.locator("#note-editor pre").count(), 1);
   await editor.locator("#open-search").click();
   writeDelay = 1300;
   const rowB = settings.locator(".companion-profile").filter({ hasText: "Fixture B" });
@@ -303,12 +305,14 @@ try {
   assert.equal(await editor.locator("#note-search").evaluate((dialog) => dialog.open), false, "a real preparing transition still closes Search");
   assert.equal(await editor.locator("#note-name").evaluate((element) => element.readOnly), true);
   assert.equal(await editor.locator("#new-note").isDisabled(), true);
+  assert.equal(await editor.getByRole("checkbox").isDisabled(), true);
   assert.equal(await editor.locator("#insert-reference").isDisabled(), true);
   assert.equal(await editor.locator(".app-nav").evaluate((element) => element.inert), true);
   await settings.waitForURL("**/settings?brain=b");
   writeDelay = 0;
   await editor.waitForURL(origin + "/?brain=b");
   assert.match(documents.get("a").content, /Pending A draft/);
+  assert.ok(documents.get("a").content.includes("- [ ] Pending A task\n```js\n[[Inert code]]\n```"));
   assert.equal(documents.get("b").content, "Fixture b\n");
   assert.ok(requests.filter((item) => item.path === "/companion/ack").length >= 2);
 
@@ -358,6 +362,10 @@ try {
   await readOnly.goto(origin + "/?note=" + id + "&brain=r"); await readOnly.locator("#note-editor").waitFor();
   assert.equal(await readOnly.locator("#note-editor").getAttribute("contenteditable"), "false");
   assert.equal(await readOnly.locator("#new-note").isDisabled(), true);
+  assert.equal(await readOnly.getByRole("checkbox").isDisabled(), true);
+  const readOnlyBody = await editorMarkdown(readOnly);
+  await readOnly.getByRole("checkbox").dispatchEvent("click");
+  assert.equal(await editorMarkdown(readOnly), readOnlyBody);
   await readOnly.locator("#graph-link").click(); await readOnly.locator("#open-dream").click();
   assert.match(await readOnly.locator("#dream-feedback").textContent(), /read only/);
   assert.equal(await readOnly.locator("#dream-preview").inputValue(), "");

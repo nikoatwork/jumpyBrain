@@ -41,6 +41,7 @@ try {
   for (const width of [1280, 390]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, hasTouch: width === 390 });
     async function check(name, run) {
+      if (process.env.JUMPYBRAIN_EDITOR_CHECK && !name.includes(process.env.JUMPYBRAIN_EDITOR_CHECK)) return;
       const page = await context.newPage();
       page.setDefaultTimeout(5000);
       const pageErrors = [];
@@ -52,6 +53,7 @@ try {
         assert.deepEqual(pageErrors, []);
         console.log(`PASS ${width}px ${name}`);
       } catch (error) {
+        if (process.env.JUMPYBRAIN_EDITOR_CHECK) console.error(await page.locator("#note-editor").evaluate((element) => ({ html: element.innerHTML, markdown: richEditor.getMarkdown(), selection: richEditor.captureSelection() })));
         failures.push({ width, name, error: error.stack });
         console.error(`FAIL ${width}px ${name}: ${error.message}`);
       } finally { await page.close(); }
@@ -85,7 +87,7 @@ try {
     });
     await check("paste within code stays literal while whole-block replacement parses", async (page) => {
       await load(page, "```md\ncode\n```");
-      await selectEditorText(page, 9);
+      await selectEditorText(page, 4);
       await paste(page, " **literal**");
       assert.equal(await editorMarkdown(page), "```md\ncode **literal**\n```");
       assert.equal(await page.locator("#note-editor .editor-bold").count(), 0);
@@ -255,14 +257,14 @@ try {
       assert.deepEqual(await page.evaluate(() => follows), ["Beta"]);
     });
     await check("dynamic fence edits invalidate later references without changing text", async (page) => {
-      await load(page, "```\n[[Inside]]\n```\n[[Outside]]");
+      await load(page, "~~~\n[[Inside]]\n~~~\n[[Outside]]");
       assert.deepEqual(await links(page), ["[[Outside]]"]);
       await selectEditorText(page, 0, 3);
       await paste(page, "Fence removed");
-      assert.equal(await editorMarkdown(page), "Fence removed\n[[Inside]]\n```\n[[Outside]]");
+      assert.equal(await editorMarkdown(page), "Fence removed\n[[Inside]]\n~~~\n[[Outside]]");
       assert.deepEqual(await links(page), ["[[Inside]]"]);
       await undoEditor(page);
-      assert.equal(await editorMarkdown(page), "```\n[[Inside]]\n```\n[[Outside]]");
+      assert.equal(await editorMarkdown(page), "~~~\n[[Inside]]\n~~~\n[[Outside]]");
       assert.deepEqual(await links(page), ["[[Outside]]"]);
     });
     await check("copy preserves literal reference brackets without activation", async (page) => {
@@ -337,11 +339,11 @@ try {
       assert.deepEqual(await page.evaluate(() => follows), []);
     });
     await check("fence reclassification preserves untouched emphasis spelling", async (page) => {
-      const source = "```\nInside\n```\nKeep _italic_ and [[Alpha]].";
+      const source = "~~~\nInside\n~~~\nKeep _italic_ and [[Alpha]].";
       await load(page, source);
-      await selectEditorText(page, 10, 11); // Middle backtick of closing fence in visible text.
+      await selectEditorText(page, 10, 11); // Middle tilde of unsupported literal closing fence.
       await page.keyboard.type("X");
-      assert.equal(await editorMarkdown(page), "```\nInside\n`X`\nKeep _italic_ and [[Alpha]].");
+      assert.equal(await editorMarkdown(page), "~~~\nInside\n~X~\nKeep _italic_ and [[Alpha]].");
     });
     await check("exact unchanged heading/emphasis around references", async (page) => {
       const source = "## Heading _italic_\nKeep **bold** and [[snake_case **literal**]].  \n\n- [ ] [[Task]]\nLast";
@@ -371,18 +373,18 @@ try {
       }
     });
     await check("multiline delimiter reclassification preserves untouched source and undo", async (page) => {
-      const source = "Opening `closed`\nKeep _italic_ and [[Alpha]].\nEnd";
-      const edited = source.replace("closed`", "closed");
+      const source = "Opening `unclosed\nKeep _italic_ and [[Alpha]].\nEnd";
+      const edited = source.replace("`unclosed", "unclosed");
       await load(page, source);
-      assert.deepEqual(await links(page), ["[[Alpha]]"]);
-      await selectEditorText(page, 15, 16); await page.keyboard.press("Backspace");
       assert.deepEqual(await links(page), []);
+      await selectEditorText(page, 8, 9); await page.keyboard.press("Backspace");
+      assert.deepEqual(await links(page), ["[[Alpha]]"]);
       assert.equal(await editorMarkdown(page), edited);
       await undoEditor(page);
-      assert.deepEqual(await links(page), ["[[Alpha]]"]);
+      assert.deepEqual(await links(page), []);
       assert.equal(await editorMarkdown(page), source);
       await redo(page);
-      assert.deepEqual(await links(page), []);
+      assert.deepEqual(await links(page), ["[[Alpha]]"]);
       assert.equal(await editorMarkdown(page), edited);
     });
     await check("cross-leaf references stay editable and inert without merging formatting", async (page) => {
@@ -399,6 +401,99 @@ try {
       assert.equal(await page.evaluate(() => richEditor.referenceRange().selection.isCollapsed()), true, "explicit picker retains a safe caret-only fallback");
       assert.deepEqual(await editorSelection(page), [4, 4]);
       assert.equal(await editorMarkdown(page), markdown);
+    });
+    await check("tasks toggle once by pointer/keyboard, retain labels and undo/redo", async (page) => {
+      const source = "# Heading\n- [ ] First **bold**\n  - [X] Child `x`\n    - [ ] Grandchild\n+ [ ] literal\n    - [ ] indented code\n| a | b |\n| --- | --- |";
+      await load(page, source);
+      assert.equal(await page.getByRole("checkbox").count(), 3);
+      const first = page.getByRole("checkbox").first();
+      await first.click();
+      assert.equal(await first.getAttribute("aria-checked"), "true");
+      assert.equal(await editorMarkdown(page), source.replace("- [ ] First", "- [x] First"));
+      await undoEditor(page); assert.equal(await editorMarkdown(page), source);
+      await redo(page); assert.equal(await first.getAttribute("aria-checked"), "true");
+      await first.focus(); await page.keyboard.press("Space");
+      assert.equal(await first.getAttribute("aria-checked"), "false");
+      await first.focus(); await page.keyboard.press("Enter");
+      assert.equal(await first.getAttribute("aria-checked"), "true");
+      assert.equal(await page.getByRole("checkbox").count(), 3);
+      await page.evaluate(() => richEditor.setReadOnly(true));
+      assert.equal(await first.isDisabled(), true);
+      const before = await editorMarkdown(page); await first.dispatchEvent("click");
+      assert.equal(await editorMarkdown(page), before);
+    });
+    await check("task creation, Enter continuation/exit and Backspace are ordinary undoable edits", async (page) => {
+      await load(page, ""); await page.locator("#note-editor").focus();
+      await page.keyboard.type("- [ ] First");
+      assert.equal(await page.getByRole("checkbox").count(), 1);
+      await page.keyboard.press("Enter"); await page.keyboard.type("Second");
+      assert.equal(await editorMarkdown(page), "- [ ] First\n- [ ] Second");
+      await page.keyboard.press("Enter"); await page.keyboard.press("Enter");
+      await page.keyboard.type("After");
+      assert.equal(await editorMarkdown(page), "- [ ] First\n- [ ] Second\nAfter");
+      await load(page, "- [ ] Label"); await selectEditorText(page, 0); await page.keyboard.press("Backspace");
+      assert.equal(await editorMarkdown(page), "Label");
+      await undoEditor(page); assert.equal(await editorMarkdown(page), "- [ ] Label");
+    });
+    await check("inline and fenced code keep Markdown, references and HTML inert", async (page) => {
+      const source = "Before `[[Hidden]] **literal** <b> @title` after [[Visible]]\nUse ``a ` b`` and ```a `` b``` here.\n````ts\n\t[[Hidden block]]\n\n```\n<b>日本語</b> **literal** @title\n````\nTail _italic_.";
+      await load(page, source);
+      assert.equal(await page.locator("pre").count(), 1);
+      assert.equal(await page.locator("pre").getAttribute("data-language"), "ts");
+      assert.deepEqual(await links(page), ["[[Visible]]"]);
+      await selectEditorText(page, 10, 13);
+      const beforeFormat = await editorMarkdown(page);
+      await page.evaluate(() => richEditor.format("bold"));
+      assert.equal(await editorMarkdown(page), beforeFormat, "code does not accept bold shortcuts");
+      assert.equal(await page.locator("#note-editor b, #note-editor img").count(), 0);
+      await appendEditorText(page, "!");
+      assert.equal(await editorMarkdown(page), source.replace("_italic_", "*italic*") + "!");
+      const visible = await page.locator("#note-editor").textContent();
+      await selectEditorText(page, visible.indexOf("Hidden block") + 4);
+      assert.equal(await page.evaluate(() => richEditor.autocompleteRange()), null);
+      await paste(page, " EDIT");
+      assert.ok((await editorMarkdown(page)).includes("[[Hidd EDITen block]]"));
+      assert.deepEqual(await page.evaluate(() => completed), []);
+      await undoEditor(page); assert.equal(await editorMarkdown(page), source.replace("_italic_", "*italic*") + "!");
+    });
+    await check("code edits preserve language, tabs, blank lines, safe delimiters and exit route", async (page) => {
+      await load(page, "```js\na\n\tb\n\n```\nTail");
+      await selectEditorText(page, 1); await page.keyboard.press("Enter"); await page.keyboard.press("Tab");
+      await page.keyboard.type("[[Inert]] **plain**");
+      assert.equal(await editorMarkdown(page), "```js\na\n\t[[Inert]] **plain**\n\tb\n\n```\nTail");
+      assert.deepEqual(await links(page), []);
+      await page.keyboard.press("Control+Enter"); await page.keyboard.type("Below");
+      assert.ok((await editorMarkdown(page)).includes("```\nBelow\nTail"));
+      await load(page, "````txt\nabc\n````"); await selectEditorText(page, 3);
+      await paste(page, "\n`````\n");
+      const exported = await editorMarkdown(page);
+      assert.ok(exported.startsWith("``````txt\nabc\n`````\n\n``````"));
+      await load(page, exported); assert.equal(await editorMarkdown(page), exported);
+      assert.ok((await page.locator("pre").innerText()).startsWith("abc\n`````\n"));
+    });
+    await check("code controls and typed fences create code without interpreting snippets", async (page) => {
+      await load(page, ""); await page.locator("#note-editor").focus();
+      await page.keyboard.type("```python"); await page.keyboard.press("Enter");
+      assert.equal(await page.locator("pre").count(), 1);
+      await page.keyboard.type("print('日本語')");
+      assert.equal(await editorMarkdown(page), "```python\nprint('日本語')\n```");
+      await page.keyboard.press("Control+Enter"); await page.keyboard.type("after");
+      const text = await page.locator("#note-editor").textContent();
+      await selectEditorText(page, text.indexOf("after") + 1, text.length);
+      await page.evaluate(() => richEditor.format("task"));
+      assert.equal(await page.getByRole("checkbox").count(), 1);
+      await load(page, "hello world"); await selectEditorText(page, 0, 5);
+      await page.evaluate(() => richEditor.format("code"));
+      assert.equal(await editorMarkdown(page), "`hello` world");
+      await undoEditor(page); assert.equal(await editorMarkdown(page), "hello world");
+    });
+    await check("unsupported and malformed code remains literal across neighboring edits", async (page) => {
+      for (const source of ["```js attr\nx\n```", " ```js\nx\n ```", "~~~js\nx\n~~~", "```js\nunclosed", "`unclosed", "    ```\nx\n    ```", "A `multi\nline` example"]) {
+        await load(page, source + "\nTail");
+        assert.equal(await page.locator("pre").count(), 0, source);
+        await appendEditorText(page, "!");
+        assert.equal(await editorMarkdown(page), source + "\nTail!");
+      }
     });
     if (width === 1280 && process.env.JUMPYBRAIN_REFERENCE_EDITOR_BENCH === "1") {
       for (const lines of [100, 1000]) {

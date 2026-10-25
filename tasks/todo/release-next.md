@@ -1,5 +1,7 @@
 # Changes
 
+- Write task checkboxes, inline backtick code and fenced code blocks in the editor, with undo, guarded saves and literal code/reference safety. Tables remain literal Markdown.
+
 - Import local Obsidian vaults with preview/apply, exact Markdown body preservation, safe reruns and separate indexing. Hidden support and attachments stay out; source links and YAML remain text.
 
 - Memory search uses a wider, filter-free dialog with note icons, one-line previews, file locations and right-aligned relative edit ages. It removes routine instructions and shows a compact reindex icon when its index is stale.

@@ -1,9 +1,9 @@
 // Browser-only adapter. Bundled separately; never imported by the server runtime.
 import {
-  $addUpdateTag, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
+  $addUpdateTag, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
-  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, IS_CODE, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
-  ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, getDOMTextNode, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection,
+  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
+  ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, getDOMTextNode, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
 import { createEmptyHistoryState, registerHistory } from "@lexical/history";
@@ -11,8 +11,11 @@ import { $setBlocksType } from "@lexical/selection";
 import {
   $convertToMarkdownString, $generateNodesFromMarkdownString, registerMarkdownShortcuts,
   HEADING, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE,
-  BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, type Transformer,
+  BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, INLINE_CODE, type Transformer,
 } from "@lexical/markdown";
+
+import { codeFence, exportCodeFence, inlineCodeRanges, taskMarker } from "./editor-markdown.js";
+import { FencedCodeMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
 
 import { referenceRanges, safeTitle } from "./reference-ranges.js";
 import { completedReferenceTitles } from "./reference-creation.js";
@@ -46,6 +49,7 @@ class LiteralMarkdownNode extends ParagraphNode {
 class PageReferenceNode extends TextNode {
   // Derived interaction state is deliberately excluded from serialized snapshots.
   __active = false;
+  hasFormat(format: TextFormatType) { return format === "code" || super.hasFormat(format); }
   static getType() { return "page-reference"; }
   static clone(node: PageReferenceNode) {
     const copy = new PageReferenceNode(node.__text, node.__key);
@@ -101,20 +105,35 @@ const references: Transformer = {
   type: "text-match", dependencies: [PageReferenceNode],
   importRegExp: /\[\[[^\[\]\r\n]+\]\]/,
   regExp: /\[\[[^\[\]\r\n]+\]\]$/, trigger: "]",
-  replace(node, match) { node.replace(new PageReferenceNode(match[0]).setFormat("code")); },
+  replace(node, match) { node.replace(new PageReferenceNode(match[0])); },
   export(node) { return node instanceof PageReferenceNode ? node.getTextContent() : null; },
 };
-const syntax: Transformer[] = [references, HEADING, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE];
+const task: Transformer = {
+  type: "element", dependencies: [TaskMarkdownNode], regExp: /(?!) /, replace() {},
+  export(node, children) { return node instanceof TaskMarkdownNode ? " ".repeat(node.__spaces) + "- [" + (node.__checked ? "x" : " ") + "] " + children(node) : null; },
+};
+const fencedCode: Transformer = {
+  type: "element", dependencies: [FencedCodeMarkdownNode], regExp: /(?!) /, replace() {},
+  export(node) { return node instanceof FencedCodeMarkdownNode ? exportCodeFence(node.getTextContent(), node.__language) : null; },
+};
+const syntax: Transformer[] = [fencedCode, task, references, INLINE_CODE, HEADING, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE];
 // Reference classification and leaf splitting are derived presentation, not a
 // source edit. Compare semantic text runs (including supported formatting), not
 // node classes/boundaries or the internal IS_CODE shortcut-suppression flag.
 // Otherwise changing a fence could reserialize an untouched line underneath it.
+function referenceScanText(block: LexicalNode): string {
+  if (block instanceof FencedCodeMarkdownNode) return block.getTextContent().replace(/[^\n]/g, "\uFFFC");
+  if ($isTextNode(block)) return !(block instanceof PageReferenceNode) && !(block.getParent() instanceof LiteralMarkdownNode) && block.hasFormat("code")
+    ? "\uFFFC".repeat(block.getTextContentSize()) : block.getTextContent();
+  return $isElementNode(block) ? block.getChildren().map(referenceScanText).join("") : block.getTextContent();
+}
+
 function snapshot(node: LexicalNode): string {
   type Part = { attributes: string; text?: string; children?: Part[] };
   function visit(current: LexicalNode): Part {
     if ($isTextNode(current)) {
       const { text, type: _type, ...attributes } = current.exportJSON();
-      return { attributes: JSON.stringify({ ...attributes, format: current.getFormat() & ~IS_CODE }), text };
+      return { attributes: JSON.stringify({ ...attributes, format: current instanceof PageReferenceNode || current.getParent() instanceof LiteralMarkdownNode ? current.getFormat() & ~IS_CODE : current.getFormat() }), text };
     }
     const children: Part[] = [];
     if ($isElementNode(current)) for (const child of current.getChildren()) {
@@ -153,13 +172,14 @@ export function createNoteEditor(element: HTMLElement, options: {
   };
   const transformers = [preserve, ...syntax];
   const editor = createEditor({
-    namespace: "jumpyBrain-notes", nodes: [HeadingNode, LiteralMarkdownNode, PageReferenceNode],
-    theme: { text: { bold: "editor-bold", italic: "editor-italic" } },
+    namespace: "jumpyBrain-notes", nodes: [HeadingNode, LiteralMarkdownNode, PageReferenceNode, TaskMarkdownNode, FencedCodeMarkdownNode],
+    theme: { text: { bold: "editor-bold", italic: "editor-italic", code: "editor-inline-code" } },
     onError: options.onError,
   });
   element.contentEditable = "true";
   editor.setRootElement(element);
-  const cleanups = [registerRichText(editor), registerHistory(editor, createEmptyHistoryState(), 300)];
+  const history = createEmptyHistoryState();
+  const cleanups = [registerRichText(editor), registerHistory(editor, history, 300)];
   // Paint only the literal brackets, without splitting Lexical's text/selection
   // DOM. Native selection takes precedence over this decorative highlight.
   if (typeof Highlight !== "undefined" && CSS.highlights) {
@@ -195,16 +215,31 @@ export function createNoteEditor(element: HTMLElement, options: {
   // Lexical's shortcut plugin intentionally skips code-formatted leaves. Use
   // that guard for literal Markdown, including newly split/pasted text nodes.
   cleanups.push(editor.registerNodeTransform(TextNode, (node) => {
-    if (node.getParent() instanceof LiteralMarkdownNode && node.getFormat() !== IS_CODE) node.setFormat("code");
+    if ((node.getParent() instanceof LiteralMarkdownNode || node.getParent() instanceof FencedCodeMarkdownNode) && node.getFormat() !== IS_CODE) node.setFormat("code");
   }));
-  cleanups.push(registerMarkdownShortcuts(editor, syntax));
+  cleanups.push(registerMarkdownShortcuts(editor, syntax.filter((transformer) => transformer !== task)));
 
   // A RootNode transform runs after leaf transforms. Never rewrite the DOM or
   // schedule another update: splitText/replaceText preserve live Lexical points.
   // Conservative recognition boundary: a reference must fit in ONE text leaf.
   function scanReferences() {
+    for (const block of $getRoot().getChildren()) {
+      if (!(block instanceof ParagraphNode) || block.getType() !== "paragraph") continue;
+      const previous = block.getPreviousSibling();
+      const marker = taskMarker(block.getTextContent(), previous instanceof TaskMarkdownNode ? previous.__spaces : null);
+      const first = block.getFirstChild();
+      if (!marker || !$isTextNode(first) || first.hasFormat("code")) continue;
+      const prefix = marker.indent + 6;
+      if (first.getTextContentSize() < prefix) continue;
+      const parts = first.splitText(prefix);
+      const next = new TaskMarkdownNode(marker.checked, marker.indent);
+      block.replace(next.append(...block.getChildren()));
+      parts[0].remove();
+      if (next.isEmpty()) next.selectStart();
+      $addUpdateTag(HISTORY_PUSH_TAG);
+    }
     const blocks = $getRoot().getChildren();
-    const text = blocks.map((block) => block.getTextContent()).join("\n");
+    const text = blocks.map(referenceScanText).join("\n");
     const activeRanges = new Set(referenceRanges(text).map((range) => range.start + ":" + range.end));
     // Literal export and interactive recognition are separate. Inert references
     // still need exact punctuation preservation when surrounding text is edited.
@@ -240,20 +275,16 @@ export function createNoteEditor(element: HTMLElement, options: {
           const valid = matches.some((range) => range.start === position && range.end === stop);
           const reference = part instanceof PageReferenceNode;
           const literal = part.getParent() instanceof LiteralMarkdownNode;
-          if (valid && !reference) {
+          const code = part.getParent() instanceof FencedCodeMarkdownNode || (!reference && part.hasFormat("code") && !literal);
+          if (valid && !reference && !code) {
             replaceText(part, new PageReferenceNode(part.getTextContent())
               .setActive(activeRanges.has(position + ":" + stop))
-              .setFormat(part.getFormat() | IS_CODE).setStyle(part.getStyle()));
+              .setFormat(part.getFormat() & ~IS_CODE).setStyle(part.getStyle()));
           } else if (valid && reference) {
             part.setActive(activeRanges.has(position + ":" + stop));
           } else if (!valid && reference) {
             replaceText(part, $createTextNode(part.getTextContent())
               .setFormat(literal ? IS_CODE : part.getFormat() & ~IS_CODE).setStyle(part.getStyle()));
-          } else if (!valid && !literal && part.hasFormat("code")) {
-            // Selection replacement and splitText can make ordinary TextNodes
-            // carrying the reference's internal shortcut guard. Inline code is
-            // otherwise a literal block in this editor, never a supported format.
-            part.setFormat(part.getFormat() & ~IS_CODE);
           }
           position = stop;
         }
@@ -317,9 +348,9 @@ export function createNoteEditor(element: HTMLElement, options: {
   cleanups.push(() => { win.clearTimeout(completionTimer); element.removeEventListener("compositionend", compositionEnd); });
   // Do not expose formats that our Markdown subset cannot save.
   cleanups.push(editor.registerCommand(FORMAT_TEXT_COMMAND, (format) => {
-    if (format !== "bold" && format !== "italic") return true;
+    if (format !== "bold" && format !== "italic" && format !== "code") return true;
     const selection = $getSelection();
-    return $isRangeSelection(selection) && selection.getNodes().some((node) => node instanceof PageReferenceNode || node instanceof LiteralMarkdownNode || node.getParent() instanceof LiteralMarkdownNode);
+    return $isRangeSelection(selection) && selection.getNodes().some((node) => node instanceof PageReferenceNode || node instanceof LiteralMarkdownNode || node.getParent() instanceof LiteralMarkdownNode || node instanceof FencedCodeMarkdownNode || node.getParent() instanceof FencedCodeMarkdownNode || (format !== "code" && $isTextNode(node) && node.hasFormat("code")));
   }, COMMAND_PRIORITY_HIGH));
   cleanups.push(editor.registerCommand(PASTE_COMMAND, (event) => {
     if (!event) return false;
@@ -335,8 +366,8 @@ export function createNoteEditor(element: HTMLElement, options: {
       const focusBlock = selection.focus.getNode().getTopLevelElement();
       // An insertion within an existing literal/code block must stay literal.
       // Replacing a whole block (or note) can introduce formatted Markdown.
-      const withinLiteral = anchorBlock instanceof LiteralMarkdownNode && anchorBlock === focusBlock
-        && (selection.isCollapsed() || selection.getTextContent() !== anchorBlock.getTextContent());
+      const withinLiteral = (anchorBlock instanceof LiteralMarkdownNode || anchorBlock instanceof FencedCodeMarkdownNode || selection.getNodes().some((node) => $isTextNode(node) && !(node instanceof PageReferenceNode) && node.hasFormat("code"))) && anchorBlock === focusBlock
+        && (selection.isCollapsed() || selection.getTextContent() !== anchorBlock?.getTextContent());
       if (withinLiteral) selection.insertRawText(text);
       else {
         const nodes = parseMarkdown(text);
@@ -344,13 +375,66 @@ export function createNoteEditor(element: HTMLElement, options: {
         // its surrounding text into a literal block and erase its formatting.
         const fragment = nodes.length === 1 && nodes[0] instanceof LiteralMarkdownNode
           && anchorBlock === focusBlock && anchorBlock && !anchorBlock.isEmpty()
-          && (selection.isCollapsed() || selection.getTextContent() !== anchorBlock.getTextContent());
+          && (selection.isCollapsed() || selection.getTextContent() !== anchorBlock?.getTextContent());
         if (fragment) selection.insertRawText(text);
         else selection.insertNodes(nodes);
       }
     }
     return true;
   }, COMMAND_PRIORITY_HIGH));
+
+  cleanups.push(editor.registerCommand(KEY_ENTER_COMMAND, (event) => {
+    if (!editor.isEditable()) return true;
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection)) return false;
+    const block = selection.anchor.getNode().getTopLevelElement();
+    if (block instanceof FencedCodeMarkdownNode) {
+      event?.preventDefault();
+      if (event?.metaKey || event?.ctrlKey) { block.insertNewAfter(); selection.setFormat(0); }
+      else selection.insertRawText("\n");
+      return true;
+    }
+    if (selection.isCollapsed() && block instanceof ParagraphNode && !(block instanceof LiteralMarkdownNode)) {
+      const match = block.getTextContent().match(/^(`{3,})([A-Za-z0-9_+.#-]*)$/);
+      if (match) {
+        event?.preventDefault();
+        const code = new FencedCodeMarkdownNode(match[2]); block.replace(code); code.selectStart(); return true;
+      }
+    }
+    return false;
+  }, COMMAND_PRIORITY_HIGH));
+  cleanups.push(editor.registerCommand(KEY_TAB_COMMAND, (event) => {
+    const selection = $getSelection();
+    if (!editor.isEditable() || !$isRangeSelection(selection) || !(selection.anchor.getNode().getTopLevelElement() instanceof FencedCodeMarkdownNode) || event.shiftKey) return false;
+    event.preventDefault(); selection.insertRawText("\t"); return true;
+  }, COMMAND_PRIORITY_HIGH));
+  const taskPointer = (event: PointerEvent) => {
+    if (event.target instanceof Element && event.target.closest("[data-task-toggle]")) event.preventDefault();
+  };
+  const toggleTask = (event: MouseEvent) => {
+    const button = event.target instanceof Element ? event.target.closest("[data-task-toggle]") : null;
+    if (!button || !element.contains(button)) return;
+    event.preventDefault();
+    if (!editor.isEditable()) return;
+    editor.update(() => {
+      const node = $getNearestNodeFromDOMNode(button);
+      if (node instanceof TaskMarkdownNode) node.toggle();
+    }, { discrete: true, tag: HISTORY_PUSH_TAG });
+  };
+  const taskKeyboard = (event: KeyboardEvent) => {
+    const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-task-toggle]") : null;
+    if (button && (event.key === " " || event.key === "Enter")) {
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (!event.repeat && !event.isComposing) button.click();
+    }
+  };
+  element.addEventListener("keydown", taskKeyboard, true);
+  cleanups.push(() => element.removeEventListener("keydown", taskKeyboard, true));
+  element.addEventListener("pointerdown", taskPointer);
+  element.addEventListener("click", toggleTask);
+  const syncTasks = () => element.querySelectorAll<HTMLButtonElement>("[data-task-toggle]").forEach((button) => { button.disabled = !editor.isEditable(); });
+  cleanups.push(editor.registerUpdateListener(syncTasks), editor.registerEditableListener(syncTasks));
+  cleanups.push(() => { element.removeEventListener("pointerdown", taskPointer); element.removeEventListener("click", toggleTask); });
 
   function captureSelection() {
     return editor.getEditorState().read(() => {
@@ -418,6 +502,8 @@ export function createNoteEditor(element: HTMLElement, options: {
         range = { selection, query: value.slice(opening + 1, end), value: markdown, text: value.slice(opening, end) };
         trigger = "@";
       }
+      if (leaf.hasFormat("code") && !(leaf instanceof PageReferenceNode)) return null;
+      if (block instanceof LiteralMarkdownNode || block instanceof FencedCodeMarkdownNode) return null;
       if (!range || !range.text.startsWith(trigger) || /[\[\]\r\n]/.test(range.query)
           || (trigger === "@" && range.query.includes("@"))
           || range.selection.anchor.key !== caret.anchor.key || range.selection.focus.key !== caret.anchor.key
@@ -431,7 +517,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       if (!found) return null;
       for (const sibling of leaf.getPreviousSiblings()) offset += sibling.getTextContentSize();
       const start = offset + range.selection.anchor.offset, end = offset + range.selection.focus.offset;
-      const text = blocks.map((node) => node.getTextContent()).join("\n");
+      const text = blocks.map(referenceScanText).join("\n");
       // A complete sentinel permits the same context scanner to validate empty
       // and unfinished queries. This is string-only; no editor DOM/model edit.
       const probe = text.slice(0, start) + "[[Candidate]]" + text.slice(end);
@@ -521,31 +607,57 @@ export function createNoteEditor(element: HTMLElement, options: {
 
   // Loading and pasting share the same conservative Markdown grammar.
   function parseMarkdown(value: string): LexicalNode[] {
-    const nodes: LexicalNode[] = [];
+    const nodes: LexicalNode[] = [], lines = value.split("\n");
     let fence: { char: string; length: number } | null = null;
-    for (const line of value.split("\n")) {
-      const marker = line.match(/^\s{0,3}(`{3,}|~{3,})/);
-      const withoutReferences = line.replace(/\[\[[^\[\]\r\n]+\]\]/g, "");
-      const literal = Boolean(fence || marker || /^(?: {4}|\t|\s*(?:>|[-+*]\s|\d+[.)]\s|\|))/.test(line)
+    let previousTask: number | null = null;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i], closed = !fence ? codeFence(lines, i) : null;
+      if (closed) {
+        const node = new FencedCodeMarkdownNode(closed.language).append(...$generateNodesFromRawText(closed.text).map((node) => $isTextNode(node) ? node.setFormat("code") : node));
+        nodes.push(node);
+        sources.set(node.getKey(), { original: lines.slice(i, closed.end + 1).join("\n"), snapshot: snapshot(node) });
+        i = closed.end; previousTask = null; continue;
+      }
+      const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
+      const checkbox = !fence ? taskMarker(line, previousTask) : null;
+      const content = checkbox ? checkbox.label : line;
+      let withoutCode = content;
+      for (const range of inlineCodeRanges(content).reverse()) withoutCode = withoutCode.slice(0, range.start) + withoutCode.slice(range.end);
+      const withoutReferences = withoutCode.replace(/\[\[[^\[\]\r\n]+\]\]/g, "");
+      const literal = Boolean(fence || marker || (!checkbox && /^(?: {4}|\t|\s*(?:>|[-+*]\s|\d+[.)]\s|\|))/.test(line))
         || /[\[\]<>`\\~]|^\s*(?:---+|===+|\*\*\*+|___+)\s*$/.test(withoutReferences));
       let node: LexicalNode;
       if (literal) node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
       else {
-        node = $generateNodesFromMarkdownString(line, syntax, true)[0] || $createParagraphNode();
-        // Unmatched delimiters may belong to multiline emphasis or unsupported
-        // syntax: leave their whole line literal rather than half-interpreting it.
-        if ($isElementNode(node) && node.getAllTextNodes().some((text) => !(text instanceof PageReferenceNode) && /\*|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/u.test(text.getTextContent()))) {
+        node = $generateNodesFromMarkdownString(content, syntax.filter((transformer) => transformer !== task), true)[0] || $createParagraphNode();
+        if ($isElementNode(node) && node.getAllTextNodes().some((text) => !(text instanceof PageReferenceNode) && !text.hasFormat("code") && /\*|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/u.test(text.getTextContent()))) {
           node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
-        }
+        } else if (checkbox && $isElementNode(node)) node = new TaskMarkdownNode(checkbox.checked, checkbox.indent).append(...node.getChildren());
       }
+      previousTask = node instanceof TaskMarkdownNode ? node.__spaces : null;
       nodes.push(node);
       sources.set(node.getKey(), { original: line, snapshot: snapshot(node) });
       if (marker) {
         if (!fence) fence = { char: marker[1][0], length: marker[1].length };
-        else if (marker[1][0] === fence.char && marker[1].length >= fence.length && /^\s*(?:`+|~+)\s*$/.test(line)) fence = null;
+        else if (marker[1][0] === fence.char && marker[1].length >= fence.length && /^ {0,3}(?:`+|~+)[ \t]*$/.test(line)) fence = null;
       }
     }
     return nodes;
+  }
+
+  // External reconciliation operates on source lines; a code block spans many.
+  function sourceBlocks() {
+    return editor.getEditorState().read(() => {
+      let start = 0;
+      return $getRoot().getChildren().map((node) => {
+        const source = sources.get(node.getKey());
+        const original = source?.snapshot === snapshot(node) ? source.original : node instanceof FencedCodeMarkdownNode ? exportCodeFence(node.getTextContent(), node.__language) : node.getTextContent();
+        const count = original.split("\n").length;
+        const range = { start, end: start + count, code: node instanceof FencedCodeMarkdownNode };
+        start += count;
+        return range;
+      });
+    });
   }
 
   let highlightTimer: number | undefined;
@@ -567,6 +679,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       }, { discrete: true });
       markdown = value;
       editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
+      history.current = { editor, editorState: editor.getEditorState() };
       loading = false;
       notifyReferenceContext();
     },
@@ -574,6 +687,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       if (value === markdown) return;
       const doc = element.ownerDocument, win = doc.defaultView!;
       const changes = externalLineChanges(markdown, value);
+      const oldBlocks = sourceBlocks();
       const selection = win.getSelection();
       let caret: { line: number; offset: number } | null = null;
       if (doc.activeElement === element && selection?.isCollapsed && selection.anchorNode && element.contains(selection.anchorNode)) {
@@ -581,9 +695,21 @@ export function createNoteEditor(element: HTMLElement, options: {
         while (block.parentNode && block.parentNode !== element) block = block.parentNode;
         const line = Array.from(element.childNodes).indexOf(block as ChildNode);
         if (line >= 0) {
-          const range = doc.createRange(); range.selectNodeContents(block);
-          range.setEnd(selection.anchorNode, selection.anchorOffset);
-          caret = { line, offset: range.toString().length };
+          const offset = editor.getEditorState().read(() => {
+            const selected = $getSelection();
+            if (!$isRangeSelection(selected)) return 0;
+            const anchor = selected.anchor, node = anchor.getNode();
+            let size = anchor.type === "text" ? anchor.offset : $isElementNode(node) ? node.getChildren().slice(0, anchor.offset).reduce((sum, child) => sum + child.getTextContentSize(), 0) : 0;
+            let current = node;
+            while (current.getParent() && current.getParent() !== $getRoot()) {
+              size += current.getPreviousSiblings().reduce((sum, child) => sum + child.getTextContentSize(), 0);
+              current = current.getParent()!;
+            }
+            return size;
+          });
+          const content = editor.getEditorState().read(() => $getRoot().getChildAtIndex(line)!.getTextContent());
+          const parts = content.slice(0, offset).split("\n"), source = oldBlocks[line];
+          caret = { line: source.start + (source.code ? 1 : 0) + parts.length - 1, offset: parts.at(-1)!.length };
         }
       }
       const scroll = element.closest("#note-panel");
@@ -592,26 +718,29 @@ export function createNoteEditor(element: HTMLElement, options: {
       // after it remain undoable; Undo cannot restore the replaced remote body.
       api.setMarkdown(value);
       if (caret) {
-        const matched = changes.matches.indexOf(caret.line);
-        const block = element.children[matched >= 0 ? matched : Math.min(caret.line, element.children.length - 1)];
-        if (block) {
-          const walker = doc.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-          let remaining = caret.offset, node: Node | null, last: Node | null = null;
-          while ((node = walker.nextNode())) {
-            last = node;
-            if (remaining <= (node.textContent?.length ?? 0)) break;
-            remaining -= node.textContent?.length ?? 0;
+        const matched = changes.matches.indexOf(caret.line), newBlocks = sourceBlocks();
+        const sourceLine = matched >= 0 ? matched : Math.min(caret.line, value.split("\n").length - 1);
+        const index = newBlocks.findIndex((block) => sourceLine >= block.start && sourceLine < block.end);
+        editor.update(() => {
+          const block = $getRoot().getChildAtIndex(index);
+          if (!$isElementNode(block)) return;
+          const source = newBlocks[index], line = Math.max(0, sourceLine - source.start - (source.code ? 1 : 0));
+          const textLines = block.getTextContent().split("\n");
+          let remaining = Math.min(caret!.offset, textLines[line]?.length ?? 0) + textLines.slice(0, line).reduce((sum, text) => sum + text.length + 1, 0);
+          const leaves: LexicalNode[] = [];
+          const visit = (node: LexicalNode) => { if ($isElementNode(node)) node.getChildren().forEach(visit); else leaves.push(node); };
+          visit(block);
+          for (const leaf of leaves) {
+            if ($isTextNode(leaf) && remaining <= leaf.getTextContentSize()) { leaf.select(remaining, remaining); return; }
+            remaining -= leaf.getTextContentSize();
           }
-          const range = doc.createRange();
-          if (node) range.setStart(node, remaining);
-          else if (last) range.setStart(last, last.textContent?.length ?? 0);
-          else range.setStart(block, 0);
-          range.collapse(true); selection!.removeAllRanges(); selection!.addRange(range);
-        }
+          block.selectEnd();
+        }, { discrete: true });
       }
       if (scroll && scrollTop !== undefined && scrollLeft !== undefined) { scroll.scrollTop = scrollTop; scroll.scrollLeft = scrollLeft; }
       win.clearTimeout(highlightTimer);
-      const highlighted = Array.from(element.children).filter((_, index) => changes.changed[index]);
+      const newBlocks = sourceBlocks();
+      const highlighted = Array.from(element.children).filter((_, index) => changes.changed.slice(newBlocks[index].start, newBlocks[index].end).some(Boolean));
       highlighted.forEach((block) => block.classList.add("external-change"));
       highlightTimer = win.setTimeout(() => highlighted.forEach((block) => block.classList.remove("external-change")), 4000);
     },
@@ -633,8 +762,8 @@ export function createNoteEditor(element: HTMLElement, options: {
         $setSelection(range.selection.clone());
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
-          if (selection.anchor.getNode().getParent() instanceof LiteralMarkdownNode) selection.insertText(text);
-          else { selection.insertNodes([new PageReferenceNode(text).setFormat("code")]); selection.setFormat(0); }
+          if (selection.anchor.getNode().getParent() instanceof LiteralMarkdownNode || selection.anchor.getNode().getParent() instanceof FencedCodeMarkdownNode || ($isTextNode(selection.anchor.getNode()) && (selection.anchor.getNode() as TextNode).hasFormat("code") && !(selection.anchor.getNode() instanceof PageReferenceNode))) selection.insertText(text);
+          else { selection.insertNodes([new PageReferenceNode(text)]); selection.setFormat(0); }
         }
       }, { discrete: true, tag: HISTORY_PUSH_TAG });
       return true;
@@ -642,15 +771,15 @@ export function createNoteEditor(element: HTMLElement, options: {
     format(kind: string) {
       if (!editor.isEditable()) return;
       restoreSelection(captureSelection());
-      if (kind === "bold" || kind === "italic") editor.dispatchCommand(FORMAT_TEXT_COMMAND, kind);
+      if (kind === "bold" || kind === "italic" || kind === "code") editor.dispatchCommand(FORMAT_TEXT_COMMAND, kind);
       else editor.update(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
-          $setBlocksType(selection, () => kind === "paragraph" ? $createParagraphNode() : $createHeadingNode(kind as HeadingTagType));
+          $setBlocksType(selection, () => kind === "task" ? new TaskMarkdownNode() : kind === "code-block" ? new FencedCodeMarkdownNode() : kind === "paragraph" ? $createParagraphNode() : $createHeadingNode(kind as HeadingTagType));
           for (const node of selection.getNodes()) if ($isTextNode(node) && !(node instanceof PageReferenceNode) && node.hasFormat("code")) node.setFormat(0);
           selection.setFormat(0);
         }
-      }, { tag: HISTORY_PUSH_TAG });
+      }, { discrete: true, tag: HISTORY_PUSH_TAG });
       editor.focus();
     },
     destroy() {

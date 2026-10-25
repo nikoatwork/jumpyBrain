@@ -69,7 +69,7 @@ try {
       await saved(page);
       assert.ok((await editorMarkdown(page)).includes(needle + suffix), needle);
     }
-    const literal = page.locator(".markdown-literal").filter({ hasText: "**not bold**" });
+    const literal = page.locator(".markdown-code-block").filter({ hasText: "**not bold**" });
     const currentVisible = await page.locator("#note-editor").textContent();
     await selectEditorText(page, currentVisible.indexOf("not bold"), currentVisible.indexOf("not bold") + 8);
     const literalBefore = await editorMarkdown(page);
@@ -159,7 +159,7 @@ try {
     assert.equal(await page.locator("#note-editor img").count(), 0);
     // Exact reference titles may contain Markdown punctuation; never escape it.
     const referenceTitle = "snake_case **literal**";
-    await page.route("**/memories/all/search", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: [{ provenance: { file: "notes/preservation.md", metadata: { id, title: referenceTitle } } }], index: { stale: false } }) }));
+    await page.route("**/memories/all/search*", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: [{ provenance: { file: "notes/preservation.md", metadata: { id, title: referenceTitle } } }], index: { stale: false }, recognition: { version: 1, candidates: 1, metadataUnavailable: 0 } }) }));
     await appendEditorText(page, "\nReference: ");
     await page.locator("#insert-reference").click();
     await page.locator("#note-search-input").fill("snake");

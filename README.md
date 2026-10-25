@@ -44,7 +44,7 @@ Your agent works with the same notes. Ask it to capture a decision, find the rea
 
 ## Start with your brain. Grow into a shared one.
 
-**Just you.** Choose a folder and keep your thoughts on your own machine. Write in jumpyBrain or open the Markdown in another editor. Local use needs no account or subscription.
+**Just you.** Choose a folder and keep your thoughts on your own machine. Write in jumpyBrain or open the Markdown in another editor. Add task checkboxes, inline backtick code and fenced code blocks while keeping portable Markdown. Local use needs no account or subscription.
 
 **You and your agents.** Claude Code, Codex, Pi, and other CLI-capable agents can remember and recall from the same brain. Switch tools or start a fresh session with your knowledge still available.
 

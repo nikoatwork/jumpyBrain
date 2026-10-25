@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-25 — Markdown checkboxes and code
+
+- Added task checkboxes and inert inline/fenced code while preserving untouched Markdown and guarded save/history flows; [implementation and verification](done/2026-10-25_tasks-markdown-checkboxes-code-tables.md). Tables are deferred.
+
 ## 2026-10-25 — Obsidian vault import
 
 - Added local byte-preserving Obsidian import with transactional reruns, separate ownership, canonical retrieval/editor visibility and mixed-import guards; [implementation and verification](done/2026-10-25_tasks-obsidian-logseq-imports.md).
