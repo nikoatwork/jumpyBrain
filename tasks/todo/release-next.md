@@ -1,17 +1,9 @@
 # Changes
 
-- Write task checkboxes, inline backtick code and fenced code blocks in the editor, with undo, guarded saves and literal code/reference safety. Tables remain literal Markdown.
-
+- Write task checkboxes, inline backtick code and fenced code blocks in the editor, with undo and guarded saves. Code stays literal and inactive; tables remain Markdown text.
 - Import local Obsidian vaults with preview/apply, exact Markdown body preservation, safe reruns and separate indexing. Hidden support and attachments stay out; source links and YAML remain text.
-
-- Memory search uses a wider, filter-free dialog with note icons, one-line previews, file locations and right-aligned relative edit ages. It removes routine instructions and shows a compact reindex icon when its index is stale.
-
-- The Mac update button gains a glowing rotating halo when a download or restart is ready; Reduced Motion keeps the indicator static.
-
-- Setup gains strict health checks, clearer missing-folder/search recovery and a read-only Desktop preflight. Startup and uninstall previews report failures honestly; agent guidance preserves unspecified event years and explicit capture permissions.
-- First-time setup offers plain-language agent instructions, truthful preview/restart guidance and commands that work with special-character paths. Desktop explains how to open the same brain your agents use.
-- Settings puts brains first in a compact list with muted status, small actions and a single refresh icon; extension controls and connection copy are shorter. Shared dropdowns use compact themed menus that follow their control width and fit narrow panels.
-- A sidebar selector makes switching between multiple brains easier. Adding a connection infers its name, keeps validation errors beside the form and offers an explicit Switch action.
-- New optional Candy Pink and Pomodoro extensions add a playful palette and a sidebar focus timer; the author guide now explains setup and API v1 compatibility across upgrades.
-- Paired app/CLI updates keep new extension installation and TypeScript compilation working.
-- Extensions recover their last working revision after restart, safe mode opens with damaged registries, and current updater probes skip extension execution. Authors get typed save outcomes, discoverable theme roles and a local compilation check; slow observers no longer hold brain switching or quit.
+- Search uses a wider, simpler dialog with note icons, readable previews, file locations and relative edit ages, plus a compact reindex action when needed.
+- Settings and brain switching use compact lists and themed dropdowns. New connections infer a name, keep validation errors beside the form and offer an explicit Switch action.
+- First-time setup offers clearer agent instructions, strict health checks and recovery guidance. Desktop helps open the same local brain your agents use and checks prerequisites before setup.
+- New Candy Pink and Pomodoro extensions add a playful palette and a sidebar focus timer. Extensions recover their last working revision after restart, preserve v1 compatibility and expose typed save outcomes and a local compilation check.
+- Mac updates use a glowing readiness halo and preserve paired app/CLI extension compilation. Recovery and safe mode handle damaged extension registries; slow extension observers no longer hold brain switching or quit.
