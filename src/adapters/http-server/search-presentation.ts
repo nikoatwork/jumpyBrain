@@ -59,21 +59,24 @@ export function resultEditContext(metadata: SearchRecognitionMetadata | undefine
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const date = metadataDate(metadata?.updatedAt), created = metadataDate(metadata?.createdAt);
   const editor = metadata?.editor;
-  const who = editor?.kind === "human" ? (actorId && editor.id === actorId ? "You" : "Human") : editor?.kind === "agent" ? "Agent" : "Editor unknown";
+  const who = editor?.kind === "human" ? (actorId && editor.id === actorId ? "You" : "Human") : editor?.kind === "agent" ? "Agent" : "";
   const exact = (value: string) => value.length === 10 ? value : new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
-  let label = "Edit date unknown";
+  let label = "";
   if (date) {
-    const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
-    const day = recognitionDay(date, timeZone);
-    const relative = day === recognitionDay(now.toISOString(), timeZone) ? "Today" : day === recognitionDay(yesterday.toISOString(), timeZone) ? "Yesterday" : "";
-    const value = new Date(date.length === 10 ? date + "T12:00:00" : date);
-    label = "Edited " + (relative || value.toLocaleDateString(undefined, { month: "short", day: "numeric", ...(value.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) }))
-      + (relative && date.length > 10 ? ", " + value.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }) : "");
+    // Compare local calendar days, so a DST boundary still counts as one day.
+    const days = Math.round((Date.parse(recognitionDay(now.toISOString(), timeZone)!) - Date.parse(recognitionDay(date, timeZone)!)) / 86400000);
+    if (days !== 0) label = days > 0 ? days + "d" : "in " + -days + "d";
+    else if (date.length === 10) label = "Today";
+    else {
+      const minutes = Math.floor((now.getTime() - Date.parse(date)) / 60000);
+      const age = Math.abs(minutes);
+      label = age < 1 ? "now" : (minutes < 0 ? "in " : "") + (age < 60 ? age + "m" : Math.floor(age / 60) + "h");
+    }
   }
   const details = [date ? "Last edited " + exact(date) : "Edit date unknown", created ? "Created " + exact(created) : "Creation date unknown",
-    editor ? `Declared editor: ${who}${editor.name ? " (" + editor.name + ")" : ""}. This is not verified identity.` : "Editor unknown",
+    who ? `Declared editor: ${who}${editor?.name ? " (" + editor.name + ")" : ""}. This is not verified identity.` : "",
     metadata?.metadataStatus === "unavailable" ? "Current metadata unavailable" : ""].filter(Boolean).join(". ");
-  return { label: label + " · " + who, details };
+  return { label, editor: who, details };
 }
 
 export function browserMemoryActor(storage: Storage | undefined): { kind: "human"; id?: string } {

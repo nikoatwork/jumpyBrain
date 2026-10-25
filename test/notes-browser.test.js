@@ -294,7 +294,13 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   const search = { results: [{ documentId: docA, title: malicious, snippet: malicious, file: malicious }], selected: 0, status: "ready", message: "ready", stale: true };
   renderNoteSearch(search);
   const row = $("search-results").children[0];
-  assert.deepEqual(row.children.map((child) => child.textContent), [malicious, "No preview text", "Edit date unknown · Editor unknown", malicious]);
+  assert.equal(row.children[0].className, "search-result-heading");
+  assert.deepEqual(row.children[0].children.map(child => child.textContent), [malicious]);
+  assert.equal(row.children[0].children[0].title, malicious);
+  assert.equal(row.children[1].className, "search-result-preview");
+  assert.equal(row.children[1].textContent, "No preview text");
+  assert.deepEqual(row.children[2].children.map(child => child.textContent), [malicious]);
+  assert.equal(row.children[2].children[0].title, malicious);
   assert.equal(row.attrs["aria-selected"], "true");
   assert.equal($("search-refresh-index").hidden, false);
   search.stale = false;
@@ -304,9 +310,19 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   renderNoteSearch(search);
   assert.equal($("search-results").children[0], row, "selection updates must not replace result rows either");
   assert.equal(row.attrs["aria-selected"], "false");
-  search.results = [{ documentId: docB, title: "Beta", snippet: "new", file: "notes/beta.md" }];
+  search.results = [{ documentId: docB, title: "Beta", snippet: "new", file: "notes/beta.md", recognition: { updatedAt: "2026-10-22", editor: { kind: "agent", name: malicious } } }];
   renderNoteSearch(search);
   assert.notEqual($("search-results").children[0], row, "a new query's results should replace old rows");
+  const known = $("search-results").children[0];
+  assert.equal(known.children[0].children[1].className, "search-result-age");
+  assert.match(known.children[0].children[1].attrs["aria-label"], /Last edited 2026-10-22/);
+  assert.deepEqual(known.children[2].children.map(child => child.textContent), ["notes/beta.md", "Agent"]);
+  assert.match(known.children[2].children[1].title, /Declared editor: Agent/);
+  search.results = [{ title: "Unavailable", snippet: "body", file: "notes/missing.md" }];
+  renderNoteSearch(search);
+  const unavailable = $("search-results").children[0];
+  assert.equal(unavailable.attrs["aria-disabled"], "true");
+  assert.equal(unavailable.children[3].textContent, "Unavailable: missing memory ID");
 });
 
 test("choosing a result navigates to its detail URL and explains save-guard rejection", async () => {

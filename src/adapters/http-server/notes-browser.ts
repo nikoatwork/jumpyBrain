@@ -155,10 +155,15 @@ ${noteAttentionStyles}
     .search-result { padding: var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
     .search-result[aria-selected="true"] { background: var(--surface-hover); }
     .search-result[aria-disabled="true"] { cursor: default; color: var(--ink-soft); }
-    .search-result strong, .search-result span, .search-result small { display: block; overflow-wrap: anywhere; }
-    .search-result strong { font-size: var(--text-body); font-weight: var(--weight-semibold); }
-    .search-result span { font-size: var(--text-ui); color: var(--ink-soft); margin-top: var(--space-1); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .search-result small { margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--text-caption); }
+    .search-result-heading, .search-result-meta { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; }
+    .search-result strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-body); font-weight: var(--weight-semibold); }
+    .search-result-preview { display: block; margin-top: var(--space-1); font-size: var(--text-ui); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .search-result small { color: var(--ink-soft); font-size: var(--text-caption); }
+    .search-result-age { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .search-result-meta { margin-top: var(--space-1); }
+    .search-result-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-result-editor { flex-shrink: 0; }
+    .search-result-unavailable { display: block; margin-top: var(--space-1); }
     .search-footer { padding: var(--space-3) var(--space-4); font-size: var(--text-caption); color: var(--ink-soft); }
     .search-footer p { margin: 0; }
     #connection { padding: var(--space-6); }
@@ -846,14 +851,31 @@ function renderNoteSearch(search) {
       item.className = "search-result";
       item.setAttribute("role", "option");
       item.setAttribute("aria-disabled", String(!result.documentId));
+      const heading = document.createElement("div"); heading.className = "search-result-heading";
       const title = document.createElement("strong"); JumpyBrainBrowser.appendSearchHighlight(title, result.title, search.query);
+      title.title = result.title;
       const snippet = document.createElement("span");
+      snippet.className = "search-result-preview";
       JumpyBrainBrowser.appendSearchHighlight(snippet, JumpyBrainBrowser.searchPreview(result.snippet, result.title, search.query, result.recognition?.preview || ""), search.query);
       const edit = document.createElement("small"), editContext = JumpyBrainBrowser.resultEditContext(result.recognition, browserActor.id);
+      edit.className = "search-result-age";
       edit.textContent = editContext.label;
       edit.title = editContext.details; edit.setAttribute("aria-label", editContext.details);
-      const context = document.createElement("small"); context.textContent = result.file + (result.documentId ? "" : " · Unavailable: missing memory ID");
-      item.append(title, snippet, edit, context);
+      heading.append(title);
+      if (editContext.label) heading.append(edit);
+      const context = document.createElement("div"); context.className = "search-result-meta";
+      const file = document.createElement("small"); file.className = "search-result-path"; file.textContent = result.file; file.title = result.file;
+      context.append(file);
+      if (editContext.editor) {
+        const editor = document.createElement("small"); editor.className = "search-result-editor"; editor.textContent = editContext.editor;
+        editor.title = editContext.details; editor.setAttribute("aria-label", editContext.details);
+        context.append(editor);
+      }
+      item.append(heading, snippet, context);
+      if (!result.documentId) {
+        const unavailable = document.createElement("small"); unavailable.className = "search-result-unavailable"; unavailable.textContent = "Unavailable: missing memory ID";
+        item.append(unavailable);
+      }
       item.addEventListener("click", () => chooseSearchResult(result));
       list.append(item);
     });

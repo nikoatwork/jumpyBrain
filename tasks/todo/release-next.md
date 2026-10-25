@@ -1,6 +1,6 @@
 # Changes
 
-- Memory search removes routine instructions and shows a compact reindex icon when its index is stale.
+- Memory search uses compact structured results with one-line previews, right-aligned relative edit ages and known-editor metadata. It removes routine instructions and shows a compact reindex icon when its index is stale.
 
 - The Mac update button gains a glowing rotating halo when a download or restart is ready; Reduced Motion keeps the indicator static.
 

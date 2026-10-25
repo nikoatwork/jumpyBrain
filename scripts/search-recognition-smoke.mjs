@@ -58,8 +58,19 @@ try {
       assert.match(await page.locator("#search-coverage").innerText(), /Other matches may exist/);
       assert.equal(await page.locator("#search-results img, #search-results script").count(), 0);
       assert.equal(await page.evaluate(() => window.searchUnsafe), undefined);
-      const preview = await page.locator("#search-results li span").first().innerText();
+      const preview = await page.locator("#search-results .search-result-preview").first().innerText();
       assert.doesNotMatch(preview, /(?:^|\s)#{1,6} |\*\*|^- /);
+      const layout = await page.locator("#search-results li").filter({ has: page.locator(".search-result-age") }).first().evaluate(row => {
+        const title = row.querySelector("strong"), age = row.querySelector(".search-result-age"), preview = row.querySelector(".search-result-preview");
+        const style = getComputedStyle(preview), bounds = row.getBoundingClientRect(), ageBounds = age.getBoundingClientRect();
+        return { age: age.textContent, ageRight: ageBounds.right, rowRight: bounds.right, titleRight: title.getBoundingClientRect().right,
+          previewHeight: preview.clientHeight, lineHeight: parseFloat(style.lineHeight), nowrap: style.whiteSpace, ellipsis: style.textOverflow, overflow: row.scrollWidth > row.clientWidth };
+      });
+      assert.equal(layout.age, "1d");
+      assert.ok(layout.ageRight > layout.titleRight && layout.rowRight - layout.ageRight <= 13, "edit age stays at the right edge");
+      assert.equal(layout.nowrap, "nowrap"); assert.equal(layout.ellipsis, "ellipsis");
+      assert.ok(layout.previewHeight <= layout.lineHeight + 1, "preview occupies one line");
+      assert.equal(layout.overflow, false, "long titles and paths do not overflow the row");
       await page.screenshot({ path: path.join(output, `search-${width}-${theme}.png`) });
       const nextBox = await page.locator("#search-next").boundingBox(), dialogBox = await page.locator("#note-search").boundingBox();
       assert.ok(nextBox.y + nextBox.height <= dialogBox.y + dialogBox.height, "paging remains visible inside the dialog");
@@ -70,7 +81,7 @@ try {
       assert.match(await page.locator("#search-results").innerText(), /You/);
       await page.locator("#search-date").selectOption("yesterday");
       await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1 && !document.querySelector("#search-results").getAttribute("aria-busy").includes("true"));
-      assert.match(await page.locator("#search-results").innerText(), /Yesterday/);
+      assert.equal(await page.locator(".search-result-age").innerText(), "1d");
       await page.screenshot({ path: path.join(output, `search-human-${width}-${theme}.png`) });
       await page.locator("#search-sort").selectOption("edited");
       await page.locator("#search-date").selectOption("custom");
@@ -89,7 +100,8 @@ try {
       await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 24);
       await page.locator("#search-editor").selectOption("unknown");
       await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1);
-      assert.match(await page.locator("#search-results").innerText(), /Edit date unknown · Editor unknown/);
+      assert.doesNotMatch(await page.locator("#search-results").innerText(), /Editor unknown|Edit date unknown/);
+      assert.equal(await page.locator(".search-result-editor, .search-result-age").count(), 0);
       await page.locator("#search-clear").click();
       await page.locator("#search-editor").selectOption("you");
       await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1);
@@ -102,7 +114,7 @@ try {
         await page.locator("#open-search").click();
         await page.locator("#note-search-input").fill("freshly edited personal");
         await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 1);
-        assert.match(await page.locator("#search-results").innerText(), /Today.*You/s);
+        assert.match(await page.locator("#search-results").innerText(), /(?:now|\d+[mh]).*You/s);
         assert.match(await page.locator("#search-results").innerText(), /freshly edited personal/);
         // Reset the fixture and refresh the index for the next layout.
         await writeFile(path.join(root, notes[0].file), notes[0].content);
