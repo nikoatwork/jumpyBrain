@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-25 — v0.3.9 beta
+
+- Published the completed editor/import, search/Settings and setup/extension changes; reduced routine beta preparation to three commands with targeted extras. [Release verification](done/releases/v0.3.9.qa.md).
+
 ## 2026-10-25 — Markdown checkboxes and code
 
 - Added task checkboxes and inert inline/fenced code while preserving untouched Markdown and guarded save/history flows; [implementation and verification](done/2026-10-25_tasks-markdown-checkboxes-code-tables.md). Tables are deferred.
