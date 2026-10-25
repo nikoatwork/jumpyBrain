@@ -1,64 +1,51 @@
 # Release testing
 
-Run this on the agreed release snapshot before publishing, following [the release routine](releases.md). Test actual app/CLI behavior and saved Markdown; a successful build or a screenshot alone is not an end-to-end pass.
-
-Apply [lean beta release guidance](lean-beta-releases.md) when planning verification and reusing evidence. The commands and gates below remain the current requirements; proposed tooling improvements are not implemented by that guidance.
+Use a small beta gate on the agreed snapshot before publishing through [the release workflow](releases.md). The owner explicitly reduced routine testing on 2026-10-25: keep core behavior and distribution checks, and select additional tests for the behavior actually changed. Do not run the full browser/updater matrix for every release.
 
 ## Prepare
 
-- Record commit, Node/QMD versions, macOS version and architecture. Use disposable memory, CLI config, app profile, and installation paths; never fault-test personal notes or a live shared brain.
-- Use the prerequisites in [Install](install.md), locked root/Electron dependencies, and Playwright Chromium for browser smokes. Build fresh artifacts from this snapshot; do not reuse an older `.local-pack/desktop` build.
-- Seed two linked notes with distinctive text, then use the same brain in the test app and CLI. Keep a second brain for switching. Preserve before/after bytes for notes and settings that should not change.
+- Record the commit, Node/QMD versions, macOS version and architecture. Use disposable memory, CLI config, app profiles and installation paths; never fault-test personal notes or a live shared brain.
+- Review the changes since the latest published release and curate the pending notes. Use locked dependencies and provisioned Playwright/QMD; no model download is implied.
+- Reuse passing checks when their relevant implementation and inputs are unchanged. Run builds sequentially with checks that consume their output. Build a fresh outer desktop candidate; its verified unchanged native helper may be reused by the existing packer.
 
-## Every release
-
-Run from the repository root, in order. These are disposable test/build operations; `desktop:pack` does not install over the user's app.
+## Routine beta gate
 
 ```sh
-npm test
-npm run cli:pack
+npm run build
 npm run desktop:pack
 npx --package=playwright node scripts/note-lifecycle-smoke.mjs
-npm run smoke:electron
-npm run smoke:desktop
-node scripts/desktop-update-smoke.mjs success
+npm run release -- --dry-run
+npm run release
 ```
 
-Reuse passing results for the same unchanged snapshot; the release command still runs its own mandatory validation. Then exercise the following routes in the candidate build, reusing equivalent automated coverage where it proves the same behavior. Use the candidate CLI, not an unrelated installed version; command syntax is in [CLI commands](cli-commands.md).
+The full release command already runs **`npm test` and `npm run cli:pack`** against aligned CLI/app versions. Do not run separate full-suite/CLI-pack passes beforehand merely to repeat those same gates. A prior passing implementation suite can support preparation; the release-owned full suite remains mandatory. The script still builds more than once internally; no undocumented lean/thorough flag exists.
 
-| Flow | Exercise → required result |
+The core note smoke checks actual canonical capture, immediate search, graph/title navigation, two-tab stale-save recovery, narrow layouts, deletion cancel/apply, preserved referencing files and index refresh. The deterministic suite covers local/hosted policy, CLI/provenance and the frozen extension contract. Inspect the changed screens using the relevant feature's existing screenshots/checks; do not repeat unrelated theme/device permutations.
+
+Before calling it shipped, verify the public tag, exact release notes, one distribution asset, aligned package/lockfile versions and the downloaded asset's SHA-256 digest. Git push alone is not publication. Publishing does not update the user's installed app.
+
+## Choose extra checks for changed behavior
+
+Start with the smallest relevant check, normally one focused command per changed area. Reuse completed feature evidence when its relevant code is unchanged. Add more only for a concrete unresolved issue, a newly found failure, or an explicit request for broader verification. Packaging a normal release is not by itself a reason to run every installed-updater mode.
+
+| Changed behavior | Targeted check |
 | --- | --- |
-| Open a brain | Fresh profile: create a local brain, then open an existing one. Reopen the app → same selected folder and notes; no account or remote server needed. |
-| Write and reopen | Create a note; paste a heading, emphasis and a page reference; edit and wait for Saved. Navigate away and reopen → matching canonical Markdown, formatting and stable note identity. |
-| CLI ↔ app | CLI `remember --root … --json`, then find/open that note in the app. Edit in the app, then CLI `recall --root … --query … --compact` and `expand` using its returned ID/hash → current text with valid provenance. Explicit lexical reindex must preserve Markdown bytes. |
-| Find and connect | Search by distinctive text, follow a page reference, filter the map and open its node → correct note, usable navigation, and no duplicate/unresolved node for the existing target. |
-| Protect edits | Edit one note in two tabs → stale save shows review/recovery and retains the draft. Simulate a failed save, then try switching brains or restarting → stay open with recoverable text; no silent overwrite. |
-| Switch and delete | Switch between two disposable brains → correct notes, no CLI retargeting. Preview deletion of a linked note, cancel, then confirm → only that file disappears; referencing notes remain byte-identical. |
-| Extension compatibility | Run `node --test test/extensions-compatibility.test.js` (also included in `npm test`). Keep the frozen v1 SDK, sources and cached assets unchanged; verify old types, cached activation, recompilation, commands, UI cleanup, state and disabled choices. The installed updater smoke preserves external registry preferences/cache bytes and namespaced state (allowing only the validated last-successful metadata migration), invokes the frozen package through the replacement runtime, and requires the installed CLI to compile a fresh TS/UI package. |
-| Quit and update | Close/reopen the window, then explicitly quit/relaunch. Prepare an update while editing, cancel/retry, defer restart, then install → saves precede replacement; app/runtime/managed CLI agree on the new version and notes/settings survive. |
+| Desktop host, quit/switch barriers or native lifecycle | `npm run smoke:desktop` against the fresh package. Use `npm run smoke:electron` instead/also when its window/onboarding/gateway behavior is the change under test. |
+| Updater or installer replacement/rollback behavior | One representative `node scripts/desktop-update-smoke.mjs success`, plus the specific failure mode whose behavior changed. Other `app-only`, `relaunch-failure`, `helper-crash`, `app-crash`, `cli-open`, `cli-closed` modes stay available for targeted diagnosis; they are not a routine release matrix. Run `success --client-v0.3.7` only when changing compatibility with that worker. |
+| Update dialog/window | `env -u ELECTRON_RUN_AS_NODE integrations/electron/node_modules/.bin/electron integrations/electron/smoke-updater-ui.mjs`. |
+| First-use setup/onboarding | Select `node scripts/onboarding-install-smoke.mjs` with an absolute `JUMPYBRAIN_QMD_BIN`, or `node scripts/desktop-onboarding-smoke.mjs .local-pack/desktop/jumpyBrain.app/Contents/Resources`, according to the changed flow. These use provisioned tools and disposable roots; they are not clean-machine/live-GitHub or authenticated-agent tests. |
+| Editor, references, map or Dream | Select the relevant direct browser script using the existing build: `scripts/markdown-formatting-smoke.mjs`, `lexical-editor-smoke.mjs`, `page-reference-editor-smoke.mjs`, `reference-autocomplete-smoke.mjs`, `page-reference-smoke.mjs`, `graph-editor-smoke.mjs` or `dream-handoff-smoke.mjs`. Do not run the entire group for a small editor change. |
+| Obsidian or Logseq import | `npx --package=playwright node scripts/obsidian-import-smoke.mjs` or `scripts/logseq-import-smoke.mjs`. Set `JUMPYBRAIN_SMOKE_PACKAGE_DIR` for an unpacked distribution when package inclusion is in question. Native Obsidian sample creation is separate manual evidence. |
+| Extension API/runtime or executable activation | Frozen v1 compatibility is already in `npm test`. Select one of `scripts/extensions-smoke.mjs`, `extensions-browser-controller-smoke.mjs` or `extensions-desktop-smoke.mjs` for the changed host/presentation path. Use installed-update success when testing state/compiler migration; preserve the frozen package and user preferences. No v1-baseline rewrite to accommodate a breaking candidate. |
+| Search presentation or dropdowns | Select `scripts/search-recognition-smoke.mjs` or `scripts/dropdown-smoke.mjs`. Reuse unchanged editor/navigation evidence. |
+| Retrieval/index/model behavior | Lexical core checks suffice for unrelated changes. When semantic behavior changes, run `scripts/semantic-index-smoke.mjs` with existing absolute `JUMPYBRAIN_QMD_BIN` and `JUMPYBRAIN_SMOKE_MODEL`. Real model evidence is required for semantic claims; lexical/mocked success does not establish it. |
+| Hosted connections/auth | Select `scripts/companion-gateway-smoke.mjs` or the focused transport tests. Verify the changed permission/offline/draft behavior without automatically repeating every connection fixture. |
+| Feedback/diagnostics | Select the focused deterministic/browser test with a test receiver. Pack validation checks delivery configuration. A live delivery needs explicit authorization and an API inbox match under [feedback checking](check-feedback.md). |
 
-Inspect the changed screens in light/dark mode, at a narrow width, and by keyboard. Capture the actual rendered result; check for clipped controls, unreadable errors, and unexpected console errors. The updater fixture proves an installed local-artifact upgrade, not a live public-release upgrade.
-
-## Extra checks when the area changes
-
-For first-use onboarding, run `JUMPYBRAIN_QMD_BIN=/absolute/path/qmd node scripts/onboarding-install-smoke.mjs` against built source. It downloads the candidate bootstrap/helpers over real loopback HTTP and exercises isolated source installation, first save/recall/expansion, managed update, deletion preview and note-preserving uninstall. It reuses provisioned tools/QMD and is not a clean-machine or live GitHub install test.
-
-After a fresh `desktop:pack`, `node scripts/desktop-onboarding-smoke.mjs .local-pack/desktop/jumpyBrain.app/Contents/Resources` exercises packaged modules with a real isolated native helper: existing/new brains, app/CLI roundtrip, relaunch, missing-helper restoration, startup recovery and overlong socket failure. Its normal mode injects picker results. The optional third argument `physical` uses an isolated QA app and waits for native input; record actual chooser actions separately. Use only fictional fixture paths and preserve the user's installed app. Authenticated Claude discovery/activation and fresh-conversation recall require separate real-model evidence; generated commands alone cannot establish them.
-
-| Changed area | Run / verify |
-| --- | --- |
-| Updater, installer, lifecycle or package contents | `node scripts/desktop-update-smoke.mjs <mode>` for **each** of `app-only`, `relaunch-failure`, `helper-crash`, `app-crash`. Verify pinned CLI preservation, rollback/recovery, no false success, and retained next-update helpers. For incoming installer compatibility with v0.3.7, also run `node scripts/desktop-update-smoke.mjs success --client-v0.3.7`; this uses the hash-pinned published worker against the node_modules-free incoming package. |
-| Update window | `env -u ELECTRON_RUN_AS_NODE integrations/electron/node_modules/.bin/electron integrations/electron/smoke-updater-ui.mjs` → all phases, keyboard Details, app-only scope and actionable errors. |
-| Extension SDK, host, renderer, compiler or packaging | `node --test test/extension-gateway.test.js test/extensions*.test.js test/extension-examples.test.js`; `npx --package=playwright node scripts/extensions-smoke.mjs`; `npx --package=playwright node scripts/extensions-browser-controller-smoke.mjs`; `node scripts/extensions-desktop-smoke.mjs`. Check the old v1 package after installed upgrade and rollback, and selected palette/placement/shortcut preferences in the same desktop profile (`desktop-update-smoke.mjs success` and `relaunch-failure`). Require two audit factory activations—original and actual relaunch—with none from staged/installed readiness probes. Historical published workers without readiness suppression remain a documented limit. Do not rewrite the v1 baseline to accommodate a breaking candidate. Add a new API version and migration path instead. |
-| Editor, references, map or Dream | Relevant `npm run smoke:lexical`, `npm run smoke:page-references`, `npm run smoke:graph-editor`; for Dream run `npx --package=playwright node scripts/dream-handoff-smoke.mjs`. Verify the explicit handoff and scope, with no implicit memory write. |
-| Obsidian import | `npx --package=playwright node scripts/obsidian-import-smoke.mjs` verifies byte-preserving preview/apply, protected source YAML, omission diagnostics, lexical index/recall, ID show, editor open/save, conflicts, source-wins rerun and source-tree hashes. Use `JUMPYBRAIN_SMOKE_PACKAGE_DIR` for an unpacked candidate; native Obsidian sample creation is a separate manual check. |
-| Logseq import/conversion | `npx --package=playwright node scripts/logseq-import-smoke.mjs` exercises disposable preview/apply, lexical index/recall, ID show, rendered prose, browser edit/save, conflict protection, source-wins rerun and source immutability. Set `JUMPYBRAIN_SMOKE_PACKAGE_DIR` to a temporary unpacked candidate to verify the distribution without installing it. |
-| Retrieval/indexing | `npm run smoke:semantic-index` with existing absolute `JUMPYBRAIN_QMD_BIN` and `JUMPYBRAIN_SMOKE_MODEL` paths. Verify real model retrieval and stale-index repair; lexical or mocked tests do not prove semantic behavior. |
-| Connections/auth/hosted memory | `npx --package=playwright node scripts/companion-gateway-smoke.mjs`; also use CLI against a disposable local server to recall with a read-only target, reject writes, and expose invalid-key/offline errors without losing local drafts. |
-| Feedback/diagnostics | `npm run smoke:diagnostics` → compact dialog, hover/focus logs explanation, success/failure, retry with retained draft, explicit diagnostic choice and actual submitted attachment. `npm run cli:pack` verifies the tarball's feedback configuration against the intended public default/override; official releases must not disable delivery. Use a test receiver for automated checks. A live test requires explicit user authorization and must be matched in the inbox through [the AgentMail API command](check-feedback.md). |
+Browser scripts use `npx --package=playwright node <script>` unless they document another entrypoint. Desktop/semantic/install scripts document their own prerequisites. Existing broader commands remain available; this guide changes release selection, not their assertions or safety guards.
 
 ## Record and decide
 
-Keep a short report in the active task: **snapshot/environment; commands + pass/fail; flows exercised; screenshot/log paths; failures or untested gates**. After release, retain it separately as `tasks/done/releases/vX.Y.Z.qa.md`; public release notes stay short. Updater evidence is under `.local-pack/update-smoke/<mode>/` and `.local-pack/update-ui/`.
+Keep a concise report: snapshot/environment, reused evidence, commands and results, failures/fixes, screenshot/log paths and untested limits. After publication retain it at `tasks/done/releases/vX.Y.Z.qa.md`, separately from the exact public notes. Fixture update versions and local artifacts are not proof of a live public-release upgrade.
 
-Fix failures and rerun affected checks; rebuild/revalidate the final changed snapshot. Block shipping on data loss, false Saved/update success, broken core retrieval, or failed applicable gates. Record unavailable prerequisites and device coverage as untested, never passed. Intel, physical login/Keychain history, OS clipboard/accessibility and a real published upgrade need their own evidence when affected; fixture results do not establish them. After publication, verify the GitHub tag, notes, artifact version and SHA-256 digest before reporting shipped.
+Fix demonstrated data loss, false Saved/update success, broken core retrieval, mismatched distribution or failed selected gates before shipping. Rerun affected checks after a fix; let the full release command validate the final versioned snapshot. Record omitted checks as untested/reused, not passed. Intel, physical IME/accessibility, real OS clipboard/Keychain history and arbitrary personal/plugin data require their own evidence when affected.

@@ -1,34 +1,23 @@
 # Lean beta releases
 
-Read this when preparing a beta release through [the release process](releases.md). It records the standing direction for keeping releases practical during the small beta. [Release testing](release-testing.md) owns the current commands and required checks; this document does not replace those gates or imply that the proposed automation below exists.
+Follow [the release process](releases.md) and the current [testing guide](release-testing.md). This is a small beta: keep the routine gate proportional and spend additional verification on changed behavior or observed failures.
 
-## Before each release
+## Current routine
 
-- Choose the exact release snapshot and review the pending notes. Preserve unrelated work in a separate checkout. Release only when requested, following the current publication cadence and major-version approval rules in the release process.
-- Plan verification around core outcomes: write and reopen canonical Markdown, recall and expand with provenance, protect stale/failed-save drafts, and validate the actual distribution and aligned component versions. Follow the current required commands in release testing.
-- Reuse passing evidence for unchanged source/artifacts where the workflow permits it. Run builds and checks sequentially when they share generated output; never overlap a destructive build with tests consuming it. The current release command still runs its own validation.
-- Choose additional checks for changed behavior or known regressions. Keep broader browser permutations, updater failure scenarios, semantic/model exercises and manual device coverage scoped by the testing guide. Do not silently grow routine beta checks into an exhaustive matrix.
-- Stop for demonstrated data loss/overwrite, false Saved/update success, broken core retrieval, or a broken/mismatched distribution, and resolve failures of applicable required gates. Record untested areas honestly.
-- Verify the published tag, notes, asset version and digest. Archive the exact shipped notes and clear only shipped pending bullets. Publication and updating this Mac are separate outcomes.
+- Choose the exact snapshot, review pending notes and preserve unrelated work. Release only when requested; the daily cadence and major-version approval rules still apply.
+- Prepare with a build, fresh desktop package and one core note-lifecycle smoke. Reuse passing evidence for unchanged inputs. The full `npm run release` owns the mandatory versioned deterministic suite, CLI packaging, version commit/tag/push and GitHub publication.
+- Select a focused additional check when a changed area needs integration evidence. The browser and installed-updater suites remain available, but neither a normal package change nor a routine beta release triggers the entire matrix. Choose extra rollback/compatibility modes only for the path being changed or a concrete unresolved concern.
+- Stop for demonstrated data loss, false Saved/update success, broken core retrieval or a broken distribution. Fix failures and rerun affected checks; do not remove assertions to make publication pass.
+- Verify the published tag, exact notes, aligned component versions, asset and digest. Archive only shipped notes and record the selected checks/limits. Publication and installation on this Mac are separate actions.
 
-Keep evidence concise: snapshot/environment, required checks and outcomes, extra checks and reasons, known limits, release link and verified artifact. Follow the testing guide's current QA archive requirement; avoid duplicating the same report across files.
+The owner explicitly asked on 2026-10-25 to cut release testing by at least half after the v0.3.9 preparation started an oversized matrix. The testing guide now makes three preparation commands the default, followed by the full release workflow, replacing the previous seven preparation commands and automatic broad change-area matrices. This is a workflow reduction, not a measured wall-clock performance claim.
 
-## Efficiency direction and current limits
+## Remaining automation limits
 
-Aim for one deterministic suite/build, one compact core-flow smoke, and artifact/version validation, with deeper checks available when warranted. Preserve useful tests and recovery paths. Reuse existing commands rather than adding a risk-scoring framework, testing service or release matrix.
+`scripts/release.mjs` still runs `npm test` and then `cli:pack`, which builds again. There is no release-command lean/thorough flag and no need to add a new framework for the current routine. Removing those internal duplicate builds can be a separate tooling change that preserves final-candidate validation and pushed-but-unpublished recovery.
 
-The automation has not yet reached that target:
+The one-release-per-Europe/Berlin-day convention remains, with an explicit override for a second release. No automatic publication or timer was introduced. Wider scale-up testing remains deferred in [the scale-up plan](../tasks/todo/tasks-release-testing-at-scale.md), subject to owner judgment about observed bugs or growth. Downloads are not unique users.
 
-- `scripts/release.mjs` runs `npm test`, then `cli:pack`; `scripts/pack-local.mjs` builds again. The documented pre-release checks also overlap release-owned validation. Removing this duplication needs a separate tooling change that validates the final versioned candidate and packs the tested output.
-- There is no release-command lean/thorough mode. Existing comprehensive checks remain callable; do not assume an undocumented flag exists.
-- Failed-core-check publication blocking and pushed-but-unpublished recovery still need focused workflow-fixture verification for any new lean automation. Use the existing documented recovery procedure without another version bump.
-- Roughly 80% less routine verification time/operator effort is a target, not a measured result. A comparable fresh run must separate builds, tests, publication, retries and local installation before claiming that reduction. It is not a benchmark to rerun as a prerequisite to every release.
-- The one-release-per-day convention remains in force. The original proposal to revisit it did not change publication authorization.
+## History
 
-## Why this guidance exists
-
-On 2026-10-22 the owner asked for frequent small releases with less operator effort. The v0.3.5 QA record contained 21 packaging/smoke commands totaling about 768 seconds beyond the full test suite and publication workflow; five installed-updater scenarios accounted for about 417 seconds. These are historical observations from one machine, not a universal timing baseline or promise.
-
-Repeated builds, duplicate suite runs and stale fixture assertions added avoidable work. Keep assertions tied to user outcomes and repair fixtures when behavior intentionally changes.
-
-Broader testing remains in [the deferred scale-up plan](../tasks/todo/tasks-release-testing-at-scale.md), activated by owner judgment about observed bugs or a review at roughly 200+ downloads. Downloads are not unique users. The [superseded planning list](../tasks/done/2026-10-24_tasks-lean-beta-releases.md) preserves the original proposals; it is not a per-release checklist.
+On 2026-10-22 the owner asked for more practical small releases. The v0.3.5 QA record contained 21 packaging/smoke commands totaling about 768 seconds beyond the full suite/publication; five updater scenarios accounted for about 417 seconds. The [original lean-beta task](../tasks/done/2026-10-24_tasks-lean-beta-releases.md) records that earlier proposal. The 2026-10-25 direction turns the smaller verification selection into the current guide while keeping the full publication workflow and honest evidence requirements.
