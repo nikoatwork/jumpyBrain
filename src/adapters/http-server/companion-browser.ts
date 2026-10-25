@@ -19,16 +19,14 @@ export const companionStyles = String.raw`
   .companion-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   #companion-fields { border: 0; padding: 0; margin: 0; }
   #companion-form label { display: block; margin: var(--space-4) 0; }
-  #companion-form input:not([type=checkbox]), #companion-form select { display: block; width: 100%; margin-top: var(--space-1); }
-  #companion-form select { min-height: var(--control-height); font-size: var(--text-ui); padding: var(--space-2); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); }
+  #companion-form input:not([type=checkbox]), #companion-form select { width: 100%; margin-top: var(--space-1); }
+  #companion-form input:not([type=checkbox]) { display: block; }
   #companion-form input[type=checkbox] { height: auto; }
-  .companion-brain-select { width: 100%; min-width: 0; max-width: 100%; min-height: var(--control-compact); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink-soft); font: inherit; cursor: pointer; }
-  .companion-brain-select:hover { background: var(--surface-hover); color: var(--ink); }
   #companion-form-error { color: var(--error-ink); }
   #companion-active { display: grid; grid-template-columns: 6px minmax(0, 1fr); align-items: center; column-gap: var(--space-2); padding: var(--space-1) var(--space-3) 0; color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
   #companion-active > .connection-dot { grid-column: 1; grid-row: 1; }
   #companion-active > :not(.connection-dot) { grid-column: 2; }
-  @media (max-width: 680px) { .companion-brain-select { min-height: var(--control-touch); } #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
+  @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
   .companion-add { margin-top: var(--space-2); }
   .companion-add > summary { width: fit-content; cursor: pointer; font-size: var(--text-ui); color: var(--ink-soft); padding-block: var(--space-2); }
   #companion-form { max-width: 520px; }
@@ -51,7 +49,7 @@ export const companionMarkup = String.raw`
     <summary id="companion-form-heading">Add connection</summary>
     <form id="companion-form">
       <fieldset id="companion-fields">
-        <label>Type<select id="companion-kind"><option value="local">Local folder</option><option value="remote">Remote server</option></select></label>
+        <label>Type<select id="companion-kind" class="dropdown"><option value="local">Local folder</option><option value="remote">Remote server</option></select></label>
         <div id="companion-local-fields">
           <label>Existing memory folder<input id="companion-root" required autocomplete="off" placeholder="/path/to/brain" /></label>
           <button id="companion-folder" class="quiet-button" type="button">Choose folder…</button>
@@ -104,6 +102,7 @@ const companionAcknowledged = new Set();
 `;
 
 export const companionScript = String.raw`
+JumpyBrainBrowser.prepareDropdown($("companion-kind"));
 const companionRecovery = document.createElement("div");
 companionRecovery.id = "companion-recovery";
 companionRecovery.className = "companion-actions";
@@ -122,7 +121,7 @@ companionActiveLabel.setAttribute("role", "group");
 const companionActiveDot = document.createElement("span"); companionActiveDot.className = "connection-dot"; companionActiveDot.setAttribute("aria-hidden", "true");
 const companionActiveName = document.createElement("span");
 const companionBrainSelect = document.createElement("select");
-companionBrainSelect.id = "companion-brain-switch"; companionBrainSelect.className = "companion-brain-select";
+companionBrainSelect.id = "companion-brain-switch"; companionBrainSelect.className = "dropdown dropdown--quiet";
 companionBrainSelect.setAttribute("aria-label", "Switch brain"); companionBrainSelect.title = "Switch brain"; companionBrainSelect.hidden = true;
 const companionActiveHealth = document.createElement("span");
 companionActiveLabel.append(companionActiveDot, companionActiveName, companionBrainSelect, companionActiveHealth);
@@ -187,6 +186,7 @@ function renderCompanionConnection() {
       companionBrainSelect.replaceChildren(...profiles.map(profile => {
         const option = document.createElement("option"); option.value = profile.id; option.textContent = profile.name; return option;
       }));
+      JumpyBrainBrowser.prepareDropdown(companionBrainSelect);
     }
     companionBrainSelect.value = companionState?.activeId || "";
     companionBrainSelect.hidden = profiles.length < 2;

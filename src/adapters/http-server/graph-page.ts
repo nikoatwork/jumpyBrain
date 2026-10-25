@@ -2,6 +2,7 @@ import { systemMessageMarkup, systemMessageStyles } from "./browser-system-messa
 import { extensionStyles, extensionPanelMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { designSystemStyles } from "./browser-design-system.js";
+import { dropdownStyles } from "./browser-dropdown.js";
 import { GRAPH_NODE_TONES } from "./map-controller.js";
 import { readFileSync } from "node:fs";
 import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
@@ -127,6 +128,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     ${feedbackStyles}
     ${dreamStyles}
     ${companion ? companionStyles : ""}
+    ${dropdownStyles}
   </style>
 </head>
 <body data-view="home">

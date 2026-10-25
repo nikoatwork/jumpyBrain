@@ -5,13 +5,13 @@ export const extensionStyles = String.raw`
   .extension-slot:empty { display: none; }
   #extension-settings { margin-top: var(--space-8); }
   #extension-status:empty { display: none; }
-  .extension-palette { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-block: var(--space-3); font-size: var(--text-ui); color: var(--ink-soft); }
+  .extension-palette { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-3); margin-block: var(--space-3); font-size: var(--text-ui); color: var(--ink-soft); }
+  .extension-palette .dropdown { width: 100%; max-width: 320px; justify-self: end; }
   .extension-item { border-bottom: 1px solid var(--line); padding-block: var(--space-3); }
   .extension-item summary { cursor: pointer; overflow-wrap: anywhere; }
   .extension-item p, #extension-status { font-size: var(--text-caption); color: var(--ink-soft); overflow-wrap: anywhere; }
   .extension-command { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-block: var(--space-2); }
   .extension-command input { width: 150px; min-width: 0; }
-  #extension-settings select { max-width: 100%; min-height: var(--control-height); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font-size: var(--text-ui); }
   #extension-panel { padding: var(--space-6); }
   #extension-panel header { display: flex; gap: var(--space-3); justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
   #extension-panel-content { overflow-wrap: anywhere; }
@@ -30,7 +30,7 @@ export const extensionSettingsMarkup = String.raw`
     <button id="extension-reload" class="quiet-button note-icon" type="button" aria-label="Reload extensions" title="Reload extensions" disabled>${browserIcons.refresh}</button>
   </header>
   <p id="extension-status" role="status" aria-live="polite"></p>
-  <label class="extension-palette" hidden>Palette <select id="extension-theme" aria-label="Extension palette"><option value="">Built-in appearance</option></select></label>
+  <label class="extension-palette" hidden>Palette <select id="extension-theme" class="dropdown" aria-label="Extension palette"><option value="">Built-in appearance</option></select></label>
   <div id="extension-list"></div>
 </section>`;
 export const extensionPanelMarkup = String.raw`

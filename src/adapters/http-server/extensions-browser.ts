@@ -1,6 +1,7 @@
 import { EXTENSION_THEME_ROLES } from "../../extensions/index.js";
 import type { Dispose, ExtensionCommandResult, ExtensionDescriptor, ExtensionDocument, ExtensionEvent, ExtensionPanelRenderer, ExtensionSnapshot, ExtensionUIFactory, Json } from "../../extensions/index.js";
 import type { createBrowserCommands } from "./browser-commands.js";
+import { prepareDropdown } from "./browser-dropdown.js";
 
 const preferenceKey = "jumpybrain.extensions.v1";
 const tokens: ReadonlySet<string> = new Set(EXTENSION_THEME_ROLES);
@@ -288,11 +289,12 @@ export function installExtensionsBrowser(options: Options) {
       if (a) for (const { command, id } of orderedCommands().filter(item => item.a === a)) {
         const controls = doc.createElement("div"); controls.className = "extension-command";
         button(command.title, () => invoke(a, command.id, null), controls);
-        const placement = doc.createElement("select"); placement.setAttribute("aria-label", command.title + " placement");
+        const placement = doc.createElement("select"); placement.className = "dropdown"; placement.setAttribute("aria-label", command.title + " placement");
         for (const [value, label] of [["", "Commands only"], ["sidebar.actions", "Sidebar"], ["note.actions", "Note actions"]]) {
           const item = doc.createElement("option"); item.value = value!; item.textContent = label!; placement.append(item);
         }
         placement.value = prefs.slots[id] ?? command.slot ?? "";
+        prepareDropdown(placement);
         placement.addEventListener("change", () => { prefs.slots[id] = placement.value; persist(); render(); });
         const shortcut = doc.createElement("input"); shortcut.type = "text"; shortcut.maxLength = 80; shortcut.placeholder = "Mod+Shift+R";
         shortcut.setAttribute("aria-label", command.title + " shortcut"); shortcut.value = prefs.shortcuts[id] ?? command.shortcut ?? "";
@@ -312,6 +314,7 @@ export function installExtensionsBrowser(options: Options) {
     }
     themeSelect.closest("label")!.hidden = themeSelect.options.length <= 1;
     themeSelect.value = prefs.theme;
+    prepareDropdown(themeSelect);
     settings.querySelectorAll<HTMLButtonElement | HTMLInputElement | HTMLSelectElement>("button, input, select").forEach(item => { item.disabled = busy || !current(); });
     themeSelect.disabled = !current() || busy;
     if (hadFocus && focusKey) [...list.querySelectorAll<HTMLElement>("[aria-label]")].find(item => item.getAttribute("aria-label") === focusKey)?.focus();
