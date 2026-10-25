@@ -1,5 +1,7 @@
 # Changes
 
+- The Mac update button gains a glowing rotating halo when a download or restart is ready; Reduced Motion keeps the indicator static.
+
 - Setup gains strict health checks, clearer missing-folder/search recovery and a read-only Desktop preflight. Startup and uninstall previews report failures honestly; agent guidance preserves unspecified event years and explicit capture permissions.
 - First-time setup offers plain-language agent instructions, truthful preview/restart guidance and commands that work with special-character paths. Desktop explains how to open the same brain your agents use.
 - Settings puts brains first in a compact list with muted status, small actions and a single refresh icon; extension controls and connection copy are shorter.

@@ -15,13 +15,14 @@ export function mountInlineUpdates() {
   style.nonce = document.querySelector('style[nonce]')?.nonce || '';
   style.textContent = `
     #desktop-updates[hidden] { display: none !important; }
-    #desktop-updates { flex: 0 0 auto; width: var(--control-compact, 32px); height: var(--control-compact, 32px); min-height: var(--control-compact, 32px); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+    #desktop-updates { position: relative; flex: 0 0 auto; width: var(--control-compact, 32px); height: var(--control-compact, 32px); min-height: var(--control-compact, 32px); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
     #desktop-updates svg { width: var(--icon-size, 16px); height: var(--icon-size, 16px); }
     #desktop-updates[data-attention=true] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 10%, var(--control-fill)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 24%, transparent); }
+    #desktop-updates[data-attention=true]::after { content: ''; position: absolute; inset: -3px; border: 1.5px solid transparent; border-top-color: var(--accent); border-right-color: color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 50%; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 65%, transparent)); pointer-events: none; animation: desktop-update-spin 2.8s linear infinite; }
     #desktop-updates[data-error=true] { color: var(--error-ink); }
     #desktop-updates[data-working=true] svg { animation: desktop-update-spin 1.2s linear infinite; }
     @keyframes desktop-update-spin { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { #desktop-updates[data-working=true] svg { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { #desktop-updates[data-working=true] svg, #desktop-updates[data-attention=true]::after { animation: none; } }
   `;
   document.head.append(style);
   const primary = document.createElement('button'); primary.id = 'desktop-updates'; primary.className = 'icon-button'; primary.type = 'button'; primary.hidden = true;

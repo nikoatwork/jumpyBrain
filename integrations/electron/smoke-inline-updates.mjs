@@ -29,6 +29,9 @@ try {
   // Other disposable app fixtures may cover this window; screenshot frame
   // flushing must not wait forever on macOS occlusion-throttled animation.
   window.webContents.setBackgroundThrottling(false); await editor.loaded;
+  window.webContents.debugger.attach('1.3');
+  const motion = value => window.webContents.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value }] });
+  await motion('no-preference');
   const evaluate = expression => window.webContents.executeJavaScript(expression);
   const wait = async expression => { const deadline = Date.now() + 6000; while (Date.now() < deadline) { if (await evaluate(expression)) return; await pause(50); } throw new Error('UI timeout: ' + expression); };
   await wait('!!document.getElementById("desktop-updates")');
@@ -49,6 +52,15 @@ try {
       assert.equal(await evaluate('document.getElementById("desktop-updates").dataset.attention'), String(['available', 'ready'].includes(phase)));
       const glow = await evaluate('getComputedStyle(document.getElementById("desktop-updates")).boxShadow');
       assert.equal(glow !== 'none', ['available', 'ready'].includes(phase), 'only download/restart readiness glows');
+      const halo = await evaluate('(() => { const s = getComputedStyle(document.getElementById("desktop-updates"), "::after"); return { animation: s.animationName, pointerEvents: s.pointerEvents }; })()');
+      assert.equal(halo.animation, ['available', 'ready'].includes(phase) ? 'desktop-update-spin' : 'none', 'only actionable readiness has a rotating halo');
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#desktop-updates svg")).animationName'), ['checking', 'preparing'].includes(phase) ? 'desktop-update-spin' : 'none', 'readiness keeps the action glyph still');
+      if (['available', 'ready'].includes(phase)) {
+        assert.equal(halo.pointerEvents, 'none', 'halo never intercepts clicks');
+        const transform = await evaluate('getComputedStyle(document.getElementById("desktop-updates"), "::after").transform');
+        await pause(120);
+        assert.notEqual(await evaluate('getComputedStyle(document.getElementById("desktop-updates"), "::after").transform'), transform, 'halo actually turns');
+      }
       if (phase === 'preparing' || phase === 'ready' || phase === 'available') {
         assert.equal(await evaluate('document.querySelector("main").inert'), false);
         assert.equal(await evaluate('document.getElementById("desktop-updates").getAttribute("aria-label")'), phase === 'ready' ? 'Relaunch to apply update' : phase === 'available' ? 'Download update' : 'Preparing update');
@@ -68,6 +80,16 @@ try {
         assert.equal(await evaluate('document.getElementById("app-toast").hidden'), true, 'polling does not replay or prolong success');
       }
     }
+    await motion('reduce');
+    for (const phase of ['available', 'ready', 'preparing']) {
+      state = { phase, installed, actions: phase === 'ready' ? ['restart'] : phase === 'available' ? ['update'] : ['cancel'] };
+      await pause(1150);
+      assert.equal(await evaluate('getComputedStyle(document.getElementById("desktop-updates"), "::after").animationName'), 'none');
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#desktop-updates svg")).animationName'), 'none');
+      assert.equal(await evaluate('getComputedStyle(document.getElementById("desktop-updates")).boxShadow !== "none"'), phase !== 'preparing', 'reduced motion preserves the static readiness glow');
+      if (phase === 'ready') await writeFile(path.join(output, `ready-reduced-motion-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+    }
+    await motion('no-preference');
   }
   state = { phase: 'available', actions: ['update', 'check'], installed }; await pause(1150);
   await evaluate('document.getElementById("desktop-updates").focus()');
@@ -158,7 +180,7 @@ try {
     assert.equal(await evaluate('document.getElementById("app-toast").hidden'), true);
     await evaluate('systemMessages.clear()');
   }
-  console.log('Inline updater UI PASS: production shell, both themes, keyboard, icon-only states/glow, floating completion/expiry without polling replay, Settings version, pinned exception, failed restart/recovery, draft stability, restricted actions, narrow layout, shared native/renderer messages, warning priority, safe text and brain/app scope fencing. Screenshots:', output);
+  console.log('Inline updater UI PASS: production shell, both themes, keyboard, icon-only states/glow, rotating readiness halo, static action glyph, reduced motion, floating completion/expiry without polling replay, Settings version, pinned exception, failed restart/recovery, draft stability, restricted actions, narrow layout, shared native/renderer messages, warning priority, safe text and brain/app scope fencing. Screenshots:', output);
   window.destroy(); server.close(); await rm(profile, { recursive: true, force: true }); app.exit(0);
 } catch (error) { console.error(error); window?.destroy(); server.close(); app.exit(1); }
 
