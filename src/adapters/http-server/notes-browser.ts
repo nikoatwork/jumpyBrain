@@ -161,7 +161,6 @@ ${noteAttentionStyles}
     .search-result small { margin-top: var(--space-1); color: var(--ink-soft); font-size: var(--text-caption); }
     .search-footer { padding: var(--space-3) var(--space-4); font-size: var(--text-caption); color: var(--ink-soft); }
     .search-footer p { margin: 0; }
-    #search-freshness { margin-top: var(--space-1); }
     #connection { padding: var(--space-6); }
     #connection h2 { margin: 0 0 var(--space-2); font-size: var(--text-heading); }
     #connection p { color: var(--ink-soft); }
@@ -241,6 +240,7 @@ ${noteAttentionMarkup}
 <dialog id="note-search" aria-label="Search notes">
   <div class="dialog-head">
     <input id="note-search-input" aria-label="Search titles and contents" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="search-results" autocomplete="off" placeholder="Search your memory…" />
+    <button id="search-refresh-index" type="button" class="quiet-button note-icon" aria-label="Reindex memory" title="Reindex memory" hidden>${browserIcons.refresh}</button>
     <button id="close-search" class="quiet-button note-icon" aria-label="Close search" title="Close search (Esc)">${browserIcons.close}</button>
   </div>
   <div class="search-controls" aria-label="Narrow search">
@@ -253,13 +253,11 @@ ${noteAttentionMarkup}
   </div>
   <ul id="search-results" role="listbox" aria-label="Matching notes"></ul>
   <div class="search-footer">
-    <p id="search-message" role="status" aria-live="polite">Search titles and contents.</p>
+    <p id="search-message" role="status" aria-live="polite"></p>
     <p id="search-coverage"></p>
     <button id="search-previous" class="quiet-button" hidden>Previous results</button>
     <button id="search-next" class="quiet-button" hidden>Next results</button>
     <p id="reference-help" hidden>Insert a literal [[Page Title]] reference, not a unique-ID link. Duplicate titles are ambiguous. Exact page titles are shared with the map; legacy paths remain supported there.</p>
-    <p id="search-freshness" hidden>Recent saves from this tab are included. Other edits may need an index refresh.</p>
-    <button id="search-refresh-index" class="quiet-button" hidden>Refresh search index</button>
     <button id="search-retry" class="quiet-button" hidden>Retry search</button>
     <button id="search-connect" class="quiet-button" hidden>Connect</button>
   </div>
@@ -451,7 +449,7 @@ function normalizeNoteResults(results, limit = 12) {
 }
 
 function createNoteSearch(options) {
-  const search = { query: "", status: "idle", results: [], selected: -1, stale: false, message: "Search titles and contents." };
+  const search = { query: "", status: "idle", results: [], selected: -1, stale: false, message: "" };
   let generation = 0;
   let timer = null;
   let request = null;
@@ -483,7 +481,7 @@ function createNoteSearch(options) {
     if (search.selected < 0) search.selected = search.results.findIndex((result) => result.documentId);
     search.stale = localStale;
     search.status = search.query ? "loading" : "idle";
-    search.message = search.query ? "Searching…" : "Search titles and contents.";
+    search.message = search.query ? "Searching…" : "";
     options.onChange(search);
     if (!search.query) return;
     const run = async () => {
@@ -875,9 +873,11 @@ function renderNoteSearch(search) {
   $("search-previous").hidden = !coverage || searchOffset === 0;
   $("search-next").hidden = !coverage || coverage.nextOffset === undefined;
   $("search-results").setAttribute("aria-busy", String(search.status === "loading"));
-  $("search-freshness").hidden = !search.stale;
   $("search-refresh-index").hidden = !search.stale;
-  $("search-refresh-index").disabled = searchIndexRefreshing || (typeof companionMode !== "undefined" && companionMode && companionReadOnly());
+  const reindexReadOnly = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
+  $("search-refresh-index").disabled = searchIndexRefreshing || reindexReadOnly;
+  $("search-refresh-index").setAttribute("aria-busy", String(searchIndexRefreshing));
+  $("search-refresh-index").title = reindexReadOnly ? "Reindexing is unavailable for a read-only brain" : searchIndexRefreshing ? "Reindexing memory…" : "Reindex memory";
   $("search-retry").hidden = search.status !== "error";
   $("search-connect").hidden = search.status !== "auth";
 }
@@ -1440,7 +1440,7 @@ $("search-refresh-index").addEventListener("click", async () => {
   if (searchIndexRefreshing || (typeof companionMode !== "undefined" && companionMode && companionReadOnly())) return;
   searchIndexRefreshing = true;
   const revision = credentialRevision;
-  $("search-refresh-index").disabled = true;
+  renderNoteSearch(noteSearch.state);
   $("search-message").textContent = "Refreshing search index…";
   try {
     await graphJson("/memories/all/index", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });

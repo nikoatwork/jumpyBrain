@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-25 — Compact memory search
+
+- Removed routine popup copy and replaced the stale-index text action with a named header icon; [implementation and verification](done/2026-10-25_tasks-search-popup-copy.md).
+
 ## 2026-10-25 — Update readiness indicator
 
 - Mac download/relaunch readiness gains a rotating glow with a static Reduced Motion presentation; [implementation and verification](done/2026-10-25_tasks-update-attention-halo.md).

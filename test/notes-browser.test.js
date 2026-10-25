@@ -296,7 +296,7 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   const row = $("search-results").children[0];
   assert.deepEqual(row.children.map((child) => child.textContent), [malicious, "No preview text", "Edit date unknown · Editor unknown", malicious]);
   assert.equal(row.attrs["aria-selected"], "true");
-  assert.equal($("search-freshness").hidden, false);
+  assert.equal($("search-refresh-index").hidden, false);
   search.stale = false;
   renderNoteSearch(search);
   assert.equal($("search-results").children[0], row, "freshness updates must preserve the mouse/touch target");

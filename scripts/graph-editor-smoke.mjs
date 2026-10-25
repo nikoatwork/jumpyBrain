@@ -230,12 +230,12 @@ async function validateDesktop() {
     assert.match(await controlledResult.innerText(), new RegExp(fixture.title));
     assert.equal(await controlledResult.getAttribute("aria-disabled"), "false", "usable result should lead ID-less hits");
     assert.equal(await page.locator("#search-results [role='option']").count(), 16, "usable and legacy results fit within the current 24-result page");
-    assert.equal(await page.locator("#search-freshness").isVisible(), false, "controlled packet starts fresh");
+    assert.equal(await page.locator("#search-refresh-index").isVisible(), false, "controlled packet starts fresh");
 
     releaseDelayedPut();
     releaseDelayedPut = null;
     await waitForSaveState(page, "Saved");
-    await page.locator("#search-freshness").waitFor({ state: "visible", timeout: 15_000 });
+    await page.locator("#search-refresh-index").waitFor({ state: "visible", timeout: 15_000 });
     await assertCanonicalBody(fixture, /Saved from desktop notes UI smoke\./);
 
     // Command+K toggles the modal closed and restores long-document focus,

@@ -1,5 +1,7 @@
 # Changes
 
+- Memory search removes routine instructions and shows a compact reindex icon when its index is stale.
+
 - The Mac update button gains a glowing rotating halo when a download or restart is ready; Reduced Motion keeps the indicator static.
 
 - Setup gains strict health checks, clearer missing-folder/search recovery and a read-only Desktop preflight. Startup and uninstall previews report failures honestly; agent guidance preserves unspecified event years and explicit capture permissions.
