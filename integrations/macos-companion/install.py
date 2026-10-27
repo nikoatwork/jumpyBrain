@@ -5,7 +5,7 @@ Never builds the CLI, bundles a runtime snapshot, or edits canonical memory.
 An explicit --runtime-root is allowed only with --build-only for development.
 """
 import argparse
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 import hashlib
 import json
 import os
@@ -19,6 +19,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 
 from lifecycle import (LABEL, SafetyError, app_path, build_workspace, cleanup, companion_lock,
                     absolute, overlaps, preflight, regular, validate_key,
@@ -27,6 +28,19 @@ from lifecycle import (LABEL, SafetyError, app_path, build_workspace, cleanup, c
 
 def run(*args, **kwargs):
     return subprocess.run([str(a) for a in args], check=True, **kwargs)
+
+
+@contextmanager
+def build_timing(stage):
+    """Fixed stage names only; captured by the updater's private bounded log."""
+    started = time.monotonic()
+    outcome = "failed"
+    try:
+        yield
+        outcome = "ok"
+    finally:
+        print("[build-timing] " + json.dumps(dict(schema=1, stage=stage,
+              durationMs=round((time.monotonic() - started) * 1000), outcome=outcome)), flush=True)
 
 
 def agent_plist(app, support):
@@ -143,8 +157,9 @@ def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False
     package = validate_runtime(runtime)
     source = runtime / "integrations/macos-companion"
     # Keep stable Homebrew symlink paths, not version-specific Cellar targets.
-    run(config["node"], "--version", stdout=subprocess.DEVNULL)
-    run(config["node"], runtime / "scripts/qmd-install-check.mjs", config["qmd"])
+    with build_timing("native-prerequisites"):
+        run(config["node"], "--version", stdout=subprocess.DEVNULL)
+        run(config["node"], runtime / "scripts/qmd-install-check.mjs", config["qmd"])
     if not shutil.which("codesign"):
         raise SafetyError("codesign must be installed before building the companion")
     config = dict(config, revision=package["version"])
@@ -165,7 +180,8 @@ def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False
             "schema": 1, "source": file_digest(native_source),
             "recipe": file_digest(Path(__file__)), "architecture": platform.machine(),
         }, sort_keys=True).encode()).hexdigest()
-    artifact_reused = reuse_native(previous_app, executable, artifact_fingerprint, field="artifactFingerprint")
+    with build_timing("native-reuse-verify"):
+        artifact_reused = reuse_native(previous_app, executable, artifact_fingerprint, field="artifactFingerprint")
     if artifact_reused:
         record = read_json(previous_app / "Contents/Resources" / NATIVE_BUILD_RECORD)
         (resources / NATIVE_BUILD_RECORD).write_text(json.dumps(record, indent=2) + "\n")
@@ -206,13 +222,15 @@ def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False
         reused = reuse_native(previous_app, executable, fingerprint)
         if not reused:
             print("Compiling native companion (Swift; a fresh module cache can take a while)…", flush=True)
-            run(compiler, *options, "-module-cache-path", build / "module-cache", *compiler_options,
-                native_source, "-o", executable, env=environment)
+            with build_timing("native-compile"):
+                run(compiler, *options, "-module-cache-path", build / "module-cache", *compiler_options,
+                    native_source, "-o", executable, env=environment)
             # Normalize codesign's Mach-O allocation before recording unsigned bytes.
             # The linker signature has a different __LINKEDIT allocation; simply
             # removing it would make the first subsequent bundle sign a false miss.
-            run("codesign", "--force", "--sign", "-", executable)
-            run("codesign", "--remove-signature", executable)
+            with build_timing("native-normalize-signature"):
+                run("codesign", "--force", "--sign", "-", executable)
+                run("codesign", "--remove-signature", executable)
             if fingerprint is not None:
                 try:
                     confirmed = native_fingerprint(native_source, compiler, sdk,
@@ -241,7 +259,8 @@ def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False
         "LSMinimumSystemVersion": "13.0", "NSHighResolutionCapable": True,
     }
     (built_app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
-    run("codesign", "--force", "--sign", "-", built_app)
+    with build_timing("native-sign"):
+        run("codesign", "--force", "--sign", "-", built_app)
     return built_app
 
 

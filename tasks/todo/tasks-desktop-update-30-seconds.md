@@ -1,6 +1,6 @@
 # Mac updates within 30 seconds
 
-Status: planned follow-up. Do not start these experiments until the user asks to continue. Work in small increments; completing the whole list in one session is not required.
+Status: active. Measurement increment completed 2026-10-27; next is task 2, a release-built native-helper prototype. Work in small increments; completing the whole list in one session is not required.
 
 ## Goal
 
@@ -26,7 +26,7 @@ Implementation: `06dd8ed`. Full evidence: [completed update-speed work](../done/
 
 ## Incremental tasks
 
-- [ ] 1. Measure the remaining build work before choosing an implementation.
+- [x] 1. Measure the remaining build work before choosing an implementation.
   - Add narrow timings for Electron acquisition/verification/unpacking, native compilation, runtime/compiler copying, signing/verification and final bundle copying. Keep them private and bounded.
   - Run three matched unchanged-helper and fresh-helper trials, recording cache state, machine, source/artifact and median/range. Separate network acquisition from local application work without hiding acquisition from the existing total.
   - Preserve each trial's result directory instead of overwriting the previous one. Run builds sequentially with checks that consume `dist`; concurrent fixture runs must not rebuild shared output.
@@ -65,4 +65,49 @@ Implementation: `06dd8ed`. Full evidence: [completed update-speed work](../done/
 - `scripts/{release,pack-local,local-pack-manifest}.mjs`, `docs/{releases,release-testing}.md` — distribution/release changes if needed.
 - [Mac installation clarity](../done/2026-10-27_tasks-mac-installation-clarity.md) and [portable installation](tasks-portable-installation-project-integration.md) — coordinate supported commands, prerequisite claims and CLI/app ownership.
 
-Planning alone does not add a changelog highlight or release note. No implementation, release or installation is authorized by this deferred list; continue when requested.
+## Measurement increment — 2026-10-27
+
+- Added fixed build-stage timing records to the existing private bounded worker log. Network transfers are nested inside Electron acquisition/verification; native work is nested inside desktop preparation. Parent and child spans must not be added together. Electron unpack/setup includes initial packager metadata and temporary-directory work.
+- Added unique private trial directories, retained source tarballs/digests and machine/cache/baseline metadata. `--package <immutable npm tarball>` holds incoming distribution bytes fixed across trials. An isolated fixture runner with frozen `dist` and app baseline at `.local-pack/update-measurement-gxr_kckh/` keeps the remaining trials independent of concurrent UI work in the shared checkout; all trial builds run sequentially.
+- Machine: Mac15,6, arm64, 11 logical CPUs, 18 GiB RAM, macOS 15.7.7, Node 26.7.0. Each trial starts with a fresh disposable HOME and empty npm/Electron caches. Fresh-helper builds use a new private Swift module-cache directory; system disk/page caches and other machine activity are not controlled.
+- Tested source: base commit `ff3ee70412ef71a7947480079b0aa9f24c687700` plus this increment's build changes and concurrent UI changes captured in the immutable npm package. Package SHA-256: `34b5d4cf09271360fdeb17762f94b8461e878ffe671166507b193eb7d0b079aa`. All five changed distribution/build files were compared byte-for-byte against the retained package. Harness and documentation edits made after packing do not change those build inputs.
+- Baseline: rebuilt local package only, native artifact fingerprint `b7e7219117e167e72be44fdd2041e1b37ab342519246e9eee2c84239434ee39e`; signed helper SHA-256 `9f78767d3a227fdc247d0bdb2efb0f58a42d604e6ccbb056ac6bca934e6495cc`. The first pair used the shared runner before isolation; subsequent pairs use the frozen runner/runtime and copied baseline. Every pair uses the same incoming package and baseline helper bytes.
+- Migration limit: timing instrumentation changes the fingerprinted native build recipe. Shipping this increment alone triggers one rebuild from earlier recipes; matched unchanged-helper results describe a baseline already built with this recipe. No artifact fingerprint or validation rule was relaxed to hide that cost.
+
+All six installed trials passed, in order U1/F1/U2/F2/U3/F3. Times below are seconds. Preparation starts after the selected release asset download; combined application adds acknowledged handoff through verified success. Ready/save-test waits are excluded. Electron and npm acquisition inside preparation remain included.
+
+| Trial | Preparation | Handoff | Combined | Electron transfers | Swift compilation | Retained directory under `.local-pack/update-smoke/` |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| U1, unchanged | 20.669 | 3.732 | 24.401 | 12.610 | none | `success/2026-10-27T17-29-56.686Z-6TnpJ4/` |
+| F1, fresh | 50.450 | 3.452 | 53.902 | 9.992 | 34.983 | `cold-native/2026-10-27T17-31-03.372Z-203QIW/` |
+| U2, unchanged | 15.014 | 3.448 | 18.462 | 10.240 | none | `success/2026-10-27T17-32-30.299Z-qroJpf/` |
+| F2, fresh | 49.812 | 3.365 | 53.177 | 10.558 | 34.011 | `cold-native/2026-10-27T17-33-16.174Z-lKjBOB/` |
+| U3, unchanged | 16.487 | 3.379 | 19.866 | 11.916 | none | `success/2026-10-27T17-34-37.200Z-6BwywD/` |
+| F3, fresh | 49.440 | 3.381 | 52.821 | 10.046 | 34.187 | `cold-native/2026-10-27T17-35-25.263Z-RFD3VX/` |
+
+| Measured stage | Unchanged: median (range), s | Fresh: median (range), s |
+| --- | ---: | ---: |
+| Combined application | 19.866 (18.462–24.401) | 53.177 (52.821–53.902) |
+| Post-download preparation | 16.487 (15.014–20.669) | 49.812 (49.440–50.450) |
+| Handoff to verified success | 3.448 (3.379–3.732) | 3.381 (3.365–3.452) |
+| Dependency installation | 1.766 (1.693–1.836) | 1.842 (1.797–1.856) |
+| Electron acquisition/verification, including transfers | 12.044 (10.376–12.751) | 10.178 (10.120–10.689) |
+| Electron archive/checksum transfers | 11.916 (10.240–12.610) | 10.046 (9.992–10.558) |
+| Electron unpack/setup | 0.626 (0.618–0.930) | 0.625 (0.614–0.653) |
+| Native compilation | none | 34.187 (34.011–34.983) |
+| Runtime copying | 0.092 (0.090–0.124) | 0.095 (0.091–0.097) |
+| Extension compiler copying | 0.006 (0.006–0.008) | 0.006 (0.006–0.006) |
+| Desktop signing | 0.328 (0.322–1.222) | 0.758 (0.757–0.812) |
+| Desktop signature verification | 0.193 (0.181–0.514) | 0.220 (0.210–0.237) |
+| Final bundle copying | 0.335 (0.325–0.536) | 0.319 (0.302–0.345) |
+| Application less timed Electron transfers | 8.222 (7.950–11.791) | 42.775 (42.619–43.910) |
+
+The last row is diagnostic subtraction, not a download-free measurement: npm acquisition remains included, downloader spans include writing received bytes, and no network-free trial was run. Individual stage medians need not add to the median total. Each trial retains `source.tgz`, `trial.json` (including the per-trial synthetic release digest), `build-timings.json`, `timings.json`, `performance.json`, `result.json` and the raw bounded log. Aggregate machine-readable evidence: `.local-pack/update-measurement-gxr_kckh/summary.json`. These ignored local artifacts are preserved; the tables and package digest above are the committed evidence summary.
+
+**Decision:** compilation is the dominant remaining fresh-helper cost and exceeds 30 seconds by itself. Proceed next with task 2's optional architecture-specific release-built helper in the existing verified package, keeping standalone CLI use, source-build fallback and staged signing/verification. Preserve the old worker's prerequisite/migration limit explicitly. Do not implement compiler-cache reuse or optimize subsecond copies/signing in this increment. Even subtracting all measured Electron transfers leaves the fresh path above target, so archive caching alone cannot solve it.
+
+**Verification:** `npm run build` and `npm run desktop:pack` passed. Direct Python suites passed (9 desktop installer tests; 52 native update tests). Targeted Node run passed 77 tests across `desktop-updater`, `desktop-lifecycle`, `desktop-startup-recovery`, `macos-companion-update`, `local-pack-scripts` and `local-pack-properties` (some Python coverage overlaps). The actual retained npm package passed the 231-file distribution manifest with zero stale paths. All six GUI update trials verified exact app/runtime/CLI versions, nine protected files, extension state, profile preferences, two normal extension activations with readiness probes suppressed, and fresh installed-CLI TS extension compilation. Syntax and diff whitespace checks passed.
+
+**Limits and stopping point:** task 1 is complete; tasks 2–5 remain active. No speed optimization, release-built artifact, compiler cache, release, push or personal installation was performed. Changed Swift-source updates, artifact/cache rejection, new rollback modes, an exact v0.3.7 worker rerun, Intel hardware and live public-release upgrades were not tested in this increment. Existing replacement/rollback/app-only/historical-worker coverage is recorded in the preceding completed task; it does not establish the later prototype's distribution/migration behavior. The full deterministic suite was not rerun for this diagnostic increment. Do not archive this list until the remaining implementation and its required validation are complete.
+
+Planning alone does not add a changelog highlight or release note. The user authorized continuation on 2026-10-27. Builds and installed experiments use disposable fixtures; publication and installation into the user's Applications folder remain outside this task.

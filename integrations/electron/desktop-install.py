@@ -18,7 +18,7 @@ import time
 SOURCE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SOURCE / 'integrations/macos-companion'))
 from lifecycle import SafetyError, companion_lock, inspect_companion, validate_manifest, regular, validate_key, overlaps
-from install import build_app, build_workspace
+from install import build_app, build_workspace, build_timing
 from uninstall import owned_loaded_job
 
 DESKTOP = 'local.jumpybrain.desktop'
@@ -106,9 +106,11 @@ def prepare(bundle, home, source=SOURCE):
     runtime.mkdir()
     # Snapshot compiled code and the one lazy extension compiler. No CLI install,
     # memory, arbitrary node_modules tree, or credentials.
-    shutil.copytree(source / 'dist', runtime / 'dist')
-    shutil.copy2(source / 'package.json', runtime / 'package.json')
-    copy_extension_compiler(source, runtime)
+    with build_timing('runtime-copy'):
+        shutil.copytree(source / 'dist', runtime / 'dist')
+        shutil.copy2(source / 'package.json', runtime / 'package.json')
+    with build_timing('extension-compiler-copy'):
+        copy_extension_compiler(source, runtime)
     native = runtime / 'integrations/macos-companion'
     native.mkdir(parents=True)
     for name in ('gateway.mjs', 'extensions-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs'):
@@ -121,7 +123,8 @@ def prepare(bundle, home, source=SOURCE):
         built = build_app(source, scratch, config, previous_app=previous if previous.is_dir() else None, reuse_artifact=True)
         destination = resources / 'native/jumpyBrain Host.app'
         destination.parent.mkdir()
-        shutil.copytree(built, destination)
+        with build_timing('native-copy'):
+            shutil.copytree(built, destination)
     shutil.copy2(source / 'integrations/macos-companion/MenuBarBrain.png', resources / 'MenuBarBrain.png')
     (resources / 'desktop.json').write_text(json.dumps(dict(schema=1, supportDirectory=config['supportDirectory'],
         launchAgent=config['launchAgent'], port=config['port']), indent=2) + '\n')

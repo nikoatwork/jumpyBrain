@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-27 — Mac update profiling
+
+- Fresh-helper profiling identifies native compilation as the remaining bottleneck; release-built helpers are the next experiment. [Measurements](todo/tasks-desktop-update-30-seconds.md#measurement-increment--2026-10-27).
+
 ## 2026-10-27 — Faster Mac updates
 
 - Mac updates reuse verified native helpers, bringing measured unchanged-helper application below 30 seconds while preserving CLI support and recovery. [Verification](done/2026-10-27_tasks-desktop-update-speed.md).

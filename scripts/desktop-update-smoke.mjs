@@ -14,18 +14,39 @@ import { installExtension } from '../dist/app/extensions/index.js';
 import { seedV1Extension, v1Context } from './extensions-v1-fixture.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const mode = process.argv[2] || 'success';
-const existingClient = process.argv[3] === '--client-v0.3.7';
-const coldNative = process.argv[3] === '--cold-native';
-if (process.argv.length > (existingClient || coldNative ? 4 : 3) || ((existingClient || coldNative) && mode !== 'success')) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7 | --cold-native (success only)]');
+const options = process.argv.slice(3);
+const existingClient = options[0] === '--client-v0.3.7';
+const coldNative = options[0] === '--cold-native';
+if (existingClient || coldNative) options.shift();
+const sourcePackage = options[0] === '--package' && options[1] ? path.resolve(options[1]) : null;
+if ((options.length && (!sourcePackage || options.length !== 2)) || ((existingClient || coldNative) && mode !== 'success')) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7 | --cold-native (success only)] [--package <immutable npm tarball>]');
 if (!['success','app-only','relaunch-failure','helper-crash','app-crash','cli-open','cli-closed'].includes(mode)) throw new Error('Unsupported smoke mode');
 const asar = await import(path.join(repo, 'integrations/electron/node_modules/@electron/asar/lib/asar.js'));
 const home = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-update-smoke-')));
-const artifactDir = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : coldNative ? 'cold-native' : mode); await mkdir(artifactDir, { recursive: true });
+const artifactRoot = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : coldNative ? 'cold-native' : mode);
+await mkdir(artifactRoot, { recursive: true });
+const artifactDir = await mkdtemp(path.join(artifactRoot, new Date().toISOString().replaceAll(':', '-') + '-'));
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 let child, server, success = false;
 console.log('Disposable update home:', home);
+console.log('Retained trial evidence:', artifactDir);
 async function json(file, value) { await writeFile(file, JSON.stringify(value, null, 2)); }
 try {
+  const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+  const trial = {
+    startedAt: new Date().toISOString(), mode, coldNative, existingClient,
+    checkoutCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(),
+    checkoutTrackedDiffDigest: digest(execFileSync('git', ['diff', 'HEAD', '--'], { cwd: repo, maxBuffer: 8 * 1024 * 1024 })),
+    sourcePackage,
+    machine: { model: execFileSync('/usr/sbin/sysctl', ['-n', 'hw.model'], { encoding: 'utf8' }).trim(),
+      cpus: os.cpus().length, memoryBytes: os.totalmem(), arch: process.arch,
+      macOS: execFileSync('/usr/bin/sw_vers', ['-productVersion'], { encoding: 'utf8' }).trim(), node: process.version },
+    cacheState: { npm: 'new disposable HOME; empty npm cache', electron: 'new disposable HOME; archive/checksum network records below',
+      native: coldNative ? 'missing installed reuse record; fresh private compiler/module cache' : 'signed matching installed helper; no compilation' },
+    baselineExecutableDigest: digest(await readFile(path.join(repo, '.local-pack/desktop/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app/Contents/MacOS/jumpyBrain'))),
+    baselineRecord: JSON.parse(await readFile(path.join(repo, '.local-pack/desktop/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app/Contents/Resources/NativeBuild.json'))),
+  };
+  await json(path.join(artifactDir, 'trial.json'), trial);
   const appPath = path.join(home, 'Applications/jumpyBrain.app'); await mkdir(path.dirname(appPath), { recursive: true });
   await cp(path.join(repo, '.local-pack/desktop/jumpyBrain.app'), appPath, { recursive: true, verbatimSymlinks: true });
   const resources = path.join(appPath, 'Contents/Resources');
@@ -47,9 +68,14 @@ try {
   await writeFile(launchAgent, loginPlist(path.join(appPath, 'Contents/MacOS/jumpyBrain')));
   await json(nativeFile, { ...native, supportDirectory: support, memoryRoot: memory, port, launchAgent });
   await json(path.join(resources, 'desktop.json'), { schema: 1, supportDirectory: support, launchAgent, port });
-  // Build an actual npm package and use only its distribution contents.
-  const pack = JSON.parse(execFileSync('npm', ['pack', '--json', '--pack-destination', home], { cwd: repo, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }))[0];
-  execFileSync('tar', ['-xzf', path.join(home, pack.filename), '-C', home]);
+  // Reuse an immutable package for matched trials even if the shared checkout
+  // changes. Keep the exact input bytes after the disposable HOME is removed.
+  const pack = sourcePackage ? null : JSON.parse(execFileSync('npm', ['pack', '--json', '--pack-destination', home], { cwd: repo, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 }))[0];
+  const packageFile = sourcePackage || path.join(home, pack.filename);
+  const packedFiles = execFileSync('tar', ['-tzf', packageFile], { encoding: 'utf8' }).trim().split('\n');
+  assert.equal(packedFiles.some(file => /(^|\/)node_modules\//.test(file)), false, 'incoming release must not borrow checkout dependencies');
+  await cp(packageFile, path.join(artifactDir, 'source.tgz'));
+  execFileSync('tar', ['-xzf', packageFile, '-C', home]);
   const source = path.join(home, 'package');
   const fixturePath = path.join(home, 'fixture.json');
   const entry = `import { run } from ${JSON.stringify(path.join(repo, 'integrations/electron/smoke-updater-app.mjs'))};\nawait run(${JSON.stringify(fixturePath)});\n`;
@@ -57,7 +83,6 @@ try {
   const pkg = JSON.parse(await readFile(path.join(source, 'package.json'), 'utf8'));
   const electronPkg = JSON.parse(await readFile(path.join(source, 'integrations/electron/package.json'), 'utf8'));
   const oldVersion = existingClient ? '0.3.7' : '0.3.3', nextVersion = existingClient ? '0.3.8' : '0.3.4';
-  assert.equal(pack.files.some(file => /(^|\/)node_modules\//.test(file.path)), false, 'incoming release must not borrow checkout dependencies');
   await json(path.join(source, 'package.json'), { ...pkg, version: oldVersion });
   await json(path.join(source, 'integrations/electron/package.json'), { ...electronPkg, version: oldVersion });
   await rm(path.join(resources, 'runtime/dist'), { recursive: true });
@@ -101,6 +126,7 @@ try {
   lock.version = nextVersion; lock.packages[''].version = nextVersion; await json(lockFile, lock);
   const archive = path.join(home, 'release.tgz'); execFileSync('tar', ['-czf', archive, '-C', home, 'package'], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
   const bytes = await readFile(archive);
+  await json(path.join(artifactDir, 'trial.json'), { ...trial, packedSourceDigest: digest(await readFile(packageFile)), releaseDigest: digest(bytes), releaseBytes: bytes.length });
   server = http.createServer((_req, res) => { setTimeout(() => { res.writeHead(200, { 'Content-Length': bytes.length }); res.end(bytes); }, 600); });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const release = { version: nextVersion, tag: 'v' + nextVersion, size: bytes.length, digest: 'sha256:' + createHash('sha256').update(bytes).digest('hex'),
@@ -225,6 +251,16 @@ try {
         if (file === 'update.log' && mode === 'success') {
           assert.match(value.toString(), coldNative ? /Compiling native companion/ : /Reusing unchanged native companion executable/);
           if (!coldNative) assert.doesNotMatch(value.toString(), /Compiling native companion/);
+          // Historical workers still capture incoming install.mjs stdout. Keep
+          // the raw log and export only fixed stage records for comparison.
+          const buildTimings = [...value.toString().matchAll(/^\[build-timing\] (.+)$/gm)].map(match => JSON.parse(match[1]));
+          assert.ok(buildTimings.length > 0, 'incoming build must expose its measured stages');
+          assert.ok(buildTimings.every(record => record.schema === 1 && record.outcome === 'ok' && Number.isFinite(record.durationMs) && record.durationMs >= 0));
+          assert.equal(buildTimings.some(record => record.stage === 'native-compile'), coldNative);
+          for (const stage of ['electron-acquire-verify', 'electron-unpack-and-setup', 'runtime-copy', 'extension-compiler-copy', 'desktop-sign', 'desktop-verify', 'desktop-copy-final']) {
+            assert.equal(buildTimings.filter(record => record.stage === stage).length, 1, `one timing for ${stage}`);
+          }
+          await json(path.join(artifactDir, 'build-timings.json'), buildTimings);
         }
         if (file === 'timings.json') {
           const { marks } = JSON.parse(value);
