@@ -71,8 +71,8 @@ try {
   console.log('step: delete');await page.locator('#delete-note').click();
   await page.locator('#delete-confirm').waitFor({state:'visible'});
   await page.waitForFunction(()=>!document.getElementById('delete-confirm').disabled);
-  assert.match(await page.locator('#delete-references').innerText(),/inbound links: 1/);
-  assert.match(await page.locator('#document-delete').innerText(),/no Trash or Undo/);
+  assert.equal(await page.locator('#delete-references').count(),0);
+  assert.match(await page.locator('#document-delete').innerText(),/Deleting this note cannot be undone/);
   if(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR){await mkdir(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR,'delete-preview.png')});}
   await page.locator('#delete-cancel').click();assert.ok(await readMemoryDocument(root,id));
   await page.locator('#delete-note').click();await page.waitForFunction(()=>!document.getElementById('delete-confirm').disabled);

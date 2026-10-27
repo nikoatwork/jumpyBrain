@@ -8,6 +8,10 @@
 
 - Saved notes surface up to five relevant pages through bounded shared search and guarded navigation; [scope and verification](done/2026-10-27_tasks-note-related-pages.md).
 
+## 2026-10-27 — In-note find
+
+- Command-F finds rendered note text with highlighted matches and keyboard navigation while preserving Markdown and editor history; [implementation](done/2026-10-27_tasks-note-find-text.md).
+
 ## 2026-10-25 — v0.3.9 beta
 
 - Published the completed editor/import, search/Settings and setup/extension changes; reduced routine beta preparation to three commands with targeted extras. [Release verification](done/releases/v0.3.9.qa.md).

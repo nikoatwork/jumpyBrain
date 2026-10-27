@@ -91,8 +91,7 @@ export function installDocumentActions(options: {
     const scope = boundScope, token = ++sequence;
     removal.showModal();
     $("delete-note-title").textContent = editor.state.title;
-    $("delete-references").textContent = "";
-    $("delete-message").textContent = "Saving your note and checking links…";
+    $("delete-message").textContent = "Preparing deletion…";
     $<HTMLButtonElement>("delete-confirm").disabled = true;
     busy = true; editor.setNavigationPending(true);
     try {
@@ -103,8 +102,7 @@ export function installDocumentActions(options: {
       if (packet.id !== editor.state.documentId || packet.contentHash !== editor.state.contentHash || packet.permanent !== true) throw new Error("The note changed. Cancel and review the saved version before deleting.");
       preview = packet;
       $("delete-note-title").textContent = packet.title || packet.file;
-      $("delete-references").textContent = "Known inbound links: " + packet.references.links + "; declared relationships: " + packet.references.relationships + ". Advisory only; this is not a complete dependency graph.";
-      $("delete-message").textContent = "Review the title and warning before confirming.";
+      $("delete-message").textContent = "";
       $<HTMLButtonElement>("delete-confirm").disabled = false;
     } catch (error) {
       if (token === sequence) $("delete-message").textContent = error instanceof Error ? error.message : "Could not prepare deletion.";

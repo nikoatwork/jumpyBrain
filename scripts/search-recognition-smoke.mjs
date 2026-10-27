@@ -55,7 +55,7 @@ try {
       await page.locator("#home-search").click();
       await page.locator("#note-search-input").fill("mistral");
       await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 24);
-      assert.match(await page.locator("#search-coverage").innerText(), /Other matches may exist/);
+      assert.equal(await page.locator("#search-coverage, #search-next, #search-previous").count(), 0);
       assert.equal(await page.locator("#search-results img, #search-results script").count(), 0);
       assert.equal(await page.evaluate(() => window.searchUnsafe), undefined);
       const preview = await page.locator("#search-results .search-result-preview").first().innerText();
@@ -78,12 +78,21 @@ try {
       assert.equal(await unknown.locator(".search-result-age").count(), 0);
       assert.doesNotMatch(await unknown.innerText(), /Editor unknown|Edit date unknown/);
       await page.screenshot({ path: path.join(output, `search-${width}-${theme}.png`) });
-      const nextBox = await page.locator("#search-next").boundingBox(), dialogBox = await page.locator("#note-search").boundingBox();
-      assert.ok(nextBox.y + nextBox.height <= dialogBox.y + dialogBox.height, "paging remains visible inside the dialog");
-      await page.locator("#search-next").click();
-      await page.waitForFunction(() => document.querySelector("#search-previous")?.hidden === false && document.querySelectorAll("#search-results li").length > 0 && document.querySelectorAll("#search-results li").length < 24);
-      await page.locator("#search-previous").click();
-      await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 24);
+      await page.locator("#search-results").evaluate(list => { list.scrollTop = list.scrollHeight; });
+      assert.equal(await page.locator("#search-results li").count(), 24, "initial list stays bounded without replacing pages");
+      await page.route('**/memories/all/search', async route => {
+        const query = route.request().postDataJSON().query;
+        if (query === 'zzemptyfixture') return route.fulfill({ json: { results: [], index: { stale: false }, recognition: { version: 1 } } });
+        if (query === 'zzerrorfixture') return route.fulfill({ status: 503, json: { error: { code: 'fixture_unavailable', message: 'Synthetic unavailable search' } } });
+        return route.continue();
+      });
+      await page.locator("#note-search-input").fill('zzemptyfixture');
+      await page.locator("#search-message").filter({ hasText: 'No notes found' }).waitFor();
+      assert.equal(await page.locator("#search-results li").count(), 0);
+      await page.locator("#note-search-input").fill('zzerrorfixture');
+      await page.locator("#search-retry").waitFor({ state: 'visible' });
+      assert.ok((await page.locator("#search-message").innerText()).length > 0);
+      await page.unroute('**/memories/all/search');
       await page.locator("#note-search-input").fill(notes[0].title);
       await page.waitForFunction(title => document.querySelector("#search-results strong")?.textContent === title, notes[0].title);
       await page.locator("#note-search-input").press("ArrowDown");
@@ -98,6 +107,7 @@ try {
         await page.locator("#open-search").click();
         await page.locator("#note-search-input").fill("freshly edited personal");
         await page.waitForFunction(() => [...document.querySelectorAll(".search-result-preview")].some(node => node.textContent.includes("freshly edited personal")));
+        assert.equal(await page.locator("#search-refresh-index").isVisible(), true, "stale saved-note results keep actionable refresh");
         const savedRow = page.locator("#search-results li").filter({ hasText: "freshly edited personal" });
         assert.match(await savedRow.locator(".search-result-age").innerText(), /^(?:now|\d+[mh])$/);
         assert.match(await page.locator("#search-results").innerText(), /freshly edited personal/);
@@ -110,6 +120,6 @@ try {
       console.log(`PASS search recognition ${width}px ${theme}`);
     }
     assert.deepEqual(errors, []);
-    console.log(`PASS real immutable-read search, bounded paging, keyboard opening, filter-free search, plain-text previews, confirmed-save freshness. Screenshots: ${output}`);
+    console.log(`PASS real immutable-read search, bounded initial list, empty/error/retry/stale states, keyboard opening, filter-free search, plain-text previews, confirmed-save freshness. Screenshots: ${output}`);
   }
 } finally { await browser?.close(); await server?.close(); await rm(root, { recursive: true, force: true }); }

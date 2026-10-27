@@ -28,3 +28,5 @@ export { installRelatedPages } from "./related-pages.js";
 export { createBrowserCommands } from "./browser-commands.js";
 
 export { searchPreview, readablePreview, appendSearchHighlight, resultEditContext, browserMemoryActor } from "./search-presentation.js";
+export { installNoteFind } from "./note-find.js";
+export { installControlLabels } from "./browser-control-labels.js";

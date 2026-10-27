@@ -1,5 +1,5 @@
 import { createSystemMessages } from './system-messages.mjs';
-import { BrowserWindow, dialog, Menu, shell } from 'electron';
+import { BrowserWindow, dialog, Menu, MenuItem, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { mountInlineUpdates, nativeUpdateAction } from './update-inline.mjs';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
@@ -113,7 +113,7 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
 }
 
 export function setApplicationMenu({ app, getWindow, reconnect, settings, updates }) {
-  Menu.setApplicationMenu(Menu.buildFromTemplate([
+  const menu = Menu.buildFromTemplate([
     { label: 'jumpyBrain', submenu: [
       { label: 'About jumpyBrain', click: () => app.showAboutPanel() },
       ...(updates ? [{ label: 'Check for updates…', click: updates }] : []),
@@ -138,5 +138,13 @@ export function setApplicationMenu({ app, getWindow, reconnect, settings, update
       { type: 'separator' }, { role: 'togglefullscreen' },
     ] },
     { role: 'windowMenu' },
-  ]));
+  ]);
+  // Extend Electron's platform menu so native edit/speech/writing roles survive.
+  const edit = menu.items.find(item => item.role?.toLowerCase() === 'editmenu')?.submenu;
+  edit?.append(new MenuItem({ type: 'separator' }));
+  edit?.append(new MenuItem({ label: 'Find in Note…', accelerator: 'CommandOrControl+F', click: () => {
+    const window = getWindow();
+    if (window) void window.webContents.executeJavaScript('document.dispatchEvent(new Event("jumpybrain:find"))');
+  } }));
+  Menu.setApplicationMenu(menu);
 }

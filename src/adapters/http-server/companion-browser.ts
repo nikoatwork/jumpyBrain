@@ -109,6 +109,7 @@ companionRecovery.className = "companion-actions";
 companionRecovery.hidden = true;
 const sessionRetry = document.createElement("button");
 sessionRetry.className = "quiet-button"; sessionRetry.textContent = "Retry companion session";
+sessionRetry.title = "Retry if the app is still connected; otherwise reopen the editor from the app menu.";
 sessionRetry.addEventListener("click", () => startCompanion());
 const sessionCopy = document.createElement("button");
 sessionCopy.className = "quiet-button"; sessionCopy.textContent = "Recover draft";
@@ -255,7 +256,7 @@ async function companionControl(route, body, options = {}) {
 function companionFence() {
   companionSessionFailed = true;
   companionLock(true);
-  companionMessage("This tab is fenced from memory requests. Your draft is retained. Use Recover draft to copy it, then reopen the editor from the companion menu for a fresh session. Retry in Settings only works while the session cookie is valid. Do not reload an unsaved draft.", true);
+  companionMessage("Your session ended; use Recover draft to copy your work before reopening the editor from the app menu.", true);
   $("companion-reconnect").hidden = false;
   renderCompanionConnection();
   renderCompanionSettings();
@@ -380,7 +381,7 @@ async function startCompanion() {
     companionLock(true);
     renderCompanionConnection();
     renderCompanionSettings();
-    companionMessage("Companion session unavailable. Reopen the editor from the companion menu for a fresh session. Retry only works if the existing session cookie is still valid. Copy any draft before reloading; your draft is retained in this tab.", true);
+    companionMessage("Your session ended; use Recover draft to copy your work before reopening the editor from the app menu.", true);
     $("companion-reconnect").hidden = false;
     // Settings remain available even without a target/session; no initial memory request.
     if (!state.editor) {

@@ -7,6 +7,14 @@ import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
 export const notesStyles = String.raw`
 ${noteAttentionStyles}
+    #note-find { position: sticky; top: 8px; z-index: 3; display: flex; align-items: center; gap: 8px;
+      padding: 6px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+    #note-find[hidden] { display: none; }
+    #note-find-input { min-width: 0; width: 100%; flex: 1; }
+    #note-find-count { font: var(--text-caption)/1.5 var(--font-ui); white-space: nowrap; }
+    #note-find button { flex-shrink: 0; padding: 4px 8px; }
+    ::highlight(note-find) { background: #d2a02955; color: inherit; }
+    ::highlight(note-find-current) { background: #da8b19aa; color: inherit; }
     body { display: flex; height: 100dvh; }
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
     .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
@@ -155,7 +163,6 @@ ${noteAttentionStyles}
     dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
     dialog::backdrop { background: var(--backdrop); }
     .search-result mark { color: inherit; background: color-mix(in srgb, var(--accent) 18%, transparent); }
-    #search-coverage { margin-top: var(--space-2); }
     #note-search { width: min(760px, calc(100vw - 32px)); max-height: min(740px, calc(100dvh - 64px)); margin-top: min(12vh, 100px); }
     #note-search[open] { display: flex; flex-direction: column; }
     #note-search > .dialog-head, #note-search > .search-footer { flex-shrink: 0; }
@@ -264,9 +271,6 @@ ${noteAttentionMarkup}
   <ul id="search-results" role="listbox" aria-label="Matching notes"></ul>
   <div class="search-footer">
     <p id="search-message" role="status" aria-live="polite"></p>
-    <p id="search-coverage"></p>
-    <button id="search-previous" class="quiet-button" hidden>Previous results</button>
-    <button id="search-next" class="quiet-button" hidden>Next results</button>
     <p id="reference-help" hidden>Insert a literal [[Page Title]] reference, not a unique-ID link. Duplicate titles are ambiguous. Exact page titles are shared with the map; legacy paths remain supported there.</p>
     <button id="search-retry" class="quiet-button" hidden>Retry search</button>
     <button id="search-connect" class="quiet-button" hidden>Connect</button>
@@ -292,7 +296,7 @@ ${noteAttentionMarkup}
 export const documentActionsMarkup = String.raw`
 <dialog id="document-recovery" class="document-dialog" aria-labelledby="recovery-title">
   <h2 id="recovery-title">Recover your draft</h2>
-  <p>Your draft is safe in this tab. Copy it before discarding. A stale save cannot be fixed by retrying the same version.</p>
+  <p>Your draft is kept in this tab; copy it before reopening the editor or discarding it.</p>
   <label>Your draft<textarea id="recovery-draft" readonly></textarea></label>
   <label>Current saved note<textarea id="recovery-saved" readonly></textarea></label>
   <p id="recovery-message" role="status" aria-live="polite"></p>
@@ -301,8 +305,7 @@ export const documentActionsMarkup = String.raw`
 <dialog id="document-delete" class="document-dialog" aria-labelledby="delete-title">
   <h2 id="delete-title">Permanently delete note?</h2>
   <p id="delete-note-title"></p>
-  <p>This permanently removes the note. There is no Trash or Undo; recovery requires your own backup or Git history. Other notes and their links will stay unchanged.</p>
-  <p id="delete-references"></p>
+  <p>Deleting this note cannot be undone.</p>
   <p id="delete-message" role="status" aria-live="polite"></p>
   <div class="dialog-actions"><button id="delete-cancel" class="quiet-button">Cancel</button><button id="delete-confirm" class="quiet-button" disabled>Permanently delete note</button></div>
 </dialog>
@@ -335,6 +338,13 @@ export const notesViews = String.raw`
       <textarea id="note-name" aria-label="Page name" aria-describedby="note-save-error" aria-multiline="false" rows="1" autocomplete="off" hidden></textarea>
       <p id="note-save-error" role="status" aria-live="polite" hidden></p>
       <div class="note-actions"><button id="copy-note-draft" class="quiet-button note-icon" type="button" aria-label="Copy draft" title="Copy draft" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg></button><button id="delete-note" class="quiet-button note-icon" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+      <div id="note-find" role="search" aria-label="Find in note" hidden>
+        <input id="note-find-input" type="search" aria-label="Find in note" placeholder="Find in note…" autocomplete="off" />
+        <span id="note-find-count" role="status" aria-live="polite"></span>
+        <button id="note-find-previous" type="button" class="quiet-button" aria-label="Previous match" title="Previous match (Shift+Enter)">↑</button>
+        <button id="note-find-next" type="button" class="quiet-button" aria-label="Next match" title="Next match (Enter)">↓</button>
+        <button id="note-find-close" type="button" class="quiet-button note-icon" aria-label="Close find" title="Close find (Esc)">${browserIcons.close}</button>
+      </div>
       <div id="reference-creation-status" hidden>
         <p role="status" aria-live="polite">A linked page could not be created. Your source note is retained. Retry page creation before leaving this note.</p>
         <button id="reference-creation-retry" class="quiet-button">Retry page creation</button>
@@ -342,12 +352,12 @@ export const notesViews = String.raw`
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
       <div id="format-controls" role="group" aria-label="Text formatting" hidden>
-        <button class="quiet-button" data-format="paragraph" aria-label="Normal text">Text</button>
-        <button class="quiet-button" data-format="h1" aria-label="Heading">H1</button>
-        <button class="quiet-button" data-format="h2" aria-label="Subheading">H2</button>
-        <button class="quiet-button" data-format="h3" aria-label="Small heading">H3</button>
-        <button class="quiet-button" data-format="bold" aria-label="Bold"><strong>B</strong></button>
-        <button class="quiet-button" data-format="italic" aria-label="Italic"><em>I</em></button>
+        <button class="quiet-button" data-format="paragraph" aria-label="Normal text" title="Normal text">Text</button>
+        <button class="quiet-button" data-format="h1" aria-label="Heading" title="Heading">H1</button>
+        <button class="quiet-button" data-format="h2" aria-label="Subheading" title="Subheading">H2</button>
+        <button class="quiet-button" data-format="h3" aria-label="Small heading" title="Small heading">H3</button>
+        <button class="quiet-button" data-format="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
+        <button class="quiet-button" data-format="italic" aria-label="Italic" title="Italic"><em>I</em></button>
         <button class="quiet-button" data-format="task" aria-label="Task checkbox" title="Task checkbox">☑</button>
         <button class="quiet-button" data-format="code" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
         <button class="quiet-button" data-format="code-block" aria-label="Code block" title="Code block">{ }</button>
@@ -520,8 +530,8 @@ function createNoteSearch(options) {
       } catch (error) {
         if (token !== generation) return;
         search.status = Number(error.status) === 401 || Number(error.status) === 403 ? "auth" : "error";
-        search.message = error.code === "invalid_recognition" ? "Could not load this page of results. Retry search."
-          : error.code === "unsupported_recognition" ? "This server needs an update to support paged search."
+        search.message = error.code === "invalid_recognition" ? "Could not load search results. Retry search."
+          : error.code === "unsupported_recognition" ? "Update this server to enable search."
           : search.status === "auth" ? "Connect with an access key to search your memory."
           : Number(error.status) === 500 ? "Search is unavailable. The server may need its index built. Retry or ask the server operator."
           : "Search failed. Check your connection and retry.";
@@ -688,16 +698,20 @@ for (const id of ["home-search", "open-search"]) {
   $(id).setAttribute("aria-keyshortcuts", appleKeyboard ? "Meta+K" : "Control+K");
   $(id).title = "Search notes · " + shortcut;
 }
-let searchOffset = 0;
 const noteSearch = createNoteSearch({
   resultLimit: 24,
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
   abortController: () => new AbortController(),
-  fetch: (query, signal) => recentWrites.search(query, signal, 24, { offset: searchOffset }),
+  fetch: (query, signal) => recentWrites.search(query, signal, 24, { offset: 0 }),
   onChange: renderNoteSearch,
 });
 
+JumpyBrainBrowser.installControlLabels(document);
+const noteFind = JumpyBrainBrowser.installNoteFind({
+  document, available: () => state.view === "note" && !!state.editor?.state.loaded,
+  capture: () => richEditor.captureSelection(), restore: (selection) => richEditor.restoreSelection(selection),
+});
 const referenceAutocomplete = window.installReferenceAutocomplete($("note-editor"), richEditor, {
   createSearch: createNoteSearch,
   fetch: searchMemoryNotes,
@@ -897,10 +911,6 @@ function renderNoteSearch(search) {
   list.noteSelected = search.selected;
   $("search-message").textContent = search.feedback || (searchMode === "insert" && search.status === "ready" && search.selected >= 0
     ? "↑ ↓ to choose · Enter to insert reference" : search.message);
-  const coverage = search.recognition;
-  $("search-coverage").textContent = coverage ? "Showing " + search.results.length + " of " + coverage.matched + " matches within up to 120 ranked candidates and recent saves. Other matches may exist." + (coverage.metadataUnavailable ? " Some current metadata is unavailable." : "") : "";
-  $("search-previous").hidden = !coverage || searchOffset === 0;
-  $("search-next").hidden = !coverage || coverage.nextOffset === undefined;
   $("search-results").setAttribute("aria-busy", String(search.status === "loading"));
   $("search-refresh-index").hidden = !search.stale;
   const reindexReadOnly = typeof companionMode !== "undefined" && companionMode && companionReadOnly();
@@ -939,15 +949,13 @@ $("home-search").addEventListener("click", () => browserCommands.execute("search
 $("close-search").addEventListener("click", () => closeSearch());
 searchDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeSearch(); });
 searchDialog.addEventListener("click", (event) => { if (event.target === searchDialog) closeSearch(); });
-$("note-search-input").addEventListener("input", (event) => { if (!event.isComposing) { searchOffset = 0; noteSearch.query(event.target.value); } });
-$("note-search-input").addEventListener("compositionend", (event) => { searchOffset = 0; noteSearch.query(event.target.value); });
+$("note-search-input").addEventListener("input", (event) => { if (!event.isComposing) { noteSearch.query(event.target.value); } });
+$("note-search-input").addEventListener("compositionend", (event) => { noteSearch.query(event.target.value); });
 $("note-search-input").addEventListener("keydown", (event) => {
   if (event.isComposing) return;
   if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); noteSearch.move(event.key === "ArrowDown" ? 1 : -1); }
   if (event.key === "Enter") { event.preventDefault(); chooseSearchResult(noteSearch.state.results[noteSearch.state.selected]); }
 });
-$("search-previous").addEventListener("click", () => { searchOffset = Math.max(0, searchOffset - 24); noteSearch.query($("note-search-input").value, true); });
-$("search-next").addEventListener("click", () => { if (noteSearch.state.recognition?.nextOffset !== undefined) { searchOffset = noteSearch.state.recognition.nextOffset; noteSearch.query($("note-search-input").value, true); } });
 $("search-retry").addEventListener("click", () => noteSearch.query($("note-search-input").value, true));
 function handleNoteShortcut(event) {
   if (feedback.isOpen()) return;
@@ -996,7 +1004,7 @@ function maskApiKey() {
 function openConnection(fromSearch) {
   if (typeof companionMode !== "undefined" && companionMode) {
     if (companionSessionFailed && state.editor?.hasPending()) {
-      companionMessage("Copy your draft with Recover draft, then reopen the editor from the companion menu. Retry only works with a valid session cookie; do not reload this draft.", true);
+      companionMessage("Your session ended; use Recover draft to copy your work before reopening the editor from the app menu.", true);
       documentActions.openRecovery();
     } else navigation.navigate(companionScopeUrl("/settings"));
     return;
@@ -1139,6 +1147,7 @@ for (const [id, url] of [["home-link", "/"], ["notes-link", "/"], ["graph-link",
 }
 
 function showPage(url) {
+  noteFind.close(false);
   feedback.close(false);
   if (typeof companionMode !== "undefined" && companionMode && !companionRegistered) return;
   if (typeof companionMode !== "undefined" && companionMode) {

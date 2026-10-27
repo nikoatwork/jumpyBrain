@@ -166,6 +166,38 @@ try {
   await until(`!!document.querySelector('a[href*="${config.id}"]')`);
   await js(`document.querySelector('a[href*="${config.id}"]').click()`);
   await until('!document.getElementById("note-editor").hidden && document.getElementById("note-editor").textContent.includes("Original fixture body.")');
+  const findItem = Menu.getApplicationMenu().items.find(item => item.label === 'Edit').submenu.items.find(item => item.label === 'Find in Note…');
+  assert.equal(findItem.accelerator, 'CommandOrControl+F');
+  findItem.click();
+  await until('!document.getElementById("note-find").hidden && document.activeElement.id === "note-find-input"');
+  await window.webContents.insertText('fixture');
+  await until('document.getElementById("note-find-count").textContent === "1 of 2"');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+  await until('document.getElementById("note-find-count").textContent === "2 of 2"');
+  for (const width of [1200, 480]) for (const theme of ['light', 'dark']) {
+    window.setSize(width, 860);
+    await js(`localStorage.setItem('jumpybrain.theme', '${theme}'); document.documentElement.dataset.theme = '${theme}'`);
+    await pause(100);
+    await writeFile(config.screenshot.replace('welcome.png', `find-${width}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+    assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'), true);
+    await js('document.getElementById("delete-note").click()');
+    await until('!document.getElementById("delete-confirm").disabled');
+    assert.match(await js('document.getElementById("document-delete").textContent'), /Deleting this note cannot be undone/);
+    await writeFile(config.screenshot.replace('welcome.png', `delete-${width}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+    await js('document.getElementById("delete-cancel").click()');
+    assert.equal(await readFile(existingNote, 'utf8'), existingBytes);
+  }
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await until('document.getElementById("note-find").hidden');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'f', modifiers: ['meta'] });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'f', modifiers: ['meta'] });
+  await until('!document.getElementById("note-find").hidden');
+  await js('document.getElementById("note-find-close").click()');
+  assert.equal(await readFile(existingNote, 'utf8'), existingBytes, 'native find never mutates canonical Markdown');
+  window.setSize(1200, 860);
+  checks.push('native Find menu and Command-F, match navigation, Escape, immutable Markdown and 1200/480px themes');
   await js('document.getElementById("note-editor").focus()');
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'End', modifiers: ['meta'] });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'End', modifiers: ['meta'] });

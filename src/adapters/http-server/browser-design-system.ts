@@ -1,6 +1,12 @@
 // Shared browser presentation tokens. Roles and usage: docs/design-system.md.
 // Color tokens remain in browser-theme.ts; neither module owns app behavior.
 export const designSystemStyles = String.raw`
+    #control-label {
+      position: fixed; inset: auto; margin: 0; max-width: min(300px, calc(100vw - 16px));
+      padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+      background: var(--surface); color: var(--ink); font: var(--text-caption)/var(--leading-ui) var(--font-ui);
+      box-shadow: 0 3px 12px #0002; pointer-events: none; overflow-wrap: anywhere;
+    }
     :root {
       --font-ui: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       --font-writing: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
