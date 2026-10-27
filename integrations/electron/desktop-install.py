@@ -116,7 +116,9 @@ def prepare(bundle, home, source=SOURCE):
     config['runtimeRoot'] = str(runtime)
     with build_workspace() as scratch:
         previous = source / '.local-pack/desktop/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app'
-        built = build_app(source, scratch, config, previous_app=previous if previous.is_dir() else None)
+        if not previous.is_dir():
+            previous = home / 'Applications/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app'
+        built = build_app(source, scratch, config, previous_app=previous if previous.is_dir() else None, reuse_artifact=True)
         destination = resources / 'native/jumpyBrain Host.app'
         destination.parent.mkdir()
         shutil.copytree(built, destination)

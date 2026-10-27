@@ -15,11 +15,12 @@ import { seedV1Extension, v1Context } from './extensions-v1-fixture.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const mode = process.argv[2] || 'success';
 const existingClient = process.argv[3] === '--client-v0.3.7';
-if (process.argv.length > (existingClient ? 4 : 3) || (existingClient && mode !== 'success')) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7 (success only)]');
+const coldNative = process.argv[3] === '--cold-native';
+if (process.argv.length > (existingClient || coldNative ? 4 : 3) || ((existingClient || coldNative) && mode !== 'success')) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7 | --cold-native (success only)]');
 if (!['success','app-only','relaunch-failure','helper-crash','app-crash','cli-open','cli-closed'].includes(mode)) throw new Error('Unsupported smoke mode');
 const asar = await import(path.join(repo, 'integrations/electron/node_modules/@electron/asar/lib/asar.js'));
 const home = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-update-smoke-')));
-const artifactDir = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : mode); await mkdir(artifactDir, { recursive: true });
+const artifactDir = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : coldNative ? 'cold-native' : mode); await mkdir(artifactDir, { recursive: true });
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 let child, server, success = false;
 console.log('Disposable update home:', home);
@@ -38,6 +39,10 @@ try {
   const port = socket.address().port; await new Promise(resolve => socket.close(resolve));
   const nativeFile = path.join(resources, 'native/jumpyBrain Host.app/Contents/Resources/Configuration.json');
   const native = JSON.parse(await readFile(nativeFile, 'utf8'));
+  // Model an older installed helper with no artifact reuse record. The entire
+  // fixture is re-signed below; the worker must compile a fresh native helper.
+  if (coldNative) await rm(path.join(path.dirname(nativeFile), 'NativeBuild.json'));
+
   const launchAgent = path.join(home, 'Library/LaunchAgents/local.jumpybrain.desktop.plist'); await mkdir(path.dirname(launchAgent), { recursive: true });
   await writeFile(launchAgent, loginPlist(path.join(appPath, 'Contents/MacOS/jumpyBrain')));
   await json(nativeFile, { ...native, supportDirectory: support, memoryRoot: memory, port, launchAgent });
@@ -83,6 +88,11 @@ try {
   await writeFile(workerFile, candidateWorker);
 
   execFileSync('/usr/libexec/PlistBuddy', ['-c', `Set :CFBundleShortVersionString ${oldVersion}`, path.join(appPath, 'Contents/Info.plist')]);
+  // Resources/native is not a standard nested-code location: outer --deep
+  // signing does not repair this helper's seal after fixture config changes.
+  const helperApp = path.join(resources, 'native/jumpyBrain Host.app');
+  execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', helperApp], { stdio: 'pipe' });
+  execFileSync('/usr/bin/codesign', ['--verify', '--strict', helperApp], { stdio: 'pipe' });
   execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', appPath], { stdio: 'pipe' });
   execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', appPath], { stdio: 'pipe' });
   await json(path.join(source, 'package.json'), { ...pkg, version: nextVersion });
@@ -192,6 +202,9 @@ try {
   assert.equal(JSON.parse(await readFile(path.join(root, 'app/package.json'))).version, expectedCLI);
   assert.equal(JSON.parse(await readFile(path.join(resources, 'runtime/package.json'))).version, recovered ? oldVersion : nextVersion);
   const installedFiles = new Set(asar.listPackage(path.join(resources, 'app.asar')));
+  if (!Object.keys({ ...electronPkg.dependencies, ...electronPkg.optionalDependencies }).length) {
+    assert.equal([...installedFiles].some(file => /^\/node_modules\/(?:@[^/]+\/)?[^/]+\/package\.json$/.test(file)), false, 'shell must not bundle development dependency packages');
+  }
   for (const file of ['updater.mjs', 'update-worker.mjs', 'update-transaction.py', 'update-release.mjs', 'update-policy.mjs', 'desktop-host.mjs', 'host.mjs', 'update-inline.mjs', 'update-control.mjs', 'update-cli.mjs']) {
     assert.ok(installedFiles.has('/' + file), `Updated app must retain its next-update helper: ${file}`);
   }
@@ -200,7 +213,36 @@ try {
   assert.ok(cliExtension.prepared.revision, 'installed CLI must compile a fresh TS/UI extension after upgrade');
   const manifest = JSON.parse(await readFile(path.join(root, 'install-manifest.json')));
   assert.equal(manifest.source, 'https://github.com/nikoatwork/jumpyBrain.git'); assert.equal(manifest.ref, mode === 'app-only' ? 'v0.3.3' : 'master');
-  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, profilePreferences: ['success','relaunch-failure'].includes(mode), probeActivationSuppressed: !existingClient && ['success','relaunch-failure'].includes(mode), existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
+  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, profilePreferences: ['success','relaunch-failure'].includes(mode), probeActivationSuppressed: !existingClient && ['success','relaunch-failure'].includes(mode), coldNative, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
+  let performanceResult;
+  const updateDirectories = await readdir(path.join(home, 'Library/Application Support/jumpyBrain Updates'));
+  for (const name of updateDirectories) {
+    const directory = path.join(home, 'Library/Application Support/jumpyBrain Updates', name);
+    for (const file of ['timings.json', 'update.log']) {
+      const value = await readFile(path.join(directory, file)).catch(() => null);
+      if (value) {
+        await writeFile(path.join(artifactDir, file), value);
+        if (file === 'update.log' && mode === 'success') {
+          assert.match(value.toString(), coldNative ? /Compiling native companion/ : /Reusing unchanged native companion executable/);
+          if (!coldNative) assert.doesNotMatch(value.toString(), /Compiling native companion/);
+        }
+        if (file === 'timings.json') {
+          const { marks } = JSON.parse(value);
+          if (marks?.success && marks?.ready && marks?.downloadFinished && marks?.applyAuthorized) {
+            performanceResult = {
+              postDownloadPreparationMs: marks.ready - marks.downloadFinished,
+              restartToVerifiedSuccessMs: marks.success - marks.applyAuthorized,
+              applicationMs: marks.ready - marks.downloadFinished + marks.success - marks.applyAuthorized,
+            };
+          }
+        }
+      }
+    }
+  }
+  if (performanceResult) {
+    await json(path.join(artifactDir, 'performance.json'), performanceResult);
+    console.log('Update application timing (excludes download and user/save-test wait):', JSON.stringify(performanceResult));
+  }
   success = true; console.log('Installed GUI update: PASS', JSON.stringify(report));
 } finally {
   server?.close();

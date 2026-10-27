@@ -488,10 +488,10 @@ class NativeBuildTests(Fixture):
         if "--verify" in args and self.verify_fails:
             raise subprocess.CalledProcessError(1, "codesign")
 
-    def build(self, runtime=None, previous=None):
+    def build(self, runtime=None, previous=None, *, reuse_artifact=False):
         scratch = Path(tempfile.mkdtemp(prefix="native-build-", dir=self.base))
         with redirect_stdout(io.StringIO()):
-            return install.build_app(runtime or self.runtime, scratch, self.config, previous_app=previous)
+            return install.build_app(runtime or self.runtime, scratch, self.config, previous_app=previous, reuse_artifact=reuse_artifact)
 
     def compilations(self):
         return sum(command[0] == str(self.compiler) for command in self.commands)
@@ -504,6 +504,36 @@ class NativeBuildTests(Fixture):
         shutil.copy2(self.runtime / "integrations/macos-companion/Companion.swift",
                      self.stage / "integrations/macos-companion/Companion.swift")
         self.commands.clear()
+
+    def test_desktop_reuses_verified_artifact_without_inspecting_toolchain(self):
+        with patch.object(install, "native_fingerprint", side_effect=AssertionError("SDK must not be hashed")):
+            first = self.build(reuse_artifact=True)
+        self.commands.clear()
+        with patch.object(install, "native_fingerprint", side_effect=AssertionError("SDK must not be hashed")), \
+                patch.object(install.subprocess, "check_output", side_effect=AssertionError("compiler must not be queried")):
+            second = self.build(previous=first, reuse_artifact=True)
+        self.assertEqual(self.compilations(), 0)
+        self.assertEqual((first / "Contents/MacOS/jumpyBrain").read_bytes(),
+                         (second / "Contents/MacOS/jumpyBrain").read_bytes())
+        self.assertTrue(any("--verify" in command for command in self.commands))
+        self.assertTrue(any("--sign" in command for command in self.commands))
+
+    def test_desktop_artifact_rebuilds_for_source_recipe_architecture_and_corruption(self):
+        for change in ("source", "recipe", "architecture", "binary", "signature", "record"):
+            with self.subTest(change=change):
+                first = self.build(reuse_artifact=True)
+                self.commands.clear()
+                source = self.runtime / "integrations/macos-companion/Companion.swift"
+                if change == "source": source.write_text(source.read_text() + "// changed")
+                if change == "recipe": self.recipe.write_text(self.recipe.read_text() + "# changed")
+                if change == "binary": (first / "Contents/MacOS/jumpyBrain").write_bytes(b"corrupt executable")
+                if change == "record": (first / "Contents/Resources/NativeBuild.json").write_text("{}")
+                if change == "signature": self.verify_fails = True
+                architecture = "different" if change == "architecture" else install.platform.machine()
+                with patch.object(install.platform, "machine", return_value=architecture):
+                    self.build(previous=first, reuse_artifact=True)
+                self.verify_fails = False
+                self.assertEqual(self.compilations(), 1)
 
     def test_reused_commit_refreshes_all_resources_revision_and_signature(self):
         self.seed()

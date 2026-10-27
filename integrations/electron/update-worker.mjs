@@ -24,7 +24,24 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
     npm_config_audit: 'false', npm_config_fund: 'false' };
   let log = Buffer.alloc(0), stopped = false, launched = null, published = false;
   const controller = new AbortController();
-  const status = async (phase, detail) => atomicJSON(path.join(directory, 'state.json'), { phase, detail, pid: process.pid, version: request.release.version, updatedAt: Date.now() });
+  const timings = [], marks = {};
+  const saveTimings = () => atomicJSON(path.join(directory, 'timings.json'), { schema: 1, timings, marks });
+  async function measure(stage, operation) {
+    const started = performance.now();
+    try { return await operation(); }
+    finally {
+      const durationMs = Math.round(performance.now() - started);
+      timings.push({ stage, durationMs });
+      if (stage === 'download') marks.downloadFinished = Date.now();
+      await saveTimings();
+      output(`\n[timing] ${stage}: ${durationMs} ms\n`);
+    }
+  }
+  const status = async (phase, detail) => {
+    marks[phase] ??= Date.now();
+    await saveTimings();
+    await atomicJSON(path.join(directory, 'state.json'), { phase, detail, pid: process.pid, version: request.release.version, updatedAt: Date.now() });
+  };
   const output = bytes => { log = Buffer.concat([log, Buffer.isBuffer(bytes) ? bytes : Buffer.from(String(bytes))]).subarray(-256 * 1024); };
   async function run(command, args, cwd = directory, timeout = 20 * 60 * 1000) {
     if (controller.signal.aborted) throw new Error('Update preparation canceled.');
@@ -62,10 +79,10 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       if (space.bavail * space.bsize < 3 * 1024 ** 3) throw new Error('At least 3 GB of free space is needed to prepare and retain the previous installation. Free space and retry.');
       for (const [cmd, args] of [[request.node, ['-e', 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||a===22&&b>=12?0:1)']], ['npm', ['--version']], ['python3', ['--version']], ['/usr/bin/xcrun', ['--find', 'swiftc']]]) await run(cmd, args, directory, 15000);
       await status('preparing', `Downloading verified release ${request.release.version}…`);
-      const bytes = await download(request.release.url, { signal: controller.signal, limit: 128 * 1024 * 1024, timeout: 120000 });
+      const bytes = await measure('download', () => download(request.release.url, { signal: controller.signal, limit: 128 * 1024 * 1024, timeout: 120000 }));
       verifyArtifact(bytes, request.release);
       await writeFile(path.join(directory, 'release.tgz'), bytes, { mode: 0o600 });
-      await run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'extract', directory]);
+      await measure('extract', () => run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'extract', directory]));
       const source = path.join(directory, 'unpacked/package'), electron = path.join(source, 'integrations/electron');
       if (await installedVersion(source) !== request.release.version || await installedVersion(electron) !== request.release.version) throw new Error('Release app and runtime versions do not match. Nothing was installed.');
       // A supported next release must carry its updater too.
@@ -73,8 +90,8 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       catch { throw new Error('This release lacks the desktop updater build resources. Nothing was installed. Check again after a compatible release is published.'); }
       await run(request.node, [path.join(source, 'dist/cli.js'), '--version'], source, 20000);
       await status('preparing', 'Building the Mac app for this Mac… You can keep editing.');
-      await run('npm', ['ci', '--include=dev'], electron);
-      await run(request.node, ['install.mjs', '--output', path.join(directory, 'built')], electron);
+      await measure('dependencies', () => run('npm', ['ci', '--include=dev', '--prefer-offline', '--no-audit', '--no-fund'], electron));
+      await measure('build', () => run(request.node, ['install.mjs', '--output', path.join(directory, 'built')], electron));
       await status('ready', 'Ready to restart. All open editor tabs must save before installation. You can restart later.');
     } else await status('ready', 'Recovery is ready. Restart to restore the previous installation safely.');
 
@@ -83,6 +100,8 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       if (controller.signal.aborted) throw new Error('Update preparation canceled. Your installation is unchanged.');
       if (Date.now() > readyDeadline) throw new Error('Prepared update expired after 24 hours. Check again to prepare a fresh update.');
       if (await readFile(path.join(directory, 'proceed'), 'utf8').catch(() => '') === 'install') {
+        marks.applyAuthorized = Date.now();
+        await saveTimings();
         await atomicJSON(path.join(directory, 'ack.json'), { pid: process.pid, expires: Date.now() + 45000 });
         // Once authorized, parent exit is expected; a crash without proceed never installs.
         stopped = true; clearInterval(monitor);
@@ -104,17 +123,21 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
         const current = await cliPolicy(request.home);
         if (current.kind !== 'managed' || current.manifestHash !== request.cli.manifestHash || current.shimHash !== request.cli.shimHash) throw new Error('CLI ownership or configuration changed. Nothing was installed.');
       }
-      const stagedHost = await startDesktopHost(await bundledHost(path.join(directory, 'built/jumpyBrain.app/Contents/Resources')), { readinessOnly: true });
-      await stagedHost.stop();
+      await measure('staged-readiness', async () => {
+        const stagedHost = await startDesktopHost(await bundledHost(path.join(directory, 'built/jumpyBrain.app/Contents/Resources')), { readinessOnly: true });
+        await stagedHost.stop();
+      });
       await status('updating', 'Installing the prepared app and CLI. Previous versions are retained for recovery…');
-      await run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'publish', directory]);
+      await measure('publish', () => run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'publish', directory]));
       published = true;
       const expected = request.release.version;
       if (await installedVersion(path.join(request.appPath, 'Contents/Resources/runtime')) !== expected
         || (request.updateCLI && await installedVersion(path.join(root, 'app')) !== expected)) throw new Error('Installed component versions do not match. Restoring the previous installation.');
       if (request.updateCLI) await run(request.node, [path.join(root, 'app/dist/cli.js'), '--version'], directory, 20000);
-      const installedHost = await startDesktopHost(await bundledHost(path.join(request.appPath, 'Contents/Resources')), { readinessOnly: true });
-      await installedHost.stop();
+      await measure('installed-readiness', async () => {
+        const installedHost = await startDesktopHost(await bundledHost(path.join(request.appPath, 'Contents/Resources')), { readinessOnly: true });
+        await installedHost.stop();
+      });
     }
     await status('updating', 'Reopening jumpyBrain and checking its local service…');
     const launchInstance = randomUUID();

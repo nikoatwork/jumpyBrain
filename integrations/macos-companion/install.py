@@ -111,7 +111,7 @@ def native_fingerprint(source, compiler, sdk, options, environment):
     return hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()
 
 
-def reuse_native(previous_app, executable, fingerprint):
+def reuse_native(previous_app, executable, fingerprint, *, field="fingerprint"):
     """Copy/validate only; any absent, corrupt or unverifiable record is a miss.
 
     Strip signatures only on the scratch copy. The digest describes unsigned
@@ -121,7 +121,7 @@ def reuse_native(previous_app, executable, fingerprint):
         return False
     try:
         record = read_json(previous_app / "Contents/Resources" / NATIVE_BUILD_RECORD)
-        if (record.get("schemaVersion") != 1 or record.get("fingerprint") != fingerprint
+        if (record.get("schemaVersion") != 1 or record.get(field) != fingerprint
                 or not isinstance(record.get("executableDigest"), str)):
             return False
         regular(previous_app / "Contents/MacOS/jumpyBrain")
@@ -138,7 +138,7 @@ def reuse_native(previous_app, executable, fingerprint):
         return False
 
 
-def build_app(runtime, build, config, previous_app=None):
+def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False):
     """Build only native assets in caller-owned scratch space; config targets final runtime."""
     package = validate_runtime(runtime)
     source = runtime / "integrations/macos-companion"
@@ -153,65 +153,80 @@ def build_app(runtime, build, config, previous_app=None):
     resources = built_app / "Contents/Resources"
     macos.mkdir(parents=True)
     resources.mkdir()
-    compiler = Path(subprocess.check_output(["xcrun", "--find", "swiftc"], text=True).strip())
-    compiler_options = []
-    headers = compiler.parent.parent / "include/swift"
-    old_map, new_map = headers / "module.modulemap", headers / "bridging.modulemap"
-    if all(p.exists() and "module SwiftBridging" in p.read_text() for p in [old_map, new_map]):
-        # Some upgraded CLT installations retain the obsolete map alongside its
-        # replacement. Hide it for this invocation only; never edit system tools.
-        empty = build / "empty.modulemap"
-        empty.write_text("// Obsolete duplicate SwiftBridging map hidden locally.\n")
-        overlay = build / "swift-overlay.json"
-        overlay.write_text(json.dumps({"version": 0, "case-sensitive": "false", "roots": [{
-            "type": "file", "name": str(old_map), "external-contents": str(empty)
-        }]}))
-        compiler_options += ["-vfsoverlay", str(overlay)]
-        print("Using a build-local overlay for duplicate CLT SwiftBridging maps.")
-    sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
-    options = ["-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{platform.machine()}-apple-macos13.0",
-               "-framework", "AppKit", "-framework", "Security", "-framework", "LocalAuthentication"]
-    # Make compiler inputs explicit rather than trusting arbitrary shell flags.
-    environment = {"PATH": f"{compiler.parent}:/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "C",
-                   "HOME": str(build), "TMPDIR": str(build)}
-    for key in ("DEVELOPER_DIR", "TOOLCHAINS"):
-        if key in os.environ:
-            environment[key] = os.environ[key]
-    # Compile a snapshot, not a source that can change underneath this build.
     native_source = build / "Companion.swift"
     shutil.copy2(regular(source / "Companion.swift"), native_source)
-    fingerprint = None
-    try:
-        print("Checking native companion build inputs…", flush=True)
-        fingerprint = native_fingerprint(native_source, compiler, sdk,
-                                         options + ["duplicateBridgingOverlay=" + str(bool(compiler_options))], environment)
-    except (SafetyError, OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
-        print(f"Native build inputs could not be verified; rebuilding without reuse: {error}", flush=True)
     executable = macos / "jumpyBrain"
-    reused = reuse_native(previous_app, executable, fingerprint)
-    if not reused:
-        print("Compiling native companion (Swift; a fresh module cache can take a while)…", flush=True)
-        run(compiler, *options, "-module-cache-path", build / "module-cache", *compiler_options,
-            native_source, "-o", executable, env=environment)
-        # Normalize codesign's Mach-O allocation before recording unsigned bytes.
-        # The linker signature has a different __LINKEDIT allocation; simply
-        # removing it would make the first subsequent bundle sign a false miss.
-        run("codesign", "--force", "--sign", "-", executable)
-        run("codesign", "--remove-signature", executable)
-        if fingerprint is not None:
+    artifact_fingerprint = None
+    if reuse_artifact:
+        # An already working signed binary needs no compiler/SDK revalidation.
+        # Source, recipe and target architecture govern reuse, like a distributed
+        # native artifact. Toolchain updates alone do not require recompilation.
+        artifact_fingerprint = hashlib.sha256(json.dumps({
+            "schema": 1, "source": file_digest(native_source),
+            "recipe": file_digest(Path(__file__)), "architecture": platform.machine(),
+        }, sort_keys=True).encode()).hexdigest()
+    artifact_reused = reuse_native(previous_app, executable, artifact_fingerprint, field="artifactFingerprint")
+    if artifact_reused:
+        record = read_json(previous_app / "Contents/Resources" / NATIVE_BUILD_RECORD)
+        (resources / NATIVE_BUILD_RECORD).write_text(json.dumps(record, indent=2) + "\n")
+    else:
+        compiler = Path(subprocess.check_output(["xcrun", "--find", "swiftc"], text=True).strip())
+        compiler_options = []
+        headers = compiler.parent.parent / "include/swift"
+        old_map, new_map = headers / "module.modulemap", headers / "bridging.modulemap"
+        if all(p.exists() and "module SwiftBridging" in p.read_text() for p in [old_map, new_map]):
+            # Some upgraded CLT installations retain the obsolete map alongside its
+            # replacement. Hide it for this invocation only; never edit system tools.
+            empty = build / "empty.modulemap"
+            empty.write_text("// Obsolete duplicate SwiftBridging map hidden locally.\n")
+            overlay = build / "swift-overlay.json"
+            overlay.write_text(json.dumps({"version": 0, "case-sensitive": "false", "roots": [{
+                "type": "file", "name": str(old_map), "external-contents": str(empty)
+            }]}))
+            compiler_options += ["-vfsoverlay", str(overlay)]
+            print("Using a build-local overlay for duplicate CLT SwiftBridging maps.")
+        sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
+        options = ["-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{platform.machine()}-apple-macos13.0",
+                   "-framework", "AppKit", "-framework", "Security", "-framework", "LocalAuthentication"]
+        # Make compiler inputs explicit rather than trusting arbitrary shell flags.
+        environment = {"PATH": f"{compiler.parent}:/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "C",
+                       "HOME": str(build), "TMPDIR": str(build)}
+        for key in ("DEVELOPER_DIR", "TOOLCHAINS"):
+            if key in os.environ:
+                environment[key] = os.environ[key]
+        # Compile a snapshot, not a source that can change underneath this build.
+        fingerprint = None
+        if not reuse_artifact:
             try:
-                confirmed = native_fingerprint(native_source, compiler, sdk,
-                                               options + ["duplicateBridgingOverlay=" + str(bool(compiler_options))], environment)
-                if confirmed != fingerprint:
+                print("Checking native companion build inputs…", flush=True)
+                fingerprint = native_fingerprint(native_source, compiler, sdk,
+                                                 options + ["duplicateBridgingOverlay=" + str(bool(compiler_options))], environment)
+            except (SafetyError, OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+                print(f"Native build inputs could not be verified; rebuilding without reuse: {error}", flush=True)
+        reused = reuse_native(previous_app, executable, fingerprint)
+        if not reused:
+            print("Compiling native companion (Swift; a fresh module cache can take a while)…", flush=True)
+            run(compiler, *options, "-module-cache-path", build / "module-cache", *compiler_options,
+                native_source, "-o", executable, env=environment)
+            # Normalize codesign's Mach-O allocation before recording unsigned bytes.
+            # The linker signature has a different __LINKEDIT allocation; simply
+            # removing it would make the first subsequent bundle sign a false miss.
+            run("codesign", "--force", "--sign", "-", executable)
+            run("codesign", "--remove-signature", executable)
+            if fingerprint is not None:
+                try:
+                    confirmed = native_fingerprint(native_source, compiler, sdk,
+                                                   options + ["duplicateBridgingOverlay=" + str(bool(compiler_options))], environment)
+                    if confirmed != fingerprint:
+                        fingerprint = None
+                        print("Native build inputs changed during compilation; not recording a reuse hit.", flush=True)
+                except (SafetyError, OSError, ValueError, RuntimeError, subprocess.SubprocessError):
                     fingerprint = None
-                    print("Native build inputs changed during compilation; not recording a reuse hit.", flush=True)
-            except (SafetyError, OSError, ValueError, RuntimeError, subprocess.SubprocessError):
-                fingerprint = None
-    if fingerprint is not None:
-        (resources / NATIVE_BUILD_RECORD).write_text(json.dumps({
-            "schemaVersion": 1, "fingerprint": fingerprint,
-            "executableDigest": file_digest(executable),
-        }, indent=2) + "\n")
+        if fingerprint is not None or artifact_fingerprint is not None:
+            (resources / NATIVE_BUILD_RECORD).write_text(json.dumps({
+                "schemaVersion": 1, "fingerprint": fingerprint, "artifactFingerprint": artifact_fingerprint,
+                "executableDigest": file_digest(executable),
+            }, indent=2) + "\n")
     for helper in ("menu-update.mjs", "update-check.mjs"):
         shutil.copy2(source / helper, resources / helper)
     icon = source / "MenuBarBrain.png"
