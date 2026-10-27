@@ -33,8 +33,8 @@ ${noteAttentionStyles}
     :root[data-native-mac="true"] :is(a, button, input, select, textarea, [role="button"], [role="tooltip"], [popover], #companion-active) { -webkit-app-region: no-drag; }
     .nav-tools, .nav-preferences { display: flex; flex-direction: column; gap: var(--space-1); }
     .nav-tools { flex-direction: row; align-items: center; gap: var(--space-2); }
-    .nav-utilities { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; }
-    .nav-preferences { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--line); flex-shrink: 0; }
+    .nav-utilities { display: flex; align-items: center; gap: var(--space-2); }
+    .nav-preferences { --control-height: var(--control-compact); flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--line); flex-shrink: 0; }
     .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     .app-nav .nav-item:hover, .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
@@ -225,8 +225,7 @@ ${noteAttentionStyles}
       .sidebar-page + .sidebar-page { margin-top: 0; }
       .sidebar-page-link { min-height: var(--control-height); }
       .sidebar-empty { margin: var(--space-1); }
-      .nav-preferences { grid-row: 4; grid-column: 1 / -1; margin-top: 0; padding-top: var(--space-2); }
-      .nav-utilities { margin-left: auto; }
+      .nav-preferences { --control-compact: var(--control-touch); grid-row: 4; grid-column: 1 / -1; margin-top: 0; padding-top: var(--space-2); }
       .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
       .app-nav .sidebar-icon, #color-theme { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
       .nav-item svg { width: 16px; height: 16px; }

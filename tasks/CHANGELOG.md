@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-27 — Sidebar footer spacing
+
+- Matched footer action sizes and gaps, including native Updates and narrow touch targets. [Verification](done/2026-10-27_tasks-sidebar-footer-spacing.md).
+
 ## 2026-10-27 — v0.3.10 beta
 
 - Published Mac window/update improvements and the completed editor, discovery and feedback follow-ups. [Release notes](done/releases/v0.3.10.md) and [verification](done/releases/v0.3.10.qa.md).
