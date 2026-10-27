@@ -121,7 +121,18 @@ ${noteAttentionStyles}
     .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
     .markdown-reference[data-page-reference="true"]:hover { background: var(--surface-hover); }
-    ::highlight(jumpybrain-reference-markers) { color: color-mix(in srgb, var(--ink) 24%, var(--surface)); }
+    ::highlight(jumpybrain-reference-markers) { color: transparent; }
+    #note-editor:focus-within .markdown-reference::highlight(jumpybrain-reference-markers) { color: var(--ink-faint); }
+    .markdown-reference[data-page-reference="true"] { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
+    .markdown-table { margin: var(--space-3) 0; max-width: 100%; }
+    .markdown-table-preview { overflow-x: auto; white-space: normal; }
+    .markdown-table table { border-collapse: collapse; min-width: 100%; font-size: 1em; }
+    .markdown-table th, .markdown-table td { padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); min-width: 8ch; vertical-align: top; overflow-wrap: normal; word-break: normal; }
+    .markdown-table th { background: var(--control-fill); font-weight: var(--weight-writing-bold); }
+    .markdown-table summary { width: fit-content; cursor: pointer; color: var(--ink-soft); font: var(--text-caption)/1.5 var(--font-ui); padding-block: var(--space-1); }
+    .editor-slash-menu { user-select: none; touch-action: pan-y; position: fixed; z-index: 10000; box-sizing: border-box; width: 280px; overflow: auto; overscroll-behavior: contain; padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: var(--text-ui)/1.5 var(--font-ui); }
+    .editor-slash-menu [role="option"] { padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
+    .editor-slash-menu [aria-selected="true"] { background: var(--surface-hover); }
     .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     #reference-creation-status { color: var(--error-ink); font-size: var(--text-ui); }
     .markdown-literal::selection { background: var(--surface-hover); }

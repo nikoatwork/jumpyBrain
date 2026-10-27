@@ -14,8 +14,9 @@ import {
   BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, INLINE_CODE, type Transformer,
 } from "@lexical/markdown";
 
-import { codeFence, exportCodeFence, inlineCodeRanges, taskMarker } from "./editor-markdown.js";
-import { FencedCodeMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
+import { codeFence, exportCodeFence, inlineCodeRanges, markdownTable, taskMarker } from "./editor-markdown.js";
+import { FencedCodeMarkdownNode, TableMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
+import { installSlashCommands } from "./editor-slash-commands.js";
 
 import { referenceRanges, safeTitle } from "./reference-ranges.js";
 import { completedReferenceTitles } from "./reference-creation.js";
@@ -116,7 +117,11 @@ const fencedCode: Transformer = {
   type: "element", dependencies: [FencedCodeMarkdownNode], regExp: /(?!) /, replace() {},
   export(node) { return node instanceof FencedCodeMarkdownNode ? exportCodeFence(node.getTextContent(), node.__language) : null; },
 };
-const syntax: Transformer[] = [fencedCode, task, references, INLINE_CODE, HEADING, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE];
+const table: Transformer = {
+  type: "element", dependencies: [TableMarkdownNode], regExp: /(?!) /, replace() {},
+  export(node) { return node instanceof TableMarkdownNode ? node.getTextContent() : null; },
+};
+const syntax: Transformer[] = [table, fencedCode, task, references, INLINE_CODE, HEADING, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE];
 // Reference classification and leaf splitting are derived presentation, not a
 // source edit. Compare semantic text runs (including supported formatting), not
 // node classes/boundaries or the internal IS_CODE shortcut-suppression flag.
@@ -172,7 +177,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   };
   const transformers = [preserve, ...syntax];
   const editor = createEditor({
-    namespace: "jumpyBrain-notes", nodes: [HeadingNode, LiteralMarkdownNode, PageReferenceNode, TaskMarkdownNode, FencedCodeMarkdownNode],
+    namespace: "jumpyBrain-notes", nodes: [HeadingNode, LiteralMarkdownNode, PageReferenceNode, TaskMarkdownNode, FencedCodeMarkdownNode, TableMarkdownNode],
     theme: { text: { bold: "editor-bold", italic: "editor-italic", code: "editor-inline-code" } },
     onError: options.onError,
   });
@@ -502,8 +507,10 @@ export function createNoteEditor(element: HTMLElement, options: {
         range = { selection, query: value.slice(opening + 1, end), value: markdown, text: value.slice(opening, end) };
         trigger = "@";
       }
-      if (leaf.hasFormat("code") && !(leaf instanceof PageReferenceNode)) return null;
-      if (block instanceof LiteralMarkdownNode || block instanceof FencedCodeMarkdownNode) return null;
+      // Literal bullets use IS_CODE only to suppress formatting shortcuts. Let
+      // the shared source scanner reject actual code/unsupported contexts below.
+      if (leaf.hasFormat("code") && !(leaf instanceof PageReferenceNode) && !(block instanceof LiteralMarkdownNode)) return null;
+      if (block instanceof FencedCodeMarkdownNode) return null;
       if (!range || !range.text.startsWith(trigger) || /[\[\]\r\n]/.test(range.query)
           || (trigger === "@" && range.query.includes("@"))
           || range.selection.anchor.key !== caret.anchor.key || range.selection.focus.key !== caret.anchor.key
@@ -612,6 +619,13 @@ export function createNoteEditor(element: HTMLElement, options: {
     let previousTask: number | null = null;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i], closed = !fence ? codeFence(lines, i) : null;
+      const parsedTable = !fence ? markdownTable(lines, i) : null;
+      if (parsedTable) {
+        const original = lines.slice(i, parsedTable.end + 1).join("\n");
+        const node = new TableMarkdownNode().append(...$generateNodesFromRawText(original).map((node) => $isTextNode(node) ? node.setFormat("code") : node));
+        nodes.push(node); sources.set(node.getKey(), { original, snapshot: snapshot(node) });
+        i = parsedTable.end; previousTask = null; continue;
+      }
       if (closed) {
         const node = new FencedCodeMarkdownNode(closed.language).append(...$generateNodesFromRawText(closed.text).map((node) => $isTextNode(node) ? node.setFormat("code") : node));
         nodes.push(node);
@@ -651,15 +665,27 @@ export function createNoteEditor(element: HTMLElement, options: {
       let start = 0;
       return $getRoot().getChildren().map((node) => {
         const source = sources.get(node.getKey());
-        const original = source?.snapshot === snapshot(node) ? source.original : node instanceof FencedCodeMarkdownNode ? exportCodeFence(node.getTextContent(), node.__language) : node.getTextContent();
+        const original = source?.snapshot === snapshot(node) ? source.original : node instanceof FencedCodeMarkdownNode && !(node instanceof TableMarkdownNode) ? exportCodeFence(node.getTextContent(), node.__language) : node.getTextContent();
         const count = original.split("\n").length;
-        const range = { start, end: start + count, code: node instanceof FencedCodeMarkdownNode };
+        const range = { start, end: start + count, code: node instanceof FencedCodeMarkdownNode && !(node instanceof TableMarkdownNode) };
         start += count;
         return range;
       });
     });
   }
 
+  // Shared operation for toolbar and slash acceptance, inside one history edit.
+  function applyFormat(kind: string) {
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection)) return;
+    if (kind === "bold" || kind === "italic" || kind === "code") editor.dispatchCommand(FORMAT_TEXT_COMMAND, kind);
+    else {
+      $setBlocksType(selection, () => kind === "task" ? new TaskMarkdownNode() : kind === "code-block" ? new FencedCodeMarkdownNode() : kind === "paragraph" ? $createParagraphNode() : $createHeadingNode(kind as HeadingTagType));
+      for (const node of selection.getNodes()) if ($isTextNode(node) && !(node instanceof PageReferenceNode) && node.hasFormat("code")) node.setFormat(0);
+      selection.setFormat(0);
+    }
+  }
+  cleanups.push(installSlashCommands(editor, element, applyFormat));
   let highlightTimer: number | undefined;
   const api = {
     getMarkdown: () => markdown,
@@ -771,15 +797,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     format(kind: string) {
       if (!editor.isEditable()) return;
       restoreSelection(captureSelection());
-      if (kind === "bold" || kind === "italic" || kind === "code") editor.dispatchCommand(FORMAT_TEXT_COMMAND, kind);
-      else editor.update(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          $setBlocksType(selection, () => kind === "task" ? new TaskMarkdownNode() : kind === "code-block" ? new FencedCodeMarkdownNode() : kind === "paragraph" ? $createParagraphNode() : $createHeadingNode(kind as HeadingTagType));
-          for (const node of selection.getNodes()) if ($isTextNode(node) && !(node instanceof PageReferenceNode) && node.hasFormat("code")) node.setFormat(0);
-          selection.setFormat(0);
-        }
-      }, { discrete: true, tag: HISTORY_PUSH_TAG });
+      editor.update(() => applyFormat(kind), { discrete: true, tag: HISTORY_PUSH_TAG });
       editor.focus();
     },
     destroy() {

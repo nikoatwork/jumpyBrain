@@ -104,7 +104,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   }
   function hide() {
     active = false; current = null; signature = ""; popup.hidden = true;
-    element.removeAttribute("aria-activedescendant");
+    if (element.getAttribute("aria-activedescendant")?.startsWith(id + "-option-")) element.removeAttribute("aria-activedescendant");
     cancelGesture();
     search.cancel();
   }

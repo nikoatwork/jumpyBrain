@@ -12,6 +12,10 @@
 
 - Command-F finds rendered note text with highlighted matches and keyboard navigation while preserving Markdown and editor history; [implementation](done/2026-10-27_tasks-note-find-text.md).
 
+## 2026-10-27 — Editor reading and formatting
+
+- Added source-preserving readable pipe tables, quieter reference brackets and keyboard formatting slash commands; [verification](done/2026-10-27_tasks-editor-slash-commands.md).
+
 ## 2026-10-25 — v0.3.9 beta
 
 - Published the completed editor/import, search/Settings and setup/extension changes; reduced routine beta preparation to three commands with targeted extras. [Release verification](done/releases/v0.3.9.qa.md).

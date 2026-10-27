@@ -1,6 +1,7 @@
 // Production editor + real companion gateway/Markdown engine, disposable roots only.
 // Build separately first; this runner deliberately never builds, installs or indexes.
 // npx --package=playwright node scripts/missing-reference-pages-smoke.mjs
+// JUMPYBRAIN_REFERENCE_SCENARIO=hydrate-activate-edit-reload runs that scenario only.
 // Narrow touch Chromium is not physical Mac/IME/assistive-technology validation.
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -245,6 +246,7 @@ try {
       for (const [name, operation] of [["hydrate-activate-edit-reload", activation], ["typed-after-confirmed-save", (f, mobile) => completed(f, mobile, "typed")],
         ["pasted-after-confirmed-save", (f, mobile) => completed(f, mobile, "pasted")], ["code-escape-incomplete-inert", inert], ["failed-save-recovery", failedSave],
         ["lost-creation-response-explicit-retry", lostResponse], ["read-only-no-creation", readOnly]]) {
+        if (process.env.JUMPYBRAIN_REFERENCE_SCENARIO && name !== process.env.JUMPYBRAIN_REFERENCE_SCENARIO) continue;
         const label = `${prefix}-${name}`;
         try { await operation(f, mobile); passed++; console.log("  ok - " + label); }
         catch (error) { failures.push({ scenario: label, error: error.stack || String(error) }); console.error("  FAIL - " + label + ": " + error.message); }

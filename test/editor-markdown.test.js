@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { codeFence, exportCodeFence, inlineCodeRanges, taskMarker } from '../dist/adapters/http-server/editor-markdown.js';
+import { codeFence, exportCodeFence, inlineCodeRanges, markdownTable, taskMarker } from '../dist/adapters/http-server/editor-markdown.js';
 
 test('task recognition accepts explicit dash nesting and refuses ambiguous lists/indentation', () => {
   assert.deepEqual(taskMarker('- [X] café 日本語', null), { indent: 0, checked: true, label: 'café 日本語' });
@@ -31,4 +31,17 @@ test('fence serialization handles many literal backtick lines without spreading 
   const payload = '`\n'.repeat(160_000);
   const exported = exportCodeFence(payload, '');
   assert.equal(exported, '```\n' + payload + '\n```');
+});
+
+test('pipe tables retain escaped/code pipes and alignment with strict literal fallback', () => {
+  assert.deepEqual(markdownTable(['| Name | Value |', '| :--- | ---: |', '| a\\|b | `x|y` |', '', 'after']), {
+    end: 2, rows: [['Name', 'Value'], ['a\\|b', '`x|y`']], align: ['left', 'right'],
+  });
+  assert.equal(markdownTable(['Name | Value', ':---: | ---', 'one | two']).align[0], 'center');
+  for (const source of [
+    ['| a | b |', '| -- | --- |'], ['| a | b |', '| --- | --- |', '| missing |'],
+    ['| a | b |', '| --- | --- | --- |'], ['    | a | b |', '    | --- | --- |'],
+    ['a | b'], ['| one |', '| --- |'], [' \t| a | b |', '| --- | --- |'],
+    ['> a | b', '--- | ---'], ['# a | b', '--- | ---'], ['- a | b', '--- | ---'],
+  ]) assert.equal(markdownTable(source), null, source.join('\n'));
 });

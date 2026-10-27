@@ -27,11 +27,11 @@ try {
     assert.equal(await editorMarkdown(page), body);
     assert.equal(await page.getByRole('checkbox').count(), 2);
     assert.equal(await page.locator('#note-editor [role=link]').count(), 0);
-    assert.equal(await page.locator('#note-editor table').count(), 0);
+    assert.equal(await page.locator('#note-editor table').count(), 1);
     for (const theme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: theme });
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-      assert.equal(await page.locator('#note-editor pre').evaluate(e => e.scrollWidth > e.clientWidth), true);
+      assert.equal(await page.locator('#note-editor pre[data-language]').evaluate(e => e.scrollWidth > e.clientWidth), true);
       await mkdir('/tmp/jumpybrain-markdown-qa', { recursive: true });
       await page.screenshot({ path: `/tmp/jumpybrain-markdown-qa/${width}-${theme}.png`, fullPage: true });
     }
@@ -47,7 +47,7 @@ try {
     await page.reload(); await page.locator('#note-editor').waitFor({ state: 'visible' });
     assert.equal(await editorMarkdown(page), body);
 
-    await page.locator('#note-editor pre').evaluate(element => {
+    await page.locator('#note-editor pre[data-language]').evaluate(element => {
       element.closest('[contenteditable]').focus();
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
       let node; while ((node = walker.nextNode())) if (node.textContent.includes('const sample')) break;
