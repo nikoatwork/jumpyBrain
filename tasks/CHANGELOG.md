@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-27 — Integrated Mac sidebar
+
+- Mac windows integrate native controls and quiet branding with global Search/compose; update readiness follows its button border. [Verification](done/2026-10-27_tasks-mac-sidebar-window-chrome.md).
+
 ## 2026-10-27 — Mac update profiling
 
 - Fresh-helper profiling identifies native compilation as the remaining bottleneck; release-built helpers are the next experiment. [Measurements](todo/tasks-desktop-update-30-seconds.md#measurement-increment--2026-10-27).

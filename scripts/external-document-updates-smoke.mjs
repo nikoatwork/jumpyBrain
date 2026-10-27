@@ -66,8 +66,8 @@ try {
       await page.locator("#note-editor").waitFor({ state: "visible" });
       assert.equal(await page.locator("#app-sidebar").isVisible(), false, "collapse persists across reload");
       await page.setViewportSize({ width: 390, height: 800 });
-      assert.equal(await page.locator("#app-sidebar").isVisible(), true, "top navigation remains available on narrow screens");
-      assert.equal(await page.locator("#toggle-sidebar").isVisible(), false);
+      assert.equal(await page.locator("#app-sidebar").isVisible(), false, "collapse preference also applies on narrow screens");
+      assert.equal(await page.locator("#toggle-sidebar").isVisible(), true, "narrow navigation can always be expanded");
       await page.setViewportSize({ width, height: 800 });
       assert.equal(await page.locator("#app-sidebar").isVisible(), false);
       await page.getByRole("button", { name: "Expand sidebar", exact: true }).focus();

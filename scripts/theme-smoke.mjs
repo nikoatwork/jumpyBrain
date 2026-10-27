@@ -40,12 +40,12 @@ async function assertPalette(page, theme) {
   assert.equal(await page.locator("#sidebar-pinned-empty").count(), 0, "Pinned has no helper text");
   for (const [selector, name] of [["#new-note", "New note"], ["#open-search", "Search notes"]]) {
     assert.equal(await page.locator(selector).getAttribute("aria-label"), name);
-    assert.equal(await page.locator(selector).innerText(), "", "compact note actions contain only icons");
+    assert.equal(await page.locator(selector).innerText(), selector === "#open-search" ? "Search" : "", "Search is labeled and compose stays compact");
     assert.equal(await page.locator(selector + " svg").count(), 1);
   }
   const create = await page.locator("#new-note").boundingBox(), search = await page.locator("#open-search").boundingBox();
   assert.equal(create.y, search.y, "Search and New note occupy one row");
-  assert.ok(create.x + create.width <= search.x, "icon targets do not overlap");
+  assert.ok(search.x + search.width <= create.x, "Search precedes compose without overlap");
   const themeAction = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
   assert.equal(await page.locator("#color-theme").getAttribute("aria-label"), themeAction);
   assert.equal(await page.locator("#color-theme .theme-sun").isVisible(), theme === "dark");

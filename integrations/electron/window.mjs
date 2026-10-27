@@ -9,6 +9,8 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   const window = new BrowserWindow({
     title: 'jumpyBrain', icon: fileURLToPath(new URL('./assets/app-icon.png', import.meta.url)), width: 1200, height: 860, minWidth: 480, minHeight: 480,
     show: false, backgroundColor: '#f7f4ed',
+    // Keep real macOS traffic lights while extending the Ember surface to the top.
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 16, y: 18 } } : {}),
     webPreferences: {
       partition: 'persist:jumpybrain-electron-prototype',
       nodeIntegration: false, contextIsolation: true, sandbox: true,
@@ -16,6 +18,13 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     },
   });
   const contents = window.webContents;
+  // Host-owned presentation only: no preload, renderer native capability or browser inset.
+  async function publishWindowChrome() {
+    if (process.platform !== 'darwin' || contents.isDestroyed() || !isAppNavigation(contents.getURL(), origin)) return;
+    try { await contents.executeJavaScript('document.documentElement.dataset.nativeMac = "true";'); }
+    catch { /* A reload or destroyed renderer will receive its own DOM-ready event. */ }
+  }
+  contents.on('dom-ready', () => { void publishWindowChrome(); });
   const notify = createSystemMessages({ getWindow: () => window, getOrigin: () => origin,
     fallback: options => dialog.showMessageBox(window, options) });
   installBackNavigation(window, origin);
@@ -105,7 +114,10 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     if (discard) event.preventDefault();
     else window.emit('close-cancelled');
   });
-  window.once('ready-to-show', () => window.show());
+  window.once('ready-to-show', async () => {
+    await publishWindowChrome();
+    if (!window.isDestroyed()) window.show();
+  });
   // This is the existing Chrome bootstrap. Its own script removes the fragment
   // immediately, then exchanges the token for the gateway's HttpOnly cookie.
   const loaded = window.loadURL(`${origin}/#companion=${key}`);

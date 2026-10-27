@@ -34,13 +34,63 @@ try {
   await motion('no-preference');
   const evaluate = expression => window.webContents.executeJavaScript(expression);
   const wait = async expression => { const deadline = Date.now() + 6000; while (Date.now() < deadline) { if (await evaluate(expression)) return; await pause(50); } throw new Error('UI timeout: ' + expression); };
+  const outlineSnapshot = () => evaluate(`(() => {
+    const button = document.getElementById('desktop-updates'), b = getComputedStyle(button), s = getComputedStyle(button, '::after');
+    return { animation: s.animationName, angle: s.getPropertyValue('--desktop-update-angle'), background: s.backgroundImage,
+      transform: s.transform, radius: s.borderRadius, buttonRadius: b.borderRadius, width: parseFloat(s.width), height: parseFloat(s.height),
+      buttonWidth: button.offsetWidth, buttonHeight: button.offsetHeight, left: parseFloat(s.left), top: parseFloat(s.top),
+      borderLeft: parseFloat(b.borderLeftWidth), borderTop: parseFloat(b.borderTopWidth), mask: s.maskComposite,
+      padding: s.padding, pointerEvents: s.pointerEvents, glyph: document.querySelector('#desktop-updates svg').outerHTML };
+  })()`);
+  const assertOutline = outline => {
+    assert.equal(outline.transform, 'none', 'the rounded outline never rotates or leaves the button perimeter');
+    assert.equal(outline.radius, outline.buttonRadius, 'outline follows the shared button corners');
+    assert.ok(parseFloat(outline.radius) > 0 && parseFloat(outline.radius) < outline.buttonWidth / 2, 'utility buttons retain their rounded-square shape');
+    assert.equal(outline.width, outline.buttonWidth, 'outline width matches the stationary button border');
+    assert.equal(outline.height, outline.buttonHeight, 'outline height matches the stationary button border');
+    assert.equal(outline.left, -outline.borderLeft);
+    assert.equal(outline.top, -outline.borderTop);
+    assert.ok(outline.mask.includes('exclude'), 'the animated gradient is cut out of the glyph area');
+    assert.equal(outline.padding, '1.5px', 'highlight stays in a thin perimeter band');
+    assert.equal(outline.pointerEvents, 'none', 'outline never intercepts clicks');
+  };
+  const captureOutlineFrames = async (phase, theme) => {
+    const before = await outlineSnapshot(); assertOutline(before);
+    await pause(120);
+    const after = await outlineSnapshot(); assertOutline(after);
+    assert.notEqual(after.angle, before.angle, 'the border highlight actually travels');
+    assert.notEqual(after.background, before.background, 'the rendered gradient follows the animated angle');
+    assert.equal(after.glyph, before.glyph, 'download/relaunch glyph stays unchanged during animation');
+    assert.equal(await evaluate(`(() => {
+      const animation = document.getElementById('desktop-updates').getAnimations({ subtree: true }).find(a => a.animationName === 'desktop-update-border');
+      if (!animation) return false;
+      animation.pause(); return true;
+    })()`), true);
+    const angles = [], frames = [];
+    try {
+      // Eighth-turn samples cover the straight edges and all four corners.
+      for (const time of [0, 350, 700, 1050, 1400, 1750, 2100, 2450]) {
+        await evaluate(`(() => { document.getElementById('desktop-updates').getAnimations({ subtree: true }).find(a => a.animationName === 'desktop-update-border').currentTime = ${time}; return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); })()`);
+        const outline = await outlineSnapshot(); assertOutline(outline);
+        assert.equal(outline.glyph, before.glyph); angles.push(outline.angle);
+        const bounds = await evaluate(`(() => { const r = document.querySelector('.nav-utilities').getBoundingClientRect(); return { x: Math.max(0, Math.floor(r.x - 10)), y: Math.max(0, Math.floor(r.y - 10)), width: Math.ceil(r.width + 20), height: Math.ceil(r.height + 20) }; })()`);
+        const image = await window.webContents.capturePage(bounds);
+        const png = image.toPNG(); frames.push(png.toString('base64'));
+        await writeFile(path.join(output, `${phase}-outline-${theme}-${time}ms.png`), png);
+      }
+      assert.equal(new Set(angles).size, 8, 'each captured frame samples a different highlight position');
+      assert.equal(new Set(frames).size, 8, 'the highlight visibly changes across edge/corner captures');
+    } finally {
+      await evaluate(`document.getElementById('desktop-updates').getAnimations({ subtree: true }).find(a => a.animationName === 'desktop-update-border')?.play()`);
+    }
+  };
   await wait('!!document.getElementById("desktop-updates")');
   assert.equal(await evaluate('document.querySelector("#connection [data-app-version]").textContent'), 'jumpyBrain · Version 0.3.3', 'native app version overrides the browser build version');
   const sidebarBounds = await evaluate('JSON.stringify(document.getElementById("app-sidebar").getBoundingClientRect().toJSON())');
   for (const theme of ['light', 'dark']) {
     await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
-    for (const phase of ['idle', 'current', 'available', 'checking', 'preparing', 'ready', 'success', 'failed']) {
-      const actions = phase === 'ready' ? ['restart', 'cancel', 'log'] : phase === 'available' ? ['update', 'check'] : phase === 'preparing' ? ['cancel', 'log'] : ['check'];
+    for (const phase of ['idle', 'current', 'canceled', 'available', 'checking', 'preparing', 'updating', 'ready', 'success', 'recovered', 'failed']) {
+      const actions = phase === 'ready' ? ['restart', 'cancel', 'log'] : phase === 'available' ? ['update', 'check'] : phase === 'preparing' ? ['cancel', 'log'] : phase === 'updating' ? [] : ['check'];
       state = { phase, actions, installed, available: '0.3.4', detail: 'Actionable failure or progress.', logAvailable: true, notes: '<script>window.untrusted = true</script>' };
       await pause(1150);
       assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
@@ -52,14 +102,11 @@ try {
       assert.equal(await evaluate('document.getElementById("desktop-updates").dataset.attention'), String(['available', 'ready'].includes(phase)));
       const glow = await evaluate('getComputedStyle(document.getElementById("desktop-updates")).boxShadow');
       assert.equal(glow !== 'none', ['available', 'ready'].includes(phase), 'only download/restart readiness glows');
-      const halo = await evaluate('(() => { const s = getComputedStyle(document.getElementById("desktop-updates"), "::after"); return { animation: s.animationName, pointerEvents: s.pointerEvents }; })()');
-      assert.equal(halo.animation, ['available', 'ready'].includes(phase) ? 'desktop-update-spin' : 'none', 'only actionable readiness has a rotating halo');
-      assert.equal(await evaluate('getComputedStyle(document.querySelector("#desktop-updates svg")).animationName'), ['checking', 'preparing'].includes(phase) ? 'desktop-update-spin' : 'none', 'readiness keeps the action glyph still');
+      const outline = await outlineSnapshot();
+      assert.equal(outline.animation, ['available', 'ready'].includes(phase) ? 'desktop-update-border' : 'none', 'only actionable readiness has a traveling border highlight');
+      assert.equal(await evaluate('getComputedStyle(document.querySelector("#desktop-updates svg")).animationName'), ['checking', 'preparing', 'updating'].includes(phase) ? 'desktop-update-spin' : 'none', 'readiness keeps the action glyph still');
       if (['available', 'ready'].includes(phase)) {
-        assert.equal(halo.pointerEvents, 'none', 'halo never intercepts clicks');
-        const transform = await evaluate('getComputedStyle(document.getElementById("desktop-updates"), "::after").transform');
-        await pause(120);
-        assert.notEqual(await evaluate('getComputedStyle(document.getElementById("desktop-updates"), "::after").transform'), transform, 'halo actually turns');
+        await captureOutlineFrames(phase, theme);
       }
       if (phase === 'preparing' || phase === 'ready' || phase === 'available') {
         assert.equal(await evaluate('document.querySelector("main").inert'), false);
@@ -68,7 +115,7 @@ try {
         await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
         await writeFile(path.join(output, `${phase}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
       }
-      if (['idle', 'current', 'success'].includes(phase)) assert.equal(await evaluate('document.getElementById("desktop-updates").hidden'), true);
+      if (['idle', 'current', 'canceled', 'success', 'recovered'].includes(phase)) assert.equal(await evaluate('document.getElementById("desktop-updates").hidden'), true);
       if (phase === 'success') {
         assert.equal(await evaluate('document.getElementById("toast-message").textContent'), 'Update installed successfully.');
         assert.equal(await evaluate('document.getElementById("app-toast").hidden'), false);
@@ -87,12 +134,19 @@ try {
       assert.equal(await evaluate('getComputedStyle(document.getElementById("desktop-updates"), "::after").animationName'), 'none');
       assert.equal(await evaluate('getComputedStyle(document.querySelector("#desktop-updates svg")).animationName'), 'none');
       assert.equal(await evaluate('getComputedStyle(document.getElementById("desktop-updates")).boxShadow !== "none"'), phase !== 'preparing', 'reduced motion preserves the static readiness glow');
-      if (phase === 'ready') await writeFile(path.join(output, `ready-reduced-motion-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+      if (phase !== 'preparing') {
+        const before = await outlineSnapshot(); assertOutline(before); await pause(120);
+        assert.deepEqual(await outlineSnapshot(), before, 'reduced motion keeps the readiness outline static');
+        await writeFile(path.join(output, `${phase}-reduced-motion-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+      }
     }
     await motion('no-preference');
   }
   state = { phase: 'available', actions: ['update', 'check'], installed }; await pause(1150);
   await evaluate('document.getElementById("desktop-updates").focus()');
+  assert.equal(await evaluate('document.getElementById("desktop-updates").matches(":focus-visible")'), true);
+  assert.equal(await evaluate('getComputedStyle(document.getElementById("desktop-updates")).outlineStyle'), 'solid');
+  await writeFile(path.join(output, 'available-keyboard-focus.png'), (await window.webContents.capturePage()).toPNG());
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
   window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
   window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
@@ -100,6 +154,11 @@ try {
   state = { phase: 'available', actions: ['app-only', 'check'], canPrepare: true, installed: { ...installed, cliPolicy: { kind: 'pinned', detail: 'Pinned CLI unchanged.' } } }; await pause(1150);
   assert.match(await evaluate('document.getElementById("desktop-updates").getAttribute("aria-label")'), /Update app only; CLI stays unchanged/);
   assert.equal(await evaluate('document.getElementById("desktop-updates").dataset.attention'), 'true');
+  for (const theme of ['light', 'dark']) {
+    await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
+    assertOutline(await outlineSnapshot());
+    await writeFile(path.join(output, `available-app-only-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+  }
   await evaluate('document.getElementById("desktop-updates").click()'); await pause(100); assert.equal(calls.at(-1), 'app-only');
   for (const phase of ['success', 'recovered']) {
     state = { ...state, phase, actions: ['check'] }; await pause(1150);
@@ -143,15 +202,28 @@ try {
   state = { phase: 'preparing', actions: ['cancel'], installed }; await pause(1150);
   assert.equal(await evaluate("document.activeElement === testDraft && testDraft.value === 'unsaved draft' && testDraft.selectionStart === 2 && testDraft.selectionEnd === 7"), true);
   window.setMinimumSize(0, 0);
-  for (const width of [390, 320]) {
-    window.setContentSize(width, 860); await pause(100);
-    for (const phase of ['available', 'preparing', 'ready', 'failed', 'success']) {
-      state = { phase, installed, actions: phase === 'ready' ? ['restart'] : phase === 'available' ? ['update'] : phase === 'preparing' ? [] : ['check'], detail: 'An update could not be confirmed.' };
-      await pause(1150);
-      assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
-      assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false);
-      const bounds = await evaluate('(() => { const r = document.getElementById("app-toast").getBoundingClientRect(); return { left: r.left, right: r.right }; })()');
-      assert.ok(bounds.left >= 0 && bounds.right <= width, 'notification fits the narrow viewport');
+  for (const theme of ['light', 'dark']) {
+    await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
+    for (const width of [390, 320]) {
+      window.setContentSize(width, 860); await pause(100);
+      for (const phase of ['available', 'preparing', 'ready', 'failed', 'success']) {
+        state = { phase, installed, actions: phase === 'ready' ? ['restart'] : phase === 'available' ? ['update'] : phase === 'preparing' ? [] : ['check'], detail: 'An update could not be confirmed.' };
+        await pause(1150);
+        assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
+        assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false);
+        const bounds = await evaluate('(() => { const r = document.getElementById("app-toast").getBoundingClientRect(); return { left: r.left, right: r.right }; })()');
+        assert.ok(bounds.left >= 0 && bounds.right <= width, 'notification fits the narrow viewport');
+        if (['available', 'ready'].includes(phase)) {
+          assertOutline(await outlineSnapshot());
+          assert.equal(await evaluate(`(() => {
+            const button = document.getElementById('desktop-updates'), theme = document.getElementById('color-theme'), r = button.getBoundingClientRect(), t = theme.getBoundingClientRect();
+            return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight
+              && (r.right <= t.left || r.left >= t.right || r.bottom <= t.top || r.top >= t.bottom)
+              && button.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+          })()`), true, 'update border fits the viewport and stays separate from the clickable theme control');
+          await writeFile(path.join(output, `${phase}-${theme}-${width}.png`), (await window.webContents.capturePage()).toPNG());
+        }
+      }
     }
   }
   // Every native/renderer producer uses the same component and scope fence.
@@ -180,7 +252,7 @@ try {
     assert.equal(await evaluate('document.getElementById("app-toast").hidden'), true);
     await evaluate('systemMessages.clear()');
   }
-  console.log('Inline updater UI PASS: production shell, both themes, keyboard, icon-only states/glow, rotating readiness halo, static action glyph, reduced motion, floating completion/expiry without polling replay, Settings version, pinned exception, failed restart/recovery, draft stability, restricted actions, narrow layout, shared native/renderer messages, warning priority, safe text and brain/app scope fencing. Screenshots:', output);
+  console.log('Inline updater UI PASS: production shell, both themes, keyboard/focus, icon-only states/glow, traveling highlight on a fixed rounded border, eight edge/corner frames, static action glyph, reduced motion, floating completion/expiry without polling replay, Settings version, pinned exception, failed restart/recovery, draft stability, restricted actions, narrow layout, shared native/renderer messages, warning priority, safe text and brain/app scope fencing. Screenshots:', output);
   window.destroy(); server.close(); await rm(profile, { recursive: true, force: true }); app.exit(0);
 } catch (error) { console.error(error); window?.destroy(); server.close(); app.exit(1); }
 

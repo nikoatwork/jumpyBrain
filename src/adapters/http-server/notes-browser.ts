@@ -1,5 +1,4 @@
 import { browserIcons } from "./browser-icons.js";
-import { brainOutlineSvg } from "./favicon.js";
 import { themeMarkup } from "./browser-theme.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
 
@@ -17,16 +16,21 @@ ${noteAttentionStyles}
     ::highlight(note-find-current) { background: #da8b19aa; color: inherit; }
     body { display: flex; height: 100dvh; }
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-    .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
+    .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
     :root[data-sidebar-collapsed="true"] .app-nav { display: none; }
     .workspace-toolbar { display: flex; align-items: center; flex: 0 0 auto; min-height: 48px; }
-    #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); margin: var(--space-2) var(--space-3); padding: var(--space-1); }
+    #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); margin: 0; padding: var(--space-1); background: transparent; }
     #toggle-sidebar svg { width: 20px; height: 20px; }
-    .workspace-brand { display: flex; align-items: center; flex: 0 0 auto; margin: var(--space-3) var(--space-6) var(--space-3) auto; color: var(--ink-soft); }
-    .workspace-brand svg { display: block; width: 24px; height: 24px; }
-    .nav-brand { min-width: 0; }
-    .app-nav .home-link { display: block; font-size: var(--text-body); padding: var(--space-1) var(--space-3); font-weight: var(--weight-semibold); background: transparent; color: var(--ink); }
-    .home-link small { font-size: var(--text-caption); font-weight: var(--weight-regular); }
+    .workspace-toolbar > #toggle-sidebar { margin: var(--space-2) var(--space-3); }
+    .nav-brand { display: grid; grid-template-columns: var(--control-compact) minmax(0, 1fr); grid-template-rows: var(--space-12) auto; align-items: center; min-width: 0; min-height: var(--space-12); column-gap: var(--space-1); }
+    .nav-brand #companion-active { grid-column: 1 / -1; margin-bottom: var(--space-2); }
+    .app-nav .home-link { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); padding: var(--space-2) var(--space-1); background: transparent; color: var(--ink-soft); }
+    :root[data-native-mac="true"] .nav-brand { grid-template-columns: calc(var(--space-16) + var(--space-3)) var(--control-compact) minmax(0, 1fr); column-gap: 0; }
+    :root[data-native-mac="true"] .nav-brand > #toggle-sidebar { grid-column: 2; }
+    :root[data-native-mac="true"] .nav-brand > .home-link { grid-column: 3; }
+    :root[data-native-mac="true"][data-sidebar-collapsed="true"] .workspace-toolbar { padding-left: calc(var(--space-16) + var(--space-3)); }
+    :root[data-native-mac="true"] :is(.nav-brand, .workspace-toolbar) { -webkit-app-region: drag; user-select: none; }
+    :root[data-native-mac="true"] :is(a, button, input, select, textarea, [role="button"], [role="tooltip"], [popover], #companion-active) { -webkit-app-region: no-drag; }
     .nav-tools, .nav-preferences { display: flex; flex-direction: column; gap: var(--space-1); }
     .nav-tools { flex-direction: row; align-items: center; gap: var(--space-2); }
     .nav-utilities { display: flex; align-items: center; gap: var(--space-1); margin-left: auto; }
@@ -34,6 +38,7 @@ ${noteAttentionStyles}
     .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     .app-nav .nav-item:hover, .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
+    .app-nav #open-search { flex: 1; min-width: 0; }
     .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); color: var(--ink); }
     .app-nav #new-note:hover { background: var(--surface-hover); }
     .app-nav .sidebar-icon { justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: var(--space-2); }
@@ -210,20 +215,17 @@ ${noteAttentionStyles}
     #api-key { width: 100%; display: block; margin-top: var(--space-2); font-size: var(--text-section); }
     @media (max-width: 680px) {
       body { flex-direction: column; }
-      .app-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: var(--space-3) var(--space-4); padding: var(--space-3); border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
-      :root[data-sidebar-collapsed="true"] .app-nav { display: grid; }
-      #toggle-sidebar { display: none; }
+      .app-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: var(--space-3) var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
+      .nav-brand { grid-column: 1 / -1; }
       .workspace-toolbar { min-height: 40px; }
-      .workspace-brand { margin: var(--space-2) var(--space-4) var(--space-2) auto; }
-      .app-nav .home-link { padding-inline: 0; }
-      .nav-tools { flex-direction: row; align-items: center; gap: var(--space-1); }
-      .nav-library { grid-row: 2; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
+      .nav-tools { grid-row: 2; grid-column: 1 / -1; flex-direction: row; align-items: center; gap: var(--space-1); }
+      .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
       .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
       .sidebar-page { flex: 0 0 auto; max-width: 190px; }
       .sidebar-page + .sidebar-page { margin-top: 0; }
       .sidebar-page-link { min-height: var(--control-height); }
       .sidebar-empty { margin: var(--space-1); }
-      .nav-preferences { grid-row: 3; grid-column: 1 / -1; margin-top: 0; padding-top: var(--space-2); }
+      .nav-preferences { grid-row: 4; grid-column: 1 / -1; margin-top: 0; padding-top: var(--space-2); }
       .nav-utilities { margin-left: auto; }
       .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
       .app-nav .sidebar-icon, #color-theme { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
@@ -241,11 +243,11 @@ ${noteAttentionStyles}
 
 export const notesMarkup = String.raw`
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
-  <div class="nav-brand"><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home">jumpyBrain <small>(beta)</small></a></div>
+  <div class="nav-brand"><button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home" title="Home">jumpyBrain</a></div>
   <div class="nav-tools" role="group" aria-label="Note actions">
     <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
+    <button id="open-search" type="button" class="quiet-button nav-item" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Search</span></button>
     <button id="new-note" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button id="open-search" type="button" class="quiet-button nav-item sidebar-icon" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
   </div>
   <div class="nav-library" aria-label="Your pages">
     <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
@@ -261,14 +263,12 @@ export const notesMarkup = String.raw`
 </nav>
 <div class="app-workspace">
 <div class="workspace-toolbar">
-<button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button>
 <div class="document-status" role="group" aria-label="Save status">
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <span id="note-external-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
 </div>
-<span class="workspace-brand" role="img" aria-label="jumpyBrain" title="jumpyBrain">${brainOutlineSvg}</span>
 </div>
 ${noteAttentionMarkup}
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>

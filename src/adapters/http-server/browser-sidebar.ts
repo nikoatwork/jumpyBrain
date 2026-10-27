@@ -3,22 +3,26 @@ export const sidebarBootstrap = String.raw`
 const sidebarPreference = (() => {
   const key = "jumpybrain.sidebarCollapsed";
   const root = document.documentElement;
-  const narrow = window.matchMedia("(max-width: 680px)");
   let collapsed = false;
   try { collapsed = localStorage.getItem(key) === "true"; } catch { /* Tab-only preference. */ }
   function apply() {
+    const active = document.activeElement;
     root.dataset.sidebarCollapsed = String(collapsed);
     const button = document.getElementById("toggle-sidebar");
     if (!button) return;
-    const expanded = narrow.matches || !collapsed;
+    const sidebar = document.getElementById("app-sidebar");
+    const focusToggle = active === button || (collapsed && sidebar?.contains(active));
+    const expanded = !collapsed;
+    const home = document.querySelector(".nav-brand");
+    const toolbar = document.querySelector(".workspace-toolbar");
+    const parent = expanded ? home : toolbar;
+    if (parent && button.parentElement !== parent) parent.prepend(button);
     const label = expanded ? "Collapse sidebar" : "Expand sidebar";
     button.setAttribute("aria-expanded", String(expanded));
     button.setAttribute("aria-label", label);
     button.title = label;
-    const sidebar = document.getElementById("app-sidebar");
-    if (!expanded && sidebar?.contains(document.activeElement)) button.focus();
+    if (focusToggle) button.focus();
   }
-  narrow.addEventListener("change", apply);
   window.addEventListener("storage", (event) => {
     if (event.key !== key && event.key !== null) return;
     collapsed = event.newValue === "true";
