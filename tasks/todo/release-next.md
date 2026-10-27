@@ -1,13 +1,9 @@
 # Changes
 
-- Mac windows integrate native traffic lights, quiet jumpyBrain branding and compact global Search/compose actions; update readiness now follows the rounded button border.
-
-- Faster Mac update preparation by reusing verified, unchanged native helpers and removing repeated SDK scans, with fresh-build fallback and private build-stage timings. The instrumented native recipe needs one rebuild from earlier recipes; fresh-build updates remain above the 30-second target pending further work.
-- Notes show up to five related pages from bounded shared search, with conservative relevance filtering and guarded, brain-scoped navigation.
-- Confirmed feedback submissions close the dialog and show a shared thank-you toast; failed or unconfirmed submissions retain the draft for retry.
-- Installation guidance now matches the sidebar update icon and dedicated startup recovery surface.
+- Mac windows integrate native traffic lights, quiet jumpyBrain branding and compact global Search/compose actions; update readiness follows the rounded button border.
+- Faster Mac updates through verified native-helper reuse, with safe rebuild fallback. The first update to this build recipe requires a rebuild; fresh builds still exceed 30 seconds.
+- Notes show up to five related pages from bounded search, with conservative relevance filtering and guarded navigation.
+- Confirmed feedback submissions close the dialog and show a thank-you toast; failed or unconfirmed submissions retain the draft for retry.
 - Find text in the current note with Command-F, highlighted matches and next/previous navigation, without changing Markdown or undo history.
-- Simplified note deletion and expired-session recovery, added shared hover/focus action labels, and kept Command-K results in one compact list.
-- Editor: readable pipe tables with an editable Markdown disclosure and exact source preservation; valid bold already renders, while ambiguous spaced delimiters stay literal. [Details](../done/2026-10-27_tasks-markdown-bold-tables.md).
-- Page references hide brackets while reading and reveal faint markers while editing, preserving canonical Markdown and navigation. [Details](../done/2026-10-27_tasks-quiet-page-references.md).
-- Formatting slash commands offer Text, H1–H3, bold, italic, checkbox, inline code and code block through existing history/save operations. [Details](../done/2026-10-27_tasks-editor-slash-commands.md).
+- Editor: readable table previews with editable Markdown source, quieter page references, and slash commands for text, headings, bold, italic, checkboxes and code.
+- Clearer note deletion, expired-session recovery and installation guidance, shared hover/focus labels, and compact Command-K results.
