@@ -43,3 +43,7 @@ Explain an expired editor session in one plain sentence with a clear route to ke
 - [x] Retain draft recovery and safe reopen/retry controls without weakening session or save guards.
 - [x] Reproduce controlled session expiry with a disposable unsaved draft; check the message, copy recovery and reopening without draft loss.
 - [x] Record the implemented or verified outcome, checks and limits; update owning docs/release notes where relevant, then archive and commit scoped work.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

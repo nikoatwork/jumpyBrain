@@ -43,3 +43,7 @@ Make deleting a note a clear, compact confirmation with one plain warning senten
 - [x] Keep confirmation tied to the selected note and preserve cancellation, focus handling and guarded deletion.
 - [x] Inspect the dialog in the Mac app at desktop/narrow widths; exercise Cancel and successful deletion using a disposable note, plus existing lifecycle checks.
 - [x] Record the implemented or verified outcome, checks and limits; update owning docs/release notes where relevant, then archive and commit scoped work.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

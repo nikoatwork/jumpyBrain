@@ -49,7 +49,7 @@ The control shares type, radius, focus, disabled and touch-size tokens. Supporti
 
 Reuse `--surface`, `--control-fill`, `--surface-hover`, `--ink`, `--ink-soft`, `--ink-faint`, `--line`, `--line-strong`, `--accent` and error tokens. Both Ember palettes retain the existing contrast checks. Keep accessible labels, visible keyboard focus, active-page state, disabled state and reduced-motion handling. A theme change must not recreate the editor or lose a draft.
 
-Icon action labels reuse each control’s `title` (or SVG control’s accessible name) through `browser-control-labels.ts`: a single themed top-layer tooltip appears on hover and keyboard focus, clamps to viewport edges and avoids dialog/scroll clipping. Disabled buttons keep hover explanations and native disabled/tab behavior. Formatting controls name Text/H1/H2/H3/B/I explicitly. Keep accessible names on the controls themselves.
+Icon action labels reuse each control’s `title` (or SVG control’s accessible name) through `browser-control-labels.ts`: a single themed top-layer tooltip appears on hover and keyboard focus, clamps to viewport edges and avoids dialog/scroll clipping. Controls with dedicated tooltip descriptions retain that help without a second generic label. Disabled buttons keep hover explanations and native disabled/tab behavior. Formatting controls name Text/H1/H2/H3/B/I explicitly. Keep accessible names on the controls themselves.
 
 ## Verification
 

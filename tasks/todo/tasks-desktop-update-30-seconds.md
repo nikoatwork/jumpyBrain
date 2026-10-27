@@ -63,6 +63,6 @@ Implementation: `06dd8ed`. Full evidence: [completed update-speed work](../done/
 - `integrations/macos-companion/install.py` — native compilation and artifact reuse policy.
 - `scripts/desktop-update-smoke.mjs`, `integrations/electron/test_desktop_install.py`, `integrations/macos-companion/test_update.py` — installed measurements and focused regressions.
 - `scripts/{release,pack-local,local-pack-manifest}.mjs`, `docs/{releases,release-testing}.md` — distribution/release changes if needed.
-- [Mac installation clarity](tasks-mac-installation-clarity.md) and [portable installation](tasks-portable-installation-project-integration.md) — coordinate supported commands, prerequisite claims and CLI/app ownership.
+- [Mac installation clarity](../done/2026-10-27_tasks-mac-installation-clarity.md) and [portable installation](tasks-portable-installation-project-integration.md) — coordinate supported commands, prerequisite claims and CLI/app ownership.
 
 Planning alone does not add a changelog highlight or release note. No implementation, release or installation is authorized by this deferred list; continue when requested.

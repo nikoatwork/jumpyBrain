@@ -29,7 +29,7 @@ Give Mac users one clear installation path and explain how Desktop and CLI updat
 ## Notes
 
 - Source: [feedback received 2026-10-20](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=5db6a117-b137-4611-83be-8161eeaded55); triaged 2026-10-27.
-- Installation guidance and paired updates already changed after this report: [guidance](2026-10-22_tasks-installation-confidence.md), [paired updates](2026-10-22_tasks-unified-mac-cli-update-experience.md). Validate remaining confusion first. Coordinate with the parent-owned update-speed work (absent from this clean base) and [portable installation](../todo/tasks-portable-installation-project-integration.md).
+- Installation guidance and paired updates already changed after this report: [guidance](2026-10-22_tasks-installation-confidence.md), [paired updates](2026-10-22_tasks-unified-mac-cli-update-experience.md). Validate remaining confusion first. Coordinate with [completed update findings](2026-10-27_tasks-desktop-update-speed.md), [the remaining latency follow-up](../todo/tasks-desktop-update-30-seconds.md) and [portable installation](../todo/tasks-portable-installation-project-integration.md).
 - Before implementation, read `src/architecture.docs.md` and the affected modules’ co-located docs. Follow [task completion](../../docs/task-workflow.md) when all work and checks are complete.
 
 ## Relevant files
@@ -42,3 +42,7 @@ Give Mac users one clear installation path and explain how Desktop and CLI updat
 - [x] Make the recommended path and update behavior consistent across entry docs, including CLI-only and custom/pinned exceptions; explain that both interfaces can use the same Markdown folder.
 - [x] Verify advertised install/update commands against current implementation and disposable fixtures where behavior changes; route distribution/updater redesign to its existing list and record any unresolved user friction.
 - [x] Record the implemented or verified outcome, checks and limits; update owning docs/release notes where relevant, then archive and commit scoped work.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

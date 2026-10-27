@@ -33,7 +33,9 @@ export function installNoteFind(options: {
       let node: Node | null, block: Element | null = null, group: Text[] | null = null;
       while ((node = walker.nextNode())) {
         if (node instanceof Element) { if (node.tagName === "BR") group = null; continue; }
-        const text = node as Text, parent = text.parentElement!.closest("p, h1, h2, h3, h4, h5, h6, li, pre, td, th") || body;
+        const text = node as Text;
+        if (!text.parentElement!.checkVisibility({ visibilityProperty: true })) { group = null; continue; }
+        const parent = text.parentElement!.closest("p, h1, h2, h3, h4, h5, h6, li, pre, td, th") || body;
         if (!group || parent !== block) { group = []; groups.push(group); block = parent; }
         group.push(text);
       }
@@ -92,9 +94,10 @@ export function installNoteFind(options: {
   }, true);
   // The native menu dispatches the same scoped action; unrelated dialogs keep focus.
   doc.addEventListener("jumpybrain:find", open);
-  new MutationObserver(() => {
+  new MutationObserver(records => {
+    if (records.some(record => record.type !== "attributes")) selection = null;
     if (bar.hidden || frame) return;
     frame = win.requestAnimationFrame(() => { frame = 0; refresh(); });
-  }).observe(body, { childList: true, characterData: true, subtree: true });
+  }).observe(body, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ["open", "hidden"] });
   return { close, open };
 }

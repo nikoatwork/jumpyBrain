@@ -67,5 +67,8 @@ export function installRelatedPages(options: {
   }
   const stop = () => { stopped = true; key = ""; request?.abort(); request = null; panel.hidden = true; list.replaceChildren(); };
   options.document.defaultView!.addEventListener("pagehide", stop);
+  options.document.defaultView!.addEventListener("pageshow", event => {
+    if (event.persisted) { stopped = false; sync(); }
+  });
   return { sync };
 }

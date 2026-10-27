@@ -35,6 +35,7 @@ try {
     assert.equal(await page.locator('#feedback-dialog details').count(), 0);
     assert.equal(await page.locator('#feedback-close').getAttribute('aria-label'), 'Close feedback');
     await page.getByRole('button', { name: 'About diagnostic logs' }).hover();
+    assert.equal(await page.getByRole('tooltip').count(), 1, 'existing diagnostic help must not receive a second action tooltip');
     assert.equal(await page.getByRole('tooltip').isVisible(), true);
     const text = 'Feedback 🐐 & details\nAnother line';
     assert.equal(await page.locator('#feedback-send').isDisabled(), true);

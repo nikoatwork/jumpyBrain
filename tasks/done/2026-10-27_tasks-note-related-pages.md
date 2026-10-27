@@ -44,3 +44,7 @@ Show up to five relevant related pages below the current note as small clickable
 - [x] Fence late results to the current brain/note revision; handle unavailable or stale search without saving, reindexing or expanding permissions implicitly.
 - [x] Check strong, weak, empty and duplicate matches plus fast navigation/brain switching; verify opening a related page respects unsaved-draft guards.
 - [x] Record the implemented or verified outcome, checks and limits; update owning docs/release notes where relevant, then archive and commit scoped work.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

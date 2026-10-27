@@ -58,3 +58,18 @@ test('stale, local-only, empty and failed retrieval abstain without retry loops'
     assert.equal(h.panel.hidden, true); assert.equal(h.calls.length, 1);
   }
 });
+
+test('BFCache restoration resumes discovery without reviving an aborted response', async () => {
+  const h = harness(); h.controller.sync();
+  h.win.dispatchEvent(new Event('pagehide'));
+  assert.equal(h.calls[0].signal.aborted, true);
+  h.win.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+  assert.equal(h.calls.length, 2);
+  h.calls[0].resolve({ results: [hit(2, .95)] }); await settle();
+  assert.equal(h.panel.hidden, true);
+  h.calls[1].resolve({ results: [hit(3, .95)] }); await settle();
+  assert.equal(h.panel.hidden, false);
+  h.editor.state.contentHash = 'restored'; h.controller.sync();
+  assert.equal(h.calls.length, 3);
+  h.calls[2].resolve({ results: [hit(4, .95)] }); await settle();
+});

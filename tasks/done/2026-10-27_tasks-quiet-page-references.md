@@ -43,3 +43,7 @@ Make page references easy to read without distracting bracket syntax in ordinary
 - Chromium synthetic keyboard/touch and disposable Markdown only; physical Mac/IME, OS clipboard, assistive technology, Safari/Firefox, large-table performance and combined integration with the other ticket groups remain separate checks. No personal notes, installed app, real email, push, release or version bump.
 
 Owning browser docs, pending release notes and the selective task changelog are updated. All required implementation and focused checks in this list are complete; limits above remain explicit for integration.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

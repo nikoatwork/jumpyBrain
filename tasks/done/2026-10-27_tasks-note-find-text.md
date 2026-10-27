@@ -47,3 +47,7 @@ Let Mac users press Command-F to find text in the current note with familiar mat
 - [x] Add Command-F, query entry, visible matches/count, next/previous and Escape dismissal with sensible focus restoration.
 - [x] Verify zero/multiple matches, Unicode, repeated searches, edited text and note switches; confirm highlights do not change saved Markdown or editor history.
 - [x] Record the implemented or verified outcome, checks and limits; update owning docs/release notes where relevant, then archive and commit scoped work.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

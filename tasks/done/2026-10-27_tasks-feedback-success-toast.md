@@ -43,3 +43,7 @@ Close the feedback modal after a successful send and show a short thank-you toas
 - [x] Preserve in-flight duplicate protection, failed-send draft retention and safe handling of late responses after closing/reopening or changing scope.
 - [x] Run focused feedback UI checks with a fixture sender for success, failure and retry; inspect toast/focus behavior without sending live test emails.
 - [x] Record the implemented or verified outcome, checks and limits; update owning docs/release notes where relevant, then archive and commit scoped work.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

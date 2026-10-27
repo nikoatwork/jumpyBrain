@@ -5,7 +5,7 @@ export function installControlLabels(doc: Document) {
   label.id = "control-label"; label.setAttribute("role", "tooltip");
   if (typeof label.showPopover !== "function") return;
   label.setAttribute("popover", "manual"); doc.body.append(label);
-  let active: HTMLElement | null = null, title = "", described = "";
+  let active: HTMLElement | null = null, title = "", described = "", accessible = "";
   function hide() {
     if (!active) return;
     if (title && !active.hasAttribute("title")) active.title = title;
@@ -16,10 +16,10 @@ export function installControlLabels(doc: Document) {
     const control = target instanceof Element ? target.closest<HTMLElement>("button, a, select, [role=button]") : null;
     if (control === active) return;
     hide();
-    if (!control) return;
+    if (!control || (control.getAttribute("aria-describedby") || "").split(/\s+/).some(id => doc.getElementById(id)?.getAttribute("role") === "tooltip")) return;
     const text = control.title || (control.querySelector("svg") ? control.getAttribute("aria-label") : "");
     if (!text) return;
-    active = control; title = control.title; described = control.getAttribute("aria-describedby") || "";
+    active = control; accessible = control.getAttribute("aria-label") || ""; title = control.title; described = control.getAttribute("aria-describedby") || "";
     control.removeAttribute("title");
     control.setAttribute("aria-describedby", [described, label.id].filter(Boolean).join(" "));
     label.textContent = text; label.showPopover();
@@ -32,6 +32,12 @@ export function installControlLabels(doc: Document) {
     label.style.left = Math.max(8, Math.min(box.x + box.width / 2 - size.width / 2, win.innerWidth - size.width - 8)) + "px";
     label.style.top = Math.max(8, box.bottom + size.height + 12 < win.innerHeight ? box.bottom + 6 : box.top - size.height - 6) + "px";
   }
+  new MutationObserver(() => {
+    if (!active) return;
+    if (!active.isConnected || (active.getAttribute("aria-label") || "") !== accessible
+        || (active.hasAttribute("title") && active.title !== title)) hide();
+    else if (active.hasAttribute("title")) active.removeAttribute("title");
+  }).observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["title", "aria-label"] });
   doc.addEventListener("pointerover", event => show(event.target));
   doc.addEventListener("pointerout", event => {
     if (active && active !== doc.activeElement && !active.contains(event.relatedTarget as Node | null)) hide();

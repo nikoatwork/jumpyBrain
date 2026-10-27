@@ -10,7 +10,7 @@ import { appendEditorText, editorMarkdown, selectEditorText, editorSelection, un
 const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-note-find-'));
 const output = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR || '/tmp/jumpybrain-note-find-qa';
 const id = 'mem_f1000000-0000-4000-8000-000000000001', second = 'mem_f1000000-0000-4000-8000-000000000002';
-const source = `---\nid: ${id}\ntitle: Find fixture\ntype: note\n---\n\nCafé **café** 😀 and [[Page title]].\n\nAnother café match.\n\n${"A separate filler paragraph.\n\n".repeat(60)}Deep needle.\n`;
+const source = `---\nid: ${id}\ntitle: Find fixture\ntype: note\n---\n\nCafé **café** 😀 and [[Page title]].\n\nAnother café match.\n\n| Item | Detail |\n| --- | --- |\n| Entry | Visible table match |\n\n${"A separate filler paragraph.\n\n".repeat(60)}Deep needle.\n`;
 let browser, server;
 try {
   await initializeMemoryRoot(root); await mkdir(output, { recursive: true });
@@ -43,6 +43,12 @@ try {
     await page.locator('#note-find-input').fill('😀'); assert.equal(await page.locator('#note-find-count').innerText(), '1 of 1');
     await page.locator('#note-find-input').fill('é café'); assert.equal(await page.locator('#note-find-count').innerText(), '1 of 1', 'find crosses inline formatting');
     await page.locator('#note-find-input').fill('[['); assert.equal(await page.locator('#note-find-count').innerText(), '1 of 1', 'literal regex punctuation');
+    await page.locator('#note-find-input').fill('Visible table match');
+    assert.equal(await page.locator('#note-find-count').innerText(), '1 of 1', 'collapsed table source does not duplicate visible matches');
+    await page.locator('.markdown-table details').evaluate(details => { details.open = true; });
+    await page.locator('#note-find-count').filter({ hasText: '1 of 2' }).waitFor();
+    await page.locator('.markdown-table details').evaluate(details => { details.open = false; });
+    await page.locator('#note-find-count').filter({ hasText: '1 of 1' }).waitFor();
     await page.locator('#note-find-input').fill('Deep needle');
     assert.equal(await page.locator('#note-find-count').innerText(), '1 of 1');
     const scrolled = await page.evaluate(() => ({ bar: document.querySelector('#note-find').getBoundingClientRect().top, match: [...CSS.highlights.get('note-find-current')][0].getBoundingClientRect().top, height: innerHeight }));

@@ -10,9 +10,9 @@ const bundle = await readFile(new URL("../dist/adapters/http-server/editor-bundl
 test("editor bundle is self-contained, production-sized, and safe to inline under the shell nonce", () => {
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
-  // Readable source-preserving tables and keyboard slash commands add ~4 KB
-  // gzip to the existing search/editor bundle, without another dependency.
-  assert.ok(gzipSync(bundle).length < 181_000, "review editor weight if the production bundle exceeds 181 KB gzip");
+  // Combined tables/slash commands, find/labels and related-page discovery:
+  // reviewed at 181.7 KB gzip, ~6 KB above the prior editor; no new dependencies.
+  assert.ok(gzipSync(bundle).length < 183_000, "review editor weight if the production bundle exceeds 183 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);

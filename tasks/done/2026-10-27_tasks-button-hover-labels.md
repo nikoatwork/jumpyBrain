@@ -45,3 +45,7 @@ Help people understand icon buttons through short labels on hover and keyboard f
 - [x] Add concise action names using existing shared styling, accessible names and focus behavior; include shortcut hints only where useful.
 - [x] Verify hover/focus labels in both themes and narrow layouts, including disabled controls, clipping and unchanged click/keyboard actions.
 - [x] Record the implemented or verified outcome, checks and limits; update owning docs/release notes where relevant, then archive and commit scoped work.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

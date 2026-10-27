@@ -42,3 +42,7 @@ Keep the command search popup compact, without technical result-count prose or p
 - [x] Choose the smallest coherent result behavior: append additional matches in place or retain a bounded initial list without Load more; remove page-replacement behavior from this popup.
 - [x] Verify keyboard selection, scrolling, query changes, empty/error/stale states and any retained Load more behavior in desktop/narrow layouts; keep backend ranking unchanged.
 - [x] Record the implemented or verified outcome, checks and limits; update owning docs/release notes where relevant, then archive and commit scoped work.
+
+## Combined verification
+
+See [the integrated feedback result](2026-10-27_tasks-feedback-integration.md) for merged-snapshot testing and the cross-feature fixes found after this group was integrated. The measurements above describe this group’s original tested snapshot.

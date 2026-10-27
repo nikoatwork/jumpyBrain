@@ -14,7 +14,7 @@
 
 ## 2026-10-27 — Editor reading and formatting
 
-- Added source-preserving readable pipe tables, quieter reference brackets and keyboard formatting slash commands; [verification](done/2026-10-27_tasks-editor-slash-commands.md).
+- Added source-preserving readable pipe tables, quieter reference brackets and keyboard formatting slash commands; [editor verification](done/2026-10-27_tasks-editor-slash-commands.md) and [combined end-to-end checks](done/2026-10-27_tasks-feedback-integration.md).
 
 ## 2026-10-25 — v0.3.9 beta
 
