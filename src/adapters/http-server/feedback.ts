@@ -85,6 +85,7 @@ export function installFeedback(options: {
   document: Document; window: Window; diagnostics: ReturnType<typeof createFeedbackDiagnostics>;
   context: () => { view: string; connection: string; companion: boolean };
   onOpen?: () => void;
+  onSubmitted?: (id: string) => void;
   submit?: (report: { id: string; message: string; diagnostics: string | null }, signal: AbortSignal) => Promise<unknown>;
   collectHost?: (signal: AbortSignal) => Promise<{ sources?: DiagnosticSnapshot[]; runtime?: unknown }>;
 }) {
@@ -142,7 +143,11 @@ export function installFeedback(options: {
       const result = await options.submit(pending, controller.signal) as { accepted?: boolean; id?: string };
       if (result?.accepted !== true || result.id !== pending.id) throw new Error("unconfirmed");
       if (submission === pending) { submission = null; message.value = ""; }
-      if (dialog.open && token === openSequence) status.textContent = "Feedback sent. Thank you!";
+      if (dialog.open && token === openSequence) {
+        sending = false;
+        close();
+        options.onSubmitted?.(pending.id);
+      }
     } catch (error) {
       if (dialog.open && token === openSequence) status.textContent = (error as { code?: string })?.code === "feedback_unavailable"
         ? "Feedback is temporarily unavailable. Your message is still here."

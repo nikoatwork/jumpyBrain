@@ -52,10 +52,11 @@ try {
     await page.locator('#open-feedback').click();
     rejectFeedback = false;
     await page.locator('#feedback-send').click();
-    await page.locator('#feedback-status').filter({ hasText: 'Feedback sent' }).waitFor();
+    await submitted(page);
     assert.deepEqual(submissions.at(-1), failedSubmission);
     assert.equal(submissions.at(-1).diagnostics, log);
     assert.equal(await page.locator('#feedback-message').inputValue(), '');
+    await page.locator('#open-feedback').click();
     await page.locator('#feedback-message').fill(text);
     await page.locator('#feedback-message').press('Control+Enter');
     await page.locator('#feedback-message').press('Meta+k');
@@ -63,9 +64,10 @@ try {
     assert.equal(new URL(page.url()).searchParams.get('note'), id);
     await page.locator('#feedback-include-logs').uncheck();
     await page.locator('#feedback-send').click();
-    await page.locator('#feedback-status').filter({ hasText: 'Feedback sent' }).waitFor();
+    await submitted(page);
     assert.equal(submissions.at(-1).diagnostics, null);
     assert.notEqual(submissions.at(-1).id, failedSubmission.id);
+    await page.locator('#open-feedback').click();
     await page.locator('#feedback-message').fill(text);
     await page.locator('#feedback-message').press('Escape');
     await page.waitForFunction(() => !document.querySelector('#feedback-dialog').open);
@@ -95,19 +97,19 @@ try {
     await page.locator('#open-feedback').click();
     await page.locator('#feedback-message').fill('Report the unconfirmed save');
     await page.locator('#feedback-send').click();
-    await page.locator('#feedback-status').filter({ hasText: 'Feedback sent' }).waitFor();
+    await submitted(page);
     const failed = submissions.at(-1).diagnostics;
     assert.ok(JSON.parse(failed).events.some((event) => event.code === 'network'));
     assert.ok(JSON.parse(failed).events.some((event) => event.outcome === 'unconfirmed'));
     assert.doesNotMatch(failed, /Private|disposable-secret|private\.md/);
     assert.equal(await page.locator('#note-editor').textContent().then((text) => text.includes('Private unsaved feedback fixture.')), true);
-    await page.locator('#feedback-close').click(); failWithConflict = true;
+    failWithConflict = true;
     await page.locator('#note-retry').click();
     await page.waitForFunction(() => state.editor?.state.saveErrorCode === 'precondition_failed');
     await page.locator('#open-feedback').click();
     await page.locator('#feedback-message').fill('Report the conflict');
     await page.locator('#feedback-send').click();
-    await page.locator('#feedback-status').filter({ hasText: 'Feedback sent' }).waitFor();
+    await submitted(page);
     const conflict = submissions.at(-1).diagnostics;
     assert.ok(JSON.parse(conflict).events.some((event) => event.code === 'conflict'));
     assert.doesNotMatch(conflict, /Private failure|Private unsaved/);
@@ -118,4 +120,17 @@ try {
   console.log('Feedback smoke: PASS (desktop/narrow, light/dark, attachment/opt-out, privacy, shortcuts, focus, network loss/unconfirmed save/conflict evidence, retained draft)');
 } finally {
   await browser?.close(); await server?.close(); await rm(root, { recursive: true, force: true });
+}
+
+async function submitted(page) {
+  await page.waitForFunction(() => !document.querySelector('#feedback-dialog').open);
+  assert.equal(await page.locator('#feedback-message').inputValue(), '');
+  assert.equal(await page.locator('#open-feedback').evaluate(el => el === document.activeElement), true);
+  await page.locator('#app-toast[data-source="feedback-submitted"]').waitFor();
+  assert.equal(await page.locator('#toast-message').textContent(), 'Feedback sent. Thank you!');
+  assert.equal(await page.locator('#app-toast').count(), 1);
+  if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) {
+    await mkdir(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, { recursive: true });
+    await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `feedback-sent-${page.viewportSize().width}.png`) });
+  }
 }

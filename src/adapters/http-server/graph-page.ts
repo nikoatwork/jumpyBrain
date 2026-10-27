@@ -219,6 +219,7 @@ const feedbackDiagnostics = JumpyBrainBrowser.createFeedbackDiagnostics();
 const feedback = JumpyBrainBrowser.installFeedback({ document, window, diagnostics: feedbackDiagnostics,
   context: () => ({ view: state.view, connection: connectionStatus, companion: companionMode }),
   onOpen: () => cancelReferenceInteraction(),
+  onSubmitted: (id) => systemMessages.dispatch({ source: "feedback-submitted", text: "Feedback sent. Thank you!", severity: "success", scope: "app", revision: id }),
   submit: (report, signal) => graphJson("/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(report), signal }),
   collectHost: companionMode ? (signal) => graphJson("/companion/diagnostics", { signal }) : undefined });
 ${companion ? companionPrelude : ""}

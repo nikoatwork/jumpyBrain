@@ -144,6 +144,11 @@ ${noteAttentionStyles}
     .save-state[data-state="failed"], #note-message[data-error="true"] { color: var(--error-ink); }
     #note-message { color: var(--ink-soft); white-space: pre-wrap; }
     #note-file { margin: var(--space-8) 0 var(--space-2); color: var(--ink-soft); overflow-wrap: anywhere; font-size: var(--text-caption); }
+    #related-pages { margin-top: var(--space-8); font-size: var(--text-ui); }
+    #related-pages h2 { margin: 0 0 var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-regular); }
+    #related-pages-list { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }
+    #related-pages-list li { min-width: 0; max-width: 100%; }
+    #related-pages-list a { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .note-frontmatter { margin-top: var(--space-6); color: var(--ink-soft); font-size: var(--text-caption); }
     .note-frontmatter summary { cursor: pointer; width: fit-content; }
     .note-frontmatter pre { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -349,6 +354,9 @@ export const notesViews = String.raw`
         <button id="insert-reference" class="quiet-button note-icon" type="button" aria-label="Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
       </div>
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
+      <nav id="related-pages" aria-label="Related pages" hidden>
+        <h2>Related pages</h2><ul id="related-pages-list"></ul>
+      </nav>
       <details id="living-sources" class="note-frontmatter" hidden>
         <summary>Sources · version checks</summary>
         <p>Follow evidence beside each claim. Latest substantive change and open questions remain in the page above.</p>
@@ -1027,6 +1035,7 @@ function setConnectionKey(key) {
   credentialRevision++;
   systemMessages.sync();
   livingSources.sync();
+  relatedPages.sync();
   recentWrites.reset();
   map.reset();
   sidebarPages.refresh();
@@ -1087,6 +1096,14 @@ const livingSources = JumpyBrainBrowser.installLivingSources({
   enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   json: (url, options) => graphJson(url, options),
   navigate: (id) => navigation.navigate("/?note=" + encodeURIComponent(id)),
+});
+const relatedPages = JumpyBrainBrowser.installRelatedPages({
+  document, editor: () => state.view === "note" ? state.editor : null,
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
+  enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
+  search: (query, signal, limit) => recentWrites.search(query, signal, limit),
+  href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
+  navigate: (url) => navigation.navigate(url),
 });
 const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   document, window,
@@ -1164,6 +1181,7 @@ function showPage(url) {
   state.noteToken++;
   if (state.editor) state.editor.cancel();
   state.editor = null;
+  relatedPages.sync();
   extensionUI?.documentChanged();
   $("note-retry").hidden = true;
   $("note-recover").hidden = true;
@@ -1191,6 +1209,7 @@ async function showNote(documentId, focusEnd = false) {
     const token = ++state.noteToken;
     if (state.editor) state.editor.cancel();
     state.editor = null;
+    relatedPages.sync();
     extensionUI?.documentChanged();
     $("note-title").textContent = "";
     toast.clear("draft");
@@ -1308,6 +1327,7 @@ function syncEditorUi(editorState) {
   noteAttention.sync();
   sidebarPages.sync();
   livingSources.sync();
+  relatedPages.sync();
   if (typeof feedbackDiagnostics !== "undefined") {
     const marker = editorState.saveStatus + ":" + editorState.unconfirmedSave + ":" + editorState.saveErrorCode;
     if (state.lastDiagnosticSave !== marker) {

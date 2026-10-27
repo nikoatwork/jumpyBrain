@@ -37,9 +37,11 @@ async function run() {
     await until('document.getElementById("feedback-dialog").dataset.collecting === "false"');
     async function send(message) {
       await js(`document.getElementById("feedback-message").value = ${JSON.stringify(message)}; document.getElementById("feedback-message").dispatchEvent(new Event("input")); document.getElementById("feedback-send").click()`);
-      await until('document.getElementById("feedback-status").textContent.includes("Feedback sent")');
+      await until('!document.getElementById("feedback-dialog").open && document.getElementById("toast-message").textContent.includes("Feedback sent")');
       return JSON.parse(await readFile(config.received, 'utf8'));
     }
+    // New evidence after collection must not change the attachment being sent.
+    await js('feedbackDiagnostics.event("exception", {severity:"error",outcome:"failed",code:"syntax_error"})');
     const first = await send('Synthetic diagnostics test');
     const report = JSON.parse(first.diagnostics);
     for (const code of ['bootstrap_failed', 'unresponsive']) assert.ok(report.events.some((e) => e.component === 'electron' && e.code === code));
@@ -48,16 +50,19 @@ async function run() {
     assert.ok(report.events.some((e) => e.operation === 'rejection' && e.code === 'range_error'));
     assert.doesNotMatch(JSON.stringify(report), /private|d_[a-f0-9]{32}/); assert.ok(!JSON.stringify(report).includes(config.key));
     const frozen = first.diagnostics;
-    await js('feedbackDiagnostics.event("exception", {severity:"error",outcome:"failed",code:"syntax_error"})');
-    stage = 'frozen attachment submission';
+    assert.ok(!report.events.some(e => e.code === 'syntax_error'));
+    stage = 'fresh collection after successful submission';
+    await js('document.getElementById("open-feedback").click()');
+    await until('document.getElementById("feedback-dialog").dataset.collecting === "false"');
     const second = await send('🐐'.repeat(2000));
-    assert.equal(second.diagnostics, frozen);
+    assert.notEqual(second.diagnostics, frozen);
+    assert.ok(JSON.parse(second.diagnostics).events.some(e => e.code === 'syntax_error'));
     assert.ok(Buffer.byteLength(JSON.stringify(second)) <= 65536);
     stage = 'collection opt-out and cancellation';
     await js('document.getElementById("feedback-close").click(); document.getElementById("open-feedback").click(); document.getElementById("feedback-include-logs").click()');
     const without = await send('No diagnostics');
     assert.equal(without.diagnostics, null);
-    await js('document.getElementById("feedback-include-logs").click(); document.getElementById("feedback-close").click()');
+    await js('document.getElementById("open-feedback").click(); document.getElementById("feedback-include-logs").click(); document.getElementById("feedback-close").click()');
     await pause(250);
     assert.equal(await js('document.getElementById("feedback-dialog").open'), false);
     assert.deepEqual(JSON.parse(await readFile(config.received, 'utf8')), without);

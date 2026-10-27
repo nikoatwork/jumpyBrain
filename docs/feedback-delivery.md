@@ -53,7 +53,7 @@ Desktop feedback stays on its local gateway rather than going through the select
 
 ## Delivery and retry semantics
 
-The browser creates a UUID for the reviewed report and reuses it after unconfirmed delivery, including closing/reopening the dialog. Editing the report creates a new submission. A successful send clears the message only after the returned ID matches. Tab reload loses feedback state; there is no background retry or durable local outbox.
+The browser creates a UUID for the reviewed report and reuses it after unconfirmed delivery, including closing/reopening the dialog. Editing the report creates a new submission. A successful send clears the message only after the returned ID matches, closes the dialog, restores focus to Feedback and shows a shared thank-you notification. Forced session closure suppresses late notifications; confirmed acceptance still clears that submitted report. A subsequent dialog collects fresh diagnostics. Tab reload loses feedback state; there is no background retry or durable local outbox.
 
 The relay uses AgentMail's [send API](https://docs.agentmail.to/api-reference/inboxes/messages/send) with a fixed plain-text message and optional base64 text attachment. AgentMail's [idempotency header](https://docs.agentmail.to/idempotency) deduplicates unchanged retries for 24 hours. After that window, a retry can send a duplicate. Success means the mail provider accepted the report, not that a human read it or that inbox delivery was verified.
 

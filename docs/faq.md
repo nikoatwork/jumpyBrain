@@ -28,7 +28,7 @@ Closing the window leaves the app running in the menu bar. **Quit jumpyBrain** s
 
 They are two ways to work with the **same folder of notes**. The app is a window for writing and browsing. The CLI lets agents remember and recall. Point both at the same folder and there is one canonical set of Markdown files, with no import, copying, or sync needed between them.
 
-There are separate copies of program code: the Mac app bundles a runtime, while the CLI has its own installation. The Mac app’s Updates screen coordinates its bundle and the supported default managed CLI at one published release. Custom/pinned CLI installations remain separate, and the screen reports each component’s version. Separate program copies do not duplicate your notes. See the [update instructions](install.md#update).
+There are separate copies of program code: the Mac app bundles a runtime, while the CLI has its own installation. The sidebar update icon coordinates the app and the supported default managed CLI at one published release. Custom/pinned CLI installations retain their policy through the explicit app-only update choice. Settings shows the installed app version; `jumpybrain --version` shows the CLI version. Separate program copies do not duplicate your notes. See the [update instructions](install.md#update).
 
 If you used the default CLI installer, [build the app from the existing installation](install.md#macos-desktop-app-beta), then choose `~/.jumpybrain/memory` in onboarding. Changing the app's selected folder does not automatically change an agent's target.
 

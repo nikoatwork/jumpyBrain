@@ -1,4 +1,4 @@
-// Graph-only presentation policy over shared search results; no new retrieval engine.
+// Browser presentation policy over shared search results; no new retrieval engine.
 const SEMANTIC_SCORE_FLOOR = 0.75;
 const SEMANTIC_RELATIVE_FLOOR = 0.85;
 interface GraphSearchHit {

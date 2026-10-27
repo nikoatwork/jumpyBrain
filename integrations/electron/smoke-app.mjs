@@ -142,9 +142,9 @@ try {
   assert.equal(await js('document.querySelectorAll("#feedback-dialog details").length'), 0);
   assert.equal(await js('document.getElementById("feedback-close").getAttribute("aria-label")'), 'Close feedback');
   await js('document.getElementById("feedback-send").click()');
-  await until('document.getElementById("feedback-status").textContent.includes("Feedback sent")');
+  await until('!document.getElementById("feedback-dialog").open && document.getElementById("toast-message").textContent.includes("Feedback sent")');
   assert.equal(await js('document.getElementById("feedback-message").value'), '');
-  await js('document.getElementById("feedback-close").click()');
+  assert.equal(await js('document.activeElement === document.getElementById("open-feedback")'), true);
   // Other files still cannot download, even from a renderer-created blob.
   const denied = new Promise((resolve) => window.webContents.session.once('will-download', (event) => resolve(event.defaultPrevented)));
   await js('(() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["blocked"], {type:"text/plain"})); a.download = "other.txt"; a.click(); })()');
