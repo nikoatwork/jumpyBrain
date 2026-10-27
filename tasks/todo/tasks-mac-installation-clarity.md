@@ -7,7 +7,7 @@ Give Mac users one clear installation path and explain how Desktop and CLI updat
 ## Notes
 
 - Source: [feedback received 2026-10-20](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=5db6a117-b137-4611-83be-8161eeaded55); triaged 2026-10-27.
-- Installation guidance and paired updates already changed after this report: [guidance](../done/2026-10-22_tasks-installation-confidence.md), [paired updates](../done/2026-10-22_tasks-unified-mac-cli-update-experience.md). Validate remaining confusion first. Coordinate with [update speed](../done/2026-10-27_tasks-desktop-update-speed.md) and [portable installation](tasks-portable-installation-project-integration.md).
+- Installation guidance and paired updates already changed after this report: [guidance](../done/2026-10-22_tasks-installation-confidence.md), [paired updates](../done/2026-10-22_tasks-unified-mac-cli-update-experience.md). Validate remaining confusion first. Coordinate with the [30-second update follow-up](tasks-desktop-update-30-seconds.md), [completed update findings](../done/2026-10-27_tasks-desktop-update-speed.md) and [portable installation](tasks-portable-installation-project-integration.md).
 - Before implementation, read `src/architecture.docs.md` and the affected modules’ co-located docs. Follow [task completion](../../docs/task-workflow.md) when all work and checks are complete.
 
 ## Relevant files
