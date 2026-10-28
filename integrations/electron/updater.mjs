@@ -9,6 +9,13 @@ import { atomicJSON } from './update-worker.mjs';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const execute = promisify(execFile);
 const files = ['update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'desktop-host.mjs', 'host.mjs'];
+export function startUpdatePolling(updater, shouldCheck = () => true, { schedule = setInterval, unschedule = clearInterval } = {}) {
+  const timer = schedule(() => {
+    if (shouldCheck()) return updater.checkInBackground().catch(() => {});
+  }, 60 * 60 * 1000);
+  timer.unref?.();
+  return () => unschedule(timer);
+}
 export function needsUpdate(version, installed) {
   if (compareVersions(version, installed.app) < 0 || compareVersions(version, installed.runtime) < 0) return false;
   return compareVersions(version, installed.app) > 0 || compareVersions(version, installed.runtime) > 0
@@ -19,7 +26,7 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
   const appPath = path.join(home, 'Applications/jumpyBrain.app');
   const root = path.join(home, '.jumpybrain');
   const updates = path.join(home, 'Library/Application Support/jumpyBrain Updates');
-  let state = { phase: 'idle', detail: 'Check for a published jumpyBrain release.' }, release, directory, busy = null;
+  let state = { phase: 'idle', detail: 'Check for a published jumpyBrain release.' }, release, directory, busy = null, backgroundBusy = false;
   let restart = false, restartError = null;
   async function installed() {
     const cli = await cliPolicy(home);
@@ -76,17 +83,25 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     return { ...state, restartError, installed: versions, available: release?.version || state.version || null, notes: release?.notes || '', logAvailable: !!directory,
       canPrepare, canRecover: !!state.recovery, actions };
   }
-  async function check() {
+  async function check(background = false) {
     const current = await snapshot();
     if (['preparing', 'ready', 'updating'].includes(current.phase) || current.canRecover) return current;
-    state = { phase: 'checking', detail: 'Checking public releases, including beta releases…' };
-    release = null;
+    if (background && current.phase === 'failed' && !current.checkFailed) return current;
+    if (!background) {
+      state = { phase: 'checking', detail: 'Checking public releases, including beta releases…' };
+      release = null;
+    }
     try {
-      release = await discover();
+      const selected = await discover();
       const versions = await installed();
+      release = selected;
       const newer = needsUpdate(release.version, versions);
       state = { phase: newer ? 'available' : 'current', detail: newer ? 'A published release is available.' : 'The app is up to date with published releases.' };
-    } catch (error) { state = { phase: 'failed', detail: error.message, updatedAt: Date.now() }; }
+    } catch (error) {
+      // Periodic network failures retain the last offer and retry next hour.
+      // Manual failures remain visible, but can also recover on a later poll.
+      if (!background) state = { phase: 'failed', checkFailed: true, detail: error.message, updatedAt: Date.now() };
+    }
     return snapshot();
   }
   async function checkOnStartup() {
@@ -167,13 +182,18 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
       throw error;
     }
   }
-  async function action(name) {
+  async function action(name, { background = false } = {}) {
     if (name === 'status') return snapshot();
-    if (busy) return busy;
+    if (busy) {
+      // A click during a quiet poll must still perform its requested action.
+      if (backgroundBusy && !background) { await busy; return action(name); }
+      return busy;
+    }
+    backgroundBusy = name === 'check' && background;
     busy = (async () => {
       try {
         const current = await snapshot();
-        if (name === 'check') return await check();
+        if (name === 'check') return await check(background);
         if (name === 'update') {
           if (['preparing', 'ready', 'updating'].includes(current.phase) || current.canRecover) return current;
           // Download the release that was offered; a second discovery must not
@@ -194,7 +214,7 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
         if (name === 'restart' && current.phase === 'ready') { restartError = null; restart = true; onRestart?.(); return current; }
         throw new Error('That update action is unavailable. Refresh and try again.');
       } catch (error) { state = { phase: 'failed', detail: error.message, updatedAt: Date.now() }; return { ...state, installed: await installed() }; }
-    })().finally(() => { busy = null; });
+    })().finally(() => { busy = null; backgroundBusy = false; });
     return busy;
   }
   async function beforeStop() {
@@ -242,5 +262,5 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     // Fence that launch interval too, so an editor cannot start mid-CLI update.
     return request?.entrypoint === 'cli' && (!progress || ['preparing', 'ready', 'updating'].includes(progress.phase));
   }
-  return { action, snapshot, checkOnStartup, beforeStop, cancelRestart, blocksStartup, cliPreparationPending, reportRestartFailure: async message => { restartError = message; }, logPath: () => directory && path.join(directory, 'update.log') };
+  return { action, snapshot, checkOnStartup, checkInBackground: () => action('check', { background: true }), beforeStop, cancelRestart, blocksStartup, cliPreparationPending, reportRestartFailure: async message => { restartError = message; }, logPath: () => directory && path.join(directory, 'update.log') };
 }

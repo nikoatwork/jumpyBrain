@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Hourly update checks
+
+- Mac release discovery runs hourly while the app stays open, retaining pending updates and quiet network retries. [Verification](done/2026-10-28_tasks-hourly-update-checks.md).
+
 ## 2026-10-28 — Latest-release update verification
 
 - Confirmed direct upgrades to the highest published version and added multi-version/pagination regressions. [Verification](done/2026-10-28_tasks-update-latest-release.md).

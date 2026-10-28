@@ -172,7 +172,7 @@ This is an advisory client-side guard against accidental writes, not authorizati
 
 ## Update
 
-For the Mac app, click the sidebar’s **Download update** icon when a release is available. Keep editing while it prepares; the icon becomes **Relaunch to apply update** when ready. Preparation is not installation: leaving it ready defers replacement, and all registered editor tabs must confirm their saves before relaunch. **Check for updates…** in the native menu checks manually without opening a popup. The icon tooltip explains progress, exceptions and available recovery actions; verified success follows actual installation and startup.
+The Mac app checks for releases at startup and once an hour while running, including with its window closed. Click the sidebar’s **Download update** icon when a release is available. Keep editing while it prepares; the icon becomes **Relaunch to apply update** when ready. Preparation is not installation: leaving it ready defers replacement, and all registered editor tabs must confirm their saves before relaunch. **Check for updates…** in the native menu checks manually without opening a popup. The icon tooltip explains progress, exceptions and available recovery actions; verified success follows actual installation and startup.
 
 GUI updates download one published GitHub release (including 0.x beta releases), verify its SHA-256 digest, and build the app locally. They update the bundled runtime and the default managed CLI together. A custom, pinned, missing, or unowned CLI receives an explicit **Update app only** choice. Its source/ref and files remain unchanged. GUI updates never downgrade a newer managed CLI, change targets, rewrite agent integrations, index memory, or update hosted servers.
 

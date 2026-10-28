@@ -9,7 +9,7 @@ import { createEditorWindow, setApplicationMenu } from './window.mjs';
 import { startElectronDiagnostics } from './diagnostics.mjs';
 import { createOnboardingWindow } from './onboarding.mjs';
 import { setupComplete, finishSetup, desktopStartupMessage } from './setup.mjs';
-import { createDesktopUpdater } from './updater.mjs';
+import { createDesktopUpdater, startUpdatePolling } from './updater.mjs';
 import { createUpdateWindow } from './update-window.mjs';
 import { serveDesktopUpdates } from './update-control.mjs';
 
@@ -22,7 +22,7 @@ let window = null, opening = false, host = null, starting = null, config = null;
 const notify = createSystemMessages({ getWindow: () => window, getOrigin: () => host?.connection?.origin,
   fallback: options => dialog.showMessageBox(options) });
 let startupError = null;
-let diagnostics = null, tray = null, healthTimer = null, polling = false, closeUpdateControl = null;
+let diagnostics = null, tray = null, healthTimer = null, polling = false, closeUpdateControl = null, stopUpdatePolling = null;
 let quitting = false, quitReady = false, status = 'Starting…';
 const resources = resourceDirectory ?? (app.isPackaged ? process.resourcesPath : fileURLToPath(new URL('../../.local-pack/desktop/jumpyBrain.app/Contents/Resources', import.meta.url)));
 const updater = createDesktopUpdater({ resources, appVersion: app.getVersion(), ...updaterOptions, onRestart: () => app.quit() });
@@ -134,7 +134,7 @@ const quit = createQuitFlow({
   cancelClose: async () => { try { await updater.cancelRestart(); } finally { quitting = false; void refreshTray(); } },
   beforeStop: () => updater.beforeStop(),
   flush: async () => { diagnostics?.record({ operation: 'shutdown', severity: 'info', outcome: 'ok', code: 'none' }); await diagnostics?.flush(); },
-  exit: () => { void closeUpdateControl?.(); clearInterval(healthTimer); tray?.destroy(); quitReady = true; app.quit(); }, showError,
+  exit: () => { void closeUpdateControl?.(); clearInterval(healthTimer); stopUpdatePolling?.(); tray?.destroy(); quitReady = true; app.quit(); }, showError,
 });
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -162,6 +162,7 @@ else {
     // Discovery is observational. Preparation always waits for an explicit
     // sidebar download action or the supported CLI update command.
     void updater.checkOnStartup().catch(() => {});
+    stopUpdatePolling = startUpdatePolling(updater, () => !quitting);
     healthTimer = setInterval(async () => {
       if (polling || quitting || !host?.isAlive()) return;
       polling = true;

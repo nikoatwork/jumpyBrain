@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { selectRelease, discoverRelease, verifyArtifact, compareVersions, SOURCE } from '../integrations/electron/update-release.mjs';
 import { cliPolicy } from '../integrations/electron/update-policy.mjs';
-import { createDesktopUpdater, needsUpdate } from '../integrations/electron/updater.mjs';
+import { createDesktopUpdater, needsUpdate, startUpdatePolling } from '../integrations/electron/updater.mjs';
 import { createQuitFlow } from '../integrations/electron/lifecycle.mjs';
 import { runWorker } from '../integrations/electron/update-worker.mjs';
 import { nativeUpdateAction } from '../integrations/electron/update-inline.mjs';
@@ -101,6 +101,60 @@ test('checking is observational and duplicate clicks share one operation', async
   await mkdir(path.join(f.root, '.installer-lock'));
   const locked = await updater.action('prepare'); assert.match(locked.detail, /lock/);
 });
+test('hourly polling belongs to the app lifetime and skips shutdown without stopping after a canceled quit', async () => {
+  let tick, interval, checks = 0, quitting = false, stopped = false, unreferenced = false;
+  const timer = { unref: () => { unreferenced = true; } };
+  const stop = startUpdatePolling({ checkInBackground: async () => { checks++; } }, () => !quitting, {
+    schedule: (callback, milliseconds) => { tick = callback; interval = milliseconds; return timer; },
+    unschedule: value => { assert.equal(value, timer); stopped = true; },
+  });
+  assert.equal(interval, 3600000); assert.equal(checks, 0); assert.equal(unreferenced, true);
+  await tick(); assert.equal(checks, 1);
+  quitting = true; await tick(); assert.equal(checks, 1);
+  quitting = false; await tick(); assert.equal(checks, 2);
+  stop(); assert.equal(stopped, true);
+});
+test('background checks discover later releases while running and quietly retry network failures', async t => {
+  const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
+  await mkdir(path.join(resources, 'runtime'), { recursive: true });
+  await writeFile(path.join(resources, 'runtime/package.json'), '{"version":"0.3.3"}');
+  let version = null, checks = 0;
+  const updater = createDesktopUpdater({ home: f.home, resources,
+    discover: async () => { checks++; if (!version) throw new Error('offline'); return selectRelease([release(version)]); },
+    spawnWorker: () => assert.fail('background checks must not prepare software') });
+  assert.equal((await updater.checkOnStartup()).phase, 'failed');
+  version = '0.3.3';
+  assert.equal((await updater.checkInBackground()).phase, 'current', 'retry an offline startup without reopening the app');
+  version = '0.3.10';
+  const available = await updater.checkInBackground();
+  assert.equal(available.phase, 'available'); assert.equal(available.available, version);
+  version = null;
+  assert.deepEqual(await updater.checkInBackground(), available, 'offline polling preserves the offered release');
+  version = '0.3.11';
+  const latest = await updater.checkInBackground();
+  assert.equal(latest.available, version); assert.equal(latest.phase, 'available'); assert.equal(checks, 5);
+});
+test('background checks serialize discovery and retain clicks that arrive during the poll', async t => {
+  const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
+  await mkdir(path.join(resources, 'runtime'), { recursive: true });
+  await writeFile(path.join(resources, 'runtime/package.json'), '{"version":"0.3.3"}');
+  let complete, entered, checks = 0;
+  const started = new Promise(resolve => { entered = resolve; });
+  const response = new Promise(resolve => { complete = resolve; });
+  const updater = createDesktopUpdater({ home: f.home, resources, discover: async () => {
+    checks++; if (checks === 1) { entered(); await response; }
+    return selectRelease([release(checks === 1 ? '0.3.10' : '0.3.11')]);
+  } });
+  const polling = updater.checkInBackground(); await started;
+  assert.equal((await updater.snapshot()).phase, 'idle', 'quiet checking does not replace visible state');
+  const duplicate = updater.checkInBackground();
+  const manual = updater.action('check');
+  assert.equal(checks, 1);
+  complete();
+  assert.equal((await polling).available, '0.3.10');
+  assert.equal((await duplicate).available, '0.3.10');
+  assert.equal((await manual).available, '0.3.11'); assert.equal(checks, 2);
+});
 test('startup discovers newer releases after persisted success or recovery without preparing software', async t => {
   for (const phase of ['success', 'recovered']) await t.test(phase, async t => {
     const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
@@ -140,6 +194,7 @@ test('startup discovery preserves active updates, failed preparation and interru
       discover: async () => assert.fail('pending work and failures must not be replaced by startup discovery') });
     const before = await updater.snapshot();
     assert.deepEqual(await updater.checkOnStartup(), before);
+    assert.deepEqual(await updater.checkInBackground(), before, 'hourly discovery preserves pending work and preparation failures');
     if (phase === 'interrupted') assert.equal(before.canRecover, true);
   });
 });
