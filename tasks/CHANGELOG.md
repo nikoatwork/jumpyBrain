@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Theme visual coverage
+
+- Verified every built-in light/dark theme across writing, search, maps and Settings, retaining a repeatable desktop/narrow visual check. [Review](done/2026-10-28_tasks-theme-visual-review.md).
+
 ## 2026-10-28 — Appearance choices
 
 - Appearance adds visual scheme selection and paired Ember, Ocean and Grove themes, with instant application and synced preferences. [Verification](done/2026-10-28_tasks-appearance-settings.md).
