@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Compact empty search
+
+- Collapsed empty search results/footer space and dividers until content is visible. [Verification](done/2026-10-28_tasks-empty-search-section.md).
+
 ## 2026-10-28 — Mono theme
 
 - Replaced Grove with a neutral black/white/gray Mono palette in both schemes, preserving saved selections. [Verification](done/2026-10-28_tasks-mono-theme.md).

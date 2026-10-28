@@ -183,11 +183,14 @@ ${noteAttentionStyles}
     #note-search[open] { display: flex; flex-direction: column; }
     #note-search > .dialog-head, #note-search > .search-footer { flex-shrink: 0; }
     .dialog-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); border-bottom: 1px solid var(--line); }
+    #note-search > .dialog-head { border-bottom: 0; }
     .search-input-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink-soft); }
     .search-input-icon svg { display: block; width: 100%; height: 100%; }
     #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: var(--text-section); }
     #note-search-input:focus-visible { outline: 2px solid var(--focus-ring); }
     #search-results { list-style: none; padding: var(--space-1); margin: 0; max-height: 55dvh; min-height: 0; flex: 1 1 auto; overflow: auto; }
+    #search-results:empty { display: none; }
+    #search-results:not(:empty) { border-top: 1px solid var(--line); }
     .search-result { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
     .search-result[aria-selected="true"] { background: var(--surface-hover); }
     .search-result[aria-disabled="true"] { cursor: default; color: var(--ink-soft); }
@@ -200,6 +203,7 @@ ${noteAttentionStyles}
     .search-result-path { display: block; margin-top: var(--space-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .search-result-unavailable { display: block; margin-top: var(--space-1); }
     .search-footer { border-top: 1px solid var(--line); background: var(--control-fill); padding: var(--space-3) var(--space-4); font-size: var(--text-caption); color: var(--ink-soft); }
+    .search-footer:not(:has(p:not([hidden]):not(:empty), button:not([hidden]))) { display: none; }
     .search-footer p { margin: 0; }
     #connection { padding: var(--space-6); }
     #connection h2 { margin: 0 0 var(--space-2); font-size: var(--text-heading); }
