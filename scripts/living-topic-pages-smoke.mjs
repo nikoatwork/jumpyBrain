@@ -16,6 +16,7 @@ page.on('pageerror', error => errors.push(error.message));
 page.on('request', request => { if (['PUT', 'PATCH', 'DELETE'].includes(request.method())) mutations.push(request.method()); });
 const noteUrl = id => `${fixture.url}/?note=${id}#apiKey=${fixture.key}`;
 async function check(expected) {
+  if (await page.locator('#page-details').isHidden()) await page.locator('#toggle-page-details').click();
   await page.locator('#living-sources > summary').evaluate(el => el.parentElement.open = true);
   const count = mutations.length;
   await page.getByRole('button', { name: 'Check source versions', exact: true }).click();

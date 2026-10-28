@@ -299,3 +299,115 @@ test("watcher deadlines and page lifecycle never accept aborted responses", asyn
   h.requests[2].resolve(h.payload); await tick();
   assert.equal(h.updates, 1); h.stop();
 });
+
+const contextFor = (kind, name) => ({ metadataStatus: "current", updatedAt: "2026-10-28T12:00:00Z", editor: { kind, name } });
+const savedContext = { file: "pages/plan.md", recognition: contextFor("human", "First writer") };
+
+test("saved context hydrates with its revision and omission clears prior provenance", () => {
+  const h = harness();
+  h.editor.hydrate({ content: "Original", contentHash: "initial", title: "Note", ...savedContext });
+  assert.deepEqual(h.editor.state.recognition, savedContext.recognition);
+  assert.equal(h.editor.state.file, "pages/plan.md");
+  h.editor.input("Local draft");
+  assert.deepEqual(h.editor.state.recognition, savedContext.recognition, "the context continues to describe the saved baseline");
+  h.editor.hydrate({ content: "Another", contentHash: "another", title: "Another note" });
+  assert.equal(h.editor.state.recognition, undefined);
+  assert.equal(h.editor.state.file, "");
+});
+
+test("rejected and stale external reads never relabel a draft; accepted reads replace context", () => {
+  const h = harness();
+  h.editor.hydrate({ content: "Original", contentHash: "initial", title: "Note", ...savedContext });
+  const external = { ...h.payload, file: "pages/renamed.md", recognition: contextFor("agent", "Research agent") };
+  const old = h.baseline();
+  h.editor.input("My typing");
+  assert.equal(h.editor.acceptExternal(external, h.baseline(), () => true), false);
+  assert.deepEqual(h.editor.state.recognition, savedContext.recognition);
+  assert.equal(h.editor.state.file, savedContext.file);
+  h.editor.input("Original");
+  assert.equal(h.editor.acceptExternal(external, old, () => true), false);
+  assert.deepEqual(h.editor.state.recognition, savedContext.recognition);
+  assert.equal(h.editor.acceptExternal(external, h.baseline(), () => true), true);
+  assert.deepEqual(h.editor.state.recognition, external.recognition);
+  assert.equal(h.editor.state.file, external.file);
+  assert.equal(h.editor.acceptExternal({ ...external, content: "Unknown revision", contentHash: "unknown", recognition: undefined, file: undefined }, h.baseline(), () => true), true);
+  assert.equal(h.editor.state.recognition, undefined);
+  assert.equal(h.editor.state.file, "");
+});
+
+test("confirmed writes update only saved-revision context while typing continues", async () => {
+  const h = harness({ readDocument: async () => { throw new Error("offline"); } });
+  h.editor.hydrate({ content: "Original", contentHash: "initial", title: "Note", ...savedContext });
+  h.editor.input("First local edit");
+  const save = h.editor.startSave();
+  h.editor.input("Still typing");
+  assert.deepEqual(h.editor.state.recognition, savedContext.recognition);
+  const recognition = contextFor("human", "Current writer");
+  h.writes[0].resolve({ newContentHash: "first-write", file: savedContext.file, recognition });
+  await tick();
+  assert.equal(h.editor.state.savedBody, "First local edit");
+  assert.equal(h.editor.state.draft, "Still typing");
+  assert.deepEqual(h.editor.state.recognition, recognition);
+  assert.equal(h.writes[1].hash, "first-write");
+  h.writes[1].resolve({ newContentHash: "second-write" });
+  await save;
+  assert.equal(h.editor.state.recognition, undefined, "a newer confirmed response without provenance cannot retain the prior writer");
+  assert.equal(h.editor.state.file, "");
+});
+
+test("lost or malformed save responses retain the last confirmed context", async () => {
+  for (const outcome of ["lost", "malformed", "cancelled"]) {
+    const h = harness();
+    h.editor.hydrate({ content: "Original", contentHash: "initial", title: "Note", ...savedContext });
+    h.editor.input("Unconfirmed draft");
+    const save = h.editor.startSave();
+    if (outcome === "lost") h.writes[0].reject(new Error("Response lost"));
+    else {
+      if (outcome === "cancelled") h.cancel();
+      h.writes[0].resolve({ ...(outcome === "cancelled" ? { newContentHash: "cancelled" } : {}), file: "wrong.md", recognition: contextFor("agent", "Late writer") });
+    }
+    await save;
+    assert.equal(h.editor.state.contentHash, "initial");
+    assert.deepEqual(h.editor.state.recognition, savedContext.recognition);
+    assert.equal(h.editor.state.file, savedContext.file);
+  }
+});
+
+test("reconciliation and metadata-only acceptance carry their accepted context", async () => {
+  let resolve;
+  const h = harness({ readDocument: () => new Promise(yes => { resolve = yes; }) });
+  h.editor.hydrate({ content: "Original", contentHash: "initial", title: "Note", ...savedContext });
+  const reconciling = h.editor.reconcile();
+  h.editor.input("Local draft");
+  resolve({ content: "Original", contentHash: "stale", title: "Note", recognition: contextFor("agent", "Stale") });
+  await reconciling;
+  assert.deepEqual(h.editor.state.recognition, savedContext.recognition);
+  h.editor.input("Original");
+  const accepted = h.editor.reconcile();
+  const current = { content: "Original", contentHash: "current", title: "Note", file: "pages/current.md", recognition: contextFor("agent", "Current") };
+  resolve(current); await accepted;
+  assert.deepEqual(h.editor.state.recognition, current.recognition);
+  assert.equal(h.editor.state.file, current.file);
+  assert.equal(h.editor.acceptMetadata({ ...current, contentHash: "metadata", recognition: undefined, file: undefined }, "wrong"), false);
+  assert.deepEqual(h.editor.state.recognition, current.recognition);
+  assert.equal(h.editor.acceptMetadata({ ...current, contentHash: "metadata", recognition: undefined, file: undefined }, "current"), true);
+  assert.equal(h.editor.state.recognition, undefined);
+  assert.equal(h.editor.state.file, "");
+});
+
+test("a safe merge adopts external saved context before its own write is confirmed", async () => {
+  const remote = { content: "Original\nAgent line", title: "Note", contentHash: "remote", file: "pages/plan.md", recognition: contextFor("agent", "Agent") };
+  const h = harness({ canApplyExternal: () => true, readDocument: async () => remote });
+  h.editor.hydrate({ content: "Original", contentHash: "initial", title: "Note", ...savedContext });
+  h.editor.input("Original\nLocal line");
+  const first = h.editor.startSave(); h.writes[0].reject({ status: 412 }); await first;
+  assert.deepEqual(h.editor.state.recognition, savedContext.recognition);
+  const merged = h.editor.startSave(); await tick();
+  assert.equal(h.editor.state.contentHash, "remote");
+  assert.deepEqual(h.editor.state.recognition, remote.recognition);
+  assert.equal(h.editor.state.savedBody, remote.content);
+  assert.notEqual(h.editor.state.draft, remote.content);
+  h.writes[1].resolve({ newContentHash: "merged", file: remote.file, recognition: contextFor("human", "Human") });
+  await merged;
+  assert.equal(h.editor.state.recognition.editor.kind, "human");
+});

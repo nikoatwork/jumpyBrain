@@ -70,15 +70,18 @@ try {
     await page.locator('[data-format=bold]').focus();
     assert.equal(await page.locator('#control-label').innerText(), 'Bold');
     await page.screenshot({ path: path.join(output, `label-${width}-${theme}.png`) });
+    await page.locator('#toggle-page-details').click();
     await page.locator('#delete-note').click();
     await page.waitForFunction(() => !document.querySelector('#delete-confirm').disabled);
     await page.locator('#delete-cancel').focus();
     await page.screenshot({ path: path.join(output, `delete-${width}-${theme}.png`) });
     assert.doesNotMatch(await page.locator('#document-delete').innerText(), /inbound|relationships|backup|Git/);
     await page.locator('#delete-cancel').click();
+    await page.locator('#close-page-details').click();
     assert.equal(await readFile(path.join(root, 'notes/find.md'), 'utf8'), source);
     await page.locator('#open-search').click();
     await page.locator('#close-search').focus();
+    await page.waitForFunction(() => document.querySelector('#control-label').matches(':popover-open'));
     assert.equal(await page.locator('#control-label').innerText(), 'Close search (Esc)');
     const labelBounds = await page.locator('#control-label').boundingBox();
     assert.ok(labelBounds.x >= 0 && labelBounds.x + labelBounds.width <= width, 'top-layer modal label stays within viewport');

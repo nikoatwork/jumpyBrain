@@ -2,6 +2,7 @@
 
 ## 2026-10-28 — Sidebar polish
 
+- 2026-10-28 — The Mac note workspace adds optional section navigation and saved-version context, visible draft handoff and clearer save feedback.
 - Replaced pin/refresh glyphs, styled the jumpyBrain wordmark, and moved the active brain above the footer icons. [Verification](done/2026-10-28_tasks-sidebar-brand-icons.md).
 
 ## 2026-10-28 — Workspace navigation history

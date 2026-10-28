@@ -209,7 +209,7 @@ try {
 
   // Real action confirmations must expire without another navigation or action.
   for (const [id, label] of [["copy-note-draft", "Copy draft"], ["delete-note", "Delete note"], ["insert-reference", "Insert page reference"]]) {
-    assert.equal(await page.locator("#" + id).textContent(), "");
+    assert.equal((await page.locator("#" + id).textContent()).trim(), id === "copy-note-draft" ? "Copy draft" : id === "delete-note" ? "Delete note…" : "");
     assert.equal(await page.locator("#" + id).getAttribute("aria-label"), label);
   }
   await sidebarAction("snooze");

@@ -74,3 +74,7 @@ Current updater readiness launches call `startDesktopHost(config, {readinessOnly
 ## Note find menu
 
 The native Edit menu retains standard edit roles and adds **Find in Note…** (`CommandOrControl+F`). It dispatches the fixed `jumpybrain:find` DOM event to the existing window; the browser-owned loaded-note/modal checks decide whether to open find. No new preload capability or native find-in-page state is introduced. The browser owns non-mutating body match ranges/navigation. `scripts/electron-smoke.mjs` verifies menu/keyboard, Escape, unchanged canonical Markdown and 1200/480px light/dark captures in the disposable sandboxed production window.
+
+## Document workspace
+
+The Mac window uses the shared note workspace: labeled draft copying, optional Page details with a heading outline and saved-version facts, and existing external-edit/recovery protection. The production Electron smoke covers these controls, accepted local editor/location, focus return and screenshots alongside real autosave/native Find/unload checks. The richer disposable-shell runner `scripts/note-workspace-smoke.mjs` covers long docs, duplicate headings, read-only remote profiles and responsive themes. This does not add presence, invitations, comments or simultaneous cloud coediting.

@@ -1,7 +1,8 @@
 // Browser-safe persistence and Markdown codec. Transport, clocks and selection belong to the host.
 import { mergeDocumentEdits } from "./document-merge.js";
-export interface DocumentPayload { content?: string; contentHash?: string; title?: string }
-export interface DocumentWritePayload { newContentHash?: string; [key: string]: unknown }
+import type { SearchRecognitionMetadata } from "../../types.js";
+export interface DocumentPayload { content?: string; contentHash?: string; title?: string; file?: string; recognition?: SearchRecognitionMetadata }
+export interface DocumentWritePayload { newContentHash?: string; file?: string; recognition?: SearchRecognitionMetadata; [key: string]: unknown }
 export interface DocumentEditorState {
   generation: number; documentId: string; contentHash: string; frontmatterPrefix: string;
   newline: string; savedBody: string; savedTitle: string; title: string; draft: string;
@@ -11,6 +12,8 @@ export interface DocumentEditorState {
   navigationPending: boolean; autoSaveBlocked: boolean; unconfirmedSave: boolean;
   reconcileToken: number; cancelled: boolean;
   externalStatus: "" | "pending" | "updated";
+  /** Context for the confirmed saved revision, never attribution for the live draft. */
+  file: string; recognition?: SearchRecognitionMetadata;
 }
 export interface DocumentEditorOptions {
   generation: number; documentId: string; debounceMs: number;
@@ -68,6 +71,8 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     reconcileToken: 0,
     cancelled: false,
     externalStatus: "",
+    file: "",
+    recognition: undefined,
   };
 
   const emit = () => { if (!editorState.cancelled) options.onChange(editorState); };
@@ -77,13 +82,20 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
   };
   const isCurrent = () => !editorState.cancelled && options.isCurrent(editorState.generation, editorState.documentId);
 
+  function setConfirmedContext(payload: Pick<DocumentPayload, "file" | "recognition">) {
+    editorState.file = typeof payload.file === "string" ? payload.file : "";
+    // Missing provenance is unknown. Never borrow the prior revision's editor.
+    editorState.recognition = payload.recognition;
+  }
+
   // Callers own validation, draft replacement, and transition policy.
-  function setConfirmedBaseline(hash: string, title: string, parts: ReturnType<DocumentEditorOptions["splitDocument"]>) {
+  function setConfirmedBaseline(hash: string, title: string, parts: ReturnType<DocumentEditorOptions["splitDocument"]>, payload: DocumentPayload) {
     editorState.contentHash = hash;
     editorState.frontmatterPrefix = parts.frontmatterPrefix;
     editorState.newline = parts.newline;
     editorState.savedBody = parts.body;
     editorState.savedTitle = title;
+    setConfirmedContext(payload);
   }
 
   function hydrate(payload: DocumentPayload) {
@@ -91,7 +103,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     editorState.reconcileToken++;
     editorState.externalStatus = "";
     const parts = options.splitDocument(String(payload.content || ""));
-    setConfirmedBaseline(String(payload.contentHash || ""), String(payload.title || ""), parts);
+    setConfirmedBaseline(String(payload.contentHash || ""), String(payload.title || ""), parts, payload);
     editorState.title = editorState.savedTitle;
     editorState.draft = parts.body;
     editorState.dirty = false;
@@ -149,7 +161,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     const bodyChanged = body !== editorState.draft;
     editorState.reconcileToken++;
     editorState.draftRevision++;
-    setConfirmedBaseline(latest.contentHash, latest.title, parts);
+    setConfirmedBaseline(latest.contentHash, latest.title, parts, latest);
     editorState.draft = body; editorState.title = title;
     editorState.unconfirmedSave = false;
     editorState.dirty = body !== parts.body || title !== latest.title;
@@ -264,6 +276,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
         return false;
       }
       editorState.contentHash = result.payload.newContentHash;
+      setConfirmedContext(result.payload);
       mergeAttempts = 0;
       editorState.savedBody = result.body;
       editorState.savedTitle = result.title;
@@ -327,7 +340,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
       // Leave its previous hash intact so the next write goes through the explicit conflict policy.
       if (options.persistentEditing && parts.body !== editorState.draft) return;
       setConfirmedBaseline(String(latest.contentHash || editorState.contentHash),
-        typeof latest.title === "string" ? latest.title : editorState.savedTitle, parts);
+        typeof latest.title === "string" ? latest.title : editorState.savedTitle, parts, latest);
       if (typeof latest.title === "string") editorState.title = latest.title;
       editorState.draft = parts.body;
       editorState.saveStatus = "saved";
@@ -357,7 +370,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     clearSaveTimer();
     pendingMerge = false; mergeAttempts = 0;
     editorState.reconcileToken++;
-    setConfirmedBaseline(payload.contentHash, payload.title, parts);
+    setConfirmedBaseline(payload.contentHash, payload.title, parts, payload);
     editorState.draft = parts.body;
     editorState.title = payload.title;
     editorState.saveStatus = "saved";
@@ -379,7 +392,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     const parts = options.splitDocument(payload.content);
     if (parts.body !== editorState.savedBody || payload.title !== editorState.savedTitle) return false;
     editorState.reconcileToken++;
-    setConfirmedBaseline(payload.contentHash, payload.title, parts);
+    setConfirmedBaseline(payload.contentHash, payload.title, parts, payload);
     editorState.saveStatus = "saved";
     emit();
     return true;

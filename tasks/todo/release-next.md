@@ -1,5 +1,7 @@
 # Changes
 
+- Notes have labeled draft copying and optional Page details with section navigation, related pages and saved-version facts; Delete stays out of the writing path and empty pages offer a writing hint.
+
 - Refreshed pin and refresh icons, added a serif jumpyBrain wordmark, and moved the active brain above the sidebar’s bottom controls.
 
 - Back and Forward controls beside the sidebar retain five previous app destinations, including returning from notes to the graph; Settings keeps its own Back to app action.

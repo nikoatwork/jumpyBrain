@@ -181,11 +181,14 @@ try {
     await pause(100);
     await writeFile(config.screenshot.replace('welcome.png', `find-${width}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
     assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'), true);
+    await js('if (document.getElementById("page-details").hidden) document.getElementById("toggle-page-details").click()');
+    await until('!document.getElementById("page-details").hidden');
     await js('document.getElementById("delete-note").click()');
     await until('!document.getElementById("delete-confirm").disabled');
     assert.match(await js('document.getElementById("document-delete").textContent'), /Deleting this note cannot be undone/);
     await writeFile(config.screenshot.replace('welcome.png', `delete-${width}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
     await js('document.getElementById("delete-cancel").click()');
+    await js('document.getElementById("close-page-details").click()');
     assert.equal(await readFile(existingNote, 'utf8'), existingBytes);
   }
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
@@ -204,6 +207,21 @@ try {
   await window.webContents.insertText(' Saved from Electron');
   await until('document.getElementById("note-save-state").textContent === "Saved"');
   checks.push('editing and autosave');
+  assert.equal(await js('document.getElementById("copy-note-draft").textContent.trim()'), 'Copy draft');
+  assert.equal(await js('document.getElementById("page-details").hidden'), true);
+  await js('document.getElementById("toggle-page-details").click()');
+  await until('!document.getElementById("page-details").hidden');
+  assert.equal(await js('document.querySelectorAll("#note-outline-list button").length'), 1);
+  assert.equal(await js('document.getElementById("saved-version-editor").textContent'), 'You');
+  assert.equal(await js('document.getElementById("note-file").textContent'), 'notes/electron-fixture.md');
+  for (const theme of ['light', 'dark']) {
+    await js(`document.documentElement.dataset.theme = '${theme}'`);
+    await writeFile(config.screenshot.replace('welcome.png', `note-workspace-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+  }
+  await js('document.getElementById("close-page-details").click()');
+  assert.equal(await js('document.activeElement.id'), 'toggle-page-details');
+  checks.push('labeled draft handoff, optional outline/details, accepted saved-version actor/location and focus return');
+
 
   // A deterministic pending draft exercises the production browser unload veto
   // and the production Electron close handler without altering canonical data.

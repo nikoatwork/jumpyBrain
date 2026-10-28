@@ -63,6 +63,7 @@ try {
       await page.locator('#graph-topic-create').click();
       await page.waitForURL(url => url.searchParams.has('note'));
       await page.waitForFunction(() => document.querySelector('#note-name').value === 'fasting');
+      await page.locator('#toggle-page-details').click();
       await page.locator('#related-pages').waitFor({ state: 'visible' });
       assert.equal(await page.locator('#related-pages-list a').count(), 2, 'new page retains linked notes even with unavailable search');
       const pages = (await readdir(path.join(root, 'pages'))).filter(name => name.endsWith('.md'));

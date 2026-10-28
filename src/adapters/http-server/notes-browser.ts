@@ -63,7 +63,7 @@ ${noteAttentionStyles}
     .sidebar-page:hover .sidebar-page-pin, .sidebar-page:focus-within .sidebar-page-pin, .sidebar-page-pin[aria-pressed="true"] { opacity: 1; }
     .sidebar-page-pin:hover { background: var(--control-fill); color: var(--ink); }
     @media (hover: none) { .sidebar-page-pin { opacity: 1; } }
-    .document-status { display: flex; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 48px; padding: var(--space-2) var(--space-6); }
+    .document-status { display: flex; flex-wrap: wrap; min-width: 0; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 48px; padding: var(--space-2) var(--space-4); }
     body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
     .quiet-button { border: 0; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--control-fill); color: var(--ink-soft); text-decoration: none; font: inherit; font-size: var(--text-ui); line-height: var(--leading-ui); min-height: var(--control-height); cursor: pointer; }
@@ -93,9 +93,12 @@ ${noteAttentionStyles}
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
     main, body[data-view="graph"] main { flex: 1; height: auto; min-height: 0; }
     #note-panel { --writing-font: var(--font-writing); width: 100%; min-width: 0; overflow: auto; scrollbar-gutter: stable; scrollbar-color: var(--line-strong) transparent; scroll-padding-block: var(--space-8); }
-    .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(var(--space-10), 7vh, 80px) var(--space-10) max(160px, 30vh); }
+    #note-layout { width: 100%; min-width: 0; }
+    .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(var(--space-8), 5vh, var(--space-12)) var(--space-10) max(160px, 30vh); }
     #note-title { margin: 0 0 var(--space-6); color: var(--ink); font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
     #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 var(--space-6); padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
+    .note-writing { position: relative; }
+    #note-editor-hint { position: absolute; top: var(--space-2); left: 0; right: 0; margin: 0; pointer-events: none; color: var(--ink-soft); font: 19px/1.8 var(--writing-font); }
     #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: var(--space-2) 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--writing-font); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
     /* Each block is a source line; intentional blank lines supply paragraph spacing. */
     #note-editor p { margin: 0; min-height: 1.8em; }
@@ -155,6 +158,7 @@ ${referencePresentationStyles}
     .note-icon svg { width: var(--icon-size); height: var(--icon-size); }
     .note-icon[hidden] { display: none; }
     .app-version { margin: var(--space-6) 0 0; padding-top: var(--space-4); border-top: 1px solid var(--line); color: var(--ink-soft); font-size: var(--text-caption); }
+    .note-actions:empty { display: none; }
     .note-actions { font-size: var(--text-caption); align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
     .document-dialog { padding: var(--space-6); }
     .document-dialog h2 { margin-top: 0; }
@@ -171,7 +175,7 @@ ${referencePresentationStyles}
     .save-state { color: var(--ink-soft); font-size: var(--text-caption); white-space: nowrap; }
     .save-state[data-state="failed"], #note-message[data-error="true"] { color: var(--error-ink); }
     #note-message { color: var(--ink-soft); white-space: pre-wrap; }
-    #note-file { margin: var(--space-8) 0 var(--space-2); color: var(--ink-soft); overflow-wrap: anywhere; font-size: var(--text-caption); }
+    #note-file { overflow-wrap: anywhere; }
     #related-pages { margin-top: var(--space-8); font-size: var(--text-ui); }
     #related-pages h2 { margin: 0 0 var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-regular); }
     #related-pages-list { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }
@@ -179,7 +183,35 @@ ${referencePresentationStyles}
     #related-pages-list a { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .note-frontmatter { margin-top: var(--space-6); color: var(--ink-soft); font-size: var(--text-caption); }
     .note-frontmatter summary { cursor: pointer; width: fit-content; }
-    .note-frontmatter pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .note-frontmatter pre { font-size: var(--text-caption); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+    .document-copy, .document-delete-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
+    :is(.document-copy, .document-delete-action) svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
+    #page-details { width: min(680px, calc(100% - 48px)); max-height: 320px; overflow: auto; margin: var(--space-4) auto 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); font: var(--text-ui)/var(--leading-ui) var(--font-ui); color: var(--ink-soft); scrollbar-width: thin; }
+    #page-details[hidden] { display: none; }
+    #note-layout[data-details="true"] { display: flex; flex-direction: column; }
+    #note-layout[data-details="true"] > #page-details { order: -1; }
+    .page-details-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-4); }
+    .page-details-heading h2 { margin: 0; color: var(--ink); font-size: var(--text-section); font-weight: var(--weight-semibold); }
+    #page-details h3 { margin: 0 0 var(--space-2); color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-semibold); }
+    #note-outline-list { list-style: none; padding: 0; margin: 0; }
+    .outline-link { --heading-depth: 0; border: 0; display: block; width: 100%; min-height: var(--control-compact); padding: var(--space-1) var(--space-2); padding-left: calc(var(--space-2) + min(var(--heading-depth), 3) * var(--space-2)); border-radius: var(--radius-sm); background: transparent; color: var(--ink-soft); text-align: left; font: inherit; overflow-wrap: anywhere; }
+    .outline-link:hover, .outline-link:focus-visible { background: var(--control-fill); color: var(--ink); }
+    #page-details #related-pages { margin-top: var(--space-6); }
+    #page-details #related-pages-list { display: block; }
+    #page-details #related-pages-list a { background: transparent; padding: var(--space-2); min-height: var(--control-compact); }
+    #page-details #related-pages-list a:hover { background: var(--control-fill); }
+    .saved-version { margin-top: var(--space-6); }
+    .saved-version dl { margin: 0; font-size: var(--text-caption); }
+    .saved-version dt { margin-top: var(--space-3); color: var(--ink-soft); }
+    .saved-version dd { margin: var(--space-1) 0 0; color: var(--ink); overflow-wrap: anywhere; }
+    .context-caption { margin: var(--space-3) 0 0; font-size: var(--text-caption); }
+    .page-details-danger { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+    .document-delete-action { background: transparent; }
+    @media (min-width: 1180px) {
+      #note-layout[data-details="true"] { display: grid; grid-template-columns: minmax(0, 760px) 248px; gap: var(--space-4); max-width: 1120px; margin-inline: auto; padding-right: var(--space-6); align-items: start; }
+      #note-layout[data-details="true"] > #page-details { order: 0; position: sticky; top: var(--space-6); width: 100%; max-height: calc(100dvh - 120px); margin-top: var(--space-8); padding: 0 0 var(--space-4) var(--space-5); border: 0; border-left: 1px solid var(--line); border-radius: 0; }
+    }
     dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
     dialog::backdrop { background: var(--backdrop); }
     .search-result mark { color: inherit; background: color-mix(in srgb, var(--accent) 18%, transparent); }
@@ -241,7 +273,10 @@ ${referencePresentationStyles}
       #open-search kbd { display: none; }
       .document-status { padding-inline: var(--space-4); flex-wrap: wrap; }
       .note-column { padding: var(--space-8) var(--space-6) max(120px, 25vh); }
-      #note-editor { font-size: 18px; }
+      #note-editor, #note-editor-hint { font-size: 18px; }
+      .workspace-toolbar { flex-wrap: wrap; }
+      .document-status { flex: 1 1 200px; }
+      #page-details { --control-compact: var(--control-touch); }
       #format-controls { --control-compact: var(--control-touch); margin-bottom: var(--space-5); }
       .save-state { font-size: var(--text-caption); }
       #note-search { margin-top: var(--space-4); max-height: calc(100dvh - 32px); }
@@ -279,6 +314,8 @@ export const notesMarkup = String.raw`
   <span id="note-external-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
+  <button id="copy-note-draft" class="quiet-button document-copy" type="button" aria-label="Copy draft" title="Copy the current title and Markdown body for an agent or coworker" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg><span>Copy draft</span></button>
+  <button id="toggle-page-details" class="quiet-button" type="button" aria-expanded="false" aria-controls="page-details" hidden>Page details</button>
 </div>
 </div>
 ${noteAttentionMarkup}
@@ -355,11 +392,12 @@ export const notesViews = String.raw`
     </section>
   </section>
   <section id="note-panel" data-testid="graph-note-panel" aria-label="Note editor" hidden>
+    <div id="note-layout" data-details="false">
     <div class="note-column">
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
       <textarea id="note-name" aria-label="Page name" aria-describedby="note-save-error" aria-multiline="false" rows="1" autocomplete="off" hidden></textarea>
       <p id="note-save-error" role="status" aria-live="polite" hidden></p>
-      <div class="note-actions"><button id="copy-note-draft" class="quiet-button note-icon" type="button" aria-label="Copy draft" title="Copy draft" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg></button><button id="delete-note" class="quiet-button note-icon" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+      <div class="note-actions"></div>
       <div id="note-find" role="search" aria-label="Find in note" hidden>
         <input id="note-find-input" type="search" aria-label="Find in note" placeholder="Find in note…" autocomplete="off" />
         <span id="note-find-count" role="status" aria-live="polite"></span>
@@ -391,10 +429,22 @@ export const notesViews = String.raw`
           <button id="insert-reference" class="quiet-button note-icon" type="button" aria-label="Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
         </div>
       </div>
+      <div class="note-writing">
+      <p id="note-editor-hint" aria-hidden="true" hidden>Start writing, or type / for options…</p>
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
+      </div>
+    </div>
+    <aside id="page-details" aria-labelledby="page-details-title" hidden>
+      <div class="page-details-heading"><h2 id="page-details-title">Page details</h2><button id="close-page-details" class="quiet-button note-icon" type="button" aria-label="Close page details" title="Close page details (Esc)">${browserIcons.close}</button></div>
+      <nav id="note-outline" aria-labelledby="note-outline-title" hidden><h3 id="note-outline-title">On this page</h3><ol id="note-outline-list"></ol></nav>
       <nav id="related-pages" aria-label="Related pages" hidden>
         <h2>Related pages</h2><ul id="related-pages-list"></ul>
       </nav>
+      <section class="saved-version" aria-labelledby="saved-version-title">
+        <h3 id="saved-version-title">Saved version</h3>
+        <dl><dt>Last editor</dt><dd id="saved-version-editor"></dd><dt>Last edited</dt><dd id="saved-version-edited"></dd><dt>Location</dt><dd id="note-file"></dd></dl>
+        <p class="context-caption">Editor names are declared by the writing tool.</p>
+      </section>
       <details id="living-sources" class="note-frontmatter" hidden>
         <summary>Sources · version checks</summary>
         <p>Follow evidence beside each claim. Latest substantive change and open questions remain in the page above.</p>
@@ -403,10 +453,11 @@ export const notesViews = String.raw`
         <ul id="living-sources-list"></ul>
       </details>
       <details id="note-metadata" class="note-frontmatter" hidden>
-        <summary>Metadata · read only</summary>
-        <p id="note-file"></p>
+        <summary>Markdown metadata</summary>
         <pre id="note-frontmatter"></pre>
       </details>
+      <div class="page-details-danger"><button id="delete-note" class="quiet-button document-delete-action" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Delete note…</span></button></div>
+    </aside>
     </div>
   </section>
 `;
@@ -1075,6 +1126,11 @@ const relatedPages = JumpyBrainBrowser.installRelatedPages({
   href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
   navigate: (url) => navigation.navigate(url),
 });
+const noteWorkspace = JumpyBrainBrowser.installNoteWorkspace({
+  document, editor: () => state.view === "note" ? state.editor : null,
+  actor: () => browserActor,
+  writable: () => !(companionMode && companionReadOnly()),
+});
 const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   document, window,
   scope: () => {
@@ -1155,6 +1211,7 @@ function showPage(url) {
   if (state.editor) state.editor.cancel();
   state.editor = null;
   relatedPages.sync();
+  noteWorkspace.sync();
   extensionUI?.documentChanged();
   $("note-retry").hidden = true;
   $("note-recover").hidden = true;
@@ -1183,6 +1240,7 @@ async function showNote(documentId, focusEnd = false) {
     if (state.editor) state.editor.cancel();
     state.editor = null;
     relatedPages.sync();
+    noteWorkspace.sync();
     extensionUI?.documentChanged();
     $("note-title").textContent = "";
     toast.clear("draft");
@@ -1290,6 +1348,14 @@ $("note-name").addEventListener("keydown", (event) => {
   if (!$("note-name").readOnly) richEditor.focus();
 });
 window.addEventListener("resize", sizeNoteName);
+// Opening page details can change the writing measure without a window resize.
+let noteNameWidth = 0;
+new ResizeObserver((entries) => {
+  const width = entries[0]?.contentRect.width;
+  if (width === noteNameWidth) return;
+  noteNameWidth = width;
+  sizeNoteName();
+}).observe($("note-name"));
 $("note-name").addEventListener("blur", () => state.editor?.flush());
 
 function syncEditorUi(editorState) {
@@ -1348,9 +1414,10 @@ function syncEditorUi(editorState) {
     $("note-frontmatter").textContent = editorState.frontmatterPrefix;
     $("note-metadata").hidden = false;
   }
+  noteWorkspace.sync();
   const feedback = editorState.saveStatus === "saving" ? "Saving…"
     : editorState.saveStatus === "failed" ? needsReview ? "Changes need review" : "Save failed"
-    : editorState.saveStatus === "saved" ? "Saved" : editorState.dirty ? "Editing…" : "";
+    : editorState.dirty ? "Editing…" : editorState.loaded ? "Saved" : "";
   $("note-save-state").textContent = feedback;
   $("note-external-state").textContent = editorState.externalStatus === "pending" ? "Changes available"
     : editorState.externalStatus === "updated" ? "Updated elsewhere" : "";
