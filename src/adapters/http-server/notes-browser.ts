@@ -770,6 +770,7 @@ function referenceMessage(text, error = false) {
 }
 
 function cancelReferenceInteraction() {
+  graphTopicPreview.close();
   referenceAutocomplete.dismiss();
   if (referenceRequest) referenceRequest.abort();
   referenceRequest = null;
@@ -1126,6 +1127,7 @@ const livingSources = JumpyBrainBrowser.installLivingSources({
 });
 const relatedPages = JumpyBrainBrowser.installRelatedPages({
   document, editor: () => state.view === "note" ? state.editor : null,
+  linked: (id) => graphTopicPreview.related(id),
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   search: (query, signal, limit) => recentWrites.search(query, signal, limit),
@@ -1166,6 +1168,7 @@ for (const [id, url] of [["home-link", "/"], ["notes-link", "/"], ["graph-link",
 }
 
 function showPage(url) {
+  graphTopicPreview.close();
   noteFind.close(false);
   feedback.close(false);
   if (typeof companionMode !== "undefined" && companionMode && !companionRegistered) return;

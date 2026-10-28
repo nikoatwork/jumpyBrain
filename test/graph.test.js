@@ -682,10 +682,11 @@ test("notes editing stays in the HTTP shell with persistent rich editing and nat
   assert.match(html, /Scroll to zoom · Drag to move · Select a note to open/);
 });
 
-test("graph page keeps unresolved and missing-ID nodes non-editable and dispatches shared warnings", async () => {
-  const script = pageScript(), messages = [], navigations = [];
+test("graph page previews unresolved topics and guards missing-ID documents", async () => {
+  const script = pageScript(), messages = [], navigations = [], previews = [];
   const ctx = {
     systemMessages: { dispatch: message => messages.push(message), clear() {} },
+    graphTopicPreview: { open: (node, graph) => previews.push({ node, graph }) },
     navigation: { navigate: async url => { navigations.push(url); return true; } }, state: {},
   };
   vm.createContext(ctx);
@@ -695,7 +696,9 @@ test("graph page keeps unresolved and missing-ID nodes non-editable and dispatch
   await ctx.selectNode({ nodeKind: "unresolved", title: "Missing" });
   await ctx.selectNode({ nodeKind: "document", documentId: "pages/alpha.md" });
   assert.equal(navigations.length, 0);
-  assert.equal(messages.length, 2);
+  assert.equal(previews.length, 1);
+  assert.equal(previews[0].node.title, "Missing");
+  assert.equal(messages.length, 1);
   assert.ok(messages.every(message => message.source === "graph-selection" && message.severity === "warning"));
   await ctx.selectNode({ id: "node", nodeKind: "document", documentId });
   assert.deepEqual(navigations, ["/?note=" + documentId]);

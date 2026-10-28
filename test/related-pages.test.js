@@ -16,7 +16,7 @@ test('related pages use saved bounded text and at most five unique strong matche
   assert.deepEqual(selectRelatedPages('', strong, id(1)), []);
 });
 
-function harness() {
+function harness(linked = []) {
   class Node extends EventTarget { hidden = true; children = []; append(child) { this.children.push(child); } replaceChildren() { this.children = []; } get childElementCount() { return this.children.length; } }
   const node = () => new Node();
   const panel = node(), list = node(), win = new EventTarget();
@@ -26,11 +26,22 @@ function harness() {
   const editor = { state: { loaded: true, documentId: id(1), contentHash: 'a', savedTitle: 'sleep quality', savedBody: '' } };
   const calls = [], navigation = [];
   const controller = installRelatedPages({ document, editor: () => editor, scope: () => scope, enabled: () => enabled,
+    linked: () => linked,
     search(query, signal, limit) { return new Promise((resolve, reject) => calls.push({ query, signal, limit, resolve, reject })); },
     href: id => '/?note=' + id, navigate: url => navigation.push(url) });
   return { controller, editor, calls, panel, list, navigation, win, scope(value) { scope = value; }, enabled(value) { enabled = value; } };
 }
 const settle = () => new Promise(resolve => setImmediate(resolve));
+test('explicit map links remain visible during stale or failed search and deduplicate recommendations', async () => {
+  for (const packet of [{ index: { stale: true }, results: [hit(2, 1)] }, null, { results: [hit(2, 1), hit(3, .95)] }]) {
+    const h = harness([{ id: id(2), title: 'Linked source' }]); h.controller.sync();
+    assert.equal(h.panel.hidden, false);
+    if (packet) h.calls[0].resolve(packet); else h.calls[0].reject(new Error('offline'));
+    await settle();
+    assert.equal(h.list.children[0].children[0].textContent, 'Linked source');
+    assert.equal(h.list.children.length, packet?.results && !packet.index?.stale ? 2 : 1);
+  }
+});
 test('late search cannot cross brain, note revision, disable or pagehide even when abort is ignored', async () => {
   const h = harness(); h.controller.sync();
   assert.equal(h.calls[0].limit, 24);

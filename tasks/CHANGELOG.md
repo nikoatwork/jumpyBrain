@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Missing graph topics
+
+- Missing graph links open useful topic previews with linked notes and optional page creation. [Verification](done/2026-10-28_tasks-graph-linked-topic-preview.md).
+
 ## 2026-10-28 — Reference spacing
 
 - Collapsed page-reference brackets without reading gaps and revealed syntax only in the edited block. [Verification](done/2026-10-28_tasks-reference-bracket-spacing.md).

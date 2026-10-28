@@ -25,6 +25,7 @@ export function installRelatedPages(options: {
   scope(): string; enabled(): boolean;
   search(query: string, signal: AbortSignal, limit: number): Promise<unknown>;
   href(id: string): string; navigate(url: string): void;
+  linked?(id: string): { id: string; title: string }[];
 }) {
   const panel = options.document.getElementById("related-pages")!;
   const list = options.document.getElementById("related-pages-list")!;
@@ -39,16 +40,9 @@ export function installRelatedPages(options: {
     key = next; request?.abort(); request = null;
     panel.hidden = true; list.replaceChildren();
     if (!next || !state) return;
-    const controller = new AbortController(); request = controller;
-    const timer = options.document.defaultView!.setTimeout(() => controller.abort(), 5000);
-    void options.search(query, controller.signal, 24).then(value => {
-      sync();
-      if (stopped || key !== next || controller.signal.aborted) return;
-      const packet = value as { results?: unknown; index?: { stale?: boolean }; localOnly?: boolean };
-      // Stale/partial local fallback is useful in explicit Search, but is not
-      // sufficient evidence for automatic recommendations below a saved page.
-      if (packet?.index?.stale || packet?.localOnly) return;
-      for (const page of selectRelatedPages(query, packet?.results, state.documentId)) {
+    const linked = options.linked?.(state.documentId) ?? [];
+    function append(pages: { id: string; title: string }[]) {
+      for (const page of pages) {
         const item = options.document.createElement("li");
         const link = options.document.createElement("a");
         link.className = "quiet-button"; link.href = options.href(page.id);
@@ -62,6 +56,18 @@ export function installRelatedPages(options: {
         item.append(link); list.append(item);
       }
       panel.hidden = !list.childElementCount;
+    }
+    append(linked);
+    const controller = new AbortController(); request = controller;
+    const timer = options.document.defaultView!.setTimeout(() => controller.abort(), 5000);
+    void options.search(query, controller.signal, 24).then(value => {
+      sync();
+      if (stopped || key !== next || controller.signal.aborted) return;
+      const packet = value as { results?: unknown; index?: { stale?: boolean }; localOnly?: boolean };
+      // Stale/partial local fallback is useful in explicit Search, but is not
+      // sufficient evidence for automatic recommendations below a saved page.
+      if (packet?.index?.stale || packet?.localOnly) return;
+      append(selectRelatedPages(query, packet?.results, state.documentId).filter(page => !linked.some(other => other.id === page.id)));
     }).catch(() => { /* Quiet abstention; explicit Search retains its recovery UI. */ })
       .finally(() => { options.document.defaultView!.clearTimeout(timer); if (request === controller) request = null; });
   }

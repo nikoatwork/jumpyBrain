@@ -1,5 +1,7 @@
 # Changes
 
+- Missing graph links open topic previews with linked and related notes; writable brains can create the page and retain its linked context.
+
 - Page-reference brackets collapse without gaps while reading and appear only in the block being edited.
 - Empty search dialogs show only the input row, without a blank footer or divider lines.
 - The Mac app checks for updates every hour while running, so new releases appear without quitting and reopening it.

@@ -13,6 +13,7 @@ import { documentActionsMarkup, documentActionsScript, notesMarkup, notesScript,
 import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
 import { feedbackMarkup, feedbackStyles } from "./feedback.js";
+import { graphTopicMarkup, graphTopicStyles } from "./graph-topic-preview.js";
 
 const extensionBundle = readFileSync(new URL("./extensions-bundle.js", import.meta.url), "utf8");
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
@@ -126,6 +127,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
     ${notesStyles}
+    ${graphTopicStyles}
     ${feedbackStyles}
     ${dreamStyles}
     ${companion ? companionStyles : ""}
@@ -135,6 +137,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
 <body data-view="home">
 ${companion ? notesMarkup.replace('<div class="nav-tools"', settingsNavigationMarkup + '<div class="extension-slot" data-extension-slot="sidebar.actions" aria-label="Extension sidebar actions"></div><div class="nav-tools"') : notesMarkup}
 ${documentActionsMarkup}
+${graphTopicMarkup(browserIcons.close)}
 ${companion ? extensionPanelMarkup : ""}
 ${dreamMarkup}
 ${feedbackMarkup}
@@ -269,6 +272,19 @@ const map = JumpyBrainBrowser.createMapController({
 });
 const { loadGraph, queueGraphLayout } = map;
 map.connect();
+const graphTopicPreview = JumpyBrainBrowser.installGraphTopicPreview({
+  document,
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
+  enabled: () => state.view === "graph" && Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
+  canCreate: () => companionMode && !companionReadOnly(),
+  search: (query, signal, limit) => recentWrites.search(query, signal, limit),
+  ensure: (title, signal) => graphJson("/memories/all/ensure-title", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }), signal,
+  }),
+  href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
+  navigate: (destination) => navigation.navigate(destination),
+  onCreated: () => referenceTargetCreated(),
+});
 const graphFilters = $("graph-filters");
 document.addEventListener("click", (event) => {
   if (graphFilters.open && !graphFilters.contains(event.target)) graphFilters.open = false;
@@ -403,7 +419,8 @@ function setStatus(text, isError, errorText) {
 
 async function selectNode(node) {
   if (node.nodeKind === "unresolved") {
-    systemMessages.dispatch({ source: "graph-selection", text: "This linked note doesn't exist yet: " + (node.title || node.id), severity: "warning", duration: 8_000 });
+    systemMessages.clear("graph-selection");
+    graphTopicPreview.open(node, state.graph);
     return;
   }
   if (!isValidMemoryDocumentId(node.documentId)) {
