@@ -310,11 +310,13 @@ try {
   await appendEditorText(editor, " Saved before Settings.");
   await editor.locator("#open-connection").click();
   await editor.locator("#settings-navigation").waitFor({ state: "visible" });
+  assert.equal(await editor.locator(".workspace-history").isVisible(), false);
   assert.match(documents.get("a").content, /Saved before Settings/);
   await editor.locator('[data-settings-section="appearance"]').click();
   await editor.locator("#settings-back").click();
   await editor.locator("#note-editor").waitFor({ state: "visible" });
   assert.equal(new URL(editor.url()).searchParams.get("note"), id);
+  assert.equal(await editor.locator(".workspace-history").isVisible(), true);
   // A failed save keeps the note and its draft; Settings must never take over.
   failTransientWrites = true;
   await appendEditorText(editor, " Failed Settings draft.");
@@ -339,6 +341,10 @@ try {
   await editor.locator("#open-connection").click();
   await editor.locator("#settings-back").click();
   await editor.waitForURL("**/graph?brain=a");
+  await editor.locator("#navigate-back").click();
+  await editor.waitForFunction(() => state.view === "note" && !navigation.isBusy());
+  await editor.locator("#navigate-forward").click();
+  await editor.waitForFunction(() => state.view === "graph" && !navigation.isBusy());
   await editor.evaluate((id) => navigation.navigate("/?note=" + id), id);
   await editor.locator("#note-editor").waitFor({ state: "visible" });
   // Guarded graph/Settings transitions intentionally cancel their own requests.

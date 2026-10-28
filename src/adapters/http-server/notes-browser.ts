@@ -19,6 +19,9 @@ ${noteAttentionStyles}
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
     .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
     :root[data-sidebar-collapsed="true"] .app-nav { display: none; }
+    .workspace-history { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); margin: var(--space-2) var(--space-3); }
+    .workspace-history .icon-button { background: transparent; }
+    .workspace-toolbar > #toggle-sidebar + .workspace-history { margin-left: 0; }
     .workspace-toolbar { display: flex; align-items: center; flex: 0 0 auto; min-height: 48px; }
     #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); margin: 0; padding: var(--space-1); background: transparent; }
     #toggle-sidebar svg { width: 20px; height: 20px; }
@@ -222,6 +225,7 @@ ${referencePresentationStyles}
       .app-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: var(--space-3) var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
       .nav-brand { grid-column: 1 / -1; }
       .workspace-toolbar { min-height: 40px; }
+      .workspace-history { --control-compact: var(--control-touch); }
       .nav-tools { grid-row: 2; grid-column: 1 / -1; flex-direction: row; align-items: center; gap: var(--space-1); }
       .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
       .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
@@ -265,6 +269,10 @@ export const notesMarkup = String.raw`
 </nav>
 <div class="app-workspace">
 <div class="workspace-toolbar">
+<div class="workspace-history" role="group" aria-label="Navigation history">
+  <button id="navigate-back" class="quiet-button icon-button" type="button" aria-label="Back" title="Back" disabled>${browserIcons.back}</button>
+  <button id="navigate-forward" class="quiet-button icon-button" type="button" aria-label="Forward" title="Forward" disabled>${browserIcons.forward}</button>
+</div>
 <div class="document-status" role="group" aria-label="Save status">
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <span id="note-external-state" role="status" aria-live="polite" hidden></span>
@@ -569,83 +577,6 @@ function createNoteSearch(options) {
     options.onChange(search);
   }
   return { state: search, query, cancel, move, markStale };
-}
-
-// Undo a history traversal before flushing a draft, then replay it only on success.
-// This preserves both history entries on failed saves instead of replacing the target URL.
-function createPageNavigation(options) {
-  let current = options.initial;
-  let position = current.index;
-  let busy = false;
-  let restoring = null;
-  let committing = null;
-  function restore() {
-    if (position === current.index && !restoring) return Promise.resolve();
-    if (!restoring) {
-      let resolve;
-      const promise = new Promise((done) => { resolve = done; });
-      restoring = { resolve, promise };
-      options.go(current.index - position);
-    }
-    return restoring.promise;
-  }
-  async function navigate(destination) {
-    if (busy || options.blocked?.()) return false;
-    if (typeof destination !== "function" && (options.scope ? options.scope(destination) : destination) === current.url) return false;
-    busy = true;
-    let applied = false;
-    try {
-      const allowed = await options.beforeLeave();
-      await restore();
-      if (!allowed) return false;
-      // Creation runs only after saving the current draft, under the same history lock.
-      const destinationUrl = typeof destination === "function" ? await destination() : destination;
-      const url = options.scope ? options.scope(destinationUrl) : destinationUrl;
-      await restore();
-      // A resolved self-reference still applies its validated payload, without a new entry.
-      if (url === current.url) { options.show(url); applied = true; return true; }
-      current = { url, index: current.index + 1 };
-      position = current.index;
-      options.push(current);
-      options.show(url);
-      applied = true;
-      return true;
-    } finally {
-      // A rejected create may race Back/Forward too: restore before unlocking editing.
-      await restore();
-      busy = false;
-      if (!applied && options.resume) options.resume();
-    }
-  }
-  async function pop(entry) {
-    position = entry.index;
-    if (restoring) {
-      if (position === current.index) {
-        const done = restoring.resolve;
-        restoring = null;
-        done();
-      } else options.go(current.index - position);
-      return;
-    }
-    if (committing) {
-      // If another traversal races the replay, honor the actual entry, after the same save guard.
-      current = entry;
-      committing = null;
-      busy = false;
-      options.show(entry.url);
-      return;
-    }
-    if (busy) { await restore(); return; }
-    busy = true;
-    await restore();
-    const allowed = await options.beforeLeave();
-    await restore();
-    if (!allowed) { busy = false; return; }
-    committing = entry;
-    options.go(entry.index - current.index);
-  }
-  return { navigate, pop, back() { if (!busy && !options.blocked?.()) options.go(-1); },
-    isBusy: () => busy, reset(entry) { current = entry; position = entry.index; } };
 }
 
 function datedNoteDraft(date) {
@@ -1107,7 +1038,7 @@ renderConnection();
 function shellUrl() { return location.pathname + location.search; }
 const initialEntry = { url: shellUrl(), index: Number.isSafeInteger(history.state?.jumpyBrainIndex) ? history.state.jumpyBrainIndex : 0 };
 history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", initialEntry.url);
-const navigation = createPageNavigation({
+const navigation = JumpyBrainBrowser.createPageNavigation({
   initial: initialEntry,
   beforeLeave: () => requestEditorNavigation(() => {}),
   blocked: () => typeof companionMode !== "undefined" && companionMode && companionFrozen,
@@ -1116,7 +1047,16 @@ const navigation = createPageNavigation({
   go: (delta) => history.go(delta),
   push: (entry) => history.pushState({ jumpyBrainIndex: entry.index }, "", entry.url),
   show: showPage,
+  onChange: syncWorkspaceHistory,
 });
+function syncWorkspaceHistory() {
+  const available = navigation.availability();
+  $("navigate-back").disabled = !available.back;
+  $("navigate-forward").disabled = !available.forward;
+}
+$("navigate-back").addEventListener("click", () => navigation.back());
+$("navigate-forward").addEventListener("click", () => navigation.forward());
+syncWorkspaceHistory();
 let documentActions;
 const livingSources = JumpyBrainBrowser.installLivingSources({
   document, editor: () => state.editor,

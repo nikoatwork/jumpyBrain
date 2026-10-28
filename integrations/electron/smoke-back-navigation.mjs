@@ -127,6 +127,16 @@ async function run() {
       await mouseBack(); await until('!document.getElementById("note-load-retry").hidden');
       await mouseBack(); await until('!navigation.isBusy() && new URL(location.href).searchParams.get("note") !== ' + JSON.stringify(config.ids[2]));
       checks.push('deleted destination load error remains escapable');
+      // Many Settings entries must not evict app entries still offered by the controls.
+      await js('navigation.navigate("/graph")'); await settleView('graph');
+      await navigate(note(0));
+      for (let i = 0; i < 8; i++) await navigate('/settings?section=' + (i % 2 ? 'appearance' : 'extensions'));
+      assert.equal(await js('document.querySelector(".workspace-toolbar").getBoundingClientRect().height'), 0);
+      await js('document.getElementById("settings-back").click()'); await settleView('note');
+      await js('document.getElementById("navigate-back").click()'); await settleView('graph');
+      await js('document.getElementById("navigate-forward").click()'); await settleView('note');
+      assert.equal(await js('new URL(location.href).searchParams.get("note")'), config.ids[0]);
+      checks.push('workspace Back/Forward skip eight Settings detours without losing the graph destination');
       // A real companion generation change reloads and clears the previous brain's entries.
       await navigate('/settings');
       await js(`void companionControl("switch", { id: ${JSON.stringify(config.otherId)} })`);

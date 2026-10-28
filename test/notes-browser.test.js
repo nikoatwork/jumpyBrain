@@ -449,6 +449,63 @@ test("same scoped destination does not add a desktop/browser history entry", asy
   assert.equal(h.shown, "/graph?brain=a");
 });
 
+test("workspace controls retain five previous destinations and clear Forward on branching", async () => {
+  const h = navigationHarness();
+  assert.deepEqual(h.nav.availability(), { back: false, forward: false });
+  for (let n = 1; n <= 8; n++) await h.nav.navigate("/?note=" + n);
+  for (let n = 7; n >= 3; n--) {
+    h.nav.back(); h.nav.back(); // Repeated input before popstate must traverse once.
+    await h.drain();
+    assert.equal(h.shown, "/?note=" + n);
+  }
+  h.nav.back(); assert.equal(h.go.length, 0);
+  assert.deepEqual(h.nav.availability(), { back: false, forward: true });
+  h.nav.forward(); await h.drain();
+  assert.equal(h.shown, "/?note=4");
+  await h.nav.navigate("/graph");
+  assert.equal(h.nav.availability().forward, false);
+  h.nav.back(); await h.drain();
+  assert.equal(h.shown, "/?note=4");
+  h.nav.forward(); await h.drain();
+  assert.equal(h.shown, "/graph");
+});
+
+test("Settings detours do not consume the app trail, and reset clears it", async () => {
+  const h = navigationHarness();
+  await h.nav.navigate("/graph");
+  await h.nav.navigate("/?note=" + docA);
+  for (const section of ["", "?section=appearance", "?section=extensions"]) {
+    await h.nav.navigate("/settings" + section);
+    assert.deepEqual(h.nav.availability(), { back: false, forward: false });
+  }
+  await h.nav.navigate("/?note=" + docA);
+  h.nav.back(); await h.drain();
+  assert.equal(h.shown, "/graph");
+  h.nav.forward(); await h.drain();
+  assert.equal(h.shown, "/?note=" + docA);
+  h.nav.reset({ url: "/?brain=b", index: 0 });
+  assert.deepEqual(h.nav.availability(), { back: false, forward: false });
+});
+
+test("Forward preserves the draft and destination after a failed save and freezes while pending", async () => {
+  let allowed = true, blocked = false;
+  const h = navigationHarness(async () => allowed, { blocked: () => blocked });
+  await h.nav.navigate("/graph");
+  await h.nav.navigate("/?note=" + docA);
+  h.nav.back(); await h.drain();
+  allowed = false;
+  h.nav.forward(); await h.drain();
+  assert.equal(h.shown, "/graph");
+  assert.equal(h.url, "/graph");
+  assert.equal(h.nav.availability().forward, true);
+  blocked = true;
+  h.nav.forward(); assert.equal(h.go.length, 0);
+  assert.deepEqual(h.nav.availability(), { back: false, forward: false });
+  blocked = false; allowed = true;
+  h.nav.forward(); await h.drain();
+  assert.equal(h.shown, "/?note=" + docA);
+});
+
 test("overlapping navigation is blocked while a save is pending", async () => {
   let save = null;
   const h = navigationHarness(() => save ? save.promise : Promise.resolve(true));

@@ -213,6 +213,7 @@ function renderCompanionConnection() {
 function companionLock(value) {
   const enteringFrozen = value && !companionFrozen;
   companionFrozen = value;
+  navigation.sync();
   syncCompanionExtensions();
   if (!value && state.editor?.state.navigationPending && !navigation.isBusy() && !documentActions.isBusy()) state.editor.setNavigationPending(false);
   // Healthy polls still sync permissions, but must not dismiss live interactions.

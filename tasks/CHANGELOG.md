@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Workspace navigation history
+
+- Added top-left Back/Forward controls with five previous app destinations, graph return and separate Settings navigation. [Verification](done/2026-10-28_tasks-workspace-history.md).
+
 ## 2026-10-28 — Missing graph topics
 
 - Missing graph links open useful topic previews with linked notes and optional page creation. [Verification](done/2026-10-28_tasks-graph-linked-topic-preview.md).

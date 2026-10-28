@@ -27,9 +27,18 @@ export function installBackNavigation(window, origin) {
     const nextBrain = new URL(url).searchParams.get('brain');
     if (brain !== nextBrain) history.clear();
     brain = nextBrain;
-    // Current page plus five previous destinations. Forward entries already fit
-    // this same six-entry window; a new push drops the forward branch naturally.
-    while (history.getActiveIndex() > 5 && history.removeEntryAtIndex(0)) { /* Drop oldest. */ }
+    // Keep six app destinations, matching the renderer trail. Settings detours
+    // and returning to the same app page must not evict a reachable destination.
+    const destinations = [];
+    for (const [index, entry] of history.getAllEntries().entries()) {
+      if (index > history.getActiveIndex()) break;
+      const target = new URL(entry.url);
+      if (/^\/settings\/?$/.test(target.pathname)) continue;
+      if (destinations.at(-1)?.url === entry.url) destinations.pop();
+      destinations.push({ index, url: entry.url });
+    }
+    const prefix = destinations.at(-6)?.index ?? 0;
+    for (let i = 0; i < prefix && history.removeEntryAtIndex(0); i++) { /* Drop oldest. */ }
   }
   contents.on('did-navigate-in-page', trim);
   contents.on('did-finish-load', () => {

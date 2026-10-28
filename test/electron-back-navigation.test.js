@@ -8,7 +8,7 @@ function fixture() {
   const window = new EventEmitter();
   const contents = window.webContents = new EventEmitter();
   const listeners = new Map();
-  let backs = 0, clears = 0, removed = 0, active = 0;
+  let backs = 0, clears = 0, removed = 0, active = 0, entries;
   let url = 'http://127.0.0.1:3787/?brain=a';
   const page = vm.createContext({ navigation: { back() { backs++; } }, window: {
     addEventListener(type, handler, capture) { assert.equal(capture, true); listeners.set(type, handler); },
@@ -19,11 +19,13 @@ function fixture() {
   contents.navigationHistory = {
     clear() { clears++; active = 0; },
     getActiveIndex: () => active,
+    getAllEntries: () => entries ?? Array.from({ length: active + 1 }, (_, i) => ({ url: url + '&note=' + i })),
     removeEntryAtIndex(index) { assert.equal(index, 0); active--; removed++; return true; },
   };
   installBackNavigation(window, new URL(url).origin);
   return { window, contents, listeners, get backs() { return backs; }, get clears() { return clears; },
     get removed() { return removed; }, set active(value) { active = value; },
+    set entries(value) { entries = value.map(url => ({ url })); active = value.length - 1; },
     navigate(value = url) { url = value; contents.emit('did-navigate-in-page', {}, url, true); },
   };
 }
@@ -45,6 +47,19 @@ test('desktop mouse Back dispatches once per down/up/auxclick sequence; other in
   key({ metaKey: true, code: 'BracketLeft', isComposing: true, preventDefault() {} });
   key({ metaKey: true, shiftKey: true, code: 'BracketLeft', preventDefault() { assert.fail('other chord intercepted'); } });
   assert.equal(f.backs, 2);
+});
+
+test('Settings sections and returning to the same note do not evict app destinations', () => {
+  const f = fixture();
+  f.contents.emit('did-finish-load');
+  const origin = 'http://127.0.0.1:3787';
+  f.entries = [0, 1, 2, 3, 4].map(n => `${origin}/?brain=a&note=${n}`).concat([
+    `${origin}/settings?brain=a`, `${origin}/settings?brain=a&section=appearance`,
+    `${origin}/settings?brain=a&section=extensions`, `${origin}/?brain=a&note=4`,
+    `${origin}/graph?brain=a`,
+  ]);
+  f.navigate(`${origin}/graph?brain=a`);
+  assert.equal(f.removed, 0, 'all six app destinations remain reachable');
 });
 
 test('desktop history prunes only the oldest prefix and resets on reload/brain scope', () => {

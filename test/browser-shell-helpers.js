@@ -5,7 +5,8 @@ import * as documentController from "../dist/adapters/http-server/document-contr
 
 import { referenceEligibility } from "../dist/adapters/http-server/reference-policy.js";
 import { memoryDocumentPath } from "../dist/adapters/http-server/browser-transport.js";
-export const browserControllers = { ...documentController, referenceEligibility, memoryDocumentPath };
+import { createPageNavigation } from "../dist/adapters/http-server/workspace-navigation.js";
+export const browserControllers = { createPageNavigation, ...documentController, referenceEligibility, memoryDocumentPath };
 export { extractShellFunction } from "../scripts/browser-shell-test-helpers.mjs";
 import { extractShellFunction } from "../scripts/browser-shell-test-helpers.mjs";
 export function shellFunctions(script, names, context) {

@@ -185,7 +185,7 @@ function barrierHarness(overrides = {}) {
   const editor = { state: { savedBody: "Source", draft: "Source" }, setNavigationPending() {}, flush: () => flush.promise, hasPending: () => false };
   const context = runtime(["companionBarrier"], {
     companionState: { phase: "preparing", switchId: "switch-1" }, companionTabId: "tab",
-    creatingNote: false, navigation: { isBusy: () => false }, companionNoteLoading: 0,
+    creatingNote: false, navigation: { isBusy: () => false, sync() {} }, companionNoteLoading: 0,
     noteCapture: { isInFlight: () => false, hasPending: () => false }, state: { editor },
     companionMessage() {}, setTimeout, Date,
     companionControl: async (route, body) => { acknowledgements.push({ route, body }); }, ...overrides,
@@ -242,7 +242,7 @@ function interactionHarness() {
     companionRendered: true, companionStopped: false, companionActionBusy: false,
     companionAcknowledged: new Set(), creatingNote: false,
     state: { view: "note", editor: { state: { navigationPending: false }, setNavigationPending() {} } },
-    navigation: { isBusy: () => false },
+    navigation: { isBusy: () => false, sync() {} },
     $: element, document: { querySelector: element },
     searchDialog: { open: false }, dreamDialog: { open: false },
     cancelReferenceInteraction: () => { calls.references++; },
