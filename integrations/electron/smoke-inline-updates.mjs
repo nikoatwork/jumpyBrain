@@ -87,6 +87,8 @@ try {
   await wait('!!document.getElementById("desktop-updates")');
   assert.equal(await evaluate('document.querySelector("#connection [data-app-version]").textContent'), 'jumpyBrain · Version 0.3.3', 'native app version overrides the browser build version');
   const sidebarBounds = await evaluate('JSON.stringify(document.getElementById("app-sidebar").getBoundingClientRect().toJSON())');
+  const utilityBounds = () => evaluate('JSON.stringify([...document.querySelector(".nav-utilities").children].map(element => ({ id: element.id, bounds: element.getBoundingClientRect().toJSON() })))');
+  const initialUtilityBounds = await utilityBounds();
   for (const theme of ['light', 'dark']) {
     await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
     for (const phase of ['idle', 'current', 'canceled', 'available', 'checking', 'preparing', 'updating', 'ready', 'success', 'recovered', 'failed']) {
@@ -99,6 +101,8 @@ try {
       assert.equal(BrowserWindow.getAllWindows().length, 1);
       assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false, 'no update text panel is mounted');
       assert.equal(await evaluate('document.getElementById("desktop-updates").textContent'), '');
+      assert.equal(await evaluate('document.getElementById("desktop-updates").hidden'), false, 'the update button is always present');
+      assert.equal(await utilityBounds(), initialUtilityBounds, 'state changes never move the update button or its neighboring controls');
       assert.equal(await evaluate('document.getElementById("desktop-updates").dataset.attention'), String(['available', 'ready'].includes(phase)));
       const glow = await evaluate('getComputedStyle(document.getElementById("desktop-updates")).boxShadow');
       assert.equal(glow !== 'none', ['available', 'ready'].includes(phase), 'only download/restart readiness glows');
@@ -115,7 +119,14 @@ try {
         await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
         await writeFile(path.join(output, `${phase}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
       }
-      if (['idle', 'current', 'canceled', 'success', 'recovered'].includes(phase)) assert.equal(await evaluate('document.getElementById("desktop-updates").hidden'), true);
+      if (['idle', 'current', 'canceled', 'success', 'recovered'].includes(phase)) {
+        assert.equal(await evaluate('document.getElementById("desktop-updates").disabled'), false);
+        assert.equal(await evaluate('document.getElementById("desktop-updates").getAttribute("aria-label")'), ['current', 'success'].includes(phase) ? 'Up to date; check for updates' : 'Check for updates');
+        const before = calls.length;
+        await evaluate('document.getElementById("desktop-updates").click()'); await pause(100);
+        assert.equal(calls.length, before + 1); assert.equal(calls.at(-1), 'check');
+        await writeFile(path.join(output, `${phase}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+      }
       if (phase === 'success') {
         assert.equal(await evaluate('document.getElementById("toast-message").textContent'), 'Update installed successfully.');
         assert.equal(await evaluate('document.getElementById("app-toast").hidden'), false);
@@ -163,7 +174,7 @@ try {
   for (const phase of ['success', 'recovered']) {
     state = { ...state, phase, actions: ['check'] }; await pause(1150);
     assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false);
-    assert.equal(await evaluate('document.getElementById("desktop-updates").hidden'), true);
+    assert.equal(await evaluate('document.getElementById("desktop-updates").hidden'), false);
   }
   state = { phase: 'ready', actions: ['restart'], installed, restartError: 'A note has an unsaved draft.' }; await pause(1150);
   assert.match(await evaluate('document.getElementById("desktop-updates").title'), /unsaved draft/);
@@ -206,15 +217,17 @@ try {
     await evaluate(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
     for (const width of [390, 320]) {
       window.setContentSize(width, 860); await pause(100);
-      for (const phase of ['available', 'preparing', 'ready', 'failed', 'success']) {
+      const narrowUtilityBounds = await utilityBounds();
+      for (const phase of ['idle', 'current', 'available', 'preparing', 'ready', 'failed', 'success']) {
         state = { phase, installed, actions: phase === 'ready' ? ['restart'] : phase === 'available' ? ['update'] : phase === 'preparing' ? [] : ['check'], detail: 'An update could not be confirmed.' };
         await pause(1150);
         assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'), true);
         assert.equal(await evaluate('!!document.getElementById("desktop-update-panel")'), false);
+        assert.equal(await utilityBounds(), narrowUtilityBounds, 'the narrow footer stays fixed across updater states');
         const bounds = await evaluate('(() => { const r = document.getElementById("app-toast").getBoundingClientRect(); return { left: r.left, right: r.right }; })()');
         assert.ok(bounds.left >= 0 && bounds.right <= width, 'notification fits the narrow viewport');
-        if (['available', 'ready'].includes(phase)) {
-          assertOutline(await outlineSnapshot());
+        if (['idle', 'current', 'available', 'ready'].includes(phase)) {
+          if (['available', 'ready'].includes(phase)) assertOutline(await outlineSnapshot());
           assert.equal(await evaluate(`(() => {
             const button = document.getElementById('desktop-updates'), theme = document.getElementById('color-theme'), r = button.getBoundingClientRect(), t = theme.getBoundingClientRect();
             return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight

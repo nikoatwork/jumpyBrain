@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Persistent update button
+
+- Kept the Mac sidebar update control in a fixed slot, with quiet manual checks and state-specific download/relaunch actions. [Verification](done/2026-10-28_tasks-persistent-update-button.md).
+
 ## 2026-10-28 — Hourly update checks
 
 - Mac release discovery runs hourly while the app stays open, retaining pending updates and quiet network retries. [Verification](done/2026-10-28_tasks-hourly-update-checks.md).

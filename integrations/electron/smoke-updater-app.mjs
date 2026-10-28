@@ -92,7 +92,8 @@ export async function run(fixturePath) {
         await until(async () => { editor = BrowserWindow.getAllWindows().find(w => w.webContents.getURL().startsWith('http:')); return editor && !editor.webContents.isLoadingMainFrame() && await editor.webContents.executeJavaScript('!!document.getElementById("desktop-updates")'); });
         editor.show(); await pause(250);
         assert.equal(await editor.webContents.executeJavaScript('!!document.getElementById("desktop-update-panel")'), false);
-        assert.equal(await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").hidden'), true);
+        assert.equal(await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").hidden'), false);
+        assert.equal(await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").getAttribute("aria-label")'), 'Up to date; check for updates');
         if (fixture.mode === 'success') await verifyPreferences();
         const state = await application.updater.snapshot();
         assert.equal(state.installed.app, fixture.nextVersion); assert.equal(state.installed.runtime, fixture.nextVersion); assert.equal(state.installed.cli, fixture.mode === 'app-only' ? fixture.oldVersion : fixture.nextVersion);
