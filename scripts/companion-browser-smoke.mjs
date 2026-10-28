@@ -21,7 +21,7 @@ const profiles = [
 const documents = new Map(["a", "b", "r"].map((brain) => [brain, { content: `Fixture ${brain}\n` + (brain === "r" ? "- [ ] Read-only task\n```js\n[[Inert]]\n```\n" : ""), hash: "h1" }]));
 let activeId = "a", generation = 1, revision = 1, phase = "idle", switchId = null, target = null;
 let switchSequence = 0, pendingSwitch = null, failWrites = false, failCapture = false, writeDelay = 0, pollDelay = 0;
-let failIndex = false, searchDelay = 0;
+let failIndex = false, searchDelay = 0, failTransientWrites = false;
 const tabs = new Map(), requests = [], profileWrites = [], violations = [], pollCounts = new Map();
 const snapshot = () => ({ profiles, activeId, generation, revision, phase, switchId, target,
   extensions: { revision: "fixture-extensions-1" }, health: { status: "connected" }, active: profiles.find((item) => item.id === activeId) });
@@ -130,6 +130,7 @@ const server = createServer(async (request, response) => {
         const doc = documents.get(activeId);
         if (request.method === "PUT") {
           await new Promise((resolve) => setTimeout(resolve, writeDelay));
+          if (failTransientWrites) { error(response, "fixture_save_unavailable", 503); return; }
           if (failWrites || request.headers["if-match"] !== doc.hash) { error(response, "fixture_conflict", 412); return; }
           doc.content = body.content; doc.hash = "h" + (Number(doc.hash.slice(1)) + 1);
           json(response, { newContentHash: doc.hash }); return;
@@ -184,15 +185,33 @@ try {
   await settings.locator(".companion-profile").first().getByRole("button", { name: "Edit", exact: true }).focus();
   await idlePolls(settings);
   assert.equal(await settings.evaluate(() => document.activeElement?.getAttribute("aria-label")), "Edit", "idle polls retain focused row controls");
-  await settings.locator("#companion-brain-switch").focus();
-  await idlePolls(settings);
-  assert.equal(await settings.evaluate(() => document.activeElement?.id), "companion-brain-switch", "idle health polls keep the switcher mounted and focused");
+  assert.equal(await settings.locator(".nav-library").isVisible(), false);
+  assert.equal(await settings.locator(".nav-tools").isVisible(), false);
+  assert.equal(await settings.locator("#settings-back").isVisible(), true);
+  await settings.locator('[data-settings-section="appearance"]').click();
+  await settings.locator("#settings-theme").selectOption("dark");
+  assert.equal(await settings.locator("html").getAttribute("data-theme"), "dark");
+  await settings.locator("#settings-theme").selectOption("light");
+  assert.equal(await settings.locator("html").getAttribute("data-theme"), "light");
+  await settings.locator("#settings-theme").selectOption("system");
+  await settings.locator('[data-settings-section="extensions"]').click();
+  await settings.locator("#extension-reload").waitFor({ state: "visible" });
+  await settings.goBack();
+  await settings.locator("#settings-theme").waitFor({ state: "visible" });
+  await settings.goForward();
+  await settings.locator("#extension-reload").waitFor({ state: "visible" });
+  await settings.reload();
+  await settings.locator("#extension-reload").waitFor({ state: "visible" });
+  await settings.locator("#settings-back").click();
+  await settings.locator("#home").waitFor({ state: "visible" });
+  await settings.locator("#open-connection").click();
+  await settings.locator("#companion-profiles").waitFor({ state: "visible" });
   for (const theme of ["light", "dark"]) {
     await settings.evaluate((value) => colorTheme.setPreference(value), theme);
     for (const width of [1280, 390, 320]) {
       await settings.setViewportSize({ width, height: 900 });
       const layout = await settings.locator("#companion-settings").evaluate((el) => {
-        const controls = [...el.querySelectorAll(".note-icon")];
+        const controls = [...el.querySelectorAll(".note-icon")].filter(item => item.checkVisibility());
         return { fits: el.scrollWidth <= el.clientWidth && document.documentElement.scrollWidth <= innerWidth, controls: controls.map(item => {
           const box = item.getBoundingClientRect();
           return { width: box.width, height: box.height, text: item.textContent.trim(), label: item.getAttribute("aria-label"), fits: box.left >= 0 && box.right <= innerWidth };
@@ -203,7 +222,13 @@ try {
         assert.ok(control.label && !control.text && control.fits, "named, visible icon actions");
         assert.ok(control.width >= (width <= 680 ? 40 : 32) && control.height >= (width <= 680 ? 40 : 32));
       }
-      if (screenshotDir) await settings.screenshot({ path: path.join(screenshotDir, "settings-" + theme + "-" + width + ".png"), fullPage: true });
+      for (const section of ["brains", "appearance", "extensions"]) {
+        await settings.locator(`[data-settings-section="${section}"]`).click();
+        assert.equal(await settings.locator(`[data-settings-section="${section}"]`).getAttribute("aria-current"), "page");
+        assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, section + " " + width + " overflow");
+        if (screenshotDir) await settings.screenshot({ path: path.join(screenshotDir, "settings-" + section + "-" + theme + "-" + width + ".png"), fullPage: true, animations: "disabled" });
+      }
+      await settings.locator('[data-settings-section="brains"]').click();
     }
   }
   await settings.setViewportSize({ width: 1280, height: 900 });
@@ -250,6 +275,45 @@ try {
   await editor.locator("#note-search-input").press("Enter");
   await editor.waitForURL("**/?note=" + id + "&brain=a");
   await editor.locator("#note-editor").waitFor();
+
+  // Settings entry saves first, replaces note navigation, and Back restores this note.
+  await appendEditorText(editor, " Saved before Settings.");
+  await editor.locator("#open-connection").click();
+  await editor.locator("#settings-navigation").waitFor({ state: "visible" });
+  assert.match(documents.get("a").content, /Saved before Settings/);
+  await editor.locator('[data-settings-section="appearance"]').click();
+  await editor.locator("#settings-back").click();
+  await editor.locator("#note-editor").waitFor({ state: "visible" });
+  assert.equal(new URL(editor.url()).searchParams.get("note"), id);
+  // A failed save keeps the note and its draft; Settings must never take over.
+  failTransientWrites = true;
+  await appendEditorText(editor, " Failed Settings draft.");
+  await editor.locator("#open-connection").click();
+  await editor.locator("#note-save-state").filter({ hasText: /Save failed|Changes need review/ }).waitFor();
+  assert.equal(await editor.locator("#settings-navigation").isVisible(), false);
+  assert.match(await editorMarkdown(editor), /Failed Settings draft/);
+  failTransientWrites = false;
+  await editor.locator("#note-retry").click();
+  await editor.waitForFunction(() => state.editor?.state.saveStatus === "saved");
+  // Temporarily reveal Settings when notes navigation is collapsed; restore on exit.
+  await editor.locator("#toggle-sidebar").click();
+  await editor.evaluate(() => openConnection(false));
+  await editor.locator("#settings-back").waitFor({ state: "visible" });
+  assert.equal(await editor.evaluate(() => localStorage.getItem("jumpybrain.sidebarCollapsed")), "true");
+  await editor.locator("#settings-back").click();
+  await editor.locator("#note-editor").waitFor({ state: "visible" });
+  assert.equal(await editor.locator("#app-sidebar").isVisible(), false);
+  await editor.locator("#toggle-sidebar").click();
+  // Graph return retains the app destination too.
+  await editor.locator("#graph-link").click();
+  await editor.locator("#open-connection").click();
+  await editor.locator("#settings-back").click();
+  await editor.waitForURL("**/graph?brain=a");
+  await editor.evaluate((id) => navigation.navigate("/?note=" + id), id);
+  await editor.locator("#note-editor").waitFor({ state: "visible" });
+  // Guarded graph/Settings transitions intentionally cancel their own requests.
+  // Count failures only during the following idle Search/reference sequence.
+  failedSearches.length = 0;
 
   await editor.locator("#open-search").click();
   await idlePolls(editor);

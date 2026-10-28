@@ -12,7 +12,7 @@ function harness({ stored = null, blocked = false } = {}) {
   const home = { prepend(element) { element.parentElement = this; document.activeElement = null; } };
   const toolbar = { prepend(element) { element.parentElement = this; document.activeElement = null; } };
   const sidebar = { contains(element) { return element === button && button.parentElement === home || element === sidebar; } };
-  document = { documentElement: root, activeElement: null,
+  document = { documentElement: root, body: { dataset: {} }, activeElement: null,
     getElementById(id) { return !mounted ? null : id === 'toggle-sidebar' ? button : sidebar; },
     querySelector(selector) { return selector === '.nav-brand' ? home : toolbar; } };
   const context = vm.createContext({ document, window: { addEventListener(type, callback) { listeners[type] = callback; } },
@@ -23,6 +23,7 @@ function harness({ stored = null, blocked = false } = {}) {
   mounted = true; button.parentElement = home;
   vm.runInContext(sidebarScript, context);
   return { root, button, home, toolbar, document, sidebar, values,
+    sync() { vm.runInContext("sidebarPreference.sync()", context); },
     toggle() { listeners.click(); }, storage(newValue, key = 'jumpybrain.sidebarCollapsed') { listeners.storage({ key, newValue }); } };
 }
 
@@ -51,4 +52,18 @@ test('reload, cross-tab collapse, cleared storage and blocked storage keep the t
   const blocked = harness({ blocked: true });
   assert.doesNotThrow(() => blocked.toggle());
   assert.equal(blocked.button.parentElement, blocked.toolbar);
+});
+
+// Settings has its own navigation even when the ordinary sidebar is collapsed.
+test('Settings temporarily expands navigation without changing the stored notes preference', () => {
+  const h = harness({ stored: 'true' });
+  h.document.body.dataset.view = 'settings'; h.sync();
+  assert.equal(h.root.dataset.sidebarCollapsed, 'false');
+  assert.equal(h.values.get('jumpybrain.sidebarCollapsed'), 'true');
+  h.document.activeElement = h.sidebar;
+  h.storage('true');
+  assert.equal(h.document.activeElement, h.sidebar, 'storage sync must not focus the hidden Settings toggle');
+  h.document.body.dataset.view = 'note'; h.sync();
+  assert.equal(h.root.dataset.sidebarCollapsed, 'true');
+  assert.equal(h.button.parentElement, h.toolbar);
 });

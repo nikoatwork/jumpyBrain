@@ -7,12 +7,12 @@ const sidebarPreference = (() => {
   try { collapsed = localStorage.getItem(key) === "true"; } catch { /* Tab-only preference. */ }
   function apply() {
     const active = document.activeElement;
-    root.dataset.sidebarCollapsed = String(collapsed);
+    const expanded = !collapsed || document.body?.dataset.view === "settings";
+    root.dataset.sidebarCollapsed = String(!expanded);
     const button = document.getElementById("toggle-sidebar");
     if (!button) return;
     const sidebar = document.getElementById("app-sidebar");
-    const focusToggle = active === button || (collapsed && sidebar?.contains(active));
-    const expanded = !collapsed;
+    const focusToggle = active === button || (!expanded && sidebar?.contains(active));
     const home = document.querySelector(".nav-brand");
     const toolbar = document.querySelector(".workspace-toolbar");
     const parent = expanded ? home : toolbar;

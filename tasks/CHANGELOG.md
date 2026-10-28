@@ -1,5 +1,8 @@
 # Task Changelog
 
+## 2026-10-28 — Settings navigation
+
+- Settings replaces note navigation with focused sections and a Back action that restores the app view. [Verification](done/2026-10-28_tasks-settings-sidebar.md).
 ## 2026-10-28 — Formatting toolbar layout
 
 - Aligned and grouped note formatting actions with equal targets and consistent wrapping. [Verification](done/2026-10-28_tasks-formatting-toolbar-spacing.md).

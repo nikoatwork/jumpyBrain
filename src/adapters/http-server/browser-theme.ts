@@ -102,6 +102,8 @@ const colorTheme = (() => {
   function apply() {
     root.dataset.theme = preference === "system" ? (media.matches ? "dark" : "light") : preference;
     root.dataset.themePreference = preference;
+    const settingsControl = document.getElementById("settings-theme");
+    if (settingsControl) settingsControl.value = preference;
     const control = document.getElementById("color-theme");
     if (control) {
       const action = root.dataset.theme === "dark" ? "Switch to light theme" : "Switch to dark theme";

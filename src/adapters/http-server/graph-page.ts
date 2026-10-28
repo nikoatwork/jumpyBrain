@@ -7,6 +7,7 @@ import { GRAPH_NODE_TONES } from "./map-controller.js";
 import { readFileSync } from "node:fs";
 import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
 import { sidebarBootstrap, sidebarScript } from "./browser-sidebar.js";
+import { settingsNavigationMarkup } from "./browser-settings.js";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
 import { documentActionsMarkup, documentActionsScript, notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
 import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
@@ -132,7 +133,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   </style>
 </head>
 <body data-view="home">
-${companion ? notesMarkup.replace('<div class="nav-tools"', '<div class="extension-slot" data-extension-slot="sidebar.actions" aria-label="Extension sidebar actions"></div><div class="nav-tools"') : notesMarkup}
+${companion ? notesMarkup.replace('<div class="nav-tools"', settingsNavigationMarkup + '<div class="extension-slot" data-extension-slot="sidebar.actions" aria-label="Extension sidebar actions"></div><div class="nav-tools"') : notesMarkup}
 ${documentActionsMarkup}
 ${companion ? extensionPanelMarkup : ""}
 ${dreamMarkup}

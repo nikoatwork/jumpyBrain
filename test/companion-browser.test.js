@@ -73,7 +73,7 @@ test("companion settings/scripts are opt-in and both shell variants parse", () =
 });
 
 test("Settings owns index refresh; read-only, offline, switching and unavailable sessions cannot refresh", () => {
-  assert.match(html, /id="companion-heading" tabindex="-1">Settings</);
+  assert.match(html, /id="companion-heading" class="settings-breadcrumb" tabindex="-1"/);
   assert.match(html, /id="companion-refresh-index"/);
   assert.doesNotMatch(graphPageHtml("fixture"), /id="companion-refresh-index"/);
   const context = runtime(["companionCanRefreshIndex", "companionReadOnly", "companionHealthText"], {

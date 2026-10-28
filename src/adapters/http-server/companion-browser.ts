@@ -1,5 +1,6 @@
 import { extensionSettingsMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
+import { settingsStyles, settingsScript } from "./browser-settings.js";
 
 // Companion-only loopback control UI. No target credential is ever read into this shell.
 export const companionStyles = String.raw`
@@ -33,17 +34,18 @@ export const companionStyles = String.raw`
   #companion-form p { color: var(--ink-soft); font-size: var(--text-caption); }
   @media (max-width: 680px) { #companion-settings .note-icon { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
   @media (max-width: 480px) { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
+${settingsStyles}
 `;
 
 export const companionMarkup = String.raw`
 <section id="companion-settings" aria-labelledby="companion-heading" hidden>
   <div class="companion-column">
     <header class="settings-heading companion-header">
-      <h1 id="companion-heading" tabindex="-1">Settings</h1>
+      <h1 id="companion-heading" class="settings-breadcrumb" tabindex="-1"><span>Settings</span><span aria-hidden="true">/</span><span id="settings-section-title">Brains</span></h1>
       <button id="companion-refresh-index" class="quiet-button note-icon" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
     </header>
-    <h2>Brain connections</h2>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
+    <section id="settings-panel-brains" class="settings-panel settings-card" data-settings-panel="brains" aria-label="Brain connections">
     <ul id="companion-profiles" aria-label="Saved brains"></ul>
     <details id="companion-add" class="companion-add">
     <summary id="companion-form-heading">Add connection</summary>
@@ -69,7 +71,11 @@ export const companionMarkup = String.raw`
       </fieldset>
     </form>
     </details>
-    ${extensionSettingsMarkup}
+    </section>
+    <section id="settings-panel-appearance" class="settings-panel settings-card" data-settings-panel="appearance" aria-label="Appearance" hidden>
+      <div class="settings-row"><label for="settings-theme">Color theme</label><select id="settings-theme" class="dropdown"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+    </section>
+    <section id="settings-panel-extensions" class="settings-panel settings-card" data-settings-panel="extensions" aria-label="Extensions" hidden>${extensionSettingsMarkup}</section>
     <p class="app-version" data-app-version></p>
   </div>
 </section>
@@ -102,6 +108,7 @@ const companionAcknowledged = new Set();
 `;
 
 export const companionScript = String.raw`
+${settingsScript}
 JumpyBrainBrowser.prepareDropdown($("companion-kind"));
 const companionRecovery = document.createElement("div");
 companionRecovery.id = "companion-recovery";
@@ -344,6 +351,7 @@ async function startCompanion() {
     document.body.dataset.view = "settings";
     $("home").hidden = true;
     $("companion-settings").hidden = false;
+    syncSettingsNavigation(shellUrl());
     $("companion-fields").disabled = true;
   }
   try {
@@ -390,6 +398,7 @@ async function startCompanion() {
       $("home").hidden = true;
       $("note-panel").hidden = true;
       $("companion-settings").hidden = false;
+      syncSettingsNavigation(shellUrl());
       document.title = "Settings · jumpyBrain";
     }
   } finally {

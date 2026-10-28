@@ -1188,6 +1188,7 @@ function showPage(url) {
   state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
   sidebarPages.select(documentId);
   document.body.dataset.view = state.view;
+  if (companionMode) syncSettingsNavigation(url);
   if (typeof searchMaintenance !== "undefined") searchMaintenance?.check();
   if (state.view !== "graph") map.suspend();
   if (typeof companionMode !== "undefined" && companionMode) $("companion-settings").hidden = state.view !== "settings";
