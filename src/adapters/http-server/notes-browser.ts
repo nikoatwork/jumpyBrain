@@ -141,11 +141,11 @@ ${noteAttentionStyles}
     .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     #reference-creation-status { color: var(--error-ink); font-size: var(--text-ui); }
     .markdown-literal::selection { background: var(--surface-hover); }
-    #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; margin: 0 0 var(--space-6) calc(-1 * var(--space-2)); }
-    #format-controls button { min-height: var(--control-height); padding: var(--space-2); background: transparent; font-size: var(--text-ui); }
+    #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; margin: 0 0 var(--space-6); }
+    .format-group { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); }
+    #format-controls button { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); background: transparent; font-size: var(--text-ui); }
+    #format-controls [data-format="paragraph"] { width: auto; min-width: var(--control-compact); padding-inline: var(--space-2); }
     #format-controls button:hover, #format-controls button:focus-visible { background: var(--control-fill); color: var(--ink); }
-    #format-controls [data-format="h3"] { margin-right: var(--space-2); }
-    #format-controls #insert-reference { margin: 0 0 0 auto; }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
     .note-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); }
     .note-icon svg { width: var(--icon-size); height: var(--icon-size); }
@@ -233,8 +233,7 @@ ${noteAttentionStyles}
       .document-status { padding-inline: var(--space-4); flex-wrap: wrap; }
       .note-column { padding: var(--space-8) var(--space-6) max(120px, 25vh); }
       #note-editor { font-size: 18px; }
-      #format-controls { gap: var(--space-0-5); margin-bottom: var(--space-5); }
-      #format-controls #insert-reference { margin-left: 0; }
+      #format-controls { --control-compact: var(--control-touch); margin-bottom: var(--space-5); }
       .save-state { font-size: var(--text-caption); }
       #note-search { margin-top: var(--space-4); max-height: calc(100dvh - 32px); }
     }
@@ -362,16 +361,22 @@ export const notesViews = String.raw`
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
       <div id="format-controls" role="group" aria-label="Text formatting" hidden>
-        <button class="quiet-button" data-format="paragraph" aria-label="Normal text" title="Normal text">Text</button>
-        <button class="quiet-button" data-format="h1" aria-label="Heading" title="Heading">H1</button>
-        <button class="quiet-button" data-format="h2" aria-label="Subheading" title="Subheading">H2</button>
-        <button class="quiet-button" data-format="h3" aria-label="Small heading" title="Small heading">H3</button>
-        <button class="quiet-button" data-format="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
-        <button class="quiet-button" data-format="italic" aria-label="Italic" title="Italic"><em>I</em></button>
-        <button class="quiet-button" data-format="task" aria-label="Task checkbox" title="Task checkbox">☑</button>
-        <button class="quiet-button" data-format="code" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
-        <button class="quiet-button" data-format="code-block" aria-label="Code block" title="Code block">{ }</button>
-        <button id="insert-reference" class="quiet-button note-icon" type="button" aria-label="Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+        <div class="format-group" role="group" aria-label="Text styles">
+          <button class="quiet-button" data-format="paragraph" aria-label="Normal text" title="Normal text">Text</button>
+          <button class="quiet-button" data-format="h1" aria-label="Heading" title="Heading">H1</button>
+          <button class="quiet-button" data-format="h2" aria-label="Subheading" title="Subheading">H2</button>
+          <button class="quiet-button" data-format="h3" aria-label="Small heading" title="Small heading">H3</button>
+        </div>
+        <div class="format-group" role="group" aria-label="Inline formatting">
+          <button class="quiet-button" data-format="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
+          <button class="quiet-button" data-format="italic" aria-label="Italic" title="Italic"><em>I</em></button>
+          <button class="quiet-button" data-format="code" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
+        </div>
+        <div class="format-group" role="group" aria-label="Insert blocks and references">
+          <button class="quiet-button" data-format="task" aria-label="Task checkbox" title="Task checkbox">☑</button>
+          <button class="quiet-button" data-format="code-block" aria-label="Code block" title="Code block">{ }</button>
+          <button id="insert-reference" class="quiet-button note-icon" type="button" aria-label="Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+        </div>
       </div>
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
       <nav id="related-pages" aria-label="Related pages" hidden>

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Formatting toolbar layout
+
+- Aligned and grouped note formatting actions with equal targets and consistent wrapping. [Verification](done/2026-10-28_tasks-formatting-toolbar-spacing.md).
+
 ## 2026-10-27 — Sidebar footer spacing
 
 - Matched footer action sizes and gaps, including native Updates and narrow touch targets. [Verification](done/2026-10-27_tasks-sidebar-footer-spacing.md).
