@@ -1,0 +1,194 @@
+[
+  {
+    "id": "meridian-scope",
+    "scenario": "meridian",
+    "journey": "scope",
+    "split": "development",
+    "query": "Under Nightjar, what operator setting is allowed and does it apply to public operation?",
+    "depth": "normal"
+  },
+  {
+    "id": "meridian-ranking",
+    "scenario": "meridian",
+    "journey": "ranking",
+    "split": "development",
+    "query": "What preparation and observation controls does the Meridian handbook require before changing the public service?",
+    "depth": "normal"
+  },
+  {
+    "id": "meridian-multi-source",
+    "scenario": "meridian",
+    "journey": "multi-source",
+    "split": "development",
+    "query": "What session arrangement should Meridian use, and which site restriction explains it?",
+    "depth": "normal"
+  },
+  {
+    "id": "meridian-protected",
+    "scenario": "meridian",
+    "journey": "protected",
+    "split": "development",
+    "query": "Who approved public use of Meridian?",
+    "depth": "normal"
+  },
+  {
+    "id": "estuary-scope",
+    "scenario": "estuary",
+    "journey": "scope",
+    "split": "development",
+    "query": "Under Mudlark, what operator setting is allowed and does it apply to public operation?",
+    "depth": "normal"
+  },
+  {
+    "id": "estuary-ranking",
+    "scenario": "estuary",
+    "journey": "ranking",
+    "split": "development",
+    "query": "What preparation and observation controls does the Estuary handbook require before changing the public service?",
+    "depth": "normal"
+  },
+  {
+    "id": "estuary-multi-source",
+    "scenario": "estuary",
+    "journey": "multi-source",
+    "split": "development",
+    "query": "What session arrangement should Estuary use, and which site restriction explains it?",
+    "depth": "normal"
+  },
+  {
+    "id": "estuary-protected",
+    "scenario": "estuary",
+    "journey": "protected",
+    "split": "development",
+    "query": "Who approved public use of Estuary?",
+    "depth": "normal"
+  },
+  {
+    "id": "vellum-scope",
+    "scenario": "vellum",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "Under Glasswing, what operator setting is allowed and does it apply to public operation?",
+    "depth": "normal"
+  },
+  {
+    "id": "vellum-ranking",
+    "scenario": "vellum",
+    "journey": "ranking",
+    "split": "reserved",
+    "query": "What preparation and observation controls does the Vellum handbook require before changing the public service?",
+    "depth": "normal"
+  },
+  {
+    "id": "vellum-multi-source",
+    "scenario": "vellum",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What session arrangement should Vellum use, and which site restriction explains it?",
+    "depth": "normal"
+  },
+  {
+    "id": "vellum-protected",
+    "scenario": "vellum",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who approved public use of Vellum?",
+    "depth": "normal"
+  },
+  {
+    "id": "bracken-scope",
+    "scenario": "bracken",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "Under Copperleaf, what operator setting is allowed and does it apply to public operation?",
+    "depth": "normal"
+  },
+  {
+    "id": "bracken-ranking",
+    "scenario": "bracken",
+    "journey": "ranking",
+    "split": "reserved",
+    "query": "What preparation and observation controls does the Bracken handbook require before changing the public service?",
+    "depth": "normal"
+  },
+  {
+    "id": "bracken-multi-source",
+    "scenario": "bracken",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What session arrangement should Bracken use, and which site restriction explains it?",
+    "depth": "normal"
+  },
+  {
+    "id": "bracken-protected",
+    "scenario": "bracken",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who approved public use of Bracken?",
+    "depth": "normal"
+  },
+  {
+    "id": "saffron-scope",
+    "scenario": "saffron",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "Under Emberplate, what operator setting is allowed and does it apply to public operation?",
+    "depth": "normal"
+  },
+  {
+    "id": "saffron-ranking",
+    "scenario": "saffron",
+    "journey": "ranking",
+    "split": "reserved",
+    "query": "What preparation and observation controls does the Saffron handbook require before changing the public service?",
+    "depth": "normal"
+  },
+  {
+    "id": "saffron-multi-source",
+    "scenario": "saffron",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What session arrangement should Saffron use, and which site restriction explains it?",
+    "depth": "normal"
+  },
+  {
+    "id": "saffron-protected",
+    "scenario": "saffron",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who approved public use of Saffron?",
+    "depth": "normal"
+  },
+  {
+    "id": "quartz-scope",
+    "scenario": "quartz",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "Under Softbell, what operator setting is allowed and does it apply to public operation?",
+    "depth": "normal"
+  },
+  {
+    "id": "quartz-ranking",
+    "scenario": "quartz",
+    "journey": "ranking",
+    "split": "reserved",
+    "query": "What preparation and observation controls does the Quartz handbook require before changing the public service?",
+    "depth": "normal"
+  },
+  {
+    "id": "quartz-multi-source",
+    "scenario": "quartz",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What session arrangement should Quartz use, and which site restriction explains it?",
+    "depth": "normal"
+  },
+  {
+    "id": "quartz-protected",
+    "scenario": "quartz",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who approved public use of Quartz?",
+    "depth": "normal"
+  }
+]

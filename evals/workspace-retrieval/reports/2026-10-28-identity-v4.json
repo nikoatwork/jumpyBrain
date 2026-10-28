@@ -1,0 +1,4250 @@
+{
+  "baseline": {
+    "cases": 124,
+    "searchSuccess5": 0.7096774193548387,
+    "searchSuccess10": 0.8225806451612904,
+    "searchMRR10": 0.5061091909882235,
+    "requiredFileCoverage10": 0.7379032258064516,
+    "initialRequiredSpanCoverage": 0.5551075268817205,
+    "finalRequiredSpanCoverage": 0.6196236559139785,
+    "initialAllRequiredSpans": 50,
+    "finalAllRequiredSpans": 60,
+    "interactionTokens": 361122,
+    "interactionBytes": 1291405,
+    "expansions": 345,
+    "searchMs": {
+      "p50": 1280.5805829999736,
+      "p95": 2531.163416999996
+    },
+    "recallMs": {
+      "p50": 1285.9752500000177,
+      "p95": 2460.8433749999967
+    },
+    "interactionMs": {
+      "p50": 1327.280625000014,
+      "p95": 2698.2678339999984
+    },
+    "partialRetrievalCases": 10,
+    "provenanceFailures": 0
+  },
+  "arms": [
+    {
+      "arm": "identity",
+      "inputDigest": "969555e9de1646cc24bcbbba8f3daffc5fb2fc5a46a55c54d5794ace0b2cc880",
+      "productDigest": "85fd239fee6015dc83bee0f08447fdb0c342dbf88150df3f5ab51398b5a4cb08",
+      "overall": {
+        "cases": 124,
+        "searchSuccess5": 0.782258064516129,
+        "searchSuccess10": 0.8467741935483871,
+        "searchMRR10": 0.5986943164362521,
+        "requiredFileCoverage10": 0.7862903225806451,
+        "initialRequiredSpanCoverage": 0.6196236559139786,
+        "finalRequiredSpanCoverage": 0.7271505376344085,
+        "initialAllRequiredSpans": 59,
+        "finalAllRequiredSpans": 77,
+        "interactionTokens": 364759,
+        "interactionBytes": 1312197,
+        "expansions": 345,
+        "searchMs": {
+          "p50": 1292.2629579999775,
+          "p95": 1877.7739580000052
+        },
+        "recallMs": {
+          "p50": 1312.7370000000228,
+          "p95": 1775.9857080000002
+        },
+        "interactionMs": {
+          "p50": 1355.0172079999757,
+          "p95": 1909.5752500000017
+        },
+        "partialRetrievalCases": 10,
+        "provenanceFailures": 0
+      },
+      "affected": {
+        "cases": 55,
+        "completeBefore": 13,
+        "completeAfter": 27,
+        "gainPoints": 25.454545454545453
+      },
+      "improved": [
+        "juniper-orientation",
+        "ridge-orientation",
+        "orbit-limits",
+        "meadow-rationale",
+        "ledger-orientation",
+        "ledger-rationale",
+        "meridian-ranking",
+        "meridian-multi-source",
+        "estuary-ranking",
+        "estuary-multi-source",
+        "vellum-ranking",
+        "vellum-multi-source",
+        "bracken-ranking",
+        "bracken-multi-source",
+        "saffron-multi-source",
+        "quartz-ranking",
+        "quartz-multi-source"
+      ],
+      "regressed": [],
+      "unitRegressions": [],
+      "protectedRegressions": [],
+      "freshReservedImprovements": [],
+      "tokenChangePercent": 1.0071388616589516,
+      "byJourney": {
+        "navigation": {
+          "baseline": {
+            "cases": 12,
+            "searchSuccess5": 1,
+            "searchSuccess10": 1,
+            "searchMRR10": 1,
+            "requiredFileCoverage10": 1,
+            "initialRequiredSpanCoverage": 1,
+            "finalRequiredSpanCoverage": 1,
+            "initialAllRequiredSpans": 12,
+            "finalAllRequiredSpans": 12,
+            "interactionTokens": 34149,
+            "interactionBytes": 122330,
+            "expansions": 35,
+            "searchMs": {
+              "p50": 1006.1088749999908,
+              "p95": 2518.7047909999965
+            },
+            "recallMs": {
+              "p50": 1049.5281250000116,
+              "p95": 1969.4865829999908
+            },
+            "interactionMs": {
+              "p50": 1087.3237920000101,
+              "p95": 2181.62729199999
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 12,
+            "searchSuccess5": 1,
+            "searchSuccess10": 1,
+            "searchMRR10": 1,
+            "requiredFileCoverage10": 1,
+            "initialRequiredSpanCoverage": 1,
+            "finalRequiredSpanCoverage": 1,
+            "initialAllRequiredSpans": 12,
+            "finalAllRequiredSpans": 12,
+            "interactionTokens": 34149,
+            "interactionBytes": 122330,
+            "expansions": 35,
+            "searchMs": {
+              "p50": 1032.3336250000284,
+              "p95": 1782.3092909999978
+            },
+            "recallMs": {
+              "p50": 1049.3517090000096,
+              "p95": 1775.9857080000002
+            },
+            "interactionMs": {
+              "p50": 1090.9681669999845,
+              "p95": 1909.5752500000017
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "discovery": {
+          "baseline": {
+            "cases": 10,
+            "searchSuccess5": 0.5,
+            "searchSuccess10": 0.7,
+            "searchMRR10": 0.19083333333333333,
+            "requiredFileCoverage10": 0.7,
+            "initialRequiredSpanCoverage": 0.5,
+            "finalRequiredSpanCoverage": 0.5,
+            "initialAllRequiredSpans": 5,
+            "finalAllRequiredSpans": 5,
+            "interactionTokens": 26027,
+            "interactionBytes": 96431,
+            "expansions": 25,
+            "searchMs": {
+              "p50": 1935.3954170000216,
+              "p95": 2810.946917000023
+            },
+            "recallMs": {
+              "p50": 1645.9399590000103,
+              "p95": 2577.860625000001
+            },
+            "interactionMs": {
+              "p50": 1732.1462919999904,
+              "p95": 2788.2785829999775
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 10,
+            "searchSuccess5": 0.5,
+            "searchSuccess10": 0.7,
+            "searchMRR10": 0.19083333333333333,
+            "requiredFileCoverage10": 0.7,
+            "initialRequiredSpanCoverage": 0.5,
+            "finalRequiredSpanCoverage": 0.5,
+            "initialAllRequiredSpans": 5,
+            "finalAllRequiredSpans": 5,
+            "interactionTokens": 26027,
+            "interactionBytes": 96431,
+            "expansions": 25,
+            "searchMs": {
+              "p50": 1277.4856660000223,
+              "p95": 2308.4722500000007
+            },
+            "recallMs": {
+              "p50": 1285.1570409999986,
+              "p95": 1984.109374999999
+            },
+            "interactionMs": {
+              "p50": 1331.818666999985,
+              "p95": 2043.967749999999
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "orientation": {
+          "baseline": {
+            "cases": 13,
+            "searchSuccess5": 0.6923076923076923,
+            "searchSuccess10": 0.6923076923076923,
+            "searchMRR10": 0.3230769230769231,
+            "requiredFileCoverage10": 0.34615384615384615,
+            "initialRequiredSpanCoverage": 0.2692307692307692,
+            "finalRequiredSpanCoverage": 0.34615384615384615,
+            "initialAllRequiredSpans": 0,
+            "finalAllRequiredSpans": 0,
+            "interactionTokens": 41199,
+            "interactionBytes": 143893,
+            "expansions": 39,
+            "searchMs": {
+              "p50": 1419.1680000000051,
+              "p95": 2668.258124999993
+            },
+            "recallMs": {
+              "p50": 1412.054666,
+              "p95": 2445.8437080000003
+            },
+            "interactionMs": {
+              "p50": 1451.563416,
+              "p95": 2611.5268339999893
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 13,
+            "searchSuccess5": 0.9230769230769231,
+            "searchSuccess10": 0.9230769230769231,
+            "searchMRR10": 0.5384615384615384,
+            "requiredFileCoverage10": 0.6153846153846154,
+            "initialRequiredSpanCoverage": 0.46153846153846156,
+            "finalRequiredSpanCoverage": 0.5769230769230769,
+            "initialAllRequiredSpans": 2,
+            "finalAllRequiredSpans": 3,
+            "interactionTokens": 41776,
+            "interactionBytes": 148987,
+            "expansions": 39,
+            "searchMs": {
+              "p50": 1297.232667000033,
+              "p95": 1884.2432500000014
+            },
+            "recallMs": {
+              "p50": 1310.2891660000023,
+              "p95": 2102.27275
+            },
+            "interactionMs": {
+              "p50": 1351.7653750000172,
+              "p95": 2278.866666
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "rationale": {
+          "baseline": {
+            "cases": 10,
+            "searchSuccess5": 0.9,
+            "searchSuccess10": 0.9,
+            "searchMRR10": 0.9,
+            "requiredFileCoverage10": 0.9,
+            "initialRequiredSpanCoverage": 0.5,
+            "finalRequiredSpanCoverage": 0.75,
+            "initialAllRequiredSpans": 4,
+            "finalAllRequiredSpans": 6,
+            "interactionTokens": 26696,
+            "interactionBytes": 95790,
+            "expansions": 27,
+            "searchMs": {
+              "p50": 1389.7360840000038,
+              "p95": 2195.1566660000026
+            },
+            "recallMs": {
+              "p50": 1432.0311660000007,
+              "p95": 2107.2214160000003
+            },
+            "interactionMs": {
+              "p50": 1523.150582999995,
+              "p95": 2236.438875
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 10,
+            "searchSuccess5": 0.9,
+            "searchSuccess10": 0.9,
+            "searchMRR10": 0.9,
+            "requiredFileCoverage10": 0.9,
+            "initialRequiredSpanCoverage": 0.6,
+            "finalRequiredSpanCoverage": 0.85,
+            "initialAllRequiredSpans": 4,
+            "finalAllRequiredSpans": 8,
+            "interactionTokens": 25687,
+            "interactionBytes": 90866,
+            "expansions": 27,
+            "searchMs": {
+              "p50": 1286.0103339999914,
+              "p95": 2306.6949999999997
+            },
+            "recallMs": {
+              "p50": 1293.963000000018,
+              "p95": 2140.570083999999
+            },
+            "interactionMs": {
+              "p50": 1336.037875000009,
+              "p95": 2266.964249999999
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "current": {
+          "baseline": {
+            "cases": 15,
+            "searchSuccess5": 0.8,
+            "searchSuccess10": 0.8,
+            "searchMRR10": 0.5333333333333333,
+            "requiredFileCoverage10": 0.6,
+            "initialRequiredSpanCoverage": 0.5777777777777778,
+            "finalRequiredSpanCoverage": 0.6222222222222222,
+            "initialAllRequiredSpans": 4,
+            "finalAllRequiredSpans": 5,
+            "interactionTokens": 36225,
+            "interactionBytes": 128694,
+            "expansions": 36,
+            "searchMs": {
+              "p50": 1272.8753750000033,
+              "p95": 2369.3414170000033
+            },
+            "recallMs": {
+              "p50": 1277.386999999988,
+              "p95": 2599.3676660000056
+            },
+            "interactionMs": {
+              "p50": 1319.7280409999657,
+              "p95": 2693.094916000002
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 15,
+            "searchSuccess5": 0.8,
+            "searchSuccess10": 0.8,
+            "searchMRR10": 0.6666666666666666,
+            "requiredFileCoverage10": 0.7,
+            "initialRequiredSpanCoverage": 0.5777777777777778,
+            "finalRequiredSpanCoverage": 0.6444444444444445,
+            "initialAllRequiredSpans": 4,
+            "finalAllRequiredSpans": 5,
+            "interactionTokens": 37348,
+            "interactionBytes": 133933,
+            "expansions": 36,
+            "searchMs": {
+              "p50": 1303.969333999994,
+              "p95": 2305.857415999999
+            },
+            "recallMs": {
+              "p50": 1319.1668339999742,
+              "p95": 2345.282875000001
+            },
+            "interactionMs": {
+              "p50": 1359.8693330000096,
+              "p95": 2557.9165829999984
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "historical": {
+          "baseline": {
+            "cases": 10,
+            "searchSuccess5": 0.2,
+            "searchSuccess10": 0.6,
+            "searchMRR10": 0.1220238095238095,
+            "requiredFileCoverage10": 0.6,
+            "initialRequiredSpanCoverage": 0.6,
+            "finalRequiredSpanCoverage": 0.6,
+            "initialAllRequiredSpans": 6,
+            "finalAllRequiredSpans": 6,
+            "interactionTokens": 27649,
+            "interactionBytes": 98554,
+            "expansions": 27,
+            "searchMs": {
+              "p50": 1385.7044170000008,
+              "p95": 2435.8517909999937
+            },
+            "recallMs": {
+              "p50": 1441.3684159999975,
+              "p95": 2725.1614580000023
+            },
+            "interactionMs": {
+              "p50": 1494.1871660000033,
+              "p95": 2923.558667000005
+            },
+            "partialRetrievalCases": 10,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 10,
+            "searchSuccess5": 0.2,
+            "searchSuccess10": 0.6,
+            "searchMRR10": 0.1220238095238095,
+            "requiredFileCoverage10": 0.6,
+            "initialRequiredSpanCoverage": 0.6,
+            "finalRequiredSpanCoverage": 0.6,
+            "initialAllRequiredSpans": 6,
+            "finalAllRequiredSpans": 6,
+            "interactionTokens": 27649,
+            "interactionBytes": 98554,
+            "expansions": 27,
+            "searchMs": {
+              "p50": 1303.0418329999957,
+              "p95": 2192.318959
+            },
+            "recallMs": {
+              "p50": 1323.1679580000055,
+              "p95": 2360.0622920000023
+            },
+            "interactionMs": {
+              "p50": 1364.941582999978,
+              "p95": 2479.6183329999985
+            },
+            "partialRetrievalCases": 10,
+            "provenanceFailures": 0
+          }
+        },
+        "multi-source": {
+          "baseline": {
+            "cases": 21,
+            "searchSuccess5": 0.9047619047619048,
+            "searchSuccess10": 0.9523809523809523,
+            "searchMRR10": 0.6206349206349207,
+            "requiredFileCoverage10": 0.8095238095238095,
+            "initialRequiredSpanCoverage": 0.6190476190476191,
+            "finalRequiredSpanCoverage": 0.6190476190476191,
+            "initialAllRequiredSpans": 7,
+            "finalAllRequiredSpans": 7,
+            "interactionTokens": 59711,
+            "interactionBytes": 208416,
+            "expansions": 60,
+            "searchMs": {
+              "p50": 1265.2515419999836,
+              "p95": 3016.601915999985
+            },
+            "recallMs": {
+              "p50": 1281.1868749999994,
+              "p95": 2452.2000830000034
+            },
+            "interactionMs": {
+              "p50": 1321.2101249999978,
+              "p95": 2698.2678339999984
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 21,
+            "searchSuccess5": 0.9523809523809523,
+            "searchSuccess10": 0.9523809523809523,
+            "searchMRR10": 0.7896825396825398,
+            "requiredFileCoverage10": 0.8571428571428571,
+            "initialRequiredSpanCoverage": 0.7857142857142857,
+            "finalRequiredSpanCoverage": 0.7857142857142857,
+            "initialAllRequiredSpans": 13,
+            "finalAllRequiredSpans": 13,
+            "interactionTokens": 59989,
+            "interactionBytes": 211007,
+            "expansions": 60,
+            "searchMs": {
+              "p50": 1292.5215410000528,
+              "p95": 1335.3100829999967
+            },
+            "recallMs": {
+              "p50": 1313.2577919999603,
+              "p95": 1344.6008750000037
+            },
+            "interactionMs": {
+              "p50": 1355.0618339999928,
+              "p95": 1391.195000000007
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "limits": {
+          "baseline": {
+            "cases": 10,
+            "searchSuccess5": 0.1,
+            "searchSuccess10": 0.4,
+            "searchMRR10": 0.06178571428571428,
+            "requiredFileCoverage10": 0.4,
+            "initialRequiredSpanCoverage": 0.1,
+            "finalRequiredSpanCoverage": 0.1,
+            "initialAllRequiredSpans": 1,
+            "finalAllRequiredSpans": 1,
+            "interactionTokens": 28325,
+            "interactionBytes": 102626,
+            "expansions": 27,
+            "searchMs": {
+              "p50": 1438.1143329999904,
+              "p95": 2976.8515419999967
+            },
+            "recallMs": {
+              "p50": 1484.5765419999952,
+              "p95": 2656.430124999999
+            },
+            "interactionMs": {
+              "p50": 1620.4733750000014,
+              "p95": 2929.560792000004
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 10,
+            "searchSuccess5": 0.2,
+            "searchSuccess10": 0.4,
+            "searchMRR10": 0.06928571428571428,
+            "requiredFileCoverage10": 0.4,
+            "initialRequiredSpanCoverage": 0.2,
+            "finalRequiredSpanCoverage": 0.2,
+            "initialAllRequiredSpans": 2,
+            "finalAllRequiredSpans": 2,
+            "interactionTokens": 28057,
+            "interactionBytes": 101366,
+            "expansions": 27,
+            "searchMs": {
+              "p50": 1274.700582999998,
+              "p95": 1312.7306659999886
+            },
+            "recallMs": {
+              "p50": 1266.9160830000037,
+              "p95": 1360.4287080000067
+            },
+            "interactionMs": {
+              "p50": 1308.5013330000002,
+              "p95": 1401.971291000009
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "scope": {
+          "baseline": {
+            "cases": 6,
+            "searchSuccess5": 1,
+            "searchSuccess10": 1,
+            "searchMRR10": 0.75,
+            "requiredFileCoverage10": 1,
+            "initialRequiredSpanCoverage": 0.4444444444444444,
+            "finalRequiredSpanCoverage": 1,
+            "initialAllRequiredSpans": 0,
+            "finalAllRequiredSpans": 6,
+            "interactionTokens": 26894,
+            "interactionBytes": 102551,
+            "expansions": 18,
+            "searchMs": {
+              "p50": 1280.478124999965,
+              "p95": 1306.4400000000023
+            },
+            "recallMs": {
+              "p50": 1282.0269170000101,
+              "p95": 1321.141667000018
+            },
+            "interactionMs": {
+              "p50": 1326.7748750000028,
+              "p95": 1363.802250000008
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 6,
+            "searchSuccess5": 1,
+            "searchSuccess10": 1,
+            "searchMRR10": 1,
+            "requiredFileCoverage10": 1,
+            "initialRequiredSpanCoverage": 0.4444444444444444,
+            "finalRequiredSpanCoverage": 1,
+            "initialAllRequiredSpans": 0,
+            "finalAllRequiredSpans": 6,
+            "interactionTokens": 26894,
+            "interactionBytes": 102551,
+            "expansions": 18,
+            "searchMs": {
+              "p50": 1298.494875000004,
+              "p95": 1310.7714590000105
+            },
+            "recallMs": {
+              "p50": 1315.0781669999997,
+              "p95": 1348.5212500000198
+            },
+            "interactionMs": {
+              "p50": 1355.0172079999757,
+              "p95": 1391.2845000000088
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "ranking": {
+          "baseline": {
+            "cases": 6,
+            "searchSuccess5": 0.3333333333333333,
+            "searchSuccess10": 1,
+            "searchMRR10": 0.2824074074074074,
+            "requiredFileCoverage10": 1,
+            "initialRequiredSpanCoverage": 0.16666666666666666,
+            "finalRequiredSpanCoverage": 0.25,
+            "initialAllRequiredSpans": 0,
+            "finalAllRequiredSpans": 1,
+            "interactionTokens": 22314,
+            "interactionBytes": 85171,
+            "expansions": 18,
+            "searchMs": {
+              "p50": 1277.0366670000367,
+              "p95": 1335.6405000000377
+            },
+            "recallMs": {
+              "p50": 1295.8132079999777,
+              "p95": 1330.6998329999624
+            },
+            "interactionMs": {
+              "p50": 1337.4293339999858,
+              "p95": 1373.727499999979
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 6,
+            "searchSuccess5": 1,
+            "searchSuccess10": 1,
+            "searchMRR10": 0.47222222222222227,
+            "requiredFileCoverage10": 1,
+            "initialRequiredSpanCoverage": 0.16666666666666666,
+            "finalRequiredSpanCoverage": 1,
+            "initialAllRequiredSpans": 0,
+            "finalAllRequiredSpans": 6,
+            "interactionTokens": 22218,
+            "interactionBytes": 82728,
+            "expansions": 18,
+            "searchMs": {
+              "p50": 1324.7710420000076,
+              "p95": 1335.932208000013
+            },
+            "recallMs": {
+              "p50": 1320.8751670000202,
+              "p95": 1335.5422499999986
+            },
+            "interactionMs": {
+              "p50": 1363.063374999998,
+              "p95": 1381.0824999999895
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        },
+        "protected": {
+          "baseline": {
+            "cases": 11,
+            "searchSuccess5": 1,
+            "searchSuccess10": 1,
+            "searchMRR10": 0.5984848484848485,
+            "requiredFileCoverage10": 1,
+            "initialRequiredSpanCoverage": 1,
+            "finalRequiredSpanCoverage": 1,
+            "initialAllRequiredSpans": 11,
+            "finalAllRequiredSpans": 11,
+            "interactionTokens": 31933,
+            "interactionBytes": 106949,
+            "expansions": 33,
+            "searchMs": {
+              "p50": 1054.6669999999576,
+              "p95": 1322.8021249999874
+            },
+            "recallMs": {
+              "p50": 1057.9403749999474,
+              "p95": 1275.466999999946
+            },
+            "interactionMs": {
+              "p50": 1098.8187080000062,
+              "p95": 1316.9377090000198
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          },
+          "arm": {
+            "cases": 11,
+            "searchSuccess5": 1,
+            "searchSuccess10": 1,
+            "searchMRR10": 0.6363636363636364,
+            "requiredFileCoverage10": 1,
+            "initialRequiredSpanCoverage": 1,
+            "finalRequiredSpanCoverage": 1,
+            "initialAllRequiredSpans": 11,
+            "finalAllRequiredSpans": 11,
+            "interactionTokens": 34965,
+            "interactionBytes": 123444,
+            "expansions": 33,
+            "searchMs": {
+              "p50": 1052.018916000001,
+              "p95": 1369.8854159999755
+            },
+            "recallMs": {
+              "p50": 1080.8213749999995,
+              "p95": 1349.6434579999768
+            },
+            "interactionMs": {
+              "p50": 1123.1943749999919,
+              "p95": 1391.5973330000415
+            },
+            "partialRetrievalCases": 0,
+            "provenanceFailures": 0
+          }
+        }
+      },
+      "deltas": [
+        {
+          "id": "harbor-navigation",
+          "journey": "navigation",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 1699,
+          "tokensAfter": 1699,
+          "filesBefore": [
+            "notes/harbor/checklist.md",
+            "sessions/harbor/retrospective.md"
+          ],
+          "filesAfter": [
+            "notes/harbor/checklist.md",
+            "sessions/harbor/retrospective.md"
+          ]
+        },
+        {
+          "id": "harbor-discovery",
+          "journey": "discovery",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3827,
+          "tokensAfter": 3827,
+          "filesBefore": [
+            "notes/belltower/brief.md",
+            "notes/copperfin/brief.md",
+            "notes/meadow/proposal.md",
+            "notes/mothlight/brief.md",
+            "notes/cedar/checklist.md"
+          ],
+          "filesAfter": [
+            "notes/belltower/brief.md",
+            "notes/copperfin/brief.md",
+            "notes/meadow/proposal.md",
+            "notes/mothlight/brief.md",
+            "notes/cedar/checklist.md"
+          ]
+        },
+        {
+          "id": "harbor-orientation",
+          "journey": "orientation",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3597,
+          "tokensAfter": 3568,
+          "filesBefore": [
+            "pages/harbor/overview.md",
+            "notes/estuary/handbook.md",
+            "notes/lantern/customer.md",
+            "notes/vellum/handbook.md",
+            "notes/harbor/brief.md"
+          ],
+          "filesAfter": [
+            "pages/harbor/overview.md",
+            "notes/harbor/brief.md",
+            "notes/estuary/handbook.md",
+            "notes/lantern/customer.md",
+            "notes/vellum/handbook.md"
+          ]
+        },
+        {
+          "id": "harbor-rationale",
+          "journey": "rationale",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3447,
+          "tokensAfter": 3142,
+          "filesBefore": [
+            "decisions/harbor/approved.md",
+            "findings/harbor/research.md",
+            "notes/harbor/brief.md",
+            "notes/harbor/proposal.md",
+            "findings/mosaic/research.md"
+          ],
+          "filesAfter": [
+            "decisions/harbor/approved.md",
+            "findings/harbor/research.md",
+            "notes/harbor/brief.md",
+            "notes/harbor/proposal.md",
+            "pages/harbor/archive.md"
+          ]
+        },
+        {
+          "id": "harbor-current",
+          "journey": "current",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 3,
+          "tokensBefore": 2895,
+          "tokensAfter": 3097,
+          "filesBefore": [
+            "notes/belltower/proposal.md",
+            "decisions/ridge/initial.md",
+            "notes/cedar/proposal.md",
+            "decisions/harbor/approved.md",
+            "notes/harbor/adjacent.md"
+          ],
+          "filesAfter": [
+            "decisions/harbor/approved.md",
+            "notes/harbor/adjacent.md",
+            "notes/harbor/customer.md",
+            "decisions/harbor/initial.md",
+            "notes/harbor/runbook.md"
+          ]
+        },
+        {
+          "id": "harbor-historical",
+          "journey": "historical",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3458,
+          "tokensAfter": 3458,
+          "filesBefore": [
+            "decisions/cedar/initial.md",
+            "decisions/forum/initial.md",
+            "decisions/harbor/initial.md",
+            "decisions/juniper/initial.md",
+            "decisions/ridge/initial.md"
+          ],
+          "filesAfter": [
+            "decisions/cedar/initial.md",
+            "decisions/forum/initial.md",
+            "decisions/harbor/initial.md",
+            "decisions/juniper/initial.md",
+            "decisions/ridge/initial.md"
+          ]
+        },
+        {
+          "id": "harbor-multi-source",
+          "journey": "multi-source",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3700,
+          "tokensAfter": 3581,
+          "filesBefore": [
+            "notes/harbor/runbook.md",
+            "decisions/selkie-passengers.md",
+            "pages/harbor/overview.md",
+            "notes/harbor/checklist.md",
+            "decisions/harbor/approved.md"
+          ],
+          "filesAfter": [
+            "notes/harbor/runbook.md",
+            "pages/harbor/overview.md",
+            "notes/harbor/checklist.md",
+            "decisions/harbor/approved.md",
+            "decisions/harbor/initial.md"
+          ]
+        },
+        {
+          "id": "harbor-limits",
+          "journey": "limits",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 120,
+          "tokensAfter": 120,
+          "filesBefore": [],
+          "filesAfter": []
+        },
+        {
+          "id": "lantern-navigation",
+          "journey": "navigation",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3219,
+          "tokensAfter": 3219,
+          "filesBefore": [
+            "notes/lantern/checklist.md",
+            "decisions/lantern/approved.md",
+            "sessions/lantern/retrospective.md",
+            "notes/lantern/runbook.md",
+            "notes/cedar/checklist.md"
+          ],
+          "filesAfter": [
+            "notes/lantern/checklist.md",
+            "decisions/lantern/approved.md",
+            "sessions/lantern/retrospective.md",
+            "notes/lantern/runbook.md",
+            "notes/cedar/checklist.md"
+          ]
+        },
+        {
+          "id": "lantern-discovery",
+          "journey": "discovery",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 810,
+          "tokensAfter": 810,
+          "filesBefore": [
+            "notes/lantern/brief.md"
+          ],
+          "filesAfter": [
+            "notes/lantern/brief.md"
+          ]
+        },
+        {
+          "id": "lantern-orientation",
+          "journey": "orientation",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 2,
+          "tokensBefore": 2945,
+          "tokensAfter": 3008,
+          "filesBefore": [
+            "pages/lantern/overview.md",
+            "decisions/selkie-passengers.md",
+            "decisions/belltower/scope.md",
+            "findings/lantern/measure.md",
+            "notes/quartz/handbook.md"
+          ],
+          "filesAfter": [
+            "pages/lantern/overview.md",
+            "findings/lantern/measure.md",
+            "notes/lantern/risk.md",
+            "sessions/lantern/kickoff.md",
+            "decisions/selkie-passengers.md"
+          ]
+        },
+        {
+          "id": "lantern-rationale",
+          "journey": "rationale",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2481,
+          "tokensAfter": 2481,
+          "filesBefore": [
+            "decisions/lantern/approved.md",
+            "pages/lantern/archive.md",
+            "findings/lantern/research.md",
+            "notes/lantern/proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/lantern/approved.md",
+            "pages/lantern/archive.md",
+            "findings/lantern/research.md",
+            "notes/lantern/proposal.md"
+          ]
+        },
+        {
+          "id": "lantern-current",
+          "journey": "current",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 3,
+          "tokensBefore": 3221,
+          "tokensAfter": 3313,
+          "filesBefore": [
+            "notes/lantern/checklist.md",
+            "decisions/copperfin/scope.md",
+            "decisions/ridge/approved.md",
+            "decisions/lantern/approved.md",
+            "notes/lantern/runbook.md"
+          ],
+          "filesAfter": [
+            "notes/lantern/checklist.md",
+            "decisions/lantern/approved.md",
+            "notes/lantern/runbook.md",
+            "sessions/lantern/kickoff.md",
+            "sessions/lantern/retrospective.md"
+          ]
+        },
+        {
+          "id": "lantern-historical",
+          "journey": "historical",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3525,
+          "tokensAfter": 3525,
+          "filesBefore": [
+            "notes/cedar/customer.md",
+            "notes/forum/customer.md",
+            "notes/harbor/customer.md",
+            "notes/juniper/customer.md",
+            "notes/lantern/customer.md"
+          ],
+          "filesAfter": [
+            "notes/cedar/customer.md",
+            "notes/forum/customer.md",
+            "notes/harbor/customer.md",
+            "notes/juniper/customer.md",
+            "notes/lantern/customer.md"
+          ]
+        },
+        {
+          "id": "lantern-multi-source",
+          "journey": "multi-source",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3074,
+          "tokensAfter": 3022,
+          "filesBefore": [
+            "notes/lantern/customer.md",
+            "notes/lantern/runbook.md",
+            "notes/cedar/customer.md",
+            "findings/copperfin/site.md",
+            "notes/cedar/adjacent.md"
+          ],
+          "filesAfter": [
+            "notes/lantern/customer.md",
+            "notes/lantern/runbook.md",
+            "findings/lantern/measure.md",
+            "notes/lantern/adjacent.md",
+            "sessions/lantern/pilot.md"
+          ]
+        },
+        {
+          "id": "lantern-limits",
+          "journey": "limits",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3229,
+          "tokensAfter": 3120,
+          "filesBefore": [
+            "notes/lantern/checklist.md",
+            "notes/lantern/runbook.md",
+            "decisions/lantern/approved.md",
+            "findings/quartz/constraint.md",
+            "decisions/tamar-flushing.md"
+          ],
+          "filesAfter": [
+            "notes/lantern/checklist.md",
+            "notes/lantern/runbook.md",
+            "decisions/lantern/approved.md",
+            "sessions/lantern/kickoff.md",
+            "sessions/lantern/retrospective.md"
+          ]
+        },
+        {
+          "id": "juniper-navigation",
+          "journey": "navigation",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3221,
+          "tokensAfter": 3221,
+          "filesBefore": [
+            "notes/juniper/checklist.md",
+            "pages/juniper/overview.md",
+            "decisions/juniper/approved.md",
+            "sessions/juniper/retrospective.md",
+            "notes/juniper/runbook.md"
+          ],
+          "filesAfter": [
+            "notes/juniper/checklist.md",
+            "pages/juniper/overview.md",
+            "decisions/juniper/approved.md",
+            "sessions/juniper/retrospective.md",
+            "notes/juniper/runbook.md"
+          ]
+        },
+        {
+          "id": "juniper-discovery",
+          "journey": "discovery",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3065,
+          "tokensAfter": 3065,
+          "filesBefore": [
+            "notes/juniper/brief.md",
+            "decisions/juniper/approved.md",
+            "findings/juniper/research.md",
+            "notes/juniper/runbook.md",
+            "sessions/juniper/kickoff.md"
+          ],
+          "filesAfter": [
+            "notes/juniper/brief.md",
+            "decisions/juniper/approved.md",
+            "findings/juniper/research.md",
+            "notes/juniper/runbook.md",
+            "sessions/juniper/kickoff.md"
+          ]
+        },
+        {
+          "id": "juniper-orientation",
+          "journey": "orientation",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3362,
+          "tokensAfter": 3354,
+          "filesBefore": [
+            "pages/juniper/overview.md",
+            "pages/juniper/archive.md",
+            "decisions/juniper/approved.md",
+            "decisions/saffron/schedule.md",
+            "decisions/juniper/initial.md"
+          ],
+          "filesAfter": [
+            "pages/juniper/overview.md",
+            "pages/juniper/archive.md",
+            "decisions/juniper/approved.md",
+            "decisions/juniper/initial.md",
+            "notes/juniper/brief.md"
+          ]
+        },
+        {
+          "id": "juniper-rationale",
+          "journey": "rationale",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2935,
+          "tokensAfter": 2935,
+          "filesBefore": [
+            "decisions/juniper/approved.md",
+            "findings/juniper/research.md",
+            "notes/juniper/brief.md",
+            "pages/juniper/archive.md",
+            "notes/juniper/proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/juniper/approved.md",
+            "findings/juniper/research.md",
+            "notes/juniper/brief.md",
+            "pages/juniper/archive.md",
+            "notes/juniper/proposal.md"
+          ]
+        },
+        {
+          "id": "juniper-current",
+          "journey": "current",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 3,
+          "tokensBefore": 3313,
+          "tokensAfter": 3223,
+          "filesBefore": [
+            "pages/juniper/overview.md",
+            "decisions/juniper/approved.md",
+            "decisions/juniper/initial.md",
+            "notes/belltower/brief.md",
+            "notes/juniper/runbook.md"
+          ],
+          "filesAfter": [
+            "pages/juniper/overview.md",
+            "decisions/juniper/approved.md",
+            "decisions/juniper/initial.md",
+            "notes/juniper/runbook.md",
+            "notes/juniper/checklist.md"
+          ]
+        },
+        {
+          "id": "juniper-historical",
+          "journey": "historical",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3014,
+          "tokensAfter": 3014,
+          "filesBefore": [
+            "notes/juniper/brief.md",
+            "sessions/juniper/kickoff.md",
+            "notes/cedar/customer.md",
+            "notes/juniper/customer.md",
+            "notes/ridge/customer.md"
+          ],
+          "filesAfter": [
+            "notes/juniper/brief.md",
+            "sessions/juniper/kickoff.md",
+            "notes/cedar/customer.md",
+            "notes/juniper/customer.md",
+            "notes/ridge/customer.md"
+          ]
+        },
+        {
+          "id": "juniper-multi-source",
+          "journey": "multi-source",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 2,
+          "tokensBefore": 138,
+          "tokensAfter": 138,
+          "filesBefore": [],
+          "filesAfter": []
+        },
+        {
+          "id": "juniper-limits",
+          "journey": "limits",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 2861,
+          "tokensAfter": 2964,
+          "filesBefore": [
+            "decisions/juniper/approved.md",
+            "notes/juniper/runbook.md",
+            "decisions/juniper/initial.md",
+            "findings/cedar/research.md",
+            "notes/cedar/brief.md"
+          ],
+          "filesAfter": [
+            "decisions/juniper/approved.md",
+            "notes/juniper/runbook.md",
+            "decisions/juniper/initial.md",
+            "findings/juniper/research.md",
+            "sessions/juniper/kickoff.md"
+          ]
+        },
+        {
+          "id": "ridge-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3024,
+          "tokensAfter": 3024,
+          "filesBefore": [
+            "notes/ridge/checklist.md",
+            "sessions/ridge/retrospective.md",
+            "notes/bracken/handbook.md"
+          ],
+          "filesAfter": [
+            "notes/ridge/checklist.md",
+            "sessions/ridge/retrospective.md",
+            "notes/bracken/handbook.md"
+          ]
+        },
+        {
+          "id": "ridge-discovery",
+          "journey": "discovery",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2758,
+          "tokensAfter": 2758,
+          "filesBefore": [
+            "notes/ridge/brief.md",
+            "notes/forum/brief.md",
+            "notes/meadow/brief.md",
+            "notes/bracken/handbook.md",
+            "findings/ridge/research.md"
+          ],
+          "filesAfter": [
+            "notes/ridge/brief.md",
+            "notes/forum/brief.md",
+            "notes/meadow/brief.md",
+            "notes/bracken/handbook.md",
+            "findings/ridge/research.md"
+          ]
+        },
+        {
+          "id": "ridge-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 0,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3531,
+          "tokensAfter": 3437,
+          "filesBefore": [
+            "pages/ridge/overview.md",
+            "pages/cedar/overview.md",
+            "pages/ridge/archive.md",
+            "pages/forum/overview.md",
+            "pages/harbor/overview.md"
+          ],
+          "filesAfter": [
+            "pages/ridge/overview.md",
+            "pages/ridge/archive.md",
+            "decisions/ridge/approved.md",
+            "decisions/ridge/initial.md",
+            "notes/ridge/brief.md"
+          ]
+        },
+        {
+          "id": "ridge-rationale",
+          "journey": "rationale",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2594,
+          "tokensAfter": 2594,
+          "filesBefore": [
+            "decisions/ridge/approved.md",
+            "pages/ridge/archive.md",
+            "findings/ridge/research.md",
+            "notes/ridge/proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/ridge/approved.md",
+            "pages/ridge/archive.md",
+            "findings/ridge/research.md",
+            "notes/ridge/proposal.md"
+          ]
+        },
+        {
+          "id": "ridge-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 3,
+          "afterUnits": 3,
+          "units": 3,
+          "tokensBefore": 3081,
+          "tokensAfter": 3104,
+          "filesBefore": [
+            "decisions/ridge/initial.md",
+            "decisions/ridge/approved.md",
+            "notes/ridge/proposal.md",
+            "decisions/ledger/approved.md",
+            "findings/copperfin/site.md"
+          ],
+          "filesAfter": [
+            "decisions/ridge/initial.md",
+            "decisions/ridge/approved.md",
+            "notes/ridge/proposal.md",
+            "notes/ridge/runbook.md",
+            "notes/ridge/checklist.md"
+          ]
+        },
+        {
+          "id": "ridge-historical",
+          "journey": "historical",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2943,
+          "tokensAfter": 2943,
+          "filesBefore": [
+            "notes/ridge/brief.md",
+            "sessions/ridge/kickoff.md",
+            "decisions/ridge/initial.md",
+            "pages/ridge/archive.md",
+            "notes/ridge/customer.md"
+          ],
+          "filesAfter": [
+            "notes/ridge/brief.md",
+            "sessions/ridge/kickoff.md",
+            "decisions/ridge/initial.md",
+            "pages/ridge/archive.md",
+            "notes/ridge/customer.md"
+          ]
+        },
+        {
+          "id": "ridge-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3454,
+          "tokensAfter": 2962,
+          "filesBefore": [
+            "notes/ridge/brief.md",
+            "notes/bracken/handbook.md",
+            "findings/mosaic/measure.md",
+            "notes/cedar/brief.md",
+            "notes/ridge/customer.md"
+          ],
+          "filesAfter": [
+            "notes/ridge/brief.md",
+            "notes/ridge/customer.md",
+            "pages/ridge/overview.md",
+            "findings/ridge/measure.md",
+            "findings/ridge/research.md"
+          ]
+        },
+        {
+          "id": "ridge-limits",
+          "journey": "limits",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 2988,
+          "tokensAfter": 2995,
+          "filesBefore": [
+            "pages/ridge/archive.md",
+            "decisions/ridge/approved.md",
+            "notes/ridge/runbook.md",
+            "notes/ridge/brief.md",
+            "notes/mosaic/brief.md"
+          ],
+          "filesAfter": [
+            "pages/ridge/archive.md",
+            "decisions/ridge/approved.md",
+            "notes/ridge/runbook.md",
+            "notes/ridge/brief.md",
+            "findings/ridge/measure.md"
+          ]
+        },
+        {
+          "id": "cedar-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3031,
+          "tokensAfter": 3031,
+          "filesBefore": [
+            "notes/cedar/checklist.md",
+            "decisions/cedar/approved.md",
+            "findings/cedar/measure.md",
+            "notes/cedar/brief.md",
+            "sessions/cedar/retrospective.md"
+          ],
+          "filesAfter": [
+            "notes/cedar/checklist.md",
+            "decisions/cedar/approved.md",
+            "findings/cedar/measure.md",
+            "notes/cedar/brief.md",
+            "sessions/cedar/retrospective.md"
+          ]
+        },
+        {
+          "id": "cedar-discovery",
+          "journey": "discovery",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 126,
+          "tokensAfter": 126,
+          "filesBefore": [],
+          "filesAfter": []
+        },
+        {
+          "id": "cedar-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3121,
+          "tokensAfter": 3065,
+          "filesBefore": [
+            "pages/cedar/overview.md",
+            "pages/ledger/overview.md",
+            "decisions/cedar/approved.md",
+            "decisions/cedar/initial.md",
+            "notes/cedar/proposal.md"
+          ],
+          "filesAfter": [
+            "pages/cedar/overview.md",
+            "decisions/cedar/approved.md",
+            "decisions/cedar/initial.md",
+            "notes/cedar/proposal.md",
+            "notes/cedar/risk.md"
+          ]
+        },
+        {
+          "id": "cedar-rationale",
+          "journey": "rationale",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 2787,
+          "tokensAfter": 2807,
+          "filesBefore": [
+            "decisions/cedar/approved.md",
+            "pages/cedar/overview.md",
+            "decisions/copperfin/scope.md",
+            "notes/cedar/brief.md",
+            "decisions/cedar/initial.md"
+          ],
+          "filesAfter": [
+            "decisions/cedar/approved.md",
+            "pages/cedar/overview.md",
+            "notes/cedar/brief.md",
+            "decisions/cedar/initial.md",
+            "pages/cedar/archive.md"
+          ]
+        },
+        {
+          "id": "cedar-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 3,
+          "tokensBefore": 2883,
+          "tokensAfter": 3028,
+          "filesBefore": [
+            "notes/cedar/checklist.md",
+            "decisions/copperfin/scope.md",
+            "decisions/meadow/approved.md",
+            "decisions/cedar/approved.md",
+            "notes/cedar/brief.md"
+          ],
+          "filesAfter": [
+            "notes/cedar/checklist.md",
+            "decisions/cedar/approved.md",
+            "notes/cedar/brief.md",
+            "notes/cedar/customer.md",
+            "findings/cedar/measure.md"
+          ]
+        },
+        {
+          "id": "cedar-historical",
+          "journey": "historical",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3016,
+          "tokensAfter": 3016,
+          "filesBefore": [
+            "notes/cedar/brief.md",
+            "decisions/cedar/initial.md",
+            "decisions/forum/initial.md",
+            "decisions/meadow/initial.md",
+            "notes/cedar/customer.md"
+          ],
+          "filesAfter": [
+            "notes/cedar/brief.md",
+            "decisions/cedar/initial.md",
+            "decisions/forum/initial.md",
+            "decisions/meadow/initial.md",
+            "notes/cedar/customer.md"
+          ]
+        },
+        {
+          "id": "cedar-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3336,
+          "tokensAfter": 3262,
+          "filesBefore": [
+            "notes/cedar/runbook.md",
+            "notes/cedar/checklist.md",
+            "notes/cedar/customer.md",
+            "notes/meadow/runbook.md",
+            "notes/selkie-later.md"
+          ],
+          "filesAfter": [
+            "notes/cedar/runbook.md",
+            "notes/cedar/checklist.md",
+            "notes/cedar/customer.md",
+            "notes/cedar/proposal.md",
+            "sessions/cedar/retrospective.md"
+          ]
+        },
+        {
+          "id": "cedar-limits",
+          "journey": "limits",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3472,
+          "tokensAfter": 3424,
+          "filesBefore": [
+            "decisions/cedar/approved.md",
+            "notes/cedar/runbook.md",
+            "pages/cedar/overview.md",
+            "notes/cedar/risk.md",
+            "notes/mosaic/risk.md"
+          ],
+          "filesAfter": [
+            "decisions/cedar/approved.md",
+            "notes/cedar/runbook.md",
+            "pages/cedar/overview.md",
+            "notes/cedar/risk.md",
+            "decisions/cedar/initial.md"
+          ]
+        },
+        {
+          "id": "orbit-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2973,
+          "tokensAfter": 2973,
+          "filesBefore": [
+            "notes/orbit/checklist.md",
+            "pages/orbit/overview.md",
+            "sessions/orbit/retrospective.md",
+            "notes/orbit/runbook.md",
+            "notes/orbit/brief.md"
+          ],
+          "filesAfter": [
+            "notes/orbit/checklist.md",
+            "pages/orbit/overview.md",
+            "sessions/orbit/retrospective.md",
+            "notes/orbit/runbook.md",
+            "notes/orbit/brief.md"
+          ]
+        },
+        {
+          "id": "orbit-discovery",
+          "journey": "discovery",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2895,
+          "tokensAfter": 2895,
+          "filesBefore": [
+            "decisions/belltower/scope.md",
+            "findings/orbit/measure.md",
+            "notes/orbit/brief.md",
+            "findings/orbit/research.md",
+            "findings/tamar-pressure.md"
+          ],
+          "filesAfter": [
+            "decisions/belltower/scope.md",
+            "findings/orbit/measure.md",
+            "notes/orbit/brief.md",
+            "findings/orbit/research.md",
+            "findings/tamar-pressure.md"
+          ]
+        },
+        {
+          "id": "orbit-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3403,
+          "tokensAfter": 3765,
+          "filesBefore": [
+            "pages/cedar/overview.md",
+            "pages/orbit/overview.md",
+            "pages/forum/overview.md",
+            "pages/harbor/overview.md",
+            "pages/juniper/overview.md"
+          ],
+          "filesAfter": [
+            "pages/orbit/overview.md",
+            "decisions/orbit/approved.md",
+            "decisions/orbit/initial.md",
+            "notes/orbit/checklist.md",
+            "notes/orbit/runbook.md"
+          ]
+        },
+        {
+          "id": "orbit-rationale",
+          "journey": "rationale",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 2,
+          "tokensBefore": 124,
+          "tokensAfter": 124,
+          "filesBefore": [],
+          "filesAfter": []
+        },
+        {
+          "id": "orbit-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 3,
+          "tokensBefore": 122,
+          "tokensAfter": 122,
+          "filesBefore": [],
+          "filesAfter": []
+        },
+        {
+          "id": "orbit-historical",
+          "journey": "historical",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 238,
+          "tokensAfter": 238,
+          "filesBefore": [],
+          "filesAfter": []
+        },
+        {
+          "id": "orbit-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3433,
+          "tokensAfter": 3433,
+          "filesBefore": [
+            "decisions/orbit/approved.md",
+            "pages/orbit/overview.md",
+            "notes/orbit/runbook.md",
+            "decisions/orbit/initial.md",
+            "notes/orbit/checklist.md"
+          ],
+          "filesAfter": [
+            "decisions/orbit/approved.md",
+            "pages/orbit/overview.md",
+            "notes/orbit/runbook.md",
+            "decisions/orbit/initial.md",
+            "notes/orbit/checklist.md"
+          ]
+        },
+        {
+          "id": "orbit-limits",
+          "journey": "limits",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": true,
+          "beforeUnits": 0,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3266,
+          "tokensAfter": 3138,
+          "filesBefore": [
+            "decisions/orbit/approved.md",
+            "notes/orbit/runbook.md",
+            "pages/orbit/overview.md",
+            "notes/meadow/risk.md",
+            "decisions/orbit/initial.md"
+          ],
+          "filesAfter": [
+            "decisions/orbit/approved.md",
+            "notes/orbit/runbook.md",
+            "pages/orbit/overview.md",
+            "decisions/orbit/initial.md",
+            "notes/orbit/risk.md"
+          ]
+        },
+        {
+          "id": "mosaic-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2989,
+          "tokensAfter": 2989,
+          "filesBefore": [
+            "notes/mosaic/checklist.md",
+            "notes/mosaic/runbook.md",
+            "sessions/mosaic/retrospective.md",
+            "findings/mosaic/research.md",
+            "notes/mosaic/customer.md"
+          ],
+          "filesAfter": [
+            "notes/mosaic/checklist.md",
+            "notes/mosaic/runbook.md",
+            "sessions/mosaic/retrospective.md",
+            "findings/mosaic/research.md",
+            "notes/mosaic/customer.md"
+          ]
+        },
+        {
+          "id": "mosaic-discovery",
+          "journey": "discovery",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3571,
+          "tokensAfter": 3571,
+          "filesBefore": [
+            "notes/mosaic/brief.md",
+            "findings/mosaic/research.md",
+            "notes/vellum/handbook.md",
+            "findings/juniper/research.md",
+            "findings/tamar-pressure.md"
+          ],
+          "filesAfter": [
+            "notes/mosaic/brief.md",
+            "findings/mosaic/research.md",
+            "notes/vellum/handbook.md",
+            "findings/juniper/research.md",
+            "findings/tamar-pressure.md"
+          ]
+        },
+        {
+          "id": "mosaic-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3113,
+          "tokensAfter": 2851,
+          "filesBefore": [
+            "pages/mosaic/overview.md",
+            "pages/cedar/overview.md",
+            "pages/forum/overview.md",
+            "pages/harbor/overview.md",
+            "pages/juniper/overview.md"
+          ],
+          "filesAfter": [
+            "pages/mosaic/overview.md",
+            "decisions/mosaic/approved.md",
+            "decisions/mosaic/initial.md",
+            "findings/mosaic/research.md",
+            "notes/mosaic/risk.md"
+          ]
+        },
+        {
+          "id": "mosaic-rationale",
+          "journey": "rationale",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3684,
+          "tokensAfter": 2956,
+          "filesBefore": [
+            "decisions/mosaic/approved.md",
+            "findings/mosaic/measure.md",
+            "notes/bracken/handbook.md",
+            "pages/mosaic/archive.md",
+            "findings/mosaic/research.md"
+          ],
+          "filesAfter": [
+            "decisions/mosaic/approved.md",
+            "findings/mosaic/measure.md",
+            "pages/mosaic/archive.md",
+            "findings/mosaic/research.md",
+            "notes/mosaic/proposal.md"
+          ]
+        },
+        {
+          "id": "mosaic-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 3,
+          "tokensBefore": 2783,
+          "tokensAfter": 3331,
+          "filesBefore": [
+            "decisions/vellum/schedule.md",
+            "decisions/quartz/schedule.md",
+            "decisions/ridge/initial.md",
+            "decisions/mosaic/approved.md",
+            "findings/copperfin/site.md"
+          ],
+          "filesAfter": [
+            "decisions/mosaic/approved.md",
+            "notes/mosaic/brief.md",
+            "notes/mosaic/runbook.md",
+            "notes/mosaic/adjacent.md",
+            "notes/mosaic/risk.md"
+          ]
+        },
+        {
+          "id": "mosaic-historical",
+          "journey": "historical",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2907,
+          "tokensAfter": 2907,
+          "filesBefore": [
+            "sessions/mosaic/kickoff.md",
+            "decisions/mosaic/initial.md",
+            "decisions/orbit/initial.md",
+            "decisions/ridge/initial.md",
+            "notes/mosaic/customer.md"
+          ],
+          "filesAfter": [
+            "sessions/mosaic/kickoff.md",
+            "decisions/mosaic/initial.md",
+            "decisions/orbit/initial.md",
+            "decisions/ridge/initial.md",
+            "notes/mosaic/customer.md"
+          ]
+        },
+        {
+          "id": "mosaic-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3606,
+          "tokensAfter": 3051,
+          "filesBefore": [
+            "findings/mosaic/research.md",
+            "notes/mosaic/brief.md",
+            "notes/quartz/handbook.md",
+            "notes/vellum/handbook.md",
+            "findings/mosaic/measure.md"
+          ],
+          "filesAfter": [
+            "findings/mosaic/research.md",
+            "notes/mosaic/brief.md",
+            "findings/mosaic/measure.md",
+            "notes/mosaic/customer.md",
+            "notes/quartz/handbook.md"
+          ]
+        },
+        {
+          "id": "mosaic-limits",
+          "journey": "limits",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3200,
+          "tokensAfter": 3140,
+          "filesBefore": [
+            "decisions/mosaic/approved.md",
+            "notes/mosaic/proposal.md",
+            "notes/mosaic/runbook.md",
+            "notes/bracken/handbook.md",
+            "findings/mosaic/measure.md"
+          ],
+          "filesAfter": [
+            "decisions/mosaic/approved.md",
+            "notes/mosaic/proposal.md",
+            "notes/mosaic/runbook.md",
+            "findings/mosaic/measure.md",
+            "notes/mosaic/brief.md"
+          ]
+        },
+        {
+          "id": "meadow-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2851,
+          "tokensAfter": 2851,
+          "filesBefore": [
+            "notes/meadow/checklist.md",
+            "decisions/meadow/approved.md",
+            "decisions/meadow/initial.md",
+            "findings/meadow/measure.md",
+            "notes/meadow/runbook.md"
+          ],
+          "filesAfter": [
+            "notes/meadow/checklist.md",
+            "decisions/meadow/approved.md",
+            "decisions/meadow/initial.md",
+            "findings/meadow/measure.md",
+            "notes/meadow/runbook.md"
+          ]
+        },
+        {
+          "id": "meadow-discovery",
+          "journey": "discovery",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3195,
+          "tokensAfter": 3195,
+          "filesBefore": [
+            "notes/meadow/brief.md",
+            "findings/meadow/measure.md",
+            "findings/cedar/measure.md",
+            "notes/mothlight/brief.md",
+            "pages/meadow/overview.md"
+          ],
+          "filesAfter": [
+            "notes/meadow/brief.md",
+            "findings/meadow/measure.md",
+            "findings/cedar/measure.md",
+            "notes/mothlight/brief.md",
+            "pages/meadow/overview.md"
+          ]
+        },
+        {
+          "id": "meadow-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3428,
+          "tokensAfter": 3729,
+          "filesBefore": [
+            "pages/meadow/overview.md",
+            "pages/meadow/archive.md",
+            "decisions/meadow/approved.md",
+            "decisions/meadow/initial.md",
+            "notes/belltower/brief.md"
+          ],
+          "filesAfter": [
+            "pages/meadow/overview.md",
+            "pages/meadow/archive.md",
+            "decisions/meadow/approved.md",
+            "decisions/meadow/initial.md",
+            "notes/meadow/runbook.md"
+          ]
+        },
+        {
+          "id": "meadow-rationale",
+          "journey": "rationale",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2875,
+          "tokensAfter": 2844,
+          "filesBefore": [
+            "decisions/meadow/approved.md",
+            "pages/meadow/overview.md",
+            "notes/selkie-later.md",
+            "pages/meadow/archive.md",
+            "notes/meadow/runbook.md"
+          ],
+          "filesAfter": [
+            "decisions/meadow/approved.md",
+            "pages/meadow/overview.md",
+            "pages/meadow/archive.md",
+            "notes/meadow/runbook.md",
+            "findings/meadow/research.md"
+          ]
+        },
+        {
+          "id": "meadow-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 3,
+          "tokensBefore": 140,
+          "tokensAfter": 140,
+          "filesBefore": [],
+          "filesAfter": []
+        },
+        {
+          "id": "meadow-historical",
+          "journey": "historical",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2789,
+          "tokensAfter": 2789,
+          "filesBefore": [
+            "sessions/cedar/kickoff.md",
+            "sessions/meadow/kickoff.md",
+            "decisions/meadow/initial.md",
+            "decisions/orbit/initial.md",
+            "notes/meadow/customer.md"
+          ],
+          "filesAfter": [
+            "sessions/cedar/kickoff.md",
+            "sessions/meadow/kickoff.md",
+            "decisions/meadow/initial.md",
+            "decisions/orbit/initial.md",
+            "notes/meadow/customer.md"
+          ]
+        },
+        {
+          "id": "meadow-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 2907,
+          "tokensAfter": 2889,
+          "filesBefore": [
+            "decisions/selkie-passengers.md",
+            "pages/meadow/overview.md",
+            "notes/meadow/customer.md",
+            "decisions/meadow/approved.md",
+            "notes/meadow/brief.md"
+          ],
+          "filesAfter": [
+            "pages/meadow/overview.md",
+            "notes/meadow/customer.md",
+            "decisions/meadow/approved.md",
+            "notes/meadow/brief.md",
+            "decisions/meadow/initial.md"
+          ]
+        },
+        {
+          "id": "meadow-limits",
+          "journey": "limits",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3052,
+          "tokensAfter": 3056,
+          "filesBefore": [
+            "decisions/meadow/approved.md",
+            "notes/meadow/runbook.md",
+            "decisions/orbit/approved.md",
+            "notes/meadow/proposal.md",
+            "notes/meadow/brief.md"
+          ],
+          "filesAfter": [
+            "decisions/meadow/approved.md",
+            "notes/meadow/runbook.md",
+            "notes/meadow/proposal.md",
+            "notes/meadow/brief.md",
+            "notes/meadow/checklist.md"
+          ]
+        },
+        {
+          "id": "forum-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2512,
+          "tokensAfter": 2512,
+          "filesBefore": [
+            "notes/forum/checklist.md",
+            "decisions/forum/approved.md",
+            "sessions/forum/retrospective.md"
+          ],
+          "filesAfter": [
+            "notes/forum/checklist.md",
+            "decisions/forum/approved.md",
+            "sessions/forum/retrospective.md"
+          ]
+        },
+        {
+          "id": "forum-discovery",
+          "journey": "discovery",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 2908,
+          "tokensAfter": 2908,
+          "filesBefore": [
+            "notes/forum/brief.md",
+            "decisions/belltower/scope.md",
+            "decisions/copperfin/scope.md",
+            "decisions/forum/approved.md",
+            "decisions/mothlight/scope.md"
+          ],
+          "filesAfter": [
+            "notes/forum/brief.md",
+            "decisions/belltower/scope.md",
+            "decisions/copperfin/scope.md",
+            "decisions/forum/approved.md",
+            "decisions/mothlight/scope.md"
+          ]
+        },
+        {
+          "id": "forum-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3237,
+          "tokensAfter": 3533,
+          "filesBefore": [
+            "pages/forum/overview.md",
+            "decisions/forum/approved.md",
+            "pages/cedar/overview.md",
+            "pages/harbor/overview.md",
+            "pages/lantern/overview.md"
+          ],
+          "filesAfter": [
+            "pages/forum/overview.md",
+            "decisions/forum/approved.md",
+            "decisions/forum/initial.md",
+            "notes/forum/checklist.md",
+            "notes/forum/runbook.md"
+          ]
+        },
+        {
+          "id": "forum-rationale",
+          "journey": "rationale",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2751,
+          "tokensAfter": 2751,
+          "filesBefore": [
+            "decisions/forum/approved.md",
+            "decisions/forum/initial.md",
+            "pages/forum/archive.md",
+            "findings/forum/research.md",
+            "notes/forum/proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/forum/approved.md",
+            "decisions/forum/initial.md",
+            "pages/forum/archive.md",
+            "findings/forum/research.md",
+            "notes/forum/proposal.md"
+          ]
+        },
+        {
+          "id": "forum-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 3,
+          "tokensBefore": 3093,
+          "tokensAfter": 3097,
+          "filesBefore": [
+            "decisions/forum/approved.md",
+            "notes/cedar/proposal.md",
+            "notes/forum/adjacent.md",
+            "pages/forum/archive.md",
+            "notes/juniper/customer.md"
+          ],
+          "filesAfter": [
+            "decisions/forum/approved.md",
+            "notes/forum/adjacent.md",
+            "pages/forum/archive.md",
+            "pages/forum/overview.md",
+            "notes/forum/runbook.md"
+          ]
+        },
+        {
+          "id": "forum-historical",
+          "journey": "historical",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 2872,
+          "tokensAfter": 2872,
+          "filesBefore": [
+            "notes/forum/brief.md",
+            "sessions/forum/kickoff.md",
+            "pages/forum/archive.md",
+            "notes/forum/customer.md"
+          ],
+          "filesAfter": [
+            "notes/forum/brief.md",
+            "sessions/forum/kickoff.md",
+            "pages/forum/archive.md",
+            "notes/forum/customer.md"
+          ]
+        },
+        {
+          "id": "forum-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 3074,
+          "tokensAfter": 2899,
+          "filesBefore": [
+            "decisions/forum/approved.md",
+            "notes/forum/runbook.md",
+            "decisions/mosaic/approved.md",
+            "notes/forum/brief.md",
+            "notes/belltower/operation.md"
+          ],
+          "filesAfter": [
+            "decisions/forum/approved.md",
+            "notes/forum/runbook.md",
+            "notes/forum/brief.md",
+            "decisions/forum/initial.md",
+            "findings/forum/measure.md"
+          ]
+        },
+        {
+          "id": "forum-limits",
+          "journey": "limits",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3021,
+          "tokensAfter": 3021,
+          "filesBefore": [
+            "notes/forum/runbook.md",
+            "notes/forum/proposal.md",
+            "pages/forum/overview.md",
+            "notes/forum/customer.md",
+            "decisions/forum/approved.md"
+          ],
+          "filesAfter": [
+            "notes/forum/runbook.md",
+            "notes/forum/proposal.md",
+            "pages/forum/overview.md",
+            "notes/forum/customer.md",
+            "decisions/forum/approved.md"
+          ]
+        },
+        {
+          "id": "ledger-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2793,
+          "tokensAfter": 2793,
+          "filesBefore": [
+            "notes/ledger/checklist.md",
+            "pages/ledger/overview.md",
+            "decisions/ledger/approved.md",
+            "decisions/ledger/initial.md",
+            "notes/ledger/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/ledger/checklist.md",
+            "pages/ledger/overview.md",
+            "decisions/ledger/approved.md",
+            "decisions/ledger/initial.md",
+            "notes/ledger/proposal.md"
+          ]
+        },
+        {
+          "id": "ledger-discovery",
+          "journey": "discovery",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2872,
+          "tokensAfter": 2872,
+          "filesBefore": [
+            "decisions/ledger/approved.md",
+            "notes/ledger/brief.md",
+            "findings/ledger/research.md",
+            "decisions/ledger/initial.md",
+            "notes/ledger/proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/ledger/approved.md",
+            "notes/ledger/brief.md",
+            "findings/ledger/research.md",
+            "decisions/ledger/initial.md",
+            "notes/ledger/proposal.md"
+          ]
+        },
+        {
+          "id": "ledger-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3156,
+          "tokensAfter": 3160,
+          "filesBefore": [
+            "pages/ledger/overview.md",
+            "decisions/ledger/approved.md",
+            "pages/cedar/overview.md",
+            "pages/forum/overview.md",
+            "pages/harbor/overview.md"
+          ],
+          "filesAfter": [
+            "pages/ledger/overview.md",
+            "decisions/ledger/approved.md",
+            "findings/ledger/research.md",
+            "notes/ledger/brief.md",
+            "notes/ledger/runbook.md"
+          ]
+        },
+        {
+          "id": "ledger-rationale",
+          "journey": "rationale",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3018,
+          "tokensAfter": 3053,
+          "filesBefore": [
+            "decisions/ledger/approved.md",
+            "decisions/copperfin/scope.md",
+            "notes/ledger/brief.md",
+            "notes/ledger/runbook.md",
+            "pages/ledger/archive.md"
+          ],
+          "filesAfter": [
+            "decisions/ledger/approved.md",
+            "notes/ledger/brief.md",
+            "notes/ledger/runbook.md",
+            "pages/ledger/archive.md",
+            "findings/ledger/research.md"
+          ]
+        },
+        {
+          "id": "ledger-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 3,
+          "tokensBefore": 3403,
+          "tokensAfter": 3445,
+          "filesBefore": [
+            "decisions/ledger/approved.md",
+            "decisions/ridge/initial.md",
+            "notes/cedar/checklist.md",
+            "pages/ledger/archive.md",
+            "notes/forum/runbook.md"
+          ],
+          "filesAfter": [
+            "decisions/ledger/approved.md",
+            "pages/ledger/archive.md",
+            "notes/ledger/checklist.md",
+            "notes/ledger/runbook.md",
+            "findings/ledger/measure.md"
+          ]
+        },
+        {
+          "id": "ledger-historical",
+          "journey": "historical",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2887,
+          "tokensAfter": 2887,
+          "filesBefore": [
+            "sessions/ledger/kickoff.md",
+            "decisions/ledger/initial.md",
+            "decisions/orbit/initial.md",
+            "decisions/ridge/initial.md",
+            "notes/ledger/customer.md"
+          ],
+          "filesAfter": [
+            "sessions/ledger/kickoff.md",
+            "decisions/ledger/initial.md",
+            "decisions/orbit/initial.md",
+            "decisions/ridge/initial.md",
+            "notes/ledger/customer.md"
+          ]
+        },
+        {
+          "id": "ledger-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 2852,
+          "tokensAfter": 2898,
+          "filesBefore": [
+            "decisions/ledger/approved.md",
+            "notes/ledger/customer.md",
+            "decisions/ledger/initial.md",
+            "pages/ledger/overview.md",
+            "notes/tamar-proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/ledger/approved.md",
+            "notes/ledger/customer.md",
+            "decisions/ledger/initial.md",
+            "pages/ledger/overview.md",
+            "notes/ledger/brief.md"
+          ]
+        },
+        {
+          "id": "ledger-limits",
+          "journey": "limits",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 1,
+          "tokensBefore": 3116,
+          "tokensAfter": 3079,
+          "filesBefore": [
+            "decisions/ledger/approved.md",
+            "notes/ledger/runbook.md",
+            "pages/ledger/overview.md",
+            "notes/vellum/proposal.md",
+            "decisions/ledger/initial.md"
+          ],
+          "filesAfter": [
+            "decisions/ledger/approved.md",
+            "notes/ledger/runbook.md",
+            "pages/ledger/overview.md",
+            "decisions/ledger/initial.md",
+            "pages/ledger/archive.md"
+          ]
+        },
+        {
+          "id": "meridian-scope",
+          "journey": "scope",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 3,
+          "afterUnits": 3,
+          "units": 3,
+          "tokensBefore": 4511,
+          "tokensAfter": 4511,
+          "filesBefore": [
+            "notes/meridian/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/estuary/handbook.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/meridian/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/estuary/handbook.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md"
+          ]
+        },
+        {
+          "id": "meridian-ranking",
+          "journey": "ranking",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 0,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3684,
+          "tokensAfter": 3650,
+          "filesBefore": [
+            "notes/meridian/proposal.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md",
+            "notes/cedar/runbook.md",
+            "findings/mothlight/site.md"
+          ],
+          "filesAfter": [
+            "notes/meridian/proposal.md",
+            "decisions/meridian/schedule.md",
+            "notes/meridian/handbook.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md"
+          ]
+        },
+        {
+          "id": "meridian-multi-source",
+          "journey": "multi-source",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2461,
+          "tokensAfter": 2466,
+          "filesBefore": [
+            "decisions/meridian/schedule.md",
+            "decisions/quartz/schedule.md",
+            "decisions/estuary/schedule.md",
+            "decisions/vellum/schedule.md",
+            "decisions/bracken/schedule.md"
+          ],
+          "filesAfter": [
+            "decisions/meridian/schedule.md",
+            "findings/meridian/constraint.md",
+            "notes/meridian/proposal.md",
+            "notes/meridian/handbook.md",
+            "decisions/quartz/schedule.md"
+          ]
+        },
+        {
+          "id": "meridian-protected",
+          "journey": "protected",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3150,
+          "tokensAfter": 3150,
+          "filesBefore": [
+            "notes/meridian/proposal.md",
+            "decisions/meridian/schedule.md",
+            "notes/meridian/handbook.md",
+            "findings/meridian/constraint.md",
+            "notes/bracken/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/meridian/proposal.md",
+            "decisions/meridian/schedule.md",
+            "notes/meridian/handbook.md",
+            "findings/meridian/constraint.md",
+            "notes/bracken/proposal.md"
+          ]
+        },
+        {
+          "id": "estuary-scope",
+          "journey": "scope",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 3,
+          "afterUnits": 3,
+          "units": 3,
+          "tokensBefore": 4361,
+          "tokensAfter": 4361,
+          "filesBefore": [
+            "notes/estuary/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md",
+            "notes/estuary/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/estuary/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md",
+            "notes/estuary/proposal.md"
+          ]
+        },
+        {
+          "id": "estuary-ranking",
+          "journey": "ranking",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3849,
+          "tokensAfter": 3838,
+          "filesBefore": [
+            "notes/estuary/proposal.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md",
+            "notes/estuary/handbook.md",
+            "notes/cedar/runbook.md"
+          ],
+          "filesAfter": [
+            "notes/estuary/proposal.md",
+            "notes/estuary/handbook.md",
+            "decisions/estuary/schedule.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md"
+          ]
+        },
+        {
+          "id": "estuary-multi-source",
+          "journey": "multi-source",
+          "split": "development",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2461,
+          "tokensAfter": 2438,
+          "filesBefore": [
+            "decisions/meridian/schedule.md",
+            "decisions/quartz/schedule.md",
+            "decisions/estuary/schedule.md",
+            "decisions/vellum/schedule.md",
+            "decisions/bracken/schedule.md"
+          ],
+          "filesAfter": [
+            "decisions/estuary/schedule.md",
+            "findings/estuary/constraint.md",
+            "notes/estuary/proposal.md",
+            "notes/estuary/handbook.md",
+            "decisions/meridian/schedule.md"
+          ]
+        },
+        {
+          "id": "estuary-protected",
+          "journey": "protected",
+          "split": "development",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2744,
+          "tokensAfter": 3323,
+          "filesBefore": [
+            "notes/estuary/proposal.md",
+            "notes/meridian/proposal.md",
+            "decisions/estuary/schedule.md",
+            "notes/estuary/handbook.md",
+            "findings/estuary/constraint.md"
+          ],
+          "filesAfter": [
+            "notes/estuary/proposal.md",
+            "decisions/estuary/schedule.md",
+            "notes/estuary/handbook.md",
+            "findings/estuary/constraint.md",
+            "notes/meridian/proposal.md"
+          ]
+        },
+        {
+          "id": "vellum-scope",
+          "journey": "scope",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 3,
+          "afterUnits": 3,
+          "units": 3,
+          "tokensBefore": 4346,
+          "tokensAfter": 4346,
+          "filesBefore": [
+            "notes/meridian/proposal.md",
+            "notes/vellum/handbook.md",
+            "notes/estuary/handbook.md",
+            "notes/bracken/proposal.md",
+            "notes/estuary/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/vellum/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/estuary/handbook.md",
+            "notes/bracken/proposal.md",
+            "notes/estuary/proposal.md"
+          ]
+        },
+        {
+          "id": "vellum-ranking",
+          "journey": "ranking",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 0,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3696,
+          "tokensAfter": 3721,
+          "filesBefore": [
+            "notes/vellum/proposal.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md",
+            "notes/cedar/runbook.md",
+            "findings/mothlight/site.md"
+          ],
+          "filesAfter": [
+            "notes/vellum/proposal.md",
+            "decisions/vellum/schedule.md",
+            "notes/vellum/handbook.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md"
+          ]
+        },
+        {
+          "id": "vellum-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2477,
+          "tokensAfter": 3332,
+          "filesBefore": [
+            "decisions/meridian/schedule.md",
+            "decisions/quartz/schedule.md",
+            "decisions/vellum/schedule.md",
+            "decisions/estuary/schedule.md",
+            "decisions/bracken/schedule.md"
+          ],
+          "filesAfter": [
+            "decisions/vellum/schedule.md",
+            "notes/vellum/handbook.md",
+            "notes/vellum/proposal.md",
+            "findings/vellum/constraint.md"
+          ]
+        },
+        {
+          "id": "vellum-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2933,
+          "tokensAfter": 3537,
+          "filesBefore": [
+            "notes/vellum/proposal.md",
+            "notes/meridian/proposal.md",
+            "decisions/vellum/schedule.md",
+            "notes/vellum/handbook.md",
+            "findings/vellum/constraint.md"
+          ],
+          "filesAfter": [
+            "notes/vellum/proposal.md",
+            "decisions/vellum/schedule.md",
+            "notes/vellum/handbook.md",
+            "findings/vellum/constraint.md",
+            "notes/meridian/proposal.md"
+          ]
+        },
+        {
+          "id": "bracken-scope",
+          "journey": "scope",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 3,
+          "afterUnits": 3,
+          "units": 3,
+          "tokensBefore": 4554,
+          "tokensAfter": 4554,
+          "filesBefore": [
+            "notes/bracken/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/estuary/handbook.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/bracken/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/estuary/handbook.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md"
+          ]
+        },
+        {
+          "id": "bracken-ranking",
+          "journey": "ranking",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 0,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3706,
+          "tokensAfter": 3710,
+          "filesBefore": [
+            "notes/bracken/proposal.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md",
+            "notes/cedar/runbook.md",
+            "findings/mothlight/site.md"
+          ],
+          "filesAfter": [
+            "notes/bracken/proposal.md",
+            "decisions/bracken/schedule.md",
+            "notes/bracken/handbook.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md"
+          ]
+        },
+        {
+          "id": "bracken-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2463,
+          "tokensAfter": 2515,
+          "filesBefore": [
+            "decisions/bracken/schedule.md",
+            "decisions/meridian/schedule.md",
+            "decisions/quartz/schedule.md",
+            "decisions/estuary/schedule.md",
+            "decisions/vellum/schedule.md"
+          ],
+          "filesAfter": [
+            "decisions/bracken/schedule.md",
+            "findings/bracken/constraint.md",
+            "notes/bracken/proposal.md",
+            "notes/bracken/handbook.md",
+            "decisions/meridian/schedule.md"
+          ]
+        },
+        {
+          "id": "bracken-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2605,
+          "tokensAfter": 3204,
+          "filesBefore": [
+            "notes/bracken/proposal.md",
+            "decisions/bracken/schedule.md",
+            "notes/meridian/proposal.md",
+            "notes/bracken/handbook.md",
+            "findings/bracken/constraint.md"
+          ],
+          "filesAfter": [
+            "notes/bracken/proposal.md",
+            "decisions/bracken/schedule.md",
+            "notes/bracken/handbook.md",
+            "findings/bracken/constraint.md",
+            "notes/meridian/proposal.md"
+          ]
+        },
+        {
+          "id": "saffron-scope",
+          "journey": "scope",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 3,
+          "afterUnits": 3,
+          "units": 3,
+          "tokensBefore": 4512,
+          "tokensAfter": 4512,
+          "filesBefore": [
+            "notes/meridian/proposal.md",
+            "notes/saffron/handbook.md",
+            "notes/estuary/handbook.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/saffron/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/estuary/handbook.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md"
+          ]
+        },
+        {
+          "id": "saffron-ranking",
+          "journey": "ranking",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3694,
+          "tokensAfter": 3691,
+          "filesBefore": [
+            "notes/saffron/handbook.md",
+            "notes/saffron/proposal.md",
+            "findings/saffron/constraint.md",
+            "notes/cedar/runbook.md",
+            "findings/mothlight/site.md"
+          ],
+          "filesAfter": [
+            "notes/saffron/handbook.md",
+            "notes/saffron/proposal.md",
+            "findings/saffron/constraint.md",
+            "decisions/saffron/schedule.md",
+            "notes/cedar/runbook.md"
+          ]
+        },
+        {
+          "id": "saffron-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2468,
+          "tokensAfter": 2489,
+          "filesBefore": [
+            "decisions/meridian/schedule.md",
+            "decisions/quartz/schedule.md",
+            "decisions/saffron/schedule.md",
+            "decisions/estuary/schedule.md",
+            "decisions/vellum/schedule.md"
+          ],
+          "filesAfter": [
+            "decisions/saffron/schedule.md",
+            "notes/saffron/proposal.md",
+            "findings/saffron/constraint.md",
+            "notes/saffron/handbook.md",
+            "decisions/meridian/schedule.md"
+          ]
+        },
+        {
+          "id": "saffron-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2925,
+          "tokensAfter": 3498,
+          "filesBefore": [
+            "notes/saffron/proposal.md",
+            "notes/meridian/proposal.md",
+            "decisions/saffron/schedule.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md"
+          ],
+          "filesAfter": [
+            "notes/saffron/proposal.md",
+            "decisions/saffron/schedule.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md",
+            "notes/meridian/proposal.md"
+          ]
+        },
+        {
+          "id": "quartz-scope",
+          "journey": "scope",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 3,
+          "afterUnits": 3,
+          "units": 3,
+          "tokensBefore": 4610,
+          "tokensAfter": 4610,
+          "filesBefore": [
+            "notes/meridian/proposal.md",
+            "notes/quartz/handbook.md",
+            "notes/estuary/handbook.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/quartz/handbook.md",
+            "notes/meridian/proposal.md",
+            "notes/estuary/handbook.md",
+            "notes/vellum/handbook.md",
+            "notes/bracken/proposal.md"
+          ]
+        },
+        {
+          "id": "quartz-ranking",
+          "journey": "ranking",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 0,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3685,
+          "tokensAfter": 3608,
+          "filesBefore": [
+            "notes/quartz/proposal.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md",
+            "notes/cedar/runbook.md",
+            "findings/mothlight/site.md"
+          ],
+          "filesAfter": [
+            "notes/quartz/proposal.md",
+            "decisions/quartz/schedule.md",
+            "notes/quartz/handbook.md",
+            "notes/saffron/handbook.md",
+            "findings/saffron/constraint.md"
+          ]
+        },
+        {
+          "id": "quartz-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2459,
+          "tokensAfter": 3089,
+          "filesBefore": [
+            "decisions/quartz/schedule.md",
+            "decisions/meridian/schedule.md",
+            "decisions/estuary/schedule.md",
+            "decisions/vellum/schedule.md",
+            "decisions/bracken/schedule.md"
+          ],
+          "filesAfter": [
+            "decisions/quartz/schedule.md",
+            "notes/quartz/handbook.md",
+            "notes/quartz/proposal.md",
+            "findings/quartz/constraint.md",
+            "decisions/meridian/schedule.md"
+          ]
+        },
+        {
+          "id": "quartz-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2872,
+          "tokensAfter": 3424,
+          "filesBefore": [
+            "notes/quartz/proposal.md",
+            "notes/meridian/proposal.md",
+            "decisions/quartz/schedule.md",
+            "notes/quartz/handbook.md",
+            "findings/quartz/constraint.md"
+          ],
+          "filesAfter": [
+            "notes/quartz/proposal.md",
+            "decisions/quartz/schedule.md",
+            "notes/quartz/handbook.md",
+            "findings/quartz/constraint.md",
+            "notes/meridian/proposal.md"
+          ]
+        },
+        {
+          "id": "selkie-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3600,
+          "tokensAfter": 3516,
+          "filesBefore": [
+            "decisions/selkie-passengers.md",
+            "pages/selkie-overview.md",
+            "findings/selkie-access.md",
+            "notes/vellum/handbook.md",
+            "notes/quartz/handbook.md"
+          ],
+          "filesAfter": [
+            "decisions/selkie-passengers.md",
+            "pages/selkie-overview.md",
+            "findings/selkie-access.md",
+            "notes/selkie-later.md",
+            "notes/vellum/handbook.md"
+          ]
+        },
+        {
+          "id": "selkie-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 0,
+          "afterUnits": 0,
+          "units": 2,
+          "tokensBefore": 140,
+          "tokensAfter": 140,
+          "filesBefore": [],
+          "filesAfter": []
+        },
+        {
+          "id": "selkie-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3300,
+          "tokensAfter": 3300,
+          "filesBefore": [
+            "pages/selkie-overview.md",
+            "decisions/selkie-passengers.md",
+            "notes/selkie-later.md",
+            "findings/selkie-access.md",
+            "notes/quartz/proposal.md"
+          ],
+          "filesAfter": [
+            "pages/selkie-overview.md",
+            "decisions/selkie-passengers.md",
+            "notes/selkie-later.md",
+            "findings/selkie-access.md",
+            "notes/quartz/proposal.md"
+          ]
+        },
+        {
+          "id": "selkie-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2688,
+          "tokensAfter": 2688,
+          "filesBefore": [
+            "findings/selkie-access.md",
+            "pages/selkie-overview.md",
+            "decisions/selkie-passengers.md"
+          ],
+          "filesAfter": [
+            "findings/selkie-access.md",
+            "pages/selkie-overview.md",
+            "decisions/selkie-passengers.md"
+          ]
+        },
+        {
+          "id": "tamar-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3124,
+          "tokensAfter": 3124,
+          "filesBefore": [
+            "decisions/tamar-flushing.md",
+            "findings/tamar-pressure.md",
+            "notes/tamar-operator.md",
+            "decisions/selkie-passengers.md",
+            "notes/tamar-proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/tamar-flushing.md",
+            "findings/tamar-pressure.md",
+            "notes/tamar-operator.md",
+            "notes/tamar-proposal.md",
+            "decisions/selkie-passengers.md"
+          ]
+        },
+        {
+          "id": "tamar-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": false,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3053,
+          "tokensAfter": 3053,
+          "filesBefore": [
+            "notes/tamar-proposal.md",
+            "decisions/tamar-flushing.md",
+            "notes/tamar-operator.md",
+            "findings/tamar-pressure.md",
+            "notes/meridian/handbook.md"
+          ],
+          "filesAfter": [
+            "notes/tamar-proposal.md",
+            "decisions/tamar-flushing.md",
+            "notes/tamar-operator.md",
+            "findings/tamar-pressure.md",
+            "notes/meridian/handbook.md"
+          ]
+        },
+        {
+          "id": "tamar-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3175,
+          "tokensAfter": 3175,
+          "filesBefore": [
+            "decisions/tamar-flushing.md",
+            "notes/tamar-proposal.md",
+            "notes/tamar-operator.md",
+            "findings/tamar-pressure.md",
+            "notes/bracken/handbook.md"
+          ],
+          "filesAfter": [
+            "decisions/tamar-flushing.md",
+            "notes/tamar-proposal.md",
+            "notes/tamar-operator.md",
+            "findings/tamar-pressure.md",
+            "notes/bracken/handbook.md"
+          ]
+        },
+        {
+          "id": "tamar-navigation",
+          "journey": "navigation",
+          "split": "reserved",
+          "fresh": false,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 3149,
+          "tokensAfter": 3149,
+          "filesBefore": [
+            "notes/tamar-operator.md",
+            "decisions/tamar-flushing.md",
+            "findings/tamar-pressure.md",
+            "notes/tamar-proposal.md",
+            "notes/bracken/handbook.md"
+          ],
+          "filesAfter": [
+            "notes/tamar-operator.md",
+            "decisions/tamar-flushing.md",
+            "findings/tamar-pressure.md",
+            "notes/tamar-proposal.md",
+            "notes/bracken/handbook.md"
+          ]
+        },
+        {
+          "id": "belltower-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 2768,
+          "tokensAfter": 2768,
+          "filesBefore": [
+            "decisions/copperfin/scope.md",
+            "decisions/belltower/scope.md",
+            "decisions/mothlight/scope.md",
+            "decisions/meadow/approved.md",
+            "decisions/cedar/initial.md"
+          ],
+          "filesAfter": [
+            "decisions/belltower/scope.md",
+            "decisions/copperfin/scope.md",
+            "decisions/mothlight/scope.md",
+            "decisions/meadow/approved.md",
+            "decisions/cedar/initial.md"
+          ]
+        },
+        {
+          "id": "belltower-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2791,
+          "tokensAfter": 2959,
+          "filesBefore": [
+            "notes/belltower/operation.md",
+            "findings/belltower/site.md",
+            "notes/juniper/runbook.md",
+            "findings/copperfin/site.md",
+            "notes/belltower/brief.md"
+          ],
+          "filesAfter": [
+            "notes/belltower/operation.md",
+            "findings/belltower/site.md",
+            "notes/belltower/brief.md",
+            "notes/juniper/runbook.md",
+            "findings/copperfin/site.md"
+          ]
+        },
+        {
+          "id": "belltower-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2701,
+          "tokensAfter": 2751,
+          "filesBefore": [
+            "decisions/belltower/scope.md",
+            "notes/belltower/proposal.md",
+            "decisions/copperfin/scope.md",
+            "notes/mothlight/proposal.md",
+            "notes/copperfin/proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/belltower/scope.md",
+            "notes/belltower/proposal.md",
+            "notes/belltower/operation.md",
+            "findings/belltower/site.md",
+            "notes/belltower/brief.md"
+          ]
+        },
+        {
+          "id": "belltower-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": true,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2809,
+          "tokensAfter": 2934,
+          "filesBefore": [
+            "notes/belltower/proposal.md",
+            "decisions/copperfin/scope.md",
+            "notes/harbor/risk.md",
+            "decisions/ledger/approved.md",
+            "notes/copperfin/proposal.md"
+          ],
+          "filesAfter": [
+            "notes/belltower/proposal.md",
+            "notes/belltower/brief.md",
+            "decisions/copperfin/scope.md",
+            "notes/harbor/risk.md",
+            "decisions/ledger/approved.md"
+          ]
+        },
+        {
+          "id": "copperfin-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 2768,
+          "tokensAfter": 2768,
+          "filesBefore": [
+            "decisions/copperfin/scope.md",
+            "decisions/belltower/scope.md",
+            "decisions/mothlight/scope.md",
+            "decisions/meadow/approved.md",
+            "decisions/cedar/initial.md"
+          ],
+          "filesAfter": [
+            "decisions/copperfin/scope.md",
+            "decisions/belltower/scope.md",
+            "decisions/mothlight/scope.md",
+            "decisions/meadow/approved.md",
+            "decisions/cedar/initial.md"
+          ]
+        },
+        {
+          "id": "copperfin-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 3063,
+          "tokensAfter": 3049,
+          "filesBefore": [
+            "notes/belltower/operation.md",
+            "findings/copperfin/site.md",
+            "notes/copperfin/brief.md",
+            "notes/copperfin/operation.md",
+            "notes/juniper/runbook.md"
+          ],
+          "filesAfter": [
+            "findings/copperfin/site.md",
+            "notes/copperfin/brief.md",
+            "notes/copperfin/operation.md",
+            "notes/belltower/operation.md",
+            "notes/juniper/runbook.md"
+          ]
+        },
+        {
+          "id": "copperfin-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2716,
+          "tokensAfter": 2778,
+          "filesBefore": [
+            "decisions/copperfin/scope.md",
+            "notes/copperfin/proposal.md",
+            "notes/belltower/proposal.md",
+            "notes/mothlight/proposal.md",
+            "notes/tamar-operator.md"
+          ],
+          "filesAfter": [
+            "decisions/copperfin/scope.md",
+            "notes/copperfin/proposal.md",
+            "notes/copperfin/operation.md",
+            "notes/belltower/proposal.md",
+            "notes/mothlight/proposal.md"
+          ]
+        },
+        {
+          "id": "copperfin-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": true,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2685,
+          "tokensAfter": 2685,
+          "filesBefore": [
+            "notes/copperfin/proposal.md",
+            "notes/belltower/proposal.md",
+            "decisions/copperfin/scope.md",
+            "notes/harbor/risk.md",
+            "decisions/ledger/approved.md"
+          ],
+          "filesAfter": [
+            "notes/copperfin/proposal.md",
+            "decisions/copperfin/scope.md",
+            "notes/belltower/proposal.md",
+            "notes/harbor/risk.md",
+            "decisions/ledger/approved.md"
+          ]
+        },
+        {
+          "id": "mothlight-orientation",
+          "journey": "orientation",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": false,
+          "after": false,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 2,
+          "tokensBefore": 2770,
+          "tokensAfter": 2770,
+          "filesBefore": [
+            "decisions/copperfin/scope.md",
+            "decisions/mothlight/scope.md",
+            "decisions/belltower/scope.md",
+            "decisions/meadow/approved.md",
+            "decisions/cedar/initial.md"
+          ],
+          "filesAfter": [
+            "decisions/mothlight/scope.md",
+            "decisions/copperfin/scope.md",
+            "decisions/belltower/scope.md",
+            "decisions/meadow/approved.md",
+            "decisions/cedar/initial.md"
+          ]
+        },
+        {
+          "id": "mothlight-multi-source",
+          "journey": "multi-source",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2770,
+          "tokensAfter": 2877,
+          "filesBefore": [
+            "notes/belltower/operation.md",
+            "findings/mothlight/site.md",
+            "notes/juniper/runbook.md",
+            "notes/mothlight/operation.md",
+            "findings/copperfin/site.md"
+          ],
+          "filesAfter": [
+            "findings/mothlight/site.md",
+            "notes/mothlight/operation.md",
+            "notes/mothlight/brief.md",
+            "notes/belltower/operation.md",
+            "notes/juniper/runbook.md"
+          ]
+        },
+        {
+          "id": "mothlight-current",
+          "journey": "current",
+          "split": "reserved",
+          "fresh": true,
+          "protected": false,
+          "affected": true,
+          "before": true,
+          "after": true,
+          "beforeUnits": 2,
+          "afterUnits": 2,
+          "units": 2,
+          "tokensBefore": 2681,
+          "tokensAfter": 2726,
+          "filesBefore": [
+            "decisions/mothlight/scope.md",
+            "decisions/copperfin/scope.md",
+            "notes/mothlight/proposal.md",
+            "notes/belltower/proposal.md",
+            "notes/copperfin/proposal.md"
+          ],
+          "filesAfter": [
+            "decisions/mothlight/scope.md",
+            "notes/mothlight/proposal.md",
+            "notes/mothlight/operation.md",
+            "notes/mothlight/brief.md",
+            "decisions/copperfin/scope.md"
+          ]
+        },
+        {
+          "id": "mothlight-protected",
+          "journey": "protected",
+          "split": "reserved",
+          "fresh": true,
+          "protected": true,
+          "affected": false,
+          "before": true,
+          "after": true,
+          "beforeUnits": 1,
+          "afterUnits": 1,
+          "units": 1,
+          "tokensBefore": 2735,
+          "tokensAfter": 2735,
+          "filesBefore": [
+            "notes/mothlight/proposal.md",
+            "notes/belltower/proposal.md",
+            "decisions/copperfin/scope.md",
+            "notes/harbor/risk.md",
+            "decisions/ledger/approved.md"
+          ],
+          "filesAfter": [
+            "notes/mothlight/proposal.md",
+            "notes/belltower/proposal.md",
+            "decisions/copperfin/scope.md",
+            "notes/harbor/risk.md",
+            "decisions/ledger/approved.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "interpretation": "Mechanical canonical required-span diagnostic. Same-author query-bound judgment must be recorded separately. No answer accuracy measured.",
+  "identities": {
+    "experiment-v3-baseline": {
+      "freezeSha256": "659bfb858c610154fa11290e857ae5cc4c4f696928c2f0177ca202a3948577a8",
+      "inputDigest": "347f233ce8e338a629435a2ec78e242dcf75615046a8b494b995ecb0b000e801",
+      "productDigest": "85fd239fee6015dc83bee0f08447fdb0c342dbf88150df3f5ab51398b5a4cb08",
+      "sourceCommitOfHost": "3ed8a67d53fe61554064ecdbfabfb67c1a0db1f0",
+      "isolatedRuntime": false,
+      "runtimeOrigin": "unchanged runtime frozen before concurrent UI work; original source 3ed8a67",
+      "scoresSha256": "1c463bd3ce7dc7f9d0580ed69451b8ce9d20b4487d09767eee9c602d79d028e3"
+    },
+    "experiment-v3-identity": {
+      "freezeSha256": "ba1353467dbdfd1cb08de629cc33baced534e9ed2821b30a9ff7714a2b70f92c",
+      "inputDigest": "347f233ce8e338a629435a2ec78e242dcf75615046a8b494b995ecb0b000e801",
+      "productDigest": "85fd239fee6015dc83bee0f08447fdb0c342dbf88150df3f5ab51398b5a4cb08",
+      "sourceCommitOfHost": "3ed8a67d53fe61554064ecdbfabfb67c1a0db1f0",
+      "isolatedRuntime": false,
+      "runtimeOrigin": "unchanged runtime frozen before concurrent UI work; original source 3ed8a67",
+      "scoresSha256": "dc5cd98e5daa142d350c337c84324b027b253903dccaf6fead0f3c3fe680db2e"
+    },
+    "experiment-v4-baseline-isolated": {
+      "freezeSha256": "951ed3a7fe606ba74d14a325122a683350442de36baed102e983c38289b91a07",
+      "inputDigest": "969555e9de1646cc24bcbbba8f3daffc5fb2fc5a46a55c54d5794ace0b2cc880",
+      "productDigest": "85fd239fee6015dc83bee0f08447fdb0c342dbf88150df3f5ab51398b5a4cb08",
+      "sourceCommitOfHost": "3ed8a67d53fe61554064ecdbfabfb67c1a0db1f0",
+      "isolatedRuntime": true,
+      "runtimeOrigin": "unchanged runtime frozen before concurrent UI work; original source 3ed8a67",
+      "scoresSha256": "f121f8bb362a230cc0f0c4c63a9406196e0e4f6651dee325f6c63d466d220e95"
+    },
+    "experiment-v4-identity-isolated": {
+      "freezeSha256": "a34a98fda85bc4bc16e43841f3cf70ddb52186a507c6d16505e87992df357480",
+      "inputDigest": "969555e9de1646cc24bcbbba8f3daffc5fb2fc5a46a55c54d5794ace0b2cc880",
+      "productDigest": "85fd239fee6015dc83bee0f08447fdb0c342dbf88150df3f5ab51398b5a4cb08",
+      "sourceCommitOfHost": "46fa41fcbc4cdc611c1aacd8d3ba301683a9de3b",
+      "isolatedRuntime": true,
+      "runtimeOrigin": "unchanged runtime frozen before concurrent UI work; original source 3ed8a67",
+      "scoresSha256": "dde6a4b6a9687d5c455f156417e0a7339f9c5ca939e9504786d94363321b25b5"
+    }
+  },
+  "decision": {
+    "adopted": false,
+    "reason": "Zero improved fresh tasks in both confirmation sets. All three new orientation questions lack the necessary brief in the unchanged compact candidate pool (40 raw / 38 grouped), so reranking cannot establish owner/purpose.",
+    "policySha256": "4b07187d2978ea72ad4f0ce4b55b8cfe293638f7909c309c4e19a0f3863e891b",
+    "judgment": "Same author; displayed-source review confirms missing names/briefs and known-control source gains. No independent aggregate or answer accuracy.",
+    "production": "Candidate helper/driver edits and adoption-only tests removed; no source or runtime behavior change."
+  }
+}

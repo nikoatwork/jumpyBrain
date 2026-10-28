@@ -75,9 +75,9 @@ Target ten cases per journey, with 24 development and 56 reserved comparison cas
 
 ## Follow-up experiment lists
 
-- [Evidence completeness in recall packets](tasks-retrieval-evidence-completeness.md) — isolated comparison after baseline publication.
-- [Bounded local reranking](tasks-retrieval-bounded-reranking.md) — isolated comparison after baseline publication.
-- [Explicit relationship neighbors in recall](tasks-retrieval-relationship-recall.md) — isolated comparison after baseline publication.
+- [Evidence completeness in recall packets](../done/2026-10-28_tasks-retrieval-evidence-completeness.md) — isolated comparison after baseline publication.
+- [Bounded local reranking](../done/2026-10-28_tasks-retrieval-bounded-reranking.md) — isolated comparison after baseline publication.
+- [Explicit relationship neighbors in recall](../done/2026-10-28_tasks-retrieval-relationship-recall.md) — isolated comparison after baseline publication.
 
 ## Acceptance criteria
 
@@ -118,3 +118,11 @@ Target ten cases per journey, with 24 development and 56 reserved comparison cas
 - `npm pack --dry-run --ignore-scripts --json`: 512 files; all 231 required installable files validated; zero eval files. Existing `dist/` compilation and desktop runtime-copy boundaries already separate the app from development tooling. No app move, install, version bump, push or release.
 - Full packets, logs, scores and freeze records are retained in ignored `.runs/baseline-v1/` and the externally hashed archive recorded in the report; rebuildable memory/index roots are excluded from that archive. No private memory or API credentials were used.
 - This is a scoped baseline milestone commit. Leave this list active because varied/long-page coverage (1.2), quiet-window/shared-server costs (2.5) and broader independent query-bound judgments (3.3) remain required. Each experiment has a separate active list and requires a fresh augmented unchanged-runtime baseline before adoption comparisons.
+
+## 2026-10-28 completed experiment investigations
+
+- All three original investigations are complete and archived, with no product adoption: [paired v2 report](../../evals/workspace-retrieval/reports/2026-10-28-experiments-v2.md). Evidence bundles fail quality/token targets; QMD reranking gains aggregate coverage but loses required evidence and adds model costs; metadata neighbors displace supporting sources.
+- A separate fixed-policy identity follow-up also closed without adoption: [v3/v4 results](../../evals/workspace-retrieval/reports/2026-10-28-identity-v4.md), [archived task](../done/2026-10-28_tasks-retrieval-identity-ranking.md). Seen-control gains did not transfer to either fresh confirmation set. All runtime prototype edits were removed.
+- The largest retained fixture is 210 pages / 124 tasks, including new independently written operating workflows and 566–596-word nested handbooks. This addresses the short-page pilot limitation for these experiments; very long documents and large-workspace quality remain unmeasured.
+- Two clean augmented v2 baselines reproduce per-case non-timing scores/costs exactly. Final v4 quality ran against an isolated original runtime after concurrent unrelated UI edits invalidated a working-tree freeze; artifacts distinguish accepted and excluded runs. A 20-pair quiet local identity probe is recorded separately, not a VPS or adopted-runtime performance claim.
+- This broader task remains active: independent/full query-bound judgments, actual answer/abstention evaluation if pursued, larger-document coverage, human open counts and Linux/VPS operations remain unresolved. Do not archive this parent on the strength of the completed no-adoption investigations.

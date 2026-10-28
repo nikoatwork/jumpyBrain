@@ -1,0 +1,98 @@
+[
+  {
+    "id": "belltower-orientation",
+    "scenario": "belltower",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Bring a new teammate up to speed on Belltower: intended benefit, responsible coordinator, and what the present trial actually allows.",
+    "depth": "shallow"
+  },
+  {
+    "id": "belltower-multi-source",
+    "scenario": "belltower",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What operating timetable should Belltower offer participants, and which host limitation makes that timetable necessary?",
+    "depth": "normal"
+  },
+  {
+    "id": "belltower-current",
+    "scenario": "belltower",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What is the accepted operating scope for Belltower, and is the later expansion suggestion approved?",
+    "depth": "normal"
+  },
+  {
+    "id": "belltower-protected",
+    "scenario": "belltower",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who signed the exception expanding Belltower beyond its accepted scope?",
+    "depth": "normal"
+  },
+  {
+    "id": "copperfin-orientation",
+    "scenario": "copperfin",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Bring a new teammate up to speed on Copperfin: intended benefit, responsible coordinator, and what the present trial actually allows.",
+    "depth": "shallow"
+  },
+  {
+    "id": "copperfin-multi-source",
+    "scenario": "copperfin",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What operating timetable should Copperfin offer participants, and which host limitation makes that timetable necessary?",
+    "depth": "normal"
+  },
+  {
+    "id": "copperfin-current",
+    "scenario": "copperfin",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What is the accepted operating scope for Copperfin, and is the later expansion suggestion approved?",
+    "depth": "normal"
+  },
+  {
+    "id": "copperfin-protected",
+    "scenario": "copperfin",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who signed the exception expanding Copperfin beyond its accepted scope?",
+    "depth": "normal"
+  },
+  {
+    "id": "mothlight-orientation",
+    "scenario": "mothlight",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Bring a new teammate up to speed on Mothlight: intended benefit, responsible coordinator, and what the present trial actually allows.",
+    "depth": "shallow"
+  },
+  {
+    "id": "mothlight-multi-source",
+    "scenario": "mothlight",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What operating timetable should Mothlight offer participants, and which host limitation makes that timetable necessary?",
+    "depth": "normal"
+  },
+  {
+    "id": "mothlight-current",
+    "scenario": "mothlight",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What is the accepted operating scope for Mothlight, and is the later expansion suggestion approved?",
+    "depth": "normal"
+  },
+  {
+    "id": "mothlight-protected",
+    "scenario": "mothlight",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who signed the exception expanding Mothlight beyond its accepted scope?",
+    "depth": "normal"
+  }
+]

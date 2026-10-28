@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Retrieval experiment decisions
+
+- Completed three independent retrieval experiments and a fresh-confirmation follow-up; retained current runtime behavior after quality, token or generalization gates failed. [Paired results](../evals/workspace-retrieval/reports/2026-10-28-experiments-v2.md), [follow-up](../evals/workspace-retrieval/reports/2026-10-28-identity-v4.md).
+
 ## 2026-10-28 — Calm note writing
 
 - Folded formatting behind a visible Format control, kept Link directly reachable and made section navigation discoverable from Page details. [Design and verification](done/2026-10-28_tasks-calm-note-journey.md).

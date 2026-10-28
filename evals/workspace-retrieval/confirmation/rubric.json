@@ -1,0 +1,218 @@
+[
+  {
+    "id": "selkie-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "schedule",
+        "alternatives": [
+          {
+            "file": "decisions/selkie-passengers.md",
+            "required": [
+              "Selkie will use the south landing for accessible sailings on Mondays and Fridays."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "physical constraint",
+        "alternatives": [
+          {
+            "file": "findings/selkie-access.md",
+            "required": [
+              "Selkie cannot board wheelchairs at the north landing because the gangway exceeds the safe gradient at low water."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/selkie-passengers.md",
+      "findings/selkie-access.md"
+    ],
+    "interpretation": "Fresh authored confirmation; names are identity hints, never approval evidence."
+  },
+  {
+    "id": "selkie-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted",
+        "alternatives": [
+          {
+            "file": "decisions/selkie-passengers.md",
+            "required": [
+              "Selkie will use the south landing for accessible sailings on Mondays and Fridays."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "proposal",
+        "alternatives": [
+          {
+            "file": "notes/selkie-later.md",
+            "required": [
+              "A daily accessible Selkie service was proposed on October 19, but it has no operational approval."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/selkie-passengers.md",
+      "notes/selkie-later.md"
+    ],
+    "interpretation": "Fresh authored confirmation; names are identity hints, never approval evidence."
+  },
+  {
+    "id": "selkie-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "unknown",
+        "alternatives": [
+          {
+            "file": "pages/selkie-overview.md",
+            "required": [
+              "No approval of daily accessible sailings is recorded for Selkie."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "pages/selkie-overview.md"
+    ],
+    "interpretation": "Fresh authored confirmation; names are identity hints, never approval evidence."
+  },
+  {
+    "id": "selkie-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "known page",
+        "alternatives": [
+          {
+            "file": "findings/selkie-access.md",
+            "required": [
+              "Selkie cannot board wheelchairs at the north landing because the gangway exceeds the safe gradient at low water."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/selkie-access.md"
+    ],
+    "interpretation": "Fresh authored confirmation; names are identity hints, never approval evidence."
+  },
+  {
+    "id": "tamar-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted window",
+        "alternatives": [
+          {
+            "file": "decisions/tamar-flushing.md",
+            "required": [
+              "Tamar flushing is limited to the washout branch between one and three in the morning; the reservoir must stay above the emergency reserve."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "emergency constraint",
+        "alternatives": [
+          {
+            "file": "findings/tamar-pressure.md",
+            "required": [
+              "The Tamar reservoir must retain forty cubic metres for the ridge fire hydrants; a full drain would break that reserve."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/tamar-flushing.md",
+      "findings/tamar-pressure.md"
+    ],
+    "interpretation": "Fresh authored confirmation; names are identity hints, never approval evidence."
+  },
+  {
+    "id": "tamar-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted",
+        "alternatives": [
+          {
+            "file": "decisions/tamar-flushing.md",
+            "required": [
+              "Tamar flushing is limited to the washout branch between one and three in the morning; the reservoir must stay above the emergency reserve."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "proposal",
+        "alternatives": [
+          {
+            "file": "notes/tamar-proposal.md",
+            "required": [
+              "The October 20 suggestion to drain Tamar reservoir completely is unapproved and does not replace the branch-only flushing decision."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/tamar-flushing.md",
+      "notes/tamar-proposal.md"
+    ],
+    "interpretation": "Fresh authored confirmation; names are identity hints, never approval evidence."
+  },
+  {
+    "id": "tamar-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "unknown",
+        "alternatives": [
+          {
+            "file": "decisions/tamar-flushing.md",
+            "required": [
+              "No named person is recorded as approving a full drain of Tamar reservoir."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/tamar-flushing.md"
+    ],
+    "interpretation": "Fresh authored confirmation; names are identity hints, never approval evidence."
+  },
+  {
+    "id": "tamar-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "known page",
+        "alternatives": [
+          {
+            "file": "notes/tamar-operator.md",
+            "required": [
+              "Stop if the reservoir approaches the emergency reserve."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/tamar-operator.md"
+    ],
+    "interpretation": "Fresh authored confirmation; names are identity hints, never approval evidence."
+  }
+]

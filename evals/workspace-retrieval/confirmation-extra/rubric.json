@@ -1,0 +1,362 @@
+[
+  {
+    "id": "belltower-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and coordinator",
+        "alternatives": [
+          {
+            "file": "notes/belltower/brief.md",
+            "required": [
+              "Belltower aims to let residents repair small household items instead of discarding them. Belltower is coordinated by Inez."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/belltower/scope.md",
+            "required": [
+              "Belltower may run a hand-tool repair table for registered adults; mains-powered repairs and drop-in access remain outside approval."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/belltower/brief.md",
+      "decisions/belltower/scope.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "belltower-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "timing",
+        "alternatives": [
+          {
+            "file": "notes/belltower/operation.md",
+            "required": [
+              "Belltower repair sessions must finish before seventeen hundred."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "host constraint",
+        "alternatives": [
+          {
+            "file": "findings/belltower/site.md",
+            "required": [
+              "The library caretaker locks the side entrance at seventeen fifteen and cannot supervise a later departure."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/belltower/operation.md",
+      "findings/belltower/site.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "belltower-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted scope",
+        "alternatives": [
+          {
+            "file": "decisions/belltower/scope.md",
+            "required": [
+              "Belltower may run a hand-tool repair table for registered adults; mains-powered repairs and drop-in access remain outside approval."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later suggestion",
+        "alternatives": [
+          {
+            "file": "notes/belltower/proposal.md",
+            "required": [
+              "The newer Belltower suggestion to accept plug-in appliances is unapproved."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/belltower/scope.md",
+      "notes/belltower/proposal.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "belltower-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded unknown",
+        "alternatives": [
+          {
+            "file": "notes/belltower/proposal.md",
+            "required": [
+              "No named approver for expanding Belltower beyond its accepted scope is recorded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/belltower/proposal.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "copperfin-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and coordinator",
+        "alternatives": [
+          {
+            "file": "notes/copperfin/brief.md",
+            "required": [
+              "Copperfin aims to give first-time canal paddlers a short supported outing. Copperfin is coordinated by Dev."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/copperfin/scope.md",
+            "required": [
+              "Copperfin is approved for the sheltered basin with two qualified leaders; the open river reach remains excluded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/copperfin/brief.md",
+      "decisions/copperfin/scope.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "copperfin-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "timing",
+        "alternatives": [
+          {
+            "file": "notes/copperfin/operation.md",
+            "required": [
+              "Copperfin must launch after ten in the morning and return before the afternoon lock cycle."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "host constraint",
+        "alternatives": [
+          {
+            "file": "findings/copperfin/site.md",
+            "required": [
+              "The lock operator reserves the shared slipway for commercial deliveries until ten in the morning."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/copperfin/operation.md",
+      "findings/copperfin/site.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "copperfin-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted scope",
+        "alternatives": [
+          {
+            "file": "decisions/copperfin/scope.md",
+            "required": [
+              "Copperfin is approved for the sheltered basin with two qualified leaders; the open river reach remains excluded."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later suggestion",
+        "alternatives": [
+          {
+            "file": "notes/copperfin/proposal.md",
+            "required": [
+              "The newer Copperfin proposal to add the river reach has no safety approval."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/copperfin/scope.md",
+      "notes/copperfin/proposal.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "copperfin-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded unknown",
+        "alternatives": [
+          {
+            "file": "notes/copperfin/proposal.md",
+            "required": [
+              "No named approver for expanding Copperfin beyond its accepted scope is recorded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/copperfin/proposal.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "mothlight-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and coordinator",
+        "alternatives": [
+          {
+            "file": "notes/mothlight/brief.md",
+            "required": [
+              "Mothlight aims to help evening visitors explore the insect collection at their own pace. Mothlight is coordinated by Noor."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/mothlight/scope.md",
+            "required": [
+              "Mothlight approval covers a quiet route through the ground-floor insect gallery; the live-animal room remains closed to evening visitors."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/mothlight/brief.md",
+      "decisions/mothlight/scope.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "mothlight-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "timing",
+        "alternatives": [
+          {
+            "file": "notes/mothlight/operation.md",
+            "required": [
+              "Mothlight entry slots must be twenty minutes apart."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "host constraint",
+        "alternatives": [
+          {
+            "file": "findings/mothlight/site.md",
+            "required": [
+              "The front desk has one trained evening host, who must finish each arrival briefing before greeting the next group."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/mothlight/operation.md",
+      "findings/mothlight/site.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "mothlight-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted scope",
+        "alternatives": [
+          {
+            "file": "decisions/mothlight/scope.md",
+            "required": [
+              "Mothlight approval covers a quiet route through the ground-floor insect gallery; the live-animal room remains closed to evening visitors."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later suggestion",
+        "alternatives": [
+          {
+            "file": "notes/mothlight/proposal.md",
+            "required": [
+              "The newer Mothlight suggestion to include the live-animal room is a proposal without curatorial approval."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/mothlight/scope.md",
+      "notes/mothlight/proposal.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  },
+  {
+    "id": "mothlight-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded unknown",
+        "alternatives": [
+          {
+            "file": "notes/mothlight/proposal.md",
+            "required": [
+              "No named approver for expanding Mothlight beyond its accepted scope is recorded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/mothlight/proposal.md"
+    ],
+    "interpretation": "Second frozen confirmation extension, policy unchanged. Require subject, actual permission, and governing constraints across displayed sources."
+  }
+]

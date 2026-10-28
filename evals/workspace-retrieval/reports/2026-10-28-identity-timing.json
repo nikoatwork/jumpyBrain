@@ -1,0 +1,306 @@
+{
+  "summary": {
+    "baseline": {
+      "calls": 20,
+      "p50Ms": 1269.8136669999985,
+      "p95Ms": 1299.2383329999993,
+      "peakTreeKiB": 274576
+    },
+    "identity": {
+      "calls": 20,
+      "p50Ms": 1269.0308750000004,
+      "p95Ms": 1307.1975410000014,
+      "peakTreeKiB": 275664
+    }
+  },
+  "p95ChangePercent": 0.6126056934930402,
+  "extraPeakMiB": 1.0625,
+  "passes": true,
+  "records": [
+    {
+      "arm": "baseline",
+      "id": "harbor-current",
+      "ms": 1299.2383329999993,
+      "peakTreeKiB": 226384,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "harbor-current",
+      "ms": 1304.043291,
+      "peakTreeKiB": 230624,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "orbit-multi-source",
+      "ms": 1271.1797079999978,
+      "peakTreeKiB": 230032,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "orbit-multi-source",
+      "ms": 1250.0106669999986,
+      "peakTreeKiB": 230416,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "meridian-ranking",
+      "ms": 1273.7228329999998,
+      "peakTreeKiB": 238096,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "meridian-ranking",
+      "ms": 1271.5737919999992,
+      "peakTreeKiB": 243024,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "vellum-multi-source",
+      "ms": 1269.0308750000004,
+      "peakTreeKiB": 242640,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "vellum-multi-source",
+      "ms": 1269.8136669999985,
+      "peakTreeKiB": 242864,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "selkie-current",
+      "ms": 255.98133299999972,
+      "peakTreeKiB": 238064,
+      "samples": 2
+    },
+    {
+      "arm": "identity",
+      "id": "selkie-current",
+      "ms": 252.23895900000207,
+      "peakTreeKiB": 238160,
+      "samples": 2
+    },
+    {
+      "arm": "identity",
+      "id": "tamar-multi-source",
+      "ms": 1266.6825419999986,
+      "peakTreeKiB": 243952,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "tamar-multi-source",
+      "ms": 1269.8229170000013,
+      "peakTreeKiB": 243408,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "harbor-current",
+      "ms": 1298.547666999999,
+      "peakTreeKiB": 245296,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "harbor-current",
+      "ms": 1307.1975410000014,
+      "peakTreeKiB": 243648,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "orbit-multi-source",
+      "ms": 1270.2600420000017,
+      "peakTreeKiB": 245232,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "orbit-multi-source",
+      "ms": 1270.7780420000017,
+      "peakTreeKiB": 246224,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "meridian-ranking",
+      "ms": 1291.5061670000032,
+      "peakTreeKiB": 244864,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "meridian-ranking",
+      "ms": 1272.4177500000005,
+      "peakTreeKiB": 244288,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "vellum-multi-source",
+      "ms": 1262.7746249999982,
+      "peakTreeKiB": 244496,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "vellum-multi-source",
+      "ms": 1269.5116670000061,
+      "peakTreeKiB": 245824,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "selkie-current",
+      "ms": 250.95799999999872,
+      "peakTreeKiB": 241136,
+      "samples": 2
+    },
+    {
+      "arm": "identity",
+      "id": "selkie-current",
+      "ms": 254.7201669999995,
+      "peakTreeKiB": 241168,
+      "samples": 2
+    },
+    {
+      "arm": "identity",
+      "id": "tamar-multi-source",
+      "ms": 1265.4793749999953,
+      "peakTreeKiB": 246624,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "tamar-multi-source",
+      "ms": 1263.9545839999992,
+      "peakTreeKiB": 246784,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "harbor-current",
+      "ms": 1305.3147499999977,
+      "peakTreeKiB": 247648,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "harbor-current",
+      "ms": 1300.2811250000013,
+      "peakTreeKiB": 250608,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "orbit-multi-source",
+      "ms": 1267.0711250000022,
+      "peakTreeKiB": 247680,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "orbit-multi-source",
+      "ms": 1264.6953330000033,
+      "peakTreeKiB": 243712,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "meridian-ranking",
+      "ms": 1272.851333000006,
+      "peakTreeKiB": 247520,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "meridian-ranking",
+      "ms": 1292.4221250000046,
+      "peakTreeKiB": 248336,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "vellum-multi-source",
+      "ms": 1272.2761670000036,
+      "peakTreeKiB": 260704,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "vellum-multi-source",
+      "ms": 1271.5203330000004,
+      "peakTreeKiB": 271504,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "selkie-current",
+      "ms": 252.68799999999464,
+      "peakTreeKiB": 268624,
+      "samples": 2
+    },
+    {
+      "arm": "identity",
+      "id": "selkie-current",
+      "ms": 251.5977090000015,
+      "peakTreeKiB": 267728,
+      "samples": 2
+    },
+    {
+      "arm": "identity",
+      "id": "tamar-multi-source",
+      "ms": 1265.108583000001,
+      "peakTreeKiB": 272880,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "tamar-multi-source",
+      "ms": 1265.1434999999983,
+      "peakTreeKiB": 273280,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "harbor-current",
+      "ms": 1296.0065409999952,
+      "peakTreeKiB": 269744,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "harbor-current",
+      "ms": 1308.1094169999997,
+      "peakTreeKiB": 275664,
+      "samples": 12
+    },
+    {
+      "arm": "identity",
+      "id": "orbit-multi-source",
+      "ms": 1262.5005419999943,
+      "peakTreeKiB": 272128,
+      "samples": 12
+    },
+    {
+      "arm": "baseline",
+      "id": "orbit-multi-source",
+      "ms": 1264.982707999996,
+      "peakTreeKiB": 274576,
+      "samples": 12
+    }
+  ],
+  "scriptSha256": "821a73068a360ffe8cc74629b7faa5a0269cd6305e64a582cb378e595c20ddf4",
+  "limits": [
+    "macOS CPU process-tree RSS sampled at 100ms; GPU excluded.",
+    "Warm model-free local runtime; OS file cache not flushed; no VPS or contention claim."
+  ]
+}

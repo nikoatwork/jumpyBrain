@@ -14,7 +14,11 @@ import { scoreEvidence, scoreSearch, summarize, normalize } from './score.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
 const { values } = parseArgs({ options: { modes: { type: 'string', default: 'lexical' }, model: { type: 'string' },
-  repeats: { type: 'string', default: '2' }, name: { type: 'string' } } });
+  repeats: { type: 'string', default: '2' }, name: { type: 'string' }, suite: { type: 'string', default: 'v1' }, arm: { type: 'string', default: 'baseline' }, 'rerank-model': { type: 'string' }, 'runtime-root': { type: 'string' } } });
+assert.ok(['v1', 'augmented', 'confirmation', 'confirmation-extra'].includes(values.suite));
+assert.ok(['baseline', 'evidence', 'rerank', 'neighbors', 'identity'].includes(values.arm));
+if (values.arm === 'rerank') assert.ok(values['rerank-model'] && path.isAbsolute(values['rerank-model']) && (await stat(values['rerank-model'])).isFile(), 'An already-provisioned local rerank model is required.');
+const productRoot = values['runtime-root'] ? await realpath(values['runtime-root']) : repo;
 const modes = values.modes.split(',');
 assert.ok(modes.every(mode => ['lexical', 'semantic'].includes(mode)) && new Set(modes).size === modes.length);
 const repeats = Number(values.repeats);
@@ -27,11 +31,11 @@ await mkdir(path.dirname(output), { recursive: true });
 await mkdir(output, { recursive: false });
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 async function fileHash(file) { const hash = createHash('sha256'); for await (const chunk of createReadStream(file)) hash.update(chunk); return hash.digest('hex'); }
-async function tree(dir) {
+async function tree(dir, base = repo) {
   const entries = await readdir(dir, { withFileTypes: true });
   return (await Promise.all(entries.sort((a,b) => a.name.localeCompare(b.name)).map(async entry => {
     const file = path.join(dir, entry.name);
-    return entry.isDirectory() ? tree(file) : [{ path: path.relative(repo, file), bytes: (await stat(file)).size, sha256: await fileHash(file) }];
+    return entry.isDirectory() ? tree(file, base) : [{ path: path.relative(base, file), bytes: (await stat(file)).size, sha256: await fileHash(file) }];
   }))).flat();
 }
 const qmdBin = await realpath(process.env.JUMPYBRAIN_QMD_BIN ?? '/opt/homebrew/bin/qmd');
@@ -46,13 +50,19 @@ const inputFiles = [...await tree(path.join(here, 'corpus')), ...await tree(path
 for (const file of ['queries.json', 'scenarios.mjs', 'build-corpus.mjs', 'run.mjs', 'execute.mjs', 'score.mjs', 'PROTOCOL.md', 'package.json', 'package-lock.json']) {
   inputFiles.push({ path: path.relative(repo, path.join(here, file)), bytes: (await stat(path.join(here, file))).size, sha256: await fileHash(path.join(here, file)) });
 }
-const product = [...await tree(path.join(repo, 'src')), ...await tree(path.join(repo, 'dist'))];
-const manifest = { protocol: 'workspace-v1', createdAt: new Date().toISOString(), sourceCommit: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).stdout.trim(),
-  sourceUnchanged: !spawnSync('git', ['diff', '--', 'src'], { cwd: repo, encoding: 'utf8' }).stdout.trim(),
+if (values.suite !== 'v1') inputFiles.push(...await tree(path.join(here, 'augmentation')));
+if (['confirmation', 'confirmation-extra'].includes(values.suite)) inputFiles.push(...await tree(path.join(here, 'confirmation')));
+if (values.suite === 'confirmation-extra') inputFiles.push(...await tree(path.join(here, 'confirmation-extra')));
+for (const file of ['IDENTITY-CONFIRMATION.md', 'build-confirmation-extra.py', 'time-identity.mjs', 'EXPERIMENTS.md', 'IDENTITY-EXPERIMENT.md', 'experiment-hooks.mjs', 'experiment-policy.mjs', 'identity-policy.mjs', 'compare-experiments.mjs', 'rerank-probe.mjs', 'build-augmentation.py', 'build-confirmation.py']) inputFiles.push({ path: path.relative(repo, path.join(here, file)), bytes: (await stat(path.join(here, file))).size, sha256: await fileHash(path.join(here, file)) });
+const product = [...await tree(path.join(productRoot, 'src'), productRoot), ...await tree(path.join(productRoot, 'dist'), productRoot)];
+const manifest = { protocol: values.suite === 'v1' ? 'workspace-v1' : values.suite === 'augmented' ? 'workspace-v2' : values.suite === 'confirmation' ? 'workspace-v3' : 'workspace-v4', arm: values.arm, createdAt: new Date().toISOString(), sourceCommit: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).stdout.trim(),
+  runtimeRoot: productRoot, isolatedRuntime: productRoot !== repo,
+  sourceUnchanged: productRoot !== repo ? null : !spawnSync('git', ['diff', '--', 'src'], { cwd: repo, encoding: 'utf8' }).stdout.trim(),
   inputDigest: digest(JSON.stringify(inputFiles)), productDigest: digest(JSON.stringify(product)), inputs: inputFiles, product,
   node: process.version, os: { platform: process.platform, arch: process.arch, release: os.release(), cpu: os.cpus()[0]?.model, logicalCpus: os.cpus().length, memoryBytes: os.totalmem() },
   qmd: { version: qmd.version, launcherSha256: await fileHash(qmdBin), codeDigest: digest(JSON.stringify(await tree(path.join(qmdRoot, 'dist')))) },
   model: values.model ? { name: path.basename(values.model), bytes: (await stat(values.model)).size, sha256: await fileHash(values.model) } : null,
+  rerankModel: values['rerank-model'] ? { name: path.basename(values['rerank-model']), bytes: (await stat(values['rerank-model'])).size, sha256: await fileHash(values['rerank-model']) } : null,
   tokenizer: { package: 'js-tiktoken', version: '1.0.21', encoding: 'cl100k_base' }, modes, repeats };
 await writeFile(path.join(output, 'FREEZE.json'), JSON.stringify(manifest, null, 2) + '\n');
 
@@ -65,24 +75,44 @@ LlamaCpp.prototype.resolveModel=async function(uri){if(!path.isAbsolute(uri)||!(
 const ensure=LlamaCpp.prototype.ensureLlama; LlamaCpp.prototype.ensureLlama=function(){return ensure.call(this,false);};\n`);
 
 const queries = JSON.parse(await readFile(path.join(here, 'queries.json'), 'utf8'));
+const corpusDir = path.join(output, 'fixture/corpus');
+const { cp } = await import('node:fs/promises');
+await cp(path.join(here, 'corpus'), corpusDir, { recursive: true });
+if (values.suite !== 'v1') {
+  queries.push(...JSON.parse(await readFile(path.join(here, 'augmentation/queries.json'), 'utf8')));
+  await cp(path.join(here, 'augmentation/corpus'), corpusDir, { recursive: true });
+}
+if (['confirmation', 'confirmation-extra'].includes(values.suite)) {
+  queries.push(...JSON.parse(await readFile(path.join(here, 'confirmation/queries.json'), 'utf8')));
+  await cp(path.join(here, 'confirmation/corpus'), corpusDir, { recursive: true });
+}
+if (values.suite === 'confirmation-extra') {
+  queries.push(...JSON.parse(await readFile(path.join(here, 'confirmation-extra/queries.json'), 'utf8')));
+  await cp(path.join(here, 'confirmation-extra/corpus'), corpusDir, { recursive: true });
+}
+const queryPath = path.join(output, 'fixture/queries.json');
+await writeFile(queryPath, JSON.stringify(queries));
 const gold = new Map(JSON.parse(await readFile(path.join(here, 'gold/rubric.json'), 'utf8')).map(row => [row.id, row]));
-assert.equal(queries.length, 80);
+if (values.suite !== 'v1') for (const row of JSON.parse(await readFile(path.join(here, 'augmentation/rubric.json'), 'utf8'))) gold.set(row.id, row);
+if (['confirmation', 'confirmation-extra'].includes(values.suite)) for (const row of JSON.parse(await readFile(path.join(here, 'confirmation/rubric.json'), 'utf8'))) gold.set(row.id, row);
+if (values.suite === 'confirmation-extra') for (const row of JSON.parse(await readFile(path.join(here, 'confirmation-extra/rubric.json'), 'utf8'))) gold.set(row.id, row);
+assert.equal(queries.length, values.suite === 'v1' ? 80 : values.suite === 'augmented' ? 104 : values.suite === 'confirmation' ? 112 : 124);
 const sources = new Map();
-for (const file of await tree(path.join(here, 'corpus'))) {
+for (const file of await tree(corpusDir)) {
   const full = path.join(repo, file.path);
-  sources.set(path.relative(path.join(here, 'corpus'), full), { content: await readFile(full, 'utf8'), hash: `sha256:${file.sha256}` });
+  sources.set(path.relative(corpusDir, full), { content: await readFile(full, 'utf8'), hash: `sha256:${file.sha256}` });
 }
 for (const rubric of gold.values()) for (const unit of rubric.units) for (const alt of unit.alternatives) {
   assert.ok(sources.has(alt.file));
   for (const phrase of alt.required) assert.ok(normalize(sources.get(alt.file).content).includes(normalize(phrase)), `${rubric.id}: absent gold clause`);
 }
-const { excerptMatchesSource } = await import(pathToFileURL(path.join(repo, 'dist/core/retrieval-policy/compact.js')));
+const { excerptMatchesSource } = await import(pathToFileURL(path.join(productRoot, 'dist/core/retrieval-policy/compact.js')));
 const encoding = getEncoding('cl100k_base');
 const reports = [];
 for (const mode of modes) for (let repeat = 1; repeat <= repeats; repeat++) {
   const dir = path.join(output, `${mode}-${repeat}`), root = path.join(dir, 'memory'), packets = path.join(dir, 'packets');
   await mkdir(packets, { recursive: true });
-  const config = { repo, root, packets, corpus: path.join(here, 'corpus'), queries: path.join(here, 'queries.json'),
+  const config = { repo: productRoot, root, packets, corpus: corpusDir, queries: queryPath, arm: values.arm, qmdRoot, rerankModel: values['rerank-model'],
     mode, model: mode === 'semantic' ? values.model : undefined, indexOutput: path.join(dir, 'index.json') };
   const configPath = path.join(dir, 'config.json');
   await writeFile(configPath, JSON.stringify(config));
@@ -109,7 +139,7 @@ for (const mode of modes) for (let repeat = 1; repeat <= repeats; repeat++) {
   for (const q of queries) {
     const packet = JSON.parse(await readFile(path.join(packets, `${q.id}.json`), 'utf8'));
     const rubric = gold.get(q.id);
-    const recalled = packet.recall.passages.map(p => { const source = sources.get(p.filePath); return { file: p.filePath, text: p.text,
+    const recalled = packet.recall.passages.flatMap(p => [p, ...(p.context ?? []).map(span => ({ ...p, ...span, context: undefined }))]).map(p => { const source = sources.get(p.filePath); return { file: p.filePath, text: p.text,
       verified: !!source && excerptMatchesSource(p.text, p.startLine, p.endLine, source.content) && (!p.expansion.available || p.expansion.expectedContentHash === source.hash) }; });
     const expanded = packet.expansions.filter(p => p.kind === 'expansion').map(p => { const source = sources.get(p.filePath); return { file: p.filePath, text: p.text,
       verified: !!source && source.hash === p.contentHash && source.content.split(/(?<=\n)/u).slice(p.startLine - 1, p.endLine).join('') === p.text }; });
@@ -132,7 +162,7 @@ for (const mode of modes) for (let repeat = 1; repeat <= repeats; repeat++) {
   reports.push(report);
   console.log(JSON.stringify({ mode, repeat, score: report.overall }));
 }
-for (const file of [...inputFiles, ...product]) assert.equal(await fileHash(path.join(repo, file.path)), file.sha256, `Frozen input changed: ${file.path}`);
+for (const [base, files] of [[repo, inputFiles], [productRoot, product]]) for (const file of files) assert.equal(await fileHash(path.join(base, file.path)), file.sha256, `Frozen input changed: ${file.path}`);
 const comparisons = modes.map(mode => {
   const runs = reports.filter(r => r.mode === mode);
   const stable = rows => JSON.stringify(rows.map(({ timing, ...row }) => row));

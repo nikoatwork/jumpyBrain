@@ -1,0 +1,782 @@
+[
+  {
+    "id": "meridian-scope",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "identity",
+        "alternatives": [
+          {
+            "file": "notes/meridian/handbook.md",
+            "required": [
+              "aliases: [\"Nightjar\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "governing restriction",
+        "alternatives": [
+          {
+            "file": "notes/meridian/handbook.md",
+            "required": [
+              "Only the sealed training cabinet is in scope; occupied vaccine storage must retain its existing alarm policy."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operator action",
+        "alternatives": [
+          {
+            "file": "notes/meridian/handbook.md",
+            "required": [
+              "Raise the alert after twelve uninterrupted minutes above eight degrees."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/meridian/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "meridian-ranking",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "restriction",
+        "alternatives": [
+          {
+            "file": "notes/meridian/handbook.md",
+            "required": [
+              "Only the sealed training cabinet is in scope; occupied vaccine storage must retain its existing alarm policy."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "deviation record",
+        "alternatives": [
+          {
+            "file": "notes/meridian/handbook.md",
+            "required": [
+              "The operator records deviations rather than silently adjusting the setting."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/meridian/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "meridian-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "arrangement",
+        "alternatives": [
+          {
+            "file": "decisions/meridian/schedule.md",
+            "required": [
+              "Use the paper fallback overnight."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "constraint",
+        "alternatives": [
+          {
+            "file": "findings/meridian/constraint.md",
+            "required": [
+              "The basement training room has no reliable mobile signal after the steel fire door closes."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/meridian/schedule.md",
+      "findings/meridian/constraint.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "meridian-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded uncertainty",
+        "alternatives": [
+          {
+            "file": "notes/meridian/handbook.md",
+            "required": [
+              "No public-service exception approver is recorded for Meridian.",
+              "The rehearsal lead can stop the exercise but cannot approve public use."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/meridian/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "estuary-scope",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "identity",
+        "alternatives": [
+          {
+            "file": "notes/estuary/handbook.md",
+            "required": [
+              "aliases: [\"Mudlark\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "governing restriction",
+        "alternatives": [
+          {
+            "file": "notes/estuary/handbook.md",
+            "required": [
+              "The following sampling procedure applies to the closed inlet only; the public bathing beach is excluded."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operator action",
+        "alternatives": [
+          {
+            "file": "notes/estuary/handbook.md",
+            "required": [
+              "Take three sediment cores at each marked station before the tide turns."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/estuary/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "estuary-ranking",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "restriction",
+        "alternatives": [
+          {
+            "file": "notes/estuary/handbook.md",
+            "required": [
+              "The following sampling procedure applies to the closed inlet only; the public bathing beach is excluded."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "deviation record",
+        "alternatives": [
+          {
+            "file": "notes/estuary/handbook.md",
+            "required": [
+              "The operator records deviations rather than silently adjusting the setting."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/estuary/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "estuary-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "arrangement",
+        "alternatives": [
+          {
+            "file": "decisions/estuary/schedule.md",
+            "required": [
+              "Schedule laboratory delivery before sixteen hundred."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "constraint",
+        "alternatives": [
+          {
+            "file": "findings/estuary/constraint.md",
+            "required": [
+              "The receiving laboratory closes its hazardous-material hatch at sixteen thirty."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/estuary/schedule.md",
+      "findings/estuary/constraint.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "estuary-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded uncertainty",
+        "alternatives": [
+          {
+            "file": "notes/estuary/handbook.md",
+            "required": [
+              "No public-service exception approver is recorded for Estuary.",
+              "The rehearsal lead can stop the exercise but cannot approve public use."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/estuary/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "vellum-scope",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "identity",
+        "alternatives": [
+          {
+            "file": "notes/vellum/handbook.md",
+            "required": [
+              "aliases: [\"Glasswing\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "governing restriction",
+        "alternatives": [
+          {
+            "file": "notes/vellum/handbook.md",
+            "required": [
+              "These settings are authorized for modern practice sheets only; original manuscripts require the conservator at the cradle."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operator action",
+        "alternatives": [
+          {
+            "file": "notes/vellum/handbook.md",
+            "required": [
+              "Use the overhead light at thirty percent and capture one calibration frame before each folio."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/vellum/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "vellum-ranking",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "restriction",
+        "alternatives": [
+          {
+            "file": "notes/vellum/handbook.md",
+            "required": [
+              "These settings are authorized for modern practice sheets only; original manuscripts require the conservator at the cradle."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "deviation record",
+        "alternatives": [
+          {
+            "file": "notes/vellum/handbook.md",
+            "required": [
+              "The operator records deviations rather than silently adjusting the setting."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/vellum/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "vellum-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "arrangement",
+        "alternatives": [
+          {
+            "file": "decisions/vellum/schedule.md",
+            "required": [
+              "Book two supervised mornings each week."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "constraint",
+        "alternatives": [
+          {
+            "file": "findings/vellum/constraint.md",
+            "required": [
+              "The conservator is assigned to the archive only on Tuesday and Thursday mornings."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/vellum/schedule.md",
+      "findings/vellum/constraint.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "vellum-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded uncertainty",
+        "alternatives": [
+          {
+            "file": "notes/vellum/handbook.md",
+            "required": [
+              "No public-service exception approver is recorded for Vellum.",
+              "The rehearsal lead can stop the exercise but cannot approve public use."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/vellum/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "bracken-scope",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "identity",
+        "alternatives": [
+          {
+            "file": "notes/bracken/handbook.md",
+            "required": [
+              "aliases: [\"Copperleaf\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "governing restriction",
+        "alternatives": [
+          {
+            "file": "notes/bracken/handbook.md",
+            "required": [
+              "The route instructions below cover an empty-bus rehearsal; carrying pupils still requires the council transport authorization."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operator action",
+        "alternatives": [
+          {
+            "file": "notes/bracken/handbook.md",
+            "required": [
+              "Wait at the west layby for six minutes before entering the narrow lane."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/bracken/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "bracken-ranking",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "restriction",
+        "alternatives": [
+          {
+            "file": "notes/bracken/handbook.md",
+            "required": [
+              "The route instructions below cover an empty-bus rehearsal; carrying pupils still requires the council transport authorization."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "deviation record",
+        "alternatives": [
+          {
+            "file": "notes/bracken/handbook.md",
+            "required": [
+              "The operator records deviations rather than silently adjusting the setting."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/bracken/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "bracken-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "arrangement",
+        "alternatives": [
+          {
+            "file": "decisions/bracken/schedule.md",
+            "required": [
+              "Use a single bus in the lane at a time."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "constraint",
+        "alternatives": [
+          {
+            "file": "findings/bracken/constraint.md",
+            "required": [
+              "The bridge survey permits only one heavy vehicle on the narrow span."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/bracken/schedule.md",
+      "findings/bracken/constraint.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "bracken-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded uncertainty",
+        "alternatives": [
+          {
+            "file": "notes/bracken/handbook.md",
+            "required": [
+              "No public-service exception approver is recorded for Bracken.",
+              "The rehearsal lead can stop the exercise but cannot approve public use."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/bracken/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "saffron-scope",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "identity",
+        "alternatives": [
+          {
+            "file": "notes/saffron/handbook.md",
+            "required": [
+              "aliases: [\"Emberplate\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "governing restriction",
+        "alternatives": [
+          {
+            "file": "notes/saffron/handbook.md",
+            "required": [
+              "The recipe changes in this section concern the staff tasting batch; public meals retain the signed allergen recipe."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operator action",
+        "alternatives": [
+          {
+            "file": "notes/saffron/handbook.md",
+            "required": [
+              "Replace the nut garnish with toasted pumpkin seeds and label the tray before plating."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/saffron/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "saffron-ranking",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "restriction",
+        "alternatives": [
+          {
+            "file": "notes/saffron/handbook.md",
+            "required": [
+              "The recipe changes in this section concern the staff tasting batch; public meals retain the signed allergen recipe."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "deviation record",
+        "alternatives": [
+          {
+            "file": "notes/saffron/handbook.md",
+            "required": [
+              "The operator records deviations rather than silently adjusting the setting."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/saffron/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "saffron-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "arrangement",
+        "alternatives": [
+          {
+            "file": "decisions/saffron/schedule.md",
+            "required": [
+              "Run the tasting after the lunch service has closed."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "constraint",
+        "alternatives": [
+          {
+            "file": "findings/saffron/constraint.md",
+            "required": [
+              "The kitchen has one preparation bench and cannot separate a test batch during public service."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/saffron/schedule.md",
+      "findings/saffron/constraint.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "saffron-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded uncertainty",
+        "alternatives": [
+          {
+            "file": "notes/saffron/handbook.md",
+            "required": [
+              "No public-service exception approver is recorded for Saffron.",
+              "The rehearsal lead can stop the exercise but cannot approve public use."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/saffron/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "quartz-scope",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "identity",
+        "alternatives": [
+          {
+            "file": "notes/quartz/handbook.md",
+            "required": [
+              "aliases: [\"Softbell\"]"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "governing restriction",
+        "alternatives": [
+          {
+            "file": "notes/quartz/handbook.md",
+            "required": [
+              "This sound profile is for the closed technical rehearsal; ticketed performances keep the approved access specification."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operator action",
+        "alternatives": [
+          {
+            "file": "notes/quartz/handbook.md",
+            "required": [
+              "Cap the foyer chime at fifty decibels and leave a ninety-second quiet interval."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/quartz/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "quartz-ranking",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "restriction",
+        "alternatives": [
+          {
+            "file": "notes/quartz/handbook.md",
+            "required": [
+              "This sound profile is for the closed technical rehearsal; ticketed performances keep the approved access specification."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "deviation record",
+        "alternatives": [
+          {
+            "file": "notes/quartz/handbook.md",
+            "required": [
+              "The operator records deviations rather than silently adjusting the setting."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/quartz/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "quartz-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "arrangement",
+        "alternatives": [
+          {
+            "file": "decisions/quartz/schedule.md",
+            "required": [
+              "Keep the technical session within the morning booking."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "constraint",
+        "alternatives": [
+          {
+            "file": "findings/quartz/constraint.md",
+            "required": [
+              "The venue lease reserves the hall for a hearing-support group every afternoon."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/quartz/schedule.md",
+      "findings/quartz/constraint.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  },
+  {
+    "id": "quartz-protected",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded uncertainty",
+        "alternatives": [
+          {
+            "file": "notes/quartz/handbook.md",
+            "required": [
+              "No public-service exception approver is recorded for Quartz.",
+              "The rehearsal lead can stop the exercise but cannot approve public use."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/quartz/handbook.md"
+    ],
+    "interpretation": "Judge subject, governing scope, and applicable time together. A link is only a discovery hint."
+  }
+]

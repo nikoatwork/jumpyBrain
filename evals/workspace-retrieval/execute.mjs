@@ -6,6 +6,8 @@ import { pathToFileURL } from 'node:url';
 import { chooseExpansions } from './score.mjs';
 
 const config = JSON.parse(await readFile(process.argv[2], 'utf8'));
+const { installExperiment } = await import('./experiment-hooks.mjs');
+const experiment = await installExperiment(config);
 const runtime = await import(pathToFileURL(path.join(config.repo, 'dist/runtime/index.js')));
 const { serializeExpansion } = await import(pathToFileURL(path.join(config.repo, 'dist/core/canonical/expansion.js')));
 await mkdir(config.root, { recursive: true });
@@ -14,8 +16,9 @@ await runtime.initializeMemoryRoot(config.root);
 const timed = async fn => { const start = performance.now(); const value = await fn(); return { value, ms: performance.now() - start }; };
 const initialIndex = await timed(() => runtime.indexMemory(config.root, { indexing: config.model ? { mode: 'semantic', model: config.model } : { mode: 'lexical' } }));
 if (initialIndex.value.readiness.freshness !== 'fresh' || !initialIndex.value.readiness.modes.includes(config.mode)) throw new Error('Requested backend mode is not fresh and available.');
+const projection = await experiment.index();
 const noOpIndex = await timed(() => runtime.indexMemory(config.root));
-await writeFile(config.indexOutput, JSON.stringify({ initialIndex, noOpIndex,
+await writeFile(config.indexOutput, JSON.stringify({ initialIndex, noOpIndex, projection,
   databaseBytes: (await stat(path.join(config.root, '.jumpybrain/qmd-cache/qmd/index.sqlite'))).size }));
 const queries = JSON.parse(await readFile(config.queries, 'utf8'));
 for (const [n, q] of queries.entries()) {
@@ -39,7 +42,9 @@ for (const [n, q] of queries.entries()) {
     }
   }
   if (wires.some(wire => Buffer.byteLength(wire) > 8192) || wires.reduce((n, wire) => n + Buffer.byteLength(wire), 0) > 32768) throw new Error('Response byte budget violated.');
-  await writeFile(path.join(config.packets, `${q.id}.json`), JSON.stringify({ id: q.id, search: search.value, recall: recall.value, expansions, wires, requests,
+  await writeFile(path.join(config.packets, `${q.id}.json`), JSON.stringify({ id: q.id, search: search.value, experiment: experiment.diagnostics(), recall: recall.value, expansions, wires, requests,
     timing: { searchMs: search.ms, recallMs: recall.ms, interactionMs: performance.now() - start } }, null, 2));
   console.log(`${config.mode} ${n + 1}/${queries.length} ${q.id}`);
 }
+
+await experiment.dispose();

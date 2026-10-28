@@ -1,0 +1,66 @@
+[
+  {
+    "id": "selkie-multi-source",
+    "scenario": "selkie",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "Which landing and schedule should Selkie offer wheelchair passengers, and what physical restriction explains the choice?",
+    "depth": "normal"
+  },
+  {
+    "id": "selkie-current",
+    "scenario": "selkie",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What Selkie passenger schedule is actually approved, and does the newer daily-service idea replace it?",
+    "depth": "normal"
+  },
+  {
+    "id": "selkie-protected",
+    "scenario": "selkie",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who approved daily accessible sailings for Selkie?",
+    "depth": "normal"
+  },
+  {
+    "id": "selkie-navigation",
+    "scenario": "selkie",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Selkie landing inspection",
+    "depth": "normal"
+  },
+  {
+    "id": "tamar-multi-source",
+    "scenario": "tamar",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What work window and drain limit should Tamar use, and why must water stay in the reservoir?",
+    "depth": "normal"
+  },
+  {
+    "id": "tamar-current",
+    "scenario": "tamar",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Is the Tamar contractor suggestion to empty the reservoir approved, and what maintenance plan still governs?",
+    "depth": "normal"
+  },
+  {
+    "id": "tamar-protected",
+    "scenario": "tamar",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who authorized a full drain of Tamar reservoir?",
+    "depth": "normal"
+  },
+  {
+    "id": "tamar-navigation",
+    "scenario": "tamar",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Tamar operator checklist",
+    "depth": "normal"
+  }
+]
