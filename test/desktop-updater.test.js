@@ -36,6 +36,22 @@ test('current app can align an older managed CLI without downgrading an ahead-of
   assert.equal(needsUpdate('0.3.3', installed), false);
   assert.equal(needsUpdate('0.3.4', { ...installed, cliPolicy: { kind: 'pinned' } }), false);
 });
+test('discovery selects the highest version across pages regardless of publication order', async () => {
+  const pages = [
+    Array.from({ length: 100 }, (_, patch) => release(`0.2.${patch}`)),
+    [release('0.3.11', { published_at: '2026-10-20' }), release('0.3.10', { published_at: '2026-10-22' }),
+      release('9.0.0', { draft: true }), release('8.0.0', { published_at: null })],
+  ];
+  const urls = [];
+  const selected = await discoverRelease({ fetcher: async url => {
+    urls.push(url);
+    return new Response(JSON.stringify(pages[urls.length - 1]));
+  } });
+  assert.equal(selected.version, '0.3.11');
+  assert.equal(urls.length, 2);
+  assert.match(urls[0], /page=1$/);
+  assert.match(urls[1], /page=2$/);
+});
 test('bounded unauthenticated discovery handles offline, rate limits, and corrupt artifacts', async () => {
   const urls = [];
   const selected = await discoverRelease({ fetcher: async (url, options) => { urls.push(url); assert.equal(options.headers.Authorization, undefined); return new Response(JSON.stringify([release('0.4.0')])); } });
@@ -213,7 +229,7 @@ test('GUI clicks are not lost during status polling and late status cannot overw
   assert.equal(element('phase').textContent, 'Up to date'); assert.equal(element('detail').textContent, 'Current');
 });
 
-test('one-click update pins one release, prepares once and preserves pinned CLI exceptions', { skip: process.platform !== 'darwin' }, async t => {
+test('one-click update skips intermediate versions, pins the latest release and prepares once', { skip: process.platform !== 'darwin' }, async t => {
   for (const pinned of [false, true]) {
     const f = await fixture(t), resources = path.join(f.home, 'Applications/jumpyBrain.app/Contents/Resources');
     await mkdir(path.join(resources, 'runtime'), { recursive: true });
@@ -223,9 +239,14 @@ test('one-click update pins one release, prepares once and preserves pinned CLI 
     if (pinned) { f.manifest.ref = 'v0.3.3'; await f.save(); }
     let checks = 0, launches = 0;
     const { EventEmitter } = await import('node:events');
-    const updater = createDesktopUpdater({ home: f.home, resources, discover: async () => { checks++; return selectRelease([release('0.3.4')]); },
+    const updater = createDesktopUpdater({ home: f.home, resources, discover: () => discoverRelease({ fetcher: async () => {
+      checks++;
+      return new Response(JSON.stringify([release('0.3.4'), release('0.3.11'), release('0.3.9'), release('0.3.10')]));
+    } }),
       spawnWorker: () => { launches++; const child = new EventEmitter(); child.pid = process.pid; child.unref = () => {}; process.nextTick(() => child.emit('spawn')); return child; } });
     const offered = await updater.action('check');
+    assert.equal(offered.available, '0.3.11');
+    assert.equal(offered.installed.app, '0.3.3');
     assert.deepEqual(offered.actions, ['check', pinned ? 'app-only' : 'update']);
     const [a, b] = await Promise.all([updater.action('update'), updater.action('update')]);
     assert.equal(checks, 1); assert.equal(launches, pinned ? 0 : 1); assert.equal(a.phase, b.phase);
@@ -233,7 +254,7 @@ test('one-click update pins one release, prepares once and preserves pinned CLI 
     if (!pinned) {
       const owner = JSON.parse(await readFile(path.join(f.root, '.installer-lock/desktop.json')));
       const request = JSON.parse(await readFile(path.join(owner.directory, 'request.json')));
-      assert.equal(request.release.version, '0.3.4'); assert.equal(request.updateCLI, true);
+      assert.equal(request.release.version, '0.3.11'); assert.equal(request.updateCLI, true);
       await updater.action('update'); assert.equal(launches, 1); assert.equal(checks, 1);
       await writeFile(path.join(owner.directory, 'request.json'), JSON.stringify({ ...request, entrypoint: 'cli' }));
       await writeFile(path.join(owner.directory, 'transaction.json'), '{"phase":"published","exchanges":[]}');
@@ -241,7 +262,14 @@ test('one-click update pins one release, prepares once and preserves pinned CLI 
       await writeFile(path.join(f.root, '.installer-lock/desktop.json'), JSON.stringify({ directory: owner.directory, pid: 2147483647 }));
       assert.equal((await updater.action('recover')).phase, 'preparing');
       assert.equal(JSON.parse(await readFile(path.join(owner.directory, 'request.json'))).entrypoint, 'app', 'GUI recovery of a CLI job must wait for app exit');
-    } else assert.equal(a.installed.cliPolicy.kind, 'pinned');
+    } else {
+      assert.equal(a.installed.cliPolicy.kind, 'pinned');
+      assert.equal((await updater.action('app-only')).phase, 'preparing');
+      const owner = JSON.parse(await readFile(path.join(f.root, '.installer-lock/desktop.json')));
+      const request = JSON.parse(await readFile(path.join(owner.directory, 'request.json')));
+      assert.equal(request.release.version, '0.3.11'); assert.equal(request.updateCLI, false);
+      assert.equal(checks, 1); assert.equal(launches, 1);
+    }
   }
 });
 

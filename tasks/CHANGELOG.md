@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Latest-release update verification
+
+- Confirmed direct upgrades to the highest published version and added multi-version/pagination regressions. [Verification](done/2026-10-28_tasks-update-latest-release.md).
+
 ## 2026-10-28 — v0.3.11 beta
 
 - Published focused Settings, visual themes, and sidebar/formatting refinements. [Release notes](done/releases/v0.3.11.md) and [verification](done/releases/v0.3.11.qa.md).
