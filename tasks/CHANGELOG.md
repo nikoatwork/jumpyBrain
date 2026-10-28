@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Calm note writing
+
+- Folded formatting behind a visible Format control, kept Link directly reachable and made section navigation discoverable from Page details. [Design and verification](done/2026-10-28_tasks-calm-note-journey.md).
+
 ## 2026-10-28 — Workspace retrieval baseline
 
 - Added a versioned fictional-workspace retrieval eval and reproducible baseline, with development assets excluded from the installable package. [Scores and limits](../evals/workspace-retrieval/reports/2026-10-28-baseline-v1.md).

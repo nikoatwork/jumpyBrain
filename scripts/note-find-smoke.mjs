@@ -64,6 +64,7 @@ try {
     await page.keyboard.press(mod + '+f'); await page.locator('#note-find-input').press('Escape');
     assert.equal(await page.locator('#note-name').evaluate(el => document.activeElement === el), true, 'Escape restores title focus without moving the body caret');
     // Shared top-layer labels: hover and keyboard focus, no clipping in a modal.
+    await page.locator('#toggle-note-format').click();
     await page.locator('[data-format=bold]').hover();
     await page.waitForFunction(() => document.querySelector('#control-label').matches(':popover-open'));
     assert.equal(await page.locator('#control-label').innerText(), 'Bold');

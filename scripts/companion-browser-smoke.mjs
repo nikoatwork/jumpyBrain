@@ -329,6 +329,19 @@ try {
   await editor.waitForURL("**/?note=" + id + "&brain=a");
   await editor.locator("#note-editor").waitFor();
 
+  // A permission change can hide a focused formatting control. Keep focus on a
+  // visible, non-mutating header action, including when the body is read-only.
+  await editor.locator('#toggle-note-format').click();
+  await editor.locator('[data-format=bold]').focus();
+  const beforePermissionChange = documents.get('a').content;
+  profiles.find(profile => profile.id === 'a').allowWrites = false;
+  await editor.locator('#toggle-note-format').waitFor({ state: 'hidden' });
+  assert.equal(await editor.evaluate(() => document.activeElement.id), 'copy-note-draft');
+  assert.equal(await editor.locator('#format-controls').isHidden(), true);
+  assert.equal(documents.get('a').content, beforePermissionChange);
+  profiles.find(profile => profile.id === 'a').allowWrites = true;
+  await editor.locator('#toggle-note-format').waitFor({ state: 'visible' });
+
   // Settings entry saves first, replaces note navigation, and Back restores this note.
   await appendEditorText(editor, " Saved before Settings.");
   await editor.locator("#open-connection").click();

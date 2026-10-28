@@ -4,6 +4,12 @@ export async function editorMarkdown(page) {
   return page.evaluate(() => richEditor.getMarkdown());
 }
 
+export async function openNoteFormatting(page) {
+  if (await page.locator('#toggle-note-format').getAttribute('aria-expanded') !== 'true') {
+    await page.locator('#toggle-note-format').click();
+  }
+}
+
 export async function selectEditorText(page, start, end = start) {
   await page.locator("#note-editor").evaluate((element, { start, end }) => {
     if (!element.isContentEditable) throw new Error("#note-editor must be contenteditable before editing");

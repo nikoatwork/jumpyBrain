@@ -208,6 +208,21 @@ try {
   await until('document.getElementById("note-save-state").textContent === "Saved"');
   checks.push('editing and autosave');
   assert.equal(await js('document.getElementById("copy-note-draft").textContent.trim()'), 'Copy draft');
+  assert.equal(await js('document.getElementById("format-controls").hidden'), true);
+  assert.equal(await js('document.getElementById("insert-reference").textContent.trim()'), 'Link');
+  assert.equal(await js('document.getElementById("note-section-count").textContent'), '1 section');
+  const foldedBytes = await readFile(existingNote, 'utf8');
+  await js('document.getElementById("toggle-note-format").focus()');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+  window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+  await until('!document.getElementById("format-controls").hidden');
+  await js('document.querySelector("[data-format=bold]").focus()');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await until('document.getElementById("format-controls").hidden');
+  assert.equal(await js('document.activeElement.id'), 'toggle-note-format');
+  assert.equal(await readFile(existingNote, 'utf8'), foldedBytes, 'format disclosure never writes Markdown');
   assert.equal(await js('document.getElementById("page-details").hidden'), true);
   await js('document.getElementById("toggle-page-details").click()');
   await until('!document.getElementById("page-details").hidden');
@@ -216,11 +231,16 @@ try {
   assert.equal(await js('document.getElementById("note-file").textContent'), 'notes/electron-fixture.md');
   for (const theme of ['light', 'dark']) {
     await js(`document.documentElement.dataset.theme = '${theme}'`);
+    await js('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
     await writeFile(config.screenshot.replace('welcome.png', `note-workspace-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+    await js('document.getElementById("toggle-note-format").click()');
+    await js('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+    await writeFile(config.screenshot.replace('welcome.png', `note-format-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+    await js('document.getElementById("toggle-note-format").click()');
   }
   await js('document.getElementById("close-page-details").click()');
   assert.equal(await js('document.activeElement.id'), 'toggle-page-details');
-  checks.push('labeled draft handoff, optional outline/details, accepted saved-version actor/location and focus return');
+  checks.push('folded formatting keyboard/Enter/Escape, direct Link, live section caption, immutable fold, labeled draft handoff, outline/details, saved-version actor/location and focus return');
 
 
   // A deterministic pending draft exercises the production browser unload veto

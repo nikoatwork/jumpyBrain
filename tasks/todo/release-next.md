@@ -1,6 +1,6 @@
 # Changes
 
-- Notes have labeled draft copying and optional Page details with section navigation, related pages and saved-version facts; Delete stays out of the writing path and empty pages offer a writing hint.
+- Notes open on a quieter writing surface with folded formatting, a direct Link action and a section count beside Page details. Labeled draft copying, section navigation, related pages and saved-version facts stay reachable; Delete stays out of the writing path and empty pages offer a writing hint.
 
 - Refreshed pin and refresh icons, added a serif jumpyBrain wordmark, and moved the active brain above the sidebar’s bottom controls.
 

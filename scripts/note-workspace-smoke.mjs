@@ -4,12 +4,12 @@ import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { initializeMemoryRoot } from '../dist/runtime/index.js';
+import { initializeMemoryRoot, indexMemory, readMemoryDocument } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { stampMemoryActor } from '../dist/core/contribution.js';
 import { startCompanionGateway } from '../integrations/macos-companion/gateway.mjs';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
-import { editorMarkdown, replaceEditorText, undoEditor } from './editor-smoke-helpers.mjs';
+import { editorMarkdown, replaceEditorText, undoEditor, selectEditorText, editorSelection, editorEnd } from './editor-smoke-helpers.mjs';
 
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-note-workspace-'));
 const root = path.join(temporary, 'memory');
@@ -51,6 +51,7 @@ try {
   await writeFile(file, source);
   await writeFile(path.join(root, 'notes/empty.md'), prefix(2, 'A fresh document'));
   await writeFile(path.join(root, 'notes/second.md'), prefix(3, 'Coworker review') + '## Coworker review\n\nA separate document with independent context.\n');
+  await indexMemory(root, { indexing: { mode: 'lexical' } });
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
@@ -71,6 +72,9 @@ try {
   assert.equal(await page.locator('#note-save-state').textContent(), 'Saved', 'a confirmed loaded baseline is visibly saved');
   assert.equal(await page.locator('#copy-note-draft').innerText(), 'Copy draft');
   assert.equal(await page.locator('#page-details').isHidden(), true);
+  assert.equal(await page.locator('#format-controls').isHidden(), true, 'formatting is folded on note entry');
+  assert.equal(await page.locator('#insert-reference').innerText(), 'Link', 'linking stays directly reachable');
+  assert.equal(await page.locator('#note-section-count').innerText(), '8 sections', 'headings are discoverable before opening details');
   assert.equal(await page.locator('#delete-note').isVisible(), false);
   await page.evaluate(() => { window.fixtureEditorRoot = document.getElementById('note-editor'); });
   await page.locator('#toggle-page-details').click();
@@ -98,6 +102,50 @@ try {
   assert.equal(await readFile(file, 'utf8'), source);
   assert.deepEqual(mutations, [], 'context and section navigation never write canonical Markdown');
 
+  // Folding preserves an actual noncollapsed selection, not merely draft text.
+  const visible = await page.locator('#note-editor').textContent();
+  const start = visible.indexOf('Build a focused');
+  await selectEditorText(page, start, start + 5);
+  const selection = await editorSelection(page);
+  await page.locator('#toggle-note-format').click();
+  assert.deepEqual(await editorSelection(page), selection);
+  assert.equal(await page.evaluate(() => fixtureEditorRoot === document.getElementById('note-editor')), true);
+  assert.deepEqual(mutations, [], 'opening Format adds no save');
+  await page.getByRole('button', { name: 'Bold', exact: true }).click();
+  await saved(page);
+  assert.equal(await editorMarkdown(page), body.replace('Build a focused', '**Build** a focused'));
+  assert.equal(await page.locator('#toggle-note-format').getAttribute('aria-expanded'), 'true', 'autosave retains the fold state');
+  await undoEditor(page); await saved(page);
+  assert.equal(await editorMarkdown(page), body);
+  await page.getByRole('button', { name: 'Bold', exact: true }).focus();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#format-controls').isHidden(), true);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'toggle-note-format');
+  // Keyboard entry retains Lexical's prior selection through ordinary tab focus.
+  await selectEditorText(page, start, start + 5);
+  await page.locator('#toggle-note-format').focus(); await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Bold', exact: true }).focus(); await page.keyboard.press('Enter');
+  await saved(page);
+  assert.equal(await editorMarkdown(page), body.replace('Build a focused', '**Build** a focused'));
+  await undoEditor(page); await saved(page);
+  await page.locator('#note-editor').press('Escape');
+  assert.equal(await page.locator('#toggle-note-format').getAttribute('aria-expanded'), 'true', 'ordinary writing Escape does not close Format');
+  await page.locator('#open-search').click();
+  await page.locator('#note-search-input').press('Escape');
+  assert.equal(await page.locator('#toggle-note-format').getAttribute('aria-expanded'), 'true', 'Search owns its Escape');
+  await page.locator('#toggle-note-format').click();
+  assert.equal(await editorMarkdown(page), body);
+
+  // The live count follows headings with details folded, excluding code/literals.
+  await page.locator('#close-page-details').click();
+  await replaceEditorText(page, '## One\n\n## One\n\n```md\n# Code\n```\n\n> # Literal');
+  await page.waitForFunction(() => document.getElementById('note-section-count').textContent === '2 sections');
+  await undoEditor(page);
+  await page.waitForFunction(() => document.getElementById('note-section-count').textContent === '8 sections');
+  await saved(page);
+  await page.locator('#toggle-page-details').click();
+  await page.locator('#note-outline-list button').nth(duplicates[1]).click();
+
   // A useful navigation action puts subsequent typing in the selected section.
   await page.keyboard.insertText('Refined ');
   const refined = body.replace('## Decisions\n\nThe second', '## Refined Decisions\n\nThe second');
@@ -116,6 +164,7 @@ try {
   await page.locator('#page-details').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#toggle-page-details').evaluate(element => element === document.activeElement), true);
 
+  await page.evaluate(() => getSelection().removeAllRanges());
   for (const width of [1280, 1180, 900, 390, 320]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(theme => { document.documentElement.dataset.theme = theme; document.getElementById('note-panel').scrollTop = 0; }, theme);
@@ -136,8 +185,21 @@ try {
       await page.screenshot({ path: path.join(output, `workspace-${width}-${theme}-${expanded ? 'context' : 'writing'}.png`) });
     }
   }
-  await page.setViewportSize({ width: 1280, height: 900 });
+  // The fold-out uses existing palettes and touch targets without crowding prose.
   await page.locator('#close-page-details').click();
+  await page.locator('#toggle-note-format').click();
+  for (const width of [1280, 390, 320]) for (const theme of ['light', 'dark']) for (const palette of ['ember', 'ocean', 'mono']) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(({ theme, palette }) => { document.documentElement.dataset.theme = theme; document.documentElement.dataset.palette = palette; document.getElementById('note-panel').scrollTop = 0; }, { theme, palette });
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, JSON.stringify(await page.evaluate(() => ({ width: innerWidth, overflow: [...document.querySelectorAll('body *')].filter(el => !el.closest('[hidden]') && el.getBoundingClientRect().right > innerWidth + 1).slice(0, 10).map(el => [el.id || el.className, el.getBoundingClientRect().right]) }))));
+    assert.equal(await page.locator('#format-controls').evaluate(el => el.scrollWidth <= el.clientWidth), true, 'expanded tool groups fit');
+    assert.ok(await page.locator('#note-panel').evaluate(el => el.clientHeight) >= 300, 'narrow layout leaves a usable writing area');
+    await page.screenshot({ path: path.join(output, `format-${width}-${theme}-${palette}.png`) });
+  }
+  await page.locator('#toggle-note-format').click();
+  await page.evaluate(() => delete document.documentElement.dataset.palette);
+  await page.setViewportSize({ width: 1280, height: 900 });
 
   // Dispatch supported DOM input and the copy click in one task, before the
   // ordinary 750ms debounce. Copy itself must not initiate a save or transmit.
@@ -174,6 +236,7 @@ try {
   await page.evaluate(() => state.editor.flush());
   await page.locator('#toggle-page-details').click();
   assert.equal(await page.locator('#note-outline').isHidden(), true, 'empty document does not reserve an empty outline');
+  assert.equal(await page.locator('#note-section-count').isHidden(), true);
   await page.locator(`.sidebar-page-link[href*="${id(3)}"]`).first().click();
   await page.waitForURL(url => url.searchParams.get('note') === id(3));
   await page.locator('#note-editor').filter({ hasText: 'independent context' }).waitFor();
@@ -184,6 +247,68 @@ try {
   assert.equal(await page.locator('#saved-version-editor').innerText(), 'Editor unknown');
   assert.equal(await page.locator('#note-file').innerText(), 'notes/second.md');
   assert.doesNotMatch(await readFile(path.join(root, 'notes/empty.md'), 'utf8'), /Start writing, or type/);
+
+  // Complete first-note journey through real capture, formatting, references,
+  // search, section navigation, Back, a blocked save and canonical reopening.
+  await page.locator('#new-note').click();
+  await page.waitForURL(url => ![id(1), id(2), id(3)].includes(url.searchParams.get('note')));
+  await page.locator('#note-name').waitFor();
+  const createdId = new URL(page.url()).searchParams.get('note');
+  const createdUrl = page.url();
+  assert.equal(await page.locator('#format-controls').isHidden(), true);
+  await page.locator('#note-name').fill('A calmer writing journey');
+  await page.locator('#note-name').press('Enter');
+  await page.keyboard.insertText('A first thought');
+  // Place the caret inside this paragraph: concatenated textContent has no
+  // separator, so its exact start is also the preceding heading's end offset.
+  await selectEditorText(page, (await page.locator('#note-editor').textContent()).indexOf('A first thought') + 1);
+  await page.locator('#toggle-note-format').click();
+  await page.getByRole('button', { name: 'Subheading', exact: true }).click();
+  assert.match(await editorMarkdown(page), /## A first thought/, 'formatting the selected newly written paragraph');
+  await page.waitForFunction(() => document.getElementById('note-section-count').textContent === '2 sections');
+  await saved(page);
+  await page.locator('#toggle-note-format').click();
+  await editorEnd(page); await page.keyboard.press('End'); await page.keyboard.press('Enter');
+  await page.locator('#insert-reference').click();
+  await page.locator('#note-search-input').fill('Coworker review');
+  await page.locator('#search-results [role=option]').filter({ hasText: 'Coworker review' }).first().click();
+  await saved(page);
+  assert.match(await editorMarkdown(page), /\[\[Coworker review\]\]/);
+  await page.locator('#toggle-page-details').click();
+  await page.locator('#note-outline-list button').first().click();
+  await page.locator('#close-page-details').click();
+  await page.locator('#note-name').focus();
+  await page.locator('[data-page-reference="true"]').click();
+  await page.waitForURL(url => url.searchParams.get('note') === id(3));
+  await page.locator('#navigate-back').click();
+  await page.waitForURL(url => url.searchParams.get('note') === createdId);
+  await page.locator('#note-editor').waitFor();
+  assert.equal(await page.locator('#format-controls').isHidden(), true, 'return opens a calm page');
+  await page.locator('#open-search').click();
+  await page.locator('#note-search-input').fill('Coworker review');
+  await page.locator('#search-results [role=option]').filter({ hasText: 'Coworker review' }).first().click();
+  await page.waitForURL(url => url.searchParams.get('note') === id(3));
+  await page.locator('#navigate-back').click();
+  await page.waitForURL(url => url.searchParams.get('note') === createdId);
+  await page.locator('#note-editor').waitFor();
+  const blockSave = route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unavailable', message: 'Fixture save unavailable' } }) });
+  await page.route('**/documents/' + createdId, route => route.request().method() === 'PUT' ? blockSave(route) : route.continue());
+  await editorEnd(page); await page.keyboard.insertText(' Continued after returning.');
+  await page.locator('#note-retry').waitFor();
+  await page.locator('#home-link').click();
+  await page.waitForFunction(() => !state.editor.state.navigationPending && !document.getElementById('note-retry').hidden);
+  assert.equal(new URL(page.url()).searchParams.get('note'), createdId, 'failed save blocks departure');
+  assert.equal(await page.locator('#copy-note-draft').isVisible(), true);
+  await page.unroute('**/documents/' + createdId);
+  await page.locator('#note-retry').click(); await saved(page);
+  const created = await readMemoryDocument(root, createdId);
+  assert.match(created.content, /## A first thought/);
+  assert.match(created.content, /\[\[Coworker review\]\]/);
+  assert.match(created.content, /Continued after returning/);
+  assert.doesNotMatch(created.content, /Start writing, or type/);
+  await page.goto(createdUrl); await page.locator('#note-editor').waitFor();
+  assert.match(await editorMarkdown(page), /Continued after returning/);
+  assert.equal(await page.locator('#format-controls').isHidden(), true);
   await context.close();
 
   // A real read-only remote brain keeps useful context/copy while empty-state
@@ -204,11 +329,13 @@ try {
   assert.equal(await readonly.locator('#note-editor').getAttribute('aria-readonly'), 'true');
   assert.equal(await readonly.locator('#note-editor-hint').isHidden(), true);
   assert.equal(await readonly.locator('#copy-note-draft').isVisible(), true);
+  assert.equal(await readonly.locator('#toggle-note-format').isHidden(), true);
+  assert.equal(await readonly.locator('#format-controls').isHidden(), true);
   await readonly.locator('#toggle-page-details').click();
   assert.equal(await readonly.locator('#delete-note').isDisabled(), true);
   await readonlyContext.close();
   assert.deepEqual(errors, []);
-  console.log('PASS note workspace: loaded Saved, labeled copy, distinct live heading navigation/caret/edit/undo, code/literal exclusion, immutable clean context, accepted saved-version facts, focus/Escape, empty hint/undo/code/read-only, note scoping, current unsaved draft copy, 1280/1180/900/390/320px light/dark open/closed layouts. Screenshots: ' + output);
+  console.log('PASS folding-desk journey: real create/title/body, pointer and keyboard selection formatting/undo, direct reference insertion/follow/Back/search, section counts/jumps, autosave/reopen, failed-save departure guard/Retry, immutable folding, scoped Escape/focus, read-only, exact draft copy, 1280/1180/900/390/320px light/dark details and 18 expanded palette layouts. Screenshots: ' + output);
 } finally {
   await browser?.close(); await gateway?.close(); await server?.close(); await rm(temporary, { recursive: true, force: true });
 }

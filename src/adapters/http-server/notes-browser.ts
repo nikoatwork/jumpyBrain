@@ -148,7 +148,17 @@ ${referencePresentationStyles}
     .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     #reference-creation-status { color: var(--error-ink); font-size: var(--text-ui); }
     .markdown-literal::selection { background: var(--surface-hover); }
-    #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; margin: 0 0 var(--space-6); }
+    .note-tool-row { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-6); }
+    .note-tool-row:has(#toggle-note-format[aria-expanded="true"]) { margin-bottom: var(--space-2); }
+    .note-tool-row .quiet-button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-compact); padding: var(--space-1) var(--space-2); background: transparent; color: var(--ink-soft); }
+    .note-tool-row .quiet-button:hover, #toggle-note-format[aria-expanded="true"] { background: var(--control-fill); color: var(--ink); }
+    .note-tool-row svg { width: var(--icon-size); height: var(--icon-size); }
+    #toggle-note-format[aria-expanded="true"] .format-chevron { transform: rotate(180deg); }
+    #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; margin: 0 0 var(--space-6); padding-block: var(--space-2); border-block: 1px solid var(--line); }
+    #format-controls[hidden], .note-tool-row > [hidden] { display: none; }
+    .note-tool-row:not(:has(button:not([hidden]))) { display: none; }
+    #toggle-page-details { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); }
+    #note-section-count { font-size: var(--text-caption); color: var(--ink-soft); }
     .format-group { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); }
     #format-controls button { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); background: transparent; font-size: var(--text-ui); }
     #format-controls [data-format="paragraph"] { width: auto; min-width: var(--control-compact); padding-inline: var(--space-2); }
@@ -170,7 +180,7 @@ ${referencePresentationStyles}
     #note-save-error[data-review="true"] { color: var(--ink-soft); }
     .capture-feedback { margin: 0; padding: 0 var(--space-6); font-size: var(--text-caption); color: var(--ink-soft); }
     .capture-feedback[data-error="true"] { color: var(--error-ink); }
-    #insert-reference { margin: 0 0 var(--space-3) calc(-1 * var(--space-3)); font-size: var(--text-ui); }
+    #insert-reference { margin: 0; width: auto; font-size: var(--text-ui); }
     button:disabled { cursor: wait; opacity: .65; }
     .save-state { color: var(--ink-soft); font-size: var(--text-caption); white-space: nowrap; }
     .save-state[data-state="failed"], #note-message[data-error="true"] { color: var(--error-ink); }
@@ -278,6 +288,7 @@ ${referencePresentationStyles}
       .document-status { flex: 1 1 200px; }
       #page-details { --control-compact: var(--control-touch); }
       #format-controls { --control-compact: var(--control-touch); margin-bottom: var(--space-5); }
+      .note-tool-row { --control-compact: var(--control-touch); }
       .save-state { font-size: var(--text-caption); }
       #note-search { margin-top: var(--space-4); max-height: calc(100dvh - 32px); }
     }
@@ -315,7 +326,7 @@ export const notesMarkup = String.raw`
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
   <button id="copy-note-draft" class="quiet-button document-copy" type="button" aria-label="Copy draft" title="Copy the current title and Markdown body for an agent or coworker" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg><span>Copy draft</span></button>
-  <button id="toggle-page-details" class="quiet-button" type="button" aria-expanded="false" aria-controls="page-details" hidden>Page details</button>
+  <button id="toggle-page-details" class="quiet-button" type="button" aria-label="Page details" aria-describedby="note-section-count" aria-expanded="false" aria-controls="page-details" hidden><span>Page details</span><span id="note-section-count" hidden></span></button>
 </div>
 </div>
 ${noteAttentionMarkup}
@@ -411,6 +422,10 @@ export const notesViews = String.raw`
       </div>
       <p id="note-message" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
+      <div class="note-tool-row" role="group" aria-label="Writing tools">
+        <button id="toggle-note-format" class="quiet-button" type="button" aria-expanded="false" aria-controls="format-controls" hidden><span aria-hidden="true">Aa</span><span>Format</span><svg class="format-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 10 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button id="insert-reference" class="quiet-button" type="button" aria-label="Link · Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Link</span></button>
+      </div>
       <div id="format-controls" role="group" aria-label="Text formatting" hidden>
         <div class="format-group" role="group" aria-label="Text styles">
           <button class="quiet-button" data-format="paragraph" aria-label="Normal text" title="Normal text">Text</button>
@@ -423,10 +438,9 @@ export const notesViews = String.raw`
           <button class="quiet-button" data-format="italic" aria-label="Italic" title="Italic"><em>I</em></button>
           <button class="quiet-button" data-format="code" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
         </div>
-        <div class="format-group" role="group" aria-label="Insert blocks and references">
+        <div class="format-group" role="group" aria-label="Insert blocks">
           <button class="quiet-button" data-format="task" aria-label="Task checkbox" title="Task checkbox">☑</button>
           <button class="quiet-button" data-format="code-block" aria-label="Code block" title="Code block">{ }</button>
-          <button id="insert-reference" class="quiet-button note-icon" type="button" aria-label="Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
         </div>
       </div>
       <div class="note-writing">
@@ -1398,7 +1412,6 @@ function syncEditorUi(editorState) {
   $("note-save-error").dataset.review = String(needsReview);
   if (editorState.navigationPending || !editorState.loaded) referenceAutocomplete.dismiss();
   richEditor.setReadOnly(editorState.navigationPending || companionLocked);
-  $("format-controls").hidden = !editorState.loaded;
   for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending || companionLocked;
   $("insert-reference").hidden = !editorState.loaded;
   $("insert-reference").disabled = editorState.navigationPending || companionLocked;

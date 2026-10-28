@@ -8,7 +8,7 @@ const { startJumpyBrainHttpServer } = await import(process.env.JUMPYBRAIN_SMOKE_
   ? pathToFileURL(path.join(process.env.JUMPYBRAIN_SMOKE_PACKAGE_DIR, "dist/server/index.js")).href
   : new URL("../dist/server/index.js", import.meta.url).href);
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
-import { editorMarkdown, appendEditorText, selectEditorText, replaceEditorText, undoEditor } from "./editor-smoke-helpers.mjs";
+import { editorMarkdown, appendEditorText, selectEditorText, replaceEditorText, undoEditor, openNoteFormatting } from "./editor-smoke-helpers.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-lexical-smoke-"));
 const key = "disposable-lexical-key";
@@ -73,6 +73,7 @@ try {
     const currentVisible = await page.locator("#note-editor").textContent();
     await selectEditorText(page, currentVisible.indexOf("not bold"), currentVisible.indexOf("not bold") + 8);
     const literalBefore = await editorMarkdown(page);
+    await openNoteFormatting(page);
     await page.getByRole("button", { name: "Bold", exact: true }).click();
     assert.equal(await editorMarkdown(page), literalBefore, "literal formatting is deliberately blocked, never shown then lost");
     assert.equal(await literal.locator(".editor-bold").count(), 0);
@@ -104,6 +105,7 @@ try {
     const text = await page.locator("#note-editor").textContent();
     const start = text.indexOf("No preview");
     await selectEditorText(page, start, start + "No preview".length);
+    await openNoteFormatting(page);
     await page.getByRole("button", { name: "Bold", exact: true }).click();
     await saved(page);
     assert.match(await editorMarkdown(page), /\*\*No preview\*\*/);

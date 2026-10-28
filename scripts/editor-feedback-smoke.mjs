@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
-import { editorMarkdown, replaceEditorText, selectEditorText, undoEditor, appendEditorText } from './editor-smoke-helpers.mjs';
+import { editorMarkdown, replaceEditorText, selectEditorText, undoEditor, appendEditorText, openNoteFormatting } from './editor-smoke-helpers.mjs';
 const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-editor-feedback-'));
 const output = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR || '/tmp/jumpybrain-editor-feedback-qa';
 const id = 'mem_96000000-0000-4000-8000-000000000001', key = 'disposable-editor-feedback';
@@ -134,6 +134,7 @@ try {
     await page.keyboard.type(' literal'); await saved(page); assert.equal(await editorMarkdown(page), '/h1 literal');
     for (const source of ['https://example.test/h1', 'path/h1', '`/h1`', '```\n/h1\n```', '- /h1']) {
       // Explicitly leave the previous code block before replacing this fixture.
+      await openNoteFormatting(page);
       await page.getByRole('button', { name: 'Normal text', exact: true }).click();
       await replaceEditorText(page, source); await selectEditorText(page, (await page.locator('#note-editor').textContent()).length);
       await page.waitForTimeout(40); assert.equal(await menu.isVisible(), false, source);
