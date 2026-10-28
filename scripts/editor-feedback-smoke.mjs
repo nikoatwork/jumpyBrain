@@ -38,10 +38,16 @@ try {
     for (const theme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: theme });
       await page.locator('#note-name').focus();
-      const ink = await page.locator('.markdown-reference').first().evaluate(e => getComputedStyle(e, '::highlight(jumpybrain-reference-markers)').color);
-      assert.equal(ink, 'rgba(0, 0, 0, 0)', 'reading brackets are transparent');
-      await page.locator('#note-editor').focus();
-      assert.notEqual(await page.locator('.markdown-reference').first().evaluate(e => getComputedStyle(e, '::highlight(jumpybrain-reference-markers)').color), 'rgba(0, 0, 0, 0)', 'editing reveals soft brackets');
+      await page.waitForFunction(() => document.querySelector('#note-editor.reference-markers-ready'));
+      const brackets = () => page.locator('[data-page-reference]').first().evaluate(e => {
+        const range = document.createRange(); range.setStart(e.firstChild, 0); range.setEnd(e.firstChild, 2);
+        return range.getBoundingClientRect().width;
+      });
+      assert.equal(await brackets(), 0, 'reading brackets leave no gap');
+      await pointIn(page, '[data-page-reference]', 'One', 1);
+      assert.ok(await brackets() > 0, 'editing the reference block restores brackets');
+      await pointIn(page, 'h1', 'Editor', 1);
+      assert.equal(await brackets(), 0, 'editing another block leaves reference brackets collapsed');
       await page.locator('#note-name').focus();
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.equal(await page.locator('.markdown-table-preview').evaluate(e => e.scrollWidth > e.clientWidth), true, 'wide cells scroll inside table');

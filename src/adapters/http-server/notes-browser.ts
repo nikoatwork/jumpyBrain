@@ -1,6 +1,7 @@
 import { browserIcons } from "./browser-icons.js";
 import { themeMarkup } from "./browser-theme.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
+import { referencePresentationStyles } from "./editor-reference-presentation.js";
 
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
@@ -126,8 +127,7 @@ ${noteAttentionStyles}
     .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
     .markdown-reference[data-page-reference="true"]:hover { background: var(--surface-hover); }
-    ::highlight(jumpybrain-reference-markers) { color: transparent; }
-    #note-editor:focus-within .markdown-reference::highlight(jumpybrain-reference-markers) { color: var(--ink-faint); }
+${referencePresentationStyles}
     .markdown-reference[data-page-reference="true"] { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
     .markdown-table { margin: var(--space-3) 0; max-width: 100%; }
     .markdown-table-preview { overflow-x: auto; white-space: normal; }

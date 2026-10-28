@@ -8,6 +8,7 @@ import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { selectEditorText, appendEditorText, editorMarkdown, undoEditor, editorSelection } from "./editor-smoke-helpers.mjs";
+import { referencePresentationStyles } from "../dist/adapters/http-server/editor-reference-presentation.js";
 
 const editorBundle = await readFile(new URL("../dist/adapters/http-server/editor-bundle.js", import.meta.url), "utf8");
 const server = createServer((req, res) => {
@@ -18,7 +19,7 @@ const server = createServer((req, res) => {
   }
   res.writeHead(200, { "Content-Type": "text/html" });
   res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Isolated production reference editor</title>
-    <style>body{font:16px/1.8 system-ui;margin:20px}#note-editor{white-space:pre-wrap;overflow-wrap:anywhere;min-height:200px}p{margin:0;min-height:1.8em}.editor-bold{font-weight:bold}.editor-italic{font-style:italic}[role=link]:focus-visible{outline:2px solid blue}</style>
+    <style>body{font:16px/1.8 system-ui;margin:20px;--writing-font:system-ui}#note-editor{white-space:pre-wrap;overflow-wrap:anywhere;min-height:200px}p{margin:0;min-height:1.8em}.editor-bold{font-weight:bold}.editor-italic{font-style:italic}[role=link]:focus-visible{outline:2px solid blue}${referencePresentationStyles}</style>
     <button id="before">Before editor</button><div id="note-editor" role="textbox" aria-label="Markdown" aria-multiline="true"></div><button id="after">After editor</button>
     <script src="/editor.js"></script>
     <script>
@@ -58,6 +59,82 @@ try {
         console.error(`FAIL ${width}px ${name}: ${error.message}`);
       } finally { await page.close(); }
     }
+    await check("reading brackets have zero width and only the editing block expands", async (page) => {
+      const source = "Before [[kilian]] and [[Second]] after\nAnother [[Other]] block";
+      await load(page, source);
+      await page.locator('#before').focus();
+      await page.waitForFunction(() => document.querySelector('#note-editor.reference-markers-ready'));
+      const widths = () => page.locator('[data-page-reference]').evaluateAll(links => links.map(link => {
+        const text = link.firstChild, range = document.createRange();
+        range.setStart(text, 0); range.setEnd(text, 2);
+        const left = range.getBoundingClientRect().width;
+        range.setStart(text, text.length - 2); range.setEnd(text, text.length);
+        return left + range.getBoundingClientRect().width;
+      }));
+      assert.deepEqual(await widths(), [0, 0, 0], 'hidden brackets occupy no inline space');
+      await selectEditorText(page, 10);
+      let sizes = await widths();
+      assert.ok(sizes[0] > 0 && sizes[1] > 0 && sizes[2] === 0, 'only caret block reveals brackets');
+      assert.deepEqual(await editorSelection(page), [10, 10]);
+      await selectEditorText(page, 48);
+      sizes = await widths();
+      assert.ok(sizes[0] === 0 && sizes[1] === 0 && sizes[2] > 0, 'moving the caret collapses the old block');
+      await selectEditorText(page, 10, 48);
+      assert.ok((await widths()).every(size => size > 0), 'selection reveals the blocks it covers');
+      await page.evaluate(() => richEditor.setReadOnly(true));
+      assert.deepEqual(await widths(), [0, 0, 0], 'read-only selection is reading');
+      await page.evaluate(() => richEditor.setReadOnly(false));
+      await page.locator('#before').focus();
+      assert.deepEqual(await widths(), [0, 0, 0], 'blur collapses every block');
+      assert.equal(await editorMarkdown(page), source);
+      assert.deepEqual(await page.evaluate(() => changes), [], 'presentation never creates a source edit');
+    });
+    await check("font-load failure retains visible editable reference syntax", async (page) => {
+      await page.addInitScript(() => {
+        window.FontFace = class { load() { return Promise.reject(new Error('fixture font unavailable')); } };
+      });
+      await page.reload();
+      await load(page, 'See [[kilian]] here');
+      await page.locator('#before').focus();
+      assert.equal(await page.locator('#note-editor.reference-markers-ready').count(), 0);
+      assert.ok(await page.getByRole('link').evaluate(link => {
+        const range = document.createRange(); range.setStart(link.firstChild, 0); range.setEnd(link.firstChild, 2);
+        return range.getBoundingClientRect().width > 0;
+      }), 'failure leaves ordinary brackets');
+      assert.equal(await editorMarkdown(page), 'See [[kilian]] here');
+    });
+    await check("collapsed references retain title metrics, wrapping and literal code", async (page) => {
+      const title = 'kilian 日本語 ' + 'long readable title '.repeat(12);
+      await load(page, `Before [[${title.trim()}]] after\n\n## Heading [[kilian]]\n\n- [ ] Task [[kilian]]\n\nLiteral [[path/to/note]] and \`[[code]]\``);
+      await page.locator('#before').focus();
+      await page.waitForFunction(() => document.querySelector('#note-editor.reference-markers-ready'));
+      const layout = await page.locator('#note-editor > p').first().evaluate(block => {
+        const style = getComputedStyle(block), probe = document.createElement('p');
+        probe.textContent = block.textContent.replace(/\[\[([^\[\]]+)\]\]/g, '$1');
+        Object.assign(probe.style, { font: style.font, width: `${block.getBoundingClientRect().width}px`, whiteSpace: style.whiteSpace, overflowWrap: style.overflowWrap, margin: '0' });
+        document.body.append(probe);
+        const expected = probe.getBoundingClientRect().height, actual = block.getBoundingClientRect().height;
+        probe.remove();
+        const link = block.querySelector('[data-page-reference]'), text = link.firstChild, range = document.createRange();
+        range.setStart(text, 2); range.setEnd(text, 8);
+        const titleWidth = range.getBoundingClientRect().width;
+        const canvas = document.createElement('canvas'), context = canvas.getContext('2d');
+        context.font = style.font;
+        return { expected, actual, titleWidth, expectedTitleWidth: context.measureText('kilian').width };
+      });
+      assert.equal(layout.actual, layout.expected, 'line wrapping matches the same prose without brackets');
+      assert.ok(Math.abs(layout.titleWidth - layout.expectedTitleWidth) < .1, 'title keeps the original writing font');
+      const widths = await page.locator('#note-editor .markdown-reference').evaluateAll(links => links.map(link => {
+        const range = document.createRange(); range.setStart(link.firstChild, 0); range.setEnd(link.firstChild, 2);
+        return { active: link.hasAttribute('data-page-reference'), width: range.getBoundingClientRect().width };
+      }));
+      assert.ok(widths.filter(value => value.active).every(value => value.width === 0), 'paragraph/heading/task references collapse');
+      assert.ok(widths.filter(value => !value.active).every(value => value.width > 0), 'inert reference syntax stays literal');
+      assert.ok(await page.locator('.editor-inline-code').last().evaluate(link => {
+        const range = document.createRange(); range.setStart(link.firstChild, 0); range.setEnd(link.firstChild, 2);
+        return range.getBoundingClientRect().width > 0;
+      }), 'inline code retains visible brackets');
+    });
     await check("Markdown paste renders immediately and survives undo/redo and reload", async (page) => {
       await load(page, "Replace me");
       await selectEditorText(page, 0, 10);

@@ -3,7 +3,7 @@ import {
   $addUpdateTag, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
   COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
-  ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, getDOMTextNode, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
+  ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
 import { createEmptyHistoryState, registerHistory } from "@lexical/history";
@@ -17,6 +17,7 @@ import {
 import { codeFence, exportCodeFence, inlineCodeRanges, markdownTable, taskMarker } from "./editor-markdown.js";
 import { FencedCodeMarkdownNode, TableMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
 import { installSlashCommands } from "./editor-slash-commands.js";
+import { installReferencePresentation } from "./editor-reference-presentation.js";
 
 import { referenceRanges, safeTitle } from "./reference-ranges.js";
 import { completedReferenceTitles } from "./reference-creation.js";
@@ -185,38 +186,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   editor.setRootElement(element);
   const history = createEmptyHistoryState();
   const cleanups = [registerRichText(editor), registerHistory(editor, history, 300)];
-  // Paint only the literal brackets, without splitting Lexical's text/selection
-  // DOM. Native selection takes precedence over this decorative highlight.
-  if (typeof Highlight !== "undefined" && CSS.highlights) {
-    const name = "jumpybrain-reference-markers";
-    const markers = CSS.highlights.get(name) ?? new Highlight();
-    CSS.highlights.set(name, markers);
-    const ranges = new Map<NodeKey, Range[]>();
-    const clear = (key: NodeKey) => {
-      ranges.get(key)?.forEach((range) => markers.delete(range));
-      ranges.delete(key);
-    };
-    cleanups.push(editor.registerMutationListener(PageReferenceNode, (mutations) => {
-      for (const [key, mutation] of mutations) {
-        clear(key);
-        if (mutation === "destroyed") continue;
-        const link = editor.getElementByKey(key);
-        const text = link?.hasAttribute("data-page-reference") ? getDOMTextNode(link) : null;
-        if (!text || !/^\[\[[^\[\]\r\n]+\]\]$/.test(text.data)) continue;
-        const pair = [0, text.length - 2].map((start) => {
-          const range = text.ownerDocument.createRange();
-          range.setStart(text, start); range.setEnd(text, start + 2);
-          markers.add(range);
-          return range;
-        });
-        ranges.set(key, pair);
-      }
-    }));
-    cleanups.push(() => {
-      for (const key of ranges.keys()) clear(key);
-      if (!markers.size && CSS.highlights.get(name) === markers) CSS.highlights.delete(name);
-    });
-  }
+  cleanups.push(installReferencePresentation(editor, element));
   // Lexical's shortcut plugin intentionally skips code-formatted leaves. Use
   // that guard for literal Markdown, including newly split/pasted text nodes.
   cleanups.push(editor.registerNodeTransform(TextNode, (node) => {
