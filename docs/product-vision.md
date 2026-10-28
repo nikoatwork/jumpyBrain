@@ -43,7 +43,7 @@ Compare changes at matched answer quality and context budgets:
 - cold/warm retrieval latency, indexing work, and shared-server resource use;
 - ease of deployment, recovery, and use across different agents.
 
-Keep broad research benchmarks and private evaluation corpora outside the product repository, consistent with the existing architecture decision. Retain small deterministic regression tests here. Do not publish efficiency or quality superlatives without reproducible evidence.
+Maintain a focused, reproducible knowledge-workspace evaluation in this repository: a fictional Markdown workspace, realistic human search and agent recall tasks, a versioned protocol, and a frozen baseline before retrieval experiments. This scope was explicitly requested on 2026-10-28 and supersedes the earlier external-only evaluation decision for this product suite; see the [baseline and experiments plan](../tasks/todo/tasks-workspace-retrieval-evaluation.md). Keep broad cross-vendor research benchmarks, private corpora, credentials and bulky raw run artifacts outside the repository. Retain small deterministic regressions in the normal test suite. Do not publish efficiency or quality superlatives without reproducible evidence.
 
 ## Keep out of the critical path
 

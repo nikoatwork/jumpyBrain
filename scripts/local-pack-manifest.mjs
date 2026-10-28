@@ -141,7 +141,7 @@ export const requiredLocalPackFiles = Object.freeze([
 const staleTopLevelDistDirs = ["canonical", "setup", "retrieval", "processing", "writing", "qmd", "client", "logging"];
 const staleServerProtocolModules = ["http", "auto-index", "idempotency", "state"];
 
-export const forbiddenLocalPackPathPrefixes = Object.freeze([...staleTopLevelDistDirs.map((dir) => distDirPrefix(dir)), 'package/integrations/electron/node_modules/']);
+export const forbiddenLocalPackPathPrefixes = Object.freeze([...staleTopLevelDistDirs.map((dir) => distDirPrefix(dir)), 'package/integrations/electron/node_modules/', 'package/evals/']);
 
 export const forbiddenLocalPackFiles = Object.freeze([
   ...moduleFiles("package-info"),

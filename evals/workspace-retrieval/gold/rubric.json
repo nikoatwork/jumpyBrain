@@ -1,0 +1,2282 @@
+[
+  {
+    "id": "harbor-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/harbor/checklist.md",
+            "required": [
+              "Tracking reference: HB-731."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/harbor/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "harbor-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/harbor/research.md",
+            "required": [
+              "The Harbor interviews found that asking for a full staff directory before the first useful screen made volunteer coordinators stop setup."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/harbor/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "harbor-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/harbor/brief.md",
+            "required": [
+              "Harbor aims to help small charities finish account setup without booking a support call.",
+              "Harbor is coordinated by Mara."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/harbor/approved.md",
+            "required": [
+              "Harbor pilot invitations are limited to Alder Trust; public self-service remains blocked until the support handoff is reviewed."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/harbor/brief.md",
+      "decisions/harbor/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "harbor-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/harbor/research.md",
+            "required": [
+              "The Harbor interviews found that asking for a full staff directory before the first useful screen made volunteer coordinators stop setup."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/harbor/approved.md",
+            "required": [
+              "Harbor chose progressive setup because a coordinator can invite the rest of the team after completing one useful task."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/harbor/research.md",
+      "decisions/harbor/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "harbor-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/harbor/approved.md",
+            "required": [
+              "The September 18 decision approves a three-field welcome screen followed by optional invitations for Harbor, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/harbor/approved.md",
+            "required": [
+              "Harbor pilot invitations are limited to Alder Trust; public self-service remains blocked until the support handoff is reviewed."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/harbor/proposal.md",
+            "required": [
+              "The September 25 suggestion to make every directory field optional at once is a proposal only; it has not been approved for Harbor."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/harbor/approved.md",
+      "notes/harbor/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "harbor-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/harbor/initial.md",
+            "required": [
+              "The September 4 Harbor plan was a mandatory twelve-field registration form, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/harbor/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "harbor-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/harbor/customer.md",
+            "required": [
+              "Harbor customer Alder Trust can staff onboarding only on Tuesdays and Thursdays."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/harbor/runbook.md",
+            "required": [
+              "Harbor must offer assisted appointments on Tuesdays and Thursdays; a daily appointment calendar would advertise slots the customer cannot cover."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/harbor/customer.md",
+      "notes/harbor/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "harbor-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/harbor/risk.md",
+            "required": [
+              "No signed approval for extending Harbor beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/harbor/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "lantern-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/lantern/checklist.md",
+            "required": [
+              "Tracking reference: LN-204."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/lantern/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "lantern-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/lantern/research.md",
+            "required": [
+              "The Lantern walkthrough found that a long introductory panel created a queue at the doorway while visitors skipped the objects behind it."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/lantern/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "lantern-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/lantern/brief.md",
+            "required": [
+              "Lantern aims to make the evening ceramics exhibition welcoming to visitors who do not read the local language.",
+              "Lantern is coordinated by Ivo."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/lantern/approved.md",
+            "required": [
+              "Lantern evening access is approved for the school preview only; general after-hours opening still needs a staffing review."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/lantern/brief.md",
+      "decisions/lantern/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "lantern-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/lantern/research.md",
+            "required": [
+              "The Lantern walkthrough found that a long introductory panel created a queue at the doorway while visitors skipped the objects behind it."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/lantern/approved.md",
+            "required": [
+              "Lantern chose short object labels with an optional audio route because visitors can begin exploring before choosing a language."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/lantern/research.md",
+      "decisions/lantern/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "lantern-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/lantern/approved.md",
+            "required": [
+              "The September 18 decision approves short object labels and an optional multilingual audio route for Lantern, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/lantern/approved.md",
+            "required": [
+              "Lantern evening access is approved for the school preview only; general after-hours opening still needs a staffing review."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/lantern/proposal.md",
+            "required": [
+              "The September 25 suggestion to replace every label with a QR code is a proposal only; it has not been approved for Lantern."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/lantern/approved.md",
+      "notes/lantern/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "lantern-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/lantern/initial.md",
+            "required": [
+              "The September 4 Lantern plan was one large translated introduction panel, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/lantern/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "lantern-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/lantern/customer.md",
+            "required": [
+              "Lantern partner Vale School can bring interpreters only after 17:30."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/lantern/runbook.md",
+            "required": [
+              "Lantern interpreted tours must start after 17:30; an afternoon tour would leave Vale School visitors without interpretation."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/lantern/customer.md",
+      "notes/lantern/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "lantern-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/lantern/risk.md",
+            "required": [
+              "No signed approval for extending Lantern beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/lantern/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "juniper-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/juniper/checklist.md",
+            "required": [
+              "Tracking reference: JP-118."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/juniper/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "juniper-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/juniper/research.md",
+            "required": [
+              "Juniper lunch interviews found that unpredictable waiting time mattered more to shift workers than having six main-course choices."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/juniper/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "juniper-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/juniper/brief.md",
+            "required": [
+              "Juniper aims to serve a reliable weekday lunch to nearby shift workers without increasing kitchen waste.",
+              "Juniper is coordinated by Sana."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/juniper/approved.md",
+            "required": [
+              "Juniper timed collection is approved for weekday lunch only; evening service keeps its existing ordering process."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/juniper/brief.md",
+      "decisions/juniper/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "juniper-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/juniper/research.md",
+            "required": [
+              "Juniper lunch interviews found that unpredictable waiting time mattered more to shift workers than having six main-course choices."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/juniper/approved.md",
+            "required": [
+              "Juniper chose a short rotating menu because preparing fewer dishes lets the kitchen quote a dependable collection time."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/juniper/research.md",
+      "decisions/juniper/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "juniper-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/juniper/approved.md",
+            "required": [
+              "The September 18 decision approves two rotating mains with timed collection windows for Juniper, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/juniper/approved.md",
+            "required": [
+              "Juniper timed collection is approved for weekday lunch only; evening service keeps its existing ordering process."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/juniper/proposal.md",
+            "required": [
+              "The September 25 suggestion to offer all six mains through the collection window is a proposal only; it has not been approved for Juniper."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/juniper/approved.md",
+      "notes/juniper/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "juniper-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/juniper/initial.md",
+            "required": [
+              "The September 4 Juniper plan was six cooked-to-order mains with unrestricted substitutions, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/juniper/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "juniper-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/juniper/customer.md",
+            "required": [
+              "Juniper supplier Moor Farm delivers chilled ingredients after 09:45."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/juniper/runbook.md",
+            "required": [
+              "Juniper preparation using the fresh delivery must start after 09:45; an earlier timetable would require ingredients that have not arrived."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/juniper/customer.md",
+      "notes/juniper/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "juniper-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/juniper/risk.md",
+            "required": [
+              "No signed approval for extending Juniper beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/juniper/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "ridge-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/ridge/checklist.md",
+            "required": [
+              "Tracking reference: RG-360."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ridge/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ridge-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/ridge/research.md",
+            "required": [
+              "Ridge route scouting found that the exposed summit loop added ninety minutes without a reliable early exit for slower walkers."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/ridge/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ridge-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/ridge/brief.md",
+            "required": [
+              "Ridge aims to plan a weekend walk that mixed-experience friends can finish together using public transport.",
+              "Ridge is coordinated by Tess."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/ridge/approved.md",
+            "required": [
+              "Ridge lower-valley approval covers dry weather only; a flood warning cancels the walk rather than switching to the summit."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ridge/brief.md",
+      "decisions/ridge/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ridge-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/ridge/research.md",
+            "required": [
+              "Ridge route scouting found that the exposed summit loop added ninety minutes without a reliable early exit for slower walkers."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/ridge/approved.md",
+            "required": [
+              "Ridge chose the lower valley route because the group can leave at either of two signed bus stops without splitting up on exposed ground."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/ridge/research.md",
+      "decisions/ridge/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ridge-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/ridge/approved.md",
+            "required": [
+              "The September 18 decision approves the lower valley route with two signed bus exits for Ridge, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/ridge/approved.md",
+            "required": [
+              "Ridge lower-valley approval covers dry weather only; a flood warning cancels the walk rather than switching to the summit."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/ridge/proposal.md",
+            "required": [
+              "The September 25 suggestion to restore the summit as an optional unstaffed extension is a proposal only; it has not been approved for Ridge."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/ridge/approved.md",
+      "notes/ridge/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ridge-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/ridge/initial.md",
+            "required": [
+              "The September 4 Ridge plan was the exposed summit loop, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/ridge/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ridge-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/ridge/customer.md",
+            "required": [
+              "Ridge transport provider Fen Bus runs the last return service at 16:40."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/ridge/runbook.md",
+            "required": [
+              "Ridge walkers must reach the village stop before 16:40; the itinerary needs a turnaround time rather than relying on a later bus."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ridge/customer.md",
+      "notes/ridge/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ridge-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/ridge/risk.md",
+            "required": [
+              "No signed approval for extending Ridge beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ridge/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "cedar-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/cedar/checklist.md",
+            "required": [
+              "Tracking reference: CD-512."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/cedar/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "cedar-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/cedar/research.md",
+            "required": [
+              "Cedar applicant research found that scanning a signed page was the main obstacle for applicants using only a phone."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/cedar/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "cedar-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/cedar/brief.md",
+            "required": [
+              "Cedar aims to let applicants without a printer complete a community scholarship application.",
+              "Cedar is coordinated by Noor."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/cedar/approved.md",
+            "required": [
+              "Cedar typed declarations are approved for the community scholarship only; the travel bursary still requires its separate process."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/cedar/brief.md",
+      "decisions/cedar/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "cedar-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/cedar/research.md",
+            "required": [
+              "Cedar applicant research found that scanning a signed page was the main obstacle for applicants using only a phone."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/cedar/approved.md",
+            "required": [
+              "Cedar chose a typed declaration because identity can be checked after shortlisting without requiring a printer during application."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/cedar/research.md",
+      "decisions/cedar/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "cedar-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/cedar/approved.md",
+            "required": [
+              "The September 18 decision approves a typed declaration with identity checks after shortlisting for Cedar, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/cedar/approved.md",
+            "required": [
+              "Cedar typed declarations are approved for the community scholarship only; the travel bursary still requires its separate process."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/cedar/proposal.md",
+            "required": [
+              "The September 25 suggestion to remove identity verification from every award is a proposal only; it has not been approved for Cedar."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/cedar/approved.md",
+      "notes/cedar/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "cedar-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/cedar/initial.md",
+            "required": [
+              "The September 4 Cedar plan was a printed signature page uploaded as a scan, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/cedar/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "cedar-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/cedar/customer.md",
+            "required": [
+              "Cedar partner Elm College can verify applicant identities only on Fridays."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/cedar/runbook.md",
+            "required": [
+              "Cedar identity appointments must be booked on Fridays; shortlist messages must not promise same-day verification on other weekdays."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/cedar/customer.md",
+      "notes/cedar/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "cedar-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/cedar/risk.md",
+            "required": [
+              "No signed approval for extending Cedar beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/cedar/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "orbit-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/orbit/checklist.md",
+            "required": [
+              "Tracking reference: OB-602."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/orbit/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "orbit-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/orbit/research.md",
+            "required": [
+              "Orbit learner interviews found that adults stayed away after an absence because they expected a public catch-up test in front of the group."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/orbit/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "orbit-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/orbit/brief.md",
+            "required": [
+              "Orbit aims to help adult learners return after missing a weekly numeracy class.",
+              "Orbit is coordinated by Eli."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/orbit/approved.md",
+            "required": [
+              "Orbit private recaps are approved for the adult evening cohort only; the weekend youth group is outside this trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/orbit/brief.md",
+      "decisions/orbit/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "orbit-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/orbit/research.md",
+            "required": [
+              "Orbit learner interviews found that adults stayed away after an absence because they expected a public catch-up test in front of the group."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/orbit/approved.md",
+            "required": [
+              "Orbit chose a private five-minute recap because learners can rejoin the ongoing class without exposing what they missed."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/orbit/research.md",
+      "decisions/orbit/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "orbit-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/orbit/approved.md",
+            "required": [
+              "The September 18 decision approves a private five-minute recap before the class for Orbit, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/orbit/approved.md",
+            "required": [
+              "Orbit private recaps are approved for the adult evening cohort only; the weekend youth group is outside this trial."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/orbit/proposal.md",
+            "required": [
+              "The September 25 suggestion to require every learner to take the recap test is a proposal only; it has not been approved for Orbit."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/orbit/approved.md",
+      "notes/orbit/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "orbit-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/orbit/initial.md",
+            "required": [
+              "The September 4 Orbit plan was a whole-group catch-up test at the start of each class, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/orbit/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "orbit-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/orbit/customer.md",
+            "required": [
+              "Orbit host North Library makes the side room available only from 18:10."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/orbit/runbook.md",
+            "required": [
+              "Orbit private recaps must begin at 18:10 or later; tutors cannot promise the side room before the host opens it."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/orbit/customer.md",
+      "notes/orbit/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "orbit-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/orbit/risk.md",
+            "required": [
+              "No signed approval for extending Orbit beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/orbit/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "mosaic-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/mosaic/checklist.md",
+            "required": [
+              "Tracking reference: MS-227."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/mosaic/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "mosaic-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/mosaic/research.md",
+            "required": [
+              "Mosaic reception research found that callers lost their place when a work break ended before a receptionist answered."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/mosaic/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "mosaic-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/mosaic/brief.md",
+            "required": [
+              "Mosaic aims to make room bookings accessible to neighbors who cannot stay on hold during working hours.",
+              "Mosaic is coordinated by Pia."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/mosaic/approved.md",
+            "required": [
+              "Mosaic callbacks cover room bookings only; urgent building incidents must still use the existing emergency contact."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/mosaic/brief.md",
+      "decisions/mosaic/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "mosaic-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/mosaic/research.md",
+            "required": [
+              "Mosaic reception research found that callers lost their place when a work break ended before a receptionist answered."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/mosaic/approved.md",
+            "required": [
+              "Mosaic chose a callback request because a neighbor can leave availability without waiting on the line."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/mosaic/research.md",
+      "decisions/mosaic/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "mosaic-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/mosaic/approved.md",
+            "required": [
+              "The September 18 decision approves a callback request with two preferred time windows for Mosaic, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/mosaic/approved.md",
+            "required": [
+              "Mosaic callbacks cover room bookings only; urgent building incidents must still use the existing emergency contact."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/mosaic/proposal.md",
+            "required": [
+              "The September 25 suggestion to route urgent building incidents through the callback form is a proposal only; it has not been approved for Mosaic."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/mosaic/approved.md",
+      "notes/mosaic/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "mosaic-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/mosaic/initial.md",
+            "required": [
+              "The September 4 Mosaic plan was one telephone queue for every room enquiry, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/mosaic/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "mosaic-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/mosaic/customer.md",
+            "required": [
+              "Mosaic host Willow Center staffs callback reception only between 13:00 and 15:00."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/mosaic/runbook.md",
+            "required": [
+              "Mosaic callback windows must lie between 13:00 and 15:00; evening callbacks cannot be promised by the reception team."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/mosaic/customer.md",
+      "notes/mosaic/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "mosaic-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/mosaic/risk.md",
+            "required": [
+              "No signed approval for extending Mosaic beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/mosaic/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "meadow-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/meadow/checklist.md",
+            "required": [
+              "Tracking reference: MD-405."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/meadow/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "meadow-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/meadow/research.md",
+            "required": [
+              "Meadow volunteer diaries found that unassigned watering promises were repeatedly covered by one person without the missed turn being visible."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/meadow/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "meadow-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/meadow/brief.md",
+            "required": [
+              "Meadow aims to keep shared garden beds watered without depending on one retired volunteer every morning.",
+              "Meadow is coordinated by Ada."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/meadow/approved.md",
+            "required": [
+              "Meadow paired watering covers the shared beds only; private allotment plots remain each holder's responsibility."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/meadow/brief.md",
+      "decisions/meadow/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "meadow-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/meadow/research.md",
+            "required": [
+              "Meadow volunteer diaries found that unassigned watering promises were repeatedly covered by one person without the missed turn being visible."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/meadow/approved.md",
+            "required": [
+              "Meadow chose named weekly pairs because a clear backup can cover an absence without asking the same volunteer by default."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/meadow/research.md",
+      "decisions/meadow/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "meadow-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/meadow/approved.md",
+            "required": [
+              "The September 18 decision approves named weekly watering pairs with an explicit backup for Meadow, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/meadow/approved.md",
+            "required": [
+              "Meadow paired watering covers the shared beds only; private allotment plots remain each holder's responsibility."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/meadow/proposal.md",
+            "required": [
+              "The September 25 suggestion to include private plots in the shared volunteer rota is a proposal only; it has not been approved for Meadow."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/meadow/approved.md",
+      "notes/meadow/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "meadow-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/meadow/initial.md",
+            "required": [
+              "The September 4 Meadow plan was an open chat asking whoever is free to water, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/meadow/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "meadow-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/meadow/customer.md",
+            "required": [
+              "Meadow landowner Ash Yard unlocks the water tap only from 07:00 to 09:00."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/meadow/runbook.md",
+            "required": [
+              "Meadow watering turns must fit between 07:00 and 09:00; an evening rota is impossible while the tap is locked."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/meadow/customer.md",
+      "notes/meadow/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "meadow-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/meadow/risk.md",
+            "required": [
+              "No signed approval for extending Meadow beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/meadow/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "forum-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/forum/checklist.md",
+            "required": [
+              "Tracking reference: FR-908."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/forum/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "forum-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/forum/research.md",
+            "required": [
+              "Forum rehearsal notes found that the hall microphone captured the presenter but not audience questions from the back rows."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/forum/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "forum-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/forum/brief.md",
+            "required": [
+              "Forum aims to let remote speakers participate in a neighborhood conference without a full streaming crew.",
+              "Forum is coordinated by Leon."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/forum/approved.md",
+            "required": [
+              "Forum question cards are approved for the remote-speaker track only; in-person workshops retain their own facilitation."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/forum/brief.md",
+      "decisions/forum/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "forum-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/forum/research.md",
+            "required": [
+              "Forum rehearsal notes found that the hall microphone captured the presenter but not audience questions from the back rows."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/forum/approved.md",
+            "required": [
+              "Forum chose moderated question cards because the host can read each question into the same microphone used for remote speakers."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/forum/research.md",
+      "decisions/forum/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "forum-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/forum/approved.md",
+            "required": [
+              "The September 18 decision approves moderated question cards read aloud by the host for Forum, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/forum/approved.md",
+            "required": [
+              "Forum question cards are approved for the remote-speaker track only; in-person workshops retain their own facilitation."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/forum/proposal.md",
+            "required": [
+              "The September 25 suggestion to extend the amplified remote track past the venue cutoff is a proposal only; it has not been approved for Forum."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/forum/approved.md",
+      "notes/forum/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "forum-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/forum/initial.md",
+            "required": [
+              "The September 4 Forum plan was an open floor with a roaming audience microphone, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/forum/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "forum-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/forum/customer.md",
+            "required": [
+              "Forum venue Birch Hall permits amplified sound only until 19:00."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/forum/runbook.md",
+            "required": [
+              "Forum remote question sessions must end by 19:00; the venue agreement does not permit an amplified evening extension."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/forum/customer.md",
+      "notes/forum/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "forum-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/forum/risk.md",
+            "required": [
+              "No signed approval for extending Forum beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/forum/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  },
+  {
+    "id": "ledger-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "correct checklist",
+        "alternatives": [
+          {
+            "file": "notes/ledger/checklist.md",
+            "required": [
+              "Tracking reference: LD-813."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ledger/checklist.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ledger-discovery",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed obstacle",
+        "alternatives": [
+          {
+            "file": "findings/ledger/research.md",
+            "required": [
+              "Ledger translator interviews found that an upload receipt was routinely interpreted as invoice acceptance although accounts staff had not reviewed it."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/ledger/research.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ledger-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and owner",
+        "alternatives": [
+          {
+            "file": "notes/ledger/brief.md",
+            "required": [
+              "Ledger aims to help freelance translators understand when a customer has accepted their invoice.",
+              "Ledger is coordinated by Ravi."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/ledger/approved.md",
+            "required": [
+              "Ledger message changes cover translator invoices only; employee expense claims stay on the existing approval route."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ledger/brief.md",
+      "decisions/ledger/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ledger-rationale",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "research cause",
+        "alternatives": [
+          {
+            "file": "findings/ledger/research.md",
+            "required": [
+              "Ledger translator interviews found that an upload receipt was routinely interpreted as invoice acceptance although accounts staff had not reviewed it."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "chosen rationale",
+        "alternatives": [
+          {
+            "file": "decisions/ledger/approved.md",
+            "required": [
+              "Ledger chose separate received and accepted messages because a technical upload cannot establish that an invoice is approved for payment."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/ledger/research.md",
+      "decisions/ledger/approved.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ledger-current",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/ledger/approved.md",
+            "required": [
+              "The September 18 decision approves separate received and accepted invoice messages for Ledger, starting on October 22."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope remains conditional",
+        "alternatives": [
+          {
+            "file": "decisions/ledger/approved.md",
+            "required": [
+              "Ledger message changes cover translator invoices only; employee expense claims stay on the existing approval route."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "later proposal status",
+        "alternatives": [
+          {
+            "file": "notes/ledger/proposal.md",
+            "required": [
+              "The September 25 suggestion to label every uploaded invoice as approved immediately is a proposal only; it has not been approved for Ledger."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/ledger/approved.md",
+      "notes/ledger/proposal.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ledger-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "original plan and date",
+        "alternatives": [
+          {
+            "file": "decisions/ledger/initial.md",
+            "required": [
+              "The September 4 Ledger plan was one success email immediately after invoice upload, starting on October 8."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/ledger/initial.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ledger-multi-source",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "external constraint",
+        "alternatives": [
+          {
+            "file": "notes/ledger/customer.md",
+            "required": [
+              "Ledger customer Pine Press reviews invoices only on the first working Monday of each month."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operational consequence",
+        "alternatives": [
+          {
+            "file": "notes/ledger/runbook.md",
+            "required": [
+              "Ledger acceptance estimates must follow the first working Monday review; upload confirmation must not promise immediate approval."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ledger/customer.md",
+      "notes/ledger/runbook.md"
+    ],
+    "interpretation": "All required source clauses must be displayed; title/ID or matching fragments alone do not establish completeness."
+  },
+  {
+    "id": "ledger-limits",
+    "answerability": "unknown_approver",
+    "units": [
+      {
+        "label": "approver explicitly unknown",
+        "alternatives": [
+          {
+            "file": "notes/ledger/risk.md",
+            "required": [
+              "No signed approval for extending Ledger beyond its agreed scope is recorded in this workspace; the approver is unknown."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ledger/risk.md"
+    ],
+    "interpretation": "Evidence supports saying the approver is unknown within this workspace, not universal absence."
+  }
+]

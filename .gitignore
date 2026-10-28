@@ -24,3 +24,6 @@ AGENTS.local.md
 
 # Local machine helper scripts
 scripts/*.local.sh
+
+# Reproducible eval inputs/reports are tracked; disposable runs are not shipped.
+/evals/workspace-retrieval/.runs/

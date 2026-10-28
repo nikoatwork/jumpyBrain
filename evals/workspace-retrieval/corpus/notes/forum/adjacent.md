@@ -1,0 +1,22 @@
+---
+id: mem_e13e6f54-6c6e-d01a-4680-067d7b8dea9f
+title: Forum social gathering
+type: note
+date: 2026-09-27
+created_at: 2026-09-27
+updated_at: 2026-09-27
+tags: [forum, small]
+---
+# Informal gathering
+
+People contributing to Forum discussed a social gathering on November 5. That date concerns a separate informal event, not the project start.
+
+## Loose ideas
+
+Someone suggested reusing the partner space and inviting a wider group. No booking or approval was recorded. The conversation used words such as launch, invitation, review and schedule in an everyday sense.
+
+These working notes preserve the order in which questions arose. They contain tentative language and incomplete observations because the meeting did not settle every issue. Use the linked decision for commitments. Where a name or result is absent, ask the coordinator rather than filling the gap from a nearby project with similar vocabulary.
+
+## Budget
+
+No project funds are reserved. Ask attendees before assuming dietary needs or availability. This page should not supply a project date or an operational approver.

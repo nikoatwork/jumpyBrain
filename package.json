@@ -16,6 +16,7 @@
     "build": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json && node scripts/build-editor.mjs",
     "test": "npm run build && node --test",
     "validate": "npm test",
+    "eval:workspace": "node evals/workspace-retrieval/run.mjs",
     "smoke:semantic-index": "npm run build && node scripts/semantic-index-smoke.mjs",
     "smoke:graph": "npx --package=playwright node scripts/graph-ui-smoke.mjs",
     "smoke:theme": "npm run build && npx --package=playwright node scripts/theme-smoke.mjs",

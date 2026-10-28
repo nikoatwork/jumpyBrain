@@ -1,0 +1,682 @@
+[
+  {
+    "id": "harbor-navigation",
+    "scenario": "harbor",
+    "journey": "navigation",
+    "split": "development",
+    "query": "Harbor migration checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "harbor-discovery",
+    "scenario": "harbor",
+    "journey": "discovery",
+    "split": "development",
+    "query": "Why do volunteer coordinators give up before they can try the product?",
+    "depth": "normal"
+  },
+  {
+    "id": "harbor-orientation",
+    "scenario": "harbor",
+    "journey": "orientation",
+    "split": "development",
+    "query": "Bring me up to speed on Harbor: purpose, owner, and what is allowed to launch.",
+    "depth": "shallow"
+  },
+  {
+    "id": "harbor-rationale",
+    "scenario": "harbor",
+    "journey": "rationale",
+    "split": "development",
+    "query": "Why did Harbor reject collecting the whole directory at signup?",
+    "depth": "normal"
+  },
+  {
+    "id": "harbor-current",
+    "scenario": "harbor",
+    "journey": "current",
+    "split": "development",
+    "query": "What is the confirmed Harbor launch plan, and is the later suggestion approved?",
+    "depth": "normal"
+  },
+  {
+    "id": "harbor-historical",
+    "scenario": "harbor",
+    "journey": "historical",
+    "split": "development",
+    "query": "Before the Harbor pilot review, what registration approach and launch date were planned?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "harbor-multi-source",
+    "scenario": "harbor",
+    "journey": "multi-source",
+    "split": "development",
+    "query": "What appointment schedule should Harbor use, and which customer restriction explains it?",
+    "depth": "normal"
+  },
+  {
+    "id": "harbor-limits",
+    "scenario": "harbor",
+    "journey": "limits",
+    "split": "development",
+    "query": "Who signed off the Harbor public-launch exception?",
+    "depth": "normal"
+  },
+  {
+    "id": "lantern-navigation",
+    "scenario": "lantern",
+    "journey": "navigation",
+    "split": "development",
+    "query": "Lantern opening checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "lantern-discovery",
+    "scenario": "lantern",
+    "journey": "discovery",
+    "split": "development",
+    "query": "What is causing the bottleneck at the ceramics gallery entrance?",
+    "depth": "normal"
+  },
+  {
+    "id": "lantern-orientation",
+    "scenario": "lantern",
+    "journey": "orientation",
+    "split": "development",
+    "query": "What should a new exhibition volunteer know about Lantern, including its lead and access limits?",
+    "depth": "shallow"
+  },
+  {
+    "id": "lantern-rationale",
+    "scenario": "lantern",
+    "journey": "rationale",
+    "split": "development",
+    "query": "Why did Lantern move away from the big translated entrance panel?",
+    "depth": "normal"
+  },
+  {
+    "id": "lantern-current",
+    "scenario": "lantern",
+    "journey": "current",
+    "split": "development",
+    "query": "Which Lantern opening arrangement is approved rather than merely suggested?",
+    "depth": "normal"
+  },
+  {
+    "id": "lantern-historical",
+    "scenario": "lantern",
+    "journey": "historical",
+    "split": "development",
+    "query": "What did Lantern intend to install before the walkthrough changed the plan?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "lantern-multi-source",
+    "scenario": "lantern",
+    "journey": "multi-source",
+    "split": "development",
+    "query": "When can the interpreted Lantern tours start, and what partner availability sets that limit?",
+    "depth": "normal"
+  },
+  {
+    "id": "lantern-limits",
+    "scenario": "lantern",
+    "journey": "limits",
+    "split": "development",
+    "query": "Who authorized opening Lantern to everybody after hours?",
+    "depth": "normal"
+  },
+  {
+    "id": "juniper-navigation",
+    "scenario": "juniper",
+    "journey": "navigation",
+    "split": "development",
+    "query": "Juniper service checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "juniper-discovery",
+    "scenario": "juniper",
+    "journey": "discovery",
+    "split": "development",
+    "query": "What makes nearby shift workers hesitate to order lunch?",
+    "depth": "normal"
+  },
+  {
+    "id": "juniper-orientation",
+    "scenario": "juniper",
+    "journey": "orientation",
+    "split": "development",
+    "query": "Explain Juniper to a new kitchen coordinator: aim, lead, and service boundaries.",
+    "depth": "shallow"
+  },
+  {
+    "id": "juniper-rationale",
+    "scenario": "juniper",
+    "journey": "rationale",
+    "split": "development",
+    "query": "Why did Juniper reduce the number of lunch choices?",
+    "depth": "normal"
+  },
+  {
+    "id": "juniper-current",
+    "scenario": "juniper",
+    "journey": "current",
+    "split": "development",
+    "query": "What lunch format and date have actually been accepted for Juniper?",
+    "depth": "normal"
+  },
+  {
+    "id": "juniper-historical",
+    "scenario": "juniper",
+    "journey": "historical",
+    "split": "development",
+    "query": "Before the Juniper trial, how many mains and what service date were intended?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "juniper-multi-source",
+    "scenario": "juniper",
+    "journey": "multi-source",
+    "split": "development",
+    "query": "When can Juniper prep begin with fresh ingredients, and why can it not start earlier?",
+    "depth": "normal"
+  },
+  {
+    "id": "juniper-limits",
+    "scenario": "juniper",
+    "journey": "limits",
+    "split": "development",
+    "query": "Who approved applying Juniper timed collection to dinner?",
+    "depth": "normal"
+  },
+  {
+    "id": "ridge-navigation",
+    "scenario": "ridge",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Ridge departure checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "ridge-discovery",
+    "scenario": "ridge",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "Which route planning problem could leave the slower walkers stranded?",
+    "depth": "normal"
+  },
+  {
+    "id": "ridge-orientation",
+    "scenario": "ridge",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Give a new Ridge participant the purpose, organizer, and weather limits.",
+    "depth": "shallow"
+  },
+  {
+    "id": "ridge-rationale",
+    "scenario": "ridge",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why did Ridge abandon the scenic summit circuit?",
+    "depth": "normal"
+  },
+  {
+    "id": "ridge-current",
+    "scenario": "ridge",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What Ridge route is confirmed, and did the latest summit suggestion change it?",
+    "depth": "normal"
+  },
+  {
+    "id": "ridge-historical",
+    "scenario": "ridge",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "What route and departure date did Ridge plan before scouting?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "ridge-multi-source",
+    "scenario": "ridge",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What return deadline governs Ridge and what transport evidence establishes it?",
+    "depth": "normal"
+  },
+  {
+    "id": "ridge-limits",
+    "scenario": "ridge",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who approved walking Ridge during a flood warning?",
+    "depth": "normal"
+  },
+  {
+    "id": "cedar-navigation",
+    "scenario": "cedar",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Cedar application checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "cedar-discovery",
+    "scenario": "cedar",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "What is preventing phone-only scholarship applicants from completing the form?",
+    "depth": "normal"
+  },
+  {
+    "id": "cedar-orientation",
+    "scenario": "cedar",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Introduce Cedar to a new administrator: intended benefit, owner, and award scope.",
+    "depth": "shallow"
+  },
+  {
+    "id": "cedar-rationale",
+    "scenario": "cedar",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why is Cedar accepting a typed declaration instead of a scanned signature?",
+    "depth": "normal"
+  },
+  {
+    "id": "cedar-current",
+    "scenario": "cedar",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What Cedar application process is confirmed and what remains a proposal?",
+    "depth": "normal"
+  },
+  {
+    "id": "cedar-historical",
+    "scenario": "cedar",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "What signature requirement and opening date preceded the Cedar applicant review?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "cedar-multi-source",
+    "scenario": "cedar",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "Which day should Cedar verification appointments use, and who imposes that constraint?",
+    "depth": "normal"
+  },
+  {
+    "id": "cedar-limits",
+    "scenario": "cedar",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who approved using the Cedar exception for the travel bursary?",
+    "depth": "normal"
+  },
+  {
+    "id": "orbit-navigation",
+    "scenario": "orbit",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Orbit tutor checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "orbit-discovery",
+    "scenario": "orbit",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "Why do adults drop out after missing a numeracy lesson?",
+    "depth": "normal"
+  },
+  {
+    "id": "orbit-orientation",
+    "scenario": "orbit",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Orient a new Orbit tutor to the aim, coordinator, and cohort restriction.",
+    "depth": "shallow"
+  },
+  {
+    "id": "orbit-rationale",
+    "scenario": "orbit",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "What led Orbit to replace the public catch-up test?",
+    "depth": "normal"
+  },
+  {
+    "id": "orbit-current",
+    "scenario": "orbit",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Which Orbit return-to-class process has been approved?",
+    "depth": "normal"
+  },
+  {
+    "id": "orbit-historical",
+    "scenario": "orbit",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "What catch-up process and start date were planned before the Orbit interviews?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "orbit-multi-source",
+    "scenario": "orbit",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "When can Orbit run private recaps, and what venue fact sets that time?",
+    "depth": "normal"
+  },
+  {
+    "id": "orbit-limits",
+    "scenario": "orbit",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who approved extending Orbit to the weekend youth group?",
+    "depth": "normal"
+  },
+  {
+    "id": "mosaic-navigation",
+    "scenario": "mosaic",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Mosaic reception checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "mosaic-discovery",
+    "scenario": "mosaic",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "Why are people with unpredictable work breaks failing to reserve a room?",
+    "depth": "normal"
+  },
+  {
+    "id": "mosaic-orientation",
+    "scenario": "mosaic",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "What does a new Mosaic receptionist need to know about its purpose, lead, and exclusions?",
+    "depth": "shallow"
+  },
+  {
+    "id": "mosaic-rationale",
+    "scenario": "mosaic",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why did Mosaic choose callbacks over the single phone queue?",
+    "depth": "normal"
+  },
+  {
+    "id": "mosaic-current",
+    "scenario": "mosaic",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What Mosaic booking arrangement is approved as of the latest notes?",
+    "depth": "normal"
+  },
+  {
+    "id": "mosaic-historical",
+    "scenario": "mosaic",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "Before the Mosaic reception review, what booking channel and start date were planned?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "mosaic-multi-source",
+    "scenario": "mosaic",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What hours can Mosaic offer callers, and which staffing restriction determines them?",
+    "depth": "normal"
+  },
+  {
+    "id": "mosaic-limits",
+    "scenario": "mosaic",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who signed off routing urgent building incidents through Mosaic callbacks?",
+    "depth": "normal"
+  },
+  {
+    "id": "meadow-navigation",
+    "scenario": "meadow",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Meadow watering checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "meadow-discovery",
+    "scenario": "meadow",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "Why is one garden volunteer still having to rescue missed watering turns?",
+    "depth": "normal"
+  },
+  {
+    "id": "meadow-orientation",
+    "scenario": "meadow",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Explain Meadow to a new volunteer: goal, lead, and which plots it covers.",
+    "depth": "shallow"
+  },
+  {
+    "id": "meadow-rationale",
+    "scenario": "meadow",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why did Meadow replace the open chat with named pairs?",
+    "depth": "normal"
+  },
+  {
+    "id": "meadow-current",
+    "scenario": "meadow",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Which Meadow watering rota is agreed, and did the private-plot suggestion supersede it?",
+    "depth": "normal"
+  },
+  {
+    "id": "meadow-historical",
+    "scenario": "meadow",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "What watering arrangement and start date existed before the Meadow diary review?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "meadow-multi-source",
+    "scenario": "meadow",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "When can Meadow volunteers water and what landowner rule explains the schedule?",
+    "depth": "normal"
+  },
+  {
+    "id": "meadow-limits",
+    "scenario": "meadow",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who authorized Meadow volunteers to take responsibility for private plots?",
+    "depth": "normal"
+  },
+  {
+    "id": "forum-navigation",
+    "scenario": "forum",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Forum host checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "forum-discovery",
+    "scenario": "forum",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "What prevents remote conference guests from responding to audience questions?",
+    "depth": "normal"
+  },
+  {
+    "id": "forum-orientation",
+    "scenario": "forum",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Brief a new Forum host on the goal, organizer, and track boundaries.",
+    "depth": "shallow"
+  },
+  {
+    "id": "forum-rationale",
+    "scenario": "forum",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why did Forum drop the roaming microphone idea?",
+    "depth": "normal"
+  },
+  {
+    "id": "forum-current",
+    "scenario": "forum",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What Forum question format and date are confirmed rather than suggested?",
+    "depth": "normal"
+  },
+  {
+    "id": "forum-historical",
+    "scenario": "forum",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "Before the Forum rehearsal, how were audience questions supposed to work?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "forum-multi-source",
+    "scenario": "forum",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "By when must Forum remote sessions finish, and what venue rule establishes this?",
+    "depth": "normal"
+  },
+  {
+    "id": "forum-limits",
+    "scenario": "forum",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who approved the Forum amplified evening extension?",
+    "depth": "normal"
+  },
+  {
+    "id": "ledger-navigation",
+    "scenario": "ledger",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Ledger invoice checklist",
+    "depth": "normal"
+  },
+  {
+    "id": "ledger-discovery",
+    "scenario": "ledger",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "Why do translators think payment is approved as soon as they upload an invoice?",
+    "depth": "normal"
+  },
+  {
+    "id": "ledger-orientation",
+    "scenario": "ledger",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Bring a new Ledger account coordinator up to speed on its goal, owner, and claim scope.",
+    "depth": "shallow"
+  },
+  {
+    "id": "ledger-rationale",
+    "scenario": "ledger",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why did Ledger split receipt and acceptance into different messages?",
+    "depth": "normal"
+  },
+  {
+    "id": "ledger-current",
+    "scenario": "ledger",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What Ledger messaging plan is confirmed, and has automatic approval been agreed?",
+    "depth": "normal"
+  },
+  {
+    "id": "ledger-historical",
+    "scenario": "ledger",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "Before the Ledger interviews, which invoice notification and start date were planned?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-10",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "ledger-multi-source",
+    "scenario": "ledger",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "What determines the earliest Ledger acceptance estimate for Pine Press invoices?",
+    "depth": "normal"
+  },
+  {
+    "id": "ledger-limits",
+    "scenario": "ledger",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who approved using the Ledger route for employee expense claims?",
+    "depth": "normal"
+  }
+]

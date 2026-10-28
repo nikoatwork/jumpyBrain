@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Workspace retrieval baseline
+
+- Added a versioned fictional-workspace retrieval eval and reproducible baseline, with development assets excluded from the installable package. [Scores and limits](../evals/workspace-retrieval/reports/2026-10-28-baseline-v1.md).
+
 ## 2026-10-28 — Sidebar polish
 
 - Replaced pin/refresh glyphs, styled the jumpyBrain wordmark, and moved the active brain above the footer icons. [Verification](done/2026-10-28_tasks-sidebar-brand-icons.md).
