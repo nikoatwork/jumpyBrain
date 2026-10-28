@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — v0.3.11 beta
+
+- Published focused Settings, visual themes, and sidebar/formatting refinements. [Release notes](done/releases/v0.3.11.md) and [verification](done/releases/v0.3.11.qa.md).
+
 ## 2026-10-28 — Theme visual coverage
 
 - Verified every built-in light/dark theme across writing, search, maps and Settings, retaining a repeatable desktop/narrow visual check. [Review](done/2026-10-28_tasks-theme-visual-review.md).
