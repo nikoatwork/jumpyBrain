@@ -1,5 +1,6 @@
 # Changes
 
-- Settings now replaces the notes sidebar with Brains, Appearance and Extensions, with a Back button to return to your note or map. Appearance adds visual System/Light/Dark choices and Ember, Ocean and Grove themes.
-- Sidebar actions now follow Home, New note, Search, with even footer spacing and matching Graph, Settings, Feedback, theme and update controls.
-- Aligned and grouped note formatting controls, with consistent targets and related actions wrapping together on narrow screens.
+- Settings has its own sidebar for Brains, Appearance and Extensions, with Back to app returning to your note or map.
+- Choose System, Light or Dark with visual previews, and switch between Ember, Ocean and Grove themes.
+- Sidebar actions follow Home, New note, Search, with consistent spacing and matching footer controls.
+- Note formatting tools are aligned and grouped, with related actions wrapping together on narrow screens.

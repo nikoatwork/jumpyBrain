@@ -1,0 +1,21 @@
+# Release v0.3.11
+
+## Scope
+
+Publish the completed Settings/sidebar/Appearance and formatting changes since v0.3.10 as the next patch beta. Original clean master snapshot: `ab72324`. No release published today (Europe/Berlin); latest is v0.3.10, published 2026-10-27T18:11:13Z. Remote master is an ancestor; all intended implementation is committed.
+
+## Tasks
+
+- [x] Check publication cadence, fetch origin/tags, review scope and curate public notes.
+- [ ] Build, package a fresh desktop candidate and pass the core note lifecycle smoke.
+- [ ] Run release dry run and the full release-owned version/test/package/tag/push/publication workflow.
+- [ ] Verify exact public notes, annotated tag, aligned manifests/locks and downloaded distribution/digest.
+- [ ] Archive shipped notes and QA, reset the shipped queue, archive this task and commit bookkeeping.
+
+## Evidence
+
+Environment: Node v26.7.0, QMD 2.8.3 (facd35e) at `/opt/homebrew/bin/qmd`, macOS 15.7.7 (24G720), arm64. Use existing locked dependencies and disposable smoke roots; no personal installation or memory changes.
+
+Reused unchanged feature evidence: Settings sidebar and save barriers, visual schemes/palettes and extension-theme fallback, Home/New note/Search order, formatting groups, and all-theme visual/contrast/browser review. See the corresponding 2026-10-28 archives. No updater/installer behavior changed, so no new installed-update matrix is selected.
+
+Selected preparation: `npm run build`, `npm run desktop:pack`, `npx --package=playwright node scripts/note-lifecycle-smoke.mjs`. Full versioned deterministic tests and CLI distribution validation remain owned by `npm run release`. Logs go under `.local-pack/release-0.3.11/`.
