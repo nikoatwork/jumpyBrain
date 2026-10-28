@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Sidebar polish
+
+- Replaced pin/refresh glyphs, styled the jumpyBrain wordmark, and moved the active brain above the footer icons. [Verification](done/2026-10-28_tasks-sidebar-brand-icons.md).
+
 ## 2026-10-28 — Workspace navigation history
 
 - Added top-left Back/Forward controls with five previous app destinations, graph return and separate Settings navigation. [Verification](done/2026-10-28_tasks-workspace-history.md).

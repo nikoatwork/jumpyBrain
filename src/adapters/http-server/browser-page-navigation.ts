@@ -1,10 +1,10 @@
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id-format.js";
 import { createAttentionList, type AttentionPage } from "./browser-attention.js";
+import { browserPinIcon } from "./browser-icons.js";
 
 type Page = { id: string; title: string };
 type History = { pinned: Page[]; recent: Page[] };
 const prefix = "jumpybrain.pageNavigation.v1:";
-const pinIcon = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m15 3 6 6-4 1-3 5-2 1-4-4 1-2 5-3 1-4ZM10 14l-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // Device-local navigation metadata, never canonical memory or an access credential.
 export function createPageHistory(options: { scope(): string | null; storage(): Storage; onChange(): void }) {
@@ -131,7 +131,7 @@ export function installPageNavigation(options: {
           const pin = document.createElement("button");
           const pinned = section === "pinned";
           pin.type = "button"; pin.className = "sidebar-page-pin"; pin.dataset.pagePin = page.id;
-          pin.innerHTML = pinIcon;
+          pin.innerHTML = browserPinIcon;
           pin.setAttribute("aria-pressed", String(pinned));
           pin.title = (pinned ? "Unpin " : "Pin ") + page.title;
           pin.setAttribute("aria-label", pin.title);

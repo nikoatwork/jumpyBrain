@@ -297,6 +297,29 @@ try {
   const failedSearches = [];
   editor.on("requestfailed", (request) => { if (request.url() === origin + "/memories/all/search") failedSearches.push(request.failure()?.errorText); });
   await editor.goto(origin + "/");
+  await editor.locator("#companion-brain-switch").waitFor({ state: "visible" });
+  for (const width of [1280, 390, 320]) {
+    await editor.setViewportSize({ width, height: 850 });
+    for (const theme of ["light", "dark"]) {
+      await editor.evaluate(theme => colorTheme.setPreference(theme), theme);
+      // Exercise the native header inset without touching an installed app.
+      await editor.evaluate(() => { document.documentElement.dataset.nativeMac = "true"; });
+      const layout = await editor.evaluate(() => {
+        const brain = document.getElementById("companion-active").getBoundingClientRect();
+        const icons = document.getElementById("graph-link").getBoundingClientRect();
+        const brand = document.getElementById("home-link");
+        return { brainBottom: brain.bottom, iconsTop: icons.top, iconsBottom: icons.bottom,
+          brandFits: brand.scrollWidth <= brand.clientWidth, overflow: document.documentElement.scrollWidth > innerWidth };
+      });
+      assert.ok(layout.brainBottom <= layout.iconsTop, "brain switcher sits above the footer icons");
+      assert.ok(layout.iconsBottom <= 850, "footer remains within the viewport");
+      assert.equal(layout.brandFits, true, "wordmark fits beside native traffic-light inset");
+      assert.equal(layout.overflow, false, "brain footer fits narrow layouts");
+      if (screenshotDir) await editor.screenshot({ path: path.join(screenshotDir, `sidebar-brain-${theme}-${width}.png`), animations: "disabled" });
+    }
+  }
+  await editor.evaluate(() => { delete document.documentElement.dataset.nativeMac; });
+  await editor.setViewportSize({ width: 1280, height: 850 });
   await editor.locator("#home-search").click();
   await idlePolls(editor);
   assert.equal(await editor.locator("#note-search").evaluate((dialog) => dialog.open), true, "idle polls preserve Search opened from Home without typing");

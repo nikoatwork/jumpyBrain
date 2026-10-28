@@ -1,5 +1,7 @@
 # Changes
 
+- Refreshed pin and refresh icons, added a serif jumpyBrain wordmark, and moved the active brain above the sidebar’s bottom controls.
+
 - Back and Forward controls beside the sidebar retain five previous app destinations, including returning from notes to the graph; Settings keeps its own Back to app action.
 
 - Missing graph links open topic previews with linked and related notes; writable brains can create the page and retain its linked context.

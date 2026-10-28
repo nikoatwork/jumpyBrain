@@ -26,9 +26,10 @@ ${noteAttentionStyles}
     #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); margin: 0; padding: var(--space-1); background: transparent; }
     #toggle-sidebar svg { width: 20px; height: 20px; }
     .workspace-toolbar > #toggle-sidebar { margin: var(--space-2) var(--space-3); }
-    .nav-brand { display: grid; grid-template-columns: var(--control-compact) minmax(0, 1fr); grid-template-rows: var(--space-12) auto; align-items: center; min-width: 0; min-height: var(--space-12); column-gap: var(--space-1); }
-    .nav-brand #companion-active { grid-column: 1 / -1; margin-bottom: var(--space-2); }
-    .app-nav .home-link { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); padding: var(--space-2) var(--space-1); background: transparent; color: var(--ink-soft); }
+    .nav-brand { display: grid; grid-template-columns: var(--control-compact) minmax(0, 1fr); grid-template-rows: var(--space-12); align-items: center; min-width: 0; min-height: var(--space-12); column-gap: var(--space-1); }
+    .app-nav .home-link { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--weight-regular) var(--text-body)/var(--leading-ui) var(--font-writing); letter-spacing: -.035em; padding: var(--space-2) var(--space-1); background: transparent; color: var(--ink); }
+    .home-link .brand-jumpy { font-style: italic; }
+    .home-link strong { font-weight: var(--weight-semibold); }
     :root[data-native-mac="true"] .nav-brand { grid-template-columns: calc(var(--space-16) + var(--space-3)) var(--control-compact) minmax(0, 1fr); column-gap: 0; }
     :root[data-native-mac="true"] .nav-brand > #toggle-sidebar { grid-column: 2; }
     :root[data-native-mac="true"] .nav-brand > .home-link { grid-column: 3; }
@@ -249,7 +250,7 @@ ${referencePresentationStyles}
 
 export const notesMarkup = String.raw`
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
-  <div class="nav-brand"><button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home" title="Home">jumpyBrain</a></div>
+  <div class="nav-brand"><button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>
   <div class="nav-tools" role="group" aria-label="Note actions">
     <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
     <button id="new-note" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
