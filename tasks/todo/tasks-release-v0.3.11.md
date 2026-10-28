@@ -7,7 +7,7 @@ Publish the completed Settings/sidebar/Appearance and formatting changes since v
 ## Tasks
 
 - [x] Check publication cadence, fetch origin/tags, review scope and curate public notes.
-- [ ] Build, package a fresh desktop candidate and pass the core note lifecycle smoke.
+- [x] Build, package a fresh desktop candidate and pass the core note lifecycle smoke.
 - [ ] Run release dry run and the full release-owned version/test/package/tag/push/publication workflow.
 - [ ] Verify exact public notes, annotated tag, aligned manifests/locks and downloaded distribution/digest.
 - [ ] Archive shipped notes and QA, reset the shipped queue, archive this task and commit bookkeeping.
@@ -19,3 +19,5 @@ Environment: Node v26.7.0, QMD 2.8.3 (facd35e) at `/opt/homebrew/bin/qmd`, macOS
 Reused unchanged feature evidence: Settings sidebar and save barriers, visual schemes/palettes and extension-theme fallback, Home/New note/Search order, formatting groups, and all-theme visual/contrast/browser review. See the corresponding 2026-10-28 archives. No updater/installer behavior changed, so no new installed-update matrix is selected.
 
 Selected preparation: `npm run build`, `npm run desktop:pack`, `npx --package=playwright node scripts/note-lifecycle-smoke.mjs`. Full versioned deterministic tests and CLI distribution validation remain owned by `npm run release`. Logs go under `.local-pack/release-0.3.11/`.
+
+Preparation snapshot `2eac9e1`: build passed (181,746-byte gzip editor), desktop packaging/signature verification passed with a freshly compiled native helper, and real-QMD lexical note-lifecycle smoke passed (capture, immediate search, graph, conflicts, recovery, narrow layout, deletion and refresh). The outer preparation candidate still uses 0.3.10 metadata before the release-owned version bump; no native bundle is uploaded.
