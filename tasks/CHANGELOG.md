@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Sidebar action order
+
+- Moved Search to the right of New note, matching visual and keyboard order. [Verification](done/2026-10-28_tasks-sidebar-search-order.md).
+
 ## 2026-10-28 — Settings navigation
 
 - Settings replaces note navigation with focused sections and a Back action that restores the app view. [Verification](done/2026-10-28_tasks-settings-sidebar.md).
