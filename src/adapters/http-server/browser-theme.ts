@@ -101,11 +101,15 @@ const colorTheme = (() => {
   const root = document.documentElement;
   const media = window.matchMedia("(prefers-color-scheme: dark)");
   const normalize = (value) => ["light", "dark"].includes(value) ? value : "system";
-  const normalizePalette = (value) => ["ocean", "grove"].includes(value) ? value : "ember";
+  const normalizePalette = (value) => value === "grove" ? "mono" : ["ocean", "mono"].includes(value) ? value : "ember";
   let palette = "ember";
   let preference = "system";
   try { preference = normalize(localStorage.getItem(key)); } catch { /* Storage may be disabled. */ }
-  try { palette = normalizePalette(localStorage.getItem(paletteKey)); } catch { /* Tab-only palette. */ }
+  try {
+    const saved = localStorage.getItem(paletteKey);
+    palette = normalizePalette(saved);
+    if (saved === "grove") localStorage.setItem(paletteKey, palette);
+  } catch { /* Tab-only palette, including a blocked migration write. */ }
   function apply() {
     root.dataset.theme = preference === "system" ? (media.matches ? "dark" : "light") : preference;
     root.dataset.themePreference = preference;

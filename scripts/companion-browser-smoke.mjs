@@ -201,12 +201,12 @@ try {
   assert.equal(await settings.getByRole("radio", { name: "Dark", exact: true }).isChecked(), true);
   await settings.getByRole("radio", { name: "Ocean", exact: true }).check();
   assert.equal(await settings.locator("body").evaluate(el => getComputedStyle(el).backgroundColor), "rgb(22, 33, 43)");
-  await settings.getByRole("radio", { name: "Grove", exact: true }).focus();
+  await settings.getByRole("radio", { name: "Mono", exact: true }).focus();
   await settings.keyboard.press("Space");
-  assert.equal(await settings.locator("html").getAttribute("data-palette"), "grove");
+  assert.equal(await settings.locator("html").getAttribute("data-palette"), "mono");
   await settings.reload();
-  await settings.getByRole("radio", { name: "Grove", exact: true }).waitFor();
-  assert.equal(await settings.getByRole("radio", { name: "Grove", exact: true }).isChecked(), true);
+  await settings.getByRole("radio", { name: "Mono", exact: true }).waitFor();
+  assert.equal(await settings.getByRole("radio", { name: "Mono", exact: true }).isChecked(), true);
   assert.equal(await settings.getByRole("radio", { name: "Dark", exact: true }).isChecked(), true);
   const appearancePeer = await context.newPage();
   await appearancePeer.goto(origin + "/settings?section=appearance");
@@ -249,7 +249,7 @@ try {
         assert.equal(await settings.locator(`[data-settings-section="${section}"]`).getAttribute("aria-current"), "page");
         assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, section + " " + width + " overflow");
         if (section === "appearance") {
-          for (const palette of ["Ember", "Ocean", "Grove"]) {
+          for (const palette of ["Ember", "Ocean", "Mono"]) {
             await settings.getByRole("radio", { name: palette, exact: true }).check();
             assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, palette + " appearance overflow");
             if (screenshotDir) await settings.screenshot({ path: path.join(screenshotDir, `appearance-${palette}-${theme}-${width}.png`), fullPage: true, animations: "disabled" });

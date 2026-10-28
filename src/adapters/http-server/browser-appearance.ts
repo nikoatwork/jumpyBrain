@@ -8,7 +8,7 @@ const paletteChoice = (value: string, label: string) => `<label class="appearanc
 export const appearanceMarkup = String.raw`
 <div id="appearance-options">
   <fieldset class="appearance-group"><legend>Color scheme</legend><div class="appearance-grid">${schemeChoice("system", "System")}${schemeChoice("light", "Light")}${schemeChoice("dark", "Dark")}</div></fieldset>
-  <fieldset class="appearance-group"><legend>Theme</legend><div class="appearance-grid">${paletteChoice("ember", "Ember")}${paletteChoice("ocean", "Ocean")}${paletteChoice("grove", "Grove")}</div></fieldset>
+  <fieldset class="appearance-group"><legend>Theme</legend><div class="appearance-grid">${paletteChoice("ember", "Ember")}${paletteChoice("ocean", "Ocean")}${paletteChoice("mono", "Mono")}</div></fieldset>
 </div>`;
 
 export const appearanceStyles = String.raw`
@@ -46,8 +46,8 @@ export const appearanceStyles = String.raw`
   .palette-ember i:last-child { background: radial-gradient(circle at 30% 25%, #c07752, #44322b 48%, #1c1b19); }
   .palette-ocean i:first-child { background: radial-gradient(circle at 30% 25%, #f0f7fc, #c0dce9 42%, #4d94b5); }
   .palette-ocean i:last-child { background: radial-gradient(circle at 30% 25%, #81bfde, #2b5068 48%, #16212b); }
-  .palette-grove i:first-child { background: radial-gradient(circle at 30% 25%, #f4f5e8, #d1dfbd 42%, #6f9666); }
-  .palette-grove i:last-child { background: radial-gradient(circle at 30% 25%, #a1c38a, #3d6246 48%, #19231d); }
+  .palette-mono i:first-child { background: radial-gradient(circle at 30% 25%, #ffffff, #e5e5e5 42%, #a8a8a8); }
+  .palette-mono i:last-child { background: radial-gradient(circle at 30% 25%, #686868, #292929 48%, #080808); }
   @media (max-width: 480px) {
     .appearance-grid { gap: var(--space-2); }
     .appearance-choice { gap: var(--space-2); padding: var(--space-1); }

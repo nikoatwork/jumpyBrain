@@ -5,7 +5,7 @@ import { themeBootstrap, themeStyles } from "../dist/adapters/http-server/browse
 import { builtInPalettes } from "../dist/adapters/http-server/browser-palettes.js";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 
-function harness({ stored = null, palette = null, dark = false, blocked = false } = {}) {
+function harness({ stored = null, palette = null, dark = false, blocked = false, writeBlocked = false } = {}) {
   const listeners = {}, values = new Map(stored === null ? [] : [["jumpybrain.theme", stored]]);
   if (palette !== null) values.set("jumpybrain.palette", palette);
   const control = { attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } }, root = { dataset: {} };
@@ -15,7 +15,7 @@ function harness({ stored = null, palette = null, dark = false, blocked = false 
     document: { documentElement: root, getElementById: (id) => id === "color-theme" ? control : null },
     localStorage: {
       getItem(key) { if (blocked) throw Error("blocked"); return values.get(key) ?? null; },
-      setItem(key, value) { if (blocked) throw Error("blocked"); values.set(key, value); },
+      setItem(key, value) { if (blocked || writeBlocked) throw Error("blocked"); values.set(key, value); },
       removeItem(key) { if (blocked) throw Error("blocked"); values.delete(key); },
     },
   });
@@ -121,12 +121,12 @@ test("palette preference is independent, survives reload, synchronizes and falls
   assert.equal(h.root.dataset.palette, "ocean");
   assert.equal(h.root.dataset.themePreference, "dark");
   assert.equal(h.values.get("jumpybrain.palette"), "ocean");
-  assert.equal(harness({ palette: "grove" }).root.dataset.palette, "grove");
-  h.storage("jumpybrain.palette", "grove");
-  assert.equal(h.root.dataset.palette, "grove");
+  assert.equal(harness({ palette: "mono" }).root.dataset.palette, "mono");
+  h.storage("jumpybrain.palette", "mono");
+  assert.equal(h.root.dataset.palette, "mono");
   assert.equal(h.root.dataset.themePreference, "dark");
   h.choose("system");
-  assert.equal(h.root.dataset.palette, "grove");
+  assert.equal(h.root.dataset.palette, "mono");
   h.storage(null, null);
   assert.equal(h.root.dataset.palette, "ember");
   assert.equal(h.root.dataset.themePreference, "system");
@@ -143,5 +143,32 @@ test("all built-in alternative palettes retain AA text and visible focus contras
       assert.ok(contrast(tokens[ink], tokens[fill]) >= 4.5, `${name}/${mode} ${ink} on ${fill}: ${contrast(tokens[ink], tokens[fill])}`);
     }
     assert.ok(contrast(tokens["focus-ring"], tokens.surface) >= 3, `${name}/${mode} focus`);
+  }
+});
+
+test("legacy Grove preferences migrate to Mono before paint and across tabs", () => {
+  const h = harness({ stored: "dark", palette: "grove" });
+  assert.equal(h.root.dataset.palette, "mono");
+  assert.equal(h.values.get("jumpybrain.palette"), "mono");
+  assert.equal(h.root.dataset.themePreference, "dark");
+  h.storage("jumpybrain.palette", "grove");
+  assert.equal(h.root.dataset.palette, "mono");
+  h.palette("grove");
+  assert.equal(h.values.get("jumpybrain.palette"), "mono");
+  const readOnlyStorage = harness({ palette: "grove", writeBlocked: true });
+  assert.equal(readOnlyStorage.root.dataset.palette, "mono", "blocked migration writes still apply Mono in-tab");
+  assert.equal(readOnlyStorage.values.get("jumpybrain.palette"), "grove");
+});
+
+test("Mono uses neutral grayscale across UI, status and graph colors", () => {
+  for (const [mode, tokens] of Object.entries(builtInPalettes.mono)) for (const [name, value] of Object.entries(tokens)) {
+    for (const hex of value.match(/#[a-f0-9]{6}(?:[a-f0-9]{2})?/gi) || []) {
+      assert.equal(hex.slice(1, 3), hex.slice(3, 5), `${mode}/${name}`);
+      assert.equal(hex.slice(3, 5), hex.slice(5, 7), `${mode}/${name}`);
+    }
+    for (const match of value.matchAll(/rgba\((\d+), (\d+), (\d+),/g)) {
+      assert.equal(match[1], match[2], `${mode}/${name}`);
+      assert.equal(match[2], match[3], `${mode}/${name}`);
+    }
   }
 });

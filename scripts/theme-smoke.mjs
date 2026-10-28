@@ -83,7 +83,7 @@ try {
   const chromium = await loadPlaywrightChromium();
   browser = await launchPlaywrightChromium({ chromium });
   for (const width of [1280, 390, 320]) {
-    for (const paletteName of ["ember", "ocean", "grove"]) for (const scheme of ["light", "dark"]) {
+    for (const paletteName of ["ember", "ocean", "mono"]) for (const scheme of ["light", "dark"]) {
       await writeFile(path.join(root, "notes/theme.md"), originalNote);
       const context = await browser.newContext({ viewport: { width, height: 850 }, colorScheme: scheme });
       await context.addInitScript(name => { if (name !== "ember") localStorage.setItem("jumpybrain.palette", name); }, paletteName);
@@ -137,7 +137,7 @@ try {
       assert.equal(await editorMarkdown(page), markdown);
       assert.deepEqual(await editorSelection(page), selection);
       assert.equal(await page.evaluate(() => richEditor === window.themeEditorBefore), true);
-      for (const palette of ["ocean", "grove", "ember", paletteName]) {
+      for (const palette of ["ocean", "mono", "ember", paletteName]) {
         await page.evaluate(value => colorTheme.setPalette(value), palette);
         assert.equal(await page.locator("html").getAttribute("data-palette"), palette);
         assert.equal(await editorMarkdown(page), markdown, "palette keeps the draft");
