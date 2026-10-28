@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-28 — Appearance choices
+
+- Appearance adds visual scheme selection and paired Ember, Ocean and Grove themes, with instant application and synced preferences. [Verification](done/2026-10-28_tasks-appearance-settings.md).
+
 ## 2026-10-28 — Sidebar action order
 
 - Moved Search to the right of New note, matching visual and keyboard order. [Verification](done/2026-10-28_tasks-sidebar-search-order.md).

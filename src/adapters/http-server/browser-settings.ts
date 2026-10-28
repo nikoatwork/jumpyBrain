@@ -1,3 +1,4 @@
+import { appearanceStyles, appearanceScript } from "./browser-appearance.js";
 import { browserIcons } from "./browser-icons.js";
 
 // Companion-only presentation. Navigation still passes through the shell save guard.
@@ -11,6 +12,7 @@ export const settingsNavigationMarkup = String.raw`
 <a id="settings-back" class="quiet-button nav-item" href="/" hidden>${browserIcons.back}<span>Back to app</span></a>`;
 
 export const settingsStyles = String.raw`
+  ${appearanceStyles}
   body[data-view="settings"] .app-nav > :is(.nav-tools, .nav-library, .extension-slot),
   body[data-view="settings"] :is(#companion-active, #toggle-sidebar),
   body[data-view="settings"] .nav-preferences > :not(.nav-utilities) { display: none; }
@@ -83,8 +85,7 @@ for (const link of document.querySelectorAll("[data-settings-section], #settings
     navigation.navigate(link.getAttribute("href"));
   });
 }
-JumpyBrainBrowser.prepareDropdown($("settings-theme"));
-$("settings-theme").addEventListener("change", (event) => colorTheme.setPreference(event.target.value));
+${appearanceScript}
 $("open-connection").removeAttribute("aria-haspopup");
 $("open-connection").setAttribute("aria-controls", "companion-settings");
 `;

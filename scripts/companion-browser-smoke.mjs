@@ -189,15 +189,37 @@ try {
   assert.equal(await settings.locator(".nav-tools").isVisible(), false);
   assert.equal(await settings.locator("#settings-back").isVisible(), true);
   await settings.locator('[data-settings-section="appearance"]').click();
-  await settings.locator("#settings-theme").selectOption("dark");
+  await settings.getByRole("radio", { name: "Dark", exact: true }).check();
   assert.equal(await settings.locator("html").getAttribute("data-theme"), "dark");
-  await settings.locator("#settings-theme").selectOption("light");
+  await settings.getByRole("radio", { name: "Light", exact: true }).check();
   assert.equal(await settings.locator("html").getAttribute("data-theme"), "light");
-  await settings.locator("#settings-theme").selectOption("system");
+  await settings.getByRole("radio", { name: "System", exact: true }).check();
+  await settings.getByRole("radio", { name: "System", exact: true }).focus();
+  await settings.keyboard.press("ArrowRight");
+  assert.equal(await settings.getByRole("radio", { name: "Light", exact: true }).isChecked(), true);
+  await settings.keyboard.press("ArrowRight");
+  assert.equal(await settings.getByRole("radio", { name: "Dark", exact: true }).isChecked(), true);
+  await settings.getByRole("radio", { name: "Ocean", exact: true }).check();
+  assert.equal(await settings.locator("body").evaluate(el => getComputedStyle(el).backgroundColor), "rgb(22, 33, 43)");
+  await settings.getByRole("radio", { name: "Grove", exact: true }).focus();
+  await settings.keyboard.press("Space");
+  assert.equal(await settings.locator("html").getAttribute("data-palette"), "grove");
+  await settings.reload();
+  await settings.getByRole("radio", { name: "Grove", exact: true }).waitFor();
+  assert.equal(await settings.getByRole("radio", { name: "Grove", exact: true }).isChecked(), true);
+  assert.equal(await settings.getByRole("radio", { name: "Dark", exact: true }).isChecked(), true);
+  const appearancePeer = await context.newPage();
+  await appearancePeer.goto(origin + "/settings?section=appearance");
+  await appearancePeer.getByRole("radio", { name: "Ocean", exact: true }).check();
+  await settings.waitForFunction(() => document.documentElement.dataset.palette === "ocean");
+  assert.equal(await settings.getByRole("radio", { name: "Ocean", exact: true }).isChecked(), true);
+  await appearancePeer.close();
+  await settings.getByRole("radio", { name: "Ember", exact: true }).check();
+  await settings.getByRole("radio", { name: "System", exact: true }).check();
   await settings.locator('[data-settings-section="extensions"]').click();
   await settings.locator("#extension-reload").waitFor({ state: "visible" });
   await settings.goBack();
-  await settings.locator("#settings-theme").waitFor({ state: "visible" });
+  await settings.locator("#appearance-options").waitFor({ state: "visible" });
   await settings.goForward();
   await settings.locator("#extension-reload").waitFor({ state: "visible" });
   await settings.reload();
@@ -226,6 +248,14 @@ try {
         await settings.locator(`[data-settings-section="${section}"]`).click();
         assert.equal(await settings.locator(`[data-settings-section="${section}"]`).getAttribute("aria-current"), "page");
         assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, section + " " + width + " overflow");
+        if (section === "appearance") {
+          for (const palette of ["Ember", "Ocean", "Grove"]) {
+            await settings.getByRole("radio", { name: palette, exact: true }).check();
+            assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, palette + " appearance overflow");
+            if (screenshotDir) await settings.screenshot({ path: path.join(screenshotDir, `appearance-${palette}-${theme}-${width}.png`), fullPage: true, animations: "disabled" });
+          }
+          await settings.getByRole("radio", { name: "Ember", exact: true }).check();
+        }
         if (screenshotDir) await settings.screenshot({ path: path.join(screenshotDir, "settings-" + section + "-" + theme + "-" + width + ".png"), fullPage: true, animations: "disabled" });
       }
       await settings.locator('[data-settings-section="brains"]').click();

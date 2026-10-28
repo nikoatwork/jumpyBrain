@@ -396,6 +396,9 @@ export function installExtensionsBrowser(options: Options) {
   doc.getElementById("extension-reload")!.addEventListener("click", () => void manage("reload"), { signal });
   themeSelect.addEventListener("change", () => { prefs.theme = themeSelect.value; persist(); applyTheme(); void emit({ type: "theme.changed", theme: prefs.theme || doc.documentElement.dataset.theme }); }, { signal });
   doc.getElementById("color-theme")?.addEventListener("click", () => { prefs.theme = ""; persist(); clearTheme(); themeSelect.value = ""; void emit({ type: "theme.changed", theme: doc.documentElement.dataset.theme }); }, { signal });
+  win.addEventListener("jumpybrain-appearance-change", () => {
+    prefs.theme = ""; persist(); clearTheme(); themeSelect.value = "";
+  }, { signal });
   const themeObserver = new MutationObserver(() => {
     if (themeApplied && themeAppearance) {
       if (doc.documentElement.dataset.theme !== themeAppearance) doc.documentElement.dataset.theme = themeAppearance;

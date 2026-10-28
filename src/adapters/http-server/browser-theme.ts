@@ -1,3 +1,5 @@
+import { paletteStyles } from "./browser-palettes.js";
+
 // Ember palette: https://embertheme.com/ and https://github.com/ember-theme/ember
 // Neutral control ramps follow ember-theme/zed. MIT notice: docs/licenses/ember.txt.
 // Secondary text is lifted/darkened for readable UI contrast, rather than syntax-comment contrast.
@@ -79,6 +81,7 @@ export const themeStyles = String.raw`
       :root:not([data-theme="light"]) { ${darkColors} }
     }
     :root[data-theme="dark"] { ${darkColors} }
+    ${paletteStyles}
     ::selection { background: var(--selection-fill); }
     .theme-control { display: flex; align-items: center; }
     #color-theme { display: grid; place-items: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); font: inherit; cursor: pointer; }
@@ -94,16 +97,23 @@ export const themeStyles = String.raw`
 export const themeBootstrap = String.raw`
 const colorTheme = (() => {
   const key = "jumpybrain.theme";
+  const paletteKey = "jumpybrain.palette";
   const root = document.documentElement;
   const media = window.matchMedia("(prefers-color-scheme: dark)");
   const normalize = (value) => ["light", "dark"].includes(value) ? value : "system";
+  const normalizePalette = (value) => ["ocean", "grove"].includes(value) ? value : "ember";
+  let palette = "ember";
   let preference = "system";
   try { preference = normalize(localStorage.getItem(key)); } catch { /* Storage may be disabled. */ }
+  try { palette = normalizePalette(localStorage.getItem(paletteKey)); } catch { /* Tab-only palette. */ }
   function apply() {
     root.dataset.theme = preference === "system" ? (media.matches ? "dark" : "light") : preference;
     root.dataset.themePreference = preference;
-    const settingsControl = document.getElementById("settings-theme");
-    if (settingsControl) settingsControl.value = preference;
+    root.dataset.palette = palette;
+    const choices = document.getElementById("appearance-options");
+    if (choices) for (const input of choices.querySelectorAll("input[type=radio]")) {
+      input.checked = input.name === "color-scheme" ? input.value === preference : input.value === palette;
+    }
     const control = document.getElementById("color-theme");
     if (control) {
       const action = root.dataset.theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
@@ -113,8 +123,9 @@ const colorTheme = (() => {
   }
   media.addEventListener("change", apply);
   window.addEventListener("storage", (event) => {
-    if (event.key !== key && event.key !== null) return;
-    preference = normalize(event.newValue);
+    if (event.key !== key && event.key !== paletteKey && event.key !== null) return;
+    if (event.key === key || event.key === null) preference = normalize(event.newValue);
+    if (event.key === paletteKey || event.key === null) palette = normalizePalette(event.newValue);
     apply();
   });
   apply();
@@ -128,6 +139,16 @@ const colorTheme = (() => {
         else localStorage.setItem(key, preference);
       } catch { /* The choice still works for this tab. */ }
       apply();
+      window.dispatchEvent(new Event("jumpybrain-appearance-change"));
+    },
+    setPalette(value) {
+      palette = normalizePalette(value);
+      try {
+        if (palette === "ember") localStorage.removeItem(paletteKey);
+        else localStorage.setItem(paletteKey, palette);
+      } catch { /* Tab-only palette. */ }
+      apply();
+      window.dispatchEvent(new Event("jumpybrain-appearance-change"));
     },
   };
 })();

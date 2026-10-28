@@ -98,6 +98,10 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Fixture command', exact: true }).evaluate(el => el === document.activeElement), true, 'close restores command focus');
   assert.equal(await page.evaluate(async () => { try { await lastPanelContext.execute('query'); return false; } catch { return true; } }), true, 'closed UI cannot invoke');
   await page.getByLabel('Extension palette').selectOption('fixture:plum');
+  await page.evaluate(() => window.dispatchEvent(new Event('jumpybrain-appearance-change')));
+  assert.equal(await page.getByLabel('Extension palette').inputValue(), '', 'built-in choice clears extension selection');
+  assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--surface')), '', 'built-in choice removes extension token overrides');
+  await page.getByLabel('Extension palette').selectOption('fixture:plum');
   assert.equal(await page.evaluate(() => document.documentElement.style.getPropertyValue('--surface')), '#211d29');
   await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
   await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');

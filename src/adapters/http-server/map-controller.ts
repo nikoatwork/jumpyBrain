@@ -964,7 +964,7 @@ export function createMapController(options: MapControllerOptions) {
     if (Observer)
       new Observer(() => updateViewport()).observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ["data-theme"],
+        attributeFilter: ["data-theme", "data-palette"],
       });
   }
   function hasCurrentGraph() {

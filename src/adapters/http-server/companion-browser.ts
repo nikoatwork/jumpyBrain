@@ -1,5 +1,6 @@
 import { extensionSettingsMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
+import { appearanceMarkup } from "./browser-appearance.js";
 import { settingsStyles, settingsScript } from "./browser-settings.js";
 
 // Companion-only loopback control UI. No target credential is ever read into this shell.
@@ -72,8 +73,8 @@ export const companionMarkup = String.raw`
     </form>
     </details>
     </section>
-    <section id="settings-panel-appearance" class="settings-panel settings-card" data-settings-panel="appearance" aria-label="Appearance" hidden>
-      <div class="settings-row"><label for="settings-theme">Color theme</label><select id="settings-theme" class="dropdown"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+    <section id="settings-panel-appearance" class="settings-panel" data-settings-panel="appearance" aria-label="Appearance" hidden>
+      ${appearanceMarkup}
     </section>
     <section id="settings-panel-extensions" class="settings-panel settings-card" data-settings-panel="extensions" aria-label="Extensions" hidden>${extensionSettingsMarkup}</section>
     <p class="app-version" data-app-version></p>

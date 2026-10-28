@@ -45,7 +45,7 @@ async function assertPalette(page, theme) {
   }
   const create = await page.locator("#new-note").boundingBox(), search = await page.locator("#open-search").boundingBox();
   assert.equal(create.y, search.y, "Search and New note occupy one row");
-  assert.ok(search.x + search.width <= create.x, "Search precedes compose without overlap");
+  assert.ok(create.x + create.width <= search.x, "Search follows compose without overlap");
   const themeAction = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
   assert.equal(await page.locator("#color-theme").getAttribute("aria-label"), themeAction);
   assert.equal(await page.locator("#color-theme .theme-sun").isVisible(), theme === "dark");
@@ -107,6 +107,13 @@ try {
       assert.equal(await editorMarkdown(page), markdown);
       assert.deepEqual(await editorSelection(page), selection);
       assert.equal(await page.evaluate(() => richEditor === window.themeEditorBefore), true);
+      for (const palette of ["ocean", "grove", "ember"]) {
+        await page.evaluate(value => colorTheme.setPalette(value), palette);
+        assert.equal(await page.locator("html").getAttribute("data-palette"), palette);
+        assert.equal(await editorMarkdown(page), markdown, "palette keeps the draft");
+        assert.deepEqual(await editorSelection(page), selection, "palette keeps the caret");
+        assert.equal(await page.evaluate(() => richEditor === window.themeEditorBefore), true);
+      }
       await page.locator("#graph-link").click();
       await page.waitForFunction(() => window.__jumpyBrainGraphReady === true);
       await assertPalette(page, opposite);
