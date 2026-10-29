@@ -80,7 +80,7 @@ async function openEditor(settings = false) {
       await welcome.loaded;
       if (!await welcome.completed || quitting) return;
     }
-    const editor = createEditorWindow(connection, { diagnostics, updater });
+    const editor = createEditorWindow(connection, { diagnostics, updater, starterPage: welcome?.starterPage });
     window = editor.window;
     window.on('closed', () => { if (window === editor.window) window = null; });
     await editor.loaded;

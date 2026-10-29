@@ -25,3 +25,5 @@
 ## Declared actors
 
 Note creation accepts optional `{kind:"human"|"agent",id?,name?}` `actor`; omission means unknown, regardless of CLI, source, confidence or folder. Both writers stamp canonical creator/last-editor declarations and revision digest before atomic publication. Session wrapup records an agent declaration for the automated session-writing operation; deterministic process output declares the processing agent. Dream callers should explicitly declare their agent on remember/update. Imported historical files are not backfilled. See [memory format](../../../docs/memory-format.md#declared-creator-and-last-editor).
+
+- `createFocusStarterPage` is a narrow explicit desktop onboarding writer, exported through runtime. It uses the existing exclusive Markdown publication helper, normal IDs/timestamps and core rendering to create a settled Today page with 10/5/5 checkboxes. It does not initialize a root, index, schedule, discover existing starters, or own pins. The desktop caller limits it to fresh local-brain creation; this is not a template registry or a CLI initialization default.

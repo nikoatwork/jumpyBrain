@@ -55,12 +55,19 @@ export function companionControl({ origin, key }, route = 'state', body) {
   });
 }
 
+const pendingStarters = new Map(); // Retain the handoff across a failed save barrier in this setup session.
+
 export async function activateLocalBrain(connection, selected, { control = companionControl, loadRuntime = (root) => import(pathToFileURL(path.join(root, 'dist/runtime/index.js')).href) } = {}) {
   const current = await inspectBrainFolder(selected.root);
   if (current.root !== selected.root || current.existing !== selected.existing) throw new Error('The folder changed. Choose it again before continuing.');
   const runtime = await loadRuntime(connection.runtimeRoot);
+  let starterPage = pendingStarters.get(current.root);
   if (current.existing) await runtime.assertCompatibleMemoryRoot(current.root);
-  else await runtime.initializeMemoryRoot(current.root); // Never force, migrate, index, or overwrite an existing config.
+  else {
+    await runtime.initializeMemoryRoot(current.root);
+    starterPage = await runtime.createFocusStarterPage(current.root);
+    pendingStarters.set(current.root, starterPage);
+  } // Never force, migrate, index, or overwrite an existing config.
   let state = await control(connection);
   let profile = state.profiles.find((item) => item.kind === 'local' && item.root === current.root);
   if (!profile) {
@@ -69,7 +76,8 @@ export async function activateLocalBrain(connection, selected, { control = compa
   }
   if (!profile) throw new Error('The brain connection was not saved. Choose the folder and try again.');
   if (state.activeId !== profile.id) state = await control(connection, 'switch', { id: profile.id });
-  return state;
+  pendingStarters.delete(current.root);
+  return { ...state, ...(starterPage ? { starterPage: { ...starterPage, scope: "brain:" + JSON.stringify([profile.id, profile.kind, profile.root]) } } : {}) };
 }
 
 export async function setupComplete(directory) {

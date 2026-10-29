@@ -1,3 +1,4 @@
+import { installStarterPin } from './starter-pin.mjs';
 import { createSystemMessages } from './system-messages.mjs';
 import { BrowserWindow, dialog, Menu, MenuItem, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
@@ -5,7 +6,7 @@ import { mountInlineUpdates, nativeUpdateAction } from './update-inline.mjs';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 import { installBackNavigation } from './back-navigation.mjs';
 
-export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, updater } = {}) {
+export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, updater, starterPage } = {}) {
   const window = new BrowserWindow({
     title: 'jumpyBrain', icon: fileURLToPath(new URL('./assets/app-icon.png', import.meta.url)), width: 1200, height: 860, minWidth: 480, minHeight: 480,
     show: false, backgroundColor: '#f7f4ed',
@@ -120,7 +121,9 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   });
   // This is the existing Chrome bootstrap. Its own script removes the fragment
   // immediately, then exchanges the token for the gateway's HttpOnly cookie.
-  const loaded = window.loadURL(`${origin}/#companion=${key}`);
+  const loaded = window.loadURL(`${origin}/#companion=${key}`).then(async () => {
+    if (starterPage) await contents.executeJavaScript(`(${installStarterPin.toString()})(${JSON.stringify(starterPage).replaceAll("<", "\\u003c")})`);
+  });
   return { window, loaded };
 }
 

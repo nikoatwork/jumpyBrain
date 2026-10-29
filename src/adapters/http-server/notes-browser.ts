@@ -1550,6 +1550,7 @@ const lifecycleActions = installDocumentActions({
   },
 });
 const noteAttention = JumpyBrainBrowser.installNoteAttention({
+  settleStarter: (id) => sidebarPages.settleStarter(id),
   document, editor: () => state.editor,
   writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()),
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),

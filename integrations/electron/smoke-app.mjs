@@ -86,6 +86,48 @@ try {
   await finishSetup(config.userData); assert.equal(await setupComplete(config.userData), true);
   console.log('Electron smoke: created local brain');
   { const closed = new Promise((resolve) => window.once('closed', resolve)); window.close(); await closed; }
+  const starterPage = welcome.starterPage;
+  assert.ok(starterPage);
+  const starterWindow = createEditorWindow(config, { starterPage });
+  window = starterWindow.window; await starterWindow.loaded;
+  await until(`document.querySelector('[data-page-link="${starterPage.id}"]')`);
+  await js(`document.querySelector('[data-page-link="${starterPage.id}"]').click()`);
+  await until(`document.querySelectorAll('[role="checkbox"]').length === 20`);
+  for (const [width, theme] of [[1200, 'light'], [480, 'light'], [1200, 'dark'], [480, 'dark']]) {
+    window.setSize(width, 1000);
+    await js(`document.documentElement.dataset.theme = ${JSON.stringify(theme)}`);
+    await pause(150);
+    assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'), true);
+    await writeFile(config.screenshot.replace('welcome.png', `focus-${width}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+    await js(`Array.from(document.querySelectorAll('h2')).find(node => node.textContent === 'The rest').scrollIntoView({block:'center'})`);
+    await pause(100);
+    await writeFile(config.screenshot.replace('welcome.png', `focus-rest-${width}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
+    await js(`document.getElementById('note-title').scrollIntoView()`);
+  }
+  await js(`document.querySelector('[role="checkbox"]').click()`);
+  await until('document.getElementById("note-save-state").textContent.includes("Saved")');
+  assert.match(await readFile(path.join(config.setupRoot, starterPage.file), 'utf8'), /- \[x\]/);
+  await js(`document.querySelector('[data-page-pin="${starterPage.id}"]').click()`);
+  await until(`!document.querySelector('[data-page-link="${starterPage.id}"]')`);
+  await window.webContents.reload();
+  await pause(500);
+  assert.equal(await js(`!!document.querySelector('[data-page-link="${starterPage.id}"]')`), false);
+  // Simulate a user re-pin, then exercise the existing Settle action.
+  await js(`(() => {
+    const key = ${JSON.stringify('jumpybrain.pageNavigation.v1:' + starterPage.scope)};
+    const value = JSON.parse(localStorage.getItem(key)); value.pinned.push(${JSON.stringify({ id: starterPage.id, title: 'Today' })});
+    localStorage.setItem(key, JSON.stringify(value)); window.dispatchEvent(new StorageEvent('storage', {key, newValue:JSON.stringify(value)}));
+  })()`);
+  await until(`document.querySelector('[data-page-action="${starterPage.id}:settle"]')`);
+  await js(`document.querySelector('[data-page-action="${starterPage.id}:settle"]').click()`);
+  await until(`!document.querySelector('[data-page-link="${starterPage.id}"]')`);
+  { const closed = new Promise(resolve => window.once('closed', resolve)); window.close(); await closed; }
+  const reopenedStarter = createEditorWindow(config, { starterPage });
+  window = reopenedStarter.window; await reopenedStarter.loaded; await pause(500);
+  assert.equal(await js(`!!document.querySelector('[data-page-link="${starterPage.id}"]')`), false);
+  { const closed = new Promise(resolve => window.once('closed', resolve)); window.close(); await closed; }
+  checks.push('starter 10/5/5, native light/dark wide/narrow, checkbox persistence, unpin/reload, settle/relaunch, idempotent handoff');
+
   // Reopening welcome never initializes anything unless a button is chosen.
   welcome = createOnboardingWindow(config);
   window = welcome.window; await welcome.loaded;
@@ -188,7 +230,7 @@ try {
     assert.match(await js('document.getElementById("document-delete").textContent'), /Deleting this note cannot be undone/);
     await writeFile(config.screenshot.replace('welcome.png', `delete-${width}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
     await js('document.getElementById("delete-cancel").click()');
-    await js('document.getElementById("close-page-details").click()');
+    await js('if (!document.getElementById("note-details-content").hidden) document.getElementById("toggle-page-details").click()');
     assert.equal(await readFile(existingNote, 'utf8'), existingBytes);
   }
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
@@ -207,10 +249,10 @@ try {
   await window.webContents.insertText(' Saved from Electron');
   await until('document.getElementById("note-save-state").textContent === "Saved"');
   checks.push('editing and autosave');
-  assert.equal(await js('document.getElementById("copy-note-draft").textContent.trim()'), 'Copy draft');
+  assert.equal(await js('document.getElementById("copy-note-draft").getAttribute("aria-label")'), 'Copy');
   assert.equal(await js('document.getElementById("format-controls").hidden'), true);
   assert.equal(await js('document.getElementById("insert-reference").textContent.trim()'), 'Link');
-  assert.equal(await js('document.getElementById("note-section-count").textContent'), '1 section');
+
   const foldedBytes = await readFile(existingNote, 'utf8');
   await js('document.getElementById("toggle-note-format").focus()');
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
@@ -223,10 +265,10 @@ try {
   await until('document.getElementById("format-controls").hidden');
   assert.equal(await js('document.activeElement.id'), 'toggle-note-format');
   assert.equal(await readFile(existingNote, 'utf8'), foldedBytes, 'format disclosure never writes Markdown');
-  assert.equal(await js('document.getElementById("page-details").hidden'), true);
+  assert.equal(await js('document.getElementById("note-details-content").hidden'), true);
   await js('document.getElementById("toggle-page-details").click()');
   await until('!document.getElementById("page-details").hidden');
-  assert.equal(await js('document.querySelectorAll("#note-outline-list button").length'), 1);
+  assert.equal(await js('document.getElementById("note-outline-list")'), null);
   assert.equal(await js('document.getElementById("saved-version-editor").textContent'), 'You');
   assert.equal(await js('document.getElementById("note-file").textContent'), 'notes/electron-fixture.md');
   for (const theme of ['light', 'dark']) {
@@ -238,9 +280,12 @@ try {
     await writeFile(config.screenshot.replace('welcome.png', `note-format-${theme}.png`), (await window.webContents.capturePage()).toPNG());
     await js('document.getElementById("toggle-note-format").click()');
   }
-  await js('document.getElementById("close-page-details").click()');
+  await js('document.getElementById("toggle-page-details").focus()');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+  await until('document.getElementById("note-details-content").hidden');
   assert.equal(await js('document.activeElement.id'), 'toggle-page-details');
-  checks.push('folded formatting keyboard/Enter/Escape, direct Link, live section caption, immutable fold, labeled draft handoff, outline/details, saved-version actor/location and focus return');
+  checks.push('folded formatting keyboard/Enter/Escape, direct Link, immutable fold, accessible copy, sticky action card/folded details, saved-version actor/location and focus return');
 
 
   // A deterministic pending draft exercises the production browser unload veto

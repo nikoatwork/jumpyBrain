@@ -13,6 +13,7 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
   });
   const contents = window.webContents;
   const session = contents.session;
+  let starterPage = null;
   let selected = null, busy = false, settled = false;
   let resolve;
   const completed = new Promise((done) => { resolve = done; });
@@ -40,7 +41,7 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
       if (!connection || !selected) throw new Error('Choose your brain folder first.');
       // Reinspection permits retry after initialization succeeded but activation failed.
       selected = await inspectBrainFolder(selected.root);
-      await activate(connection, selected); success(); return { ok: true };
+      const state = await activate(connection, selected); starterPage = state.starterPage || null; success(); return { ok: true };
     },
     continue: async () => {
       if (!connection) throw new Error('Install the local helper first.');
@@ -80,5 +81,5 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
   });
   window.once('ready-to-show', () => window.show());
   const loaded = window.loadFile(path.join(directory, 'onboarding.html'));
-  return { window, loaded, completed };
+  return { window, loaded, completed, get starterPage() { return starterPage; } };
 }

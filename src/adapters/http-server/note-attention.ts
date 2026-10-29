@@ -44,6 +44,7 @@ function attentionValue(prefix: string): "settled" | string | undefined {
 export function installNoteAttention(options: {
   document: Document; editor(): Editor | null; writable(): boolean; scope(): string;
   blocked(): boolean; json(url: string, options?: RequestInit): Promise<unknown>;
+  settleStarter?(id: string): boolean;
   changed(): void; onBusy(): void; toast: Toast;
 }) {
   const doc = options.document, win = doc.defaultView!;
@@ -91,9 +92,10 @@ export function installNoteAttention(options: {
       if (result.id !== id || typeof result.contentHash !== "string" || typeof result.content !== "string") throw new Error("The attention change could not be confirmed. Reopen the note to check its state.");
       if (editor?.state.documentId === id && !editor.acceptMetadata(result, saved.contentHash)) throw new Error("The note changed while saving. Reopen it to check its attention state.");
       const previous: Action = prior === "settled" ? { action: "settle" } : prior && Date.parse(prior) > Date.now() ? { action: "snooze", until: prior } : { action: "reactivate" };
-      message(isUndo ? "Attention change undone." : action.action === "settle" ? "Settled. Pinned pages stay visible."
+      const starterDismissed = !isUndo && action.action === "settle" && options.settleStarter?.(id);
+      message(isUndo ? "Attention change undone." : action.action === "settle" ? (starterDismissed ? "Settled and unpinned." : "Settled. Pinned pages stay visible.")
         : action.action === "snooze" ? "Snoozed until " + new Date(action.until).toLocaleString() + ". Pinned pages stay visible." : "Note brought back.", false,
-        isUndo ? undefined : () => { if (options.scope() === scope) void apply(id, previous, true); });
+        isUndo || starterDismissed ? undefined : () => { if (options.scope() === scope) void apply(id, previous, true); });
       options.changed();
     } catch (error) {
       if (!valid()) return;

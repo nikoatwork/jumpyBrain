@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Focus starter page
+
+- New local Mac onboarding creates a pinned Today page with 10/5/5 focus checkboxes and persistent dismissal. [Verification](done/2026-10-29_tasks-focus-starter.md).
+
 ## 2026-10-29 — Sticky page action card
 
 - Moved Copy/Delete and folded saved-version facts into a sticky top-right card, with an in-flow narrow layout. Related notes stay below the page. [Verification](done/2026-10-29_tasks-sticky-page-card.md).

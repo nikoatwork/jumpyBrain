@@ -194,6 +194,13 @@ export function installPageNavigation(options: {
   }
   render();
   return {
+    settleStarter(id: string) {
+      try {
+        if (window.localStorage.getItem("jumpybrain.focusStarter.v1:" + options.scope()) !== id) return false;
+        history.remove(id);
+        return true;
+      } catch { return false; }
+    },
     select(id: string | null) { selected = id; render(); if (attention) void attention.load(); },
     visit(page: Page) { selected = page.id; if (!history.visit(page)) render(); },
     rename(page: Page) { history.rename(page); },

@@ -48,10 +48,21 @@ test('initialization uses the public runtime and activates through the productio
   const connection = { origin: gateway.url, key, runtimeRoot };
   let state = await activateLocalBrain(connection, await inspectBrainFolder(root));
   assert.equal(state.profiles.length, 1); assert.equal(state.active.root, root);
+  assert.ok(state.starterPage);
+  const starterPath = path.join(root, state.starterPage.file);
+  const starter = await readFile(starterPath, 'utf8');
+  assert.match(starter, /attention_at: null/);
+  assert.deepEqual(starter.split(/^## /m).slice(1).map(section => (section.match(/^- \[ \]/gm) || []).length), [10, 5, 5]);
+  assert.equal(state.starterPage.scope, 'brain:' + JSON.stringify([state.activeId, 'local', root]));
   const config = await readFile(path.join(root, 'jumpybrain.json'), 'utf8');
   await writeFile(path.join(root, 'notes/keep.md'), '# Keep this');
   state = await activateLocalBrain(connection, await inspectBrainFolder(root));
   assert.equal(state.profiles.length, 1);
+  assert.equal(state.starterPage, undefined);
+  assert.equal(await readFile(starterPath, "utf8"), starter);
+  await rm(starterPath);
+  assert.equal((await activateLocalBrain(connection, await inspectBrainFolder(root))).starterPage, undefined);
+  await assert.rejects(readFile(starterPath), { code: "ENOENT" });
   assert.equal(await readFile(path.join(root, 'jumpybrain.json'), 'utf8'), config);
   assert.equal(await readFile(path.join(root, 'notes/keep.md'), 'utf8'), '# Keep this');
   // A live editor must acknowledge before a different root can become active.
@@ -75,4 +86,18 @@ test('changed folder and incompatible brain are refused without rewriting their 
   await assert.rejects(activateLocalBrain(connection, selected), /folder changed/);
   await assert.rejects(activateLocalBrain(connection, await inspectBrainFolder(root)));
   assert.equal(await readFile(path.join(root, 'jumpybrain.json'), 'utf8'), '{"schemaVersion":999}');
+});
+
+test('failed activation retries reuse the starter without creating duplicates', async (t) => {
+  const { root } = await fixture(t);
+  const connection = { runtimeRoot: fileURLToPath(new URL('..', import.meta.url)) };
+  await assert.rejects(activateLocalBrain(connection, await inspectBrainFolder(root), {
+    control: async () => { throw new Error('Save barrier refused'); },
+  }), /Save barrier/);
+  const before = await readFile(path.join(root, 'pages/today.md'), 'utf8');
+  const state = await activateLocalBrain(connection, await inspectBrainFolder(root), {
+    control: async () => ({ activeId: 'local', profiles: [{ id: 'local', kind: 'local', root }] }),
+  });
+  assert.ok(state.starterPage);
+  assert.equal(await readFile(path.join(root, 'pages/today.md'), 'utf8'), before);
 });
