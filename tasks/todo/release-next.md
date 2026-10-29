@@ -8,3 +8,5 @@
 - Added personal Kanban boards above notes in the Mac sidebar. Add existing or new pages, move cards, and settle boards; restore them from Settings → Boards. Board organization stays outside the Markdown vault.
 
 - Mac connection settings now use individual cards, clear Local/Remote and Active labels, and a compact + control with a matching add/edit form.
+
+- Add notes to boards directly from the note action card. Board columns now offer Add note with shared search and duplicate indicators.

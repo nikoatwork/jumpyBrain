@@ -450,6 +450,7 @@ export const notesViews = String.raw`
   <button id="copy-note-draft" class="quiet-button note-icon document-copy" type="button" aria-label="Copy" title="Copy" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg></button>
   <button id="delete-note" class="quiet-button note-icon document-delete-action" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div></div>
+      <button id="note-add-to-board" class="quiet-button" type="button" aria-haspopup="dialog" aria-controls="note-board-dialog" hidden>Add to board</button>
       <button id="toggle-page-details" class="quiet-button page-facts-toggle" type="button" aria-label="Saved version" aria-expanded="false" aria-controls="note-details-content"><span>Saved version</span><span class="details-chevron" aria-hidden="true">⌄</span></button>
       <div id="note-details-content" hidden>
       <section class="saved-version" aria-label="Saved version">

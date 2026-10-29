@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Add notes to boards
+
+- Added board/column selection to the note action card and shared-search Add note controls on boards. [Verification](done/2026-10-29_tasks-note-board-actions.md).
+
 ## 2026-10-29 — Connection settings cards
 
 - Redesigned Mac connections with individual cards and a compact + control. [Verification](done/2026-10-29_tasks-connection-settings-cards.md).

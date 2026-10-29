@@ -235,6 +235,7 @@ function companionLock(value) {
   // Healthy polls still sync permissions, but must not dismiss live interactions.
   if (enteringFrozen) {
     $("board-dialog")?.close();
+    $("note-board-dialog")?.close();
     feedback.close(false);
     documentActions.close();
     cancelReferenceInteraction();
