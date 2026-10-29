@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — CLI feedback and release inbox review
+
+- Agents can send explicit text feedback through the UI support relay, preview it and receive delivery receipts. Release preparation now includes live feedback triage. [Verification](done/2026-10-29_tasks-cli-feedback.md).
+
 ## 2026-10-29 — Right-aligned page actions
 
 - Tucked page actions against the right edge, integrated Add to board, and corrected shared hover geometry across page, history and board controls. [Verification](done/2026-10-29_tasks-page-actions-hover.md).

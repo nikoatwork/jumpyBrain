@@ -1,5 +1,7 @@
 # Changes
 
+- Agents can send feedback directly with `jumpybrain feedback`, including stdin, a dry-run preview and JSON delivery receipts. Agent guidance explains reporting bugs; release preparation includes a live feedback review.
+
 - A collaborative sidebar keeps pins first, shows human/agent last-editor icons, refreshes changed/new pages automatically, and tucks settled pages into a collapsed section. Editing a settled page brings it back to Attention. Clearer titles, quieter previews and compact ages such as `1d` make rows easier to scan.
 
 - Start writing from a suggested local folder with one click. Simpler Mac onboarding also offers a secondary remote connection, optional folder help and clearer retry guidance.

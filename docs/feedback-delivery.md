@@ -4,6 +4,10 @@ Feedback has a message field, an **Include logs** checkbox with a short informat
 
 To query received feedback, follow [Check AgentMail feedback](check-feedback.md) for the read-only API command, ignored credential setup and test-message filtering.
 
+## CLI feedback
+
+Agents and terminal users can send the same fixed-recipient report with `jumpybrain feedback --message "..." --json`, or pipe text on stdin. `--dry-run` previews without network access. The CLI sends supplied text only, with no diagnostics or memory credentials, independently of the selected brain or app. See [CLI feedback](cli-commands.md#product-feedback) for authorization, limits, receipts and deliberate retries. Shared transport lives in `src/adapters/feedback/`; the existing HTTP-server export and packaged config path remain compatible.
+
 ## Deployment status
 
 The supported public endpoint is the [public demo](../README.md)'s `/support/feedback` route; `/support/health` reports relay readiness. The default URL is public package metadata (`jumpybrain.feedbackUrl` in `package.json`), so normal source builds and release packaging retain it without shell configuration. It contains no mail credentials. The proxy routes only those two support paths to the relay; the demo's memory app remains separate. The existing private relay hostname is retained for older configured clients.

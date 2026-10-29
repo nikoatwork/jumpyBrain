@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- `feedback.ts` handles explicit developer feedback before memory target policy/credentials. Strict args allow message or bounded stdin, dry-run, JSON, help and a UUID v4 for deliberate same-message retries. It sends no diagnostics and delegates to the shared feedback adapter. No memory root, app or API key is needed. Service acceptance is not inbox receipt; generic unconfirmed errors retain the report ID, never remote bodies, and no automatic retry runs.
+
 - `remember` and its recipe strictly parse creation flags, including `--date value`/`--date=value`, before credentials/stdin. Only tags may repeat; existing optional true/false dream spellings remain supported. Shared core validation rejects malformed evidence dates. Both transports receive the same draft.
 
 - Keep `src/cli.ts` as the executable shim; command dispatch lives in `src/cli/commands.ts` and `run` recipes live in `src/cli/recipes.ts`.

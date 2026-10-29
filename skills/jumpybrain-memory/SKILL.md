@@ -119,6 +119,17 @@ MD
 
 Show the written file path and ask if the user wants edits.
 
+## Send product feedback
+
+When the user authorizes reporting a bug, confusing behavior or a suggestion to jumpyBrain developers, use the CLI. Existing authorization is sufficient; ordinary memory work does not authorize external feedback.
+
+```bash
+__JUMPYBRAIN_CLI_COMMAND__ feedback --message "<version; reproduction; expected vs actual behavior>" --dry-run --json
+__JUMPYBRAIN_CLI_COMMAND__ feedback --message "<reviewed feedback>" --json
+```
+
+Omit `--message` to read piped text. The command sends only the supplied text (up to 4,000 characters) through the same support relay as the app, without automatic logs, memory content or credentials. No memory root, remote target, API key or running app is required. Remove private notes, transcripts, credentials and identifying paths yourself. `--dry-run` sends nothing. Success confirms service acceptance, not inbox receipt. Keep the text after unconfirmed delivery; never retry automatically. A deliberate retry of the same message can reuse the returned report ID with `--id <UUID-v4>`.
+
 ## Rules
 
 - Keep recall explicit and visible; do not silently inject memory.

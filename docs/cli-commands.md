@@ -42,11 +42,28 @@ The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local adv
 | `jumpybrain version` | Print the installed jumpyBrain version. |
 | `jumpybrain -v` | Print the installed jumpyBrain version. |
 | `jumpybrain instructions` | Print copyable instructions that tell coding agents when to recall, remember, and wrap up memory. |
+| `jumpybrain feedback [--message "..."] [--dry-run] [--id <UUID-v4>] [--json]` | Send explicit product feedback to the developers through the UI support relay, or preview it without sending. |
 | `jumpybrain agent-hint` | Alias for `jumpybrain instructions`. |
 | `jumpybrain doctor [--root <memory-root>] [--json] [--check]` | Inspect CLI, Node, QMD, root compatibility/readiness and optional integration file presence. `--check` exits 1 when a required check fails. |
 | `jumpybrain update [--dry-run] [--install-root <path>]` | For a standard paired Mac installation, prepare one published release through the running app (Restart there), or install app/runtime/CLI together and verify startup when the app is quit. CLI-only installs retain their recorded source/ref workflow; legacy standalone companions retain quit-before-update support. Custom/pinned paired policies require the app-only exception. `--dry-run` previews without changes. |
 | `jumpybrain serve --root <memory-root> --host <host> --port <port> [--api-key <key>] [--public-base-url <url>] [--init]` | Start a jumpyBrain HTTP server backed by a server-local Markdown memory root. Use `--init` to initialize the root before serving. |
 | `jumpybrain run memory:<recipe> ...` | Run a memory recipe command, usually from an agent integration or workspace-discovered memory root. See the `run memory:*` section below. |
+
+## Product feedback
+
+```sh
+jumpybrain feedback --message "Version X: command Y returned Z; expected W" --dry-run --json
+jumpybrain feedback --message "Version X: command Y returned Z; expected W" --json
+cat feedback.txt | jumpybrain feedback --json
+```
+
+`feedback` sends the supplied message to jumpyBrain developers through the [same support relay as the UI](feedback-delivery.md). It works without a memory root, memory-server API key, running app or healthy brain. It rejects memory target flags and never reads the device's memory access policy. `--message` takes precedence over stdin; otherwise stdin is required. Messages must be nonblank and at most 4,000 characters. All flags are strict and may appear only once; booleans take no value. Use `feedback --help` for short agent guidance.
+
+Only the text and a report ID are sent; diagnostics are always null. No automatic notes, transcripts, paths, environment details or logs are collected. Agents should send only with user authorization and include a sanitized version, reproduction, expected and actual behavior. Supplied text is not automatically redacted.
+
+`--dry-run` makes no network request and prints the report (`{dryRun:true,report}` with `--json`). Successful delivery exits 0 and returns `{accepted:true,id}` in JSON, meaning service acceptance, not verified inbox receipt. Delivery failures exit 1 and return `{accepted:false,id,error:{code,message}}`; `feedback_unconfirmed` may mean the server accepted the report but its response was lost. Input errors exit nonzero on stderr before sending. The CLI does not save drafts or automatically retry. Keep your text; for an intentional retry of the same report pass its returned `--id` and identical text. The relay passes that stable ID as the provider's idempotency key; do not reuse it for a different message.
+
+The bundled public endpoint and runtime `JUMPYBRAIN_FEEDBACK_URL` override are shared with the UI; an empty override disables delivery. Redirects are refused, requests time out after 15 seconds, and errors do not print remote bodies or credentials. Inbox reading remains the repository operator workflow in [checking feedback](check-feedback.md), not a public CLI capability.
 
 ## Desktop extensions
 

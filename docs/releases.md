@@ -12,6 +12,10 @@ Keep [the pending release note](../tasks/todo/release-next.md) short: a `# Chang
 
 Before publication, use the [local candidate workflow](local-dogfooding.md) to test the intended changes on the owner’s Mac with the real brain. Aim for about a day of normal use; the owner can choose a shorter window. Check `npm run dogfood:status`, compare its commit with the release snapshot, and record actual use, problems and untested changes. Elapsed hours alone are not a pass, and later behavior changes need another candidate or an explicit shorter-test decision. This is a human release guideline, not a hard 24-hour script gate.
 
+When asked to release, automatically perform the live inbox review below as part of preparation; no separate user reminder is needed. This is an agent workflow step, not a network call from `npm run release` or a requirement for end-user builds.
+
+Run `npm run --silent feedback:inbox` following [checking feedback](check-feedback.md) before choosing the release scope. Review genuine reports, excluding delivery tests; follow incomplete pagination and read selected full bodies when needed. Record `checkedAt`, the inspected window/completeness, sanitized actionable triage and deferred items in the release task. Check the full available inbox by default; if using `--since`, overlap the last documented successful review so delayed/untriaged reports are not silently skipped. A failed/auth-limited check is **unverified**, not “no feedback”: report the exact blocker and unresolved review in the release handoff. Do not copy private messages into Git or send replies/test messages.
+
 When asked to release:
 
 1. Check published releases with `gh release list --limit 10 --json tagName,publishedAt,isDraft,isPrerelease`. Count beta prereleases too, ignore drafts, and compare publication dates in Europe/Berlin. If one shipped today, keep accumulating unless the user explicitly overrides the daily limit.

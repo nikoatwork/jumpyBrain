@@ -3,6 +3,7 @@ export function usage(): string {
     "Usage:",
     "  jumpybrain --version",
     "  jumpybrain instructions",
+    '  jumpybrain feedback [--message "..."] [--dry-run] [--id <UUID-v4>] [--json]',
     "  jumpybrain extensions --help",
     "  jumpybrain doctor [--root <memory-root>] [--json] [--check]",
     "  jumpybrain update [--dry-run] [--install-root <path>]",

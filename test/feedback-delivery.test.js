@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
+import { readFileSync } from 'node:fs';
 import { createAgentMailSender, createFeedbackForwarder, createFeedbackHandler, validateFeedback } from '../dist/adapters/http-server/feedback-delivery.js';
 
 const report = { id: '12345678-1234-4234-8234-123456789abc', message: 'Feedback 🐐', diagnostics: '{"safe":true}' };
@@ -114,4 +115,27 @@ test('an empty runtime feedback URL disables delivery despite the bundled defaul
   const send = createFeedbackForwarder(undefined, async () => { called = true; return Response.json({ accepted: true, id: report.id }); });
   await assert.rejects(send(report), /feedback_unavailable/);
   assert.equal(called, false);
+});
+
+// Moving delivery out of the HTTP host must preserve its installed config lookup.
+test('shared forwarder still resolves the bundled configuration through the existing host export', async t => {
+  const previous = process.env.JUMPYBRAIN_FEEDBACK_URL;
+  t.after(() => {
+    if (previous === undefined) delete process.env.JUMPYBRAIN_FEEDBACK_URL;
+    else process.env.JUMPYBRAIN_FEEDBACK_URL = previous;
+  });
+  delete process.env.JUMPYBRAIN_FEEDBACK_URL;
+  const config = JSON.parse(readFileSync(new URL('../dist/adapters/http-server/feedback-config.json', import.meta.url), 'utf8'));
+  let destination;
+  const send = createFeedbackForwarder(undefined, async url => {
+    destination = url.href;
+    return Response.json({ accepted: true, id: report.id });
+  });
+  if (config.url) {
+    await send(report);
+    assert.equal(destination, new URL(config.url).href);
+  } else {
+    await assert.rejects(send(report), /feedback_unavailable/);
+    assert.equal(destination, undefined);
+  }
 });

@@ -2,6 +2,10 @@
 
 Use the AgentMail API for inbox checks. The operator command below is read-only and does not need browser automation or an installed AgentMail CLI.
 
+## Release preparation
+
+Every ship/release/new-version preparation includes this live read-only check before release scope is fixed; do not wait for a separate request to inspect feedback. Follow [the release review routine](releases.md#batch-release-routine) and record the checked time, window, pagination completeness and sanitized triage in the release task. No automatic reply, test submission or credential loading by product/release builds is implied.
+
 ## Credential setup
 
 The ignored repository-root `.env` holds the operator's AgentMail key. `scripts/check-feedback.mjs` accepts `AGENTMAIL_READ_API_KEY`, `AGENTMAIL_API_KEY`, or the existing `AGENTMAIL` variable, in that order. Existing environment variables take precedence over `.env`. Alternatively, use `--key-file /private/path/to/key`.

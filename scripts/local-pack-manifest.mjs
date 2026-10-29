@@ -113,6 +113,8 @@ export const requiredLocalPackFiles = Object.freeze([
   distFile("adapters", "http-server", "editor-LICENSES.txt"),
   distFile("adapters", "http-server", "feedback-config.json"),
   ...moduleFiles("adapters", "http-server", "feedback-delivery"),
+  ...moduleFiles("adapters", "feedback", "index"),
+  ...moduleFiles("cli", "feedback"),
   ...moduleFiles("adapters", "http-server", "auto-index"),
   ...moduleFiles("adapters", "http-server", "state"),
   ...moduleFiles("adapters", "http-server", "idempotency"),

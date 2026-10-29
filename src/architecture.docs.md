@@ -64,6 +64,10 @@ core canonical link extraction, normalization, lookup, and target resolution
 
 Core owns link semantics but not graph presentation. App code assembles document nodes and edges, then removes local-root details for remote packets. Runtime exposes the local operation. The HTTP adapter owns query parsing, authentication, JSON responses, and the content-free browser shell at `/` and `/graph`, including framework-free search, locally bundled vanilla Lexical editing, and guarded navigation state that compose the existing search and document GET/PUT protocols. Browser editing must not move canonical Markdown, protected-frontmatter, or optimistic-concurrency policy out of core/app seams.
 
+## Feedback ownership
+
+`src/adapters/feedback/` owns shared support-report validation and delivery for the CLI and HTTP browser hosts. The CLI calls it without selecting a memory target; HTTP hosts retain their authentication/admission handler. No canonical memory or inbox-reading behavior enters this adapter. AgentMail credentials remain operator-side, and the existing packaged feedback-config path stays compatible.
+
 ## Boundary verification
 
 Support diagnostics use a browser-safe event schema and host persistence under `src/adapters/diagnostics/`; `src/app/diagnostics/` composes explicit bounded snapshot sources. HTTP/gateway hosts supply authenticated local scope. Core never imports diagnostics, and no public hosted raw-log transport is introduced.
