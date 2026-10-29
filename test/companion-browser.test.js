@@ -231,7 +231,7 @@ test("switch acknowledgement waits for saved reference creation and blocks uncon
 function interactionHarness() {
   const elements = new Map();
   const element = (id) => {
-    if (!elements.has(id)) elements.set(id, {});
+    if (!elements.has(id)) elements.set(id, id === "board-dialog" ? { open: false, close() { this.open = false; } } : {});
     return elements.get(id);
   };
   const calls = { references: 0, search: 0, dream: 0, sync: 0, barriers: [], replacements: [] };

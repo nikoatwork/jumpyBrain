@@ -1,3 +1,4 @@
+import { boardsStyles, boardsMarkup, boardsScript } from './boards-view.js';
 import { extensionSettingsMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { appearanceMarkup } from "./browser-appearance.js";
@@ -36,9 +37,11 @@ export const companionStyles = String.raw`
   @media (max-width: 680px) { #companion-settings .note-icon { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
   @media (max-width: 480px) { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
 ${settingsStyles}
+${boardsStyles}
 `;
 
 export const companionMarkup = String.raw`
+${boardsMarkup}
 <section id="companion-settings" aria-labelledby="companion-heading" hidden>
   <div class="companion-column">
     <header class="settings-heading companion-header">
@@ -46,6 +49,7 @@ export const companionMarkup = String.raw`
       <button id="companion-refresh-index" class="quiet-button note-icon" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
     </header>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
+    <section class="settings-panel settings-card" data-settings-panel="boards" hidden><div class="settings-row"><h2>Boards</h2><button id="settings-new-board" class="quiet-button">+ New board</button></div><div id="settings-boards-list"></div></section>
     <section id="settings-panel-brains" class="settings-panel settings-card" data-settings-panel="brains" aria-label="Brain connections">
     <ul id="companion-profiles" aria-label="Saved brains"></ul>
     <details id="companion-add" class="companion-add">
@@ -165,7 +169,7 @@ function companionScopeUrl(value) {
   const url = new URL(value, location.origin);
   if (url.origin !== location.origin) throw new Error("Invalid companion navigation.");
   const brain = url.searchParams.get("brain");
-  if (url.searchParams.has("note") && brain && brain !== companionState?.activeId) {
+  if ((url.searchParams.has("note") || url.searchParams.has("board")) && brain && brain !== companionState?.activeId) {
     throw new Error("This note belongs to another brain.");
   }
   if (companionState?.activeId) url.searchParams.set("brain", companionState.activeId);
@@ -218,6 +222,7 @@ function companionLock(value) {
   if (!value && state.editor?.state.navigationPending && !navigation.isBusy() && !documentActions.isBusy()) state.editor.setNavigationPending(false);
   // Healthy polls still sync permissions, but must not dismiss live interactions.
   if (enteringFrozen) {
+    $("board-dialog")?.close();
     feedback.close(false);
     documentActions.close();
     cancelReferenceInteraction();
@@ -301,7 +306,7 @@ function companionApplyState(next) {
 function companionInitialRoute() {
   companionRendered = true;
   const requested = new URL(location.href);
-  const mismatch = requested.searchParams.has("note") && requested.searchParams.get("brain") !== companionState.activeId;
+  const mismatch = (requested.searchParams.has("note") || requested.searchParams.has("board")) && requested.searchParams.get("brain") !== companionState.activeId;
   const url = mismatch ? companionScopeUrl("/") : companionScopeUrl(shellUrl());
   history.replaceState({ jumpyBrainIndex: 0 }, "", url);
   navigation.reset({ url, index: 0 });
@@ -312,12 +317,12 @@ async function companionBarrier(switchId) {
   // An already-started create/navigation/load must settle first. Never abandon
   // its result or acknowledge a lost-response idempotent capture.
   const deadline = Date.now() + 10000;
-  while (documentActions.isBusy() || creatingNote || navigation.isBusy() || companionNoteLoading || noteCapture.isInFlight()) {
+  while ((typeof boardsUI !== "undefined" && boardsUI.pending()) || documentActions.isBusy() || creatingNote || navigation.isBusy() || companionNoteLoading || noteCapture.isInFlight()) {
     if (companionState?.switchId !== switchId || companionState.phase !== "preparing") return;
     if (Date.now() >= deadline) break;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
-  let ok = !documentActions.isBusy() && !creatingNote && !navigation.isBusy() && !companionNoteLoading && !noteCapture.hasPending();
+  let ok = !(typeof boardsUI !== "undefined" && boardsUI.pending()) && !documentActions.isBusy() && !creatingNote && !navigation.isBusy() && !companionNoteLoading && !noteCapture.hasPending();
   if (ok && state.editor) {
     const editor = state.editor;
     editor.setNavigationPending(true);
@@ -620,5 +625,6 @@ window.addEventListener("pagehide", () => {
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) { companionStopped = false; companionLock(true); startCompanion(); }
 });
+${boardsScript}
 startCompanion();
 `;

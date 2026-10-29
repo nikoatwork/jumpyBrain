@@ -75,3 +75,7 @@ A stateless, bounded context request over inclusive UTC calendar dates. `--from`
 ## Source version check
 
 An explicit observational comparison of current canonical file bytes with a fingerprint stored in a claim-adjacent Markdown link title on a Dream page. Changed/missing/ambiguous/not-checked outcomes and partial coverage remain visible. Checked time is transient, distinct from synthesis/evidence dates and truth; no old bytes or multi-file snapshot are retained. See [living topic pages](docs/living-topic-pages.md).
+
+### Personal board
+
+An app-only collection of ordinary Markdown page IDs arranged into three named columns. Membership and positions belong to local application configuration, scoped to a brain connection; they do not change page metadata or memory retrieval. Settling a board archives it until restored from Settings → Boards.

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Personal boards
+
+- Added personal Kanban boards above sidebar notes, with Settle archiving and restoration in Settings. Organization stays outside Markdown. [Verification](done/2026-10-29_tasks-personal-boards.md).
+
 ## 2026-10-29 — Mac Settings indicator
 
 - Removed the duplicate Settings connection dot. [Verification](done/2026-10-29_tasks-mac-settings-indicator.md).

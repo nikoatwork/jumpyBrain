@@ -296,6 +296,7 @@ export const notesMarkup = String.raw`
     <button id="open-search" type="button" class="quiet-button nav-item" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Search</span></button>
   </div>
   <div class="nav-library" aria-label="Your pages">
+    <div id="board-navigation" hidden><button id="new-board" class="quiet-button">+ New board</button><ul id="sidebar-boards" aria-label="Boards"></ul></div>
     <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
     <ul id="sidebar-recent" aria-label="Notes needing attention"></ul>
     <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
@@ -1183,7 +1184,7 @@ function showPage(url) {
   if (typeof companionMode !== "undefined" && companionMode && !companionRegistered) return;
   if (typeof companionMode !== "undefined" && companionMode) {
     const requested = new URL(url, location.origin);
-    if (requested.searchParams.has("note") && requested.searchParams.get("brain") !== companionState.activeId) {
+    if ((requested.searchParams.has("note") || requested.searchParams.has("board")) && requested.searchParams.get("brain") !== companionState.activeId) {
       companionMessage("This note link belongs to another brain. Open a note from this brain instead.", true);
       url = companionScopeUrl("/");
       history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", url);
@@ -1201,7 +1202,8 @@ function showPage(url) {
   const target = new URL(url, location.origin);
   const documentId = target.searchParams.get("note");
   if (typeof companionMode !== "undefined" && companionMode && state.view === "settings" && !/^\/settings\/?$/.test(target.pathname)) companionClearForm();
-  state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
+  state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : companionMode && target.searchParams.has("board") ? "board" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
+  if (companionMode) { $("board-navigation").hidden=false; boardsUI.show(state.view === "board" ? target.searchParams.get("board") : null); }
   sidebarPages.select(documentId);
   document.body.dataset.view = state.view;
   if (companionMode) syncSettingsNavigation(url);
@@ -1232,6 +1234,8 @@ function showPage(url) {
     document.title = "Settings · jumpyBrain";
     renderCompanionSettings();
     $("companion-heading").focus();
+  } else if (state.view === "board") {
+    document.title = "Board · jumpyBrain";
   } else if (state.view === "graph") {
     if (!map.hasCurrentGraph()) loadGraph(); else queueGraphLayout(0, true);
     $("query").focus({ preventScroll: true });

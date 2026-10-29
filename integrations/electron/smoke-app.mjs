@@ -163,6 +163,18 @@ try {
   const cookies = await window.webContents.session.cookies.get({ url: config.origin });
   assert.ok(cookies.some((cookie) => cookie.httpOnly && cookie.sameSite === 'strict'));
   checks.push('existing UI and cookie handshake');
+  await js('document.getElementById("new-board").click()');
+  await until('document.getElementById("board-dialog").open');
+  await js('document.getElementById("board-dialog-input").value = "Desktop board"; document.getElementById("board-dialog-form").requestSubmit()');
+  await until('document.getElementById("board-title").textContent === "Desktop board"');
+  assert.equal(await js('document.querySelectorAll(".board-column").length'), 3);
+  await writeFile(config.screenshot.replace('welcome.png', 'board-native.png'), (await window.webContents.capturePage()).toPNG());
+  await js(`document.querySelector('[aria-label="Settle Desktop board"]').click()`);
+  await until(`!document.querySelector('#sidebar-boards [aria-label="Settle Desktop board"]')`);
+  await js('document.getElementById("notes-link").click()');
+  await until('document.body.dataset.view === "home"');
+  checks.push('native board creation, three columns, sidebar settle and guarded return');
+
 
   const prefs = window.webContents.getLastWebPreferences();
   assert.equal(prefs.nodeIntegration, false); assert.equal(prefs.contextIsolation, true); assert.equal(prefs.sandbox, true);

@@ -60,3 +60,7 @@ Let people and agents organize the same Markdown notes into useful lists and tab
 - `src/adapters/http-server/`, `integrations/macos-companion/` — thin routes, property/view UI and companion transport/save boundaries.
 - `test/canonical-document-update.test.js`, `test/markdown-properties.test.js`, `test/remote-access-policy.test.js`, `test/server-memory-app.test.js`, existing browser tests/smokes — extend relevant contracts rather than duplicating the implementation.
 - [Memory format](../../docs/memory-format.md), [CLI reference](../../docs/cli-commands.md), [shared protocol](../../docs/shared-memory-protocol.md) and `glossary.md` — supported behavior once implemented.
+
+## 2026-10-29 scope update
+
+The user prioritized narrow personal boards, tracked in [personal boards](../done/2026-10-29_tasks-personal-boards.md). This uses explicit page membership and app-only column positions, without Markdown properties or a query system. The broader property/list/table implementation remains deferred; it is not a dependency of boards.
