@@ -220,6 +220,23 @@ try {
   await until(`!!document.querySelector('a[href*="${config.id}"]')`);
   await js(`document.querySelector('a[href*="${config.id}"]').click()`);
   await until('!document.getElementById("note-editor").hidden && document.getElementById("note-editor").textContent.includes("Original fixture body.")');
+  // Automated native input can run while another app occludes the test window.
+  // Keep its animation-frame observers and smooth scroll clock advancing.
+  window.webContents.setBackgroundThrottling(false);
+  await until('!document.getElementById("note-outline").hidden && document.querySelectorAll(".note-outline-tick").length === 2');
+  await js('document.getElementById("note-outline-control").focus()');
+  // Let editor selection/focus reconciliation finish before native key input.
+  await js('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+  for (const keyCode of ['End', 'Return']) {
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode });
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode });
+  }
+  // Let native smooth scrolling settle before user-gesture renderer polling.
+  await pause(700);
+  await until('document.getElementById("note-panel").scrollTop > 0 && document.querySelector("#note-editor h2").getBoundingClientRect().bottom < document.getElementById("note-panel").getBoundingClientRect().bottom && document.querySelectorAll(".note-outline-tick")[1].dataset.current === "true"');
+  assert.match(await js('document.getElementById("note-outline-title").textContent'), /Next section/);
+  assert.equal(await readFile(existingNote, 'utf8'), existingBytes, 'section navigation never edits Markdown');
+  checks.push('heading rail keyboard navigation');
   const findItem = Menu.getApplicationMenu().items.find(item => item.label === 'Edit').submenu.items.find(item => item.label === 'Find in Note…');
   assert.equal(findItem.accelerator, 'CommandOrControl+F');
   findItem.click();

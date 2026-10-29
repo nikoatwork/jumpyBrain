@@ -506,6 +506,7 @@ test("all browser views share Ember surfaces and semantic controls", () => {
   }
   const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]));
   defined.add("--node-fill"); // Per-node inline override with a CSS fallback.
+  defined.add("--sidebar-width"); // Persisted inline resize override with a CSS fallback.
   for (const match of css.matchAll(/var\((--[\w-]+)/g)) {
     assert.ok(defined.has(match[1]), `undefined design token: ${match[1]}`);
   }

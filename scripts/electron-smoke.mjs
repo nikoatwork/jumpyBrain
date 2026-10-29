@@ -23,7 +23,7 @@ try {
   await createServerMemoryRuntime({ root }).initializeMemoryRoot();
   const id = 'mem_a0000000-0000-4000-8000-000000000001';
   const note = path.join(root, 'notes/electron-fixture.md');
-  await writeFile(note, `---\nid: ${id}\ntype: note\ntitle: Electron fixture\ncreated_at: 2026-10-16T10:00:00.000Z\n---\n\n# Desktop fixture\n\nOriginal fixture body.\n`);
+  await writeFile(note, `---\nid: ${id}\ntype: note\ntitle: Electron fixture\ncreated_at: 2026-10-16T10:00:00.000Z\n---\n\n# Desktop fixture\n\nOriginal fixture body.\n\n${'More context for a longer document.\n\n'.repeat(20)}## Next section\n\nA second destination.\n`);
   const controlKey = randomBytes(32).toString('hex');
   gateway = await startCompanionGateway({ runtimeRoot: repo, directory: support,
     initialRoot: root, port: 0, controlKey,

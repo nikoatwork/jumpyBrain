@@ -76,7 +76,7 @@ try {
   assert.equal(await page.locator('#insert-reference').innerText(), 'Link', 'linking stays directly reachable');
   assert.equal(await page.locator('#delete-note').isVisible(), true);
   assert.equal(await page.locator('#copy-note-draft').getAttribute('aria-label'), 'Copy');
-  assert.equal(await page.locator('#note-outline').count(), 0);
+  await page.locator('#note-outline-control').waitFor();
   assert.equal(await page.locator('#related-pages').evaluate(el => !el.closest('#page-details')), true);
   await page.evaluate(() => { window.fixtureEditorRoot = document.getElementById('note-editor'); });
   await page.locator('#toggle-page-details').click();

@@ -3,11 +3,13 @@ import { themeMarkup } from "./browser-theme.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
 import { referencePresentationStyles } from "./editor-reference-presentation.js";
 import { taskCompletionStyles } from "./editor-task-presentation.js";
+import { noteOutlineMarkup, noteOutlineStyles } from "./note-outline-view.js";
 
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
 export const notesStyles = String.raw`
 ${noteAttentionStyles}
+${noteOutlineStyles}
     #note-find { position: sticky; top: 8px; z-index: 3; display: flex; align-items: center; gap: 8px;
       padding: 6px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
     #note-find[hidden] { display: none; }
@@ -420,6 +422,7 @@ export const notesViews = String.raw`
     </section>
   </section>
   <section id="note-panel" data-testid="graph-note-panel" aria-label="Note editor" hidden>
+    ${noteOutlineMarkup}
     <div id="note-layout">
     <div class="note-column">
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
