@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Right-aligned page actions
+
+- Tucked page actions against the right edge, integrated Add to board, and corrected shared hover geometry across page, history and board controls. [Verification](done/2026-10-29_tasks-page-actions-hover.md).
+
 ## 2026-10-29 — Subtle search focus
 
 - Softened the search field focus ring across themes. [Verification](done/2026-10-29_tasks-search-focus.md).

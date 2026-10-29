@@ -1,7 +1,9 @@
 export const boardsStyles = String.raw`
-#board-navigation > button,.board-column-header button,.board-card > button,.board-add {background:transparent}
-.board-card > button {color:var(--ink);font-weight:500;padding:0;min-height:28px}
-.board-card-actions button,.board-card-actions select {min-height:24px;padding:2px 6px}
+#board-navigation > button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
+.board-card > button {color:var(--ink);font-weight:var(--weight-regular);padding:var(--space-2) var(--space-3);min-height:var(--control-height)}
+.board-card-actions button,.board-card-actions select {min-height:var(--control-compact);padding:var(--space-1) var(--space-2)}
+#sidebar-boards .sidebar-page > button {background:transparent}
+#sidebar-boards .sidebar-page-link {display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
 #sidebar-boards .sidebar-page > button:last-child {opacity:0}
 #sidebar-boards .sidebar-page:hover > button:last-child,#sidebar-boards .sidebar-page:focus-within > button:last-child {opacity:1}
 #boards-view { padding: var(--space-6); overflow:auto; width:100%; }
@@ -18,7 +20,7 @@ export const boardsStyles = String.raw`
 .board-column-header button {font-weight:600;flex:1;text-align:left}
 .board-card {padding:12px;margin-bottom:8px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);box-shadow:0 1px 2px #00000008}
 .board-card > button {text-align:left;width:100%;line-height:1.5;overflow-wrap:anywhere}
-.board-card-actions {display:flex;gap:4px;margin-top:8px;opacity:0}
+.board-card-actions {display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;opacity:0}
 .board-card:hover .board-card-actions,.board-card:focus-within .board-card-actions {opacity:1}
 .board-card-actions select {max-width:140px;font-size:var(--text-caption)}
 .board-card-actions button {font-size:var(--text-caption)}
@@ -30,11 +32,10 @@ export const boardsStyles = String.raw`
 #board-dialog-results {max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:4px}
 #board-dialog-results button {text-align:left}
 #board-dialog footer, #note-board-dialog footer {display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
-#note-add-to-board {align-self:flex-end;margin-top:8px}
 #note-board-dialog label {display:grid;gap:6px;margin:14px 0}
 #note-board-dialog select {width:100%;max-width:100%}
 #board-notice {color:var(--ink-soft);font-size:var(--text-caption)}
-@media(max-width:680px){.board-columns{grid-template-columns:1fr}.board-card-actions{opacity:1}}
+@media(max-width:680px){#boards-view{--control-compact:var(--control-touch);--control-height:var(--control-touch)}.board-columns{grid-template-columns:1fr}.board-card-actions{opacity:1}}
 `;
 export const boardsMarkup = String.raw`
 <section id="boards-view" hidden aria-label="Board"><header class="board-header"><h1 id="board-title"></h1><button class="quiet-button" id="board-rename">Rename</button></header><p id="board-notice" role="status"></p><div id="board-columns" class="board-columns"></div></section>
