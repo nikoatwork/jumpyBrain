@@ -26,7 +26,7 @@ export const companionStyles = String.raw`
   #companion-form input:not([type=checkbox]) { display: block; }
   #companion-form input[type=checkbox] { height: auto; }
   #companion-form-error { color: var(--error-ink); }
-  #companion-active { display: grid; flex: 0 0 100%; min-width: 0; grid-template-columns: 6px minmax(0, 1fr); align-items: center; column-gap: var(--space-2); padding: var(--space-1) var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
+  #companion-active { display: grid; grid-column: 1 / -1; min-width: 0; grid-template-columns: 6px minmax(0, 1fr); align-items: center; column-gap: var(--space-2); padding: var(--space-1) var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
   #companion-active > .connection-dot { grid-column: 1; grid-row: 1; }
   #companion-active > :not(.connection-dot) { grid-column: 2; }
   @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
