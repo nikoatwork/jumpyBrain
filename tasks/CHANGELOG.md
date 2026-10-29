@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Pride theme
+
+- Added a light/dark Pride theme with rainbow accents and graph colours. [Verification](done/2026-10-29_tasks-pride-theme.md).
+
 ## 2026-10-29 — Lean distribution and dependency maintenance
 
 - Cut the CLI/source download by roughly 61%, enforce package budgets, and patch Electron's compromised-certificate handling. [Measurements and limits](../docs/build-footprint.md).

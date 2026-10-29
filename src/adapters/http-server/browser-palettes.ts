@@ -48,6 +48,30 @@ export const builtInPalettes = {
       backdrop: "rgba(0, 0, 0, .55)", "shadow-sm": "0 1px 3px rgba(0, 0, 0, .2)", "shadow-lg": "0 16px 48px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .2)",
     },
   },
+  pride: {
+    light: {
+      ink: "#161616", "ink-soft": "#505050", "ink-faint": "#5b5b5b",
+      surface: "#ffffff", "control-fill": "#f2f2f2", "surface-hover": "#e8e8e8",
+      "focus-ring": "#753bb4", accent: "#753bb4", "selection-fill": "#753bb433",
+      "status-connected": "#6b6b6b", "error-ink": "#305237", "error-fill": "#ededed", "error-line": "#9047b5",
+      line: "#a6dfb4", "line-strong": "#b8b8b8", edge: "#626262", "edge-link": "#9047b5", "edge-end": "#515151",
+      "node-page": "#3065b5", "node-decision": "#8a6900", "node-finding": "#9047b5", "node-preference": "#ba354b",
+      "node-session": "#278044", "node-note": "#305237", "node-unresolved": "#bb591a",
+      "edge-shadow": "#161616", "edge-highlight": "#ffffff", "node-light": "#ffffff", "node-shade": "#161616",
+      backdrop: "rgba(0, 0, 0, .24)", "shadow-sm": "0 1px 3px rgba(0, 0, 0, .08)", "shadow-lg": "0 16px 48px rgba(0, 0, 0, .16), 0 2px 8px rgba(0, 0, 0, .08)",
+    },
+    dark: {
+      ink: "#eeeeee", "ink-soft": "#bdbdbd", "ink-faint": "#ababab",
+      surface: "#101010", "control-fill": "#1c1c1c", "surface-hover": "#292929",
+      "focus-ring": "#d5a5ff", accent: "#d5a5ff", "selection-fill": "#d5a5ff40",
+      "status-connected": "#b8b8b8", "error-ink": "#e0e0e0", "error-fill": "#242424", "error-line": "#bb591a",
+      line: "#373737", "line-strong": "#555555", edge: "#a3a3a3", "edge-link": "#b8b8b8", "edge-end": "#8f8f8f",
+      "node-page": "#80b5ff", "node-decision": "#f2cf65", "node-finding": "#bb591a", "node-preference": "#ff8e9a",
+      "node-session": "#84d29a", "node-note": "#a6dfb4", "node-unresolved": "#9047b5",
+      "edge-shadow": "#080808", "edge-highlight": "#eeeeee", "node-light": "#eeeeee", "node-shade": "#080808",
+      backdrop: "rgba(0, 0, 0, .55)", "shadow-sm": "0 1px 3px rgba(0, 0, 0, .2)", "shadow-lg": "0 16px 48px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .2)",
+    },
+  },
 } as const;
 
 export const paletteStyles = Object.entries(builtInPalettes).flatMap(([name, modes]) =>

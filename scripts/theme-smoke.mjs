@@ -83,7 +83,7 @@ try {
   const chromium = await loadPlaywrightChromium();
   browser = await launchPlaywrightChromium({ chromium });
   for (const width of [1280, 390, 320]) {
-    for (const paletteName of ["ember", "ocean", "mono"]) for (const scheme of ["light", "dark"]) {
+    for (const paletteName of ["ember", "ocean", "mono", "pride"]) for (const scheme of ["light", "dark"]) {
       await writeFile(path.join(root, "notes/theme.md"), originalNote);
       const context = await browser.newContext({ viewport: { width, height: 850 }, colorScheme: scheme });
       await context.addInitScript(name => { if (name !== "ember") localStorage.setItem("jumpybrain.palette", name); }, paletteName);
@@ -180,7 +180,7 @@ try {
   await assertPalette(page, "light");
   await context.close();
   assert.deepEqual(errors, []);
-  console.log("All-theme browser smoke: PASS (3 palettes × 2 schemes × 3 widths; Home/note/search/feedback/map, OS/manual/reload/cross-tab/storage/draft/caret/contrast surfaces)");
+  console.log("All-theme browser smoke: PASS (4 palettes × 2 schemes × 3 widths; Home/note/search/feedback/map, OS/manual/reload/cross-tab/storage/draft/caret/contrast surfaces)");
 } finally {
   if (browser) await browser.close();
   if (server) await server.close();

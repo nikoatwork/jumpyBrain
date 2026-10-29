@@ -249,7 +249,7 @@ try {
         assert.equal(await settings.locator(`[data-settings-section="${section}"]`).getAttribute("aria-current"), "page");
         assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, section + " " + width + " overflow");
         if (section === "appearance") {
-          for (const palette of ["Ember", "Ocean", "Mono"]) {
+          for (const palette of ["Ember", "Ocean", "Mono", "Pride"]) {
             await settings.getByRole("radio", { name: palette, exact: true }).check();
             assert.equal(await settings.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, palette + " appearance overflow");
             if (screenshotDir) await settings.screenshot({ path: path.join(screenshotDir, `appearance-${palette}-${theme}-${width}.png`), fullPage: true, animations: "disabled" });

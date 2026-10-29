@@ -172,3 +172,18 @@ test("Mono uses neutral grayscale across UI, status and graph colors", () => {
     }
   }
 });
+
+ test("Pride persists independently and synchronizes across tabs", () => {
+  const h = harness({ palette: "pride", stored: "dark" });
+  assert.equal(h.root.dataset.palette, "pride");
+  h.choose("light");
+  assert.equal(h.root.dataset.palette, "pride");
+  h.palette("pride");
+  assert.equal(h.values.get("jumpybrain.palette"), "pride");
+  h.storage("jumpybrain.palette", "mono");
+  h.storage("jumpybrain.palette", "pride");
+  assert.equal(h.root.dataset.palette, "pride");
+  const blocked = harness({ blocked: true });
+  blocked.palette("pride");
+  assert.equal(blocked.root.dataset.palette, "pride");
+});
