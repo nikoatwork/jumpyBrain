@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/jumpyBrain.png" alt="jumpyBrain logo" width="180" />
+  <img src="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/docs/assets/jumpyBrain.png" alt="jumpyBrain logo" width="180" />
 </p>
 
 <h1 align="center">Good thoughts deserve a home.</h1>
@@ -35,8 +35,8 @@ It's for people who think with agents, builders who switch between tools, and te
 Open a note and start writing. Format as you go, connect ideas with `[[page references]]`, and let your changes save automatically to Markdown. A quiet editor, light and dark themes, and room for a thought to develop.
 
 <p align="center">
-  <a href="docs/assets/jumpybrain-writing.webp">
-    <img src="docs/assets/jumpybrain-writing.webp" alt="The jumpyBrain editor with spacious serif typography, a quiet formatting toolbar, and linked notes about engineering culture and product strategy" width="100%" />
+  <a href="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/docs/assets/jumpybrain-writing.webp">
+    <img src="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/docs/assets/jumpybrain-writing.webp" alt="The jumpyBrain editor with spacious serif typography, a quiet formatting toolbar, and linked notes about engineering culture and product strategy" width="100%" />
   </a>
 </p>
 
@@ -70,7 +70,7 @@ Follow a connection from a decision to the research behind it, or from a meeting
 
 <p align="center">
   <a href="https://demojumpybrain.juttu.co/graph">
-    <img src="docs/assets/jumpybrain-memory-map.webp" alt="The jumpyBrain memory map with softly shaded colored nodes and connecting strands linking a fictional team's strategy, engineering culture, and weekly reflections" width="100%" />
+    <img src="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/docs/assets/jumpybrain-memory-map.webp" alt="The jumpyBrain memory map with softly shaded colored nodes and connecting strands linking a fictional team's strategy, engineering culture, and weekly reflections" width="100%" />
   </a>
 </p>
 

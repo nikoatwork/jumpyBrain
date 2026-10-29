@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { forbiddenLocalPackFiles, forbiddenLocalPackPathPrefixes, requiredLocalPackFiles, validateLocalPackFiles } from "./local-pack-manifest.mjs";
 import { validatePackFeedbackConfig } from './feedback-config.mjs';
+import { validatePackageBudget } from './package-budget.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(repoRoot, ".local-pack");
@@ -20,6 +21,7 @@ const tarballName = packInfo.filename;
 const tarballPath = path.join(outDir, tarballName);
 const tarballFiles = listTarballFiles(tarballPath);
 validateLocalPackFiles(tarballFiles);
+const footprint = validatePackageBudget(packInfo);
 const feedbackConfig = JSON.parse(run('tar', ['-xOf', tarballPath, 'package/dist/adapters/http-server/feedback-config.json'], { capture: true }).stdout);
 const feedback = validatePackFeedbackConfig(feedbackConfig, pkg);
 
@@ -35,13 +37,15 @@ const metadata = {
   forbiddenFilesChecked: forbiddenLocalPackFiles,
   forbiddenPathPrefixesChecked: forbiddenLocalPackPathPrefixes,
   feedbackConfigured: feedback.configured,
+  footprint,
 };
 
 await writeFile(path.join(outDir, "latest.json"), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
 
 console.log(`Packed ${pkg.name}@${pkg.version}`);
 console.log(tarballPath);
-console.log(`Verified ${requiredLocalPackFiles.length} required CLI/runtime files and rejected stale old-architecture paths.`);
+console.log(`Verified ${requiredLocalPackFiles.length} required CLI/runtime files and rejected forbidden files.`);
+console.log(`Footprint: ${footprint.archiveBytes} bytes packed, ${footprint.unpackedBytes} bytes unpacked, ${footprint.runtimeBytes} runtime bytes (${footprint.files} files).`);
 console.log(`Install with: ${metadata.installCommand}`);
 
 function parsePackInfo(stdout) {

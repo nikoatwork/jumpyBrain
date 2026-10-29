@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Lean distribution and dependency maintenance
+
+- Cut the CLI/source download by roughly 61%, enforce package budgets, and patch Electron's compromised-certificate handling. [Measurements and limits](../docs/build-footprint.md).
+
 ## 2026-10-29 — Constraint and range-read decisions
 
 - Retained production after natural-question classification exceeded the context cap and cited-range reads lost source qualifications. [Results](../evals/workspace-retrieval/reports/2026-10-29-constraints-ranges-v7.md).

@@ -1,0 +1,14 @@
+# Keep the local-state exclusions when overriding .gitignore for npm packing.
+.build/
+*.app/
+Configuration.json
+__pycache__/
+.DS_Store
+api-key
+*.log
+*.log.*
+.env
+.env.*
+# Developer-only validation never runs in an installed runtime.
+test_*.py
+smoke*.py

@@ -79,7 +79,7 @@ test("local pack validation reports missing and stale pre-refactor files", () =>
   const stalePackedFile = packed("qmd", "index.js");
   assert.throws(
     () => validateLocalPackFiles([...requiredLocalPackFiles, stalePackedFile]),
-    new RegExp(`Stale pre-refactor files must not be packed:\\n- ${stalePackedFile.replaceAll("/", "\\/").replaceAll(".", "\\.")}`),
+    new RegExp(`Forbidden files must not be packed:\\n- ${stalePackedFile.replaceAll("/", "\\/").replaceAll(".", "\\.")}`),
   );
 
   assert.match(

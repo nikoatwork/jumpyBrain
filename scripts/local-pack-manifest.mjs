@@ -141,11 +141,13 @@ export const requiredLocalPackFiles = Object.freeze([
 const staleTopLevelDistDirs = ["canonical", "setup", "retrieval", "processing", "writing", "qmd", "client", "logging"];
 const staleServerProtocolModules = ["http", "auto-index", "idempotency", "state"];
 
-export const forbiddenLocalPackPathPrefixes = Object.freeze([...staleTopLevelDistDirs.map((dir) => distDirPrefix(dir)), 'package/integrations/electron/node_modules/', 'package/evals/']);
+export const forbiddenLocalPackPathPrefixes = Object.freeze([...staleTopLevelDistDirs.map((dir) => distDirPrefix(dir)), 'package/integrations/electron/node_modules/', 'package/evals/', 'package/docs/assets/',
+  'package/integrations/macos-companion/.build/', 'package/integrations/macos-companion/__pycache__/']);
 
 export const forbiddenLocalPackFiles = Object.freeze([
   ...moduleFiles("package-info"),
   ...staleServerProtocolModules.flatMap((name) => moduleFiles("server", name)),
+  ...['test_update.py', 'test_connections_native.py', 'smoke.py', 'smoke_menu_update.py'].map(file => `package/integrations/macos-companion/${file}`),
 ]);
 
 export function validateLocalPackFiles(files) {
@@ -168,7 +170,7 @@ export function localPackValidationMessage({ missing = [], stale = [] }) {
     lines.push("Missing required files:", ...missing.map((file) => `- ${file}`));
   }
   if (stale.length > 0) {
-    lines.push("Stale pre-refactor files must not be packed:", ...stale.map((file) => `- ${file}`));
+    lines.push("Forbidden files must not be packed:", ...stale.map((file) => `- ${file}`));
   }
   return lines.join("\n");
 }

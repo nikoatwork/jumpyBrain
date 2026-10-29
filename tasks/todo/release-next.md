@@ -1,5 +1,7 @@
 # Changes
 
+- Reduced the CLI/source download by roughly 61% by excluding documentation artwork and native test scripts, added package size regression checks, and updated Electron to 44.10.0 with the compromised-certificate security fix.
+
 - Checking a task gives a subtle completion sweep, then keeps a filled tick and fine success baseline across every theme, with Reduced Motion support.
 
 - Lexical search and recall use canonical titles, aliases and tags to find more source pages for named topics in multi-part questions.
