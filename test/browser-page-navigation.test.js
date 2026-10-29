@@ -87,13 +87,13 @@ test("unchanged renames skip persistence and notification but still observe newe
   assert.deepEqual(h.history.snapshot().recent, [page(2), page(1, "Renamed")]);
 });
 
-test("sidebar edit ages read as explicit relative forms with exact tooltips", () => {
+test("sidebar edit ages use compact units with exact tooltips", () => {
   const now = new Date(2026, 9, 25, 12);
-  assert.equal(sidebarPageAge({ updatedAt: "2026-10-22" }, now).label, "3d ago");
+  assert.equal(sidebarPageAge({ updatedAt: "2026-10-22" }, now).label, "3d");
   assert.equal(sidebarPageAge({ updatedAt: "2026-10-28" }, now).label, "in 3d");
   assert.equal(sidebarPageAge({ updatedAt: "2026-10-25" }, now).label, "Today");
-  assert.equal(sidebarPageAge({ updatedAt: new Date(now.getTime() - 5 * 60000).toISOString() }, now).label, "5m ago");
-  assert.equal(sidebarPageAge({ updatedAt: new Date(now.getTime() - 3 * 3600000).toISOString() }, now).label, "3h ago");
+  assert.equal(sidebarPageAge({ updatedAt: new Date(now.getTime() - 5 * 60000).toISOString() }, now).label, "5m");
+  assert.equal(sidebarPageAge({ updatedAt: new Date(now.getTime() - 3 * 3600000).toISOString() }, now).label, "3h");
   assert.equal(sidebarPageAge({ updatedAt: new Date(now.getTime() + 2 * 60000).toISOString() }, now).label, "in 2m");
   assert.equal(sidebarPageAge({ updatedAt: new Date(now.getTime() - 20000).toISOString() }, now).label, "now");
   assert.equal(sidebarPageAge({}, now).label, "");
@@ -103,10 +103,10 @@ test("sidebar edit ages read as explicit relative forms with exact tooltips", ()
 
 test("explicit attention due times label the sidebar row instead of the edit age", () => {
   const now = new Date(2026, 9, 25, 12);
-  assert.equal(sidebarPageAge({ updatedAt: "2026-10-01", attentionAt: new Date(now.getTime() - 2 * 3600000).toISOString() }, now).label, "due 2h ago");
+  assert.equal(sidebarPageAge({ updatedAt: "2026-10-01", attentionAt: new Date(now.getTime() - 2 * 3600000).toISOString() }, now).label, "due 2h");
   assert.equal(sidebarPageAge({ attentionAt: new Date(now.getTime() - 20000).toISOString() }, now).label, "due now");
   assert.equal(sidebarPageAge({ attentionAt: new Date(now.getTime() + 10 * 60000).toISOString() }, now).label, "due in 10m");
-  assert.equal(sidebarPageAge({ attentionAt: "2026-10-23" }, now).label, "due 2d ago");
+  assert.equal(sidebarPageAge({ attentionAt: "2026-10-23" }, now).label, "due 2d");
   assert.equal(sidebarPageAge({ attentionAt: "2026-10-26" }, now).label, "due in 1d");
   assert.equal(sidebarPageAge({ attentionAt: "2026-10-25" }, now).label, "due today");
   assert.match(sidebarPageAge({ attentionAt: "2026-10-23" }, now).details, /^Due /);
@@ -114,14 +114,14 @@ test("explicit attention due times label the sidebar row instead of the edit age
 
 test("invalid or absent attention times fall back to the edit age", () => {
   const now = new Date(2026, 9, 25, 12);
-  assert.equal(sidebarPageAge({ attentionAt: "2026-02-30", updatedAt: "2026-10-22" }, now).label, "3d ago");
-  assert.equal(sidebarPageAge({ attentionAt: "not a date", updatedAt: "2026-10-22" }, now).label, "3d ago");
+  assert.equal(sidebarPageAge({ attentionAt: "2026-02-30", updatedAt: "2026-10-22" }, now).label, "3d");
+  assert.equal(sidebarPageAge({ attentionAt: "not a date", updatedAt: "2026-10-22" }, now).label, "3d");
   assert.match(sidebarPageAge({ attentionAt: "2026-02-30", updatedAt: "2026-10-22" }, now).details, /^Last edited /);
 });
 
 test("recency-derived attention times keep the edit age, not a due label", () => {
   const now = new Date(2026, 9, 25, 12);
-  assert.equal(sidebarPageAge({ updatedAt: "2026-10-22", attentionAt: "2026-10-22" }, now).label, "3d ago");
+  assert.equal(sidebarPageAge({ updatedAt: "2026-10-22", attentionAt: "2026-10-22" }, now).label, "3d");
   assert.match(sidebarPageAge({ updatedAt: "2026-10-22", attentionAt: "2026-10-22" }, now).details, /^Last edited /);
   assert.equal(sidebarPageAge({ createdAt: "2026-10-20", attentionAt: "2026-10-20" }, now).label, "", "creation recency still shows no edit age");
 });

@@ -22,17 +22,17 @@ export function sidebarPageAge(page: { updatedAt?: string; createdAt?: string; a
     let label = "";
     if (due.length === 10) {
       const days = Math.round((Date.parse(recognitionDay(now.toISOString(), timeZone)!) - Date.parse(recognitionDay(due, timeZone)!)) / 86400000);
-      label = days > 0 ? `due ${days}d ago` : days < 0 ? `due in ${-days}d` : "due today";
+      label = days > 0 ? `due ${days}d` : days < 0 ? `due in ${-days}d` : "due today";
     } else {
       const minutes = Math.floor((now.getTime() - Date.parse(due)) / 60000);
       const age = Math.abs(minutes);
       const span = age < 60 ? `${age}m` : age < 1440 ? `${Math.floor(age / 60)}h` : `${Math.floor(age / 1440)}d`;
-      label = age < 1 ? "due now" : minutes < 0 ? `due in ${span}` : `due ${span} ago`;
+      label = age < 1 ? "due now" : minutes < 0 ? `due in ${span}` : `due ${span}`;
     }
     return { label, details: "Due " + exact(due) };
   }
   const edited = resultEditContext({ metadataStatus: "current", updatedAt: page.updatedAt }, now);
-  return { label: edited.label.replace(/^(?:\d+m|\d+h|\d+d)$/, "$& ago"), details: edited.details };
+  return edited;
 }
 
 // Device-local navigation metadata, never canonical memory or an access credential.

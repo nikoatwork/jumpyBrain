@@ -73,9 +73,9 @@ ${noteOutlineStyles}
     .sidebar-page-link { display: grid; grid-template-columns: var(--icon-size) minmax(0, 1fr) auto; gap: var(--space-1) var(--space-2); padding-block: var(--space-2); }
     .sidebar-page-editor { grid-column: 1; grid-row: 1; display: flex; color: var(--ink-soft); }
     .sidebar-page-editor svg { width: var(--icon-size); height: var(--icon-size); }
-    .sidebar-page-title { grid-column: 2; grid-row: 1; }
-    .sidebar-page-preview { grid-row: 2; grid-column: 2 / -1; color: var(--ink-soft); font-size: var(--text-caption); }
-    .sidebar-page-age { grid-column: 3; grid-row: 1; font-size: var(--text-caption); color: var(--ink-soft); }
+    .sidebar-page-title { grid-column: 2; grid-row: 1; color: var(--ink); font-weight: var(--weight-semibold); }
+    .sidebar-page-preview { grid-row: 2; grid-column: 2 / -1; color: var(--ink-faint); font-size: var(--text-caption); }
+    .sidebar-page-age { grid-column: 3; grid-row: 1; font-size: var(--text-caption); color: var(--ink-faint); }
     .sidebar-page { position: relative; }
     .sidebar-page .sidebar-page-actions { position: absolute; right: 0; bottom: 2px; background: var(--surface); opacity: 0; pointer-events: none; border-radius: var(--radius-sm); }
     .sidebar-page:hover .sidebar-page-actions, .sidebar-page:focus-within .sidebar-page-actions { opacity: 1; pointer-events: auto; }
