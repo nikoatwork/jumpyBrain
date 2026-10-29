@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — v0.3.12 beta released
+
+- Published themes, note/navigation improvements, lexical discovery, update controls and leaner packaging. [Exact notes](done/releases/v0.3.12.md); [verification and limits](done/releases/v0.3.12.qa.md).
+
 ## 2026-10-29 — Pastel Pride sidebar
 
 - Applied selected concept A: rainbow sidebar wash and a calm lavender editor in light/dark modes, replacing the top stripe. [Verification](done/2026-10-29_tasks-pride-pastel-sidebar.md).
