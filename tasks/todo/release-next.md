@@ -1,5 +1,7 @@
 # Changes
 
+- Checking a task gives a subtle completion sweep, then keeps a filled tick and fine success baseline across every theme, with Reduced Motion support.
+
 - Lexical search and recall use canonical titles, aliases and tags to find more source pages for named topics in multi-part questions.
 
 - Notes open on a quieter writing surface with folded formatting, a direct Link action and a section count beside Page details. Labeled draft copying, section navigation, related pages and saved-version facts stay reachable; Delete stays out of the writing path and empty pages offer a writing hint.

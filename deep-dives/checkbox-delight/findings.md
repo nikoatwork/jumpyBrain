@@ -1,7 +1,9 @@
 # Checkbox completion delight
 
 Completed visual exploration, 2026-10-29. Three subagents independently produced
-the CSS variants. No variant is selected or installed in the production editor.
+the CSS variants. The user subsequently selected variant 3, Quiet sweep, for
+production integration; see the [implementation task](../../tasks/done/2026-10-29_tasks-checkbox-quiet-sweep.md).
+The results and limits below describe the original exploration snapshot.
 
 | Variant | Completion moment | Persistent success |
 | --- | --- | --- |

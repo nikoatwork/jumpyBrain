@@ -2,6 +2,7 @@ import { browserIcons } from "./browser-icons.js";
 import { themeMarkup } from "./browser-theme.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
 import { referencePresentationStyles } from "./editor-reference-presentation.js";
+import { taskCompletionStyles } from "./editor-task-presentation.js";
 
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
@@ -129,9 +130,8 @@ ${noteAttentionStyles}
     #note-editor .markdown-task { display: flex; align-items: baseline; gap: var(--space-2); }
     .markdown-task > span { min-width: 0; flex: 1; }
     .markdown-task > button { flex: 0 0 var(--space-6); width: var(--space-6); height: var(--space-6); min-height: 0; display: inline-grid; place-items: center; font: var(--text-ui)/1 var(--font-ui); align-self: flex-start; margin-top: .35em; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
-    .markdown-task > button[aria-checked="true"] { background: var(--control-fill); }
-    .markdown-task > button[aria-checked="true"]::after { content: "✓"; }
     .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+${taskCompletionStyles}
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
     .markdown-reference[data-page-reference="true"]:hover { background: var(--surface-hover); }
 ${referencePresentationStyles}

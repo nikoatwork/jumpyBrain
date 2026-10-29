@@ -18,6 +18,7 @@ import { codeFence, exportCodeFence, inlineCodeRanges, markdownTable, taskMarker
 import { FencedCodeMarkdownNode, TableMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
 import { installSlashCommands } from "./editor-slash-commands.js";
 import { installReferencePresentation } from "./editor-reference-presentation.js";
+import { createTaskCompletionFeedback } from "./editor-task-presentation.js";
 
 import { referenceRanges, safeTitle } from "./reference-ranges.js";
 import { completedReferenceTitles } from "./reference-creation.js";
@@ -186,6 +187,8 @@ export function createNoteEditor(element: HTMLElement, options: {
   editor.setRootElement(element);
   const history = createEmptyHistoryState();
   const cleanups = [registerRichText(editor), registerHistory(editor, history, 300)];
+  const taskFeedback = createTaskCompletionFeedback(element);
+  cleanups.push(() => taskFeedback.clear());
   cleanups.push(installReferencePresentation(editor, element));
   // Lexical's shortcut plugin intentionally skips code-formatted leaves. Use
   // that guard for literal Markdown, including newly split/pasted text nodes.
@@ -391,10 +394,15 @@ export function createNoteEditor(element: HTMLElement, options: {
     if (!button || !element.contains(button)) return;
     event.preventDefault();
     if (!editor.isEditable()) return;
+    let completed = false;
     editor.update(() => {
       const node = $getNearestNodeFromDOMNode(button);
-      if (node instanceof TaskMarkdownNode) node.toggle();
+      if (node instanceof TaskMarkdownNode) {
+        node.toggle();
+        completed = node.getLatest().__checked;
+      }
     }, { discrete: true, tag: HISTORY_PUSH_TAG });
+    if (completed) taskFeedback.play(button as HTMLElement);
   };
   const taskKeyboard = (event: KeyboardEvent) => {
     const button = event.target instanceof Element ? event.target.closest<HTMLButtonElement>("[data-task-toggle]") : null;
@@ -407,7 +415,10 @@ export function createNoteEditor(element: HTMLElement, options: {
   cleanups.push(() => element.removeEventListener("keydown", taskKeyboard, true));
   element.addEventListener("pointerdown", taskPointer);
   element.addEventListener("click", toggleTask);
-  const syncTasks = () => element.querySelectorAll<HTMLButtonElement>("[data-task-toggle]").forEach((button) => { button.disabled = !editor.isEditable(); });
+  const syncTasks = () => {
+    element.querySelectorAll<HTMLButtonElement>("[data-task-toggle]").forEach((button) => { button.disabled = !editor.isEditable(); });
+    taskFeedback.sync();
+  };
   cleanups.push(editor.registerUpdateListener(syncTasks), editor.registerEditableListener(syncTasks));
   cleanups.push(() => { element.removeEventListener("pointerdown", taskPointer); element.removeEventListener("click", toggleTask); });
 
@@ -661,6 +672,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     getMarkdown: () => markdown,
     setMarkdown(value: string, reset = false) {
       if (!reset && value === markdown && editor.getEditorState().isEmpty() === false) return;
+      taskFeedback.clear();
       loading = true;
       redoPending = false;
       win.clearTimeout(completionTimer);

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Quiet sweep completion
+
+- Checking a task gives a subtle sweep and leaves a filled tick and success baseline, with theme-aware colors and Reduced Motion support.
+
 ## 2026-10-29 — Named-source lexical retrieval
 
 - Adopted bounded metadata discovery with named-source ordering after fresh evidence, quiet cost and exact production-parity checks. [Measured results and limits](../evals/workspace-retrieval/reports/2026-10-29-discovery-v5.md), [task](done/2026-10-29_tasks-retrieval-candidate-discovery.md).

@@ -50,6 +50,8 @@ The control shares type, radius, focus, disabled and touch-size tokens. Supporti
 
 ## Color and interaction
 
+Task completion uses Quiet sweep: a brief wash beneath the label and a small checkbox settle, leaving a filled tick and fine success baseline. Keep completed words at full reading contrast. Derive success from `--status-connected` and `--ink`, with `--surface` for the tick, so Mono remains grayscale. Animate only deliberate checking, preserve row geometry, and show the static successful state under Reduced Motion.
+
 Reuse `--surface`, `--control-fill`, `--surface-hover`, `--ink`, `--ink-soft`, `--ink-faint`, `--line`, `--line-strong`, `--accent` and error tokens. Every built-in light/dark pair retains AA text contrast on surfaces, controls and hover rows, plus visible focus contrast. Keep accessible labels, visible keyboard focus, active-page state, disabled state and reduced-motion handling. A theme change must not recreate the editor or lose a draft.
 
 Icon action labels reuse each control’s `title` (or SVG control’s accessible name) through `browser-control-labels.ts`: a single themed top-layer tooltip appears on hover and keyboard focus, clamps to viewport edges and avoids dialog/scroll clipping. Controls with dedicated tooltip descriptions retain that help without a second generic label. Disabled buttons keep hover explanations and native disabled/tab behavior. Formatting controls name Text/H1/H2/H3/B/I explicitly. Keep accessible names on the controls themselves.
