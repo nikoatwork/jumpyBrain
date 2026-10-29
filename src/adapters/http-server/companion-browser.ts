@@ -12,13 +12,13 @@ export const companionStyles = String.raw`
   .settings-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
   .companion-header { margin-bottom: var(--space-8); }
   .companion-header h1 { margin: 0; }
-  #companion-profiles { list-style: none; padding: 0; margin: var(--space-2) 0 0; }
-  .companion-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-4); align-items: center; border-bottom: 1px solid var(--line); padding: var(--space-3) 0; }
+  #companion-profiles { list-style: none; padding: 0; margin: var(--space-5) 0 0; display: grid; gap: var(--space-3); }
+  .companion-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-4); align-items: center; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-5); }
   .companion-profile p { grid-column: 1; margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--ink-soft); display: flex; gap: var(--space-2); }
   .companion-path { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .companion-profile-status { flex-shrink: 0; max-width: 50%; overflow-wrap: anywhere; }
   .companion-profile > .companion-actions { grid-column: 2; grid-row: 1 / 3; gap: var(--space-1); }
-  .companion-profile strong { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-body); overflow-wrap: anywhere; }
+  .companion-profile strong { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-body); overflow-wrap: anywhere; }
   .companion-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   #companion-fields { border: 0; padding: 0; margin: 0; }
   #companion-form label { display: block; margin: var(--space-4) 0; }
@@ -30,9 +30,19 @@ export const companionStyles = String.raw`
   #companion-active > .connection-dot { grid-column: 1; grid-row: 1; }
   #companion-active > :not(.connection-dot) { grid-column: 2; }
   @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
-  .companion-add { margin-top: var(--space-2); }
-  .companion-add > summary { width: fit-content; cursor: pointer; font-size: var(--text-ui); color: var(--ink-soft); padding-block: var(--space-2); }
-  #companion-form { max-width: 520px; }
+  #settings-panel-brains { position: relative; }
+  .connections-intro { padding-right: var(--space-12); }
+  .connections-intro p { margin: var(--space-2) 0 0; color: var(--ink-soft); font-size: var(--text-ui); }
+  .companion-profile[aria-current="true"] { border-color: var(--ink-faint); }
+  .companion-profile-badge { font-size: var(--text-caption); font-weight: var(--weight-regular); color: var(--ink-soft); border-radius: var(--radius-sm); background: var(--surface-hover); padding: 2px var(--space-2); white-space: nowrap; }
+  .companion-add > summary { position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-size: 0; list-style: none; }
+  .companion-add > summary::-webkit-details-marker { display: none; }
+  .companion-add > summary::after { content: "+"; font-size: 22px; font-weight: var(--weight-regular); color: var(--ink-soft); }
+  .companion-add > summary:hover { background: var(--surface-hover); }
+  #companion-form { margin-top: var(--space-4); padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+  #companion-form h3 { margin: 0; font-size: var(--text-body); }
+  #companion-form label { font-size: var(--text-ui); }
+  #companion-form .companion-actions { margin-top: var(--space-5); }
   #companion-form p { color: var(--ink-soft); font-size: var(--text-caption); }
   @media (max-width: 680px) { #companion-settings .note-icon { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
   @media (max-width: 480px) { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
@@ -50,12 +60,14 @@ ${boardsMarkup}
     </header>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
     <section class="settings-panel settings-card" data-settings-panel="boards" hidden><div class="settings-row"><h2>Boards</h2><button id="settings-new-board" class="quiet-button">+ New board</button></div><div id="settings-boards-list"></div></section>
-    <section id="settings-panel-brains" class="settings-panel settings-card" data-settings-panel="brains" aria-label="Brain connections">
+    <section id="settings-panel-brains" class="settings-panel" data-settings-panel="brains" aria-label="Brain connections">
+    <div class="connections-intro"><h2>Connections</h2><p>Choose the brain you want to work with, or connect another folder or server.</p></div>
     <ul id="companion-profiles" aria-label="Saved brains"></ul>
     <details id="companion-add" class="companion-add">
-    <summary id="companion-form-heading">Add connection</summary>
+    <summary id="companion-form-heading" title="Add connection">Add connection</summary>
     <form id="companion-form">
       <fieldset id="companion-fields">
+        <h3 id="companion-editor-heading">Add connection</h3>
         <label>Type<select id="companion-kind" class="dropdown"><option value="local">Local folder</option><option value="remote">Remote server</option></select></label>
         <div id="companion-local-fields">
           <label>Existing memory folder<input id="companion-root" required autocomplete="off" placeholder="/path/to/brain" /></label>
@@ -441,7 +453,7 @@ function companionClearForm() {
   companionEditRevision = null;
   companionRemoteDestination = "";
   $("companion-kind").disabled = false;
-  $("companion-form-heading").textContent = "Add connection";
+  $("companion-editor-heading").textContent = "Add connection";
   $("companion-add").open = false;
   companionFormKind();
   $("companion-form-heading").focus();
@@ -519,6 +531,9 @@ function renderCompanionSettings() {
     name.dataset.state = health === "connected" ? "connected"
       : ["Not tested", "unknown", "checking", "starting"].includes(health) ? "checking" : "unavailable";
     name.prepend(status);
+    const badge = document.createElement("span"); badge.className = "companion-profile-badge";
+    badge.textContent = (profile.kind === "local" ? "Local" : "Remote") + (isActive ? " · Active" : "");
+    name.append(badge);
     const detail = document.createElement("p");
     const destination = document.createElement("span"); destination.className = "companion-path";
     destination.textContent = profile.kind === "local" ? profile.root : profile.url;
@@ -546,7 +561,7 @@ function renderCompanionSettings() {
       $("companion-root").value = profile.root || ""; $("companion-url").value = profile.url || "";
       companionRemoteDestination = profile.url || "";
       $("companion-writes").checked = profile.allowWrites === true;
-      $("companion-form-heading").textContent = "Edit connection"; $("companion-add").open = true; companionFormKind(); $("companion-name").focus();
+      $("companion-editor-heading").textContent = "Edit connection"; $("companion-add").open = true; companionFormKind(); $("companion-name").focus();
     });
     button("Test connection", '${browserIcons.connect}', () => companionAction(async () => {
       companionMessage("Checking " + profile.name + "…");

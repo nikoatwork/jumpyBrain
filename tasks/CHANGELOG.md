@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Connection settings cards
+
+- Redesigned Mac connections with individual cards and a compact + control. [Verification](done/2026-10-29_tasks-connection-settings-cards.md).
+
 ## 2026-10-29 — Personal boards
 
 - Added personal Kanban boards above sidebar notes, with Settle archiving and restoration in Settings. Organization stays outside Markdown. [Verification](done/2026-10-29_tasks-personal-boards.md).
