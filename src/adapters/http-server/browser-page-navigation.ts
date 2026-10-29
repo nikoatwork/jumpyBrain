@@ -1,8 +1,9 @@
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id-format.js";
 import { createAttentionList, type AttentionPage } from "./browser-attention.js";
+import { readablePreview, resultEditContext } from "./search-presentation.js";
 import { browserPinIcon } from "./browser-icons.js";
 
-type Page = { id: string; title: string };
+type Page = { id: string; title: string; preview?: string; updatedAt?: string };
 type History = { pinned: Page[]; recent: Page[] };
 const prefix = "jumpybrain.pageNavigation.v1:";
 
@@ -87,6 +88,7 @@ export function createPageHistory(options: { scope(): string | null; storage(): 
 export function installPageNavigation(options: {
   document: Document; window: Window; scope(): string | null;
   href(id: string): string; navigate(url: string): void;
+  fetchPreview?(id: string): Promise<{ content: string; recognition?: { updatedAt?: string } }>;
   fetchAttention?(signal: AbortSignal): Promise<unknown>; attentionScope?(): string | null;
   enabled?(): boolean; writable?(): boolean;
   onAttentionUpdated?(): void;
@@ -96,6 +98,8 @@ export function installPageNavigation(options: {
   const element = (id: string) => document.getElementById(id)!;
   let selected: string | null = null;
   const history = createPageHistory({ scope: options.scope, storage: () => window.localStorage, onChange: render });
+  let previewScope: string | null = null;
+  const previews = new Map<string, { preview?: string; updatedAt?: string }>();
   const signatures = new Map<string, string>();
   const attention = options.fetchAttention ? createAttentionList({
     scope: options.attentionScope || options.scope,
@@ -105,25 +109,42 @@ export function installPageNavigation(options: {
     onChange: state => { render(); if (state.status === "ready") options.onAttentionUpdated?.(); },
   }) : null;
   function render() {
+    const scope = options.scope();
+    if (scope !== previewScope) { previews.clear(); previewScope = scope; }
     const snapshot = history.snapshot();
     if (attention) snapshot.recent = attention.state.notes
-      .filter(page => !snapshot.pinned.some(pin => pin.id === page.id)).map(page => ({ id: page.id, title: page.title || page.file || "Untitled" }));
+      .filter(page => !snapshot.pinned.some(pin => pin.id === page.id)).map(page => ({ ...page, title: page.title || page.file || "Untitled" }));
     const focused = document.activeElement as HTMLElement | null;
     const focusId = focused?.dataset.pagePin;
     const focusLink = focused?.dataset.pageLink;
     const focusAction = focused?.dataset.pageAction;
     for (const section of ["pinned", "recent"] as const) {
       const list = element("sidebar-" + section);
-      const signature = JSON.stringify(snapshot[section]);
+      const pages = snapshot[section].map(page => ({ ...page, ...attention?.state.notes.find(note => note.id === page.id), ...previews.get(page.id) }));
+      for (const page of pages) if (options.fetchPreview && !previews.has(page.id)) {
+        const pending = {}; previews.set(page.id, pending);
+        void options.fetchPreview(page.id).then(packet => {
+          if (options.scope() !== scope || previews.get(page.id) !== pending) return;
+          previews.set(page.id, { preview: readablePreview(packet.content, page.title), updatedAt: packet.recognition?.updatedAt }); render();
+        }).catch(() => { /* Keep navigation available if a note cannot be read. */ });
+      }
+      const signature = JSON.stringify(pages.map(({ id, title }) => ({ id, title })));
       if (signature !== signatures.get(section)) {
         signatures.set(section, signature); list.replaceChildren();
-        for (const page of snapshot[section]) {
+        for (const page of pages) {
           const row = document.createElement("li"); row.className = "sidebar-page";
           const link = document.createElement("a");
           link.className = "sidebar-page-link"; link.href = options.href(page.id); link.title = page.title; link.dataset.pageLink = page.id;
           if (page.id === selected) link.setAttribute("aria-current", "page");
           const title = document.createElement("span"); title.textContent = page.title;
-          link.append(title);
+          title.className = "sidebar-page-title";
+          const preview = document.createElement("span"); preview.className = "sidebar-page-preview";
+          preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
+          const age = document.createElement("span"); age.className = "sidebar-page-age";
+          const edited = resultEditContext({ metadataStatus: "current", updatedAt: page.updatedAt });
+          age.textContent = edited.label; age.title = edited.details;
+          if (edited.details) age.setAttribute("aria-label", edited.details);
+          link.append(title, preview, age);
           link.addEventListener("click", (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault(); options.navigate(link.getAttribute("href")!);
@@ -157,6 +178,15 @@ export function installPageNavigation(options: {
         }
       }
       for (const link of list.querySelectorAll<HTMLElement>("[data-page-link]")) {
+        const page = pages.find(page => page.id === link.dataset.pageLink);
+        if (page) {
+          const preview = link.querySelector(".sidebar-page-preview");
+          if (preview) preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
+          const age = link.querySelector<HTMLElement>(".sidebar-page-age");
+          const edited = resultEditContext({ metadataStatus: "current", updatedAt: page.updatedAt });
+          if (age) { age.textContent = edited.label; age.title = edited.details; age.setAttribute("aria-label", edited.details); }
+        }
+
         if (link.dataset.pageLink === selected) link.setAttribute("aria-current", "page");
         else link.removeAttribute("aria-current");
       }
@@ -203,7 +233,7 @@ export function installPageNavigation(options: {
     },
     select(id: string | null) { selected = id; render(); if (attention) void attention.load(); },
     visit(page: Page) { selected = page.id; if (!history.visit(page)) render(); },
-    rename(page: Page) { history.rename(page); },
+    rename(page: Page) { previews.delete(page.id); history.rename(page); render(); },
     remove(id: string) { history.remove(id); if (attention) void attention.load(); },
     refresh() { render(); if (attention) void attention.load(); },
     reloadAttention() { if (attention) void attention.load(); },

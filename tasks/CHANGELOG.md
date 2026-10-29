@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Sidebar context and resizing
+
+- Added note previews, edit ages, quiet row actions and persisted keyboard/pointer resizing. [Verification](done/2026-10-29_tasks-sidebar-context.md).
+
 ## 2026-10-29 — Add notes to boards
 
 - Added board/column selection to the note action card and shared-search Add note controls on boards. [Verification](done/2026-10-29_tasks-note-board-actions.md).

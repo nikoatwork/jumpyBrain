@@ -43,4 +43,39 @@ const sidebarPreference = (() => {
 export const sidebarScript = String.raw`
 sidebarPreference.sync();
 document.getElementById("toggle-sidebar").addEventListener("click", () => sidebarPreference.toggle());
+
+(() => {
+  const handle = document.getElementById("sidebar-resize");
+  if (!handle?.addEventListener) return;
+  const root = document.documentElement;
+  const key = "jumpybrain.sidebarWidth";
+  let width = 280;
+  try { const saved = Number(localStorage.getItem(key)); if (saved >= 224) width = saved; } catch {}
+  const maximum = () => Math.max(224, Math.min(480, window.innerWidth * .4));
+  function apply(persist = false) {
+    width = Math.max(224, Math.min(maximum(), width));
+    root.style.setProperty("--sidebar-width", width + "px");
+    handle.setAttribute("aria-valuenow", String(Math.round(width)));
+    handle.setAttribute("aria-valuemax", String(Math.round(maximum())));
+    if (persist) try { localStorage.setItem(key, String(width)); } catch {}
+  }
+  let dragging = false;
+  handle.addEventListener("pointerdown", event => {
+    if (event.button !== 0) return;
+    event.preventDefault(); dragging = true; handle.setPointerCapture(event.pointerId);
+  });
+  handle.addEventListener("pointermove", event => {
+    if (!dragging) return;
+    width = event.clientX - document.getElementById("app-sidebar").getBoundingClientRect().left; apply();
+  });
+  handle.addEventListener("pointerup", () => { dragging = false; apply(true); });
+  handle.addEventListener("lostpointercapture", () => { dragging = false; });
+  handle.addEventListener("keydown", event => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault(); width = event.key === "Home" ? 224 : event.key === "End" ? maximum() : width + (event.key === "ArrowRight" ? 16 : -16); apply(true);
+  });
+  handle.addEventListener("dblclick", () => { width = 280; apply(true); });
+  window.addEventListener("resize", () => apply());
+  apply();
+})();
 `;

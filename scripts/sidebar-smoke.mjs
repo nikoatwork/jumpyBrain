@@ -31,25 +31,33 @@ try {
   assert.equal(await page.locator("#app-sidebar").isVisible(), false, "collapsed sidebar preference survives reload");
   await page.locator("#toggle-sidebar").click();
   assert.equal(await page.locator("#app-sidebar").isVisible(), true);
+  await page.locator("#sidebar-resize").focus();
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await page.locator("#sidebar-resize").getAttribute("aria-valuenow"), "296");
+  const grip = await page.locator("#sidebar-resize").boundingBox();
+  await page.mouse.move(grip.x + 2, grip.y + grip.height / 2);
+  await page.mouse.down(); await page.mouse.move(340, grip.y + grip.height / 2); await page.mouse.up();
+  assert.equal(await page.locator("#sidebar-resize").getAttribute("aria-valuenow"), "340");
+  assert.equal(await page.evaluate(() => localStorage.getItem("jumpybrain.sidebarWidth")), "340");
   await page.evaluate(() => { window.sidebarEditor = richEditor; });
   await page.locator("#toggle-sidebar").click(); await page.locator("#toggle-sidebar").click();
   assert.equal(await page.evaluate(() => window.sidebarEditor === richEditor), true, "sidebar toggle preserves editor instance");
   await page.locator(`[data-page-link="${ids[0]}"]`).hover();
   await page.locator(`[data-page-pin="${ids[0]}"]`).click();
-  assert.equal(await page.locator("#sidebar-pinned a").innerText(), titles[0]);
+  assert.equal(await page.locator("#sidebar-pinned .sidebar-page-title").innerText(), titles[0]);
   await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent a").length === 7);
   for (let i = 1; i < ids.length; i++) {
     await page.evaluate((id) => navigation.navigate("/?note=" + id), ids[i]);
     await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[i]);
   }
   assert.equal(await page.locator("#sidebar-recent a").count(), 7);
-  assert.equal(await page.locator("#sidebar-recent a").first().innerText(), titles.at(-1));
+  assert.equal(await page.locator("#sidebar-recent .sidebar-page-title").first().innerText(), titles.at(-1));
   assert.equal(await page.locator("#sidebar-recent img").count(), 0);
   await page.locator("#sidebar-pinned a").click();
   await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[0]);
   assert.equal(await page.locator('#sidebar-pinned [aria-current="page"]').count(), 1);
   await page.locator("#note-name").fill("Project direction, refined");
-  await page.waitForFunction(() => document.querySelector("#sidebar-pinned a").textContent === "Project direction, refined");
+  await page.waitForFunction(() => document.querySelector("#sidebar-pinned .sidebar-page-title").textContent === "Project direction, refined");
   // Body-only autosaves must not replace a sidebar row under a pointer/focus.
   await page.evaluate(() => { window.savedSidebarRow = document.querySelector("#sidebar-pinned li"); });
   await appendEditorText(page, " Body-only sidebar check.");
@@ -58,6 +66,7 @@ try {
   // Cross-tab unpin is reflected without disturbing the open editor.
   const second = await context.newPage();
   await second.goto(server.url);
+  await second.locator("#sidebar-pinned a").hover();
   await second.locator("#sidebar-pinned [data-page-pin]").click();
   await page.waitForFunction(() => document.querySelectorAll("#sidebar-pinned a").length === 0);
   await second.close();

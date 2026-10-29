@@ -13,12 +13,12 @@ ${noteAttentionStyles}
     #note-find[hidden] { display: none; }
     #note-find-input { min-width: 0; width: 100%; flex: 1; }
     #note-find-count { font: var(--text-caption)/1.5 var(--font-ui); white-space: nowrap; }
-    #note-find button { flex-shrink: 0; padding: 4px 8px; }
+    #note-find button { flex-shrink: 0; padding: 0; }
     ::highlight(note-find) { background: #d2a02955; color: inherit; }
     ::highlight(note-find-current) { background: #da8b19aa; color: inherit; }
     body { display: flex; height: 100dvh; }
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-    .app-nav { width: 224px; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
+    .app-nav { width: clamp(224px, var(--sidebar-width, 280px), 40vw); position: relative; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
     :root[data-sidebar-collapsed="true"] .app-nav { display: none; }
     .workspace-history { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); margin: var(--space-2) var(--space-3); }
     .workspace-history .icon-button { background: transparent; }
@@ -43,32 +43,44 @@ ${noteAttentionStyles}
     .nav-preferences { --control-height: var(--control-compact); flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--line); flex-shrink: 0; }
     .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
-    .app-nav .nav-item:hover, .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
+    .app-nav .nav-item:not(.sidebar-icon):hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
+    .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
     .app-nav #open-search { flex: 1; min-width: 0; }
-    .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); color: var(--ink); }
-    .app-nav #new-note:hover { background: var(--surface-hover); }
-    .app-nav .sidebar-icon { justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: var(--space-2); }
+    .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); color: var(--ink-soft); }
+    .app-nav .sidebar-icon { flex-shrink: 0; justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: 0; }
     .nav-appearance { display: flex; }
     .nav-library { flex: 1; min-height: 80px; overflow: auto; scrollbar-width: thin; }
     .nav-library ul { list-style: none; margin: 0; padding: 0; }
     .nav-library ul:not(:empty) + ul, .sidebar-page + .sidebar-page { margin-top: var(--space-1); }
     .sidebar-empty { margin: var(--space-1) var(--space-3); font-size: var(--text-caption); line-height: 1.5; color: var(--ink-faint); }
     .sidebar-page { display: flex; align-items: center; min-width: 0; border-radius: var(--radius-sm); }
-    .sidebar-page:hover, .sidebar-page:focus-within { background: var(--surface-hover); }
+    .sidebar-page:hover, .sidebar-page:focus-within { background: var(--hover-fill); }
     .sidebar-page:has([aria-current="page"]) { background: var(--control-fill); }
     .sidebar-page-link { display: flex; align-items: center; flex: 1; min-width: 0; min-height: var(--control-height); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3); color: var(--ink-soft); text-decoration: none; font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); border-radius: var(--radius-sm); }
     .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sidebar-page-link[aria-current="page"] { color: var(--ink); }
     .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 var(--control-compact); width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); margin-right: var(--space-0-5); border: 0; border-radius: var(--radius-sm); color: var(--ink-soft); background: transparent; opacity: 0; }
+    .sidebar-page-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding-block: 10px; }
+    .sidebar-page-preview { grid-row: 2; grid-column: 1 / -1; color: var(--ink-soft); font-size: var(--text-caption); }
+    .sidebar-page-age { grid-column: 2; grid-row: 1; font-size: var(--text-caption); color: var(--ink-soft); }
+    .sidebar-page { position: relative; }
+    .sidebar-page .sidebar-page-actions { position: absolute; right: 0; bottom: 2px; background: var(--surface); opacity: 0; pointer-events: none; border-radius: var(--radius-sm); }
+    .sidebar-page:hover .sidebar-page-actions, .sidebar-page:focus-within .sidebar-page-actions { opacity: 1; pointer-events: auto; }
+    #sidebar-resize { position: absolute; right: 0; top: 0; bottom: 0; width: 5px; cursor: col-resize; touch-action: none; -webkit-app-region: no-drag; }
+    #sidebar-resize:hover, #sidebar-resize:focus-visible { background: var(--line-strong); }
+    @media (hover: none) { .sidebar-page .sidebar-page-actions { position: static; opacity: 1; pointer-events: auto; } }
+    @media (max-width: 680px) { #sidebar-resize { display: none; } }
     .sidebar-page-pin svg { width: 16px; height: 16px; }
-    .sidebar-page:hover .sidebar-page-pin, .sidebar-page:focus-within .sidebar-page-pin, .sidebar-page-pin[aria-pressed="true"] { opacity: 1; }
-    .sidebar-page-pin:hover { background: var(--control-fill); color: var(--ink); }
+    .sidebar-page:hover .sidebar-page-pin, .sidebar-page:focus-within .sidebar-page-pin { opacity: 1; }
+    .sidebar-page-pin:hover:not(:disabled) { color: var(--ink); }
     @media (hover: none) { .sidebar-page-pin { opacity: 1; } }
     .document-status { display: flex; flex-wrap: wrap; min-width: 0; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 48px; padding: var(--space-2) var(--space-4); }
     body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
     .quiet-button { border: 0; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--control-fill); color: var(--ink-soft); text-decoration: none; font: inherit; font-size: var(--text-ui); line-height: var(--leading-ui); min-height: var(--control-height); cursor: pointer; }
-    .quiet-button:hover { background: var(--surface-hover); color: var(--ink); }
+    .quiet-button:not(.note-icon, .attention-icon, .sidebar-icon, #toggle-sidebar):hover:not(:disabled) { background: var(--control-hover); color: var(--ink); }
+    .quiet-button:is(.note-icon, .attention-icon, .sidebar-icon, #toggle-sidebar):hover:not(:disabled) { color: var(--ink); }
+    .quiet-button.attention-icon { flex: 0 0 auto; min-height: var(--control-compact); padding: 0; }
     .home { width: 100%; overflow: auto; padding: clamp(var(--space-8), 8vh, 80px) var(--space-6) var(--space-12); text-align: center; }
     .home-actions { width: min(100%, 560px); margin: 0 auto; text-align: left; }
     .home-actions h1 { margin: 0 0 var(--space-6); font-size: var(--text-display); line-height: var(--leading-heading); font-weight: var(--weight-semibold); letter-spacing: -.035em; }
@@ -76,9 +88,9 @@ ${noteAttentionStyles}
     .home-action-label { flex: 1; }
     .home-action-icon { width: 20px; height: 20px; flex: 0 0 auto; }
     #home-new { background: var(--control-fill); color: var(--ink); font-weight: var(--weight-semibold); }
-    #home-new:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+    #home-new:hover:not(:disabled) { background: var(--control-hover); }
     #home-search { margin-top: var(--space-3); background: transparent; color: var(--ink-soft); }
-    #home-search:hover { background: var(--surface-hover); color: var(--ink); }
+    #home-search:hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
     .recent-notes { width: min(100%, 560px); margin: var(--space-10) auto 0; text-align: left; }
     .recent-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-1); }
     .recent-heading h2 { margin: 0; font-size: var(--text-ui); font-weight: var(--weight-semibold); }
@@ -86,7 +98,7 @@ ${noteAttentionStyles}
     .recent-description { margin: 0 0 var(--space-1); }
     #recent-list { list-style: none; margin: 0; padding: 0; }
     .recent-link { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) var(--space-3); margin-inline: calc(-1 * var(--space-3)); border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; }
-    .recent-link:hover { background: var(--surface-hover); }
+    .recent-link:hover { background: var(--hover-fill); }
     .recent-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .recent-link .recent-date { flex-shrink: 0; color: var(--ink-soft); font-size: var(--text-caption); }
     kbd { font: inherit; color: var(--ink); }
@@ -133,7 +145,7 @@ ${noteAttentionStyles}
     .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 ${taskCompletionStyles}
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
-    .markdown-reference[data-page-reference="true"]:hover { background: var(--surface-hover); }
+    .markdown-reference[data-page-reference="true"]:hover { background: var(--hover-fill); }
 ${referencePresentationStyles}
     .markdown-reference[data-page-reference="true"] { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
     .markdown-table { margin: var(--space-3) 0; max-width: 100%; }
@@ -151,7 +163,8 @@ ${referencePresentationStyles}
     .note-tool-row { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-6); }
     .note-tool-row:has(#toggle-note-format[aria-expanded="true"]) { margin-bottom: var(--space-2); }
     .note-tool-row .quiet-button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-compact); padding: var(--space-1) var(--space-2); background: transparent; color: var(--ink-soft); }
-    .note-tool-row .quiet-button:hover, #toggle-note-format[aria-expanded="true"] { background: var(--control-fill); color: var(--ink); }
+    .note-tool-row .quiet-button:hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
+    #toggle-note-format[aria-expanded="true"] { background: var(--control-fill); color: var(--ink); }
     .note-tool-row svg { width: var(--icon-size); height: var(--icon-size); }
     #toggle-note-format[aria-expanded="true"] .format-chevron { transform: rotate(180deg); }
     #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; margin: 0 0 var(--space-6); padding-block: var(--space-2); border-block: 1px solid var(--line); }
@@ -161,7 +174,7 @@ ${referencePresentationStyles}
     .format-group { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); }
     #format-controls button { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); background: transparent; font-size: var(--text-ui); }
     #format-controls [data-format="paragraph"] { width: auto; min-width: var(--control-compact); padding-inline: var(--space-2); }
-    #format-controls button:hover, #format-controls button:focus-visible { background: var(--control-fill); color: var(--ink); }
+    #format-controls button:hover:not(:disabled), #format-controls button:focus-visible { background: var(--hover-fill); color: var(--ink); }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
     .note-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); }
     .note-icon svg { width: var(--icon-size); height: var(--icon-size); }
@@ -289,6 +302,7 @@ ${referencePresentationStyles}
 
 export const notesMarkup = String.raw`
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
+  <div id="sidebar-resize" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-valuemin="224" aria-valuemax="480" aria-valuenow="280"></div>
   <div class="nav-brand"><button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>
   <div class="nav-tools" role="group" aria-label="Note actions">
     <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
@@ -1158,6 +1172,7 @@ const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   attentionScope: () => activeApiKey ? String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted") : null,
   enabled: () => state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()) && !documentActions?.isBusy(),
+  fetchPreview: (id) => readGraphDocument(id),
   fetchAttention: (signal) => graphJson("/memories/all/attention", { signal }),
   onAttentionUpdated: () => noteAttention.sync(),
   onAction: (action, page, anchor) => noteAttention.act(action, page, anchor),

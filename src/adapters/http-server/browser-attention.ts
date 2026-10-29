@@ -1,6 +1,6 @@
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id-format.js";
 
-export interface AttentionPage { id: string; title: string; file?: string; attentionAt?: string }
+export interface AttentionPage { id: string; title: string; file?: string; attentionAt?: string; preview?: string; updatedAt?: string }
 export interface AttentionPacket { notes: AttentionPage[]; nextWakeAt?: string }
 export interface AttentionListState { status: "idle" | "loading" | "ready" | "error"; notes: AttentionPage[]; message: string }
 
