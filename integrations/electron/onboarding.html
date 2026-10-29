@@ -12,24 +12,44 @@
   <aside aria-label="About jumpyBrain">
     <div class="brand"><img src="assets/app-icon.svg" width="36" height="36" alt="" /><span>jumpyBrain <small>beta</small></span></div>
     <div class="intro"><span class="eyebrow">A little space for a bigger picture</span><h1>Good thoughts<br />deserve a home.</h1><p>Your notes, decisions, and discoveries.<br />Connected, remembered, and yours.</p><div class="brain"><img src="assets/app-icon.svg" width="148" height="148" alt="jumpyBrain pink brain icon" /></div></div>
-    <p class="footnote">Plain Markdown. On your Mac.</p>
+    <p class="footnote">Your ideas. Yours to keep.</p>
   </aside>
   <main>
-    <div class="step"><span class="step-dot"></span> Make yourself at home</div>
-    <h2>Your brain.<br />Your folder.</h2>
-    <p class="lead">Start with a local brain. Choose where your memories live, and open them in any editor, any time.</p>
-    <section class="folder-card" aria-labelledby="folder-heading">
-      <div class="folder-heading"><span aria-hidden="true">↳</span><h3 id="folder-heading">A folder on this Mac</h3><span class="pill">Local</span></div>
-      <p id="folder-description">Choose an empty folder to start fresh, or open a jumpyBrain folder you already have.</p>
-      <p id="agent-folder-hint">Already set up with an agent? Choose the same folder, usually <code>~/.jumpybrain/memory</code>. In the chooser, press <kbd>⌘⇧G</kbd> and paste its path. <code>~/.jumpybrain/app</code> contains software.</p>
-      <button id="choose" class="secondary" type="button">Choose folder…</button>
-      <p id="folder-path" class="folder-path" hidden></p>
+    <div class="step"><span class="step-dot"></span> A fresh start</div>
+    <section id="local-panel" aria-labelledby="local-title">
+      <h2 id="local-title">A home for<br />what’s on your mind.</h2>
+      <p class="lead">Keep your notes and ideas together. Start with a folder on this Mac — no account needed.</p>
+      <section class="folder-card" aria-labelledby="folder-heading">
+        <div class="folder-heading"><span aria-hidden="true">↳</span><h3 id="folder-heading">On this Mac</h3><span class="pill" id="folder-state">Getting ready</span></div>
+        <p id="folder-description">Finding a home for your notes…</p>
+        <p id="folder-path" class="folder-path" hidden></p>
+        <button id="choose" class="secondary" type="button" disabled>Use a different folder…</button>
+      </section>
+      <button id="open" class="primary" type="button" disabled>Start writing <span aria-hidden="true">→</span></button>
+      <p class="detail" id="setup-detail">Your notes are saved as files you can keep and open in other apps.</p>
+      <details id="folder-help">
+        <summary>Already using jumpyBrain with an AI assistant?</summary>
+        <p id="agent-folder-hint">Use the same folder to see the same notes. The usual folder is <code>~/.jumpybrain/memory</code>. To find a hidden folder, press <kbd>⌘⇧G</kbd> in the chooser and paste its path. The <code>~/.jumpybrain/app</code> folder contains software, not notes. Choosing a folder here doesn’t change your assistant’s settings.</p>
+      </details>
+      <button id="remote-choice" class="existing" type="button" disabled>Connect to a remote brain <span aria-hidden="true">↗</span></button>
     </section>
-    <p class="detail" id="setup-detail">A new brain adds Markdown folders and a small configuration file. Nothing is uploaded. Your agents keep their current folder setting; choose the same folder to share notes.</p>
-    <p id="message" role="status" aria-live="polite"></p>
-    <button id="open" class="primary" type="button" disabled>Create my local brain <span aria-hidden="true">→</span></button>
+    <section id="remote-panel" aria-labelledby="remote-title" hidden>
+      <button id="back" class="back" type="button">← Back</button>
+      <h2 id="remote-title" tabindex="-1">Your brain,<br />already out there.</h2>
+      <p class="lead">Connect to a jumpyBrain server set up by you or your team.</p>
+      <form id="remote-form">
+        <label for="remote-url">Server address</label>
+        <input id="remote-url" type="url" placeholder="https://brain.example.com" required maxlength="2048" autocomplete="off" spellcheck="false" aria-describedby="remote-help" />
+        <label for="remote-key">Access key</label>
+        <input id="remote-key" type="password" required maxlength="4096" autocomplete="off" spellcheck="false" aria-describedby="remote-help" />
+        <p class="detail" id="remote-help">Ask the person who set up your brain for these details. Your key is stored securely in your Mac’s Keychain.</p>
+        <button id="connect" class="primary" type="submit">Connect <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="detail">New connections open for viewing. You can enable editing later in Settings. Your local notes stay where they are.</p>
+    </section>
+    <p id="message" role="status" aria-live="polite" tabindex="-1"></p>
+    <button id="retry" class="secondary" type="button" hidden>Try again</button>
     <button id="continue" class="existing" type="button" hidden></button>
-    <p class="ownership">No account. No subscription. Just your thoughts.</p>
   </main>
 </body>
 </html>

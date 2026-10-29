@@ -1,5 +1,6 @@
-// Main-process setup policy. Folder paths come only from the native picker.
+// Main-process setup policy. Paths come from the host default or native picker.
 import path from 'node:path';
+import os from 'node:os';
 import http from 'node:http';
 import { lstat, readdir, realpath, readFile, mkdir, writeFile, rename } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
@@ -29,9 +30,57 @@ export async function inspectBrainFolder(folder) {
   return { root, existing: false };
 }
 
+// Read-only suggestion. An unavailable existing destination must not silently
+// become a different brain. The renderer cannot supply a filesystem path.
+export async function suggestLocalBrain(state, { home = os.homedir() } = {}) {
+  const profile = state.profiles.find(item => item.id === state.activeId && item.kind === 'local')
+    || state.profiles.find(item => item.kind === 'local');
+  const root = profile?.root || path.join(home, '.jumpybrain', 'memory');
+  try { return await inspectBrainFolder(root); }
+  catch (error) {
+    if (error.code === 'ENOENT' && !profile) return { root, existing: false, missing: true };
+    if (error.code === 'ENOENT') throw new Error('We couldn’t find your saved folder. Reconnect its drive, or use a different folder.');
+    throw new Error('This folder isn’t ready. Choose an empty folder or one you already use with jumpyBrain.');
+  }
+}
+
+export async function prepareLocalBrain(selected) {
+  if (selected.missing) await mkdir(selected.root, { recursive: true, mode: 0o700 });
+  return inspectBrainFolder(selected.root);
+}
+
+export async function activateRemoteBrain(connection, input, { control = companionControl } = {}) {
+  if (typeof input?.key === 'string' && !input.key.trim()) throw new Error('Enter your access key.');
+  if (!input || typeof input.url !== 'string' || input.url.length > 2048 || typeof input.key !== 'string'
+    || !input.key.trim() || input.key.length > 4096 || /[\x00-\x1f\x7f]/.test(input.key)) {
+    throw new Error('Enter the server address and access key you were given.');
+  }
+  // The connection store applies the authoritative origin/credential policy.
+  // Normalizing only a trailing slash lets retries find the already saved profile.
+  let url;
+  try { url = new URL(input.url.trim()); } catch { throw new Error('Check the server address. It should look like https://brain.example.com.'); }
+  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/' || url.search || url.hash
+    || input.url.includes('\\') || (url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) {
+    throw new Error('Use an HTTPS server address without a page path, such as https://brain.example.com. HTTP is also supported for a server on this Mac (localhost).');
+  }
+  let state = await control(connection);
+  const existing = state.profiles.find(item => item.kind === 'remote' && item.url === url.origin);
+  state = await control(connection, 'profiles', { revision: state.revision, profile: {
+    ...(existing ? { id: existing.id } : {}), name: existing?.name || url.hostname, kind: 'remote', url: input.url.trim(), key: input.key,
+  } });
+  const profile = state.profiles.find(item => item.kind === 'remote' && item.url === url.origin);
+  if (!profile) throw new Error('The connection wasn’t saved. Please try again.');
+  const { health } = await control(connection, 'test', { id: profile.id });
+  if (health !== 'connected') throw new Error(health === 'authentication_failed'
+    ? 'That access key didn’t work. Check it and try again.'
+    : health === 'credential_unavailable' ? 'Allow jumpyBrain to use your Mac’s Keychain, then try again.'
+      : 'We couldn’t reach that brain. Check the server address and your connection, then try again.');
+  return state.activeId === profile.id ? state : control(connection, 'switch', { id: profile.id });
+}
+
 // Bounded, authenticated local control only; never redirect or expose keys to UI.
 export function companionControl({ origin, key }, route = 'state', body) {
-  if (!['state', 'profiles', 'switch'].includes(route)) throw new Error('Unsupported setup action.');
+  if (!['state', 'profiles', 'switch', 'test'].includes(route)) throw new Error('Unsupported setup action.');
   return new Promise((resolve, reject) => {
     const data = body === undefined ? undefined : JSON.stringify(body);
     const request = http.request(new URL('/companion/' + route, origin), {
@@ -45,7 +94,8 @@ export function companionControl({ origin, key }, route = 'state', body) {
         let result;
         try { result = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { reject(new Error('Invalid setup response.')); return; }
         if (response.statusCode !== 200) { reject(new Error(result?.error?.message || 'Could not save the connection. Try again.')); return; }
-        if (!Array.isArray(result?.profiles) || !Number.isSafeInteger(result.revision)) { reject(new Error('Invalid setup response.')); return; }
+        if (route === 'test' ? !['connected', 'available', 'offline', 'authentication_failed', 'credential_unavailable'].includes(result?.health)
+          : !Array.isArray(result?.profiles) || !Number.isSafeInteger(result.revision)) { reject(new Error('Invalid setup response.')); return; }
         resolve(result);
       });
     });

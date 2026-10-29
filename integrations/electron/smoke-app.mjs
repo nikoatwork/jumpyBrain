@@ -36,16 +36,16 @@ try {
   window = welcome.window;
   await welcome.loaded;
   await until('!document.getElementById("choose").disabled');
-  assert.equal(await js('document.getElementById("open").disabled'), true);
+  assert.equal(await js('document.getElementById("open").disabled'), false);
   assert.match(await js('document.getElementById("agent-folder-hint").textContent'), /~\/\.jumpybrain\/memory.*⌘⇧G.*~\/\.jumpybrain\/app/);
-  assert.match(await js('document.getElementById("setup-detail").textContent'), /agents keep their current folder/);
+  assert.equal(await js('document.getElementById("folder-help").open'), false);
   assert.equal(await js('typeof require'), 'undefined');
   assert.equal(await js('fetch("https://example.com").then(() => false, () => true)'), true);
   await js('window.open("https://example.com")');
   assert.equal(BrowserWindow.getAllWindows().length, 1);
   await js('document.getElementById("choose").click()');
   await until('!document.getElementById("choose").disabled');
-  assert.equal(await js('document.getElementById("open").disabled'), true);
+  assert.equal(await js('document.getElementById("open").disabled'), false);
   await writeFile(config.screenshot, (await window.webContents.capturePage()).toPNG());
   choice = { canceled: false, filePaths: [config.invalidRoot] };
   await js('document.getElementById("choose").click()');
@@ -58,8 +58,8 @@ try {
   choice = { canceled: false, filePaths: [config.existingRoot] };
   await js('document.getElementById("choose").click()');
   await until('!document.getElementById("open").disabled');
-  assert.match(await js('document.getElementById("open").textContent'), /Open my local brain/);
-  assert.match(await js('document.getElementById("setup-detail").textContent'), /agents keep their current folder/);
+  assert.match(await js('document.getElementById("open").textContent'), /Open my notes/);
+  assert.equal(await js('document.getElementById("folder-help").open'), false);
   await js('document.getElementById("open").click()');
   assert.equal(await welcome.completed, true);
   assert.equal((await companionControl(config)).active.root, config.existingRoot);
@@ -132,8 +132,8 @@ try {
   welcome = createOnboardingWindow(config);
   window = welcome.window; await welcome.loaded;
   console.log('Electron smoke: second welcome loaded');
-  await until('!document.getElementById("continue").hidden');
-  await js('document.getElementById("continue").click()');
+  await until('!document.getElementById("open").disabled');
+  await js('document.getElementById("open").click()');
   assert.equal(await welcome.completed, true);
   { const closed = new Promise((resolve) => window.once('closed', resolve)); window.close(); await closed; }
   // Missing prerequisite has a readable recovery screen; no capabilities run.

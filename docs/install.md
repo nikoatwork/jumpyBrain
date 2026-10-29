@@ -84,7 +84,7 @@ npm run desktop:setup
 open "$HOME/Applications/jumpyBrain.app"
 ```
 
-On first launch, choose your **existing memory folder**, normally `~/.jumpybrain/memory`. In the folder chooser, press **⌘⇧G**, enter that path, and select **Open my local brain**. Use the actual root printed by your installer if you chose a different one. Desktop selection does not change the CLI/agent target; matching the folder is what makes both use the same notes.
+On first launch, check the suggested folder, normally `~/.jumpybrain/memory`, and choose **Open my notes** (or **Start writing** for a new brain). Use **Use a different folder…** if your installer printed a different root; **⌘⇧G** in the chooser lets you enter a hidden path. **Connect to a remote brain** is also available for a server you or your team already set up. Desktop selection does not change the CLI/agent target; matching the folder is what makes both use the same notes.
 
 **Starting with the Mac app and no CLI install?** Clone the public repository once, then build:
 

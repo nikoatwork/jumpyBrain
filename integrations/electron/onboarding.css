@@ -11,7 +11,7 @@ h1 { font-family: Georgia, serif; font-weight: 400; font-size: clamp(28px, 4vw, 
 .brain { margin-top: 36px; transform: rotate(-7deg); }
 .brain img { border-radius: 34px; box-shadow: 0 18px 32px #302f2d18; }
 .footnote { font-size: 11px; color: var(--muted); }
-main { padding: 50px 44px 26px; margin: auto 0; max-width: 620px; }
+main { padding: 32px 40px; margin: auto 0; max-width: 620px; min-width: 0; }
 .step { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .step-dot { width: 6px; height: 6px; border-radius: 50%; background: #83927c; }
 h2 { font-size: 36px; font-weight: 550; letter-spacing: -1.6px; line-height: 1.12; margin: 22px 0 16px; }
@@ -35,6 +35,16 @@ button:focus-visible { outline: 3px solid #bd7a83; outline-offset: 3px; }
 .existing { display: block; border: 0; background: none; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; margin: 18px auto 0; max-width: 100%; overflow-wrap: anywhere; }
 .folder-card .folder-path { color: var(--ink); font-family: ui-monospace, monospace; font-size: 11px; overflow-wrap: anywhere; margin-bottom: 0; }
 .ownership { font-size: 10px; text-align: center; color: var(--muted); margin: 22px 0 0; }
+details { margin-top: 18px; color: var(--muted); font-size: 11px; line-height: 1.7; }
+summary { cursor: pointer; }
+summary:focus-visible, input:focus-visible { outline: 3px solid #bd7a83; outline-offset: 3px; }
+details p { margin-bottom: 0; overflow-wrap: anywhere; }
+.back { padding: 0; margin-top: 18px; background: none; border: 0; color: var(--muted); }
+label { display: block; font-size: 12px; font-weight: 550; margin: 18px 0 8px; }
+input { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 7px; color: var(--ink); background: var(--surface); font: inherit; font-size: 13px; }
+input::placeholder { color: var(--muted); }
+button:disabled { cursor: default; opacity: .5; }
+.existing:hover, .back:hover, summary:hover { color: var(--ink); }
 [hidden] { display: none !important; }
 @media (prefers-color-scheme: dark) { :root { --paper: #252524; --surface: #2c2c2a; --ink: #eee9df; --muted: #aaa69d; --line: #43423d; --tint: #20201f; --error: #f6a5a5; } }
 @media (max-width: 740px) { body { grid-template-columns: 1fr; } aside { display: none; } main { width: 100%; padding: 24px 32px; margin: auto; } h2 { font-size: 31px; margin: 16px 0 12px; } .lead { margin-bottom: 18px; } }

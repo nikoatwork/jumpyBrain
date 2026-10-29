@@ -1,11 +1,11 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inspectBrainFolder, activateLocalBrain, companionControl, desktopRepairInstructions } from './setup.mjs';
+import { inspectBrainFolder, suggestLocalBrain, prepareLocalBrain, activateLocalBrain, activateRemoteBrain, companionControl, desktopRepairInstructions } from './setup.mjs';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const page = new URL('./onboarding.html', import.meta.url).href;
-export function createOnboardingWindow(connection, { chooseFolder, activate = activateLocalBrain, control = companionControl, setupError } = {}) {
+export function createOnboardingWindow(connection, { chooseFolder, activate = activateLocalBrain, control = companionControl, suggest = suggestLocalBrain, setupError } = {}) {
   const window = new BrowserWindow({ title: 'Welcome to jumpyBrain', width: 960, height: 720, minWidth: 680, minHeight: 620,
     show: false, backgroundColor: '#f7f4ed', autoHideMenuBar: true,
     webPreferences: { preload: path.join(directory, 'onboarding-preload.cjs'), partition: 'jumpybrain-setup',
@@ -23,8 +23,10 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
       if (!connection) return { error: setupError || desktopRepairInstructions };
       try {
         const state = await control(connection);
-        return { active: state.profiles.find((profile) => profile.id === state.activeId) || null };
-      } catch { return { error: 'The local helper is unavailable. Quit and reopen jumpyBrain, then try again.' }; }
+        let folderError;
+        try { selected = await suggest(state); } catch (error) { selected = null; folderError = error.message; }
+        return { selected, folderError, active: state.profiles.find((profile) => profile.id === state.activeId) || null };
+      } catch { return { error: 'We couldn’t reach the local helper. Try again, or quit and reopen jumpyBrain.', retryable: true }; }
     },
     choose: async () => {
       if (!connection) throw new Error('Install the local helper first.');
@@ -40,8 +42,12 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
     open: async () => {
       if (!connection || !selected) throw new Error('Choose your brain folder first.');
       // Reinspection permits retry after initialization succeeded but activation failed.
-      selected = await inspectBrainFolder(selected.root);
+      selected = await prepareLocalBrain(selected);
       const state = await activate(connection, selected); starterPage = state.starterPage || null; success(); return { ok: true };
+    },
+    remote: async (input) => {
+      if (!connection) throw new Error('Reopen jumpyBrain and try again.');
+      await activateRemoteBrain(connection, input, { control }); success(); return { ok: true };
     },
     continue: async () => {
       if (!connection) throw new Error('Install the local helper first.');
@@ -51,11 +57,11 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
     },
   };
   for (const [name, handler] of Object.entries(handlers)) {
-    ipcMain.handle('desktop-setup:' + name, async (event) => {
+    ipcMain.handle('desktop-setup:' + name, async (event, input) => {
       if (event.sender !== contents || event.senderFrame !== contents.mainFrame || event.senderFrame.url !== page) throw new Error('Setup is unavailable.');
       if (busy || settled) return { error: 'Wait for the current step to finish.' };
       busy = true;
-      try { return await handler(); }
+      try { return await handler(input); }
       catch (error) { return { error: error.message }; }
       finally { busy = false; }
     });
