@@ -43,6 +43,8 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     button, input, textarea, select { font: inherit; }
     strong, b { font-weight: var(--weight-semibold); }
     button { cursor: pointer; }
+    :is(button, a, summary) { transition: color .12s ease; }
+    :is(button, a, summary) svg { display: block; flex-shrink: 0; }
     button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
     [hidden] { display: none !important; }
 
@@ -55,7 +57,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     /* Reusable controls and toolbar groups. */
     input { font-size: var(--text-ui); height: var(--control-height); padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
     input::placeholder { color: var(--ink-faint); opacity: 1; }
-    input:hover { border-color: var(--ink-faint); }
+    input:hover:not(:disabled):not(:focus) { border-color: var(--hover-line); }
     input:focus { border-color: var(--focus-ring); }
     .toolbar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-6); }
     #query { width: 230px; min-width: 0; background: transparent; border-color: var(--line); }
@@ -71,10 +73,10 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .map-options p { margin: 0; color: var(--ink-faint); font-size: var(--text-caption); }
     .button { height: var(--control-height); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 0 var(--space-4); border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: var(--weight-semibold); font-size: var(--text-ui); transition: background .15s ease, border-color .15s ease; }
     .button-primary { background: var(--control-fill); border-color: var(--line); color: var(--ink); box-shadow: none; }
-    .button-primary:hover { background: var(--surface-hover); border-color: var(--line-strong); }
+    .button-primary:hover:not(:disabled) { background: var(--control-hover); }
     .button svg, .icon-button svg { width: var(--icon-size); height: var(--icon-size); }
-    .icon-button { width: var(--control-compact); height: var(--control-compact); display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); }
-    .icon-button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
+    .icon-button { flex: 0 0 auto; min-width: var(--control-compact); min-height: var(--control-compact); width: var(--control-compact); height: var(--control-compact); display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); }
+    .icon-button:hover:not(:disabled) { color: var(--ink); }
 
     main { display: flex; min-height: 0; }
     #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--surface); }

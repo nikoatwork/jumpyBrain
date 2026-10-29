@@ -23,10 +23,10 @@ export const dropdownStyles = `
     text-overflow: ellipsis;
     cursor: pointer;
   }
-  .dropdown:hover:not(:disabled) { border-color: var(--ink-faint); }
+  .dropdown:hover:not(:disabled) { border-color: var(--hover-line); }
   .dropdown:disabled { opacity: .5; cursor: not-allowed; }
   .dropdown--quiet { width: 100%; min-height: var(--control-compact); border-color: transparent; background: transparent; color: var(--ink-soft); padding: var(--space-1) var(--space-2); }
-  .dropdown--quiet:hover:not(:disabled) { border-color: transparent; background: var(--surface-hover); color: var(--ink); }
+  .dropdown--quiet:hover:not(:disabled) { border-color: transparent; background: var(--hover-fill); color: var(--ink); }
   @supports (appearance: base-select) {
     .dropdown, .dropdown::picker(select) { appearance: base-select; }
     .dropdown { display: flex; align-items: center; gap: var(--space-2); overflow: hidden; white-space: nowrap; }
@@ -61,7 +61,7 @@ export const dropdownStyles = `
       cursor: pointer;
     }
     .dropdown option:checked { background: var(--control-fill); }
-    .dropdown option:hover, .dropdown option:focus { background: var(--surface-hover); }
+    .dropdown option:not(:disabled):not(:checked):is(:hover, :focus) { background: var(--hover-fill); }
     .dropdown option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     .dropdown option::checkmark { color: var(--accent); }
     .dropdown option:disabled { color: var(--ink-faint); cursor: not-allowed; }

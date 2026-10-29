@@ -85,9 +85,9 @@ export const themeStyles = String.raw`
     :root[data-palette="pride"] .app-nav { background: var(--sidebar-wash); }
     ::selection { background: var(--selection-fill); }
     .theme-control { display: flex; align-items: center; }
-    #color-theme { display: grid; place-items: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); font: inherit; cursor: pointer; }
+    #color-theme { display: grid; place-items: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: 0; border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); font: inherit; cursor: pointer; }
     #color-theme svg { width: var(--icon-size); height: var(--icon-size); pointer-events: none; }
-    #color-theme:hover { background: var(--surface-hover); color: var(--ink); }
+    #color-theme:hover:not(:disabled) { color: var(--ink); }
     #color-theme:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
     #color-theme .theme-moon { display: none; }
     :root[data-theme="light"] #color-theme .theme-sun { display: none; }

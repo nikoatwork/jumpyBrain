@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Subtle hover and centered icons
+
+- Softened hover across light/dark themes, kept icon hover on the glyph, and corrected compact button sizing/centering. [Verification](done/2026-10-29_tasks-subtle-hover.md).
+
 ## 2026-10-29 — Sidebar context and resizing
 
 - Added note previews, edit ages, quiet row actions and persisted keyboard/pointer resizing. [Verification](done/2026-10-29_tasks-sidebar-context.md).

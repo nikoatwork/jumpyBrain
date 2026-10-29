@@ -19,7 +19,7 @@ export const appearanceStyles = String.raw`
   .appearance-group legend { padding: 0; margin-bottom: var(--space-3); font-size: var(--text-body); color: var(--ink-soft); }
   .appearance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
   .appearance-choice { position: relative; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; background: var(--surface); }
-  .appearance-choice:hover { background: var(--control-fill); border-color: var(--line-strong); }
+  .appearance-choice:hover { background: var(--hover-fill); }
   .appearance-choice:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .appearance-choice:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
   .appearance-choice input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; margin: 0; }

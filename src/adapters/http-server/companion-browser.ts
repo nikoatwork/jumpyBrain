@@ -35,16 +35,16 @@ export const companionStyles = String.raw`
   .connections-intro p { margin: var(--space-2) 0 0; color: var(--ink-soft); font-size: var(--text-ui); }
   .companion-profile[aria-current="true"] { border-color: var(--ink-faint); }
   .companion-profile-badge { font-size: var(--text-caption); font-weight: var(--weight-regular); color: var(--ink-soft); border-radius: var(--radius-sm); background: var(--surface-hover); padding: 2px var(--space-2); white-space: nowrap; }
-  .companion-add > summary { position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-size: 0; list-style: none; }
+  .companion-add > summary { position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center; width: var(--control-compact); height: var(--control-compact); padding: 0; color: var(--ink-soft); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-size: 0; list-style: none; }
   .companion-add > summary::-webkit-details-marker { display: none; }
-  .companion-add > summary::after { content: "+"; font-size: 22px; font-weight: var(--weight-regular); color: var(--ink-soft); }
-  .companion-add > summary:hover { background: var(--surface-hover); }
+  .companion-add > summary::after { content: "+"; font-size: 22px; line-height: 1; font-weight: var(--weight-regular); color: inherit; }
+  .companion-add > summary:hover { color: var(--ink); }
   #companion-form { margin-top: var(--space-4); padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
   #companion-form h3 { margin: 0; font-size: var(--text-body); }
   #companion-form label { font-size: var(--text-ui); }
   #companion-form .companion-actions { margin-top: var(--space-5); }
   #companion-form p { color: var(--ink-soft); font-size: var(--text-caption); }
-  @media (max-width: 680px) { #companion-settings .note-icon { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
+  @media (max-width: 680px) { #companion-settings .note-icon, .companion-add > summary { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
   @media (max-width: 480px) { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
 ${settingsStyles}
 ${boardsStyles}

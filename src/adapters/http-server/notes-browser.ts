@@ -43,10 +43,10 @@ ${noteAttentionStyles}
     .nav-preferences { --control-height: var(--control-compact); flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--line); flex-shrink: 0; }
     .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
-    .app-nav .nav-item:not(.sidebar-icon):hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
+    .app-nav .nav-item:not(.sidebar-icon, [aria-current="page"]):hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
     .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
     .app-nav #open-search { flex: 1; min-width: 0; }
-    .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); color: var(--ink-soft); }
+    .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); }
     .app-nav .sidebar-icon { flex-shrink: 0; justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: 0; }
     .nav-appearance { display: flex; }
     .nav-library { flex: 1; min-height: 80px; overflow: auto; scrollbar-width: thin; }
@@ -78,7 +78,7 @@ ${noteAttentionStyles}
     body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
     .quiet-button { border: 0; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--control-fill); color: var(--ink-soft); text-decoration: none; font: inherit; font-size: var(--text-ui); line-height: var(--leading-ui); min-height: var(--control-height); cursor: pointer; }
-    .quiet-button:not(.note-icon, .attention-icon, .sidebar-icon, #toggle-sidebar):hover:not(:disabled) { background: var(--control-hover); color: var(--ink); }
+    .quiet-button:not(:where(.note-icon, .attention-icon, .sidebar-icon, #toggle-sidebar, [aria-current="page"])):hover:not(:disabled) { background: var(--control-hover); color: var(--ink); }
     .quiet-button:is(.note-icon, .attention-icon, .sidebar-icon, #toggle-sidebar):hover:not(:disabled) { color: var(--ink); }
     .quiet-button.attention-icon { flex: 0 0 auto; min-height: var(--control-compact); padding: 0; }
     .home { width: 100%; overflow: auto; padding: clamp(var(--space-8), 8vh, 80px) var(--space-6) var(--space-12); text-align: center; }
@@ -419,8 +419,8 @@ export const notesViews = String.raw`
       <div id="note-find" role="search" aria-label="Find in note" hidden>
         <input id="note-find-input" type="search" aria-label="Find in note" placeholder="Find in note…" autocomplete="off" />
         <span id="note-find-count" role="status" aria-live="polite"></span>
-        <button id="note-find-previous" type="button" class="quiet-button" aria-label="Previous match" title="Previous match (Shift+Enter)">↑</button>
-        <button id="note-find-next" type="button" class="quiet-button" aria-label="Next match" title="Next match (Enter)">↓</button>
+        <button id="note-find-previous" type="button" class="quiet-button note-icon" aria-label="Previous match" title="Previous match (Shift+Enter)">↑</button>
+        <button id="note-find-next" type="button" class="quiet-button note-icon" aria-label="Next match" title="Next match (Enter)">↓</button>
         <button id="note-find-close" type="button" class="quiet-button note-icon" aria-label="Close find" title="Close find (Esc)">${browserIcons.close}</button>
       </div>
       <div id="reference-creation-status" hidden>

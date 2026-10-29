@@ -52,12 +52,12 @@ const boardsUI = (() => {
   let packet = {revision:0,boards:[]}, bound = '', busy = false, sequence = 0, selected = null, edit = null, searchSequence = 0;
   const names = new Map();
   const scope = () => companionRegistered && !companionSessionFailed ? String(companionState.generation)+':'+companionState.activeId : '';
-  const button = (text, run, label) => { const b=document.createElement('button');b.type='button';b.className='quiet-button';b.textContent=text;if(label)b.setAttribute('aria-label',label);b.onclick=run;return b; };
+  const button = (text, run, label, icon = false) => { const b=document.createElement('button');b.type='button';b.className=icon?'quiet-button note-icon':'quiet-button';b.textContent=text;if(label)b.setAttribute('aria-label',label);b.onclick=run;return b; };
   const notice = text => { $('board-notice').textContent=text; toast.show('boards',text,{action:{label:'Retry',run:load}}); };
   function render() {
     const sidebar=$('sidebar-boards'), settings=$('settings-boards-list'); sidebar.replaceChildren();settings.replaceChildren();
     for(const b of packet.boards){
-      if(!b.archived){const row=document.createElement('li');row.className='sidebar-page';const link=button(b.name,()=>navigation.navigate('/?board='+b.id));link.classList.add('sidebar-page-link');if(selected===b.id)link.setAttribute('aria-current','page');row.append(link,button('✓',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=true;}),'Settle '+b.name));sidebar.append(row);}
+      if(!b.archived){const row=document.createElement('li');row.className='sidebar-page';const link=button(b.name,()=>navigation.navigate('/?board='+b.id));link.classList.add('sidebar-page-link');if(selected===b.id)link.setAttribute('aria-current','page');row.append(link,button('✓',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=true;}),'Settle '+b.name,true));sidebar.append(row);}
       const row=document.createElement('div');row.className='board-row';row.append(button(b.name,()=>navigation.navigate('/?board='+b.id)),button(b.archived?'Restore':'Settle',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=!b.archived;}),(b.archived?'Restore ':'Settle ')+b.name));settings.append(row);
     }
     if(!packet.boards.length)settings.textContent='Your boards will live here.';
@@ -76,7 +76,7 @@ const boardsUI = (() => {
         const card=document.createElement('div');card.className='board-card';card.dataset.boardPage=id;card.draggable=!busy;card.ondragstart=e=>e.dataTransfer.setData('text/plain',id);
         card.append(button(names.get(id)||'Loading page…',()=>navigation.navigate('/?note='+id)));
         const actions=document.createElement('div');actions.className='board-card-actions';const select=document.createElement('select');select.className='dropdown';select.setAttribute('aria-label','Move '+(names.get(id)||'page'));board.columns.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.append(o)});select.value=index;select.onchange=()=>change(rows=>{const b=rows.find(b=>b.id===selected);for(const c of b.columns)c.pages=c.pages.filter(p=>p!==id);b.columns[Number(select.value)].pages.push(id);});
-        actions.append(select,button('↑',()=>move(id,column.pages[Math.max(0,column.pages.indexOf(id)-1)]),'Move up'),button('×',()=>change(rows=>{rows.find(b=>b.id===selected).columns[index].pages=column.pages.filter(p=>p!==id);}),'Remove from board'));card.append(actions);el.append(card);
+        actions.append(select,button('↑',()=>move(id,column.pages[Math.max(0,column.pages.indexOf(id)-1)]),'Move up',true),button('×',()=>change(rows=>{rows.find(b=>b.id===selected).columns[index].pages=column.pages.filter(p=>p!==id);}),'Remove from board',true));card.append(actions);el.append(card);
       }
       el.append(button('+ Add note',()=>addPage(index)));columns.append(el);
     });

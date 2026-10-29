@@ -15,7 +15,7 @@ export const noteAttentionStyles = String.raw`
     .sidebar-page-actions { display: flex; align-items: center; flex: 0 0 auto; }
     .sidebar-page-action { display: none; place-items: center; width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); color: var(--ink-soft); background: transparent; border: 0; border-radius: var(--radius-sm); }
     .sidebar-page:hover .sidebar-page-action, .sidebar-page:focus-within .sidebar-page-action { display: grid; }
-    .sidebar-page-action:hover { color: var(--ink); background: var(--control-fill); }
+    .sidebar-page-action:hover:not(:disabled) { color: var(--ink); }
     .sidebar-page-action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     #note-snooze { position: fixed; margin: 0; width: min(340px, calc(100vw - 24px)); padding: var(--space-3); color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); font: var(--text-ui)/var(--leading-ui) var(--font-ui); }
     #note-snooze::backdrop { background: transparent; }

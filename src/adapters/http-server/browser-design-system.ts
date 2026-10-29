@@ -40,6 +40,9 @@ export const designSystemStyles = String.raw`
       --radius-sm: 6px;
       --radius-md: 10px;
       --radius-lg: 14px;
+      --hover-fill: color-mix(in srgb, var(--ink) 5%, transparent);
+      --control-hover: color-mix(in srgb, var(--control-fill) 96%, var(--ink));
+      --hover-line: color-mix(in srgb, var(--line-strong) 80%, var(--ink-faint));
       --ease: cubic-bezier(.2, .8, .2, 1);
     }
 `;
