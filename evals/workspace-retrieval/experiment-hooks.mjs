@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
+import { naturalQuestion } from './constraint-policy.mjs';
 import { prioritizeNamedIdentity } from './identity-policy.mjs';
 import { supplementNamedCandidates } from './discovery-policy.mjs';
 import { evidenceContext, relationshipProjection, injectNeighbors } from './experiment-policy.mjs';
@@ -14,11 +15,18 @@ export async function installExperiment(config) {
   const fromRuntime = relative => import(pathToFileURL(path.join(config.repo, 'dist', relative)));
   const dependencies = Object.assign({}, ...await Promise.all(['core/canonical/markdown-structure.js', 'core/retrieval-policy/compact.js', 'core/frontmatter.js', 'core/canonical/links.js'].map(fromRuntime)));
   let projection = new Map(), llm, events = [], last = {};
+  const naturalArm = ['natural-question', 'natural-question-read-cited'].includes(config.arm);
+  globalThis.__workspaceNaturalQuestion = naturalQuestion;
   const hook = registerHooks({ load(url, context, nextLoad) {
     const result = nextLoad(url, context);
     if (!url.startsWith(pathToFileURL(path.join(config.repo, 'dist/')).href)) return result;
     let source = String(result.source);
     const replace = (before, after) => { assert.equal(source.split(before).length, 2, `Instrumentation seam changed: ${url}`); source = source.replace(before, after); };
+    if (naturalArm && url.endsWith('/adapters/qmd/qmd-query.js')) {
+      replace('export function hasQueryConstraints(value) {', 'export function hasQueryConstraints(value) {\n    value = globalThis.__workspaceNaturalQuestion(value)?.constraintProbe ?? value;');
+      replace('function relaxationQueries(value) {', 'function relaxationQueries(value) {\n    value = globalThis.__workspaceNaturalQuestion(value)?.query ?? value;');
+      replace('export function qmdLexQueries(value) {', 'export function qmdLexQueries(value) {\n    value = globalThis.__workspaceNaturalQuestion(value)?.query ?? value;');
+    }
     if (url.endsWith('/adapters/qmd/qmd-driver.js')) {
       if (['ordering-all', 'ordering-all-read-spread'].includes(config.arm)) {
         // Replace production's actual partition, rather than stack a second one.

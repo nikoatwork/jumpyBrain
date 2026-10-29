@@ -1,0 +1,146 @@
+[
+  {
+    "id": "thistledown-natural-not",
+    "scenario": "thistledown",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why does Thistledown not allow unlabelled seed packets, and what is actually approved?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "thistledown-natural-hyphen",
+    "scenario": "thistledown",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Has the Thistledown key-holder suggestion changed the steward or the current trial?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "thistledown-natural-without",
+    "scenario": "thistledown",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Can a volunteer at Thistledown act without the steward after receiving a key?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "thistledown-late-procedure",
+    "scenario": "thistledown",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "For the Thistledown germination tray inspection, what must be recorded and what qualification still applies?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "thistledown-late-authority",
+    "scenario": "thistledown",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Who may close an unresolved inspection entry in the Thistledown field handbook and does its observation waive the trial boundaries?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "thistledown-explicit-phrase",
+    "scenario": "thistledown",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "What does Thistledown say about \"germination tray\"?",
+    "depth": "normal",
+    "protected": true
+  },
+  {
+    "id": "thistledown-explicit-not",
+    "scenario": "thistledown",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "What Thistledown NOT picnic?",
+    "depth": "normal",
+    "protected": true
+  },
+  {
+    "id": "thistledown-explicit-exclusion",
+    "scenario": "thistledown",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "What Thistledown -picnic?",
+    "depth": "normal",
+    "protected": true
+  },
+  {
+    "id": "bellwether-natural-not",
+    "scenario": "bellwether",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why does Bellwether not allow untrained night observers, and what is actually approved?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "bellwether-natural-hyphen",
+    "scenario": "bellwether",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Has the Bellwether key-holder suggestion changed the steward or the current trial?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "bellwether-natural-without",
+    "scenario": "bellwether",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Can a volunteer at Bellwether act without the steward after receiving a key?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "bellwether-late-procedure",
+    "scenario": "bellwether",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "For the Bellwether counterweight pin inspection, what must be recorded and what qualification still applies?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "bellwether-late-authority",
+    "scenario": "bellwether",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Who may close an unresolved inspection entry in the Bellwether field handbook and does its observation waive the trial boundaries?",
+    "depth": "normal",
+    "protected": false
+  },
+  {
+    "id": "bellwether-explicit-phrase",
+    "scenario": "bellwether",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "What does Bellwether say about \"counterweight pin\"?",
+    "depth": "normal",
+    "protected": true
+  },
+  {
+    "id": "bellwether-explicit-not",
+    "scenario": "bellwether",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "What Bellwether NOT picnic?",
+    "depth": "normal",
+    "protected": true
+  },
+  {
+    "id": "bellwether-explicit-exclusion",
+    "scenario": "bellwether",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "What Bellwether -picnic?",
+    "depth": "normal",
+    "protected": true
+  }
+]

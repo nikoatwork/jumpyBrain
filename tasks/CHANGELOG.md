@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Constraint and range-read decisions
+
+- Retained production after natural-question classification exceeded the context cap and cited-range reads lost source qualifications. [Results](../evals/workspace-retrieval/reports/2026-10-29-constraints-ranges-v7.md).
+
 ## 2026-10-29 — Retrieval selection decisions
 
 - Retained current retrieval after full-pool ordering failed fresh gates and rank-spread reads lost evidence. [Results](../evals/workspace-retrieval/reports/2026-10-29-selection-v6.md).

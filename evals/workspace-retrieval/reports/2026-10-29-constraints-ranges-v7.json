@@ -1,0 +1,3004 @@
+{
+  "protocol": "workspace-v7-diagnostic",
+  "decision": "reject all arms; retain production and default evaluator reads",
+  "pages": 248,
+  "cases": 168,
+  "newlyAuthoredCases": 16,
+  "freshIndependentConfirmation": false,
+  "baseline": {
+    "overall": {
+      "cases": 168,
+      "searchSuccess5": 0.7261904761904762,
+      "searchSuccess10": 0.7857142857142857,
+      "searchMRR10": 0.5735969387755103,
+      "requiredFileCoverage10": 0.7321428571428571,
+      "initialRequiredSpanCoverage": 0.5803571428571429,
+      "finalRequiredSpanCoverage": 0.679563492063492,
+      "initialAllRequiredSpans": 77,
+      "finalAllRequiredSpans": 100,
+      "interactionTokens": 458055,
+      "interactionBytes": 1668169,
+      "expansions": 420,
+      "searchMs": {
+        "p50": 1468.00579200004,
+        "p95": 1538.0666670000064
+      },
+      "recallMs": {
+        "p50": 1491.114916999999,
+        "p95": 1542.6468330000062
+      },
+      "interactionMs": {
+        "p50": 1567.7139999999927,
+        "p95": 1624.7497919999878
+      },
+      "partialRetrievalCases": 12,
+      "provenanceFailures": 0
+    },
+    "newlyAuthoredComplete": 4,
+    "cleanControls": 2,
+    "exactNonTimingPacketsScoresCosts": true
+  },
+  "arms": [
+    {
+      "arm": "natural-question",
+      "decision": "reject",
+      "reasons": [
+        "interaction token increase exceeds 5%",
+        "unresolved natural exclusion and identifier ambiguity",
+        "no independent confirmation"
+      ],
+      "overall": {
+        "cases": 168,
+        "searchSuccess5": 0.8214285714285714,
+        "searchSuccess10": 0.8928571428571429,
+        "searchMRR10": 0.6514739229024945,
+        "requiredFileCoverage10": 0.8333333333333334,
+        "initialRequiredSpanCoverage": 0.6736111111111112,
+        "finalRequiredSpanCoverage": 0.7728174603174602,
+        "initialAllRequiredSpans": 91,
+        "finalAllRequiredSpans": 114,
+        "interactionTokens": 512951,
+        "interactionBytes": 1867546,
+        "expansions": 474,
+        "searchMs": {
+          "p50": 1470.4202500000029,
+          "p95": 1533.7932920000167
+        },
+        "recallMs": {
+          "p50": 1493.9695829999982,
+          "p95": 1562.8289579999982
+        },
+        "interactionMs": {
+          "p50": 1571.4799580000108,
+          "p95": 1650.6110829999961
+        },
+        "partialRetrievalCases": 12,
+        "provenanceFailures": 0
+      },
+      "newlyAuthoredComplete": 10,
+      "affected": {
+        "cases": 88,
+        "completeBefore": 47,
+        "completeAfter": 58,
+        "gainPoints": 12.5
+      },
+      "improved": [
+        "harbor-limits",
+        "orbit-historical",
+        "meadow-current",
+        "selkie-current",
+        "patchbay-master",
+        "kilnwick-evening",
+        "pedalbrook-passenger-reason",
+        "pedalbrook-passenger-unknown",
+        "thistledown-natural-not",
+        "thistledown-natural-hyphen",
+        "thistledown-natural-without",
+        "bellwether-natural-not",
+        "bellwether-natural-hyphen",
+        "bellwether-natural-without"
+      ],
+      "regressed": [],
+      "lostRequiredUnits": [],
+      "tokenChangePercent": 11.984587003744096
+    },
+    {
+      "arm": "read-cited",
+      "decision": "reject",
+      "reasons": [
+        "lost required units",
+        "no new range-only complete-task gains"
+      ],
+      "overall": {
+        "cases": 168,
+        "searchSuccess5": 0.7261904761904762,
+        "searchSuccess10": 0.7857142857142857,
+        "searchMRR10": 0.5735969387755103,
+        "requiredFileCoverage10": 0.7321428571428571,
+        "initialRequiredSpanCoverage": 0.5803571428571429,
+        "finalRequiredSpanCoverage": 0.6557539682539681,
+        "initialAllRequiredSpans": 77,
+        "finalAllRequiredSpans": 90,
+        "interactionTokens": 436990,
+        "interactionBytes": 1582058,
+        "expansions": 420,
+        "searchMs": {
+          "p50": 1460.3579160000081,
+          "p95": 1534.2570410000044
+        },
+        "recallMs": {
+          "p50": 1489.8946660000001,
+          "p95": 1546.246583
+        },
+        "interactionMs": {
+          "p50": 1568.1709999999875,
+          "p95": 1623.4426250000251
+        },
+        "partialRetrievalCases": 12,
+        "provenanceFailures": 0
+      },
+      "newlyAuthoredComplete": 4,
+      "affected": {
+        "cases": 88,
+        "completeBefore": 47,
+        "completeAfter": 47,
+        "gainPoints": 0
+      },
+      "improved": [],
+      "regressed": [
+        "meridian-scope",
+        "meridian-ranking",
+        "estuary-scope",
+        "estuary-ranking",
+        "vellum-scope",
+        "vellum-ranking",
+        "bracken-scope",
+        "saffron-scope",
+        "quartz-scope",
+        "quartz-ranking"
+      ],
+      "lostRequiredUnits": [
+        {
+          "id": "meridian-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "meridian-ranking",
+          "labels": [
+            "restriction"
+          ]
+        },
+        {
+          "id": "estuary-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "estuary-ranking",
+          "labels": [
+            "restriction"
+          ]
+        },
+        {
+          "id": "vellum-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "vellum-ranking",
+          "labels": [
+            "restriction"
+          ]
+        },
+        {
+          "id": "bracken-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "saffron-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "quartz-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "quartz-ranking",
+          "labels": [
+            "restriction"
+          ]
+        }
+      ],
+      "tokenChangePercent": -4.598792721398082
+    },
+    {
+      "arm": "natural-question-read-cited",
+      "decision": "reject",
+      "reasons": [
+        "lost required units",
+        "no new range-only complete-task gains",
+        "interaction token increase exceeds 5%"
+      ],
+      "overall": {
+        "cases": 168,
+        "searchSuccess5": 0.8214285714285714,
+        "searchSuccess10": 0.8928571428571429,
+        "searchMRR10": 0.6514739229024945,
+        "requiredFileCoverage10": 0.8333333333333334,
+        "initialRequiredSpanCoverage": 0.6736111111111112,
+        "finalRequiredSpanCoverage": 0.7490079365079365,
+        "initialAllRequiredSpans": 91,
+        "finalAllRequiredSpans": 104,
+        "interactionTokens": 491319,
+        "interactionBytes": 1779916,
+        "expansions": 474,
+        "searchMs": {
+          "p50": 1468.7732500000275,
+          "p95": 1539.9009160000132
+        },
+        "recallMs": {
+          "p50": 1493.6306249999907,
+          "p95": 1551.934083
+        },
+        "interactionMs": {
+          "p50": 1573.303166999991,
+          "p95": 1635.9538339999854
+        },
+        "partialRetrievalCases": 12,
+        "provenanceFailures": 0
+      },
+      "newlyAuthoredComplete": 10,
+      "affected": {
+        "cases": 88,
+        "completeBefore": 47,
+        "completeAfter": 58,
+        "gainPoints": 12.5
+      },
+      "improved": [
+        "harbor-limits",
+        "orbit-historical",
+        "meadow-current",
+        "selkie-current",
+        "patchbay-master",
+        "kilnwick-evening",
+        "pedalbrook-passenger-reason",
+        "pedalbrook-passenger-unknown",
+        "thistledown-natural-not",
+        "thistledown-natural-hyphen",
+        "thistledown-natural-without",
+        "bellwether-natural-not",
+        "bellwether-natural-hyphen",
+        "bellwether-natural-without"
+      ],
+      "regressed": [
+        "meridian-scope",
+        "meridian-ranking",
+        "estuary-scope",
+        "estuary-ranking",
+        "vellum-scope",
+        "vellum-ranking",
+        "bracken-scope",
+        "saffron-scope",
+        "quartz-scope",
+        "quartz-ranking"
+      ],
+      "lostRequiredUnits": [
+        {
+          "id": "meridian-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "meridian-ranking",
+          "labels": [
+            "restriction"
+          ]
+        },
+        {
+          "id": "estuary-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "estuary-ranking",
+          "labels": [
+            "restriction"
+          ]
+        },
+        {
+          "id": "vellum-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "vellum-ranking",
+          "labels": [
+            "restriction"
+          ]
+        },
+        {
+          "id": "bracken-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "saffron-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "quartz-scope",
+          "labels": [
+            "identity"
+          ]
+        },
+        {
+          "id": "quartz-ranking",
+          "labels": [
+            "restriction"
+          ]
+        }
+      ],
+      "tokenChangePercent": 7.262010020630716
+    }
+  ],
+  "audit": {
+    "packets": 840,
+    "excerpts": 3938,
+    "expansions": 2208,
+    "expansionErrors": 0,
+    "changedExplicitSyntaxPackets": 0,
+    "changedUnitArmRows": 78,
+    "uniqueChangedUnits": 39,
+    "runs": [
+      {
+        "arm": "baseline",
+        "pass": "lexical-1",
+        "packets": 168,
+        "excerpts": 750,
+        "expansions": 420,
+        "errors": 0,
+        "lateReads": 0,
+        "partialReads": 4,
+        "continuations": 4,
+        "explicitSyntaxChanged": [],
+        "emptyPackets": 27
+      },
+      {
+        "arm": "baseline",
+        "pass": "lexical-1",
+        "packets": 168,
+        "excerpts": 750,
+        "expansions": 420,
+        "errors": 0,
+        "lateReads": 0,
+        "partialReads": 4,
+        "continuations": 4,
+        "explicitSyntaxChanged": [],
+        "emptyPackets": 27
+      },
+      {
+        "arm": "natural-question",
+        "pass": "lexical-1",
+        "packets": 168,
+        "excerpts": 844,
+        "expansions": 474,
+        "errors": 0,
+        "lateReads": 0,
+        "partialReads": 6,
+        "continuations": 6,
+        "explicitSyntaxChanged": [],
+        "emptyPackets": 9
+      },
+      {
+        "arm": "read-cited",
+        "pass": "lexical-1",
+        "packets": 168,
+        "excerpts": 750,
+        "expansions": 420,
+        "errors": 0,
+        "lateReads": 269,
+        "partialReads": 0,
+        "continuations": 0,
+        "explicitSyntaxChanged": [],
+        "emptyPackets": 27
+      },
+      {
+        "arm": "natural-question-read-cited",
+        "pass": "lexical-1",
+        "packets": 168,
+        "excerpts": 844,
+        "expansions": 474,
+        "errors": 0,
+        "lateReads": 295,
+        "partialReads": 0,
+        "continuations": 0,
+        "explicitSyntaxChanged": [],
+        "emptyPackets": 9
+      }
+    ]
+  },
+  "verification": {
+    "fullTests": {
+      "tests": 1469,
+      "passed": 1468,
+      "failed": 0,
+      "skipped": 1,
+      "durationMs": 202463.531334
+    },
+    "finalFocusedTests": 13,
+    "pack": {
+      "paths": 518,
+      "requiredValidated": 231,
+      "evalAssets": 0
+    }
+  },
+  "sourceReview": [
+    {
+      "arm": "natural",
+      "id": "harbor-limits",
+      "label": "approver explicitly unknown",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/harbor/risk.md",
+          "required": [
+            "No signed approval for extending Harbor beyond its agreed scope is recorded in this workspace; the approver is unknown."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 16
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 26
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "juniper-multi-source",
+      "label": "operational consequence",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/juniper/runbook.md",
+          "required": [
+            "Juniper preparation using the fresh delivery must start after 09:45; an earlier timetable would require ingredients that have not arrived."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 33
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "orbit-rationale",
+      "label": "research cause",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "findings/orbit/research.md",
+          "required": [
+            "Orbit learner interviews found that adults stayed away after an absence because they expected a public catch-up test in front of the group."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 26
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "orbit-current",
+      "label": "accepted plan and date",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/orbit/approved.md",
+          "required": [
+            "The September 18 decision approves a private five-minute recap before the class for Orbit, starting on October 22."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "orbit-current",
+      "label": "scope remains conditional",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/orbit/approved.md",
+          "required": [
+            "Orbit private recaps are approved for the adult evening cohort only; the weekend youth group is outside this trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "orbit-historical",
+      "label": "original plan and date",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/orbit/initial.md",
+          "required": [
+            "The September 4 Orbit plan was a whole-group catch-up test at the start of each class, starting on October 8."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 18
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "meadow-current",
+      "label": "accepted plan and date",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/meadow/approved.md",
+          "required": [
+            "The September 18 decision approves named weekly watering pairs with an explicit backup for Meadow, starting on October 22."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "meadow-current",
+      "label": "scope remains conditional",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/meadow/approved.md",
+          "required": [
+            "Meadow paired watering covers the shared beds only; private allotment plots remain each holder's responsibility."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "meadow-current",
+      "label": "later proposal status",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/meadow/proposal.md",
+          "required": [
+            "The September 25 suggestion to include private plots in the shared volunteer rota is a proposal only; it has not been approved for Meadow."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "selkie-current",
+      "label": "accepted",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/selkie-passengers.md",
+          "required": [
+            "Selkie will use the south landing for accessible sailings on Mondays and Fridays."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 25
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "selkie-current",
+      "label": "proposal",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/selkie-later.md",
+          "required": [
+            "A daily accessible Selkie service was proposed on October 19, but it has no operational approval."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "patchbay-master",
+      "label": "copy integrity",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/patchbay/transfer.md",
+          "required": [
+            "Patchbay volunteers must preserve the untouched audio master and verify the listening copy against its checksum before cataloguing the accession."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 19
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "patchbay-master",
+      "label": "permission boundary",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "findings/patchbay/consent.md",
+          "required": [
+            "The Patchbay narrator forms permit listening inside the history room but do not grant permission to publish recordings on the open web."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 18
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "kilnwick-evening",
+      "label": "proposal remains pending",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/kilnwick/night-key.md",
+          "required": [
+            "The October 22 Kilnwick evening-key proposal is unapproved and does not replace the coordinator-operated pilot."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "kilnwick-evening",
+      "label": "operative scope",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/kilnwick/pilot.md",
+          "required": [
+            "Kilnwick accepts only identified stoneware bodies for the coordinator's cone-six programme; unknown clay, low-fire earthenware, and member-operated firing remain outside the pilot."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "pedalbrook-passenger-reason",
+      "label": "equipment uncertainty",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "findings/pedalbrook/equipment.md",
+          "required": [
+            "The Pedalbrook inspection found no documented passenger restraint specification for the donated front boxes; their padded benches were not evidence of approval for child carriage."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "recall",
+          "start": 16,
+          "end": 20
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 20
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "pedalbrook-passenger-reason",
+      "label": "decision boundary",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/pedalbrook/lending.md",
+          "required": [
+            "Pedalbrook permits household cargo only after a model-specific induction; carrying children, paying passengers, or animals is outside the approved trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 12
+        },
+        {
+          "scope": "recall",
+          "start": 14,
+          "end": 18
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "pedalbrook-passenger-unknown",
+      "label": "unknown approver",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/pedalbrook/child-seat.md",
+          "required": [
+            "No named approver for a Pedalbrook child-passenger exception is recorded in the passenger-kit discussion."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "pedalbrook-passenger-unknown",
+      "label": "proposal qualification",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/pedalbrook/child-seat.md",
+          "required": [
+            "The October 23 Pedalbrook passenger-kit discussion remains a proposal and does not authorize child carriage under the household-load trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "thistledown-natural-not",
+      "label": "reason",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/thistledown/trial.md",
+          "required": [
+            "Thistledown does not lend unlabelled seed because a missing variety record prevents the steward from checking the growing instructions."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "thistledown-natural-not",
+      "label": "approved scope",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/thistledown/trial.md",
+          "required": [
+            "Thistledown lends only labelled vegetable seed to adult plot holders; unidentified seed and commercial resale remain outside the trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "thistledown-natural-hyphen",
+      "label": "proposal and retained authority",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/thistledown/key.md",
+          "required": [
+            "The Thistledown key-holder suggestion is unapproved; Mina remains the seed steward and a door key grants no lending authority."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "thistledown-natural-without",
+      "label": "no authority from key",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/thistledown/key.md",
+          "required": [
+            "The Thistledown key-holder suggestion is unapproved; Mina remains the seed steward and a door key grants no lending authority."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "thistledown-natural-without",
+      "label": "retained trial",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/thistledown/trial.md",
+          "required": [
+            "Thistledown lends only labelled vegetable seed to adult plot holders; unidentified seed and commercial resale remain outside the trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "bellwether-natural-not",
+      "label": "reason",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/bellwether/trial.md",
+          "required": [
+            "Bellwether does not authorize solo night collection because the dark yard prevents the steward from checking the tripod setup."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "bellwether-natural-not",
+      "label": "approved scope",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/bellwether/trial.md",
+          "required": [
+            "Bellwether lends small telescopes only to adults who completed the daylight setup check; solo night collection and solar viewing remain outside the trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "bellwether-natural-hyphen",
+      "label": "proposal and retained authority",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/bellwether/key.md",
+          "required": [
+            "The Bellwether key-holder suggestion is unapproved; Oren remains the equipment steward and a door key grants no borrowing authority."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "bellwether-natural-without",
+      "label": "no authority from key",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/bellwether/key.md",
+          "required": [
+            "The Bellwether key-holder suggestion is unapproved; Oren remains the equipment steward and a door key grants no borrowing authority."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "arm": "natural",
+      "id": "bellwether-natural-without",
+      "label": "retained trial",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/bellwether/trial.md",
+          "required": [
+            "Bellwether lends small telescopes only to adults who completed the daylight setup check; solo night collection and solar viewing remain outside the trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "meridian-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/meridian/handbook.md",
+          "required": [
+            "aliases: [\"Nightjar\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 40,
+          "end": 44
+        },
+        {
+          "scope": "recall",
+          "start": 50,
+          "end": 52
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 52
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 40,
+          "end": 44
+        },
+        {
+          "scope": "recall",
+          "start": 50,
+          "end": 52
+        },
+        {
+          "scope": "read",
+          "start": 32,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "meridian-ranking",
+      "label": "restriction",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/meridian/handbook.md",
+          "required": [
+            "Only the sealed training cabinet is in scope; occupied vaccine storage must retain its existing alarm policy."
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 50,
+          "end": 52
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 52
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 50,
+          "end": 52
+        },
+        {
+          "scope": "read",
+          "start": 42,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "estuary-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/estuary/handbook.md",
+          "required": [
+            "aliases: [\"Mudlark\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "read",
+          "start": 24,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "estuary-ranking",
+      "label": "restriction",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/estuary/handbook.md",
+          "required": [
+            "The following sampling procedure applies to the closed inlet only; the public bathing beach is excluded."
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "recall",
+          "start": 20,
+          "end": 22
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "recall",
+          "start": 20,
+          "end": 22
+        },
+        {
+          "scope": "read",
+          "start": 44,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "vellum-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/vellum/handbook.md",
+          "required": [
+            "aliases: [\"Glasswing\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 34,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "vellum-ranking",
+      "label": "restriction",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/vellum/handbook.md",
+          "required": [
+            "These settings are authorized for modern practice sheets only; original manuscripts require the conservator at the cradle."
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 44,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "bracken-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/bracken/handbook.md",
+          "required": [
+            "aliases: [\"Copperleaf\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 34,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "saffron-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/saffron/handbook.md",
+          "required": [
+            "aliases: [\"Emberplate\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 34,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "quartz-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/quartz/handbook.md",
+          "required": [
+            "aliases: [\"Softbell\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "scope": "read",
+          "start": 34,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "cited",
+      "id": "quartz-ranking",
+      "label": "restriction",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/quartz/handbook.md",
+          "required": [
+            "This sound profile is for the closed technical rehearsal; ticketed performances keep the approved access specification."
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 44,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "harbor-limits",
+      "label": "approver explicitly unknown",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/harbor/risk.md",
+          "required": [
+            "No signed approval for extending Harbor beyond its agreed scope is recorded in this workspace; the approver is unknown."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 16
+        },
+        {
+          "scope": "read",
+          "start": 2,
+          "end": 26
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "juniper-multi-source",
+      "label": "operational consequence",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/juniper/runbook.md",
+          "required": [
+            "Juniper preparation using the fresh delivery must start after 09:45; an earlier timetable would require ingredients that have not arrived."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 3,
+          "end": 33
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "orbit-rationale",
+      "label": "research cause",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "findings/orbit/research.md",
+          "required": [
+            "Orbit learner interviews found that adults stayed away after an absence because they expected a public catch-up test in front of the group."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 2,
+          "end": 26
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "orbit-current",
+      "label": "accepted plan and date",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/orbit/approved.md",
+          "required": [
+            "The September 18 decision approves a private five-minute recap before the class for Orbit, starting on October 22."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 3,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "orbit-current",
+      "label": "scope remains conditional",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/orbit/approved.md",
+          "required": [
+            "Orbit private recaps are approved for the adult evening cohort only; the weekend youth group is outside this trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 3,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "orbit-historical",
+      "label": "original plan and date",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/orbit/initial.md",
+          "required": [
+            "The September 4 Orbit plan was a whole-group catch-up test at the start of each class, starting on October 8."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 18
+        },
+        {
+          "scope": "read",
+          "start": 2,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "meadow-current",
+      "label": "accepted plan and date",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/meadow/approved.md",
+          "required": [
+            "The September 18 decision approves named weekly watering pairs with an explicit backup for Meadow, starting on October 22."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 3,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "meadow-current",
+      "label": "scope remains conditional",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/meadow/approved.md",
+          "required": [
+            "Meadow paired watering covers the shared beds only; private allotment plots remain each holder's responsibility."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 25
+        },
+        {
+          "scope": "read",
+          "start": 3,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "meadow-current",
+      "label": "later proposal status",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/meadow/proposal.md",
+          "required": [
+            "The September 25 suggestion to include private plots in the shared volunteer rota is a proposal only; it has not been approved for Meadow."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 11,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 3,
+          "end": 23
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "meridian-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/meridian/handbook.md",
+          "required": [
+            "aliases: [\"Nightjar\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 40,
+          "end": 44
+        },
+        {
+          "scope": "recall",
+          "start": 50,
+          "end": 52
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 52
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 40,
+          "end": 44
+        },
+        {
+          "scope": "recall",
+          "start": 50,
+          "end": 52
+        },
+        {
+          "scope": "read",
+          "start": 32,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "meridian-ranking",
+      "label": "restriction",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/meridian/handbook.md",
+          "required": [
+            "Only the sealed training cabinet is in scope; occupied vaccine storage must retain its existing alarm policy."
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 50,
+          "end": 52
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 52
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 50,
+          "end": 52
+        },
+        {
+          "scope": "read",
+          "start": 42,
+          "end": 52
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "estuary-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/estuary/handbook.md",
+          "required": [
+            "aliases: [\"Mudlark\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "read",
+          "start": 24,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "estuary-ranking",
+      "label": "restriction",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/estuary/handbook.md",
+          "required": [
+            "The following sampling procedure applies to the closed inlet only; the public bathing beach is excluded."
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "recall",
+          "start": 20,
+          "end": 22
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "recall",
+          "start": 20,
+          "end": 22
+        },
+        {
+          "scope": "read",
+          "start": 44,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "vellum-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/vellum/handbook.md",
+          "required": [
+            "aliases: [\"Glasswing\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 34,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "vellum-ranking",
+      "label": "restriction",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/vellum/handbook.md",
+          "required": [
+            "These settings are authorized for modern practice sheets only; original manuscripts require the conservator at the cradle."
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 44,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "bracken-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/bracken/handbook.md",
+          "required": [
+            "aliases: [\"Copperleaf\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 34,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "saffron-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/saffron/handbook.md",
+          "required": [
+            "aliases: [\"Emberplate\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 10,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 34,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "quartz-scope",
+      "label": "identity",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/quartz/handbook.md",
+          "required": [
+            "aliases: [\"Softbell\"]"
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 42,
+          "end": 46
+        },
+        {
+          "scope": "recall",
+          "start": 32,
+          "end": 36
+        },
+        {
+          "scope": "read",
+          "start": 34,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "quartz-ranking",
+      "label": "restriction",
+      "before": true,
+      "after": false,
+      "sources": [
+        {
+          "file": "notes/quartz/handbook.md",
+          "required": [
+            "This sound profile is for the closed technical rehearsal; ticketed performances keep the approved access specification."
+          ]
+        }
+      ],
+      "beforeRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 54
+        }
+      ],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 52,
+          "end": 54
+        },
+        {
+          "scope": "read",
+          "start": 44,
+          "end": 54
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "selkie-current",
+      "label": "accepted",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/selkie-passengers.md",
+          "required": [
+            "Selkie will use the south landing for accessible sailings on Mondays and Fridays."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 25
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "selkie-current",
+      "label": "proposal",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/selkie-later.md",
+          "required": [
+            "A daily accessible Selkie service was proposed on October 19, but it has no operational approval."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "patchbay-master",
+      "label": "copy integrity",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/patchbay/transfer.md",
+          "required": [
+            "Patchbay volunteers must preserve the untouched audio master and verify the listening copy against its checksum before cataloguing the accession."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 19
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "patchbay-master",
+      "label": "permission boundary",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "findings/patchbay/consent.md",
+          "required": [
+            "The Patchbay narrator forms permit listening inside the history room but do not grant permission to publish recordings on the open web."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 12
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 18
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "kilnwick-evening",
+      "label": "proposal remains pending",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/kilnwick/night-key.md",
+          "required": [
+            "The October 22 Kilnwick evening-key proposal is unapproved and does not replace the coordinator-operated pilot."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "kilnwick-evening",
+      "label": "operative scope",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/kilnwick/pilot.md",
+          "required": [
+            "Kilnwick accepts only identified stoneware bodies for the coordinator's cone-six programme; unknown clay, low-fire earthenware, and member-operated firing remain outside the pilot."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "pedalbrook-passenger-reason",
+      "label": "equipment uncertainty",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "findings/pedalbrook/equipment.md",
+          "required": [
+            "The Pedalbrook inspection found no documented passenger restraint specification for the donated front boxes; their padded benches were not evidence of approval for child carriage."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "recall",
+          "start": 16,
+          "end": 20
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 20
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "pedalbrook-passenger-reason",
+      "label": "decision boundary",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/pedalbrook/lending.md",
+          "required": [
+            "Pedalbrook permits household cargo only after a model-specific induction; carrying children, paying passengers, or animals is outside the approved trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 12
+        },
+        {
+          "scope": "recall",
+          "start": 14,
+          "end": 18
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "pedalbrook-passenger-unknown",
+      "label": "unknown approver",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/pedalbrook/child-seat.md",
+          "required": [
+            "No named approver for a Pedalbrook child-passenger exception is recorded in the passenger-kit discussion."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "pedalbrook-passenger-unknown",
+      "label": "proposal qualification",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/pedalbrook/child-seat.md",
+          "required": [
+            "The October 23 Pedalbrook passenger-kit discussion remains a proposal and does not authorize child carriage under the household-load trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 8,
+          "end": 14
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 22
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "thistledown-natural-not",
+      "label": "reason",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/thistledown/trial.md",
+          "required": [
+            "Thistledown does not lend unlabelled seed because a missing variety record prevents the steward from checking the growing instructions."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "thistledown-natural-not",
+      "label": "approved scope",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/thistledown/trial.md",
+          "required": [
+            "Thistledown lends only labelled vegetable seed to adult plot holders; unidentified seed and commercial resale remain outside the trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "thistledown-natural-hyphen",
+      "label": "proposal and retained authority",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/thistledown/key.md",
+          "required": [
+            "The Thistledown key-holder suggestion is unapproved; Mina remains the seed steward and a door key grants no lending authority."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "thistledown-natural-without",
+      "label": "no authority from key",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/thistledown/key.md",
+          "required": [
+            "The Thistledown key-holder suggestion is unapproved; Mina remains the seed steward and a door key grants no lending authority."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "thistledown-natural-without",
+      "label": "retained trial",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/thistledown/trial.md",
+          "required": [
+            "Thistledown lends only labelled vegetable seed to adult plot holders; unidentified seed and commercial resale remain outside the trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "bellwether-natural-not",
+      "label": "reason",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/bellwether/trial.md",
+          "required": [
+            "Bellwether does not authorize solo night collection because the dark yard prevents the steward from checking the tripod setup."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "bellwether-natural-not",
+      "label": "approved scope",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/bellwether/trial.md",
+          "required": [
+            "Bellwether lends small telescopes only to adults who completed the daylight setup check; solo night collection and solar viewing remain outside the trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 17
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "bellwether-natural-hyphen",
+      "label": "proposal and retained authority",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/bellwether/key.md",
+          "required": [
+            "The Bellwether key-holder suggestion is unapproved; Oren remains the equipment steward and a door key grants no borrowing authority."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "bellwether-natural-without",
+      "label": "no authority from key",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "notes/bellwether/key.md",
+          "required": [
+            "The Bellwether key-holder suggestion is unapproved; Oren remains the equipment steward and a door key grants no borrowing authority."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 13
+        },
+        {
+          "scope": "read",
+          "start": 1,
+          "end": 13
+        }
+      ]
+    },
+    {
+      "arm": "combined",
+      "id": "bellwether-natural-without",
+      "label": "retained trial",
+      "before": false,
+      "after": true,
+      "sources": [
+        {
+          "file": "decisions/bellwether/trial.md",
+          "required": [
+            "Bellwether lends small telescopes only to adults who completed the daylight setup check; solo night collection and solar viewing remain outside the trial."
+          ]
+        }
+      ],
+      "beforeRanges": [],
+      "afterRanges": [
+        {
+          "scope": "recall",
+          "start": 9,
+          "end": 17
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Single agent authored policies, new sources, questions and rubrics; same-agent source review, no independent answers.",
+    "ID-only correction followed an excluded attempt; all cases are seen diagnostics.",
+    "Six new explicit-syntax cases are empty in every arm; equality is not successful exclusion/phrase retrieval.",
+    "Long books contain repeated neutral records and already-complete late snippets. No general large-workspace claim.",
+    "Quality processes overlap; no accepted latency/RSS/semantic/Linux/VPS claim."
+  ]
+}

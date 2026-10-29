@@ -15,12 +15,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(here, '../..');
 const { values } = parseArgs({ options: { modes: { type: 'string', default: 'lexical' }, model: { type: 'string' },
   repeats: { type: 'string', default: '2' }, name: { type: 'string' }, suite: { type: 'string', default: 'v1' }, arm: { type: 'string', default: 'baseline' }, 'rerank-model': { type: 'string' }, 'runtime-root': { type: 'string' } } });
-assert.ok(['v1', 'augmented', 'confirmation', 'confirmation-extra', 'discovery-confirmation', 'boundary-confirmation'].includes(values.suite));
-assert.ok(['baseline', 'evidence', 'rerank', 'neighbors', 'identity', 'discovery', 'discovery-identity', 'ordering-all', 'read-spread', 'ordering-all-read-spread'].includes(values.arm));
+assert.ok(['v1', 'augmented', 'confirmation', 'confirmation-extra', 'discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite));
+assert.ok(['baseline', 'evidence', 'rerank', 'neighbors', 'identity', 'discovery', 'discovery-identity', 'ordering-all', 'read-spread', 'ordering-all-read-spread', 'natural-question', 'read-cited', 'natural-question-read-cited'].includes(values.arm));
 if (values.arm === 'rerank') assert.ok(values['rerank-model'] && path.isAbsolute(values['rerank-model']) && (await stat(values['rerank-model'])).isFile(), 'An already-provisioned local rerank model is required.');
 const productRoot = values['runtime-root'] ? await realpath(values['runtime-root']) : repo;
 const modes = values.modes.split(',');
 assert.ok(modes.every(mode => ['lexical', 'semantic'].includes(mode)) && new Set(modes).size === modes.length);
+if (values.suite === 'constraint-range' || ['natural-question', 'read-cited', 'natural-question-read-cited'].includes(values.arm)) assert.deepEqual(modes, ['lexical'], 'Constraint/range diagnostic is lexical-only');
 const repeats = Number(values.repeats);
 assert.ok(Number.isSafeInteger(repeats) && repeats >= 1 && repeats <= 5);
 if (modes.includes('semantic')) assert.ok(values.model && path.isAbsolute(values.model) && (await stat(values.model)).isFile(), 'Semantic runs require --model /absolute/provisioned.gguf; no downloads.');
@@ -51,19 +52,21 @@ for (const file of ['queries.json', 'scenarios.mjs', 'build-corpus.mjs', 'run.mj
   inputFiles.push({ path: path.relative(repo, path.join(here, file)), bytes: (await stat(path.join(here, file))).size, sha256: await fileHash(path.join(here, file)) });
 }
 if (values.suite !== 'v1') inputFiles.push(...await tree(path.join(here, 'augmentation')));
-if (['confirmation', 'confirmation-extra', 'discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) inputFiles.push(...await tree(path.join(here, 'confirmation')));
-if (['confirmation-extra', 'discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) inputFiles.push(...await tree(path.join(here, 'confirmation-extra')));
+if (['confirmation', 'confirmation-extra', 'discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) inputFiles.push(...await tree(path.join(here, 'confirmation')));
+if (['confirmation-extra', 'discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) inputFiles.push(...await tree(path.join(here, 'confirmation-extra')));
 for (const file of ['IDENTITY-CONFIRMATION.md', 'build-confirmation-extra.py', 'time-identity.mjs', 'EXPERIMENTS.md', 'IDENTITY-EXPERIMENT.md', 'experiment-hooks.mjs', 'experiment-policy.mjs', 'identity-policy.mjs', 'compare-experiments.mjs', 'rerank-probe.mjs', 'build-augmentation.py', 'build-confirmation.py']) inputFiles.push({ path: path.relative(repo, path.join(here, file)), bytes: (await stat(path.join(here, file))).size, sha256: await fileHash(path.join(here, file)) });
-if (['discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) {
+if (['discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) {
   inputFiles.push(...await tree(path.join(here, 'discovery-confirmation')));
 }
 for (const file of ['DISCOVERY-EXPERIMENT.md', 'build-discovery-confirmation.py', 'discovery-policy.mjs']) {
   inputFiles.push({ path: path.relative(repo, path.join(here, file)), bytes: (await stat(path.join(here, file))).size, sha256: await fileHash(path.join(here, file)) });
 }
-if (values.suite === 'boundary-confirmation') inputFiles.push(...await tree(path.join(here, 'boundary-confirmation')));
+if (['boundary-confirmation', 'constraint-range'].includes(values.suite)) inputFiles.push(...await tree(path.join(here, 'boundary-confirmation')));
 for (const file of ['SELECTION-EXPERIMENT.md', 'read-policy.mjs', 'build-boundary-confirmation.py']) inputFiles.push({ path: path.relative(repo, path.join(here, file)), bytes: (await stat(path.join(here, file))).size, sha256: await fileHash(path.join(here, file)) });
+if (values.suite === 'constraint-range') inputFiles.push(...await tree(path.join(here, 'constraint-range')));
+for (const file of ['CONSTRAINT-RANGE-EXPERIMENT.md', 'constraint-policy.mjs', 'build-constraint-range.py', 'audit-constraint-range.mjs']) inputFiles.push({ path: path.relative(repo, path.join(here, file)), bytes: (await stat(path.join(here, file))).size, sha256: await fileHash(path.join(here, file)) });
 const product = [...await tree(path.join(productRoot, 'src'), productRoot), ...await tree(path.join(productRoot, 'dist'), productRoot)];
-const manifest = { protocol: values.suite === 'boundary-confirmation' ? 'workspace-v6' : values.suite === 'v1' ? 'workspace-v1' : values.suite === 'augmented' ? 'workspace-v2' : values.suite === 'confirmation' ? 'workspace-v3' : values.suite === 'discovery-confirmation' ? 'workspace-v5' : 'workspace-v4', arm: values.arm, createdAt: new Date().toISOString(), sourceCommit: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).stdout.trim(),
+const manifest = { protocol: values.suite === 'constraint-range' ? 'workspace-v7-diagnostic' : values.suite === 'boundary-confirmation' ? 'workspace-v6' : values.suite === 'v1' ? 'workspace-v1' : values.suite === 'augmented' ? 'workspace-v2' : values.suite === 'confirmation' ? 'workspace-v3' : values.suite === 'discovery-confirmation' ? 'workspace-v5' : 'workspace-v4', arm: values.arm, createdAt: new Date().toISOString(), sourceCommit: spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).stdout.trim(),
   runtimeRoot: productRoot, isolatedRuntime: productRoot !== repo,
   sourceUnchanged: productRoot !== repo ? null : !spawnSync('git', ['diff', '--', 'src'], { cwd: repo, encoding: 'utf8' }).stdout.trim(),
   inputDigest: digest(JSON.stringify(inputFiles)), productDigest: digest(JSON.stringify(product)), inputs: inputFiles, product,
@@ -90,46 +93,66 @@ if (values.suite !== 'v1') {
   queries.push(...JSON.parse(await readFile(path.join(here, 'augmentation/queries.json'), 'utf8')));
   await cp(path.join(here, 'augmentation/corpus'), corpusDir, { recursive: true });
 }
-if (['confirmation', 'confirmation-extra', 'discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) {
+if (['confirmation', 'confirmation-extra', 'discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) {
   queries.push(...JSON.parse(await readFile(path.join(here, 'confirmation/queries.json'), 'utf8')));
   await cp(path.join(here, 'confirmation/corpus'), corpusDir, { recursive: true });
 }
-if (['confirmation-extra', 'discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) {
+if (['confirmation-extra', 'discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) {
   queries.push(...JSON.parse(await readFile(path.join(here, 'confirmation-extra/queries.json'), 'utf8')));
   await cp(path.join(here, 'confirmation-extra/corpus'), corpusDir, { recursive: true });
 }
 let freshCaseIds = [];
-if (['discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) {
+if (['discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) {
   const fresh = JSON.parse(await readFile(path.join(here, 'discovery-confirmation/queries.json'), 'utf8'));
   freshCaseIds = fresh.map(query => query.id);
   queries.push(...fresh);
   await cp(path.join(here, 'discovery-confirmation/corpus'), corpusDir, { recursive: true });
 }
-if (values.suite === 'boundary-confirmation') {
+if (['boundary-confirmation', 'constraint-range'].includes(values.suite)) {
   const fresh = JSON.parse(await readFile(path.join(here, 'boundary-confirmation/queries.json'), 'utf8'));
   freshCaseIds = fresh.map(query => query.id);
   queries.push(...fresh);
   await cp(path.join(here, 'boundary-confirmation/corpus'), corpusDir, { recursive: true });
 }
+if (values.suite === 'constraint-range') {
+  const fresh = JSON.parse(await readFile(path.join(here, 'constraint-range/queries.json'), 'utf8'));
+  freshCaseIds = fresh.map(query => query.id);
+  queries.push(...fresh);
+  await cp(path.join(here, 'constraint-range/corpus'), corpusDir, { recursive: true });
+}
 const queryPath = path.join(output, 'fixture/queries.json');
 await writeFile(queryPath, JSON.stringify(queries));
 const gold = new Map(JSON.parse(await readFile(path.join(here, 'gold/rubric.json'), 'utf8')).map(row => [row.id, row]));
 if (values.suite !== 'v1') for (const row of JSON.parse(await readFile(path.join(here, 'augmentation/rubric.json'), 'utf8'))) gold.set(row.id, row);
-if (['confirmation', 'confirmation-extra', 'discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) for (const row of JSON.parse(await readFile(path.join(here, 'confirmation/rubric.json'), 'utf8'))) gold.set(row.id, row);
-if (['confirmation-extra', 'discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) for (const row of JSON.parse(await readFile(path.join(here, 'confirmation-extra/rubric.json'), 'utf8'))) gold.set(row.id, row);
-if (['discovery-confirmation', 'boundary-confirmation'].includes(values.suite)) for (const row of JSON.parse(await readFile(path.join(here, 'discovery-confirmation/rubric.json'), 'utf8'))) {
+if (['confirmation', 'confirmation-extra', 'discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) for (const row of JSON.parse(await readFile(path.join(here, 'confirmation/rubric.json'), 'utf8'))) gold.set(row.id, row);
+if (['confirmation-extra', 'discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) for (const row of JSON.parse(await readFile(path.join(here, 'confirmation-extra/rubric.json'), 'utf8'))) gold.set(row.id, row);
+if (['discovery-confirmation', 'boundary-confirmation', 'constraint-range'].includes(values.suite)) for (const row of JSON.parse(await readFile(path.join(here, 'discovery-confirmation/rubric.json'), 'utf8'))) {
   assert.ok(!gold.has(row.id), `Duplicate fresh rubric: ${row.id}`); gold.set(row.id, row);
 }
-if (values.suite === 'boundary-confirmation') for (const row of JSON.parse(await readFile(path.join(here, 'boundary-confirmation/rubric.json'), 'utf8'))) {
+if (['boundary-confirmation', 'constraint-range'].includes(values.suite)) for (const row of JSON.parse(await readFile(path.join(here, 'boundary-confirmation/rubric.json'), 'utf8'))) {
   assert.ok(!gold.has(row.id), `Duplicate boundary rubric: ${row.id}`); gold.set(row.id, row);
+}
+if (values.suite === 'constraint-range') for (const row of JSON.parse(await readFile(path.join(here, 'constraint-range/rubric.json'), 'utf8'))) {
+  assert.ok(!gold.has(row.id), `Duplicate constraint-range rubric: ${row.id}`); gold.set(row.id, row);
 }
 assert.equal(new Set(queries.map(query => query.id)).size, queries.length, 'Duplicate query IDs');
 assert.equal(gold.size, queries.length, 'Query/rubric case mismatch');
-assert.equal(queries.length, values.suite === 'v1' ? 80 : values.suite === 'augmented' ? 104 : values.suite === 'confirmation' ? 112 : (values.suite === 'boundary-confirmation' ? 140 : 124) + freshCaseIds.length);
+assert.equal(queries.length, values.suite === 'v1' ? 80 : values.suite === 'augmented' ? 104 : values.suite === 'confirmation' ? 112 : (values.suite === 'constraint-range' ? 152 : values.suite === 'boundary-confirmation' ? 140 : 124) + freshCaseIds.length);
 const sources = new Map();
 for (const file of await tree(corpusDir)) {
   const full = path.join(repo, file.path);
   sources.set(path.relative(corpusDir, full), { content: await readFile(full, 'utf8'), hash: `sha256:${file.sha256}` });
+}
+if (values.suite === 'constraint-range') {
+  const { isValidMemoryDocumentId } = await import(pathToFileURL(path.join(productRoot, 'dist/core/document-id.js')));
+  const { parseFrontmatter } = await import(pathToFileURL(path.join(productRoot, 'dist/core/frontmatter.js')));
+  const ids = new Set();
+  for (const file of await tree(path.join(here, 'constraint-range/corpus'))) {
+    const { frontmatter } = parseFrontmatter(await readFile(path.join(repo, file.path), 'utf8'));
+    assert.ok(isValidMemoryDocumentId(frontmatter.id), `Diagnostic source lacks expandable ID: ${file.path}`);
+    assert.ok(!ids.has(frontmatter.id), `Duplicate diagnostic ID: ${file.path}`);
+    ids.add(frontmatter.id);
+  }
 }
 for (const rubric of gold.values()) for (const unit of rubric.units) for (const alt of unit.alternatives) {
   assert.ok(sources.has(alt.file));

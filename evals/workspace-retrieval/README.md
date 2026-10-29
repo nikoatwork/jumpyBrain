@@ -68,3 +68,19 @@ npm run eval:workspace -- --suite boundary-confirmation --arm ordering-all-read-
 Use the same input/runtime identities for all arms. Do not interpret the read-spread baseline as missing-evidence detection; it intentionally explores the last returned expandable document instead of reading the third. Keep negative results and source-review qualifications alongside aggregate span diagnostics.
 
 [Measured v6 outcome](reports/2026-10-29-selection-v6.md): all three arms rejected; retain current production and default first-three reads.
+
+## Natural questions and cited-range diagnostics (v7)
+
+[The diagnostic contract](CONSTRAINT-RANGE-EXPERIMENT.md) keeps all prior cases and adds 16 same-author questions / eight fictional pages, including two handbooks larger than 32 KiB. This single-agent study cannot justify adoption. Production remains unchanged.
+
+```sh
+npm run eval:workspace -- --suite constraint-range --arm baseline --runtime-root /absolute/frozen/runtime --repeats 2 --name constraints-v7-control
+npm run eval:workspace -- --suite constraint-range --arm natural-question --runtime-root /absolute/frozen/runtime --repeats 1 --name constraints-v7-natural
+npm run eval:workspace -- --suite constraint-range --arm read-cited --runtime-root /absolute/frozen/runtime --repeats 1 --name constraints-v7-cited
+npm run eval:workspace -- --suite constraint-range --arm natural-question-read-cited --runtime-root /absolute/frozen/runtime --repeats 1 --name constraints-v7-combined
+node evals/workspace-retrieval/audit-constraint-range.mjs /path/to/control /path/to/audit.json /path/to/natural /path/to/cited /path/to/combined
+```
+
+The natural-question arm narrowly reclassifies lowercase negation and alphabetic hyphens in interrogative questions; explicit syntax remains governed by existing checks. The cited-read arm keeps baseline source selection and starts eight lines before each first visible citation. Continuations are reported, but never automatically consumed. Full packet/read costs and individual evidence losses determine whether either mechanism warrants independent confirmation.
+
+[The v7 result](reports/2026-10-29-constraints-ranges-v7.md) rejects all three arms: natural-question classification gains 14 complete packets but costs +11.98% tokens and retains syntax ambiguity; cited ranges lose ten required units with no complete-task gains. Two clean controls reproduce 100/168 complete packets and 458,055 tokens exactly. The corrected fixture and rejected/accepted attempts are retained; no production adoption. Run full installer tests before starting mutable eval roots: their source-copy checks can race transient SQLite WAL files.

@@ -1,0 +1,428 @@
+[
+  {
+    "id": "thistledown-natural-not",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "reason",
+        "alternatives": [
+          {
+            "file": "decisions/thistledown/trial.md",
+            "required": [
+              "Thistledown does not lend unlabelled seed because a missing variety record prevents the steward from checking the growing instructions."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/thistledown/trial.md",
+            "required": [
+              "Thistledown lends only labelled vegetable seed to adult plot holders; unidentified seed and commercial resale remain outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/thistledown/trial.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "thistledown-natural-hyphen",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "proposal and retained authority",
+        "alternatives": [
+          {
+            "file": "notes/thistledown/key.md",
+            "required": [
+              "The Thistledown key-holder suggestion is unapproved; Mina remains the seed steward and a door key grants no lending authority."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/thistledown/key.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "thistledown-natural-without",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "no authority from key",
+        "alternatives": [
+          {
+            "file": "notes/thistledown/key.md",
+            "required": [
+              "The Thistledown key-holder suggestion is unapproved; Mina remains the seed steward and a door key grants no lending authority."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "retained trial",
+        "alternatives": [
+          {
+            "file": "decisions/thistledown/trial.md",
+            "required": [
+              "Thistledown lends only labelled vegetable seed to adult plot holders; unidentified seed and commercial resale remain outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/thistledown/key.md",
+      "decisions/thistledown/trial.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "thistledown-late-procedure",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "inspection action",
+        "alternatives": [
+          {
+            "file": "notes/thistledown/handbook.md",
+            "required": [
+              "For the Thistledown germination tray inspection, record the counted shoots on the original batch sheet."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "retained qualification",
+        "alternatives": [
+          {
+            "file": "notes/thistledown/handbook.md",
+            "required": [
+              "A germination tray count is a local observation, not certification of disease freedom; quarantine remains in force until Mina signs the batch sheet."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/thistledown/handbook.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "thistledown-late-authority",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "closing authority",
+        "alternatives": [
+          {
+            "file": "notes/thistledown/handbook.md",
+            "required": [
+              "Only Mina, the seed steward, may close an unresolved inspection entry."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope preserved",
+        "alternatives": [
+          {
+            "file": "notes/thistledown/handbook.md",
+            "required": [
+              "A tick beside the observation confirms that this particular check was recorded. It does not waive the separate trial boundaries."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/thistledown/handbook.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "thistledown-explicit-phrase",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "inspection action",
+        "alternatives": [
+          {
+            "file": "notes/thistledown/handbook.md",
+            "required": [
+              "For the Thistledown germination tray inspection, record the counted shoots on the original batch sheet."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/thistledown/handbook.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "thistledown-explicit-not",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/thistledown/trial.md",
+            "required": [
+              "Thistledown lends only labelled vegetable seed to adult plot holders; unidentified seed and commercial resale remain outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/thistledown/trial.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "thistledown-explicit-exclusion",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/thistledown/trial.md",
+            "required": [
+              "Thistledown lends only labelled vegetable seed to adult plot holders; unidentified seed and commercial resale remain outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/thistledown/trial.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "bellwether-natural-not",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "reason",
+        "alternatives": [
+          {
+            "file": "decisions/bellwether/trial.md",
+            "required": [
+              "Bellwether does not authorize solo night collection because the dark yard prevents the steward from checking the tripod setup."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/bellwether/trial.md",
+            "required": [
+              "Bellwether lends small telescopes only to adults who completed the daylight setup check; solo night collection and solar viewing remain outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/bellwether/trial.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "bellwether-natural-hyphen",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "proposal and retained authority",
+        "alternatives": [
+          {
+            "file": "notes/bellwether/key.md",
+            "required": [
+              "The Bellwether key-holder suggestion is unapproved; Oren remains the equipment steward and a door key grants no borrowing authority."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/bellwether/key.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "bellwether-natural-without",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "no authority from key",
+        "alternatives": [
+          {
+            "file": "notes/bellwether/key.md",
+            "required": [
+              "The Bellwether key-holder suggestion is unapproved; Oren remains the equipment steward and a door key grants no borrowing authority."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "retained trial",
+        "alternatives": [
+          {
+            "file": "decisions/bellwether/trial.md",
+            "required": [
+              "Bellwether lends small telescopes only to adults who completed the daylight setup check; solo night collection and solar viewing remain outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/bellwether/key.md",
+      "decisions/bellwether/trial.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "bellwether-late-procedure",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "inspection action",
+        "alternatives": [
+          {
+            "file": "notes/bellwether/handbook.md",
+            "required": [
+              "For the Bellwether counterweight pin inspection, record the pin position on the original equipment sheet."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "retained qualification",
+        "alternatives": [
+          {
+            "file": "notes/bellwether/handbook.md",
+            "required": [
+              "A counterweight pin check is a local observation, not permission for solar viewing; the solar exclusion remains in force until a replacement decision is signed."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/bellwether/handbook.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "bellwether-late-authority",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "closing authority",
+        "alternatives": [
+          {
+            "file": "notes/bellwether/handbook.md",
+            "required": [
+              "Only Oren, the equipment steward, may close an unresolved inspection entry."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "scope preserved",
+        "alternatives": [
+          {
+            "file": "notes/bellwether/handbook.md",
+            "required": [
+              "A tick beside the observation confirms that this particular check was recorded. It does not waive the separate trial boundaries."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/bellwether/handbook.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "bellwether-explicit-phrase",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "inspection action",
+        "alternatives": [
+          {
+            "file": "notes/bellwether/handbook.md",
+            "required": [
+              "For the Bellwether counterweight pin inspection, record the pin position on the original equipment sheet."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/bellwether/handbook.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "bellwether-explicit-not",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/bellwether/trial.md",
+            "required": [
+              "Bellwether lends small telescopes only to adults who completed the daylight setup check; solo night collection and solar viewing remain outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/bellwether/trial.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  },
+  {
+    "id": "bellwether-explicit-exclusion",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "approved scope",
+        "alternatives": [
+          {
+            "file": "decisions/bellwether/trial.md",
+            "required": [
+              "Bellwether lends small telescopes only to adults who completed the daylight setup check; solo night collection and solar viewing remain outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/bellwether/trial.md"
+    ],
+    "interpretation": "Same-author mechanism diagnostic; exact source-bound clauses, not independent answer judgments."
+  }
+]
