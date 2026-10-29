@@ -90,9 +90,12 @@ ${noteOutlineStyles}
     .document-status { display: flex; flex-wrap: wrap; min-width: 0; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 48px; padding: var(--space-2) var(--space-4); }
     body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
-    .quiet-button { border: 0; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--control-fill); color: var(--ink-soft); text-decoration: none; font: inherit; font-size: var(--text-ui); line-height: var(--leading-ui); min-height: var(--control-height); cursor: pointer; }
-    .quiet-button:not(:where(.note-icon, .attention-icon, .sidebar-icon, #toggle-sidebar, [aria-current="page"])):hover:not(:disabled) { background: var(--control-hover); color: var(--ink); }
-    .quiet-button:is(.note-icon, .attention-icon, .sidebar-icon, #toggle-sidebar):hover:not(:disabled) { color: var(--ink); }
+    .quiet-button { --quiet-fill: var(--control-fill); --quiet-hover: var(--control-hover); border: 0; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--quiet-fill); color: var(--ink-soft); text-decoration: none; font: inherit; font-size: var(--text-ui); line-height: var(--leading-ui); min-height: var(--control-height); cursor: pointer; }
+    .quiet-button--plain { --quiet-fill: transparent; --quiet-hover: var(--hover-fill); }
+    .quiet-button:not(:where(.note-icon, .icon-button, .attention-icon, .sidebar-icon, #toggle-sidebar, [aria-current="page"])):hover:not(:disabled) { background: var(--quiet-hover); color: var(--ink); }
+    .quiet-button:is(.note-icon, .icon-button, .attention-icon, .sidebar-icon, #toggle-sidebar):hover:not(:disabled) { color: var(--ink); }
+    .action-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); width: 100%; padding: var(--space-2) var(--space-3); text-align: left; }
+    .action-row svg { width: var(--icon-size); height: var(--icon-size); }
     .quiet-button.attention-icon { flex: 0 0 auto; min-height: var(--control-compact); padding: 0; }
     .home { width: 100%; overflow: auto; padding: clamp(var(--space-8), 8vh, 80px) var(--space-6) var(--space-12); text-align: center; }
     .home-actions { width: min(100%, 560px); margin: 0 auto; text-align: left; }
@@ -193,7 +196,6 @@ ${referencePresentationStyles}
     #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; margin: 0 0 var(--space-6); padding-block: var(--space-2); border-block: 1px solid var(--line); }
     #format-controls[hidden], .note-tool-row > [hidden] { display: none; }
     .note-tool-row:not(:has(button:not([hidden]))) { display: none; }
-    #toggle-page-details { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); }
     .format-group { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); }
     #format-controls button { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); background: transparent; font-size: var(--text-ui); }
     #format-controls [data-format="paragraph"] { width: auto; min-width: var(--control-compact); padding-inline: var(--space-2); }
@@ -233,17 +235,19 @@ ${referencePresentationStyles}
     .document-copy, .document-delete-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
     :is(.document-copy, .document-delete-action) svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     #note-layout { display: flex; flex-direction: column; }
-    #page-details { order: -1; align-self: stretch; margin: var(--space-4) var(--space-6) 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface-hover); font: var(--text-ui)/var(--leading-ui) var(--font-ui); color: var(--ink-soft); min-width: 0; }
+    #page-details { order: -1; align-self: flex-end; width: min(224px, calc(100% - var(--space-8))); margin: var(--space-4) var(--space-4) 0; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); font: var(--text-ui)/var(--leading-ui) var(--font-ui); color: var(--ink-soft); min-width: 0; }
     #page-details[hidden], #note-details-content[hidden] { display: none; }
     .page-card-heading, .page-card-actions { display: flex; align-items: center; gap: var(--space-2); }
-    .page-card-heading { justify-content: space-between; }
-    .page-card-heading h2 { margin: 0; color: var(--ink); font-size: var(--text-ui); font-weight: var(--weight-semibold); }
+    .page-card-heading { justify-content: space-between; padding-inline: var(--space-3); }
+    .page-card-heading h2 { margin: 0; color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-regular); }
     .page-card-actions button { background: transparent; }
-    .page-facts-toggle { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: var(--space-3); padding: var(--space-3) 0 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; color: var(--ink-soft); text-align: left; font-size: var(--text-caption); }
+    #note-add-to-board { margin-top: var(--space-1); }
+    .page-card-facts { margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--line); }
+    #note-details-content { padding: 0 var(--space-3) var(--space-2); }
     .page-facts-toggle[aria-expanded="true"] .details-chevron { transform: rotate(180deg); }
     @media (min-width: 1180px) {
-      #note-layout { display: grid; grid-template-columns: minmax(0, 760px) 260px; gap: var(--space-4); max-width: 1120px; margin-inline: auto; padding-right: var(--space-6); align-items: start; }
-      #page-details { order: 0; position: sticky; top: var(--space-8); align-self: start; max-height: calc(100dvh - 112px); overflow: auto; margin: var(--space-8) 0 0; }
+      #note-layout { display: grid; grid-template-columns: minmax(0, 1fr) 224px; gap: var(--space-4); padding-right: var(--space-4); align-items: start; }
+      #page-details { order: 0; position: sticky; top: var(--space-8); align-self: start; width: 100%; max-height: calc(100dvh - 112px); overflow: auto; margin: var(--space-8) 0 0; }
       #note-layout .note-column { min-width: 0; }
     }
     .saved-version dl { margin: 0; font-size: var(--text-caption); }
@@ -316,7 +320,7 @@ ${referencePresentationStyles}
       #note-editor, #note-editor-hint { font-size: 18px; }
       .workspace-toolbar { flex-wrap: wrap; }
       .document-status { flex: 1 1 200px; }
-      #page-details { --control-compact: var(--control-touch); }
+      #page-details { --control-compact: var(--control-touch); --control-height: var(--control-touch); }
       #format-controls { --control-compact: var(--control-touch); margin-bottom: var(--space-5); }
       .note-tool-row { --control-compact: var(--control-touch); }
       .save-state { font-size: var(--text-caption); }
@@ -500,8 +504,9 @@ export const notesViews = String.raw`
   <button id="copy-note-draft" class="quiet-button note-icon document-copy" type="button" aria-label="Copy" title="Copy" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg></button>
   <button id="delete-note" class="quiet-button note-icon document-delete-action" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div></div>
-      <button id="note-add-to-board" class="quiet-button" type="button" aria-haspopup="dialog" aria-controls="note-board-dialog" hidden>Add to board</button>
-      <button id="toggle-page-details" class="quiet-button page-facts-toggle" type="button" aria-label="Saved version" aria-expanded="false" aria-controls="note-details-content"><span>Saved version</span><span class="details-chevron" aria-hidden="true">⌄</span></button>
+      <button id="note-add-to-board" class="quiet-button quiet-button--plain action-row" type="button" aria-haspopup="dialog" aria-controls="note-board-dialog" hidden><span>Add to board</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <div class="page-card-facts">
+      <button id="toggle-page-details" class="quiet-button quiet-button--plain action-row page-facts-toggle" type="button" aria-expanded="false" aria-controls="note-details-content"><span>Saved version</span><svg class="details-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <div id="note-details-content" hidden>
       <section class="saved-version" aria-label="Saved version">
 
@@ -520,6 +525,7 @@ export const notesViews = String.raw`
         <pre id="note-frontmatter"></pre>
       </details>
 
+      </div>
       </div>
     </aside>
     </div>

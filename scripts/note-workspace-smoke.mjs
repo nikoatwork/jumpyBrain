@@ -1,6 +1,7 @@
 // Production editor shell and disposable Markdown only. The Electron smoke
 // separately verifies the native window; this runner covers the document journey.
 import assert from 'node:assert/strict';
+import { checkPageActions } from './page-action-smoke-helpers.mjs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -150,7 +151,7 @@ try {
   assert.equal(await page.locator('#toggle-page-details').evaluate(element => element === document.activeElement), true);
 
   await page.evaluate(() => getSelection().removeAllRanges());
-  for (const width of [1280, 1180, 900, 390, 320]) for (const theme of ['light', 'dark']) {
+  for (const width of [1820, 1280, 1180, 900, 390, 320]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(theme => { document.documentElement.dataset.theme = theme; document.getElementById('note-panel').scrollTop = 0; }, theme);
     for (const expanded of [false, true]) {
@@ -167,6 +168,7 @@ try {
       if (expanded) {
         assert.equal(await page.locator('#page-details').evaluate(element => element.scrollWidth <= element.clientWidth + 1), true, 'long location wraps within details');
       }
+      if (!expanded) await checkPageActions(page);
       await page.screenshot({ path: path.join(output, `workspace-${width}-${theme}-${expanded ? 'context' : 'writing'}.png`) });
     }
   }

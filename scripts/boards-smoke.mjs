@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { checkPageActions } from './page-action-smoke-helpers.mjs';
 import { appendEditorText, editorMarkdown } from './editor-smoke-helpers.mjs';
 import { mkdtemp,mkdir,readFile,writeFile,rm } from 'node:fs/promises';
 import path from 'node:path';import os from 'node:os';
@@ -24,6 +25,11 @@ try{
  await page.getByText('+ Add note',{exact:true}).first().click();await page.locator('#board-dialog-input').fill('Launch checklist');await page.locator('#board-dialog-results').getByRole('button',{name:'Launch checklist',exact:true}).click();await page.locator('.board-card').filter({hasText:'Launch checklist'}).waitFor();
  await page.locator('.board-card').filter({hasText:'Launch checklist'}).dragTo(page.locator('.board-column').nth(2));await page.locator('.board-column').nth(2).locator('.board-card').waitFor();
  for(const [width,theme] of [[1280,'light'],[1280,'dark'],[390,'light'],[390,'dark']]){await page.setViewportSize({width,height:900});await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await page.screenshot({path:`/tmp/jumpybrain-boards-qa/${width}-${theme}.png`,fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
+ const boardTargets = await page.locator('.board-card-actions button, .board-card-actions select').evaluateAll(elements => elements.map(el => el.getBoundingClientRect().height));
+ assert.ok(boardTargets.every(height => height >= 40), 'board controls keep touch-sized targets');
+ const boardLink = page.locator('#sidebar-boards .sidebar-page-link').first();
+ await boardLink.hover();
+ assert.deepEqual(await boardLink.evaluate(el => { const s=getComputedStyle(el); return [s.whiteSpace,s.backgroundColor]; }), ['nowrap','rgba(0, 0, 0, 0)'], 'board labels stay single-line and share the row hover surface');
  await page.setViewportSize({width:1280,height:900});
  const cardId=await page.locator('.board-column').nth(1).locator('.board-card').getAttribute('data-board-page');
  await page.locator('.board-column').nth(1).locator('.board-card > button').click();await page.locator('#note-editor').waitFor({state:'visible'});
@@ -37,6 +43,20 @@ try{
  await page.locator('#board-title').filter({hasText:'Next chapter'}).waitFor();
  await page.locator('[data-page-link="'+existingId+'"]').click();await page.locator('#note-editor').waitFor({state:'visible'});
  const noteUrl=page.url();
+ for (const width of [1820, 1280, 1180, 900, 390, 320]) for (const theme of ['light', 'dark']) {
+  await page.setViewportSize({width,height:900});
+  await page.evaluate(theme=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.palette='ocean';document.getElementById('note-panel').scrollTop=0;},theme);
+  await checkPageActions(page,{companion:true});
+  await page.locator('#toggle-page-details').hover();
+  await page.screenshot({path:`/tmp/jumpybrain-boards-qa/page-actions-${width}-${theme}.png`});
+ }
+ await page.setViewportSize({width:1820,height:900});
+ await page.locator('#toggle-sidebar').click();
+ await checkPageActions(page,{companion:true});
+ await page.locator('#toggle-page-details').hover();
+ await page.screenshot({path:'/tmp/jumpybrain-boards-qa/page-actions-collapsed-dark.png'});
+ await page.locator('#toggle-sidebar').click();
+ await page.setViewportSize({width:1280,height:900});
  await page.locator('#note-add-to-board').click();await page.locator('#note-board-select').locator('option').filter({hasText:'Next chapter'}).waitFor({state:'attached'});
  await page.waitForFunction(()=>!document.getElementById('note-board-add').disabled);
  assert.equal(await page.locator('#note-board-select option').filter({hasText:'A quieter launch'}).evaluate(o=>o.disabled),true);
