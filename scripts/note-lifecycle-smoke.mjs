@@ -68,7 +68,7 @@ try {
   }
   await page.setViewportSize({width:1280,height:850});
   await page.getByRole('button',{name:'QA lifecycle created, memory note',exact:true}).click();await page.locator('#note-name').waitFor({state:'visible'});
-  console.log('step: delete');await page.locator('#toggle-page-details').click();await page.locator('#delete-note').click();
+  console.log('step: delete');await page.locator('#delete-note').click();
   await page.locator('#delete-confirm').waitFor({state:'visible'});
   await page.waitForFunction(()=>!document.getElementById('delete-confirm').disabled);
   assert.equal(await page.locator('#delete-references').count(),0);

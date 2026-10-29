@@ -21,11 +21,9 @@ export function installNoteWorkspace(options: {
   const doc = options.document, win = doc.defaultView!;
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => doc.getElementById(id) as T;
   const toggle = $<HTMLButtonElement>("toggle-page-details"), panel = $("page-details");
-  const layout = $("note-layout"), body = $("note-editor"), list = $("note-outline-list");
+  const body = $("note-editor");
   const format = $<HTMLButtonElement>("toggle-note-format"), tools = $("format-controls");
-  const sectionCount = $("note-section-count");
-  let key = "", signature = "", open = false, formatting = false, stopped = false, frame = 0;
-  let headings: HTMLElement[] = [];
+  let key = "", open = false, formatting = false, stopped = false, frame = 0;
   function showFormatting(value: boolean, restore = false) {
     formatting = value;
     tools.hidden = !formatting;
@@ -35,53 +33,18 @@ export function installNoteWorkspace(options: {
   function show(value: boolean, restore = false) {
     open = value;
     panel.hidden = !open;
-    layout.dataset.details = String(open);
     toggle.setAttribute("aria-expanded", String(open));
     if (restore && !toggle.hidden) toggle.focus({ preventScroll: true });
-    if (open) syncOutline();
-  }
-  function syncOutline() {
-    if (stopped) return;
-    headings = [...body.querySelectorAll<HTMLElement>(":scope > h1, :scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6")];
-    const caption = headings.length ? headings.length + (headings.length === 1 ? " section" : " sections") : "";
-    if (sectionCount.textContent !== caption) sectionCount.textContent = caption;
-    sectionCount.hidden = !caption;
-    if (!open) return;
-    const next = JSON.stringify(headings.map(heading => [heading.tagName, heading.textContent]));
-    if (next === signature) return;
-    signature = next;
-    list.replaceChildren();
-    $("note-outline").hidden = !headings.length;
-    headings.forEach((heading, index) => {
-      const item = doc.createElement("li"), button = doc.createElement("button");
-      button.type = "button";
-      button.className = "outline-link";
-      button.textContent = heading.textContent || "Untitled section";
-      button.title = button.textContent;
-      button.style.setProperty("--heading-depth", String(Number(heading.tagName.slice(1)) - 1));
-      button.addEventListener("click", () => {
-        const editor = options.editor(), target = headings[index];
-        if (!editor?.state.loaded || editor.state.cancelled || editor.state.navigationPending || !target?.isConnected || !body.contains(target)) return;
-        target.scrollIntoView({ block: "start", behavior: "instant" });
-        // User-requested section navigation places the caret at the section start.
-        body.focus({ preventScroll: true });
-        const range = doc.createRange(); range.selectNodeContents(target); range.collapse(true);
-        const selection = win.getSelection(); selection?.removeAllRanges(); selection?.addRange(range);
-      });
-      item.append(button); list.append(item);
-    });
   }
   function sync() {
     const state = options.editor()?.state;
     const loaded = state?.loaded && !state.cancelled;
     const next = loaded ? String(state.generation) + ":" + state.documentId : "";
     if (key !== next) {
-      key = next; signature = ""; headings = []; list.replaceChildren();
-      $("note-outline").hidden = true;
+      key = next;
       $("note-file").textContent = "";
       $("saved-version-editor").textContent = "";
       $("saved-version-edited").textContent = "";
-      sectionCount.textContent = ""; sectionCount.hidden = true;
       showFormatting(false, tools.contains(doc.activeElement));
       show(false, panel.contains(doc.activeElement));
     }
@@ -100,7 +63,6 @@ export function installNoteWorkspace(options: {
     $("saved-version-editor").textContent = context.editor;
     $("saved-version-edited").textContent = context.edited;
     $("note-file").textContent = state.file || "Location unavailable";
-    syncOutline();
   }
   const onToggle = () => { sync(); if (!toggle.disabled && !toggle.hidden) show(!open); };
   const onClose = () => show(false, true);
@@ -125,8 +87,11 @@ export function installNoteWorkspace(options: {
   tools.addEventListener("keydown", onFormatKey);
   $("close-page-details").addEventListener("click", onClose);
   panel.addEventListener("keydown", onKey);
-  // Observe mounted supported headings, not a second Markdown parser. Coalesce
-  // DOM updates and retain row identity/focus while only body prose changes.
+  toggle.addEventListener("keydown", onKey);
+  doc.addEventListener("pointerdown", event => {
+    if (open && event.target instanceof Node && !panel.contains(event.target) && !toggle.contains(event.target)) show(false);
+  });
+  // Coalesce body updates for empty-writing guidance without remounting the editor.
   const observer = new MutationObserver(() => {
     if (frame || stopped) return;
     frame = win.requestAnimationFrame(() => { frame = 0; sync(); });
@@ -134,8 +99,7 @@ export function installNoteWorkspace(options: {
   observer.observe(body, { subtree: true, childList: true, characterData: true });
   win.addEventListener("pagehide", () => {
     stopped = true; observer.disconnect(); win.cancelAnimationFrame(frame); frame = 0;
-    key = ""; headings = []; signature = ""; list.replaceChildren(); show(false); showFormatting(false);
-    sectionCount.textContent = ""; sectionCount.hidden = true;
+    key = ""; show(false); showFormatting(false);
   });
   win.addEventListener("pageshow", event => {
     if (event.persisted) { stopped = false; observer.observe(body, { subtree: true, childList: true, characterData: true }); sync(); }

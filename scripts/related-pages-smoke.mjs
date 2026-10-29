@@ -35,7 +35,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => { if (['PUT', 'PATCH', 'DELETE'].includes(request.method()) || /\/index$/.test(request.url())) mutations.push(request.method() + ' ' + new URL(request.url()).pathname); });
-  const open = async (n = 1) => { await page.goto(`${server.url}/?note=${id(n)}#apiKey=${key}`); await page.locator('#note-editor').waitFor(); await page.locator('#toggle-page-details').click(); };
+  const open = async (n = 1) => { await page.goto(`${server.url}/?note=${id(n)}#apiKey=${key}`); await page.locator('#note-editor').waitFor(); };
   await open();
   await page.waitForFunction(() => document.querySelectorAll('#related-pages-list a').length === 5);
   assert.ok((await page.locator('#related-pages-list a').evaluateAll(links => links.map(a => a.href))).every(url => !url.includes('note=' + id(1))));
@@ -107,17 +107,15 @@ try {
   const companion = await context.newPage(); companion.on('pageerror', error => errors.push(error.message));
   await companion.goto(`${gateway.url}/?note=${id(1)}&brain=${a.id}`);
   await companion.locator('#note-editor').waitFor();
-  await companion.locator('#toggle-page-details').click();
   // Earlier human save made A stale; explicit test setup publishes it now.
   assert.equal((await fetch(server.url + '/memories/all/index', { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: '{}' })).status, 200);
-  await companion.reload(); await companion.locator('#toggle-page-details').click(); await companion.locator('#related-pages-list a').first().waitFor();
+  await companion.reload(); await companion.locator('#related-pages-list a').first().waitFor();
   const oldLink = await companion.locator('#related-pages-list a').first().getAttribute('href');
   assert.ok(oldLink.includes('brain=' + a.id), 'links retain their brain identity');
   await companion.locator('select[aria-label="Switch brain"]').selectOption(b.id);
   await companion.waitForURL(url => url.searchParams.get('brain') === b.id && !url.searchParams.has('note'));
   assert.equal(await companion.locator('#related-pages-list a').count(), 0);
   await companion.goto(`${gateway.url}/?note=${id(1)}&brain=${b.id}`);
-  await companion.locator('#toggle-page-details').click();
   await companion.locator('#related-pages-list a').first().waitFor();
   assert.ok((await companion.locator('#related-pages-list a').allTextContents()).every(title => title.startsWith('Garden planning')));
   assert.equal(await companion.locator('#note-name').getAttribute('readonly') !== null, true, 'discovery works on a read-only brain');

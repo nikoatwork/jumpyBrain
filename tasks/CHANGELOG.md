@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Restore note context footer
+
+- Restored related pages below the editor, removed chapter navigation and simplified toolbar copy/delete actions with compact metadata details. [Verification](done/2026-10-29_tasks-note-footer-actions.md).
+
 ## 2026-10-29 — v0.3.12 beta released
 
 - Published themes, note/navigation improvements, lexical discovery, update controls and leaner packaging. [Exact notes](done/releases/v0.3.12.md); [verification and limits](done/releases/v0.3.12.qa.md).

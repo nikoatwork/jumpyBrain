@@ -158,7 +158,6 @@ ${referencePresentationStyles}
     #format-controls[hidden], .note-tool-row > [hidden] { display: none; }
     .note-tool-row:not(:has(button:not([hidden]))) { display: none; }
     #toggle-page-details { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: var(--space-2); }
-    #note-section-count { font-size: var(--text-caption); color: var(--ink-soft); }
     .format-group { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); }
     #format-controls button { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); background: transparent; font-size: var(--text-ui); }
     #format-controls [data-format="paragraph"] { width: auto; min-width: var(--control-compact); padding-inline: var(--space-2); }
@@ -197,31 +196,17 @@ ${referencePresentationStyles}
 
     .document-copy, .document-delete-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
     :is(.document-copy, .document-delete-action) svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
-    #page-details { width: min(680px, calc(100% - 48px)); max-height: 320px; overflow: auto; margin: var(--space-4) auto 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); font: var(--text-ui)/var(--leading-ui) var(--font-ui); color: var(--ink-soft); scrollbar-width: thin; }
+    .document-status { position: relative; }
+    #page-details { position: absolute; z-index: 20; top: calc(100% + var(--space-2)); right: 0; width: min(320px, calc(100vw - 32px)); max-height: calc(100dvh - 120px); overflow: auto; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-lg); font: var(--text-ui)/var(--leading-ui) var(--font-ui); color: var(--ink-soft); text-align: left; }
     #page-details[hidden] { display: none; }
-    #note-layout[data-details="true"] { display: flex; flex-direction: column; }
-    #note-layout[data-details="true"] > #page-details { order: -1; }
-    .page-details-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-4); }
-    .page-details-heading h2 { margin: 0; color: var(--ink); font-size: var(--text-section); font-weight: var(--weight-semibold); }
+    .page-details-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-3); }
+    .page-details-heading h2 { margin: 0; color: var(--ink); font-size: var(--text-ui); font-weight: var(--weight-semibold); }
     #page-details h3 { margin: 0 0 var(--space-2); color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-semibold); }
-    #note-outline-list { list-style: none; padding: 0; margin: 0; }
-    .outline-link { --heading-depth: 0; border: 0; display: block; width: 100%; min-height: var(--control-compact); padding: var(--space-1) var(--space-2); padding-left: calc(var(--space-2) + min(var(--heading-depth), 3) * var(--space-2)); border-radius: var(--radius-sm); background: transparent; color: var(--ink-soft); text-align: left; font: inherit; overflow-wrap: anywhere; }
-    .outline-link:hover, .outline-link:focus-visible { background: var(--control-fill); color: var(--ink); }
-    #page-details #related-pages { margin-top: var(--space-6); }
-    #page-details #related-pages-list { display: block; }
-    #page-details #related-pages-list a { background: transparent; padding: var(--space-2); min-height: var(--control-compact); }
-    #page-details #related-pages-list a:hover { background: var(--control-fill); }
-    .saved-version { margin-top: var(--space-6); }
     .saved-version dl { margin: 0; font-size: var(--text-caption); }
     .saved-version dt { margin-top: var(--space-3); color: var(--ink-soft); }
     .saved-version dd { margin: var(--space-1) 0 0; color: var(--ink); overflow-wrap: anywhere; }
     .context-caption { margin: var(--space-3) 0 0; font-size: var(--text-caption); }
-    .page-details-danger { margin-top: var(--space-6); padding-top: var(--space-4); border-top: 1px solid var(--line); }
     .document-delete-action { background: transparent; }
-    @media (min-width: 1180px) {
-      #note-layout[data-details="true"] { display: grid; grid-template-columns: minmax(0, 760px) 248px; gap: var(--space-4); max-width: 1120px; margin-inline: auto; padding-right: var(--space-6); align-items: start; }
-      #note-layout[data-details="true"] > #page-details { order: 0; position: sticky; top: var(--space-6); width: 100%; max-height: calc(100dvh - 120px); margin-top: var(--space-8); padding: 0 0 var(--space-4) var(--space-5); border: 0; border-left: 1px solid var(--line); border-radius: 0; }
-    }
     dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
     dialog::backdrop { background: var(--backdrop); }
     .search-result mark { color: inherit; background: color-mix(in srgb, var(--accent) 18%, transparent); }
@@ -325,8 +310,30 @@ export const notesMarkup = String.raw`
   <span id="note-external-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
-  <button id="copy-note-draft" class="quiet-button document-copy" type="button" aria-label="Copy draft" title="Copy the current title and Markdown body for an agent or coworker" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg><span>Copy draft</span></button>
-  <button id="toggle-page-details" class="quiet-button" type="button" aria-label="Page details" aria-describedby="note-section-count" aria-expanded="false" aria-controls="page-details" hidden><span>Page details</span><span id="note-section-count" hidden></span></button>
+  <button id="copy-note-draft" class="quiet-button note-icon document-copy" type="button" aria-label="Copy" title="Copy" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg></button>
+  <button id="delete-note" class="quiet-button note-icon document-delete-action" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button id="toggle-page-details" class="quiet-button" type="button" aria-label="Page details" aria-expanded="false" aria-controls="page-details" hidden><span>Details</span></button>
+    <aside id="page-details" aria-labelledby="page-details-title" hidden>
+      <div class="page-details-heading"><h2 id="page-details-title">Page details</h2><button id="close-page-details" class="quiet-button note-icon" type="button" aria-label="Close page details" title="Close page details (Esc)">${browserIcons.close}</button></div>
+
+      <section class="saved-version" aria-labelledby="saved-version-title">
+        <h3 id="saved-version-title">Saved version</h3>
+        <dl><dt>Last editor</dt><dd id="saved-version-editor"></dd><dt>Last edited</dt><dd id="saved-version-edited"></dd><dt>Location</dt><dd id="note-file"></dd></dl>
+        <p class="context-caption">Editor names are declared by the writing tool.</p>
+      </section>
+      <details id="living-sources" class="note-frontmatter" hidden>
+        <summary>Sources · version checks</summary>
+        <p>Follow evidence beside each claim. Latest substantive change and open questions remain in the page above.</p>
+        <button id="check-living-sources" class="quiet-button" type="button">Check source versions</button>
+        <p id="living-sources-status" role="status" aria-live="polite"></p>
+        <ul id="living-sources-list"></ul>
+      </details>
+      <details id="note-metadata" class="note-frontmatter" hidden>
+        <summary>Markdown metadata</summary>
+        <pre id="note-frontmatter"></pre>
+      </details>
+
+    </aside>
 </div>
 </div>
 ${noteAttentionMarkup}
@@ -447,31 +454,11 @@ export const notesViews = String.raw`
       <p id="note-editor-hint" aria-hidden="true" hidden>Start writing, or type / for options…</p>
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
       </div>
-    </div>
-    <aside id="page-details" aria-labelledby="page-details-title" hidden>
-      <div class="page-details-heading"><h2 id="page-details-title">Page details</h2><button id="close-page-details" class="quiet-button note-icon" type="button" aria-label="Close page details" title="Close page details (Esc)">${browserIcons.close}</button></div>
-      <nav id="note-outline" aria-labelledby="note-outline-title" hidden><h3 id="note-outline-title">On this page</h3><ol id="note-outline-list"></ol></nav>
       <nav id="related-pages" aria-label="Related pages" hidden>
         <h2>Related pages</h2><ul id="related-pages-list"></ul>
       </nav>
-      <section class="saved-version" aria-labelledby="saved-version-title">
-        <h3 id="saved-version-title">Saved version</h3>
-        <dl><dt>Last editor</dt><dd id="saved-version-editor"></dd><dt>Last edited</dt><dd id="saved-version-edited"></dd><dt>Location</dt><dd id="note-file"></dd></dl>
-        <p class="context-caption">Editor names are declared by the writing tool.</p>
-      </section>
-      <details id="living-sources" class="note-frontmatter" hidden>
-        <summary>Sources · version checks</summary>
-        <p>Follow evidence beside each claim. Latest substantive change and open questions remain in the page above.</p>
-        <button id="check-living-sources" class="quiet-button" type="button">Check source versions</button>
-        <p id="living-sources-status" role="status" aria-live="polite"></p>
-        <ul id="living-sources-list"></ul>
-      </details>
-      <details id="note-metadata" class="note-frontmatter" hidden>
-        <summary>Markdown metadata</summary>
-        <pre id="note-frontmatter"></pre>
-      </details>
-      <div class="page-details-danger"><button id="delete-note" class="quiet-button document-delete-action" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Delete note…</span></button></div>
-    </aside>
+    </div>
+
     </div>
   </section>
 `;
