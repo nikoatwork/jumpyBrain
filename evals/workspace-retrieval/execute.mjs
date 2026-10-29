@@ -4,6 +4,7 @@ import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import { chooseExpansions } from './score.mjs';
+import { chooseSpreadExpansions } from './read-policy.mjs';
 
 const config = JSON.parse(await readFile(process.argv[2], 'utf8'));
 const { installExperiment } = await import('./experiment-hooks.mjs');
@@ -31,7 +32,8 @@ for (const [n, q] of queries.entries()) {
   const wires = [runtime.serializeCompactRecall(recall.value)];
   const requests = [JSON.stringify({ operation: 'recall', query: q.query, limit: 5, ...options, maxBytes: 8192 }) + '\n'];
   const expansions = [];
-  for (const request of chooseExpansions(recall.value)) {
+  const chooseReads = ['read-spread', 'ordering-all-read-spread'].includes(config.arm) ? chooseSpreadExpansions : chooseExpansions;
+  for (const request of chooseReads(recall.value)) {
     requests.push(JSON.stringify({ operation: 'expand', ...request }) + '\n');
     try {
       const packet = await runtime.expandMemoryDocument(config.root, request);

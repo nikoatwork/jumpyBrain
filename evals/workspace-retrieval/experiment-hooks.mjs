@@ -20,6 +20,11 @@ export async function installExperiment(config) {
     let source = String(result.source);
     const replace = (before, after) => { assert.equal(source.split(before).length, 2, `Instrumentation seam changed: ${url}`); source = source.replace(before, after); };
     if (url.endsWith('/adapters/qmd/qmd-driver.js')) {
+      if (['ordering-all', 'ordering-all-read-spread'].includes(config.arm)) {
+        // Replace production's actual partition, rather than stack a second one.
+        replace('const pool = namedSubject ? grouped.slice(0, 40) : [];', 'const pool = namedSubject ? grouped : [];');
+        replace('...grouped.slice(40)]', ']');
+      }
       replace('candidates.sort((a, b) => b.score - a.score);', 'await globalThis.__workspaceCandidates(candidates, documents, query, Boolean(options.temporal));\n    candidates.sort((a, b) => b.score - a.score);');
       replace('const grouped = groupResultsByFile(ranked, diversityDepth);', 'let grouped = groupResultsByFile(ranked, diversityDepth);\n    grouped = await globalThis.__workspaceRank(grouped, documents, query, Boolean(options.temporal));');
     }

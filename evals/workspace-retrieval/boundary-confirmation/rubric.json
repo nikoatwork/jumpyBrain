@@ -1,0 +1,360 @@
+[
+  {
+    "id": "kilnwick-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and responsibility",
+        "alternatives": [
+          {
+            "file": "notes/kilnwick/handbook.md",
+            "required": [
+              "Kilnwick gives adult hobby potters access to a shared electric kiln when they have no suitable firing space at home. Imani is the firing coordinator; the building steward controls access to the workshop."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "accepted material and authority",
+        "alternatives": [
+          {
+            "file": "decisions/kilnwick/pilot.md",
+            "required": [
+              "Kilnwick accepts only identified stoneware bodies for the coordinator's cone-six programme; unknown clay, low-fire earthenware, and member-operated firing remain outside the pilot."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/kilnwick/handbook.md",
+      "decisions/kilnwick/pilot.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "kilnwick-material-reason",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed damage",
+        "alternatives": [
+          {
+            "file": "findings/kilnwick/test-load.md",
+            "required": [
+              "The Kilnwick witness load found that the low-fire sample slumped onto a shelf at the proposed cone-six setting, while the identified stoneware tiles kept their shape."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "current scope",
+        "alternatives": [
+          {
+            "file": "decisions/kilnwick/pilot.md",
+            "required": [
+              "Kilnwick accepts only identified stoneware bodies for the coordinator's cone-six programme; unknown clay, low-fire earthenware, and member-operated firing remain outside the pilot."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/kilnwick/test-load.md",
+      "decisions/kilnwick/pilot.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "kilnwick-handover",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "intake record",
+        "alternatives": [
+          {
+            "file": "notes/kilnwick/intake-card.md",
+            "required": [
+              "At Kilnwick intake, record the maker number, clay product, requested programme, and tray count before the coordinator decides whether the load can accept the work."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "acceptance authority",
+        "alternatives": [
+          {
+            "file": "decisions/kilnwick/pilot.md",
+            "required": [
+              "Only Imani can accept a tray into a pilot load."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "collection condition",
+        "alternatives": [
+          {
+            "file": "notes/kilnwick/intake-card.md",
+            "required": [
+              "Kilnwick collection starts only after the coordinator marks the load card released; a completed controller programme is not a collection authorization."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/kilnwick/intake-card.md",
+      "decisions/kilnwick/pilot.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "kilnwick-evening",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "proposal remains pending",
+        "alternatives": [
+          {
+            "file": "notes/kilnwick/night-key.md",
+            "required": [
+              "The October 22 Kilnwick evening-key proposal is unapproved and does not replace the coordinator-operated pilot."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "operative scope",
+        "alternatives": [
+          {
+            "file": "decisions/kilnwick/pilot.md",
+            "required": [
+              "Kilnwick accepts only identified stoneware bodies for the coordinator's cone-six programme; unknown clay, low-fire earthenware, and member-operated firing remain outside the pilot."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/kilnwick/night-key.md",
+      "decisions/kilnwick/pilot.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "kilnwick-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "conditional original plan",
+        "alternatives": [
+          {
+            "file": "notes/kilnwick/first-plan.md",
+            "required": [
+              "The August Kilnwick sketch proposed member-operated evening firings and an opening on September 12, subject to a successful witness load and the building steward's agreement."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/kilnwick/first-plan.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "kilnwick-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "repair identity",
+        "alternatives": [
+          {
+            "file": "notes/kilnwick/shelf-damage.md",
+            "required": [
+              "Ledger K-17 covers the ceramic shelf damaged during the September witness load."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/kilnwick/shelf-damage.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "pedalbrook-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and responsible person",
+        "alternatives": [
+          {
+            "file": "notes/pedalbrook/guide.md",
+            "required": [
+              "Pedalbrook lends cargo cycles for adults moving groceries and household loads within the neighborhood trial area. Daria coordinates borrowing, and each borrower needs a recorded model-specific induction before collection."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "permitted use",
+        "alternatives": [
+          {
+            "file": "decisions/pedalbrook/lending.md",
+            "required": [
+              "Pedalbrook permits household cargo only after a model-specific induction; carrying children, paying passengers, or animals is outside the approved trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/pedalbrook/guide.md",
+      "decisions/pedalbrook/lending.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "pedalbrook-passenger-reason",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "equipment uncertainty",
+        "alternatives": [
+          {
+            "file": "findings/pedalbrook/equipment.md",
+            "required": [
+              "The Pedalbrook inspection found no documented passenger restraint specification for the donated front boxes; their padded benches were not evidence of approval for child carriage."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "decision boundary",
+        "alternatives": [
+          {
+            "file": "decisions/pedalbrook/lending.md",
+            "required": [
+              "Pedalbrook permits household cargo only after a model-specific induction; carrying children, paying passengers, or animals is outside the approved trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/pedalbrook/equipment.md",
+      "decisions/pedalbrook/lending.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "pedalbrook-return",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "maintenance hold",
+        "alternatives": [
+          {
+            "file": "notes/pedalbrook/checkout.md",
+            "required": [
+              "Pedalbrook volunteers mark a cycle unavailable after a reported steering fault; closing the borrowing entry does not clear that maintenance hold."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "model qualification",
+        "alternatives": [
+          {
+            "file": "notes/pedalbrook/guide.md",
+            "required": [
+              "Daria coordinates borrowing, and each borrower needs a recorded model-specific induction before collection."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/pedalbrook/checkout.md",
+      "notes/pedalbrook/guide.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "pedalbrook-passenger-unknown",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "unknown approver",
+        "alternatives": [
+          {
+            "file": "notes/pedalbrook/child-seat.md",
+            "required": [
+              "No named approver for a Pedalbrook child-passenger exception is recorded in the passenger-kit discussion."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "proposal qualification",
+        "alternatives": [
+          {
+            "file": "notes/pedalbrook/child-seat.md",
+            "required": [
+              "The October 23 Pedalbrook passenger-kit discussion remains a proposal and does not authorize child carriage under the household-load trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/pedalbrook/child-seat.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "pedalbrook-phrase",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "literal qualification",
+        "alternatives": [
+          {
+            "file": "decisions/pedalbrook/lending.md",
+            "required": [
+              "Pedalbrook permits household cargo only after a model-specific induction; carrying children, paying passengers, or animals is outside the approved trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/pedalbrook/lending.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  },
+  {
+    "id": "kilnwick-pedalbrook-responsibility",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "separate responsibility and scope",
+        "alternatives": [
+          {
+            "file": "notes/shared/volunteer-handover.md",
+            "required": [
+              "For Kilnwick firing questions, contact Imani; for Pedalbrook borrowing questions, contact Daria. A volunteer-fair sign-up does not authorize kiln operation or passenger carriage."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/shared/volunteer-handover.md"
+    ],
+    "interpretation": "Fresh author-separated boundary confirmation; source-bound clauses are mechanical evidence diagnostics, not evaluated answers. Preserve dates, authority and scope qualifications."
+  }
+]

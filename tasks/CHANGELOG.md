@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Retrieval selection decisions
+
+- Retained current retrieval after full-pool ordering failed fresh gates and rank-spread reads lost evidence. [Results](../evals/workspace-retrieval/reports/2026-10-29-selection-v6.md).
+
 ## 2026-10-29 — Quiet sweep completion
 
 - Checking a task gives a subtle sweep and leaves a filled tick and success baseline, with theme-aware colors and Reduced Motion support.

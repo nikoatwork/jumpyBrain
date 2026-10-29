@@ -1,0 +1,107 @@
+[
+  {
+    "id": "kilnwick-orientation",
+    "scenario": "kilnwick",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "I am staffing Kilnwick for the first time. Who is it intended to help, who makes the firing decisions, and what can I actually accept from a visitor?",
+    "depth": "shallow"
+  },
+  {
+    "id": "kilnwick-material-reason",
+    "scenario": "kilnwick",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why does Kilnwick need the clay product rather than the maker's assurance that a piece will be fine, and which work can go into the pilot?",
+    "depth": "normal"
+  },
+  {
+    "id": "kilnwick-handover",
+    "scenario": "kilnwick",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "At Kilnwick, what information must go on the incoming tray card, who can accept it into a load, and when may the maker collect it?",
+    "depth": "normal"
+  },
+  {
+    "id": "kilnwick-evening",
+    "scenario": "kilnwick",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Has the new Kilnwick key-holder rota changed who may run an evening firing, or is the current pilot still in force?",
+    "depth": "normal"
+  },
+  {
+    "id": "kilnwick-historical",
+    "scenario": "kilnwick",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "Before the witness load, what did Kilnwick hope to offer in the evening and when did it hope to open?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-09-25",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "kilnwick-navigation",
+    "scenario": "kilnwick",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Kilnwick shelf repair ledger",
+    "depth": "normal",
+    "protected": true
+  },
+  {
+    "id": "pedalbrook-orientation",
+    "scenario": "pedalbrook",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Explain Pedalbrook to a new depot volunteer: whom does borrowing serve, who coordinates it, and what must be true before a cycle leaves?",
+    "depth": "shallow"
+  },
+  {
+    "id": "pedalbrook-passenger-reason",
+    "scenario": "pedalbrook",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why can a Pedalbrook volunteer not treat the padded front box as enough to permit a child passenger, and what use did the committee actually approve?",
+    "depth": "normal"
+  },
+  {
+    "id": "pedalbrook-return",
+    "scenario": "pedalbrook",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "For Pedalbrook, tell the return volunteer why a closed borrowing entry may still leave the cycle unavailable and what the borrower should have completed before its outgoing handover.",
+    "depth": "normal"
+  },
+  {
+    "id": "pedalbrook-passenger-unknown",
+    "scenario": "pedalbrook",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who signed off the Pedalbrook child-passenger exception after the shop sent its kit picture?",
+    "depth": "normal",
+    "protected": true
+  },
+  {
+    "id": "pedalbrook-phrase",
+    "scenario": "pedalbrook",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "Pedalbrook \"model-specific induction\"",
+    "depth": "normal",
+    "protected": true
+  },
+  {
+    "id": "kilnwick-pedalbrook-responsibility",
+    "scenario": "shared",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "For Kilnwick and Pedalbrook respectively, whom should a new volunteer contact, and does signing up at their shared fair authorize either kiln operation or passenger carriage?",
+    "depth": "normal",
+    "protected": true
+  }
+]

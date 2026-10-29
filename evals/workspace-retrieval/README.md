@@ -53,3 +53,18 @@ Discovery adds at most eight missing canonical title/alias/tag matches at score 
 Packets record separate search and compact-recall diagnostics, with canonical candidate files before/after supplementation and complete grouped file paths. Scores bind required-file admission to the scoring rubric only after execution. Comparison rejects mismatched input/product/backend/tokenizer identities and records lost unit labels, including a lost unit masked by a different gained unit. Instrumentation adds no installed API or model.
 
 The [v5 outcome](reports/2026-10-29-discovery-v5.md) rejects discovery alone and adopts the passing combined policy for lexical production retrieval after fresh quality, source review, quiet operating-cost and exact 140-case production parity checks. The eval arm names remain developer-only instrumentation. `--arm baseline` on a newly built production runtime observes its new default; reproduce the unchanged control with the archived original runtime. There is no product flag to disable the new policy. All v5 cases are now seen controls.
+
+## Selection-boundary comparison (v6)
+
+The [selection contract](SELECTION-EXPERIMENT.md) tests the current production first-forty ordering against the full already-bounded grouped pool, independently from evaluator-only rank-spread reads. `boundary-confirmation` retains all 140 earlier tasks as seen controls and adds separately authored cases with varied paragraph positions and long records. These experimental arms do not introduce runtime flags or automatic product reads.
+
+```sh
+npm run eval:workspace -- --suite boundary-confirmation --arm baseline --runtime-root /absolute/frozen-current-runtime --repeats 2 --name selection-v6-control
+npm run eval:workspace -- --suite boundary-confirmation --arm ordering-all --runtime-root /absolute/frozen-current-runtime --repeats 1 --name selection-v6-ordering
+npm run eval:workspace -- --suite boundary-confirmation --arm read-spread --runtime-root /absolute/frozen-current-runtime --repeats 1 --name selection-v6-reads
+npm run eval:workspace -- --suite boundary-confirmation --arm ordering-all-read-spread --runtime-root /absolute/frozen-current-runtime --repeats 1 --name selection-v6-combined
+```
+
+Use the same input/runtime identities for all arms. Do not interpret the read-spread baseline as missing-evidence detection; it intentionally explores the last returned expandable document instead of reading the third. Keep negative results and source-review qualifications alongside aggregate span diagnostics.
+
+[Measured v6 outcome](reports/2026-10-29-selection-v6.md): all three arms rejected; retain current production and default first-three reads.

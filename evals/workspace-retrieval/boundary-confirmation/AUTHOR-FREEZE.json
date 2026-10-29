@@ -1,0 +1,97 @@
+{
+  "pages": 15,
+  "queries": 12,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2453,
+      "sha256": "041dd873ba4cec340811360b884ef60653ffd3f43286c189dbcfb5f044c66afa"
+    },
+    {
+      "path": "corpus/decisions/kilnwick/pilot.md",
+      "bytes": 1720,
+      "sha256": "86606d834e2124f6efd1d5679cd94b3c8c46cba83633e346a69157982bd77f70"
+    },
+    {
+      "path": "corpus/decisions/pedalbrook/lending.md",
+      "bytes": 1628,
+      "sha256": "77d7e5c7b501ad164e0be06095d96a3528cbae2ea07e03e129b170cda92e7428"
+    },
+    {
+      "path": "corpus/findings/kilnwick/test-load.md",
+      "bytes": 1712,
+      "sha256": "3b8e33112cf7b9a984502ec614ef07d21226d804c7aa11adfdaac6c19eea0862"
+    },
+    {
+      "path": "corpus/findings/pedalbrook/equipment.md",
+      "bytes": 1623,
+      "sha256": "77757b8616ea5109ec92042c254ec1875ae4796a2f78dabc04e7b3d06d70cb5a"
+    },
+    {
+      "path": "corpus/notes/kilnwick/first-plan.md",
+      "bytes": 1515,
+      "sha256": "3fe59f1fc566bbd2b92785dd84a590fa3df63a360ea652e6299f6c10bac450db"
+    },
+    {
+      "path": "corpus/notes/kilnwick/handbook.md",
+      "bytes": 5109,
+      "sha256": "f6ec3c8d0defb9beb4beb1f94387472072da9eed891c784c21adad2b907912ca"
+    },
+    {
+      "path": "corpus/notes/kilnwick/intake-card.md",
+      "bytes": 1424,
+      "sha256": "12caeb01be926f5c826a616423fb987245fe22fea19bd6f639235b0c78411453"
+    },
+    {
+      "path": "corpus/notes/kilnwick/night-key.md",
+      "bytes": 1522,
+      "sha256": "5b28c3ff9fc6cee52fe8e98ccb1b1e47988f9c26b8763706891a94551281946f"
+    },
+    {
+      "path": "corpus/notes/kilnwick/shelf-damage.md",
+      "bytes": 1395,
+      "sha256": "771f40fd7b8de12fc82f67b0e61f5a3f02dad2494df6b985ca968f061b91180c"
+    },
+    {
+      "path": "corpus/notes/pedalbrook/checkout.md",
+      "bytes": 1552,
+      "sha256": "9d036e8fca60f3106c8be539641e756620366b1024546cfca4611feeb2bd7ef8"
+    },
+    {
+      "path": "corpus/notes/pedalbrook/child-seat.md",
+      "bytes": 1525,
+      "sha256": "7cd73a46caa4a6a31c78281a8d20a71d42c30e1778f5742d0f153a198518fd2c"
+    },
+    {
+      "path": "corpus/notes/pedalbrook/guide.md",
+      "bytes": 5683,
+      "sha256": "5e0119979a0f0980d3961fc5fd23bc6548688b956eb0023ca695081cd865b390"
+    },
+    {
+      "path": "corpus/notes/pedalbrook/initial-idea.md",
+      "bytes": 1497,
+      "sha256": "b25dd91be2b1661983af0fd4d6132a62e56cec763cbd87cdeb1b57a4eacc9496"
+    },
+    {
+      "path": "corpus/notes/pedalbrook/market-run.md",
+      "bytes": 1584,
+      "sha256": "32213015b3e51484f26fe656826d180b38342e8070398557ef74094b79dad191"
+    },
+    {
+      "path": "corpus/notes/shared/volunteer-handover.md",
+      "bytes": 1526,
+      "sha256": "f46dd540635ddf43791cfe34cdba680cc31a6388f332ed37007360bc5bf46b73"
+    },
+    {
+      "path": "queries.json",
+      "bytes": 3625,
+      "sha256": "d465497a7292aa25d585bd704000f631cd1cd0897f3aff0166c6e224b4937653"
+    },
+    {
+      "path": "rubric.json",
+      "bytes": 12630,
+      "sha256": "ae4090016b9f189abd6012053466a32abf160b8478308c5f6af3d8dac6a265d6"
+    }
+  ],
+  "digest": "8e08c379a4aa6f27be9cd82ca3a4f31a1649a1e9496146d3db2c562473f049a8"
+}

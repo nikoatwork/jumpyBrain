@@ -8,7 +8,7 @@ const baseline = await read(baselineDir), byId = new Map(baseline.records.map(r 
 const baselineManifest = JSON.parse(await readFile(path.join(baselineDir, 'FREEZE.json'), 'utf8'));
 const complete = row => row.final.every(u => u.covered);
 const fresh = row => /^(meridian|estuary|vellum|bracken|saffron|quartz)-/u.test(row.id);
-const affected = (arm, row) => ['discovery', 'discovery-identity'].includes(arm) ? ['orientation', 'current', 'multi-source', 'rationale'].includes(row.journey) : arm === 'identity' ? ['current', 'orientation', 'multi-source', 'ranking'].includes(row.journey) : arm === 'evidence' ? (fresh(row) ? row.journey === 'scope' : ['orientation', 'current'].includes(row.journey))
+const affected = (arm, row) => ['discovery', 'discovery-identity', 'ordering-all', 'read-spread', 'ordering-all-read-spread'].includes(arm) ? ['orientation', 'current', 'multi-source', 'rationale'].includes(row.journey) : arm === 'identity' ? ['current', 'orientation', 'multi-source', 'ranking'].includes(row.journey) : arm === 'evidence' ? (fresh(row) ? row.journey === 'scope' : ['orientation', 'current'].includes(row.journey))
   : arm === 'rerank' ? (fresh(row) ? ['ranking', 'multi-source'].includes(row.journey) : ['discovery', 'orientation', 'current', 'multi-source'].includes(row.journey))
     : ['multi-source', 'orientation'].includes(row.journey);
 const protectedCase = row => row.protected === true || ['navigation', 'historical', 'limits', 'protected', 'scope'].includes(row.journey);
@@ -23,11 +23,12 @@ for (const dir of armDirs) {
     assert.deepEqual(manifest[field], baselineManifest[field], `Comparison ${field} identities differ`);
   }
   assert.equal(scores.records.length, baseline.records.length);
-  const freshForArm = row => ['discovery', 'discovery-identity'].includes(arm) ? row.fresh === true : arm === 'identity' ? (manifest.protocol === 'workspace-v4' ? /^(belltower|copperfin|mothlight)-/u.test(row.id) : /^(selkie|tamar)-/u.test(row.id)) : fresh(row);
+  const freshForArm = row => ['discovery', 'discovery-identity', 'ordering-all', 'read-spread', 'ordering-all-read-spread'].includes(arm) ? row.fresh === true : arm === 'identity' ? (manifest.protocol === 'workspace-v4' ? /^(belltower|copperfin|mothlight)-/u.test(row.id) : /^(selkie|tamar)-/u.test(row.id)) : fresh(row);
   const deltas = scores.records.map(row => {
     const before = byId.get(row.id);
     assert.ok(before, `Missing paired case: ${row.id}`);
     return { id: row.id, journey: row.journey, split: row.split, fresh: freshForArm(row), protected: protectedCase(row), affected: affected(arm, row), before: complete(before), after: complete(row), beforeUnits: before.final.filter(u => u.covered).length, afterUnits: row.final.filter(u => u.covered).length, units: row.final.length, tokensBefore: before.cost.tokens, tokensAfter: row.cost.tokens, filesBefore: before.recallFiles, filesAfter: row.recallFiles,
+      expandedBefore: before.expandedFiles ?? [], expandedAfter: row.expandedFiles ?? [],
       lostUnits: before.final.filter(unit => unit.covered && !row.final.find(after => after.label === unit.label)?.covered).map(unit => unit.label),
       candidatesBefore: before.candidateCoverage ?? null, candidatesAfter: row.candidateCoverage ?? null };
   });
