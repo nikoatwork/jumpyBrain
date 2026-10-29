@@ -50,12 +50,12 @@ try {
   await page.locator(`[data-page-link="${ids[0]}"]`).hover();
   await page.locator(`[data-page-pin="${ids[0]}"]`).click();
   assert.equal(await page.locator("#sidebar-pinned .sidebar-page-title").innerText(), titles[0]);
-  await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent a").length === 7);
+  await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent a").length === 8);
   for (let i = 1; i < ids.length; i++) {
     await page.evaluate((id) => navigation.navigate("/?note=" + id), ids[i]);
     await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[i]);
   }
-  assert.equal(await page.locator("#sidebar-recent a").count(), 7);
+  assert.equal(await page.locator("#sidebar-recent a").count(), 8);
   const recentTitles = page.locator("#sidebar-recent .sidebar-page-title");
   const recentAges = page.locator("#sidebar-recent .sidebar-page-age");
   assert.equal(await recentTitles.first().innerText(), titles[10], "explicit due override sorts first");

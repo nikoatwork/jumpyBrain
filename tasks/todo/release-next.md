@@ -1,5 +1,7 @@
 # Changes
 
+- A collaborative sidebar keeps pins first, shows human/agent last-editor icons, refreshes changed/new pages automatically, and tucks settled pages into a collapsed section. Editing a settled page brings it back to Attention.
+
 - Start writing from a suggested local folder with one click. Simpler Mac onboarding also offers a secondary remote connection, optional folder help and clearer retry guidance.
 
 - Cleaner slash menu with short labels, formatting glyphs and compact spacing.

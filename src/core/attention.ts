@@ -20,10 +20,14 @@ export function attentionTimestamp(value: unknown): string | undefined {
   return typeof value === "string" && value.includes("T") ? metadataDate(value) : undefined;
 }
 
-/** No filesystem recency: explicit overrides survive content edits and index rebuilds. */
-export function resolveMemoryAttention(metadata: Frontmatter, now: number): MemoryAttentionState {
+/** A supplied revision detects edits since settlement without mutating canonical files. */
+export function resolveMemoryAttention(metadata: Frontmatter, now: number, revision?: string): MemoryAttentionState {
   const hasOverride = Object.hasOwn(metadata, "attention_at");
-  if (hasOverride && metadata.attention_at === null) return { state: "settled" };
+  if (hasOverride && metadata.attention_at === null) {
+    if (!revision || typeof metadata.attention_settled_hash !== "string" || metadata.attention_settled_hash === revision) return { state: "settled" };
+    const attentionAt = firstAttentionDate(metadata.updated_at, metadata.updatedAt, metadata.created_at, metadata.createdAt);
+    return { state: "active", ...(attentionAt ? { attentionAt } : {}) };
+  }
   const override = hasOverride ? attentionTimestamp(metadata.attention_at) : undefined;
   const attentionAt = override ?? firstAttentionDate(metadata.updated_at, metadata.updatedAt, metadata.created_at, metadata.createdAt);
   return {
@@ -46,15 +50,16 @@ export function validateMemoryAttentionAction(value: unknown, now: number): Memo
 }
 
 /** Change only matching header lines; body, other metadata, comments and line endings remain byte-exact. */
-export function patchMemoryAttention(content: string, mutation: MemoryAttentionAction): string {
+export function patchMemoryAttention(content: string, mutation: MemoryAttentionAction, settledHash?: string): string {
   const lines = content.match(/[^\n]*(?:\n|$)/g)?.filter(Boolean) ?? [];
   if (lines[0]?.trim() !== "---") throw new Error("Canonical document has no frontmatter header.");
   const end = lines.findIndex((line, index) => index > 0 && line.trim() === "---");
   if (end < 0) throw new Error("Canonical document has no closed frontmatter header.");
   const newline = lines[0]!.endsWith("\r\n") ? "\r\n" : "\n";
-  const header = lines.slice(1, end).filter(line => !/^attention_at:\s*/.test(line));
+  const header = lines.slice(1, end).filter(line => !/^attention_(?:at|settled_hash):\s*/.test(line));
   if (mutation.action !== "reactivate") {
     header.push(`attention_at: ${mutation.action === "settle" ? "null" : JSON.stringify(mutation.until)}${newline}`);
+    if (mutation.action === "settle" && settledHash) header.push(`attention_settled_hash: ${JSON.stringify(settledHash)}${newline}`);
   }
   return [lines[0], ...header, ...lines.slice(end)].join("");
 }

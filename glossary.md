@@ -18,7 +18,7 @@ A named, Mac-app destination profile (called a companion profile in the internal
 
 ## Note attention
 
-The sidebar's canonical resurfacing state, stored in Markdown `attention_at`: absent follows edit/creation recency, a future timestamp snoozes until due, and explicit YAML null settles indefinitely. Bring back removes the override. Attention changes preserve content edit dates and do not hide notes from search, graph or direct links. Pins are separate local navigation preferences and remain visible. Home Recent activity continues to describe content edits.
+The sidebar's canonical resurfacing state, stored in Markdown `attention_at`: absent follows edit/creation recency, a future timestamp snoozes until due, and explicit YAML null settles until content changes or Bring back removes the override. New settlements record `attention_settled_hash` so raw edits also reopen them; legacy null-only notes require a supported edit or explicit reactivation. Attention changes preserve content edit dates and do not hide notes from search, graph or direct links. Pins are separate local navigation preferences and remain visible. Home Recent activity continues to describe content edits.
 
 ## Graph search
 

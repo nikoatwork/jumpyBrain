@@ -48,10 +48,17 @@ export function mergeMemoryDocumentUpdate(
   }
   // Body-only edits retain evidence dates and dream classification. These are
   // editable metadata: an explicitly submitted value still replaces the old one.
-  for (const key of ["dream", "date", "attention_at"]) {
+  for (const key of ["dream", "date", "attention_at", "attention_settled_hash"]) {
     if (!merged.has(key) && Object.hasOwn(existing.frontmatter, key)) {
       merged.set(key, existing.frontmatter[key]!);
     }
+  }
+  // A saved content change asks for attention again. A deliberately submitted
+  // snooze still wins; unchanged saves/metadata-only settlement do not wake notes.
+  if (existing.frontmatter.attention_at === null && merged.get("attention_at") === null
+    && (existing.body !== submitted.body || existing.frontmatter.title !== merged.get("title"))) {
+    merged.delete("attention_at");
+    merged.delete("attention_settled_hash");
   }
   merged.set("updated_at", updatedAt);
 

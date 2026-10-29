@@ -20,6 +20,12 @@ const refreshIconPath = 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 
 
 export const browserPinIcon = icon('<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>');
 
+export const browserEditorIcons = {
+  human: icon('<circle cx="12" cy="8" r="3"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/>'),
+  agent: icon('<rect x="4" y="7" width="16" height="14" rx="3"/><path d="M12 3v4M1 12v5m22-5v5M9 17h6"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/>'),
+  unknown: icon('<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5m0 3h.01"/>'),
+};
+
 // Keep server-only glyph construction out of bundles that need only the pin.
 export const browserIcons = /* @__PURE__ */ (() => ({
   forward: icon('<path d="m14 5 7 7-7 7M21 12H3"/>'),

@@ -38,11 +38,11 @@ async function bringBack() {
   await page.reload(); await page.locator("#note-editor").waitFor();
 }
 async function sidebarAction(action) {
-  await page.locator(`[data-page-link="${ids[0]}"]`).hover();
+  await page.locator(`[data-page-link="${ids[0]}"]`).hover({ position: { x: 8, y: 8 } });
   await page.locator(`[data-page-action="${ids[0]}:${action}"]`).click();
 }
 async function pin() {
-  await page.locator(`[data-page-link="${ids[0]}"]`).hover();
+  await page.locator(`[data-page-link="${ids[0]}"]`).hover({ position: { x: 8, y: 8 } });
   await page.locator(`[data-page-pin="${ids[0]}"]`).click();
 }
 async function assertFits(label) {
@@ -208,8 +208,8 @@ try {
   assert.equal(await editorMarkdown(page), draft, "Undo retains recovered writing");
 
   // Real action confirmations must expire without another navigation or action.
-  for (const [id, label] of [["copy-note-draft", "Copy draft"], ["delete-note", "Delete note"], ["insert-reference", "Insert page reference"]]) {
-    assert.equal((await page.locator("#" + id).textContent()).trim(), id === "copy-note-draft" ? "Copy draft" : id === "delete-note" ? "Delete note…" : "");
+  for (const [id, label] of [["copy-note-draft", "Copy"], ["delete-note", "Delete note"], ["insert-reference", "Link · Insert page reference"]]) {
+    assert.equal((await page.locator("#" + id).textContent()).trim(), id === "insert-reference" ? "Link" : "", "copy/delete remain icon-only and the reference control keeps its short label");
     assert.equal(await page.locator("#" + id).getAttribute("aria-label"), label);
   }
   await sidebarAction("snooze");

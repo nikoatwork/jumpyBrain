@@ -1,4 +1,4 @@
-import { currentMemoryEditor } from "../contribution.js";
+import { attributionHash, currentMemoryEditor } from "../contribution.js";
 import { metadataDate } from "./metadata-date.js";
 import { createHash, randomUUID } from "node:crypto";
 import { constants, type Stats } from "node:fs";
@@ -322,12 +322,13 @@ export async function patchCanonicalMemoryDocumentAttention(
     let source: string;
     try { source = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(original.bytes); }
     catch { throw new MemoryDocumentLookupError("validation_failed", "Attention changes require a valid UTF-8 Markdown document."); }
-    const content = patchMemoryAttention(source, mutation);
+    const content = patchMemoryAttention(source, mutation, mutation.action === "settle" ? attributionHash(source) : undefined);
     await atomicWriteUtf8File(location, content, original, oldContentHash);
     const frontmatter = parseFrontmatter(content).frontmatter;
     const contentHash = hashMemoryDocumentContent(content);
     return { root, target: "local", id, file: location.file, type: memoryTypeForPath(location.file, frontmatter),
       title: typeof frontmatter.title === "string" ? frontmatter.title : "", frontmatter, content, contentHash,
+      recognition: { metadataStatus: "current", updatedAt: metadataDate(frontmatter.updated_at) ?? metadataDate(frontmatter.updatedAt), createdAt: metadataDate(frontmatter.created_at) ?? metadataDate(frontmatter.createdAt), editor: currentMemoryEditor(content) },
       oldContentHash, newContentHash: contentHash };
   });
 }

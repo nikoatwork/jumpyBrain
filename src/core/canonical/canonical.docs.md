@@ -27,7 +27,7 @@ Metadata-only `readMarkdownDocument` scans fresh frontmatter in 4 KiB positional
 
 ## Attention metadata publication
 
-`patchCanonicalMemoryDocumentAttention(root, id, { ifMatch, mutation })` reuses the content replacement queue, guarded snapshots, lock and atomic publisher. It accepts only settle, a future timezone-explicit snooze, or reactivate; a current canonical hash is mandatory. It changes only `attention_at` header lines, retaining unknown metadata/comments, content timestamps, body bytes and mixed line endings. Invalid UTF-8 is rejected. Reactivate removes every matching header key; settle writes bare `null`. The returned full document packet and hashes describe the published bytes, without a follow-up read race. Core does not schedule wakeups or use an index. The existing cooperating-filesystem-writer limits also apply.
+`patchCanonicalMemoryDocumentAttention(root, id, { ifMatch, mutation })` reuses the content replacement queue, guarded snapshots, lock and atomic publisher. It accepts only settle, a future timezone-explicit snooze, or reactivate; a current canonical hash is mandatory. It changes only `attention_at` and `attention_settled_hash` header lines, retaining unknown metadata/comments, content timestamps, body bytes and mixed line endings. Invalid UTF-8 is rejected. Reactivate removes every matching header key; settle writes bare `null` and the semantic attribution digest as a settlement fingerprint. Snooze/reactivate clear the fingerprint. The returned full document packet and hashes describe the published bytes, without a follow-up read race. Core does not schedule wakeups or use an index. The existing cooperating-filesystem-writer limits also apply.
 
 ## Guarded evidence expansion
 
@@ -58,4 +58,4 @@ Wiki references first resolve unique normalized metadata titles with a valid glo
 
 ## Declared content editor
 
-Canonical replacement forwards the optional validated actor to core merge policy and returns current `recognition` date/editor metadata over the bytes actually published. Exact no-ops return the existing declaration without changing timestamps or editor. Attention publication retains its independent byte-preserving policy; contribution hashing deliberately excludes `attention_at`. This does not establish verified identity, retained change history or attribution for untracked external writes.
+Canonical replacement forwards the optional validated actor to core merge policy and returns current `recognition` date/editor metadata over the bytes actually published. Exact no-ops return the existing declaration without changing timestamps or editor. Attention publication retains its independent byte-preserving policy; contribution hashing deliberately excludes `attention_at` and `attention_settled_hash`. This does not establish verified identity, retained change history or attribution for untracked external writes.

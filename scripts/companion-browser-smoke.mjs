@@ -507,10 +507,13 @@ try {
   assert.equal(await readOnly.locator("#dream-preview").inputValue(), "");
   await readOnly.locator("#dream-close").click();
 
-  const readsBefore = requests.filter((item) => item.path.includes("/documents/")).length;
   await readOnly.goto(origin + "/?note=" + id + "&brain=a");
   await readOnly.locator("#home").waitFor();
-  assert.equal(requests.filter((item) => item.path.includes("/documents/")).length, readsBefore);
+  // The active brain's sidebar may hydrate/poll previews on Home. Rejection
+  // means the mismatched link never opens an editor, not that all reads stop.
+  assert.equal(await readOnly.evaluate(() => state.editor), null);
+  assert.equal(new URL(readOnly.url()).searchParams.get("note"), null);
+  assert.equal(new URL(readOnly.url()).searchParams.get("brain"), "r");
   assert.match(await readOnly.locator("#toast-message").textContent(), /not scoped/);
   pollDelay = 1100;
   await new Promise((resolve) => setTimeout(resolve, 2600));

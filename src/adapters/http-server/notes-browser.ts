@@ -51,7 +51,15 @@ ${noteOutlineStyles}
     .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); }
     .app-nav .sidebar-icon { flex-shrink: 0; justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: 0; }
     .nav-appearance { display: flex; }
-    .nav-library { flex: 1; min-height: 80px; overflow: auto; scrollbar-width: thin; }
+    .nav-library { display: flex; flex-direction: column; flex: 1; min-height: 80px; overflow: hidden; scrollbar-width: thin; }
+    .nav-library > * { flex-shrink: 0; }
+    .sidebar-attention-scroll { flex: 1 1 0; min-height: 0; overflow: auto; scrollbar-width: thin; }
+    #sidebar-pinned { max-height: 35%; overflow: auto; scrollbar-width: thin; }
+    .sidebar-section-heading, .sidebar-settled summary { margin: var(--space-2) var(--space-3); color: var(--ink-soft); font: var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); }
+    .sidebar-settled { margin-top: auto; max-height: 40%; overflow: auto; scrollbar-width: thin; padding-top: var(--space-1); }
+    .sidebar-settled summary { cursor: pointer; padding-block: var(--space-2); border-top: 1px solid var(--line); }
+    #sidebar-settled-count { float: right; }
+    .sidebar-list-more { margin: var(--space-1) var(--space-3); font-size: var(--text-caption); }
     .nav-library ul { list-style: none; margin: 0; padding: 0; }
     .nav-library ul:not(:empty) + ul, .sidebar-page + .sidebar-page { margin-top: var(--space-1); }
     .sidebar-empty { margin: var(--space-1) var(--space-3); font-size: var(--text-caption); line-height: 1.5; color: var(--ink-faint); }
@@ -62,9 +70,12 @@ ${noteOutlineStyles}
     .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sidebar-page-link[aria-current="page"] { color: var(--ink); }
     .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 var(--control-compact); width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); margin-right: var(--space-0-5); border: 0; border-radius: var(--radius-sm); color: var(--ink-soft); background: transparent; opacity: 0; }
-    .sidebar-page-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; padding-block: 10px; }
-    .sidebar-page-preview { grid-row: 2; grid-column: 1 / -1; color: var(--ink-soft); font-size: var(--text-caption); }
-    .sidebar-page-age { grid-column: 2; grid-row: 1; font-size: var(--text-caption); color: var(--ink-soft); }
+    .sidebar-page-link { display: grid; grid-template-columns: var(--icon-size) minmax(0, 1fr) auto; gap: var(--space-1) var(--space-2); padding-block: var(--space-2); }
+    .sidebar-page-editor { grid-column: 1; grid-row: 1; display: flex; color: var(--ink-soft); }
+    .sidebar-page-editor svg { width: var(--icon-size); height: var(--icon-size); }
+    .sidebar-page-title { grid-column: 2; grid-row: 1; }
+    .sidebar-page-preview { grid-row: 2; grid-column: 2 / -1; color: var(--ink-soft); font-size: var(--text-caption); }
+    .sidebar-page-age { grid-column: 3; grid-row: 1; font-size: var(--text-caption); color: var(--ink-soft); }
     .sidebar-page { position: relative; }
     .sidebar-page .sidebar-page-actions { position: absolute; right: 0; bottom: 2px; background: var(--surface); opacity: 0; pointer-events: none; border-radius: var(--radius-sm); }
     .sidebar-page:hover .sidebar-page-actions, .sidebar-page:focus-within .sidebar-page-actions { opacity: 1; pointer-events: auto; }
@@ -288,7 +299,8 @@ ${referencePresentationStyles}
       .workspace-toolbar { min-height: 40px; }
       .workspace-history { --control-compact: var(--control-touch); }
       .nav-tools { grid-row: 2; grid-column: 1 / -1; flex-direction: row; align-items: center; gap: var(--space-1); }
-      .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 108px; }
+      .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 240px; }
+      .sidebar-attention-scroll { flex-basis: auto; }
       .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
       .sidebar-page { flex: 0 0 auto; max-width: 190px; }
       .sidebar-page + .sidebar-page { margin-top: 0; }
@@ -322,13 +334,24 @@ export const notesMarkup = String.raw`
     <button id="open-search" type="button" class="quiet-button nav-item" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Search</span></button>
   </div>
   <div class="nav-library" aria-label="Your pages">
-    <div id="board-navigation" hidden><button id="new-board" class="quiet-button">+ New board</button><ul id="sidebar-boards" aria-label="Boards"></ul></div>
+    <h2 id="sidebar-pinned-heading" class="sidebar-section-heading" hidden>Pinned</h2>
     <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
     <ul id="sidebar-recent" aria-label="Notes needing attention"></ul>
     <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
   </div>
+    <div class="sidebar-attention-scroll">
+    <div id="board-navigation" hidden><button id="new-board" class="quiet-button">+ New board</button><ul id="sidebar-boards" aria-label="Boards"></ul></div>
+    <h2 class="sidebar-section-heading">Attention</h2>
   <div class="nav-preferences">
     <a id="graph-link" class="quiet-button nav-item sidebar-icon" href="/graph" aria-label="Graph" title="Graph">${browserIcons.graph}</a>
+    <button id="sidebar-recent-more" class="quiet-button sidebar-list-more" hidden>Show more</button>
+    </div>
+    <details id="sidebar-settled-section" class="sidebar-settled">
+      <summary>Settled <span id="sidebar-settled-count">0</span></summary>
+      <ul id="sidebar-settled" aria-label="Settled pages"></ul>
+      <p id="sidebar-settled-empty" class="sidebar-empty">No settled pages</p>
+      <button id="sidebar-settled-more" class="quiet-button sidebar-list-more" hidden>Show more</button>
+    </details>
     <button id="open-connection" class="quiet-button nav-item sidebar-icon" aria-label="Connect · Connection settings" title="Connection settings" aria-haspopup="dialog">${browserIcons.settings}<span class="connection-dot" aria-hidden="true"></span></button>
     <button id="open-feedback" class="quiet-button nav-item sidebar-icon" aria-label="Feedback" title="Feedback" aria-haspopup="dialog" aria-controls="feedback-dialog">${browserIcons.feedback}</button>
     <div class="nav-utilities" role="group" aria-label="App utilities"><div class="nav-appearance">${themeMarkup}</div></div>

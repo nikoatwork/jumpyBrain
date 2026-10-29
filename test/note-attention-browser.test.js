@@ -31,11 +31,11 @@ test("attention reads discard superseded and different-brain responses even if a
 test("hidden/canceled attention reads cannot rearm timers; errors are retryable and output is bounded", async () => {
   let enabled = false, fail = false; const timers = [];
   const list = createAttentionList({ scope: () => "brain", enabled: () => enabled, now: () => 0,
-    fetch: async () => { if (fail) throw { status: 401 }; return { notes: Array.from({ length: 15 }, (_, i) => ({ id: id.slice(0, -2) + String(i).padStart(2, "0"), title: "Note" })), nextWakeAt: "2099-01-01T00:00:00Z" }; },
+    fetch: async () => { if (fail) throw { status: 401 }; return { notes: Array.from({ length: 115 }, (_, i) => ({ id: id.slice(0, -3) + String(i).padStart(3, "0"), title: "Note" })), nextWakeAt: "2099-01-01T00:00:00Z" }; },
     setTimer: (callback, delay) => { timers.push(delay); return timers.length; }, clearTimer() {}, onChange() {},
   });
   await list.load(); assert.equal(list.state.status, "idle");
-  enabled = true; await list.load(); assert.equal(list.state.notes.length, 8); assert.equal(timers[0], 2_147_483_647);
+  enabled = true; await list.load(); assert.equal(list.state.notes.length, 100); assert.equal(timers[0], 15_000);
   fail = true; await list.load(); assert.equal(list.state.status, "error"); assert.equal(list.state.notes.length, 0); assert.match(list.state.message, /Connect/);
   fail = false; await list.load(); assert.equal(list.state.status, "ready");
 });
@@ -55,6 +55,25 @@ test("snooze presets use the next local calendar morning/Monday across DST", () 
     assert.throws(() => customSnooze("2026-10-24T21:00", now.getTime()), /future/);
     assert.equal(customSnooze("2026-10-25T09:00", now.getTime()), "2026-10-25T08:00:00.000Z");
   } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
+});
+
+test("visible idle lists refresh without snoozes, recover after errors and isolate settled results", async () => {
+  let scope = 'a', enabled = true, fail = false, reads = 0;
+  const timers = new Map(); let nextTimer = 0;
+  const list = createAttentionList({ scope: () => scope, enabled: () => enabled, now: () => 0,
+    fetch: async () => { reads++; if (fail) throw new Error('offline'); return { notes: [], settled: [{ id, title: 'Settled' }], settledTotal: 120 }; },
+    setTimer: (callback, delay) => { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
+    clearTimer: id => timers.delete(id), onChange() {},
+  });
+  await list.load(); assert.equal(timers.get(nextTimer).delay, 15_000);
+  assert.equal(list.state.settled[0].id, id); assert.equal(list.state.settledTotal, 120);
+  timers.get(nextTimer).callback(); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(reads, 2);
+  fail = true; await list.load(); assert.equal(timers.get(nextTimer).delay, 30_000);
+  fail = false; await list.load(); assert.equal(list.state.status, 'ready');
+  enabled = false; list.cancel(); const before = reads; await list.load(); assert.equal(reads, before);
+  scope = 'b'; await list.load(); assert.deepEqual(list.state.settled, []);
+  scope = null; await list.load(); assert.equal(list.state.status, 'idle');
 });
 
 test("confirmed metadata patches advance only a matching clean baseline without rebuilding writing", () => {

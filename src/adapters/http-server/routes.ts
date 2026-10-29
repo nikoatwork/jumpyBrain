@@ -211,6 +211,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
   }
 
   if (url.pathname === HTTP_MEMORY_ROUTES.attention) {
+    response.setHeader("Cache-Control", "no-store");
     if (request.method !== "GET") {
       writeJson(response, 405, errorResponse("method_not_allowed", "Use GET for /memories/all/attention."));
       return;

@@ -20,7 +20,7 @@ function invalidActor(): never { throw Object.assign(new Error("actor requires k
 /** Semantic frontmatter plus body; attention-only publication does not change authorship. */
 export function attributionHash(content: string): string {
   const { frontmatter, body } = parseFrontmatter(content);
-  const metadata = Object.entries(frontmatter).filter(([key]) => key !== "attention_at" && !(ATTRIBUTION_KEYS as readonly string[]).includes(key)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
+  const metadata = Object.entries(frontmatter).filter(([key]) => !["attention_at", "attention_settled_hash"].includes(key) && !(ATTRIBUTION_KEYS as readonly string[]).includes(key)).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
   return "sha256:" + createHash("sha256").update(JSON.stringify([metadata, body])).digest("hex");
 }
 

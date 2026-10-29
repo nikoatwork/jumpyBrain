@@ -11,8 +11,9 @@ test("editor bundle is self-contained, production-sized, and safe to inline unde
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
   // The live heading rail adds ~2 KB gzip, with no new dependencies.
-  // Reviewed production size is ~188.3 KB including sidebar age refresh.
-  assert.ok(gzipSync(bundle).length < 189_000, "review editor weight if the production bundle exceeds 189 KB gzip");
+  // Reviewed production size is ~189.4 KB including collaborative sidebar refresh.
+  // Collaborative sidebar adds bounded shelves, polling and declared-editor glyphs.
+  assert.ok(gzipSync(bundle).length < 190_000, "review editor weight if the production bundle exceeds 190 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);
