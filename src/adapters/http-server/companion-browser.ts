@@ -141,6 +141,7 @@ companionBrainSelect.addEventListener("change", () => {
 });
 document.querySelector(".nav-preferences").prepend(companionActiveLabel);
 $("open-connection").removeAttribute("aria-haspopup");
+$("open-connection").querySelector(".connection-dot")?.remove();
 $("connection").hidden = true;
 
 function companionMessage(text, error = false) {
@@ -183,7 +184,6 @@ function renderCompanionConnection() {
     : ["disconnected", "unavailable"].includes(connectionStatus) ? connectionStatus : companionHealthText(companionState?.health);
   const displayState = health === "connected" ? "connected"
     : ["Not tested", "unknown", "checking", "starting"].includes(health) ? "checking" : "unavailable";
-  $("open-connection").dataset.state = displayState;
   if ($("companion-active")) {
     const status = $("companion-active");
     const label = (active?.name || "Companion session") + " · " + health
