@@ -4,6 +4,8 @@ Follow [the release process](releases.md) and the current [testing guide](releas
 
 ## Current routine
 
+- Check live feedback with `npm run --silent feedback:inbox` before choosing scope, following [the release inbox review](releases.md#batch-release-routine). Record genuine-feedback triage and any incomplete/unverified check; no separate reminder is needed.
+
 - Install the [local candidate](local-dogfooding.md) on the owner’s Mac and use it with the real brain before publication, normally for about a day. The owner may choose less time; record the actual experience and candidate commit. Nightly replacement is not enabled.
 - Choose the exact snapshot, review pending notes and preserve unrelated work. Release only when requested; the daily cadence and major-version approval rules still apply.
 - Prepare with a build, fresh desktop package and one core note-lifecycle smoke. Reuse passing evidence for unchanged inputs. The full `npm run release` owns the mandatory versioned deterministic suite, CLI packaging, version commit/tag/push and GitHub publication.

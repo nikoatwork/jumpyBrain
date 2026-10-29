@@ -46,6 +46,10 @@ The CLI can print a copyable version:
 jumpybrain instructions
 ```
 
+## Product feedback
+
+Agents can report a user-authorized bug or suggestion with `jumpybrain feedback --message "<version; reproduction; expected vs actual>" --json`, or pipe a reviewed message on stdin. `--dry-run` previews without sending. Feedback uses the app's support relay with no memory root or app required; it sends supplied text only, without automatic logs. Exclude private data, retain the text after unconfirmed delivery and never retry automatically. See [the feedback CLI contract](cli-commands.md#product-feedback) for receipts and deliberate retries. The generated instructions and installer skill template include this guidance; existing installed skills need an explicit refresh as described above.
+
 ## Troubleshooting integration loading
 
 - Run `~/.jumpybrain/bin/jumpybrain doctor --json` to verify CLI, Node, QMD, memory root, and global integration files.

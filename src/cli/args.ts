@@ -7,6 +7,7 @@ export interface ParsedCliArgs {
 }
 
 export function parseArgs(argv: string[]): ParsedCliArgs {
+  if (argv[0] === "feedback") return parseFeedbackArgs(argv);
   if (argv[0] === "doctor") return parseDoctorArgs(argv);
   if (argv[0] === "extensions") return parseExtensionsArgs(argv);
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
@@ -48,6 +49,27 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     throw new Error("--apply must not be repeated.");
   }
   return args._[0] === "migrate" ? parseMigrationArgs(argv) : args;
+}
+
+function parseFeedbackArgs(argv: string[]): ParsedCliArgs {
+  const args: ParsedCliArgs = { _: ["feedback"] };
+  for (let index = 1; index < argv.length; index++) {
+    const token = argv[index]!;
+    if (!token.startsWith("--")) throw new Error("Unexpected feedback argument. Use --message or pipe text on stdin; boolean flags take no value.");
+    const equal = token.indexOf("="), key = token.slice(2, equal < 0 ? undefined : equal);
+    if (!["message", "id", "dry-run", "json", "help"].includes(key)) throw new Error(`Unknown feedback flag --${key}.`);
+    if (Object.hasOwn(args, key)) throw new Error(`--${key} must not be repeated.`);
+    if (key === "message" || key === "id") {
+      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+      if (!value || value.startsWith("--") || !value.trim()) throw new Error(`--${key} requires a non-empty value.`);
+      args[key] = value;
+    } else {
+      if (equal >= 0) throw new Error(`--${key} is a boolean flag and takes no value.`);
+      args[key] = true;
+    }
+  }
+  if (typeof args.id === "string" && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(args.id)) throw new Error("--id must be a lowercase UUID v4 from a previous feedback attempt.");
+  return args;
 }
 
 function parseDoctorArgs(argv: string[]): ParsedCliArgs {

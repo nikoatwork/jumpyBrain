@@ -72,6 +72,7 @@ function sourceLayer(file) {
   if (file.startsWith("src/extensions/")) return "extension-contract";
   if (file.startsWith("src/app/extensions/")) return "extension-app";
   if (file.startsWith("src/adapters/extensions/")) return "extension-adapter";
+  if (file.startsWith("src/adapters/feedback/")) return "feedback-adapter";
   if (isCliPath(file)) return "cli-boundary";
   if (isServerPath(file)) return "server-boundary";
   if (isAppPath(file)) return "app-use-case";
@@ -88,16 +89,17 @@ function sourceLayer(file) {
 
 const approvedLayerImports = new Map([
   ["package-entrypoint", new Set(["runtime-app"])],
-  ["cli-boundary", new Set(["cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app"])],
+  ["cli-boundary", new Set(["cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app", "feedback-adapter"])],
   ["http-protocol-adapter", new Set(["http-protocol-adapter"])],
   ["http-client-adapter", new Set(["http-client-adapter", "http-protocol-adapter", "core-domain"])],
   ["server-boundary", new Set(["server-boundary", "app-use-case", "core-domain", "http-server-adapter", "infrastructure-adapter"])],
-  ["http-server-adapter", new Set(["http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter", "extension-contract"])],
+  ["http-server-adapter", new Set(["http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter", "extension-contract", "feedback-adapter"])],
   ["runtime-app", new Set(["runtime-app", "app-use-case", "core-domain", "infrastructure-adapter"])],
   ["app-use-case", new Set(["app-use-case", "core-domain", "qmd-adapter", "diagnostics-adapter"])],
   ["qmd-adapter", new Set(["qmd-adapter", "core-domain"])],
   ["core-domain", new Set(["core-domain"])],
   ["infrastructure-adapter", new Set(["infrastructure-adapter"])],
+  ["feedback-adapter", new Set(["feedback-adapter"])],
   ["diagnostics-adapter", new Set(["diagnostics-adapter", "infrastructure-adapter"])],
   ["extension-contract", new Set(["extension-contract"])],
   ["extension-app", new Set(["extension-app", "extension-adapter", "extension-contract"])],
