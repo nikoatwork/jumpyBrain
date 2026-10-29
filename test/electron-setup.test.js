@@ -3,7 +3,7 @@ import test from 'node:test';
 import path from 'node:path';
 import os from 'node:os';
 import { mkdtemp, mkdir, readFile, writeFile, rm, symlink, realpath } from 'node:fs/promises';
-import { inspectBrainFolder, activateLocalBrain, companionControl, setupComplete, finishSetup } from '../integrations/electron/setup.mjs';
+import { inspectBrainFolder, suggestLocalBrain, prepareLocalBrain, activateLocalBrain, activateRemoteBrain, companionControl, setupComplete, finishSetup } from '../integrations/electron/setup.mjs';
 import { startCompanionGateway } from '../integrations/macos-companion/gateway.mjs';
 import { initializeMemoryRoot } from '../dist/runtime/index.js';
 import { randomBytes } from 'node:crypto';
@@ -36,6 +36,62 @@ test('setup completion survives relaunch; malformed marker reopens onboarding', 
   await finishSetup(directory); assert.equal(await setupComplete(directory), true);
   await writeFile(path.join(directory, 'desktop-setup.json'), '{broken');
   assert.equal(await setupComplete(directory), false);
+});
+
+test('suggesting a default is read-only; explicit preparation creates it and refuses unrelated files', async (t) => {
+  const { directory, root } = await fixture(t);
+  const state = { profiles: [], activeId: null };
+  const selected = await suggestLocalBrain(state, { home: directory });
+  assert.equal(selected.root, path.join(directory, '.jumpybrain/memory'));
+  await assert.rejects(readFile(path.join(selected.root, 'jumpybrain.json')), { code: 'ENOENT' });
+  assert.deepEqual(await prepareLocalBrain(selected), { root: selected.root, existing: false });
+  await writeFile(path.join(selected.root, 'keep.txt'), 'Keep me');
+  await assert.rejects(prepareLocalBrain(selected), /empty folder/);
+  await assert.rejects(suggestLocalBrain(state, { home: directory }), /isn’t ready/);
+  await initializeMemoryRoot(root);
+  const local = { id: 'local', kind: 'local', root };
+  assert.equal((await suggestLocalBrain({ profiles: [local], activeId: 'local' }, { home: directory })).root, root);
+  await assert.rejects(suggestLocalBrain({ profiles: [{ ...local, root: path.join(directory, 'missing') }], activeId: 'local' }), /saved folder/);
+});
+
+test('native picker aliases resolve before activation without a false folder-changed error', async (t) => {
+  const { root, directory } = await fixture(t);
+  await initializeMemoryRoot(root);
+  const alias = path.join(directory, 'Folder alias'); await symlink(root, alias);
+  const selected = await inspectBrainFolder(alias);
+  assert.equal(selected.root, root);
+  const state = await activateLocalBrain({ runtimeRoot: fileURLToPath(new URL('..', import.meta.url)) }, selected, {
+    control: async () => ({ activeId: 'local', profiles: [{ id: 'local', kind: 'local', root }] }),
+  });
+  assert.equal(state.activeId, 'local');
+});
+
+test('remote onboarding persists keys through the gateway, checks connectivity and retries without duplicate profiles', async (t) => {
+  const { directory, cleanup } = await fixture(t);
+  const support = path.join(directory, 'support'); await mkdir(support, { mode: 0o700 });
+  const keys = new Map();
+  let health = 401;
+  const key = randomBytes(32).toString('hex');
+  const gateway = await startCompanionGateway({ runtimeRoot: fileURLToPath(new URL('..', import.meta.url)), directory: support,
+    port: 0, controlKey: key,
+    credentials: { get: async ref => keys.get(ref), set: async (ref, value) => keys.set(ref, value), delete: async ref => keys.delete(ref) },
+    fetchImpl: async () => new Response(JSON.stringify({ memory: 'all' }), { status: health }),
+  });
+  cleanup.close = () => gateway.close();
+  const connection = { origin: gateway.url, key };
+  const input = { url: 'https://brain.example.com/', key: 'fixture-key' };
+  await assert.rejects(activateRemoteBrain(connection, input), /key didn’t work/);
+  let state = await companionControl(connection);
+  assert.equal(state.profiles.length, 1); assert.equal(state.profiles[0].allowWrites, false);
+  assert.equal(JSON.stringify(state).includes('fixture-key'), false);
+  health = 200;
+  state = await activateRemoteBrain(connection, input);
+  assert.equal(state.profiles.length, 1); assert.equal(state.active.kind, 'remote');
+  assert.equal(state.active.allowWrites, false);
+  assert.equal((await readFile(path.join(support, 'connections.json'), 'utf8')).includes('fixture-key'), false);
+  for (const url of ['http://example.com', 'https://brain.example.com/path', 'https://user:password@brain.example.com', 'http://2130706433']) {
+    await assert.rejects(activateRemoteBrain(connection, { ...input, url }));
+  }
 });
 test('initialization uses the public runtime and activates through the production save barrier; retry reuses the connection', async (t) => {
   const { root, directory, cleanup } = await fixture(t);

@@ -30,7 +30,7 @@ If a tool blocks execution, quote or accurately summarize the actual error, dist
 
 ## Connect the app to the same brain
 
-After successful desktop setup, open `~/Applications/jumpyBrain.app`. For an existing CLI brain, guide the user to **Open my local brain** and its actual memory root. The default is `~/.jumpybrain/memory`; **⌘⇧G** in the folder chooser can navigate there. Do not select the source directory `~/.jumpybrain/app` as the brain.
+After successful desktop setup, open `~/Applications/jumpyBrain.app`. For an existing CLI brain, check the folder shown on the welcome screen matches its actual memory root, then choose **Open my notes**. The usual default is `~/.jumpybrain/memory`. If needed, use **Use a different folder…**; **⌘⇧G** in the folder chooser can navigate to a hidden path. Do not select the source directory `~/.jumpybrain/app` as the brain.
 
 Explain once: there is one set of notes when both use the same folder. The app bundles program code. Ordinary updates coordinate a supported default managed app/CLI pair; CLI-only and custom/pinned installations retain their explicit policies. App folder selection does not retarget the agent. Fresh app-only setup does not install agent integrations; do not claim they are connected merely because the app opened.
 

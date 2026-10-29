@@ -30,7 +30,7 @@ They are two ways to work with the **same folder of notes**. The app is a window
 
 There are separate copies of program code: the Mac app bundles a runtime, while the CLI has its own installation. The sidebar update icon coordinates the app and the supported default managed CLI at one published release. Custom/pinned CLI installations retain their policy through the explicit app-only update choice. Settings shows the installed app version; `jumpybrain --version` shows the CLI version. Separate program copies do not duplicate your notes. See the [update instructions](install.md#update).
 
-If you used the default CLI installer, [build the app from the existing installation](install.md#macos-desktop-app-beta), then choose `~/.jumpybrain/memory` in onboarding. Changing the app's selected folder does not automatically change an agent's target.
+If you used the default CLI installer, [build the app from the existing installation](install.md#macos-desktop-app-beta), then check that onboarding shows `~/.jumpybrain/memory` and choose **Open my notes**. Use **Use a different folder…** if you need to select it. Changing the app's selected folder does not automatically change an agent's target.
 
 ## What gets installed, and where?
 

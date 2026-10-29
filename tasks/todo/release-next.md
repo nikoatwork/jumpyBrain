@@ -1,5 +1,7 @@
 # Changes
 
+- Start writing from a suggested local folder with one click. Simpler Mac onboarding also offers a secondary remote connection, optional folder help and clearer retry guidance.
+
 - Cleaner slash menu with short labels, formatting glyphs and compact spacing.
 
 - Sidebar notes show a plain-text preview and last-edited age, with actions on hover/focus. The wider sidebar can be dragged to resize and remembers its width.

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Simpler first launch
+
+- Mac onboarding now suggests a local folder for one-click entry, with an optional remote connection and clearer recovery. [Verification](done/2026-10-29_tasks-simple-onboarding.md).
+
 ## 2026-10-29 — Compact slash menu
 
 - Shortened formatting labels, removed repeated slash commands and added styled glyphs in a compact menu. [Task](done/2026-10-29_tasks-compact-slash-menu.md).

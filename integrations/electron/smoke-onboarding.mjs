@@ -95,7 +95,7 @@ try {
       } else {
         mark('cancel and invalid picker seam with real native service');
         await js('document.getElementById("choose").click()'); await until(async () => await js('!document.getElementById("choose").disabled'));
-        assert.equal(await js('document.getElementById("open").disabled'), true);
+        assert.equal(await js('document.getElementById("open").disabled'), false);
         choice = { canceled: false, filePaths: [f.invalidRoot] };
         await js('document.getElementById("choose").click()'); await until(async () => await js('document.getElementById("message").textContent.includes("empty folder")'));
         assert.equal(await js('document.getElementById("open").disabled'), true);

@@ -20,7 +20,7 @@ open "$HOME/Applications/jumpyBrain.app"
 
 To check requirements before installing, run `npm run desktop:setup -- --check` from that source directory. It reports missing tools together and changes no installation or settings.
 
-In onboarding choose the existing `~/.jumpybrain/memory` folder, or the actual memory root from your CLI setup. Press **⌘⇧G** in the folder chooser to enter the path. No second clone is needed. See the [installation guide](../../docs/install.md#macos-desktop-app-beta) for prerequisite checks and custom-install limitations.
+In onboarding, check the suggested folder matches `~/.jumpybrain/memory`, or the actual memory root from your CLI setup, then choose **Open my notes**. Use **Use a different folder…** when needed; press **⌘⇧G** in the chooser to enter a hidden path. No second clone is needed. See the [installation guide](../../docs/install.md#macos-desktop-app-beta) for prerequisite checks and custom-install limitations.
 
 **No existing CLI install?** Clone once:
 
@@ -59,9 +59,9 @@ A failed installation rolls back moved app/login files and leaves a previously r
 
 ## First launch and everyday use
 
-1. Choose an empty folder for a new brain or an existing initialized brain.
-2. Confirm **Create my local brain** or **Open my local brain**. Unrelated populated folders are refused.
-3. **Continue with …** retains an existing selected connection. Remote destinations remain explicitly labeled.
+1. Choose **Start writing** to begin in the suggested local folder, or **Open my notes** when it already contains a brain.
+2. Optional: **Use a different folder…** selects an empty folder or an existing brain. Unrelated populated folders are refused.
+3. For a server you or your team already set up, choose **Connect to a remote brain** and enter its address and access key. New remote connections open for viewing; editing is enabled separately in Settings. An existing active remote connection can also be opened directly.
 
 Settings (**⌘,**) manages local/remote profiles. Remote writes and indexing require explicit approval for that destination. Switching and quitting use the same all-tab save barrier: failed saves or unresponsive registered browser tabs keep the app running. Wake those tabs and resolve their drafts, or close them using their normal discard confirmation, then retry Quit.
 
