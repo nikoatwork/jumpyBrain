@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Sidebar text hierarchy
+
+- Clearer titles, quieter previews and compact edit ages make sidebar pages easier to scan. [Verification](done/2026-10-29_tasks-sidebar-copy-hierarchy.md).
+
 ## 2026-10-29 — Local candidates before release
 
 - Added a manual committed-build install/status/rollback workflow for testing the Mac app and CLI with the existing brain before publication. [Verification](done/2026-10-29_tasks-local-dogfood-install.md).

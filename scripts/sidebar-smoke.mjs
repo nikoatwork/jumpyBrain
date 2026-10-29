@@ -59,10 +59,10 @@ try {
   const recentTitles = page.locator("#sidebar-recent .sidebar-page-title");
   const recentAges = page.locator("#sidebar-recent .sidebar-page-age");
   assert.equal(await recentTitles.first().innerText(), titles[10], "explicit due override sorts first");
-  assert.equal(await recentAges.first().innerText(), "due 1h ago");
+  assert.equal(await recentAges.first().innerText(), "due 1h");
   assert.match(await recentAges.first().getAttribute("title"), /^Due /, "due rows keep the exact tooltip");
   assert.equal(await recentTitles.nth(1).innerText(), titles[11]);
-  assert.equal(await recentAges.nth(1).innerText(), "3d ago", "edit ages read as explicit relative forms");
+  assert.equal(await recentAges.nth(1).innerText(), "3d", "edit ages use compact units");
   assert.match(await recentAges.nth(1).getAttribute("title"), /^Last edited /);
   assert.equal(await recentTitles.nth(2).innerText(), titles[9]);
   assert.equal(await page.locator("#sidebar-recent img").count(), 0);
