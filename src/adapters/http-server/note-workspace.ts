@@ -1,6 +1,7 @@
 import { metadataDate } from "../../core/canonical/metadata-date.js";
 import type { createDocumentEditor } from "./document-controller.js";
 import type { MemoryActor, SearchRecognitionMetadata } from "../../types.js";
+import { installNoteOutline } from "./note-outline.js";
 
 /** Facts about the accepted saved revision; never attribution for a live draft. */
 export function savedVersionContext(recognition: SearchRecognitionMetadata | undefined, actor: MemoryActor) {
@@ -24,6 +25,10 @@ export function installNoteWorkspace(options: {
   const body = $("note-editor");
   const format = $<HTMLButtonElement>("toggle-note-format"), tools = $("format-controls");
   let key = "", open = false, formatting = false, stopped = false, frame = 0;
+  const outline = installNoteOutline({ document: doc, available: () => {
+    const state = options.editor()?.state;
+    return Boolean(state?.loaded && !state.cancelled && !state.navigationPending);
+  } });
   function showFormatting(value: boolean, restore = false) {
     formatting = value;
     tools.hidden = !formatting;
@@ -37,6 +42,7 @@ export function installNoteWorkspace(options: {
     if (restore && !toggle.hidden) toggle.focus({ preventScroll: true });
   }
   function sync() {
+    outline.sync();
     const state = options.editor()?.state;
     const loaded = state?.loaded && !state.cancelled;
     const next = loaded ? String(state.generation) + ":" + state.documentId : "";

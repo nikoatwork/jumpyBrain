@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Markdown heading navigation
+
+- Added a floating section rail with hover previews, keyboard/click jumps and current-section tracking in the Mac/shared editor. [Verification](done/2026-10-29_tasks-markdown-section-rail.md).
+
 ## 2026-10-29 — Simpler first launch
 
 - Mac onboarding now suggests a local folder for one-click entry, with an optional remote connection and clearer recovery. [Verification](done/2026-10-29_tasks-simple-onboarding.md).
