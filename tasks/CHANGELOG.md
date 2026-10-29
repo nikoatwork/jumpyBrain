@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Sidebar layout repair
+
+- Restored section boundaries, a single bottom action bar, and clean hover/focus geometry. [Verification](done/2026-10-29_tasks-sidebar-layout-repair.md).
+
 ## 2026-10-29 — CLI feedback and release inbox review
 
 - Agents can send explicit text feedback through the UI support relay, preview it and receive delivery receipts. Release preparation now includes live feedback triage. [Verification](done/2026-10-29_tasks-cli-feedback.md).

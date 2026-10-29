@@ -24,7 +24,7 @@ export const settingsStyles = String.raw`
   body[data-view="settings"] .nav-brand > .home-link { grid-column: 2; }
   #companion-heading:focus { outline: none; }
   #settings-back { margin-top: auto; }
-  body[data-view="settings"] .nav-preferences { margin-top: 0; }
+  body[data-view="settings"] .nav-preferences { grid-template-columns: max-content; margin-top: 0; }
   body[data-view="settings"] .workspace-toolbar { display: none; }
   .settings-breadcrumb { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-heading); }
   .settings-breadcrumb > span:first-child, .settings-breadcrumb > span[aria-hidden] { color: var(--ink-faint); font-weight: var(--weight-regular); }
