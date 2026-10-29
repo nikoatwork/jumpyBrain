@@ -1,6 +1,6 @@
 # Changes
 
-- Added Pride, a rainbow theme with light and dark modes, rainbow graph colours and a subtle rainbow stripe.
+- Added Pride, a rainbow theme with light and dark modes, rainbow graph colours, a pastel rainbow sidebar and a calm lavender-tinted editor.
 
 - Reduced the CLI/source download by roughly 61% by excluding documentation artwork and native test scripts, added package size regression checks, and updated Electron to 44.10.0 with the compromised-certificate security fix.
 

@@ -46,8 +46,8 @@ export const appearanceStyles = String.raw`
   .palette-ember i:last-child { background: radial-gradient(circle at 30% 25%, #c07752, #44322b 48%, #1c1b19); }
   .palette-ocean i:first-child { background: radial-gradient(circle at 30% 25%, #f0f7fc, #c0dce9 42%, #4d94b5); }
   .palette-ocean i:last-child { background: radial-gradient(circle at 30% 25%, #81bfde, #2b5068 48%, #16212b); }
-  .palette-pride i { background: conic-gradient(#e44056, #ed8c32, #f0cd45, #42a966, #4285dd, #9854cc, #e44056); }
-  .palette-pride i:last-child { box-shadow: inset 0 0 0 7px #101010; }
+  .palette-pride i { background: linear-gradient(150deg, #f6dfe7, #f7e7dc, #f5efd9, #e1eee2, #e0eaf5, #eadef3); }
+  .palette-pride i:last-child { background: linear-gradient(150deg, #674554, #645044, #5b583f, #405c4e, #435570, #5b456e); }
   .palette-mono i:first-child { background: radial-gradient(circle at 30% 25%, #ffffff, #e5e5e5 42%, #a8a8a8); }
   .palette-mono i:last-child { background: radial-gradient(circle at 30% 25%, #686868, #292929 48%, #080808); }
   @media (max-width: 480px) {

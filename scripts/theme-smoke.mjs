@@ -25,6 +25,8 @@ async function assertPalette(page, theme) {
   const name = await page.locator("html").getAttribute("data-palette");
   const hexRgb = hex => "rgb(" + hex.match(/[a-f0-9]{2}/gi).map(value => parseInt(value, 16)).join(", ") + ")";
   const tokens = builtInPalettes[name]?.[theme];
+  const sidebarBackground = await page.locator("#app-sidebar").evaluate(el => getComputedStyle(el).backgroundImage);
+  assert.equal(sidebarBackground.includes("linear-gradient"), name === "pride", "Pride wash is scoped to its sidebar");
   const palette = tokens ? { surface: hexRgb(tokens.surface), control: hexRgb(tokens["control-fill"]), ink: hexRgb(tokens.ink) } : emberColors[theme];
   for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "#note-editor", "#note-name", "#note-search", "#connection", "#dream-handoff", "#dream-preview"]) {
     assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), palette.surface, `${selector}: ${theme}`);

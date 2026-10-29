@@ -59,3 +59,5 @@ Icon action labels reuse each control’s `title` (or SVG control’s accessible
 ## Verification
 
 Build, then run the relevant existing browser tests and `scripts/sidebar-smoke.mjs`, `scripts/theme-smoke.mjs`, `scripts/feedback-smoke.mjs`, and `scripts/companion-browser-smoke.mjs` through the repository's Playwright runner. Run `scripts/dropdown-smoke.mjs` for shared dropdown changes (keyboard/pointer, long labels, theme and anchored menu bounds). Inspect desktop and 390/320px layouts in both themes, including the Mac-injected Updates button, long page titles, dialogs, and collapsed navigation. No personal memory or installed app needs to be modified.
+
+Pride uses a continuous pastel rainbow sidebar wash, neutral navigation text and a clean lavender-tinted writing surface. Dark mode uses a muted rainbow wash on dark surfaces. The sidebar carries the rainbow identity; there is no top-edge stripe.

@@ -82,10 +82,7 @@ export const themeStyles = String.raw`
     }
     :root[data-theme="dark"] { ${darkColors} }
     ${paletteStyles}
-    :root[data-palette="pride"] body::after {
-      content: ""; position: fixed; inset: 0 0 auto; height: 3px; z-index: 1000; pointer-events: none;
-      background: linear-gradient(90deg, #e44056 0% 16.666%, #ed8c32 16.666% 33.333%, #f0cd45 33.333% 50%, #42a966 50% 66.666%, #4285dd 66.666% 83.333%, #9854cc 83.333% 100%);
-    }
+    :root[data-palette="pride"] .app-nav { background: var(--sidebar-wash); }
     ::selection { background: var(--selection-fill); }
     .theme-control { display: flex; align-items: center; }
     #color-theme { display: grid; place-items: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); font: inherit; cursor: pointer; }

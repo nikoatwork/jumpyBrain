@@ -187,3 +187,14 @@ test("Mono uses neutral grayscale across UI, status and graph colors", () => {
   blocked.palette("pride");
   assert.equal(blocked.root.dataset.palette, "pride");
 });
+
+test("Pride sidebar keeps neutral text readable across every rainbow stop", () => {
+  for (const [mode, tokens] of Object.entries(builtInPalettes.pride)) {
+    for (const fill of tokens["sidebar-wash"].match(/#[a-f0-9]{6}/g)) {
+      for (const ink of ["ink", "ink-soft", "ink-faint"]) {
+        assert.ok(contrast(tokens[ink], fill) >= 4.5, `${mode}: ${ink} on ${fill}`);
+      }
+      assert.ok(contrast(tokens["focus-ring"], fill) >= 3, `${mode}: focus on ${fill}`);
+    }
+  }
+});
