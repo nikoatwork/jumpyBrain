@@ -298,6 +298,8 @@ node scripts/qmd-install-check.mjs qmd
 jumpybrain --help
 ```
 
+For unreleased Mac app + CLI builds on your own brain, use the [local candidate workflow](local-dogfooding.md): `npm run dogfood:install`. It installs committed HEAD without a release or version bump and retains the previous software for rollback.
+
 For dogfooding in another repo, maintainer local tarball workflows are documented in [`local-cli-builds.md`](local-cli-builds.md).
 
 ## Install/deploy paths

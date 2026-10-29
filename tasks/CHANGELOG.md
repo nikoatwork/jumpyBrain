@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Local candidates before release
+
+- Added a manual committed-build install/status/rollback workflow for testing the Mac app and CLI with the existing brain before publication. [Verification](done/2026-10-29_tasks-local-dogfood-install.md).
+
 ## 2026-10-29 — Markdown heading navigation
 
 - Added a floating section rail with hover previews, keyboard/click jumps and current-section tracking in the Mac/shared editor. [Verification](done/2026-10-29_tasks-markdown-section-rail.md).

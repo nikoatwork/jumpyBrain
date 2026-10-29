@@ -51,7 +51,10 @@
     "benchmark:desktop:gpu": "node scripts/desktop-ram-gpu.mjs",
     "benchmark:desktop:compare": "node scripts/desktop-ram-compare.mjs",
     "benchmark:desktop:cancel": "node scripts/desktop-ram-cancel.mjs",
-    "smoke:desktop-update": "npm run build && node scripts/desktop-update-smoke.mjs"
+    "smoke:desktop-update": "npm run build && node scripts/desktop-update-smoke.mjs",
+    "dogfood:install": "node scripts/dogfood-local.mjs install",
+    "dogfood:status": "node scripts/dogfood-local.mjs status",
+    "dogfood:rollback": "node scripts/dogfood-local.mjs rollback"
   },
   "files": [
     "dist",

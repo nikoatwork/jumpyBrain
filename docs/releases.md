@@ -10,6 +10,8 @@ Accumulate commits between releases. Default to **at most one published release 
 
 Keep [the pending release note](../tasks/todo/release-next.md) short: a `# Changes` heading and roughly 3–7 user-facing bullets. Add or consolidate a bullet when completed work changes user behavior; skip routine refactors, tests, and planning edits. Several commits can share one bullet. Do not reserve a version or bump manifests while accumulating work. Task lists retain implementation and test evidence; `tasks/CHANGELOG.md` remains the selective project history.
 
+Before publication, use the [local candidate workflow](local-dogfooding.md) to test the intended changes on the owner’s Mac with the real brain. Aim for about a day of normal use; the owner can choose a shorter window. Check `npm run dogfood:status`, compare its commit with the release snapshot, and record actual use, problems and untested changes. Elapsed hours alone are not a pass, and later behavior changes need another candidate or an explicit shorter-test decision. This is a human release guideline, not a hard 24-hour script gate.
+
 When asked to release:
 
 1. Check published releases with `gh release list --limit 10 --json tagName,publishedAt,isDraft,isPrerelease`. Count beta prereleases too, ignore drafts, and compare publication dates in Europe/Berlin. If one shipped today, keep accumulating unless the user explicitly overrides the daily limit.
