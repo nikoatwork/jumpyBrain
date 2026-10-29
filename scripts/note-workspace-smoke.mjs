@@ -71,7 +71,7 @@ try {
   await open(1);
   assert.equal(await page.locator('#note-save-state').textContent(), 'Saved', 'a confirmed loaded baseline is visibly saved');
   assert.equal(await page.locator('#copy-note-draft').innerText(), '');
-  assert.equal(await page.locator('#page-details').isHidden(), true);
+  assert.equal(await page.locator('#note-details-content').isHidden(), true);
   assert.equal(await page.locator('#format-controls').isHidden(), true, 'formatting is folded on note entry');
   assert.equal(await page.locator('#insert-reference').innerText(), 'Link', 'linking stays directly reachable');
   assert.equal(await page.locator('#delete-note').isVisible(), true);
@@ -93,7 +93,17 @@ try {
   assert.deepEqual(mutations, [], 'opening details never writes canonical Markdown');
 
   await page.locator('#note-name').click();
-  assert.equal(await page.locator('#page-details').isHidden(), true, 'outside pointer dismisses metadata');
+  assert.equal(await page.locator('#page-details').isVisible(), true, 'page card stays available while writing');
+  await page.locator('#toggle-page-details').click();
+
+  const cardBefore = await page.locator('#page-details').boundingBox();
+  const editorBox = await page.locator('#note-editor').boundingBox();
+  assert.ok(cardBefore.x >= editorBox.x + editorBox.width, 'desktop card sits beside the writing surface');
+  await page.locator('#note-panel').evaluate(el => el.scrollTop = 450);
+  await page.evaluate(() => new Promise(requestAnimationFrame));
+  const cardAfter = await page.locator('#page-details').boundingBox();
+  assert.ok(Math.abs(cardBefore.y - cardAfter.y) <= 1, 'card stays sticky while the note scrolls');
+  await page.locator('#note-panel').evaluate(el => el.scrollTop = 0);
 
   // Folding preserves an actual noncollapsed selection, not merely draft text.
   const visible = await page.locator('#note-editor').textContent();
@@ -130,13 +140,13 @@ try {
   assert.equal(await editorMarkdown(page), body);
 
   await page.locator('#toggle-page-details').click();
-  await page.locator('#close-page-details').click();
-  assert.equal(await page.locator('#page-details').isHidden(), true);
+  await page.locator('#toggle-page-details').click();
+  assert.equal(await page.locator('#note-details-content').isHidden(), true);
   assert.equal(await page.locator('#toggle-page-details').evaluate(element => element === document.activeElement), true);
   await page.locator('#toggle-page-details').click();
-  await page.locator('#close-page-details').focus();
+  await page.locator('#toggle-page-details').focus();
   await page.keyboard.press('Escape');
-  await page.locator('#page-details').waitFor({ state: 'hidden' });
+  await page.locator('#note-details-content').waitFor({ state: 'hidden' });
   assert.equal(await page.locator('#toggle-page-details').evaluate(element => element === document.activeElement), true);
 
   await page.evaluate(() => getSelection().removeAllRanges());
@@ -161,7 +171,7 @@ try {
     }
   }
   // The fold-out uses existing palettes and touch targets without crowding prose.
-  await page.locator('#close-page-details').click();
+  await page.locator('#toggle-page-details').click();
   await page.locator('#toggle-note-format').click();
   for (const width of [1280, 390, 320]) for (const theme of ['light', 'dark']) for (const palette of ['ember', 'ocean', 'mono']) {
     await page.setViewportSize({ width, height: 900 });
@@ -213,7 +223,7 @@ try {
   await page.locator(`.sidebar-page-link[href*="${id(3)}"]`).first().click();
   await page.waitForURL(url => url.searchParams.get('note') === id(3));
   await page.locator('#note-editor').filter({ hasText: 'independent context' }).waitFor();
-  assert.equal(await page.locator('#page-details').isHidden(), true, 'new note resets details');
+  assert.equal(await page.locator('#note-details-content').isHidden(), true, 'new note resets details');
   await page.locator('#toggle-page-details').click();
   assert.equal(await page.locator('#saved-version-editor').innerText(), 'Editor unknown');
   assert.equal(await page.locator('#note-file').innerText(), 'notes/second.md');
@@ -245,7 +255,7 @@ try {
   await saved(page);
   assert.match(await editorMarkdown(page), /\[\[Coworker review\]\]/);
   await page.locator('#toggle-page-details').click();
-  await page.locator('#close-page-details').click();
+  await page.locator('#toggle-page-details').click();
   await page.locator('#note-name').focus();
   await page.locator('[data-page-reference="true"]').click();
   await page.waitForURL(url => url.searchParams.get('note') === id(3));

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Sticky page action card
+
+- Moved Copy/Delete and folded saved-version facts into a sticky top-right card, with an in-flow narrow layout. Related notes stay below the page. [Verification](done/2026-10-29_tasks-sticky-page-card.md).
+
 ## 2026-10-29 — Restore note context footer
 
 - Restored related pages below the editor, removed chapter navigation and simplified toolbar copy/delete actions with compact metadata details. [Verification](done/2026-10-29_tasks-note-footer-actions.md).

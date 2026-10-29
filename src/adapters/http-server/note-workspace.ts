@@ -20,7 +20,7 @@ export function installNoteWorkspace(options: {
 }) {
   const doc = options.document, win = doc.defaultView!;
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => doc.getElementById(id) as T;
-  const toggle = $<HTMLButtonElement>("toggle-page-details"), panel = $("page-details");
+  const toggle = $<HTMLButtonElement>("toggle-page-details"), panel = $("note-details-content");
   const body = $("note-editor");
   const format = $<HTMLButtonElement>("toggle-note-format"), tools = $("format-controls");
   let key = "", open = false, formatting = false, stopped = false, frame = 0;
@@ -48,6 +48,7 @@ export function installNoteWorkspace(options: {
       showFormatting(false, tools.contains(doc.activeElement));
       show(false, panel.contains(doc.activeElement));
     }
+    $("page-details").hidden = !loaded;
     toggle.hidden = !loaded;
     toggle.disabled = Boolean(state?.navigationPending);
     const editable = Boolean(loaded && options.writable());
@@ -85,12 +86,8 @@ export function installNoteWorkspace(options: {
   };
   format.addEventListener("keydown", onFormatKey);
   tools.addEventListener("keydown", onFormatKey);
-  $("close-page-details").addEventListener("click", onClose);
   panel.addEventListener("keydown", onKey);
   toggle.addEventListener("keydown", onKey);
-  doc.addEventListener("pointerdown", event => {
-    if (open && event.target instanceof Node && !panel.contains(event.target) && !toggle.contains(event.target)) show(false);
-  });
   // Coalesce body updates for empty-writing guidance without remounting the editor.
   const observer = new MutationObserver(() => {
     if (frame || stopped) return;
