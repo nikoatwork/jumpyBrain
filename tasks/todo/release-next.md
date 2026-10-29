@@ -1,23 +1,9 @@
 # Changes
 
-- Added Pride, a rainbow theme with light and dark modes, rainbow graph colours, a pastel rainbow sidebar and a calm lavender-tinted editor.
-
-- Reduced the CLI/source download by roughly 61% by excluding documentation artwork and native test scripts, added package size regression checks, and updated Electron to 44.10.0 with the compromised-certificate security fix.
-
-- Checking a task gives a subtle completion sweep, then keeps a filled tick and fine success baseline across every theme, with Reduced Motion support.
-
+- Added the Pride rainbow theme and replaced Grove with neutral Mono, with light and dark modes for both.
+- Notes have a quieter writing surface with folded formatting, a direct Link action, section navigation and contextual page details. Page-reference brackets appear only in the block being edited.
+- Added Back and Forward navigation, refreshed sidebar branding and controls, and useful previews for missing graph links with an option to create the page.
+- Completed tasks show a subtle sweep and persistent tick, with Reduced Motion support; empty search dialogs stay compact.
 - Lexical search and recall use canonical titles, aliases and tags to find more source pages for named topics in multi-part questions.
-
-- Notes open on a quieter writing surface with folded formatting, a direct Link action and a section count beside Page details. Labeled draft copying, section navigation, related pages and saved-version facts stay reachable; Delete stays out of the writing path and empty pages offer a writing hint.
-
-- Refreshed pin and refresh icons, added a serif jumpyBrain wordmark, and moved the active brain above the sidebar’s bottom controls.
-
-- Back and Forward controls beside the sidebar retain five previous app destinations, including returning from notes to the graph; Settings keeps its own Back to app action.
-
-- Missing graph links open topic previews with linked and related notes; writable brains can create the page and retain its linked context.
-
-- Page-reference brackets collapse without gaps while reading and appear only in the block being edited.
-- Empty search dialogs show only the input row, without a blank footer or divider lines.
-- The Mac app checks for updates every hour while running, so new releases appear without quitting and reopening it.
-- The sidebar update button stays visible, with state-specific icons and actions for checking, downloading and relaunching.
-- Replaced Grove with Mono, a black-and-white theme with neutral grays in both light and dark modes; existing Grove selections switch to Mono.
+- The Mac app checks for updates hourly and keeps the update button visible with actions for each update state.
+- Reduced the CLI/source download by roughly 61% by excluding documentation artwork and native test scripts, and updated Electron to 44.10.0 with its compromised-certificate security fix.
