@@ -1,6 +1,6 @@
 # Knowledge-workspace retrieval evaluation
 
-This opt-in developer suite measures realistic page finding and evidence delivery over fictional Markdown. Read [the protocol](PROTOCOL.md) before interpreting scores. It does not change retrieval behavior or claim answer accuracy.
+This opt-in developer suite measures realistic page finding and evidence delivery over fictional Markdown. Read [the protocol](PROTOCOL.md) before interpreting scores. Evaluation assets are excluded from installation; scores do not establish answer accuracy.
 
 ```sh
 npm ci
@@ -37,3 +37,19 @@ A historical comparison requires the exact unchanged product snapshot named in i
 [The v2 report](reports/2026-10-28-experiments-v2.md) records why the original three prototypes were rejected. Actual answer accuracy, independent judgments and VPS performance are separate from the canonical required-span diagnostic.
 
 `--runtime-root /absolute/frozen/runtime-root` reads `src/` and built `dist/` from an isolated snapshot and rechecks that full map at completion. It does not rebuild or mutate that source tree. This avoids concurrent checkout edits invalidating a historical comparison. The [identity follow-up report](reports/2026-10-28-identity-v4.md) records both unsuccessful confirmation sets and the final no-adoption decision. Use `--suite confirmation-extra` to retain all 210 pages / 124 tasks; all reserved families are now seen controls.
+
+## Named-source discovery follow-up
+
+[The discovery contract](DISCOVERY-EXPERIMENT.md) tests the next failure stage: a required named source absent from ordinary candidates. `--suite discovery-confirmation` retains all v1–v4 controls and adds separately authored fresh cases. Freeze the complete inputs before running any arm; fresh cases become seen after this comparison.
+
+```sh
+npm run eval:workspace -- --suite discovery-confirmation --arm baseline --runtime-root /absolute/frozen/runtime-root --repeats 2 --name discovery-v5-control
+npm run eval:workspace -- --suite discovery-confirmation --arm discovery --runtime-root /absolute/frozen/runtime-root --repeats 1 --name discovery-v5-only
+npm run eval:workspace -- --suite discovery-confirmation --arm discovery-identity --runtime-root /absolute/frozen/runtime-root --repeats 1 --name discovery-v5-ordered
+```
+
+Discovery adds at most eight missing canonical title/alias/tag matches at score zero before the real driver's source repair. Original candidates survive. The combined arm additionally applies the unchanged prior identity policy to the first 40 grouped results. These are separate mechanisms; admission alone does not establish sufficient displayed evidence or an adoption win.
+
+Packets record separate search and compact-recall diagnostics, with canonical candidate files before/after supplementation and complete grouped file paths. Scores bind required-file admission to the scoring rubric only after execution. Comparison rejects mismatched input/product/backend/tokenizer identities and records lost unit labels, including a lost unit masked by a different gained unit. Instrumentation adds no installed API or model.
+
+The [v5 outcome](reports/2026-10-29-discovery-v5.md) rejects discovery alone and adopts the passing combined policy for lexical production retrieval after fresh quality, source review, quiet operating-cost and exact 140-case production parity checks. The eval arm names remain developer-only instrumentation. `--arm baseline` on a newly built production runtime observes its new default; reproduce the unchanged control with the archived original runtime. There is no product flag to disable the new policy. All v5 cases are now seen controls.

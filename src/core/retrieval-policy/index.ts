@@ -1,5 +1,7 @@
 import type { IndexedDocument, RetrievalDepth } from "../../types.js";
 
+export { namedSubjectFor, matchesNamedSubject } from "./named-subject.js";
+
 export const RETRIEVAL_DEPTHS = ["shallow", "normal", "deep"] as const satisfies readonly RetrievalDepth[];
 
 export interface DepthPolicyDecision {

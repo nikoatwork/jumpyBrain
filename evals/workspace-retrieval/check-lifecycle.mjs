@@ -34,8 +34,10 @@ async function cli(args, extraEnv = {}) {
 }
 const server = await startJumpyBrainHttpServer({ root, apiKeys: ['workspace-eval-loopback-only'], port: 0, autoIndex: false });
 try {
-  for (const query of ['Harbor migration checklist', 'What is the confirmed Harbor launch plan?', 'Who approved the Harbor public-launch exception?']) {
+  const namedQuery = JSON.parse(await readFile(path.join(here, 'queries.json'), 'utf8')).find(query => query.id === 'harbor-orientation').query;
+  for (const query of ['Harbor migration checklist', 'What is the confirmed Harbor launch plan?', 'Who approved the Harbor public-launch exception?', namedQuery]) {
     const local = await runtime.compactSearchMemory(root, query, 5, { depth: 'normal', refresh: false, maxBytes: 8192 });
+    if (query === namedQuery) assert.ok(local.passages.some(passage => passage.filePath === 'pages/harbor/overview.md'), 'Named introduction must reach the public recall transport.');
     const flags = ['recall', '--query', query, '--compact', '--limit', '5', '--depth', 'normal', '--max-bytes', '8192', '--no-refresh'];
     const localCli = await cli([...flags, '--root', root]);
     assert.deepEqual(localCli, local);

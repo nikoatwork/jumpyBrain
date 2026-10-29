@@ -1,6 +1,6 @@
 # Knowledge-workspace retrieval evaluation and baseline
 
-Status: baseline v1 established 2026-10-28; broader evaluation remains active. [Measured scorecard](../../evals/workspace-retrieval/reports/2026-10-28-baseline-v1.md). Three separate experiment lists exist. This short-page diagnostic milestone does not complete the larger evaluation/adoption gates. Retrieval behavior remains unchanged.
+Status: baseline v1 established 2026-10-28; broader evaluation remains active. [Measured scorecard](../../evals/workspace-retrieval/reports/2026-10-28-baseline-v1.md). Original experiments are archived. The [2026-10-29 named-source combination](../../evals/workspace-retrieval/reports/2026-10-29-discovery-v5.md) passed fresh quality/cost and production-parity gates and is adopted for lexical retrieval. Independent answer judgments, larger workspaces/documents, human use and Linux/VPS costs remain open.
 
 ## Goal
 
@@ -71,10 +71,11 @@ Target ten cases per journey, with 24 development and 56 reserved comparison cas
 - [ ] 4.0 Publish and finalize the baseline deliverable.
   - [x] 4.1 Document the scorecard, failure inventory, reproducibility, model/environment availability and limits; do not claim answer accuracy without an evaluated answer agent.
   - [x] 4.2 Verify packaging excludes evaluation assets while preserving the existing `dist/` runtime, and document tracked reproducible inputs versus ignored generated runs. No runtime relocation is required merely to exclude development tooling.
-  - [/] 4.3 Run relevant checks, record exact tested snapshots and archive/commit the completed baseline task under [the task workflow](../../docs/task-workflow.md). Leave the three experiment lists active and unimplemented.
+  - [/] 4.3 Run remaining broader checks, record exact tested snapshots and archive/commit the completed parent task under [the task workflow](../../docs/task-workflow.md). The original experiment lists are already archived; their completion does not satisfy the open parent checks.
 
 ## Follow-up experiment lists
 
+- [Bounded named-source candidate discovery](../done/2026-10-29_tasks-retrieval-candidate-discovery.md) — adopted lexical combination after separate admission/ordering, fresh confirmation, quiet cost and production-parity checks.
 - [Evidence completeness in recall packets](../done/2026-10-28_tasks-retrieval-evidence-completeness.md) — isolated comparison after baseline publication.
 - [Bounded local reranking](../done/2026-10-28_tasks-retrieval-bounded-reranking.md) — isolated comparison after baseline publication.
 - [Explicit relationship neighbors in recall](../done/2026-10-28_tasks-retrieval-relationship-recall.md) — isolated comparison after baseline publication.
@@ -83,7 +84,7 @@ Target ten cases per journey, with 24 development and 56 reserved comparison cas
 
 - A new contributor can run the committed fictional-workspace eval from documented commands in disposable roots and reproduce a hash-addressed baseline without private data or paid services for the lexical/evidence path.
 - The baseline reports human page-finding and agent evidence sufficiency separately, includes realistic cross-page/time/scope/no-answer tasks, and records complete interaction cost and actual backend readiness.
-- Baseline failures are visible and frozen before experimental behavior changes. Three separate active task lists own isolated comparisons and adoption decisions; those experiments are not required to complete this baseline task.
+- Baseline failures are visible and frozen before experimental behavior changes. Separate experiment records own isolated comparisons and adoption decisions; their archived results do not complete this broader parent task.
 - Canonical Markdown/provenance, lexical constraints, explicit recall, temporal uncertainty and local/hosted app boundaries survive. The eval is maintainable product tooling, not a second retrieval engine or a broad research platform.
 
 ## Relevant files and evidence
@@ -126,3 +127,10 @@ Target ten cases per journey, with 24 development and 56 reserved comparison cas
 - The largest retained fixture is 210 pages / 124 tasks, including new independently written operating workflows and 566–596-word nested handbooks. This addresses the short-page pilot limitation for these experiments; very long documents and large-workspace quality remain unmeasured.
 - Two clean augmented v2 baselines reproduce per-case non-timing scores/costs exactly. Final v4 quality ran against an isolated original runtime after concurrent unrelated UI edits invalidated a working-tree freeze; artifacts distinguish accepted and excluded runs. A 20-pair quiet local identity probe is recorded separately, not a VPS or adopted-runtime performance claim.
 - This broader task remains active: independent/full query-bound judgments, actual answer/abstention evaluation if pursued, larger-document coverage, human open counts and Linux/VPS operations remain unresolved. Do not archive this parent on the strength of the completed no-adoption investigations.
+
+## 2026-10-29 candidate-discovery hill-climb
+
+- [Report and source judgments](../../evals/workspace-retrieval/reports/2026-10-29-discovery-v5.md); [completed focused task](../done/2026-10-29_tasks-retrieval-candidate-discovery.md). Retained all 124 seen controls and added 15 independently authored fictional pages / 16 fresh tasks: 225 pages / 140 tasks total. Policy, corpus and thresholds froze before outputs, with separate model-agent fixture/policy/source-review ownership.
+- Discovery alone admits missing sources but completes no additional tasks. The declared discovery + unchanged first-forty identity combination improves 70/140 -> 89/140 source-specific complete packets, fresh 9/16 -> 11/16, interaction tokens +1.117%, with zero lost unit labels/clauses/source qualifications. Quiet experimental and actual production probes pass <=10% p95 / <=50 MiB CPU RSS gates; production p95 +1.437% in one local quiet window.
+- Adopted a pure core metadata helper and bounded lexical adapter path. Production reproduces all 140 serialized recall/read responses and requests, per-case scores, costs and source selections exactly. Full tests: 1,461 passed, one skip; 9/9 real lifecycle/CLI checks; 516 package paths, 231 required validated, no eval assets shipped. No release is implied.
+- Remaining measured bottlenecks: Copperfin/Mothlight briefs enter at rank 42 but the frozen ordering window stops at forty; Wrenfall's fourth selected source misses first-three expansion; conservative natural-language `not` / hyphen constraints and multiple-name bypasses retain gaps. Investigate each separately with newly frozen confirmation; do not tune on these now-seen cases. The broader independent-answer/human/large-workspace/VPS work stays pending.

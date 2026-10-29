@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Named-source lexical retrieval
+
+- Adopted bounded metadata discovery with named-source ordering after fresh evidence, quiet cost and exact production-parity checks. [Measured results and limits](../evals/workspace-retrieval/reports/2026-10-29-discovery-v5.md), [task](done/2026-10-29_tasks-retrieval-candidate-discovery.md).
+
 ## 2026-10-29 — Checkbox delight exploration
 
 - Compared three animated checkbox completion prototypes across six themes, with interactive replay and real editor screenshots; production selection remains open. [Findings](../deep-dives/checkbox-delight/findings.md).

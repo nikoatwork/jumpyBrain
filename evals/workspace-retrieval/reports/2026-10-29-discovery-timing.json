@@ -1,0 +1,615 @@
+{
+  "experiment": {
+    "summary": {
+      "baseline": {
+        "calls": 20,
+        "p50Ms": 1245.0622919999987,
+        "p95Ms": 1281.400791,
+        "peakTreeKiB": 283904
+      },
+      "discovery-identity": {
+        "calls": 20,
+        "p50Ms": 1246.024207999999,
+        "p95Ms": 1281.6538750000036,
+        "peakTreeKiB": 285696
+      }
+    },
+    "p95ChangePercent": 0.019750573105703495,
+    "extraPeakMiB": 1.75,
+    "passes": true,
+    "records": [
+      {
+        "arm": "baseline",
+        "id": "belltower-orientation",
+        "ms": 1243.575667000001,
+        "peakTreeKiB": 226592,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "belltower-orientation",
+        "ms": 1245.3577910000004,
+        "peakTreeKiB": 227232,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-orientation",
+        "ms": 1241.1002919999992,
+        "peakTreeKiB": 241392,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-orientation",
+        "ms": 1264.009,
+        "peakTreeKiB": 241536,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "millrace-orientation",
+        "ms": 1245.0622919999987,
+        "peakTreeKiB": 245152,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "millrace-orientation",
+        "ms": 1246.024207999999,
+        "peakTreeKiB": 243136,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-phrase",
+        "ms": 258.4155000000028,
+        "peakTreeKiB": 243616,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-phrase",
+        "ms": 259.7017909999995,
+        "peakTreeKiB": 241984,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "wrenfall-historical",
+        "ms": 1260.5395830000016,
+        "peakTreeKiB": 244048,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "wrenfall-historical",
+        "ms": 1262.1564169999983,
+        "peakTreeKiB": 244272,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "relay-ambiguous",
+        "ms": 246.39791700000205,
+        "peakTreeKiB": 246384,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "relay-ambiguous",
+        "ms": 248.9439170000005,
+        "peakTreeKiB": 244960,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "belltower-orientation",
+        "ms": 1242.283707999999,
+        "peakTreeKiB": 250336,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "belltower-orientation",
+        "ms": 1246.9737080000014,
+        "peakTreeKiB": 247760,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-orientation",
+        "ms": 1248.0637499999975,
+        "peakTreeKiB": 248240,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-orientation",
+        "ms": 1240.8395830000009,
+        "peakTreeKiB": 246448,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "millrace-orientation",
+        "ms": 1259.5862500000003,
+        "peakTreeKiB": 248000,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "millrace-orientation",
+        "ms": 1244.2970840000016,
+        "peakTreeKiB": 249120,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-phrase",
+        "ms": 262.5808339999967,
+        "peakTreeKiB": 249136,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-phrase",
+        "ms": 261.73116700000173,
+        "peakTreeKiB": 248816,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "wrenfall-historical",
+        "ms": 1278.5169170000008,
+        "peakTreeKiB": 253088,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "wrenfall-historical",
+        "ms": 1271.715458999999,
+        "peakTreeKiB": 251936,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "relay-ambiguous",
+        "ms": 253.40566599999875,
+        "peakTreeKiB": 249264,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "relay-ambiguous",
+        "ms": 251.99770799999897,
+        "peakTreeKiB": 248912,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "belltower-orientation",
+        "ms": 1263.422541,
+        "peakTreeKiB": 248816,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "belltower-orientation",
+        "ms": 1263.0290830000013,
+        "peakTreeKiB": 264576,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-orientation",
+        "ms": 1309.2233330000017,
+        "peakTreeKiB": 272064,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-orientation",
+        "ms": 1258.647874999995,
+        "peakTreeKiB": 275792,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "millrace-orientation",
+        "ms": 1246.8760420000035,
+        "peakTreeKiB": 277760,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "millrace-orientation",
+        "ms": 1261.3624169999966,
+        "peakTreeKiB": 275040,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-phrase",
+        "ms": 269.53845799999544,
+        "peakTreeKiB": 272176,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-phrase",
+        "ms": 265.8360829999947,
+        "peakTreeKiB": 273168,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "wrenfall-historical",
+        "ms": 1292.4232499999998,
+        "peakTreeKiB": 274752,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "wrenfall-historical",
+        "ms": 1281.6538750000036,
+        "peakTreeKiB": 283088,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "relay-ambiguous",
+        "ms": 254.59133400000428,
+        "peakTreeKiB": 279424,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "relay-ambiguous",
+        "ms": 250.16237499999988,
+        "peakTreeKiB": 280752,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "belltower-orientation",
+        "ms": 1281.400791,
+        "peakTreeKiB": 283904,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "belltower-orientation",
+        "ms": 1254.6818340000027,
+        "peakTreeKiB": 283200,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-orientation",
+        "ms": 1264.2617499999978,
+        "peakTreeKiB": 285696,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-orientation",
+        "ms": 1260.8011249999981,
+        "peakTreeKiB": 282128,
+        "samples": 12
+      }
+    ],
+    "scriptSha256": "d3687889fc568a377bbc0d6ddf5ff2be72390df91db7dd324057f4e769053548",
+    "limits": [
+      "macOS CPU process-tree RSS sampled at 100ms; GPU excluded.",
+      "Warm model-free local runtime; OS file cache not flushed; no VPS or contention claim."
+    ]
+  },
+  "production": {
+    "summary": {
+      "baseline": {
+        "calls": 20,
+        "p50Ms": 1236.4994579999984,
+        "p95Ms": 1267.658124999998,
+        "peakTreeKiB": 289968
+      },
+      "discovery-identity": {
+        "calls": 20,
+        "p50Ms": 1238.0118749999965,
+        "p95Ms": 1285.8680829999976,
+        "peakTreeKiB": 288704
+      }
+    },
+    "p95ChangePercent": 1.4365038681071418,
+    "extraPeakMiB": -1.234375,
+    "passes": true,
+    "records": [
+      {
+        "arm": "baseline",
+        "id": "belltower-orientation",
+        "ms": 1231.95125,
+        "peakTreeKiB": 228880,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "belltower-orientation",
+        "ms": 1233.857583000001,
+        "peakTreeKiB": 240192,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-orientation",
+        "ms": 1242.7152499999993,
+        "peakTreeKiB": 243056,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-orientation",
+        "ms": 1238.4890840000007,
+        "peakTreeKiB": 241328,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "millrace-orientation",
+        "ms": 1241.608583000001,
+        "peakTreeKiB": 245424,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "millrace-orientation",
+        "ms": 1251.6822920000013,
+        "peakTreeKiB": 242096,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-phrase",
+        "ms": 272.48675000000003,
+        "peakTreeKiB": 237712,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-phrase",
+        "ms": 260.31770900000265,
+        "peakTreeKiB": 242096,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "wrenfall-historical",
+        "ms": 1267.658124999998,
+        "peakTreeKiB": 244992,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "wrenfall-historical",
+        "ms": 1285.8680829999976,
+        "peakTreeKiB": 249856,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "relay-ambiguous",
+        "ms": 263.9400000000023,
+        "peakTreeKiB": 245744,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "relay-ambiguous",
+        "ms": 278.5921249999992,
+        "peakTreeKiB": 245024,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "belltower-orientation",
+        "ms": 1385.701000000001,
+        "peakTreeKiB": 254080,
+        "samples": 13
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "belltower-orientation",
+        "ms": 1372.1500420000011,
+        "peakTreeKiB": 250304,
+        "samples": 13
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-orientation",
+        "ms": 1254.2934999999998,
+        "peakTreeKiB": 254656,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-orientation",
+        "ms": 1236.4994579999984,
+        "peakTreeKiB": 251344,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "millrace-orientation",
+        "ms": 1240.197833000002,
+        "peakTreeKiB": 250112,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "millrace-orientation",
+        "ms": 1235.451208999999,
+        "peakTreeKiB": 252880,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-phrase",
+        "ms": 261.62024999999994,
+        "peakTreeKiB": 249440,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-phrase",
+        "ms": 262.07645799999955,
+        "peakTreeKiB": 247344,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "wrenfall-historical",
+        "ms": 1258.9129169999978,
+        "peakTreeKiB": 251152,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "wrenfall-historical",
+        "ms": 1264.8769170000014,
+        "peakTreeKiB": 248016,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "relay-ambiguous",
+        "ms": 246.1247089999997,
+        "peakTreeKiB": 252128,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "relay-ambiguous",
+        "ms": 244.16316599999845,
+        "peakTreeKiB": 253744,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "belltower-orientation",
+        "ms": 1234.7620419999948,
+        "peakTreeKiB": 254656,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "belltower-orientation",
+        "ms": 1236.215707999996,
+        "peakTreeKiB": 265168,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-orientation",
+        "ms": 1241.9595419999969,
+        "peakTreeKiB": 276096,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-orientation",
+        "ms": 1236.348582999999,
+        "peakTreeKiB": 279696,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "millrace-orientation",
+        "ms": 1249.6849999999977,
+        "peakTreeKiB": 273744,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "millrace-orientation",
+        "ms": 1238.0118749999965,
+        "peakTreeKiB": 276224,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-phrase",
+        "ms": 259.690333999999,
+        "peakTreeKiB": 276976,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-phrase",
+        "ms": 277.1133750000008,
+        "peakTreeKiB": 272144,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "wrenfall-historical",
+        "ms": 1264.9831669999985,
+        "peakTreeKiB": 277664,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "wrenfall-historical",
+        "ms": 1262.002333000004,
+        "peakTreeKiB": 284704,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "relay-ambiguous",
+        "ms": 249.4617500000022,
+        "peakTreeKiB": 282800,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "relay-ambiguous",
+        "ms": 252.14370800000324,
+        "peakTreeKiB": 285376,
+        "samples": 2
+      },
+      {
+        "arm": "baseline",
+        "id": "belltower-orientation",
+        "ms": 1253.0037910000028,
+        "peakTreeKiB": 289968,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "belltower-orientation",
+        "ms": 1251.2993750000023,
+        "peakTreeKiB": 284816,
+        "samples": 12
+      },
+      {
+        "arm": "discovery-identity",
+        "id": "patchbay-orientation",
+        "ms": 1252.7884580000027,
+        "peakTreeKiB": 288704,
+        "samples": 12
+      },
+      {
+        "arm": "baseline",
+        "id": "patchbay-orientation",
+        "ms": 1241.2930829999968,
+        "peakTreeKiB": 285840,
+        "samples": 12
+      }
+    ],
+    "scriptSha256": "fd0b88231a5e1baf6dd932180637c50795a2e7996b3f97191f035b14b58823fb",
+    "limits": [
+      "macOS CPU process-tree RSS sampled at 100ms; GPU excluded.",
+      "Warm model-free local runtime; OS file cache not flushed; no VPS or contention claim."
+    ]
+  },
+  "productionProbe": "discovery-v5-production-timing/probe.mjs in external raw archive"
+}

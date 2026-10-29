@@ -24,8 +24,10 @@ const queries = JSON.parse(await readFile(config.queries, 'utf8'));
 for (const [n, q] of queries.entries()) {
   const options = { depth: q.depth, ...(q.temporal ? { temporal: q.temporal } : {}), refresh: false };
   const search = await timed(() => runtime.searchMemory(config.root, q.query, 10, options));
+  const searchDiagnostics = experiment.diagnostics();
   const start = performance.now();
   const recall = await timed(() => runtime.compactSearchMemory(config.root, q.query, 5, { ...options, maxBytes: 8192 }));
+  const recallDiagnostics = experiment.diagnostics();
   const wires = [runtime.serializeCompactRecall(recall.value)];
   const requests = [JSON.stringify({ operation: 'recall', query: q.query, limit: 5, ...options, maxBytes: 8192 }) + '\n'];
   const expansions = [];
@@ -42,7 +44,7 @@ for (const [n, q] of queries.entries()) {
     }
   }
   if (wires.some(wire => Buffer.byteLength(wire) > 8192) || wires.reduce((n, wire) => n + Buffer.byteLength(wire), 0) > 32768) throw new Error('Response byte budget violated.');
-  await writeFile(path.join(config.packets, `${q.id}.json`), JSON.stringify({ id: q.id, search: search.value, experiment: experiment.diagnostics(), recall: recall.value, expansions, wires, requests,
+  await writeFile(path.join(config.packets, `${q.id}.json`), JSON.stringify({ id: q.id, search: search.value, experiment: recallDiagnostics, searchDiagnostics, recallDiagnostics, recall: recall.value, expansions, wires, requests,
     timing: { searchMs: search.ms, recallMs: recall.ms, interactionMs: performance.now() - start } }, null, 2));
   console.log(`${config.mode} ${n + 1}/${queries.length} ${q.id}`);
 }

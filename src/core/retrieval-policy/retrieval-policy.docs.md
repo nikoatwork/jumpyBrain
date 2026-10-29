@@ -6,12 +6,19 @@
 - Classify canonical Markdown documents by frontmatter type or memory-directory bucket.
 - Stay backend-agnostic so QMD-backed search and future retrieval adapters can apply the same policy.
 - Own pure source-excerpt selection in `excerpts.ts`: supplied lines/window/query terms become bounded evidence and actual line citations, without I/O or backend knowledge.
+- Recognize literal named subjects from supplied canonical metadata in `named-subject.ts`, without source bodies or backend types.
 
 ## Non-responsibilities
 
 - Do not call QMD, build indexes, read files, or execute search.
 - Do not parse CLI arguments beyond validating the already-selected depth value.
 - Do not depend on runtime, processing, server, or adapter modules.
+
+## Named subjects
+
+`namedSubjectFor(query, records)` recognizes exactly one literal capitalized word present in the query that begins at least two distinct declared titles or is a declared single-word alias. Duplicate titles do not supply two observations; multiple recognized names return no subject. Recognition preserves case, whole-word boundaries and the existing spelling, without inferred names, body inspection or a model. `matchesNamedSubject(metadata, subject)` matches that exact title prefix or alias, or a case-insensitive exact tag. Tags alone never establish a subject.
+
+These functions are relevance hints, not source support, approval, current truth or an answer. The adapter owns constraint, exact-navigation and explicit-temporal bypasses, canonical file deduplication, bounded candidate supplementation, stable ordering and caller output limits. Metadata recognition does not authorize extra unbounded source reads or index work.
 
 ## Evidence excerpts
 

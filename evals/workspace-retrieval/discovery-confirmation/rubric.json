@@ -1,0 +1,492 @@
+[
+  {
+    "id": "wrenfall-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and steward",
+        "alternatives": [
+          {
+            "file": "notes/wrenfall/charter.md",
+            "required": [
+              "Wrenfall helps balcony growers exchange locally saved vegetable seed without having to buy a full packet. Asha coordinates the exchange with the community library."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "intake boundary",
+        "alternatives": [
+          {
+            "file": "decisions/wrenfall/intake.md",
+            "required": [
+              "Wrenfall accepts only dry vegetable seed with the crop and harvest season written on the packet; unidentified seed and ornamental bulbs are outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/wrenfall/charter.md",
+      "decisions/wrenfall/intake.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "wrenfall-damp-packet",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "physical reason",
+        "alternatives": [
+          {
+            "file": "findings/wrenfall/storage.md",
+            "required": [
+              "The Wrenfall drawer has no humidity control, and the inspection found condensation on damp paper envelopes after a wet delivery."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "admission",
+        "alternatives": [
+          {
+            "file": "decisions/wrenfall/intake.md",
+            "required": [
+              "Wrenfall accepts only dry vegetable seed with the crop and harvest season written on the packet; unidentified seed and ornamental bulbs are outside the trial."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/wrenfall/storage.md",
+      "decisions/wrenfall/intake.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "wrenfall-bulbs",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "current boundary",
+        "alternatives": [
+          {
+            "file": "decisions/wrenfall/intake.md",
+            "required": [
+              "Wrenfall accepts only dry vegetable seed with the crop and harvest season written on the packet; unidentified seed and ornamental bulbs are outside the trial."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "proposal status",
+        "alternatives": [
+          {
+            "file": "notes/wrenfall/expansion.md",
+            "required": [
+              "The October 19 suggestion to add ornamental bulbs to Wrenfall has no recorded approval."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/wrenfall/intake.md",
+      "notes/wrenfall/expansion.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "wrenfall-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "old plan",
+        "alternatives": [
+          {
+            "file": "notes/wrenfall/first-plan.md",
+            "required": [
+              "The September Wrenfall plan allowed sealed seed packets without a harvest-season label and aimed to open the drawer on September 20."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/wrenfall/first-plan.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "wrenfall-navigation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "known page",
+        "alternatives": [
+          {
+            "file": "findings/wrenfall/storage.md",
+            "required": [
+              "The Wrenfall drawer has no humidity control, and the inspection found condensation on damp paper envelopes after a wet delivery."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/wrenfall/storage.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "patchbay-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and steward",
+        "alternatives": [
+          {
+            "file": "notes/patchbay/collection.md",
+            "required": [
+              "Patchbay preserves former dock workers' accounts for supervised listening in the local history room. Milo is the collection steward."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "public access",
+        "alternatives": [
+          {
+            "file": "decisions/patchbay/listening.md",
+            "required": [
+              "Patchbay listening copies may be played on the history-room workstation by appointment; downloadable audio and promotional clips remain excluded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/patchbay/collection.md",
+      "decisions/patchbay/listening.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "patchbay-master",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "copy integrity",
+        "alternatives": [
+          {
+            "file": "notes/patchbay/transfer.md",
+            "required": [
+              "Patchbay volunteers must preserve the untouched audio master and verify the listening copy against its checksum before cataloguing the accession."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "permission boundary",
+        "alternatives": [
+          {
+            "file": "findings/patchbay/consent.md",
+            "required": [
+              "The Patchbay narrator forms permit listening inside the history room but do not grant permission to publish recordings on the open web."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/patchbay/transfer.md",
+      "findings/patchbay/consent.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "patchbay-trailer",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "unknown",
+        "alternatives": [
+          {
+            "file": "notes/patchbay/publicity.md",
+            "required": [
+              "No named approver for a public Patchbay audio trailer is recorded."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "pending",
+        "alternatives": [
+          {
+            "file": "notes/patchbay/publicity.md",
+            "required": [
+              "The proposed Patchbay anniversary trailer is awaiting narrator permission; the committee has not approved online audio excerpts."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/patchbay/publicity.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "patchbay-phrase",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "phrase constraint",
+        "alternatives": [
+          {
+            "file": "decisions/patchbay/listening.md",
+            "required": [
+              "Patchbay listening copies may be played on the history-room workstation by appointment; downloadable audio and promotional clips remain excluded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/patchbay/listening.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "patchbay-access-reason",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "decision",
+        "alternatives": [
+          {
+            "file": "decisions/patchbay/listening.md",
+            "required": [
+              "Patchbay listening copies may be played on the history-room workstation by appointment; downloadable audio and promotional clips remain excluded."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "consent",
+        "alternatives": [
+          {
+            "file": "findings/patchbay/consent.md",
+            "required": [
+              "The Patchbay narrator forms permit listening inside the history room but do not grant permission to publish recordings on the open web."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/patchbay/listening.md",
+      "findings/patchbay/consent.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "millrace-orientation",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "purpose and steward",
+        "alternatives": [
+          {
+            "file": "notes/millrace/watch.md",
+            "required": [
+              "Millrace helps riverside residents receive a checked water-level update when the footpath gauge rises. Sana coordinates the volunteer watch."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "authority",
+        "alternatives": [
+          {
+            "file": "decisions/millrace/escalation.md",
+            "required": [
+              "Millrace volunteers notify the council duty officer only after two people confirm a staff-gauge reading at or above the red mark; volunteers do not issue evacuation orders."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/millrace/watch.md",
+      "decisions/millrace/escalation.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "millrace-camera",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observation",
+        "alternatives": [
+          {
+            "file": "findings/millrace/gauge.md",
+            "required": [
+              "At Millrace, debris caught beside the footpath marker made one camera view look twelve centimetres higher than the staff-gauge reading."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "confirmation",
+        "alternatives": [
+          {
+            "file": "decisions/millrace/escalation.md",
+            "required": [
+              "Millrace volunteers notify the council duty officer only after two people confirm a staff-gauge reading at or above the red mark; volunteers do not issue evacuation orders."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/millrace/gauge.md",
+      "decisions/millrace/escalation.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "millrace-log",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "handover",
+        "alternatives": [
+          {
+            "file": "notes/millrace/shift.md",
+            "required": [
+              "Millrace shift logs must identify both confirming volunteers, the observed gauge mark, and the time sent to the council duty officer."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "authority gap",
+        "alternatives": [
+          {
+            "file": "notes/millrace/siren.md",
+            "required": [
+              "No council authorization for Millrace volunteers to activate the town siren is recorded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/millrace/shift.md",
+      "notes/millrace/siren.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "millrace-siren",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "status",
+        "alternatives": [
+          {
+            "file": "notes/millrace/siren.md",
+            "required": [
+              "The Millrace proposal to trigger the town siren from a camera estimate is unapproved and does not replace the two-person gauge rule."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "authority",
+        "alternatives": [
+          {
+            "file": "notes/millrace/siren.md",
+            "required": [
+              "No council authorization for Millrace volunteers to activate the town siren is recorded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/millrace/siren.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "relay-ambiguous",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "archive ambiguity",
+        "alternatives": [
+          {
+            "file": "notes/patchbay/collection.md",
+            "required": [
+              "Another neighborhood group uses the same short name, so the archive does not treat the word alone as a unique accession label."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "watch ambiguity",
+        "alternatives": [
+          {
+            "file": "notes/millrace/watch.md",
+            "required": [
+              "Some old rota cards call the watch Relay. That alias belongs to the watch on those cards, but the history-room volunteers also use Relay for their oral history collection."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/patchbay/collection.md",
+      "notes/millrace/watch.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  },
+  {
+    "id": "two-stewards",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "collection",
+        "alternatives": [
+          {
+            "file": "notes/patchbay/collection.md",
+            "required": [
+              "Patchbay preserves former dock workers' accounts for supervised listening in the local history room. Milo is the collection steward."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "watch",
+        "alternatives": [
+          {
+            "file": "notes/millrace/watch.md",
+            "required": [
+              "Millrace helps riverside residents receive a checked water-level update when the footpath gauge rises. Sana coordinates the volunteer watch."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/patchbay/collection.md",
+      "notes/millrace/watch.md"
+    ],
+    "interpretation": "Fresh discovery confirmation. Require the displayed named subject and complete qualification; aliases do not establish shared governance, and writing time does not change evidence time."
+  }
+]

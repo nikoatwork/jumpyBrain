@@ -27,7 +27,7 @@ import {
   round,
   temporalBoostFor,
 } from "./qmd-ranking.js";
-import { depthPolicyFor, dreamBoostFor, isDreamDocument, isSourceFocusedQuery, normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
+import { depthPolicyFor, dreamBoostFor, isDreamDocument, isSourceFocusedQuery, matchesNamedSubject, namedSubjectFor, normalizeRetrievalDepth } from "../../core/retrieval-policy/index.js";
 import {
   canonicalPrefixCache,
   type CanonicalPrefix,
@@ -137,6 +137,11 @@ async function searchGeneration(root: string, query: string, limit: number, opti
     if (!options.outcome.warnings.includes(code)) options.outcome.warnings.push(code);
   };
   const eligible = manifest.documents.filter(document => !interval || evidenceInInterval(evidenceDate(document.relativePath, document.frontmatter), interval));
+  // Names are lexical relevance hints, never temporal/constraint relaxation.
+  // Resolve once against canonical metadata and reuse for admission and ordering.
+  const namedSubject = !model && !options.temporal && !hasQueryConstraints(query)
+    && !eligible.some(document => isExactTitleMatch(query, document))
+    ? namedSubjectFor(query, eligible.map(document => document.frontmatter)) : undefined;
   const documents = documentsByQmdPath(eligible);
   const lookup = (candidate: QmdCandidate) => candidate.file ? documents.get(candidate.file) ?? documents.get(normalizeQmdLookupPath(candidate.file)) : undefined;
   // Backend cutoffs still exist; the independent manifest backfill below is what
@@ -185,6 +190,15 @@ async function searchGeneration(root: string, query: string, limit: number, opti
     if (options.temporal.coverage.unvisitedDocuments) warn("temporal_candidate_budget_exhausted");
     if (options.temporal.coverage.excludedUndated) warn("temporal_undated_excluded");
     if (options.temporal.coverage.excludedInvalid) warn("temporal_invalid_dates_excluded");
+  }
+  if (namedSubject) {
+    const namedDocuments = eligible
+      .filter(document => !candidateFiles.has(document.relativePath) && matchesNamedSubject(document.frontmatter, namedSubject))
+      .sort((a, b) => comparePath(a.relativePath, b.relativePath))
+      .slice(0, 8);
+    // Preserve every original candidate and its score. Supplemental documents
+    // use the existing bounded source repair and provenance path below.
+    candidates.push(...namedDocuments.map(document => ({ file: document.relativePath, score: 0 })));
   }
   candidates.sort((a, b) => b.score - a.score);
   const candidateDocuments = matchedCandidateDocuments(candidates, documents);
@@ -255,8 +269,14 @@ async function searchGeneration(root: string, query: string, limit: number, opti
   const diversityDepth = isSourceFocusedQuery(query) ? "deep" : depth;
   await options.inspect?.(manifest);
   const grouped = groupResultsByFile(ranked, diversityDepth);
+  const namedMatch = (result: SearchResult) => !!namedSubject
+    && matchesNamedSubject(documents.get(result.provenance.file)!.frontmatter, namedSubject);
+  const pool = namedSubject ? grouped.slice(0, 40) : [];
+  const ordered = namedSubject
+    ? [...pool.filter(namedMatch), ...pool.filter(result => !namedMatch(result)), ...grouped.slice(40)]
+    : grouped;
   // Explicit history keeps declared conflicts/updates even when snippets echo a map.
-  const selected = (interval ? grouped : diversifyResults(grouped, diversityDepth)).slice(0, limit);
+  const selected = (interval ? ordered : diversifyResults(ordered, diversityDepth)).slice(0, limit);
   // Selection is relevance-first; chronology is a presentation of that same set.
   if (interval?.order === "chronological") selected.sort((a, b) => {
     const time = (hit: SearchResult) => {

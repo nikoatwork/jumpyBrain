@@ -1,0 +1,135 @@
+[
+  {
+    "id": "wrenfall-orientation",
+    "scenario": "wrenfall",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "I am covering Wrenfall next Saturday. Explain whom it serves, who keeps it running, and the boundaries I must explain to somebody bringing a donation.",
+    "depth": "shallow"
+  },
+  {
+    "id": "wrenfall-damp-packet",
+    "scenario": "wrenfall",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "For Wrenfall, why should a volunteer refuse a damp packet even when the donor says the crop is good, and what must the label establish before it goes in the drawer?",
+    "depth": "normal"
+  },
+  {
+    "id": "wrenfall-bulbs",
+    "scenario": "wrenfall",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Can Wrenfall accept a crate of ornamental bulbs now, or does the donor need a different arrangement?",
+    "depth": "normal"
+  },
+  {
+    "id": "wrenfall-historical",
+    "scenario": "wrenfall",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "Before the drawer inspection, what Wrenfall labeling requirement and opening date were envisaged?",
+    "depth": "normal",
+    "temporal": {
+      "to": "2026-09-30",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "wrenfall-navigation",
+    "scenario": "wrenfall",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Wrenfall drawer inspection",
+    "depth": "normal"
+  },
+  {
+    "id": "patchbay-orientation",
+    "scenario": "patchbay",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "A colleague has offered to help with Patchbay. Give them the point of the collection, the person responsible, and what a member of the public can actually do with a recording.",
+    "depth": "shallow"
+  },
+  {
+    "id": "patchbay-master",
+    "scenario": "patchbay",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "When Patchbay receives an interview recorder, what protects the original during cataloguing, and why would a verified copy still not be ready for a public website?",
+    "depth": "normal"
+  },
+  {
+    "id": "patchbay-trailer",
+    "scenario": "patchbay",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Who approved the public Patchbay audio trailer, and can the drafted media file be treated as their authorization?",
+    "depth": "normal"
+  },
+  {
+    "id": "patchbay-phrase",
+    "scenario": "patchbay",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "Patchbay \"listening copies\"",
+    "depth": "normal"
+  },
+  {
+    "id": "patchbay-access-reason",
+    "scenario": "patchbay",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why does Patchbay require an appointment in the history room instead of letting a visitor download a short extract?",
+    "depth": "normal"
+  },
+  {
+    "id": "millrace-orientation",
+    "scenario": "millrace",
+    "journey": "orientation",
+    "split": "reserved",
+    "query": "Tomorrow is my first Millrace shift: set out the community benefit, the coordinator, and the limit of a volunteer's authority when the river appears to rise.",
+    "depth": "shallow"
+  },
+  {
+    "id": "millrace-camera",
+    "scenario": "millrace",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "Why is a dramatic Millrace camera picture insufficient to send a checked threshold alert, and what confirmation is required instead?",
+    "depth": "normal"
+  },
+  {
+    "id": "millrace-log",
+    "scenario": "millrace",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "For Millrace, tell the outgoing pair what the next shift needs in the written log and why sending that log does not give volunteers control of the siren.",
+    "depth": "normal"
+  },
+  {
+    "id": "millrace-siren",
+    "scenario": "millrace",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Does the Millrace automation idea supersede the checked escalation process, and may the watch activate the town siren?",
+    "depth": "normal"
+  },
+  {
+    "id": "relay-ambiguous",
+    "scenario": "relay-ambiguous",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "I found a rota card labeled Relay. Does that name alone tell me whether to use the recording procedure or the river-watch procedure?",
+    "depth": "normal"
+  },
+  {
+    "id": "two-stewards",
+    "scenario": "two-stewards",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "Who should I contact for Patchbay and Millrace respectively, and what different community work is each person looking after?",
+    "depth": "normal",
+    "protected": true
+  }
+]
