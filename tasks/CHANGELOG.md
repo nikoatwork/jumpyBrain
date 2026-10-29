@@ -4,6 +4,10 @@
 
 - Added a manual committed-build install/status/rollback workflow for testing the Mac app and CLI with the existing brain before publication. [Verification](done/2026-10-29_tasks-local-dogfood-install.md).
 
+## 2026-10-29 — Collaborative attention sidebar
+
+- Pins lead, settled pages fold away, editor icons identify declared contributors, and refreshed edits return pages to attention. [Verification](done/2026-10-29_tasks-collaborative-sidebar.md).
+
 ## 2026-10-29 — Markdown heading navigation
 
 - Added a floating section rail with hover previews, keyboard/click jumps and current-section tracking in the Mac/shared editor. [Verification](done/2026-10-29_tasks-markdown-section-rail.md).

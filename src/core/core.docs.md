@@ -11,7 +11,7 @@
 - Provide the import surface that application/runtime code can depend on without choosing a retrieval backend.
 
 - `attention.ts` owns explicit `attention_at` policy: absent follows valid edit/creation recency, timezone-explicit timestamp snoozes until due, and bare YAML `null` settles. Quoted `"null"` remains a string and invalid overrides fall back to normal recency with a safe list warning. It also validates strict settle/snooze/reactivate intent and patches only header lines.
-- Frontmatter scalar values support explicit bare `null`; existing string/date/ID/array consumers retain their type guards and nullish fallbacks. Ordinary body/title merges retain an omitted `attention_at`; explicitly submitted values remain editable. Reactivation removes the field through the guarded attention operation.
+- Frontmatter scalar values support explicit bare `null`; existing string/date/ID/array consumers retain their type guards and nullish fallbacks. Changed body/title merges remove an existing null `attention_at` and its `attention_settled_hash`; snoozes survive edits and explicit snooze values remain editable. Exact no-op saves stay settled. New settlement fingerprints let discovery detect direct edits; legacy null-only notes have no prior revision to compare. Reactivation removes both fields through the guarded attention operation.
 
 ## Non-responsibilities
 
@@ -21,6 +21,6 @@
 
 ## Contribution and search recognition policy
 
-`contribution.ts` validates optional declared `MemoryActor` values and owns canonical creator/last-editor stamping plus revision checking. This is provenance, never authentication or an ACL. The digest covers parsed metadata and normalized body, excluding contribution fields and `attention_at`; untracked body/title/timestamp changes invalidate the last editor. Guarded document merging protects existing creator fields, ignores submitted attribution, and replaces last editor from the explicit write option (omission clears it). Exact no-ops and the separate attention operation retain attribution.
+`contribution.ts` validates optional declared `MemoryActor` values and owns canonical creator/last-editor stamping plus revision checking. This is provenance, never authentication or an ACL. The digest covers parsed metadata and normalized body, excluding contribution fields, `attention_at` and `attention_settled_hash`; untracked body/title/timestamp changes invalidate the last editor. Guarded document merging protects existing creator fields, ignores submitted attribution, and replaces last editor from the explicit write option (omission clears it). Exact no-ops and the separate attention operation retain attribution.
 
 `search-recognition.ts` owns browser-safe strict optional edit/creation calendar-day predicates, declared-editor matching, timezone validation and the 120-candidate constant. It does not retrieve, scan, rank or authenticate users.

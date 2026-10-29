@@ -3,9 +3,10 @@ import { metadataDate } from "../../core/canonical/metadata-date.js";
 import { recognitionDay } from "../../core/search-recognition.js";
 import { createAttentionList, type AttentionPage } from "./browser-attention.js";
 import { readablePreview, resultEditContext } from "./search-presentation.js";
-import { browserPinIcon } from "./browser-icons.js";
+import type { MemoryActor, SearchRecognitionMetadata } from "../../types.js";
+import { browserEditorIcons, browserPinIcon } from "./browser-icons.js";
 
-type Page = { id: string; title: string; preview?: string; updatedAt?: string };
+type Page = { id: string; title: string; preview?: string; updatedAt?: string; editor?: MemoryActor };
 type History = { pinned: Page[]; recent: Page[] };
 const prefix = "jumpybrain.pageNavigation.v1:";
 
@@ -115,18 +116,23 @@ export function createPageHistory(options: { scope(): string | null; storage(): 
 export function installPageNavigation(options: {
   document: Document; window: Window; scope(): string | null;
   href(id: string): string; navigate(url: string): void;
-  fetchPreview?(id: string): Promise<{ content: string; recognition?: { updatedAt?: string } }>;
+  fetchPreview?(id: string): Promise<{ content: string; title?: string; recognition?: SearchRecognitionMetadata }>;
   fetchAttention?(signal: AbortSignal): Promise<unknown>; attentionScope?(): string | null;
   enabled?(): boolean; writable?(): boolean;
   onAttentionUpdated?(): void;
-  onAction?(action: "settle" | "snooze", page: AttentionPage, anchor: HTMLElement): void;
+  onAction?(action: "settle" | "snooze" | "reactivate", page: AttentionPage, anchor: HTMLElement): void;
 }) {
   const { document, window } = options;
   const element = (id: string) => document.getElementById(id)!;
   let selected: string | null = null;
   const history = createPageHistory({ scope: options.scope, storage: () => window.localStorage, onChange: render });
   let previewScope: string | null = null;
-  const previews = new Map<string, { preview?: string; updatedAt?: string }>();
+  type Preview = { preview?: string; title?: string; updatedAt?: string; editor?: MemoryActor; fetchedAt: number; pending?: boolean };
+  const previews = new Map<string, Preview>();
+  let previewReads = 0, paused = false;
+  const cacheScope = () => JSON.stringify([options.scope(), options.attentionScope?.()]);
+  let recentLimit = 8, settledLimit = 10;
+  const settledShelf = element("sidebar-settled-section") as HTMLDetailsElement;
   const signatures = new Map<string, string>();
   const attention = options.fetchAttention ? createAttentionList({
     scope: options.attentionScope || options.scope,
@@ -136,26 +142,38 @@ export function installPageNavigation(options: {
     onChange: state => { render(); if (state.status === "ready") options.onAttentionUpdated?.(); },
   }) : null;
   function render() {
-    const scope = options.scope();
-    if (scope !== previewScope) { previews.clear(); previewScope = scope; }
-    const snapshot = history.snapshot();
+    const scope = cacheScope();
+    if (scope !== previewScope) { previews.clear(); signatures.clear(); previewScope = scope; recentLimit = 8; settledLimit = 10; settledShelf.open = false; }
+    const snapshot = { ...history.snapshot(), settled: [] as Page[] };
+    const allNotes = [...(attention?.state.notes || []), ...(attention?.state.settled || [])];
+    if (attention) snapshot.settled = attention.state.settled
+      .filter(page => !snapshot.pinned.some(pin => pin.id === page.id)).map(page => ({ ...page, title: page.title || page.file || "Untitled" }));
     if (attention) snapshot.recent = attention.state.notes
       .filter(page => !snapshot.pinned.some(pin => pin.id === page.id)).map(page => ({ ...page, title: page.title || page.file || "Untitled" }));
     const focused = document.activeElement as HTMLElement | null;
     const focusId = focused?.dataset.pagePin;
     const focusLink = focused?.dataset.pageLink;
     const focusAction = focused?.dataset.pageAction;
-    for (const section of ["pinned", "recent"] as const) {
+    element("sidebar-pinned-heading").hidden = !snapshot.pinned.length;
+    const settledCount = element("sidebar-settled-count");
+    settledCount.textContent = String(snapshot.settled.length) + ((attention?.state.settledTotal || 0) > (attention?.state.settled.length || 0) ? "+" : "");
+    for (const section of ["pinned", "recent", "settled"] as const) {
       const list = element("sidebar-" + section);
-      const pages = snapshot[section].map(page => ({ ...page, ...attention?.state.notes.find(note => note.id === page.id), ...previews.get(page.id) }));
-      for (const page of pages) if (options.fetchPreview && !previews.has(page.id)) {
-        const pending = {}; previews.set(page.id, pending);
+      const limit = section === "recent" ? recentLimit : section === "settled" ? settledLimit : 50;
+      const pages = snapshot[section].slice(0, section === "settled" && !settledShelf.open ? 0 : limit)
+        .map(page => ({ ...page, ...allNotes.find(note => note.id === page.id), ...previews.get(page.id) }));
+      for (const page of pages) if (options.fetchPreview && previewReads < 4 && !paused && !document.hidden && (!options.attentionScope || options.attentionScope()) && (options.enabled?.() ?? true)
+        && !previews.get(page.id)?.pending && Date.now() - (previews.get(page.id)?.fetchedAt ?? 0) >= 10_000) {
+        const pending: Preview = { ...previews.get(page.id), fetchedAt: Date.now(), pending: true }; previews.set(page.id, pending); previewReads++;
         void options.fetchPreview(page.id).then(packet => {
-          if (options.scope() !== scope || previews.get(page.id) !== pending) return;
-          previews.set(page.id, { preview: readablePreview(packet.content, page.title), updatedAt: packet.recognition?.updatedAt }); render();
-        }).catch(() => { /* Keep navigation available if a note cannot be read. */ });
+          if (cacheScope() !== scope || previews.get(page.id) !== pending) return;
+          previews.set(page.id, { title: packet.title || page.title, preview: readablePreview(packet.content, packet.title || page.title),
+            ...(packet.recognition?.updatedAt ? { updatedAt: packet.recognition.updatedAt } : {}), editor: packet.recognition?.metadataStatus === "current" ? packet.recognition.editor : undefined, fetchedAt: Date.now() });
+        }).catch(() => {
+          if (cacheScope() === scope && previews.get(page.id) === pending) previews.set(page.id, { fetchedAt: Date.now() });
+        }).finally(() => { previewReads--; render(); });
       }
-      const signature = JSON.stringify(pages.map(({ id, title }) => ({ id, title })));
+      const signature = JSON.stringify(pages.map(({ id }) => ({ id })));
       if (signature !== signatures.get(section)) {
         signatures.set(section, signature); list.replaceChildren();
         for (const page of pages) {
@@ -171,7 +189,8 @@ export function installPageNavigation(options: {
           const ageLabel = sidebarPageAge(page);
           age.textContent = ageLabel.label; age.title = ageLabel.details;
           if (ageLabel.details) age.setAttribute("aria-label", ageLabel.details);
-          link.append(title, preview, age);
+          const editor = document.createElement("span"); editor.className = "sidebar-page-editor"; editor.setAttribute("role", "img");
+          link.append(editor, title, preview, age);
           link.addEventListener("click", (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault(); options.navigate(link.getAttribute("href")!);
@@ -184,20 +203,20 @@ export function installPageNavigation(options: {
           pin.title = (pinned ? "Unpin " : "Pin ") + page.title;
           pin.setAttribute("aria-label", pin.title);
           pin.disabled = !pinned && snapshot.pinned.length >= 50;
-          pin.addEventListener("click", () => history.toggle(page));
+          pin.addEventListener("click", () => history.toggle({ ...page, ...previews.get(page.id) }));
           const actions = document.createElement("span"); actions.className = "sidebar-page-actions";
           actions.append(pin);
           if (attention && options.onAction) {
-            for (const action of ["snooze", "settle"] as const) {
+            for (const action of (section === "settled" ? ["reactivate"] : ["snooze", "settle"]) as ("snooze" | "settle" | "reactivate")[]) {
               const button = document.createElement("button");
               button.type = "button"; button.className = "sidebar-page-action"; button.dataset.attentionAction = action;
               button.dataset.pageAction = page.id + ":" + action;
-              button.title = (action === "snooze" ? "Snooze " : "Settle ") + page.title;
+              button.title = (action === "snooze" ? "Snooze " : action === "reactivate" ? "Bring back " : "Settle ") + page.title;
               button.setAttribute("aria-label", button.title);
-              button.innerHTML = action === "snooze"
+              button.innerHTML = action === "reactivate" ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10h10a6 6 0 0 1 0 12M4 10l6-6M4 10l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' : action === "snooze"
                 ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
                 : '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-              button.addEventListener("click", () => options.onAction!(action, page, button));
+              button.addEventListener("click", () => options.onAction!(action, { ...page, ...previews.get(page.id) }, button));
               actions.append(button);
             }
           }
@@ -207,6 +226,19 @@ export function installPageNavigation(options: {
       for (const link of list.querySelectorAll<HTMLElement>("[data-page-link]")) {
         const page = pages.find(page => page.id === link.dataset.pageLink);
         if (page) {
+          link.title = page.title;
+          link.setAttribute("href", options.href(page.id));
+          link.querySelector(".sidebar-page-title")!.textContent = page.title;
+          for (const button of link.parentElement!.querySelectorAll<HTMLButtonElement>("button")) {
+            const action = button.dataset.attentionAction;
+            button.title = (action === "reactivate" ? "Bring back " : action === "snooze" ? "Snooze " : action === "settle" ? "Settle " : section === "pinned" ? "Unpin " : "Pin ") + page.title;
+            button.setAttribute("aria-label", button.title);
+          }
+          const glyph = link.querySelector<HTMLElement>(".sidebar-page-editor")!;
+          const kind = page.editor?.kind === "human" || page.editor?.kind === "agent" ? page.editor.kind : "unknown";
+          const label = kind === "unknown" ? "Last editor unknown" : "Last edited by " + (kind === "agent" ? "an agent" : "a human") + (page.editor?.name ? " · " + page.editor.name : "");
+          if (glyph.dataset.editorKind !== kind) { glyph.dataset.editorKind = kind; glyph.innerHTML = browserEditorIcons[kind]; }
+          glyph.title = label; glyph.setAttribute("aria-label", label);
           const preview = link.querySelector(".sidebar-page-preview");
           if (preview) preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
           const age = link.querySelector<HTMLElement>(".sidebar-page-age");
@@ -219,6 +251,12 @@ export function installPageNavigation(options: {
       }
       for (const button of list.querySelectorAll<HTMLButtonElement>("[data-attention-action]")) button.disabled = !(options.writable?.() ?? true);
       for (const button of list.querySelectorAll<HTMLButtonElement>("[data-page-pin]")) button.disabled = section !== "pinned" && snapshot.pinned.length >= 50;
+      if (section !== "pinned") {
+        const more = element("sidebar-" + section + "-more") as HTMLButtonElement;
+        const total = section === "recent" ? attention?.state.total : attention?.state.settledTotal;
+        more.hidden = snapshot[section].length <= limit && !(total && total > 100);
+        more.textContent = snapshot[section].length > limit ? "Show more" : "Find more in Search";
+      }
       const empty = element("sidebar-" + section + "-empty");
       if (empty) {
         empty.hidden = snapshot[section].length > 0;
@@ -241,11 +279,19 @@ export function installPageNavigation(options: {
       (replacement || element("notes-link")).focus({ preventScroll: true });
     }
   }
+  settledShelf.addEventListener("toggle", render);
+  for (const section of ["recent", "settled"] as const) element("sidebar-" + section + "-more").addEventListener("click", () => {
+    const limit = section === "recent" ? recentLimit : settledLimit;
+    const rows = section === "recent" ? attention?.state.notes : attention?.state.settled;
+    if (limit >= (rows?.filter(page => !history.snapshot().pinned.some(pin => pin.id === page.id)).length ?? 0)) { element("open-search").click(); return; }
+    if (section === "recent") recentLimit += 8; else settledLimit += 10;
+    render();
+  });
   window.addEventListener("storage", (event) => history.storageChanged(event));
   if (attention) {
-    const resume = () => { void attention.load(); };
+    const resume = () => { paused = false; void attention.load(); };
     window.addEventListener("focus", resume); window.addEventListener("pageshow", resume);
-    window.addEventListener("pagehide", () => attention.cancel());
+    window.addEventListener("pagehide", () => { paused = true; previews.clear(); attention.cancel(); });
     document.addEventListener("visibilitychange", () => { if (document.hidden) attention.cancel(); else resume(); });
     void attention.load();
   }

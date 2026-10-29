@@ -146,6 +146,6 @@ export function installNoteAttention(options: {
   dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
   dialog.addEventListener("click", event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) close(); } });
   return { sync, close, isBusy: () => busy, isOpen: () => dialog.open,
-    act(action: "settle" | "snooze", page: AttentionPage, anchor: HTMLElement) { if (action === "snooze") open(page, anchor); else void apply(page.id, { action: "settle" }); },
+    act(action: "settle" | "snooze" | "reactivate", page: AttentionPage, anchor: HTMLElement) { if (action === "snooze") open(page, anchor); else void apply(page.id, { action }); },
   };
 }
