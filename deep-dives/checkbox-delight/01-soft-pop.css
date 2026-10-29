@@ -1,0 +1,82 @@
+/* Variant 1 — Soft pop. Presentation-only exploration; no canonical content changes.
+   The harness marks only fresh completions with .delight-celebrate. */
+html[data-delight="soft-pop"] .markdown-task {
+  --soft-pop-success: color-mix(in srgb, var(--status-connected) 65%, var(--ink));
+}
+html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle] {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle][aria-checked="true"] {
+  background: var(--soft-pop-success);
+  border-color: var(--soft-pop-success);
+  color: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--soft-pop-success) 12%, transparent);
+}
+html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle][aria-checked="true"] + span {
+  color: var(--ink);
+  text-decoration: none;
+  opacity: 1;
+}
+html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle]::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1px solid var(--soft-pop-success);
+  border-radius: calc(var(--radius-sm) + 5px);
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle][aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 10px;
+  left: 50%;
+  top: 50%;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -58%) rotate(45deg);
+  pointer-events: none;
+}
+html[data-delight="soft-pop"] .markdown-task.delight-celebrate > button[data-task-toggle][aria-checked="true"] {
+  animation: delight-soft-pop-spring 420ms cubic-bezier(.22,.7,.25,1) both;
+}
+html[data-delight="soft-pop"] .markdown-task.delight-celebrate > button[data-task-toggle][aria-checked="true"]::before {
+  animation: delight-soft-pop-halo 560ms ease-out both;
+}
+html[data-delight="soft-pop"] .markdown-task.delight-celebrate > button[data-task-toggle][aria-checked="true"]::after {
+  animation: delight-soft-pop-tick 220ms 60ms ease-out both;
+}
+html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle]:disabled {
+  cursor: default;
+}
+@keyframes delight-soft-pop-spring {
+  0% { transform: scale(.86); }
+  40% { transform: scale(1.12); }
+  68% { transform: scale(.97); }
+  100% { transform: scale(1); }
+}
+@keyframes delight-soft-pop-halo {
+  0% { opacity: .5; transform: scale(.72); }
+  100% { opacity: 0; transform: scale(1.2); }
+}
+@keyframes delight-soft-pop-tick {
+  from { clip-path: inset(0 0 100% 0); }
+  to { clip-path: inset(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle],
+  html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle]::before,
+  html[data-delight="soft-pop"] .markdown-task > button[data-task-toggle]::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

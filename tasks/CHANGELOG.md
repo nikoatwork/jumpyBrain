@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Checkbox delight exploration
+
+- Compared three animated checkbox completion prototypes across six themes, with interactive replay and real editor screenshots; production selection remains open. [Findings](../deep-dives/checkbox-delight/findings.md).
+
 ## 2026-10-28 — Retrieval experiment decisions
 
 - Completed three independent retrieval experiments and a fresh-confirmation follow-up; retained current runtime behavior after quality, token or generalization gates failed. [Paired results](../evals/workspace-retrieval/reports/2026-10-28-experiments-v2.md), [follow-up](../evals/workspace-retrieval/reports/2026-10-28-identity-v4.md).

@@ -1,0 +1,69 @@
+/* Tiny spark: one small four-point glint; only user-triggered completion animates. */
+html[data-delight="tiny-spark"] #note-editor .markdown-task {
+  --spark-success: color-mix(in srgb, var(--status-connected) 76%, var(--ink));
+}
+html[data-delight="tiny-spark"] #note-editor .markdown-task > button {
+  position: relative;
+  overflow: visible;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+html[data-delight="tiny-spark"] #note-editor .markdown-task > button[aria-checked="true"] {
+  border-color: var(--spark-success);
+  background: var(--spark-success);
+  color: var(--surface);
+}
+html[data-delight="tiny-spark"] #note-editor .markdown-task > button[aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  box-sizing: border-box;
+  width: 6px;
+  height: 11px;
+  top: 4px;
+  left: 8px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+html[data-delight="tiny-spark"] #note-editor .markdown-task > button[aria-checked="true"] + span {
+  color: var(--ink);
+  opacity: 1;
+  text-decoration: none;
+}
+html[data-delight="tiny-spark"] #note-editor .markdown-task > button::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  width: 12px;
+  height: 12px;
+  left: calc(var(--space-6) - 3px);
+  top: -9px;
+  background: var(--spark-success);
+  clip-path: polygon(50% 0, 62% 37%, 100% 50%, 62% 62%, 50% 100%, 37% 62%, 0 50%, 37% 37%);
+  opacity: 0;
+  transform: scale(.3) rotate(-12deg);
+}
+html[data-delight="tiny-spark"] #note-editor .markdown-task.delight-celebrate > button[aria-checked="true"]::before {
+  animation: tiny-spark-glint 620ms cubic-bezier(.2,.65,.3,1) both;
+}
+html[data-delight="tiny-spark"] #note-editor .markdown-task.delight-celebrate > button[aria-checked="true"]::after {
+  animation: tiny-spark-tick 260ms ease-out both;
+}
+html[data-delight="tiny-spark"] #note-editor .markdown-task > button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+@keyframes tiny-spark-glint {
+  0% { opacity: 0; transform: translate(0, 3px) scale(.2) rotate(-18deg); }
+  20% { opacity: .95; transform: translate(2px, 0) scale(1) rotate(0); }
+  48% { opacity: .8; transform: translate(3px, -2px) scale(.8) rotate(10deg); }
+  100% { opacity: 0; transform: translate(5px, -5px) scale(.15) rotate(20deg); }
+}
+@keyframes tiny-spark-tick {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-delight="tiny-spark"] #note-editor .markdown-task > button { transition: none; }
+  html[data-delight="tiny-spark"] #note-editor .markdown-task.delight-celebrate > button::before,
+  html[data-delight="tiny-spark"] #note-editor .markdown-task.delight-celebrate > button::after { animation: none !important; }
+}

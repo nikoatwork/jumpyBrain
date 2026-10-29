@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Checkbox delight comparison</title><style>
+:root{font-family:var(--font-sans,system-ui);color:var(--foreground)}
+*{box-sizing:border-box}body{margin:0}button,select{font:inherit;cursor:pointer}button:focus-visible,select:focus-visible{outline:2px solid var(--ring);outline-offset:3px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;font-size:13px}.controls button,.controls select{padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius,8px);color:var(--foreground);background:var(--secondary)}
+.controls button[aria-pressed="true"]{background:var(--primary);color:var(--primary-foreground)}.controls label{display:flex;gap:6px;align-items:center}.view{display:flex;gap:4px;margin-right:auto}
+.hint{margin:0 0 16px;font-size:13px;color:var(--muted-foreground)}article{margin:0 0 12px;padding:16px;border:1px solid var(--border);border-radius:var(--radius,10px);background:var(--card)}
+.card-title{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:15px}.card-title strong{font-weight:600}small{font-size:12px;color:var(--muted-foreground)}.description{margin:5px 0 14px;color:var(--muted-foreground);font-size:13px}
+.demo{padding:18px 16px;border-radius:8px;background:var(--surface);color:var(--ink);--space-2:8px;--space-6:24px;--radius-sm:6px;--text-ui:13px;--font-ui:system-ui}
+.demo-editor{font:19px/1.8 Charter,Georgia,serif}.demo-editor p{margin:0;min-height:1.8em}.markdown-task{display:flex;align-items:baseline;gap:8px}.markdown-task>span{min-width:0;flex:1}.markdown-task>button{flex:0 0 24px;width:24px;height:24px;min-height:0;display:inline-grid;place-items:center;font:13px/1 system-ui;align-self:flex-start;margin-top:.35em;padding:0;border:1px solid var(--line-strong);border-radius:6px;background:var(--surface);color:var(--ink)}
+.shots img{display:block;width:100%;border-radius:6px}.shots small{display:block;margin-top:8px}.reduced{display:none}@media(prefers-reduced-motion:reduce){.reduced{display:block;margin-top:12px}}
+[hidden]{display:none!important}
+/* PRODUCT_THEME */
+/* VARIANT_STYLES */
+</style></head><body>
+<div class="controls"><div class="view"><button id="live" aria-pressed="true">Try it</button><button id="screens" aria-pressed="false">Screenshots</button></div><label>Palette <select id="palette"><option value="ember">Ember</option><option value="ocean">Ocean</option><option value="mono">Mono</option></select></label><label>Scheme <select id="scheme"><option value="light">Light</option><option value="dark">Dark</option></select></label><button id="replay">Replay all ↻</button></div>
+<p class="hint">Click a checkbox to feel it. Completed text stays readable; click again to undo.</p>
+<!-- CARDS -->
+<p class="hint reduced">Reduced Motion is enabled: the successful state appears without animation.</p>
+<script>
+const timers=new WeakMap();let replayTimer;
+function toggle(button,checked){const row=button.parentElement;clearTimeout(timers.get(row));row.classList.remove('delight-celebrate');button.setAttribute('aria-checked',String(checked));if(checked){void row.offsetWidth;row.classList.add('delight-celebrate');timers.set(row,setTimeout(()=>row.classList.remove('delight-celebrate'),1100))}}
+document.querySelectorAll('[data-task-toggle]').forEach(button=>button.addEventListener('click',()=>toggle(button,button.getAttribute('aria-checked')!=='true')));
+function replay(){clearTimeout(replayTimer);document.querySelectorAll('[data-task-toggle]').forEach(b=>toggle(b,false));replayTimer=setTimeout(()=>document.querySelectorAll('[data-task-toggle]').forEach(b=>toggle(b,true)),200)}
+function sync(){const palette=document.querySelector('#palette').value,scheme=document.querySelector('#scheme').value;document.querySelectorAll('.demo').forEach(d=>{d.dataset.palette=palette;d.dataset.theme=scheme});document.querySelectorAll('.shots img').forEach(img=>img.hidden=img.dataset.palette!==palette||img.dataset.scheme!==scheme)}
+document.querySelectorAll('select').forEach(s=>s.addEventListener('change',sync));document.querySelector('#replay').addEventListener('click',replay);
+function view(shots){document.querySelectorAll('.demo').forEach(d=>d.hidden=shots);document.querySelectorAll('.shots').forEach(d=>d.hidden=!shots);document.querySelector('#live').setAttribute('aria-pressed',String(!shots));document.querySelector('#screens').setAttribute('aria-pressed',String(shots));document.querySelector('#replay').hidden=shots;document.querySelector('.hint').textContent=shots?'Actual editor captures at a representative instant during completion.':'Click a checkbox to feel it. Completed text stays readable; click again to undo.'}
+document.querySelector('#live').addEventListener('click',()=>view(false));document.querySelector('#screens').addEventListener('click',()=>view(true));
+</script></body></html>
