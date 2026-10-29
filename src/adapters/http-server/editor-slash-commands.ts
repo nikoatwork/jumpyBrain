@@ -6,15 +6,15 @@ import {
 import { HeadingNode } from "@lexical/rich-text";
 
 const commands = [
-  { kind: "paragraph", label: "Text", aliases: ["text", "paragraph"] },
-  { kind: "h1", label: "Heading 1", aliases: ["h1"] },
-  { kind: "h2", label: "Heading 2", aliases: ["h2"] },
-  { kind: "h3", label: "Heading 3", aliases: ["h3"] },
-  { kind: "bold", label: "Bold", aliases: ["bold"] },
-  { kind: "italic", label: "Italic", aliases: ["italic"] },
-  { kind: "task", label: "Task checkbox", aliases: ["checkbox", "task"] },
-  { kind: "code", label: "Inline code", aliases: ["code", "inline-code"] },
-  { kind: "code-block", label: "Code block", aliases: ["code-block", "codeblock"] },
+  { kind: "paragraph", label: "Text", glyph: "T", aliases: ["text", "paragraph"] },
+  { kind: "h1", label: "Heading 1", glyph: "H₁", aliases: ["h1"] },
+  { kind: "h2", label: "Heading 2", glyph: "H₂", aliases: ["h2"] },
+  { kind: "h3", label: "Heading 3", glyph: "H₃", aliases: ["h3"] },
+  { kind: "bold", label: "Bold", glyph: "B", aliases: ["bold"] },
+  { kind: "italic", label: "Italic", glyph: "I", aliases: ["italic"] },
+  { kind: "task", label: "Task", glyph: "☑", aliases: ["checkbox", "task"] },
+  { kind: "code", label: "Code", glyph: "</>", aliases: ["code", "inline-code"] },
+  { kind: "code-block", label: "Code block", glyph: "{ }", aliases: ["code-block", "codeblock"] },
 ];
 let nextId = 0;
 
@@ -57,8 +57,13 @@ export function installSlashCommands(editor: LexicalEditor, element: HTMLElement
     popup.replaceChildren(...choices.map((command, index) => {
       const row = doc.createElement("div");
       row.id = id + "-" + index; row.dataset.index = String(index);
+      row.dataset.kind = command.kind;
       row.setAttribute("role", "option"); row.setAttribute("aria-selected", String(index === selected));
-      row.textContent = command.label + "  /" + command.aliases[0]; return row;
+      row.setAttribute("aria-label", command.label);
+      const glyph = doc.createElement("span"), label = doc.createElement("span");
+      glyph.className = "editor-slash-glyph"; glyph.setAttribute("aria-hidden", "true"); glyph.textContent = command.glyph;
+      label.className = "editor-slash-label"; label.textContent = command.label;
+      row.append(glyph, label); return row;
     }));
     popup.hidden = false;
     const native = doc.getSelection();

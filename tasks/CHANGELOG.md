@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Compact slash menu
+
+- Shortened formatting labels, removed repeated slash commands and added styled glyphs in a compact menu. [Task](done/2026-10-29_tasks-compact-slash-menu.md).
+
 ## 2026-10-29 — Subtle hover and centered icons
 
 - Softened hover across light/dark themes, kept icon hover on the glyph, and corrected compact button sizing/centering. [Verification](done/2026-10-29_tasks-subtle-hover.md).

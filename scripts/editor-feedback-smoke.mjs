@@ -113,8 +113,8 @@ try {
     const menu = page.getByRole('listbox', { name: 'Formatting commands' });
     await menu.waitFor({ state: 'visible' });
     await page.keyboard.press('ArrowDown');
-    await page.waitForFunction(() => document.querySelector('.editor-slash-menu [aria-selected=true]')?.textContent === 'Heading 2  /h2');
-    assert.equal(await menu.getByRole('option', { selected: true }).textContent(), 'Heading 2  /h2');
+    await page.waitForFunction(() => document.querySelector('.editor-slash-menu [aria-selected=true]')?.getAttribute('aria-label') === 'Heading 2');
+    assert.equal(await menu.getByRole('option', { selected: true }).locator('.editor-slash-label').textContent(), 'Heading 2');
     for (const theme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: theme });
       const box = await menu.boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= width);

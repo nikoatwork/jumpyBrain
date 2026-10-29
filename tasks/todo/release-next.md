@@ -1,5 +1,7 @@
 # Changes
 
+- Cleaner slash menu with short labels, formatting glyphs and compact spacing.
+
 - Sidebar notes show a plain-text preview and last-edited age, with actions on hover/focus. The wider sidebar can be dragged to resize and remembers its width.
 
 - Organize notes on personal Kanban boards in the Mac sidebar. Add existing or new notes, move cards, and settle boards; restore them from Settings → Boards. Board layout is stored locally, separately from the Markdown vault.

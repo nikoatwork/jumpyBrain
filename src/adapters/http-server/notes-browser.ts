@@ -154,9 +154,19 @@ ${referencePresentationStyles}
     .markdown-table th, .markdown-table td { padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); min-width: 8ch; vertical-align: top; overflow-wrap: normal; word-break: normal; }
     .markdown-table th { background: var(--control-fill); font-weight: var(--weight-writing-bold); }
     .markdown-table summary { width: fit-content; cursor: pointer; color: var(--ink-soft); font: var(--text-caption)/1.5 var(--font-ui); padding-block: var(--space-1); }
-    .editor-slash-menu { user-select: none; touch-action: pan-y; position: fixed; z-index: 10000; box-sizing: border-box; width: 280px; overflow: auto; overscroll-behavior: contain; padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: var(--text-ui)/1.5 var(--font-ui); }
-    .editor-slash-menu [role="option"] { padding: var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
+    .editor-slash-menu { user-select: none; touch-action: pan-y; position: fixed; z-index: 10000; box-sizing: border-box; width: 224px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: 400 var(--text-ui)/1.25 var(--font-ui); }
+    .editor-slash-menu [role="option"] { box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-compact); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
+    .editor-slash-menu [role="option"]:hover { background: var(--hover-fill); }
     .editor-slash-menu [aria-selected="true"] { background: var(--surface-hover); }
+    .editor-slash-glyph { display: grid; place-items: center; flex: 0 0 var(--space-6); height: var(--space-6); color: var(--ink-soft); font: 500 var(--text-ui)/1 var(--font-ui); }
+    .editor-slash-menu [data-kind="bold"] { font-weight: 700; }
+    .editor-slash-menu [data-kind="italic"] { font-style: italic; }
+    .editor-slash-menu [data-kind="bold"] .editor-slash-glyph { font-weight: 700; }
+    .editor-slash-menu [data-kind="italic"] .editor-slash-glyph { font-family: var(--font-writing); font-style: italic; }
+    .editor-slash-menu [data-kind="h1"] .editor-slash-label, .editor-slash-menu [data-kind="h2"] .editor-slash-label, .editor-slash-menu [data-kind="h3"] .editor-slash-label { font-weight: 600; }
+    .editor-slash-menu [data-kind="code"], .editor-slash-menu [data-kind="code-block"] { font-family: var(--font-mono); }
+    .editor-slash-menu [data-kind="code"] .editor-slash-glyph, .editor-slash-menu [data-kind="code-block"] .editor-slash-glyph { font-family: var(--font-mono); font-size: var(--text-caption); }
+    @media (max-width: 680px), (pointer: coarse) { .editor-slash-menu [role="option"] { min-height: var(--control-touch); } }
     .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     #reference-creation-status { color: var(--error-ink); font-size: var(--text-ui); }
     .markdown-literal::selection { background: var(--surface-hover); }
