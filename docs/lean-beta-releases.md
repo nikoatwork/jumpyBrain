@@ -4,6 +4,7 @@ Follow [the release process](releases.md) and the current [testing guide](releas
 
 ## Current routine
 
+- Install the [local candidate](local-dogfooding.md) on the owner’s Mac and use it with the real brain before publication, normally for about a day. The owner may choose less time; record the actual experience and candidate commit. Nightly replacement is not enabled.
 - Choose the exact snapshot, review pending notes and preserve unrelated work. Release only when requested; the daily cadence and major-version approval rules still apply.
 - Prepare with a build, fresh desktop package and one core note-lifecycle smoke. Reuse passing evidence for unchanged inputs. The full `npm run release` owns the mandatory versioned deterministic suite, CLI packaging, version commit/tag/push and GitHub publication.
 - Select a focused additional check when a changed area needs integration evidence. The browser and installed-updater suites remain available, but neither a normal package change nor a routine beta release triggers the entire matrix. Choose extra rollback/compatibility modes only for the path being changed or a concrete unresolved concern.

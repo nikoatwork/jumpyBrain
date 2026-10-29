@@ -2,6 +2,10 @@
 
 Use a small beta gate on the agreed snapshot before publishing through [the release workflow](releases.md). The owner explicitly reduced routine testing on 2026-10-25: keep core behavior and distribution checks, and select additional tests for the behavior actually changed. Do not run the full browser/updater matrix for every release.
 
+## Real use before publication
+
+Use the [local candidate workflow](local-dogfooding.md) for normal use on the owner’s real brain before release, usually about a day with flexible owner judgment. Record the installed commit, actual use and findings; `npm run dogfood:status` reports installation age, not active use. Compare later changes before reusing this evidence. Keep fault injection and automated mutation tests on disposable fixtures as below.
+
 ## Prepare
 
 - Record the commit, Node/QMD versions, macOS version and architecture. Use disposable memory, CLI config, app profiles and installation paths; never fault-test personal notes or a live shared brain.
