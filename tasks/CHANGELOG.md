@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-29 — Subtle search focus
+
+- Softened the search field focus ring across themes. [Verification](done/2026-10-29_tasks-search-focus.md).
+
 ## 2026-10-29 — Sidebar text hierarchy
 
 - Clearer titles, quieter previews and compact edit ages make sidebar pages easier to scan. [Verification](done/2026-10-29_tasks-sidebar-copy-hierarchy.md).

@@ -262,7 +262,7 @@ ${referencePresentationStyles}
     .search-input-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink-soft); }
     .search-input-icon svg { display: block; width: 100%; height: 100%; }
     #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: var(--text-section); }
-    #note-search-input:focus-visible { outline: 2px solid var(--focus-ring); }
+    #note-search-input:focus-visible { outline: 1px solid color-mix(in srgb, var(--focus-ring) 45%, var(--line-strong)); outline-offset: 0; }
     #search-results { list-style: none; padding: var(--space-1); margin: 0; max-height: 55dvh; min-height: 0; flex: 1 1 auto; overflow: auto; }
     #search-results:empty { display: none; }
     #search-results:not(:empty) { border-top: 1px solid var(--line); }
