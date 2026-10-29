@@ -10,14 +10,19 @@ import { appendEditorText, editorMarkdown } from "./editor-smoke-helpers.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-sidebar-"));
 const apiKey = "disposable-sidebar-key";
-const titles = ["Project direction", "Decisions and tradeoffs", "A deliberately long page title that should truncate gracefully in the sidebar", "Release notes", "Working notes", "Product ideas", "Research", "Team rituals", "Next steps", "<img src=x onerror=alert(1)>"];
+const titles = ["Project direction", "Decisions and tradeoffs", "A deliberately long page title that should truncate gracefully in the sidebar", "Release notes", "Working notes", "Product ideas", "Research", "Team rituals", "Next steps", "<img src=x onerror=alert(1)>", "Snoozed and due", "Freshly edited"];
 const ids = titles.map((_, i) => `mem_a0000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`);
 const errors = [];
 let browser, server;
 try {
   await initializeMemoryRoot(root);
   await mkdir(path.join(root, "pages"), { recursive: true });
-  for (let i = 0; i < ids.length; i++) await writeFile(path.join(root, `pages/page-${i}.md`), `---\nid: ${ids[i]}\ntype: note\ntitle: ${JSON.stringify(titles[i])}\nupdated_at: 2026-10-16T00:00:${String(i === 0 ? 59 : i).padStart(2, "0")}Z\n---\nA quiet place for useful context.\n`);
+  for (let i = 0; i < ids.length; i++) {
+    // Notes 10 and 11 carry clock-relative dates so age assertions stay deterministic.
+    const updatedAt = i >= 10 ? new Date(Date.now() - 3 * 86400000).toISOString() : `2026-10-16T00:00:${String(i === 0 ? 59 : i).padStart(2, "0")}Z`;
+    const attentionAt = i === 10 ? `\nattention_at: ${JSON.stringify(new Date(Date.now() - 3600000).toISOString())}` : "";
+    await writeFile(path.join(root, `pages/page-${i}.md`), `---\nid: ${ids[i]}\ntype: note\ntitle: ${JSON.stringify(titles[i])}\nupdated_at: ${updatedAt}${attentionAt}\n---\nA quiet place for useful context.\n`);
+  }
   server = await startJumpyBrainHttpServer({ root, apiKeys: [apiKey], port: 0, autoIndex: false });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
   const context = await browser.newContext({ viewport: { width: 1280, height: 850 } });
@@ -51,7 +56,15 @@ try {
     await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[i]);
   }
   assert.equal(await page.locator("#sidebar-recent a").count(), 7);
-  assert.equal(await page.locator("#sidebar-recent .sidebar-page-title").first().innerText(), titles.at(-1));
+  const recentTitles = page.locator("#sidebar-recent .sidebar-page-title");
+  const recentAges = page.locator("#sidebar-recent .sidebar-page-age");
+  assert.equal(await recentTitles.first().innerText(), titles[10], "explicit due override sorts first");
+  assert.equal(await recentAges.first().innerText(), "due 1h ago");
+  assert.match(await recentAges.first().getAttribute("title"), /^Due /, "due rows keep the exact tooltip");
+  assert.equal(await recentTitles.nth(1).innerText(), titles[11]);
+  assert.equal(await recentAges.nth(1).innerText(), "3d ago", "edit ages read as explicit relative forms");
+  assert.match(await recentAges.nth(1).getAttribute("title"), /^Last edited /);
+  assert.equal(await recentTitles.nth(2).innerText(), titles[9]);
   assert.equal(await page.locator("#sidebar-recent img").count(), 0);
   await page.locator("#sidebar-pinned a").click();
   await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[0]);
@@ -111,7 +124,7 @@ try {
   if (screenshotDir) await page.screenshot({ path: path.join(screenshotDir, "sidebar-narrow.png") });
   await context.close();
   assert.deepEqual(errors, []);
-  console.log("Sidebar smoke: PASS (canonical attention order, pins, rename, reload, cross-tab, failed-save guard, themes, narrow layout)");
+  console.log("Sidebar smoke: PASS (canonical attention order, due/relative ages, pins, rename, reload, cross-tab, failed-save guard, themes, narrow layout)");
 } finally {
   if (browser) await browser.close();
   if (server) await server.close();

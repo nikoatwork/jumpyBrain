@@ -1,4 +1,6 @@
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id-format.js";
+import { metadataDate } from "../../core/canonical/metadata-date.js";
+import { recognitionDay } from "../../core/search-recognition.js";
 import { createAttentionList, type AttentionPage } from "./browser-attention.js";
 import { readablePreview, resultEditContext } from "./search-presentation.js";
 import { browserPinIcon } from "./browser-icons.js";
@@ -6,6 +8,31 @@ import { browserPinIcon } from "./browser-icons.js";
 type Page = { id: string; title: string; preview?: string; updatedAt?: string };
 type History = { pinned: Page[]; recent: Page[] };
 const prefix = "jumpybrain.pageNavigation.v1:";
+
+// Sidebar-only presentation; search rows keep resultEditContext's compact contract.
+// The attention packet sends attentionAt for every active note (edit/creation recency fallback),
+// so a due label applies only when it differs from that recency: an explicit snooze now due.
+export function sidebarPageAge(page: { updatedAt?: string; createdAt?: string; attentionAt?: string }, now = new Date()): { label: string; details: string } {
+  const due = metadataDate(page.attentionAt);
+  const recency = page.updatedAt ?? page.createdAt;
+  if (due && due !== recency) {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const exact = (value: string) => value.length === 10 ? value : new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
+    let label = "";
+    if (due.length === 10) {
+      const days = Math.round((Date.parse(recognitionDay(now.toISOString(), timeZone)!) - Date.parse(recognitionDay(due, timeZone)!)) / 86400000);
+      label = days > 0 ? `due ${days}d ago` : days < 0 ? `due in ${-days}d` : "due today";
+    } else {
+      const minutes = Math.floor((now.getTime() - Date.parse(due)) / 60000);
+      const age = Math.abs(minutes);
+      const span = age < 60 ? `${age}m` : age < 1440 ? `${Math.floor(age / 60)}h` : `${Math.floor(age / 1440)}d`;
+      label = age < 1 ? "due now" : minutes < 0 ? `due in ${span}` : `due ${span} ago`;
+    }
+    return { label, details: "Due " + exact(due) };
+  }
+  const edited = resultEditContext({ metadataStatus: "current", updatedAt: page.updatedAt }, now);
+  return { label: edited.label.replace(/^(?:\d+m|\d+h|\d+d)$/, "$& ago"), details: edited.details };
+}
 
 // Device-local navigation metadata, never canonical memory or an access credential.
 export function createPageHistory(options: { scope(): string | null; storage(): Storage; onChange(): void }) {
@@ -141,9 +168,9 @@ export function installPageNavigation(options: {
           const preview = document.createElement("span"); preview.className = "sidebar-page-preview";
           preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
           const age = document.createElement("span"); age.className = "sidebar-page-age";
-          const edited = resultEditContext({ metadataStatus: "current", updatedAt: page.updatedAt });
-          age.textContent = edited.label; age.title = edited.details;
-          if (edited.details) age.setAttribute("aria-label", edited.details);
+          const ageLabel = sidebarPageAge(page);
+          age.textContent = ageLabel.label; age.title = ageLabel.details;
+          if (ageLabel.details) age.setAttribute("aria-label", ageLabel.details);
           link.append(title, preview, age);
           link.addEventListener("click", (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -183,8 +210,8 @@ export function installPageNavigation(options: {
           const preview = link.querySelector(".sidebar-page-preview");
           if (preview) preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
           const age = link.querySelector<HTMLElement>(".sidebar-page-age");
-          const edited = resultEditContext({ metadataStatus: "current", updatedAt: page.updatedAt });
-          if (age) { age.textContent = edited.label; age.title = edited.details; age.setAttribute("aria-label", edited.details); }
+          const ageLabel = sidebarPageAge(page);
+          if (age) { age.textContent = ageLabel.label; age.title = ageLabel.details; age.setAttribute("aria-label", ageLabel.details); }
         }
 
         if (link.dataset.pageLink === selected) link.setAttribute("aria-current", "page");
