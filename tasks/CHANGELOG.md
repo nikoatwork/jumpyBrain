@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — v0.3.13 beta published
+
+- Shipped canonical CLI/Mac boards, collaborative sidebar and writing/onboarding improvements. Full suite and packaged core-flow checks passed; public artifact digest verified. [Release notes](done/releases/v0.3.13.md), [QA](done/releases/v0.3.13.qa.md) and [completed release task](done/2026-10-30_tasks-release-v0.3.13.md).
+
 ## 2026-10-30 — Canonical boards across CLI and Mac
 
 - Replaced app-support collections with one JSON per board in the brain. Local/hosted CLI and Mac now share board CRUD/status and write permissions, with no running Mac app required by the CLI. [Verification, review and limits](done/2026-10-30_tasks-canonical-boards.md).

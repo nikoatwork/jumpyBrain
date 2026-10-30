@@ -1,5 +1,7 @@
 # Release v0.3.13
 
+Published [v0.3.13](https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.13). [Exact notes](releases/v0.3.13.md) and [QA](releases/v0.3.13.qa.md).
+
 ## Scope and decisions
 
 - Requested 2026-10-30: publish newest version and commit outstanding work. Starting tree clean on master at `8282a3f`, 36 commits ahead of origin; latest published numeric release v0.3.12 (2026-10-29T13:18:27Z). No release today in Europe/Berlin. Fetched origin/master and tags; origin/master is an ancestor of HEAD.
@@ -18,10 +20,10 @@
 - [x] Build, fresh desktop package and note-lifecycle smoke at implementation `8282a3f`: passed. Real capture/search, graph/title navigation, two-tab stale-save recovery, 390/320 layouts, delete cancel/apply, unchanged backlinks and index refresh. Fresh outer package reused verified unchanged native helper.
 - [x] Fresh packaged desktop lifecycle smoke: passed on the new outer package; native lifecycle/navigation checked against disposable data.
 - Reuse unchanged feature evidence: canonical-board task’s 91 focused tests, browser boards/settings and production native local/remote CLI/UI checks; simple-onboarding and heading-rail production Electron/browser checks; latest sidebar-layout/collaborative checks; feedback CLI/integration tests. Full versioned suite remains mandatory below. No broad updater/semantic matrix warranted.
-- [ ] Commit curated notes and preparation record; dry run.
-- [ ] Full npm run release: aligned versions, deterministic suite, pack validation, commit/tag/push/publication.
-- [ ] Verify public tag/body, exactly one asset, component versions and downloaded SHA-256.
-- [ ] Archive exact notes and QA, clear shipped queue, archive task, update changelog and commit/push bookkeeping.
+- [x] Curated notes and preparation committed as `ce58678`; dry run passed.
+- [x] Full `npm run release` passed: 1,514 tests, 1,513 passed, zero failed, one optional provisioned-QMD check skipped (295 seconds). Validated 235 required distribution files; aligned versions, release commit `44a7e46738869168f8250c4c96c0a98e0733344d`, annotated tag and atomic push succeeded. Published 2026-10-30T14:52:26Z.
+- [x] Verified public annotated tag/peeled commit, exact body, exactly one uploaded asset, all four tagged version files, packed manifests/Electron lockfile and independent download. SHA-256 `aa4b963d024f23ef3ad06838681cb7d37272a2b005971e441ef512d4da63fd47` matches GitHub and local validated archive; 1,203,231 bytes. Root package-lock is intentionally not included by npm pack.
+- [x] Archived exact published notes and QA, cleared shipped queue, archived this task and updated changelog. Bookkeeping committed/pushed after publication; commit identity is reported in the release handoff.
 
 ## Limits
 
