@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Quieter sidebar footer
+
+- Extended the footer divider across the sidebar, removed its theme shortcut and softened the clickable update check. [Verification](done/2026-10-30_tasks-sidebar-footer-quiet.md).
+
 ## 2026-10-30 — Compact board settings
 
 - Added rename, settle/restore toggles and confirmed board-only deletion in Settings, with a direct recovery link from settled boards. [Verification](done/2026-10-30_tasks-board-settings.md).

@@ -120,6 +120,8 @@ try {
         await writeFile(path.join(output, `${phase}-${theme}.png`), (await window.webContents.capturePage()).toPNG());
       }
       if (['idle', 'current', 'canceled', 'success', 'recovered'].includes(phase)) {
+        assert.equal(await evaluate('getComputedStyle(document.getElementById("desktop-updates")).backgroundColor'), 'rgba(0, 0, 0, 0)');
+        assert.equal(await evaluate('getComputedStyle(document.getElementById("desktop-updates")).borderColor'), 'rgba(0, 0, 0, 0)');
         assert.equal(await evaluate('document.getElementById("desktop-updates").disabled'), false);
         assert.equal(await evaluate('document.getElementById("desktop-updates").getAttribute("aria-label")'), ['current', 'success'].includes(phase) ? 'Up to date; check for updates' : 'Check for updates');
         const before = calls.length;
@@ -229,11 +231,11 @@ try {
         if (['idle', 'current', 'available', 'ready'].includes(phase)) {
           if (['available', 'ready'].includes(phase)) assertOutline(await outlineSnapshot());
           assert.equal(await evaluate(`(() => {
-            const button = document.getElementById('desktop-updates'), theme = document.getElementById('color-theme'), r = button.getBoundingClientRect(), t = theme.getBoundingClientRect();
+            const button = document.getElementById('desktop-updates'), neighbor = document.getElementById('open-feedback'), r = button.getBoundingClientRect(), t = neighbor.getBoundingClientRect();
             return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight
               && (r.right <= t.left || r.left >= t.right || r.bottom <= t.top || r.top >= t.bottom)
               && button.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
-          })()`), true, 'update border fits the viewport and stays separate from the clickable theme control');
+          })()`), true, 'update border fits the viewport and stays separate from the Feedback control');
           await writeFile(path.join(output, `${phase}-${theme}-${width}.png`), (await window.webContents.capturePage()).toPNG());
         }
       }

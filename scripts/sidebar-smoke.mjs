@@ -123,7 +123,7 @@ try {
   const screenshotDir = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR;
   if (screenshotDir) await mkdir(screenshotDir, { recursive: true });
   for (const theme of ["light", "dark"]) {
-    if (await page.locator("html").getAttribute("data-theme") !== theme) await page.locator("#color-theme").click();
+    await page.evaluate(value => colorTheme.setPreference(value), theme);
     if (screenshotDir) await page.screenshot({ path: path.join(screenshotDir, `sidebar-${theme}.png`) });
   }
   await page.setViewportSize({ width: 390, height: 850 });

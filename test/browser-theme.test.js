@@ -8,11 +8,11 @@ import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 function harness({ stored = null, palette = null, dark = false, blocked = false, writeBlocked = false } = {}) {
   const listeners = {}, values = new Map(stored === null ? [] : [["jumpybrain.theme", stored]]);
   if (palette !== null) values.set("jumpybrain.palette", palette);
-  const control = { attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } }, root = { dataset: {} };
+  const root = { dataset: {} };
   const media = { matches: dark, addEventListener: (type, callback) => { listeners.media = callback; } };
   const context = vm.createContext({
     Event, window: { dispatchEvent() {}, matchMedia: () => media, addEventListener: (type, callback) => { listeners[type] = callback; } },
-    document: { documentElement: root, getElementById: (id) => id === "color-theme" ? control : null },
+    document: { documentElement: root, getElementById: () => null },
     localStorage: {
       getItem(key) { if (blocked) throw Error("blocked"); return values.get(key) ?? null; },
       setItem(key, value) { if (blocked || writeBlocked) throw Error("blocked"); values.set(key, value); },
@@ -20,9 +20,8 @@ function harness({ stored = null, palette = null, dark = false, blocked = false,
     },
   });
   vm.runInContext(themeBootstrap, context);
-  return { root, control, values,
+  return { root, values,
     palette: value => vm.runInContext(`colorTheme.setPalette(${JSON.stringify(value)})`, context),
-    toggle: () => vm.runInContext("colorTheme.toggle()", context),
     choose: (value) => vm.runInContext(`colorTheme.setPreference(${JSON.stringify(value)})`, context),
     os(value) { media.matches = value; listeners.media(); },
     storage(key, newValue) { listeners.storage({ key, newValue }); },
@@ -37,10 +36,7 @@ test("theme resolves before visible content and every script retains the CSP non
       assert.equal(script[1], ' nonce="themenonce"');
       assert.doesNotThrow(() => new vm.Script(script[2]));
     }
-    assert.match(html, /<button id="color-theme" type="button" aria-label="Switch color theme"/);
-    assert.match(html, /class="theme-sun"/);
-    assert.match(html, /class="theme-moon"/);
-    assert.doesNotMatch(html, /<select id="color-theme"/);
+    assert.doesNotMatch(html, /id="color-theme"/);
   }
   assert.match(themeStyles, /@media \(prefers-color-scheme: dark\)/, "CSS also follows the OS without JavaScript");
 });
@@ -72,23 +68,6 @@ test("cross-tab changes, clearing storage, malformed preferences and blocked sto
   assert.doesNotThrow(() => blocked.choose("dark"));
   assert.equal(blocked.root.dataset.theme, "dark");
   blocked.choose("invalid"); assert.equal(blocked.root.dataset.themePreference, "system");
-});
-
-test("icon activation exits System using the resolved appearance and updates its accessible action", () => {
-  const h = harness({ dark: true });
-  assert.equal(h.root.dataset.themePreference, "system");
-  assert.equal(h.values.has("jumpybrain.theme"), false, "merely rendering System does not replace the preference");
-  assert.equal(h.control.attributes["aria-label"], "Switch to light theme");
-  h.toggle();
-  assert.equal(h.root.dataset.theme, "light");
-  assert.equal(h.root.dataset.themePreference, "light");
-  assert.equal(h.values.get("jumpybrain.theme"), "light");
-  assert.equal(h.control.title, "Switch to dark theme");
-  h.os(true);
-  assert.equal(h.root.dataset.theme, "light", "explicit toggle keeps the chosen appearance");
-  h.toggle();
-  assert.equal(h.root.dataset.theme, "dark");
-  assert.equal(h.control.attributes["aria-label"], "Switch to light theme");
 });
 
 function contrast(a, b) {

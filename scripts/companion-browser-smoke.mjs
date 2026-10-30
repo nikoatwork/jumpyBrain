@@ -164,11 +164,11 @@ try {
   await settings.locator("#companion-profiles strong").first().waitFor();
   assert.equal(await settings.locator("#companion-settings [data-app-version]").textContent(), "jumpyBrain · Version " + version);
   assert.equal(await settings.locator("#companion-active").getAttribute("data-state"), "connected", "Settings uses confirmed host health before any memory request");
-  if (await settings.locator("html").getAttribute("data-theme") !== "dark") await settings.locator("#color-theme").click();
+  if (await settings.locator("html").getAttribute("data-theme") !== "dark") await settings.evaluate(() => colorTheme.setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
   assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(28, 27, 25)");
   assert.equal(await settings.locator("#companion-kind").evaluate((el) => getComputedStyle(el).color), "rgb(216, 208, 192)");
   await settings.waitForFunction(() => getComputedStyle(document.querySelector("#companion-name")).backgroundColor === "rgb(28, 27, 25)");
-  await settings.locator("#color-theme").click();
+  await settings.evaluate(() => colorTheme.setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
   assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(230, 218, 196)");
   await settings.evaluate(() => colorTheme.setPreference("system"));
   assert.equal(new URL(settings.url()).hash, "");

@@ -20,7 +20,7 @@ const emberColors = {
   dark: { surface: "rgb(28, 27, 25)", control: "rgb(37, 36, 34)", hover: "rgb(46, 45, 42)", ink: "rgb(216, 208, 192)" },
 };
 async function assertPalette(page, theme) {
-  await page.mouse.move(0, 0); // Compare resting palette, even immediately after toggling the icon.
+  await page.mouse.move(0, 0); // Compare resting palette, even immediately after changing appearance.
   await page.waitForFunction((theme) => document.documentElement.dataset.theme === theme, theme);
   const name = await page.locator("html").getAttribute("data-palette");
   const hexRgb = hex => "rgb(" + hex.match(/[a-f0-9]{2}/gi).map(value => parseInt(value, 16)).join(", ") + ")";
@@ -31,7 +31,7 @@ async function assertPalette(page, theme) {
   for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "#note-editor", "#note-name", "#note-search", "#connection", "#dream-handoff", "#dream-preview"]) {
     assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), palette.surface, `${selector}: ${theme}`);
   }
-  for (const selector of ["#home-new", "#new-note", "#zoom-in", "#connection-submit", "#dream-copy", "#color-theme"]) {
+  for (const selector of ["#home-new", "#new-note", "#zoom-in", "#connection-submit", "#dream-copy"]) {
     assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), palette.control, `${selector}: ${theme}`);
   }
   assert.equal(await page.locator("body").evaluate((el) => getComputedStyle(el).color), palette.ink);
@@ -52,10 +52,7 @@ async function assertPalette(page, theme) {
   const create = await page.locator("#new-note").boundingBox(), search = await page.locator("#open-search").boundingBox();
   assert.equal(create.y, search.y, "Search and New note occupy one row");
   assert.ok(create.x + create.width <= search.x, "Search follows compose without overlap");
-  const themeAction = theme === "dark" ? "Switch to light theme" : "Switch to dark theme";
-  assert.equal(await page.locator("#color-theme").getAttribute("aria-label"), themeAction);
-  assert.equal(await page.locator("#color-theme .theme-sun").isVisible(), theme === "dark");
-  assert.equal(await page.locator("#color-theme .theme-moon").isVisible(), theme === "light");
+  assert.equal(await page.locator("#color-theme").count(), 0);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "navigation fits viewport");
 }
 async function capture(page, name) {
@@ -102,7 +99,7 @@ try {
       const opposite = scheme === "dark" ? "light" : "dark";
       await page.emulateMedia({ colorScheme: opposite });
       await assertPalette(page, opposite);
-      await page.locator("#color-theme").click();
+      await page.evaluate(() => colorTheme.setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
       await assertPalette(page, scheme);
       await page.reload();
       await assertPalette(page, scheme);
@@ -110,17 +107,14 @@ try {
       // The preference synchronizes across tabs, including returning to System.
       const second = await context.newPage();
       await second.goto(server.url);
-      await second.locator("#color-theme").click();
+      await second.evaluate(value => colorTheme.setPreference(value), opposite);
       await assertPalette(page, opposite);
       await second.evaluate(() => localStorage.removeItem("jumpybrain.theme"));
       await page.waitForFunction(() => document.documentElement.dataset.themePreference === "system");
       await second.close();
       await assertPalette(page, opposite);
-      await page.locator("#color-theme").focus();
-      assert.equal(await page.locator("#color-theme").evaluate((el) => getComputedStyle(el).outlineStyle), "solid");
       await page.locator("#home-new").focus();
       assert.equal(await page.locator("#home-new").evaluate((el) => getComputedStyle(el).outlineStyle), "solid");
-      assert.ok(await page.locator("#color-theme").evaluate((el) => el.getBoundingClientRect().right <= innerWidth), "theme control fits narrow navigation");
       // Dialog state survives a live system-theme change.
       await page.locator("#home-search").click();
       await page.locator("#note-search").waitFor();
@@ -178,7 +172,7 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(server.url);
   await assertPalette(page, "dark");
-  await page.locator("#color-theme").click();
+  await page.evaluate(() => colorTheme.setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
   await assertPalette(page, "light");
   await context.close();
   assert.deepEqual(errors, []);

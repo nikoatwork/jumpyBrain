@@ -30,6 +30,8 @@ try {
   await page.locator('#new-board').waitFor({ state: 'visible' });
   await page.locator('#sidebar-recent .sidebar-page').first().waitFor();
   await page.evaluate(mountInlineUpdates);
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('jumpybrain-update-state', { detail: { phase: 'current', actions: ['check'] } })));
+  assert.equal(await page.locator('#color-theme').count(), 0);
   await page.evaluate(() => { document.documentElement.dataset.nativeMac = 'true'; });
   await page.locator('#new-board').click();
   await page.getByRole('button',{name:'Rename board',exact:true}).click();
@@ -41,7 +43,7 @@ try {
   await page.locator('#sidebar-recent-more').click();
   await page.waitForFunction(() => document.querySelectorAll('#sidebar-recent li').length > 8);
 
-  const footerControls = '#graph-link, #open-connection, #open-feedback, #color-theme, #desktop-updates';
+  const footerControls = '#graph-link, #open-connection, #open-feedback, #desktop-updates';
   async function checkLayout(width, height, sidebarWidth) {
     await page.setViewportSize({ width, height });
     await page.evaluate(value => document.documentElement.style.setProperty('--sidebar-width', value + 'px'), sidebarWidth);
@@ -62,10 +64,12 @@ try {
     }, footerControls);
     assert.ok(geometry.footerSibling && geometry.attentionContained && geometry.shelfContained, 'lists, shelf and footer have separate layout owners');
     assert.ok(geometry.fits, `${width}/${height}/${sidebarWidth}: no horizontal overflow`);
+    assert.equal(geometry.footer.x, geometry.sidebar.x, 'footer divider reaches the left edge');
+    assert.equal(geometry.footer.right, geometry.sidebar.right - (width > 680 ? 1 : 0), 'footer divider reaches the right edge');
     const size = width <= 680 ? 40 : 32;
     for (const [i, control] of geometry.controls.entries()) {
       assert.equal(control.height, size); assert.equal(control.width, size);
-      assert.ok(Math.abs(control.y - geometry.controls[0].y) < 1, 'all five footer controls occupy ONE horizontal bar');
+      assert.ok(Math.abs(control.y - geometry.controls[0].y) < 1, 'all four footer controls occupy ONE horizontal bar');
       assert.ok(control.x >= geometry.sidebar.x && control.right <= geometry.sidebar.right, 'footer controls stay inside sidebar');
       if (i) assert.equal(control.x - geometry.controls[i - 1].right, 8, 'footer action gaps are uniform');
     }
@@ -127,7 +131,7 @@ try {
     assert.equal(await row.locator('[data-page-pin]').evaluate(el => document.activeElement === el), true, 'Tab reaches the first row action');
     assert.equal(await row.locator('.sidebar-page-actions').evaluate(el => getComputedStyle(el).opacity), '1', 'keyboard focus reveals row actions');
     assert.equal(await row.locator('[data-page-pin]').evaluate(el => getComputedStyle(el).outlineStyle), 'solid', 'keyboard focus is visible');
-    for (const selector of ['#graph-link', '#open-connection', '#open-feedback', '#color-theme']) {
+    for (const selector of ['#graph-link', '#open-connection', '#open-feedback']) {
       await page.mouse.move(700, 50);
       const control = page.locator(selector);
       const style = () => control.evaluate(el => { const s = getComputedStyle(el); return [s.backgroundColor, s.borderStyle === 'none' ? 'none' : s.borderColor]; });
@@ -135,13 +139,12 @@ try {
       assert.deepEqual(await style(), resting, 'icon hover changes glyph color only');
     }
   }
-  // Settings keeps theme/update together when other footer actions are hidden.
+  // Settings keeps updates reachable when other footer actions are hidden.
   await page.locator('#open-connection').click();
   await page.locator('#settings-navigation').waitFor({ state: 'visible' });
   for (const width of [1280, 320]) {
     await page.setViewportSize({ width, height: 850 });
-    const theme = await page.locator('#color-theme').boundingBox(), update = await page.locator('#desktop-updates').boundingBox();
-    assert.equal(theme.y, update.y); assert.equal(update.x - theme.x - theme.width, 8);
+    const update = await page.locator('#desktop-updates').boundingBox();
     assert.ok(update.x + update.width <= width, 'Settings utilities fit');
   }
   const touch = await browser.newPage({ viewport: { width: 390, height: 850 }, hasTouch: true, isMobile: true });
@@ -153,7 +156,7 @@ try {
   assert.equal(await touchRow.locator('.sidebar-page-actions').evaluate(el => getComputedStyle(el).opacity), '1');
   await touch.close();
   assert.deepEqual(errors, []);
-  console.log('Sidebar layout PASS: companion + native update control, sections, five aligned actions, scroll isolation, 12 layouts, 8 palettes/schemes, hover/focus, Settings.');
+  console.log('Sidebar layout PASS: companion + native update control, sections, four aligned actions, scroll isolation, 12 layouts, 8 palettes/schemes, hover/focus, Settings.');
 } finally {
   await browser?.close(); await gateway?.close(); await rm(temp, { recursive: true, force: true });
 }

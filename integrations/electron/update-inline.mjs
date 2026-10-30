@@ -15,6 +15,8 @@ export function mountInlineUpdates() {
   style.nonce = document.querySelector('style[nonce]')?.nonce || '';
   style.textContent = `
     #desktop-updates { position: relative; flex: 0 0 auto; width: var(--control-compact, 32px); height: var(--control-compact, 32px); min-height: var(--control-compact, 32px); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+    #desktop-updates[data-quiet=true] { background: transparent; border-color: transparent; color: var(--ink-faint); box-shadow: none; }
+    #desktop-updates[data-quiet=true]:hover:not(:disabled), #desktop-updates[data-quiet=true]:focus-visible { color: var(--ink); }
     #desktop-updates svg { width: var(--icon-size, 16px); height: var(--icon-size, 16px); }
     #desktop-updates[data-attention=true] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 10%, var(--control-fill)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 24%, transparent); }
     @property --desktop-update-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
@@ -91,9 +93,10 @@ export function mountInlineUpdates() {
     primary.title = label + (detail ? ': ' + detail : '');
     primary.dataset.working = String(working);
     primary.dataset.error = String(failed);
+    primary.dataset.quiet = String(quiet && !failed && !working && selected === 'check');
     primary.dataset.attention = String(!failed && !working && !quiet && ['update', 'app-only', 'restart'].includes(selected) && state.actions.includes(selected));
     stroke.setAttribute('d', working ? 'M20 12a8 8 0 1 1-5.5-7.6' : state.phase === 'ready' || state.canRecover || failed ? refreshIcon
-      : ['current', 'success'].includes(state.phase) ? 'M9 12l2 2 4-4 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0'
+      : ['current', 'success'].includes(state.phase) ? 'M6 12l4 4 8-8'
         : ['update', 'app-only'].includes(selected) ? 'M12 3v12 M7 10l5 5 5-5 M5 16v4h14v-4' : refreshIcon);
   });
 }

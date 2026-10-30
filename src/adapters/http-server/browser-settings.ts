@@ -48,7 +48,7 @@ export const settingsStyles = String.raw`
     #settings-navigation .nav-item { flex: 1; justify-content: center; }
     #settings-navigation .nav-item svg { display: none; }
     #settings-back { align-self: flex-start; margin-top: 0; }
-    body[data-view="settings"] .nav-preferences { position: absolute; right: var(--space-3); top: var(--space-1); padding: 0; border: 0; }
+    body[data-view="settings"] .nav-preferences { position: absolute; right: var(--space-3); top: var(--space-1); margin-inline: 0; padding: 0; border: 0; }
     #companion-settings { padding: var(--space-6) var(--space-4) var(--space-12); }
     .settings-card { padding: var(--space-4); }
   }

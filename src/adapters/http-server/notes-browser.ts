@@ -1,5 +1,4 @@
 import { browserIcons } from "./browser-icons.js";
-import { themeMarkup } from "./browser-theme.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
 import { referencePresentationStyles } from "./editor-reference-presentation.js";
 import { taskCompletionStyles } from "./editor-task-presentation.js";
@@ -42,7 +41,7 @@ ${noteOutlineStyles}
     .nav-brand, .nav-tools { flex-shrink: 0; }
     .nav-tools { display: flex; align-items: center; gap: var(--space-2); }
     .nav-utilities { display: flex; align-items: center; gap: var(--space-2); }
-    .nav-preferences { --control-height: var(--control-compact); display: grid; grid-template-columns: repeat(3, var(--control-compact)) max-content; align-items: center; gap: var(--space-2); margin-top: auto; padding-top: var(--space-3); border-top: 1px solid var(--line); flex-shrink: 0; }
+    .nav-preferences { --control-height: var(--control-compact); display: grid; grid-template-columns: repeat(3, var(--control-compact)) max-content; align-items: center; gap: var(--space-2); margin-top: auto; margin-inline: calc(-1 * var(--space-3)); padding: var(--space-3) var(--space-3) 0; border-top: 1px solid var(--line); flex-shrink: 0; }
     .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     .app-nav .nav-item:not(.sidebar-icon, [aria-current="page"]):hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
@@ -50,7 +49,6 @@ ${noteOutlineStyles}
     .app-nav #open-search { flex: 1; min-width: 0; }
     .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); }
     .app-nav .sidebar-icon { flex-shrink: 0; justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: 0; }
-    .nav-appearance { display: flex; }
     .nav-library { display: flex; flex-direction: column; flex: 1; min-height: 0; margin-inline: calc(-1 * var(--space-3)); overflow: hidden; scrollbar-width: thin; }
     .nav-library > * { flex-shrink: 0; }
     .sidebar-attention-scroll { flex: 1 1 0; min-height: 0; overflow: auto; scrollbar-width: thin; }
@@ -329,7 +327,7 @@ ${referencePresentationStyles}
       .sidebar-empty { margin: var(--space-1); }
       .nav-preferences { --control-compact: var(--control-touch); grid-row: 4; grid-column: 1 / -1; margin-top: 0; padding-top: var(--space-2); }
       .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
-      .app-nav .sidebar-icon, #color-theme { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
+      .app-nav .sidebar-icon { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
       .nav-item svg { width: 16px; height: 16px; }
       #open-search kbd { display: none; }
       .document-status { padding-inline: var(--space-4); flex-wrap: wrap; }
@@ -375,7 +373,7 @@ export const notesMarkup = String.raw`
     <a id="graph-link" class="quiet-button nav-item sidebar-icon" href="/graph" aria-label="Graph" title="Graph">${browserIcons.graph}</a>
     <button id="open-connection" class="quiet-button nav-item sidebar-icon" aria-label="Connect · Connection settings" title="Connection settings" aria-haspopup="dialog">${browserIcons.settings}<span class="connection-dot" aria-hidden="true"></span></button>
     <button id="open-feedback" class="quiet-button nav-item sidebar-icon" aria-label="Feedback" title="Feedback" aria-haspopup="dialog" aria-controls="feedback-dialog">${browserIcons.feedback}</button>
-    <div class="nav-utilities" role="group" aria-label="App utilities"><div class="nav-appearance">${themeMarkup}</div></div>
+    <div class="nav-utilities" role="group" aria-label="App utilities"></div>
   </div>
 </nav>
 <div class="app-workspace">

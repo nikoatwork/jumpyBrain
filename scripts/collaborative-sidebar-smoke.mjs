@@ -88,7 +88,7 @@ try {
   await page.locator(`#sidebar-settled [data-page-link="${id(3)}"]`).waitFor();
   for (const width of [1280, 390, 320]) for (const theme of ['light', 'dark']) {
     await page.setViewportSize({ width, height: 850 });
-    if (await page.locator('html').getAttribute('data-theme') !== theme) await page.locator('#color-theme').click();
+    await page.evaluate(value => colorTheme.setPreference(value), theme);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${width}/${theme} fits`);
     await page.locator('#sidebar-settled-section summary').scrollIntoViewIfNeeded();
     await page.screenshot({ path: path.join(captures, `sidebar-${width}-${theme}.png`) });
