@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Full-width sidebar entries
+
+- Sidebar hover/selection spans the full entry; titles and previews truncate before a separate age column. [Verification](done/2026-10-30_tasks-sidebar-full-width-rows.md).
+
 ## 2026-10-29 — Sidebar layout repair
 
 - Restored section boundaries, a single bottom action bar, and clean hover/focus geometry. [Verification](done/2026-10-29_tasks-sidebar-layout-repair.md).
