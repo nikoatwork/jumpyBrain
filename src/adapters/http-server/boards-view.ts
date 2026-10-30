@@ -18,10 +18,10 @@ ${boardSettingsStyles}
 .board-column {min-height:160px; border-radius:var(--radius-md)}
 .board-column.drag-over {background:var(--surface-hover)}
 .board-column-header {display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--ink-soft);font-size:var(--text-ui)}
-.board-dot {width:8px;height:8px;border-radius:50%;background:var(--ink-faint)}
+.board-dot {width:8px;height:8px;flex:none;border-radius:50%;background:var(--ink-faint)}
 .board-column:nth-child(2) .board-dot {background:var(--accent)}
 .board-column:nth-child(3) .board-dot {background:var(--ink-soft)}
-.board-column-header h2 {font:600 var(--text-ui)/1.5 var(--font-ui);margin:0;flex:1;min-width:0;overflow-wrap:anywhere}
+.board-column-header h2 {font:600 var(--text-ui)/1.5 var(--font-ui);margin:0;flex:0 1 auto;min-width:0;overflow-wrap:anywhere}
 .board-title-button {font:inherit;text-align:left;max-width:100%;overflow-wrap:anywhere}
 .board-rename-input {width:100%;min-width:0;box-sizing:border-box;font:inherit}
 .board-composer {padding:var(--space-2);margin-bottom:var(--space-3);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface)}
@@ -41,7 +41,7 @@ ${boardSettingsStyles}
 .board-card:hover .board-card-actions,.board-card:focus-within .board-card-actions {opacity:1;pointer-events:auto}
 .board-card-up svg {transform:rotate(90deg)}
 @media(hover:none){.board-card-actions{opacity:1;pointer-events:auto}}
-.board-add {flex:none;color:var(--ink-faint)}
+.board-add {flex:none;color:var(--ink-soft);border:1px solid var(--line)}
 #note-board-dialog {width:min(440px,calc(100vw - 32px));padding:24px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);color:var(--ink)}
 #note-board-dialog footer {display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 #note-board-dialog label {display:grid;gap:6px;margin:14px 0}
@@ -88,11 +88,11 @@ const boardsUI = (() => {
       if(!el){
         el=document.createElement('section');el.className='board-column';
         const head=document.createElement('div');head.className='board-column-header';const dot=document.createElement('span');dot.className='board-dot';
-        const heading=document.createElement('h2'),count=document.createElement('span');count.className='board-count';
-        const add=button('+',()=>openComposer(index),'Add note to '+column.name,true);add.classList.add('board-add');
-        head.append(dot,heading,count,add);const cards=document.createElement('div');cards.className='board-cards';el.append(head,cards);columns.append(el);
+        const heading=document.createElement('h2');
+        const add=button('',()=>openComposer(index),'Add note to '+column.name,true);add.innerHTML=${JSON.stringify(browserIcons.plus)};add.classList.add('board-add');
+        head.append(dot,heading,add);const cards=document.createElement('div');cards.className='board-cards';el.append(head,cards);columns.append(el);
       }
-      el.setAttribute('aria-label',column.name);el.querySelector('.board-count').textContent=column.pages.length;
+      el.setAttribute('aria-label',column.name);
       el.querySelector('.board-add').setAttribute('aria-label','Add note to '+column.name);
       renderTitle(el.querySelector('h2'),column.name,index,true);
       const move=(id,before=null)=>{if(before===id)return;return change(rows=>{const b=rows.find(b=>b.id===selected);for(const c of b.columns)c.pages=c.pages.filter(p=>p!==id);const target=b.columns[index].pages;const at=before?target.indexOf(before):-1;target.splice(at<0?target.length:at,0,id);});};

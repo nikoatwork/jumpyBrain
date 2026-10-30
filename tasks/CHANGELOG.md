@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Clearer column add controls
+
+- Removed board column counts and placed an outlined plus beside each title. [Verification](done/2026-10-30_tasks-board-column-add.md).
+
 ## 2026-10-30 — Hidden sidebar scrollbars
 
 - Hid sidebar scrollbar chrome while preserving native scrolling. [Verification](done/2026-10-30_tasks-sidebar-hidden-scrollbars.md).
