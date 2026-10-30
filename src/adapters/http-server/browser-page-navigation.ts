@@ -13,9 +13,10 @@ const prefix = "jumpybrain.pageNavigation.v1:";
 // Sidebar-only presentation; search rows keep resultEditContext's compact contract.
 // The attention packet sends attentionAt for every active note (edit/creation recency fallback),
 // so a due label applies only when it differs from that recency: an explicit snooze now due.
-export function sidebarPageAge(page: { updatedAt?: string; createdAt?: string; attentionAt?: string }, now = new Date()): { label: string; details: string } {
-  const due = metadataDate(page.attentionAt);
-  const recency = page.updatedAt ?? page.createdAt;
+// Compare within the attention snapshot; preview metadata may describe a different revision.
+export function sidebarPageAge(page: { updatedAt?: string; createdAt?: string; attentionAt?: string }, now = new Date(), attention = page): { label: string; details: string } {
+  const due = metadataDate(attention.attentionAt);
+  const recency = attention.updatedAt ?? attention.createdAt;
   if (due && due !== recency) {
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const exact = (value: string) => value.length === 10 ? value : new Date(value).toLocaleString(undefined, { timeZoneName: "short" });
@@ -161,7 +162,11 @@ export function installPageNavigation(options: {
       const list = element("sidebar-" + section);
       const limit = section === "recent" ? recentLimit : section === "settled" ? settledLimit : 50;
       const pages = snapshot[section].slice(0, section === "settled" && !settledShelf.open ? 0 : limit)
-        .map(page => ({ ...page, ...allNotes.find(note => note.id === page.id), ...previews.get(page.id) }));
+        .map(page => {
+          const source = { ...page, ...allNotes.find(note => note.id === page.id) };
+          const merged = { ...source, ...previews.get(page.id) };
+          return { ...merged, ageLabel: sidebarPageAge(merged, new Date(), source) };
+        });
       for (const page of pages) if (options.fetchPreview && previewReads < 4 && !paused && !document.hidden && (!options.attentionScope || options.attentionScope()) && (options.enabled?.() ?? true)
         && !previews.get(page.id)?.pending && Date.now() - (previews.get(page.id)?.fetchedAt ?? 0) >= 10_000) {
         const pending: Preview = { ...previews.get(page.id), fetchedAt: Date.now(), pending: true }; previews.set(page.id, pending); previewReads++;
@@ -186,7 +191,7 @@ export function installPageNavigation(options: {
           const preview = document.createElement("span"); preview.className = "sidebar-page-preview";
           preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
           const age = document.createElement("span"); age.className = "sidebar-page-age";
-          const ageLabel = sidebarPageAge(page);
+          const { ageLabel } = page;
           age.textContent = ageLabel.label; age.title = ageLabel.details;
           if (ageLabel.details) age.setAttribute("aria-label", ageLabel.details);
           const editor = document.createElement("span"); editor.className = "sidebar-page-editor"; editor.setAttribute("role", "img");
@@ -242,7 +247,7 @@ export function installPageNavigation(options: {
           const preview = link.querySelector(".sidebar-page-preview");
           if (preview) preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
           const age = link.querySelector<HTMLElement>(".sidebar-page-age");
-          const ageLabel = sidebarPageAge(page);
+          const { ageLabel } = page;
           if (age) { age.textContent = ageLabel.label; age.title = ageLabel.details; age.setAttribute("aria-label", ageLabel.details); }
         }
 

@@ -1,5 +1,9 @@
 # Sidebar relative ages
 
+## Later integration review
+
+The original implementation is on `master`. Subsequent task [sidebar copy hierarchy](2026-10-29_tasks-sidebar-copy-hierarchy.md) intentionally shortened labels to `3d` and `due 2h`; preserve that newer design. The [2026-10-30 integration review](2026-10-30_tasks-sidebar-age-integration-review.md) covers the combined implementation and fixes false due labels caused by preview/attention revision differences. The completion summary below records the original 2026-10-29 behavior.
+
 ## Completion summary
 
 Implemented and verified on 2026-10-29. `sidebarPageAge` in `browser-page-navigation.ts` now renders sidebar row ages as explicit relative forms (`3d ago`, `5m ago`; `now`, `Today`, `in 2h` unchanged) and labels explicit attention due overrides `due 2h ago`/`due now`/`due in 10m` with `Due <date>` tooltips. Because the attention packet sends `attentionAt` for every active note (edit/creation recency fallback), the due label applies only when `attentionAt` differs from the note's edit/creation recency — recency-derived rows keep the edit age. Search-result rows keep the shared compact `3d` contract. Verified with `npm run build`, targeted `node --test` suites (28 + 111 passing) and `scripts/sidebar-smoke.mjs` (extended with deterministic due/age fixtures). Archived to `tasks/done/2026-10-29_tasks-sidebar-relative-ages.md`.

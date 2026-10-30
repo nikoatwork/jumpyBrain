@@ -12,7 +12,7 @@
 
 - Navigate Markdown sections with a floating heading rail: hover for a preview, click to jump, or use arrow keys and Enter. The current section is highlighted as you scroll.
 
-- Sidebar notes show a plain-text preview and last-edited age, with actions on hover/focus. The wider sidebar can be dragged to resize and remembers its width.
+- Sidebar notes show a plain-text preview and last-edited age, with actions on hover/focus. Refreshing previews no longer makes ordinary notes appear due. The wider sidebar can be dragged to resize and remembers its width.
 
 - Organize notes on personal Kanban boards in the Mac sidebar. Add existing or new notes, move cards, and settle boards; restore them from Settings → Boards. Board layout is stored locally, separately from the Markdown vault.
 - Add notes to a board and column directly from the note action card, with search and duplicate indicators in the board's Add note flow.

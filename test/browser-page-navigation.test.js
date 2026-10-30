@@ -125,3 +125,25 @@ test("recency-derived attention times keep the edit age, not a due label", () =>
   assert.match(sidebarPageAge({ updatedAt: "2026-10-22", attentionAt: "2026-10-22" }, now).details, /^Last edited /);
   assert.equal(sidebarPageAge({ createdAt: "2026-10-20", attentionAt: "2026-10-20" }, now).label, "", "creation recency still shows no edit age");
 });
+
+test("preview edit times cannot turn attention recency into a due override", () => {
+  const now = new Date(2026, 9, 25, 12);
+  for (const attention of [
+    { updatedAt: "2026-10-22", attentionAt: "2026-10-22" },
+    { createdAt: "2026-10-22", attentionAt: "2026-10-22" },
+  ]) {
+    for (const updatedAt of ["2026-10-23", "2026-10-21"]) {
+      const age = sidebarPageAge({ ...attention, updatedAt }, now, attention);
+      assert.equal(age.label, updatedAt === "2026-10-23" ? "2d" : "4d");
+      assert.equal(age.details, "Last edited " + updatedAt);
+    }
+  }
+});
+
+test("a true due override survives a preview edit time equal to its due time", () => {
+  const now = new Date(2026, 9, 25, 12);
+  const attention = { updatedAt: "2026-10-20", attentionAt: "2026-10-22" };
+  assert.deepEqual(sidebarPageAge({ ...attention, updatedAt: "2026-10-22" }, now, attention), {
+    label: "due 3d", details: "Due 2026-10-22",
+  });
+});

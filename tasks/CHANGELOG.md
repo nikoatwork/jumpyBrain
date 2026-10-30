@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Sidebar age integration review
+
+- Verified the existing sidebar improvements on master and fixed false due labels during preview refresh, preserving compact ages and current layout. [Verification](done/2026-10-30_tasks-sidebar-age-integration-review.md).
+
 ## 2026-10-30 — Full-width sidebar entries
 
 - Sidebar hover/selection spans the full entry; titles and previews truncate before a separate age column. [Verification](done/2026-10-30_tasks-sidebar-full-width-rows.md).
