@@ -164,7 +164,8 @@ try {
   assert.ok(cookies.some((cookie) => cookie.httpOnly && cookie.sameSite === 'strict'));
   checks.push('existing UI and cookie handshake');
   await js('document.getElementById("new-board").click()');
-  await until('document.getElementById("board-title").textContent === "Untitled board"');
+  await until('document.querySelectorAll(".board-column").length === 3');
+  assert.match(await js('document.getElementById("board-title").textContent'), /^[A-Z][a-z]+ (Focus|Task|Progress|Goal|Sprint|Plan) [A-Z][a-z]+$/);
   await js(`document.querySelector('[aria-label="Rename board"]').click(); const renameInput=document.querySelector('.board-rename-input');renameInput.value='Desktop board';renameInput.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
   await until('document.getElementById("board-title").textContent === "Desktop board"');
   assert.equal(await js('document.querySelectorAll(".board-column").length'), 3);
