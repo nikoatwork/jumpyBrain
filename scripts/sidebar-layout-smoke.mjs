@@ -81,6 +81,23 @@ try {
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => { colorTheme.setPreference(theme); colorTheme.setPalette('ocean'); }, theme);
       await checkLayout(width, height, sidebarWidth);
+      await page.evaluate(() => document.activeElement.blur()); await page.mouse.move(width - 20, 50);
+      const pinned = page.locator('#sidebar-pinned .sidebar-page');
+      if (width > 680) {
+        const sidebar = await page.locator('#app-sidebar').boundingBox(), entry = await pinned.boundingBox();
+        assert.equal(entry.x, sidebar.x, 'desktop row surface reaches the left sidebar edge');
+        assert.equal(entry.x + entry.width, sidebar.x + sidebar.width - 1, 'desktop row surface reaches the sidebar divider');
+        const title = await pinned.locator('.sidebar-page-title').boundingBox();
+        const preview = await pinned.locator('.sidebar-page-preview').boundingBox();
+        const age = await pinned.locator('.sidebar-page-age').boundingBox();
+        assert.equal(preview.x, title.x); assert.equal(preview.width, title.width, 'title and preview share one truncated text column');
+        assert.ok(title.x + title.width + 12 <= age.x, 'age has a separate right-hand lane with at least 12px clearance');
+        assert.ok(sidebar.x + sidebar.width - age.x - age.width >= 24, 'age retains its right inset');
+        await page.screenshot({ path: path.join(captures, `sidebar-rest-${sidebarWidth}-${theme}.png`) });
+        await page.mouse.move(entry.x + 2, entry.y + entry.height / 2);
+        assert.equal(await pinned.evaluate(el => el.matches(':hover')), true, 'hover includes the full-width outer edge');
+        assert.notEqual(await pinned.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)', 'whole entry paints on edge hover');
+      }
       await page.locator('#sidebar-pinned .sidebar-page-link').hover({ position: { x: 8, y: 8 } });
       await page.screenshot({ path: path.join(captures, `sidebar-${width}-${height}-${sidebarWidth}-${theme}.png`) });
     }

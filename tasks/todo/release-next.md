@@ -1,6 +1,6 @@
 # Changes
 
-- Fixed mixed sidebar sections and stacked bottom controls. Graph, Settings, Feedback, theme and updates stay on one bar; row hover actions leave titles/previews readable.
+- Fixed mixed sidebar sections and stacked bottom controls. Graph, Settings, Feedback, theme and updates stay on one bar; full-width row highlighting and earlier title/preview truncation keep ages clearly separated.
 
 - Agents can send feedback directly with `jumpybrain feedback`, including stdin, a dry-run preview and JSON delivery receipts. Agent guidance explains reporting bugs; release preparation includes a live feedback review.
 
