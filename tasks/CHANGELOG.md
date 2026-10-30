@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Compact board cards
+
+- Board cards show three-line content previews and compact right-side hover icons, without a redundant status dropdown. [Verification](done/2026-10-30_tasks-board-card-previews.md).
+
 ## 2026-10-30 — Quieter hover explanations
 
 - Control labels wait briefly on hover and cancel during quick pointer movement; keyboard focus help stays immediate. [Verification](done/2026-10-30_tasks-hover-label-delay.md).

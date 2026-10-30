@@ -1,7 +1,9 @@
+import { browserIcons } from "./browser-icons.js";
+
 export const boardsStyles = String.raw`
 #board-title button,.board-composer button,#board-navigation > button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
-.board-card > button {color:var(--ink);font-weight:var(--weight-regular);padding:var(--space-2) var(--space-3);min-height:var(--control-height)}
-.board-card-actions button,.board-card-actions select {min-height:var(--control-compact);padding:var(--space-1) var(--space-2)}
+.board-card > button {color:var(--ink);font-weight:var(--weight-regular);padding:0;min-height:var(--control-height);align-self:start}
+.board-card-actions .note-icon {width:var(--control-compact);height:var(--control-compact);min-height:var(--control-compact);padding:var(--space-1);flex:none}
 #sidebar-boards .sidebar-page > button {background:transparent}
 #sidebar-boards .sidebar-page-link {display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
 #sidebar-boards .sidebar-page > button:last-child {opacity:0}
@@ -28,12 +30,15 @@ export const boardsStyles = String.raw`
 .board-composer [aria-selected=true] {background:var(--hover-fill);outline:1px solid var(--accent);outline-offset:-1px}
 .board-composer-status {font-size:var(--text-caption);color:var(--ink-soft);margin:var(--space-2) 0 0}
 .board-composer-close {display:block;margin-left:auto}
-.board-card {padding:12px;margin-bottom:8px;border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);box-shadow:0 1px 2px #00000008}
-.board-card > button {text-align:left;width:100%;line-height:1.5;overflow-wrap:anywhere}
-.board-card-actions {display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;opacity:0}
-.board-card:hover .board-card-actions,.board-card:focus-within .board-card-actions {opacity:1}
-.board-card-actions select {max-width:140px;font-size:var(--text-caption)}
-.board-card-actions button {font-size:var(--text-caption)}
+.board-card {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-2);padding:var(--space-3);margin-bottom:var(--space-2);border:1px solid var(--line);border-radius:var(--radius-md);background:var(--surface);box-shadow:0 1px 2px #00000008}
+.board-card > button {text-align:left;width:100%;min-width:0;line-height:var(--leading-ui);overflow-wrap:anywhere}
+.board-card-title {display:block}
+.board-card-preview {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;margin-top:var(--space-1);color:var(--ink-faint);font-size:var(--text-caption);font-weight:var(--weight-regular);line-height:var(--leading-ui)}
+.board-card-preview[hidden] {display:none}
+.board-card-actions {display:flex;flex-direction:column;gap:var(--space-1);align-self:start;opacity:0;pointer-events:none}
+.board-card:hover .board-card-actions,.board-card:focus-within .board-card-actions {opacity:1;pointer-events:auto}
+.board-card-up svg {transform:rotate(90deg)}
+@media(hover:none){.board-card-actions{opacity:1;pointer-events:auto}}
 .board-add {flex:none;color:var(--ink-faint)}
 .board-row {display:flex;align-items:center;gap:8px;min-height:44px;border-bottom:1px solid var(--line)}
 .board-row > :first-child {flex:1;text-align:left;overflow-wrap:anywhere}
@@ -42,7 +47,7 @@ export const boardsStyles = String.raw`
 #note-board-dialog label {display:grid;gap:6px;margin:14px 0}
 #note-board-dialog select {width:100%;max-width:100%}
 #board-notice {color:var(--ink-soft);font-size:var(--text-caption)}
-@media(max-width:680px){#boards-view{--control-compact:var(--control-touch);--control-height:var(--control-touch)}.board-columns{grid-template-columns:1fr}.board-card-actions{opacity:1}}
+@media(max-width:680px){#boards-view{--control-compact:var(--control-touch);--control-height:var(--control-touch)}.board-columns{grid-template-columns:1fr}.board-card-actions{opacity:1;pointer-events:auto}}
 `;
 export const boardsMarkup = String.raw`
 <section id="boards-view" hidden aria-label="Board"><header class="board-header"><h1 id="board-title"></h1></header><p id="board-notice" role="status"></p><div id="board-columns" class="board-columns"></div></section>
@@ -57,7 +62,7 @@ export const boardsScript = String.raw`
 const boardsUI = (() => {
   let formBusy=false;
   let packet = {revision:0,boards:[]}, bound = '', busy = false, sequence = 0, selected = null, composer = null, rename = null, creation = null;
-  const names = new Map();
+  const names = new Map(), previews = new Map();
   const scope = () => companionRegistered && !companionSessionFailed ? String(companionState.generation)+':'+companionState.activeId : '';
   const button = (text, run, label, icon = false) => { const b=document.createElement('button');b.type='button';b.className=icon?'quiet-button note-icon':'quiet-button';b.textContent=text;if(label)b.setAttribute('aria-label',label);b.onclick=run;return b; };
   const notice = text => { $('board-notice').textContent=text; toast.show('boards',text,{action:{label:'Retry',run:load}}); };
@@ -94,9 +99,18 @@ const boardsUI = (() => {
       const cards=el.querySelector('.board-cards');cards.replaceChildren();
       for(const id of column.pages){
         const card=document.createElement('div');card.className='board-card';card.dataset.boardPage=id;card.draggable=!busy&&!formBusy;card.ondragstart=e=>e.dataTransfer.setData('text/plain',id);
-        card.append(button(names.get(id)||'Loading page…',()=>navigation.navigate('/?note='+id)));
-        const actions=document.createElement('div');actions.className='board-card-actions';const select=document.createElement('select');select.className='dropdown';select.setAttribute('aria-label','Move '+(names.get(id)||'page'));board.columns.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.append(o)});select.value=index;select.onchange=()=>change(rows=>{const b=rows.find(b=>b.id===selected);for(const c of b.columns)c.pages=c.pages.filter(p=>p!==id);b.columns[Number(select.value)].pages.push(id);});
-        actions.append(select,button('↑',()=>move(id,column.pages[Math.max(0,column.pages.indexOf(id)-1)]),'Move up',true),button('×',()=>change(rows=>{rows.find(b=>b.id===selected).columns[index].pages=column.pages.filter(p=>p!==id);}),'Remove from board',true));card.append(actions);cards.append(card);
+        const open=button('',()=>navigation.navigate('/?note='+id),names.get(id)||'Loading page…');
+        const title=document.createElement('span');title.className='board-card-title';title.textContent=names.get(id)||'Loading page…';
+        const preview=document.createElement('span');preview.className='board-card-preview';preview.textContent=previews.get(id)||'';preview.hidden=!preview.textContent;preview.id='board-preview-'+id;
+        if(preview.textContent)open.setAttribute('aria-describedby',preview.id);
+        open.setAttribute('aria-keyshortcuts','Alt+ArrowLeft Alt+ArrowRight');open.title='Open note · Alt+←/→ moves between columns';
+        open.onkeydown=e=>{if(!e.altKey||!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const target=index+(e.key==='ArrowRight'?1:-1);if(target<0||target>=board.columns.length)return;
+          change(rows=>{const b=rows.find(b=>b.id===selected);for(const c of b.columns)c.pages=c.pages.filter(p=>p!==id);b.columns[target].pages.push(id);});};
+        open.append(title,preview);card.append(open);
+        const actions=document.createElement('div');actions.className='board-card-actions';
+        const up=button('',()=>move(id,column.pages[Math.max(0,column.pages.indexOf(id)-1)]),'Move up',true);up.innerHTML=${JSON.stringify(browserIcons.back)};up.classList.add('board-card-up');
+        const remove=button('',()=>change(rows=>{rows.find(b=>b.id===selected).columns[index].pages=column.pages.filter(p=>p!==id);}),'Remove from board',true);remove.innerHTML=${JSON.stringify(browserIcons.close)};
+        actions.append(up,remove);card.append(actions);cards.append(card);
       }
     });
     for(const control of document.querySelectorAll('#boards-view button,#boards-view select,#sidebar-boards button,#settings-boards-list button'))control.disabled=busy||formBusy||companionFrozen||!scope();
@@ -126,11 +140,11 @@ const boardsUI = (() => {
     };
     input.onblur=()=>finish(false);input.onkeydown=e=>{if(e.isComposing)return;if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();finish(e.key==='Escape');}};
   }
-  async function load(){const s=scope();if(!s)return;if(bound!==s){bound=s;packet={revision:0,boards:[]};names.clear();dismissComposer(false);rename=null;creation=null;render();}const token=++sequence;
+  async function load(){const s=scope();if(!s)return;if(bound!==s){bound=s;packet={revision:0,boards:[]};names.clear();previews.clear();dismissComposer(false);rename=null;creation=null;render();}const token=++sequence;
     try{const p=await graphJson('/companion/collections',{headers:{'X-Collection-Brain':companionState.activeId}});if(s!==scope()||token!==sequence)return;packet=p;render();await titles(s,token);return true;}
     catch(e){if(s===scope()&&token===sequence)notice('Could not load boards. Try again.');}
   }
-  async function titles(s,token){const ids=[...new Set(packet.boards.filter(b=>b.id===selected&&!b.archived).flatMap(b=>b.columns.flatMap(c=>c.pages)))];let cursor=0;await Promise.all(Array.from({length:Math.min(4,ids.length)},async()=>{while(cursor<ids.length){const id=ids[cursor++];try{const page=await graphJson(memoryDocumentPath(id));if(s!==scope()||token!==sequence)return;names.set(id,page.title||'Untitled');}catch(e){if(s!==scope()||token!==sequence)return;names.set(id,e.status===404?'Page missing':'Page unavailable');}}}));if(s===scope()&&token===sequence)render();}
+  async function titles(s,token,ids=[...new Set(packet.boards.filter(b=>b.id===selected&&!b.archived).flatMap(b=>b.columns.flatMap(c=>c.pages)))]){let cursor=0;await Promise.all(Array.from({length:Math.min(4,ids.length)},async()=>{while(cursor<ids.length){const id=ids[cursor++];try{const page=await graphJson(memoryDocumentPath(id));if(s!==scope()||token!==sequence)return;names.set(id,page.title||'Untitled');previews.set(id,JumpyBrainBrowser.readablePreview(page.content||'',page.title||''));}catch(e){if(s!==scope()||token!==sequence)return;names.set(id,e.status===404?'Page missing':'Page unavailable');previews.delete(id);}}}));if(s===scope()&&token===sequence)render();}
   async function change(update){if(busy||(!formBusy&&companionFrozen)||!scope()||bound!==scope())return false;const s=scope();const rows=structuredClone(packet.boards);update(rows);busy=true;++sequence;render();try{const p=await graphJson('/companion/collections',{method:'POST',headers:{'Content-Type':'application/json','X-Collection-Brain':companionState.activeId},body:JSON.stringify({revision:packet.revision,boards:rows})});if(s!==scope())return false;packet=p;$('board-notice').textContent='';return true;}catch(e){if(s===scope()){notice(e.status===409?'Boards changed elsewhere. Reloaded; try again.':'Could not save. Reload and try again.');await load();}return false;}finally{busy=false;if(s===scope())render();}}
   function dismissComposer(restore=true) {
     const current=composer;if(!current)return;current.search.cancel();composer=null;current.el.remove();
@@ -211,11 +225,13 @@ const boardsUI = (() => {
     }catch{if(composer===current)current.message='Could not confirm creation. Retry uses the same note request.';}
     finally{formBusy=false;if(current.scope===scope())render();}
   }
-  function addToBoard(boardId,index,id) {
+  async function addToBoard(boardId,index,id) {
     const board=packet.boards.find(b=>b.id===boardId&&!b.archived);
     if(!board||!board.columns[index])return Promise.resolve(false);
     if(board.columns.some(c=>c.pages.includes(id)))return Promise.resolve(true);
-    return change(rows=>{const b=rows.find(b=>b.id===boardId);if(!b.columns.some(c=>c.pages.includes(id)))b.columns[index].pages.push(id);});
+    const added=await change(rows=>{const b=rows.find(b=>b.id===boardId);if(!b.columns.some(c=>c.pages.includes(id)))b.columns[index].pages.push(id);});
+    if(added&&selected===boardId)void titles(scope(),sequence,[id]);
+    return added;
   }
   let noteDestination=null;
   const destinationValid=()=>noteDestination && noteDestination.scope===scope() && state.view==='note'
