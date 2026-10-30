@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Settled disclosure spacing
+
+- Gave Settled a padded row with the count and chevron aligned right. [Verification](done/2026-10-30_tasks-settled-sidebar-spacing.md).
+
 ## 2026-10-30 — Faster board creation and entry
 
 - Boards start with one click and offer inline renaming, keyboard search/create and duplicate-safe retries within each column. [Verification](done/2026-10-30_tasks-board-creation-and-inline-notes-followup.md).

@@ -58,8 +58,13 @@ ${noteOutlineStyles}
     .sidebar-section-heading, .sidebar-settled summary { margin: var(--space-2) var(--space-6); color: var(--ink-soft); font: var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); }
     #board-navigation > button { margin-inline: var(--space-3); }
     .sidebar-settled { margin-top: auto; max-height: 40%; overflow: auto; scrollbar-width: thin; padding-top: var(--space-1); }
-    .sidebar-settled summary { cursor: pointer; margin-block: 0; padding-block: var(--space-2); border-top: 1px solid var(--line); }
-    #sidebar-settled-count { float: right; }
+    .sidebar-settled summary { display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; margin: 0; min-height: var(--control-touch); padding: var(--space-3) var(--space-6); }
+    .sidebar-settled summary::-webkit-details-marker { display: none; }
+    .sidebar-settled summary::after { content: ""; flex: 0 0 var(--space-1); width: var(--space-1); height: var(--space-1); border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
+    .sidebar-settled[open] summary::after { transform: rotate(45deg); }
+    .sidebar-settled summary:hover { background: var(--hover-fill); color: var(--ink); }
+    .sidebar-settled summary:focus-visible { outline-offset: -2px; }
+    #sidebar-settled-count { margin-left: auto; font-variant-numeric: tabular-nums; }
     .sidebar-list-more { margin: var(--space-1) var(--space-6); font-size: var(--text-caption); }
     .nav-library ul { list-style: none; margin: 0; padding: 0; }
     .nav-library ul:not(:empty) + ul, .sidebar-page + .sidebar-page { margin-top: var(--space-1); }
@@ -311,7 +316,8 @@ ${referencePresentationStyles}
       .workspace-history { --control-compact: var(--control-touch); }
       .nav-tools { grid-row: 2; grid-column: 1 / -1; flex-direction: row; align-items: center; gap: var(--space-1); }
       .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 320px; margin-inline: 0; }
-      .sidebar-section-heading, .sidebar-settled summary { margin-inline: var(--space-3); }
+      .sidebar-section-heading { margin-inline: var(--space-3); }
+      .sidebar-settled summary { padding-inline: var(--space-3); }
       #board-navigation > button { margin-inline: 0; }
       .sidebar-list-more { margin-inline: var(--space-3); }
       .sidebar-attention-scroll { flex-basis: auto; min-height: 160px; }
