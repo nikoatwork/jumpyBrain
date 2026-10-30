@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Quieter hover explanations
+
+- Control labels wait briefly on hover and cancel during quick pointer movement; keyboard focus help stays immediate. [Verification](done/2026-10-30_tasks-hover-label-delay.md).
+
 ## 2026-10-30 — Settled disclosure spacing
 
 - Gave Settled a padded row with the count and chevron aligned right. [Verification](done/2026-10-30_tasks-settled-sidebar-spacing.md).

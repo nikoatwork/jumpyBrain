@@ -6,24 +6,35 @@ export function installControlLabels(doc: Document) {
   if (typeof label.showPopover !== "function") return;
   label.setAttribute("popover", "manual"); doc.body.append(label);
   let active: HTMLElement | null = null, title = "", described = "", accessible = "";
+  let hoverTimer: number | undefined;
+  function cancelHover() {
+    doc.defaultView!.clearTimeout(hoverTimer); hoverTimer = undefined;
+  }
   function hide() {
+    cancelHover();
     if (!active) return;
     if (title && !active.hasAttribute("title")) active.title = title;
     if (described) active.setAttribute("aria-describedby", described); else active.removeAttribute("aria-describedby");
     active = null; label.hidePopover();
   }
-  function show(target: EventTarget | null) {
+  function reveal() {
+    cancelHover();
+    if (!active?.isConnected) { hide(); return; }
+    active.setAttribute("aria-describedby", [described, label.id].filter(Boolean).join(" "));
+    label.showPopover(); position();
+  }
+  function show(target: EventTarget | null, immediate = false) {
     const control = target instanceof Element ? target.closest<HTMLElement>("button, a, select, [role=button]") : null;
-    if (control === active) return;
+    if (control === active) { if (active && immediate) reveal(); return; }
     hide();
     if (!control || (control.getAttribute("aria-describedby") || "").split(/\s+/).some(id => doc.getElementById(id)?.getAttribute("role") === "tooltip")) return;
     const text = control.title || (control.querySelector("svg") ? control.getAttribute("aria-label") : "");
     if (!text) return;
     active = control; accessible = control.getAttribute("aria-label") || ""; title = control.title; described = control.getAttribute("aria-describedby") || "";
     control.removeAttribute("title");
-    control.setAttribute("aria-describedby", [described, label.id].filter(Boolean).join(" "));
-    label.textContent = text; label.showPopover();
-    position();
+    label.textContent = text;
+    if (immediate) reveal();
+    else hoverTimer = doc.defaultView!.setTimeout(reveal, 350);
   }
   function position() {
     if (!active) return;
@@ -40,12 +51,15 @@ export function installControlLabels(doc: Document) {
   }).observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["title", "aria-label"] });
   doc.addEventListener("pointerover", event => show(event.target));
   doc.addEventListener("pointerout", event => {
-    if (active && active !== doc.activeElement && !active.contains(event.relatedTarget as Node | null)) hide();
+    if (active && (hoverTimer !== undefined || active !== doc.activeElement) && !active.contains(event.relatedTarget as Node | null)) hide();
   });
-  doc.addEventListener("focusin", event => show(event.target));
+  doc.addEventListener("focusin", event => show(event.target, true));
   doc.addEventListener("focusout", hide);
+  doc.addEventListener("pointerdown", hide);
   doc.addEventListener("click", hide);
   doc.addEventListener("keydown", event => { if (event.key === "Escape") hide(); });
-  doc.addEventListener("scroll", () => { if (active === doc.activeElement) position(); else hide(); }, true);
+  doc.addEventListener("scroll", () => { if (hoverTimer === undefined && active === doc.activeElement) position(); else hide(); }, true);
   doc.defaultView!.addEventListener("resize", hide);
+  doc.defaultView!.addEventListener("blur", hide);
+  doc.defaultView!.addEventListener("pagehide", hide);
 }

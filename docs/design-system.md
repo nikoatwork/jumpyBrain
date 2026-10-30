@@ -61,7 +61,7 @@ Use nonshrinking square targets for icon actions, with centered block SVGs that 
 
 Reuse `--surface`, `--control-fill`, `--surface-hover`, `--ink`, `--ink-soft`, `--ink-faint`, `--line`, `--line-strong`, `--accent` and error tokens. Every built-in light/dark pair retains AA text contrast on surfaces, controls and hover rows, plus visible focus contrast. Keep accessible labels, visible keyboard focus, active-page state, disabled state and reduced-motion handling. A theme change must not recreate the editor or lose a draft.
 
-Icon action labels reuse each control’s `title` (or SVG control’s accessible name) through `browser-control-labels.ts`: a single themed top-layer tooltip appears on hover and keyboard focus, clamps to viewport edges and avoids dialog/scroll clipping. Controls with dedicated tooltip descriptions retain that help without a second generic label. Disabled buttons keep hover explanations and native disabled/tab behavior. Formatting controls name Text/H1/H2/H3/B/I explicitly. Keep accessible names on the controls themselves.
+Icon action labels reuse each control’s `title` (or SVG control’s accessible name) through `browser-control-labels.ts`: a single themed top-layer tooltip appears after a 350 ms pointer dwell and immediately on keyboard focus, clamps to viewport edges and avoids dialog/scroll clipping. Quick pointer passes and presses cancel pending help; moving between controls starts a fresh delay. Controls with dedicated tooltip descriptions retain that help without a second generic label. Disabled buttons keep hover explanations and native disabled/tab behavior. Formatting controls name Text/H1/H2/H3/B/I explicitly. Keep accessible names on the controls themselves.
 
 ## Verification
 
