@@ -228,13 +228,14 @@ function renderCompanionConnection() {
 }
 function companionLock(value) {
   const enteringFrozen = value && !companionFrozen;
+  const leavingFrozen = !value && companionFrozen;
   companionFrozen = value;
   navigation.sync();
   syncCompanionExtensions();
   if (!value && state.editor?.state.navigationPending && !navigation.isBusy() && !documentActions.isBusy()) state.editor.setNavigationPending(false);
   // Healthy polls still sync permissions, but must not dismiss live interactions.
   if (enteringFrozen) {
-    $("board-dialog")?.close();
+    if (typeof boardsUI !== "undefined") boardsUI.fence();
     $("note-board-dialog")?.close();
     feedback.close(false);
     documentActions.close();
@@ -242,6 +243,7 @@ function companionLock(value) {
     if (searchDialog.open) closeSearch(false);
     if (dreamDialog.open) closeDreamHandoff(false);
   }
+  if (leavingFrozen && typeof boardsUI !== "undefined") boardsUI.refresh();
   const preparing = companionState?.phase === "preparing" && !companionSessionFailed;
   document.querySelector("main").inert = preparing;
   document.querySelector(".app-nav").inert = preparing;

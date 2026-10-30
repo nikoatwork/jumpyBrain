@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Faster board creation and entry
+
+- Boards start with one click and offer inline renaming, keyboard search/create and duplicate-safe retries within each column. [Verification](done/2026-10-30_tasks-board-creation-and-inline-notes-followup.md).
+
 ## 2026-10-30 — Sidebar age integration review
 
 - Verified the existing sidebar improvements on master and fixed false due labels during preview refresh, preserving compact ages and current layout. [Verification](done/2026-10-30_tasks-sidebar-age-integration-review.md).

@@ -502,7 +502,10 @@ test("all browser views share Ember surfaces and semantic controls", () => {
   }
   for (const selector of [".button-primary", ".quiet-button", ".icon-button", "#home-new"]) {
     const rule = css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
-    assert.match(rule, /background: var\(--control-fill\)/, selector);
+    if (selector === ".quiet-button") {
+      assert.match(rule, /--quiet-fill: var\(--control-fill\)/);
+      assert.match(rule, /background: var\(--quiet-fill\)/);
+    } else assert.match(rule, /background: var\(--control-fill\)/, selector);
   }
   const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]));
   defined.add("--node-fill"); // Per-node inline override with a CSS fallback.
