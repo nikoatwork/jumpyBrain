@@ -116,6 +116,10 @@ export function nativeCredentials(input = process.stdin, output = process.stdout
 }
 
 function allowedMemoryRoute(method, pathname) {
+  if (method === 'GET' && /^\/memories\/all\/boards(?:\/[0-9a-f-]+(?:\/status)?)?$/.test(pathname)) return { write: false };
+  if (method === 'POST' && pathname === '/memories/all/boards') return { write: true };
+  if (['PUT', 'DELETE'].includes(method) && /^\/memories\/all\/boards\/[0-9a-f-]+$/.test(pathname)) return { write: true };
+
   if (method === 'GET' && /^\/memories\/all\/(status|recent|attention|overview|tree|graph\.json|dream\/window)$/.test(pathname)) return { write: false };
   if (method === 'POST' && /^\/memories\/all\/(search|recall|recall\/compact|expand|resolve-title|dream\/sources\/check)$/.test(pathname)) return { write: false };
   if (method === 'GET' && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: false };
@@ -129,8 +133,6 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   // /var is a legitimate macOS alias; the persistence seam itself rejects symlinks.
   directory = await realpath(directory);
   const store = await ConnectionStore.open({ directory, initialRoot, credentials });
-  const { createCollectionStore } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/collections/store.js')).href);
-  const collections = createCollectionStore(directory);
   const coordinator = new SwitchCoordinator({ timeoutMs: switchTimeoutMs });
   const { graphPageHtml } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/graph-page.js')).href);
   const { brainFaviconSvg } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/favicon.js')).href);
@@ -253,7 +255,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const state = () => {
     const snapshot = store.snapshot(); const profile = active();
     return { ...snapshot, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), extensions: extensions.signal(), health, ...(hostInstance ? { hostInstance } : {}),
-      target: profile?.kind === 'remote' ? profile.url : null, boards: { cliVersion: 1 } };
+      target: profile?.kind === 'remote' ? profile.url : null };
   };
   const change = async (operation) => {
     if (mutation || coordinator.pending || coordinator.closing || stopping) failure('switch_busy', 'Another connection change is in progress.', 409);
@@ -313,22 +315,6 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       if (url.pathname === '/feedback') {
         const finish = coordinator.enter(auth.native ? coordinator.generation : Number(request.headers['x-companion-generation']), request.headers['x-companion-tab'], auth.native);
         try { await feedback(request, response); } finally { finish(); }
-        return;
-      }
-      if (url.pathname === '/companion/collections') {
-        const finish = coordinator.enter(auth.native && request.headers['x-companion-generation'] === undefined ? coordinator.generation : Number(request.headers['x-companion-generation']), request.headers['x-companion-tab'], auth.native);
-        try {
-          const profile = active();
-          if (!profile) failure('not_found', 'Select a brain first.', 404);
-          if (request.headers['x-collection-brain'] && request.headers['x-collection-brain'] !== profile.id) failure('stale_generation', 'The selected brain changed.', 409);
-          const scope = JSON.stringify([profile.id, profile.kind, profile.root || profile.url]);
-          if (request.method === 'GET') json(response, 200, await collections.get(scope));
-          else if (request.method === 'POST') {
-            const body = await jsonBody(request);
-            try { json(response, 200, await collections.put(scope, body.revision, body.boards)); }
-            catch (error) { failure('collection_save_failed', error.status === 409 ? error.message : 'Could not save boards. Reload and try again.', error.status === 409 ? 409 : 400); }
-          } else failure('method_not_allowed', 'Use GET or POST.', 405);
-        } finally { finish(); }
         return;
       }
       if (url.pathname === '/companion/diagnostics' && request.method === 'GET') {

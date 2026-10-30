@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { parseFrontmatter } from '../../core/frontmatter.js';
-import { validateBoards, type Board } from './index.js';
+import { validateBoards, type Board } from '../../core/boards/model.js';
 
-export type BoardPacket = { revision: number; boards: Board[] };
+export type BoardPacket = { boards: Board[] };
 export type BoardChange = {
   action: 'create' | 'update' | 'delete' | 'add' | 'remove';
   selector?: string; name?: string; columns?: string[]; archived?: boolean;
-  page?: string; column?: number; definition?: unknown; expectedRevision?: number;
+  page?: string; column?: number; definition?: unknown;
 };
 
 export function selectBoard(boards: Board[], selector: string): Board {
@@ -18,11 +18,10 @@ export function selectBoard(boards: Board[], selector: string): Board {
 }
 
 export function changeBoard(packet: BoardPacket, change: BoardChange): { boards: Board[]; board: Board } {
-  if (change.expectedRevision !== undefined && change.expectedRevision !== packet.revision) throw new Error('Boards changed. Read the board again and use its current revision.');
   const boards = validateBoards(packet.boards);
   let board: Board;
   if (change.action === 'create') {
-    board = { id: randomUUID(), name: change.name ?? '', archived: false, columns: (change.columns ?? ['To do', 'Doing', 'Done']).map(name => ({ name, pages: [] })) };
+    board = { schemaVersion: 1, id: randomUUID(), name: change.name ?? '', archived: false, columns: (change.columns ?? ['To do', 'Doing', 'Done']).map(name => ({ name, pages: [] })) };
     boards.push(board);
   } else board = selectBoard(boards, change.selector!);
   if (change.definition !== undefined) {
@@ -83,5 +82,5 @@ export async function boardStatus(board: Board, read: (id: string) => Promise<Do
   return { id: board.id, name: board.name, archived: board.archived, observedAt: new Date().toISOString(), columns,
     totalCards: board.columns.reduce((n, column) => n + column.pages.length, 0), omittedCards, unavailableCards, truncatedCards,
     partial: omittedCards + unavailableCards + truncatedCards > 0,
-    interpretation: 'Column placement is personal organization, not verified completion. Excerpts are current note evidence, not a synthesized initiative assessment.' };
+    interpretation: 'Column placement is user-defined organization, not verified completion. Excerpts are current note evidence, not a synthesized initiative assessment.' };
 }

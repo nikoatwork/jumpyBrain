@@ -14,9 +14,9 @@ export const boardSettingsStyles = String.raw`
 @media(max-width:680px){.board-settings-row{--control-compact:var(--control-touch);flex-wrap:wrap;padding:var(--space-1) 0}.board-settings-status{display:none}.board-settings-confirm{flex-basis:100%}}
 `;
 
-// Personal organization only: all writes use the board controller's revision and scope guard.
+// Brain organization: writes use per-board hashes, scope guards and the selected brain's write permission.
 export const boardSettingsScript = String.raw`
-function createBoardSettings({getBoards,disabled,scope,change,open}) {
+function createBoardSettings({getBoards,disabled,readOnly=()=>false,scope,change,open}) {
   const list=$('settings-boards-list');
   let edit=null;
   const action=(label,run,icon)=>{
@@ -28,14 +28,14 @@ function createBoardSettings({getBoards,disabled,scope,change,open}) {
   const focusRow=id=>(list.querySelector('[data-board-id="'+id+'"] button')||$('settings-new-board')).focus();
   function reset(){edit=null;}
   function start(board,mode){
-    if(disabled()||!board)return;
+    if(disabled()||readOnly()||!board)return;
     edit={id:board.id,mode,scope:scope(),saving:false};render();
     const row=list.querySelector('[data-board-id="'+board.id+'"]');
     (row.querySelector('input')||row.querySelector('button')).focus();row.querySelector('input')?.select();
   }
   function cancel(){if(edit?.saving)return;const id=edit?.id;reset();render();if(id)focusRow(id);}
   async function save(){
-    const current=edit;if(!current||current.saving||disabled()||current.scope!==scope())return;
+    const current=edit;if(!current||current.saving||disabled()||readOnly()||current.scope!==scope())return;
     const input=current.input,value=input?.value.trim();
     if(input){
       input.setCustomValidity(!value||value.length>100||/[\x00-\x1f]/.test(value)?'Use a name of 1–100 characters without control characters.':'');
@@ -88,13 +88,13 @@ function createBoardSettings({getBoards,disabled,scope,change,open}) {
         toggle.setAttribute('aria-pressed',String(b.archived));
       }
       const blocked=disabled()||!!edit?.saving;
-      for(const control of row.querySelectorAll('button'))control.disabled=blocked;
-      const input=row.querySelector('input');if(input)input.readOnly=blocked;
+      for(const control of row.querySelectorAll('button'))control.disabled=blocked||(readOnly()&&!control.classList.contains('board-settings-name'));
+      const input=row.querySelector('input');if(input)input.readOnly=blocked||readOnly();
       if(list.children[index]!==row)list.insertBefore(row,list.children[index]||null);
     }
   }
   async function toggle(id){
-    if(disabled())return;const b=getBoards().find(b=>b.id===id);if(!b)return;
+    if(disabled()||readOnly())return;const b=getBoards().find(b=>b.id===id);if(!b)return;
     const archived=!b.archived,s=scope();
     if(await change(rows=>{rows.find(b=>b.id===id).archived=archived;})&&s===scope()){
       list.querySelector('[data-board-id="'+id+'"] [aria-pressed]')?.focus();

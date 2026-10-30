@@ -78,19 +78,19 @@ ${boardSettingsScript}
 ${createBoardName.toString()}
 const boardsUI = (() => {
   let formBusy=false;
-  let packet = {revision:0,boards:[]}, bound = '', busy = false, sequence = 0, selected = null, composer = null, rename = null, creation = null;
+  let packet = {boards:[],hashes:{}}, bound = '', busy = false, sequence = 0, selected = null, composer = null, rename = null, creation = null;
   const names = new Map(), previews = new Map();
   const scope = () => companionRegistered && !companionSessionFailed ? String(companionState.generation)+':'+companionState.activeId : '';
-  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>busy||formBusy||companionFrozen||!scope()||bound!==scope(),scope,change,open:id=>navigation.navigate('/?board='+id)});
+  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,scope,change,open:id=>navigation.navigate('/?board='+id)});
   const button = (text, run, label, icon = false) => { const b=document.createElement('button');b.type='button';b.className=icon?'quiet-button note-icon':'quiet-button';b.textContent=text;if(label)b.setAttribute('aria-label',label);b.onclick=run;return b; };
   const notice = text => { $('board-notice').textContent=text; toast.show('boards',text,{action:{label:'Retry',run:load}}); };
   function render() {
-    const sidebar=$('sidebar-boards'); sidebar.replaceChildren();settingsUI.render();
+    const sidebar=$('sidebar-boards'); sidebar.replaceChildren();settingsUI.render();$('note-add-to-board').disabled=companionReadOnly()||busy||formBusy||companionFrozen||!scope();
     for(const b of packet.boards){
       if(!b.archived){const row=document.createElement('li');row.className='sidebar-page';const link=button(b.name,()=>navigation.navigate('/?board='+b.id));link.classList.add('sidebar-page-link');if(selected===b.id)link.setAttribute('aria-current','page');row.append(link,button('✓',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=true;}),'Settle '+b.name,true));sidebar.append(row);}
     }
-    for(const id of ['new-board','settings-new-board'])$(id).disabled=busy||formBusy||companionFrozen||!scope()||bound!==scope();
-    for(const control of sidebar.querySelectorAll('button'))control.disabled=busy||formBusy||companionFrozen||!scope()||bound!==scope();
+    for(const id of ['new-board','settings-new-board'])$(id).disabled=companionReadOnly()||busy||formBusy||companionFrozen||!scope()||bound!==scope();
+    for(const control of sidebar.querySelectorAll('button'))control.disabled=busy||formBusy||companionFrozen||!scope()||bound!==scope()||(companionReadOnly()&&!control.classList.contains('sidebar-page-link'));
     const board=packet.boards.find(b=>b.id===selected), columns=$('board-columns');
     const available=board&&!board.archived;
     if(composer&&(!available||composer.boardId!==selected||composer.scope!==scope()))dismissComposer(false);
@@ -115,13 +115,13 @@ const boardsUI = (() => {
       el.ondragover=e=>{e.preventDefault();el.classList.add('drag-over')};el.ondragleave=()=>el.classList.remove('drag-over');el.ondrop=e=>{e.preventDefault();el.classList.remove('drag-over');const id=e.dataTransfer.getData('text/plain');if(board.columns.some(c=>c.pages.includes(id)))move(id,e.target.closest('[data-board-page]')?.dataset.boardPage);};
       const cards=el.querySelector('.board-cards');cards.replaceChildren();
       for(const id of column.pages){
-        const card=document.createElement('div');card.className='board-card';card.dataset.boardPage=id;card.draggable=!busy&&!formBusy;card.ondragstart=e=>e.dataTransfer.setData('text/plain',id);
+        const card=document.createElement('div');card.className='board-card';card.dataset.boardPage=id;card.draggable=!companionReadOnly()&&!busy&&!formBusy;card.ondragstart=e=>e.dataTransfer.setData('text/plain',id);
         const open=button('',()=>navigation.navigate('/?note='+id),names.get(id)||'Loading page…');
         const title=document.createElement('span');title.className='board-card-title';title.textContent=names.get(id)||'Loading page…';
         const preview=document.createElement('span');preview.className='board-card-preview';preview.textContent=previews.get(id)||'';preview.hidden=!preview.textContent;preview.id='board-preview-'+id;
         if(preview.textContent)open.setAttribute('aria-describedby',preview.id);
         open.setAttribute('aria-keyshortcuts','Alt+ArrowLeft Alt+ArrowRight');open.title='Open note · Alt+←/→ moves between columns';
-        open.onkeydown=e=>{if(!e.altKey||!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const target=index+(e.key==='ArrowRight'?1:-1);if(target<0||target>=board.columns.length)return;
+        open.onkeydown=e=>{if(companionReadOnly()||!e.altKey||!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const target=index+(e.key==='ArrowRight'?1:-1);if(target<0||target>=board.columns.length)return;
           change(rows=>{const b=rows.find(b=>b.id===selected);for(const c of b.columns)c.pages=c.pages.filter(p=>p!==id);b.columns[target].pages.push(id);});};
         open.append(title,preview);card.append(open);
         const actions=document.createElement('div');actions.className='board-card-actions';
@@ -130,7 +130,7 @@ const boardsUI = (() => {
         actions.append(up,remove);card.append(actions);cards.append(card);
       }
     });
-    for(const control of document.querySelectorAll('#boards-view button,#boards-view select,#sidebar-boards button'))control.disabled=busy||formBusy||companionFrozen||!scope();
+    for(const control of document.querySelectorAll('#boards-view button,#boards-view select,#sidebar-boards button'))control.disabled=busy||formBusy||companionFrozen||!scope()||(companionReadOnly()&&!control.classList.contains('sidebar-page-link')&&!control.closest('.board-card')?.firstElementChild?.isSameNode(control));
     if(rename)rename.input.readOnly=busy||formBusy||companionFrozen;
     if(composer)renderComposer(composer);
   }
@@ -139,10 +139,10 @@ const boardsUI = (() => {
     if(rename&&rename.index===index&&rename.boardId===selected)return;
     let title=host.querySelector('button');
     if(!title){host.replaceChildren();title=button(name,()=>startRename(host,index),'Rename '+(index===null?'board':'column'));title.classList.add('board-title-button');host.append(title);}
-    title.textContent=name;title.disabled=!enabled||busy||formBusy||companionFrozen;title.title=name;
+    title.textContent=name;title.disabled=companionReadOnly()||!enabled||busy||formBusy||companionFrozen;title.title=name;
   }
   function startRename(host,index) {
-    if(busy||formBusy||companionFrozen||rename)return;
+    if(companionReadOnly()||busy||formBusy||companionFrozen||rename)return;
     const board=packet.boards.find(b=>b.id===selected&&!b.archived);if(!board)return;
     const previous=index===null?board.name:board.columns[index].name,input=document.createElement('input');
     input.className='board-rename-input';input.maxLength=100;input.value=previous;input.setAttribute('aria-label',index===null?'Board name':'Column name');
@@ -157,17 +157,37 @@ const boardsUI = (() => {
     };
     input.onblur=()=>finish(false);input.onkeydown=e=>{if(e.isComposing)return;if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();finish(e.key==='Escape');}};
   }
-  async function load(){const s=scope();if(!s)return;if(bound!==s){bound=s;packet={revision:0,boards:[]};names.clear();previews.clear();dismissComposer(false);rename=null;creation=null;render();}const token=++sequence;
-    try{const p=await graphJson('/companion/collections',{headers:{'X-Collection-Brain':companionState.activeId}});if(s!==scope()||token!==sequence)return;packet=p;render();await titles(s,token);return true;}
+  async function load(){const s=scope();if(!s)return;if(bound!==s){bound=s;packet={boards:[],hashes:{}};names.clear();previews.clear();dismissComposer(false);rename=null;creation=null;render();}const token=++sequence;
+    try{const p=await graphJson('/memories/all/boards');if(s!==scope()||token!==sequence)return;packet=p;render();await titles(s,token);return true;}
     catch(e){if(s===scope()&&token===sequence)notice('Could not load boards. Try again.');}
   }
   async function titles(s,token,ids=[...new Set(packet.boards.filter(b=>b.id===selected&&!b.archived).flatMap(b=>b.columns.flatMap(c=>c.pages)))]){let cursor=0;await Promise.all(Array.from({length:Math.min(4,ids.length)},async()=>{while(cursor<ids.length){const id=ids[cursor++];try{const page=await graphJson(memoryDocumentPath(id));if(s!==scope()||token!==sequence)return;names.set(id,page.title||'Untitled');previews.set(id,JumpyBrainBrowser.readablePreview(page.content||'',page.title||''));}catch(e){if(s!==scope()||token!==sequence)return;names.set(id,e.status===404?'Page missing':'Page unavailable');previews.delete(id);}}}));if(s===scope()&&token===sequence)render();}
-  async function change(update){if(busy||(!formBusy&&companionFrozen)||!scope()||bound!==scope())return false;const s=scope();const rows=structuredClone(packet.boards);update(rows);busy=true;++sequence;render();try{const p=await graphJson('/companion/collections',{method:'POST',headers:{'Content-Type':'application/json','X-Collection-Brain':companionState.activeId},body:JSON.stringify({revision:packet.revision,boards:rows})});if(s!==scope())return false;packet=p;$('board-notice').textContent='';return true;}catch(e){if(s===scope()){notice(e.status===409?'Boards changed elsewhere. Reloaded; try again.':'Could not save. Reload and try again.');await load();}return false;}finally{busy=false;if(s===scope())render();}}
+  async function change(update){
+    if(busy||(!formBusy&&companionFrozen)||!scope()||bound!==scope()||companionReadOnly())return false;
+    const s=scope(), rows=structuredClone(packet.boards);update(rows);
+    const changed=rows.filter(board=>JSON.stringify(board)!==JSON.stringify(packet.boards.find(old=>old.id===board.id)));
+    const removed=packet.boards.filter(board=>!rows.some(next=>next.id===board.id));
+    if(changed.length+removed.length===0)return true;
+    if(changed.length+removed.length!==1){notice('Change one board at a time.');return false;}
+    const board=changed[0]||removed[0], previous=packet.boards.find(old=>old.id===board.id), deleting=removed.length===1;
+    const method=deleting?'DELETE':previous?'PUT':'POST', route='/memories/all/boards'+(previous?'/'+board.id:'');
+    const headers={'Content-Type':'application/json',...(previous?{'If-Match':packet.hashes[board.id]}:{})};
+    busy=true;++sequence;render();
+    try{
+      const p=await graphJson(route,{method,headers,...(deleting?{}:{body:JSON.stringify(board)})});
+      if(s!==scope())return false;
+      packet.boards=packet.boards.filter(old=>old.id!==board.id);
+      if(deleting)delete packet.hashes[board.id];else {packet.boards.push(p.board);packet.hashes[board.id]=p.contentHash;}
+      packet.boards.sort((a,b)=>a.id.localeCompare(b.id));$('board-notice').textContent='';return true;
+    }catch(e){if(s===scope()){notice(e.status===409?'Board changed elsewhere. Reloaded; try again.':'Could not save. Reload and try again.');await load();}return false;}
+    finally{busy=false;if(s===scope())render();}
+  }
   function dismissComposer(restore=true) {
     const current=composer;if(!current)return;current.search.cancel();composer=null;current.el.remove();
     if(restore&&current.scope===scope())$('board-columns').children[current.index]?.querySelector('.board-add')?.focus();
   }
   function openComposer(index) {
+    if(companionReadOnly())return;
     if(busy||formBusy||companionFrozen||!scope())return;
     if(composer?.index===index){composer.input.focus();return;}
     dismissComposer(false);
@@ -214,10 +234,10 @@ const boardsUI = (() => {
       if(action.key===current.action)current.input.setAttribute('aria-activedescendant',item.id);if(current.list.children[index]!==item)current.list.insertBefore(item,current.list.children[index]||null);
     });
     current.list.setAttribute('aria-busy',String(search.status==='loading'));
-    current.status.textContent=current.message||(search.status==='loading'?'Searching…':search.status==='error'||search.status==='auth'?search.message:search.query?(search.stale?'Search may not include recent notes. ':'')+(companionReadOnly()?'Read-only brain: choose an existing note.':'↑ ↓ to choose · Enter to add · or choose Create'):'Search for a note to add.');
+    current.status.textContent=current.message||(search.status==='loading'?'Searching…':search.status==='error'||search.status==='auth'?search.message:search.query?(search.stale?'Search may not include recent notes. ':'')+(companionReadOnly()?'This brain is read only; board changes are disabled.':'↑ ↓ to choose · Enter to add · or choose Create'):'Search for a note to add.');
   }
   async function activateComposer(current,action) {
-    if(composer!==current||current.scope!==scope()||busy||formBusy||companionFrozen||action.disabled)return;
+    if(companionReadOnly()||composer!==current||current.scope!==scope()||busy||formBusy||companionFrozen||action.disabled)return;
     if(action.key==='search'){current.search.query(current.input.value,true);return;}
     if(action.key==='create'&&companionReadOnly())return;
     if(action.key==='create')current.attempt={key:crypto.randomUUID(),body:JSON.stringify({type:'note',title:current.input.value.trim(),body:'',actor:browserActor}),title:current.input.value.trim(),id:null};
@@ -252,7 +272,7 @@ const boardsUI = (() => {
   }
   let noteDestination=null;
   const destinationValid=()=>noteDestination && noteDestination.scope===scope() && state.view==='note'
-    && state.editor===noteDestination.editor && state.editor?.state.loaded && !state.editor.state.cancelled && !companionFrozen;
+    && state.editor===noteDestination.editor && state.editor?.state.loaded && !state.editor.state.cancelled && !companionFrozen && !companionReadOnly();
   function destinationColumns() {
     const board=packet.boards.find(b=>b.id===$('note-board-select').value&&!b.archived);
     const columns=$('note-board-column');columns.replaceChildren();
@@ -273,6 +293,7 @@ const boardsUI = (() => {
   }
   $('note-add-to-board').hidden=false;
   $('note-add-to-board').onclick=async()=>{
+    if(companionReadOnly())return;
     const editor=state.editor;
     if(busy||formBusy||companionFrozen||!scope()||state.view!=='note'||!editor?.state.loaded||editor.state.navigationPending||documentActions.isBusy())return;
     noteDestination={id:editor.state.documentId,editor,scope:scope()};
@@ -296,9 +317,10 @@ const boardsUI = (() => {
     else {destinationBoards();$('note-board-message').textContent='Not added. Check your connection or board selection and retry.';}
   };
   const create=async()=>{
+    if(companionReadOnly())return;
     if(busy||formBusy||companionFrozen||!scope()||bound!==scope())return;
     const s=scope();
-    if(!creation)creation={id:crypto.randomUUID(),name:createBoardName(packet.boards.map(b=>b.name)),archived:false,columns:['To do','Doing','Done'].map(name=>({name,pages:[]}))};
+    if(!creation)creation={schemaVersion:1,id:crypto.randomUUID(),name:createBoardName(packet.boards.map(b=>b.name)),archived:false,columns:['To do','Doing','Done'].map(name=>({name,pages:[]}))};
     // After a conflict, keep the pending identity but avoid a newly occupied name.
     if(!packet.boards.some(b=>b.id===creation.id)&&packet.boards.some(b=>b.name.trim().toLowerCase()===creation.name.toLowerCase()))creation.name=createBoardName(packet.boards.map(b=>b.name));
     const current=creation;formBusy=true;render();

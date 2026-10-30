@@ -30,6 +30,7 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   const command = args._[0];
 
   if (command === "board") {
+    if (!args.help) await enforceRemoteAccessPolicy(args);
     const { boardsCli } = await import("./boards.js");
     await boardsCli(args);
     return;

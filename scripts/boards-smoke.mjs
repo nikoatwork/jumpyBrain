@@ -4,7 +4,7 @@ import { appendEditorText, editorMarkdown } from './editor-smoke-helpers.mjs';
 import { mkdtemp,mkdir,readFile,writeFile,rm } from 'node:fs/promises';
 import path from 'node:path';import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { initializeMemoryRoot, indexMemory } from '../dist/runtime/index.js';
+import { initializeMemoryRoot, indexMemory, listBoards } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { startCompanionGateway } from '../integrations/macos-companion/gateway.mjs';
 import { loadPlaywrightChromium,launchPlaywrightChromium } from './playwright-runtime.mjs';
@@ -28,7 +28,7 @@ try{
    const name=await page.locator('#board-title').innerText();
    assert.match(name,/^[A-Z][a-z]+ (Focus|Task|Progress|Goal|Sprint|Plan) [A-Z][a-z]+(?: \d+)?$/);
    const names=await page.evaluate(async()=>{
-     const packet=await graphJson('/companion/collections',{headers:{'X-Collection-Brain':companionState.activeId}});
+     const packet=await graphJson('/memories/all/boards');
      return packet.boards.map(board=>board.name.trim().toLowerCase());
    });
    assert.equal(new Set(names).size,names.length,'generated name avoids active and settled boards');
@@ -120,7 +120,7 @@ try{
  await page.getByRole('button',{name:'Settle A quieter launch',exact:true}).first().click();await page.locator('#sidebar-boards li').waitFor({state:'hidden'});
  await page.locator('#open-connection').click();await page.locator('[data-settings-section="boards"]').click();await page.getByRole('button',{name:'Restore A quieter launch',exact:true}).click();await page.locator('#settings-boards-list').getByRole('button',{name:'A quieter launch',exact:true}).click();await page.locator('.board-card').first().waitFor();assert.equal(await page.locator('.board-column').nth(1).locator('.board-card').getAttribute('data-board-page'),cardId);
  await page.reload();await page.locator('.board-card').first().waitFor();
- const saved=JSON.parse(await readFile(path.join(support,'collections.json'),'utf8'));assert.equal(Object.values(saved.scopes)[0].boards[0].columns[1].pages[0],cardId);
+ const saved=await listBoards(root);assert.equal(saved.boards.find(b=>b.name==='A quieter launch').columns[1].pages[0],cardId);
  // A second board receives an existing note through the note action card.
  await newBoard();
  await page.getByRole('button',{name:'Rename board',exact:true}).click();await page.getByRole('textbox',{name:'Board name',exact:true}).fill('Next chapter');await page.getByRole('textbox',{name:'Board name',exact:true}).press('Enter');
@@ -149,12 +149,12 @@ try{
  await page.setViewportSize({width:1280,height:900});
  // A rejected save must leave the chooser open; retry adds exactly once.
  let rejected=false;
- await page.route('**/companion/collections',async route=>{if(route.request().method()==='POST'&&!rejected){rejected=true;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture conflict'}})});}else await route.continue();});
+ await page.route('**/memories/all/boards**',async route=>{if(route.request().method()==='PUT'&&!rejected){rejected=true;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture conflict'}})});}else await route.continue();});
  await page.locator('#note-board-add').click();await page.locator('#note-board-message').filter({hasText:'Not added'}).waitFor();assert.equal(await page.locator('#note-board-dialog').isVisible(),true);
- await page.locator('#note-board-column').selectOption('2');await page.locator('#note-board-add').click();await page.locator('#note-board-dialog').waitFor({state:'hidden'});await page.unroute('**/companion/collections');
+ await page.locator('#note-board-column').selectOption('2');await page.locator('#note-board-add').click();await page.locator('#note-board-dialog').waitFor({state:'hidden'});await page.unroute('**/memories/all/boards**');
  assert.equal(page.url(),noteUrl);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'note-add-to-board');
- const after=JSON.parse(await readFile(path.join(support,'collections.json'),'utf8'));const second=Object.values(after.scopes)[0].boards.find(b=>b.name==='Next chapter');assert.deepEqual(second.columns.map(c=>c.pages),[[],[],[existingId]]);
+ const after=await listBoards(root);const second=after.boards.find(b=>b.name==='Next chapter');assert.deepEqual(second.columns.map(c=>c.pages),[[],[],[existingId]]);
  await page.locator('#note-add-to-board').click();await page.locator('#note-board-message').filter({hasText:'already on your boards'}).waitFor();assert.equal(await page.locator('#note-board-add').isDisabled(),true);await page.locator('#note-board-cancel').click();
  await page.locator('#sidebar-boards').getByRole('button',{name:'Settle A quieter launch',exact:true}).click();await page.locator('#sidebar-boards').getByRole('button',{name:'A quieter launch',exact:true}).waitFor({state:'hidden'});
  await page.locator('#note-add-to-board').click();await page.locator('#note-board-message').filter({hasText:'already on your boards'}).waitFor();assert.equal(await page.locator('#note-board-select option').count(),1);await page.locator('#note-board-cancel').click();
@@ -177,23 +177,22 @@ try{
  await page.getByRole('heading',{name:'Renamed default',exact:true}).waitFor();
  // A committed board whose response is lost is confirmed by the recovery read.
  let boardLost=false;
- await page.route('**/companion/collections',async route=>{if(route.request().method()==='POST'&&!boardLost){boardLost=true;await route.fetch();await route.abort();}else await route.continue();});
- await newBoard();await page.unroute('**/companion/collections');
+ await page.route('**/memories/all/boards**',async route=>{if(route.request().method()==='POST'&&!boardLost){boardLost=true;await route.fetch();await route.abort();}else await route.continue();});
+ await newBoard();await page.unroute('**/memories/all/boards**');
  // Another tab takes the candidate name before our write; retry preserves ID and avoids that settled name.
  let conflictedBoard;
- await page.route('**/companion/collections',async route=>{
+ await page.route('**/memories/all/boards**',async route=>{
    if(route.request().method()==='POST'&&!conflictedBoard){
-     const payload=route.request().postDataJSON();conflictedBoard=payload.boards.at(-1);
-     payload.boards[payload.boards.length-1]={...conflictedBoard,id:crypto.randomUUID(),archived:true};
-     await route.fetch({postData:JSON.stringify(payload)});
+     const payload=route.request().postDataJSON();conflictedBoard=payload;
+     await route.fetch({postData:JSON.stringify({...payload,id:crypto.randomUUID(),archived:true})});
      await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture conflict'}})});
    }else await route.continue();
  });
- await page.locator('#new-board').click();await page.locator('#board-notice').filter({hasText:'Boards changed elsewhere'}).waitFor();
+ await page.locator('#new-board').click();await page.locator('#board-notice').filter({hasText:'Board changed elsewhere'}).waitFor();
  await page.waitForFunction(()=>!boardsUI.pending());
  const retryName=await newBoard();assert.notEqual(retryName,conflictedBoard.name);
  assert.equal(new URL(page.url()).searchParams.get('board'),conflictedBoard.id);
- await page.unroute('**/companion/collections');
+ await page.unroute('**/memories/all/boards**');
  await page.getByRole('button',{name:'Add note to To do',exact:true}).click();
  // Frozen request/body/key survive an accepted creation with a lost response.
  const attempts=[];let loseCreation=true;
@@ -209,18 +208,18 @@ try{
  assert.equal(attempts.length,2);assert.deepEqual(attempts[0],attempts[1]);
  // Canonical creation followed by a membership conflict retries only membership.
  let membershipConflict=true;
- await page.route('**/companion/collections',async route=>{if(route.request().method()==='POST'&&membershipConflict){membershipConflict=false;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture conflict'}})});}else await route.continue();});
+ await page.route('**/memories/all/boards**',async route=>{if(route.request().method()==='PUT'&&membershipConflict){membershipConflict=false;await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture conflict'}})});}else await route.continue();});
  await composer.fill('Created before membership conflict');await page.getByRole('option',{name:'Create “Created before membership conflict”',exact:true}).click();
  await page.locator('.board-composer-status').filter({hasText:'Note created, but not added'}).waitFor();
  const creationCount=attempts.length;await page.getByRole('option',{name:'Retry adding created note',exact:true}).click();
  await page.locator('.board-card').filter({hasText:'Created before membership conflict'}).waitFor();assert.equal(attempts.length,creationCount);
- await page.unroute('**/companion/collections');await page.unroute('**/memories/all/notes');
+ await page.unroute('**/memories/all/boards**');await page.unroute('**/memories/all/notes');
  // Search errors preserve text and offer an explicit retry.
  let failSearch=true;
  await page.route('**/memories/all/search',async route=>{if(failSearch){failSearch=false;await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture unavailable'}})});}else await route.continue();});
  await composer.fill('Launch checklist');await page.getByRole('option',{name:'Retry search',exact:true}).waitFor();assert.equal(await composer.inputValue(),'Launch checklist');
  await page.getByRole('option',{name:'Retry search',exact:true}).click();await page.getByRole('option',{name:'Launch checklist',exact:true}).waitFor();await page.unroute('**/memories/all/search');
- // A real scope switch cancels search; read-only targets allow organization only.
+ // A real scope switch cancels search; read-only targets allow viewing only.
  const localId=gateway.state().activeId;
  remote=await startJumpyBrainHttpServer({root,apiKeys:['board-fixture-key'],port:0,autoIndex:false});
  await gateway.store.save({kind:'remote',name:'Read-only board brain',url:remote.url,allowWrites:false,key:'board-fixture-key'},gateway.store.snapshot().revision);
@@ -231,11 +230,12 @@ try{
  const switchBrain=async id=>{const response=await fetch(gateway.url+'/companion/switch',{method:'POST',headers:{Authorization:'Bearer '+'b'.repeat(64),'Content-Type':'application/json'},body:JSON.stringify({id})});assert.equal(response.status,200);};
  await switchBrain(remoteId);releaseScopeSearch();await page.unroute('**/memories/all/search');
  await page.waitForFunction(id=>typeof companionState!=='undefined'&&companionState?.activeId===id&&companionRegistered&&!companionFrozen,remoteId);
- assert.equal(await page.locator('.board-composer').count(),0);assert.equal(await page.locator('#sidebar-boards li').count(),0);
- await newBoard();
- await page.getByRole('button',{name:'Add note to To do',exact:true}).click();await composer.fill('Launch checklist');
- await page.getByRole('option',{name:'Launch checklist',exact:true}).waitFor();assert.equal(await page.getByRole('option',{name:'Create “Launch checklist”',exact:true}).isDisabled(),true);
- await composer.press('Enter');await page.locator('.board-card').filter({hasText:'Launch checklist'}).waitFor();
+ assert.equal(await page.locator('.board-composer').count(),0);
+ const sharedActive=(await listBoards(root)).boards.filter(b=>!b.archived).length;
+ await page.waitForFunction(count=>document.querySelectorAll('#sidebar-boards li').length===count,sharedActive);
+ assert.equal(await page.locator('#sidebar-boards li').count(),sharedActive,'two connections to the same brain share canonical boards');
+ assert.equal(await page.locator('#new-board').isDisabled(),true);
+ assert.equal(await page.locator('#settings-new-board').isDisabled(),true);
  await switchBrain(localId);await page.waitForFunction(id=>typeof companionState!=='undefined'&&companionState?.activeId===id&&companionRegistered&&!companionFrozen,localId);
  assert.equal(await page.locator('.board-composer').count(),0);
  assert.deepEqual(errors,[]);console.log('Boards smoke PASS: note action/column/conflict retry/duplicates/archive filtering, plain-text previews, compact right icons, reorder/remove, keyboard/drag movement, create page, editor/back, settle, settings restore, reload, 1280/390 light/dark');

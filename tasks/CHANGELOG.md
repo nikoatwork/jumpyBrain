@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Canonical boards across CLI and Mac
+
+- Replaced app-support collections with one JSON per board in the brain. Local/hosted CLI and Mac now share board CRUD/status and write permissions, with no running Mac app required by the CLI. [Verification, review and limits](done/2026-10-30_tasks-canonical-boards.md).
+
 ## 2026-10-30 — Boards for agents
 
 - Added an optional `board` CLI namespace for personal Mac board organization and initiative status with current note evidence. [Verification and limits](done/2026-10-30_tasks-board-cli.md).

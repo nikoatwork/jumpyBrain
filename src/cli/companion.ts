@@ -15,7 +15,7 @@ async function privateFile(filename: string, maximum: number): Promise<string> {
   } finally { await handle.close(); }
 }
 
-export async function liveCompanion(support: string, label = "extension management", signal?: AbortSignal): Promise<null | { request(route: string, body?: unknown, generation?: number, brainId?: string): Promise<any> }> {
+export async function liveCompanion(support: string, label = "extension management", signal?: AbortSignal): Promise<null | { request(route: string, body?: unknown, generation?: number): Promise<any> }> {
   let descriptor: string;
   try {
     // Check the pointer's existence before requiring a support directory for a fresh install.
@@ -34,14 +34,14 @@ export async function liveCompanion(support: string, label = "extension manageme
   const key = (await privateFile(path.join(support, "api-key"), 128)).trim();
   if (!/^[0-9a-f]{64}$/i.test(key)) throw new Error("Invalid native companion control key.");
   return {
-    async request(route, body, generation, brainId) {
+    async request(route, body, generation) {
       const response = await fetch(packet.origin + route, {
         method: body === undefined ? "GET" : "POST", redirect: "error", signal: signal ?? AbortSignal.timeout(70000),
-        headers: { Authorization: "Bearer " + key, ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(generation === undefined ? {} : { "X-Companion-Generation": String(generation) }), ...(brainId === undefined ? {} : { "X-Collection-Brain": brainId }) },
+        headers: { Authorization: "Bearer " + key, ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(generation === undefined ? {} : { "X-Companion-Generation": String(generation) }) },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       const result = await response.json();
-      if (!response.ok) throw Object.assign(new Error(`Companion ${label} failed (${response.status}).${response.status === 409 && label === 'board operation' ? " Read the board again; its revision or brain session changed." : ""}`), { status: response.status });
+      if (!response.ok) throw Object.assign(new Error(`Companion ${label} failed (${response.status}).`), { status: response.status });
       return result;
     },
   };

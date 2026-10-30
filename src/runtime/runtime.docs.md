@@ -2,7 +2,7 @@
 
 ## Responsibilities
 
-- `boards.ts` is a separately imported desktop organization seam over app collections operations. It exports no host discovery or protocol code and is not re-exported by the ordinary memory entrypoint.
+- `boards.ts` re-exports app board operations through the ordinary runtime/package entrypoint: list/read/save/delete, bounded status and pure layout/selection helpers. It takes a canonical root and imports no host discovery or protocol code.
 
 - Export local `migrateObsidian(source, root, { apply?, failOnConflict? })` with `ObsidianMigrationOptions` and `ObsidianMigrationResult` through the same app seam. It preserves source bodies and has no remote transport or automatic indexing. Test hooks are not public.
 

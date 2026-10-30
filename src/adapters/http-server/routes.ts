@@ -1,3 +1,4 @@
+import { listBoards, readBoard, saveBoard, deleteBoard, getBoardStatus, BoardError } from "../../app/server-memory/boards.js";
 import { normalizeMemoryActor } from "../../core/contribution.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { checkDreamSources } from "../../app/server-memory/index.js";
@@ -93,6 +94,41 @@ export async function routeRequest(context: { request: IncomingMessage; response
   if (authFailure) {
     writeJson(response, 401, authFailure);
     return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.boards || url.pathname.startsWith(HTTP_MEMORY_ROUTES.boardsPrefix)) {
+    response.setHeader("cache-control", "no-store");
+    const route = /^\/memories\/all\/boards(?:\/([0-9a-f-]+)(\/status)?)?$/.exec(url.pathname);
+    if (!route) { writeJson(response, 400, errorResponse("invalid_board", "Invalid board route.")); return; }
+    const id = route[1], status = route[2];
+    try {
+      let result: unknown;
+      if (request.method === "GET") {
+        if (status) {
+          const limit = url.searchParams.get('limit');
+          if (limit !== null && (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > 50)) throw new BoardError('invalid_board', 'Status limit must be 1–50.');
+          result = await getBoardStatus(root, id!, limit === null ? 12 : Number(limit), signal);
+        } else result = id ? await readBoard(root, id) : await listBoards(root);
+      } else if (!status && ((request.method === "POST" && !id) || (request.method === "PUT" && id) || (request.method === "DELETE" && id))) {
+        const ifMatch = request.headers['if-match'];
+        if (id && (typeof ifMatch !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(ifMatch))) {
+          writeJson(response, 428, errorResponse('precondition_required', 'Use the prior board content hash in If-Match.')); return;
+        }
+        if (request.method === 'DELETE') result = await enqueueWrite(() => deleteBoard(root, id!, ifMatch as string));
+        else {
+          const body = await parseJsonBody(request);
+          if (isJsonError(body)) { writeJson(response, body.statusCode, body.body); return; }
+          if (id && body.id !== id) throw new BoardError('invalid_board', 'Board ID must match its route.');
+          result = await enqueueWrite(() => saveBoard(root, body, id ? ifMatch as string : undefined));
+        }
+      } else { writeJson(response, 405, errorResponse('method_not_allowed', 'Unsupported board operation.')); return; }
+      writeJson(response, 200, result); return;
+    } catch (error) {
+      const known = error instanceof BoardError;
+      const code = known ? error.code : 'board_failed';
+      const statusCode = code === 'board_missing' ? 404 : ['board_conflict', 'board_busy'].includes(code) ? 409 : known ? 400 : 500;
+      writeJson(response, statusCode, errorResponse(code, known ? error.message : 'Board operation failed. Inspect the board files on the server.')); return;
+    }
   }
 
   if (url.pathname === HTTP_MEMORY_ROUTES.compactRecall || url.pathname === HTTP_MEMORY_ROUTES.expand) {

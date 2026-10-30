@@ -61,3 +61,7 @@ Rich and compact searches forward optional `temporal` after core validation. `te
 ## Recognition acknowledgement
 
 Rich search forwards normalized opt-in `recognition` options and requires a version-1 acknowledgement with the same options. Older/ignoring servers fail with explicit upgrade guidance; no unfiltered fallback. Document updates forward optional declared `actor` alongside `content` and existing If-Match; note drafts already share the same optional actor. These claims never change authorization.
+
+## Boards
+
+`listBoards`, `readBoard`, `saveBoard`, `deleteBoard` and `getBoardStatus` use ordinary authenticated board routes and the existing request deadline. Creation POSTs a full versioned Board; updates PUT it with If-Match; deletion also requires If-Match. Preserve per-board hashes and bounded status evidence. No native companion discovery or automatic retries. CLI policy controls accidental writes; server authentication remains separate.

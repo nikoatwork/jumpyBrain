@@ -1,3 +1,4 @@
+import type { Board, BoardRecord, BoardList } from "../../core/boards/model.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
 import { normalizeEvidenceDate } from "../../core/writing/metadata.js";
@@ -53,6 +54,11 @@ export interface RemoteMemoryTransportOptions {
 
 export interface RemoteMemoryTransport {
   readonly url: string;
+  listBoards(): Promise<BoardList>;
+  readBoard(id: string): Promise<BoardRecord>;
+  saveBoard(board: Board, ifMatch?: string): Promise<BoardRecord>;
+  deleteBoard(id: string, ifMatch: string): Promise<{id:string;deleted:true;notesPreserved:true}>;
+  getBoardStatus(id: string, limit?: number): Promise<Record<string, any>>;
   memoryRootStatus(): Promise<MemoryRootStatus & Record<string, unknown>>;
   indexMemory(options?: Pick<IndexMemoryOptions, "rebuild" | "signal" | "timeoutMs">): Promise<IndexMemoryResult & Record<string, unknown>>;
   overviewMemory(options?: MemoryOverviewOptions): Promise<MemoryOverviewResult & Record<string, unknown>>;
@@ -170,6 +176,13 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   }
 
   return {
+    listBoards: () => request(HTTP_MEMORY_ROUTES.boards) as unknown as Promise<BoardList>,
+    readBoard: id => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id)) as unknown as Promise<BoardRecord>,
+    saveBoard: (board, ifMatch) => request(ifMatch === undefined ? HTTP_MEMORY_ROUTES.boards : HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(board.id), {
+      method: ifMatch === undefined ? "POST" : "PUT", headers: ifMatch === undefined ? {} : {"If-Match":ifMatch}, body:JSON.stringify(board),
+    }) as unknown as Promise<BoardRecord>,
+    deleteBoard: (id, ifMatch) => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id), {method:"DELETE",headers:{"If-Match":ifMatch}}) as Promise<{id:string;deleted:true;notesPreserved:true}>,
+    getBoardStatus: (id, limit = 12) => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id) + "/status?limit=" + limit),
     url: baseUrl,
     memoryRootStatus: () => request(HTTP_MEMORY_ROUTES.status) as Promise<MemoryRootStatus & Record<string, unknown>>,
     indexMemory: (indexOptions = {}) => {

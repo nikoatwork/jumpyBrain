@@ -8,15 +8,15 @@ export function boardUsage(): string {
     '  jumpybrain board show|status --board <ID-or-exact-name> [--json]',
     '  jumpybrain board create --name <name> [--column <name> --column <name> --column <name>] [--json]',
     '  jumpybrain board create --file <board.json> [--json]',
-    '  jumpybrain board update --board <board> --if-match <revision> [--name <name>] [--archived true|false] [--file <board.json>] [--column <name> (three times)]',
-    '  jumpybrain board add --board <board> --page <mem_id> --column <1|2|3> --if-match <revision>',
-    '  jumpybrain board remove --board <board> --page <mem_id> --if-match <revision>',
-    '  jumpybrain board delete --board <board> --if-match <revision>',
+    '  jumpybrain board update --board <board> --if-match <contentHash> [--name <name>] [--archived true|false] [--file <board.json>] [--column <name> (three times)]',
+    '  jumpybrain board add --board <board> --page <mem_id> --column <1|2|3> --if-match <contentHash>',
+    '  jumpybrain board remove --board <board> --page <mem_id> --if-match <contentHash>',
+    '  jumpybrain board delete --board <board> --if-match <contentHash>',
     '',
-    'All commands accept --json, --brain <profile-ID> and --directory <companion-support-directory>.',
-    'Uses the running Mac app and its selected brain; never switches it. No --root or --target-url.',
+    'All commands require --root <memory-root> or --target-url <url> and accept --json.',
+    'Local boards work without the Mac app. Remote credentials use JUMPYBRAIN_API_KEY.',
     'status reads up to 12 cards; --limit 1..50 increases evidence coverage. Missing/omitted evidence is explicit.',
-    'show returns layout and revision without reading notes. list includes settled boards.',
+    'show returns layout and content hash without reading notes. list includes settled boards.',
     'add places or moves an existing note; remove/delete preserve Markdown notes.',
     'Files contain name, optional archived, and three columns [{name,pages:[memory IDs]}].',
     'Create/edit card contents with ordinary remember/update commands on the matching root/target.',
@@ -24,7 +24,6 @@ export function boardUsage(): string {
 }
 
 export function parseBoardArgs(argv: string[]): ParsedCliArgs {
-  if (argv.some(token => /^--(?:root|target-url|remote-url)(?:=|$)/.test(token))) throw new Error('Boards use the desktop-local app profile; --root, --target-url and --remote-url are not supported.');
   const command = argv[1];
   if (!command || ['help', '--help'].includes(command)) {
     if (argv.length > (command ? 2 : 1)) throw new Error('Unexpected board help argument.');
@@ -37,7 +36,7 @@ export function parseBoardArgs(argv: string[]): ParsedCliArgs {
   };
   if (!Object.hasOwn(fields, command)) throw new Error(`Unknown board command.\n${boardUsage()}`);
   const args: ParsedCliArgs = { _: ['board', command] };
-  const values = new Set(['brain', 'directory', ...fields[command]!]);
+  const values = new Set(['root', 'target-url', 'remote-url', ...fields[command]!]);
   for (let i = 2; i < argv.length; i++) {
     const token = argv[i]!;
     if (!token.startsWith('--')) throw new Error('Unexpected board argument. Boolean flags take no value.');
@@ -56,8 +55,11 @@ export function parseBoardArgs(argv: string[]): ParsedCliArgs {
   }
   if (args.help) return args;
   if (!['list', 'create'].includes(command) && !args.board) throw new Error('--board is required.');
-  if (['update', 'delete', 'add', 'remove'].includes(command) && args['if-match'] === undefined) throw new Error('--if-match <revision> from board list/show/status is required.');
-  for (const key of ['if-match', 'limit']) if (args[key] !== undefined && (!/^\d+$/.test(String(args[key])) || !Number.isSafeInteger(Number(args[key])))) throw new Error(`--${key} must be an integer.`);
+  if (['update', 'delete', 'add', 'remove'].includes(command) && args['if-match'] === undefined) throw new Error('--if-match <contentHash> from board list/show/status is required.');
+  if (args['if-match'] !== undefined && !/^sha256:[0-9a-f]{64}$/.test(String(args['if-match']))) throw new Error('--if-match requires the prior board content hash.');
+  const targets = ['root', 'target-url', 'remote-url'].filter(key => args[key] !== undefined);
+  if (targets.length !== 1) throw new Error('Choose exactly one --root or --target-url.');
+  for (const key of ['limit']) if (args[key] !== undefined && (!/^\d+$/.test(String(args[key])) || !Number.isSafeInteger(Number(args[key])))) throw new Error(`--${key} must be an integer.`);
   if (args.limit !== undefined && (Number(args.limit) < 1 || Number(args.limit) > 50)) throw new Error('--limit must be 1–50.');
   if (args.archived !== undefined && !['true', 'false'].includes(String(args.archived))) throw new Error('--archived must be true or false.');
   if (['add', 'remove'].includes(command) && !MEMORY_DOCUMENT_ID_PATTERN.test(String(args.page ?? ''))) throw new Error('--page requires a canonical memory ID.');

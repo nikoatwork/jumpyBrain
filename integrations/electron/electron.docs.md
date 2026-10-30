@@ -93,3 +93,7 @@ The successful setup result carries the page ID and exact profile/destination sc
 ## Simple onboarding verification
 
 `node --test test/electron-setup.test.js` covers read-only defaults, unsafe/unrelated folders, creation, retries, remote credentials and the save barrier. `node scripts/simple-onboarding-smoke.mjs` runs the production sandboxed welcome against a disposable gateway and loopback remote fixture: no-picker creation, existing reuse, cancellation, remote authentication retry, Keychain-seam storage, read-only permissions, keyboard focus, transient-helper retry, missing-folder recovery and light/dark 960/680px captures. This uses a fake credential store; physical Keychain prompts and fresh packaged installation are separate gates.
+
+## Native board integration check
+
+After building, `node scripts/boards-desktop-smoke.mjs` launches the production sandboxed window via test-only `smoke-boards.mjs`, with a real CLI, gateway, disposable local/loopback remote roots and isolated Electron data. It exercises CLI creation/add/status/settlement/deletion, native rename/keyboard move/create/restore/confirmed deletion, read-only remote navigation/write controls, and preservation of note bytes. Captures/results go to ignored `.local-pack/boards-native/`. It does not install or modify the user’s app/brain and does not certify a live remote deployment.

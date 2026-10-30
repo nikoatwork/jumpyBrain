@@ -61,3 +61,5 @@ export type { MemoryDocumentDeletePreview, MemoryDocumentDeleteResult } from "..
 
 export { checkDreamSources } from "../app/dream/source-check.js";
 export type { SourceCheckRequest, SourceCheckResult } from "../core/dream/source-references.js";
+
+export * from "./boards.js";

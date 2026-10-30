@@ -7,6 +7,7 @@
 - Decode valid JSON double-quoted frontmatter strings (including escaped quotes/backslashes); retain forgiving quote stripping for non-JSON/legacy quotes. This scalar policy does not change canonical body line-ending normalization; import envelopes verify raw body bytes separately.
 - `serialized-budget.ts` supplies compact JSON-plus-LF serialization, UTF-8 byte accounting, and shared 1024–65536-byte packet budget validation; callers own evidence selection and envelope errors.
 - `document-id-format.ts` owns the browser-safe canonical ID pattern/validator; `document-id.ts` re-exports that policy and adds UUID generation.
+- `boards/` owns canonical board JSON validation, safe filesystem reads, cross-process locking and hash-checked per-file publication, independent of retrieval state.
 - Keep Markdown memory files canonical and treat indexes, caches, and SQLite/QMD state as rebuildable derived data.
 - Provide the import surface that application/runtime code can depend on without choosing a retrieval backend.
 

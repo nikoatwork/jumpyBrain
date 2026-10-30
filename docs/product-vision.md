@@ -30,7 +30,7 @@ Local and shared deployment are equally central, not separate products: the same
 - **Compression with a route back.** Concise topical pages help agents orient quickly; dated source evidence and provenance remain available. Synthesis must preserve uncertainty, changes, and disagreements rather than overwrite history.
 - **Agent-independent.** Keep the CLI the supported local/remote agent interface; integrations should remain thin. The ambition covers all kinds of agents, not only coding assistants.
 - **One small app.** Reuse the same local engine on a VPS. Prefer bounded, deterministic mechanisms and existing backend capabilities over mandatory model orchestration or additional infrastructure.
-- **Owned and inspectable.** Markdown is canonical. Indexes, embeddings, and retrieval state are rebuildable. Users can inspect, edit, back up, move, and version their memory.
+- **Owned and inspectable.** Markdown is canonical for memory content. Optional board organization is canonical JSON in the same brain, one file per board; it references note IDs without duplicating content. Indexes, embeddings, and retrieval state are rebuildable. Users can inspect, edit, back up, move, and version their memory.
 - **Explicit and trustworthy.** Recall is visible by default, not automatic whole-memory prompt injection. Global/team/remote writes require explicit authorization. Report stale indexes and degraded retrieval rather than implying complete knowledge.
 
 ## How to judge progress
