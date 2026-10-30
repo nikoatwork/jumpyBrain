@@ -76,6 +76,6 @@ A stateless, bounded context request over inclusive UTC calendar dates. `--from`
 
 An explicit observational comparison of current canonical file bytes with a fingerprint stored in a claim-adjacent Markdown link title on a Dream page. Changed/missing/ambiguous/not-checked outcomes and partial coverage remain visible. Checked time is transient, distinct from synthesis/evidence dates and truth; no old bytes or multi-file snapshot are retained. See [living topic pages](docs/living-topic-pages.md).
 
-### Personal board
+### Board
 
-A personal collection of ordinary Markdown page IDs arranged into three named columns, visualized in the Mac app and accessible to agents through the optional `board` CLI namespace. Membership and positions belong to local application configuration, scoped to a brain connection; they do not change page metadata or memory retrieval. Settling a board archives it until restored from Settings → Boards or the CLI. Board status combines column placement with explicitly bounded current note evidence, not an inferred completion score.
+A collection of ordinary Markdown page IDs arranged into three named columns, visualized in the Mac app and accessible to agents through the optional `board` CLI namespace. Membership and positions are canonical `boards/<UUID>.json` files in the brain, shared by local/hosted CLI and Mac. They do not change page metadata or memory retrieval; board writes follow the brain’s write permissions. Settling a board archives it until restored from Settings → Boards or the CLI. Board status combines column placement with explicitly bounded current note evidence, not an inferred completion score.

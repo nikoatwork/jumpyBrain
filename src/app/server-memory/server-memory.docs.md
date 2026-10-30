@@ -71,3 +71,7 @@ Expose the identical shared `checkDreamSources(root,request)` through the server
 ## Search recognition and declared editors
 
 Hosted rich search forwards the same opt-in recognition options to local-memory and returns its versioned bounded-scope acknowledgement unchanged. HTTP remains a thin decoder. Current per-hit metadata is observational and read-only; hosted reads never repair indexes. Document PUT accepts the optional declared actor, reuses the existing content-hash guard, and returns date/editor context for the confirmed revision. Notes POST forwards an optional actor through existing validated/idempotent creation. No credentials imply human identity and no actor grants write permission. Home Recent activity retains its existing date-only packet; it does not become a change-history or contributor feed.
+
+## Board organization
+
+`boards.ts` exposes shared app board CRUD/status against the server-local canonical root. Results contain layout/hashes and root-relative note provenance, never host paths. Protocol hosts own auth, precondition headers and write queuing. Board changes do not alter notes, dirty indexes or schedule indexing. Shared status discovers the corpus once per request, reads bounded evidence with cancellation, and rechecks the board hash.

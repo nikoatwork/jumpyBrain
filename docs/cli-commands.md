@@ -44,7 +44,7 @@ The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local adv
 | `jumpybrain instructions` | Print copyable instructions that tell coding agents when to recall, remember, and wrap up memory. |
 | `jumpybrain feedback [--message "..."] [--dry-run] [--id <UUID-v4>] [--json]` | Send explicit product feedback to the developers through the UI support relay, or preview it without sending. |
 | `jumpybrain agent-hint` | Alias for `jumpybrain instructions`. |
-| `jumpybrain board --help` | Manage personal Mac boards and read initiative status through the running app. See [boards for agents](boards.md). |
+| `jumpybrain board --help` | Manage canonical boards and read initiative status with `--root` or `--target-url`; no running app required. See [boards for agents](boards.md). |
 | `jumpybrain doctor [--root <memory-root>] [--json] [--check]` | Inspect CLI, Node, QMD, root compatibility/readiness and optional integration file presence. `--check` exits 1 when a required check fails. |
 | `jumpybrain update [--dry-run] [--install-root <path>]` | For a standard paired Mac installation, prepare one published release through the running app (Restart there), or install app/runtime/CLI together and verify startup when the app is quit. CLI-only installs retain their recorded source/ref workflow; legacy standalone companions retain quit-before-update support. Custom/pinned paired policies require the app-only exception. `--dry-run` previews without changes. |
 | `jumpybrain serve --root <memory-root> --host <host> --port <port> [--api-key <key>] [--public-base-url <url>] [--init]` | Start a jumpyBrain HTTP server backed by a server-local Markdown memory root. Use `--init` to initialize the root before serving. |

@@ -72,6 +72,8 @@ remote-memory/
   decisions/
   preferences/
   pages/
+  boards/
+    <uuid>.json          # canonical organization, not derived state
   .jumpybrain/
     index.json           # published generation manifest
     qmd-cache/qmd/       # transactional QMD SQLite state
@@ -859,3 +861,22 @@ The app requests at most 120 shared ranked candidates, reads bounded current sou
 The packet acknowledges `recognition: {version:1,options,candidateLimit:120,candidates,matched,partial:true,metadataUnavailable,nextOffset?}` with normalized options, counts within that candidate set, and next filtered-page offset. It always adds `recognition_bounded_candidates` to partial-retrieval warnings. Limits are explicit: a zero-match filtered page cannot establish corpus-wide absence; do not repeatedly increase limits or claim exhaustive enumeration. The browser includes additional confirmed tab-local saves, caps combined matches at 120 and retains a visible partial explanation.
 
 Notes POST and document PUT accept optional `actor: {kind:"human"|"agent",id?,name?}` with short nonempty strings (maximum 120 characters, no controls). Document reads/updates add optional current `recognition` dates/editor for confirmed snapshots. PUT still requires If-Match; no-op saves preserve the original attribution. These declarations are never authentication or permission grants, including for a shared access key. Legacy and untracked revisions remain unknown. Clients requesting recognition must require the versioned scope acknowledgement, rather than silently accepting an unfiltered older-server response.
+
+## Boards
+
+Boards are canonical version-1 JSON files under the server-local memory root, separate from Markdown content and derived state. Local and hosted runtime share the same schema and operations; no Mac app or database is needed. The UI is a Mac feature; the CLI is the supported agent interface.
+
+| Route | Method | Result / input |
+| --- | --- | --- |
+| `/memories/all/boards` | GET | `{boards, hashes}` including settled boards |
+| `/memories/all/boards/:id` | GET | `{board, contentHash}` |
+| `/memories/all/boards/:id/status?limit=12` | GET | Current bounded note evidence and board hash; limit 1–50 |
+| `/memories/all/boards` | POST | Full Board; create only |
+| `/memories/all/boards/:id` | PUT | Full Board, matching path ID, required `If-Match: sha256:…` |
+| `/memories/all/boards/:id` | DELETE | Required If-Match; returns `{id, deleted:true, notesPreserved:true}` |
+
+Board fields are exactly `{schemaVersion:1,id,name,archived,columns:[{name,pages}]}`. ID is a UUID; pages are canonical note IDs. Exactly three ordered columns, 100 boards/root, 100 cards/column, 100-character names and 64 KiB per file. IDs may repeat across boards but not within one. POST/PUT return `{board,contentHash}`. Unknown fields and unsupported versions fail; reads never recreate corrupt data. Layout references can remain missing: deletion of a board/card never deletes notes.
+
+Routes require normal bearer authentication. Mac read-only profiles and CLI read-only target policy reject writes; these client policies are not server ACLs. Normal explicit authorization for shared writes applies. Mutations serialize with the host queue plus a filesystem lock across cooperating processes, recheck exact-byte hashes, and publish one file atomically. Missing/malformed preconditions return 428; invalid schema or unsafe board returns 400; missing board returns 404; conflict/busy returns 409; unexpected filesystem failures return a safe 500. No indexing or note-content mutation occurs.
+
+Status reads fresh Markdown with root-relative paths, canonical ID/hash and whole-line excerpts. Default coverage is 12 cards, maximum 50; missing, omitted and truncated evidence remain explicit. A changed board hash aborts status. There is no multi-file snapshot or inferred completion score. See [agent workflow and breaking storage change](boards.md).
