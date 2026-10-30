@@ -18,8 +18,8 @@ test('boards persist independently, isolate scopes and reject concurrent stale w
 test('gateway keeps personal boards local on a read-only remote profile and fences stale scopes',async t=>{
  const {startCompanionGateway}=await import('../integrations/macos-companion/gateway.mjs');
  const {fileURLToPath}=await import('node:url');
- const dir=await mkdtemp(path.join(os.tmpdir(),'jb-board-gateway-'));t.after(()=>rm(dir,{recursive:true,force:true}));
- const gateway=await startCompanionGateway({runtimeRoot:fileURLToPath(new URL('..',import.meta.url)),directory:dir,port:0,controlKey:'c'.repeat(64),fetchImpl:async()=>{throw new Error('offline')},credentials:{get:async()=>null,set:async()=>{},delete:async()=>{}}});t.after(()=>gateway.close());
+ const dir=await mkdtemp(path.join(os.tmpdir(),'jb-board-gateway-'));let gateway;t.after(async()=>{await gateway?.close();await rm(dir,{recursive:true,force:true});});
+ gateway=await startCompanionGateway({runtimeRoot:fileURLToPath(new URL('..',import.meta.url)),directory:dir,port:0,controlKey:'c'.repeat(64),fetchImpl:async()=>{throw new Error('offline')},credentials:{get:async()=>null,set:async()=>{},delete:async()=>{}}});
  const request=async(route,body,extra={})=>{const response=await fetch(gateway.url+route,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+'c'.repeat(64),...(body?{'Content-Type':'application/json'}:{}),...extra},...(body?{body:JSON.stringify(body)}:{})});return {status:response.status,body:await response.json()};};
  const state=(await request('/companion/state')).body;
  const added=await request('/companion/profiles',{revision:state.revision,profile:{name:'Offline shared brain',kind:'remote',url:'https://offline.invalid',key:'fixture-board-key',allowWrites:false}});
