@@ -78,4 +78,4 @@ An explicit observational comparison of current canonical file bytes with a fing
 
 ### Personal board
 
-An app-only collection of ordinary Markdown page IDs arranged into three named columns. Membership and positions belong to local application configuration, scoped to a brain connection; they do not change page metadata or memory retrieval. Settling a board archives it until restored from Settings → Boards.
+A personal collection of ordinary Markdown page IDs arranged into three named columns, visualized in the Mac app and accessible to agents through the optional `board` CLI namespace. Membership and positions belong to local application configuration, scoped to a brain connection; they do not change page metadata or memory retrieval. Settling a board archives it until restored from Settings → Boards or the CLI. Board status combines column placement with explicitly bounded current note evidence, not an inferred completion score.

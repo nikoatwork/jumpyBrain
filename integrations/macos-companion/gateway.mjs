@@ -253,7 +253,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const state = () => {
     const snapshot = store.snapshot(); const profile = active();
     return { ...snapshot, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), extensions: extensions.signal(), health, ...(hostInstance ? { hostInstance } : {}),
-      target: profile?.kind === 'remote' ? profile.url : null };
+      target: profile?.kind === 'remote' ? profile.url : null, boards: { cliVersion: 1 } };
   };
   const change = async (operation) => {
     if (mutation || coordinator.pending || coordinator.closing || stopping) failure('switch_busy', 'Another connection change is in progress.', 409);
@@ -316,7 +316,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
         return;
       }
       if (url.pathname === '/companion/collections') {
-        const finish = coordinator.enter(auth.native ? coordinator.generation : Number(request.headers['x-companion-generation']), request.headers['x-companion-tab'], auth.native);
+        const finish = coordinator.enter(auth.native && request.headers['x-companion-generation'] === undefined ? coordinator.generation : Number(request.headers['x-companion-generation']), request.headers['x-companion-tab'], auth.native);
         try {
           const profile = active();
           if (!profile) failure('not_found', 'Select a brain first.', 404);

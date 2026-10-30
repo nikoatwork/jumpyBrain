@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Boards for agents
+
+- Added an optional `board` CLI namespace for personal Mac board organization and initiative status with current note evidence. [Verification and limits](done/2026-10-30_tasks-board-cli.md).
+
 ## 2026-10-30 — Playful board names
 
 - New boards get random productivity-themed names that avoid active and settled board names, including conflict retries. [Verification](done/2026-10-30_tasks-playful-board-names.md).

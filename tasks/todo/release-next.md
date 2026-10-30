@@ -1,5 +1,7 @@
 # Changes
 
+- Agents can create, organize and inspect personal Mac boards with the optional `jumpybrain board` namespace. Initiative status includes current note excerpts and explicit evidence gaps; board deletion keeps notes. Requires the running updated Mac app.
+
 - Fixed mixed sidebar sections and stacked bottom controls. Graph, Settings and Feedback stay grouped left, with updates anchored at the bottom right and open spacing instead of a divider. Theme choices live in Settings → Appearance, and the update check uses a quieter borderless icon; full-width row highlighting and earlier title/preview truncation keep ages clearly separated. Settled has a roomy, muted row with a right-aligned count and chevron directly above the icons; brain selection sits above it. Sidebar lists scroll without visible scrollbars.
 
 - Agents can send feedback directly with `jumpybrain feedback`, including stdin, a dry-run preview and JSON delivery receipts. Agent guidance explains reporting bugs; release preparation includes a live feedback review.

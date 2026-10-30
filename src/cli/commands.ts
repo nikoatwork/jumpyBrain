@@ -29,6 +29,12 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
 async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   const command = args._[0];
 
+  if (command === "board") {
+    const { boardsCli } = await import("./boards.js");
+    await boardsCli(args);
+    return;
+  }
+
   if (command === "feedback") {
     const { feedbackCli } = await import("./feedback.js");
     await feedbackCli(args);

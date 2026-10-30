@@ -7,3 +7,5 @@ One desktop gateway owns `<support>/collections.json`, version 1, outside the Ma
 ## Non-responsibilities
 
 No multi-process writer coordination, synchronization, migration from notes, index rebuild or implicit recreation. Back up application support to preserve boards; copying a vault alone does not carry them. The normal singleton gateway supplies authentication and generation admission.
+
+CLI board commands call that running gateway, never this store directly. Desktop and CLI edits therefore share the same writer queue and optimistic revisions; there is no offline CLI writer.
