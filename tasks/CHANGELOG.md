@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Playful board names
+
+- New boards get random productivity-themed names that avoid active and settled board names, including conflict retries. [Verification](done/2026-10-30_tasks-playful-board-names.md).
+
 ## 2026-10-30 — Clearer column add controls
 
 - Removed board column counts and placed an outlined plus beside each title. [Verification](done/2026-10-30_tasks-board-column-add.md).

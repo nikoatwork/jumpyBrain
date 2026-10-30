@@ -23,7 +23,8 @@ try {
   const page=await browser.newPage({viewport:{width:1280,height:900}});page.setDefaultTimeout(12000);
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(gateway.url+'/#companion='+'b'.repeat(64));await page.locator('#new-board').waitFor({state:'visible'});
-  await page.locator('#new-board').click();await page.getByRole('heading',{name:'Untitled board',exact:true}).waitFor();
+  await page.locator('#new-board').click();await page.locator('.board-column').first().waitFor();
+  const initialName=await page.locator('#board-title').innerText();assert.ok(initialName&&!initialName.includes('Untitled'));
   const boardUrl=page.url();
   // Seed memberships and another board through the authenticated real revisioned store.
   await page.evaluate(async noteId=>{
@@ -33,16 +34,16 @@ try {
     await graphJson('/companion/collections',{method:'POST',headers:{'Content-Type':'application/json','X-Collection-Brain':companionState.activeId},body:JSON.stringify(p)});
     await boardsUI.refresh();
   },noteId);
-  await page.getByRole('button',{name:'Settle Untitled board',exact:true}).click();
+  await page.getByRole('button',{name:'Settle '+initialName,exact:true}).click();
   await page.locator('#board-notice').getByRole('button',{name:'Settings → Boards'}).click();
   await page.locator('#settings-section-title').filter({hasText:'Boards'}).waitFor();
   const list=page.locator('#settings-boards-list');
   const row=list.locator('.board-settings-row').first();
   const input=list.getByRole('textbox',{name:'Board name',exact:true});
   assert.equal(await list.locator('.board-settings-row').count(),2);
-  assert.equal(await row.getByRole('button',{name:'Restore Untitled board',exact:true}).getAttribute('aria-pressed'),'true');
+  assert.equal(await row.getByRole('button',{name:'Restore '+initialName,exact:true}).getAttribute('aria-pressed'),'true');
   // Rename a settled board without restoring it. Refresh keeps text, caret and focus.
-  await row.getByRole('button',{name:'Rename Untitled board',exact:true}).click();await input.fill('Parked project');
+  await row.getByRole('button',{name:'Rename '+initialName,exact:true}).click();await input.fill('Parked project');
   await input.evaluate(el=>{window.settingsInput=el;el.setSelectionRange(2,5);});await page.evaluate(()=>boardsUI.refresh());
   assert.equal(await input.evaluate(el=>el===window.settingsInput&&el===document.activeElement&&el.selectionStart===2&&el.selectionEnd===5),true);
   // A revision conflict retains the user's draft and allows an explicit retry.

@@ -18,7 +18,24 @@ try{
  browser=await launchPlaywrightChromium({chromium:await loadPlaywrightChromium()});
  const page=await browser.newPage({viewport:{width:1280,height:900}});page.setDefaultTimeout(12000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(gateway.url+'/#companion='+'b'.repeat(64));await page.locator('#new-board').waitFor({state:'visible'});
- await page.locator('#new-board').click();await page.locator('#board-title').filter({hasText:'Untitled board'}).waitFor();
+ const newBoard=async(activate=()=>page.locator('#new-board').click())=>{
+   const previous=new URL(page.url()).searchParams.get('board');
+   await activate();
+   await page.waitForFunction(previous=>{
+     const id=new URL(location.href).searchParams.get('board');
+     return id&&id!==previous&&document.querySelector('#board-columns').dataset.board===id&&!document.getElementById('new-board').disabled;
+   },previous);
+   const name=await page.locator('#board-title').innerText();
+   assert.match(name,/^[A-Z][a-z]+ (Focus|Task|Progress|Goal|Sprint|Plan) [A-Z][a-z]+(?: \d+)?$/);
+   const names=await page.evaluate(async()=>{
+     const packet=await graphJson('/companion/collections',{headers:{'X-Collection-Brain':companionState.activeId}});
+     return packet.boards.map(board=>board.name.trim().toLowerCase());
+   });
+   assert.equal(new Set(names).size,names.length,'generated name avoids active and settled boards');
+   return name;
+ };
+
+ await newBoard();
  assert.equal(await page.locator('.board-rename-input').count(),0,'creation does not require a rename');
  await page.getByRole('button',{name:'Rename board',exact:true}).click();await page.getByRole('textbox',{name:'Board name',exact:true}).fill('A quieter launch');await page.getByRole('textbox',{name:'Board name',exact:true}).press('Enter');
  await page.locator('#board-title').filter({hasText:'A quieter launch'}).waitFor();
@@ -105,7 +122,7 @@ try{
  await page.reload();await page.locator('.board-card').first().waitFor();
  const saved=JSON.parse(await readFile(path.join(support,'collections.json'),'utf8'));assert.equal(Object.values(saved.scopes)[0].boards[0].columns[1].pages[0],cardId);
  // A second board receives an existing note through the note action card.
- await page.locator('#new-board').click();await page.locator('#board-title').filter({hasText:'Untitled board'}).waitFor();
+ await newBoard();
  await page.getByRole('button',{name:'Rename board',exact:true}).click();await page.getByRole('textbox',{name:'Board name',exact:true}).fill('Next chapter');await page.getByRole('textbox',{name:'Board name',exact:true}).press('Enter');
  await page.locator('#board-title').filter({hasText:'Next chapter'}).waitFor();
  await page.locator('[data-page-link="'+existingId+'"]').click();await page.locator('#note-editor').waitFor({state:'visible'});
@@ -151,18 +168,32 @@ try{
  assert.equal(await editorMarkdown(page),draft);assert.equal(await page.evaluate(()=>state.editor.hasPending()),true);
  await page.unroute('**/memories/all/documents/**');await page.waitForFunction(()=>!state.editor.state.saveInFlight);assert.equal(await page.evaluate(()=>state.editor.retry()),true);
  await page.waitForFunction(()=>!document.getElementById('new-board').disabled);
- // Default suffixes and repeated activation are independent of optional naming.
+ // Generated names are unique, and repeated activation creates only one board.
  const beforeBoards=await page.locator('#sidebar-boards li').count();
- await page.evaluate(()=>{document.getElementById('new-board').click();document.getElementById('new-board').click();});
- await page.locator('#board-title').filter({hasText:'Untitled board'}).waitFor();
+ const firstName=await newBoard(()=>page.evaluate(()=>{document.getElementById('new-board').click();document.getElementById('new-board').click();}));
  assert.equal(await page.locator('#sidebar-boards li').count(),beforeBoards+1);
- await page.locator('#new-board').click();await page.getByRole('heading',{name:'Untitled board 2',exact:true}).waitFor();
+ const secondName=await newBoard();assert.notEqual(secondName,firstName);
  await page.getByRole('button',{name:'Rename board',exact:true}).click();await boardName.fill('Renamed default');await boardName.press('Enter');
  await page.getByRole('heading',{name:'Renamed default',exact:true}).waitFor();
  // A committed board whose response is lost is confirmed by the recovery read.
  let boardLost=false;
  await page.route('**/companion/collections',async route=>{if(route.request().method()==='POST'&&!boardLost){boardLost=true;await route.fetch();await route.abort();}else await route.continue();});
- await page.locator('#new-board').click();await page.getByRole('heading',{name:'Untitled board 2',exact:true}).waitFor();await page.unroute('**/companion/collections');
+ await newBoard();await page.unroute('**/companion/collections');
+ // Another tab takes the candidate name before our write; retry preserves ID and avoids that settled name.
+ let conflictedBoard;
+ await page.route('**/companion/collections',async route=>{
+   if(route.request().method()==='POST'&&!conflictedBoard){
+     const payload=route.request().postDataJSON();conflictedBoard=payload.boards.at(-1);
+     payload.boards[payload.boards.length-1]={...conflictedBoard,id:crypto.randomUUID(),archived:true};
+     await route.fetch({postData:JSON.stringify(payload)});
+     await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture conflict'}})});
+   }else await route.continue();
+ });
+ await page.locator('#new-board').click();await page.locator('#board-notice').filter({hasText:'Boards changed elsewhere'}).waitFor();
+ await page.waitForFunction(()=>!boardsUI.pending());
+ const retryName=await newBoard();assert.notEqual(retryName,conflictedBoard.name);
+ assert.equal(new URL(page.url()).searchParams.get('board'),conflictedBoard.id);
+ await page.unroute('**/companion/collections');
  await page.getByRole('button',{name:'Add note to To do',exact:true}).click();
  // Frozen request/body/key survive an accepted creation with a lost response.
  const attempts=[];let loseCreation=true;
@@ -201,7 +232,7 @@ try{
  await switchBrain(remoteId);releaseScopeSearch();await page.unroute('**/memories/all/search');
  await page.waitForFunction(id=>typeof companionState!=='undefined'&&companionState?.activeId===id&&companionRegistered&&!companionFrozen,remoteId);
  assert.equal(await page.locator('.board-composer').count(),0);assert.equal(await page.locator('#sidebar-boards li').count(),0);
- await page.locator('#new-board').click();await page.getByRole('heading',{name:'Untitled board',exact:true}).waitFor();
+ await newBoard();
  await page.getByRole('button',{name:'Add note to To do',exact:true}).click();await composer.fill('Launch checklist');
  await page.getByRole('option',{name:'Launch checklist',exact:true}).waitFor();assert.equal(await page.getByRole('option',{name:'Create “Launch checklist”',exact:true}).isDisabled(),true);
  await composer.press('Enter');await page.locator('.board-card').filter({hasText:'Launch checklist'}).waitFor();

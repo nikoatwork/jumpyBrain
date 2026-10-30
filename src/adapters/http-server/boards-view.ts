@@ -1,6 +1,21 @@
 import { browserIcons } from "./browser-icons.js";
 import { boardSettingsScript, boardSettingsStyles } from "./board-settings.js";
 
+// Self-contained so the same naming function can run in the browser shell.
+export function createBoardName(existing: readonly string[], random = Math.random): string {
+  const moods = ['Cozy', 'Sunny', 'Happy', 'Peppy', 'Merry', 'Little', 'Bright', 'Jolly'];
+  const pursuits = ['Focus', 'Task', 'Progress', 'Goal', 'Sprint', 'Plan'];
+  const friends = ['Foxes', 'Otters', 'Bees', 'Pandas', 'Bunnies', 'Penguins', 'Badgers', 'Sparrows'];
+  const used = new Set(existing.map(name => name.trim().toLowerCase()));
+  const names = moods.flatMap(mood => pursuits.flatMap(pursuit => friends.map(friend => `${mood} ${pursuit} ${friend}`)));
+  const available = names.filter(name => !used.has(name.toLowerCase()));
+  if (available.length) return available[Math.floor(random() * available.length)]!;
+  const base = names[Math.floor(random() * names.length)]!;
+  let suffix = 2;
+  while (used.has(`${base} ${suffix}`.toLowerCase())) suffix++;
+  return `${base} ${suffix}`;
+}
+
 export const boardsStyles = String.raw`
 ${boardSettingsStyles}
 #board-title button,.board-composer button,#board-navigation > button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
@@ -60,6 +75,7 @@ export const boardsMarkup = String.raw`
 </form></dialog>`;
 export const boardsScript = String.raw`
 ${boardSettingsScript}
+${createBoardName.toString()}
 const boardsUI = (() => {
   let formBusy=false;
   let packet = {revision:0,boards:[]}, bound = '', busy = false, sequence = 0, selected = null, composer = null, rename = null, creation = null;
@@ -282,7 +298,9 @@ const boardsUI = (() => {
   const create=async()=>{
     if(busy||formBusy||companionFrozen||!scope()||bound!==scope())return;
     const s=scope();
-    if(!creation){let name='Untitled board',suffix=2;const used=new Set(packet.boards.map(b=>b.name));while(used.has(name))name='Untitled board '+suffix++;creation={id:crypto.randomUUID(),name,archived:false,columns:['To do','Doing','Done'].map(name=>({name,pages:[]}))};}
+    if(!creation)creation={id:crypto.randomUUID(),name:createBoardName(packet.boards.map(b=>b.name)),archived:false,columns:['To do','Doing','Done'].map(name=>({name,pages:[]}))};
+    // After a conflict, keep the pending identity but avoid a newly occupied name.
+    if(!packet.boards.some(b=>b.id===creation.id)&&packet.boards.some(b=>b.name.trim().toLowerCase()===creation.name.toLowerCase()))creation.name=createBoardName(packet.boards.map(b=>b.name));
     const current=creation;formBusy=true;render();
     try{
       const ok=packet.boards.some(b=>b.id===current.id)||await change(rows=>rows.push(current));
