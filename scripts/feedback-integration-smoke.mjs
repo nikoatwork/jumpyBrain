@@ -54,6 +54,43 @@ try {
   await restored.waitForFunction(() => window.restored === true && searches >= 2 && !document.querySelector('#related-pages').hidden);
   await restored.evaluate(() => { currentNote.state.contentHash = 'b'; related.sync(); });
   await restored.waitForFunction(() => searches >= 3 && !document.querySelector('#related-pages').hidden);
+  // Exercise pending labels as well as visible ones: crossing controls must stay quiet.
+  await restored.evaluate(async () => {
+    const check = (value, message) => { if (!value) throw new Error(message); };
+    const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const open = () => document.querySelector('#control-label').matches(':popover-open');
+    const button = document.createElement('button');
+    button.title = 'Hover fixture'; button.textContent = 'Fixture'; document.body.append(button);
+    const enter = () => button.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+    const leave = () => button.dispatchEvent(new PointerEvent('pointerout', { bubbles: true, relatedTarget: document.body }));
+    enter();
+    check(!button.hasAttribute('title'), 'native title is suppressed while waiting');
+    check(!button.hasAttribute('aria-describedby'), 'pending help is not exposed as a visible description');
+    await pause(150); check(!open(), 'a brief pass must not open help');
+    leave(); await pause(300); check(!open(), 'leaving cancels pending help');
+    check(button.title === 'Hover fixture', 'leaving restores the original title');
+    enter(); await pause(450); check(open(), 'dwelling opens help');
+    leave(); check(!open(), 'leaving dismisses visible help immediately');
+    for (const dismiss of [
+      () => button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })),
+      () => button.click(),
+      () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+      () => document.dispatchEvent(new Event('scroll')),
+      () => window.dispatchEvent(new Event('blur')),
+      () => window.dispatchEvent(new Event('resize')),
+      () => { button.setAttribute('aria-label', 'Changed action'); },
+      () => button.remove(),
+    ]) {
+      enter(); dismiss(); await pause(450);
+      check(!open(), 'dismissal must cancel pending help');
+    }
+    document.body.append(button); enter(); button.focus();
+    check(open(), 'focus reveals pending help immediately');
+    button.blur(); await pause(450); check(!open(), 'blur must not leave a hover timer');
+    button.disabled = true; enter(); await pause(450);
+    check(open(), 'disabled controls retain delayed hover help');
+    button.remove();
+  });
   await restored.evaluate(() => document.dispatchEvent(new CustomEvent('jumpybrain-update-state', { detail: { phase: 'available', actions: ['update'] } })));
   await restored.locator('#desktop-updates').hover();
   await restored.waitForFunction(() => document.querySelector('#control-label').matches(':popover-open'));
@@ -68,7 +105,7 @@ try {
   assert.equal(await restored.locator('#control-label').evaluate(label => label.matches(':popover-open')), true, 'unchanged polling must not dismiss an active tooltip');
   await restored.locator('#desktop-updates').evaluate(button => button.remove());
   await restored.waitForFunction(() => !document.querySelector('#control-label').matches(':popover-open'));
-  console.log('PASS feedback integration: Find after user/external body replacement; real BFCache Back/resume; dynamic native update and removed-control tooltips.');
+  console.log('PASS feedback integration: Find after user/external body replacement; real BFCache Back/resume; delayed/canceled hover, immediate focus, disabled/dynamic native update and removed-control tooltips.');
 } finally {
   await browser.close();
   if (server) await new Promise(resolve => server.close(resolve));

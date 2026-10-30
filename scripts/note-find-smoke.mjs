@@ -91,7 +91,13 @@ try {
     await page.locator('#close-search').click();
     // Disabled icons still have pointer labels. No click or mutation is required.
     await page.locator('[data-format=bold]').evaluate(button => { button.disabled = true; });
+    // At 320px, automation scrolls this toolbar into view. Finish scrolling before dwelling.
     await page.locator('[data-format=bold]').hover();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await page.mouse.move(0, 0);
+    const boldBounds = await page.locator('[data-format=bold]').boundingBox();
+    await page.mouse.move(boldBounds.x + boldBounds.width / 2, boldBounds.y + boldBounds.height / 2);
+    await page.waitForFunction(() => document.querySelector('#control-label').matches(':popover-open'));
     assert.equal(await page.locator('#control-label').innerText(), 'Bold');
     await page.locator('[data-format=bold]').evaluate(button => { button.disabled = false; });
     if (width === 1280 && theme === 'dark') {
