@@ -1,4 +1,5 @@
 import { extensionsUsage } from "./usage.js";
+import { parseBoardArgs } from "./board-args.js";
 import { normalizeEvidenceDate } from "../core/writing/metadata.js";
 
 export interface ParsedCliArgs {
@@ -7,6 +8,7 @@ export interface ParsedCliArgs {
 }
 
 export function parseArgs(argv: string[]): ParsedCliArgs {
+  if (argv[0] === "board") return parseBoardArgs(argv);
   if (argv[0] === "feedback") return parseFeedbackArgs(argv);
   if (argv[0] === "doctor") return parseDoctorArgs(argv);
   if (argv[0] === "extensions") return parseExtensionsArgs(argv);

@@ -2,6 +2,9 @@
 
 ## Responsibilities
 
+- `board` is an optional, dynamically dispatched desktop namespace. `board-args.ts` strictly rejects root/remote targets, malformed/repeated flags and invalid revision/card inputs before host discovery. `boards.ts` composes `runtime/boards.ts` operations with the running companion's collections/document reads; it requires advertised board CLI capability, pins generation/profile and never switches brains. Mutations require the previously observed scope revision except creation. Status reads at most 12 (explicitly up to 50) notes, with whole-line excerpts, ID/hash citations and explicit missing/omitted/truncated evidence; it rechecks layout revision afterward. No automatic indexing or Markdown writes. See [board contract](../../docs/boards.md).
+- `companion.ts` shares private native descriptor/key discovery with extension management. The historical `extensions-control.json` filename remains for compatibility. Board operations have a 60-second transport deadline and no offline-write fallback; extension management retains its existing offline preparation behavior. Neither uses remote CLI credentials.
+
 - `feedback.ts` handles explicit developer feedback before memory target policy/credentials. Strict args allow message or bounded stdin, dry-run, JSON, help and a UUID v4 for deliberate same-message retries. It sends no diagnostics and delegates to the shared feedback adapter. No memory root, app or API key is needed. Service acceptance is not inbox receipt; generic unconfirmed errors retain the report ID, never remote bodies, and no automatic retry runs.
 
 - `remember` and its recipe strictly parse creation flags, including `--date value`/`--date=value`, before credentials/stdin. Only tags may repeat; existing optional true/false dream spellings remain supported. Shared core validation rejects malformed evidence dates. Both transports receive the same draft.
