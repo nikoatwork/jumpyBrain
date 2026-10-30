@@ -97,7 +97,8 @@ try {
   await page.locator('#sidebar-pinned .sidebar-page-editor[data-editor-kind="agent"]').waitFor();
   assert.equal(await page.locator('#sidebar-settled-section').getAttribute('open'), null);
   const shelf = await page.locator('#sidebar-settled-section summary').boundingBox();
-  assert.ok(shelf.y >= 0 && shelf.y + shelf.height < 790, 'collapsed Settled stays visible below the scrolling Attention list');
+  const footer = await page.locator('.nav-preferences').boundingBox();
+  assert.ok(shelf.y >= 0 && shelf.y + shelf.height <= footer.y && footer.y + footer.height <= 850, 'collapsed Settled and the icon bar stay visible below the scrolling Attention list');
   await page.screenshot({ path: path.join(captures, 'sidebar-default.png') });
   assert.deepEqual(errors, []);
   console.log('Collaborative sidebar smoke: PASS (sections, paging, actor icons, periodic create/edit refresh, raw and browser wake, caret/focus, six layouts).');

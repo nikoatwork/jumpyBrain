@@ -1,6 +1,6 @@
 # Changes
 
-- Fixed mixed sidebar sections and stacked bottom controls. Graph, Settings, Feedback and updates stay on one bar beneath an edge-to-edge divider. Theme choices live in Settings → Appearance, and the update check uses a quieter borderless icon; full-width row highlighting and earlier title/preview truncation keep ages clearly separated. Settled has more breathing room and a right-aligned count and chevron.
+- Fixed mixed sidebar sections and stacked bottom controls. Graph, Settings and Feedback stay grouped left, with updates anchored at the bottom right and open spacing instead of a divider. Theme choices live in Settings → Appearance, and the update check uses a quieter borderless icon; full-width row highlighting and earlier title/preview truncation keep ages clearly separated. Settled has a roomy, muted row with a right-aligned count and chevron directly above the icons; brain selection sits above it.
 
 - Agents can send feedback directly with `jumpybrain feedback`, including stdin, a dry-run preview and JSON delivery receipts. Agent guidance explains reporting bugs; release preparation includes a live feedback review.
 

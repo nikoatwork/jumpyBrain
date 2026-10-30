@@ -40,8 +40,8 @@ ${noteOutlineStyles}
     :root[data-native-mac="true"] :is(a, button, input, select, textarea, [role="button"], [role="tooltip"], [popover], #companion-active) { -webkit-app-region: no-drag; }
     .nav-brand, .nav-tools { flex-shrink: 0; }
     .nav-tools { display: flex; align-items: center; gap: var(--space-2); }
-    .nav-utilities { display: flex; align-items: center; gap: var(--space-2); }
-    .nav-preferences { --control-height: var(--control-compact); display: grid; grid-template-columns: repeat(3, var(--control-compact)) max-content; align-items: center; gap: var(--space-2); margin-top: auto; margin-inline: calc(-1 * var(--space-3)); padding: var(--space-3) var(--space-3) 0; border-top: 1px solid var(--line); flex-shrink: 0; }
+    .nav-utilities { justify-self: end; display: flex; align-items: center; gap: var(--space-2); }
+    .nav-preferences { --control-height: var(--control-compact); display: grid; grid-template-columns: repeat(3, var(--control-compact)) minmax(0, 1fr); align-items: center; gap: var(--space-2); margin-top: 0; flex-shrink: 0; }
     .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     .app-nav .nav-item:not(.sidebar-icon, [aria-current="page"]):hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
@@ -56,7 +56,7 @@ ${noteOutlineStyles}
     .sidebar-section-heading, .sidebar-settled summary { margin: var(--space-2) var(--space-6); color: var(--ink-soft); font: var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); }
     #board-navigation > button { margin-inline: var(--space-3); }
     .sidebar-settled { margin-top: auto; max-height: 40%; overflow: auto; scrollbar-width: thin; padding-top: var(--space-1); }
-    .sidebar-settled summary { display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; margin: 0; min-height: var(--control-touch); padding: var(--space-3) var(--space-6); }
+    .sidebar-settled summary { display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; margin: 0; min-height: var(--space-12); padding: var(--space-3) var(--space-6) var(--space-3) var(--space-5); color: var(--ink-faint); font-size: var(--text-body); }
     .sidebar-settled summary::-webkit-details-marker { display: none; }
     .sidebar-settled summary::after { content: ""; flex: 0 0 var(--space-1); width: var(--space-1); height: var(--space-1); border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
     .sidebar-settled[open] summary::after { transform: rotate(45deg); }
@@ -318,14 +318,14 @@ ${referencePresentationStyles}
       .sidebar-settled summary { padding-inline: var(--space-3); }
       #board-navigation > button { margin-inline: 0; }
       .sidebar-list-more { margin-inline: var(--space-3); }
-      .sidebar-attention-scroll { flex-basis: auto; min-height: 160px; }
+      .sidebar-attention-scroll { flex-basis: auto; min-height: 120px; }
       .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
       .sidebar-page { flex: 0 0 auto; max-width: 190px; padding-inline: 0; border-radius: var(--radius-sm); }
       .sidebar-page .sidebar-page-actions { right: var(--space-1); }
       .sidebar-page + .sidebar-page { margin-top: 0; }
       .sidebar-page-link { min-height: var(--control-height); grid-template-columns: var(--icon-size) minmax(0, 1fr) auto; column-gap: var(--space-2); padding-inline: var(--space-2); }
       .sidebar-empty { margin: var(--space-1); }
-      .nav-preferences { --control-compact: var(--control-touch); grid-row: 4; grid-column: 1 / -1; margin-top: 0; padding-top: var(--space-2); }
+      .nav-preferences { --control-compact: var(--control-touch); grid-row: 4; grid-column: 1 / -1; margin-top: 0; }
       .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
       .app-nav .sidebar-icon { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
       .nav-item svg { width: 16px; height: 16px; }

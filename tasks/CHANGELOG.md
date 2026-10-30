@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Reference sidebar spacing
+
+- Replaced the footer divider with open space, matched the roomy Settled row, and anchored updates right of the left-aligned utility icons. [Verification](done/2026-10-30_tasks-sidebar-reference-spacing.md).
+
 ## 2026-10-30 — Quieter sidebar footer
 
 - Extended the footer divider across the sidebar, removed its theme shortcut and softened the clickable update check. [Verification](done/2026-10-30_tasks-sidebar-footer-quiet.md).
