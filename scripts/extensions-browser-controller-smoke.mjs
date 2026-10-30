@@ -56,7 +56,7 @@ globalThis.JumpyBrainExtensions.register('fixture', async api => {
   return () => { stats.factoryReturnDisposes++; };
 });
 `;
-const html = '<!doctype html><html data-theme="light"><body><button id="origin">Origin</button><button id="color-theme">Theme</button><div data-extension-slot="sidebar.actions"></div><div data-extension-slot="note.actions"></div>' + extensionSettingsMarkup + extensionPanelMarkup + '<script nonce="fixture" src="/controller.js"></script><script nonce="fixture">' + initialize + '</script></body></html>';
+const html = '<!doctype html><html data-theme="light"><body><button id="origin">Origin</button><div data-extension-slot="sidebar.actions"></div><div data-extension-slot="note.actions"></div>' + extensionSettingsMarkup + extensionPanelMarkup + '<script nonce="fixture" src="/controller.js"></script><script nonce="fixture">' + initialize + '</script></body></html>';
 let assetDelay = 0;
 const server = createServer((request, response) => {
   const headers = { 'Content-Type': request.url === '/' ? 'text/html' : 'application/javascript', 'Content-Security-Policy': "default-src 'none'; script-src 'nonce-fixture'; connect-src 'self'; style-src 'nonce-fixture'; base-uri 'none'" };

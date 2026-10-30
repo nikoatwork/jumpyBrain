@@ -136,8 +136,6 @@ export function installExtensionsBrowser(options: Options) {
         appliedTokens.add(token); doc.documentElement.style.setProperty(token, value);
       }
       doc.documentElement.dataset.theme = theme.appearance;
-      const control = doc.getElementById("color-theme");
-      if (control) { const action = theme.appearance === "dark" ? "Switch to light theme" : "Switch to dark theme"; control.setAttribute("aria-label", action); control.title = action; }
       options.redrawGraph();
     }
   }
@@ -395,15 +393,12 @@ export function installExtensionsBrowser(options: Options) {
   panel.addEventListener("close", () => { if (!panel.open && activePanel) closePanel(); }, { signal });
   doc.getElementById("extension-reload")!.addEventListener("click", () => void manage("reload"), { signal });
   themeSelect.addEventListener("change", () => { prefs.theme = themeSelect.value; persist(); applyTheme(); void emit({ type: "theme.changed", theme: prefs.theme || doc.documentElement.dataset.theme }); }, { signal });
-  doc.getElementById("color-theme")?.addEventListener("click", () => { prefs.theme = ""; persist(); clearTheme(); themeSelect.value = ""; void emit({ type: "theme.changed", theme: doc.documentElement.dataset.theme }); }, { signal });
   win.addEventListener("jumpybrain-appearance-change", () => {
     prefs.theme = ""; persist(); clearTheme(); themeSelect.value = "";
   }, { signal });
   const themeObserver = new MutationObserver(() => {
     if (themeApplied && themeAppearance) {
       if (doc.documentElement.dataset.theme !== themeAppearance) doc.documentElement.dataset.theme = themeAppearance;
-      const control = doc.getElementById("color-theme");
-      if (control) { const action = themeAppearance === "dark" ? "Switch to light theme" : "Switch to dark theme"; control.setAttribute("aria-label", action); control.title = action; }
     } else void emit({ type: "theme.changed", theme: doc.documentElement.dataset.theme });
   });
   themeObserver.observe(doc.documentElement, { attributes: true, attributeFilter: ["data-theme"] });

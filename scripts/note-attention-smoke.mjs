@@ -227,7 +227,7 @@ try {
   await page.locator("#app-toast").waitFor({ state: "hidden", timeout: 6_000 });
 
   for (const theme of ["light", "dark"]) {
-    if (await page.locator("html").getAttribute("data-theme") !== theme) await page.locator("#color-theme").click();
+    await page.evaluate(value => colorTheme.setPreference(value), theme);
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({ width, height: 850 });
       await page.evaluate(() => toast.show("layout", "Snoozed until 24/10/2026, 09:00. Pinned pages stay visible.", { action: { label: "Undo", run() {} } }));

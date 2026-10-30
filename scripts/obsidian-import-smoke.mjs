@@ -74,7 +74,7 @@ try {
   assert.equal((await editorMarkdown(page)).trimEnd(), expected.trimEnd());
   await mkdir(screenshots, { recursive: true });
   await page.screenshot({ path: path.join(screenshots, "desktop.png") });
-  await page.locator("#color-theme").click();
+  await page.evaluate(() => colorTheme.setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: path.join(screenshots, "narrow-dark.png") });
   assert.deepEqual(await readFile(path.join(root, entry.outputPath)), original, "opening must preserve canonical bytes");
