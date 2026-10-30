@@ -64,16 +64,20 @@ try {
     }, footerControls);
     assert.ok(geometry.footerSibling && geometry.attentionContained && geometry.shelfContained, 'lists, shelf and footer have separate layout owners');
     assert.ok(geometry.fits, `${width}/${height}/${sidebarWidth}: no horizontal overflow`);
-    assert.equal(geometry.footer.x, geometry.sidebar.x, 'footer divider reaches the left edge');
-    assert.equal(geometry.footer.right, geometry.sidebar.right - (width > 680 ? 1 : 0), 'footer divider reaches the right edge');
+    assert.equal(await page.locator('.nav-preferences').evaluate(el => getComputedStyle(el).borderTopWidth), '0px', 'open spacing replaces the footer divider');
     const size = width <= 680 ? 40 : 32;
     for (const [i, control] of geometry.controls.entries()) {
       assert.equal(control.height, size); assert.equal(control.width, size);
       assert.ok(Math.abs(control.y - geometry.controls[0].y) < 1, 'all four footer controls occupy ONE horizontal bar');
       assert.ok(control.x >= geometry.sidebar.x && control.right <= geometry.sidebar.right, 'footer controls stay inside sidebar');
-      if (i) assert.equal(control.x - geometry.controls[i - 1].right, 8, 'footer action gaps are uniform');
+      if (i > 0 && i < 3) assert.equal(control.x - geometry.controls[i - 1].right, 8, 'left icon group keeps even spacing');
     }
-    assert.ok(geometry.brain.bottom <= geometry.controls[0].y, 'brain name stays above the action bar');
+    assert.equal(geometry.controls[3].right, geometry.footer.right, 'update action anchors the bottom right');
+    assert.ok(geometry.controls[3].x - geometry.controls[2].right >= 8, 'update action stays separate from the left icon group');
+    assert.ok(geometry.brain.bottom <= geometry.shelf.y, 'brain selection sits above Settled');
+    const summary = page.locator('#sidebar-settled-section summary');
+    assert.equal(await summary.evaluate(el => getComputedStyle(el).fontSize), '14px');
+    assert.ok((await summary.boundingBox()).height >= 48, 'Settled uses the roomy reference row');
     assert.ok(geometry.shelf.bottom <= geometry.footer.y, 'Settled never enters the footer');
     assert.ok(geometry.footer.bottom <= height, 'footer stays reachable in short windows');
     assert.ok(geometry.list.bottom <= geometry.shelf.y + 1, 'Attention scrolls independently above Settled');
