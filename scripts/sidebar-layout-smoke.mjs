@@ -32,8 +32,9 @@ try {
   await page.evaluate(mountInlineUpdates);
   await page.evaluate(() => { document.documentElement.dataset.nativeMac = 'true'; });
   await page.locator('#new-board').click();
-  await page.locator('#board-dialog-input').fill('A shared board');
-  await page.locator('#board-dialog-submit').click();
+  await page.getByRole('button',{name:'Rename board',exact:true}).click();
+  await page.getByRole('textbox',{name:'Board name',exact:true}).fill('A shared board');
+  await page.getByRole('textbox',{name:'Board name',exact:true}).press('Enter');
   await page.locator('#board-title').filter({ hasText: 'A shared board' }).waitFor();
   await page.locator(`#sidebar-recent [data-page-pin="${id(24)}"]`).focus(); await page.keyboard.press('Enter');
   await page.locator('#sidebar-pinned .sidebar-page').waitFor();

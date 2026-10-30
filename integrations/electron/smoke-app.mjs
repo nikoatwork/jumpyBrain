@@ -108,10 +108,10 @@ try {
   await until('document.getElementById("note-save-state").textContent.includes("Saved")');
   assert.match(await readFile(path.join(config.setupRoot, starterPage.file), 'utf8'), /- \[x\]/);
   await js(`document.querySelector('[data-page-pin="${starterPage.id}"]').click()`);
-  await until(`!document.querySelector('[data-page-link="${starterPage.id}"]')`);
+  await until(`!document.querySelector('#sidebar-pinned [data-page-link="${starterPage.id}"]')`);
   await window.webContents.reload();
   await pause(500);
-  assert.equal(await js(`!!document.querySelector('[data-page-link="${starterPage.id}"]')`), false);
+  assert.equal(await js(`!!document.querySelector('#sidebar-pinned [data-page-link="${starterPage.id}"]')`), false);
   // Simulate a user re-pin, then exercise the existing Settle action.
   await js(`(() => {
     const key = ${JSON.stringify('jumpybrain.pageNavigation.v1:' + starterPage.scope)};
@@ -124,7 +124,7 @@ try {
   { const closed = new Promise(resolve => window.once('closed', resolve)); window.close(); await closed; }
   const reopenedStarter = createEditorWindow(config, { starterPage });
   window = reopenedStarter.window; await reopenedStarter.loaded; await pause(500);
-  assert.equal(await js(`!!document.querySelector('[data-page-link="${starterPage.id}"]')`), false);
+  assert.equal(await js(`!!document.querySelector('#sidebar-pinned [data-page-link="${starterPage.id}"]')`), false);
   { const closed = new Promise(resolve => window.once('closed', resolve)); window.close(); await closed; }
   checks.push('starter 10/5/5, native light/dark wide/narrow, checkbox persistence, unpin/reload, settle/relaunch, idempotent handoff');
 
@@ -164,16 +164,26 @@ try {
   assert.ok(cookies.some((cookie) => cookie.httpOnly && cookie.sameSite === 'strict'));
   checks.push('existing UI and cookie handshake');
   await js('document.getElementById("new-board").click()');
-  await until('document.getElementById("board-dialog").open');
-  await js('document.getElementById("board-dialog-input").value = "Desktop board"; document.getElementById("board-dialog-form").requestSubmit()');
+  await until('document.getElementById("board-title").textContent === "Untitled board"');
+  await js(`document.querySelector('[aria-label="Rename board"]').click(); const renameInput=document.querySelector('.board-rename-input');renameInput.value='Desktop board';renameInput.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));`);
   await until('document.getElementById("board-title").textContent === "Desktop board"');
   assert.equal(await js('document.querySelectorAll(".board-column").length'), 3);
+  await js(`document.querySelector('[aria-label="Add note to To do"]').click();const input=document.querySelector('.board-composer input');input.value='Native board note';input.dispatchEvent(new Event('input',{bubbles:true}));`);
+  await until(`document.querySelector('.board-composer [role="option"]:not(:disabled)')`);
+  await js(`document.querySelector('.board-composer [role="option"]:not(:disabled)').click()`);
+  await until(`document.querySelector('.board-card')?.textContent.includes('Native board note')`);
+  assert.equal(await js(`document.querySelector('.board-composer input').value`),'');
+  await js(`document.querySelector('.board-composer input').value='Keep typing';document.querySelector('.board-composer input').focus();window.nativeComposer=document.activeElement;boardsUI.refresh()`);
+  await until(`document.querySelector('.board-card')?.textContent.includes('Native board note')`);
+  assert.equal(await js(`document.activeElement===window.nativeComposer && document.activeElement.value==='Keep typing'`),true);
+  await js(`document.querySelector('.board-composer input').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);
+  assert.equal(await js(`document.activeElement.getAttribute('aria-label')`),'Add note to To do');
   await writeFile(config.screenshot.replace('welcome.png', 'board-native.png'), (await window.webContents.capturePage()).toPNG());
   await js(`document.querySelector('[aria-label="Settle Desktop board"]').click()`);
   await until(`!document.querySelector('#sidebar-boards [aria-label="Settle Desktop board"]')`);
   await js('document.getElementById("notes-link").click()');
   await until('document.body.dataset.view === "home"');
-  checks.push('native board creation, three columns, sidebar settle and guarded return');
+  checks.push('native immediate board creation, inline rename, repeated note composer, refresh focus, Escape, sidebar settle and guarded return');
 
 
   const prefs = window.webContents.getLastWebPreferences();

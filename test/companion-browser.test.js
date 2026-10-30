@@ -206,6 +206,16 @@ test("switch acknowledgement waits for flush and reports failures without discar
   assert.equal(h.acknowledgements[0].body.ok, false);
 });
 
+test("switch acknowledgement waits for in-flight board creation and membership", async () => {
+  let pendingBoard = true, resume;
+  const h = barrierHarness({ boardsUI: { pending: () => pendingBoard }, setTimeout: run => { resume = run; } });
+  h.flush.resolve(true);
+  const barrier = h.context.companionBarrier("switch-1");
+  await tick(); assert.equal(h.acknowledgements.length, 0);
+  pendingBoard = false; resume(); await barrier;
+  assert.equal(h.acknowledgements[0].body.ok, true);
+});
+
 test("acknowledgement from an expired switch is never sent", async () => {
   const h = barrierHarness();
   const pending = h.context.companionBarrier("switch-1");
@@ -231,10 +241,10 @@ test("switch acknowledgement waits for saved reference creation and blocks uncon
 function interactionHarness() {
   const elements = new Map();
   const element = (id) => {
-    if (!elements.has(id)) elements.set(id, ["board-dialog", "note-board-dialog"].includes(id) ? { open: false, close() { this.open = false; } } : {});
+    if (!elements.has(id)) elements.set(id, id === "note-board-dialog" ? { open: false, close() { this.open = false; } } : {});
     return elements.get(id);
   };
-  const calls = { references: 0, search: 0, dream: 0, sync: 0, barriers: [], replacements: [] };
+  const calls = { references: 0, search: 0, dream: 0, sync: 0, boards: 0, boardRefreshes: 0, barriers: [], replacements: [] };
   const context = runtime(["companionLock", "companionApplyState", "companionFence", "companionReadOnly", "companionScopeUrl"], {
     URL, location: { origin: "http://127.0.0.1:1234", replace: (url) => calls.replacements.push(url) },
     companionState: { profiles: [], generation: 1, phase: "idle", activeId: "a", active: { allowWrites: true } },
@@ -243,6 +253,7 @@ function interactionHarness() {
     companionAcknowledged: new Set(), creatingNote: false,
     state: { view: "note", editor: { state: { navigationPending: false }, setNavigationPending() {} } },
     navigation: { isBusy: () => false, sync() {} },
+    boardsUI: { fence() { calls.boards++; }, refresh() { calls.boardRefreshes++; } },
     $: element, document: { querySelector: element },
     searchDialog: { open: false }, dreamDialog: { open: false },
     cancelReferenceInteraction: () => { calls.references++; },
@@ -264,7 +275,7 @@ test("healthy idle snapshots preserve dialogs and reference interactions while s
     dialog.open = false;
   }
   assert.equal(calls.references, 0, "pending references/autocomplete must not be cancelled");
-  assert.equal(calls.search, 0); assert.equal(calls.dream, 0);
+  assert.equal(calls.search, 0); assert.equal(calls.dream, 0); assert.equal(calls.boards, 0);
   assert.equal(calls.sync, 8, "healthy polls still synchronize editor permissions");
   assert.equal(element("home-new").disabled, false);
   context.companionApplyState({ ...context.companionState, active: { allowWrites: false } });
@@ -288,17 +299,18 @@ test("entering preparing or session fencing cancels interactions once and preser
   context.searchDialog.open = true; context.dreamDialog.open = true;
   context.companionApplyState({ ...context.companionState, phase: "preparing", switchId: "switch-1" });
   context.companionApplyState({ ...context.companionState });
-  assert.equal(calls.references, 1); assert.equal(calls.search, 1); assert.equal(calls.dream, 1);
+  assert.equal(calls.references, 1); assert.equal(calls.search, 1); assert.equal(calls.dream, 1); assert.equal(calls.boards, 1);
   assert.deepEqual(calls.barriers, ["switch-1"]);
   assert.equal(element("main").inert, true);
   assert.equal(element(".app-nav").inert, true);
   assert.equal(context.companionFrozen, true);
   context.companionApplyState({ ...context.companionState, phase: "idle", switchId: null });
   assert.equal(context.companionFrozen, false);
+  assert.equal(calls.boardRefreshes, 1);
   assert.equal(element("main").inert, false);
   context.searchDialog.open = true; context.dreamDialog.open = true;
   context.companionFence(); context.companionFence();
-  assert.equal(calls.references, 2); assert.equal(calls.search, 2); assert.equal(calls.dream, 2);
+  assert.equal(calls.references, 2); assert.equal(calls.search, 2); assert.equal(calls.dream, 2); assert.equal(calls.boards, 2);
   context.companionApplyState({ ...context.companionState });
   assert.equal(context.companionFrozen, true, "idle polls cannot unfreeze a failed session");
   assert.equal(element("new-note").disabled, true);
