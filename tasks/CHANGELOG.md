@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Compact board settings
+
+- Added rename, settle/restore toggles and confirmed board-only deletion in Settings, with a direct recovery link from settled boards. [Verification](done/2026-10-30_tasks-board-settings.md).
+
 ## 2026-10-30 — Compact board cards
 
 - Board cards show three-line content previews and compact right-side hover icons, without a redundant status dropdown. [Verification](done/2026-10-30_tasks-board-card-previews.md).

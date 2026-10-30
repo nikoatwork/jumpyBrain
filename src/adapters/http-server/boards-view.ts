@@ -1,6 +1,8 @@
 import { browserIcons } from "./browser-icons.js";
+import { boardSettingsScript, boardSettingsStyles } from "./board-settings.js";
 
 export const boardsStyles = String.raw`
+${boardSettingsStyles}
 #board-title button,.board-composer button,#board-navigation > button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
 .board-card > button {color:var(--ink);font-weight:var(--weight-regular);padding:0;min-height:var(--control-height);align-self:start}
 .board-card-actions .note-icon {width:var(--control-compact);height:var(--control-compact);min-height:var(--control-compact);padding:var(--space-1);flex:none}
@@ -40,8 +42,6 @@ export const boardsStyles = String.raw`
 .board-card-up svg {transform:rotate(90deg)}
 @media(hover:none){.board-card-actions{opacity:1;pointer-events:auto}}
 .board-add {flex:none;color:var(--ink-faint)}
-.board-row {display:flex;align-items:center;gap:8px;min-height:44px;border-bottom:1px solid var(--line)}
-.board-row > :first-child {flex:1;text-align:left;overflow-wrap:anywhere}
 #note-board-dialog {width:min(440px,calc(100vw - 32px));padding:24px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);color:var(--ink)}
 #note-board-dialog footer {display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 #note-board-dialog label {display:grid;gap:6px;margin:14px 0}
@@ -59,21 +59,22 @@ export const boardsMarkup = String.raw`
 <footer><button type="button" class="quiet-button" id="note-board-cancel">Cancel</button><button class="quiet-button" id="note-board-add">Add note</button></footer>
 </form></dialog>`;
 export const boardsScript = String.raw`
+${boardSettingsScript}
 const boardsUI = (() => {
   let formBusy=false;
   let packet = {revision:0,boards:[]}, bound = '', busy = false, sequence = 0, selected = null, composer = null, rename = null, creation = null;
   const names = new Map(), previews = new Map();
   const scope = () => companionRegistered && !companionSessionFailed ? String(companionState.generation)+':'+companionState.activeId : '';
+  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>busy||formBusy||companionFrozen||!scope()||bound!==scope(),scope,change,open:id=>navigation.navigate('/?board='+id)});
   const button = (text, run, label, icon = false) => { const b=document.createElement('button');b.type='button';b.className=icon?'quiet-button note-icon':'quiet-button';b.textContent=text;if(label)b.setAttribute('aria-label',label);b.onclick=run;return b; };
   const notice = text => { $('board-notice').textContent=text; toast.show('boards',text,{action:{label:'Retry',run:load}}); };
   function render() {
-    const sidebar=$('sidebar-boards'), settings=$('settings-boards-list'); sidebar.replaceChildren();settings.replaceChildren();
+    const sidebar=$('sidebar-boards'); sidebar.replaceChildren();settingsUI.render();
     for(const b of packet.boards){
       if(!b.archived){const row=document.createElement('li');row.className='sidebar-page';const link=button(b.name,()=>navigation.navigate('/?board='+b.id));link.classList.add('sidebar-page-link');if(selected===b.id)link.setAttribute('aria-current','page');row.append(link,button('✓',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=true;}),'Settle '+b.name,true));sidebar.append(row);}
-      const row=document.createElement('div');row.className='board-row';row.append(button(b.name,()=>navigation.navigate('/?board='+b.id)),button(b.archived?'Restore':'Settle',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=!b.archived;}),(b.archived?'Restore ':'Settle ')+b.name));settings.append(row);
     }
-    if(!packet.boards.length)settings.textContent='Your boards will live here.';
     for(const id of ['new-board','settings-new-board'])$(id).disabled=busy||formBusy||companionFrozen||!scope()||bound!==scope();
+    for(const control of sidebar.querySelectorAll('button'))control.disabled=busy||formBusy||companionFrozen||!scope()||bound!==scope();
     const board=packet.boards.find(b=>b.id===selected), columns=$('board-columns');
     const available=board&&!board.archived;
     if(composer&&(!available||composer.boardId!==selected||composer.scope!==scope()))dismissComposer(false);
@@ -81,7 +82,7 @@ const boardsUI = (() => {
     if(columns.dataset.board!==selected){columns.replaceChildren();columns.dataset.board=selected||'';}
     if(!selected){columns.replaceChildren();return;}
     renderTitle($('board-title'),board?.name||'Board unavailable',null,!!available);
-    if(!available){columns.replaceChildren();$('board-notice').textContent=board?'Settled. Restore it in Settings → Boards.':'Reload to check this board.';return;}
+    if(!available){columns.replaceChildren();$('board-notice').textContent=board?'Settled. Restore it in ':'Board unavailable. ';$('board-notice').append(button('Settings → Boards',()=>navigation.navigate('/settings?section=boards')));return;}
     board.columns.forEach((column,index)=>{
       let el=columns.children[index];
       if(!el){
@@ -113,7 +114,7 @@ const boardsUI = (() => {
         actions.append(up,remove);card.append(actions);cards.append(card);
       }
     });
-    for(const control of document.querySelectorAll('#boards-view button,#boards-view select,#sidebar-boards button,#settings-boards-list button'))control.disabled=busy||formBusy||companionFrozen||!scope();
+    for(const control of document.querySelectorAll('#boards-view button,#boards-view select,#sidebar-boards button'))control.disabled=busy||formBusy||companionFrozen||!scope();
     if(rename)rename.input.readOnly=busy||formBusy||companionFrozen;
     if(composer)renderComposer(composer);
   }
@@ -293,6 +294,6 @@ const boardsUI = (() => {
   $('new-board').onclick=create;$('settings-new-board').onclick=create;
   window.addEventListener('pagehide',()=>dismissComposer(false));
   window.addEventListener('focus',()=>{if(!$('note-board-dialog').open&&!busy&&!formBusy)load();});
-  return {pending(){return busy||formBusy;},fence(){dismissComposer(false);rename=null;render();},show(id){$('note-board-dialog').close();if(id!==selected){dismissComposer(false);rename=null;}selected=id;$('boards-view').hidden=!id;load();},refresh:load};
+  return {pending(){return busy||formBusy;},fence(){settingsUI.reset();dismissComposer(false);rename=null;render();},show(id){settingsUI.reset();$('note-board-dialog').close();if(id!==selected){dismissComposer(false);rename=null;}selected=id;$('boards-view').hidden=!id;load();},refresh:load};
 })();
 `;
