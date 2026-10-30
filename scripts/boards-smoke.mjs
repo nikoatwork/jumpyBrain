@@ -12,7 +12,7 @@ const repo=fileURLToPath(new URL('..',import.meta.url)),temp=await mkdtemp(path.
 let gateway,browser,remote;const keys=new Map();
 try{
  await initializeMemoryRoot(root);
- const existingId='mem_12345678-1234-1234-1234-123456789012', original='---\nid: '+existingId+'\ntitle: Launch checklist\ntype: note\n---\n\nKeep the release small.\n';
+ const existingId='mem_12345678-1234-1234-1234-123456789012', original='---\nid: '+existingId+'\ntitle: Launch checklist\ntype: note\n---\n\n# Launch checklist\n\nKeep the **release** small.\n\nReview the [launch notes](https://example.invalid) with the team. Confirm the rollout plan, check the remaining tasks, and record the final decisions so everyone can follow the next steps with confidence.\n';
  await writeFile(path.join(root,'notes/checklist.md'),original);await indexMemory(root,{indexing:{mode:'lexical'}});await mkdir(support,{mode:0o700});await mkdir('/tmp/jumpybrain-boards-qa',{recursive:true});
  gateway=await startCompanionGateway({runtimeRoot:repo,directory:support,initialRoot:root,port:0,controlKey:'b'.repeat(64),credentials:{get:async ref=>keys.get(ref),set:async(ref,value)=>keys.set(ref,value),delete:async ref=>keys.delete(ref)}});
  browser=await launchPlaywrightChromium({chromium:await loadPlaywrightChromium()});
@@ -59,19 +59,44 @@ try{
  await composer.press('ArrowDown');assert.equal(await page.getByRole('option',{name:'Create “Launch checklist”',exact:true}).getAttribute('aria-selected'),'true');
  await composer.press('ArrowUp');assert.equal(await page.getByRole('option',{name:'Launch checklist',exact:true}).getAttribute('aria-selected'),'true');
  await composer.fill('');
- await page.locator('.board-card select').selectOption('1');await page.locator('.board-column').nth(1).locator('.board-card').waitFor();
+ assert.equal(await page.locator('.board-card select').count(),0);
+ await page.locator('.board-card > button').press('Alt+ArrowRight');await page.locator('.board-column').nth(1).locator('.board-card').waitFor();
  await composer.fill('Launch checklist');await page.getByRole('option',{name:'Launch checklist',exact:true}).waitFor();
  await composer.press('Enter');await page.locator('.board-card').filter({hasText:'Launch checklist'}).waitFor();
+ // Compact icons still reorder/remove membership; canonical content stays intact.
+ const createdCard=page.locator('.board-card').filter({hasText:'Write the first chapter'});
+ await createdCard.locator(':scope > button').press('Alt+ArrowLeft');await page.locator('.board-column').first().locator('.board-card').nth(1).waitFor();
+ await createdCard.hover();await createdCard.getByRole('button',{name:'Move up',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.board-column .board-card .board-card-title')?.textContent==='Write the first chapter');
+ await createdCard.locator(':scope > button').press('Alt+ArrowRight');await page.locator('.board-column').nth(1).locator('.board-card').waitFor();
+ const checklistCard=page.locator('.board-card').filter({hasText:'Launch checklist'});await checklistCard.hover();await checklistCard.getByRole('button',{name:'Remove from board',exact:true}).click();await checklistCard.waitFor({state:'hidden'});
+ assert.equal(await readFile(path.join(root,'notes/checklist.md'),'utf8'),original);
+ await composer.fill('Launch checklist');await page.getByRole('option',{name:'Launch checklist',exact:true}).click();await checklistCard.waitFor();
  await page.locator('.board-card').filter({hasText:'Launch checklist'}).dragTo(page.locator('.board-column').nth(2));await page.locator('.board-column').nth(2).locator('.board-card').waitFor();
+ await page.locator('.board-card-preview').filter({hasText:'Keep the release small.'}).waitFor();
+ const previewText=await page.locator('.board-card-preview').filter({hasText:'Keep the release small.'}).innerText();
+ assert.ok(!previewText.includes('title:')&&!previewText.includes('**')&&!previewText.includes('https://'),'preview is plain content without frontmatter or Markdown syntax');
  await composer.fill('Launch checklist');await page.getByRole('option',{name:'Launch checklist · Added',exact:true}).waitFor();
  assert.equal(await page.getByRole('option',{name:'Launch checklist · Added',exact:true}).isDisabled(),true);
- for(const [width,theme] of [[1280,'light'],[1280,'dark'],[390,'light'],[390,'dark']]){await page.setViewportSize({width,height:900});await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await page.screenshot({animations:'disabled',path:`/tmp/jumpybrain-boards-qa/${width}-${theme}.png`,fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);}
- const boardTargets = await page.locator('.board-card-actions button, .board-card-actions select').evaluateAll(elements => elements.map(el => el.getBoundingClientRect().height));
+ for(const [width,theme] of [[1280,'light'],[1280,'dark'],[390,'light'],[390,'dark']]){
+   await page.setViewportSize({width,height:900});await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+   const card=page.locator('.board-card').filter({hasText:'Launch checklist'});await card.hover();
+   const geometry=await card.evaluate(el=>{const content=el.querySelector(':scope > button').getBoundingClientRect(),actions=el.querySelector('.board-card-actions').getBoundingClientRect(),preview=el.querySelector('.board-card-preview');return {contentRight:content.right,actionsLeft:actions.left,actionsRight:actions.right,cardRight:el.getBoundingClientRect().right,previewHeight:preview.getBoundingClientRect().height,lineHeight:parseFloat(getComputedStyle(preview).lineHeight),opacity:getComputedStyle(el.querySelector('.board-card-actions')).opacity,icons:[...el.querySelectorAll('.board-card-actions button')].every(b=>b.querySelector('svg')&&!b.textContent.trim())};});
+   assert.ok(geometry.actionsLeft>=geometry.contentRight&&geometry.actionsRight<geometry.cardRight,'actions stay in the right lane without covering content');
+   assert.ok(geometry.previewHeight<=geometry.lineHeight*3+1&&geometry.previewHeight>=geometry.lineHeight*2,'preview occupies two or three lines');
+   assert.equal(geometry.icons,true);assert.equal(geometry.opacity,'1');
+   await page.screenshot({animations:'disabled',path:`/tmp/jumpybrain-boards-qa/${width}-${theme}.png`,fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ }
+ const boardTargets = await page.locator('.board-card-actions button').evaluateAll(elements => elements.map(el => el.getBoundingClientRect().height));
  assert.ok(boardTargets.every(height => height >= 40), 'board controls keep touch-sized targets');
  const boardLink = page.locator('#sidebar-boards .sidebar-page-link').first();
  await boardLink.hover();
  assert.deepEqual(await boardLink.evaluate(el => { const s=getComputedStyle(el); return [s.whiteSpace,s.backgroundColor]; }), ['nowrap','rgba(0, 0, 0, 0)'], 'board labels stay single-line and share the row hover surface');
  await page.setViewportSize({width:1280,height:900});
+ await page.locator('#board-title').hover();
+ assert.equal(await page.locator('.board-card-actions').first().evaluate(el=>getComputedStyle(el).opacity),'0');
+ await page.locator('.board-card-actions button').first().focus();
+ assert.equal(await page.locator('.board-card-actions').first().evaluate(el=>getComputedStyle(el).opacity),'1','keyboard focus reveals icons');
  const cardId=await page.locator('.board-column').nth(1).locator('.board-card').getAttribute('data-board-page');
  await page.locator('.board-column').nth(1).locator('.board-card > button').click();await page.locator('#note-editor').waitFor({state:'visible'});
  await page.locator('#navigate-back').click();await page.locator('#board-title').filter({hasText:'A quieter launch'}).waitFor();await page.locator('.board-card').first().waitFor();
@@ -182,5 +207,5 @@ try{
  await composer.press('Enter');await page.locator('.board-card').filter({hasText:'Launch checklist'}).waitFor();
  await switchBrain(localId);await page.waitForFunction(id=>typeof companionState!=='undefined'&&companionState?.activeId===id&&companionRegistered&&!companionFrozen,localId);
  assert.equal(await page.locator('.board-composer').count(),0);
- assert.deepEqual(errors,[]);console.log('Boards smoke PASS: note action/column/conflict retry/duplicates/archive filtering, create page, move, editor/back, settle, settings restore, reload, 1280/390 light/dark');
+ assert.deepEqual(errors,[]);console.log('Boards smoke PASS: note action/column/conflict retry/duplicates/archive filtering, plain-text previews, compact right icons, reorder/remove, keyboard/drag movement, create page, editor/back, settle, settings restore, reload, 1280/390 light/dark');
 }finally{await browser?.close();await gateway?.close();await remote?.close();await rm(temp,{recursive:true,force:true});}
