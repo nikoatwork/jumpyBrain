@@ -66,6 +66,21 @@ try {
   assert.match(await recentAges.nth(1).getAttribute("title"), /^Last edited /);
   assert.equal(await recentTitles.nth(2).innerText(), titles[9]);
   assert.equal(await page.locator("#sidebar-recent img").count(), 0);
+  // Attention and preview fetches can observe different revisions. A stale list
+  // must not turn an ordinary edit into a snooze when the preview arrives.
+  await page.route("**/memories/all/attention", async route => {
+    const response = await route.fetch();
+    const packet = await response.json();
+    const note = packet.notes.find(note => note.id === ids[11]);
+    note.updatedAt = note.attentionAt = new Date(Date.now() - 4 * 86400000).toISOString();
+    await route.fulfill({ response, json: packet });
+  });
+  await page.reload();
+  const refreshed = page.locator(`[data-page-link="${ids[11]}"]`);
+  await page.waitForFunction(id => document.querySelector(`[data-page-link="${id}"] .sidebar-page-preview`)?.textContent === "A quiet place for useful context.", ids[11]);
+  assert.equal(await refreshed.locator(".sidebar-page-age").innerText(), "3d", "newer preview keeps its edit age despite stale attention recency");
+  assert.match(await refreshed.locator(".sidebar-page-age").getAttribute("title"), /^Last edited /);
+  await page.unroute("**/memories/all/attention");
   await page.locator("#sidebar-pinned a").click();
   await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[0]);
   assert.equal(await page.locator('#sidebar-pinned [aria-current="page"]').count(), 1);
