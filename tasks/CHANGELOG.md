@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-30 — Hidden sidebar scrollbars
+
+- Hid sidebar scrollbar chrome while preserving native scrolling. [Verification](done/2026-10-30_tasks-sidebar-hidden-scrollbars.md).
+
 ## 2026-10-30 — Reference sidebar spacing
 
 - Replaced the footer divider with open space, matched the roomy Settled row, and anchored updates right of the left-aligned utility icons. [Verification](done/2026-10-30_tasks-sidebar-reference-spacing.md).
