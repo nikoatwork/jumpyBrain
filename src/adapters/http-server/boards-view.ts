@@ -18,7 +18,7 @@ export function createBoardName(existing: readonly string[], random = Math.rando
 
 export const boardsStyles = String.raw`
 ${boardSettingsStyles}
-#board-title button,.board-composer button,#board-navigation > button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
+#board-title button,.board-composer button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
 .board-card > button {color:var(--ink);font-weight:var(--weight-regular);padding:0;min-height:var(--control-height);align-self:start}
 .board-card-actions .note-icon {width:var(--control-compact);height:var(--control-compact);min-height:var(--control-compact);padding:var(--space-1);flex:none}
 #sidebar-boards .sidebar-page > button {background:transparent}
@@ -87,7 +87,7 @@ const boardsUI = (() => {
   function render() {
     const sidebar=$('sidebar-boards'); sidebar.replaceChildren();settingsUI.render();$('note-add-to-board').disabled=companionReadOnly()||busy||formBusy||companionFrozen||!scope();
     for(const b of packet.boards){
-      if(!b.archived){const row=document.createElement('li');row.className='sidebar-page';const link=button(b.name,()=>navigation.navigate('/?board='+b.id));link.classList.add('sidebar-page-link');if(selected===b.id)link.setAttribute('aria-current','page');row.append(link,button('✓',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=true;}),'Settle '+b.name,true));sidebar.append(row);}
+      if(!b.archived){const row=document.createElement('li');row.className='sidebar-page';const link=button(b.name,()=>navigation.navigate('/?board='+b.id));link.classList.add('sidebar-page-link');if(selected===b.id)link.setAttribute('aria-current','page');const settle=button('✓',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=true;}),'Settle '+b.name,true);settle.title='Settle board';row.append(link,settle);sidebar.append(row);}
     }
     for(const id of ['new-board','settings-new-board'])$(id).disabled=companionReadOnly()||busy||formBusy||companionFrozen||!scope()||bound!==scope();
     for(const control of sidebar.querySelectorAll('button'))control.disabled=busy||formBusy||companionFrozen||!scope()||bound!==scope()||(companionReadOnly()&&!control.classList.contains('sidebar-page-link'));

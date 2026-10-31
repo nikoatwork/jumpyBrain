@@ -122,9 +122,11 @@ test("title HTTP observes real create/save and deletion without an index refresh
 });
 
 test("request JSON cannot forge lookup outcomes, HTTP parser failures or production log fields", async (t) => {
-  const root = await fixture(t);
-  const started = await startJumpyBrainHttpServer({ root, apiKeys: ["synthetic-secret"], port: 0 });
-  t.after(() => started.close());
+  const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-resolve-title-"));
+  let started;
+  // Stop background maintenance/logging before removing the root it owns.
+  t.after(async () => { await started?.close(); await rm(root, { recursive: true, force: true }); });
+  started = await startJumpyBrainHttpServer({ root, apiKeys: ["synthetic-secret"], port: 0 });
   const url = `${started.url}${HTTP_MEMORY_ROUTES.resolveTitle}`;
   const privateTitle = "Private-title-never-log";
   await document(root, "notes/private.md", privateTitle, id(1));

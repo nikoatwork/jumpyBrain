@@ -132,8 +132,9 @@ export function installPageNavigation(options: {
   const previews = new Map<string, Preview>();
   let previewReads = 0, paused = false;
   const cacheScope = () => JSON.stringify([options.scope(), options.attentionScope?.()]);
-  let recentLimit = 8, settledLimit = 10;
+  let recentLimit = 8, settledLimit = 10, revealId: string | undefined;
   const settledShelf = element("sidebar-settled-section") as HTMLDetailsElement;
+  let departure: { scope: string; animation?: Animation } | null = null;
   const signatures = new Map<string, string>();
   const attention = options.fetchAttention ? createAttentionList({
     scope: options.attentionScope || options.scope,
@@ -144,24 +145,31 @@ export function installPageNavigation(options: {
   }) : null;
   function render() {
     const scope = cacheScope();
-    if (scope !== previewScope) { previews.clear(); signatures.clear(); previewScope = scope; recentLimit = 8; settledLimit = 10; settledShelf.open = false; }
+    if (departure?.scope === scope) return;
+    if (departure) { departure.animation?.cancel(); departure = null; }
+    if (scope !== previewScope) { previews.clear(); signatures.clear(); previewScope = scope; revealId = undefined; recentLimit = 8; settledLimit = 10; settledShelf.open = false; }
     const snapshot = { ...history.snapshot(), settled: [] as Page[] };
     const allNotes = [...(attention?.state.notes || []), ...(attention?.state.settled || [])];
     if (attention) snapshot.settled = attention.state.settled
       .filter(page => !snapshot.pinned.some(pin => pin.id === page.id)).map(page => ({ ...page, title: page.title || page.file || "Untitled" }));
     if (attention) snapshot.recent = attention.state.notes
       .filter(page => !snapshot.pinned.some(pin => pin.id === page.id)).map(page => ({ ...page, title: page.title || page.file || "Untitled" }));
+    if (revealId && attention?.state.status === "ready") {
+      const index = snapshot.recent.findIndex(page => page.id === revealId);
+      if (index >= 0) recentLimit = Math.max(recentLimit, index + 1);
+      revealId = undefined;
+    }
     const focused = document.activeElement as HTMLElement | null;
     const focusId = focused?.dataset.pagePin;
     const focusLink = focused?.dataset.pageLink;
     const focusAction = focused?.dataset.pageAction;
-    element("sidebar-pinned-heading").hidden = !snapshot.pinned.length;
     const settledCount = element("sidebar-settled-count");
     settledCount.textContent = String(snapshot.settled.length) + ((attention?.state.settledTotal || 0) > (attention?.state.settled.length || 0) ? "+" : "");
-    for (const section of ["pinned", "recent", "settled"] as const) {
+    for (const section of ["recent", "settled"] as const) {
       const list = element("sidebar-" + section);
-      const limit = section === "recent" ? recentLimit : section === "settled" ? settledLimit : 50;
-      const pages = snapshot[section].slice(0, section === "settled" && !settledShelf.open ? 0 : limit)
+      const limit = section === "recent" ? recentLimit : settledLimit;
+      const visible = snapshot[section].slice(0, section === "settled" && !settledShelf.open ? 0 : limit);
+      const pages = (section === "recent" ? [...snapshot.pinned, ...visible] : visible)
         .map(page => {
           const source = { ...page, ...allNotes.find(note => note.id === page.id) };
           const merged = { ...source, ...previews.get(page.id) };
@@ -184,30 +192,22 @@ export function installPageNavigation(options: {
         for (const page of pages) {
           const row = document.createElement("li"); row.className = "sidebar-page";
           const link = document.createElement("a");
-          link.className = "sidebar-page-link"; link.href = options.href(page.id); link.title = page.title; link.dataset.pageLink = page.id;
-          if (page.id === selected) link.setAttribute("aria-current", "page");
-          const title = document.createElement("span"); title.textContent = page.title;
+          link.className = "sidebar-page-link"; link.dataset.pageLink = page.id;
+          const title = document.createElement("span");
           title.className = "sidebar-page-title";
           const preview = document.createElement("span"); preview.className = "sidebar-page-preview";
-          preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
           const age = document.createElement("span"); age.className = "sidebar-page-age";
-          const { ageLabel } = page;
-          age.textContent = ageLabel.label; age.title = ageLabel.details;
-          if (ageLabel.details) age.setAttribute("aria-label", ageLabel.details);
           const editor = document.createElement("span"); editor.className = "sidebar-page-editor"; editor.setAttribute("role", "img");
-          link.append(editor, title, preview, age);
+          const pinMark = document.createElement("span"); pinMark.className = "sidebar-page-pin-mark";
+          pinMark.innerHTML = browserPinIcon; pinMark.setAttribute("role", "img"); pinMark.setAttribute("aria-label", "Pinned");
+          link.append(editor, pinMark, title, preview, age);
           link.addEventListener("click", (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault(); options.navigate(link.getAttribute("href")!);
           });
           const pin = document.createElement("button");
-          const pinned = section === "pinned";
           pin.type = "button"; pin.className = "sidebar-page-pin"; pin.dataset.pagePin = page.id;
           pin.innerHTML = browserPinIcon;
-          pin.setAttribute("aria-pressed", String(pinned));
-          pin.title = (pinned ? "Unpin " : "Pin ") + page.title;
-          pin.setAttribute("aria-label", pin.title);
-          pin.disabled = !pinned && snapshot.pinned.length >= 50;
           pin.addEventListener("click", () => history.toggle({ ...page, ...previews.get(page.id) }));
           const actions = document.createElement("span"); actions.className = "sidebar-page-actions";
           actions.append(pin);
@@ -216,8 +216,6 @@ export function installPageNavigation(options: {
               const button = document.createElement("button");
               button.type = "button"; button.className = "sidebar-page-action"; button.dataset.attentionAction = action;
               button.dataset.pageAction = page.id + ":" + action;
-              button.title = (action === "snooze" ? "Snooze " : action === "reactivate" ? "Bring back " : "Settle ") + page.title;
-              button.setAttribute("aria-label", button.title);
               button.innerHTML = action === "reactivate" ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10h10a6 6 0 0 1 0 12M4 10l6-6M4 10l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' : action === "snooze"
                 ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
                 : '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m5 12 4 4L19 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -234,9 +232,13 @@ export function installPageNavigation(options: {
           link.title = page.title;
           link.setAttribute("href", options.href(page.id));
           link.querySelector(".sidebar-page-title")!.textContent = page.title;
+          const pinned = snapshot.pinned.some(pin => pin.id === page.id);
+          link.parentElement!.classList.toggle("is-pinned", pinned);
+          (link.querySelector(".sidebar-page-pin-mark") as HTMLElement).hidden = !pinned;
           for (const button of link.parentElement!.querySelectorAll<HTMLButtonElement>("button")) {
             const action = button.dataset.attentionAction;
-            button.title = (action === "reactivate" ? "Bring back " : action === "snooze" ? "Snooze " : action === "settle" ? "Settle " : section === "pinned" ? "Unpin " : "Pin ") + page.title;
+            button.title = action === "reactivate" ? "Bring back" : action === "snooze" ? "Snooze" : action === "settle" ? "Settle" : pinned ? "Unpin" : "Pin";
+            if (button.dataset.pagePin) button.setAttribute("aria-pressed", String(pinned));
             button.setAttribute("aria-label", button.title);
           }
           const glyph = link.querySelector<HTMLElement>(".sidebar-page-editor")!;
@@ -255,16 +257,14 @@ export function installPageNavigation(options: {
         else link.removeAttribute("aria-current");
       }
       for (const button of list.querySelectorAll<HTMLButtonElement>("[data-attention-action]")) button.disabled = !(options.writable?.() ?? true);
-      for (const button of list.querySelectorAll<HTMLButtonElement>("[data-page-pin]")) button.disabled = section !== "pinned" && snapshot.pinned.length >= 50;
-      if (section !== "pinned") {
-        const more = element("sidebar-" + section + "-more") as HTMLButtonElement;
-        const total = section === "recent" ? attention?.state.total : attention?.state.settledTotal;
-        more.hidden = snapshot[section].length <= limit && !(total && total > 100);
-        more.textContent = snapshot[section].length > limit ? "Show more" : "Find more in Search";
-      }
+      for (const button of list.querySelectorAll<HTMLButtonElement>("[data-page-pin]")) button.disabled = !(options.enabled?.() ?? true) || (!snapshot.pinned.some(pin => pin.id === button.dataset.pagePin) && snapshot.pinned.length >= 50);
+      const more = element("sidebar-" + section + "-more") as HTMLButtonElement;
+      const total = section === "recent" ? attention?.state.total : attention?.state.settledTotal;
+      more.hidden = snapshot[section].length <= limit && !(total && total > 100);
+      more.textContent = snapshot[section].length > limit ? "Show more" : "Find more in Search";
       const empty = element("sidebar-" + section + "-empty");
       if (empty) {
-        empty.hidden = snapshot[section].length > 0;
+        empty.hidden = pages.length > 0;
         if (attention && section === "recent") {
           const message = attention.state.status === "loading" ? "Loading…" : attention.state.status === "error" ? attention.state.message : "";
           if (empty.dataset.message !== message) {
@@ -302,19 +302,55 @@ export function installPageNavigation(options: {
   }
   render();
   return {
-    settleStarter(id: string) {
-      try {
-        if (window.localStorage.getItem("jumpybrain.focusStarter.v1:" + options.scope()) !== id) return false;
-        history.remove(id);
-        return true;
-      } catch { return false; }
+    async settle(page: AttentionPage, focusOrigin: Element | null) {
+      const scope = cacheScope();
+      const pin = history.snapshot().pinned.find(pin => pin.id === page.id);
+      const findLink = (id?: string) => id ? element("sidebar-recent").querySelector<HTMLElement>('[data-page-link="' + id + '"]') : null;
+      const row = findLink(page.id)?.parentElement;
+      const neighbor = (row?.nextElementSibling || row?.previousElementSibling)?.querySelector<HTMLElement>("[data-page-link]")?.dataset.pageLink;
+      const focused = document.activeElement;
+      const hadFocus = Boolean(row?.contains(focusOrigin) && (focused === focusOrigin || focused === document.body));
+      const transition: NonNullable<typeof departure> = { scope };
+      departure = transition;
+      // Persist only after the canonical save succeeded, before the visual transition.
+      // Keep one fewer unpinned row visible until Show more, rather than refilling the gap.
+      if (row && !pin) recentLimit = Math.max(0, recentLimit - 1);
+      attention?.settle(page);
+      if (pin) history.toggle(pin);
+      if (row) {
+        row.dataset.settling = "true";
+        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && row.animate) {
+          const horizontal = window.matchMedia("(max-width: 680px)").matches;
+          const size = horizontal ? "width" : "height";
+          const extent = row.getBoundingClientRect()[size];
+          transition.animation = row.animate([
+            { opacity: 1, transform: "translateX(0)", [size]: extent + "px" },
+            { opacity: 0, transform: "translateX(18px)", [size]: "0px", marginTop: "0px" },
+          ], { duration: 240, easing: "ease-out", fill: "forwards" });
+          await transition.animation.finished.catch(() => {});
+        }
+      }
+      if (departure === transition) departure = null;
+      if (cacheScope() !== scope) return;
+      // Decide before render's generic removed-control fallback can focus Home.
+      const recoverFocus = hadFocus && (document.activeElement === focused || document.activeElement === document.body);
+      render();
+      transition.animation?.cancel();
+      if (recoverFocus) {
+        (findLink(neighbor) || settledShelf.querySelector<HTMLElement>("summary"))?.focus({ preventScroll: true });
+      }
+      return () => {
+        if (cacheScope() !== scope) return;
+        if (row && !pin) recentLimit++;
+        if (pin && !history.snapshot().pinned.some(item => item.id === pin.id)) history.toggle(pin);
+      };
     },
     select(id: string | null) { selected = id; render(); if (attention) void attention.load(); },
     visit(page: Page) { selected = page.id; if (!history.visit(page)) render(); },
     rename(page: Page) { previews.delete(page.id); history.rename(page); render(); },
     remove(id: string) { history.remove(id); if (attention) void attention.load(); },
     refresh() { render(); if (attention) void attention.load(); },
-    reloadAttention() { if (attention) void attention.load(); },
+    reloadAttention(id?: string) { revealId = id; if (attention) void attention.load(); },
     sync: render,
   };
 }

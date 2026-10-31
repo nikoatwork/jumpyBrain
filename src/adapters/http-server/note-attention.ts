@@ -44,8 +44,8 @@ function attentionValue(prefix: string): "settled" | string | undefined {
 export function installNoteAttention(options: {
   document: Document; editor(): Editor | null; writable(): boolean; scope(): string;
   blocked(): boolean; json(url: string, options?: RequestInit): Promise<unknown>;
-  settleStarter?(id: string): boolean;
-  changed(): void; onBusy(): void; toast: Toast;
+  settled?(page: AttentionPage, focusOrigin: Element | null): Promise<(() => void) | undefined>;
+  changed(revealId?: string): void; onBusy(): void; toast: Toast;
 }) {
   const doc = options.document, win = doc.defaultView!;
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => doc.getElementById(id) as T;
@@ -70,9 +70,9 @@ export function installNoteAttention(options: {
     if (bound && (bound.scope !== options.scope() || !options.writable())) close();
   }
 
-  async function apply(id: string, action: Action, isUndo = false) {
+  async function apply(id: string, action: Action, isUndo = false, undoNavigation?: () => void) {
     if (busy || !options.writable() || options.blocked()) return;
-    const editor = options.editor(), scope = options.scope();
+    const editor = options.editor(), scope = options.scope(), focusOrigin = doc.activeElement;
     if (editor?.state.navigationPending) return;
     busy = true; waitingForSave = false; message("Saving…");
     const valid = () => options.scope() === scope && options.editor() === editor && !editor?.state.cancelled && options.writable();
@@ -92,11 +92,13 @@ export function installNoteAttention(options: {
       if (result.id !== id || typeof result.contentHash !== "string" || typeof result.content !== "string") throw new Error("The attention change could not be confirmed. Reopen the note to check its state.");
       if (editor?.state.documentId === id && !editor.acceptMetadata(result, saved.contentHash)) throw new Error("The note changed while saving. Reopen it to check its attention state.");
       const previous: Action = prior === "settled" ? { action: "settle" } : prior && Date.parse(prior) > Date.now() ? { action: "snooze", until: prior } : { action: "reactivate" };
-      const starterDismissed = !isUndo && action.action === "settle" && options.settleStarter?.(id);
-      message(isUndo ? "Attention change undone." : action.action === "settle" ? (starterDismissed ? "Settled and unpinned." : "Settled. Pinned pages stay visible.")
+      const restoreNavigation = !isUndo && action.action === "settle" ? await options.settled?.({ id, title: result.title || saved.title }, focusOrigin) : undefined;
+      if (!valid()) return;
+      if (isUndo) undoNavigation?.();
+      message(isUndo ? "Attention change undone." : action.action === "settle" ? "Settled."
         : action.action === "snooze" ? "Snoozed until " + new Date(action.until).toLocaleString() + ". Pinned pages stay visible." : "Note brought back.", false,
-        isUndo || starterDismissed ? undefined : () => { if (options.scope() === scope) void apply(id, previous, true); });
-      options.changed();
+        isUndo ? undefined : () => { if (options.scope() === scope) void apply(id, previous, true, restoreNavigation); });
+      options.changed(action.action === "reactivate" ? id : undefined);
     } catch (error) {
       if (!valid()) return;
       message(Number((error as { status?: number })?.status) === 412 ? "The note changed. Review the latest version before trying again."

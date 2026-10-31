@@ -108,10 +108,10 @@ try {
   await until('document.getElementById("note-save-state").textContent.includes("Saved")');
   assert.match(await readFile(path.join(config.setupRoot, starterPage.file), 'utf8'), /- \[x\]/);
   await js(`document.querySelector('[data-page-pin="${starterPage.id}"]').click()`);
-  await until(`!document.querySelector('#sidebar-pinned [data-page-link="${starterPage.id}"]')`);
+  await until(`!document.querySelector('#sidebar-recent .is-pinned [data-page-link="${starterPage.id}"]')`);
   await window.webContents.reload();
   await pause(500);
-  assert.equal(await js(`!!document.querySelector('#sidebar-pinned [data-page-link="${starterPage.id}"]')`), false);
+  assert.equal(await js(`!!document.querySelector('#sidebar-recent .is-pinned [data-page-link="${starterPage.id}"]')`), false);
   // Simulate a user re-pin, then exercise the existing Settle action.
   await js(`(() => {
     const key = ${JSON.stringify('jumpybrain.pageNavigation.v1:' + starterPage.scope)};
@@ -124,7 +124,7 @@ try {
   { const closed = new Promise(resolve => window.once('closed', resolve)); window.close(); await closed; }
   const reopenedStarter = createEditorWindow(config, { starterPage });
   window = reopenedStarter.window; await reopenedStarter.loaded; await pause(500);
-  assert.equal(await js(`!!document.querySelector('#sidebar-pinned [data-page-link="${starterPage.id}"]')`), false);
+  assert.equal(await js(`!!document.querySelector('#sidebar-recent .is-pinned [data-page-link="${starterPage.id}"]')`), false);
   { const closed = new Promise(resolve => window.once('closed', resolve)); window.close(); await closed; }
   checks.push('starter 10/5/5, native light/dark wide/narrow, checkbox persistence, unpin/reload, settle/relaunch, idempotent handoff');
 
@@ -163,6 +163,30 @@ try {
   const cookies = await window.webContents.session.cookies.get({ url: config.origin });
   assert.ok(cookies.some((cookie) => cookie.httpOnly && cookie.sameSite === 'strict'));
   checks.push('existing UI and cookie handshake');
+  // Ordinary pages share the starter's settle/unpin contract in the real Mac window.
+  await until(`document.querySelector('[data-page-pin="${config.id}"]')`);
+  assert.equal(await js('!!document.querySelector(".nav-tools #new-board") && !!document.querySelector(".nav-footer #companion-active")'), true);
+  await js(`document.querySelector('[data-page-pin="${config.id}"]').click()`);
+  await until(`document.querySelector('[data-page-pin="${config.id}"]').getAttribute('aria-pressed') === 'true'`);
+  assert.equal(await js(`document.querySelector('[data-page-pin="${config.id}"]').getAttribute('aria-label')`), 'Unpin');
+  await js(`document.querySelector('[data-page-action="${config.id}:settle"]').click()`);
+  await until(`!noteAttention.isBusy() && !document.querySelector('#sidebar-recent [data-page-link="${config.id}"]')`);
+  await js('document.getElementById("toast-action").click()');
+  await until(`!noteAttention.isBusy() && document.querySelector('[data-page-pin="${config.id}"]')?.getAttribute('aria-pressed') === 'true'`);
+  await js(`document.querySelector('[data-page-pin="${config.id}"]').click()`);
+  await js(`document.querySelector('[data-page-action="${config.id}:settle"]').click()`);
+  await until(`!noteAttention.isBusy() && !document.querySelector('#sidebar-recent [data-page-link="${config.id}"]')`);
+  await window.webContents.reload();
+  await until('typeof companionRegistered !== "undefined" && companionRegistered && !companionFrozen');
+  await js('document.querySelector("#sidebar-settled-section summary").click()');
+  await until(`document.querySelector('[data-page-action="${config.id}:reactivate"]')`);
+  assert.equal(await js(`!!document.querySelector('#sidebar-recent [data-page-link="${config.id}"]')`), false);
+  await js(`document.querySelector('[data-page-action="${config.id}:reactivate"]').click()`);
+  await until(`!noteAttention.isBusy() && document.querySelector('#sidebar-recent [data-page-link="${config.id}"]')`);
+  assert.equal(await js(`document.querySelector('[data-page-pin="${config.id}"]').getAttribute('aria-pressed')`), 'false');
+  await js('document.querySelector("#sidebar-settled-section summary").click()');
+  checks.push('native unified pages/footer, compact create board, ordinary pinned/unpinned settle, Undo restores pin, reload and Bring back');
+
   await js('document.getElementById("new-board").click()');
   await until('document.querySelectorAll(".board-column").length === 3');
   assert.match(await js('document.getElementById("board-title").textContent'), /^[A-Z][a-z]+ (Focus|Task|Progress|Goal|Sprint|Plan) [A-Z][a-z]+$/);

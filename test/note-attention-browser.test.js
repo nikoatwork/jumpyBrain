@@ -5,6 +5,26 @@ import { customSnooze, snoozeChoices } from "../dist/adapters/http-server/note-a
 import { createDocumentEditor, splitEditableDocument, composeEditableDocument } from "../dist/adapters/http-server/document-controller.js";
 
 const id = "mem_a0000000-0000-4000-8000-000000000001";
+test("confirmed settlement fences stale reads and projects the row into Settled once", async () => {
+  const reads = [];
+  const list = createAttentionList({ scope: () => "brain", enabled: () => true, now: () => 0,
+    fetch: signal => new Promise(resolve => reads.push({ signal, resolve })),
+    setTimer: () => 1, clearTimer() {}, onChange() {},
+  });
+  const initial = list.load();
+  reads[0].resolve({ notes: [{ id, title: "Before" }], total: 120, settledTotal: 7 }); await initial;
+  const stale = list.load();
+  list.settle({ id, title: "Confirmed" });
+  assert.equal(reads[1].signal.aborted, true);
+  reads[1].resolve({ notes: [{ id, title: "Stale" }] }); await stale;
+  assert.deepEqual(list.state.notes, []);
+  assert.equal(list.state.total, 119);
+  assert.equal(list.state.settledTotal, 8);
+  list.settle({ id, title: "Confirmed again" });
+  assert.equal(list.state.settledTotal, 8);
+  assert.deepEqual(list.state.settled, [{ id, title: "Confirmed again" }]);
+});
+
 test("attention reads discard superseded and different-brain responses even if abort is ignored", async () => {
   let scope = "a"; const reads = [], timers = [];
   const list = createAttentionList({ scope: () => scope, enabled: () => true, now: () => 1000,

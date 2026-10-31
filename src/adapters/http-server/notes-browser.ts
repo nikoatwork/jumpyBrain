@@ -41,22 +41,21 @@ ${noteOutlineStyles}
     :root[data-native-mac="true"] :is(.nav-brand, .workspace-toolbar) { -webkit-app-region: drag; user-select: none; }
     :root[data-native-mac="true"] :is(a, button, input, select, textarea, [role="button"], [role="tooltip"], [popover], #companion-active) { -webkit-app-region: no-drag; }
     .nav-brand, .nav-tools { flex-shrink: 0; }
-    .nav-tools { display: flex; align-items: center; gap: var(--space-2); }
+    .nav-tools { display: flex; align-items: center; gap: var(--space-1); }
     .nav-utilities { justify-self: end; display: flex; align-items: center; gap: var(--space-2); }
+    .nav-footer { display: flex; flex-direction: column; gap: var(--space-2); flex-shrink: 0; }
     .nav-preferences { --control-height: var(--control-compact); display: grid; grid-template-columns: repeat(3, var(--control-compact)) minmax(0, 1fr); align-items: center; gap: var(--space-2); margin-top: 0; flex-shrink: 0; }
     .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     .app-nav .nav-item:not(.sidebar-icon, [aria-current="page"]):hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
     .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
     .app-nav #open-search { flex: 1; min-width: 0; }
-    .app-nav #new-note { background: var(--control-fill); border: 1px solid var(--line); }
+    .app-nav :is(#new-note, #new-board) { background: var(--control-fill); border: 1px solid var(--line); }
     .app-nav .sidebar-icon { flex-shrink: 0; justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: 0; }
     .nav-library { display: flex; flex-direction: column; flex: 1; min-height: 0; margin-inline: calc(-1 * var(--space-3)); overflow: hidden; }
     .nav-library > * { flex-shrink: 0; }
     .sidebar-attention-scroll { flex: 1 1 0; min-height: 0; overflow: auto; }
-    #sidebar-pinned { max-height: 35%; overflow: auto; }
     .sidebar-section-heading, .sidebar-settled summary { margin: var(--space-2) var(--space-6); color: var(--ink-soft); font: var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); }
-    #board-navigation > button { margin-inline: var(--space-3); }
     .sidebar-settled { margin-top: auto; max-height: 40%; overflow: auto; padding-top: var(--space-1); }
     .sidebar-settled summary { display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; margin: 0; min-height: var(--space-12); padding: var(--space-3) var(--space-6) var(--space-3) var(--space-5); color: var(--ink-faint); font-size: var(--text-body); }
     .sidebar-settled summary::-webkit-details-marker { display: none; }
@@ -95,6 +94,10 @@ ${noteOutlineStyles}
     #sidebar-resize:hover, #sidebar-resize:focus-visible { background: var(--line-strong); }
     @media (hover: none) { .sidebar-page .sidebar-page-actions { position: static; transform: none; opacity: 1; pointer-events: auto; } }
     @media (max-width: 680px) { #sidebar-resize { display: none; } }
+    .sidebar-page-pin[aria-pressed="true"] svg path:last-child, .sidebar-page-pin-mark svg path:last-child { fill: currentColor; }
+    .sidebar-page-pin-mark { grid-column: 1; grid-row: 2; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
+    .sidebar-page-pin-mark svg { width: 12px; height: 12px; }
+    .sidebar-page[data-settling] { pointer-events: none; overflow: hidden; }
     .sidebar-page-pin svg { width: 16px; height: 16px; }
     .sidebar-page:hover .sidebar-page-pin, .sidebar-page:focus-within .sidebar-page-pin { opacity: 1; }
     .sidebar-page-pin:hover:not(:disabled) { color: var(--ink); }
@@ -318,7 +321,6 @@ ${referencePresentationStyles}
       .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 320px; margin-inline: 0; }
       .sidebar-section-heading { margin-inline: var(--space-3); }
       .sidebar-settled summary { padding-inline: var(--space-3); }
-      #board-navigation > button { margin-inline: 0; }
       .sidebar-list-more { margin-inline: var(--space-3); }
       .sidebar-attention-scroll { flex-basis: auto; min-height: 120px; }
       .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
@@ -327,7 +329,8 @@ ${referencePresentationStyles}
       .sidebar-page + .sidebar-page { margin-top: 0; }
       .sidebar-page-link { min-height: var(--control-height); grid-template-columns: var(--icon-size) minmax(0, 1fr) auto; column-gap: var(--space-2); padding-inline: var(--space-2); }
       .sidebar-empty { margin: var(--space-1); }
-      .nav-preferences { --control-compact: var(--control-touch); grid-row: 4; grid-column: 1 / -1; margin-top: 0; }
+      .nav-footer { grid-row: 4; grid-column: 1 / -1; }
+      .nav-preferences { --control-compact: var(--control-touch); }
       .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
       .app-nav .sidebar-icon { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
       .nav-item svg { width: 16px; height: 16px; }
@@ -352,15 +355,14 @@ export const notesMarkup = String.raw`
   <div class="nav-tools" role="group" aria-label="Note actions">
     <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
     <button id="new-note" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button id="new-board" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New board" title="New board" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16M15 4v7M15 16h6M18 13v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
     <button id="open-search" type="button" class="quiet-button nav-item" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Search</span></button>
   </div>
   <div class="nav-library" aria-label="Your pages">
-    <h2 id="sidebar-pinned-heading" class="sidebar-section-heading" hidden>Pinned</h2>
-    <ul id="sidebar-pinned" aria-label="Pinned pages"></ul>
     <div class="sidebar-attention-scroll">
-      <div id="board-navigation" hidden><button id="new-board" class="quiet-button">+ New board</button><ul id="sidebar-boards" aria-label="Boards"></ul></div>
-      <h2 class="sidebar-section-heading">Attention</h2>
-      <ul id="sidebar-recent" aria-label="Notes needing attention"></ul>
+      <div id="board-navigation" hidden><ul id="sidebar-boards" aria-label="Boards"></ul></div>
+      <h2 class="sidebar-section-heading">Pages</h2>
+      <ul id="sidebar-recent" aria-label="Pages"></ul>
       <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
       <button id="sidebar-recent-more" class="quiet-button sidebar-list-more" hidden>Show more</button>
     </div>
@@ -371,11 +373,13 @@ export const notesMarkup = String.raw`
       <button id="sidebar-settled-more" class="quiet-button sidebar-list-more" hidden>Show more</button>
     </details>
   </div>
+  <div class="nav-footer">
   <div class="nav-preferences">
     <a id="graph-link" class="quiet-button nav-item sidebar-icon" href="/graph" aria-label="Graph" title="Graph">${browserIcons.graph}</a>
     <button id="open-connection" class="quiet-button nav-item sidebar-icon" aria-label="Connect · Connection settings" title="Connection settings" aria-haspopup="dialog">${browserIcons.settings}<span class="connection-dot" aria-hidden="true"></span></button>
     <button id="open-feedback" class="quiet-button nav-item sidebar-icon" aria-label="Feedback" title="Feedback" aria-haspopup="dialog" aria-controls="feedback-dialog">${browserIcons.feedback}</button>
     <div class="nav-utilities" role="group" aria-label="App utilities"></div>
+  </div>
   </div>
 </nav>
 <div class="app-workspace">
@@ -1278,7 +1282,7 @@ function showPage(url) {
   const documentId = target.searchParams.get("note");
   if (typeof companionMode !== "undefined" && companionMode && state.view === "settings" && !/^\/settings\/?$/.test(target.pathname)) companionClearForm();
   state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : companionMode && target.searchParams.has("board") ? "board" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
-  if (companionMode) { $("board-navigation").hidden=false; boardsUI.show(state.view === "board" ? target.searchParams.get("board") : null); }
+  if (companionMode) { $("board-navigation").hidden=false; $("new-board").hidden=false; boardsUI.show(state.view === "board" ? target.searchParams.get("board") : null); }
   sidebarPages.select(documentId);
   document.body.dataset.view = state.view;
   if (companionMode) syncSettingsNavigation(url);
@@ -1629,13 +1633,13 @@ const lifecycleActions = installDocumentActions({
   },
 });
 const noteAttention = JumpyBrainBrowser.installNoteAttention({
-  settleStarter: (id) => sidebarPages.settleStarter(id),
+  settled: (page, focusOrigin) => sidebarPages.settle(page, focusOrigin),
   document, editor: () => state.editor,
   writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()),
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   blocked: () => lifecycleActions.isBusy() || lifecycleActions.isOpen() || navigation.isBusy() || creatingNote || searchDialog.open || connectionDialog.open || dreamDialog.open || feedback.isOpen(),
   json: graphJson, toast,
-  changed: () => sidebarPages.reloadAttention(),
+  changed: (id) => sidebarPages.reloadAttention(id),
   onBusy: () => sidebarPages.sync(),
 });
 documentActions = {
