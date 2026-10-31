@@ -14,6 +14,16 @@ Every command requires exactly one `--root` or `--target-url` (`--remote-url` is
 
 `list` includes active and settled boards and a `hashes` map keyed by board ID. `show` returns `{board, contentHash}` without fetching notes. CLI output also identifies the root or target URL. Select by stable board ID or exact, case-sensitive name; duplicate names require the ID. Hashes cover exact file bytes and belong to individual boards, so an edit to one board does not invalidate another.
 
+## Sidebar navigation in the Mac app
+
+In **Settings → Boards**, enable **Show pages in sidebar** for any board you want to use as a project navigator. This is off by default. Expand the board to see its columns, then expand columns to see their pages. Click a board name to open Kanban or a page name to open the editor. Column names and chevrons toggle their contents; board chevrons toggle without navigating.
+
+This is another view of the same board order and membership. It does not create folders, copy notes or change attention state. Settled/snoozed pages remain available through board membership; missing references stay visible with a fallback label. A page may appear under several boards and in the general page list.
+
+The setting and open/closed state are personal to this device's browser storage and selected brain profile/destination, including for read-only connections. First enabling opens the board and columns; later navigation, reloads and app restarts retain your choices. Turning it off preserves the last expansion state for re-enabling. Settled boards disappear until restored. Clearing browser storage loses these preferences; unavailable storage retains them only for the current tab. They are not part of board JSON or synchronized to other devices.
+
+Tab through controls; Enter/Space activates them. Arrow keys move between visible navigation controls, expand/collapse groups or move to a parent/child; Home/End select the first/last visible navigation control. Opening a page elsewhere does not force its boards open.
+
 ## Create and maintain a board
 
 ```sh

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-31 — Optional board navigation trees
+
+- Added personal per-board sidebar expansion into columns and pages, preserving direct Kanban access and remembering disclosure state, including on read-only brains. Removed the general page-list heading. [Verification and limits](done/2026-10-31_tasks-board-sidebar-tree.md).
+
 ## 2026-10-31 — Clearer sidebar and visible settling
 
 - Unified pinned/active pages, moved board creation into the toolbar, and grouped brain controls in the footer below Settled. Settling now unpins and visibly removes a page, with pin-restoring Undo, concise action tooltips and filled pin indicators. [Verification and limits](done/2026-10-31_tasks-sidebar-hierarchy-and-settle.md).

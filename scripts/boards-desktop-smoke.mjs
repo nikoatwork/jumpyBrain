@@ -35,11 +35,14 @@ try {
   const entry=path.join(temporary,'app');await mkdir(entry);await writeFile(path.join(entry,'package.json'),JSON.stringify({name:'jumpybrain-native-board-qa',type:'module',main:path.join(repo,'integrations/electron/smoke-boards.mjs')}));
   const electron=createRequire(new URL('../integrations/electron/package.json',import.meta.url))('electron');
   const env={...process.env,JUMPYBRAIN_BOARDS_FIXTURE:file};delete env.ELECTRON_RUN_AS_NODE;
-  child=spawn(electron,[entry],{env,stdio:['ignore','pipe','pipe']});
-  let logs='';for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>{const safe=chunk.toString().split(config.key).join('[fixture-key]');logs+=safe;process.stderr.write(safe);});
-  timer=setTimeout(()=>child.kill('SIGKILL'),120000);
-  const code=await new Promise(resolve=>child.once('exit',resolve));clearTimeout(timer);
-  assert.equal(code,0,logs);const result=JSON.parse(await readFile(config.result,'utf8'));assert.equal(result.ok,true,result.error);
+  for(const restart of [false,true]){
+    config.restart=restart;config.result=path.join(output,restart?'result-relaunch.json':'result.json');await writeFile(file,JSON.stringify(config),{mode:0o600});
+    child=spawn(electron,[entry],{env,stdio:['ignore','pipe','pipe']});
+    let logs='';for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>{const safe=chunk.toString().split(config.key).join('[fixture-key]');logs+=safe;process.stderr.write(safe);});
+    timer=setTimeout(()=>child.kill('SIGKILL'),120000);
+    const code=await new Promise(resolve=>child.once('exit',resolve));clearTimeout(timer);
+    assert.equal(code,0,logs);const result=JSON.parse(await readFile(config.result,'utf8'));assert.equal(result.ok,true,result.error);
+  }
   assert.deepEqual((await listBoards(root)).boards,[],'all local QA boards were deleted');
   assert.equal((await listBoards(remoteRoot)).boards.length,1,'read-only remote board was preserved');
   for(const directory of [root,remoteRoot])for(const i of [0,1])assert.match(await readFile(path.join(directory,'notes',i+'.md'),'utf8'),/No date, budget or bookings confirmed/);

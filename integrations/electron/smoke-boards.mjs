@@ -21,6 +21,20 @@ const mark=text=>{checks.push(text);console.log('Boards native: '+text);};
 async function run() {
 try {
   await app.whenReady();
+  if(config.restart){
+    const editor=createEditorWindow(config,{confirmClose:()=>false});window=editor.window;await editor.loaded;
+    await wait('companionRegistered && !companionFrozen');
+    await companionControl(config,'switch',{id:config.remoteId});
+    await wait(`companionRegistered && !companionFrozen && companionState.activeId===${JSON.stringify(config.remoteId)}`);
+    await js('boardsUI.refresh()');
+    const tree='[data-sidebar-board="'+config.remoteBoardId+'"]';
+    await wait(`document.querySelector('${tree} .board-nav-disclosure:not([hidden])')`);
+    assert.equal(await js(`document.querySelector('${tree} .board-nav-disclosure').getAttribute('aria-expanded')`),'false');
+    await js(`document.querySelector('${tree} .board-nav-disclosure').click()`);
+    await wait(`document.querySelector('${tree} .board-nav-page button')?.textContent==='Venue shortlist'`);
+    await capture('tree-app-relaunch');mark('preference and collapsed state survive full Electron process relaunch and brain switch');
+    await writeFile(config.result,JSON.stringify({ok:true,checks},null,2)+'\n');window.destroy();app.exit(0);return;
+  }
   let saved=await cli('create','--name','Wedding planning QA','--column','Ideas','--column','Arranging','--column','Confirmed');
   const id=saved.board.id;
   saved=await cli('add','--board',id,'--page',config.ids[0],'--column','1','--if-match',saved.contentHash);
@@ -42,6 +56,31 @@ try {
   saved=await cli('add','--board',id,'--page',config.ids[1],'--column','1','--if-match',saved.contentHash);
   await js('boardsUI.refresh()');await wait('document.querySelectorAll(".board-card").length===2');
   await capture('02-shared-edits');
+  // Optional personal tree uses real Settings controls and guarded page navigation.
+  const boardBefore=await readFile(path.join(config.root,'boards',id+'.json'),'utf8');
+  await js("navigation.navigate('/settings?section=boards')");await wait(`document.querySelector('[data-board-id="${id}"] input[type=checkbox]')`);
+  assert.equal(await js(`document.querySelector('[data-board-id="${id}"] input[type=checkbox]').checked`),false);
+  await js(`document.querySelector('[data-board-id="${id}"] input[type=checkbox]').click()`);
+  await capture('tree-settings');await js("navigation.navigate('/')");
+  const tree='[data-sidebar-board="'+id+'"]';
+  await wait(`document.querySelector('${tree} [data-sidebar-page="${config.ids[0]}"] button')?.textContent==='Venue shortlist'`);
+  await js(`document.querySelector('${tree} [data-sidebar-page="${config.ids[0]}"] button').click()`);
+  await wait(`state.editor?.state.loaded && state.editor.state.documentId===${JSON.stringify(config.ids[0])}`);
+  assert.equal(await js(`document.querySelector('${tree} [data-sidebar-page="${config.ids[0]}"] button').getAttribute('aria-current')`),'page');
+  for(const [width,height,sidebarWidth] of [[1280,850,224],[1280,850,280],[1440,900,480],[900,480,224],[390,850,280]])for(const theme of ['light','dark']){
+    window.setContentSize(width,height);await js(`colorTheme.setPreference('${theme}')`);
+    if(width>680)await js(`document.getElementById('sidebar-resize').dispatchEvent(${sidebarWidth===280?"new MouseEvent('dblclick',{bubbles:true})":"new KeyboardEvent('keydown',{key:'"+(sidebarWidth===224?'Home':'End')+"',bubbles:true})"})`);
+    await js(`document.querySelector('.sidebar-attention-scroll').scrollTop=0;document.activeElement.blur()`);await pause(80);
+    assert.equal(await js(`document.documentElement.scrollWidth<=innerWidth && document.querySelector('.nav-footer').getBoundingClientRect().bottom<=innerHeight`),true);
+    await capture('tree-'+width+'-'+height+'-'+sidebarWidth+'-'+theme);
+  }
+  window.setContentSize(1280,850);
+  await js(`document.querySelector('${tree} .board-nav-column .board-nav-disclosure').click()`);
+  window.reload();await wait(`companionRegistered && !companionFrozen && document.querySelector('${tree} .board-nav-column .board-nav-disclosure')`);
+  assert.equal(await js(`document.querySelector('${tree} .board-nav-column .board-nav-disclosure').getAttribute('aria-expanded')`),'false');
+  assert.equal(await readFile(path.join(config.root,'boards',id+'.json'),'utf8'),boardBefore);
+  mark('optional tree: Settings, direct editor navigation, light/dark sizes, column persistence and unchanged board bytes');
+  await js(`navigation.navigate('/?board=${id}')`);await wait('document.querySelectorAll(".board-card").length===2');
   const status=await cli('status','--board',id);assert.equal(status.totalCards,2);assert.equal(status.partial,false);
   saved=await cli('update','--board',id,'--archived','true','--if-match',saved.contentHash);
   await js('boardsUI.refresh()');await wait('document.getElementById("board-notice").textContent.includes("Settled")');
@@ -72,13 +111,30 @@ try {
   await js(`navigation.navigate('/settings?section=boards')`);await wait('document.querySelector(".board-settings-name")');
   assert.equal(await js('document.querySelector(".board-settings-name").disabled'),false);
   assert.equal(await js('[...document.querySelectorAll(".board-settings-actions button")].every(b=>b.disabled)'),true);
+  assert.equal(await js('document.querySelector(".board-settings-sidebar input").checked'),false,'local preference never leaks into remote');
+  assert.equal(await js('document.querySelector(".board-settings-sidebar input").disabled'),false,'read-only allows personal navigation');
+  await js('document.querySelector(".board-settings-sidebar input").click()');
   await js('document.querySelector(".board-settings-name").click()');await wait('document.querySelector(".board-card > button")');
   await js('document.querySelector(".board-card > button").click()');await wait('state.editor?.state.loaded');
   assert.equal(await js('document.getElementById("note-add-to-board").disabled'),true);
   mark('loopback remote boards render; read-only navigation works and all board writes are disabled');
+  const remoteTree='[data-sidebar-board="'+config.remoteBoardId+'"]';
+  await wait(`document.querySelector('${remoteTree} .board-nav-disclosure')`);
+  assert.equal(await js(`document.querySelector('${remoteTree} .board-nav-disclosure').disabled`),false);
+  await js(`document.querySelector('${remoteTree} .board-nav-disclosure').click()`);
+  assert.equal(await js(`document.querySelector('${remoteTree} .board-nav-disclosure').getAttribute('aria-expanded')`),'false');
+  await js(`document.querySelector('${remoteTree} .board-nav-disclosure').click()`);
+  await wait(`document.querySelector('${remoteTree} .board-nav-page button')?.textContent==='Venue shortlist'`);
+  await js(`document.querySelector('${remoteTree} .board-nav-page button').click()`);await wait('state.editor?.state.loaded');
+  await capture('tree-read-only');
+  await js(`document.querySelector('${remoteTree} .board-nav-disclosure').click()`);
+  mark('read-only remote tree preference, disclosures and direct navigation work without organization writes');
   await companionControl(config,'switch',{id:config.localId});await wait(`companionRegistered && !companionFrozen && companionState.activeId===${JSON.stringify(config.localId)}`);
   await writeFile(config.result,JSON.stringify({ok:true,checks},null,2)+'\n');
-  window.destroy();app.exit(0);
+  // Await fixture-tab teardown before the harness starts another Electron process.
+  await js("companionStopped=true;clearTimeout(companionPollTimer);companionControl('unregister',{tabId:companionTabId,generation:companionState.generation}).then(()=>{companionRegistered=false;})");
+  window.webContents.session.flushStorageData();
+  {const closed=new Promise(resolve=>window.once('closed',resolve));window.close();await closed;}app.exit(0);
 } catch(error) {
   await writeFile(config.result,JSON.stringify({ok:false,error:error.stack,checks},null,2)).catch(()=>{});
   console.error(error);window?.destroy();app.exit(1);
