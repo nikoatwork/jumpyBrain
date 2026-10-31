@@ -6,7 +6,7 @@ export const settingsNavigationMarkup = String.raw`
 <div id="settings-navigation" aria-label="Settings sections" hidden>
   <p class="settings-nav-label">Settings</p>
   <a class="quiet-button nav-item" href="/settings" data-settings-section="brains">${browserIcons.connect}<span>Brains</span></a>
-  <a class="quiet-button nav-item" href="/settings?section=boards" data-settings-section="boards"><span>Boards</span></a>
+  <a class="quiet-button nav-item" href="/settings?section=boards" data-settings-section="boards">${browserIcons.board}<span>Boards</span></a>
   <a class="quiet-button nav-item" href="/settings?section=appearance" data-settings-section="appearance">${browserIcons.appearance}<span>Appearance</span></a>
   <a class="quiet-button nav-item" href="/settings?section=extensions" data-settings-section="extensions">${browserIcons.extensions}<span>Extensions</span></a>
 </div>

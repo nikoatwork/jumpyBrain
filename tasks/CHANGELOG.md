@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-31 — Board navigation enabled by default
+
+- Unconfigured boards now expand into columns and pages automatically while preserving explicit opt-outs and saved collapse choices. Added the missing Boards Settings icon. [Verification](done/2026-10-31_tasks-board-sidebar-default.md).
+
 ## 2026-10-31 — v0.3.14 beta published
 
 - Shipped optional board sidebar trees, clearer navigation and settling, actionable remote connection guidance and identical-install native identity stability. Full versioned suite and core-flow checks passed; public artifact digest verified. [Release notes](done/releases/v0.3.14.md), [QA](done/releases/v0.3.14.qa.md) and [completed task](done/2026-10-31_tasks-release-v0.3.14.md).

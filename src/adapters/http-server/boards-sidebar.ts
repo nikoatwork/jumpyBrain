@@ -42,12 +42,12 @@ function createBoardsSidebar({host,scope,boards,names,pageStates,selected,disabl
       sessions.set(key,prefs);
     }
   }
-  const preference=id=>{sync();return Object.hasOwn(prefs,id)?prefs[id]:null;};
+  const preference=id=>{sync();return prefs[id]||={enabled:true,open:true,closed:[]};};
   const enabled=id=>!!preference(id)?.enabled;
   function persist(){const ids=new Set(boards().map(b=>b.id));for(const id of Object.keys(prefs))if(!ids.has(id))delete prefs[id];try{localStorage.setItem(prefix+key,JSON.stringify(prefs));}catch{}render();changed();}
   function setEnabled(id,value){
     if(disabled()||!scope())return;
-    sync();prefs[id]||={enabled:false,open:true,closed:[]};prefs[id].enabled=value;persist();
+    preference(id).enabled=value;persist();
   }
   function toggle(id,index){
     if(disabled())return;

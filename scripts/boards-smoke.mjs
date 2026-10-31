@@ -117,7 +117,7 @@ try{
  const cardId=await page.locator('.board-column').nth(1).locator('.board-card').getAttribute('data-board-page');
  await page.locator('.board-column').nth(1).locator('.board-card > button').click();await page.locator('#note-editor').waitFor({state:'visible'});
  await page.locator('#navigate-back').click();await page.locator('#board-title').filter({hasText:'A quieter launch'}).waitFor();await page.locator('.board-card').first().waitFor();
- await page.getByRole('button',{name:'Settle A quieter launch',exact:true}).first().click();await page.locator('#sidebar-boards li').waitFor({state:'hidden'});
+ await page.getByRole('button',{name:'Settle A quieter launch',exact:true}).first().click();await page.locator('#sidebar-boards > li').waitFor({state:'hidden'});
  await page.locator('#open-connection').click();await page.locator('[data-settings-section="boards"]').click();await page.getByRole('button',{name:'Restore A quieter launch',exact:true}).click();await page.locator('#settings-boards-list').getByRole('button',{name:'A quieter launch',exact:true}).click();await page.locator('.board-card').first().waitFor();assert.equal(await page.locator('.board-column').nth(1).locator('.board-card').getAttribute('data-board-page'),cardId);
  await page.reload();await page.locator('.board-card').first().waitFor();
  const saved=await listBoards(root);assert.equal(saved.boards.find(b=>b.name==='A quieter launch').columns[1].pages[0],cardId);
@@ -169,9 +169,9 @@ try{
  await page.unroute('**/memories/all/documents/**');await page.waitForFunction(()=>!state.editor.state.saveInFlight);assert.equal(await page.evaluate(()=>state.editor.retry()),true);
  await page.waitForFunction(()=>!document.getElementById('new-board').disabled);
  // Generated names are unique, and repeated activation creates only one board.
- const beforeBoards=await page.locator('#sidebar-boards li').count();
+ const beforeBoards=await page.locator('#sidebar-boards > li').count();
  const firstName=await newBoard(()=>page.evaluate(()=>{document.getElementById('new-board').click();document.getElementById('new-board').click();}));
- assert.equal(await page.locator('#sidebar-boards li').count(),beforeBoards+1);
+ assert.equal(await page.locator('#sidebar-boards > li').count(),beforeBoards+1);
  const secondName=await newBoard();assert.notEqual(secondName,firstName);
  await page.getByRole('button',{name:'Rename board',exact:true}).click();await boardName.fill('Renamed default');await boardName.press('Enter');
  await page.getByRole('heading',{name:'Renamed default',exact:true}).waitFor();
@@ -232,8 +232,8 @@ try{
  await page.waitForFunction(id=>typeof companionState!=='undefined'&&companionState?.activeId===id&&companionRegistered&&!companionFrozen,remoteId);
  assert.equal(await page.locator('.board-composer').count(),0);
  const sharedActive=(await listBoards(root)).boards.filter(b=>!b.archived).length;
- await page.waitForFunction(count=>document.querySelectorAll('#sidebar-boards li').length===count,sharedActive);
- assert.equal(await page.locator('#sidebar-boards li').count(),sharedActive,'two connections to the same brain share canonical boards');
+ await page.waitForFunction(count=>document.querySelectorAll('#sidebar-boards > li').length===count,sharedActive);
+ assert.equal(await page.locator('#sidebar-boards > li').count(),sharedActive,'two connections to the same brain share canonical boards');
  assert.equal(await page.locator('#new-board').isDisabled(),true);
  assert.equal(await page.locator('#settings-new-board').isDisabled(),true);
  await switchBrain(localId);await page.waitForFunction(id=>typeof companionState!=='undefined'&&companionState?.activeId===id&&companionRegistered&&!companionFrozen,localId);

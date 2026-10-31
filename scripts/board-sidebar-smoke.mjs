@@ -28,11 +28,13 @@ try {
   await page.route('**/memories/all/documents/'+id(3),route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture temporarily unavailable'}})}));
   await page.goto(gateway.url+'/#companion='+'b'.repeat(64));
   const tree=page.locator('#sidebar-boards'),board=tree.locator('[data-sidebar-board="'+first.id+'"]'),other=tree.locator('[data-sidebar-board="'+second.id+'"]');
-  await board.waitFor();assert.equal(await tree.locator('.board-nav-disclosure:visible').count(),0);
+  await board.waitFor();assert.equal(await tree.locator('.board-nav-disclosure:visible').count(),8,'fresh boards and all columns are expanded by default');
   assert.equal(await page.locator('.sidebar-section-heading').count(),0);
   await page.evaluate(()=>navigation.navigate('/settings?section=boards'));
   const checkbox=page.getByRole('checkbox',{name:'Show pages in sidebar for '+first.name,exact:true});
-  await checkbox.check();await page.getByRole('checkbox',{name:'Show pages in sidebar for '+second.name,exact:true}).check();
+  assert.equal(await checkbox.isChecked(),true);assert.equal(await page.getByRole('checkbox',{name:'Show pages in sidebar for '+second.name,exact:true}).isChecked(),true);
+  assert.equal(await page.locator('[data-settings-section=boards] svg[aria-hidden=true]').count(),1);
+  await page.getByRole('heading',{name:'Boards',exact:true}).waitFor();await page.locator('[data-settings-panel=boards]').evaluate(el=>Promise.all(el.getAnimations().map(a=>a.finished)));
   await page.screenshot({path:captures+'/settings-light.png'});
   await page.evaluate(()=>navigation.navigate('/'));
   const arrow=board.locator('.board-nav-head > .board-nav-disclosure');
@@ -134,7 +136,7 @@ try {
   await columnArrow.focus();await page.evaluate(async({boardId,pageId})=>{const p=await graphJson('/memories/all/boards');const b=p.boards.find(b=>b.id===boardId);b.columns[0].pages=b.columns[0].pages.filter(id=>id!==pageId);b.columns[1].pages.push(pageId);b.columns[0].name='Decisions';await graphJson('/memories/all/boards/'+boardId,{method:'PUT',headers:{'Content-Type':'application/json','If-Match':p.hashes[boardId]},body:JSON.stringify(b)});await boardsUI.refresh();},{boardId:first.id,pageId:id(1)});
   assert.equal(await columnArrow.evaluate(el=>el===document.activeElement),true);assert.equal(await column.locator('[data-sidebar-page="'+id(1)+'"]').count(),0);
   await board.locator('.board-nav-column').nth(1).getByRole('button',{name:'Project overview',exact:true}).waitFor();
-  await page.evaluate(()=>navigation.navigate('/settings?section=boards'));await checkbox.uncheck();await page.evaluate(()=>navigation.navigate('/'));assert.equal(await arrow.isVisible(),false);assert.equal(await board.locator('.board-nav-column').count(),0);
+  await page.evaluate(()=>navigation.navigate('/settings?section=boards'));await checkbox.uncheck();await page.reload();await checkbox.waitFor();assert.equal(await checkbox.isChecked(),false,'explicit opt-out survives reload');await page.evaluate(()=>navigation.navigate('/'));assert.equal(await arrow.isVisible(),false);assert.equal(await board.locator('.board-nav-column').count(),0);
   assert.equal(await other.locator('.board-nav-head > .board-nav-disclosure').getAttribute('aria-expanded'),'true');
   // Simulated storage denial still keeps in-tab preferences across navigation.
   await page.evaluate(()=>{Storage.prototype.setItem=()=>{throw new Error('Fixture storage unavailable');};});
