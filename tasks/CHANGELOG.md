@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-31 — v0.3.14 beta published
+
+- Shipped optional board sidebar trees, clearer navigation and settling, actionable remote connection guidance and identical-install native identity stability. Full versioned suite and core-flow checks passed; public artifact digest verified. [Release notes](done/releases/v0.3.14.md), [QA](done/releases/v0.3.14.qa.md) and [completed task](done/2026-10-31_tasks-release-v0.3.14.md).
+
 ## 2026-10-31 — Clearer board navigation after UX review
 
 - Narrow sidebar selections now reveal the chosen content without changing desktop preferences; board trees distinguish status placeholders from real pages and explain Open board versus Expand/Collapse actions. [Review decisions and verification](done/2026-10-31_tasks-board-sidebar-review-improvements.md).
