@@ -62,6 +62,8 @@ ${boardSettingsStyles}
 #note-board-dialog label {display:grid;gap:6px;margin:14px 0}
 #note-board-dialog select {width:100%;max-width:100%}
 #board-notice {color:var(--ink-soft);font-size:var(--text-caption)}
+#sidebar-boards-compatibility {margin:var(--space-2) 0;color:var(--ink-soft);font-size:var(--text-caption);line-height:var(--leading-ui)}
+#sidebar-boards-compatibility button {display:block;margin-top:var(--space-1)}
 @media(max-width:680px){#boards-view{--control-compact:var(--control-touch);--control-height:var(--control-touch)}.board-columns{grid-template-columns:1fr}.board-card-actions{opacity:1;pointer-events:auto}}
 `;
 export const boardsMarkup = String.raw`
@@ -77,19 +79,29 @@ export const boardsScript = String.raw`
 ${boardSettingsScript}
 ${createBoardName.toString()}
 const boardsUI = (() => {
-  let formBusy=false;
+  let formBusy=false, support='unknown';
+  const unsupportedMessage='This server does not support boards yet. Update the remote server to use boards.';
   let packet = {boards:[],hashes:{}}, bound = '', busy = false, sequence = 0, selected = null, composer = null, rename = null, creation = null;
   const names = new Map(), previews = new Map();
   const scope = () => companionRegistered && !companionSessionFailed ? String(companionState.generation)+':'+companionState.activeId : '';
-  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,scope,change,open:id=>navigation.navigate('/?board='+id)});
+  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>support!=='supported'||busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,scope,change,open:id=>navigation.navigate('/?board='+id)});
   const button = (text, run, label, icon = false) => { const b=document.createElement('button');b.type='button';b.className=icon?'quiet-button note-icon':'quiet-button';b.textContent=text;if(label)b.setAttribute('aria-label',label);b.onclick=run;return b; };
   const notice = text => { $('board-notice').textContent=text; toast.show('boards',text,{action:{label:'Retry',run:load}}); };
+  function compatibilityMessage(host) {
+    // Keep the retry control stable across background reads and failed retries.
+    if(host.querySelector('[data-board-retry]'))return;
+    const retry=button('Check again',load);retry.dataset.boardRetry='';host.replaceChildren(document.createTextNode(unsupportedMessage+' '),retry);
+  }
+  const compatibility=document.createElement('div');compatibility.id='sidebar-boards-compatibility';compatibility.setAttribute('role','status');compatibility.hidden=true;$('sidebar-boards').after(compatibility);
   function render() {
-    const sidebar=$('sidebar-boards'); sidebar.replaceChildren();settingsUI.render();$('note-add-to-board').disabled=companionReadOnly()||busy||formBusy||companionFrozen||!scope();
+    const sidebar=$('sidebar-boards'); sidebar.replaceChildren();if(support!=='unsupported')settingsUI.render();
+    compatibility.hidden=support!=='unsupported';
+    if(support==='unsupported'){compatibilityMessage(compatibility);compatibilityMessage($('settings-boards-list'));}
+    $('note-add-to-board').disabled=support!=='supported'||companionReadOnly()||busy||formBusy||companionFrozen||!scope();
     for(const b of packet.boards){
       if(!b.archived){const row=document.createElement('li');row.className='sidebar-page';const link=button(b.name,()=>navigation.navigate('/?board='+b.id));link.classList.add('sidebar-page-link');if(selected===b.id)link.setAttribute('aria-current','page');const settle=button('✓',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=true;}),'Settle '+b.name,true);settle.title='Settle board';row.append(link,settle);sidebar.append(row);}
     }
-    for(const id of ['new-board','settings-new-board'])$(id).disabled=companionReadOnly()||busy||formBusy||companionFrozen||!scope()||bound!==scope();
+    for(const id of ['new-board','settings-new-board'])$(id).disabled=support!=='supported'||companionReadOnly()||busy||formBusy||companionFrozen||!scope()||bound!==scope();
     for(const control of sidebar.querySelectorAll('button'))control.disabled=busy||formBusy||companionFrozen||!scope()||bound!==scope()||(companionReadOnly()&&!control.classList.contains('sidebar-page-link'));
     const board=packet.boards.find(b=>b.id===selected), columns=$('board-columns');
     const available=board&&!board.archived;
@@ -97,6 +109,7 @@ const boardsUI = (() => {
     if(rename&&(!available||rename.boardId!==selected||rename.scope!==scope()))rename=null;
     if(columns.dataset.board!==selected){columns.replaceChildren();columns.dataset.board=selected||'';}
     if(!selected){columns.replaceChildren();return;}
+    if(support==='unsupported'){$('board-title').textContent='Boards unavailable';columns.replaceChildren();compatibilityMessage($('board-notice'));return;}
     renderTitle($('board-title'),board?.name||'Board unavailable',null,!!available);
     if(!available){columns.replaceChildren();$('board-notice').textContent=board?'Settled. Restore it in ':'Board unavailable. ';$('board-notice').append(button('Settings → Boards',()=>navigation.navigate('/settings?section=boards')));return;}
     board.columns.forEach((column,index)=>{
@@ -157,13 +170,18 @@ const boardsUI = (() => {
     };
     input.onblur=()=>finish(false);input.onkeydown=e=>{if(e.isComposing)return;if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();finish(e.key==='Escape');}};
   }
-  async function load(){const s=scope();if(!s)return;if(bound!==s){bound=s;packet={boards:[],hashes:{}};names.clear();previews.clear();dismissComposer(false);rename=null;creation=null;render();}const token=++sequence;
-    try{const p=await graphJson('/memories/all/boards');if(s!==scope()||token!==sequence)return;packet=p;render();await titles(s,token);return true;}
-    catch(e){if(s===scope()&&token===sequence)notice('Could not load boards. Try again.');}
+  async function load(){const s=scope();if(!s)return;if(bound!==s){bound=s;support='unknown';packet={boards:[],hashes:{}};names.clear();previews.clear();dismissComposer(false);rename=null;creation=null;render();}const token=++sequence;
+    try{const p=await graphJson('/memories/all/boards');if(s!==scope()||token!==sequence)return;const recovered=support==='unsupported';support='supported';packet=p;if(recovered)$('board-notice').textContent='';render();await titles(s,token);return true;}
+    catch(e){if(s!==scope()||token!==sequence)return;
+      // Only the collection read establishes feature support. A missing note or
+      // individual board, authentication failure, or temporary outage does not.
+      if(e.status===404||e.status===405){support='unsupported';packet={boards:[],hashes:{}};names.clear();previews.clear();dismissComposer(false);rename=null;creation=null;toast.clear('boards');render();}
+      else notice('Could not load boards. Try again.');
+    }
   }
   async function titles(s,token,ids=[...new Set(packet.boards.filter(b=>b.id===selected&&!b.archived).flatMap(b=>b.columns.flatMap(c=>c.pages)))]){let cursor=0;await Promise.all(Array.from({length:Math.min(4,ids.length)},async()=>{while(cursor<ids.length){const id=ids[cursor++];try{const page=await graphJson(memoryDocumentPath(id));if(s!==scope()||token!==sequence)return;names.set(id,page.title||'Untitled');previews.set(id,JumpyBrainBrowser.readablePreview(page.content||'',page.title||''));}catch(e){if(s!==scope()||token!==sequence)return;names.set(id,e.status===404?'Page missing':'Page unavailable');previews.delete(id);}}}));if(s===scope()&&token===sequence)render();}
   async function change(update){
-    if(busy||(!formBusy&&companionFrozen)||!scope()||bound!==scope()||companionReadOnly())return false;
+    if(support!=='supported'||busy||(!formBusy&&companionFrozen)||!scope()||bound!==scope()||companionReadOnly())return false;
     const s=scope(), rows=structuredClone(packet.boards);update(rows);
     const changed=rows.filter(board=>JSON.stringify(board)!==JSON.stringify(packet.boards.find(old=>old.id===board.id)));
     const removed=packet.boards.filter(board=>!rows.some(next=>next.id===board.id));
@@ -187,7 +205,7 @@ const boardsUI = (() => {
     if(restore&&current.scope===scope())$('board-columns').children[current.index]?.querySelector('.board-add')?.focus();
   }
   function openComposer(index) {
-    if(companionReadOnly())return;
+    if(support!=='supported'||companionReadOnly())return;
     if(busy||formBusy||companionFrozen||!scope())return;
     if(composer?.index===index){composer.input.focus();return;}
     dismissComposer(false);
@@ -293,7 +311,7 @@ const boardsUI = (() => {
   }
   $('note-add-to-board').hidden=false;
   $('note-add-to-board').onclick=async()=>{
-    if(companionReadOnly())return;
+    if(support!=='supported'||companionReadOnly())return;
     const editor=state.editor;
     if(busy||formBusy||companionFrozen||!scope()||state.view!=='note'||!editor?.state.loaded||editor.state.navigationPending||documentActions.isBusy())return;
     noteDestination={id:editor.state.documentId,editor,scope:scope()};
@@ -301,7 +319,7 @@ const boardsUI = (() => {
     $('note-board-select').replaceChildren();$('note-board-column').replaceChildren();$('note-board-message').textContent='Loading boards…';
     const loaded=await load();
     if(!destinationValid()||!$('note-board-dialog').open)return;
-    if(!loaded){$('note-board-message').textContent='Could not load boards. Close and try again.';return;}
+    if(!loaded){$('note-board-message').textContent=support==='unsupported'?unsupportedMessage:'Could not load boards. Close and try again.';return;}
     destinationBoards();($('note-board-select').disabled?$('note-board-cancel'):$('note-board-select')).focus();
   };
   $('note-board-select').onchange=destinationColumns;
@@ -317,7 +335,7 @@ const boardsUI = (() => {
     else {destinationBoards();$('note-board-message').textContent='Not added. Check your connection or board selection and retry.';}
   };
   const create=async()=>{
-    if(companionReadOnly())return;
+    if(support!=='supported'||companionReadOnly())return;
     if(busy||formBusy||companionFrozen||!scope()||bound!==scope())return;
     const s=scope();
     if(!creation)creation={schemaVersion:1,id:crypto.randomUUID(),name:createBoardName(packet.boards.map(b=>b.name)),archived:false,columns:['To do','Doing','Done'].map(name=>({name,pages:[]}))};
