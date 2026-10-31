@@ -2,7 +2,7 @@
 import { app } from 'electron';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import { access, readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createEditorWindow } from './window.mjs';
 const config = JSON.parse(await readFile(process.env.JUMPYBRAIN_CONNECTION_FIXTURE, 'utf8'));
 app.setPath('userData', config.userData); app.on('window-all-closed', () => {});
@@ -12,7 +12,7 @@ const js = source => window.webContents.executeJavaScript(source, true);
 async function until(source) {
   const deadline = Date.now() + 15000;
   while (Date.now() < deadline) { try { if (await js("(() => { try { return (" + source + "); } catch { return false; } })()")) return; } catch { /* Scope changes replace the renderer. */ } await pause(40); }
-  throw new Error('Timed out at ' + stage + ': ' + source);
+  throw new Error('Timed out at ' + stage + ': ' + source + (errors.length ? '; renderer errors: ' + errors.join('; ') : ''));
 }
 const mark = value => { stage = value; console.log('Connection flow: ' + value); };
 const click = selector => js(`document.querySelector(${JSON.stringify(selector)}).click()`);
@@ -30,11 +30,35 @@ async function select(id) {
 async function action(id, name) {
   await js(`document.querySelector('[data-profile-id="${id}"] button[aria-label="${name}"]').click()`); await ready();
 }
+async function keyboardAction(id, name) {
+  const selector = `[data-profile-id="${id}"] button[aria-label="${name}"]`;
+  await js(`document.querySelector(${JSON.stringify(selector)}).focus()`);
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Return' });
+  window.webContents.sendInputEvent({ type: 'char', keyCode: '\r' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Return' });
+  await until('companionActionBusy || document.getElementById("toast-message").textContent.includes("connected")');
+  await ready();
+  await until('document.getElementById("toast-message").textContent.includes("connected")');
+  assert.equal(await js(`document.activeElement === document.querySelector(${JSON.stringify(selector)})`), true,
+    'keyboard connection testing retains focus on the same logical action after rerender');
+}
+async function openNote(id) {
+  await js(`navigation.navigate(${JSON.stringify('/?note=' + id)})`);
+  await until(`state.editor?.state.loaded && state.editor.state.documentId === ${JSON.stringify(id)} && !navigation.isBusy()`);
+}
+async function noteFiles(root) {
+  const directory = path.join(root, 'notes');
+  return Promise.all((await readdir(directory)).filter(file => file.endsWith('.md')).map(file => readFile(path.join(directory, file), 'utf8')));
+}
 async function capture(name) { await writeFile(path.join(config.screenshots, name + '.png'), (await window.webContents.capturePage()).toPNG()); }
 void (async () => {
 try {
-  await app.whenReady(); const editor = createEditorWindow(config, { confirmClose: () => false }); window = editor.window; await editor.loaded;
-  window.webContents.on('console-message', (_event, ...details) => { if (String(details[1]).includes('Uncaught')) errors.push(String(details[1])); });
+  await app.whenReady(); const editor = createEditorWindow(config, { confirmClose: () => false }); window = editor.window;
+  window.webContents.on('console-message', (_event, ...details) => {
+    const message = typeof details[0] === 'object' ? details[0]?.message : details[1];
+    if (String(message).includes('Uncaught')) errors.push(String(message));
+  });
+  await editor.loaded;
   await ready(); await settings();
   const personal = await js('companionState.activeId');
   mark('single brain');
@@ -94,6 +118,71 @@ try {
   await action(remote, 'Test connection'); await until('document.getElementById("toast-message").textContent.includes("connected")');
   await capture('remote-read-only');
   checks.push('real loopback remote, read-only default, blank-key rename and connectivity');
+  mark('read-only remote note and keyboard connection test');
+  await openNote(config.id);
+  assert.match(await js('richEditor.getMarkdown()'), /Only in Remote/);
+  assert.equal(await js('document.getElementById("note-name").readOnly'), true);
+  assert.equal(await js('document.getElementById("new-note").disabled'), true);
+  assert.equal(await js('document.getElementById("delete-note").disabled'), true);
+  await settings();
+  // Clear the previous success notice so the wait observes this keyboard action.
+  await js('companionMessage("")');
+  await keyboardAction(remote, 'Test connection');
+  checks.push('read-only remote notes remain viewable; keyboard Test connection preserves focus');
+  mark('explicit remote editing approval');
+  await action(remote, 'Edit');
+  assert.equal(await js('document.getElementById("companion-writes").checked'), false);
+  await click('#companion-writes'); await save();
+  await until(`companionState.activeId === ${JSON.stringify(remote)} && companionState.active.allowWrites === true`); await ready();
+  await until('!document.getElementById("companion-refresh-index").disabled');
+  assert.equal(await js('companionReadOnly()'), false);
+  await js('navigation.navigate("/")'); await until('state.view === "home" && !navigation.isBusy()');
+  await click('#new-note');
+  await until(`!creatingNote && state.editor?.state.loaded && state.editor.state.documentId !== ${JSON.stringify(config.id)} && !navigation.isBusy()`);
+  const remoteNoteId = await js('state.editor.state.documentId');
+  const remoteTitle = 'Remote-only switching smoke';
+  const remoteBody = 'Remote-only capture marker.\nSaved by the switch barrier before leaving Team.\n';
+  mark('remote edit immediately followed by local switch');
+  // Issue input and the selector change in one renderer turn, before the normal
+  // autosave debounce can run. The production switch barrier must flush both.
+  assert.equal(await js(`(() => {
+    const title = document.getElementById('note-name'); title.value = ${JSON.stringify(remoteTitle)};
+    title.dispatchEvent(new Event('input', { bubbles: true }));
+    richEditor.setMarkdown(${JSON.stringify(remoteBody)}); state.editor.input(richEditor.getMarkdown());
+    const pending = state.editor.hasPending();
+    const chooser = document.getElementById('companion-brain-switch'); chooser.value = ${JSON.stringify(personal)};
+    chooser.dispatchEvent(new Event('change', { bubbles: true })); return pending;
+  })()`), true, 'the remote editor really had an unsaved draft when switching began');
+  await until(`companionState.activeId === ${JSON.stringify(personal)}`); await ready();
+  assert.equal(await js('state.view'), 'home');
+  assert.equal(await js('new URL(location.href).searchParams.get("brain")'), personal);
+  assert.equal(await js('document.getElementById("navigate-back").disabled'), true, 'history resets at the brain boundary');
+  assert.equal(await js(`document.getElementById('sidebar-recent').textContent.includes(${JSON.stringify(remoteTitle)})`), false,
+    'remote recent-note metadata does not leak into the personal sidebar');
+  assert.equal((await noteFiles(config.roots.Personal)).some(text => text.includes(remoteNoteId) || text.includes(remoteTitle)), false);
+  assert.equal((await noteFiles(config.roots.Work)).some(text => text.includes(remoteNoteId) || text.includes(remoteTitle)), false);
+  const persistedRemote = (await noteFiles(config.roots.Remote)).find(text => text.includes(remoteNoteId));
+  assert.ok(persistedRemote, 'the new note exists only in the remote canonical root');
+  assert.ok(persistedRemote.includes(remoteTitle)); assert.ok(persistedRemote.includes(remoteBody.trim()));
+  await openNote(config.id);
+  assert.match(await js('richEditor.getMarkdown()'), /Only in Personal/);
+  assert.doesNotMatch(await js('richEditor.getMarkdown()'), /Only in Remote|Remote-only capture marker/);
+  assert.equal(await js('document.getElementById("note-name").value'), 'Personal fixture');
+  await capture('personal-after-remote-save');
+  mark('return to remote and reload saved content');
+  await select(remote);
+  assert.equal(await js('document.getElementById("navigate-back").disabled'), true);
+  assert.equal(await js('new URL(location.href).searchParams.get("brain")'), remote);
+  assert.equal(await js('document.getElementById("sidebar-recent").textContent.includes("Personal fixture")'), false);
+  await openNote(remoteNoteId);
+  assert.equal(await js('document.getElementById("note-name").value'), remoteTitle);
+  assert.equal(await js('richEditor.getMarkdown().trim()'), remoteBody.trim());
+  assert.equal(await js('document.getElementById("note-name").readOnly'), false);
+  await openNote(config.id);
+  assert.equal(await js('document.getElementById("note-name").value'), 'Remote fixture');
+  assert.match(await js('richEditor.getMarkdown()'), /Only in Remote/);
+  await capture('remote-after-roundtrip');
+  checks.push('explicit remote write approval; remote create/title/body flushed before immediate local switch; canonical isolation, scoped history/sidebar and saved roundtrip');
   mark('remove cancel, confirm and return to one brain');
   await select(personal); await settings();
   await js('window.confirm = () => false; undefined'); await action(remote, 'Remove');

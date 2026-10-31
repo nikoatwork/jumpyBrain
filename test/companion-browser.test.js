@@ -67,7 +67,10 @@ test("companion settings/scripts are opt-in and both shell variants parse", () =
   assert.doesNotMatch(ordinary, /id="companion-settings"/);
   assert.doesNotMatch(ordinary, /function startCompanion/);
   assert.match(html, /id="companion-key" type="password"/);
-  assert.match(html, /id="companion-writes" type="checkbox" \/>/);
+  const permission = html.match(/<input\b[^>]*id="companion-writes"[^>]*>/)?.[0];
+  assert.ok(permission);
+  assert.match(permission, /type="checkbox"/);
+  assert.doesNotMatch(permission, /\bchecked\b/, "remote editing is never pre-approved in the shell");
   assert.doesNotThrow(() => new vm.Script(script));
   assert.doesNotThrow(() => new vm.Script([...ordinary.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1]));
 });
