@@ -104,19 +104,24 @@ try {
   await row(ids[0]).waitFor();
   assert.equal(Object.hasOwn((await json(documentPath(ids[0]))).frontmatter, "attention_at"), false);
 
-  // Pins are scope-local navigation, independent of canonical attention state.
+  // Confirmed Settle clears both canonical attention and the device-local pin.
   await pin();
-  await row(ids[0], "pinned").waitFor();
+  assert.equal(await row(ids[0]).locator('..').evaluate(el => el.classList.contains('is-pinned') ? 'true' : 'false'), 'true');
   await sidebarAction("settle");
   await settled();
-  assert.equal(await row(ids[0], "pinned").count(), 1);
-  assert.equal(await row(ids[0]).count(), 0);
+  await row(ids[0]).waitFor({ state: "detached" });
+  await page.locator("#toast-action").click();
+  await row(ids[0]).waitFor();
+  assert.equal(await row(ids[0]).locator('..').evaluate(el => el.classList.contains('is-pinned') ? 'true' : 'false'), 'true', 'Undo restores the previous pin too');
+  await sidebarAction("settle"); await settled();
   await page.reload(); await page.locator("#note-editor").waitFor(); await settled();
-  assert.equal(await row(ids[0], "pinned").count(), 1, "pin and settled state both survive reload");
-  await pin();
-  assert.equal(await row(ids[0], "pinned").count(), 0);
-  assert.equal(await row(ids[0]).count(), 0, "unpinning does not reactivate settled notes");
-  await bringBack(); await row(ids[0]).waitFor();
+  assert.equal(await row(ids[0]).count(), 0, "settled/unpinned state survives reload");
+  await page.locator('#sidebar-settled-section summary').click();
+  await row(ids[0], 'settled').waitFor();
+  await row(ids[0], "settled").focus();
+  await page.locator(`[data-page-action="${ids[0]}:reactivate"]`).focus(); await page.keyboard.press('Enter');
+  await row(ids[0]).waitFor();
+  assert.equal(await row(ids[0]).locator('..').evaluate(el => el.classList.contains('is-pinned') ? 'true' : 'false'), 'false', 'Bring back does not repin');
 
   // Real menu choices publish the exact displayed local-time instants.
   for (const label of ["In 1 hour", "In 3 hours", "Tomorrow", "Next week"]) {
@@ -242,7 +247,7 @@ try {
     }
   }
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ status: "PASS", checks: "settle/direct-link/reactivate, exact metadata/body/caret, independent persistent pins, snooze presets/custom, unvisited/current-note deadline wake, sidebar keyboard focus recovery, failed-save draft guard/recovery, icon labels, real snooze/copy toast expiry, two themes, desktop/390/320 layout", patches: patches.length, screenshots }));
+  console.log(JSON.stringify({ status: "PASS", checks: "settle/direct-link/reactivate, exact metadata/body/caret, settle unpins, Undo restores pins, Bring back stays unpinned, snooze presets/custom, unvisited/current-note deadline wake, sidebar keyboard focus recovery, failed-save draft guard/recovery, icon labels, real snooze/copy toast expiry, two themes, desktop/390/320 layout", patches: patches.length, screenshots }));
 } catch (error) {
   console.error("attention failure", page?.url(), errors, await page?.evaluate(() => ({ view: state.view, focus: document.activeElement?.id, hash: state.editor?.state.contentHash })).catch(() => null));
   if (page && !page.isClosed()) await page.screenshot({ path: path.join(screenshots, "failure.png"), fullPage: true }).catch(() => {});

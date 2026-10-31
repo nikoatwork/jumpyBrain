@@ -41,8 +41,9 @@ try {
   await page.locator('#sidebar-recent-more').click();
   await page.locator(`#sidebar-recent [data-page-link="${id(1)}"] [data-editor-kind="human"]`).waitFor();
   await page.locator(`#sidebar-recent [data-page-pin="${id(1)}"]`).focus(); await page.keyboard.press('Enter');
-  await page.locator(`#sidebar-pinned [data-page-link="${id(1)}"]`).waitFor();
-  assert.equal(await page.locator('.nav-library ul').first().getAttribute('id'), 'sidebar-pinned');
+  await page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"]`).waitFor();
+  assert.equal(await page.locator('#sidebar-pinned, #sidebar-pinned-heading').count(), 0);
+  assert.equal(await page.locator('#sidebar-recent > li').first().evaluate(el => el.classList.contains('is-pinned') ? 'true' : 'false'), 'true');
   await page.locator('#sidebar-settled-section summary').click();
   const agent = page.locator(`#sidebar-settled [data-page-link="${id(2)}"] [data-editor-kind="agent"]`); await agent.waitFor();
   assert.match(await agent.getAttribute('aria-label'), /agent.*Mistral/);
@@ -63,8 +64,8 @@ try {
   await page.clock.fastForward(16000);
   await page.locator(`#sidebar-recent [data-page-link="${id(13)}"]`).waitFor();
   await page.locator(`#sidebar-recent [data-page-link="${id(2)}"] [data-editor-kind="unknown"]`).waitFor();
-  await page.locator(`#sidebar-pinned [data-page-link="${id(1)}"] [data-editor-kind="agent"]`).waitFor();
-  assert.equal(await page.locator(`#sidebar-pinned [data-page-link="${id(1)}"] .sidebar-page-title`).textContent(), 'Renamed shared draft');
+  await page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"] [data-editor-kind="agent"]`).waitFor();
+  assert.equal(await page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"] .sidebar-page-title`).textContent(), 'Renamed shared draft');
   assert.equal(await editorMarkdown(page), body, 'background sidebar updates preserve body');
   assert.deepEqual(await editorSelection(page), caret, 'background sidebar updates preserve caret');
   assert.equal(await readFile(path.join(root, 'notes', '2.md'), 'utf8'), original.replace('Collaborative page 2.', 'Untracked external contribution.'));
@@ -79,7 +80,7 @@ try {
   await page.locator(`#sidebar-recent [data-page-link="${id(2)}"] [data-editor-kind="human"]`).waitFor();
   assert.equal((await json(doc(2))).frontmatter.attention_at, undefined);
   // Quiet polling retains row DOM and keyboard focus.
-  const target = page.locator(`#sidebar-pinned [data-page-link="${id(1)}"]`);
+  const target = page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"]`);
   await target.focus(); const handle = await target.elementHandle();
   await page.clock.fastForward(16000);
   await page.waitForFunction(() => document.querySelector('#sidebar-recent-empty').hidden);
@@ -94,7 +95,7 @@ try {
     await page.screenshot({ path: path.join(captures, `sidebar-${width}-${theme}.png`) });
   }
   await page.setViewportSize({ width: 1280, height: 850 }); await page.reload();
-  await page.locator('#sidebar-pinned .sidebar-page-editor[data-editor-kind="agent"]').waitFor();
+  await page.locator('#sidebar-recent .is-pinned .sidebar-page-editor[data-editor-kind="agent"]').waitFor();
   assert.equal(await page.locator('#sidebar-settled-section').getAttribute('open'), null);
   const shelf = await page.locator('#sidebar-settled-section summary').boundingBox();
   const footer = await page.locator('.nav-preferences').boundingBox();

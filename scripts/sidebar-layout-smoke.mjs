@@ -39,14 +39,19 @@ try {
   await page.getByRole('textbox',{name:'Board name',exact:true}).press('Enter');
   await page.locator('#board-title').filter({ hasText: 'A shared board' }).waitFor();
   await page.locator(`#sidebar-recent [data-page-pin="${id(24)}"]`).focus(); await page.keyboard.press('Enter');
-  await page.locator('#sidebar-pinned .sidebar-page').waitFor();
+  await page.locator('#sidebar-recent .is-pinned').waitFor();
   await page.locator('#sidebar-recent-more').click();
   await page.waitForFunction(() => document.querySelectorAll('#sidebar-recent li').length > 8);
 
   const footerControls = '#graph-link, #open-connection, #open-feedback, #desktop-updates';
   async function checkLayout(width, height, sidebarWidth) {
     await page.setViewportSize({ width, height });
-    await page.evaluate(value => document.documentElement.style.setProperty('--sidebar-width', value + 'px'), sidebarWidth);
+    if (width > 680) {
+      await page.locator('#sidebar-resize').evaluate((el, value) => el.dispatchEvent(value === 280
+        ? new MouseEvent('dblclick', { bubbles: true })
+        : new KeyboardEvent('keydown', { key: value === 224 ? 'Home' : 'End', bubbles: true })), sidebarWidth);
+      assert.equal((await page.locator('#app-sidebar').boundingBox()).width, sidebarWidth, 'exercise the actual requested sidebar width');
+    }
     const geometry = await page.evaluate(selector => {
       const box = el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height, right: r.right, bottom: r.bottom }; };
       const sidebar = document.querySelector('#app-sidebar');
@@ -56,13 +61,17 @@ try {
         list: box(document.querySelector('.sidebar-attention-scroll')),
         shelf: box(document.querySelector('#sidebar-settled-section')),
         controls: [...document.querySelectorAll(selector)].map(box),
-        footerSibling: document.querySelector('.nav-preferences').parentElement === sidebar,
+        toolbar: [...document.querySelector('.nav-tools').children].map(box),
+        searchLabel: box(document.querySelector('#open-search span')),
+        footerSibling: document.querySelector('.nav-footer').parentElement === sidebar && document.querySelector('.nav-footer').contains(document.querySelector('#companion-active')),
         attentionContained: document.querySelector('.sidebar-attention-scroll').contains(document.querySelector('#sidebar-recent')),
         shelfContained: document.querySelector('.nav-library').contains(document.querySelector('#sidebar-settled-section')),
         fits: document.documentElement.scrollWidth <= innerWidth,
       };
     }, footerControls);
     assert.ok(geometry.footerSibling && geometry.attentionContained && geometry.shelfContained, 'lists, shelf and footer have separate layout owners');
+    assert.ok(geometry.searchLabel.right <= geometry.sidebar.right - 12, 'Search label keeps its inset at minimum width');
+    for (const control of geometry.toolbar) assert.ok(control.right <= geometry.sidebar.right && control.x >= geometry.sidebar.x, 'toolbar creation and search controls fit the sidebar');
     assert.ok(geometry.fits, `${width}/${height}/${sidebarWidth}: no horizontal overflow`);
     assert.equal(await page.locator('.nav-preferences').evaluate(el => getComputedStyle(el).borderTopWidth), '0px', 'open spacing replaces the footer divider');
     const size = width <= 680 ? 40 : 32;
@@ -74,7 +83,7 @@ try {
     }
     assert.equal(geometry.controls[3].right, geometry.footer.right, 'update action anchors the bottom right');
     assert.ok(geometry.controls[3].x - geometry.controls[2].right >= 8, 'update action stays separate from the left icon group');
-    assert.ok(geometry.brain.bottom <= geometry.shelf.y, 'brain selection sits above Settled');
+    assert.ok(geometry.shelf.bottom <= geometry.brain.y, 'Settled sits with pages above the brain/footer controls');
     const summary = page.locator('#sidebar-settled-section summary');
     assert.equal(await summary.evaluate(el => getComputedStyle(el).fontSize), '14px');
     assert.ok((await summary.boundingBox()).height >= 48, 'Settled uses the roomy reference row');
@@ -91,7 +100,7 @@ try {
       await page.evaluate(theme => { colorTheme.setPreference(theme); colorTheme.setPalette('ocean'); }, theme);
       await checkLayout(width, height, sidebarWidth);
       await page.evaluate(() => document.activeElement.blur()); await page.mouse.move(width - 20, 50);
-      const pinned = page.locator('#sidebar-pinned .sidebar-page');
+      const pinned = page.locator('#sidebar-recent .is-pinned');
       if (width > 680) {
         const sidebar = await page.locator('#app-sidebar').boundingBox(), entry = await pinned.boundingBox();
         assert.equal(entry.x, sidebar.x, 'desktop row surface reaches the left sidebar edge');
@@ -107,15 +116,15 @@ try {
         assert.equal(await pinned.evaluate(el => el.matches(':hover')), true, 'hover includes the full-width outer edge');
         assert.notEqual(await pinned.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)', 'whole entry paints on edge hover');
       }
-      await page.locator('#sidebar-pinned .sidebar-page-link').hover({ position: { x: 8, y: 8 } });
+      await page.locator('#sidebar-recent .is-pinned .sidebar-page-link').hover({ position: { x: 8, y: 8 } });
       await page.screenshot({ path: path.join(captures, `sidebar-${width}-${height}-${sidebarWidth}-${theme}.png`) });
     }
   }
   await checkLayout(1280, 850, 280);
   // Hover/focus must keep row bounds, action targets and selection stable.
-  await page.locator('#sidebar-pinned .sidebar-page-link').click({ position: { x: 8, y: 8 } });
+  await page.locator('#sidebar-recent .is-pinned .sidebar-page-link').click({ position: { x: 8, y: 8 } });
   await page.locator('#note-editor').waitFor({ state: 'visible' });
-  const row = page.locator('#sidebar-pinned .sidebar-page');
+  const row = page.locator('#sidebar-recent .is-pinned');
   for (const palette of ['ember', 'ocean', 'mono', 'pride']) for (const theme of ['light', 'dark']) {
     await page.evaluate(({ palette, theme }) => { colorTheme.setPalette(palette); colorTheme.setPreference(theme); document.activeElement.blur(); }, { palette, theme });
     await page.mouse.move(700, 50);

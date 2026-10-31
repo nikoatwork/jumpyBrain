@@ -55,5 +55,15 @@ export function createAttentionList(options: {
       timer = options.setTimer(() => { timer = null; void load(); }, 30_000);
     } finally { if (token === sequence) request = null; }
   }
-  return { state, load, cancel };
+  return { state, load, cancel,
+    // Project a confirmed save immediately and fence any older in-flight snapshot.
+    settle(page: AttentionPage) {
+      cancel();
+      if (state.notes.some(note => note.id === page.id)) state.total = Math.max(0, state.total - 1);
+      state.notes = state.notes.filter(note => note.id !== page.id);
+      if (!state.settled.some(note => note.id === page.id)) state.settledTotal++;
+      state.settled = [page, ...state.settled.filter(note => note.id !== page.id)].slice(0, 100);
+      options.onChange(state);
+    },
+  };
 }

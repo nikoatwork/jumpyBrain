@@ -49,19 +49,22 @@ try {
   assert.equal(await page.evaluate(() => window.sidebarEditor === richEditor), true, "sidebar toggle preserves editor instance");
   await page.locator(`[data-page-link="${ids[0]}"]`).hover();
   await page.locator(`[data-page-pin="${ids[0]}"]`).click();
-  assert.equal(await page.locator("#sidebar-pinned .sidebar-page-title").innerText(), titles[0]);
-  await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent a").length === 8);
+  assert.equal(await page.locator("#sidebar-recent .is-pinned .sidebar-page-title").innerText(), titles[0]);
+  await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent li:not(.is-pinned) a").length === 8);
   for (let i = 1; i < ids.length; i++) {
     await page.evaluate((id) => navigation.navigate("/?note=" + id), ids[i]);
     await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[i]);
   }
-  assert.equal(await page.locator("#sidebar-recent a").count(), 8);
-  const recentTitles = page.locator("#sidebar-recent .sidebar-page-title");
-  const recentAges = page.locator("#sidebar-recent .sidebar-page-age");
+  assert.equal(await page.locator("#sidebar-recent li:not(.is-pinned) a").count(), 8);
+  await page.mouse.move(800, 50);
+  await page.evaluate(() => document.activeElement.blur());
+  const recentTitles = page.locator("#sidebar-recent li:not(.is-pinned) .sidebar-page-title");
+  const recentAges = page.locator("#sidebar-recent li:not(.is-pinned) .sidebar-page-age");
   assert.equal(await recentTitles.first().innerText(), titles[10], "explicit due override sorts first");
   assert.equal(await recentAges.first().innerText(), "due 1h");
   assert.match(await recentAges.first().getAttribute("title"), /^Due /, "due rows keep the exact tooltip");
   assert.equal(await recentTitles.nth(1).innerText(), titles[11]);
+  await recentAges.nth(1).filter({ hasText: /^3d$/ }).waitFor();
   assert.equal(await recentAges.nth(1).innerText(), "3d", "edit ages use compact units");
   assert.match(await recentAges.nth(1).getAttribute("title"), /^Last edited /);
   assert.equal(await recentTitles.nth(2).innerText(), titles[9]);
@@ -81,28 +84,28 @@ try {
   assert.equal(await refreshed.locator(".sidebar-page-age").innerText(), "3d", "newer preview keeps its edit age despite stale attention recency");
   assert.match(await refreshed.locator(".sidebar-page-age").getAttribute("title"), /^Last edited /);
   await page.unroute("**/memories/all/attention");
-  await page.locator("#sidebar-pinned a").click();
+  await page.locator("#sidebar-recent .is-pinned a").click();
   await page.waitForFunction((title) => document.querySelector("#note-name").value === title, titles[0]);
-  assert.equal(await page.locator('#sidebar-pinned [aria-current="page"]').count(), 1);
+  assert.equal(await page.locator('#sidebar-recent .is-pinned [aria-current="page"]').count(), 1);
   await page.locator("#note-name").fill("Project direction, refined");
-  await page.waitForFunction(() => document.querySelector("#sidebar-pinned .sidebar-page-title").textContent === "Project direction, refined");
+  await page.waitForFunction(() => document.querySelector("#sidebar-recent .is-pinned .sidebar-page-title").textContent === "Project direction, refined");
   // Body-only autosaves must not replace a sidebar row under a pointer/focus.
-  await page.evaluate(() => { window.savedSidebarRow = document.querySelector("#sidebar-pinned li"); });
+  await page.evaluate(() => { window.savedSidebarRow = document.querySelector("#sidebar-recent .is-pinned"); });
   await appendEditorText(page, " Body-only sidebar check.");
   await page.waitForFunction(() => state.editor?.state.saveStatus === "saved" && !state.editor.state.dirty);
-  assert.equal(await page.evaluate(() => window.savedSidebarRow === document.querySelector("#sidebar-pinned li")), true);
+  assert.equal(await page.evaluate(() => window.savedSidebarRow === document.querySelector("#sidebar-recent .is-pinned")), true);
   // Cross-tab unpin is reflected without disturbing the open editor.
   const second = await context.newPage();
   await second.goto(server.url);
-  await second.locator("#sidebar-pinned a").hover();
-  await second.locator("#sidebar-pinned [data-page-pin]").click();
-  await page.waitForFunction(() => document.querySelectorAll("#sidebar-pinned a").length === 0);
+  await second.locator("#sidebar-recent .is-pinned a").hover();
+  await second.locator("#sidebar-recent .is-pinned [data-page-pin]").click();
+  await page.waitForFunction(() => document.querySelectorAll("#sidebar-recent .is-pinned a").length === 0);
   await second.close();
   await page.locator(`[data-page-link="${ids[0]}"]`).hover();
   await page.locator(`[data-page-pin="${ids[0]}"]`).click();
   await page.reload();
   await page.locator("#note-editor").waitFor();
-  assert.equal(await page.locator(`#sidebar-pinned [data-page-pin="${ids[0]}"]`).getAttribute("aria-pressed"), "true");
+  assert.equal(await page.locator(`#sidebar-recent .is-pinned [data-page-pin="${ids[0]}"]`).getAttribute("aria-pressed"), "true");
   // A failed save blocks page-row navigation and retains the draft and current row.
   await page.route("**/memories/all/documents/**", async (route) => {
     if (route.request().method() === "PUT") await route.fulfill({ status: 500, contentType: "application/json", body: '{"error":{"message":"Fixture save unavailable"}}' });
@@ -110,7 +113,7 @@ try {
   });
   await appendEditorText(page, " Keep this draft.");
   const draft = await editorMarkdown(page);
-  await page.locator("#sidebar-recent a").first().click();
+  await page.locator("#sidebar-recent li:not(.is-pinned) a").first().click();
   await page.waitForFunction(() => document.querySelector("#note-save-state").dataset.state === "failed");
   assert.equal(new URL(page.url()).searchParams.get("note"), ids[0]);
   assert.equal(await editorMarkdown(page), draft);
@@ -128,7 +131,7 @@ try {
   }
   await page.setViewportSize({ width: 390, height: 850 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "narrow navigation fits");
-  assert.equal(await page.locator("#sidebar-pinned a").isVisible(), true);
+  assert.equal(await page.locator("#sidebar-recent .is-pinned a").isVisible(), true);
   const areas = await page.locator(".nav-library, #open-connection, #open-feedback, .nav-appearance").evaluateAll((elements) => elements.map((el) => {
     const { x, y, width, height } = el.getBoundingClientRect(); return { x, y, width, height };
   }));

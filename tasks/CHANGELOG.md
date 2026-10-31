@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-31 — Clearer sidebar and visible settling
+
+- Unified pinned/active pages, moved board creation into the toolbar, and grouped brain controls in the footer below Settled. Settling now unpins and visibly removes a page, with pin-restoring Undo, concise action tooltips and filled pin indicators. [Verification and limits](done/2026-10-31_tasks-sidebar-hierarchy-and-settle.md).
+
 ## 2026-10-30 — v0.3.13 beta published
 
 - Shipped canonical CLI/Mac boards, collaborative sidebar and writing/onboarding improvements. Full suite and packaged core-flow checks passed; public artifact digest verified. [Release notes](done/releases/v0.3.13.md), [QA](done/releases/v0.3.13.qa.md) and [completed release task](done/2026-10-30_tasks-release-v0.3.13.md).
