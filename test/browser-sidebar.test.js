@@ -3,9 +3,10 @@ import test from 'node:test';
 import vm from 'node:vm';
 import { sidebarBootstrap, sidebarScript } from '../dist/adapters/http-server/browser-sidebar.js';
 
-function harness({ stored = null, blocked = false } = {}) {
+function harness({ stored = null, blocked = false, narrow = false } = {}) {
   const listeners = {}, values = new Map(stored === null ? [] : [['jumpybrain.sidebarCollapsed', stored]]);
   const root = { dataset: {} };
+  const compact = { matches: narrow, addEventListener(type, callback) { listeners.resize = callback; } };
   let mounted = false, document;
   const button = { attributes: {}, parentElement: null, setAttribute(key, value) { this.attributes[key] = value; },
     focus() { document.activeElement = this; }, addEventListener(type, callback) { listeners[type] = callback; } };
@@ -15,7 +16,7 @@ function harness({ stored = null, blocked = false } = {}) {
   document = { documentElement: root, body: { dataset: {} }, activeElement: null,
     getElementById(id) { return !mounted ? null : id === 'toggle-sidebar' ? button : sidebar; },
     querySelector(selector) { return selector === '.nav-brand' ? home : toolbar; } };
-  const context = vm.createContext({ document, window: { addEventListener(type, callback) { listeners[type] = callback; } },
+  const context = vm.createContext({ document, window: { matchMedia() { return compact; }, addEventListener(type, callback) { listeners[type] = callback; } },
     localStorage: { getItem(key) { if (blocked) throw Error('blocked'); return values.get(key) ?? null; },
       setItem(key, value) { if (blocked) throw Error('blocked'); values.set(key, value); } } });
   vm.runInContext(sidebarBootstrap, context);
@@ -23,6 +24,8 @@ function harness({ stored = null, blocked = false } = {}) {
   mounted = true; button.parentElement = home;
   vm.runInContext(sidebarScript, context);
   return { root, button, home, toolbar, document, sidebar, values,
+    afterNavigate() { vm.runInContext("sidebarPreference.afterNavigate()", context); },
+    resize(narrow) { compact.matches = narrow; listeners.resize(); },
     sync() { vm.runInContext("sidebarPreference.sync()", context); },
     toggle() { listeners.click(); }, storage(newValue, key = 'jumpybrain.sidebarCollapsed') { listeners.storage({ key, newValue }); } };
 }
@@ -66,4 +69,20 @@ test('Settings temporarily expands navigation without changing the stored notes 
   h.document.body.dataset.view = 'note'; h.sync();
   assert.equal(h.root.dataset.sidebarCollapsed, 'true');
   assert.equal(h.button.parentElement, h.toolbar);
+});
+
+
+test('narrow navigation closes transiently and leaves desktop preference and focus intact', () => {
+  const h = harness({narrow:true});h.document.activeElement=h.sidebar;
+  h.afterNavigate();assert.equal(h.root.dataset.sidebarCollapsed,'true');assert.equal(h.document.activeElement,h.button);
+  assert.equal(h.values.has('jumpybrain.sidebarCollapsed'),false,'automatic dismissal does not persist a desktop collapse');
+  h.resize(false);assert.equal(h.root.dataset.sidebarCollapsed,'false');
+  h.resize(true);assert.equal(h.root.dataset.sidebarCollapsed,'true');
+  h.toggle();assert.equal(h.root.dataset.sidebarCollapsed,'false');assert.equal(h.values.has('jumpybrain.sidebarCollapsed'),false);
+  h.afterNavigate();h.document.body.dataset.view='settings';h.sync();assert.equal(h.root.dataset.sidebarCollapsed,'false');
+  h.document.body.dataset.view='note';h.sync();assert.equal(h.root.dataset.sidebarCollapsed,'true');
+  h.storage('false');assert.equal(h.root.dataset.sidebarCollapsed,'false','explicit cross-tab preference clears automatic dismissal');
+  h.resize(false);h.afterNavigate();assert.equal(h.root.dataset.sidebarCollapsed,'false','desktop selection stays expanded');
+  h.resize(true);h.afterNavigate();h.resize(false);h.toggle();h.resize(true);h.toggle();
+  assert.equal(h.root.dataset.sidebarCollapsed,'false','one click reopens after an explicit desktop collapse with an older automatic dismissal');
 });

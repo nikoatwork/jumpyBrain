@@ -81,14 +81,14 @@ const boardsUI = (() => {
   let formBusy=false, support='unknown';
   const unsupportedMessage='This server does not support boards yet. Update the remote server to use boards.';
   let packet = {boards:[],hashes:{}}, bound = '', busy = false, sequence = 0, selected = null, composer = null, rename = null, creation = null;
-  const names = new Map(), previews = new Map();
+  const names = new Map(), previews = new Map(), pageStates = new Map();
   let titleSequence=0,titleController=null;
   const scope = () => companionRegistered && !companionSessionFailed ? String(companionState.generation)+':'+companionState.activeId : '';
-  const sidebarUI=createBoardsSidebar({host:$('sidebar-boards'),boards:()=>bound===scope()?packet.boards:[],names,
+  const sidebarUI=createBoardsSidebar({host:$('sidebar-boards'),boards:()=>bound===scope()?packet.boards:[],names,pageStates,
     scope:()=>{const active=companionState?.active;return companionRegistered&&active?JSON.stringify([companionState.activeId,active.kind,active.root||active.url]):'';},
     selected:()=>({board:selected,note:state.view==='note'?new URL(location.href).searchParams.get('note'):null}),
     disabled:()=>busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,
-    navigate:url=>navigation.navigate(url),settle:id=>change(rows=>{rows.find(b=>b.id===id).archived=true;}),
+    navigate:navigateSidebar,settle:id=>change(rows=>{rows.find(b=>b.id===id).archived=true;}),
     changed:()=>{settingsUI.render();void titles(scope(),sequence);}});
   const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>support!=='supported'||busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,sidebar:sidebarUI,scope,change,open:id=>navigation.navigate('/?board='+id)});
   const button = (text, run, label, icon = false) => { const b=document.createElement('button');b.type='button';b.className=icon?'quiet-button note-icon':'quiet-button';b.textContent=text;if(label)b.setAttribute('aria-label',label);b.onclick=run;return b; };
@@ -172,12 +172,12 @@ const boardsUI = (() => {
     };
     input.onblur=()=>finish(false);input.onkeydown=e=>{if(e.isComposing)return;if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();finish(e.key==='Escape');}};
   }
-  async function load(){const s=scope();if(!s)return;if(bound!==s){bound=s;support='unknown';packet={boards:[],hashes:{}};names.clear();previews.clear();dismissComposer(false);rename=null;creation=null;render();}const token=++sequence;
+  async function load(){const s=scope();if(!s)return;if(bound!==s){bound=s;support='unknown';packet={boards:[],hashes:{}};names.clear();previews.clear();pageStates.clear();dismissComposer(false);rename=null;creation=null;render();}const token=++sequence;
     try{const p=await graphJson('/memories/all/boards');if(s!==scope()||token!==sequence)return;const recovered=support==='unsupported';support='supported';packet=p;if(recovered)$('board-notice').textContent='';render();await titles(s,token);return true;}
     catch(e){if(s!==scope()||token!==sequence)return;
       // Only the collection read establishes feature support. A missing note or
       // individual board, authentication failure, or temporary outage does not.
-      if(e.status===404||e.status===405){support='unsupported';packet={boards:[],hashes:{}};names.clear();previews.clear();dismissComposer(false);rename=null;creation=null;toast.clear('boards');render();}
+      if(e.status===404||e.status===405){support='unsupported';packet={boards:[],hashes:{}};names.clear();previews.clear();pageStates.clear();dismissComposer(false);rename=null;creation=null;toast.clear('boards');render();}
       else notice('Could not load boards. Try again.');
     }
   }
@@ -191,8 +191,8 @@ const boardsUI = (() => {
     await Promise.all(Array.from({length:Math.min(4,ids.length)},async()=>{
       while(cursor<ids.length&&current()){
         const id=ids[cursor++];
-        try{const page=await graphJson(memoryDocumentPath(id),{signal});if(!current())return;names.set(id,page.title||'Untitled');previews.set(id,JumpyBrainBrowser.readablePreview(page.content||'',page.title||''));}
-        catch(e){if(!current())return;names.set(id,e.status===404?'Page missing':'Page unavailable');previews.delete(id);}
+        try{const page=await graphJson(memoryDocumentPath(id),{signal});if(!current())return;names.set(id,page.title||'Untitled');pageStates.delete(id);previews.set(id,JumpyBrainBrowser.readablePreview(page.content||'',page.title||''));}
+        catch(e){if(!current())return;names.set(id,e.status===404?'Page missing':'Page unavailable');pageStates.set(id,e.status===404?'missing':'unavailable');previews.delete(id);}
         sidebarUI.render();
       }
     }));

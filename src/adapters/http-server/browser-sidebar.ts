@@ -3,11 +3,12 @@ export const sidebarBootstrap = String.raw`
 const sidebarPreference = (() => {
   const key = "jumpybrain.sidebarCollapsed";
   const root = document.documentElement;
-  let collapsed = false;
+  const compact = window.matchMedia?.("(max-width: 680px)");
+  let collapsed = false, autoCollapsed = false;
   try { collapsed = localStorage.getItem(key) === "true"; } catch { /* Tab-only preference. */ }
   function apply() {
     const active = document.activeElement;
-    const expanded = !collapsed || document.body?.dataset.view === "settings";
+    const expanded = !(collapsed || (compact?.matches && autoCollapsed)) || document.body?.dataset.view === "settings";
     root.dataset.sidebarCollapsed = String(!expanded);
     const button = document.getElementById("toggle-sidebar");
     if (!button) return;
@@ -26,12 +27,20 @@ const sidebarPreference = (() => {
   window.addEventListener("storage", (event) => {
     if (event.key !== key && event.key !== null) return;
     collapsed = event.newValue === "true";
+    autoCollapsed = false;
     apply();
   });
+  compact?.addEventListener("change", apply);
   apply();
   return {
     sync: apply,
+    afterNavigate() {
+      if (!compact?.matches) return;
+      autoCollapsed = true;
+      apply();
+    },
     toggle() {
+      if (compact?.matches && autoCollapsed) { autoCollapsed = false; if (!collapsed) { apply(); return; } }
       collapsed = !collapsed;
       try { localStorage.setItem(key, String(collapsed)); } catch { /* Tab-only preference. */ }
       apply();

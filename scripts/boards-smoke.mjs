@@ -156,7 +156,7 @@ try{
  assert.equal(await page.evaluate(()=>document.activeElement.id),'note-add-to-board');
  const after=await listBoards(root);const second=after.boards.find(b=>b.name==='Next chapter');assert.deepEqual(second.columns.map(c=>c.pages),[[],[],[existingId]]);
  await page.locator('#note-add-to-board').click();await page.locator('#note-board-message').filter({hasText:'already on your boards'}).waitFor();assert.equal(await page.locator('#note-board-add').isDisabled(),true);await page.locator('#note-board-cancel').click();
- await page.locator('#sidebar-boards').getByRole('button',{name:'Settle A quieter launch',exact:true}).click();await page.locator('#sidebar-boards').getByRole('button',{name:'A quieter launch',exact:true}).waitFor({state:'hidden'});
+ await page.locator('#sidebar-boards').getByRole('button',{name:'Settle A quieter launch',exact:true}).click();await page.locator('#sidebar-boards').getByRole('button',{name:'Open board: A quieter launch',exact:true}).waitFor({state:'hidden'});
  await page.locator('#note-add-to-board').click();await page.locator('#note-board-message').filter({hasText:'already on your boards'}).waitFor();assert.equal(await page.locator('#note-board-select option').count(),1);await page.locator('#note-board-cancel').click();
  await page.screenshot({animations:'disabled',path:'/tmp/jumpybrain-boards-qa/note-action-card.png',fullPage:true});
  assert.equal(await readFile(path.join(root,'notes/checklist.md'),'utf8'),original);

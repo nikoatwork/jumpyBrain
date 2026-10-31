@@ -74,7 +74,17 @@ try {
     assert.equal(await js(`document.documentElement.scrollWidth<=innerWidth && document.querySelector('.nav-footer').getBoundingClientRect().bottom<=innerHeight`),true);
     await capture('tree-'+width+'-'+height+'-'+sidebarWidth+'-'+theme);
   }
-  window.setContentSize(1280,850);
+  window.setContentSize(390,850);
+  const collapsePreference=await js("localStorage.getItem('jumpybrain.sidebarCollapsed')");
+  await js(`document.querySelector('${tree} [data-sidebar-page="${config.ids[0]}"] button').click()`);
+  await wait("document.documentElement.dataset.sidebarCollapsed==='true'");
+  assert.equal(await js("localStorage.getItem('jumpybrain.sidebarCollapsed')"),collapsePreference);
+  await capture('tree-narrow-selected-content');
+  await js("document.getElementById('toggle-sidebar').click()");
+  assert.equal(await js(`document.querySelector('${tree} .board-nav-disclosure').getAttribute('aria-expanded')`),'true');
+  window.setContentSize(1280,850);await pause(50);
+  assert.equal(await js("document.documentElement.dataset.sidebarCollapsed"),'false');
+  mark('narrow selection reveals content; reopen keeps branches and desktop preference');
   await js(`document.querySelector('${tree} .board-nav-column .board-nav-disclosure').click()`);
   window.reload();await wait(`companionRegistered && !companionFrozen && document.querySelector('${tree} .board-nav-column .board-nav-disclosure')`);
   assert.equal(await js(`document.querySelector('${tree} .board-nav-column .board-nav-disclosure').getAttribute('aria-expanded')`),'false');

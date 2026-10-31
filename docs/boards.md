@@ -16,11 +16,13 @@ Every command requires exactly one `--root` or `--target-url` (`--remote-url` is
 
 ## Sidebar navigation in the Mac app
 
-In **Settings → Boards**, enable **Show pages in sidebar** for any board you want to use as a project navigator. This is off by default. Expand the board to see its columns, then expand columns to see their pages. Click a board name to open Kanban or a page name to open the editor. Column names and chevrons toggle their contents; board chevrons toggle without navigating.
+In **Settings → Boards**, enable **Show pages in sidebar** for any board you want to use as a project navigator. This is off by default. Expand the board to see its columns, then expand columns to see their pages. Click a board name to open Kanban or a page name to open the editor. Column names and chevrons toggle their contents; board chevrons toggle without navigating. Hover/focus labels name **Open board**, **Expand** or **Collapse** with the full title.
 
-This is another view of the same board order and membership. It does not create folders, copy notes or change attention state. Settled/snoozed pages remain available through board membership; missing references stay visible with a fallback label. A page may appear under several boards and in the general page list.
+This is another view of the same board order and membership. It does not create folders, copy notes or change attention state. Settled/snoozed pages remain available through board membership; loading, missing and temporarily unavailable references use muted italic status labels, as do empty-column placeholders. Missing/unavailable references can still be opened to check again. Status comes from the read result, so real pages named “Page missing” or “Empty column” keep ordinary page styling. A page may appear under several boards and in the general page list.
 
 The setting and open/closed state are personal to this device's browser storage and selected brain profile/destination, including for read-only connections. First enabling opens the board and columns; later navigation, reloads and app restarts retain your choices. Turning it off preserves the last expansion state for re-enabling. Settled boards disappear until restored. Clearing browser storage loses these preferences; unavailable storage retains them only for the current tab. They are not part of board JSON or synchronized to other devices.
+
+On narrow screens (up to 680px), choosing a page or board in the sidebar automatically closes navigation so the content can use the viewport. The same toggle reopens it with branches intact. This automatic dismissal lasts only in the current tab and does not alter the desktop collapse preference; a failed save blocks navigation and leaves the sidebar open. Selecting the already-open page also dismisses navigation.
 
 Tab through controls; Enter/Space activates them. Arrow keys move between visible navigation controls, expand/collapse groups or move to a parent/child; Home/End select the first/last visible navigation control. Opening a page elsewhere does not force its boards open.
 

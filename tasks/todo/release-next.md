@@ -6,3 +6,4 @@
 - Boards can optionally expand into columns and pages in the sidebar. Enable **Show pages in sidebar** in board settings, then jump straight to project pages; expansion is remembered per device and brain, including read-only connections. The general page list now has no heading.
 
 - Reinstalling an otherwise identical Mac build no longer changes the native helper identity solely because of a temporary packaging path, preserving saved-key access across that case.
+- On narrow screens, selecting a sidebar page or board now reveals the content by closing navigation without changing the desktop preference. Board trees distinguish empty/unavailable references from real pages and label Open board versus Expand/Collapse actions explicitly.
