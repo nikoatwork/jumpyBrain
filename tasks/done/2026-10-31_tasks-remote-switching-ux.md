@@ -11,8 +11,8 @@ User request, 2026-10-31: visually test the actual Mac app with the personal loc
 - [x] Extend disposable desktop switching regression coverage.
 - [x] Commit scoped candidate, install via dogfood workflow and retest actual Mac + HTTPS flows.
 - [x] Remove only temporary test notes and verify pre-existing local Markdown hashes.
-- [/] Remove random staging path from the native helper signature and verify repeated-install Keychain continuity.
-- [ ] Document final results/limits, archive task and finalize scoped commit.
+- [x] Remove random staging path from the native helper signature and verify repeated-install Keychain continuity.
+- [x] Document final results/limits, archive task and finalize scoped commit.
 
 ## Initial evidence
 
@@ -43,4 +43,12 @@ User request, 2026-10-31: visually test the actual Mac app with the personal loc
 - CLI developer feedback accepted as `77be377a-9f36-4140-9b15-f04894ddb4a7`. No private hostnames, credentials or personal note content included. Acceptance does not establish human review.
 - Follow-up found deterministic installer root cause: desktop helper `Configuration.json` embeds the random package staging runtime path even though `--desktop-host` overrides it. Reused unsigned native executable bytes still receive a different ad-hoc signature because the sealed resource changes. Stable runtime-root configuration and repeated-install verification are required before archive. Cross-version helper identity remains a separate signing limitation. No public release or push performed.
 
-- Installer follow-up implemented: stable installed runtime path in native sealed config. Real macOS codesign fixture verifies equal CDHash and designated requirement across different packaging directories; regression fails with old behavior. New regression and existing 9 desktop-installer tests pass. Actual repeated-install test pending.
+- Installer follow-up implemented: stable installed runtime path in native sealed config. Real macOS codesign fixture verifies equal CDHash and designated requirement across different packaging directories; regression fails with old behavior. New regression and existing 9 desktop-installer tests pass. Installed candidate `820eb94` twice through the supported dogfood flow. After the expected one-time transition key repair, the second install retained the exact CDHash and designated requirement and the real remote connection reported connected without re-entry. Final native UI showed connected VPS with New note/New board enabled and zero notes. The older-server compatibility smoke passed again on the integrated source.
+
+## Outcome and limits
+
+- UX fixes committed as `84e9c7f`; deterministic native identity fix committed as `820eb94`. Final installed candidate is `820eb94` (0.3.13), including independently completed sidebar work. No public release, push or version bump.
+- Real client/server matrix tested: local personal root; authenticated HTTPS server 0.3.12 and published 0.3.13; application read-only and writable modes; unavailable saved key and repaired key; two repeated identical installs. API rejection of unauthenticated memory access remains HTTP 401.
+- Native/version/configuration changes can still change an ad-hoc helper signature. Stable signing across those changes is a remaining product requirement; this fix does not broaden Keychain ACLs or claim general upgrade continuity.
+- Short focused use and disposable regression coverage do not constitute multi-day use, all network-failure scenarios, or multi-user concurrent editing certification. Existing old-server visual notice spacing remains basic; its functional recovery and keyboard focus are covered.
+- Final developer feedback sent via `jumpybrain feedback --json`, accepted as `115d1750-f728-49d8-880d-28947f7a7be0`, including confirmed installer cause, tested fixes, docs/process suggestions and stable-signing request.
