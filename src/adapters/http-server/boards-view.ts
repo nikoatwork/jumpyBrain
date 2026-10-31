@@ -1,5 +1,6 @@
 import { browserIcons } from "./browser-icons.js";
 import { boardSettingsScript, boardSettingsStyles } from "./board-settings.js";
+import { boardsSidebarScript, boardsSidebarStyles } from "./boards-sidebar.js";
 
 // Self-contained so the same naming function can run in the browser shell.
 export function createBoardName(existing: readonly string[], random = Math.random): string {
@@ -21,10 +22,7 @@ ${boardSettingsStyles}
 #board-title button,.board-composer button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
 .board-card > button {color:var(--ink);font-weight:var(--weight-regular);padding:0;min-height:var(--control-height);align-self:start}
 .board-card-actions .note-icon {width:var(--control-compact);height:var(--control-compact);min-height:var(--control-compact);padding:var(--space-1);flex:none}
-#sidebar-boards .sidebar-page > button {background:transparent}
-#sidebar-boards .sidebar-page-link {display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
-#sidebar-boards .sidebar-page > button:last-child {opacity:0}
-#sidebar-boards .sidebar-page:hover > button:last-child,#sidebar-boards .sidebar-page:focus-within > button:last-child {opacity:1}
+${boardsSidebarStyles}
 #boards-view { padding: var(--space-6); overflow:auto; width:100%; }
 #boards-view[hidden] {display:none}
 .board-header {display:flex;align-items:center;gap:12px;margin-bottom:28px}
@@ -77,14 +75,22 @@ export const boardsMarkup = String.raw`
 </form></dialog>`;
 export const boardsScript = String.raw`
 ${boardSettingsScript}
+${boardsSidebarScript}
 ${createBoardName.toString()}
 const boardsUI = (() => {
   let formBusy=false, support='unknown';
   const unsupportedMessage='This server does not support boards yet. Update the remote server to use boards.';
   let packet = {boards:[],hashes:{}}, bound = '', busy = false, sequence = 0, selected = null, composer = null, rename = null, creation = null;
   const names = new Map(), previews = new Map();
+  let titleSequence=0,titleController=null;
   const scope = () => companionRegistered && !companionSessionFailed ? String(companionState.generation)+':'+companionState.activeId : '';
-  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>support!=='supported'||busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,scope,change,open:id=>navigation.navigate('/?board='+id)});
+  const sidebarUI=createBoardsSidebar({host:$('sidebar-boards'),boards:()=>bound===scope()?packet.boards:[],names,
+    scope:()=>{const active=companionState?.active;return companionRegistered&&active?JSON.stringify([companionState.activeId,active.kind,active.root||active.url]):'';},
+    selected:()=>({board:selected,note:state.view==='note'?new URL(location.href).searchParams.get('note'):null}),
+    disabled:()=>busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,
+    navigate:url=>navigation.navigate(url),settle:id=>change(rows=>{rows.find(b=>b.id===id).archived=true;}),
+    changed:()=>{settingsUI.render();void titles(scope(),sequence);}});
+  const settingsUI=createBoardSettings({getBoards:()=>packet.boards,disabled:()=>support!=='supported'||busy||formBusy||companionFrozen||!scope()||bound!==scope(),readOnly:companionReadOnly,sidebar:sidebarUI,scope,change,open:id=>navigation.navigate('/?board='+id)});
   const button = (text, run, label, icon = false) => { const b=document.createElement('button');b.type='button';b.className=icon?'quiet-button note-icon':'quiet-button';b.textContent=text;if(label)b.setAttribute('aria-label',label);b.onclick=run;return b; };
   const notice = text => { $('board-notice').textContent=text; toast.show('boards',text,{action:{label:'Retry',run:load}}); };
   function compatibilityMessage(host) {
@@ -94,15 +100,11 @@ const boardsUI = (() => {
   }
   const compatibility=document.createElement('div');compatibility.id='sidebar-boards-compatibility';compatibility.setAttribute('role','status');compatibility.hidden=true;$('sidebar-boards').after(compatibility);
   function render() {
-    const sidebar=$('sidebar-boards'); sidebar.replaceChildren();if(support!=='unsupported')settingsUI.render();
+    sidebarUI.render();if(support!=='unsupported')settingsUI.render();
     compatibility.hidden=support!=='unsupported';
     if(support==='unsupported'){compatibilityMessage(compatibility);compatibilityMessage($('settings-boards-list'));}
     $('note-add-to-board').disabled=support!=='supported'||companionReadOnly()||busy||formBusy||companionFrozen||!scope();
-    for(const b of packet.boards){
-      if(!b.archived){const row=document.createElement('li');row.className='sidebar-page';const link=button(b.name,()=>navigation.navigate('/?board='+b.id));link.classList.add('sidebar-page-link');if(selected===b.id)link.setAttribute('aria-current','page');const settle=button('✓',()=>change(rows=>{rows.find(x=>x.id===b.id).archived=true;}),'Settle '+b.name,true);settle.title='Settle board';row.append(link,settle);sidebar.append(row);}
-    }
     for(const id of ['new-board','settings-new-board'])$(id).disabled=support!=='supported'||companionReadOnly()||busy||formBusy||companionFrozen||!scope()||bound!==scope();
-    for(const control of sidebar.querySelectorAll('button'))control.disabled=busy||formBusy||companionFrozen||!scope()||bound!==scope()||(companionReadOnly()&&!control.classList.contains('sidebar-page-link'));
     const board=packet.boards.find(b=>b.id===selected), columns=$('board-columns');
     const available=board&&!board.archived;
     if(composer&&(!available||composer.boardId!==selected||composer.scope!==scope()))dismissComposer(false);
@@ -143,7 +145,7 @@ const boardsUI = (() => {
         actions.append(up,remove);card.append(actions);cards.append(card);
       }
     });
-    for(const control of document.querySelectorAll('#boards-view button,#boards-view select,#sidebar-boards button'))control.disabled=busy||formBusy||companionFrozen||!scope()||(companionReadOnly()&&!control.classList.contains('sidebar-page-link')&&!control.closest('.board-card')?.firstElementChild?.isSameNode(control));
+    for(const control of document.querySelectorAll('#boards-view button,#boards-view select'))control.disabled=busy||formBusy||companionFrozen||!scope()||(companionReadOnly()&&!control.classList.contains('sidebar-page-link')&&!control.closest('.board-card')?.firstElementChild?.isSameNode(control));
     if(rename)rename.input.readOnly=busy||formBusy||companionFrozen;
     if(composer)renderComposer(composer);
   }
@@ -179,7 +181,23 @@ const boardsUI = (() => {
       else notice('Could not load boards. Try again.');
     }
   }
-  async function titles(s,token,ids=[...new Set(packet.boards.filter(b=>b.id===selected&&!b.archived).flatMap(b=>b.columns.flatMap(c=>c.pages)))]){let cursor=0;await Promise.all(Array.from({length:Math.min(4,ids.length)},async()=>{while(cursor<ids.length){const id=ids[cursor++];try{const page=await graphJson(memoryDocumentPath(id));if(s!==scope()||token!==sequence)return;names.set(id,page.title||'Untitled');previews.set(id,JumpyBrainBrowser.readablePreview(page.content||'',page.title||''));}catch(e){if(s!==scope()||token!==sequence)return;names.set(id,e.status===404?'Page missing':'Page unavailable');previews.delete(id);}}}));if(s===scope()&&token===sequence)render();}
+  async function titles(s,token){
+    titleController?.abort();const revision=++titleSequence;
+    if(!s||s!==bound)return;
+    titleController=new AbortController();const signal=titleController.signal;
+    const ids=[...new Set([...packet.boards.filter(b=>b.id===selected&&!b.archived).flatMap(b=>b.columns.flatMap(c=>c.pages)),...sidebarUI.visiblePageIds()])];
+    const current=()=>s===scope()&&token===sequence&&revision===titleSequence;
+    let cursor=0;
+    await Promise.all(Array.from({length:Math.min(4,ids.length)},async()=>{
+      while(cursor<ids.length&&current()){
+        const id=ids[cursor++];
+        try{const page=await graphJson(memoryDocumentPath(id),{signal});if(!current())return;names.set(id,page.title||'Untitled');previews.set(id,JumpyBrainBrowser.readablePreview(page.content||'',page.title||''));}
+        catch(e){if(!current())return;names.set(id,e.status===404?'Page missing':'Page unavailable');previews.delete(id);}
+        sidebarUI.render();
+      }
+    }));
+    if(current())render();
+  }
   async function change(update){
     if(support!=='supported'||busy||(!formBusy&&companionFrozen)||!scope()||bound!==scope()||companionReadOnly())return false;
     const s=scope(), rows=structuredClone(packet.boards);update(rows);

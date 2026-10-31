@@ -361,7 +361,6 @@ export const notesMarkup = String.raw`
   <div class="nav-library" aria-label="Your pages">
     <div class="sidebar-attention-scroll">
       <div id="board-navigation" hidden><ul id="sidebar-boards" aria-label="Boards"></ul></div>
-      <h2 class="sidebar-section-heading">Pages</h2>
       <ul id="sidebar-recent" aria-label="Pages"></ul>
       <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
       <button id="sidebar-recent-more" class="quiet-button sidebar-list-more" hidden>Show more</button>
