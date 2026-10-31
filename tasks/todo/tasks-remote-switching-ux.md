@@ -4,13 +4,15 @@ User request, 2026-10-31: visually test the actual Mac app with the personal loc
 
 ## Work
 
-- [/] Reproduce real-user connection, permissions, switching, editing and search flows.
+- [x] Reproduce real-user connection, permissions, switching, editing and search flows.
 - [x] Explain read-only access and connection failures with an actionable route to the correct Settings form.
 - [x] Preserve keyboard focus after connection actions; clarify new vs saved key help.
 - [x] Handle unsupported remote boards without a misleading retry/mutation loop.
 - [x] Extend disposable desktop switching regression coverage.
-- [ ] Commit scoped candidate, install via dogfood workflow and retest actual Mac + HTTPS flows.
-- [ ] Remove only temporary test notes, verify pre-existing local Markdown hashes, document results/limits and finalize scoped commit.
+- [x] Commit scoped candidate, install via dogfood workflow and retest actual Mac + HTTPS flows.
+- [x] Remove only temporary test notes and verify pre-existing local Markdown hashes.
+- [/] Remove random staging path from the native helper signature and verify repeated-install Keychain continuity.
+- [ ] Document final results/limits, archive task and finalize scoped commit.
 
 ## Initial evidence
 
@@ -30,7 +32,15 @@ User request, 2026-10-31: visually test the actual Mac app with the personal loc
 
 - Focused connection/browser/gateway/storage suite: 71 tests, initially 70 passed and one stale markup assertion failed. Updated the assertion to check the unchecked permission rather than exact attribute order; all 21 companion-browser tests then passed. Nine new connection-UX tests pass.
 - Desktop fixture passed explicit remote editing, dirty title/body immediate switching, canonical separation, same-ID note distinction, sidebar/history fencing, saved roundtrip, and keyboard Test focus.
-- Old-server fixture passed collection 404/405 handling, working notes, disabled unsupported changes, recovery, transient/auth differentiation, missing document/write distinction and read-only retention. Final retry-focus refinement awaits rebuild/recheck.
+- Old-server fixture passed collection 404/405 handling, working notes, disabled unsupported changes, recovery, transient/auth differentiation, missing document/write distinction and read-only retention. Final retry-focus refinement passed the rebuilt smoke, including repeated sidebar and Settings checks.
 - Assembled-shell startup test caught an early notice initialization error; corrected with a construction guard and regression before candidate installation.
 - The other sidebar task was committed independently as d69c3c5 while this work ran. Its changes were preserved; this task does not claim them.
-- Real installed-app candidate testing remains pending. Keep this task active until completed.
+- Installed exact committed candidate `84e9c7f` through `dogfood:install`, preserving the prior installation for rollback. Build and final focused suite passed (72/72); full connection usability and old-server compatibility smokes passed.
+- Real native UI verified Keychain failure explanation and correct access-key focus; repaired using the existing protected key. Explicit editing-off notice disabled note/board creation and its Review editing access shortcut focused the right checkbox. Re-enabled editing and confirmed Test connection retains keyboard focus.
+- Real VPS started on 0.3.12: explicit board-update guidance and disabled New board. Backed up current remote data/config, upgraded the service to the published, digest-verified 0.3.13 artifact, then clicked Check again: boards recovered without app restart.
+- Real HTTPS UI created/renamed a temporary remote board, searched for the remote test note, added it with Enter and opened/edited its card. Switching to local showed only local pages, an empty remote-board list and cleared history; local search found its local marker and not the remote marker. Returning remote restored the remote note with its latest edit and board.
+- Removed exact two temporary note IDs and one board using current hash preconditions; indexed both roots. VPS has zero documents and boards; all 1659 original local Markdown files retain their before-test SHA256, with no new Markdown left. App remains on the connected writable VPS brain.
+- CLI developer feedback accepted as `77be377a-9f36-4140-9b15-f04894ddb4a7`. No private hostnames, credentials or personal note content included. Acceptance does not establish human review.
+- Follow-up found deterministic installer root cause: desktop helper `Configuration.json` embeds the random package staging runtime path even though `--desktop-host` overrides it. Reused unsigned native executable bytes still receive a different ad-hoc signature because the sealed resource changes. Stable runtime-root configuration and repeated-install verification are required before archive. Cross-version helper identity remains a separate signing limitation. No public release or push performed.
+
+- Installer follow-up implemented: stable installed runtime path in native sealed config. Real macOS codesign fixture verifies equal CDHash and designated requirement across different packaging directories; regression fails with old behavior. New regression and existing 9 desktop-installer tests pass. Actual repeated-install test pending.

@@ -115,7 +115,12 @@ def prepare(bundle, home, source=SOURCE):
     native.mkdir(parents=True)
     for name in ('gateway.mjs', 'extensions-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs'):
         shutil.copy2(source / 'integrations/macos-companion' / name, native / name)
-    config['runtimeRoot'] = str(runtime)
+    # Configuration.json is sealed into the native helper's ad-hoc signature.
+    # A random packaging directory changes its cdhash (and therefore its Keychain
+    # identity) even when the helper code and all other resources are unchanged.
+    # Use the stable installed location here. --desktop-host still resolves the
+    # actual enclosing app at launch, including staged readiness/relocated apps.
+    config['runtimeRoot'] = str(home / 'Applications/jumpyBrain.app/Contents/Resources/runtime')
     with build_workspace() as scratch:
         previous = source / '.local-pack/desktop/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app'
         if not previous.is_dir():
