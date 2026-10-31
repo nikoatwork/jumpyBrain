@@ -18,6 +18,7 @@ export const boardsSidebarStyles = String.raw`
 #sidebar-boards .board-nav-page {padding-left:calc(var(--space-8) + var(--control-compact) + var(--space-5))}
 #sidebar-boards .board-nav-page .sidebar-page-link {padding-left:0}
 .board-nav-empty {padding:var(--space-1) var(--space-3) var(--space-2) calc(var(--space-8) + var(--control-compact) + var(--space-5));color:var(--ink-faint);font-size:var(--text-caption)}
+#sidebar-boards .board-nav-empty,#sidebar-boards .board-nav-page[data-page-state] .sidebar-page-link {font-style:italic;color:var(--ink-faint)}
 #sidebar-boards [hidden] {display:none}
 @media(hover:none){#sidebar-boards .board-nav-settle{opacity:1}}
 @media(max-width:680px){
@@ -28,7 +29,7 @@ export const boardsSidebarStyles = String.raw`
 `;
 
 export const boardsSidebarScript = String.raw`
-function createBoardsSidebar({host,scope,boards,names,selected,disabled,readOnly,navigate,settle,changed}) {
+function createBoardsSidebar({host,scope,boards,names,pageStates,selected,disabled,readOnly,navigate,settle,changed}) {
   const prefix='jumpybrain.boardNavigation.v1:',sessions=new Map();
   let key='',prefs={};
   function sync() {
@@ -78,7 +79,7 @@ function createBoardsSidebar({host,scope,boards,names,selected,disabled,readOnly
       head.append(expand,link,park);li.append(head,group);return li;
     },(li,b)=>{
       const [head,group]=li.children,[expand,link,park]=head.children,p=preference(b.id),on=!!p?.enabled,active=document.activeElement;
-      label(link,b.name);link.toggleAttribute('aria-current',false);if(selected().board===b.id)link.setAttribute('aria-current','page');
+      label(link,b.name);link.title='Open board: '+b.name;link.setAttribute('aria-label',link.title);link.toggleAttribute('aria-current',false);if(selected().board===b.id)link.setAttribute('aria-current','page');
       park.setAttribute('aria-label','Settle '+b.name);park.disabled=disabled()||readOnly();
       expand.hidden=!on;disclosure(expand,b.name,on&&p.open,group);group.setAttribute('aria-label',b.name+' columns');
       if((expand.hidden&&active===expand)||(group.hidden&&group.contains(active)))link.focus();
@@ -91,14 +92,21 @@ function createBoardsSidebar({host,scope,boards,names,selected,disabled,readOnly
         row.append(expand,name);li.append(row,pages);return li;
       },(col,c)=>{
         const [row,pages]=col.children,[arrow,name]=row.children,open=!p.closed.includes(c.index),active=document.activeElement;
-        label(name,c.name);disclosure(arrow,c.name,open,pages);name.setAttribute('aria-expanded',String(open));name.setAttribute('aria-controls',pages.id);
+        label(name,c.name);disclosure(arrow,c.name,open,pages);name.title=arrow.title;name.setAttribute('aria-label',name.title);name.setAttribute('aria-expanded',String(open));name.setAttribute('aria-controls',pages.id);
         pages.setAttribute('aria-label',c.name+' pages');if(!open&&pages.contains(active))arrow.focus();
         reconcile(pages,!open?[]:c.pages.length?c.pages.map(id=>({key:id})): [{key:'empty'}],page=>{
           const li=document.createElement('li');
           if(page.key==='empty'){li.className='board-nav-empty';li.textContent='Empty column';}
           else {li.className='sidebar-page board-nav-page';li.dataset.sidebarPage=page.key;li.append(control('',()=>navigate('/?note='+page.key),'sidebar-page-link board-nav-target'));}
           return li;
-        },(li,page)=>{if(page.key==='empty')return;const link=li.firstElementChild;label(link,names.get(page.key)||'Loading page…');link.removeAttribute('aria-current');if(selected().note===page.key)link.setAttribute('aria-current','page');},arrow);
+        },(li,page)=>{
+          if(page.key==='empty')return;
+          const link=li.firstElementChild,status=pageStates.get(page.key)||(!names.has(page.key)?'loading':null);
+          label(link,names.get(page.key)||'Loading page…');
+          if(status){li.dataset.pageState=status;const detail=status==='missing'?'Board reference not found. Open to check again.':status==='unavailable'?'Could not load this board reference. Open to retry.':'Loading this board reference.';link.title=link.textContent+' · '+detail;link.setAttribute('aria-description',detail);}
+          else {delete li.dataset.pageState;link.removeAttribute('aria-description');}
+          link.removeAttribute('aria-current');if(selected().note===page.key)link.setAttribute('aria-current','page');
+        },arrow);
       },link);
     },document.getElementById('home-link'));
     for(const button of host.querySelectorAll('.board-nav-target'))button.disabled=disabled();

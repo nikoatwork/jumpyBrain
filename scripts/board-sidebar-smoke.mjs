@@ -8,13 +8,13 @@ import { initializeMemoryRoot, saveBoard } from '../dist/runtime/index.js';
 import { startCompanionGateway } from '../integrations/macos-companion/gateway.mjs';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
 const temp=await mkdtemp(path.join(os.tmpdir(),'jb-board-tree-')),root=path.join(temp,'memory');
-const captures='/tmp/jumpybrain-board-sidebar-qa',id=n=>'mem_ab000000-0000-4000-8000-'+String(n).padStart(12,'0');
+const captures=process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR||'/tmp/jumpybrain-board-sidebar-qa',id=n=>'mem_ab000000-0000-4000-8000-'+String(n).padStart(12,'0');
 let gateway,browser;
 try {
   await initializeMemoryRoot(root);await mkdir(captures,{recursive:true});await mkdir(path.join(temp,'support'),{mode:0o700});
   const originals=new Map();
   for(let i=1;i<=22;i++){
-    const content=`---\nid: ${id(i)}\ntitle: ${i===1?'Project overview':i===2?'A very long page title that must truncate without covering disclosure controls':'Project page '+i}\ntype: note\nattention_at: ${i===1?'null':'2026-10-31T12:00:00Z'}\n---\n\nProject evidence ${i}.\n`,file=path.join(root,'notes',i+'.md');
+    const content=`---\nid: ${id(i)}\ntitle: ${i===1?'Project overview':i===2?'A very long page title that must truncate without covering disclosure controls':i===4?'Page missing':i===5?'Empty column':'Project page '+i}\ntype: note\nattention_at: ${i===1?'null':'2026-10-31T12:00:00Z'}\n---\n\nProject evidence ${i}.\n`,file=path.join(root,'notes',i+'.md');
     await writeFile(file,content);originals.set(file,content);
   }
   const first={schemaVersion:1,id:randomUUID(),name:'Website redesign',archived:false,columns:[{name:'Ideas & decisions',pages:[id(1),id(2)]},{name:'In progress',pages:[id(3)]},{name:'Ready to share',pages:[]}]};
@@ -25,6 +25,7 @@ try {
   browser=await launchPlaywrightChromium({chromium:await loadPlaywrightChromium()});
   const context=await browser.newContext({viewport:{width:1280,height:850}}),page=await context.newPage();page.setDefaultTimeout(15000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.route('**/memories/all/documents/'+id(3),route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture temporarily unavailable'}})}));
   await page.goto(gateway.url+'/#companion='+'b'.repeat(64));
   const tree=page.locator('#sidebar-boards'),board=tree.locator('[data-sidebar-board="'+first.id+'"]'),other=tree.locator('[data-sidebar-board="'+second.id+'"]');
   await board.waitFor();assert.equal(await tree.locator('.board-nav-disclosure:visible').count(),0);
@@ -37,7 +38,18 @@ try {
   const arrow=board.locator('.board-nav-head > .board-nav-disclosure');
   const column=board.locator('.board-nav-column').first(),columnArrow=column.locator('.board-nav-disclosure');
   const member=column.locator('[data-sidebar-page="'+id(1)+'"] button');
-  await member.filter({hasText:'Project overview'}).waitFor();await other.getByRole('button',{name:'Page missing',exact:true}).waitFor();
+  await member.filter({hasText:'Project overview'}).waitFor();await other.locator('[data-page-state=missing] button').waitFor();
+  await board.locator('[data-page-state=unavailable] button').waitFor();
+  const realMissing=other.locator('[data-sidebar-page="'+id(4)+'"]'),realEmpty=other.locator('[data-sidebar-page="'+id(5)+'"]');
+  await realMissing.getByRole('button',{name:'Page missing',exact:true}).waitFor();await realEmpty.getByRole('button',{name:'Empty column',exact:true}).waitFor();
+  assert.equal(await realMissing.getAttribute('data-page-state'),null);assert.equal(await realEmpty.getAttribute('data-page-state'),null);
+  assert.equal(await other.locator('[data-page-state=missing] button').evaluate(el=>getComputedStyle(el).fontStyle),'italic');
+  assert.equal(await realMissing.locator('button').evaluate(el=>getComputedStyle(el).fontStyle),'normal');
+  assert.equal(await board.locator('.board-nav-empty').evaluate(el=>getComputedStyle(el).fontStyle),'italic');
+  await page.waitForFunction(()=>!document.querySelector('#sidebar-boards [data-page-state=loading]'));
+  await page.screenshot({path:captures+'/reference-states-light.png'});
+  await page.unroute('**/memories/all/documents/'+id(3));await page.evaluate(()=>boardsUI.refresh());
+  assert.equal(await board.locator('[data-sidebar-page="'+id(3)+'"]').getAttribute('data-page-state'),null,'successful retry clears transient status');
   await board.getByText('Empty column',{exact:true}).waitFor();
   // Shared-origin tabs observe the same personal preference without a brain write.
   const peer=await page.context().newPage();await peer.goto(gateway.url+'/#companion='+'b'.repeat(64));
@@ -48,10 +60,15 @@ try {
   const peerSetting=peer.getByRole('checkbox',{name:'Show pages in sidebar for '+first.name,exact:true});await peerSetting.uncheck();
   await arrow.waitFor({state:'hidden'});assert.equal(await board.locator('.board-nav-head > .sidebar-page-link').evaluate(el=>el===document.activeElement),true,'external opt-out returns focus to board navigation');
   await peerSetting.check();await arrow.waitFor();await peer.close();
+  assert.equal(await board.locator('.board-nav-head > .sidebar-page-link').getAttribute('aria-label'),'Open board: '+first.name);
+  await page.bringToFront();await page.locator('#home-link').focus();
+  await board.locator('.board-nav-head > .sidebar-page-link').focus();await page.locator('#control-label').filter({hasText:'Open board: '+first.name}).waitFor({state:'visible'});
+  await page.screenshot({path:captures+'/open-board-action.png'});
+  assert.equal(await column.locator('.sidebar-page-link').first().getAttribute('aria-label'),'Collapse Ideas & decisions');
   // Stable nodes and disclosure state through a full canonical refresh.
   await columnArrow.focus();await columnArrow.evaluate(el=>window.originalDisclosure=el);await page.evaluate(()=>boardsUI.refresh());
   assert.equal(await columnArrow.evaluate(el=>el===window.originalDisclosure&&el===document.activeElement),true);
-  await columnArrow.press('ArrowLeft');assert.equal(await columnArrow.getAttribute('aria-expanded'),'false');
+  await columnArrow.press('ArrowLeft');assert.equal(await columnArrow.getAttribute('aria-expanded'),'false');assert.equal(await column.locator('.sidebar-page-link').first().getAttribute('aria-label'),'Expand Ideas & decisions');
   await columnArrow.press('ArrowRight');await columnArrow.press('ArrowRight');assert.equal(await member.evaluate(el=>el===document.activeElement),true);
   await member.press('Enter');await page.waitForFunction(()=>state.editor?.state.loaded);
   assert.equal(new URL(page.url()).searchParams.get('note'),id(1));assert.equal(await member.getAttribute('aria-current'),'page');
@@ -79,7 +96,36 @@ try {
     const footerY=geometry.footer.y;await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop=el.scrollHeight);
     assert.equal((await page.locator('.nav-footer').boundingBox()).y,footerY,'scroll does not move footer');
   }
-  await page.setViewportSize({width:1280,height:850});await page.emulateMedia({reducedMotion:'reduce'});
+  // At the end of a short scrolling library the final row is fully reachable.
+  await page.setViewportSize({width:900,height:480});
+  await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop=el.scrollHeight);
+  assert.equal(await page.evaluate(()=>{const list=document.querySelector('.sidebar-attention-scroll'),last=document.getElementById('sidebar-recent').lastElementChild;return last.getBoundingClientRect().bottom<=list.getBoundingClientRect().bottom+1;}),true);
+  await page.screenshot({path:captures+'/short-window-list-end.png'});
+  // A selected destination gets the narrow viewport; reopening preserves branches and desktop preference.
+  await page.setViewportSize({width:320,height:650});await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop=0);
+  const preference=await page.evaluate(()=>localStorage.getItem('jumpybrain.sidebarCollapsed'));
+  await member.scrollIntoViewIfNeeded();const treeScroll=await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop);
+  await member.click();await page.waitForFunction(()=>document.documentElement.dataset.sidebarCollapsed==='true');
+  assert.equal(await page.locator('#app-sidebar').isVisible(),false);assert.ok((await page.locator('#note-name').boundingBox()).y<650*.65,'chosen page title is visible with room below it');
+  assert.ok((await page.locator('#note-panel').boundingBox()).height>650*.7,'editor gets most of the narrow viewport');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('jumpybrain.sidebarCollapsed')),preference);
+  await page.screenshot({path:captures+'/narrow-selected-content-dark.png'});
+  await page.locator('#toggle-sidebar').click();assert.equal(await arrow.getAttribute('aria-expanded'),'true');
+  assert.equal(await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop),treeScroll,'reopening preserves the navigation position');
+  assert.equal(await columnArrow.getAttribute('aria-expanded'),'true');
+  // A failed save must leave both the draft and the navigation visible.
+  await page.route('**/memories/all/documents/**',route=>route.request().method()==='PUT'?route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture save failed'}})}):route.continue());
+  await page.locator('#note-name').fill('Unsaved project draft');await board.locator('[data-sidebar-page="'+id(3)+'"] button').click();
+  await page.waitForFunction(()=>state.editor?.state.saveStatus==='failed');
+  assert.equal(await page.locator('#app-sidebar').isVisible(),true);assert.equal(new URL(page.url()).searchParams.get('note'),id(1));
+  assert.equal(await page.locator('#note-name').inputValue(),'Unsaved project draft');
+  assert.equal(await readFile(path.join(root,'notes','1.md'),'utf8'),originals.get(path.join(root,'notes','1.md')),'failed navigation never publishes the draft');
+  await page.unroute('**/memories/all/documents/**');await page.locator('#note-name').fill('Project overview');await page.locator('#note-retry').click();await page.waitForFunction(()=>state.editor?.state.saveStatus==='saved');
+  // The explicitly tested title save updates canonical metadata, so reset that byte-preservation baseline.
+  originals.set(path.join(root,'notes','1.md'),await readFile(path.join(root,'notes','1.md'),'utf8'));
+  await board.locator('[data-sidebar-page="'+id(3)+'"] button').click();await page.waitForFunction(()=>document.documentElement.dataset.sidebarCollapsed==='true');
+  await page.setViewportSize({width:1280,height:850});await page.locator('#app-sidebar').waitFor({state:'visible'});assert.equal(await page.locator('#app-sidebar').isVisible(),true,'desktop remains expanded');
+  await page.emulateMedia({reducedMotion:'reduce'});
   await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop=0);
   await arrow.click();assert.equal(await arrow.getAttribute('aria-expanded'),'false');await page.screenshot({path:captures+'/collapsed-dark.png'});await arrow.click();
   for(const [file,content] of originals)assert.equal(await readFile(file,'utf8'),content,'navigation/preferences do not write canonical files');

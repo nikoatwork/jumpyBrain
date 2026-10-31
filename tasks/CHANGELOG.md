@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-31 — Clearer board navigation after UX review
+
+- Narrow sidebar selections now reveal the chosen content without changing desktop preferences; board trees distinguish status placeholders from real pages and explain Open board versus Expand/Collapse actions. [Review decisions and verification](done/2026-10-31_tasks-board-sidebar-review-improvements.md).
+
 ## 2026-10-31 — Reliable local and remote connection UX
 
 - Clarified editing opt-in and access-key recovery, retained connection-action focus, handled older servers without boards, and removed an unstable packaging input that broke saved-key access on identical installs. Verified real Mac/HTTPS switching, editing, isolation and repeated installation; removed all temporary data. [Verification and remaining signing limits](done/2026-10-31_tasks-remote-switching-ux.md).

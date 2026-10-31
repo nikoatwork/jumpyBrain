@@ -1191,6 +1191,12 @@ const navigation = JumpyBrainBrowser.createPageNavigation({
   show: showPage,
   onChange: syncWorkspaceHistory,
 });
+async function navigateSidebar(url) {
+  const current = new URL(companionMode ? companionScopeUrl(url) : url, location.origin).href === location.href;
+  const opened = await navigation.navigate(url);
+  if (opened || (current && !navigation.isBusy())) sidebarPreference.afterNavigate();
+  return opened;
+}
 function syncWorkspaceHistory() {
   const available = navigation.availability();
   $("navigate-back").disabled = !available.back;
@@ -1230,7 +1236,7 @@ const sidebarPages = JumpyBrainBrowser.installPageNavigation({
       ? "brain:" + JSON.stringify([companionState.activeId, active.kind, active.root || active.url]) : null;
   },
   href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
-  navigate: (url) => { navigation.navigate(url); },
+  navigate: navigateSidebar,
   attentionScope: () => activeApiKey ? String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted") : null,
   enabled: () => state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()) && !documentActions?.isBusy(),
