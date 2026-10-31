@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-10-31 — Reliable local and remote connection UX
+
+- Clarified editing opt-in and access-key recovery, retained connection-action focus, handled older servers without boards, and removed an unstable packaging input that broke saved-key access on identical installs. Verified real Mac/HTTPS switching, editing, isolation and repeated installation; removed all temporary data. [Verification and remaining signing limits](done/2026-10-31_tasks-remote-switching-ux.md).
+
 ## 2026-10-31 — Optional board navigation trees
 
 - Added personal per-board sidebar expansion into columns and pages, preserving direct Kanban access and remembering disclosure state, including on read-only brains. Removed the general page-list heading. [Verification and limits](done/2026-10-31_tasks-board-sidebar-tree.md).
