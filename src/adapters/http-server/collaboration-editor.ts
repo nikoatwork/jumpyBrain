@@ -1,5 +1,5 @@
 import { createCollaborationClient, CollaborationError, validSnapshot, type CollaborationPrincipal, type CollaborationSnapshot } from "./collaboration-client.js";
-import { collaborationClientId, createCollaborationDraftStore, type CollaborationDraft, type CollaborationDraftStore } from "./collaboration-drafts.js";
+import { archiveCollaborationDraft, collaborationClientId, createCollaborationDraftStore, type CollaborationDraft, type CollaborationDraftStore } from "./collaboration-drafts.js";
 export interface SourceEdit { start: number; deleteCount: number; insert: string }
 export function sourceDifference(before: string, after: string): SourceEdit {
   let start = 0, oldEnd = before.length, newEnd = after.length;
@@ -56,6 +56,7 @@ export function createCollaborationEditor(options: Options) {
   let body = openingBase, baseline: CollaborationSnapshot | undefined, principal: CollaborationPrincipal | undefined;
   let opened = false, disposed = false, generation = 0, loadedDraft = false, conflict = false, uncertain = false, durable = true, message: string | undefined;
   let dirtyBeforeOpen = false, openFailure: string | undefined;
+  let recoveredUnconfirmed: CollaborationDraft["unconfirmed"] | undefined;
   let historyFlight: { id: string; acknowledged: boolean; promise?: Promise<void>; confirmed: Promise<void>; confirm(): void } | undefined;
   let draftTitle: string | undefined, titlePromise: Promise<void> | undefined, titleSubmitted: string | undefined;
   let presenceTimer: ReturnType<typeof setTimeout> | undefined, lastPresence: string | undefined;
@@ -80,14 +81,20 @@ export function createCollaborationEditor(options: Options) {
     options.onState?.(state);
     schedulePresence();
   }
-  function persist() {
-    if (!principal || !baseline) return;
+  function draftRecord(): CollaborationDraft {
+    return { version: 2, ...scope(), epoch: baseline!.epoch, baseRevision: baseline!.revision, baseBody: baseline!.body, body, ...(draftTitle !== undefined ? { title: draftTitle, baseTitle: baseline!.title } : {}), updatedAt: Date.now(), ...(flight ? { unconfirmed: { operationId: flight.id, submittedBody: flight.submitted } } : historyFlight ? { unconfirmed: { operationId: historyFlight.id, submittedBody: body } } : titlePromise ? { unconfirmed: { operationId: "title-unconfirmed", submittedBody: body } } : uncertain ? { unconfirmed: recoveredUnconfirmed ?? { operationId: "unconfirmed", submittedBody: body } } : {}) };
+  }
+  function sameDraftVersion(a: CollaborationDraft, b: CollaborationDraft) {
+    return a.body === b.body && a.title === b.title && a.baseBody === b.baseBody && a.baseTitle === b.baseTitle && a.epoch === b.epoch && a.baseRevision === b.baseRevision && JSON.stringify(a.unconfirmed ?? null) === JSON.stringify(b.unconfirmed ?? null);
+  }
+  function persist(): boolean {
+    if (!principal || !baseline) return false;
     if (!dirty() && !flight && !titlePromise && !historyFlight && !uncertain && !conflict) {
       const result = store.remove(scope()); if (result.error) { durable = false; message = result.error; }
-      return;
+      return result.value;
     }
-    const record: CollaborationDraft = { version: 2, ...scope(), epoch: baseline.epoch, baseRevision: baseline.revision, baseBody: baseline.body, body, ...(draftTitle !== undefined ? { title: draftTitle, baseTitle: baseline.title } : {}), updatedAt: Date.now(), ...(flight ? { unconfirmed: { operationId: flight.id, submittedBody: flight.submitted } } : historyFlight ? { unconfirmed: { operationId: historyFlight.id, submittedBody: body } } : titlePromise ? { unconfirmed: { operationId: "title-unconfirmed", submittedBody: body } } : uncertain ? { unconfirmed: { operationId: "unconfirmed", submittedBody: body } } : {}) };
-    const saved = store.save(record); durable = saved.value; if (saved.error) message = saved.error;
+    const saved = store.save(draftRecord()); durable = saved.value; if (saved.error) message = saved.error;
+    return saved.value;
   }
   function paint(value: string, highlight = false): boolean {
     const applied = options.editor.applyCollaborativeMarkdown(value, { highlight });
@@ -123,7 +130,12 @@ export function createCollaborationEditor(options: Options) {
       rebaseHistory(undoBodies); rebaseHistory(redoBodies);
     }
     const previousTitle = baseline?.title;
-    if (draftTitle !== undefined && previousTitle !== undefined && draftTitle !== previousTitle && snapshot.title !== previousTitle && snapshot.title !== draftTitle && snapshot.title !== titleSubmitted) {
+    // The canonical title policy trims surrounding whitespace. An acknowledged
+    // title matching that submitted intent is not a foreign edit. Normalize
+    // only the unchanged submitted draft; later local typing stays pending.
+    const acceptedSubmittedTitle = titleSubmitted !== undefined && snapshot.title === titleSubmitted.trim();
+    if (acceptedSubmittedTitle && draftTitle === titleSubmitted) draftTitle = snapshot.title;
+    if (draftTitle !== undefined && previousTitle !== undefined && draftTitle !== previousTitle && snapshot.title !== previousTitle && snapshot.title !== draftTitle && !acceptedSubmittedTitle) {
       conflict = true; message = "Concurrent title edits need review. The local title and saved version are retained.";
     }
     if (draftTitle === undefined || draftTitle === previousTitle) draftTitle = snapshot.title;
@@ -135,7 +147,7 @@ export function createCollaborationEditor(options: Options) {
   }
   function finish(snapshot: CollaborationSnapshot, current: NonNullable<typeof flight>) {
     if (flight !== current) return;
-    flight = undefined; uncertain = false;
+    flight = undefined; uncertain = false; recoveredUnconfirmed = undefined;
     accept(snapshot, current);
     const next = queued; queued = undefined;
     if (next && (!baseline || next.epoch !== baseline.epoch || next.revision > baseline.revision)) accept(next);
@@ -145,6 +157,7 @@ export function createCollaborationEditor(options: Options) {
     clearTimeout(timer); timer = undefined;
     if (disposed || options.editor.isComposing?.() || flight || titlePromise || historyFlight || conflict || uncertain || !opened || !baseline || client.state !== "ready" || !canWrite() || !dirty()) { notify(); return; }
     if (!bodyDirty() && titleDirty()) {
+      recoveredUnconfirmed = undefined;
       titleSubmitted = draftTitle!;
       const before = baseline;
       titlePromise = client.request("title", { documentId: options.documentId, clientId, epoch: before.epoch, baseRevision: before.revision, title: titleSubmitted }).then((snapshot: unknown) => {
@@ -158,7 +171,7 @@ export function createCollaborationEditor(options: Options) {
       persist(); notify(); await titlePromise; return;
     }
     const current = { ...confirmation(), id: crypto.randomUUID(), submitted: body, before: baseline, promise: undefined as Promise<void> | undefined };
-    flight = current; persist(); notify();
+    recoveredUnconfirmed = undefined; flight = current; persist(); notify();
     const operation = sourceDifference(current.before.body, current.submitted);
     current.promise = client.request("edit", { documentId: options.documentId, clientId, epoch: current.before.epoch, baseRevision: current.before.revision, operationId: current.id, ...operation }).then((snapshot: unknown) => {
       if (!validSnapshot(snapshot)) throw new CollaborationError("protocol", "The backend returned an invalid document snapshot.");
@@ -192,7 +205,7 @@ export function createCollaborationEditor(options: Options) {
         recoveryDrafts = others.value.filter((draft) => draft.clientId !== clientId);
         if (saved.error || others.error) { durable = false; message = saved.error ?? others.error; }
         if (saved.value) {
-          const draft = saved.value;
+          const draft = saved.value; recoveredUnconfirmed = draft.unconfirmed;
           if (draft.title !== undefined && draft.title !== snapshot.title) {
             draftTitle = draft.title;
             if (draft.baseTitle !== undefined && snapshot.title !== draft.baseTitle) { conflict = true; message = "A recovered title draft conflicts with the saved title."; }
@@ -246,7 +259,7 @@ export function createCollaborationEditor(options: Options) {
   async function historyMutation(method: "undo" | "redo") {
     if (!baseline || !opened || !canWrite() || flight || titlePromise || historyFlight || conflict || bodyDirty()) return;
     const current = { ...confirmation(), id: crypto.randomUUID(), acknowledged: false, promise: undefined as Promise<void> | undefined };
-    historyFlight = current; persist(); notify();
+    recoveredUnconfirmed = undefined; historyFlight = current; persist(); notify();
     current.promise = client.request(method, { documentId: options.documentId, clientId, epoch: baseline.epoch, operationId: current.id }).then((snapshot: unknown) => { if (!disposed && historyFlight === current && validSnapshot(snapshot)) { current.acknowledged = true; historyFlight = undefined; accept(snapshot); } }).catch((error: unknown) => {
       if (disposed || current.acknowledged) return;
       if (error instanceof CollaborationError && ["unconfirmed", "offline", "closed"].includes(error.code)) { uncertain = true; conflict = true; }
@@ -338,16 +351,41 @@ export function createCollaborationEditor(options: Options) {
         queued = undefined; deferredConfirmation = undefined; undoBodies.length = 0; redoBodies.length = 0; titleSubmitted = undefined;
         if (choice === "saved") { if (!paint(current.body)) return false; body = current.body; draftTitle = current.title; }
         else if (!paint(body)) return false;
-        conflict = false; uncertain = false; message = undefined;
+        conflict = false; uncertain = false; recoveredUnconfirmed = undefined; message = undefined;
         persist(); publishSnapshot(current); notify();
         if (choice === "draft") return api.flush();
         return true;
       } catch (error) { message = error instanceof Error ? error.message : "Recovery could not reconnect to the backend."; persist(); notify(); return false; }
     },
     recoverDraft(record: CollaborationDraft) {
-      if (!principal || record.scope !== options.scope || record.principalId !== principal.id || record.documentId !== options.documentId || flight) return false;
-      body = record.body; draftTitle = record.title ?? baseline?.title; conflict = true; uncertain = Boolean(record.unconfirmed); message = "Review this recovered draft against the saved version before publishing.";
-      paint(body); persist(); notify(); return true;
+      if (disposed || !principal || !baseline || record.scope !== options.scope || record.principalId !== principal.id || record.documentId !== options.documentId || flight || titlePromise || historyFlight) return false;
+      const previous = { body, draftTitle, conflict, uncertain, recoveredUnconfirmed };
+      if (dirty() || conflict || uncertain) {
+        const current = draftRecord(), read = store.read(scope()), versions = store.list(scope());
+        if (read.error || versions.error) { durable = false; message = read.error ?? versions.error; notify(); return false; }
+        // Use the exact stored uncertainty receipt when it describes this live
+        // version; normal draft persistence need not manufacture a new receipt.
+        const retained = read.value && sameDraftVersion(read.value, current) ? read.value : current;
+        let preserved = versions.value.find((version) => version.clientId.startsWith("archive:") && version.archivedFromClientId === (retained.archivedFromClientId ?? retained.clientId) && sameDraftVersion(version, retained));
+        if (!preserved) {
+          const archived = archiveCollaborationDraft(store, retained);
+          if (!archived.value) { durable = false; message = archived.error; notify(); return false; }
+          preserved = archived.value;
+        }
+        if (!recoveryDrafts.some((version) => version.clientId === preserved!.clientId)) recoveryDrafts = [...recoveryDrafts, preserved];
+      }
+      body = record.body; draftTitle = record.title ?? baseline.title; conflict = true; uncertain = Boolean(record.unconfirmed); recoveredUnconfirmed = record.unconfirmed;
+      message = "Review this recovered draft against the saved version before publishing.";
+      if (!persist()) {
+        body = previous.body; draftTitle = previous.draftTitle; conflict = previous.conflict; uncertain = previous.uncertain; recoveredUnconfirmed = previous.recoveredUnconfirmed;
+        notify(); return false;
+      }
+      if (!paint(body)) {
+        const failure = message;
+        body = previous.body; draftTitle = previous.draftTitle; conflict = previous.conflict; uncertain = previous.uncertain; recoveredUnconfirmed = previous.recoveredUnconfirmed;
+        persist(); message = failure; notify(); return false;
+      }
+      notify(); return true;
     },
     get body() { return body; }, get title() { return draftTitle ?? baseline?.title; }, get state() { return state; }, get snapshot() { return baseline; }, get clientId() { return clientId; },
     dispose() { if (disposed) return; persist(); disposed = true; flight?.confirm(); historyFlight?.confirm(); generation++; clearTimeout(timer); clearTimeout(presenceTimer); stopSelection?.(); options.editor.setCollaborativePresence?.([]); stopComposition?.(); options.editor.setCollaborativeHistory?.(null); client.dispose(); },

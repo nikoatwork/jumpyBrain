@@ -91,3 +91,7 @@ Bounded live-operation history identity and order, distinct from a canonical con
 ## Private draft
 
 Unpublished body/title/recovery state scoped to one brain, principal, document and page actor. It is unique data, not an index; reloaded pages offer older records for explicit recovery.
+
+## Stream lease
+
+A bounded period during which an agent's live stream can accept more chunks. Activity renews it; expiry or revoked access stops further chunks and releases capacity while retaining already saved Markdown.

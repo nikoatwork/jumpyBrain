@@ -15,6 +15,7 @@ import fs from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import { initializeMemoryRoot } from "../dist/index.js";
 import { createCollaborationHub } from "../dist/app/collaboration/index.js";
+import { updateMemoryDocument } from "../dist/app/local-memory/index.js";
 const id = "mem_12345678-1234-1234-1234-123456789abc";
 const principal = { id: "human", name: "Human", role: "writer" };
 const content = (body, title = "Live") =>
@@ -440,3 +441,251 @@ test("legacy guards settle observed raw bytes before comparing a current canonic
     (error) => error.code === "precondition_failed",
   );
 });
+test("abandoned stream leases expire without traffic while a human keeps the note open", async (t) => {
+  const { hub, file } = await fixture(t, {
+    streamLeaseMs: 35,
+    observeIntervalMs: 5,
+  });
+  const initial = await hub.open(id, principal, { clientId: "tab" });
+  hub.subscribe(id, () => {});
+  await hub.dispatch(
+    "stream.start",
+    { ...params(initial), streamId: "abandoned", start: 3 },
+    principal,
+  );
+  const saved = await hub.dispatch(
+    "stream.chunk",
+    { ...params(initial), streamId: "abandoned", sequence: 0, insert: " kept" },
+    principal,
+  );
+  const canonical = await readFile(file, "utf8");
+  const deadline = Date.now() + 1500;
+  while (hub.resourceUsage().streams) {
+    assert.ok(Date.now() < deadline, "Lease did not release idle stream slot");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  const status = await hub.dispatch(
+    "stream.status",
+    { ...params(saved), streamId: "abandoned" },
+    principal,
+  );
+  assert.equal(status.stream.state, "cancelled");
+  assert.equal(status.stream.reason, "lease_expired");
+  await assert.rejects(
+    hub.dispatch(
+      "stream.chunk",
+      { ...params(saved), streamId: "abandoned", sequence: 1, insert: " late" },
+      principal,
+    ),
+    (error) => error.code === "stream_inactive",
+  );
+  assert.equal(await readFile(file, "utf8"), canonical);
+});
+test("a stale full-file raw replacement retains the last acknowledged human version durably", async (t) => {
+  const { hub, file, root } = await fixture(t);
+  const initial = await hub.open(id, principal, { clientId: "tab" }),
+    rawRead = await readFile(file, "utf8");
+  const human = await hub.dispatch(
+      "edit",
+      {
+        ...params(initial),
+        operationId: "human-saved",
+        start: 0,
+        deleteCount: 0,
+        insert: "Human saved.\n",
+      },
+      principal,
+    ),
+    humanCanonical = await readFile(file, "utf8");
+  const raw = rawRead.replace(/\nabc\n$/, "\nraw replacement\n");
+  await writeFile(file, raw);
+  await hub.observe();
+  const observed = await hub.read(id);
+  assert.equal(observed.body, "raw replacement\n");
+  assert.equal(observed.saved, true);
+  assert.equal(observed.recovery.code, "external_destructive_replacement");
+  const recovery = path.join(root, observed.recovery.directory);
+  assert.equal(
+    await readFile(path.join(recovery, "base.md"), "utf8"),
+    humanCanonical,
+  );
+  assert.equal(await readFile(path.join(recovery, "external.md"), "utf8"), raw);
+  const metadata = JSON.parse(
+    await readFile(path.join(recovery, "recovery.json"), "utf8"),
+  );
+  assert.equal(metadata.baseContentHash, human.contentHash);
+  assert.equal(metadata.externalContentHash, observed.contentHash);
+  const first = await readdir(path.dirname(recovery));
+  await hub.observe();
+  await hub.observe();
+  assert.deepEqual(
+    await readdir(path.dirname(recovery)),
+    first,
+    "Same observed hash cannot create more copies",
+  );
+  await writeFile(file, humanCanonical);
+  await hub.observe();
+  const beforeRepeat = await readdir(path.dirname(recovery));
+  await writeFile(file, raw);
+  await hub.observe();
+  assert.deepEqual(
+    await readdir(path.dirname(recovery)),
+    beforeRepeat,
+    "An identical before/after pair reuses its durable recovery",
+  );
+});
+test("publication echoes, metadata insertions and raw insertions create no destructive recovery", async (t) => {
+  const { hub, file, root } = await fixture(t);
+  const initial = await hub.open(id, principal, { clientId: "tab" });
+  await hub.dispatch(
+    "edit",
+    {
+      ...params(initial),
+      operationId: "own-replace",
+      start: 0,
+      deleteCount: 1,
+      insert: "A",
+    },
+    principal,
+  );
+  await hub.observe();
+  let canonical = await readFile(file, "utf8");
+  await writeFile(
+    file,
+    canonical.replace(/^title:/m, 'new_field: "Metadata addition"\ntitle:'),
+  );
+  await hub.observe();
+  canonical = await readFile(file, "utf8");
+  await writeFile(file, canonical + "raw append\n");
+  await hub.observe();
+  await assert.rejects(
+    readdir(path.join(root, ".jumpybrain", "recovery", id)),
+    (error) => error.code === "ENOENT",
+  );
+});
+test("stale metadata-only raw replacement retains a saved human title and custom metadata", async (t) => {
+  const { hub, file, root } = await fixture(t);
+  const initial = await hub.open(id, principal, { clientId: "tab" }),
+    rawRead = await readFile(file, "utf8");
+  await hub.dispatch(
+    "title",
+    { ...params(initial), title: "Human title" },
+    principal,
+  );
+  const titled = await hub.read(id),
+    titleBytes = await readFile(file, "utf8");
+  await updateMemoryDocument(
+    root,
+    id,
+    titleBytes.replace(/^title:/m, 'custom: "Human custom"\ntitle:'),
+    {
+      ifMatch: titled.contentHash,
+      actor: { kind: "human", id: principal.id, name: principal.name },
+    },
+  );
+  await hub.notifyCanonicalWrite(id);
+  const acknowledged = await readFile(file, "utf8");
+  assert.match(acknowledged, /custom: "Human custom"/);
+  const raw = rawRead.replace(/^title:.*$/m, 'title: "Raw title"');
+  await writeFile(file, raw);
+  await hub.observe();
+  const observed = await hub.read(id);
+  assert.equal(observed.title, "Raw title");
+  assert.equal(observed.body, initial.body);
+  assert.equal(observed.recovery.code, "external_destructive_replacement");
+  assert.equal(
+    await readFile(
+      path.join(root, observed.recovery.directory, "base.md"),
+      "utf8",
+    ),
+    acknowledged,
+  );
+  assert.equal(
+    await readFile(
+      path.join(root, observed.recovery.directory, "external.md"),
+      "utf8",
+    ),
+    raw,
+  );
+});
+test("a corrupt preexisting recovery never authorizes accepting an external replacement", async (t) => {
+  const { hub, file, root } = await fixture(t);
+  await hub.open(id, principal, { clientId: "tab" });
+  const original = await readFile(file, "utf8"),
+    raw = content("raw\n");
+  await writeFile(file, raw);
+  await hub.observe();
+  const recovery = (await hub.read(id)).recovery.directory;
+  await writeFile(path.join(root, recovery, "base.md"), "tampered recovery");
+  await writeFile(file, original);
+  await hub.observe();
+  await writeFile(file, raw);
+  await hub.observe();
+  const paused = await hub.read(id);
+  assert.equal(paused.saved, false);
+  assert.equal(paused.conflict.code, "source_unavailable");
+  assert.equal(
+    await readFile(path.join(root, recovery, "base.md"), "utf8"),
+    "tampered recovery",
+  );
+  assert.equal(await readFile(file, "utf8"), raw);
+});
+for (const failure of ["fsync", "rename"]) {
+  test(`failed destructive recovery ${failure} retains its unique pending directory and never reports Saved`, async (t) => {
+    const { hub, file, root } = await fixture(t);
+    await hub.open(id, principal, { clientId: "tab" });
+    const original = await readFile(file, "utf8"),
+      raw = content("changed\n");
+    let fired = false;
+    if (failure === "rename") {
+      const rename = fs.rename;
+      t.mock.method(fs, "rename", async (...args) => {
+        if (String(args[0]).endsWith(".pending") && !fired) {
+          fired = true;
+          throw Object.assign(new Error("Injected recovery rename failure"), {
+            code: "EIO",
+          });
+        }
+        return rename(...args);
+      });
+    } else {
+      const open = fs.open;
+      t.mock.method(fs, "open", async (...args) => {
+        const handle = await open(...args);
+        if (
+          String(args[0]).includes(".pending/") &&
+          String(args[0]).endsWith("/base.md") &&
+          !fired
+        ) {
+          fired = true;
+          handle.sync = async () => {
+            throw Object.assign(new Error("Injected recovery fsync failure"), {
+              code: "EIO",
+            });
+          };
+        }
+        return handle;
+      });
+    }
+    syncBuiltinESMExports();
+    t.after(() => {
+      t.mock.restoreAll();
+      syncBuiltinESMExports();
+    });
+    await writeFile(file, raw);
+    await hub.observe();
+    const paused = await hub.read(id);
+    assert.equal(fired, true);
+    assert.equal(paused.saved, false);
+    assert.equal(await readFile(file, "utf8"), raw);
+    const directory = path.join(root, ".jumpybrain", "recovery", id),
+      pending = (await readdir(directory)).filter((name) =>
+        name.endsWith(".pending"),
+      );
+    assert.equal(pending.length, 1);
+    assert.equal(
+      await readFile(path.join(directory, pending[0], "base.md"), "utf8"),
+      original,
+    );
+  });
+}

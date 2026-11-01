@@ -146,6 +146,21 @@ try {
     await undoEditor(pages[0]);
     await pages[1].waitForFunction(() => !richEditor.getMarkdown().includes("concurrent-0"));
 
+    // Canonical title normalization must acknowledge our own submitted intent,
+    // while rejected empty titles retain a recoverable draft and canonical data.
+    const beforeTitleBody = await editorMarkdown(pages[0]);
+    assert.equal(await pages[0].evaluate(() => live.setTitle("  Normalized live title  ")), true);
+    await pages[1].waitForFunction(() => live.snapshot.title === "Normalized live title");
+    assert.equal(await pages[0].evaluate(() => live.title), "Normalized live title");
+    assert.equal(await pages[0].evaluate(() => live.setTitle("")), false);
+    assert.equal(await pages[0].evaluate(() => live.state.status), "conflict");
+    assert.equal(await pages[0].evaluate(() => live.title), "", "invalid title input is retained for recovery");
+    assert.equal(await pages[0].evaluate(() => live.snapshot.title), "Normalized live title", "rejection preserves the canonical title");
+    assert.equal(await editorMarkdown(pages[0]), beforeTitleBody, "title rejection preserves the body");
+    await pages[0].evaluate(() => live.inputTitle("Recovered valid title"));
+    assert.equal(await pages[0].evaluate(() => live.resolveConflict("draft")), true);
+    assert.equal(await pages[0].evaluate(() => live.snapshot.title), "Recovered valid title");
+    assert.equal(await editorMarkdown(pages[0]), beforeTitleBody);
     // Real filesystem writes reconcile into both clients without body PUTs.
     const canonical = await readFile(path.join(root, "notes/live.md"), "utf8");
     await writeFile(path.join(root, "notes/live.md"), canonical.replace("Last paragraph", "External writer paragraph"));
@@ -222,7 +237,7 @@ try {
     await appendEditorText(shellPages[0], " shell human");
     await shellPages[0].waitForFunction(() => state.editor.collaboration.state.status === "saved" && richEditor.getMarkdown().includes("shell human"));
     await shellPages[1].waitForFunction(() => richEditor.getMarkdown().includes("shell human"));
-    await shellPages[0].locator("#note-name").fill("Shell live title");
+    await shellPages[0].locator("#note-name").fill("  Shell live title  ");
     await shellPages[0].locator("#note-name").blur();
     await shellPages[1].waitForFunction(() => document.querySelector("#note-name").value === "Shell live title");
     assert.equal(puts.length, 0, "the shipped shell sends no stale body PUT autosave");
@@ -263,6 +278,7 @@ try {
     await server.close(); server = undefined;
     await popup.waitForFunction(() => state.editor.collaboration.state.status === "offline");
     await appendEditorText(popup, " private reload draft");
+    await popup.evaluate(() => state.editor.inputTitle("Older offline B title"));
     assert.equal(await popup.evaluate(() => state.editor.collaboration.state.durableDraft), true);
     server = await startJumpyBrainHttpServer({ root, apiKeys: [token], port: clonePort, autoIndex: false });
     await popup.reload();
@@ -270,13 +286,37 @@ try {
     assert.notEqual(await popup.evaluate(() => state.editor.collaboration.clientId), popupId, "a new page does not adopt another page identity");
     assert.equal((await editorMarkdown(popup)).includes("private reload draft"), false, "reload never silently publishes or adopts an older tab draft");
     assert.equal((await readFile(path.join(root, "notes/live.md"), "utf8")).includes("private reload draft"), false);
+    await server.close(); server = undefined;
+    await popup.waitForFunction(() => state.editor.collaboration.state.status === "offline");
+    await appendEditorText(popup, " unique current A body");
+    await popup.evaluate(() => state.editor.inputTitle("Unique current A title"));
+    const currentA = await editorMarkdown(popup);
     await popup.locator("#note-recover").click();
+    await popup.waitForFunction(() => document.getElementById("recovery-message").textContent.includes("Could not read the saved note"));
+    await popup.evaluate(() => {
+      window.originalDraftSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(key, value) { if (String(key).startsWith("jumpybrain.collaboration.draft.v2:")) throw new DOMException("Fixture quota", "QuotaExceededError"); return originalDraftSetItem.call(this, key, value); };
+    });
+    await popup.locator("#recovery-versions").selectOption("0");
+    assert.equal(await editorMarkdown(popup), currentA, "storage failure leaves the current unique draft visible");
+    assert.ok((await popup.locator("#recovery-draft").inputValue()).startsWith("Unique current A title\n\n"));
+    assert.equal(await popup.locator("#recovery-versions").inputValue(), "", "failed selection keeps the current dialog version");
+    assert.match(await popup.locator("#recovery-message").innerText(), /could not be stored/);
+    await popup.evaluate(() => { Storage.prototype.setItem = originalDraftSetItem; });
     await popup.locator("#recovery-versions").selectOption("0");
     assert.ok((await popup.locator("#recovery-draft").inputValue()).includes("private reload draft"), "the recoverable private draft is offered through the actual shell selector");
+    assert.equal(await popup.evaluate(() => state.editor.collaboration.title), "Older offline B title");
+    const archivedAIndex = await popup.evaluate((body) => state.editor.collaboration.state.recoveryDrafts.findIndex((record) => record.body === body && record.title === "Unique current A title"), currentA);
+    assert.ok(archivedAIndex >= 0, "adopting B durably preserves unique A as a recoverable version");
     assert.equal((await readFile(path.join(root, "notes/live.md"), "utf8")).includes("private reload draft"), false, "selecting a recovery version does not publish it");
+    await popup.locator("#recovery-close").click(); await popup.locator("#note-recover").click();
+    await popup.locator("#recovery-versions").selectOption(String(archivedAIndex));
+    assert.equal(await editorMarkdown(popup), currentA, "the preserved A version remains selectable in the actual recovery UI");
+    assert.equal(await popup.evaluate(() => state.editor.collaboration.title), "Unique current A title");
+    assert.equal((await readFile(path.join(root, "notes/live.md"), "utf8")).includes("unique current A body"), false, "private recovery does not silently publish either version");
     await cloneContext.close();
     assert.deepEqual(errors, []);
-    console.log("Production collaboration editor smoke passed: two contexts, source convergence, actor undo, canonical external writes, agent streams, IME, offline body/title reload recovery, shipped notes shell, cloned-tab actor isolation and explicit recovery selector.");
+    console.log("Production collaboration editor smoke passed: two contexts, source convergence, actor undo, canonical external writes, agent streams, IME, offline body/title reload recovery, shipped notes shell, cloned-tab actor isolation and explicit recovery selector, title normalization and draft-version preservation.");
   }
 } finally {
   agent?.close(); await browser?.close(); await server?.close(); if (sourceServer) await new Promise((resolve) => sourceServer.close(resolve)); await rm(root, { recursive: true, force: true });

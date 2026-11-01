@@ -209,7 +209,13 @@ export function createLiveServer(options: LiveServerOptions) {
         if (timer) clearTimeout(timer);
       }
       if (finished) return undefined;
-      if (!current || (principal && current.id !== principal.id)) {
+      if (
+        !current ||
+        (principal && current.id !== principal.id) ||
+        (principal && principal.role !== "reader" && current.role === "reader")
+      ) {
+        if (principal)
+          void options.hub.revokePrincipal(principal.id).catch(() => {});
         close(1008, "Credential revoked");
         return undefined;
       }
@@ -267,7 +273,11 @@ export function createLiveServer(options: LiveServerOptions) {
           throw new CollaborationError("invalid_request");
         const params = request.params as Record<string, unknown>;
         if (!principal) {
-          if (method === "hello" && params.protocol !== 2) throw new CollaborationError("invalid_protocol", "Update all clients to live protocol 2 before editing.");
+          if (method === "hello" && params.protocol !== 2)
+            throw new CollaborationError(
+              "invalid_protocol",
+              "Update all clients to live protocol 2 before editing.",
+            );
           if (
             method !== "hello" ||
             params.protocol !== 2 ||

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, open, lstat } from "node:fs/promises";
+import { mkdir, open, lstat, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import {
   CollaborationError,
@@ -56,7 +56,13 @@ export interface CollaborationSnapshot {
   presence: Presence[];
   conflict?: { code: string };
   indexing?: "pending" | "failed";
-  stream?: { streamId: string; sequence: number; state: string } | null;
+  stream?: {
+    streamId: string;
+    sequence: number;
+    state: string;
+    reason?: string;
+  } | null;
+  recovery?: { code: "external_destructive_replacement"; directory: string };
 }
 interface Session {
   documentId: string;
@@ -66,6 +72,8 @@ interface Session {
   presence: Map<string, Presence>;
   accessedAt: number;
   busy: boolean;
+  streamActivity: Map<string, number>;
+  recovery?: CollaborationSnapshot["recovery"];
   conflict?: string;
   fingerprint?: string;
   candidate?: {
@@ -89,6 +97,7 @@ export interface CollaborationHubOptions {
   maxHistoryBytes?: number;
   maxTotalHistoryBytes?: number;
   maxSnapshotBytes?: number;
+  streamLeaseMs?: number;
 }
 function fail(code: string, message?: string): never {
   throw new CollaborationError(code, message);
@@ -242,6 +251,7 @@ export class CollaborationHub {
       saved: !session.conflict,
       recognition: session.base.recognition,
       presence: [...session.presence.values()],
+      ...(session.recovery ? { recovery: session.recovery } : {}),
       ...(publishedOperation ? { operation: publishedOperation } : {}),
       ...(session.conflict ? { conflict: { code: session.conflict } } : {}),
     };
@@ -257,6 +267,7 @@ export class CollaborationHub {
         streamId: stream.streamId,
         sequence: stream.sequence,
         state: stream.state,
+        ...(stream.reason ? { reason: stream.reason } : {}),
       };
     for (const listener of session.listeners) {
       try {
@@ -335,6 +346,7 @@ export class CollaborationHub {
       presence: new Map(),
       accessedAt: Date.now(),
       busy: false,
+      streamActivity: new Map(),
     };
     this.capHistory(model, session);
     this.sessions.set(documentId, session);
@@ -432,6 +444,51 @@ export class CollaborationHub {
       )
         this.emit(session);
   }
+  private expireStreams(session: Session) {
+    let expired = false;
+    for (const [key, stream] of session.model.streams) {
+      const last = session.streamActivity.get(key);
+      if (
+        last === undefined ||
+        Date.now() - last >= (this.options.streamLeaseMs ?? 60_000)
+      ) {
+        session.model.cancelStream(
+          stream.actor,
+          stream.streamId,
+          "lease_expired",
+        );
+        session.streamActivity.delete(key);
+        expired = true;
+      }
+    }
+    if (expired) this.emit(session);
+  }
+  async revokePrincipal(principalId: string) {
+    if (this.closed) return;
+    await this.serialize(async () => {
+      for (const session of this.sessions.values()) {
+        let revoked = false;
+        for (const [key, stream] of session.model.streams) {
+          let owner: unknown;
+          try {
+            owner = JSON.parse(stream.actor);
+          } catch {
+            continue;
+          }
+          if (Array.isArray(owner) && owner[0] === principalId) {
+            session.model.cancelStream(
+              stream.actor,
+              stream.streamId,
+              "authorization_revoked",
+            );
+            session.streamActivity.delete(key);
+            revoked = true;
+          }
+        }
+        if (revoked) this.emit(session);
+      }
+    });
+  }
   async dispatch(
     method: string,
     params: Record<string, unknown>,
@@ -441,6 +498,7 @@ export class CollaborationHub {
       return this.open(text(params.documentId), principal, params);
     return this.serialize(async () => {
       const session = await this.session(validId(params.documentId));
+      this.expireStreams(session);
       if (method === "presence" || method === "stream.status")
         await this.refresh(session, true);
       else await this.settleOpen(session);
@@ -474,6 +532,7 @@ export class CollaborationHub {
         );
         session.conflict = undefined;
         session.candidate = undefined;
+        session.streamActivity.clear();
         return this.emit(session);
       }
       if (principal.role === "reader")
@@ -565,6 +624,13 @@ export class CollaborationHub {
           operation,
         );
       } else session.model = candidate;
+      for (const key of session.streamActivity.keys())
+        if (!session.model.streams.has(key)) session.streamActivity.delete(key);
+      if (stream?.state === "active")
+        session.streamActivity.set(
+          JSON.stringify([actor, stream.streamId]),
+          Date.now(),
+        );
       return this.emit(session, operation, stream);
     });
   }
@@ -685,6 +751,7 @@ export class CollaborationHub {
     reason: string,
     external?: string | Buffer,
     proposal?: string,
+    leafName: string = randomUUID(),
   ) {
     let directory = session.base.root;
     const directories = [directory];
@@ -692,7 +759,7 @@ export class CollaborationHub {
       ".jumpybrain",
       "recovery",
       session.documentId,
-      randomUUID(),
+      leafName,
     ]) {
       directory = path.join(directory, part);
       await mkdir(directory, { mode: 0o700 }).catch((error) => {
@@ -721,6 +788,10 @@ export class CollaborationHub {
         epoch: session.model.epoch,
         revision: session.model.revision,
         externalObserved: external !== undefined,
+        baseContentHash: session.base.contentHash,
+        ...(external !== undefined
+          ? { externalContentHash: hash(external) }
+          : {}),
       }) + "\n";
     for (const [name, content] of Object.entries(files)) {
       const handle = await open(path.join(directory, name), "wx", 0o600);
@@ -742,6 +813,99 @@ export class CollaborationHub {
         await handle?.close();
       }
     }
+    return path
+      .relative(session.base.root, directory)
+      .split(path.sep)
+      .join("/");
+  }
+  private async preserveDestructiveExternal(
+    session: Session,
+    external: string,
+  ) {
+    const externalHash = hash(external),
+      key = createHash("sha256")
+        .update(session.base.contentHash)
+        .update(externalHash)
+        .digest("hex");
+    const parent = path.join(
+        session.base.root,
+        ".jumpybrain",
+        "recovery",
+        session.documentId,
+      ),
+      directory = path.join(parent, "raw-" + key);
+    const verify = async () => {
+      const metadata = JSON.parse(
+        (
+          await readBoundedCanonicalSource(
+            session.base.root,
+            path.join(directory, "recovery.json"),
+            4096,
+          )
+        ).toString("utf8"),
+      );
+      if (
+        metadata.reason !== "external_destructive_replacement" ||
+        metadata.documentId !== session.documentId ||
+        metadata.baseContentHash !== session.base.contentHash ||
+        metadata.externalContentHash !== externalHash
+      )
+        fail("unsafe_recovery");
+      if (
+        hash(
+          await readBoundedCanonicalSource(
+            session.base.root,
+            path.join(directory, "base.md"),
+            this.maxDocumentBytes,
+          ),
+        ) !== session.base.contentHash ||
+        hash(
+          await readBoundedCanonicalSource(
+            session.base.root,
+            path.join(directory, "external.md"),
+            this.maxDocumentBytes,
+          ),
+        ) !== externalHash
+      )
+        fail("unsafe_recovery");
+    };
+    try {
+      await verify();
+      return path
+        .relative(session.base.root, directory)
+        .split(path.sep)
+        .join("/");
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT") throw error;
+    }
+    const staging = await this.preserve(
+      session,
+      "external_destructive_replacement",
+      external,
+      undefined,
+      "raw-" + key + "." + randomUUID() + ".pending",
+    );
+    const stage = path.join(session.base.root, staging);
+    try {
+      await rename(stage, directory);
+    } catch (error) {
+      if (!["EEXIST", "ENOTEMPTY"].includes(errorCode(error))) throw error;
+      await verify();
+      await rm(stage, { recursive: true }); // Proven identical duplicate, never unique recovery data.
+    }
+    let handle;
+    try {
+      handle = await open(parent, "r");
+      await handle.sync();
+    } catch {
+      /* Directory fsync is not supported on every filesystem. */
+    } finally {
+      await handle?.close();
+    }
+    return path
+      .relative(session.base.root, directory)
+      .split(path.sep)
+      .join("/");
   }
   private async settleOpen(session: Session) {
     // Reopening must not acknowledge an older Saved revision while a complete
@@ -887,6 +1051,19 @@ export class CollaborationHub {
         splitCanonicalContent(current.content).body,
       );
     let operation: SourceOperation | undefined;
+    const prefixDifference = sourceDifference(
+      splitCanonicalContent(session.base.content).prefix,
+      splitCanonicalContent(current.content).prefix,
+    );
+    if (difference.deleteCount > 0 || prefixDifference.deleteCount > 0) {
+      session.recovery = {
+        code: "external_destructive_replacement",
+        directory: await this.preserveDestructiveExternal(
+          session,
+          current.content,
+        ),
+      };
+    }
     if (difference.deleteCount || difference.insert) {
       operation = next.apply({
         actor: "external",
@@ -922,7 +1099,8 @@ export class CollaborationHub {
     try {
       await this.serialize(async () => {
         this.prune();
-        for (const session of this.sessions.values())
+        for (const session of this.sessions.values()) {
+          this.expireStreams(session);
           if (
             session.listeners.size ||
             Date.now() - session.accessedAt < 60_000
@@ -943,6 +1121,7 @@ export class CollaborationHub {
               this.emit(session);
             }
           }
+        }
       });
     } finally {
       this.observing = false;

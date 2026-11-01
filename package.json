@@ -81,7 +81,7 @@
     "scripts/multiplayer-upgrade.mjs"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "license": "MIT",
   "devDependencies": {

@@ -12,7 +12,7 @@ const repository=fileURLToPath(new URL('..',import.meta.url));
 const contractDefault='deep-dives/multiplayer-editing/production-gate-contract.json';
 const baselinePin='739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2';
 const originalContractPin='27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a';
-const requiredIds=['production-editor','lexical-structure','hosted-browser-session','local-workload','shared-workload','signed-desktop','packaged-diagnostics'];
+const requiredIds=['production-editor','lexical-structure','hosted-browser-session','composed-local','composed-linux','local-workload','shared-workload','signed-desktop','packaged-diagnostics','packaged-upgrade'];
 const acceptance={canonicalP95Ms:1000,peakRssBytes:536870912,historyBytes:33554432,queuedBytes:33554432,rpcDeadlineMs:10000};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const json=value=>JSON.stringify(value,null,2)+'\n';
@@ -30,8 +30,10 @@ export async function readProductionContract(file,pin){
   if(value.version!==1||value.id!=='multiplayer-production-integration'||value.protectedM0?.baselineSha256!==baselinePin||value.protectedM0?.contractSha256!==originalContractPin
     ||!Array.isArray(value.checks)||value.checks.length!==requiredIds.length||value.checks.some((check,index)=>check.id!==requiredIds[index]||!Array.isArray(check.command)||check.command.length<2||check.command[0]!=='node'||!relativeFile(check.command[1])||!Number.isInteger(check.timeoutMs)||check.timeoutMs<1||!Array.isArray(check.markers)||!check.markers.length||check.markers.some(marker=>typeof marker!=='string'||!marker))
     ||![value.assertionRoots,value.linuxSourceRoots,value.linuxIgnoredNames,value.limits].every(items=>Array.isArray(items)&&items.length>0&&items.every(item=>typeof item==='string'&&item.length>0))
-    ||!value.assertionRoots.every(relativeFile)||!value.linuxSourceRoots.every(relativeFile)||!equalMap(value.workloadAcceptance??{},acceptance))throw new Error('Incomplete or weakened production integration contract.');
+    ||!value.assertionRoots.every(relativeFile)||!value.linuxSourceRoots.every(relativeFile)||!equalMap(value.workloadAcceptance??{},acceptance)||!equalMap(value.linuxNodeVersions??{},{22:'v22.12.0',26:'v26.7.0'}))throw new Error('Incomplete or weakened production integration contract.');
   for(const [id,actors,humans,rounds,notes,seed]of [['local-workload',3,2,20,128,1592594996],['shared-workload',8,5,100,256,1592594997]]){const check=value.checks.find(item=>item.id===id),workload=check.workload;if(workload?.actors!==actors||workload?.humans!==humans||workload.rounds<rounds||workload.notes<notes||workload.seed!==seed||![`--actors=${actors}`,`--humans=${humans}`,`--rounds=${workload.rounds}`,`--notes=${workload.notes}`,`--seed=${seed}`].every(flag=>check.command.includes(flag)))throw new Error('Required production workload was weakened.');}
+  for(const mode of ['local','linux']){const check=value.checks.find(item=>item.id==='composed-'+mode);if(check.command[1]!=='scripts/collaboration-composed-smoke.mjs'||!check.command.includes('--mode='+mode)||!check.command.includes('--runs=2')||check.command.some(flag=>flag.startsWith('--diagnostic')))throw new Error('Required composed browser/CLI/file scenario was weakened.');}
+  const upgrade=value.checks.find(item=>item.id==='packaged-upgrade');if(upgrade.command[1]!=='scripts/multiplayer-packaged-upgrade-smoke.mjs'||!['--package={candidatePackage}','--package-sha256={candidatePackageSha256}','--baseline={baseline}','--baseline-sha256={baselineSha256}'].every(flag=>upgrade.command.includes(flag)))throw new Error('Required packaged upgrade scenario was weakened.');
   return value;
 }
 
@@ -50,9 +52,9 @@ export async function productionSourceMap(root,contract){
   for(const relative of contract.linuxSourceRoots)await visit(relative);return Object.fromEntries(Object.entries(result).sort(([a],[b])=>a.localeCompare(b)));
 }
 
-export async function readPinnedLinuxReport(file,pin,currentSource,{major}={}){
+export async function readPinnedLinuxReport(file,pin,currentSource,{major,version}={}){
   const {value}=await pinnedJson(file,pin,'Linux report'),directory=await realpath(path.dirname(file)),observation=value.observation;
-  if(value.version!==1||value.status!=='passed'||value.sourceStable!==true||value.container?.status!=='passed'||value.container.platform!=='linux'||!new RegExp('^v'+major+'\\.\\d+\\.\\d+$').test(value.container.node??'')||value.expectedNode!==value.container.node
+  if(value.version!==1||value.status!=='passed'||value.sourceStable!==true||value.container?.status!=='passed'||value.container.platform!=='linux'||!new RegExp('^v'+major+'\\.\\d+\\.\\d+$').test(value.container.node??'')||value.expectedNode!==value.container.node||version&&value.container.node!==version
     ||!/^node@sha256:[a-f0-9]{64}$/.test(value.image?.digest??'')||value.execution?.code!==0||value.execution.timedOut||value.execution.overflow
     ||!observation||!Number.isInteger(observation.tests)||observation.tests<1||observation.tests!==observation.pass||['fail','cancelled','skipped','todo'].some(key=>observation[key]!==0)
     ||!value.source||!equalMap(value.source,currentSource)||hash(json(value.source))!==value.sourceMapSha256
@@ -84,8 +86,21 @@ export async function assertDesktopArtifact(root,resources,artifact,{verifySigna
   const signature=await verify(app);return {resources,app,shell,signature:typeof signature==='string'?signature:'codesign verified'};
 }
 
-export function assessProductionCheck(check,execution,{head,build}={}){
-  const assessed=assessCheck(check,execution);if(assessed.status!=='passed'||!check.workload)return assessed;
+export function assessProductionCheck(check,execution,{head,build,scriptSha256,packageSha256,runtimeArtifactSha256}={}){
+  const assessed=assessCheck(check,execution);if(assessed.status!=='passed')return assessed;
+  if(check.id==='composed-local'||check.id==='composed-linux'){
+    try{const data=JSON.parse(execution.output),mode=check.id.slice('composed-'.length);
+      if(data.version!==1||data.passed!==true||data.diagnostic!==false||data.mode!==mode||data.runs!==2||data.browserContexts!==2||data.shippedCLI!==true||data.rawWriter!==true||data.head!==head||data.build!==build||!digest(scriptSha256)||data.scriptSha256!==scriptSha256||!digest(runtimeArtifactSha256)||data.runtimeArtifactSha256!==runtimeArtifactSha256||!Array.isArray(data.trials)||data.trials.length!==2||data.trials.some(trial=>trial.passed!==true||!digest(trial.canonicalSha256)||trial.runtimeArtifactSha256!==runtimeArtifactSha256||mode==='linux'&&trial.runtimeCopyVerified!==true||['actorIdsDistinct','cliStreamBeforeEOF','rawReconciled','allContextsConverged'].some(key=>trial[key]!==true))||mode==='linux'&&(!/^node@sha256:[a-f0-9]{64}$/.test(data.image?.digest??'')||data.image?.platform!=='linux'||data.image?.node!=='v26.7.0'))throw new Error();
+      return {...assessed,observation:data};
+    }catch{return {status:'failed',reason:'Composed browser/CLI/file evidence is incomplete, stale or lacks both real repeated scenarios.'};}
+  }
+  if(check.id==='packaged-upgrade'){
+    try{const data=JSON.parse(execution.output);
+      if(data.version!==1||data.passed!==true||data.head!==head||data.build!==build||!digest(scriptSha256)||data.scriptSha256!==scriptSha256||!digest(packageSha256)||data.packageSha256!==packageSha256||!digest(runtimeArtifactSha256)||data.runtimeArtifactSha256!==runtimeArtifactSha256||data.old?.sourceCommit!=='be5493ba9a3c5aa796d371043e56d6539d6dabf4'||!data.old?.build||data.target?.build!==build||data.roots!==2||data.upgradeMode!=='disposable-runtime-replacement'||['sameIdRoots','canonicalPreserved','recoveryPreserved','searchBeforeAfter','interruptedRetry','rollbackRecovered'].some(key=>data[key]!==true))throw new Error();
+      return {...assessed,observation:data};
+    }catch{return {status:'failed',reason:'Packaged upgrade evidence is incomplete, stale or does not preserve both roots and recovery data.'};}
+  }
+  if(!check.workload)return assessed;
   try{const data=JSON.parse(execution.output),expected=check.workload;
     const numbers=[data.observations?.canonicalP95Ms,data.observations?.maxRssKiB,data.observations?.canonicalRpcCount,data.resources?.peaks?.historyBytes,data.resources?.peaks?.queuedBytes];
     if(numbers.some(value=>!Number.isFinite(value)||value<0)||data.observations.maxRssKiB===0||data.observations.canonicalRpcCount===0)throw new Error();
@@ -111,10 +126,13 @@ export async function runProductionGate(options){
     const trackedFiles=git(root,['ls-files','-z']).split('\0').filter(Boolean),tracked=await fingerprints(root,trackedFiles),source=await productionSourceMap(root,contract),assertions=await fingerprints(root,await filesBelow(root,contract.assertionRoots));
     report.source={tracked,linuxInputs:source,assertions};
     const linux=[];
-    for(const [major,file,pin]of [[22,options.linuxNode22Report,options.linuxNode22Sha256],[26,options.linuxNode26Report,options.linuxNode26Sha256]])linux.push(await readPinnedLinuxReport(file,pin,source,{major}));
+    for(const [major,file,pin]of [[22,options.linuxNode22Report,options.linuxNode22Sha256],[26,options.linuxNode26Report,options.linuxNode26Sha256]])linux.push(await readPinnedLinuxReport(file,pin,source,{major,version:contract.linuxNodeVersions[major]}));
     const stable=async artifact=>{await assertIntegrationHead(root,options.target,{expectedHead:options.expectedHead,previous:integration});await assertFingerprints(root,tracked,'Integration source');await assertTreeFingerprints(root,contract.assertionRoots,assertions,'Production assertion inputs');if(!equalMap(await productionSourceMap(root,contract),source))throw new Error('Production runtime/harness source changed during verification.');if(artifact)await assertTreeFingerprints(root,['dist'],artifact,'Production tested runtime');};
     await mkdir(path.join(out,'logs'));const contractBytes=await readFile(contractFile);if(hash(contractBytes)!==options.contractSha256)throw new Error('Production contract changed during admission.');await writeFile(path.join(out,'production-contract.json'),contractBytes);
     const reviewedDelta=await pinnedJson(options.delta,options.deltaSha256,'reviewed delta');await writeFile(path.join(out,'reviewed-delta.json'),reviewedDelta.bytes);
+    const candidatePackage=await realpath(options.candidatePackage);
+    const stablePackage=async()=>{const stat=await lstat(options.candidatePackage);if(!digest(options.candidatePackageSha256)||!stat.isFile()||stat.isSymbolicLink()||stat.size>32*1024*1024||hash(await readFile(candidatePackage))!==options.candidatePackageSha256)throw new Error('Candidate package differs from its externally pinned digest.');};
+    await stablePackage();await cp(candidatePackage,path.join(out,'candidate-package.tgz'),{force:false,errorOnExist:true});report.package={file:candidatePackage,sha256:options.candidatePackageSha256};
     const m0=await runGate({mode:'verify',root,out:path.join(out,'protected-M0'),baseline:options.baseline,baselineSha256:options.baselineSha256,deltaFile:options.delta,deltaSha256:options.deltaSha256});
     report.protectedM0={status:m0.status,manifestSha256:m0.manifestSha256,checks:m0.checks,environment:m0.environment};
     if(m0.status!=='passed')throw Object.assign(new Error('Protected original M0 verification did not pass.'),{gateStatus:m0.status});
@@ -128,24 +146,25 @@ export async function runProductionGate(options){
       await cp(evidence.directory,path.join(out,'linux-node'+(index?26:22)),{recursive:true,force:false,errorOnExist:true});
     }
     for(const check of contract.checks){
-      await stable(artifact);if(check.id==='signed-desktop'||check.id==='packaged-diagnostics')await stableDesktop();
-      const actual={...check,command:check.command.map(argument=>argument==='{desktopResources}'?report.desktop.resources:argument)};
+      await stable(artifact);await stablePackage();if(check.id==='signed-desktop'||check.id==='packaged-diagnostics')await stableDesktop();
+      const replacements={desktopResources:report.desktop.resources,candidatePackage,candidatePackageSha256:options.candidatePackageSha256,baseline:await realpath(options.baseline),baselineSha256:options.baselineSha256};
+      const actual={...check,command:check.command.map(argument=>argument.replace(/\{(\w+)\}/g,(match,key)=>replacements[key]??match))};
       const execution=await executeCheck(root,actual);await writeFile(path.join(out,'logs',check.id+'.log'),execution.output);
-      const assessed=assessProductionCheck(check,execution,{head:integration.head,build:report.build.build});report.checks.push({id:check.id,command:actual.command,...assessed});
+      const assessed=assessProductionCheck(check,execution,{head:integration.head,build:report.build.build,scriptSha256:tracked[check.command[1]],packageSha256:options.candidatePackageSha256,runtimeArtifactSha256:hash(json(artifact))});report.checks.push({id:check.id,command:actual.command,...assessed});
       await stable(artifact);if(assessed.status!=='passed')throw Object.assign(new Error('Required production check did not pass: '+check.id),{gateStatus:assessed.status});
     }
-    await stableDesktop();await stable(artifact);
-    for(const [index,evidence]of linux.entries())await readPinnedLinuxReport(path.join(out,'linux-node'+(index?26:22),path.basename(evidence.file)),evidence.pin,source,{major:index?26:22});
+    await stableDesktop();await stable(artifact);await stablePackage();if(hash(await readFile(path.join(out,'candidate-package.tgz')))!==options.candidatePackageSha256)throw new Error('Retained candidate package changed during verification.');
+    for(const [index,evidence]of linux.entries()){const major=index?26:22;await readPinnedLinuxReport(path.join(out,'linux-node'+major,path.basename(evidence.file)),evidence.pin,source,{major,version:contract.linuxNodeVersions[major]});}
     await readBaseline(options.baseline,options.baselineSha256);await readBaseline(path.join(out,'protected-M0'),m0.manifestSha256);await readProductionContract(contractFile,options.contractSha256);await pinnedJson(options.delta,options.deltaSha256,'reviewed delta');
-    const evidenceFiles=await filesBelow(out,['logs','production-contract.json','reviewed-delta.json']);report.evidence=await fingerprints(out,evidenceFiles);
+    const evidenceFiles=await filesBelow(out,['logs','production-contract.json','reviewed-delta.json','candidate-package.tgz']);report.evidence=await fingerprints(out,evidenceFiles);
     report.status='passed';await finish();report.reportSha256=hash(await readFile(path.join(out,'report.json')));return report;
   }catch(error){report.status=error.gateStatus??'blocked';report.error=error.message;await finish();return report;}
 }
 
 async function main(){
-  const names=['target','expected-head','baseline','baseline-sha256','delta','delta-sha256','contract','contract-sha256','linux-node22-report','linux-node22-sha256','linux-node26-report','linux-node26-sha256','desktop-resources','out'];
+  const names=['target','expected-head','baseline','baseline-sha256','delta','delta-sha256','contract','contract-sha256','linux-node22-report','linux-node22-sha256','linux-node26-report','linux-node26-sha256','desktop-resources','candidate-package','candidate-package-sha256','out'];
   const {values}=parseArgs({options:Object.fromEntries([...names.map(name=>[name,{type:'string'}]),['help',{type:'boolean'}]]),strict:true,allowPositionals:false});
-  if(values.help){console.log('Usage: node scripts/multiplayer-production-verify.mjs --target master --expected-head COMMIT --baseline DIR --baseline-sha256 SHA --delta FILE --delta-sha256 SHA --contract-sha256 SHA --linux-node22-report FILE --linux-node22-sha256 SHA --linux-node26-report FILE --linux-node26-sha256 SHA --desktop-resources APP/Contents/Resources --out NEW_DIR');return;}
+  if(values.help){console.log('Usage: node scripts/multiplayer-production-verify.mjs --target master --expected-head COMMIT --baseline DIR --baseline-sha256 SHA --delta FILE --delta-sha256 SHA --contract-sha256 SHA --linux-node22-report FILE --linux-node22-sha256 SHA --linux-node26-report FILE --linux-node26-sha256 SHA --desktop-resources APP/Contents/Resources --candidate-package FILE.tgz --candidate-package-sha256 SHA --out NEW_DIR');return;}
   for(const name of names.filter(name=>name!=='contract'))if(!values[name])throw new Error('Missing --'+name+'. Use --help for the complete protected integration command.');
   const camel=name=>name.replace(/-([a-z0-9])/g,(_,letter)=>letter.toUpperCase());const options=Object.fromEntries(Object.entries(values).map(([name,value])=>[camel(name),value]));
   const report=await runProductionGate(options);console.log(json({status:report.status,integration:report.integration,build:report.build,checks:report.checks.map(({id,status,reason})=>({id,status,...(reason?{reason}:{})})),...(report.reportSha256?{reportSha256:report.reportSha256}:{}),...(report.error?{error:report.error}:{})}));process.exitCode=report.status==='passed'?0:1;

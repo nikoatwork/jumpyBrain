@@ -52,6 +52,7 @@ interface Stream {
   baseRevision: number;
   sequence: number;
   state: "active" | "cancelled" | "finished";
+  reason?: "cancelled" | "lease_expired" | "authorization_revoked";
 }
 export interface ModelOptions {
   epoch: string;
@@ -509,12 +510,17 @@ export class SourceModel {
     stream.sequence++;
     return result;
   }
-  cancelStream(actor: string, streamId: string) {
+  cancelStream(
+    actor: string,
+    streamId: string,
+    reason: Stream["reason"] = "cancelled",
+  ) {
     const key = this.identity(actor, streamId),
       stream = this.streams.get(key) ?? this.retiredStreams.get(key);
     if (!stream) fail("stream_inactive");
     if (stream.state !== "active") return stream;
     stream.state = "cancelled";
+    stream.reason = reason;
     this.streams.delete(key);
     this.retiredStreams.set(key, stream);
     this.retain();
