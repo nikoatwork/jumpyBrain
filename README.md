@@ -171,7 +171,7 @@ No. When both point at the same folder, they read and write one set of Markdown 
 
 **I already use Notion. Why add this?**
 
-Choose jumpyBrain when you want a focused writing and knowledge workspace that you and your agents can use directly, with portable Markdown and control over where it runs. “Agent-first Notion” describes that experience; jumpyBrain focuses on notes, connections, and recall. Databases, project management, and real-time co-editing are outside its current scope.
+Choose jumpyBrain when you want a focused writing and knowledge workspace that you and your agents can use directly, with portable Markdown and control over where it runs. “Agent-first Notion” describes that experience; jumpyBrain focuses on notes, connections, and recall. Humans and streaming agents can edit notes live together. Databases and a general-purpose project-management suite remain outside its scope.
 
 **Do I have to move everything at once?**
 
