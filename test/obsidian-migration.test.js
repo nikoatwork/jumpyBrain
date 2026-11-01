@@ -31,6 +31,45 @@ async function tree(root) {
   return entries;
 }
 
+test("Obsidian keeps deep vault folders and same-named notes distinct through import and rerun", async t => {
+  const { source, root } = await fixture(t);
+  const documents = [
+    ["Plan.md", "notes/Plan.md", "Vault overview"],
+    ["Projects/Garden/Plan.md", "notes/Projects/Garden/Plan.md", "Garden planting plan"],
+    ["Projects/Workshop/Plan.md", "notes/Projects/Workshop/Plan.md", "Workshop building plan"],
+    ["Journal/2026/November/01.md", "notes/Journal/2026/November/01.md", "Daily journal"],
+  ];
+  for (const [file, , body] of documents) await put(source, file, body);
+  await mkdir(path.join(source, "Empty folder"));
+  await put(source, "Attachments/image.png", "synthetic attachment");
+  const sourceBefore = await tree(source);
+  const expectedPaths = documents.map(([, output]) => output).sort();
+  const preview = await migrateObsidian(source, root);
+  assert.deepEqual(preview.entries.map(entry => entry.outputPath).sort(), expectedPaths);
+  assert.equal(existsSync(root), false);
+
+  const applied = await migrateObsidian(source, root, { apply: true });
+  assert.equal(applied.created, documents.length);
+  assert.equal(new Set(applied.entries.map(entry => entry.id)).size, documents.length);
+  assert.deepEqual((await listCanonicalMemoryMarkdownFiles(root)).map(file => path.relative(root, file)).sort(), expectedPaths);
+  for (const [sourcePath, outputPath, body] of documents) {
+    const entry = applied.entries.find(candidate => candidate.sourcePath === sourcePath);
+    assert.ok(entry);
+    assert.equal(entry.outputPath, outputPath);
+    assert.equal((await readCanonicalMemoryDocumentById(root, entry.id)).file, outputPath);
+    assert.equal((await resolveCanonicalMemoryDocumentByTitle(root, sourcePath.slice(0, -3))).id, entry.id);
+    assert.equal(parseMigrationEnvelope(await readFile(path.join(root, outputPath))).body.toString(), body);
+  }
+  assert.equal(existsSync(path.join(root, "notes/Empty folder")), false);
+  assert.equal(existsSync(path.join(root, "notes/Attachments")), false);
+  const importedBefore = await tree(root);
+  const rerun = await migrateObsidian(source, root, { apply: true });
+  assert.equal(rerun.unchanged, documents.length);
+  assert.equal(rerun.created + rerun.overwritten + rerun.deleted, 0);
+  assert.deepEqual(await tree(root), importedBefore);
+  assert.deepEqual(await tree(source), sourceBefore);
+});
+
 test("Obsidian preserves literal paths, all source bytes and protected YAML behind its own envelope", async t => {
   const { source, root } = await fixture(t);
   const names = ["Root.md", "nested/Root.MD", "spaces 日本語 🐐/Some%20Title___Child.md", "gold.md", "answer_session_ids.md", "build/logs/topic.md", "2020-02-29.md"];

@@ -19,7 +19,7 @@ export async function migrateCli(args: ParsedCliArgs, localMemory: LocalMemoryTr
     console.log(JSON.stringify(result, null, 2));
   } else {
     const lines = [
-      ...("notes" in result ? [`Obsidian migration ${result.dryRun ? "dry-run" : result.applied ? "applied" : "not applied"}: ${result.notes} notes → notes; original body bytes preserved`] : [`Logseq migration ${result.dryRun ? "dry-run" : result.applied ? "applied" : "not applied"}: ${result.pages} pages → notes, ${result.journals} journals → sessions`]),
+      ...("notes" in result ? [`Obsidian migration ${result.dryRun ? "dry-run" : result.applied ? "applied" : "not applied"}: ${result.notes} notes → notes/; Markdown folder structure, filenames and original body bytes preserved`] : [`Logseq migration ${result.dryRun ? "dry-run" : result.applied ? "applied" : "not applied"}: ${result.pages} pages → notes, ${result.journals} journals → sessions`]),
       `Actions: create ${result.created}, overwrite ${result.overwritten}, delete ${result.deleted}, unchanged ${result.unchanged}`,
       ...("conversion" in result ? [`Body format: ${result.conversion.bodyFormat} v${result.conversion.bodyVersion}; changed ${result.conversion.changedDocuments}, preserved ${result.conversion.preservedDocuments}, with limitations ${result.conversion.unsupportedDocuments}; outline markers removed ${result.conversion.removedOutlineMarkers}, nested blocks retained ${result.conversion.retainedNestedBlocks}`] : []),
       `Destination: ${result.root}`,

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — Obsidian folder preservation verified
+
+- Clarified existing nested-folder preservation under `notes/` in import guidance and CLI summaries; verified deep folders and distinct same-named notes through import and reruns. [Verification and limits](done/2026-11-01_tasks-obsidian-folder-preservation.md).
+
 ## 2026-10-31 — v0.3.15 beta published
 
 - Shipped default-on board navigation and the matching Boards Settings icon, reusing completed tests at the owner’s request. Public tag, versions, notes and artifact digest verified. [Release notes](done/releases/v0.3.15.md), [QA](done/releases/v0.3.15.qa.md) and [completed task](done/2026-10-31_tasks-release-v0.3.15.md).
