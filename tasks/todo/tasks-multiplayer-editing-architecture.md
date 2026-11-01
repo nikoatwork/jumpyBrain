@@ -1,6 +1,6 @@
 # Shared backend and live multiplayer editing
 
-Status: active, 2026-11-01. Architecture planning and M0 verification are authorized now. Later implementation stages remain unstarted. Dedicated branch: plan/multiplayer-memory-architecture.
+Status: active, 2026-11-01. Architecture plan and M0 automated baseline are complete; M1–M5 remain unstarted. Dedicated branch: plan/multiplayer-memory-architecture.
 
 ## Goal
 
@@ -20,7 +20,7 @@ Deliver smooth live simultaneous editing for humans and streaming agents over on
 
 | Level | Completion evidence | Current state |
 | --- | --- | --- |
-| M0 | Protected current-behavior contract, immutable baseline/artifact/environment manifest, reproducible checks, negative verifier tests, explicit coverage gaps. | In progress. |
+| M0 | Protected current-behavior contract, immutable baseline/artifact/environment manifest, reproducible checks, negative verifier tests, explicit coverage gaps. | Passed for the recorded macOS/loopback automated scope; see the evidence record. |
 | M1 | One discoverable root owner; compatible app/CLI lifecycle; reader/writer enforcement; proven storage/editor prototype. | Unstarted. |
 | M2 | Scoped authenticated live state, external-file invalidation, gap-free snapshots, bounded reconnect and revocation. | Unstarted. |
 | M3 | Two humans edit concurrently with correct source preservation, undo, selection, drafts and durable Markdown saves. | Unstarted. |
@@ -61,14 +61,14 @@ The minimum final demonstration is two separate human browser contexts, one agen
 
 ## Tasks
 
-- [ ] 1.0 M0: freeze and reproduce current behavior before moving architecture.
+- [x] 1.0 M0: freeze and reproduce current behavior before moving architecture.
   - [x] 1.1 Inspect existing source/docs/tests and capture the planning seed, user-selected target, direct-file limitations, and T3 ownership patterns in this worktree.
   - [x] 1.2 Publish the current-behavior inventory mapping P01–P12 to exact assertions and real browser/CLI/server fixtures. Identify known defects, skipped checks and coverage gaps; do not equate test counts with complete behavioral coverage.
   - [x] 1.3 Add a small versioned parity contract and Node verifier with capture/verify commands, machine-readable scenario outcomes and required-check completeness. Protect frozen assertions, fixtures, harness/contract hashes and baseline artifact integrity; candidate verification must not rewrite its baseline.
-  - [ ] 1.4 Record exact source/tree, dependency locks, tool versions, artifact digest, environment, commands, outputs and limits. Freeze the built baseline outside mutable dist. Reject ambiguous baseline captures with runtime changes outside the declared source.
-  - [ ] 1.5 Run the existing deterministic suite plus selected real editor/external-file, note-lifecycle, formatting and companion gateway smokes on disposable roots. Surface prerequisites/skips distinctly. Preserve real canonical assertions, existing independent-merge and stale-save protections.
+  - [x] 1.4 Record exact source/tree, dependency locks, tool versions, artifact digest, environment, commands, outputs and limits. Freeze the built baseline outside mutable dist. Reject ambiguous baseline captures with runtime changes outside the declared source.
+  - [x] 1.5 Run the existing deterministic suite plus selected real editor/external-file, note-lifecycle, formatting and companion gateway smokes on disposable roots. Surface prerequisites/skips distinctly. Preserve real canonical assertions, existing independent-merge and stale-save protections.
   - [x] 1.6 Test the verifier with deliberate missing/failed/skipped checks, weakened assertions/fixture drift, corrupt artifacts/manifests, dirty runtime sources and timeouts. Demonstrate it rejects false-green evidence.
-  - [ ] 1.7 Verify the unchanged runtime against the frozen baseline a second time to establish reproducibility. Record exact results and portability limits. Only mark M0 complete for the named automated scope; open required coverage work for unverified future changed paths.
+  - [x] 1.7 Verify the unchanged runtime against the frozen baseline a second time to establish reproducibility. Record exact results and portability limits. Only mark M0 complete for the named automated scope; open required coverage work for unverified future changed paths.
 
 - [ ] 2.0 M1 design gate: prove canonical storage and collaboration fit before broad refactoring.
   - [ ] 2.1 Prototype a Lexical collaboration binding and a source-oriented alternative on the real custom node/source-preservation corpus. Pin compatible released versions; measure any upgrade or experimental dependency cost.
@@ -76,6 +76,7 @@ The minimum final demonstration is two separate human browser contexts, one agen
   - [ ] 2.3 Prove granular human and streaming-agent edits preserve concurrent work in repeated/ambiguous text and structural changes. Compare convergence with expected user intent, local undo and source fidelity; document limitations and recovery.
   - [ ] 2.4 Specify and test observed raw-file ingestion, finite stabilization/max-wait recovery, intentional empty edits versus temporary truncation, missed-event reconciliation, self-echo suppression and publication races. Record the noncooperating-writer boundary explicitly.
   - [ ] 2.5 Choose the smallest approach that passes the prototypes. Record an architecture decision, dependency/resource budgets and required module boundaries. A failed prototype blocks broad migration; transport plumbing is not a substitute.
+  - [ ] 2.6 Wire the parity/stage commands into the actual integration workflow before the first architecture implementation merge: required checks where supported, or an explicit local pre-merge procedure testing the proposed integration tree and retaining its report. A documented rule or optional script alone is not automatic merge enforcement.
 
 - [ ] 3.0 M1 implementation: one backend owner and real server authorization.
   - [ ] 3.1 Define root-instance discovery/readiness, atomic startup ownership, explicit stop/drain and executable/protocol compatibility. Exercise concurrent starts, stale records, path aliases, foreign ports and crashes.
@@ -116,7 +117,7 @@ The minimum final demonstration is two separate human browser contexts, one agen
 
 ## Evidence protocol
 
-M0 tooling and exact commands are being implemented in this task. Until recorded as passed below, runner names and later stage scenarios describe intended checks, not existing capability.
+M0 tooling and exact commands are implemented; use the [M0 verification guide and evidence](../../deep-dives/multiplayer-editing/M0-verification.md). Later-stage scenarios describe intended checks, not existing collaboration capability.
 
 Each run must record baseline/contract/harness identity, source/artifact/tree and lockfile hashes, toolchain/platform, declared scenario IDs, command results, canonical output assertions, skips, and untested boundaries. Candidate changes must not replace expected output with observed output. Keep bulky logs/artifacts in ignored local output; commit only the small sanitized manifest/summary needed to reproduce it.
 
@@ -131,7 +132,9 @@ The expected first gate includes npm test and the existing scripts/external-docu
 - Reviewed capture: all 1,566 tests passed, as did external-file/editor and formatting smokes. Note-lifecycle search-result discovery and the gateway Settings traffic assertion failed. The runner refused to publish an accepted baseline. Diagnosis and any assertion-preserving fixture correction are required before M0 can pass.
 - Live diagnosis established stale smoke assumptions rather than a runtime defect: navigation search intentionally excludes the open note, and Settings legitimately reads board metadata. The lifecycle fixture now asserts current-note exclusion and immediate discovery from Home; the gateway fixture permits only the exact board-list GET while continuing to reject note/search/index/write traffic. Production runtime behavior is unchanged; these explicit initial-contract corrections require a fresh capture.
 - A third stale gateway expectation treated legitimate active-brain sidebar previews as old-bookmark activation. The corrected assertion retains rejected-note URL/toast checks and verifies Home, a hidden note panel and no replacement body hydration in the editor. Targeted lifecycle and all 14 gateway cases now pass. The verifier's 17 focused negative/unit checks pass. A scoped setup commit is required before final capture because corrected existing smoke scripts are protected source inputs.
-- Baseline capture, repeat verification and exact pass/failure evidence: pending. No maturity level is claimed complete yet.
+- Authoritative capture and independently pinned repeat verification at be5493ba9a3c5aa796d371043e56d6539d6dabf4 each passed all 1,566 tests and all four real browser flows with zero failures/skips/TODOs. All 438 runtime files were byte-identical. The [M0 evidence record](../../deep-dives/multiplayer-editing/M0-verification.md) pins both manifest digests, source/tree/toolchain, timings and exact scope.
+- M0 is complete for the named macOS arm64/loopback lexical scope. Real Linux/VPS HTTPS, semantic models, physical Keychain/IME/accessibility, installed upgrades and the new collaboration capabilities remain explicitly unverified and owned by later tasks. The implementation roadmap remains active rather than archiving unfinished work.
+- No production runtime source, installed app, personal/shared brain or live VPS was changed. No merge, push, app installation or release was performed. Locked worktree development dependencies were installed for verification. Changelog/release notes are unchanged because this delivers a refactor plan and internal verification tooling, not the proposed product architecture.
 
 ## Relevant existing seams
 
