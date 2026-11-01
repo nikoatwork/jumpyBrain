@@ -4,8 +4,8 @@ Requested 2026-11-01: deploy latest / cut a release. Default patch beta publicat
 
 - [x] Check live feedback, release history, clean snapshot and pending scope.
 - [x] Prepare fresh desktop package and core note-lifecycle smoke; reuse unchanged feature evidence.
-- [ ] Run release dry run and full aligned-version release workflow.
-- [ ] Verify public tag, versions, exact notes and downloaded artifact digest; archive notes/QA and commit/push bookkeeping.
+- [x] Run release dry run and full aligned-version release workflow.
+- [x] Verify public tag, versions, exact notes and downloaded artifact digest; archive notes/QA and commit/push bookkeeping.
 
 ## Scope and evidence
 
@@ -28,4 +28,9 @@ Sanitized triage: folder browsing is addressed by this release; private writable
 - Inspected the board Settings screenshot: fresh checkboxes are off, with labels and layout intact.
 - `git diff --check` passed. Logs: `/tmp/jumpybrain-v0.3.16-{desktop,core}.log`.
 
-Pending versioned full suite and publication. Detailed final QA will be archived alongside exact published notes.
+Published and verified 2026-11-01T09:19:16Z: https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.16, release commit `847c02c74ae57fb9533ca7b520a9defcd7deb497`.
+
+- Release dry run and full `npm run release` passed; all four package manifests/lockfiles align at 0.3.16. Mandatory versioned suite: 1,546 passed, one existing optional skip, zero failures.
+- Distribution validated 243 required assets, feedback configuration and package budgets. One public tarball: 1,260,822 bytes; downloaded/local/GitHub SHA-256 agree: `sha256:cbca340e1a8b8b51652d9f39fe5106f49262f5eaddbfe53e966f34e2c720aad3`.
+- Annotated origin tag/peeled commit, exact public notes, packed component versions, new runtime dependency lock, private engine lock/bootstrap and default-off sidebar code verified. Exact shipped notes archived at [v0.3.16.md](releases/v0.3.16.md); queue reset. [QA and limits](releases/v0.3.16.qa.md).
+- No local app installation, VPS deployment or additional personal-use window performed for publication.

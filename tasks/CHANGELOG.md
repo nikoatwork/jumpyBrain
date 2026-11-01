@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — v0.3.16 beta published
+
+- Shipped folder browsing, verified agent installation, Obsidian folder guidance and default-off board sidebar pages. Public artifact and aligned versions verified. [Release notes](done/releases/v0.3.16.md), [QA](done/releases/v0.3.16.qa.md).
+
 ## 2026-11-01 — Board sidebar pages default off
 
 - Unconfigured boards keep sidebar pages hidden; explicit saved choices remain intact. [Verification and limits](done/2026-11-01_tasks-board-sidebar-default-off.md).
