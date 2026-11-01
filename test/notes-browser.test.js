@@ -8,7 +8,7 @@ import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback
 
 const script = [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals = {}) {
-  const context = vm.createContext({ hostedIdentityChannel: null, hostedPrincipalId: null, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
+  const context = vm.createContext({ hostedIdentityChannel: null, hostedPrincipalId: null, lifecycleActions: { refreshRetained() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
   vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }
@@ -84,7 +84,9 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   };
   const removed = [];
   let graphResets = 0;
+  let retainedRefreshes = 0;
   const context = runtime(["renderConnection", "maskApiKey", "closeConnection", "setConnectionKey"], {
+    lifecycleActions: { refreshRetained() { retainedRefreshes++; } },
     $, systemMessages: { sync() {} }, map: { reset() { graphResets++; } }, cancelReferenceInteraction() {}, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
     apiKeyInput: { value: "unsaved-edit", type: "text" },
     connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) },
@@ -101,6 +103,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   assert.equal(context.apiKeyInput.value, "");
   assert.equal(context.credentialRevision, 1);
   assert.equal(graphResets, 1, "credential changes evict the prior graph scope");
+  assert.equal(retainedRefreshes, 1, "credential changes refresh the retained-version scope");
   assert.equal($("open-connection")["aria-label"], "Connect · Connection settings");
   assert.equal($("disconnect").hidden, true);
   assert.deepEqual(removed, ["jumpybrain.graph.apiKey"]);

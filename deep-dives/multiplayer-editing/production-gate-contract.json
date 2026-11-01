@@ -47,7 +47,10 @@
     "integrations/electron/smoke-unified-app.mjs",
     "scripts/multiplayer-production-verify.mjs",
     "scripts/collaboration-composed-smoke.mjs",
-    "scripts/multiplayer-packaged-upgrade-smoke.mjs"
+    "scripts/multiplayer-packaged-upgrade-smoke.mjs",
+    "scripts/native-collaboration-input-smoke.mjs",
+    "scripts/collaboration-cursor-proof.mjs",
+    "scripts/collaboration-retained-versions-smoke.mjs"
   ],
   "checks": [
     {
@@ -60,7 +63,8 @@
       "markers": [
         "Production collaboration editor smoke passed:",
         "cloned-tab actor isolation and explicit recovery selector",
-        "title normalization and draft-version preservation"
+        "title normalization and draft-version preservation",
+        "granular edits and visible revisioned cursors"
       ]
     },
     {
@@ -86,6 +90,19 @@
         "Hosted browser session smoke: PASS",
         "cross-tab identity fences",
         "explicit reviewed recovery"
+      ]
+    },
+    {
+      "id": "retained-version-ui",
+      "command": [
+        "node",
+        "scripts/collaboration-retained-versions-smoke.mjs"
+      ],
+      "timeoutMs": 240000,
+      "markers": [
+        "\"passed\": true",
+        "\"realBrowser\": true",
+        "\"authenticatedAPI\": true"
       ]
     },
     {
@@ -167,6 +184,19 @@
       }
     },
     {
+      "id": "native-input-accessibility",
+      "command": [
+        "node",
+        "scripts/native-collaboration-input-smoke.mjs",
+        "--resources",
+        "{desktopResources}"
+      ],
+      "timeoutMs": 180000,
+      "markers": [
+        "Native collaboration IME/accessibility: PASS"
+      ]
+    },
+    {
       "id": "signed-desktop",
       "command": [
         "node",
@@ -225,5 +255,43 @@
   "linuxNodeVersions": {
     "22": "v22.12.0",
     "26": "v26.7.0"
+  },
+  "scenarioAssertions": {
+    "integrations/electron/smoke-unified-app.mjs": "595939bec202f510580dd8f93ae2c058e2d3020b7cb180432f164a4bed8c1cd6",
+    "scripts/browser-session-smoke.mjs": "59a2682d8ed07b4c87351baf062ce9d7bc73db1549e7d270c50224024d2577dc",
+    "scripts/collaboration-composed-smoke.mjs": "67e98df22a42fea45893f87b7363169fc94735f2b11012738fcc6ddaf81bdbd7",
+    "scripts/collaboration-cursor-proof.mjs": "6ab1d54bfa853310b887243d4b4aea25086c20c08ee04dbaa192e0f1f2c11d65",
+    "scripts/collaboration-editor-smoke.mjs": "c033f2c9938a291bb86359e668e5206e67094ee4b6f12e3e2f2e7cfec0125f2f",
+    "scripts/collaboration-production-evidence.mjs": "fdbf49d73fcfabfbd3f1e2188cf0b1116a398d9aeb4f204812a0addda43c86b4",
+    "scripts/collaboration-retained-versions-smoke.mjs": "05522b6ca56b867b8c27d8e0dafd344ad808c65418184f2c45613746696be35f",
+    "scripts/diagnostics-electron-smoke.mjs": "0572352d0b6b483111281997455b7a5ffb994c576fc2edf333fb432ca04add18",
+    "scripts/fixtures/native-collaboration-input-electron.mjs": "ba763d3da2fede7ea9662821b55af545e1e30f177de6c691d9f3daa4f5de0e1a",
+    "scripts/lexical-editor-smoke.mjs": "0b65b98d940e53c8123d2ad2818e740597dbb6b99249332f5dce94c10ae25115",
+    "scripts/multiplayer-packaged-upgrade-smoke.mjs": "2f91d388423ab9af5f3fa8223da2d5b8dbce4499ea0967c08f60aef81a30828c",
+    "scripts/multiplayer-production-verify.mjs": "c0d6e41fb007aa74a15ff2c61d3a75fba3c8f11336ef1fbabeaf7a8117603521",
+    "scripts/native-collaboration-input-smoke.mjs": "4bbd4f61731205ea080b55a5e8bad16cfd5039780e061b9a981cc2dcc3d0e1e6",
+    "scripts/unified-desktop-smoke.mjs": "3fa19fe501a89858f1856ead46284f9b280e23546f92d4fe1b94f9d309a202dd",
+    "test/access-control.test.js": "44334275ba528bb0be4e7da14d0ac02ac41ea997735e9cdc414c2d800ab86043",
+    "test/backend-control.test.js": "18b5a9eb1b38f7e049340b18929df835d886dd8f13abbe495cb4dbc882d3ee23",
+    "test/backend-host.test.js": "806b3fde1eb2c8d9e21908ffc82514e32de9e7c702613dbe4918c199a83ca1dc",
+    "test/backend-maintenance.test.js": "2e7c4b06ad277b6d3b57b02745b0349c6c6c5445cb51a21a48b2dab5c4d6b27a",
+    "test/browser-session.test.js": "4d6165f55283e9b234da7db89671223e92f4a5a5fb9a21454721508a752916c1",
+    "test/collaboration-advanced-model.test.js": "79ba03acfab90d0817f75fbaa53cae2a3048d4931e36717ef94202dc50474004",
+    "test/collaboration-batch-hub.test.js": "fe6df6af2cf9c0e688f7d3b705f5b22ddcd2eec6bc9dad4ff9b924845d105f34",
+    "test/collaboration-cli-read-base.test.js": "60c84267ed9d3a526c0da64f3ca67cf779a7cc1cd9030e4fdd70d799e65450f6",
+    "test/collaboration-cli.test.js": "94a16e374efb824b1c3293abebb8931ef50180b3c07216351d639980e4286ad3",
+    "test/collaboration-durability.test.js": "d69414e5ae19a93438b1af848daf452efb63c4d27117e24fce6d9961876989da",
+    "test/collaboration-editor.test.js": "9e15d24f72380fc4f9a566795c0e4df15550d930abf25c53bacaa411f8786af6",
+    "test/collaboration-http-races.test.js": "075d0ed3f9cd96b928c3ccb2b6da04261deb4c5fd042893b44586c98c39256aa",
+    "test/collaboration-hub.test.js": "9311041aad32c8ad4fed0cdcec90ed29d93b6079b91846adf390cb146d664889",
+    "test/collaboration-live.test.js": "fb8e4345e5fa93ec70c24a82ad982c20f409ce55e0994d2514186b0c198844e8",
+    "test/collaboration-model.test.js": "94758a692faa5bc16afb54f41367ace5b31cc06e709b8439e6a71a998cb38d82",
+    "test/collaboration-presence-recovery.test.js": "0f7d459b45d085330d2b58ed6216f8f12bd6b981cbbe521b255e7730f452cd1a",
+    "test/collaboration-tls.test.js": "f659640ceac8227ccf9f286f4c406155cf58a1dcbfbdfcf1a41de81d7a642778",
+    "test/editor-source-map.test.js": "2539b97f7fb770aaaa3f7eb0a1611813a88726a42de9e7469a634fc607d5dc75",
+    "test/electron-live-network.test.js": "e69f09c2691e8549d9ee3bc62ad99081e8322b4eedd536bd415e0589465fbd2f",
+    "test/filesystem-publication.test.js": "7caaa085307ca1e726779f1dc66ebae75ce7f0663ee55957ed51cc229275a164",
+    "test/multiplayer-production-gate.test.js": "1c31ff0af8f65e93447f1daed99631390a1e989b47fdf0cc98d881677ae4915d",
+    "test/multiplayer-upgrade.test.js": "8a0f7dcfc6439ffbffec25eccc2f568105b7c0bfc4be82c4b83d4ba312fe377f"
   }
 }

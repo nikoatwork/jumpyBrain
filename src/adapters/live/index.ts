@@ -1,6 +1,6 @@
 import type { Server, IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
-import { WebSocket, WebSocketServer, type RawData } from "./ws.js";
+import { WebSocket, WebSocketServer, type RawData } from "../websocket/index.js";
 import { CollaborationError } from "../../core/collaboration/index.js";
 import type {
   CollaborationHub,
@@ -374,6 +374,10 @@ export function createLiveServer(options: LiveServerOptions) {
           subscriptions.delete(params.documentId);
           options.hub.leave(current, subscription.clientId, params.documentId);
           send({ id, ok: true, result: { closed: true } });
+          return;
+        }
+        if (method === "recovery.read") {
+          send({ id, ok: true, result: await options.hub.readRecovery(params, current) });
           return;
         }
         if (!methods.has(method))

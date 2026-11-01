@@ -7,6 +7,8 @@
 
 Each connection has one ordered request queue, bounded frames, subscriptions, connection count and outgoing buffered bytes. Slow or oversized clients disconnect and must reopen from a canonical snapshot. No mutation is blindly replayed on reconnect. The hub atomically opens a subscription and snapshot, publishes before acknowledging, and keeps document policy independent from this adapter.
 
+The shared third-party implementation lives in `../websocket/`; this module owns live protocol policy. The CLI and native gateway consume that transport directly and do not import this server adapter for library access.
+
 Requests are `{id,method,params}`, replies `{id,ok,result}` or `{id,ok:false,error:{code,message}}`. Document events contain `{event:"document",documentId,snapshot}`. See the application collaboration module for snapshot and edit contracts. Closing the adapter terminates its sockets; closing an app window does not stop its host backend.
 
 ## Non-responsibilities

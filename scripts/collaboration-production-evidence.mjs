@@ -411,7 +411,7 @@ try {
     "src/app/local-memory/index.ts",
     "src/app/collaboration/index.ts",
     "src/adapters/live/index.ts",
-    "src/adapters/live/ws.ts",
+    "src/adapters/websocket/index.ts",
     "src/adapters/access-control/index.ts",
     "src/core/document-update.ts",
     "src/core/contribution.ts",

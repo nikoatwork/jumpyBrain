@@ -12,7 +12,9 @@ const repository=fileURLToPath(new URL('..',import.meta.url));
 const contractDefault='deep-dives/multiplayer-editing/production-gate-contract.json';
 const baselinePin='739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2';
 const originalContractPin='27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a';
-const requiredIds=['production-editor','lexical-structure','hosted-browser-session','composed-local','composed-linux','local-workload','shared-workload','signed-desktop','packaged-diagnostics','packaged-upgrade'];
+const requiredIds=['production-editor','lexical-structure','hosted-browser-session','retained-version-ui','composed-local','composed-linux','local-workload','shared-workload','native-input-accessibility','signed-desktop','packaged-diagnostics','packaged-upgrade'];
+const retainedScenarios=['notification','compare-copy','writer-restore','reader-readonly','stale-comparison','revocation','unique-draft','storage-failure','large-copy-fallback','discovery-incomplete','scope-switch'];
+const requiredScenarioTests=['access-control','backend-host','backend-control','backend-maintenance','browser-session','collaboration-advanced-model','collaboration-batch-hub','collaboration-cli','collaboration-cli-read-base','collaboration-durability','collaboration-editor','collaboration-hub','collaboration-http-races','collaboration-live','collaboration-model','collaboration-presence-recovery','collaboration-tls','editor-source-map','electron-live-network','filesystem-publication','multiplayer-upgrade','multiplayer-production-gate'].map(name=>'test/'+name+'.test.js');
 const acceptance={canonicalP95Ms:1000,peakRssBytes:536870912,historyBytes:33554432,queuedBytes:33554432,rpcDeadlineMs:10000};
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
 const json=value=>JSON.stringify(value,null,2)+'\n';
@@ -34,8 +36,14 @@ export async function readProductionContract(file,pin){
   for(const [id,actors,humans,rounds,notes,seed]of [['local-workload',3,2,20,128,1592594996],['shared-workload',8,5,100,256,1592594997]]){const check=value.checks.find(item=>item.id===id),workload=check.workload;if(workload?.actors!==actors||workload?.humans!==humans||workload.rounds<rounds||workload.notes<notes||workload.seed!==seed||![`--actors=${actors}`,`--humans=${humans}`,`--rounds=${workload.rounds}`,`--notes=${workload.notes}`,`--seed=${seed}`].every(flag=>check.command.includes(flag)))throw new Error('Required production workload was weakened.');}
   for(const mode of ['local','linux']){const check=value.checks.find(item=>item.id==='composed-'+mode);if(check.command[1]!=='scripts/collaboration-composed-smoke.mjs'||!check.command.includes('--mode='+mode)||!check.command.includes('--runs=2')||check.command.some(flag=>flag.startsWith('--diagnostic')))throw new Error('Required composed browser/CLI/file scenario was weakened.');}
   const upgrade=value.checks.find(item=>item.id==='packaged-upgrade');if(upgrade.command[1]!=='scripts/multiplayer-packaged-upgrade-smoke.mjs'||!['--package={candidatePackage}','--package-sha256={candidatePackageSha256}','--baseline={baseline}','--baseline-sha256={baselineSha256}'].every(flag=>upgrade.command.includes(flag)))throw new Error('Required packaged upgrade scenario was weakened.');
+  const native=value.checks.find(item=>item.id==='native-input-accessibility');if(native.command[1]!=='scripts/native-collaboration-input-smoke.mjs'||!native.command.includes('--resources')||!native.command.includes('{desktopResources}'))throw new Error('Required native input/accessibility scenario was weakened.');
+  if(value.checks.find(item=>item.id==='retained-version-ui').command[1]!=='scripts/collaboration-retained-versions-smoke.mjs')throw new Error('Required retained-version UI scenario was weakened.');
+  const assertions=value.scenarioAssertions;
+  if(!assertions||typeof assertions!=='object'||Array.isArray(assertions)||Object.entries(assertions).some(([file,pin])=>!relativeFile(file)||!digest(pin))||[...requiredScenarioTests,...value.checks.map(check=>check.command[1]),'scripts/collaboration-cursor-proof.mjs','scripts/fixtures/native-collaboration-input-electron.mjs','integrations/electron/smoke-unified-app.mjs','scripts/multiplayer-production-verify.mjs'].some(file=>!digest(assertions[file])))throw new Error('Protected production scenario assertions are incomplete or weakened.');
   return value;
 }
+
+export async function assertScenarioAssertions(root,contract){await assertFingerprints(root,contract.scenarioAssertions,'Protected production scenario assertion');}
 
 export async function assertIntegrationHead(root,target,{expectedHead,previous}={}){
   if(!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(target??'')||target.includes('..'))throw new Error('An explicit integration target ref is required.');
@@ -88,6 +96,12 @@ export async function assertDesktopArtifact(root,resources,artifact,{verifySigna
 
 export function assessProductionCheck(check,execution,{head,build,scriptSha256,packageSha256,runtimeArtifactSha256}={}){
   const assessed=assessCheck(check,execution);if(assessed.status!=='passed')return assessed;
+  if(check.id==='retained-version-ui'){
+    try{const data=JSON.parse(execution.output);
+      if(data.version!==1||data.passed!==true||data.realBrowser!==true||data.authenticatedAPI!==true||data.head!==head||data.build!==build||!digest(scriptSha256)||data.scriptSha256!==scriptSha256||!Array.isArray(data.scenarios)||data.scenarios.length!==retainedScenarios.length||data.scenarios.some(scenario=>scenario.passed!==true)||new Set(data.scenarios.map(scenario=>scenario.id)).size!==retainedScenarios.length||retainedScenarios.some(id=>!data.scenarios.some(scenario=>scenario.id===id)))throw new Error();
+      return {...assessed,observation:data};
+    }catch{return {status:'failed',reason:'Retained-version UI proof is incomplete, stale or omits a required real-browser recovery scenario.'};}
+  }
   if(check.id==='composed-local'||check.id==='composed-linux'){
     try{const data=JSON.parse(execution.output),mode=check.id.slice('composed-'.length);
       if(data.version!==1||data.passed!==true||data.diagnostic!==false||data.mode!==mode||data.runs!==2||data.browserContexts!==2||data.shippedCLI!==true||data.rawWriter!==true||data.head!==head||data.build!==build||!digest(scriptSha256)||data.scriptSha256!==scriptSha256||!digest(runtimeArtifactSha256)||data.runtimeArtifactSha256!==runtimeArtifactSha256||!Array.isArray(data.trials)||data.trials.length!==2||data.trials.some(trial=>trial.passed!==true||!digest(trial.canonicalSha256)||trial.runtimeArtifactSha256!==runtimeArtifactSha256||mode==='linux'&&trial.runtimeCopyVerified!==true||['actorIdsDistinct','cliStreamBeforeEOF','rawReconciled','allContextsConverged'].some(key=>trial[key]!==true))||mode==='linux'&&(!/^node@sha256:[a-f0-9]{64}$/.test(data.image?.digest??'')||data.image?.platform!=='linux'||data.image?.node!=='v26.7.0'))throw new Error();
@@ -122,7 +136,7 @@ export async function runProductionGate(options){
     const contract=await readProductionContract(contractFile,options.contractSha256);report.limits=contract.limits;
     if(options.baselineSha256!==contract.protectedM0.baselineSha256)throw new Error('Production verification must retain the pinned original M0 baseline.');
     const frozen=await readBaseline(options.baseline,options.baselineSha256);if(frozen.contractHash!==contract.protectedM0.contractSha256)throw new Error('The original M0 contract differs.');
-    const integration=await assertIntegrationHead(root,options.target,{expectedHead:options.expectedHead});report.integration=integration;
+    const integration=await assertIntegrationHead(root,options.target,{expectedHead:options.expectedHead});report.integration=integration;await assertScenarioAssertions(root,contract);
     const trackedFiles=git(root,['ls-files','-z']).split('\0').filter(Boolean),tracked=await fingerprints(root,trackedFiles),source=await productionSourceMap(root,contract),assertions=await fingerprints(root,await filesBelow(root,contract.assertionRoots));
     report.source={tracked,linuxInputs:source,assertions};
     const linux=[];
@@ -146,7 +160,7 @@ export async function runProductionGate(options){
       await cp(evidence.directory,path.join(out,'linux-node'+(index?26:22)),{recursive:true,force:false,errorOnExist:true});
     }
     for(const check of contract.checks){
-      await stable(artifact);await stablePackage();if(check.id==='signed-desktop'||check.id==='packaged-diagnostics')await stableDesktop();
+      await stable(artifact);await stablePackage();if(['native-input-accessibility','signed-desktop','packaged-diagnostics'].includes(check.id))await stableDesktop();
       const replacements={desktopResources:report.desktop.resources,candidatePackage,candidatePackageSha256:options.candidatePackageSha256,baseline:await realpath(options.baseline),baselineSha256:options.baselineSha256};
       const actual={...check,command:check.command.map(argument=>argument.replace(/\{(\w+)\}/g,(match,key)=>replacements[key]??match))};
       const execution=await executeCheck(root,actual);await writeFile(path.join(out,'logs',check.id+'.log'),execution.output);

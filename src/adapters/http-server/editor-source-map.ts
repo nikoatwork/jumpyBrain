@@ -1,0 +1,86 @@
+import { IS_BOLD, IS_CODE, IS_ITALIC } from "lexical";
+
+/** Exact UTF-16 correspondence between editable presentation and Markdown.
+ * Structural prefixes/fences are outside this map. Formatting delimiters have
+ * zero visible width; reference spelling and literal/code contents stay text.
+ * The complete rendered text AND format runs must agree before a map is used.
+ */
+export interface EditorSourceMap {
+  spans: Array<{ start: number; end: number; from: number; to: number }>;
+  contentStart: number; contentEnd: number; visibleLength: number;
+}
+export function markdownSourceMap(raw: string, visible: string, formats: ArrayLike<number>, options: { start?: number; end?: number; literal?: boolean } = {}): EditorSourceMap | null {
+  const start = options.start ?? 0, end = options.end ?? raw.length;
+  if (start < 0 || end < start || end > raw.length) return null;
+  const spans: EditorSourceMap["spans"] = [];
+  let position = start, rendered = 0, format = 0;
+  const mask = IS_BOLD | IS_ITALIC | IS_CODE;
+  const normalized = raw.slice(start, end).replace(/\r(?=\n|$)/g, "");
+  const literal = options.literal || normalized === visible;
+  const gap = (start: number, end: number) => { const previous = spans.at(-1); if (previous && previous.from === previous.to && previous.end === start) previous.end = end; else spans.push({ start, end, from: rendered, to: rendered }); };
+  function emit(until: number, expected: number, checkFormat: boolean) {
+    while (position < until) {
+      if (raw[position] === "\r" && (raw[position + 1] === "\n" || position === end - 1)) { gap(position, position + 1); position++; continue; }
+      if (raw[position] !== visible[rendered] || checkFormat && (formats[rendered] & mask) !== expected) return false;
+      const previous = spans.at(-1);
+      if (previous && previous.end === position && previous.to === rendered && previous.to > previous.from) { previous.end++; previous.to++; }
+      else spans.push({ start: position, end: position + 1, from: rendered, to: rendered + 1 });
+      position++; rendered++;
+    }
+    return true;
+  }
+  gap(start, start);
+  if (literal) {
+    if (!emit(end, 0, false)) return null;
+  } else while (position < end) {
+    if (raw.startsWith("[[", position)) {
+      const close = raw.indexOf("]]", position + 2);
+      if (close < 0 || close + 2 > end || !emit(close + 2, format, true)) return null;
+      continue;
+    }
+    if (raw[position] === "`") {
+      const open = position, fence = /^`+/.exec(raw.slice(position, end))![0];
+      let close = raw.indexOf("`", position + fence.length);
+      while (close >= 0 && close < end) {
+        const run = /^`+/.exec(raw.slice(close, end))![0];
+        if (run.length === fence.length) break;
+        close = raw.indexOf("`", close + run.length);
+      }
+      if (close < 0 || close >= end) return null;
+      let contentStart = open + fence.length, contentEnd = close;
+      const content = raw.slice(contentStart, contentEnd);
+      if (content.startsWith(" ") && content.endsWith(" ") && content.trim()) { contentStart++; contentEnd--; }
+      gap(open, contentStart); position = contentStart;
+      if (!emit(contentEnd, format | IS_CODE, true)) return null;
+      gap(contentEnd, close + fence.length); position = close + fence.length;
+      continue;
+    }
+    const marker = raw[position] === "*" || raw[position] === "_" ? /^(\*{1,3}|_{1,3})/.exec(raw.slice(position, end))?.[0] : undefined;
+    const intraword = marker?.[0] === "_" && /[\p{L}\p{N}]/u.test(raw[position - 1] ?? "") && /[\p{L}\p{N}]/u.test(raw[position + marker.length] ?? "");
+    if (marker && !intraword) {
+      gap(position, position + marker.length);
+      format ^= marker.length === 3 ? IS_BOLD | IS_ITALIC : marker.length === 2 ? IS_BOLD : IS_ITALIC;
+      position += marker.length;
+      continue;
+    }
+    if (!emit(position + 1, format, true)) return null;
+  }
+  if (rendered !== visible.length || !literal && format !== 0) return null;
+  return { spans, contentStart: start, contentEnd: end, visibleLength: visible.length };
+}
+export function visibleToSource(map: EditorSourceMap, position: number, association: "left" | "right" = "right"): number | null {
+  if (!Number.isInteger(position) || position < 0 || position > map.visibleLength) return null;
+  if (!map.visibleLength) return map.contentStart;
+  const text = map.spans.filter((span) => span.to > span.from);
+  if (association === "left" && position > 0) {
+    const span = text.find((span) => span.from < position && position <= span.to);
+    return span ? span.start + position - span.from : null;
+  }
+  const span = text.find((span) => span.from <= position && position < span.to);
+  return span ? span.start + position - span.from : text.at(-1)?.end ?? map.contentStart;
+}
+export function sourceToVisible(map: EditorSourceMap, position: number): number | null {
+  if (!Number.isInteger(position)) return null;
+  const span = map.spans.find((span) => span.start <= position && position <= span.end);
+  return span ? span.from + (span.to === span.from ? 0 : position - span.start) : null;
+}

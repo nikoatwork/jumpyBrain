@@ -28,7 +28,7 @@ export async function installCollaborationSmokeTransport(page, { url = "**/ws" }
       const request = message?.id !== undefined ? requests.get(message.id) : undefined;
       // Own document events can confirm a mutation before its RPC response.
       // Holding/dropping an acknowledgement must affect BOTH channels.
-      const related = message?.event === "document" && message.snapshot?.operation?.operationId;
+      const related = message?.event === "document" ? message.snapshot?.operation?.operationId : message?.ok === true ? message.result?.operation?.operationId : undefined;
       const pending = related ? [...requests.values()].find((request) => request.rule?.operationId === related) : request;
       if (request?.rule && ["holdReply", "dropReply"].includes(request.rule.kind)) { request.rule.arrived.resolve(message); if (request.rule.kind === "dropReply") { connection.closed = true; try { server.close({ code: 1011, reason: "Injected lost acknowledgement" }); } catch {} client.close({ code: 1011, reason: "Injected lost acknowledgement" }); return; } await request.rule.released.promise; }
       else if (pending?.rule && !pending.rule.rpcOnly && ["holdReply", "dropReply"].includes(pending.rule.kind)) { pending.rule.arrived.resolve(message); if (pending.rule.kind === "dropReply") { connection.closed = true; try { server.close({ code: 1011, reason: "Injected lost acknowledgement" }); } catch {} client.close({ code: 1011, reason: "Injected lost acknowledgement" }); return; } await pending.rule.released.promise; }

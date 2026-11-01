@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { WebSocket } from "../adapters/live/ws.js";
+import { WebSocket } from "../adapters/websocket/index.js";
 import { ensureRootBackend } from "../app/backend-host/index.js";
 import { resolveCliTarget } from "./targets.js";
 import { createLocalMemoryTransport } from "./local-transport.js";
 import type { ParsedCliArgs } from "./args.js";
 
 const usage =
-  "jumpybrain collaborate <open|watch|edit|stream|status|cancel|finish|undo|resync> --id <note-id> [--root <directory> | --target-url <https-origin>] [--start <UTF-16 offset> --delete <count>] [--json]. Pipe replacement text to edit, or generated UTF-8 chunks to stream. Publishing requires a connection; a lost acknowledgement is never retried automatically.";
+  "jumpybrain collaborate <open|watch|edit|stream|status|cancel|finish|undo|resync> --id <note-id> [--root <directory> | --target-url <https-origin>] [--start <UTF-16 offset> --delete <count> --epoch <read epoch> --base-revision <read revision>] [--json]. Edit offsets and positioned streams require the epoch/revision returned by the read used to calculate them. A stream without --start appends to the latest saved document. Pipe replacement text to edit, or generated UTF-8 chunks to stream. Publishing requires a connection; a lost acknowledgement is never retried automatically.";
 
 export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
   if (args.help) {
@@ -22,6 +22,8 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     "remote-url",
     "start",
     "delete",
+    "epoch",
+    "base-revision",
     "client-id",
     "stream-id",
     "json",
@@ -45,7 +47,7 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     if (!allowed.has(key) || (Array.isArray(value) && key !== "_"))
       throw new Error("Unknown or repeated collaboration argument.");
   if (typeof args.id !== "string") throw new Error("--id is required.");
-  for (const key of ["start", "delete"])
+  for (const key of ["start", "delete", "base-revision"])
     if (
       args[key] !== undefined &&
       (typeof args[key] !== "string" ||
@@ -58,6 +60,14 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     (args.start !== undefined || args.delete !== undefined)
   )
     throw new Error("Offsets apply only to edit or stream.");
+  if (operation !== "edit" && args.delete !== undefined)
+    throw new Error("--delete applies only to edit; streaming inserts chunks.");
+  const positioned = operation === "edit" || (operation === "stream" && args.start !== undefined);
+  const hasReadVersion = args.epoch !== undefined || args["base-revision"] !== undefined;
+  if (positioned && (typeof args.epoch !== "string" || !args.epoch.trim() || args.epoch.length > 256 || args["base-revision"] === undefined))
+    throw new Error("Positioned edits require --epoch and --base-revision from the actual collaborate open read used to calculate their offsets. Reopening must not relabel old offsets with a fresh revision.");
+  if (!positioned && hasReadVersion)
+    throw new Error("Read versions apply only to edit or stream with an explicit --start.");
   if (
     ["status", "cancel", "finish"].includes(operation) &&
     typeof args["stream-id"] !== "string"
@@ -246,8 +256,8 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     }
     const version = {
       ...base,
-      epoch: snapshot.epoch,
-      baseRevision: snapshot.revision,
+      epoch: positioned ? args.epoch as string : snapshot.epoch,
+      baseRevision: positioned ? Number(args["base-revision"]) : snapshot.revision,
     };
     if (["status", "cancel", "finish"].includes(operation))
       snapshot = await request("stream." + operation, {

@@ -54,6 +54,7 @@ try {
     assert.equal(puts.length, 0, 'canonical live edits use versioned WS operations');
     await undoEditor(page); await saved(page); assert.equal(await editorMarkdown(page), body);
     await page.reload(); await page.locator('#note-editor').waitFor({ state: 'visible' });
+    await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved');
     assert.equal(await editorMarkdown(page), body);
 
     await page.locator('#note-editor pre[data-language]').evaluate(element => {

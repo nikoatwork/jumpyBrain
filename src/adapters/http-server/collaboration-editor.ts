@@ -1,3 +1,4 @@
+import { applySourceSplices, rebaseSourceSplices, sourceDifferences, transformSourcePosition, type SourceSplice } from "../../core/collaboration/source.js";
 import { createCollaborationClient, CollaborationError, validSnapshot, type CollaborationPrincipal, type CollaborationSnapshot } from "./collaboration-client.js";
 import { archiveCollaborationDraft, collaborationClientId, createCollaborationDraftStore, type CollaborationDraft, type CollaborationDraftStore } from "./collaboration-drafts.js";
 export interface SourceEdit { start: number; deleteCount: number; insert: string }
@@ -13,14 +14,9 @@ export function sourceDifference(before: string, after: string): SourceEdit {
 export function reconcileSource(base: string, local: string, remote: string): { body: string; conflict: boolean } {
   if (local === base) return { body: remote, conflict: false };
   if (remote === base) return { body: local, conflict: false };
-  const a = sourceDifference(base, local), b = sourceDifference(base, remote);
-  const aEnd = a.start + a.deleteCount, bEnd = b.start + b.deleteCount;
-  let start = a.start;
-  if (!a.deleteCount && !b.deleteCount && a.start === b.start) start += b.insert.length;
-  else if (aEnd <= b.start) { /* local precedes remote */ }
-  else if (bEnd <= a.start) start += b.insert.length - b.deleteCount;
-  else return { body: local, conflict: true };
-  return { body: remote.slice(0, start) + a.insert + remote.slice(start + a.deleteCount), conflict: false };
+  try {
+    return { body: applySourceSplices(remote, rebaseSourceSplices(sourceDifferences(base, local), sourceDifferences(base, remote))), conflict: false };
+  } catch { return { body: local, conflict: true }; }
 }
 interface EditorBinding {
   getMarkdown(): string;
@@ -59,9 +55,11 @@ export function createCollaborationEditor(options: Options) {
   let recoveredUnconfirmed: CollaborationDraft["unconfirmed"] | undefined;
   let historyFlight: { id: string; acknowledged: boolean; promise?: Promise<void>; confirmed: Promise<void>; confirm(): void } | undefined;
   let draftTitle: string | undefined, titlePromise: Promise<void> | undefined, titleSubmitted: string | undefined;
-  let presenceTimer: ReturnType<typeof setTimeout> | undefined, lastPresence: string | undefined;
+  let presenceTimer: ReturnType<typeof setTimeout> | undefined, lastPresence: string | undefined, lastPresenceAt = 0, presenceSequence = 0;
+  let renderedPresence = "";
   let timer: ReturnType<typeof setTimeout> | undefined, queued: CollaborationSnapshot | undefined;
-  let flight: { id: string; submitted: string; before: CollaborationSnapshot; promise?: Promise<void>; confirmed: Promise<void>; confirm(): void } | undefined;
+  let flight: { id: string; submitted: string; before: CollaborationSnapshot; reviewedContentHash?: string; reviewedTitle?: string; promise?: Promise<void>; confirmed: Promise<void>; confirm(): void } | undefined;
+  let reviewedPublication: { contentHash: string; epoch: string; revision: number; body: string; title: string } | undefined;
   let deferredConfirmation: { flight: NonNullable<typeof flight>; epoch: string; revision: number } | undefined;
   const undoBodies: string[] = [], redoBodies: string[] = [];
   let recoveryDrafts: CollaborationDraft[] = [];
@@ -71,9 +69,22 @@ export function createCollaborationEditor(options: Options) {
   const dirty = () => bodyDirty() || titleDirty();
   const canWrite = () => principal?.role === "writer" || principal?.role === "owner" || principal?.role === "admin";
   function scope() { return { scope: options.scope, principalId: principal!.id, documentId: options.documentId, clientId }; }
-  function notify() {
+  function projectedPeers() {
+    if (client.state !== "ready" || !opened || !baseline) return [];
     const actor = principal ? JSON.stringify([principal.id, clientId]) : "";
-    options.editor.setCollaborativePresence?.(bodyDirty() ? [] : (baseline?.presence ?? []).filter((peer) => peer.actor !== actor));
+    let operations: SourceSplice[];
+    try { operations = sourceDifferences(baseline.body, body); } catch { return []; }
+    return (baseline.presence ?? []).filter((peer) => peer.actor !== actor && (peer.leaseExpiresAt === undefined || peer.leaseExpiresAt > Date.now())).map((peer) => {
+      if (peer.anchor === undefined || peer.focus === undefined) return peer;
+      if (peer.epoch !== undefined && peer.epoch !== baseline!.epoch || peer.revision !== undefined && peer.revision !== baseline!.revision) return { ...peer, anchor: undefined, focus: undefined };
+      try { return { ...peer, anchor: transformSourcePosition(peer.anchor, operations, peer.anchor <= peer.focus ? "left" : "right"), focus: transformSourcePosition(peer.focus, operations, "right") }; }
+      catch { return { ...peer, anchor: undefined, focus: undefined }; }
+    });
+  }
+  function notify() {
+    if (disposed) return;
+    const peers = projectedPeers(), signature = JSON.stringify(peers);
+    if (signature !== renderedPresence) { renderedPresence = signature; options.editor.setCollaborativePresence?.(peers); }
     state = {
       status: conflict ? "conflict" : openFailure ? "blocked" : client.state === "blocked" ? "blocked" : client.state === "connecting" || client.state === "ready" && !opened ? "connecting" : client.state !== "ready" ? "offline" : !canWrite() ? "readonly" : dirty() || flight || titlePromise || historyFlight ? "saving" : "saved",
       dirty: dirty() || Boolean(flight || titlePromise || historyFlight), canWrite: Boolean(opened && canWrite() && !conflict), durableDraft: durable, message, recoveryDrafts,
@@ -149,6 +160,10 @@ export function createCollaborationEditor(options: Options) {
     if (flight !== current) return;
     flight = undefined; uncertain = false; recoveredUnconfirmed = undefined;
     accept(snapshot, current);
+    if (current.reviewedContentHash && titleDirty() && !conflict) {
+      if (snapshot.body === current.submitted && body === current.submitted && snapshot.title === current.before.title && draftTitle === current.reviewedTitle) reviewedPublication = {contentHash:snapshot.contentHash,epoch:snapshot.epoch,revision:snapshot.revision,body,title:draftTitle!};
+      else { conflict = true; message = "The saved note changed while restoring its body. Compare the latest versions before restoring its title."; persist(); notify(); }
+    }
     const next = queued; queued = undefined;
     if (next && (!baseline || next.epoch !== baseline.epoch || next.revision > baseline.revision)) accept(next);
     current.confirm(); schedule();
@@ -156,11 +171,13 @@ export function createCollaborationEditor(options: Options) {
   async function send() {
     clearTimeout(timer); timer = undefined;
     if (disposed || options.editor.isComposing?.() || flight || titlePromise || historyFlight || conflict || uncertain || !opened || !baseline || client.state !== "ready" || !canWrite() || !dirty()) { notify(); return; }
+    const reviewed = reviewedPublication;
+    if (reviewed && (reviewed.contentHash !== baseline.contentHash || reviewed.epoch !== baseline.epoch || reviewed.revision !== baseline.revision || reviewed.body !== body || reviewed.title !== (draftTitle ?? baseline.title))) { reviewedPublication = undefined; conflict = true; message = "The saved note or draft changed after review. Compare the latest versions before publishing."; persist(); notify(); return; }
     if (!bodyDirty() && titleDirty()) {
       recoveredUnconfirmed = undefined;
-      titleSubmitted = draftTitle!;
+      titleSubmitted = draftTitle!; reviewedPublication = undefined;
       const before = baseline;
-      titlePromise = client.request("title", { documentId: options.documentId, clientId, epoch: before.epoch, baseRevision: before.revision, title: titleSubmitted }).then((snapshot: unknown) => {
+      titlePromise = client.request("title", { documentId: options.documentId, clientId, epoch: before.epoch, baseRevision: before.revision, title: titleSubmitted, ...(reviewed ? {expectedContentHash:reviewed.contentHash} : {}) }).then((snapshot: unknown) => {
         if (!validSnapshot(snapshot)) throw new CollaborationError("protocol", "The backend returned an invalid document snapshot.");
         accept(snapshot);
       }).catch((error: unknown) => {
@@ -170,17 +187,22 @@ export function createCollaborationEditor(options: Options) {
       }).finally(() => { titlePromise = undefined; titleSubmitted = undefined; persist(); notify(); schedule(); });
       persist(); notify(); await titlePromise; return;
     }
-    const current = { ...confirmation(), id: crypto.randomUUID(), submitted: body, before: baseline, promise: undefined as Promise<void> | undefined };
-    recoveredUnconfirmed = undefined; flight = current; persist(); notify();
-    const operation = sourceDifference(current.before.body, current.submitted);
-    current.promise = client.request("edit", { documentId: options.documentId, clientId, epoch: current.before.epoch, baseRevision: current.before.revision, operationId: current.id, ...operation }).then((snapshot: unknown) => {
+    let operations: SourceSplice[];
+    try { operations = sourceDifferences(baseline.body, body); }
+    catch (error) {
+      if (reviewed && error && typeof error === "object" && "code" in error && error.code === "diff_limit") operations = [{ start: 0, deleteCount: baseline.body.length, insert: body }];
+      else { conflict = true; message = error instanceof Error ? error.message : "This edit exceeds the safe source alignment budget. Its draft is retained."; persist(); notify(); return; }
+    }
+    const current = { ...confirmation(), reviewedContentHash: reviewed?.contentHash, reviewedTitle: reviewed?.title, id: crypto.randomUUID(), submitted: body, before: baseline, promise: undefined as Promise<void> | undefined };
+    recoveredUnconfirmed = undefined; reviewedPublication = undefined; flight = current; persist(); notify();
+    current.promise = client.request("edit", { documentId: options.documentId, clientId, epoch: current.before.epoch, baseRevision: current.before.revision, operationId: current.id, operations, ...(current.reviewedContentHash ? { expectedContentHash: current.reviewedContentHash } : {}) }).then((snapshot: unknown) => {
       if (!validSnapshot(snapshot)) throw new CollaborationError("protocol", "The backend returned an invalid document snapshot.");
       finish(snapshot, current);
     }).catch(async (error: unknown) => {
       if (disposed || flight !== current) { current.confirm(); return; }
       flight = undefined;
-      const code = error instanceof CollaborationError ? error.code : "unconfirmed";
-      if (["epoch_changed", "history_expired", "precondition_failed"].includes(code) && client.state === "ready") {
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "unconfirmed";
+      if (!current.reviewedContentHash && ["epoch_changed", "history_expired", "precondition_failed"].includes(code) && client.state === "ready") {
         try {
           const currentSnapshot: unknown = await client.request("resync", { documentId: options.documentId, clientId }); queued = undefined;
           if (validSnapshot(currentSnapshot)) { accept(currentSnapshot); current.confirm(); schedule(); return; }
@@ -243,7 +265,9 @@ export function createCollaborationEditor(options: Options) {
       if (connection === "ready") void open();
       else { opened = false; generation++; persist(); notify(); }
     },
-    onSnapshot(snapshot) {
+    onSnapshot: receiveSnapshot,
+  });
+  function receiveSnapshot(snapshot: CollaborationSnapshot) {
       if (disposed || !opened || snapshot.documentId !== options.documentId) return;
       if (!snapshot.saved || snapshot.conflict) { accept(snapshot); return; }
       if (historyFlight && snapshot.saved && !snapshot.conflict && snapshot.operation?.operationId === historyFlight.id) {
@@ -254,16 +278,18 @@ export function createCollaborationEditor(options: Options) {
         if (snapshot.operation?.operationId === flight.id) finish(snapshot, flight);
         else if (!queued || snapshot.epoch !== queued.epoch || snapshot.revision > queued.revision) queued = snapshot;
       } else accept(snapshot);
-    },
-  });
+  }
+
   async function historyMutation(method: "undo" | "redo") {
     if (!baseline || !opened || !canWrite() || flight || titlePromise || historyFlight || conflict || bodyDirty()) return;
     const current = { ...confirmation(), id: crypto.randomUUID(), acknowledged: false, promise: undefined as Promise<void> | undefined };
     recoveredUnconfirmed = undefined; historyFlight = current; persist(); notify();
     current.promise = client.request(method, { documentId: options.documentId, clientId, epoch: baseline.epoch, operationId: current.id }).then((snapshot: unknown) => { if (!disposed && historyFlight === current && validSnapshot(snapshot)) { current.acknowledged = true; historyFlight = undefined; accept(snapshot); } }).catch((error: unknown) => {
       if (disposed || current.acknowledged) return;
-      if (error instanceof CollaborationError && ["unconfirmed", "offline", "closed"].includes(error.code)) { uncertain = true; conflict = true; }
-      message = error instanceof Error ? error.message : "History operation failed.";
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "history_failed";
+      if (["nothing_to_undo", "nothing_to_redo"].includes(code)) return;
+      uncertain = ["unconfirmed", "offline", "closed"].includes(code); conflict = true;
+      message = error instanceof Error ? error.message : "History operation failed. The saved version and draft are retained.";
     }).finally(() => { if (historyFlight === current) historyFlight = undefined; current.confirm(); if (!disposed) { persist(); notify(); schedule(); } });
     await current.confirmed;
   }
@@ -289,18 +315,42 @@ export function createCollaborationEditor(options: Options) {
     await historyMutation("redo");
   }
   options.editor.setCollaborativeHistory?.({ undo: () => { void undo(); }, redo: () => { void redo(); } });
+  function canonicalSelection() {
+    if (!baseline || options.editor.isComposing?.()) return null;
+    const selected = options.editor.collaborativeSelection?.();
+    if (!selected || options.editor.getMarkdown() !== body) return null;
+    try {
+      const operations = sourceDifferences(baseline.body, body), inverse: SourceSplice[] = []; let shift = 0;
+      for (const operation of operations) { inverse.push({ start: operation.start + shift, deleteCount: operation.insert.length, insert: baseline.body.slice(operation.start, operation.start + operation.deleteCount) }); shift += operation.insert.length - operation.deleteCount; }
+      // A caret inside unpublished inserted text has no canonical character yet.
+      // Its insertion boundary is nevertheless a proven editing anchor.
+      const project = (position: number) => {
+        try { return transformSourcePosition(position, inverse, "left"); }
+        catch { const inserted = inverse.find((operation) => position > operation.start && position < operation.start + operation.deleteCount); if (!inserted) throw new Error("Unmapped selection"); return transformSourcePosition(inserted.start, inverse, "left"); }
+      };
+      return { anchor: project(selected.anchor), focus: project(selected.focus) };
+    } catch { return null; }
+  }
   function schedulePresence() {
     if (disposed || presenceTimer || !opened || client.state !== "ready" || !baseline) return;
     presenceTimer = setTimeout(() => {
       presenceTimer = undefined;
       if (disposed || !opened || client.state !== "ready" || !baseline) return;
-      const selection = !bodyDirty() && options.editor.getMarkdown() === baseline.body ? options.editor.collaborativeSelection?.() : null;
-      const signature = JSON.stringify(selection ?? null);
-      if (lastPresence === signature) return;
-      lastPresence = signature;
-      void client.request("presence", { documentId: options.documentId, clientId, actorKind: "human", ...(selection ? { selection } : {}) }).then((snapshot: unknown) => { if (!disposed && validSnapshot(snapshot)) accept(snapshot); }).catch(() => { lastPresence = undefined; });
+      const selection = canonicalSelection(), epoch = baseline.epoch, baseRevision = baseline.revision;
+      const signature = JSON.stringify([epoch, baseRevision, selection]);
+      if (lastPresence === signature && Date.now() - lastPresenceAt < 9_000) return;
+      lastPresence = signature; lastPresenceAt = Date.now();
+      void client.request("presence", { documentId: options.documentId, clientId, epoch, baseRevision, presenceSequence: ++presenceSequence, activity: selection ? "editing" : "viewing", ...(selection ? { selection } : {}) }).then((snapshot: unknown) => { if (!disposed && validSnapshot(snapshot)) receiveSnapshot(snapshot); }).catch((error) => {
+        lastPresence = undefined;
+        if (disposed || !opened || client.state !== "ready") return;
+        const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+        if (["epoch_changed", "history_expired", "history_gap", "future_revision"].includes(code) && !flight && !historyFlight && !titlePromise) {
+          void client.request("open", { documentId: options.documentId, clientId }).then((snapshot: unknown) => { if (!disposed && validSnapshot(snapshot)) accept(snapshot); }).catch(() => {});
+        }
+      });
     }, 80);
   }
+  const heartbeat = setInterval(() => { if (!disposed) { notify(); schedulePresence(); } }, 10_000);
   const stopSelection = options.editor.subscribeSelection?.(schedulePresence);
   const stopComposition = options.editor.subscribeCompositionEnd?.(() => { api.input(options.editor.getMarkdown()); });
   const api = {
@@ -309,6 +359,7 @@ export function createCollaborationEditor(options: Options) {
       if (disposed) return;
       if (value === body) { if (queued && !flight) { const pending = queued; queued = undefined; accept(pending); } schedule(); return; }
       if (!opened && !baseline) dirtyBeforeOpen = true;
+      reviewedPublication = undefined;
       undoBodies.push(body); if (undoBodies.length > 100) undoBodies.shift(); redoBodies.length = 0;
       body = value; persist();
       const pendingSnapshot = queued;
@@ -348,9 +399,10 @@ export function createCollaborationEditor(options: Options) {
           conflict = true; message = "The saved note changed after review. Compare the latest saved version before publishing.";
           persist(); publishSnapshot(current); notify(); return false;
         }
-        queued = undefined; deferredConfirmation = undefined; undoBodies.length = 0; redoBodies.length = 0; titleSubmitted = undefined;
+        reviewedPublication = undefined; queued = undefined; deferredConfirmation = undefined; undoBodies.length = 0; redoBodies.length = 0; titleSubmitted = undefined;
         if (choice === "saved") { if (!paint(current.body)) return false; body = current.body; draftTitle = current.title; }
         else if (!paint(body)) return false;
+        if (choice === "draft" && expectedHash && (body !== current.body || titleDirty())) reviewedPublication = { contentHash: current.contentHash, epoch: current.epoch, revision: current.revision, body, title: draftTitle ?? current.title };
         conflict = false; uncertain = false; recoveredUnconfirmed = undefined; message = undefined;
         persist(); publishSnapshot(current); notify();
         if (choice === "draft") return api.flush();
@@ -387,8 +439,21 @@ export function createCollaborationEditor(options: Options) {
       }
       notify(); return true;
     },
+    async readRetainedVersion(recovery: { recoveryId: string; baseContentHash: string; externalContentHash: string }, copy?: "base" | "external") {
+      if (disposed || !opened || client.state !== "ready") throw new CollaborationError("offline", "Reconnect before reading retained versions.");
+      return client.request("recovery.read", { format: "editable", documentId: options.documentId, clientId, recoveryId: recovery.recoveryId, expectedBaseHash: recovery.baseContentHash, expectedExternalHash: recovery.externalContentHash, ...(copy ? { copy } : {}) });
+    },
+    async restoreRetainedVersion(version: { body: string; title: string }, expectedCurrentHash: string): Promise<boolean> {
+      if (!principal || !baseline || disposed || !canWrite() || typeof version.body !== "string" || typeof version.title !== "string") return false;
+      if (baseline.contentHash !== expectedCurrentHash) { message = "The saved note changed after review. Compare the latest saved version before restoring."; notify(); return false; }
+      const record: CollaborationDraft = { version: 2, ...scope(), epoch: baseline.epoch, baseRevision: baseline.revision, baseBody: baseline.body, baseTitle: baseline.title, body: version.body, title: version.title, updatedAt: Date.now() };
+      // Recovery adoption archives unique current work before it changes either
+      // the private draft or the visible editor. A failed write leaves it intact.
+      if (!api.recoverDraft(record)) return false;
+      return api.resolveConflict("draft", expectedCurrentHash);
+    },
     get body() { return body; }, get title() { return draftTitle ?? baseline?.title; }, get state() { return state; }, get snapshot() { return baseline; }, get clientId() { return clientId; },
-    dispose() { if (disposed) return; persist(); disposed = true; flight?.confirm(); historyFlight?.confirm(); generation++; clearTimeout(timer); clearTimeout(presenceTimer); stopSelection?.(); options.editor.setCollaborativePresence?.([]); stopComposition?.(); options.editor.setCollaborativeHistory?.(null); client.dispose(); },
+    dispose() { if (disposed) return; persist(); disposed = true; flight?.confirm(); historyFlight?.confirm(); generation++; clearTimeout(timer); clearTimeout(presenceTimer); clearInterval(heartbeat); stopSelection?.(); options.editor.setCollaborativePresence?.([]); stopComposition?.(); options.editor.setCollaborativeHistory?.(null); client.dispose(); },
   };
   return api;
 }

@@ -2,9 +2,15 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, lstat, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import {
+  latestRecovery,
+  readRecovery,
+  recordLatestRecovery,
+} from "./recovery.js";
+import {
   CollaborationError,
   SourceModel,
   sourceDifference,
+  sourceDifferences,
   isSourceText,
   type SourceOperation,
 } from "../../core/collaboration/index.js";
@@ -31,15 +37,27 @@ export interface CollaborationPrincipal {
 }
 export interface Presence {
   actor: string;
+  principalId: string;
+  clientId: string;
   name: string;
   kind: "human" | "agent";
+  activity: "viewing" | "editing" | "streaming";
+  epoch: string;
+  revision: number;
+  leaseExpiresAt: number;
+  sequence?: number;
+  selectionRevision?: number;
   anchor?: number;
   focus?: number;
 }
 export type PublishedSourceOperation = Omit<
   SourceOperation,
-  "removed" | "insert"
-> & { insert?: string; snapshotOnly?: true };
+  "removed" | "insert" | "operations"
+> & {
+  insert?: string;
+  snapshotOnly?: true;
+  operations?: { start: number; deleteCount: number; insert: string }[];
+};
 export interface CollaborationSnapshot {
   protocol: 2;
   documentId: string;
@@ -62,7 +80,14 @@ export interface CollaborationSnapshot {
     state: string;
     reason?: string;
   } | null;
-  recovery?: { code: "external_destructive_replacement"; directory: string };
+  recovery?: {
+    code: "external_destructive_replacement";
+    directory: string;
+    recoveryId: string;
+    baseContentHash: string;
+    externalContentHash: string;
+  };
+  recoveryDiscovery?: "incomplete";
 }
 interface Session {
   documentId: string;
@@ -74,6 +99,7 @@ interface Session {
   busy: boolean;
   streamActivity: Map<string, number>;
   recovery?: CollaborationSnapshot["recovery"];
+  recoveryDiscovery?: "incomplete";
   conflict?: string;
   fingerprint?: string;
   candidate?: {
@@ -98,6 +124,7 @@ export interface CollaborationHubOptions {
   maxTotalHistoryBytes?: number;
   maxSnapshotBytes?: number;
   streamLeaseMs?: number;
+  presenceLeaseMs?: number;
 }
 function fail(code: string, message?: string): never {
   throw new CollaborationError(code, message);
@@ -224,8 +251,17 @@ export class CollaborationHub {
   private snapshot(
     session: Session,
     operation?: SourceOperation,
+    persistPresence = true,
   ): CollaborationSnapshot {
     const { prefix } = splitCanonicalContent(session.base.content);
+    const operations = operation?.operations?.map(
+      ({ start, deleteCount, insert }) => ({ start, deleteCount, insert }),
+    );
+    const includeInsert =
+      operation &&
+      Buffer.byteLength(
+        operations ? JSON.stringify(operations) : operation.insert,
+      ) <= 8192;
     const publishedOperation = operation
       ? {
           actor: operation.actor,
@@ -233,8 +269,11 @@ export class CollaborationHub {
           start: operation.start,
           deleteCount: operation.deleteCount,
           revision: operation.revision,
-          ...(Buffer.byteLength(operation.insert) <= 8192
-            ? { insert: operation.insert }
+          ...(includeInsert
+            ? {
+                insert: operation.insert,
+                ...(operations ? { operations } : {}),
+              }
             : { snapshotOnly: true as const }),
         }
       : undefined;
@@ -250,8 +289,11 @@ export class CollaborationHub {
       contentHash: session.base.contentHash,
       saved: !session.conflict,
       recognition: session.base.recognition,
-      presence: [...session.presence.values()],
+      presence: this.projectPresence(session, persistPresence),
       ...(session.recovery ? { recovery: session.recovery } : {}),
+      ...(session.recoveryDiscovery
+        ? { recoveryDiscovery: session.recoveryDiscovery }
+        : {}),
       ...(publishedOperation ? { operation: publishedOperation } : {}),
       ...(session.conflict ? { conflict: { code: session.conflict } } : {}),
     };
@@ -338,6 +380,11 @@ export class CollaborationHub {
       maxBytes: this.maxDocumentBytes,
       maxHistoryBytes: this.options.maxHistoryBytes ?? 8 * 1024 * 1024,
     });
+    const recovery = await latestRecovery(
+      base.root,
+      documentId,
+      this.maxDocumentBytes,
+    );
     session = {
       documentId,
       base,
@@ -347,6 +394,8 @@ export class CollaborationHub {
       accessedAt: Date.now(),
       busy: false,
       streamActivity: new Map(),
+      recovery: recovery.recovery,
+      recoveryDiscovery: recovery.incomplete ? "incomplete" : undefined,
     };
     this.capHistory(model, session);
     this.sessions.set(documentId, session);
@@ -366,6 +415,72 @@ export class CollaborationHub {
   }
   read(documentId: string) {
     return this.open(documentId);
+  }
+  async readRecovery(
+    params: Record<string, unknown>,
+    principal: CollaborationPrincipal,
+  ) {
+    if (!["reader", "writer", "admin"].includes(principal.role))
+      fail("forbidden");
+    return this.serialize(async () => {
+      const session = await this.session(validId(params.documentId));
+      const result = await readRecovery(
+        session.base.root,
+        session.documentId,
+        params.recoveryId,
+        this.maxDocumentBytes,
+      );
+      if (
+        params.expectedBaseHash !== result.base.contentHash ||
+        params.expectedExternalHash !== result.external.contentHash
+      )
+        fail("recovery_changed");
+      const current = await readMemoryDocument(this.root, session.documentId, {
+        maxSourceBytes: this.maxDocumentBytes,
+      });
+      if (
+        params.copy !== undefined &&
+        params.copy !== "base" &&
+        params.copy !== "external"
+      )
+        fail("invalid_request");
+      if (params.format !== undefined && params.format !== "editable")
+        fail("invalid_request");
+      const editable = (copy: typeof result.base) => {
+        const parsed = parseFrontmatter(copy.content);
+        return {
+          title:
+            typeof parsed.frontmatter.title === "string"
+              ? parsed.frontmatter.title
+              : "Untitled note",
+          body: splitCanonicalContent(copy.content).body,
+          contentHash: copy.contentHash,
+        };
+      };
+      const copies =
+        params.format === "editable"
+          ? { base: editable(result.base), external: editable(result.external) }
+          : { base: result.base, external: result.external };
+      const response = {
+        ...result,
+        ...copies,
+        ...(params.copy === "base"
+          ? { external: undefined }
+          : params.copy === "external"
+            ? { base: undefined }
+            : {}),
+        currentContentHash: current.contentHash,
+      };
+      if (
+        Buffer.byteLength(JSON.stringify(response)) >
+        (this.options.maxSnapshotBytes ?? 3 * 1024 * 1024) - 4096
+      )
+        fail(
+          "recovery_limit",
+          "The retained comparison exceeds the bounded live response limit.",
+        );
+      return response;
+    });
   }
   async openSubscribed(
     documentId: string,
@@ -406,30 +521,114 @@ export class CollaborationHub {
     principal: CollaborationPrincipal,
     params: Record<string, unknown>,
   ) {
+    this.projectPresence(session);
     const actor = this.actor(principal, params);
     if (!session.presence.has(actor) && session.presence.size >= 64)
       fail("actor_limit");
+    const previous = session.presence.get(actor);
     const value: Presence = {
       actor,
+      principalId: principal.id,
+      clientId:
+        typeof params.clientId === "string" ? params.clientId : "default",
       name: principal.name,
       kind: params.actorKind === "agent" ? "agent" : "human",
+      activity: "viewing",
+      epoch: session.model.epoch,
+      revision: session.model.revision,
+      leaseExpiresAt: Date.now() + (this.options.presenceLeaseMs ?? 30_000),
+      ...(previous?.epoch === session.model.epoch ? previous : {}),
     };
+    value.leaseExpiresAt =
+      Date.now() + (this.options.presenceLeaseMs ?? 30_000);
+    if (params.actorKind === "agent") value.kind = "agent";
+    if (params.presenceSequence !== undefined) {
+      const sequence = integer(params.presenceSequence);
+      if (previous?.sequence !== undefined && sequence <= previous.sequence)
+        fail("stale_presence");
+      value.sequence = sequence;
+    }
     const selection = params.selection;
-    if (selection && typeof selection === "object") {
-      const { anchor, focus } = selection as Record<string, unknown>;
+    if (selection === undefined && params.activity === "viewing") {
+      delete value.anchor;
+      delete value.focus;
+      value.activity = "viewing";
+    }
+    if (selection !== undefined) {
+      if (!selection || typeof selection !== "object") fail("invalid_request");
+      if (params.epoch !== session.model.epoch) fail("epoch_changed");
+      const revision = integer(params.baseRevision);
+      if (revision > session.model.revision) fail("invalid_revision");
       if (
-        Number.isSafeInteger(anchor) &&
-        Number.isSafeInteger(focus) &&
-        Number(anchor) >= 0 &&
-        Number(focus) >= 0 &&
-        Number(anchor) <= session.model.body.length &&
-        Number(focus) <= session.model.body.length
-      ) {
-        value.anchor = Number(anchor);
-        value.focus = Number(focus);
-      }
+        previous?.selectionRevision !== undefined &&
+        revision < previous.selectionRevision
+      )
+        fail("stale_presence");
+      const { anchor, focus } = selection as Record<string, unknown>;
+      value.anchor = session.model.transformPosition(integer(anchor), revision);
+      value.focus = session.model.transformPosition(integer(focus), revision);
+      value.epoch = session.model.epoch;
+      value.revision = session.model.revision;
+      value.selectionRevision = revision;
+      value.activity = params.activity === "viewing" ? "viewing" : "editing";
+      if (params.presenceSequence !== undefined)
+        value.sequence = integer(params.presenceSequence);
     }
     session.presence.set(actor, value);
+  }
+  private projectPresence(session: Session, persist = true): Presence[] {
+    const projected: Presence[] = [];
+    for (const [actor, stored] of session.presence) {
+      if (stored.leaseExpiresAt <= Date.now()) {
+        if (persist) session.presence.delete(actor);
+        continue;
+      }
+      const value = { ...stored };
+      if (value.activity === "streaming") {
+        value.activity = "viewing";
+        delete value.anchor;
+        delete value.focus;
+      }
+      try {
+        if (value.epoch !== session.model.epoch) fail("epoch_changed");
+        if (value.anchor !== undefined)
+          value.anchor = session.model.transformPosition(
+            value.anchor,
+            value.revision,
+          );
+        if (value.focus !== undefined)
+          value.focus = session.model.transformPosition(
+            value.focus,
+            value.revision,
+          );
+      } catch {
+        delete value.anchor;
+        delete value.focus;
+        if (value.epoch !== session.model.epoch) {
+          delete value.selectionRevision;
+          delete value.sequence;
+        }
+        value.activity = "viewing";
+      }
+      value.epoch = session.model.epoch;
+      value.revision = session.model.revision;
+      for (const stream of session.model.streams.values()) {
+        if (stream.actor !== actor || stream.state !== "active") continue;
+        try {
+          value.anchor = value.focus = session.model.transformPosition(
+            stream.start,
+            stream.baseRevision,
+          );
+          value.kind = "agent";
+          value.activity = "streaming";
+        } catch {
+          /* An unprovable stream anchor must not paint a stale cursor. */
+        }
+      }
+      if (persist) session.presence.set(actor, value);
+      projected.push(value);
+    }
+    return projected;
   }
   leave(
     principal: CollaborationPrincipal,
@@ -468,6 +667,11 @@ export class CollaborationHub {
     await this.serialize(async () => {
       for (const session of this.sessions.values()) {
         let revoked = false;
+        for (const [actor, presence] of session.presence)
+          if (presence.principalId === principalId) {
+            session.presence.delete(actor);
+            revoked = true;
+          }
         for (const [key, stream] of session.model.streams) {
           let owner: unknown;
           try {
@@ -502,6 +706,12 @@ export class CollaborationHub {
       if (method === "presence" || method === "stream.status")
         await this.refresh(session, true);
       else await this.settleOpen(session);
+      if (method === "presence") {
+        if (params.epoch !== session.model.epoch) fail("epoch_changed");
+        const revision = integer(params.baseRevision);
+        if (revision > session.model.revision) fail("invalid_revision");
+        if (!session.model.versions.has(revision)) fail("history_expired");
+      }
       this.setPresence(session, principal, params);
       if (method === "presence") return this.emit(session);
       if (method === "resync") {
@@ -547,20 +757,63 @@ export class CollaborationHub {
           "epoch_changed",
           "Resynchronize before publishing the retained draft.",
         );
+      if ((method === "edit" || method === "title") && params.expectedContentHash !== undefined) {
+        if (
+          typeof params.expectedContentHash !== "string" ||
+          !/^sha256:[a-f0-9]{64}$/.test(params.expectedContentHash)
+        )
+          fail("invalid_request");
+        if (
+          params.expectedContentHash !== session.base.contentHash ||
+          params.baseRevision !== session.model.revision
+        )
+          fail(
+            "precondition_failed",
+            "The saved note changed after review. Refresh the comparison before restoring.",
+          );
+      }
       const actor = this.actor(principal, params),
         candidate = session.model.fork();
       let operation: SourceOperation | undefined,
         stream: CollaborationSnapshot["stream"];
       if (method === "edit") {
-        const result = candidate.apply({
+        const identity = {
           actor,
           operationId: text(params.operationId),
           epoch: candidate.epoch,
           baseRevision: integer(params.baseRevision),
-          start: integer(params.start),
-          deleteCount: integer(params.deleteCount),
-          insert: this.insertion(session, params.insert),
-        });
+        };
+        let result;
+        if (params.operations !== undefined) {
+          if (
+            !Array.isArray(params.operations) ||
+            params.operations.length > 256 ||
+            ["start", "deleteCount", "insert"].some(
+              (key) => params[key] !== undefined,
+            )
+          )
+            fail(
+              "invalid_patch",
+              "Use either one splice or a bounded operations batch.",
+            );
+          const operations = params.operations.map((value) => {
+            if (!value || typeof value !== "object" || Array.isArray(value))
+              fail("invalid_patch");
+            const operation = value as Record<string, unknown>;
+            return {
+              start: integer(operation.start),
+              deleteCount: integer(operation.deleteCount),
+              insert: this.insertion(session, operation.insert),
+            };
+          });
+          result = candidate.applyBatch({ ...identity, operations });
+        } else
+          result = candidate.apply({
+            ...identity,
+            start: integer(params.start),
+            deleteCount: integer(params.deleteCount),
+            insert: this.insertion(session, params.insert),
+          });
         operation = result.operation;
       } else if (method === "undo") {
         operation = candidate.undo(actor, text(params.operationId)).operation;
@@ -664,6 +917,7 @@ export class CollaborationHub {
     const projected = this.snapshot(
       { ...session, base: predictedBase, model: candidate },
       operation,
+      false,
     );
     projected.body = splitCanonicalContent(predicted).body;
     if (
@@ -834,6 +1088,23 @@ export class CollaborationHub {
         session.documentId,
       ),
       directory = path.join(parent, "raw-" + key);
+    const complete = async () => {
+      try {
+        await recordLatestRecovery(
+          session.base.root,
+          session.documentId,
+          "raw-" + key,
+          this.maxDocumentBytes,
+        );
+        session.recoveryDiscovery = undefined;
+      } catch {
+        session.recoveryDiscovery = "incomplete";
+      }
+      return path
+        .relative(session.base.root, directory)
+        .split(path.sep)
+        .join("/");
+    };
     const verify = async () => {
       const metadata = JSON.parse(
         (
@@ -871,10 +1142,7 @@ export class CollaborationHub {
     };
     try {
       await verify();
-      return path
-        .relative(session.base.root, directory)
-        .split(path.sep)
-        .join("/");
+      return complete();
     } catch (error) {
       if (errorCode(error) !== "ENOENT") throw error;
     }
@@ -902,10 +1170,7 @@ export class CollaborationHub {
     } finally {
       await handle?.close();
     }
-    return path
-      .relative(session.base.root, directory)
-      .split(path.sep)
-      .join("/");
+    return complete();
   }
   private async settleOpen(session: Session) {
     // Reopening must not acknowledge an older Saved revision while a complete
@@ -1058,6 +1323,14 @@ export class CollaborationHub {
     if (difference.deleteCount > 0 || prefixDifference.deleteCount > 0) {
       session.recovery = {
         code: "external_destructive_replacement",
+        baseContentHash: session.base.contentHash,
+        externalContentHash: current.contentHash,
+        recoveryId:
+          "raw-" +
+          createHash("sha256")
+            .update(session.base.contentHash)
+            .update(current.contentHash)
+            .digest("hex"),
         directory: await this.preserveDestructiveExternal(
           session,
           current.content,
@@ -1065,12 +1338,29 @@ export class CollaborationHub {
       };
     }
     if (difference.deleteCount || difference.insert) {
-      operation = next.apply({
+      let operations;
+      try {
+        operations = sourceDifferences(
+          session.model.body,
+          splitCanonicalContent(current.content).body,
+        );
+      } catch (error) {
+        if (
+          !(error instanceof CollaborationError) ||
+          error.code !== "diff_limit"
+        )
+          throw error;
+        // Raw files declare replacement truth, not old-base edit intent. When
+        // bounded granular alignment is unprovable, adopt the observed whole
+        // replacement; interior presence/stream anchors invalidate safely.
+        operations = [difference];
+      }
+      operation = next.applyBatch({
         actor: "external",
         operationId: randomUUID(),
         epoch: next.epoch,
         baseRevision: next.revision,
-        ...difference,
+        operations,
       }).operation;
       this.capHistory(next, session);
     }
@@ -1100,6 +1390,9 @@ export class CollaborationHub {
       await this.serialize(async () => {
         this.prune();
         for (const session of this.sessions.values()) {
+          const presenceCount = session.presence.size;
+          this.projectPresence(session);
+          if (presenceCount !== session.presence.size) this.emit(session);
           this.expireStreams(session);
           if (
             session.listeners.size ||

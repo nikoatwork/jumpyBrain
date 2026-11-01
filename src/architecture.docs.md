@@ -22,6 +22,7 @@ CLI boundary
   -> app/runtime seams
   -> remote HTTP client adapter
   -> public server boundary for the opt-in `serve` bootstrap
+  -> policy-free WebSocket transport for the collaboration client
   -> CLI-only formatting/target selection, doctor reporting, and usage text
 
 server boundary
@@ -49,6 +50,8 @@ adapters/infrastructure
 ```
 
 Core must not import CLI, server protocol code, HTTP clients, logging/package metadata adapters, app workflows, or QMD internals. CLI command parsing should call app seams rather than QMD internals directly, and the executable `src/cli.ts` should remain a shim over `src/cli/` command modules. Server protocol code lives under `src/adapters/http-server/`, should call app/server-memory seams, and must not import CLI command parsing. Legacy compatibility source directories were removed after the layered layout stabilized; use core submodules for pure domain concepts and app submodules for workflows.
+
+The WebSocket library boundary is `src/adapters/websocket/`. It only exposes the external `ws` library and is bundled once for CLI, live RPC and native gateway consumers. Source-layer clients may import this transport without importing `src/adapters/live/`, which owns server protocol and application integration policy. The architecture guard permits only the CLI and live adapter to import this source transport layer; it does not permit CLI imports of live server policy.
 
 ## Graph ownership chain
 

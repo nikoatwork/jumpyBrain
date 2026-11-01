@@ -77,3 +77,9 @@ cookie from a valid bearer credential; DELETE clears it. Cookie-authenticated
 mutations require exact Origin and every request revalidates authorization.
 WS resolves the browser-session marker from the authenticated upgrade cookie;
 credentials never enter the socket URL. See [collaboration](../../../docs/collaboration.md).
+
+## Retained external versions
+
+`document-retained-versions.ts` owns the accessible notice/dialog installed by document actions. The notice remains available on a clean Saved note after an observed destructive external replacement. It compares a hash-verified retained copy with a freshly read saved note, supports clipboard/manual copying and discloses incomplete discovery. Large comparisons use individually bounded copy reads. Scope changes clear dialog text; stale comparisons and revoked/read-only credentials cannot restore.
+
+The collaboration facade preserves a unique private draft before adopting a reviewed body/title. Storage failure leaves that draft active. Explicit restoration uses the current reviewed hash and exact revision in the serialized backend; it cannot overwrite protected frontmatter or silently rebase across a newer save. Retained files remain durable independently of browser review state. `scripts/collaboration-retained-versions-smoke.mjs` exercises the shipped shell, actual HTTP/WS credentials and raw writes.
