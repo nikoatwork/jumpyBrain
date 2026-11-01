@@ -2,6 +2,17 @@
 
 Import a local vault into a **separate local jumpyBrain memory root**. The source stays untouched. This is a one-way Markdown import, with no live sync or hosted import API.
 
+Your Markdown notes keep their filenames and folder structure inside `notes/`. You do not need to reorganize or flatten your vault before importing:
+
+| In your Obsidian vault | In your jumpyBrain memory folder |
+| --- | --- |
+| `Welcome.md` | `notes/Welcome.md` |
+| `Projects/Garden/Plan.md` | `notes/Projects/Garden/Plan.md` |
+| `Projects/Workshop/Plan.md` | `notes/Projects/Workshop/Plan.md` |
+| `Journal/2026/November/01.md` | `notes/Journal/2026/November/01.md` |
+
+Notes with the same filename in different folders stay separate. Folders are created as needed for imported Markdown; empty folders and folders containing only omitted files are not copied. This preserves organization on disk; it does not add an Obsidian-style folder tree to jumpyBrain's sidebar.
+
 ## Preview, apply and index
 
 ```bash
