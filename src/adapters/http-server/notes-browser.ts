@@ -630,11 +630,12 @@ function renderRecentNotes(recent) {
 }
 
 // Search and navigation controllers have injected effects for deterministic tests.
-function normalizeNoteResults(results, limit = 12) {
+function normalizeNoteResults(results, limit = 12, excludedDocumentId = null) {
   const seen = new Set();
   const normalized = (Array.isArray(results) ? results : []).flatMap((hit) => {
     const metadata = hit.provenance?.metadata || {};
     const documentId = isValidMemoryDocumentId(metadata.id) ? metadata.id : null;
+    if (documentId && documentId === excludedDocumentId) return [];
     const file = String(hit.provenance?.file || "");
     const key = documentId || file || String(hit.id);
     if (seen.has(key)) return [];
@@ -688,7 +689,7 @@ function createNoteSearch(options) {
       try {
         const payload = await options.fetch(search.query, request.signal);
         if (token !== generation) return;
-        search.results = normalizeNoteResults(payload?.results, options.resultLimit || 12);
+        search.results = normalizeNoteResults(payload?.results, options.resultLimit || 12, options.getExcludedDocumentId?.());
         search.recognition = payload?.recognition;
         search.selected = search.results.findIndex((result) => result.documentId);
         if (requestedWriteRevision === writeRevision && typeof payload?.index?.stale === "boolean") localStale = payload.index.stale;
@@ -794,6 +795,7 @@ for (const id of ["home-search", "open-search"]) {
 }
 const noteSearch = createNoteSearch({
   resultLimit: 24,
+  getExcludedDocumentId: () => searchMode === "navigate" && state.view === "note" ? state.editor?.state.documentId : null,
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
   abortController: () => new AbortController(),

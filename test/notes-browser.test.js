@@ -203,6 +203,60 @@ test("search debounces bursts, cancels requests, and ignores late query/closed-d
   assert.equal(requests.length, 3);
 });
 
+test("search excludes the current canonical page before limiting and selecting results", async () => {
+  let currentId = docA;
+  const { search, requests } = searchHarness({ resultLimit: 1, getExcludedDocumentId: () => currentId });
+  const results = [hit(docA), hit(docA, "Another passage"), hit(docB, "Alpha", "pages/beta.md")];
+  search.query("alpha", true);
+  requests.at(-1).resolve({ results }); await tick();
+  assert.deepEqual(Array.from(search.state.results, (result) => result.documentId), [docB]);
+  assert.equal(search.state.selected, 0);
+  search.move(1);
+  assert.equal(search.state.results[search.state.selected].documentId, docB);
+  assert.equal(results.length, 3, "filtering must not mutate the shared search response");
+
+  currentId = docB;
+  search.query("alpha", true);
+  requests.at(-1).resolve({ results }); await tick();
+  assert.equal(search.state.results[0].documentId, docA, "each query uses the current page identity");
+
+  search.query("only current", true);
+  requests.at(-1).resolve({ results: [hit(docB)] }); await tick();
+  assert.equal(search.state.results.length, 0);
+  assert.equal(search.state.selected, -1);
+  assert.match(search.state.message, /No notes found/);
+
+  currentId = null;
+  search.query("alpha", true);
+  requests.at(-1).resolve({ results }); await tick();
+  assert.equal(search.state.results[0].documentId, docA);
+});
+
+test("web and Mac navigation search exclude the current page while reference and non-page searches stay unchanged", () => {
+  const context = vm.createContext({
+    companionMode: true, searchMode: "navigate", state: { view: "note", editor: { state: { documentId: docA } } },
+    createNoteSearch: (options) => options, renderNoteSearch() {},
+  });
+  const start = script.indexOf("const noteSearch = createNoteSearch({");
+  const end = script.indexOf("\n});", start) + "\n});".length;
+  assert.ok(start >= 0 && end > start);
+  vm.runInContext(script.slice(start, end) + "\nglobalThis.options = noteSearch;", context);
+  assert.equal(context.options.getExcludedDocumentId(), docA);
+  context.searchMode = "insert";
+  assert.equal(context.options.getExcludedDocumentId(), null);
+  context.searchMode = "navigate";
+  context.state.view = "home";
+  assert.equal(context.options.getExcludedDocumentId(), null);
+  context.state.view = "graph";
+  assert.equal(context.options.getExcludedDocumentId(), null);
+  context.state.view = "note";
+  context.state.editor = null;
+  assert.equal(context.options.getExcludedDocumentId(), undefined);
+  context.state.editor = { state: { documentId: docA } };
+  context.companionMode = false;
+  assert.equal(context.options.getExcludedDocumentId(), docA);
+});
+
 test("search handles empty, missing-ID, auth, index/server, rate-limit, and network states", async () => {
   const { search, requests, run } = searchHarness();
   search.query("none"); run(); requests.at(-1).resolve({ results: [], index: { stale: false } }); await tick();
