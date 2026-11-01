@@ -8,7 +8,7 @@ import { initializeMemoryRoot, indexMemory, listBoards } from '../dist/runtime/i
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { startCompanionGateway } from '../integrations/macos-companion/gateway.mjs';
 import { loadPlaywrightChromium,launchPlaywrightChromium } from './playwright-runtime.mjs';
-const repo=fileURLToPath(new URL('..',import.meta.url)),temp=await mkdtemp(path.join(os.tmpdir(),'jb-boards-ui-')),root=path.join(temp,'memory'),support=path.join(temp,'support');
+const repo=fileURLToPath(new URL('..',import.meta.url)),temp=await mkdtemp(path.join(os.tmpdir(),'jb-boards-ui-')),root=path.join(temp,'memory with spaces ü'),support=path.join(temp,'support');
 let gateway,browser,remote;const keys=new Map();
 try{
  await initializeMemoryRoot(root);
@@ -17,6 +17,14 @@ try{
  gateway=await startCompanionGateway({runtimeRoot:repo,directory:support,initialRoot:root,port:0,controlKey:'b'.repeat(64),credentials:{get:async ref=>keys.get(ref),set:async(ref,value)=>keys.set(ref,value),delete:async ref=>keys.delete(ref)}});
  browser=await launchPlaywrightChromium({chromium:await loadPlaywrightChromium()});
  const page=await browser.newPage({viewport:{width:1280,height:900}});page.setDefaultTimeout(12000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.addInitScript(()=>{
+   window.fixtureClipboard=[];
+   Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{
+     if(window.fixtureClipboardMode==='fail')throw new Error('Clipboard fixture denial');
+     window.fixtureClipboard.push(text);
+     if(window.fixtureClipboardMode==='pending')await new Promise(resolve=>window.finishFixtureCopy=resolve);
+   }}});
+ });
  await page.goto(gateway.url+'/#companion='+'b'.repeat(64));await page.locator('#new-board').waitFor({state:'visible'});
  const newBoard=async(activate=()=>page.locator('#new-board').click())=>{
    const previous=new URL(page.url()).searchParams.get('board');
@@ -127,6 +135,22 @@ try{
  await page.locator('#board-title').filter({hasText:'Next chapter'}).waitFor();
  await page.locator('[data-page-link="'+existingId+'"]').click();await page.locator('#note-editor').waitFor({state:'visible'});
  const noteUrl=page.url();
+ const localRoot=gateway.store.snapshot().profiles.find(p=>p.kind==='local').root;
+ assert.equal(await page.locator('#toggle-page-details').innerText(),'More info');
+ await page.locator('#copy-note-file-path').click();
+ assert.equal(await page.evaluate(()=>fixtureClipboard.at(-1)),path.join(localRoot,'notes/checklist.md'),'copies an absolute path with literal spaces/Unicode, without URL encoding');
+ await page.locator('#toast-message').filter({hasText:'File path copied.'}).waitFor();
+ await page.evaluate(()=>window.fixtureClipboardMode='fail');await page.locator('#copy-note-file-path').click();
+ await page.locator('#toast-message').filter({hasText:'Could not copy the file path.'}).waitFor();
+ assert.equal(await page.locator('#app-toast').getAttribute('data-error'),'true');
+ await page.locator('#toast-close').click();
+ await page.locator('#note-board-memberships').getByRole('button',{name:'Open board: A quieter launch',exact:true}).waitFor();
+ // A pending copy cannot report success for the next destination.
+ await page.evaluate(()=>window.fixtureClipboardMode='pending');await page.locator('#copy-note-file-path').click();
+ await page.locator('#note-board-memberships button').click();await page.locator('#board-title').filter({hasText:'A quieter launch'}).waitFor();
+ await page.evaluate(()=>{window.finishFixtureCopy();window.fixtureClipboardMode='';});
+ assert.equal(await page.locator('#app-toast[data-source="file-path"]').isVisible(),false);
+ await page.locator('#navigate-back').click();await page.locator('#note-editor').waitFor({state:'visible'});
  for (const width of [1820, 1280, 1180, 900, 390, 320]) for (const theme of ['light', 'dark']) {
   await page.setViewportSize({width,height:900});
   await page.evaluate(theme=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.palette='ocean';document.getElementById('note-panel').scrollTop=0;},theme);
@@ -154,14 +178,19 @@ try{
  await page.locator('#note-board-column').selectOption('2');await page.locator('#note-board-add').click();await page.locator('#note-board-dialog').waitFor({state:'hidden'});await page.unroute('**/memories/all/boards**');
  assert.equal(page.url(),noteUrl);
  assert.equal(await page.evaluate(()=>document.activeElement.id),'note-add-to-board');
+ assert.deepEqual(await page.locator('#note-board-memberships button').allTextContents(),['A quieter launch','Next chapter'],'confirmed membership appears immediately');
  const after=await listBoards(root);const second=after.boards.find(b=>b.name==='Next chapter');assert.deepEqual(second.columns.map(c=>c.pages),[[],[],[existingId]]);
  await page.locator('#note-add-to-board').click();await page.locator('#note-board-message').filter({hasText:'already on your boards'}).waitFor();assert.equal(await page.locator('#note-board-add').isDisabled(),true);await page.locator('#note-board-cancel').click();
  await page.locator('#sidebar-boards').getByRole('button',{name:'Settle A quieter launch',exact:true}).click();await page.locator('#sidebar-boards').getByRole('button',{name:'Open board: A quieter launch',exact:true}).waitFor({state:'hidden'});
+ assert.deepEqual(await page.locator('#note-board-memberships button').allTextContents(),['A quieter launch · Settled','Next chapter'],'settled memberships remain visible with their state');
  await page.locator('#note-add-to-board').click();await page.locator('#note-board-message').filter({hasText:'already on your boards'}).waitFor();assert.equal(await page.locator('#note-board-select option').count(),1);await page.locator('#note-board-cancel').click();
  await page.screenshot({animations:'disabled',path:'/tmp/jumpybrain-boards-qa/note-action-card.png',fullPage:true});
  assert.equal(await readFile(path.join(root,'notes/checklist.md'),'utf8'),original);
  // Adding membership does not flush or discard an unsaved note draft.
  await page.locator('[data-page-link="'+cardId+'"]').press('Enter');await page.locator('#note-editor').waitFor({state:'visible'});
+ await page.locator('#copy-note-file-path').click();
+ assert.equal(await page.evaluate(()=>fixtureClipboard.at(-1)),path.join(localRoot,await page.evaluate(()=>state.editor.state.file)),'navigation copies the current note path');
+ assert.equal(await page.locator('#note-board-memberships').innerText(),'A quieter launch · Settled','navigation clears the preceding note memberships');
  await page.route('**/memories/all/documents/**',async route=>{if(route.request().method()==='PUT')await route.abort();else await route.continue();});
  await appendEditorText(page,'Keep this unsaved thought.');const draft=await editorMarkdown(page);
  await page.locator('#note-add-to-board').click();await page.waitForFunction(()=>!document.getElementById('note-board-add').disabled);await page.locator('#note-board-add').click();await page.locator('#note-board-dialog').waitFor({state:'hidden'});
@@ -236,6 +265,9 @@ try{
  assert.equal(await page.locator('#sidebar-boards > li').count(),sharedActive,'two connections to the same brain share canonical boards');
  assert.equal(await page.locator('#new-board').isDisabled(),true);
  assert.equal(await page.locator('#settings-new-board').isDisabled(),true);
+ await page.evaluate(id=>navigation.navigate('/?note='+id),existingId);await page.locator('#note-editor').waitFor({state:'visible'});
+ assert.equal(await page.locator('#copy-note-file-path').isHidden(),true,'remote brains never copy the previous local root');
+ assert.equal(await page.locator('#note-board-memberships button').count(),2,'read-only remote notes still show memberships');
  await switchBrain(localId);await page.waitForFunction(id=>typeof companionState!=='undefined'&&companionState?.activeId===id&&companionRegistered&&!companionFrozen,localId);
  assert.equal(await page.locator('.board-composer').count(),0);
  assert.deepEqual(errors,[]);console.log('Boards smoke PASS: note action/column/conflict retry/duplicates/archive filtering, plain-text previews, compact right icons, reorder/remove, keyboard/drag movement, create page, editor/back, settle, settings restore, reload, 1280/390 light/dark');

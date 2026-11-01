@@ -37,7 +37,7 @@ export async function checkPageActions(page, { companion = false } = {}) {
     assert.equal(geometry.background, geometry.expectedHover, 'transparent rows use the shared faint hover wash');
     assert.deepEqual(await row.boundingBox(), before, 'hover never changes geometry');
     assert.ok(before.height >= (layout.narrow ? 40 : 36), 'action meets desktop/touch target size');
-    if (rowWidth !== undefined) assert.equal(before.width, rowWidth, 'board and facts rows have equal widths');
+    if (rowWidth !== undefined) assert.ok(before.width < rowWidth - 16, 'Add to board is compact beside the full-width More info disclosure');
     rowWidth = before.width;
     await row.focus();
     await page.keyboard.press('Tab');
@@ -45,7 +45,7 @@ export async function checkPageActions(page, { companion = false } = {}) {
     assert.equal(await row.evaluate(el => el === document.activeElement), true, 'keyboard returns to the action');
     assert.equal(await row.evaluate(el => getComputedStyle(el).outlineStyle), 'solid', 'keyboard focus stays visible');
   }
-  for (const selector of ['#copy-note-draft', '#delete-note', '#navigate-back', '#navigate-forward']) {
+  for (const selector of ['#copy-note-draft', '#copy-note-file-path', '#delete-note', '#navigate-back', '#navigate-forward']) {
     const icon = page.locator(selector);
     if (!await icon.isVisible()) continue;
     await page.mouse.move(0, 0);

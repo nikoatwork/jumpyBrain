@@ -72,6 +72,7 @@ try {
   await open(1);
   assert.equal(await page.locator('#note-save-state').textContent(), 'Saved', 'a confirmed loaded baseline is visibly saved');
   assert.equal(await page.locator('#copy-note-draft').innerText(), '');
+  assert.equal(await page.locator('#copy-note-file-path').isHidden(), true, 'hosted notes do not claim a local absolute path');
   assert.equal(await page.locator('#note-details-content').isHidden(), true);
   assert.equal(await page.locator('#format-controls').isHidden(), true, 'formatting is folded on note entry');
   assert.equal(await page.locator('#insert-reference').innerText(), 'Link', 'linking stays directly reachable');
@@ -310,6 +311,7 @@ try {
   assert.equal(await readonly.locator('#note-editor').getAttribute('aria-readonly'), 'true');
   assert.equal(await readonly.locator('#note-editor-hint').isHidden(), true);
   assert.equal(await readonly.locator('#copy-note-draft').isVisible(), true);
+  assert.equal(await readonly.locator('#copy-note-file-path').isHidden(), true);
   assert.equal(await readonly.locator('#toggle-note-format').isHidden(), true);
   assert.equal(await readonly.locator('#format-controls').isHidden(), true);
   await readonly.locator('#toggle-page-details').click();

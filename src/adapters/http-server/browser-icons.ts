@@ -29,6 +29,7 @@ export const browserEditorIcons = {
 // Keep server-only glyph construction out of bundles that need only the pin.
 export const browserIcons = /* @__PURE__ */ (() => ({
   plus: icon('<path d="M12 5v14M5 12h14"/>'),
+  link: icon('<path d="m10 13 4-4M8 16l-1 1a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 1 1-1a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0" transform="translate(1 1)"/>'),
   forward: icon('<path d="m14 5 7 7-7 7M21 12H3"/>'),
   back: icon('<path d="m10 5-7 7 7 7M3 12h18"/>'),
   appearance: icon('<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>'),
