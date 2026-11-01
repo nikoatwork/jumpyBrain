@@ -6,14 +6,20 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { installFakeQmd } from "./fake-qmd-helper.js";
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
 
 const repo = new URL("..", import.meta.url).pathname;
 const installer = path.join(repo, "scripts/public-install.mjs");
 
 test("onboarding preview is truthful and installed shell/agent examples preserve literal paths", async (t) => {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "jb-onboarding-"));
-  t.after(() => rm(temporary, { recursive: true, force: true }));
   const project = path.join(temporary, "Project with spaces");
+  t.after(async () => {
+    // The installed CLI now shares a window-independent owner. Drain its writes
+    // before deleting the disposable brain, just as an upgrade would.
+    if (existsSync(path.join(project, "memory"))) await stopRootBackend(path.join(project, "memory"));
+    await rm(temporary, { recursive: true, force: true });
+  });
   const home = path.join(temporary, 'home \' " $& $(touch QUOTING_BROKE) `touch BACKTICKS_BROKE`');
   await mkdir(project);
   const installRoot = path.join(home, ".jumpybrain");

@@ -1,5 +1,6 @@
 // Production source binding: real contenteditable, real WS backend, disposable root.
 import assert from "node:assert/strict";
+import {runIntentProof,runRestartIntentProof} from "./collaboration-intent-proof.mjs";
 import { runStructuralCursorProof, runLiveCursorProof } from "./collaboration-cursor-proof.mjs";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -24,7 +25,9 @@ async function agentConnection(url) {
 }
 try {
   await mkdir(path.join(root, "notes")); await writeFile(path.join(root, "notes/live.md"), prefix + original);
-  const bundle = await build({ stdin: { contents: `export {createNoteEditor} from './src/adapters/http-server/lexical-editor.ts';export {createCollaborationEditor} from './src/adapters/http-server/collaboration-editor.ts';`, resolveDir: process.cwd(), sourcefile: "production-collaboration-smoke.ts" }, bundle: true, write: false, platform: "browser", format: "iife", globalName: "ProductionCollaboration", define: { "process.env.NODE_ENV": '"production"' } });
+  const bundle = await build({ stdin: { contents: `export {createNoteEditor} from './src/adapters/http-server/lexical-editor.ts';export {createCollaborationEditor} from './src/adapters/http-server/collaboration-editor.ts';export {sourceDifferences as fixtureSplices} from './src/core/collaboration/source.ts';`, resolveDir: process.cwd(), sourcefile: "production-collaboration-smoke.ts" }, bundle: true, write: false, platform: "browser", format: "iife", globalName: "ProductionCollaboration", define: { "process.env.NODE_ENV": '"production"' } });
+  // Fixture producers declare their canonical operation sequences explicitly;
+  // repeated-text intent is separately tested from actual keyboard ranges.
   // Isolated editor validation runs without a shared dist rebuild.
   sourceServer = createServer((request, response) => { response.setHeader("content-type", "text/html"); response.end(`<div id="note-panel"><div id="note-editor"></div></div><script>${bundle.outputFiles[0].text.replace(/<\/script/gi, "<\\/script")}</script>`); });
   await new Promise((resolve) => sourceServer.listen(0, "127.0.0.1", resolve));
@@ -33,29 +36,29 @@ try {
   const isolated = await browser.newPage(); const errors = [];
   isolated.on("pageerror", (error) => errors.push(error.message));
   await isolated.goto(base);
-  await isolated.evaluate((body) => { window.changes = []; window.richEditor = ProductionCollaboration.createNoteEditor(document.querySelector("#note-editor"), { onChange: (body) => changes.push(body), onError(error) { throw error; } }); richEditor.setMarkdown(""); const result = richEditor.applyCollaborativeMarkdown(body); if (result.status !== "applied") throw new Error(JSON.stringify(result)); }, original);
+  await isolated.evaluate((body) => { window.changes = []; window.richEditor = ProductionCollaboration.createNoteEditor(document.querySelector("#note-editor"), { onChange: (body) => changes.push(body), onError(error) { throw error; } }); richEditor.setMarkdown(""); const result = richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}); if (result.status !== "applied") throw new Error(JSON.stringify(result)); }, original);
   await selectEditorText(isolated, 2, 2);
   await isolated.evaluate(() => { window.keep = document.querySelector("#note-editor").children[2]; });
   const changed = original.replace("Last paragraph", "Last remote paragraph");
-  { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body), changed); assert.equal(result.status, "applied", result.reason); }
+  { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}), changed); assert.equal(result.status, "applied", result.reason); }
   assert.equal(await editorMarkdown(isolated), changed);
   assert.equal(await isolated.evaluate(() => keep === document.querySelector("#note-editor").children[2]), true, "untouched DOM block survives remote edit");
   assert.equal(await isolated.evaluate(() => changes.length), 0, "remote edits do not echo as human input");
   await isolated.evaluate(() => { window.boldLeaf = document.querySelector("#note-editor .editor-bold"); });
   const inline = changed.replace("Keep **bold**", "Keep `inserted` **bold**");
-  { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body), inline); assert.equal(result.status, "applied", result.reason); }
+  { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}), inline); assert.equal(result.status, "applied", result.reason); }
   assert.equal(await isolated.evaluate(() => boldLeaf === document.querySelector("#note-editor .editor-bold")), true, "unaffected formatted leaf survives a sibling insertion");
-  assert.equal(await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body).status, changed), "applied");
+  assert.equal(await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}).status, changed), "applied");
   const structural = changed.replace("# Live source", "## Live source\nNew paragraph").replace("- [ ] Task", "- [x] Task\n- [ ] Next").replace("| x | y |", "| streamed | y |");
-  assert.equal(await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body).status, structural), "applied");
+  assert.equal(await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}).status, structural), "applied");
   assert.equal(await editorMarkdown(isolated), structural);
   assert.equal(await isolated.locator("#note-editor h2").textContent(), "Live source");
   assert.equal(await isolated.locator("#note-editor [data-task-checked]").count() > 0 || await isolated.locator("#note-editor").innerText().then((text) => text.includes("Task")), true);
   const joined = structural.replace("New paragraph\n", "").replace("- [x] Task\n- [ ] Next", "Task joined");
-  assert.equal(await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body).status, joined), "applied");
+  assert.equal(await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}).status, joined), "applied");
   assert.equal(await editorMarkdown(isolated), joined);
   const crlf = original.replace(/\n/g, "\r\n");
-  { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body), crlf); assert.equal(result.status, "applied", result.reason); }
+  { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}), crlf); assert.equal(result.status, "applied", result.reason); }
   assert.equal(await editorMarkdown(isolated), crlf);
   assert.equal(await isolated.locator("#note-editor h1").innerText(), "Live source");
   assert.deepEqual(await isolated.evaluate(() => richEditor.collaborativeSelection()), { anchor: 4, focus: 4 }, "plain heading projection counts its exact source prefix");
@@ -66,7 +69,7 @@ try {
   });
   await isolated.evaluate(() => new Promise(requestAnimationFrame));
   assert.deepEqual(await isolated.evaluate(() => richEditor.collaborativeSelection()), { anchor: crlf.indexOf("console.log") + 5, focus: crlf.indexOf("console.log") + 5 }, "code source projection accounts for CRLF and its fence");
-  { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body), "Added paragraph\n" + original); assert.equal(result.status, "applied", result.reason); }
+  { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}), "Added paragraph\n" + original); assert.equal(result.status, "applied", result.reason); }
   assert.equal(await isolated.evaluate(() => getSelection().anchorOffset), 5, "newline-style changes retain an unchanged code leaf caret");
   assert.equal(await isolated.evaluate(() => Boolean(getSelection().anchorNode.parentElement.closest('pre'))), true);
   const repeated = "First paragraph.\n\nAgent will revise this.\n\n" + Array.from({length:35}, (_, i) => `Unchanged paragraph ${i}.`).join("\n\n") + "\n";
@@ -75,7 +78,7 @@ try {
   await isolated.evaluate(() => richEditor.applyCollaborativeMarkdown(richEditor.getMarkdown()));
   await isolated.evaluate(() => { const button = document.createElement("button"); button.id = "outside"; button.textContent = "Outside"; document.body.append(button); });
   await isolated.locator("#outside").click();
-  await isolated.evaluate((body) => { richEditor.setCollaborativeHistory({ undo() { const result = richEditor.applyCollaborativeMarkdown(body); if (result.status === "recovery") throw new Error(result.reason); } }); }, repeated);
+  await isolated.evaluate((body) => { richEditor.setCollaborativeHistory({ undo() { const result = richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}); if (result.status === "recovery") throw new Error(result.reason); } }); }, repeated);
   await undoEditor(isolated);
   await isolated.waitForFunction((body) => richEditor.getMarkdown() === body, repeated);
   assert.equal(await editorMarkdown(isolated), repeated, "removing a final local paragraph preserves its trailing newline");
@@ -224,6 +227,8 @@ try {
     assert.deepEqual(errors, []);
     for (const context of contexts) await context.close();
     await runLiveCursorProof({browser,serverUrl:server.url,token,root,bundle:bundle.outputFiles[0].text,errors});
+    await runIntentProof({browser,serverUrl:server.url,token,root,bundle:bundle.outputFiles[0].text,errors});
+    await runIntentProof({browser,serverUrl:server.url,token,root,bundle:bundle.outputFiles[0].text,errors,shipped:true});
     // The shipped shell must use the same live path without legacy PUT autosave.
     const shellContexts = [await browser.newContext(), await browser.newContext()];
     const shellPages = await Promise.all(shellContexts.map((context) => context.newPage()));
@@ -318,8 +323,9 @@ try {
     assert.equal(await popup.evaluate(() => state.editor.collaboration.title), "Unique current A title");
     assert.equal((await readFile(path.join(root, "notes/live.md"), "utf8")).includes("unique current A body"), false, "private recovery does not silently publish either version");
     await cloneContext.close();
+    await runRestartIntentProof({browser,root,token,errors,startServer:port=>startJumpyBrainHttpServer({root,apiKeys:[token],port,autoIndex:false})});
     assert.deepEqual(errors, []);
-    console.log("Production collaboration editor smoke passed: two contexts, source convergence, actor undo, canonical external writes, agent streams, IME, offline body/title reload recovery, shipped notes shell, cloned-tab actor isolation and explicit recovery selector, title normalization and draft-version preservation, granular edits and visible revisioned cursors.");
+    console.log("Production collaboration editor smoke passed: two contexts, source convergence, actor undo, canonical external writes, agent streams, IME, offline body/title reload recovery, shipped notes shell, cloned-tab actor isolation and explicit recovery selector, title normalization and draft-version preservation, granular edits and visible revisioned cursors, actual positional intent and authoritative selection history.");
   }
 } finally {
   agent?.close(); await browser?.close(); await server?.close(); if (sourceServer) await new Promise((resolve) => sourceServer.close(resolve)); await rm(root, { recursive: true, force: true });

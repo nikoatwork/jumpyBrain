@@ -17,6 +17,7 @@ export const requiredLocalPackFiles = Object.freeze([
   ...["index", "model", "source", "errors"].flatMap(name => moduleFiles("core", "collaboration", name)),
   ...moduleFiles("adapters", "http-server", "editor-source-map"),
   ...moduleFiles("adapters", "http-server", "collaboration-appearance"),
+  ...moduleFiles("adapters", "http-server", "collaboration-labels"),
   ...moduleFiles("adapters", "http-server", "document-retained-versions"),
   ...moduleFiles("server", "daemon"),
   ...moduleFiles("cli", "backend-commands"),

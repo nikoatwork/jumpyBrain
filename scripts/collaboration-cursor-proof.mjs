@@ -38,7 +38,7 @@ export async function runStructuralCursorProof(page) {
     await page.evaluate(()=>richEditor.setMarkdown('```js\njs abc\n```',true));
     await selectLeaf(page,'#note-editor pre',start,end);
     assert.deepEqual(await editorSelection(page),[start,end]);
-    assert.equal(await page.evaluate(()=>richEditor.applyCollaborativeMarkdown('```js\nXjs abc\n```').status),'applied');
+    assert.equal(await page.evaluate(()=>richEditor.applyCollaborativeMarkdown('```js\nXjs abc\n```',{operationSequence:[[{start:6,deleteCount:0,insert:'X'}]]}).status),'applied');
     assert.deepEqual(await editorSelection(page),expected,'fence language never steals a code-body anchor');
     assert.deepEqual(await page.evaluate(()=>richEditor.collaborativeSelection()),{anchor:6+expected[0],focus:6+expected[1]});
   }

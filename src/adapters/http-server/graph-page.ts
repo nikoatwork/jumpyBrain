@@ -304,8 +304,8 @@ graphFilters.addEventListener("keydown", (event) => {
 $("note-retry").addEventListener("click", () => { if (state.editor) state.editor.retry(); });
 const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
   atReferenceTrigger: companionMode,
-  onChange: (markdown) => {
-    state.editor?.input(markdown);
+  onChange: (markdown, intent) => {
+    state.editor?.input(markdown, intent);
     if (companionMode && state.editor?.state.loaded) referenceCreation.saved(state.editor.state.savedBody, markdown);
   },
   onCompletedReferences: (titles) => {

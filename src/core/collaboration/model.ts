@@ -6,6 +6,7 @@ import {
 } from "./errors.js";
 import {
   applySourceSplices,
+  composeSourceSplices,
   invertSourceSplices,
   rebaseSourceSplices,
   sourceDifference,
@@ -55,6 +56,7 @@ export const operationSplices = (
       deleteCount: operation.deleteCount,
       insert: operation.insert,
       removed: operation.removed,
+      ...(operation.ambiguous ? { ambiguous: true as const } : {}),
     },
   ];
 function coalesce(operations: AppliedSourceSplice[]): AppliedSourceSplice[] {
@@ -70,6 +72,7 @@ function coalesce(operations: AppliedSourceSplice[]): AppliedSourceSplice[] {
       previous.deleteCount += operation.deleteCount;
       previous.insert += operation.insert;
       previous.removed += operation.removed;
+      if (operation.ambiguous) previous.ambiguous = true;
     } else result.push({ ...operation });
   }
   return result;
@@ -108,7 +111,8 @@ function sameSplices(
         operation.start === other.start &&
         operation.deleteCount === other.deleteCount &&
         operation.insert === other.insert &&
-        operation.removed === other.removed
+        operation.removed === other.removed &&
+        operation.ambiguous === other.ambiguous
       );
     })
   );
@@ -125,6 +129,8 @@ function selectiveRebase(
     if (!other.deleteCount && !other.insert) continue;
     const otherEnd = other.start + other.deleteCount,
       next: AppliedSourceSplice[] = [];
+    if (other.ambiguous && other.deleteCount > 0)
+      rebaseSourceSplices(result, [other]);
     const anchor = (position: number, allowInterior: boolean) => {
       if (!other.deleteCount)
         return position >= other.start
@@ -175,6 +181,7 @@ function selectiveRebase(
               start - operation.start,
               finish - operation.start,
             ),
+            ...(operation.ambiguous ? { ambiguous: true as const } : {}),
           });
       };
       add(operation.start, Math.min(end, other.start));
@@ -188,12 +195,13 @@ function selectiveRebase(
             deleteCount: 0,
             insert: operation.insert,
             removed: "",
+            ...(operation.ambiguous ? { ambiguous: true as const } : {}),
           });
       }
       next.push(...pieces);
     }
     result = coalesce(next).filter(
-      (operation) => operation.removed !== operation.insert,
+      (operation) => operation.deleteCount > 0 || operation.insert.length > 0,
     );
     if (result.length > 256)
       fail(
@@ -202,6 +210,142 @@ function selectiveRebase(
       );
   }
   return result;
+}
+/** Shared proof used by server transforms and browser history projection. */
+function reduceCausalOperations(
+  history: readonly SourceOperation[],
+  baseRevision: number,
+  charge: (cost: number) => void,
+): SourceOperation[] {
+  const result: SourceOperation[] = [];
+  for (const actual of history.filter(
+    (operation) => operation.revision > baseRevision,
+  )) {
+    const target = actual.inverseOf,
+      index = target
+        ? result.findIndex(
+            (operation) =>
+              operation.actor === target.actor &&
+              operation.operationId === target.operationId &&
+              operation.revision === target.revision,
+          )
+        : -1;
+    if (index < 0) {
+      result.push(actual);
+      continue;
+    }
+    const original = result[index]!,
+      middle = result.slice(index + 1),
+      commuted: SourceOperation[] = [];
+    let inverse = invertSourceSplices(operationSplices(original));
+    for (const operation of middle) {
+      const splices = operationSplices(operation);
+      charge(Math.max(1, inverse.length * splices.length * 2));
+      const mapped = selectiveRebase(splices, inverse, true);
+      const advanced = selectiveRebase(inverse, splices);
+      commuted.push(
+        transaction(
+          operation.actor,
+          operation.operationId,
+          operation.revision,
+          coalesce(mapped),
+          operation.inverseOf,
+        ),
+      );
+      inverse = coalesce(advanced);
+    }
+    if (!sameSplices(coalesce(inverse), coalesce(operationSplices(actual))))
+      fail(
+        "history_expired",
+        "An inverse history pair could not be proven. Resynchronize before editing.",
+      );
+    result.splice(index, result.length - index, ...commuted);
+  }
+  return result;
+}
+export interface SourceHistoryRecord {
+  actor: string;
+  operationId: string;
+  revision: number;
+  splices: SourceSplice[];
+  inverseOf?: OperationIdentity;
+}
+/** Preserve original source through proven Undo pairs, without treating equal bytes as identity. */
+export function composeCausalSourceHistory(
+  base: string,
+  records: readonly SourceHistoryRecord[],
+): SourceSplice[] {
+  if (!isSourceText(base)) fail("invalid_patch");
+  if (bytes(base) > 2 * 1024 * 1024 || records.length > 1024)
+    fail("provenance_limit");
+  let current = base,
+    work = 0,
+    proofWork = 0;
+  const actual: SourceOperation[] = [],
+    firstRevision = records[0]?.revision ?? 1;
+  const identity = (value: unknown): value is string =>
+    typeof value === "string" && value.length > 0 && value.length <= 4096;
+  for (const [index, record] of records.entries()) {
+    if (
+      !record ||
+      !identity(record.actor) ||
+      !identity(record.operationId) ||
+      !Number.isSafeInteger(record.revision) ||
+      record.revision < 1 ||
+      record.revision !== firstRevision + index
+    )
+      fail(
+        "history_expired",
+        "The published source history is not contiguous.",
+      );
+    const inverse = record.inverseOf;
+    if (
+      inverse &&
+      (!identity(inverse.actor) ||
+        !identity(inverse.operationId) ||
+        !Number.isSafeInteger(inverse.revision) ||
+        inverse.revision < 1 ||
+        inverse.revision >= record.revision)
+    )
+      fail("history_expired");
+    validateSourceSplices(current, record.splices);
+    work +=
+      current.length +
+      record.splices.reduce(
+        (sum, operation) => sum + operation.insert.length,
+        0,
+      );
+    if (work > 32_000_000) fail("provenance_limit");
+    const operations = record.splices.map((operation) => ({
+      ...operation,
+      removed: current.slice(
+        operation.start,
+        operation.start + operation.deleteCount,
+      ),
+    }));
+    actual.push(
+      transaction(
+        record.actor,
+        record.operationId,
+        record.revision,
+        operations,
+        inverse,
+      ),
+    );
+    current = applySourceSplices(current, record.splices);
+    if (bytes(current) > 2 * 1024 * 1024) fail("provenance_limit");
+  }
+  const reduced = reduceCausalOperations(
+    actual,
+    firstRevision - 1,
+    (amount) => {
+      if ((proofWork += amount) > 1_000_000) fail("history_expired");
+    },
+  );
+  const operations = composeSourceSplices(base, reduced.map(operationSplices));
+  if (applySourceSplices(base, operations) !== current)
+    fail("provenance_mismatch");
+  return operations;
 }
 interface Receipt {
   signature: string;
@@ -378,56 +522,39 @@ export class SourceModel {
       );
     return body;
   }
+  /** Actual contiguous published operations; no inverse cancellation or inferred diffs. */
+  changesSince(
+    baseRevision: number,
+    toRevision = this.revision,
+  ): SourceOperation[] {
+    this.base(baseRevision);
+    this.base(toRevision);
+    if (toRevision < baseRevision) fail("invalid_revision");
+    const operations = this.history.filter(
+      (operation) =>
+        operation.revision > baseRevision && operation.revision <= toRevision,
+    );
+    if (
+      operations.length !== toRevision - baseRevision ||
+      operations.some(
+        (operation, index) => operation.revision !== baseRevision + index + 1,
+      )
+    )
+      fail("history_expired");
+    return operations.map((operation) => ({
+      ...operation,
+      ...(operation.operations
+        ? { operations: operation.operations.map((splice) => ({ ...splice })) }
+        : {}),
+      ...(operation.inverseOf ? { inverseOf: { ...operation.inverseOf } } : {}),
+    }));
+  }
   /** Reduce only verified inverse pairs, commuting intervening independent edits. */
   private effectiveHistory(
     baseRevision: number,
     charge: (cost: number) => void = () => {},
   ) {
-    const result: SourceOperation[] = [];
-    for (const actual of this.history.filter(
-      (operation) => operation.revision > baseRevision,
-    )) {
-      const target = actual.inverseOf,
-        index = target
-          ? result.findIndex(
-              (operation) =>
-                operation.actor === target.actor &&
-                operation.operationId === target.operationId &&
-                operation.revision === target.revision,
-            )
-          : -1;
-      if (index < 0) {
-        result.push(actual);
-        continue;
-      }
-      const original = result[index]!,
-        middle = result.slice(index + 1),
-        commuted: SourceOperation[] = [];
-      let inverse = invertSourceSplices(operationSplices(original));
-      for (const operation of middle) {
-        const splices = operationSplices(operation);
-        charge(Math.max(1, inverse.length * splices.length * 2));
-        const mapped = selectiveRebase(splices, inverse, true);
-        const advanced = selectiveRebase(inverse, splices);
-        commuted.push(
-          transaction(
-            operation.actor,
-            operation.operationId,
-            operation.revision,
-            coalesce(mapped),
-            operation.inverseOf,
-          ),
-        );
-        inverse = coalesce(advanced);
-      }
-      if (!sameSplices(coalesce(inverse), coalesce(operationSplices(actual))))
-        fail(
-          "history_expired",
-          "An inverse history pair could not be proven. Resynchronize before editing.",
-        );
-      result.splice(index, result.length - index, ...commuted);
-    }
-    return result;
+    return reduceCausalOperations(this.history, baseRevision, charge);
   }
   transformPosition(
     position: number,
@@ -521,6 +648,7 @@ export class SourceModel {
         operation.start,
         operation.deleteCount,
         operation.insert,
+        operation.ambiguous ?? false,
       ]),
       mode,
     ]);
@@ -581,7 +709,10 @@ export class SourceModel {
           if (removed !== operation.removed) fail("rebase_content_mismatch");
           return { ...operation, removed };
         })
-        .filter((operation) => operation.insert !== operation.removed),
+        .filter(
+          (operation) =>
+            operation.deleteCount > 0 || operation.insert.length > 0,
+        ),
     );
     validateSourceSplices(this.body, applied);
     const next = applySourceSplices(this.body, applied);
@@ -627,6 +758,7 @@ export class SourceModel {
       deleteCount: 0,
       insert: "",
       removed: "",
+      operations: [],
       revision: ++this.revision,
     };
     this.history.push(operation);

@@ -10,9 +10,11 @@ import {
   CollaborationError,
   SourceModel,
   sourceDifference,
-  sourceDifferences,
+  rawSourceDifferences,
+  operationSplices,
   isSourceText,
   type SourceOperation,
+  type SourceSplice,
 } from "../../core/collaboration/index.js";
 import {
   readBoundedCanonicalSource,
@@ -56,7 +58,8 @@ export type PublishedSourceOperation = Omit<
 > & {
   insert?: string;
   snapshotOnly?: true;
-  operations?: { start: number; deleteCount: number; insert: string }[];
+  operations?: { start: number; deleteCount: number; insert: string; ambiguous?:true }[];
+  splices?: { start: number; deleteCount: number; insert: string; ambiguous?:true }[];
 };
 export interface CollaborationSnapshot {
   protocol: 2;
@@ -254,8 +257,8 @@ export class CollaborationHub {
     persistPresence = true,
   ): CollaborationSnapshot {
     const { prefix } = splitCanonicalContent(session.base.content);
-    const operations = operation?.operations?.map(
-      ({ start, deleteCount, insert }) => ({ start, deleteCount, insert }),
+    const operations = operation && operationSplices(operation).map(
+      ({ start, deleteCount, insert, ambiguous }) => ({ start, deleteCount, insert, ...(ambiguous ? {ambiguous:true as const} : {}) }),
     );
     const includeInsert =
       operation &&
@@ -269,10 +272,11 @@ export class CollaborationHub {
           start: operation.start,
           deleteCount: operation.deleteCount,
           revision: operation.revision,
+          ...(operation.inverseOf ? { inverseOf: { ...operation.inverseOf } } : {}),
           ...(includeInsert
             ? {
                 insert: operation.insert,
-                ...(operations ? { operations } : {}),
+                ...(operations ? { operations, splices: operations } : {}),
               }
             : { snapshotOnly: true as const }),
         }
@@ -416,6 +420,28 @@ export class CollaborationHub {
   read(documentId: string) {
     return this.open(documentId);
   }
+  async readHistory(params: Record<string, unknown>, principal: CollaborationPrincipal) {
+    if (!["reader", "writer", "admin"].includes(principal.role)) fail("forbidden");
+    return this.serialize(async () => {
+      const session = await this.session(validId(params.documentId));
+      await this.settleOpen(session);
+      if (session.conflict) fail("source_conflict");
+      if (params.epoch !== session.model.epoch) fail("epoch_changed");
+      const fromRevision = integer(params.fromRevision);
+      const toRevision = params.toRevision === undefined ? session.model.revision : integer(params.toRevision);
+      if (fromRevision > toRevision || toRevision > session.model.revision) fail("invalid_revision");
+      if (toRevision - fromRevision > 128) fail("history_limit", "The operation range exceeds the bounded live history. Retain the draft and resynchronize.");
+      const operations = session.model.changesSince(fromRevision, toRevision).map((operation) => ({
+        revision: operation.revision, actor: operation.actor, operationId: operation.operationId,
+        ...(operation.inverseOf ? { inverseOf: { ...operation.inverseOf } } : {}),
+        splices: operationSplices(operation).map(({start,deleteCount,insert,ambiguous}) => ({start,deleteCount,insert,...(ambiguous ? {ambiguous:true as const} : {})})),
+      }));
+      const response = { documentId: session.documentId, epoch: session.model.epoch, fromRevision, toRevision, operations };
+      if (Buffer.byteLength(JSON.stringify(response)) > (this.options.maxSnapshotBytes ?? 3 * 1024 * 1024) - 4096)
+        fail("history_limit", "The exact operations exceed the live history response budget. Retain the draft and resynchronize.");
+      return response;
+    });
+  }
   async readRecovery(
     params: Record<string, unknown>,
     principal: CollaborationPrincipal,
@@ -520,6 +546,7 @@ export class CollaborationHub {
     session: Session,
     principal: CollaborationPrincipal,
     params: Record<string, unknown>,
+    clearMissingSelection = false,
   ) {
     this.projectPresence(session);
     const actor = this.actor(principal, params);
@@ -549,7 +576,7 @@ export class CollaborationHub {
       value.sequence = sequence;
     }
     const selection = params.selection;
-    if (selection === undefined && params.activity === "viewing") {
+    if (selection === undefined && (clearMissingSelection || params.activity === "viewing")) {
       delete value.anchor;
       delete value.focus;
       value.activity = "viewing";
@@ -712,7 +739,7 @@ export class CollaborationHub {
         if (revision > session.model.revision) fail("invalid_revision");
         if (!session.model.versions.has(revision)) fail("history_expired");
       }
-      this.setPresence(session, principal, params);
+      this.setPresence(session, principal, params, method === "presence");
       if (method === "presence") return this.emit(session);
       if (method === "resync") {
         const current = await readMemoryDocument(
@@ -852,19 +879,20 @@ export class CollaborationHub {
               /\r?\n---(?:\r?\n|$)$/,
               (end) => "\ntitle: " + JSON.stringify(title) + end,
             );
-        candidate.checkpoint(
+        operation = candidate.checkpoint(
           actor,
           typeof params.operationId === "string"
             ? text(params.operationId)
             : randomUUID(),
-        );
+        ).operation;
         await this.publish(
           session,
           candidate,
           nextPrefix + body,
           stampActor(principal, params),
+          operation,
         );
-        return this.emit(session);
+        return this.emit(session, operation);
       } else fail("unknown_method");
       this.capHistory(candidate, session);
       if (candidate.body !== session.model.body) {
@@ -1320,6 +1348,20 @@ export class CollaborationHub {
       splitCanonicalContent(session.base.content).prefix,
       splitCanonicalContent(current.content).prefix,
     );
+    let operations: SourceSplice[] = [];
+    if (difference.deleteCount || difference.insert) {
+      try {
+        operations = rawSourceDifferences(
+          session.model.body,
+          splitCanonicalContent(current.content).body,
+        );
+      } catch (error) {
+        if (!(error instanceof CollaborationError) || error.code !== "diff_limit") throw error;
+        // The raw bytes remain authority when bounded alignment cannot prove
+        // positional identity. Pause affected origins instead of guessing.
+        operations = [{ start:0, deleteCount:session.model.body.length, insert:splitCanonicalContent(current.content).body, ambiguous:true }];
+      }
+    }
     if (difference.deleteCount > 0 || prefixDifference.deleteCount > 0) {
       session.recovery = {
         code: "external_destructive_replacement",
@@ -1338,23 +1380,6 @@ export class CollaborationHub {
       };
     }
     if (difference.deleteCount || difference.insert) {
-      let operations;
-      try {
-        operations = sourceDifferences(
-          session.model.body,
-          splitCanonicalContent(current.content).body,
-        );
-      } catch (error) {
-        if (
-          !(error instanceof CollaborationError) ||
-          error.code !== "diff_limit"
-        )
-          throw error;
-        // Raw files declare replacement truth, not old-base edit intent. When
-        // bounded granular alignment is unprovable, adopt the observed whole
-        // replacement; interior presence/stream anchors invalidate safely.
-        operations = [difference];
-      }
       operation = next.applyBatch({
         actor: "external",
         operationId: randomUUID(),
@@ -1369,7 +1394,10 @@ export class CollaborationHub {
     const metadataChanged =
       splitCanonicalContent(session.base.content).prefix !==
       splitCanonicalContent(current.content).prefix;
-    if (metadataChanged) next.checkpoint("external", randomUUID());
+    if (metadataChanged) {
+      const checkpoint = next.checkpoint("external", randomUUID()).operation;
+      if (!operation) operation = checkpoint;
+    }
     this.capHistory(next, session);
     session.base = current;
     session.model = next;

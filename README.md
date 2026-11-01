@@ -136,6 +136,8 @@ Tell your agent:
 
 Use the coordinated upgrade helper from the installed runtime folder or a built checkout. Wait for Saved, export any disconnected browser draft, close app windows, and pause agents and direct file writers. Closing a window keeps the shared backend available; the prepare command stops its authenticated owner explicitly. Choose a new private backup directory outside your brain:
 
+If the installed release predates this helper, prepare the incoming release in a separate folder and run its helper before replacing the installed software. Stop the old server through its existing service manager first.
+
 ```bash
 node scripts/multiplayer-upgrade.mjs --root /absolute/path/to/brain --mode prepare --backup /absolute/path/to/new-backup
 node scripts/multiplayer-upgrade.mjs --root /absolute/path/to/brain --mode prepare --backup /absolute/path/to/new-backup --apply
