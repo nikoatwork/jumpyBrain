@@ -34,7 +34,7 @@ them requires a separately reviewed contract and new external pin; a still-high
 test count cannot accept that change silently.
 
 The current candidate contract pins 45 assertion/helper files, SHA-256
-`6bc0a05ea040d6dea9a1bda29aef1b50b19ad5682d589ea7818fd8a45809e3d8`.
+`0e29ffdd0d872a93c0773368ab45232a80e8b266566d39f91e89b569ca34cddf`.
 It additionally protects actual positional-intent and native-gateway cases,
 the Linux runner, and package budget/manifest helpers. The measured runtime
 artifact ceiling is reviewed separately in [build footprint](../../docs/build-footprint.md);
@@ -164,6 +164,35 @@ reads correctly, keep Redo and conflict-resetting resync writer-only, preserve
 generation fences, and pass the matching repackaged native proof. Read-only
 client recovery uses a healthy `open` snapshot, never privileged resync, and
 retains the private draft when the source is unsafe.
+
+Clean candidate `d5dba0f19274776de69de188872f61eb959fc7cb` then passed
+1,773 tests and all four protected M0 browser flows, followed by the production
+editor, Lexical and hosted-session checks. The retained-version UI check failed
+while a comparison dialog was focused: a stale inactive Lexical caret crossed an
+ambiguous source range. Lexical's nonthrowing production error handler rolled
+back the attempted update, and the round-trip guard correctly refused the new
+view. Canonical peer text remained saved; the browser retained its prior view.
+The full run is **failed**, SHA-256
+`76d3bcf75409fa79f0877920d8d0afee5ee6a5690328b9a67179821406543c4e`.
+
+The narrow correction preflights selection projection before mutating the tree.
+An active ambiguous caret still requires recovery; an inactive unprovable caret
+is cleared without changing dialog focus or its read-only selection. Exact
+source verification remains mandatory. The regression uses the production-style
+nonthrowing error handler and checks both active and inactive behavior, including
+a uniquely mappable inactive caret. All eleven retained-version scenarios pass
+the isolated source preflight; a new clean candidate must rerun every gate.
+
+Build `e408ae9fdc9b7022` passes all eleven scenarios through the actual built
+shell, plus native IME/accessibility and both local/Linux composed preflights.
+The expanded cursor proof also exposed a test measurement race: locator handles
+could refer to eight detached labels with zero rectangles after a live rerender.
+The fixture now ends the live transport before its synthetic geometry phase,
+waits for layout, and queries current labels and panel in one browser evaluation.
+Strict clipping/nonoverlap checks remain, and repeat after a real viewport
+resize. Three consecutive full production-editor runs pass without retries.
+These preflights do not replace the required clean-HEAD gate and independent
+review.
 
 ## Reproduction prerequisites
 

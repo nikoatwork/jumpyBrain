@@ -39,7 +39,9 @@ try{
   await page.locator('#retained-copy').click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'Retained review\n\n'+initial);
   await page.locator('#retained-copy-current').click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'Retained review\n\n'+external);
   assert.doesNotMatch(await page.locator('#retained-version-review').innerText(),/sha256:|\.jumpybrain|recoveryId/);pass('compare-copy');
+  const comparisonFocus=await page.evaluate(()=>document.activeElement.id);assert.match(comparisonFocus,/^retained-/);
   await update(issued[0],'Newer human save after comparison.\n');await page.waitForFunction(()=>state.editor.collaboration.body.includes('Newer human save'));
+  assert.equal(await page.evaluate(()=>richEditor.getMarkdown()),'Newer human save after comparison.\n');assert.equal(await page.evaluate(()=>state.editor.collaboration.state.status),'saved');assert.equal(await page.evaluate(()=>document.activeElement.id),comparisonFocus,'peer updates do not steal focus from the retained comparison');assert.equal(await page.locator('#retained-current-text').inputValue(),'Retained review\n\n'+external,'the reviewed comparison stays frozen until refresh');
   await page.locator('#retained-restore').click();await page.waitForFunction(()=>/Could not preserve or confirm/.test(document.querySelector('#retained-version-message').textContent));assert.equal(await currentBody(),'Newer human save after comparison.\n');assert.equal(await page.locator('#retained-restore').isDisabled(),true);pass('stale-comparison');
   await page.locator('#retained-refresh').click();await page.waitForFunction(()=>!document.querySelector('#retained-restore').disabled);
   const reviewed=await page.locator('#retained-version-text').inputValue();await page.locator('#retained-restore').click();await page.waitForFunction(()=>/Reviewed text restored/.test(document.querySelector('#retained-version-message').textContent));

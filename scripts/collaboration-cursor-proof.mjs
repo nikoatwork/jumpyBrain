@@ -32,6 +32,35 @@ async function assertCursor(page, rawOffset, selector, visibleOffset) {
   assert.ok(Math.abs(expected.top-mark.y)<2, `exact vertical caret: ${JSON.stringify({selector,expected,mark})}`);
   assert.equal(await page.locator('[data-collaboration-label]').count(),1);
 }
+async function runInactiveSelectionProof(page) {
+  await page.evaluate(()=>{
+    const surface=document.createElement('div');surface.id='inactive-selection-editor';document.body.append(surface);
+    const dialog=document.createElement('dialog'),field=document.createElement('textarea');dialog.id='inactive-selection-dialog';field.id='inactive-comparison-field';field.readOnly=true;field.value='Comparison text stays selected';dialog.append(field);document.body.append(dialog);
+    window.inactiveErrors=[];window.inactiveEditor=ProductionCollaboration.createNoteEditor(surface,{onChange(){},onError(error){inactiveErrors.push(error.message)}});
+  });
+  const select=async(body,offset)=>{
+    await page.evaluate(body=>inactiveEditor.setMarkdown(body,true),body);
+    await page.locator('#inactive-selection-editor').evaluate((surface,offset)=>{surface.focus();const text=document.createTreeWalker(surface,NodeFilter.SHOW_TEXT).nextNode();getSelection().setBaseAndExtent(text,offset,text,offset)},offset);
+    await page.evaluate(()=>new Promise(requestAnimationFrame));
+  };
+  try{
+    for(const offset of [0,2]){
+      await select('aaaa',offset);
+      const result=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('aaaaa',{operationSequence:[[{start:0,deleteCount:4,insert:'aaaaa',ambiguous:true}]]}));
+      assert.equal(result.status,'recovery');assert.match(result.reason,/raw-file alignment/);assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'aaaa');assert.equal(await page.evaluate(()=>inactiveErrors.length),0,'expected active ambiguity never escapes to a nonthrowing production error handler');
+    }
+    await select('Observed external replacement.\n',3);
+    await page.evaluate(()=>{document.getElementById('inactive-selection-dialog').showModal();const field=document.getElementById('inactive-comparison-field');field.focus();field.setSelectionRange(1,7)});
+    const result=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('Newer human save after comparison.\n',{operationSequence:[[{start:0,deleteCount:27,insert:'Newer human save after compariso',ambiguous:true},{start:28,deleteCount:1,insert:''}],[]]}));
+    assert.equal(result.status,'applied',result.reason);assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'Newer human save after comparison.\n','a stale inactive anchor cannot roll canonical hydration back to the old source');
+    assert.equal(await page.evaluate(()=>inactiveEditor.captureSelection()),null,'unprovable inactive selection is retired before a later input');
+    assert.deepEqual(await page.evaluate(()=>{const field=document.getElementById('inactive-comparison-field');return {focused:document.activeElement===field,start:field.selectionStart,end:field.selectionEnd,value:field.value}}),{focused:true,start:1,end:7,value:'Comparison text stays selected'});
+    await page.evaluate(()=>document.getElementById('inactive-selection-dialog').close());
+    await select('hello',2);await page.evaluate(()=>{document.getElementById('inactive-selection-dialog').showModal();document.getElementById('inactive-comparison-field').focus()});
+    assert.equal(await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('Xhello',{operationSequence:[[{start:0,deleteCount:0,insert:'X'}]]}).status),'applied');
+    assert.deepEqual(await page.evaluate(()=>{const selected=inactiveEditor.captureSelection();return [selected?.anchor.offset,selected?.focus.offset]}),[3,3],'a provable inactive caret still follows exact remote operations');assert.equal(await page.evaluate(()=>document.activeElement.id),'inactive-comparison-field');assert.deepEqual(await page.evaluate(()=>inactiveErrors),[]);
+  }finally{await page.evaluate(()=>{document.getElementById('inactive-selection-dialog').close();inactiveEditor.destroy();document.getElementById('inactive-selection-editor').remove();document.getElementById('inactive-selection-dialog').remove()})}
+}
 export async function runStructuralCursorProof(page) {
   await page.addStyleTag({content:'#note-panel {height:150px;overflow:auto;width:440px}#note-editor {min-height:120px;white-space:pre-wrap;font:16px/20px monospace}#note-editor p {margin:0;min-height:20px}'});
   for(const [start,end,expected] of [[2,2,[3,3]],[1,4,[2,5]],[4,1,[5,2]]]) {
@@ -94,6 +123,7 @@ export async function runStructuralCursorProof(page) {
   const panel=await page.locator('#note-panel').boundingBox(), scrolled=await page.locator('[data-collaboration-actor]').boundingBox();
   assert.ok(panel&&scrolled);assert.ok(scrolled.y>=panel.y&&scrolled.y+scrolled.height<=panel.y+panel.height);
   await page.evaluate(()=>richEditor.setCollaborativePresence([])); assert.equal(await page.locator('[data-collaboration-actor]').count(),0);
+  await runInactiveSelectionProof(page);
 }
 
 export async function runLiveCursorProof({browser,serverUrl,token,root,bundle,errors}) {

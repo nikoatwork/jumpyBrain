@@ -86,10 +86,19 @@ export async function runIntentProof({browser,serverUrl,token,root,bundle,errors
     console.log((shipped?'Shipped positional intent: ':'Positional intent: ')+ 'eight labels');
     // Eight names at one source coordinate remain individually legible and
     // clipped. Marker rectangles themselves stay at the actual caret.
-    await page.evaluate(()=>richEditor.setCollaborativePresence(Array.from({length:8},(_,index)=>({actor:JSON.stringify(['person-'+index,'tab-'+index]),principalId:'person-'+index,clientId:'tab-'+index,name:'Person '+index,kind:index===7?'agent':'human',activity:'editing',anchor:2,focus:2}))));
-    const labels=await page.locator('[data-collaboration-label]:visible').evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom}}));assert.equal(labels.length,8);
-    const bounds=await page.locator('#note-panel').boundingBox();for(const label of labels){assert.ok(label.x>=bounds.x&&label.right<=bounds.x+bounds.width&&label.y>=bounds.y&&label.bottom<=bounds.y+bounds.height);for(const other of labels)if(label!==other)assert.ok(label.right<=other.x||other.right<=label.x||label.bottom<=other.y||other.bottom<=label.y,'co-located labels do not overlap')}
-    await page.evaluate(()=>live.dispose());
+    // Finish the live transport cases before installing this fixed geometry
+    // fixture. A late real presence packet must not replace its synthetic peers.
+    await page.evaluate(()=>{live.dispose();richEditor.setCollaborativePresence(Array.from({length:8},(_,index)=>({actor:JSON.stringify(['person-'+index,'tab-'+index]),principalId:'person-'+index,clientId:'tab-'+index,name:'Person '+index,kind:index===7?'agent':'human',activity:'editing',anchor:2,focus:2}))) });
+    const measureLabels=async()=>{
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+      // Resolve current elements and the clipping viewport atomically: retained
+      // locator handles may refer to labels replaced by a layout-frame render.
+      const captured=await page.evaluate(()=>{const box=document.querySelector('#note-panel').getBoundingClientRect();return {panel:{x:box.x,y:box.y,width:box.width,height:box.height},labels:[...document.querySelectorAll('[data-collaboration-label]')].filter(node=>node.getClientRects().length&&getComputedStyle(node).display!=='none').map(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom}})}});
+      const {labels,panel:bounds}=captured;assert.equal(labels.length,8,JSON.stringify({shipped,captured}));
+      for(const label of labels){assert.ok(label.right>label.x&&label.bottom>label.y,'each participant label has positive geometry');assert.ok(label.x>=bounds.x&&label.right<=bounds.x+bounds.width&&label.y>=bounds.y&&label.bottom<=bounds.y+bounds.height,JSON.stringify({shipped,label,captured}));for(const other of labels)if(label!==other)assert.ok(label.right<=other.x||other.right<=label.x||label.bottom<=other.y||other.bottom<=label.y,'co-located labels do not overlap')}
+    };
+    await measureLabels();const viewport=page.viewportSize();await page.setViewportSize({width:viewport.width,height:viewport.height+40});await measureLabels();await page.setViewportSize(viewport);
+
   }finally{socket?.close();await context.close()}
 }
 
