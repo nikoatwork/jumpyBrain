@@ -5,25 +5,212 @@
     "baselineSha256": "739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2",
     "contractSha256": "27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a"
   },
-  "linuxSourceRoots": ["src", "scripts", "test", "integrations", "package.json", "package-lock.json", "tsconfig.json", "extensions.js", "extensions.d.ts"],
-  "linuxIgnoredNames": ["node_modules", "dist", ".git", ".local-pack", ".jumpybrain", "__pycache__"],
-  "workloadAcceptance": {"canonicalP95Ms":1000,"peakRssBytes":536870912,"historyBytes":33554432,"queuedBytes":33554432,"rpcDeadlineMs":10000},
+  "linuxSourceRoots": [
+    "src",
+    "scripts",
+    "test",
+    "integrations",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "extensions.js",
+    "extensions.d.ts"
+  ],
+  "linuxIgnoredNames": [
+    "node_modules",
+    "dist",
+    ".git",
+    ".local-pack",
+    ".jumpybrain",
+    "__pycache__"
+  ],
+  "workloadAcceptance": {
+    "canonicalP95Ms": 1000,
+    "peakRssBytes": 536870912,
+    "historyBytes": 33554432,
+    "queuedBytes": 33554432,
+    "rpcDeadlineMs": 10000
+  },
   "assertionRoots": [
-    "test", "scripts/collaboration-editor-smoke.mjs", "scripts/lexical-editor-smoke.mjs",
-    "scripts/browser-session-smoke.mjs", "scripts/collaboration-production-evidence.mjs",
-    "scripts/unified-desktop-smoke.mjs", "scripts/diagnostics-electron-smoke.mjs",
-    "scripts/fixtures", "scripts/editor-smoke-helpers.mjs", "scripts/playwright-runtime.mjs",
-    "scripts/multiplayer-verification", "scripts/collaboration-smoke-transport.mjs",
-    "integrations/electron/smoke-unified-app.mjs", "scripts/multiplayer-production-verify.mjs"
+    "test",
+    "scripts/collaboration-editor-smoke.mjs",
+    "scripts/lexical-editor-smoke.mjs",
+    "scripts/browser-session-smoke.mjs",
+    "scripts/collaboration-production-evidence.mjs",
+    "scripts/unified-desktop-smoke.mjs",
+    "scripts/diagnostics-electron-smoke.mjs",
+    "scripts/fixtures",
+    "scripts/editor-smoke-helpers.mjs",
+    "scripts/playwright-runtime.mjs",
+    "scripts/multiplayer-verification",
+    "scripts/collaboration-smoke-transport.mjs",
+    "integrations/electron/smoke-unified-app.mjs",
+    "scripts/multiplayer-production-verify.mjs",
+    "scripts/collaboration-composed-smoke.mjs",
+    "scripts/multiplayer-packaged-upgrade-smoke.mjs"
   ],
   "checks": [
-    {"id":"production-editor","command":["node","scripts/collaboration-editor-smoke.mjs"],"timeoutMs":240000,"markers":["Production collaboration editor smoke passed:","cloned-tab actor isolation and explicit recovery selector"]},
-    {"id":"lexical-structure","command":["node","scripts/lexical-editor-smoke.mjs"],"timeoutMs":240000,"markers":["PASS Lexical WYSIWYG/preservation/security 1280px","PASS Lexical WYSIWYG/preservation/security 390px"]},
-    {"id":"hosted-browser-session","command":["node","scripts/browser-session-smoke.mjs"],"timeoutMs":180000,"markers":["Hosted browser session smoke: PASS","cross-tab identity fences","explicit reviewed recovery"]},
-    {"id":"local-workload","command":["node","scripts/collaboration-production-evidence.mjs","--actors=3","--humans=2","--rounds=20","--notes=128","--seed=1592594996","--concurrency=serial-production-gate"],"timeoutMs":180000,"markers":["\"passed\": true"],"workload":{"actors":3,"humans":2,"rounds":20,"notes":128,"seed":1592594996}},
-    {"id":"shared-workload","command":["node","scripts/collaboration-production-evidence.mjs","--actors=8","--humans=5","--rounds=100","--notes=256","--seed=1592594997","--concurrency=serial-production-gate"],"timeoutMs":180000,"markers":["\"passed\": true"],"workload":{"actors":8,"humans":5,"rounds":100,"notes":256,"seed":1592594997}},
-    {"id":"signed-desktop","command":["node","scripts/unified-desktop-smoke.mjs","--resources","{desktopResources}"],"timeoutMs":300000,"markers":["Unified desktop normal: PASS","Unified desktop crash: PASS","Unified desktop recovery: PASS"]},
-    {"id":"packaged-diagnostics","command":["node","scripts/diagnostics-electron-smoke.mjs","--resources","{desktopResources}"],"timeoutMs":120000,"markers":["Diagnostic Electron artifact smoke: PASS"]}
+    {
+      "id": "production-editor",
+      "command": [
+        "node",
+        "scripts/collaboration-editor-smoke.mjs"
+      ],
+      "timeoutMs": 240000,
+      "markers": [
+        "Production collaboration editor smoke passed:",
+        "cloned-tab actor isolation and explicit recovery selector",
+        "title normalization and draft-version preservation"
+      ]
+    },
+    {
+      "id": "lexical-structure",
+      "command": [
+        "node",
+        "scripts/lexical-editor-smoke.mjs"
+      ],
+      "timeoutMs": 240000,
+      "markers": [
+        "PASS Lexical WYSIWYG/preservation/security 1280px",
+        "PASS Lexical WYSIWYG/preservation/security 390px"
+      ]
+    },
+    {
+      "id": "hosted-browser-session",
+      "command": [
+        "node",
+        "scripts/browser-session-smoke.mjs"
+      ],
+      "timeoutMs": 180000,
+      "markers": [
+        "Hosted browser session smoke: PASS",
+        "cross-tab identity fences",
+        "explicit reviewed recovery"
+      ]
+    },
+    {
+      "id": "composed-local",
+      "command": [
+        "node",
+        "scripts/collaboration-composed-smoke.mjs",
+        "--mode=local",
+        "--runs=2"
+      ],
+      "timeoutMs": 300000,
+      "markers": [
+        "\"passed\": true",
+        "\"shippedCLI\": true",
+        "\"rawWriter\": true"
+      ]
+    },
+    {
+      "id": "composed-linux",
+      "command": [
+        "node",
+        "scripts/collaboration-composed-smoke.mjs",
+        "--mode=linux",
+        "--runs=2"
+      ],
+      "timeoutMs": 300000,
+      "markers": [
+        "\"passed\": true",
+        "\"shippedCLI\": true",
+        "\"rawWriter\": true"
+      ]
+    },
+    {
+      "id": "local-workload",
+      "command": [
+        "node",
+        "scripts/collaboration-production-evidence.mjs",
+        "--actors=3",
+        "--humans=2",
+        "--rounds=20",
+        "--notes=128",
+        "--seed=1592594996",
+        "--concurrency=serial-production-gate"
+      ],
+      "timeoutMs": 180000,
+      "markers": [
+        "\"passed\": true"
+      ],
+      "workload": {
+        "actors": 3,
+        "humans": 2,
+        "rounds": 20,
+        "notes": 128,
+        "seed": 1592594996
+      }
+    },
+    {
+      "id": "shared-workload",
+      "command": [
+        "node",
+        "scripts/collaboration-production-evidence.mjs",
+        "--actors=8",
+        "--humans=5",
+        "--rounds=100",
+        "--notes=256",
+        "--seed=1592594997",
+        "--concurrency=serial-production-gate"
+      ],
+      "timeoutMs": 180000,
+      "markers": [
+        "\"passed\": true"
+      ],
+      "workload": {
+        "actors": 8,
+        "humans": 5,
+        "rounds": 100,
+        "notes": 256,
+        "seed": 1592594997
+      }
+    },
+    {
+      "id": "signed-desktop",
+      "command": [
+        "node",
+        "scripts/unified-desktop-smoke.mjs",
+        "--resources",
+        "{desktopResources}"
+      ],
+      "timeoutMs": 300000,
+      "markers": [
+        "Unified desktop normal: PASS",
+        "Unified desktop crash: PASS",
+        "Unified desktop recovery: PASS"
+      ]
+    },
+    {
+      "id": "packaged-diagnostics",
+      "command": [
+        "node",
+        "scripts/diagnostics-electron-smoke.mjs",
+        "--resources",
+        "{desktopResources}"
+      ],
+      "timeoutMs": 120000,
+      "markers": [
+        "Diagnostic Electron artifact smoke: PASS"
+      ]
+    },
+    {
+      "id": "packaged-upgrade",
+      "command": [
+        "node",
+        "scripts/multiplayer-packaged-upgrade-smoke.mjs",
+        "--package={candidatePackage}",
+        "--package-sha256={candidatePackageSha256}",
+        "--baseline={baseline}",
+        "--baseline-sha256={baselineSha256}"
+      ],
+      "timeoutMs": 300000,
+      "markers": [
+        "\"passed\": true",
+        "\"canonicalPreserved\": true",
+        "\"rollbackRecovered\": true"
+      ]
+    }
   ],
   "limits": [
     "Attests the exact clean integration HEAD and unchanged target captured by this run; it never installs, merges, pushes or authorizes a different tree.",
@@ -31,6 +218,12 @@
     "Linux evidence covers the explicitly recorded Node 22 and Node 26 patches in pinned Linux/arm64 containers with local HTTPS/WSS proxy fixtures; it does not establish a public VPS, DNS, multi-host or production reverse-proxy deployment.",
     "Signed desktop fixtures use the supplied matching packaged app and disposable data. Codesign integrity is checked; publisher authenticity and notarization are not claimed.",
     "Workload budgets are observed on the recorded machine and filesystem, with serial gate commands. They are not universal capacity or latency guarantees.",
-    "Semantic model quality, physical keyboard/IME/accessibility interaction, power-loss durability, unsupported operating systems and untested deployment configurations remain outside this automated evidence."
-  ]
+    "Semantic model quality, physical keyboard/IME/accessibility interaction, power-loss durability, unsupported operating systems and untested deployment configurations remain outside this automated evidence.",
+    "Composed scenarios repeat two real host Chromium contexts, a shipped CLI stream and a raw writer locally and against a pinned Linux backend; workload human actors are protocol drivers rather than browser UI users.",
+    "Upgrade evidence replaces runtimes only on disposable roots created with the frozen old runtime and an extracted pinned candidate package; it does not publish a release or install over a real user installation."
+  ],
+  "linuxNodeVersions": {
+    "22": "v22.12.0",
+    "26": "v26.7.0"
+  }
 }

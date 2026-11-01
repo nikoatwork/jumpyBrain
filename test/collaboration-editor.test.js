@@ -140,3 +140,94 @@ test("clean offline navigation succeeds while a real offline draft stays unpubli
     assert.equal(editor.state.dirty, true); assert.equal(editor.state.durableDraft, true); assert.equal(await editor.flush(), false, "an actual offline draft still blocks publication and navigation");
   } finally { editor?.dispose(); globalThis.WebSocket = previous; }
 });
+
+
+test("canonical title normalization preserves later local typing and real foreign conflicts", async () => {
+  const previous = globalThis.WebSocket, sockets = [], heldTitles = [];
+  let canonicalTitle = "Existing title", revision = 0;
+  const snapshot = () => ({ documentId: "note", epoch: "epoch", revision, prefix: "", file: "notes/note.md", body: "Canonical body", title: canonicalTitle, contentHash: "hash-" + revision, saved: true });
+  const receive = (socket, message) => socket.onmessage?.({ data: JSON.stringify(message) });
+  const publish = (socket, title) => { canonicalTitle = title; revision++; receive(socket, { event: "document", documentId: "note", snapshot: snapshot() }); };
+  class Socket {
+    static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
+    constructor() { sockets.push(this); queueMicrotask(() => { this.readyState = 1; this.onopen?.(); }); }
+    send(raw) {
+      const frame = JSON.parse(raw);
+      if (frame.method === "title" && frame.params.title !== "Later local title") { heldTitles.push(frame); return; }
+      queueMicrotask(() => {
+        if (frame.method === "title") publish(this, frame.params.title.trim());
+        receive(this, { id: frame.id, ok: true, result: frame.method === "hello" ? { protocol: 2, principal: { id: "writer", role: "writer" } } : snapshot() });
+      });
+    }
+    close() { this.readyState = 3; this.onclose?.({ code: 1000 }); }
+  }
+  globalThis.WebSocket = Socket;
+  let editor;
+  try {
+    let body = "Canonical body";
+    editor = createCollaborationEditor({ url: "ws://localhost/ws", scope: "title-normalization", documentId: "note", clientId: "writer", drafts: createCollaborationDraftStore(memoryStorage()), editor: { getMarkdown: () => body, applyCollaborativeMarkdown(next) { body = next; return { status: "applied" }; } } });
+    editor.connect(); await new Promise((resolve) => setTimeout(resolve, 0));
+    editor.inputTitle("  First submitted title  "); const firstFlush = editor.flush();
+    assert.equal(heldTitles.length, 1);
+    editor.inputTitle("Later local title");
+    publish(sockets[0], "First submitted title");
+    assert.notEqual(editor.state.status, "conflict", "our normalized acknowledgement is not a foreign title conflict");
+    assert.equal(editor.title, "Later local title", "an acknowledgement must not replace later local typing");
+    receive(sockets[0], { id: heldTitles[0].id, ok: true, result: snapshot() });
+    assert.equal(await firstFlush, true); assert.equal(editor.snapshot.title, "Later local title");
+    editor.inputTitle("  My pending title  "); const conflictingFlush = editor.flush();
+    assert.equal(heldTitles.length, 2);
+    publish(sockets[0], "A different writer's title");
+    assert.equal(editor.state.status, "conflict"); assert.equal(editor.title, "  My pending title  ");
+    receive(sockets[0], { id: heldTitles[1].id, ok: false, error: { code: "title_conflict", message: "Another writer changed the title." } });
+    assert.equal(await conflictingFlush, false); assert.equal(editor.snapshot.title, "A different writer's title");
+    assert.equal(editor.state.durableDraft, true); assert.equal(body, "Canonical body");
+  } finally { editor?.dispose(); globalThis.WebSocket = previous; }
+});
+
+
+test("older draft adoption preserves unique body/title/uncertainty and fails closed on storage failure", async () => {
+  const previous = globalThis.WebSocket, sockets = [];
+  class Socket {
+    static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
+    constructor() { sockets.push(this); queueMicrotask(() => { this.readyState = 1; this.onopen?.(); }); }
+    send(raw) { const frame = JSON.parse(raw); if (frame.method === "edit") return; queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result: frame.method === "hello" ? { protocol: 2, principal: { id: "writer", role: "writer" } } : { documentId: "note", epoch: "epoch", revision: 0, prefix: "", file: "notes/note.md", body: "Canonical body", title: "Canonical title", contentHash: "hash", saved: true } }) })); }
+    close(code = 1000) { this.readyState = 3; this.onclose?.({ code }); }
+  }
+  const storage = memoryStorage(), originalSet = storage.setItem.bind(storage); let denyWrites = false, denyLiveWrites = false;
+  storage.setItem = (key, value) => { if (denyWrites || denyLiveWrites && JSON.parse(value).clientId === "live") throw new Error("quota"); originalSet(key, value); };
+  const drafts = createCollaborationDraftStore(storage), scope = { scope: "version-preservation", principalId: "writer", documentId: "note", clientId: "live" };
+  const older = { version: 2, ...scope, clientId: "older", epoch: "epoch", baseRevision: 0, baseBody: "Canonical body", baseTitle: "Canonical title", body: "Older unique B body", title: "Older B title", updatedAt: 1, unconfirmed: { operationId: "original-B-operation", submittedBody: "Submitted B source" } };
+  drafts.save(older); globalThis.WebSocket = Socket; let editor;
+  try {
+    let body = "Canonical body";
+    editor = createCollaborationEditor({ url: "ws://localhost/ws", ...scope, drafts, editor: { getMarkdown: () => body, applyCollaborativeMarkdown(next) { body = next; return { status: "applied" }; } } });
+    editor.connect(); await new Promise((resolve) => setTimeout(resolve, 0));
+    body = "Unique current A body"; editor.input(body); editor.inputTitle("Unique current A title");
+    const pending = editor.flush(); sockets[0].close(1012); assert.equal(await pending, false);
+    const originalA = drafts.read(scope).value; assert.ok(originalA.unconfirmed);
+    denyWrites = true;
+    assert.equal(editor.recoverDraft(older), false, "archive failure must not adopt another version");
+    assert.equal(editor.body, originalA.body); assert.equal(editor.title, originalA.title); assert.equal(body, originalA.body);
+    assert.deepEqual(drafts.read(scope).value, originalA); assert.equal(editor.state.durableDraft, false); assert.match(editor.state.message, /could not be stored/);
+    denyWrites = false;
+    assert.equal(editor.recoverDraft(older), true);
+    const archivedA = editor.state.recoveryDrafts.find((record) => record.body === originalA.body);
+    assert.ok(archivedA, "the previous unique version remains selectable");
+    assert.notEqual(archivedA.clientId, originalA.clientId); assert.equal(archivedA.archivedFromClientId, originalA.clientId);
+    const { clientId: _archived, archivedFromClientId: _origin, ...archivedPayload } = archivedA;
+    const { clientId: _original, ...originalPayload } = originalA;
+    assert.deepEqual(archivedPayload, originalPayload, "the archived version retains exact title, source, base and uncertainty receipt");
+    assert.equal(editor.body, older.body); assert.equal(editor.title, older.title); assert.deepEqual(drafts.read(scope).value.unconfirmed, older.unconfirmed);
+    denyLiveWrites = true;
+    assert.equal(editor.recoverDraft(archivedA), false, "replacement storage failure also leaves the active version intact");
+    assert.equal(editor.body, older.body); assert.equal(editor.title, older.title); assert.equal(body, older.body);
+    assert.deepEqual(drafts.read(scope).value.unconfirmed, older.unconfirmed);
+    assert.ok(drafts.list(scope).value.some((record) => record.body === older.body && record.clientId.startsWith("archive:")), "another live tab record cannot substitute for an immutable preserved version");
+    drafts.save({ ...older, body: "Changed by the older live tab" });
+    denyLiveWrites = false;
+    assert.equal(editor.recoverDraft(archivedA), true); assert.equal(editor.body, originalA.body); assert.equal(editor.title, originalA.title);
+    assert.deepEqual(drafts.read(scope).value.unconfirmed, originalA.unconfirmed);
+    assert.ok(drafts.list(scope).value.some((record) => record.body === older.body), "adoption never removes the older unique version");
+  } finally { editor?.dispose(); globalThis.WebSocket = previous; }
+});

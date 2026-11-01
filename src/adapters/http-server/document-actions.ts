@@ -21,12 +21,12 @@ export function installDocumentActions(options: {
   const removal = $<HTMLDialogElement>("document-delete");
   let busy = false, sequence = 0;
   let preview: MemoryDocumentDeletePreview | null = null;
-  let bound: Editor | null = null, boundScope = "", comparisonHash = "";
+  let bound: Editor | null = null, boundScope = "", comparisonHash = "", selectedRecovery = "";
   const valid = (editor: Editor, scope: string) => options.editor() === editor && !editor.state.cancelled && options.scope() === scope;
   const draftText = (editor: Editor) => editor.state.title + "\n\n" + editor.state.draft;
   function close() {
     if (busy) return;
-    sequence++; preview = null; bound = null; comparisonHash = "";
+    sequence++; preview = null; bound = null; comparisonHash = ""; selectedRecovery = "";
     recovery.close(); removal.close();
     // Do not retain an old brain's note bodies in hidden dialogs.
     $("recovery-draft").textContent = "";
@@ -176,10 +176,17 @@ export function installDocumentActions(options: {
   $("recovery-publish")?.addEventListener("click", publishReviewed);
   $("recovery-versions")?.addEventListener("change", () => {
     const editor = bound; if (!editor?.recoverDraft || busy || !valid(editor,boundScope)) return;
-    const value = $<HTMLSelectElement>("recovery-versions").value;
-    if (value === "") return;
+    const versions = $<HTMLSelectElement>("recovery-versions"), value = versions.value;
+    if (value === "") { selectedRecovery = ""; return; }
     const draft = editor.getRecoveryDrafts?.()[Number(value)];
-    if (draft && editor.recoverDraft(draft)) $<HTMLTextAreaElement>("recovery-draft").value = draftText(editor);
+    if (draft && editor.recoverDraft(draft)) {
+      selectedRecovery = value;
+      $<HTMLTextAreaElement>("recovery-draft").value = draftText(editor);
+      $("recovery-message").textContent = "The previous draft is preserved. Review this version before publishing.";
+    } else {
+      versions.value = selectedRecovery;
+      $("recovery-message").textContent = editor.state.saveError || "The current draft is retained. Copy it before selecting another version.";
+    }
   });
   $("delete-note").addEventListener("click", () => openDelete());
   $("delete-cancel").addEventListener("click", close);

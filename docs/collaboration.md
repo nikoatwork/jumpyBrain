@@ -83,6 +83,13 @@ credential and client ID. Supply `stream --stream-id STREAM_ID` when another
 invocation must control it; stopping a stream retains already committed output.
 Cancellation does not undo another writer or claim that partial output completed.
 
+An active stream has a 60-second inactivity lease. The CLI checks its status
+every 15 seconds while waiting for generated input, keeping a connected producer
+alive during pauses. A disconnected or dead producer eventually releases its
+stream capacity; revoked access retires it immediately. Expiry and interruption
+retain confirmed chunks. Inspect the note and stream status before continuing
+after a lost connection.
+
 ## Drafts, conflicts and files
 
 Connected edits are shown as Saved only after the canonical publisher confirms
@@ -100,6 +107,11 @@ after copying one into a new tab. Browser storage is not encrypted independently
 removes private drafts. Storage denial/quota failures are visible and require
 keeping the window open or copying the draft.
 
+Selecting an older recovery version first preserves a unique current draft,
+including its title and uncertain publication information. Both versions remain
+available for review. If storage cannot retain the current version, selection
+fails visibly and leaves it in place.
+
 Direct `.md` writes remain supported. Stable observed changes enter the same
 source model; safe disjoint edits can merge. Overlaps, unstable/partial files,
 invalid identities, unsafe files and deletion retain recovery information and
@@ -107,6 +119,11 @@ stop unsafe publication. Rename lookup follows a unique ID. No portable watcher
 or filesystem rename provides compare-and-swap against an arbitrary external
 writer: unobserved overwrite windows cannot be reconstructed. Keep normal
 backups/Git history and prefer collaborative writes for active notes.
+
+An observed replacement that removes saved source retains the previous and
+observed canonical versions under `.jumpybrain/recovery/`; a live snapshot names
+that relative recovery directory. The raw file remains authoritative. Retention
+does not infer whether its writer intended to remove another person's changes.
 
 ## Limits and recovery
 

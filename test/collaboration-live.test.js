@@ -12,7 +12,7 @@ import { createLiveServer } from "../dist/adapters/live/index.js";
 import { AccessStore } from "../dist/adapters/access-control/index.js";
 import { startJumpyBrainHttpServer } from "../dist/adapters/http-server/index.js";
 const documentId = "mem_12345678-1234-1234-1234-123456789abc";
-async function setup(t, options = {}) {
+async function setup(t, options = {}, hubOptions = {}) {
   const root = await realpath(
     await mkdtemp(path.join(os.tmpdir(), "jumpy-live-")),
   );
@@ -26,7 +26,11 @@ async function setup(t, options = {}) {
     ["writer", { id: "writer", name: "Writer", role: "writer" }],
     ["reader", { id: "reader", name: "Reader", role: "reader" }],
   ]);
-  const hub = createCollaborationHub({ root, observeIntervalMs: 0 });
+  const hub = createCollaborationHub({
+    root,
+    observeIntervalMs: 0,
+    ...hubOptions,
+  });
   const server = createServer((req, res) => res.end());
   const live = createLiveServer({
     server,
@@ -295,13 +299,171 @@ test(
   },
 );
 
-test("obsolete protocol is rejected with upgrade guidance before opening a document", async t => {
-  const {url,hub,file}=await setup(t);
-  const before=await readFile(file,"utf8");
-  const socket=new WebSocket(url);await once(socket,"open");t.after(()=>socket.terminate());
-  const reply=once(socket,"message");
-  socket.send(JSON.stringify({id:"old-client",method:"hello",params:{protocol:1,token:"writer"}}));
-  const packet=JSON.parse(String((await reply)[0]));
-  assert.equal(packet.ok,false);assert.equal(packet.error.code,"invalid_protocol");assert.match(packet.error.message,/Update all clients/);
-  assert.equal(hub.resourceUsage().sessions,0);assert.equal(await readFile(file,"utf8"),before);
+test("obsolete protocol is rejected with upgrade guidance before opening a document", async (t) => {
+  const { url, hub, file } = await setup(t);
+  const before = await readFile(file, "utf8");
+  const socket = new WebSocket(url);
+  await once(socket, "open");
+  t.after(() => socket.terminate());
+  const reply = once(socket, "message");
+  socket.send(
+    JSON.stringify({
+      id: "old-client",
+      method: "hello",
+      params: { protocol: 1, token: "writer" },
+    }),
+  );
+  const packet = JSON.parse(String((await reply)[0]));
+  assert.equal(packet.ok, false);
+  assert.equal(packet.error.code, "invalid_protocol");
+  assert.match(packet.error.message, /Update all clients/);
+  assert.equal(hub.resourceUsage().sessions, 0);
+  assert.equal(await readFile(file, "utf8"), before);
 });
+test(
+  "transient disconnect retains a stream briefly, then inactivity frees its slot with no new traffic",
+  { timeout: 5000 },
+  async (t) => {
+    const { client, hub, file } = await setup(
+      t,
+      {},
+      { observeIntervalMs: 5, streamLeaseMs: 180 },
+    );
+    let agent = await client();
+    const base = openParams("agent"),
+      snapshot = (await agent.rpc("open", base)).result;
+    await agent.rpc("stream.start", {
+      ...base,
+      epoch: snapshot.epoch,
+      baseRevision: snapshot.revision,
+      streamId: "s",
+      start: 3,
+    });
+    await agent.rpc("stream.chunk", {
+      ...base,
+      epoch: snapshot.epoch,
+      streamId: "s",
+      sequence: 0,
+      insert: " kept",
+    });
+    agent.ws.terminate();
+    agent = await client();
+    await agent.rpc("open", base);
+    assert.equal(
+      (
+        await agent.rpc("stream.status", {
+          ...base,
+          epoch: snapshot.epoch,
+          streamId: "s",
+        })
+      ).result.stream.state,
+      "active",
+    );
+    assert.equal(
+      (
+        await agent.rpc("stream.chunk", {
+          ...base,
+          epoch: snapshot.epoch,
+          streamId: "s",
+          sequence: 1,
+          insert: " resumed",
+        })
+      ).ok,
+      true,
+    );
+    const canonical = await readFile(file, "utf8");
+    const human = await client("reader");
+    await human.rpc("open", openParams("human"));
+    agent.ws.terminate();
+    const end = Date.now() + 2000;
+    while (hub.resourceUsage().streams) {
+      assert.ok(Date.now() < end);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    agent = await client();
+    await agent.rpc("open", base);
+    const status = (
+      await agent.rpc("stream.status", {
+        ...base,
+        epoch: snapshot.epoch,
+        streamId: "s",
+      })
+    ).result.stream;
+    assert.equal(status.state, "cancelled");
+    assert.equal(status.reason, "lease_expired");
+    assert.equal(
+      (
+        await agent.rpc("stream.chunk", {
+          ...base,
+          epoch: snapshot.epoch,
+          streamId: "s",
+          sequence: 2,
+          insert: " forbidden",
+        })
+      ).error.code,
+      "stream_inactive",
+    );
+    assert.equal(await readFile(file, "utf8"), canonical);
+  },
+);
+for (const change of ["revoked", "downgraded"]) {
+  test(
+    `idle ${change} principals release every active stream slot immediately`,
+    { timeout: 5000 },
+    async (t) => {
+      const { client, credentials, hub, file } = await setup(t);
+      const agent = await client(),
+        base = openParams("agent"),
+        snapshot = (await agent.rpc("open", base)).result,
+        canonical = await readFile(file, "utf8");
+      for (let index = 0; index < 32; index++)
+        assert.equal(
+          (
+            await agent.rpc("stream.start", {
+              ...base,
+              epoch: snapshot.epoch,
+              baseRevision: snapshot.revision,
+              streamId: String(index),
+              start: 0,
+            })
+          ).ok,
+          true,
+        );
+      assert.equal(hub.resourceUsage().streams, 32);
+      const closed = once(agent.ws, "close");
+      if (change === "revoked") credentials.delete("writer");
+      else
+        credentials.set("writer", {
+          id: "writer",
+          name: "Writer",
+          role: "reader",
+        });
+      assert.equal((await closed)[0], 1008);
+      const deadline = Date.now() + 1500;
+      while (hub.resourceUsage().streams) {
+        assert.ok(Date.now() < deadline);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      credentials.set("replacement", {
+        id: "replacement",
+        name: "Replacement",
+        role: "writer",
+      });
+      const next = await client("replacement");
+      await next.rpc("open", base);
+      assert.equal(
+        (
+          await next.rpc("stream.start", {
+            ...base,
+            epoch: snapshot.epoch,
+            baseRevision: snapshot.revision,
+            streamId: "new",
+            start: 0,
+          })
+        ).result.stream.state,
+        "active",
+      );
+      assert.equal(await readFile(file, "utf8"), canonical);
+    },
+  );
+}

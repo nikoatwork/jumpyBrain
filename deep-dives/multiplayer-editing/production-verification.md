@@ -1,0 +1,122 @@
+# Production collaboration verification
+
+Status: final verification in progress, 2026-11-01. The implementation and its
+automated acceptance contract cover one shared backend per brain, browser
+collaboration, streamed CLI agents, observed file edits, separate access and
+coordinated upgrades. The task remains active until the final recorded gate
+passes.
+
+## Evidence and acceptance
+
+The original M0 baseline remains immutable. Its manifest SHA-256 is
+`739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2`;
+the original contract SHA-256 is
+`27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a`.
+The separately reviewed [contract delta](production-contract-delta.json) pins
+15 exact old/new assertion or harness changes and their behavioral reasons.
+Its SHA-256 is
+`6da314fd9db7a891750db0f04e7351226b804c090305ee5b3ca585e97177645e`.
+An approved transport or timing change does not replace canonical-content,
+conflict, actor-undo or no-echo assertions with weaker HTTP request counts.
+
+The [production contract](production-gate-contract.json) and
+[verifier](../../scripts/multiplayer-production-verify.mjs) require a clean,
+externally expected integration HEAD containing the current target. Every
+tracked file, assertion, tested runtime and target must remain unchanged during
+verification. Linux receipts need independent digest pins, exact current source
+maps, preserved logs, zero-skip TAP and byte-identical built runtimes. The signed
+desktop must contain those same runtime bytes and the current shell modules.
+
+After the original deterministic suite and four protected browser flows, the
+production gate requires all of these:
+
+| Check | Required evidence |
+| --- | --- |
+| Production editor | Two browser contexts, source fidelity, actor undo, presence, streaming, direct writes, IME events, offline body/title recovery and cloned-tab isolation. |
+| Lexical structure | Existing rich editor behavior and source/security assertions at desktop and narrow widths. |
+| Hosted session | Cookie authentication, cross-tab credential replacement, reader enforcement and explicit retained-draft recovery. |
+| Composed local | Two repeated trials with two real browser users, a shipped streaming CLI and a raw file writer. |
+| Composed Linux | The same composed actors against a pinned Linux backend; no host-backend fallback. |
+| Local workload | Two human protocol actors plus one agent, 20 rounds, 128 seed notes, fixed seed. |
+| Shared workload | Five human protocol actors plus three agents, 100 rounds, 256 seed notes, fixed seed. |
+| Signed desktop | Actual packaged normal, backend-crash and recovery lifecycles on disposable data. |
+| Packaged diagnostics | Actual packaged shell/runtime diagnostics, without checkout module substitution. |
+| Packaged upgrade | Frozen old runtime to extracted candidate package on two same-ID roots, exact preservation, interrupted retry and recoverable rollback. |
+
+The workload actors exercise the real source model, canonical publisher and
+WebSocket transport. Browser usability is established by the separate real
+editor and composed checks. Workload limits are fixed before acceptance:
+canonical p95 at most 1,000 ms, peak RSS at most 512 MiB, retained history and
+queued payloads each at most 32 MiB, and each RPC at most 10 seconds. These are
+measurements on the recorded machine, not universal capacity guarantees.
+
+## Intermediate accepted integration
+
+HEAD `23261608811bffbfd0e316b3e1d078a3a0a06924` contains master
+`cd3db8612412bb064df88c003228037e78820002`. Its seven-check production gate
+passed, including the protected 1,654-test suite and all four original browser
+flows with zero failures, cancellations, skips or TODOs. The report is retained
+at `.local-pack/multiplayer/production-gate-2326160-second/report.json`, SHA-256
+`cb0f88a112283e45a0f5274ad9a04915d2a23dcf86b66ff44a3f55ae33a30cae`.
+Its runtime build is `465d57346ea28739`.
+
+The local workload confirmed 60 edits with canonical p95 47.27 ms and peak RSS
+217.48 MiB. The shared workload confirmed 800 edits with canonical p95 193.07 ms
+and peak RSS 299.97 MiB. Indexing was disabled in these capacity fixtures; they
+exercise real canonical publication and staleness markers, not semantic-model
+inference cost. Existing CLI/index behavior is checked separately.
+
+This report does not attest later source changes. Final audits found additional
+stream-lifecycle, raw-replacement recovery, title normalization and private-draft
+version-retention cases. The final gate requires their regression tests plus
+the composed actor and extracted-package upgrade demonstrations.
+
+## Reproduction prerequisites
+
+Use the retained immutable M0 directory, the exact locked root and Electron
+dependencies, QMD 2.8.3, Playwright 1.64.1/its Chromium, and Docker with the
+declared pinned Linux images. The final minimum-runtime check targets Node
+22.12.0; the other Linux/runtime check targets Node 26.7.0. Build and package
+from the frozen source before running the integration gate. Keep generated
+evidence outside source/assertion trees.
+
+The first combined run stopped at dependency fingerprinting because a lazily
+downloaded Electron app introduced ordinary framework symlinks into the locked
+JavaScript package. The verifier was not relaxed. Move that generated binary
+into a separate private test-tool cache and set
+`ELECTRON_OVERRIDE_DIST_PATH` to its `dist` directory. The accepted run used
+`.local-pack/multiplayer/electron-test-runtime/dist`. Its original failed setup
+report remains separate from accepted evidence.
+
+Run `node scripts/multiplayer-production-verify.mjs --help` for all required
+pins and artifact arguments. The tool runs checks sequentially, refuses dirty
+or moving integration inputs, and never installs software, merges or pushes.
+Preserve/export the ignored full reports, artifacts and logs before removing
+the worktree; committed digests cannot replace missing evidence files.
+
+## Recorded limits
+
+- Linux evidence uses pinned Linux/arm64 containers and real local HTTPS/WSS
+  proxy/CA fixtures. Composed browser checks use host Chromium with the Linux
+  backend. This establishes neither public DNS/VPS deployment nor every
+  production reverse-proxy configuration.
+- The supplied Mac app is locally signed and checked with codesign. Publisher
+  authenticity, notarization and installation over a person's existing app are
+  separate release operations.
+- Native app lifecycle fixtures and synthetic composition events do not prove
+  physical keyboard/IME, VoiceOver or other assistive-technology interaction.
+  Power-loss durability and semantic retrieval/model quality are also outside
+  these automated checks.
+- Unsupported overlapping transformations require visible recovery. Caret
+  projection is limited to unambiguous source mappings. Browser drafts depend
+  on available site storage and remain private to that browser profile.
+- Observed destructive raw-file replacements retain previous and observed
+  versions. No watcher can recover arbitrary bytes overwritten between
+  observations or provide filesystem compare-and-swap against a noncooperating
+  writer. Normal backups/Git history remain useful.
+- Access credentials, recovery copies and private drafts are unique operational
+  data. Rebuilding indexes or edit history does not justify deleting them.
+
+The [operating guide](../../docs/collaboration.md) describes live limits,
+credentials, drafts, stream behavior and recovery. The README supplies the
+coordinated upgrade commands and an instruction an agent can execute.

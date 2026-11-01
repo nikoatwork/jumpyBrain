@@ -3,6 +3,7 @@ export interface CollaborationDraft {
   version: 2; scope: string; principalId: string; documentId: string; clientId: string;
   epoch: string; baseRevision: number; baseBody: string; body: string; updatedAt: number;
   title?: string; baseTitle?: string;
+  archivedFromClientId?: string;
   unconfirmed?: { operationId: string; submittedBody: string };
 }
 export interface DraftResult<T> { value: T; error?: string }
@@ -11,7 +12,7 @@ const keyFor = (record: Pick<CollaborationDraft, "scope" | "principalId" | "docu
 function valid(value: unknown): value is CollaborationDraft {
   if (!value || typeof value !== "object") return false;
   const record = value as CollaborationDraft;
-  return record.version === 2 && [record.scope, record.principalId, record.documentId, record.clientId, record.epoch, record.baseBody, record.body].every((part) => typeof part === "string") && (record.title === undefined || typeof record.title === "string") && (record.baseTitle === undefined || typeof record.baseTitle === "string") && Number.isSafeInteger(record.baseRevision) && typeof record.updatedAt === "number" && record.body.length <= 2 * 1024 * 1024 && record.baseBody.length <= 2 * 1024 * 1024;
+  return record.version === 2 && [record.scope, record.principalId, record.documentId, record.clientId, record.epoch, record.baseBody, record.body].every((part) => typeof part === "string") && (record.title === undefined || typeof record.title === "string") && (record.baseTitle === undefined || typeof record.baseTitle === "string") && (record.archivedFromClientId === undefined || typeof record.archivedFromClientId === "string") && Number.isSafeInteger(record.baseRevision) && typeof record.updatedAt === "number" && record.body.length <= 2 * 1024 * 1024 && record.baseBody.length <= 2 * 1024 * 1024;
 }
 export function createCollaborationDraftStore(storage?: Storage) {
   function getStorage() { return storage ?? globalThis.localStorage; }
@@ -40,6 +41,14 @@ export function createCollaborationDraftStore(storage?: Storage) {
   };
 }
 export type CollaborationDraftStore = ReturnType<typeof createCollaborationDraftStore>;
+// Preserve a unique version under a separate key before another recovery
+// selection can replace its live page record. The payload is otherwise exact.
+export function archiveCollaborationDraft(store: Pick<CollaborationDraftStore, "save">, record: CollaborationDraft): DraftResult<CollaborationDraft | null> {
+  const archived = { ...record, clientId: "archive:" + crypto.randomUUID(), archivedFromClientId: record.archivedFromClientId ?? record.clientId };
+  const saved = store.save(archived);
+  return saved.value ? { value: archived } : { value: null, error: saved.error ?? "The current draft could not be preserved. Copy it before selecting another version." };
+}
+
 // One identity per live page/brain. Session storage is cloned by Duplicate Tab
 // and window.open, so it cannot identify an actor or own a private draft key.
 // A reload offers older records through explicit recovery rather than adopting
