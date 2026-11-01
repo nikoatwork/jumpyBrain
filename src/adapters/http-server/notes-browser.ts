@@ -1216,13 +1216,38 @@ function syncWorkspaceHistory() {
 $("navigate-back").addEventListener("click", () => navigation.back());
 $("navigate-forward").addEventListener("click", () => navigation.forward());
 syncWorkspaceHistory();
-let documentActions;
+let documentActions, lifecycleActions;
+let creatingNote = false;
 const folderExplorer = JumpyBrainBrowser.installFolderExplorer({
   document, window,
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   enabled: () => Boolean(activeApiKey) && state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
-  fetch: (signal) => graphJson("/memories/all/files", { signal }),
+  fetch: (signal) => graphJson("/memories/all/files?includeFolders=1", { signal }),
   navigate: (id) => navigateSidebar("/?note=" + encodeURIComponent(id)),
+  operations: {
+    writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()),
+    json: graphJson,
+    link: id => new URL(companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id), location.origin).href,
+    deleteFile: async id => {
+      if (navigation.isBusy() || creatingNote || state.editor?.state.navigationPending) throw new Error("Finish the current action before deleting files.");
+      await lifecycleActions.openDelete(id);
+    },
+    guard: async operation => {
+      const editor = state.editor;
+      if (editor?.state.navigationPending || navigation.isBusy() || creatingNote || lifecycleActions.isBusy()) throw new Error("Finish the current action before moving files.");
+      editor?.setNavigationPending(true);
+      try {
+        if (editor && !await editor.flush()) throw new Error("Resolve the failed save before changing files.");
+        if (editor !== state.editor) throw new Error("The current note changed. Reopen the action.");
+        return await operation();
+      } finally { if (editor === state.editor) editor?.setNavigationPending(false); }
+    },
+    changed: result => {
+      if (result.id && state.editor?.state.documentId === result.id && result.file) state.editor.state.file = result.file;
+      state.graph = null; if (result.id) recentWrites.remove(result.id);
+      noteSearch.markStale(); referenceAutocomplete.markStale();
+    },
+  },
 });
 const livingSources = JumpyBrainBrowser.installLivingSources({
   document, editor: () => state.editor,
@@ -1558,7 +1583,6 @@ const noteCapture = createNoteCapture({
     method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify({ ...draft, actor: browserActor }),
   }),
 });
-let creatingNote = false;
 let newNoteId = null;
 async function newNote() {
   if (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) return;
@@ -1655,7 +1679,7 @@ function currentNoteFilePath(editor = state.editor) {
   if (!root?.startsWith("/") || !editor?.state.loaded || editor.state.cancelled || !file || file.startsWith("/") || file.split("/").some(part => part === "..")) return null;
   return root.replace(/\/+$/, "") + "/" + file;
 }
-const lifecycleActions = installDocumentActions({
+lifecycleActions = installDocumentActions({
   document, editor: () => state.editor,
   filePath: editor => companionMode && !companionFrozen && !companionSessionFailed ? currentNoteFilePath(editor) : null,
   writable: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()),
@@ -1666,8 +1690,10 @@ const lifecycleActions = installDocumentActions({
     folderExplorer.refresh();
     recentWrites.remove(id); noteSearch.markStale(); referenceAutocomplete.markStale();
     state.graph = null;
-    if (state.editor?.state.documentId === id) { state.editor.cancel(); state.editor = null; }
-    await navigation.navigate("/");
+    if (state.editor?.state.documentId === id) {
+      state.editor.cancel(); state.editor = null;
+      await navigation.navigate("/");
+    }
     toast.show("deletion", message);
   },
 });
@@ -1684,8 +1710,8 @@ const noteAttention = JumpyBrainBrowser.installNoteAttention({
 documentActions = {
   ...lifecycleActions,
   close() { lifecycleActions.close(); noteAttention.close(); },
-  isOpen: () => lifecycleActions.isOpen() || noteAttention.isOpen(),
-  isBusy: () => lifecycleActions.isBusy() || noteAttention.isBusy(),
+  isOpen: () => lifecycleActions.isOpen() || noteAttention.isOpen() || folderExplorer.isActionOpen(),
+  isBusy: () => lifecycleActions.isBusy() || noteAttention.isBusy() || folderExplorer.isBusy(),
 };
 const externalUpdates = JumpyBrainBrowser.installExternalDocumentUpdates({
   onReadFailure: (details) => feedbackDiagnostics.event("external_refresh", { severity: "warn", outcome: "failed", code: details.timeout ? "timeout" : details.code || "network" }),

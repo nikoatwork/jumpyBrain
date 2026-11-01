@@ -57,3 +57,7 @@ Authenticated `GET /memories/all/files` delegates canonical metadata listing to 
 ## Board protocol
 
 Authenticated `/memories/all/boards` and per-ID/status routes delegate to `app/server-memory/boards`. POST creates; PUT/DELETE require a SHA-256 If-Match and share the host write queue. Core enforces strict schema and 64 KiB file size; unexpected I/O errors receive safe generic messages. No index mutation or desktop dependency. See [protocol](../../../docs/shared-memory-protocol.md#boards).
+
+## Explorer mutation transport
+
+`POST /memories/all/files/operations` is a thin authenticated decoder into `app/server-memory/folder-explorer-operations.ts`, using the existing write queue and safe document-error mapping. Folder creation accepts only `{action:"create-folder",path}`. File move/rename accepts only `{action:"move-file",id,file,destination}` with `If-Match`. Successful moves notify index maintenance; empty-folder creation does not. GET `/memories/all/files?includeFolders=1` adds visible canonical directories without changing the default packet. The companion gateway classifies file operations as writes under ordinary profile/generation/tab admission.

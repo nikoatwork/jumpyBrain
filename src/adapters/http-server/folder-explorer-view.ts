@@ -5,14 +5,35 @@ export const folderExplorerToggle = `<button id="toggle-folders" class="quiet-bu
 export const folderExplorerMarkup = `
 <aside id="folder-explorer" aria-label="Folders" hidden>
   <div class="folder-explorer-head"><h2>Folders</h2>
+    <button id="folder-explorer-new" class="quiet-button icon-button" type="button" aria-label="New folder" title="New folder">+</button>
     <button id="folder-explorer-refresh" class="quiet-button icon-button" type="button" aria-label="Refresh folders" title="Refresh folders">${browserIcons.refresh}</button>
     <button id="folder-explorer-close" class="quiet-button icon-button" type="button" aria-label="Close folders" title="Close folders (Esc)">${browserIcons.close}</button>
   </div>
   <div class="folder-explorer-search"><input id="folder-explorer-search" type="search" aria-label="Find notes or folders" placeholder="Find notes or folders…" autocomplete="off" spellcheck="false" /></div>
   <p id="folder-explorer-message" role="status" aria-live="polite"></p>
   <div id="folder-explorer-tree" role="tree" aria-label="Memory folders and notes"></div>
+  <div id="folder-explorer-menu" role="menu" aria-label="File actions" hidden></div>
+  <dialog id="folder-explorer-edit" aria-labelledby="folder-explorer-edit-title">
+    <form><h2 id="folder-explorer-edit-title"></h2>
+      <label id="folder-explorer-name-label" for="folder-explorer-name">File name</label>
+      <input id="folder-explorer-name" type="text" autocomplete="off" spellcheck="false" required />
+      <select id="folder-explorer-destination" aria-label="Destination folder" hidden></select>
+      <p id="folder-explorer-edit-error" role="alert"></p>
+      <div class="folder-explorer-edit-buttons"><button id="folder-explorer-cancel" type="button" class="quiet-button">Cancel</button><button id="folder-explorer-save" class="quiet-button" type="submit">Save</button></div>
+    </form>
+  </dialog>
 </aside>`;
 export const folderExplorerStyles = String.raw`
+  #folder-explorer-menu { position: fixed; z-index: 45; min-width: 180px; padding: var(--space-1); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); }
+  #folder-explorer-menu button { display: block; width: 100%; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink); text-align: left; padding: var(--space-2) var(--space-3); font: inherit; }
+  #folder-explorer-menu button:hover, #folder-explorer-menu button:focus-visible { background: var(--hover-fill); }
+  #folder-explorer-menu button:disabled { color: var(--ink-faint); }
+  #folder-explorer-edit { width: min(400px, calc(100vw - var(--space-8))); padding: var(--space-5); }
+  #folder-explorer-edit h2 { font-size: var(--text-section); margin-top: 0; }
+  #folder-explorer-name, #folder-explorer-destination { width: 100%; margin-top: var(--space-2); }
+  #folder-explorer-edit-error { color: var(--ink-soft); font-size: var(--text-caption); }
+  .folder-explorer-edit-buttons { display: flex; gap: var(--space-2); justify-content: flex-end; margin-top: var(--space-4); }
+  .folder-explorer-row[data-drop-target] { background: var(--hover-fill); color: var(--accent); outline: 1px solid var(--accent); outline-offset: -1px; }
   #toggle-folders { margin: var(--space-2) var(--space-3) var(--space-2) auto; flex-shrink: 0; background: transparent; }
   #toggle-folders[aria-expanded="true"] { color: var(--accent); }
   #folder-explorer { flex: 0 0 320px; width: 320px; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--surface); overflow: hidden; font: var(--text-ui)/var(--leading-ui) var(--font-ui); }

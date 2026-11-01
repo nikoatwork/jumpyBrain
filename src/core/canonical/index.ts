@@ -27,6 +27,7 @@ export {
   replaceCanonicalMemoryDocumentById,
   patchCanonicalMemoryDocumentAttention,
   deleteCanonicalMemoryDocumentById,
+  moveCanonicalMemoryDocumentById,
   resolveMemoryRoot,
   resolveCanonicalMemoryDocumentByTitle,
   type CanonicalMemoryTitleResolution,
@@ -45,3 +46,5 @@ export {
   type ExpansionOptions,
   type ExpansionResult,
 } from "./expansion.js";
+
+export { listCanonicalMemoryFolders, createCanonicalMemoryFolder } from "./directories.js";

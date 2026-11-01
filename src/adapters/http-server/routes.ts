@@ -1,3 +1,4 @@
+import { applyServerMemoryFileOperation } from "../../app/server-memory/folder-explorer-operations.js";
 import { listBoards, readBoard, saveBoard, deleteBoard, getBoardStatus, BoardError } from "../../app/server-memory/boards.js";
 import { normalizeMemoryActor } from "../../core/contribution.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
@@ -544,6 +545,22 @@ export async function routeRequest(context: { request: IncomingMessage; response
     return;
   }
 
+  if (url.pathname === HTTP_MEMORY_ROUTES.fileOperations) {
+    response.setHeader("cache-control", "no-store");
+    if (request.method !== "POST") { writeJson(response, 405, errorResponse("method_not_allowed", "Use POST for file operations.")); return; }
+    const operation = await parseJsonBody(request);
+    if (isJsonError(operation)) { writeJson(response, operation.statusCode, operation.body); return; }
+    try {
+      const packet = await enqueueWrite(() => applyServerMemoryFileOperation({ root, operation, ifMatch: ifMatchHeader(request) }));
+      if ("moved" in packet && packet.moved) context.onMemoryWrite?.();
+      writeJson(response, 200, packet);
+    } catch (error) {
+      const mapped = documentUpdateErrorResponse(error);
+      writeJson(response, mapped.statusCode, mapped.body);
+    }
+    return;
+  }
+
   if (url.pathname === HTTP_MEMORY_ROUTES.files) {
     response.setHeader("cache-control", "no-store");
     if (request.method !== "GET") {
@@ -551,7 +568,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       return;
     }
     try {
-      writeJson(response, 200, await listServerMemoryFiles({ root, signal }));
+      writeJson(response, 200, await listServerMemoryFiles({ root, signal, includeFolders: booleanSearchParam(url, "includeFolders") }));
     } catch {
       if (signal?.aborted) return;
       writeJson(response, 500, errorResponse("files_failed", "Remote file listing failed."));
