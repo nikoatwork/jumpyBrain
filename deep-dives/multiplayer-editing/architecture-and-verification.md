@@ -13,6 +13,7 @@ The user selected:
 - A recoverable local draft during disconnection; reconnect before publishing.
 - Individually revocable reader/writer credentials on the VPS, without per-note permissions.
 - One on-demand backend per local brain, usable by the CLI without opening the app. Closing a window keeps the service available.
+- Coordinated upgrades of all internal clients are acceptable. Breaking CLI/API/integration changes are allowed with a smooth README upgrade procedure; permanent legacy/mixed-version support is not required.
 
 Direct Markdown writes are a required compatibility case from the user's local app/agent workflow. Filesystem access cannot be made safe by declaring it unsupported. The proposed policy is to ingest observed external changes, merge when the evidence supports it, and preserve conflicting versions for deliberate recovery. Arbitrary overlapping raw writes cannot have the same guarantees as operations participating in the backend protocol.
 
@@ -57,9 +58,9 @@ Borrow boundaries, lifecycle, and explicit contracts. T3's canonical orchestrati
                                                           |
                                       external editors / raw agents
 
-HTTP and WebSocket are adapters over the same app operations. Keep working V1 HTTP behavior during migration. Use authenticated WebSocket RPC for commands/subscriptions where live interaction needs it; one-shot CLI operations may use HTTP against the same backend. Neither transport owns domain policy.
+HTTP and WebSocket are adapters over the same app operations. The internal beta may cut over protocols and update all clients together. Preserve data/use-case behavior, version-fence unsupported clients, and provide the tested README upgrade path before shipping the break. Use authenticated WebSocket RPC for commands/subscriptions where live interaction needs it; one-shot CLI operations may use HTTP against the same backend. Neither transport owns domain policy.
 
-Every supported writer, including legacy whole-document PUT and metadata PATCH, must enter the same document coordinator. A current disk If-Match does not prove there are no admitted unpublished edits. Reconcile/transform the request against live state when safe, or reject it explicitly while preserving pending content. Never accept a legacy write beneath the live model and overwrite it on the next flush. Preserve the old disk-hash precondition as a required check; a new session token must not silently weaken it.
+Every supported writer, including any retained whole-document or metadata operation, must enter the same coordinator. A current disk hash does not prove there are no admitted unpublished edits. Reconcile/transform safely or reject while preserving pending content. Obsolete clients may be rejected outright; maintaining their old endpoints is not required. No supported path may write beneath the live model and be overwritten on the next flush.
 
 - Core keeps canonical parsing, identity, protected metadata, source/version semantics, and guarded publication rules.
 - App owns document-session policy, operation admission, merge/reconciliation decisions, and publication/index coordination.
@@ -154,7 +155,7 @@ An uncooperative writer can race any final check and overwrite another raw write
 - Offline edits remain local recovery drafts. Reconnect, authenticate, fetch current state, and reconcile before publishing. No hidden offline CRDT queue may bypass this policy.
 - Server-issued reader/writer credentials are independently revocable and enforced for every HTTP method, RPC command, subscription, and live editing frame. Read-only UI controls alone are insufficient.
 - Revocation/role downgrade fences already-open sockets and in-flight streams. Browser authentication must not put long-lived secrets in URLs or persist server keys in renderer storage; retain gateway/native credential boundaries.
-- Compatibility negotiation covers transport, command schemas, editor nodes, and collaboration layouts. Old clients remain on supported HTTP behavior or receive explicit read-only/update guidance; never silently downgrade a collaborative write to an unconditional PUT.
+- Version admission covers transport, command schemas, editor nodes and collaboration layouts. Obsolete clients receive update guidance before mutation; no permanent old-protocol fallback is required. Never silently downgrade a collaborative write to an unconditional replacement.
 
 No per-note ACL system, full account/billing product, hosted provider, or automatic team-memory write authorization is included.
 

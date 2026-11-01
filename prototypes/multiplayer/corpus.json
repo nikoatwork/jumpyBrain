@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "description": "M1 design-only corpus. Feed markdown through the actual current createNoteEditor. Exact load/export and unrelated-source preservation are required; candidate-specific rejected operations must retain both inputs and be reported.",
+  "cases": [
+    {
+      "id": "plain-repeated",
+      "markdown": "Human anchor.\n\nRepeated paragraph.\n\nRepeated paragraph.\n\nAgent anchor.",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "inline-source",
+      "markdown": "## Topic  \n\nHuman anchor with __bold__, *italic*, and `inline`.\n\nAgent anchor with **bold** and literal ** spaced **.",
+      "probe": {
+        "needle": "Human anchor",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "references",
+      "markdown": "# Links\n\nHuman anchor [[Project plan]] and [[Topic: details?]].\n\nAgent anchor with [[path/to/note|alias]] and `[[in code]]`.",
+      "probe": {
+        "needle": "Human anchor",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "tasks",
+      "markdown": "Human anchor.\n\n- [X] Keep this exact source\n  - [ ] Child task\n\nAgent anchor.",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "fenced-code",
+      "markdown": "Human anchor.\n\n````js\nconst x = `literal`;\n\tconst y = 2;\n\n````\n\nAgent anchor.",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "source-table",
+      "markdown": "Human anchor.\n\n| Name | Value |\n| :--- | ---: |\n| a\\|b | `x|y` |\n\nAgent anchor.",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "literal-unsupported",
+      "markdown": "Human anchor.\n\n> Literal quote with **markup**\n\n<div data-x=\"1\">never active HTML</div>\n\n~~~plain\nunsupported fence\n~~~\n\nAgent anchor.",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "unicode",
+      "markdown": "Human anchor: café é 🧠 family 👩‍👩‍👧‍👦.\n\nRepeated 🧠 token; repeated 🧠 token.\n\nAgent anchor.",
+      "probe": {
+        "needle": "Human anchor",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "crlf",
+      "markdown": "Human anchor.\r\n\r\nKeep  two spaces.  \r\n\r\nAgent anchor.\r\n",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "no-final-newline",
+      "markdown": "Human anchor.\n\nAgent anchor.",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "trailing-blank-lines",
+      "markdown": "Human anchor.\n\nAgent anchor.\n\n\n",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    },
+    {
+      "id": "incomplete-fence",
+      "markdown": "Human anchor.\n\nAgent anchor.\n\n```js\npartial output",
+      "probe": {
+        "needle": "Human anchor.",
+        "insert": " human"
+      }
+    }
+  ],
+  "canonical": {
+    "id": "mem_77777777-7777-4777-8777-777777777777",
+    "header": "---\nid: \"mem_77777777-7777-4777-8777-777777777777\"\ntype: \"note\"\ntitle: \"M1 design fixture\"\ncreated_at: \"2026-01-01T00:00:00.000Z\"\nsource: \"manual\"\ncustom: \"preserve me\"\n---\n",
+    "body": "Human anchor.\n\nRepeated paragraph.\n\nRepeated paragraph.\n\nAgent anchor.\n"
+  }
+}
