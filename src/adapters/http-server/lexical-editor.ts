@@ -2,7 +2,7 @@
 import {
   $addUpdateTag, $getNodeByKey, $createRangeSelection, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
-  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, IS_BOLD, IS_ITALIC, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
+  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG, IS_BOLD, IS_ITALIC, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
   ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type ElementNode, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
@@ -1012,33 +1012,41 @@ export function createNoteEditor(element: HTMLElement, options: {
       const before = editor.getEditorState(), previous = markdown, savedSources = new Map(sources), previousNewline = sourceNewline;
       sourceNewline = detectNewline(value);
       const scroll = element.closest("#note-panel"), top = scroll?.scrollTop, left = scroll?.scrollLeft;
-      let failure: string | undefined;
+      let failure: string | undefined, treeUpdated=false;
+      const active=element.ownerDocument.activeElement===element;
       loading = true;
       try {
-        editor.update(() => {
-          const root = $getRoot(), oldNodes = root.getChildren();
-          const oldBlocks = mappedBlocks(oldNodes, previousNewline), originals = oldBlocks.map((block) => block.raw);
-          const newNodes = parseMarkdown(value), incoming = newNodes.map((node) => sources.get(node.getKey())!.original);
-          if (originals.join("\n") !== previous) { failure = "The current editable source could not be mapped exactly"; return; }
-          const selection = $getSelection();
-          const originalPoints = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => ({ key: point.key, offset: point.offset, type: point.type, text: point.getNode().getTextContent() })) : null;
-          const points = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => sourcePoint(point, oldBlocks)) : null;
-          if (points?.some((point) => point === null)) { failure = "The active selection could not be mapped exactly; both source versions are retained"; return; }
-          let operationSequence=presentation.operationSequence;
-          if(!operationSequence){
-            if(element.ownerDocument.activeElement===element && $isRangeSelection(selection)){failure="The incoming snapshot has no positional edit history. Review before continuing this selection.";return}
-            operationSequence=previous===value?[]:[[{start:0,deleteCount:previous.length,insert:value}]];
-          }
-          let verified=previous;for(const operations of operationSequence)verified=applySourceSplices(verified,operations);
-          if(verified!==value){failure="The incoming operations do not reproduce the supplied source. Both versions are retained.";return}
-          const mapOffset=(offset:number,association:"left"|"right")=>{
-            let position=offset;
-            for(const operations of operationSequence!){
-              try{position=transformSourcePosition(position,operations,association)}
-              catch(error){if((error as {code?:string}).code!=="position_deleted")throw error;const removed=operations.find(operation=>operation.start<position&&position<operation.start+operation.deleteCount);if(!removed)throw error;position=transformSourcePosition(removed.start,operations,association)}
+        // Project before mutating. Lexical may report update errors through a
+        // nonthrowing host handler, so expected ambiguity must not escape into
+        // its update callback and masquerade as a serializer failure.
+        const projected=before.read(()=>{
+          const oldBlocks=mappedBlocks($getRoot().getChildren(),previousNewline),originals=oldBlocks.map(block=>block.raw),selection=$getSelection();
+          if(originals.join("\n")!==previous)throw new Error("The current editable source could not be mapped exactly");
+          const selected=$isRangeSelection(selection),points=selected?[selection.anchor,selection.focus].map(point=>sourcePoint(point,oldBlocks)):null;
+          let sequence=presentation.operationSequence;
+          if(!sequence){if(active&&selected)throw new Error("The incoming snapshot has no positional edit history. Review before continuing this selection.");sequence=previous===value?[]:[[{start:0,deleteCount:previous.length,insert:value}]]}
+          let verified=previous;for(const operations of sequence)verified=applySourceSplices(verified,operations);
+          if(verified!==value)throw new Error("The incoming operations do not reproduce the supplied source. Both versions are retained.");
+          let offsets:number[]|null=null;
+          if(points){
+            if(points.some(point=>point===null)){if(active)throw new Error("The active selection could not be mapped exactly; both source versions are retained")}
+            else if(presentation.operationSequence){
+              const anchors=points as number[];
+              try{offsets=anchors.map((offset,index)=>{
+                const association=anchors[0]===anchors[1]||offset<anchors[1-index]?"right":"left";
+                let position=offset;
+                for(const operations of sequence!){try{position=transformSourcePosition(position,operations,association)}catch(error){if((error as {code?:string}).code!=="position_deleted")throw error;const removed=operations.find(operation=>operation.start<position&&position<operation.start+operation.deleteCount);if(!removed)throw error;position=transformSourcePosition(removed.start,operations,association)}}
+                return position;
+              })}catch(error){if(active||(error as {code?:string}).code!=="ambiguous_source")throw error}
             }
-            return position;
-          };
+          }
+          return {originals,offsets,selected,format:selected?selection.format:0,style:selected?selection.style:""};
+        });
+        treeUpdated=true;
+        editor.update(() => {
+          if(!active)$addUpdateTag(SKIP_DOM_SELECTION_TAG);
+          const root=$getRoot(),oldNodes=root.getChildren(),originals=projected.originals;
+          const newNodes = parseMarkdown(value), incoming = newNodes.map((node) => sources.get(node.getKey())!.original);
           // A source-ordered match preserves repeated blocks deterministically.
           // Only blocks between surviving anchors are reconciled or replaced.
           const sourceIdentity = (source: string) => source.replace(/\r(?=\n|$)/g, "");
@@ -1097,12 +1105,10 @@ export function createNoteEditor(element: HTMLElement, options: {
           chosen.forEach((node, i) => sources.set(node.getKey(), { original: incoming[i], snapshot: snapshot(node) }));
           scanReferences();
           chosen.forEach((node, i) => sources.set(node.getKey(), { original: incoming[i], snapshot: snapshot(node) }));
-          if (points?.every((point) => point !== null)) {
+          if (projected.offsets) {
             const nextSelection = $createRangeSelection();
             [nextSelection.anchor, nextSelection.focus].forEach((point, i) => {
-              const original = originalPoints![i], surviving = $getNodeByKey(original.key);
-              if (!presentation.operationSequence && surviving?.isAttached() && surviving.getTextContent() === original.text) { point.set(original.key, original.offset, original.type); return; }
-              let remaining = Math.max(0, Math.min(value.length, mapOffset(points[i]!, points[0] === points[1] || points[i]! < points[1 - i]! ? "right" : "left"))), index = 0;
+              let remaining = Math.max(0, Math.min(value.length, projected.offsets![i])), index = 0;
               while (index < incoming.length - 1 && remaining > incoming[index].length) { remaining -= incoming[index].length + 1; index++; }
               const block = chosen[index];
               const map = blockMap(block, incoming[index]);
@@ -1113,9 +1119,9 @@ export function createNoteEditor(element: HTMLElement, options: {
               for (const leaf of leaves) { if ($isTextNode(leaf) && visible <= leaf.getTextContentSize()) { point.set(leaf.getKey(), visible, "text"); return; } visible -= leaf.getTextContentSize(); }
               point.set(block.getKey(), $isElementNode(block) ? block.getChildrenSize() : 0, "element");
             });
-            if ($isRangeSelection(selection)) { nextSelection.format = selection.format; nextSelection.style = selection.style; }
+            nextSelection.format=projected.format;nextSelection.style=projected.style;
             $setSelection(nextSelection); lastSelection = nextSelection.clone();
-          }
+          } else if(projected.selected){$setSelection(null);lastSelection=null}
           completionBaseline = referenceText();
         }, { discrete: true, tag: HISTORIC_TAG });
         if (!failure && editor.getEditorState().read(serialize) !== value) failure = "Source round trip did not preserve the incoming document";
@@ -1124,6 +1130,10 @@ export function createNoteEditor(element: HTMLElement, options: {
           editor.setEditorState(before, { tag: HISTORIC_TAG });
           markdown = previous; sourceNewline = previousNewline;
           return { status: "recovery", reason: failure };
+        }
+        if(!active&&projected.selected&&!projected.offsets){
+          const native=element.ownerDocument.getSelection();
+          if(native&&(element.contains(native.anchorNode)||element.contains(native.focusNode)))native.removeAllRanges();
         }
         markdown = value;
         if (presentation.highlight) {
@@ -1139,7 +1149,7 @@ export function createNoteEditor(element: HTMLElement, options: {
         return { status: "applied" };
       } catch (error) {
         sources.clear(); savedSources.forEach((source, key) => sources.set(key, source));
-        editor.setEditorState(before, { tag: HISTORIC_TAG }); markdown = previous; sourceNewline = previousNewline;
+        if(treeUpdated)editor.setEditorState(before, { tag: HISTORIC_TAG }); markdown = previous; sourceNewline = previousNewline;
         return { status: "recovery", reason: error instanceof Error ? error.message : "Reconciliation failed" };
       } finally {
         loading = false;
