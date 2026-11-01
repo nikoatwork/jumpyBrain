@@ -371,7 +371,23 @@ Authenticated, read-only canonical metadata for the folder explorer:
 
 Every eligible Markdown file under the editor's canonical memory buckets is listed, including settled and snoozed notes. Paths are root-relative; optional titles come from frontmatter. Missing, invalid or duplicated IDs return `id: null`, preserving the file's presence without suggesting it can be opened. Hidden paths are omitted; hidden duplicate IDs still make visible occurrences unopenable. Indexes and retrieval-only `indexRoot` do not affect the listing. No server root, body, canonical write or index update is included.
 
-Directories are inferred from listed Markdown paths, so empty and attachment-only directories are absent. This endpoint has no limit or pagination: scan work and packet count grow with the corpus; the companion gateway retains its existing 16 MiB response cap. Cancellation stops request work. Fresh reads reflect external changes; discovery and subsequent document opening are not atomic. Other methods return 405; failures return a generic `files_failed` error. Responses use `Cache-Control: no-store`.
+By default directories are inferred from listed Markdown paths. Optional `?includeFolders=1` adds a `folders` array of visible canonical relative directories, including empty and attachment-only directories; hidden/technical directories and symlinks remain excluded. This endpoint has no limit or pagination: scan work and packet count grow with the corpus; the companion gateway retains its existing 16 MiB response cap. Cancellation stops request work. Fresh reads reflect external changes; discovery and subsequent document opening are not atomic. Other methods return 405; failures return a generic `files_failed` error. Responses use `Cache-Control: no-store`.
+
+### `POST /memories/all/files/operations`
+
+Authenticated explorer writes run through the same server write queue and companion permission/generation gates as document editing. The body accepts exactly one of:
+
+```json
+{"action":"create-folder","path":"notes/projects/New folder"}
+```
+
+```json
+{"action":"move-file","id":"mem_12345678-1234-4234-8234-123456789abc","file":"notes/projects/architecture.md","destination":"notes/archive/architecture.md"}
+```
+
+Folder creation requires an existing canonical parent and returns `{created:true,folder}` without indexing. Move/rename requires `If-Match: sha256:<64 hex>` from a current document read and the exact prior `file` path. It returns `{moved,id,file,previousFile,contentHash,indexing?}`; identical source/destination is an explicit `moved:false` no-op. Successful moves preserve bytes/identity and dirty derived indexing. Index bookkeeping failure retains `moved:true,indexing.status:failed`. Destination collisions, unsafe/hidden/non-Markdown paths and extra fields fail closed. No server roots are returned. Existing document error statuses apply (428 missing hash, 412 changed source/hash, 422 validation; unexpected I/O failures use generic 500 errors).
+
+This endpoint manages individual Markdown files and new folders, not note titles, arbitrary attachments, folder moves or recursive deletion. Source/destination locks coordinate cooperating writers. Exclusive link/unlink publication never overwrites an existing destination; a brief duplicate-link window and a crash leaving both paths are possible. External filesystem writers can still race final checks. Filename links may need manual repair; no backlink rewrite or operation replay ledger is implied. Deletion uses the existing document preview/DELETE routes.
 
 ### `GET /memories/all/recent`
 

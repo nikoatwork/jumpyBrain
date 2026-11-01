@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — File explorer actions
+
+- Added contextual file rename, copy links and guarded deletion, empty-folder creation, and drag-and-drop or keyboard file moves. [Verification](done/2026-11-01_tasks-folder-explorer-actions.md).
+
 ## 2026-11-01 — Page card paths and board context
 
 - Page actions copy local absolute file paths, show board memberships, and offer compact Add to board and clearer More info controls. [Task](done/2026-11-01_tasks-page-card-actions.md).
