@@ -91,3 +91,22 @@ The shared browser owns the action dispatcher, named contribution slots and opti
 ## Board ownership
 
 Canonical `core/boards` owns versioned JSON organization at `boards/<UUID>.json`, safe file access and hash-checked publication. `app/boards` composes layout changes and fresh bounded Markdown status evidence; runtime exports the local seam and `app/server-memory/boards` exposes it to thin authenticated HTTP routes. CLI uses ordinary local/remote transports. The Mac renderer proxies the same routes through its selected brain and write permissions. No database, app-support store, CLI-to-native dependency or board indexing is involved.
+
+## Shared backend ownership and collaboration
+
+The app gateway, canonical CLI mutations and repairing retrieval join one
+authenticated backend per real brain root through `app/backend-host`.
+`adapters/backend-host` owns private leases, descriptors, spawning and the
+foreground control proxy; `server/daemon` composes its headless lifetime.
+Pure inspection, import previews and strict read-only retrieval retain their
+observational engine paths. Direct library/filesystem writers are external inputs.
+
+`core/collaboration` is a pure bounded source-operation model.
+`app/collaboration` owns canonical publication, external-file settlement and
+recovery; `adapters/live` owns authenticated protocol-2 WebSocket RPC. HTTP and
+live mutations share one publication queue. Derived QMD work keeps independent
+admission. The browser binding preserves source and unaffected editor nodes;
+private drafts reconnect before publishing. Markdown remains authoritative and
+collaboration history is rebuildable. Access/recovery records are unique
+operational state. See [behavior and limits](../docs/collaboration.md) and the
+[verification contract](../deep-dives/multiplayer-editing/production-gate-contract.json).

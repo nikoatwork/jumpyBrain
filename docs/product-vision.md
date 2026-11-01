@@ -18,7 +18,7 @@ The human experience is part of the product: a calm editor, search, and a visual
 
 The same experience, shared: people write and explore knowledge, and their agents contribute and retrieve it with explicit authorization. A decision remembered by one teammate's agent should be discoverable by another without copying chat histories or switching agent providers.
 
-Think of this as an **agent-first Notion** for shared knowledge, not a promise of Notion feature parity, real-time co-editing, or a general-purpose project-management suite. The value is durable team context that both humans and agents can use.
+Think of this as an **agent-first Notion** for shared knowledge. Humans and streaming agents can edit the same canonical Markdown live through a shared local or VPS backend. The product stays focused on durable team context, notes and recall; Notion feature parity and a general-purpose project-management suite remain outside its scope.
 
 Local and shared deployment are equally central, not separate products: the same memory app runs on one machine or against a server-local Markdown root on a self-hosted VPS. Remote agents use the CLI transport; a shared server is not an implicit sync system for personal brains.
 
