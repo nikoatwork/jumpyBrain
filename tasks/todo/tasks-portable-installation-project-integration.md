@@ -14,7 +14,7 @@ Make jumpyBrain a reproducible, version-pinnable CLI that works in consumer proj
 
 ## Design direction
 
-- Prefer a prebuilt versioned npm artifact as the supported dependency/CLI installation path, retaining managed installer compatibility. Support Git installs only with a tested build lifecycle and explicit development-tool requirements; do not advertise an untested path.
+- First reuse the existing versioned GitHub release tarball for managed installs, retaining explicit source/ref development installs. Evaluate npm publication separately for consumer-project dependencies; it is not a prerequisite for an agent completing setup. Support Git dependency installs only with a tested build lifecycle and explicit development-tool requirements; do not advertise an untested path.
 - Keep remote-client installation independent of QMD/native inference. Local/server engine requirements must be explicit and pinned, with an actionable setup check rather than hidden installation on recall.
 - Fix normal consumer dependency resolution before asking users to set absolute QMD paths. Keep explicit override priority and ensure CLI/SDK belong to the same supported installation.
 - Keep one CLI/app, not separate engines. Measure browser/dependency weight before splitting packages; lazy server/browser loading and trimmed artifacts are preferable to a new release matrix without meaningful savings.
@@ -41,6 +41,13 @@ Make jumpyBrain a reproducible, version-pinnable CLI that works in consumer proj
 - `test/{install-scripts,local-pack-scripts,local-pack-properties,package-entrypoints,remote-access-policy}.test.js` — consumer/distribution regressions.
 
 ## Tasks
+
+- [ ] 0.0 Deliver the focused agent-installation increment proposed below before broadening project discovery or npm publication.
+  - [ ] 0.1 Remove implicit current-directory installer execution; add shared early preflight and a machine-readable plan/result contract.
+  - [ ] 0.2 Provision a pinned local engine in an installer-owned user directory; align installer, runtime, doctor, Desktop and updater resolution. Keep remote-only CLI use independent of QMD.
+  - [ ] 0.3 Use verified published artifacts by default and make interrupted fresh installation safely rerunnable. Preserve explicit source/ref and existing ownership policies.
+  - [ ] 0.4 Add one app + agents setup flow, preserve the selected root, and verify actual local retrieval and Desktop readiness before reporting success.
+  - [ ] 0.5 Exercise the failure/recovery and platform matrix below; update the supported commands and agent installation guide. Record remaining native prerequisite limits.
 
 - [ ] 1.0 Establish a reproducible supported distribution
   - [ ] 1.1 Read architecture/affected docs; inventory executable/runtime/worker/browser/installer assets and supported consumers. Reproduce a clean Git dependency install and existing tarball install without relying on repository `dist`.
@@ -71,3 +78,55 @@ Make jumpyBrain a reproducible, version-pinnable CLI that works in consumer proj
   - [ ] 5.1 Run clean install/update/uninstall and pinned consumer smoke tests for each advertised distribution; exercise local lexical recall and remote-client use with no QMD. Document untested platform/registry paths honestly.
   - [ ] 5.2 Update installation, configuration, skill, doctor, and owning module docs. Explain root precedence and scoped approval with copyable project/personal examples; remove absolute-path workarounds where superseded.
   - [ ] 5.3 Run `npm test`; record verification and the complexity review here. Remove duplicate discovery/build/policy helpers and unused packaging experiments. Do not update the changelog for planning alone.
+
+## Agent installation proposal — 2026-11-01
+
+Status: investigated and proposed; implementation is not started by this proposal. User intent: make local installation easy for agents to complete end to end. Existing project-targeting and npm-publication work above remains active but should not delay the focused installer increment.
+
+### Confirmed findings
+
+Reviewed the installer, Desktop setup/packaging, release artifact selection, QMD discovery, doctor and existing installation tests at HEAD `97b0eca`, with unrelated folder-explorer work present. This is an inspection of the working checkout, not a clean-release validation.
+
+- `scripts/public-install.mjs` installs missing QMD through `npm install -g @tobilu/qmd@2.8.3`; it does not check global-prefix writability. Its dry run can exit successfully while merely printing that command. A root-owned `/usr/local` prefix therefore remains an installation obstacle.
+- The delay is worse for a fresh installation than the feedback describes: runtime publication, shim creation and memory initialization precede QMD setup; the manifest is written afterward. Updates check QMD through `beforePublish`, but still after dependency installation/build. A simulated QMD installation failure left the fresh app/shim present without a manifest, and an identical retry refused the unowned layout.
+- `install.sh` executes `scripts/public-install.mjs` from the current working directory whenever that file exists. A disposable fixture confirmed this even with `--dry-run`; no repository identity or explicit local-source choice is required.
+- The normal source path clones the default branch and runs `npm install` plus a local build. Bootstrap helpers also default to mutable `master`. The existing Desktop release selector already accepts published beta releases and checks exact asset identity, size and SHA-256; reuse that contract rather than designing a second release channel.
+- `scripts/setup-desktop.mjs` has useful combined prerequisite checks, but app + agents remains a second invocation and another root dependency installation/build. Desktop setup is tied to the default managed installation and leaves onboarding to the UI.
+- Adding QMD only to root dependencies is insufficient: runtime lookup can find package-local QMD, whereas doctor defaults to PATH and fresh Desktop packaging uses `shutil.which('qmd')`. All consumers need the same selected engine. An unconditional root dependency would also undermine the intended engine-free remote CLI.
+- Installer completion currently verifies initialization/index-command success and prints a recall command; it does not itself run the promised doctor + recall handoff checks. The CLI shim depends on `node` remaining on PATH. Generated integrations use absolute CLI/root paths, which is a useful existing foundation.
+
+### Recommended contract
+
+Keep one managed installer. Proposed interface, **not currently supported**:
+
+```sh
+bash jumpybrain-install.sh --with-app --integrations auto --json
+```
+
+Without `--with-app`, install the local CLI and requested/detected agent integrations on macOS/Linux. With it, install the matching Mac app and CLI together. Retain explicit `--memory-root`, `--install-root`, `--source` and `--ref`; do not quietly convert existing custom or pinned installations. Automatic integration detection remains the default; report undetected hosts and retain the explicit all/none choices.
+
+1. **Inspect and plan once.** Determine requested components, existing ownership/root, OS/architecture, usable Node/npm, destination writability, available storage and required native tools before expensive work. Return all blockers together. The preflight must not depend on Node already existing just to explain that Node is missing. `--dry-run --json` describes a plan and its limits, never installed readiness; write no install state. A network probe is not proof later downloads will succeed.
+2. **Resolve one release.** Default new managed installations to one published, verifiable GitHub asset, including the product's published beta releases. Persist release/version/digest and update policy separately from development source/ref. Use its compiled CLI/editor assets instead of rebuilding TypeScript for an ordinary CLI install. Use lockfile-based production dependency installation where needed. Validate archive contents before extraction, fail on integrity errors, and never silently fall back to master. Resolve bootstrap helpers to one immutable installer revision so they cannot mix during download.
+3. **Own the local search dependency.** Prefer a versioned QMD prefix under the install root, with a checked-in engine dependency manifest/lockfile and exact CLI/SDK version agreement. Do not require sudo, modify the global npm prefix, or replace unrelated global QMD. Preserve explicitly selected compatible engines; reject incompatible explicit overrides with repair guidance. Share the selected absolute Node/QMD paths across the CLI launcher, doctor, Desktop and updater, with documented override precedence. Keep the engine outside the replaceable app directory so reuse and recovery are possible; bind it to installation ownership for uninstall. Prove native dependency portability before promising a compiler-free installation.
+4. **Stage and recover.** Extend existing locking/staging/rollback instead of layering another installer over it. Record bounded installer-owned in-progress state before publication; commit the final manifest after verification. A retry must recognize its own partial install and resume or roll back, without adopting arbitrary pre-existing files. Never delete or roll back canonical notes to recover program installation. If indexing fails, preserve notes and report the exact incomplete step. App failure must leave an explicit recoverable component state, not overall success or an unowned half-install.
+5. **Finish the requested setup.** `--with-app` composes setup in the same operation, reuses the selected release and engine, and avoids duplicate builds. For a fresh authorized local setup, initialize Desktop with the exact chosen CLI memory root through a supported configuration path and verify it; do not require a redundant folder-picker roundtrip. Preserve existing app profiles and surface conflicting roots instead of retargeting them. Do not overwrite customized integration files without ownership-aware handling. Host reload or an OS permission dialog may remain an explicit user action, but the agent should complete all independent installation work first.
+6. **Verify and report.** Run the installed CLI's `doctor --check --json` and bounded local recall; an empty new brain is valid. For a requested app, check installed component versions, successful launch and the actual local root. Emit JSON on stdout and bounded progress on stderr, including version, root, CLI/app paths, selected engine, installed/skipped integrations, checks, final state and remaining actions. Stable outcomes must distinguish ready, blocked, failed and pending user action. File presence is not host activation; no sample memory or automatic semantic-model download is needed.
+
+The installer should reuse a compatible existing Node installation first. The first increment can still require the documented Node/native toolchain and must say so. Fully unattended setup on a clean Mac requires a later distribution increment: verified prebuilt app/native helpers and a supported private runtime/engine when Node/QMD are absent. Coordinate this with [release-built native helper work](tasks-desktop-update-30-seconds.md), then address signed/notarized distribution and credential identity. Do not advertise zero-prerequisite installation before supported architectures and native dependencies are tested. Linux support likewise needs a stated, tested platform matrix rather than an all-distributions promise.
+
+### Implementation order and acceptance
+
+- First fix bootstrap source selection, early diagnostics, managed QMD and fresh-install recovery together. Merely checking `/usr/local` permissions leaves the user to repair the environment and does not meet the goal.
+- Then deliver verified release installation, one app + agents command, and the JSON verification/handoff contract. Keep npm publication and project auto-discovery outside this critical path; reuse the broader tasks when their dependencies are reached.
+- Follow with prebuilt Desktop/private-runtime distribution to remove machine toolchain setup. A wrapper around today's source builds improves orchestration but cannot deliver a prerequisite-free clean-Mac experience.
+- Required scenarios: empty home; compatible existing CLI plus app addition; root-owned global npm prefix; missing/outdated Node; missing native tools; wrong QMD override; custom/pinned installations; paths with spaces; unrelated/stale checkout as cwd; interrupted download/build/index/app install; repeat invocation; corrupt asset; and CLI/app root/version disagreement. Test that a remote-only consumer does not acquire QMD.
+- Use disposable homes and synthetic notes for failure tests, plus real local-engine retrieval from the exact packaged artifact. Run a clean macOS account/VM without relying on the developer's PATH/caches, supported Mac architectures, and the advertised Linux targets. Record any untested hardware explicitly. Verify no canonical note changes during add-app/update/retry and preservation during uninstall.
+- Success means an authorized agent runs one documented operation, reaches verified requested components with a consistent memory root, and receives an accurate bounded handoff. If prerequisites or host permissions prevent that, return the precise remaining action and resume safely afterward.
+
+### Investigation verification and limits
+
+- Disposable fixture: forced npm/QMD failure after a source fixture install; confirmed missing final manifest and refusal on retry. This simulates a permission error; it does not change or exercise the real global npm prefix.
+- Disposable fixture: placed a harmless local installer in an unrelated cwd and confirmed the shell bootstrap executed it. No network download or personal installation was performed.
+- Six selected existing tests passed: combined Desktop prerequisites, production Desktop `--check`, public installation entrypoint documentation, exact QMD CLI/SDK validation, incompatible override handling, and distribution QMD-check assets. Command: `node --test --test-name-pattern='Desktop|production Desktop|public install docs|installer QMD check|installer rejects shadowing|supported distribution entrypoints' test/install-scripts.test.js test/desktop-prerequisites.test.js`.
+- A broader installer/onboarding run was stopped after successful initial checks because it repeatedly copies the working checkout and was unnecessary for this proposal; no full-suite success is claimed. Tests use fixtures and the checkout's existing built output; they do not establish clean-machine release readiness. No build was run over the unrelated work in progress.
+- No source implementation, real installation, remote-memory write, release or publication was performed for this proposal.
