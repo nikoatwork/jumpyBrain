@@ -12,11 +12,12 @@ When discussing privacy, add the relevant boundary: a cloud assistant may send r
 
 ## Inspect once, then use the existing installation
 
-1. Check the OS and prerequisite versions with read-only commands. CLI needs Node 22+, npm, Git, and a shell; the Mac app needs macOS 13+, Node 22.12+, Python 3.9+, and Xcode command-line tools as well. Report missing requirements together.
-2. Look for the configured CLI, `jumpybrain` on PATH, and the default `~/.jumpybrain/bin/jumpybrain`. Inspect the install manifest and installed integration's memory-root setting if present. Run `doctor` on the existing CLI. Do not print credentials or whole remote connection settings.
-3. If the CLI is already installed, retain its root and configuration. For the default managed install, build Desktop from `~/.jumpybrain/app`; do not create a second clone just to add the app. Check that `scripts/setup-desktop.mjs` exists. For an old installation lacking it, use the documented update flow within the user's authorized scope.
-4. If nothing is installed, use the standard local installer for agents/app + agents, or the public HTTPS checkout route for app-only. Do not use the public demo installer for private local setup. Do not invent an npm registry installation; jumpyBrain is not currently published there.
-5. For custom install locations, inspect before adapting commands: desktop setup currently checks/provisions the default managed installation. Do not promise custom-root reuse that the setup script does not implement.
+1. Inspect OS/architecture and existing `jumpybrain` / `~/.jumpybrain/bin/jumpybrain`, manifest, root and integration settings without printing credentials.
+2. For a fresh local install, use the documented bootstrap with `--json`. A general “install jumpyBrain on my Mac” request means app + agents: include `--with-app --integrations auto` unless the user asks for CLI-only or remote-only use. On Linux, install the CLI and detected integrations. It can provision a private Node runtime and missing private QMD without sudo. Mac app builds still need Python 3.9+, Xcode command-line tools and macOS 13+; report all blockers together. Apple’s tools installer can require a human action.
+3. For an existing default CLI, rerun the bootstrap with `--with-app --json` to add the app using the same runtime/root. Preserve pinned/custom source choices. For ordinary app updates use the paired update flow below.
+4. Read the structured result, not just exit status: `planned` is a dry run, `pending_user_action` identifies a remaining action, and a failed required check exits nonzero. The installer verifies doctor/recall and requested Desktop readiness; inspect which checks actually ran. No sample memory is necessary.
+5. Retry the same command after fixing a reported failure. Do not delete canonical notes or adopt unowned directories to repair installation. The bootstrap never implicitly executes a current-directory installer; trusted development setup requires explicit `--source`.
+6. Combined Desktop setup currently requires the default managed installation. Custom CLI roots remain independent. Remote-only users can select `--remote-only`, which creates neither local QMD nor a memory root and installs no local-brain integrations.
 
 Use `doctor --root "<actual-root>" --check --json` on current versions: required-check failures exit nonzero while preserving the report. Default `doctor` retains exit 0 for compatibility; on older versions inspect JSON `ok` and findings. Doctor checks version/root readiness and integration-file presence, not actual retrieval or host activation. A dry-run summary is a plan, not an installation. Do not hand setup back as complete until the actual CLI and local recall work. An empty new brain is a successful search check; do not save a sample memory unless the user asks.
 
@@ -30,7 +31,9 @@ If a tool blocks execution, quote or accurately summarize the actual error, dist
 
 ## Connect the app to the same brain
 
-After successful desktop setup, open `~/Applications/jumpyBrain.app`. For an existing CLI brain, check the folder shown on the welcome screen matches its actual memory root, then choose **Open my notes**. The usual default is `~/.jumpybrain/memory`. If needed, use **Use a different folder…**; **⌘⇧G** in the folder chooser can navigate to a hidden path. Do not select the source directory `~/.jumpybrain/app` as the brain.
+With the combined installer, fresh authorized setup verifies the app profile against the CLI root and completes redundant local-folder onboarding. Report the observed shared folder and app location. Existing app profiles are preserved; if a different local/remote brain is active, resolve the explicitly reported mismatch rather than silently retargeting it.
+
+For older or manual source setup that still opens onboarding, check the suggested folder matches the CLI root, then choose **Open my notes** or **Use a different folder…**. Complete all independent installation work before handing back that interactive step. Do not claim the app is connected until the root is verified.
 
 Explain once: there is one set of notes when both use the same folder. The app bundles program code. Ordinary updates coordinate a supported default managed app/CLI pair; CLI-only and custom/pinned installations retain their explicit policies. App folder selection does not retarget the agent. Fresh app-only setup does not install agent integrations; do not claim they are connected merely because the app opened.
 

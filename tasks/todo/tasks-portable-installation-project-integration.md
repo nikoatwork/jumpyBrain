@@ -42,12 +42,12 @@ Make jumpyBrain a reproducible, version-pinnable CLI that works in consumer proj
 
 ## Tasks
 
-- [ ] 0.0 Deliver the focused agent-installation increment proposed below before broadening project discovery or npm publication.
-  - [ ] 0.1 Remove implicit current-directory installer execution; add shared early preflight and a machine-readable plan/result contract.
-  - [ ] 0.2 Provision a pinned local engine in an installer-owned user directory; align installer, runtime, doctor, Desktop and updater resolution. Keep remote-only CLI use independent of QMD.
-  - [ ] 0.3 Use verified published artifacts by default and make interrupted fresh installation safely rerunnable. Preserve explicit source/ref and existing ownership policies.
-  - [ ] 0.4 Add one app + agents setup flow, preserve the selected root, and verify actual local retrieval and Desktop readiness before reporting success.
-  - [ ] 0.5 Exercise the failure/recovery and platform matrix below; update the supported commands and agent installation guide. Record remaining native prerequisite limits.
+- [ ] 0.0 Deliver agent installation and remaining platform gates before broadening project discovery or npm publication. Focused implementation and verification: [agent installation](../done/2026-11-01_tasks-agent-installation.md).
+  - [x] 0.1 Remove implicit current-directory installer execution; add shared early preflight and a machine-readable plan/result contract.
+  - [x] 0.2 Provision a pinned local engine in an installer-owned user directory; align installer, runtime, doctor, Desktop and updater resolution. Keep remote-only CLI use independent of QMD.
+  - [x] 0.3 Use verified published artifacts by default and make interrupted fresh installation safely rerunnable. Preserve explicit source/ref and existing ownership policies.
+  - [x] 0.4 Add one app + agents setup flow, preserve the selected root, and verify actual local retrieval and Desktop readiness before reporting success.
+  - [ ] 0.5 Complete clean-OS, Intel Mac and Linux hardware gates; disposable failure/recovery and Mac arm64 installation are covered by the focused task. Commands, agent guidance and current native limits are documented.
 
 - [ ] 1.0 Establish a reproducible supported distribution
   - [ ] 1.1 Read architecture/affected docs; inventory executable/runtime/worker/browser/installer assets and supported consumers. Reproduce a clean Git dependency install and existing tarball install without relying on repository `dist`.
@@ -97,7 +97,7 @@ Reviewed the installer, Desktop setup/packaging, release artifact selection, QMD
 
 ### Recommended contract
 
-Keep one managed installer. Proposed interface, **not currently supported**:
+Keep one managed installer. The focused implementation is tracked in [agent installation](../done/2026-11-01_tasks-agent-installation.md); publication and remaining platform/prebuilt gates are separate. Interface:
 
 ```sh
 bash jumpybrain-install.sh --with-app --integrations auto --json

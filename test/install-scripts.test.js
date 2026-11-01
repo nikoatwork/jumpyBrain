@@ -29,7 +29,8 @@ test("public install docs and shell wrappers use the canonical master branch", a
   assert.match(readme, /raw\.githubusercontent\.com\/nikoatwork\/jumpyBrain\/master\/install\.sh/);
   assert.match(installDocs, /raw\.githubusercontent\.com\/nikoatwork\/jumpyBrain\/master\/install\.sh/);
   assert.match(installDocs, /raw\.githubusercontent\.com\/nikoatwork\/jumpyBrain\/master\/uninstall\.sh/);
-  assert.match(installShell, /JUMPYBRAIN_INSTALL_REF:-master/);
+  assert.match(installShell, /JUMPYBRAIN_INSTALLER_REF:-master/);
+  assert.doesNotMatch(installShell, /exec node scripts\/public-install/);
   assert.match(uninstallShell, /JUMPYBRAIN_INSTALL_REF:-master/);
   assert.doesNotMatch(`${installShell}\n${uninstallShell}`, /JUMPYBRAIN_INSTALL_REF:-main/);
 });
@@ -312,7 +313,7 @@ test("copy-paste installer rerun preserves a recorded non-default ref", async ()
       "--skip-initial-index",
     ], { env: { HOME: home } });
 
-    const env = { ...process.env, HOME: home };
+    const env = { ...process.env, HOME: home, JUMPYBRAIN_RAW_BASE: `file://${repoRoot}` };
     delete env.JUMPYBRAIN_INSTALL_REF;
     const result = spawnSync("sh", [path.join(repoRoot, "install.sh"),
       "--install-root", installRoot,
@@ -755,7 +756,7 @@ test("installer QMD check requires exact package, SDK files, and matching execut
 test("installer rejects shadowing incompatible override or skips it explicitly, without initial index", async () => {
   const temp = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-qmd-override-"));
   try {
-    const args = ["--dry-run", "--install-root", path.join(temp, "install"), "--home", temp, "--integrations", "none"];
+    const args = ["--dry-run", "--source", repoRoot, "--install-root", path.join(temp, "install"), "--home", temp, "--integrations", "none"];
     const env = { ...process.env, JUMPYBRAIN_QMD_BIN: process.execPath };
     const result = spawnSync(process.execPath, [installScript, ...args], { env, encoding: "utf8" });
     assert.notEqual(result.status, 0);
@@ -766,7 +767,7 @@ test("installer rejects shadowing incompatible override or skips it explicitly, 
   } finally { await rm(temp, { recursive: true, force: true }); }
 });
 
-test("public installer replaces incompatible PATH QMD using the exact package and rechecks CLI plus SDK", async () => {
+test("public installer leaves incompatible global QMD alone and installs a locked private CLI plus SDK", async () => {
   const temp = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-qmd-pinned-install-"));
   try {
     const { bin } = await installFakeQmd(temp);
@@ -780,20 +781,26 @@ test("public installer replaces incompatible PATH QMD using the exact package an
     const receipt = path.join(temp, "npm-call.json");
     await writeFile(path.join(tools, "npm"), `#!${process.execPath}
 const fs = require("node:fs");
+if(process.argv[2] === "--version") { console.log("11.0.0"); process.exit(0); }
 fs.writeFileSync(${JSON.stringify(receipt)}, JSON.stringify(process.argv.slice(2)));
-fs.writeFileSync(${JSON.stringify(metadataPath)}, ${JSON.stringify(JSON.stringify(metadata))});
+const path = require("node:path");
+const target = path.join(process.cwd(), "node_modules/@tobilu/qmd");
+fs.cpSync(${JSON.stringify(path.dirname(metadataPath))}, target, { recursive: true });
+fs.writeFileSync(path.join(target, "package.json"), ${JSON.stringify(JSON.stringify(metadata))});
+fs.mkdirSync(path.join(process.cwd(), "node_modules/.bin"), { recursive: true });
+fs.symlinkSync("../@tobilu/qmd/bin/query.cjs", path.join(process.cwd(), "node_modules/.bin/qmd"));
 `, { mode: 0o755 });
     const args = ["--install-root", path.join(temp, "install"), "--home", path.join(temp, "home"), "--source", repoRoot, "--skip-build", "--skip-initial-index", "--integrations", "none"];
     const env = { JUMPYBRAIN_QMD_BIN: "", PATH: `${tools}${path.delimiter}${process.env.PATH}` };
     const preview = runNode(installScript, [...args, "--dry-run"], { env });
-    assert.match(preview.stdout, /npm install -g @tobilu\/qmd@2\.8\.3/);
+    assert.match(preview.stdout, /Would install private QMD CLI \+ SDK/);
     assert.equal(existsSync(receipt), false, "preview never installs");
     runNode(installScript, args, { env });
-    assert.deepEqual(JSON.parse(await readFile(receipt, "utf8")), ["install", "-g", QMD_PACKAGE]);
-    assert.equal(checkQmdInstallation(bin), true);
+    assert.deepEqual(JSON.parse(await readFile(receipt, "utf8")), ["ci", "--no-audit", "--no-fund"]);
+    assert.equal(checkQmdInstallation(bin), false, "global installation is untouched");
     await rm(receipt);
     const update = runNode(installScript, args, { env });
-    assert.match(update.stdout, /QMD available: @tobilu\/qmd@2\.8\.3/);
+    assert.match(update.stdout, /Selected QMD CLI \+ SDK/);
     assert.equal(existsSync(receipt), false, "compatible updates do not reinstall");
   } finally { await rm(temp, { recursive: true, force: true }); }
 });

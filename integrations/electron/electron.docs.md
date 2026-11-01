@@ -23,7 +23,7 @@
 
 ## Non-responsibilities
 
-No alternate memory engine/editor, implicit sync or remote writes, CLI/agent retargeting, public signing/notarization, unattended updates, or crash-persistent drafts. External Node/QMD remain prerequisites. The bundled runtime is the same app code with its own release lifecycle; CLI-only installation does not need Electron or a Mac app.
+No alternate memory engine/editor, implicit sync or remote writes, CLI/agent retargeting, public signing/notarization, unattended updates, or crash-persistent drafts. Node/QMD are selected by the managed installer and recorded in native configuration; standalone setup still needs provisioned tools. The bundled runtime is the same app code with its own release lifecycle; CLI-only installation does not need Electron or a Mac app.
 
 ## Executable extensions
 
@@ -98,3 +98,11 @@ The successful setup result carries the page ID and exact profile/destination sc
 ## Native board integration check
 
 After building, `node scripts/boards-desktop-smoke.mjs` launches the production sandboxed window via test-only `smoke-boards.mjs`, with a real CLI, gateway, disposable local/loopback remote roots and isolated Electron data. It exercises CLI creation/add/status/settlement/deletion, native rename/keyboard move/create/restore/confirmed deletion, read-only remote navigation/write controls, and preservation of note bytes. Captures/results go to ignored `.local-pack/boards-native/`. It does not install or modify the user’s app/brain and does not certify a live remote deployment.
+
+## Combined agent installation
+
+The public installer composes `setup-desktop.mjs --prepared` against its owned default CLI root, avoiding duplicate root dependency installation/build. Fresh native configuration reads Node/QMD and the initial local port from the CLI manifest; existing profiles are retained. The outer installer passes a random lock token to Desktop publication; Python verifies the private owner record and live owner before reusing that lock, and never removes the parent’s lock. Ordinary standalone setup takes its own lock. The updater recognizes both historical and current exact generated CLI shims via `install-shim.mjs`.
+
+Setup probes the installed native host without extensions, verifies the active local root, completes fresh onboarding, then launches the exact installed executable and authenticates readiness. `CFFIXED_USER_HOME` accompanies an explicitly selected setup home to isolate Cocoa/Electron state in disposable installation checks. A matching running app can be verified on an add-app rerun without replacing it. A conflicting saved profile is reported, not switched. Source-built Mac setup still requires Python/Swift tools; public signing/notarization and release-built native artifacts are not provided by this change.
+
+Desktop packaging passes its unique invocation directory as the Electron packager temporary base. Packager clears that base on startup; using the shared OS default can delete another installation’s extraction in progress. The existing finally cleanup removes only this invocation’s artifacts.

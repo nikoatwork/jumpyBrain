@@ -1,6 +1,7 @@
 import { createSystemMessages } from './system-messages.mjs';
 import { app, BrowserWindow, dialog, Menu, Tray, nativeImage, shell } from 'electron';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { bundledHost, startDesktopHost, desktopControl } from './desktop-host.mjs';
 import { createQuitFlow } from './lifecycle.mjs';
@@ -14,18 +15,23 @@ import { createUpdateWindow } from './update-window.mjs';
 import { serveDesktopUpdates } from './update-control.mjs';
 
 export function startDesktopApplication({ resourceDirectory, userData, background = process.argv.includes('--background'), updaterOptions = {} } = {}) {
+const resources = resourceDirectory ?? (app.isPackaged ? process.resourcesPath : fileURLToPath(new URL('../../.local-pack/desktop/jumpyBrain.app/Contents/Resources', import.meta.url)));
 app.setName('jumpyBrain');
 app.setAboutPanelOptions({ applicationName: 'jumpyBrain', applicationVersion: app.getVersion(), copyright: 'Your thoughts, connected. Markdown stays yours.' });
 // Preserve the existing Electron editor preferences and first-run state.
-app.setPath('userData', userData ?? path.join(app.getPath('appData'), 'jumpyBrain Electron Prototype'));
+const installedPaths = app.isPackaged ? JSON.parse(readFileSync(path.join(resources, 'desktop.json'), 'utf8')) : {};
+const configuredUserData = installedPaths.userDataDirectory;
+const configuredHome = installedPaths.homeDirectory;
+if (configuredHome !== undefined && !path.isAbsolute(configuredHome)) throw new Error('Invalid installed home directory.');
+if (configuredUserData !== undefined && !path.isAbsolute(configuredUserData)) throw new Error('Invalid installed app data directory.');
+app.setPath('userData', userData ?? configuredUserData ?? path.join(app.getPath('appData'), 'jumpyBrain Electron Prototype'));
 let window = null, opening = false, host = null, starting = null, config = null;
 const notify = createSystemMessages({ getWindow: () => window, getOrigin: () => host?.connection?.origin,
   fallback: options => dialog.showMessageBox(options) });
 let startupError = null;
 let diagnostics = null, tray = null, healthTimer = null, polling = false, closeUpdateControl = null, stopUpdatePolling = null;
 let quitting = false, quitReady = false, status = 'Starting…';
-const resources = resourceDirectory ?? (app.isPackaged ? process.resourcesPath : fileURLToPath(new URL('../../.local-pack/desktop/jumpyBrain.app/Contents/Resources', import.meta.url)));
-const updater = createDesktopUpdater({ resources, appVersion: app.getVersion(), ...updaterOptions, onRestart: () => app.quit() });
+const updater = createDesktopUpdater({ resources, appVersion: app.getVersion(), ...(configuredHome ? { home: configuredHome } : {}), ...updaterOptions, onRestart: () => app.quit() });
 const updateInstance = process.env.JUMPYBRAIN_UPDATE_INSTANCE;
 delete process.env.JUMPYBRAIN_UPDATE_INSTANCE;
 let updateWindow = null;
@@ -157,7 +163,7 @@ else {
     icon.setTemplateImage(true); tray = new Tray(icon);
     setApplicationMenu({ app, getWindow: () => window, reconnect: () => void openEditor(), settings: () => void openEditor(true), updates: openUpdates });
     await refreshTray();
-    closeUpdateControl = await serveDesktopUpdates(updaterOptions.home ?? app.getPath('home'), updater);
+    closeUpdateControl = await serveDesktopUpdates(updaterOptions.home ?? configuredHome ?? app.getPath('home'), updater);
     if (await updater.blocksStartup(updateInstance)) { openRecovery(); return; }
     // Discovery is observational. Preparation always waits for an explicit
     // sidebar download action or the supported CLI update command.

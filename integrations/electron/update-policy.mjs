@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { cliShim } from './install-shim.mjs';
 import { SOURCE } from './update-release.mjs';
 
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -41,7 +42,11 @@ export async function cliPolicy(home) {
     // Recognize the exact managed shim, never overwrite or follow a foreign executable.
     const quotedConfig = `'${path.join(root, 'cli-config.json').replaceAll("'", "'\\''")}'`;
     const expected = `#!/usr/bin/env sh\nif [ -z "\${JUMPYBRAIN_CLI_CONFIG+x}" ]; then\n  export JUMPYBRAIN_CLI_CONFIG=${quotedConfig}\nfi\nexec node ${JSON.stringify(path.join(app, 'dist/cli.js'))} "$@"\n`;
-    if (shimBytes.toString() !== expected) throw new Error('Custom shim');
+    const current = typeof manifest.node === 'string' && path.isAbsolute(manifest.node)
+      && (manifest.qmd == null || typeof manifest.qmd === 'string' && path.isAbsolute(manifest.qmd))
+      ? cliShim({ appDir: app, cliConfigPath: path.join(root, 'cli-config.json'), node: manifest.node, qmd: manifest.qmd }) : null;
+    const legacyQuoted = expected.replace(JSON.stringify(path.join(app, 'dist/cli.js')), `'${path.join(app, 'dist/cli.js').replaceAll("'", "'\\''")}'`);
+    if (![expected, legacyQuoted, current].includes(shimBytes.toString())) throw new Error('Custom shim');
     const protectedPaths = [manifest.memoryRoot, manifest.cliConfigPath, ...(manifest.integrations || []).map(i => i.path)].filter(Boolean);
     for (const p of protectedPaths) {
       const resolved = await realpath(p).catch(() => p);

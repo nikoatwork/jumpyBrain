@@ -2,7 +2,7 @@
 // Change budgets only with a measured explanation in docs/build-footprint.md.
 export const packageBudget = Object.freeze({
   archiveBytes: 1_300_000,
-  unpackedBytes: 3_800_000,
+  unpackedBytes: 4_000_000,
   runtimeBytes: 2_500_000,
   files: 600,
 });

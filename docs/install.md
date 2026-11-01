@@ -6,100 +6,75 @@
 
 Choose your starting point:
 
-- **Agents, or app + agents:** use the CLI installer below, then add the Mac app from that existing installation.
-- **Mac app only:** follow [desktop setup](#macos-desktop-app-beta). It provisions the CLI/search dependencies it needs; agent integrations are optional.
-- **CLI already installed:** go straight to [add the Mac app](#macos-desktop-app-beta). No second clone is needed for the default installation.
+- **Agents:** run the installer below. It installs the CLI, local text search, and detected agent integrations.
+- **Mac app + agents:** add `--with-app` to the same command.
+- **Remote CLI only:** use `--remote-only`; no local search engine or memory folder is created.
 
-Software installation/updates download code and dependencies. A remote brain requires an explicitly selected server; it does not sync your personal brain. Notes recalled into a cloud AI assistant are handled by that assistant, and sending feedback or choosing a cloud-synced folder can also send data outside your computer. See the [privacy and installation FAQ](faq.md#when-can-data-leave-my-computer). Agents helping with setup should follow the [agent installation guide](install-for-agents.md).
-
-The Mac app also supports explicitly installed [local executable extensions](extensions.md) for optional commands, panels and themes. Extension packages are trusted code and use a separate local configuration directory; installing the CLI or opening a brain does not automatically install extensions.
+Software installation downloads code and dependencies. Your Markdown remains local. A cloud assistant may send recalled excerpts to its provider; remote brains, explicit feedback and user-chosen file sync have separate data flows. See the [FAQ](faq.md) and [agent installation guide](install-for-agents.md).
 
 ## Fast path: installer script
 
-Install the CLI first, then optionally add the [macOS desktop app (beta)](#macos-desktop-app-beta). The installer builds jumpyBrain locally and sets up memory, search, and detected agent integrations. jumpyBrain is not published to npm.
+On macOS or Linux:
 
-Prerequisites:
-
-- macOS or Linux with a POSIX-compatible shell
-- Node.js 22+ and npm
-- Git
-- either `curl` or `wget`
-
-```bash
+```sh
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash
 ```
 
-Default behavior:
+For **Mac app + agents**, including installation and readiness checks:
 
-- installs the CLI source/runtime under `~/.jumpybrain/app` (this is not a second desktop app or a notes folder)
-- creates a CLI shim at `~/.jumpybrain/bin/jumpybrain`
-- initializes machine-global Markdown memory at `~/.jumpybrain/memory`
-- verifies or installs exact `@tobilu/qmd@2.8.3` (CLI and SDK together) for local indexing/recall
-- builds an initial lexical index; semantic retrieval requires a separately provisioned local GGUF
-- installs all detected integrations:
-  - Codex: `~/.agents/skills/jumpybrain-memory/SKILL.md`
-  - Claude Code: `~/.claude/skills/jumpybrain-memory/SKILL.md`
-  - Pi: `~/.pi/agent/extensions/jumpybrain-memory.ts`
+```sh
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh \
+  | bash -s -- --with-app --json
+```
 
-Here, **global** means available across projects on this computer, not uploaded to a global/team service. `CLI policy: not configured` means no optional remote write restrictions are recorded; it does not mean a remote server is connected.
+The bootstrap needs a shell, curl or wget, and standard archive/checksum utilities. It reuses Node 22.12+ when available; otherwise it downloads an official Node 24 binary into `~/.jumpybrain/runtimes`, checks its SHA-256 and executable version, and uses it without changing the system Node or shell profile. Private runtime downloads support macOS/Linux arm64 and x64; execution on other platforms or incompatible Linux libraries fails explicitly. A dry run does not download/install Node. Native engine dependencies can still require platform build tools when prebuilt support is unavailable.
 
-The installer downloads source from GitHub and dependencies from npm. To inspect the bootstrap before running it, download it to a file:
+Fresh managed installs select one published GitHub release, including published beta releases, and verify its archive size and SHA-256 before extracting. They use compiled CLI/editor assets and the release dependency lock. Releases predating the installer assets fail with guidance; an explicitly selected trusted source remains available. Git is needed for source checkouts, not ordinary compiled CLI installation. jumpyBrain is not published to npm.
 
-```bash
+Defaults:
+
+- runtime: `~/.jumpybrain/app`
+- CLI launcher: `~/.jumpybrain/bin/jumpybrain`
+- local Markdown: `~/.jumpybrain/memory`
+- missing search engine: pinned CLI + SDK `@tobilu/qmd@2.8.3` under an owned `~/.jumpybrain/engines/` prefix, installed with its shipped dependency lock; no global npm install or sudo
+- integrations: detected Codex, Claude Code and Pi hosts; existing unowned/customized integration files are preserved and reported
+- initial lexical index, installed `doctor --check`, and bounded recall; an empty new brain is valid
+
+A compatible explicitly selected or existing search engine can be reused. The launcher records the selected Node/QMD paths, so agents do not need to repair PATH to find the engine. Semantic models are optional and are not downloaded during setup. No sample memory is saved.
+
+Repeat-install verification uses read-only lexical recall against the existing index; its expected read-only warnings are reported as `recallMode: verified-read-only-lexical`, while other retrieval failures still fail setup.
+
+`--json` writes one result to stdout and progress to stderr. It reports paths, version, dependency selection, checks, installed/skipped integrations and remaining actions. States distinguish `planned`, `ready`, `pending_user_action`, `blocked` and `failed`. A successful dry run is only a plan. A required verification failure exits nonzero. Integration files do not prove that an already-running host loaded them; restart/reload that host when reported. Verification omits recalled note contents from setup logs.
+
+To inspect the bootstrap first:
+
+```sh
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh -o jumpybrain-install.sh
 less jumpybrain-install.sh
-bash jumpybrain-install.sh
+bash jumpybrain-install.sh --dry-run --json
+bash jumpybrain-install.sh --json
 ```
 
-The bootstrap also downloads installer helpers and dependencies; inspecting that file alone is not a full dependency audit. The source for the main installer is [`scripts/public-install.mjs`](../scripts/public-install.mjs). `bash jumpybrain-install.sh --dry-run` previews planned actions without installing jumpyBrain (the bootstrap still downloads its helpers).
+All downloaded helpers come from one resolved installer commit. The current working directory never implicitly selects executable installer code. Inspecting the shell file alone is not an audit of downloaded dependencies. For trusted local development, invoke `node scripts/public-install.mjs --source "$PWD"` explicitly.
 
-Add the bin directory to your shell if you want `jumpybrain` everywhere:
-
-```bash
-export PATH="$HOME/.jumpybrain/bin:$PATH"
-```
-
-Then verify:
-
-```bash
-~/.jumpybrain/bin/jumpybrain doctor --check
-~/.jumpybrain/bin/jumpybrain recall --root ~/.jumpybrain/memory --topic "what should I remember?" --limit 5
-```
-
-An empty result is expected for a new brain. Restart/reload an assistant that was already running so it can discover its new integration. Text search is ready immediately; local semantic search is an optional later step.
-
-The installer's completion summary includes that restart reminder and natural-language remember/recall prompts. It does not save sample notes. A dry run labels integrations as planned and prints verification for after installation; it does not report an installed brain. Printed shell commands preserve literal paths, including spaces and quotes.
+Repeat the same command after correcting a reported failure. Fresh installs record ownership/progress before publishing program files, so a failed build/index/app setup can be retried without deleting notes or manually removing the app. Unknown layouts/locks and live concurrent installations are refused; do not remove a live lock. A lock with a verifiably dead local owner can be recovered automatically. This is process-failure recovery, not a guarantee against disk corruption or power loss.
 
 ### macOS desktop app (beta)
 
-Requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Check with `node --version`, `npm --version`, `git --version`, `python3 --version`, and `xcrun --find swiftc`. If Xcode command-line tools are missing, run `xcode-select --install` and finish Apple's installer first.
+`--with-app` requires macOS 13+, Python 3.9+ and Xcode command-line tools; the installer reports missing requirements together before building the app. Node is handled by the bootstrap. Apple’s command-line tools installation may require user interaction. The current app is locally built and ad-hoc signed; a prebuilt, signed/notarized distribution remains separate work. Do not disable macOS security if it blocks launch.
 
-From your existing installation or source checkout, `npm run desktop:setup -- --check` checks these requirements together without installing or changing settings. Setup also runs this preflight before making changes, reports missing tools together, and checks the minimum Python and macOS versions.
-
-**Already installed the CLI with the default installer?** Reuse its source directory. Quit any running jumpyBrain app, then:
+For an existing default managed CLI, add Desktop with:
 
 ```sh
-cd "$HOME/.jumpybrain/app"
-npm run desktop:setup
-open "$HOME/Applications/jumpyBrain.app"
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh \
+  | bash -s -- --with-app --json
 ```
 
-On first launch, check the suggested folder, normally `~/.jumpybrain/memory`, and choose **Open my notes** (or **Start writing** for a new brain). Use **Use a different folder…** if your installer printed a different root; **⌘⇧G** in the chooser lets you enter a hidden path. **Connect to a remote brain** is also available for a server you or your team already set up. Desktop selection does not change the CLI/agent target; matching the folder is what makes both use the same notes.
+This preserves the CLI source/ref and memory root and reuses its installed runtime. Fresh setup verifies the app’s local profile against that same folder and completes redundant folder onboarding. Existing profiles are preserved; if the app uses another brain, setup reports the mismatch rather than silently switching it. Installed versions, native-host readiness and app startup are checked. The app lives at `~/Applications/jumpyBrain.app`; closing its window leaves the menu bar running, while **Quit jumpyBrain** stops its services.
 
-**Starting with the Mac app and no CLI install?** Clone the public repository once, then build:
+The combined flow currently requires the default `~/.jumpybrain` install location. Custom CLI roots remain supported independently. `--app-port <port>` selects a different unprivileged local helper port on first setup; existing settings are preserved. Quit an older app before replacing it. A matching running app can be verified without replacement when simply adding/rechecking Desktop.
 
-```sh
-git clone https://github.com/nikoatwork/jumpyBrain.git
-cd jumpyBrain
-npm run desktop:setup
-open "$HOME/Applications/jumpyBrain.app"
-```
-
-No GitHub account or SSH key is required for this public HTTPS clone. Fresh desktop setup provisions the managed CLI/search dependencies without agent integrations; choose a new or existing brain in onboarding. For app + agents, use the CLI-first route above.
-
-Setup builds one app containing the editor, menu bar, internal native helper, and compiled memory runtime. It preserves existing CLI targets. The app bundles runtime code, not a duplicate of your notes; GUI updates coordinate the app and a supported default managed CLI. Setup downloads dependencies even when reusing the source directory. Custom CLI install locations need individual checking: desktop setup currently provisions/checks the default `~/.jumpybrain` managed installation.
-
-Close the window to keep the brain live in the menu bar; **Quit jumpyBrain** waits for open editors to save before stopping owned services. The beta builds locally and is ad-hoc signed, with no notarized download installer yet. If macOS blocks opening it, report the exact message; do not disable system security. The [Mac app guide](../integrations/electron/README.md) covers migration, Keychain repair, updates, and recovery.
+Trusted source builds remain available with `npm run desktop:setup`; `npm run desktop:setup -- --check` only checks prerequisites. App-only setup uses `--with-app --integrations none`. Optional [executable extensions](extensions.md) require separate explicit installation.
 
 ### Project-local install
 
@@ -138,7 +113,11 @@ This is an explicit manual copy, not installer-managed ownership. Review before 
 --scope global|project       Default: global
 --memory-root <path>         Override the memory root
 --integrations auto|all|none Default: auto; auto installs detected harnesses
---ref <git-ref>              Install from a branch/tag/commit ref
+--with-app                  Install and verify the Mac app with the CLI
+--app-port <port>            Local Mac helper port; default 3787
+--remote-only               CLI only: no local QMD, memory or integrations
+--json                      Structured result on stdout; progress on stderr
+--ref <git-ref>              Explicit development/source branch/tag/commit ref
 --source <path-or-git-url>   Install from a local checkout or alternate git URL
 --install-root <path>        Default: ~/.jumpybrain
 --read-only-target <url>     Mark a remote target read-only; repeat for multiple targets
@@ -194,11 +173,11 @@ Preview the update without writing files:
 
 With the Mac app running (including window-closed/menu-bar mode), the CLI prepares through that app and reports **Prepared; restart needed**, never installed success. Use **Relaunch to apply update** in the app when ready. With the app quit, the CLI prepares and installs both components, reopens the app, and waits for verified startup and matching versions. Both entry points select the same immutable published release asset and digest.
 
-CLI-only installations retain the source/ref recorded in `~/.jumpybrain/install-manifest.json`—normally GitHub `master`—and remain CLI-only. The CLI detects custom install locations; use `--install-root <path>` to select another. A paired Mac installation with a custom/pinned/unowned CLI or explicit source/ref override stops with guidance; use the app’s explicit **Update app only** exception to preserve that policy, or keep developer CLI work in a separate CLI-only installation. Rerunning the public installer remains the source-based installer workflow; use `jumpybrain update` for coordinated unified Mac updates.
+CLI-only installations retain their recorded distribution policy: new release-based installs select a verified published release, while older/source installs preserve their source/ref. They remain CLI-only. The CLI detects custom install locations; use `--install-root <path>` to select another. A paired Mac installation with a custom/pinned/unowned CLI or explicit source/ref override stops with guidance; use the app’s explicit **Update app only** exception to preserve that policy, or keep developer CLI work in a separate CLI-only installation. Rerunning the public installer remains the source-based installer workflow; use `jumpybrain update` for coordinated unified Mac updates.
 
 **Older standalone companion installs:** their CLI updater retains legacy shared-runtime support. Migrate to the unified Mac app with `npm run desktop:setup` after quitting the old apps; see the [migration guide](../integrations/electron/README.md#migration-from-the-two-app-beta).
 
-For intentional CLI-only version changes, pass `--ref <ref>` or set `JUMPYBRAIN_INSTALL_REF`. The downloaded bootstrap uses current `master` independently; `JUMPYBRAIN_INSTALLER_REF` overrides its version. Source/development checkouts instead use `git pull && npm install && npm run build`.
+For intentional CLI-only version changes, pass `--ref <ref>` or set `JUMPYBRAIN_INSTALL_REF`. The bootstrap resolves `master` to one installer commit independently; `JUMPYBRAIN_INSTALLER_REF` explicitly overrides its revision. Source/development checkouts instead use `git pull && npm install && npm run build`.
 
 ## Uninstall
 
@@ -240,25 +219,11 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/uninst
 
 ## Prerequisites and QMD behavior
 
-jumpyBrain requires exact **@tobilu/qmd@2.8.3**, including its CLI and SDK from the same package. The installer checks package identity/version, SDK files, and CLI version without importing model code. If PATH QMD is missing/incompatible it installs:
+Local search requires **@tobilu/qmd@2.8.3**, including CLI and SDK from the same package. The installer validates both and provisions a pinned private engine when needed. It leaves unrelated global npm packages alone. Set `JUMPYBRAIN_QMD_BIN=/absolute/path/to/qmd` only to explicitly select your own supported installation; incompatible explicit selections fail visibly.
 
-```bash
-npm install -g @tobilu/qmd@2.8.3
-```
+The managed launcher exports its recorded QMD path unless overridden. Runtime and doctor use the same discovery and CLI/SDK checks; fresh Desktop configuration uses the same manifest selection. Unmanaged runtime use retains explicit override, package-local QMD, then PATH precedence. Doctor does not perform inference or prove actual retrieval; the installer separately runs recall.
 
-If your npm global install location is not writable or not on `PATH`, install QMD manually or set:
-
-```bash
-export JUMPYBRAIN_QMD_BIN=/path/to/qmd
-```
-
-Resolution order for local/server runtime use:
-
-1. `JUMPYBRAIN_QMD_BIN`
-2. bundled/package-local `node_modules/.bin/qmd` when present
-3. `qmd` on `PATH`
-
-An incompatible explicit `JUMPYBRAIN_QMD_BIN` or package-local QMD is rejected rather than silently bypassed. A copied executable without its SDK is insufficient. `--skip-qmd-install` leaves missing/incompatible QMD uninstalled and skips the initial index; remote-only clients do not need local QMD. Updates recheck the dependency but do not rebuild memory automatically.
+`--remote-only` avoids local engine and brain provisioning. Advanced `--skip-qmd-install` / `--skip-initial-index` paths report incomplete local verification rather than verified search readiness. Updates preserve canonical notes and use read-only recall verification where configured. Uninstall removes an owned private engine only when no installed Desktop depends on it; customized integrations and notes are preserved. Private Node runtime directories are retained for dependent apps and can be removed manually after all users are uninstalled.
 
 Indexing defaults to lexical; [explicit semantic setup](cli-commands.md#indexing-policy-and-recovery) persists policy in root `jumpybrain.json`. No model is downloaded by recall/status. QMD-derived files live under `<memory-root>/.jumpybrain/`; deleting them retains canonical Markdown and policy. Stop operations before deletion and follow [recovery limits](technical.md#readiness-and-recovery).
 

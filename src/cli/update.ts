@@ -14,6 +14,8 @@ interface InstallManifest {
   version?: number;
   installer?: string;
   installedVersion?: string;
+  distribution?: string;
+  remoteOnly?: boolean;
   source?: string;
   ref?: string;
   scope?: string;
@@ -38,7 +40,7 @@ export async function updateCli(args: ParsedCliArgs): Promise<void> {
   const desktopModule = path.join(plan.appRoot, "integrations/electron/update-cli.mjs");
   if (process.platform === "darwin" && existsSync(desktopModule)) {
     const desktop = await import(pathToFileURL(desktopModule).href);
-    const options = { home: plan.home, installRoot: plan.installRoot, source: plan.source, ref: plan.ref, dryRun: plan.dryRun };
+    const options = { home: plan.home, installRoot: plan.installRoot, source: plan.source === "release" ? DEFAULT_REPO : plan.source, ref: plan.ref, dryRun: plan.dryRun };
     const installation = await desktop.pairedInstallation(options);
     if (installation) {
       await desktop.runPairedUpdate({ ...options, installation });
@@ -107,8 +109,8 @@ export async function installerUpdatePlan(args: ParsedCliArgs): Promise<Installe
   const memoryRoot = path.resolve(expandHome(manifest.memoryRoot ?? path.join(installRoot, "memory"), home));
   const scope = normalizeScope(manifest.scope);
   const integrationMode = normalizeIntegrationMode(manifest.integrationMode);
-  const source = stringArg(args, "source", manifest.source ?? process.env.JUMPYBRAIN_INSTALL_SOURCE ?? DEFAULT_REPO);
-  const ref = stringArg(args, "ref", manifest.ref ?? DEFAULT_REF).trim();
+  const source = stringArg(args, "source", manifest.distribution === "release" ? "release" : manifest.source ?? process.env.JUMPYBRAIN_INSTALL_SOURCE ?? DEFAULT_REPO);
+  const ref = stringArg(args, "ref", manifest.distribution === "release" ? "" : manifest.ref ?? DEFAULT_REF).trim();
   const dryRun = Boolean(args["dry-run"]);
   const installerArgs = [
     "--install-root", installRoot,
@@ -118,6 +120,7 @@ export async function installerUpdatePlan(args: ParsedCliArgs): Promise<Installe
     "--integrations", integrationMode,
     "--source", source,
   ];
+  if (manifest.remoteOnly) installerArgs.push("--remote-only");
   if (dryRun) installerArgs.push("--dry-run");
   if (ref) installerArgs.push("--ref", ref);
   if (manifest.installerOptions?.skipBuild) installerArgs.push("--skip-build");

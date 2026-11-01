@@ -1,6 +1,7 @@
 #!/usr/bin/env node
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readFile, rm } from "node:fs/promises";
+import { readFile, rm, lstat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -20,6 +21,20 @@ async function main(argv = process.argv.slice(2)) {
   const manifest = await readManifest(manifestPath, { installRoot, home });
   await assertNoDependentCompanion(home, manifest.appDir);
   if (options.deleteMemory && existsSync(manifest.memoryRoot)) await assertMemoryRootDeletable(manifest.memoryRoot);
+  const engineRoot = path.join(installRoot, 'engines');
+  let removeEngine = false;
+  if (existsSync(engineRoot)) {
+    if (!(await lstat(engineRoot)).isDirectory()) throw new Error('Refusing a linked or invalid engine directory.');
+    const marker = JSON.parse(await readFile(path.join(engineRoot, 'owner.json'), 'utf8').catch(() => 'null'));
+    if (marker?.installer !== INSTALLER_NAME || marker.schemaVersion !== 1) throw new Error('Cannot verify private engine ownership.');
+    if (isInside(manifest.memoryRoot, engineRoot) || isInside(engineRoot, manifest.memoryRoot)) throw new Error('Memory overlaps the private engine; nothing was removed.');
+    removeEngine = true;
+    const nativeConfig = path.join(home, 'Applications/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app/Contents/Resources/Configuration.json');
+    if (existsSync(nativeConfig)) {
+      const config = JSON.parse(await readFile(nativeConfig, 'utf8'));
+      if (typeof config.qmd !== 'string' || isInside(config.qmd, engineRoot)) removeEngine = false;
+    }
+  }
   const removed = [];
   const missing = [];
   const preserved = [];
@@ -31,6 +46,10 @@ async function main(argv = process.argv.slice(2)) {
   }
 
   for (const file of manifest.files ?? []) {
+    if (file !== manifest.cliPath && existsSync(file) && manifest.integrationHashes) {
+      const expected = manifest.integrationHashes[file];
+      if (!expected || createHash('sha256').update(await readFile(file)).digest('hex') !== expected) { preserved.push(file); continue; }
+    }
     if (await removePath(file, { dryRun: options.dryRun })) removed.push(file);
     else missing.push(file);
   }
@@ -39,6 +58,10 @@ async function main(argv = process.argv.slice(2)) {
     if (await removePath(dir, { recursive: true, dryRun: options.dryRun })) removed.push(dir);
   }
 
+  if (existsSync(engineRoot)) {
+    if (removeEngine) { await removePath(engineRoot, { recursive: true, dryRun: options.dryRun }); removed.push(engineRoot); }
+    else preserved.push(engineRoot);
+  }
   if (options.deleteMemory) {
     if (await deleteMemoryRoot(manifest.memoryRoot, { dryRun: options.dryRun })) deletedMemory.push(manifest.memoryRoot);
   } else if (manifest.memoryRoot) {
@@ -57,7 +80,7 @@ async function main(argv = process.argv.slice(2)) {
     for (const item of missing) console.log(`- ${item}`);
   }
   if (preserved.length > 0) {
-    console.log("Memory preserved:");
+    console.log("Memory preserved (and customized/dependent files):");
     for (const item of preserved) console.log(`- ${item}`);
     console.log("Pass --delete-memory to remove configured jumpyBrain memory roots too.");
   }

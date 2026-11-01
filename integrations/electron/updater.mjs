@@ -8,7 +8,7 @@ import { cliPolicy, readJSON, regular, installedVersion, alive, overlaps } from 
 import { atomicJSON } from './update-worker.mjs';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const execute = promisify(execFile);
-const files = ['update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'desktop-host.mjs', 'host.mjs'];
+const files = ['install-shim.mjs', 'update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'desktop-host.mjs', 'host.mjs'];
 export function startUpdatePolling(updater, shouldCheck = () => true, { schedule = setInterval, unschedule = clearInterval } = {}) {
   const timer = schedule(() => {
     if (shouldCheck()) return updater.checkInBackground().catch(() => {});

@@ -88,29 +88,25 @@ The app is [MIT licensed](LICENSE). Run it locally, host it on your own infrastr
 
 ## Start your own brain
 
-**One brain, two ways to use it:** the app is your writing window; the CLI lets your agents use the same Markdown folder. Use either or both. App + agents? Install the CLI below, then add the app from its existing source directory. [Step-by-step installation](docs/install.md) · [Instructions for your agent](docs/install-for-agents.md)
+**One brain, two ways to use it:** the app is your writing window; the CLI lets your agents use the same Markdown folder. Use either or both. [Step-by-step installation](docs/install.md) · [Instructions for your agent](docs/install-for-agents.md)
 
-**Using Claude Code without wanting to learn terminal commands?** Paste this into your assistant:
+Tell your agent:
 
-> Install jumpyBrain for me using https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install-for-agents.md. Reuse my existing brain if I have one, and check that local search works. Explain any missing requirements in plain language.
+> Install jumpyBrain on my machine: https://github.com/nikoatwork/jumpyBrain. Follow docs/install-for-agents.md, reuse my existing brain, and verify local search. On a Mac, include the app and connect it to the same brain.
 
 After setup, restart an assistant that was already open. Ask it to remember one real decision, then ask it to recall that decision in a fresh session. Setup itself does not save an example memory. Adding the Mac app later? Ask: “Add the jumpyBrain Mac app to my existing brain using the same installation guide.”
 
 ### On your Mac
 
-The [macOS desktop app (beta)](integrations/electron/README.md) opens with **Your brain. Your folder.** Choose a new folder or an existing brain, then start writing. Add other local or shared brains in Settings later.
-
-Already used the default CLI installer? Reuse that installation:
+Install the CLI, detected agent integrations, and Mac app together:
 
 ```sh
-cd "$HOME/.jumpybrain/app"
-npm run desktop:setup
-open "$HOME/Applications/jumpyBrain.app"
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash -s -- --with-app --integrations auto --json
 ```
 
-Choose `~/.jumpybrain/memory` in the app to open the same brain your agents use (or your actual configured root). No second clone or copy of your notes is needed. Starting with the app only? Follow the [public source setup](docs/install.md#macos-desktop-app-beta).
+Setup verifies the installed CLI, local search and the app's shared brain. Existing profiles are preserved. Restart an assistant that was already open to load its integration.
 
-The Mac beta currently builds locally and requires macOS 13+, Node 22.12+, npm, Git, Python 3.9+, and Xcode command-line tools. Closing the window keeps your brain live in the menu bar; Quit stops its local services. The app bundles its own runtime code; supported managed app/CLI pairs update together, while CLI-only and custom installations retain their own update policy. See the [Desktop guide](integrations/electron/README.md) for details. App folder selection does not change your agent's CLI target.
+The Mac beta still builds its native helper locally: macOS 13+, Python 3.9+ and Xcode command-line tools are required. The bootstrap supplies private Node/npm when needed. Missing native requirements are reported before app installation. Public signing/notarization and compiler-free app downloads remain future work. Closing the window keeps the brain live; **Quit jumpyBrain** stops its services. [Desktop guide](integrations/electron/README.md)
 
 ### With your agent, on macOS or Linux
 
@@ -120,7 +116,7 @@ Install the CLI and integrations for detected assistants:
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash
 ```
 
-Requires Node.js 22+, npm, Git, and a POSIX-compatible shell. The installer creates a local brain and sets up search. Restart an assistant that was already open, then ask:
+Requires macOS or Linux and a POSIX shell with curl or wget. Setup downloads a verified published release, provisions private Node/npm and pinned search dependencies when needed, creates or reuses your brain, and verifies search. Older releases without installer assets require the explicit source path described in the installation guide until a compatible release is published. Restart an assistant that was already open, then ask:
 
 > Use jumpyBrain to remember that we chose weekly releases because smaller changes are easier to review.
 
