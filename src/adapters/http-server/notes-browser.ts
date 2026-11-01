@@ -50,8 +50,8 @@ ${noteOutlineStyles}
     .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     .app-nav .nav-item:not(.sidebar-icon, [aria-current="page"]):hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
     .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
-    .app-nav #open-search { flex: 1; min-width: 0; }
-    .app-nav :is(#new-note, #new-board) { background: var(--control-fill); border: 1px solid var(--line); }
+    .app-nav .nav-tools .sidebar-icon { border: 1px solid transparent; background: transparent; }
+    .app-nav .nav-tools .sidebar-icon[aria-current="page"] { border-color: var(--line); background: var(--control-fill); }
     .app-nav .sidebar-icon { flex-shrink: 0; justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: 0; }
     .nav-library { display: flex; flex-direction: column; flex: 1; min-height: 0; margin-inline: calc(-1 * var(--space-3)); overflow: hidden; }
     .nav-library > * { flex-shrink: 0; }
@@ -335,7 +335,6 @@ ${referencePresentationStyles}
       .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
       .app-nav .sidebar-icon { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
       .nav-item svg { width: 16px; height: 16px; }
-      #open-search kbd { display: none; }
       .document-status { padding-inline: var(--space-4); flex-wrap: wrap; }
       .note-column { padding: var(--space-8) var(--space-6) max(120px, 25vh); }
       #note-editor, #note-editor-hint { font-size: 18px; }
@@ -357,7 +356,7 @@ export const notesMarkup = String.raw`
     <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
     <button id="new-note" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button id="new-board" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New board" title="New board" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16M15 4v7M15 16h6M18 13v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
-    <button id="open-search" type="button" class="quiet-button nav-item" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Search</span></button>
+    <button id="open-search" type="button" class="quiet-button nav-item sidebar-icon" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
   </div>
   <div class="nav-library" aria-label="Your pages">
     <div class="sidebar-attention-scroll">

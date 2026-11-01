@@ -43,6 +43,16 @@ try {
   await page.locator('#sidebar-recent-more').click();
   await page.waitForFunction(() => document.querySelectorAll('#sidebar-recent li').length > 8);
 
+  await page.locator('#notes-link').click();
+  await page.locator('#notes-link[aria-current="page"]').waitFor();
+  assert.notEqual(await page.locator('#notes-link').evaluate(el => getComputedStyle(el).borderColor), 'rgba(0, 0, 0, 0)', 'active Home has a visible border');
+  await page.locator('#open-search').focus();
+  await page.keyboard.press('Enter');
+  await page.locator('#note-search[open]').waitFor();
+  await page.keyboard.press('Escape');
+  await page.locator('#sidebar-boards .board-nav-head .sidebar-page-link').first().click();
+  await page.locator('#board-title').waitFor();
+
   const footerControls = '#graph-link, #open-connection, #open-feedback, #desktop-updates';
   async function checkLayout(width, height, sidebarWidth) {
     await page.setViewportSize({ width, height });
@@ -62,7 +72,6 @@ try {
         shelf: box(document.querySelector('#sidebar-settled-section')),
         controls: [...document.querySelectorAll(selector)].map(box),
         toolbar: [...document.querySelector('.nav-tools').children].map(box),
-        searchLabel: box(document.querySelector('#open-search span')),
         footerSibling: document.querySelector('.nav-footer').parentElement === sidebar && document.querySelector('.nav-footer').contains(document.querySelector('#companion-active')),
         attentionContained: document.querySelector('.sidebar-attention-scroll').contains(document.querySelector('#sidebar-recent')),
         shelfContained: document.querySelector('.nav-library').contains(document.querySelector('#sidebar-settled-section')),
@@ -70,7 +79,17 @@ try {
       };
     }, footerControls);
     assert.ok(geometry.footerSibling && geometry.attentionContained && geometry.shelfContained, 'lists, shelf and footer have separate layout owners');
-    assert.ok(geometry.searchLabel.right <= geometry.sidebar.right - 12, 'Search label keeps its inset at minimum width');
+    for (const control of await page.locator('.nav-tools .sidebar-icon').all()) {
+      assert.equal(await control.innerText(), '', 'toolbar controls are icon-only');
+      assert.ok(await control.getAttribute('aria-label'), 'toolbar icons retain accessible names');
+      const style = await control.evaluate(el => {
+        const s = getComputedStyle(el), r = el.getBoundingClientRect();
+        return { border: s.borderColor, background: s.backgroundColor, width: r.width, height: r.height };
+      });
+      assert.equal(style.width, style.height, 'toolbar icon targets stay square');
+      assert.equal(style.border, 'rgba(0, 0, 0, 0)', 'inactive toolbar controls have no visible border');
+      assert.equal(style.background, 'rgba(0, 0, 0, 0)', 'inactive toolbar controls have no fill');
+    }
     for (const control of geometry.toolbar) assert.ok(control.right <= geometry.sidebar.right && control.x >= geometry.sidebar.x, 'toolbar creation and search controls fit the sidebar');
     assert.ok(geometry.fits, `${width}/${height}/${sidebarWidth}: no horizontal overflow`);
     assert.equal(await page.locator('.nav-preferences').evaluate(el => getComputedStyle(el).borderTopWidth), '0px', 'open spacing replaces the footer divider');

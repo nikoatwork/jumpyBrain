@@ -31,7 +31,7 @@ async function assertPalette(page, theme) {
   for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "#note-editor", "#note-name", "#note-search", "#connection", "#dream-handoff", "#dream-preview"]) {
     assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), palette.surface, `${selector}: ${theme}`);
   }
-  for (const selector of ["#home-new", "#new-note", "#zoom-in", "#connection-submit", "#dream-copy"]) {
+  for (const selector of ["#home-new", "#zoom-in", "#connection-submit", "#dream-copy"]) {
     assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), palette.control, `${selector}: ${theme}`);
   }
   assert.equal(await page.locator("body").evaluate((el) => getComputedStyle(el).color), palette.ink);
@@ -46,7 +46,7 @@ async function assertPalette(page, theme) {
   assert.equal(await page.locator("#sidebar-pinned-empty").count(), 0, "Pinned has no helper text");
   for (const [selector, name] of [["#new-note", "New note"], ["#open-search", "Search notes"]]) {
     assert.equal(await page.locator(selector).getAttribute("aria-label"), name);
-    assert.equal(await page.locator(selector).innerText(), selector === "#open-search" ? "Search" : "", "Search is labeled and compose stays compact");
+    assert.equal(await page.locator(selector).innerText(), "", "toolbar actions show icons only");
     assert.equal(await page.locator(selector + " svg").count(), 1);
   }
   const create = await page.locator("#new-note").boundingBox(), search = await page.locator("#open-search").boundingBox();

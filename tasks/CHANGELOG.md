@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — Icon-only sidebar toolbar
+
+- Removed resting button borders and the Search label while retaining an active Home border and accessible controls. [Verification](done/2026-11-01_tasks-sidebar-toolbar-icons.md).
+
 ## 2026-11-01 — Search excludes the current page
 
 - Web and Mac navigation search hide the current page through frontend filtering, preserving shared ranking and reference pickers. [Verification](done/2026-11-01_tasks-search-exclude-current-page.md).
