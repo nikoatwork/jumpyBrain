@@ -1,6 +1,6 @@
 # M1 design decision: source operations over canonical Markdown
 
-Status: reviewed prototype decision; authoritative gate and M0 parity verification pending. This completes the design portion only when the task list records its verified outcome. Shared backend implementation is task 3.0.
+Status: M1 design gate passed for its recorded conservative scope, 2026-11-01. Protected M0 parity also passed. Shared backend implementation is task 3.0; full M1 and production collaboration remain incomplete.
 
 ## Decision
 
@@ -63,6 +63,27 @@ For development only, --development permits explicitly recorded dirty inputs. It
 
 Pre-merge procedure for an authorized prepared integration commit:
 
+    node prototypes/multiplayer/gate-checks.mjs
+    node prototypes/multiplayer/premerge-checks.mjs
     npx --package=playwright@1.64.1 node prototypes/multiplayer/premerge.mjs --target master --baseline .local-pack/multiplayer/M0-baseline-accepted-2026-11-01 --baseline-sha256 739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2 --design-contract-sha256 1cd72b59b1a3ea7745c2bf5dae8a3f75ff4b22aedaa119a325bf57929840411d --out .local-pack/multiplayer/NEW-integration
 
 Only an explicitly authorized merge may follow, and only for the exact attested tree while the target remains unchanged. No merge or client/server rollout is authorized by a design-gate result.
+
+## Recorded design evidence
+
+The clean-source design run used commit 42635cceb4dbcff3b715146595aabace9e333b61, tree 7a2ae5b7c7a160e6e1d49de8022d85c5595e5744. It ran the reviewed contract above and retained 712 input file hashes plus root/isolated dependency identities.
+
+Evidence directory: .local-pack/multiplayer/M1-design-accepted-2026-11-01. Report SHA-256: e7f2452ff66b54bd16ea256d1a6e6fc2b945b2a249f510ae9dc9637335239a62.
+
+- Native comparison: 31 scenarios, 24 passed and seven retained counterexamples; candidate rejected.
+- Selected source experiment: 33 scenarios passed, including 2,304 independent-splice arrival orders and real two-context human/stream interaction.
+- Canonical publication/reconciliation: 23 scenarios passed, including six process fault boundaries.
+- Composed model/publication and bounded workload: three scenarios passed.
+
+The selected prototype/harness bundle is 463,880 minified bytes / 152,259 gzip bytes, with zero new model dependencies. These are experiment measurements rather than a production bundle delta or capacity promise. Full structural binding remains an explicit later blocker.
+
+Protected M0 verification passed on the same committed input: all 1,566 tests, zero failures/skips/TODOs, and all four real browser smokes. Candidate M0 manifest SHA-256 is 311679498aa887854ba4d957e7041bd54cdfefa7445f53c0c0ccde098effeafd in .local-pack/multiplayer/M1-M0-parity-2026-11-01.
+
+The parent independently validated that manifest against its recorded digest and original pinned baseline, compared the 438-file runtime map byte-for-byte, and rechecked all 712 M1 inputs plus the original frozen assertions after the rebuild. No product runtime or root dependency manifest changed.
+
+Full artifacts/logs remain ignored locally; preserve them before removing the worktree. Final documentation-only evidence commits do not replace 42635cceb4dbcff3b715146595aabace9e333b61 as the exact tested implementation snapshot. Actual integration into the advanced master remains blocked until its changes and behavior are incorporated.

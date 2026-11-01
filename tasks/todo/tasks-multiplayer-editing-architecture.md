@@ -1,6 +1,6 @@
 # Shared backend and live multiplayer editing
 
-Status: active, 2026-11-01. M0 is complete; the M1 design gate is in verification. Production M1 implementation and M2–M5 remain unstarted. Dedicated branch: plan/multiplayer-memory-architecture.
+Status: active, 2026-11-01. M0 and the M1 design gate are complete for their recorded scope. Production M1 implementation and M2–M5 remain unstarted. Dedicated branch: plan/multiplayer-memory-architecture.
 
 ## Goal
 
@@ -21,7 +21,7 @@ Deliver smooth live simultaneous editing for humans and streaming agents over on
 | Level | Completion evidence | Current state |
 | --- | --- | --- |
 | M0 | Protected current-behavior contract, immutable baseline/artifact/environment manifest, reproducible checks, negative verifier tests, explicit coverage gaps. | Passed for the recorded macOS/loopback automated scope; see the evidence record. |
-| M1 | One discoverable root owner; coordinated app/CLI lifecycle; reader/writer enforcement; proven storage/editor prototype. | Design prototypes in verification; production implementation unstarted. |
+| M1 | One discoverable root owner; coordinated app/CLI lifecycle; reader/writer enforcement; proven storage/editor prototype. | Design gate passed; full M1 remains incomplete until production task 3.0 passes. |
 | M2 | Scoped authenticated live state, external-file invalidation, gap-free snapshots, bounded reconnect and revocation. | Unstarted. |
 | M3 | Two humans edit concurrently with correct source preservation, undo, selection, drafts and durable Markdown saves. | Unstarted. |
 | M4 | Streaming agents and observed direct-file edits coexist safely with humans, including failures and recovery. | Unstarted. |
@@ -70,17 +70,17 @@ The minimum final demonstration is two separate human browser contexts, one agen
   - [x] 1.6 Test the verifier with deliberate missing/failed/skipped checks, weakened assertions/fixture drift, corrupt artifacts/manifests, dirty runtime sources and timeouts. Demonstrate it rejects false-green evidence.
   - [x] 1.7 Verify the unchanged runtime against the frozen baseline a second time to establish reproducibility. Record exact results and portability limits. Only mark M0 complete for the named automated scope; open required coverage work for unverified future changed paths.
 
-- [/] 2.0 M1 design gate: prove canonical storage and collaboration fit before broad refactoring.
+- [x] 2.0 M1 design gate: prove canonical storage and collaboration fit before broad refactoring.
   - [x] 2.1 Prototype a Lexical collaboration binding and a source-oriented alternative on the real custom node/source-preservation corpus. Pin compatible released versions; measure any upgrade or experimental dependency cost.
   - [x] 2.2 Prove canonical Markdown recovery after deleting collaboration/index state and killing the backend around publication. Define epochs, Saved receipts, speculative output, conflict copies and client draft storage; reject hidden binary content authority.
   - [x] 2.3 Prove granular human and streaming-agent edits preserve concurrent work in repeated/ambiguous text. Structural/ambiguous binding changes must reject with explicit recovery in this design scope; complete structural collaboration remains required at M3. Compare convergence with expected intent, local undo and source fidelity.
   - [x] 2.4 Specify and test observed raw-file ingestion, finite stabilization/max-wait recovery, intentional empty edits versus temporary truncation, missed-event reconciliation, self-echo suppression and publication races. Record the noncooperating-writer boundary explicitly.
-  - [ ] 2.5 Choose the smallest approach that passes the prototypes. Record an architecture decision, dependency/resource budgets and required module boundaries. A failed prototype blocks broad migration; transport plumbing is not a substitute.
+  - [x] 2.5 Select source-operation coordination for the demonstrated conservative scope, record resource/dependency budgets and the remaining structural-binding requirement. Reject the native adapter as wired with its counterexamples retained. Authoritative M1 and protected M0 checks pass; no full M3 or production readiness is implied.
   - [x] 2.6 Provide the executable local integration procedure: prepared clean commit containing the current target, independently pinned M0 and M1 contracts, sequential verification and source/target stability checks. Guard checks cover target movement and the actual advanced master is blocked. This is not installed branch protection; integration must follow the recorded procedure.
 
 - [ ] 3.0 M1 implementation: one backend owner and real server authorization.
   - [ ] 3.1 Define root-instance discovery/readiness, atomic startup ownership, explicit stop/drain and executable/protocol compatibility. Exercise concurrent starts, stale records, path aliases, foreign ports and crashes.
-  - [ ] 3.2 Route local app and CLI operations through the root owner, starting it on demand without a GUI. Preserve explicit root/remote selection and runtime embedding; do not silently create a second writer or switch the CLI to the app's selected brain.
+  - [ ] 3.2 Route local app and CLI operations through the root owner, starting it on demand without a GUI. Preserve explicit root/remote selection; update any embedding API to participate in ownership rather than retaining obsolete signatures. Do not silently create a second writer or switch the CLI to the app's selected brain.
   - [ ] 3.3 Separate window-close lifetime from backend lifetime. Integrate quit, login, update replacement and save barriers; retain scoped native Keychain/folder capabilities without renderer secret access.
   - [ ] 3.4 Add separately revocable reader/writer principals and per-operation server enforcement. Specify local same-user bootstrap, VPS provisioning/rotation, legacy-key migration and safe diagnostic identity. Role downgrade must also stop existing streams.
   - [ ] 3.5 Implement an explicit protocol/API cutover with coordinated client updates and useful version-mismatch errors before mutation. Retain data/use-case parity, add root-owner/credential tests and real local CLI-without-app plus Linux-hosted CLI evidence. Intentional approved contract changes may replace structural/wire expectations with reviewed equivalent behavior assertions. Pass the applicable parity and L01/L07/L09 gates before claiming M1.
@@ -139,7 +139,10 @@ The expected first gate includes npm test and the existing scripts/external-docu
 - 2026-11-01 scope update: the user explicitly allows breaking contracts because all current users are internal and all clients can update together. Preserve data and core behavior, version-fence obsolete clients, and provide a smooth README upgrade path (a copyable agent instruction is acceptable). Long-term V1/SDK/mixed-client compatibility is removed from the target.
 - M1 design work: isolated native Lexical/Yjs and dependency-free source-operation prototypes use the actual current editor/custom nodes and a shared 12-document source corpus. The native adapter is rejected as wired with retained counterexamples; the source experiment passes its conservative leaf-edit contract. Structural live binding remains explicitly unimplemented and cannot be enabled on this result.
 - Publication/reconciliation proof uses the real canonical publisher, six SIGKILL/failure boundaries, raw write/empty/delete/recreate/invalid-byte cases, and composed source-stream-to-disk recovery. M1 guard checks reject incomplete/stale/false-green evidence. No production source or root dependency manifest was changed.
-- The [design decision](../../deep-dives/multiplayer-editing/M1-design-decision.md) records scope, upgrade policy, prototype budgets and the local pre-merge procedure. Authoritative clean-source M1 execution and protected M0 parity rerun are pending.
+- The [design decision](../../deep-dives/multiplayer-editing/M1-design-decision.md) records scope, upgrade policy, prototype budgets, independent digests and the local pre-merge procedure. Clean-source M1 execution at 42635cceb4dbcff3b715146595aabace9e333b61 passed: source 33 cases, durability 23, composition three; native comparison retains 24 passes and seven rejection counterexamples. The 20 gate and nine integration-guard checks pass.
+- Protected M0 parity on the same commit passed all 1,566 tests and all four real browser smokes, with no required skips. All 438 runtime files remain byte-identical to the original baseline. Candidate M0 manifest: 311679498aa887854ba4d957e7041bd54cdfefa7445f53c0c0ccde098effeafd. M1 design report: e7f2452ff66b54bd16ea256d1a6e6fc2b945b2a249f510ae9dc9637335239a62.
+- Parent integrity recheck confirmed the design's 712 recorded inputs, original frozen assertions and runtime file map after M0 rebuilt the artifact. This task adds prototypes/documentation only; root dependency manifests and production source are unchanged. The final evidence commit changes documentation only.
+- Actual integration remains blocked: master has advanced to cd3db8612412bb064df88c003228037e78820002 and is not yet contained here. Its behavior must be incorporated and verified before a merge. No merge, push, app/VPS update or release was performed. The roadmap remains active for production ownership/auth implementation and later live-editing gates.
 
 ## Relevant existing seams
 
