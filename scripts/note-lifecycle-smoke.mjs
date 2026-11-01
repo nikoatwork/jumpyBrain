@@ -31,6 +31,15 @@ try {
   // Before indexing, both global search and inline suggestions use confirmed writes.
   await page.locator('#open-search').click();
   await page.locator('#note-search-input').fill('QA lifecycle created');
+  // Navigation search deliberately excludes the open note. The existing target
+  // matches through its backlink, so wait for real results before checking that.
+  await page.locator('#search-results [role=option]').filter({has:page.locator('strong',{hasText:'QA lifecycle target'})}).waitFor();
+  assert.equal(await page.locator('#search-results [role=option]').filter({has:page.locator('strong',{hasText:'QA lifecycle created'})}).count(),0,'navigation search excludes the current note');
+  await page.locator('#close-search').click();
+  await page.locator('#home-link').click();
+  await page.locator('#home-new').waitFor({state:'visible'});
+  await page.locator('#open-search').click();
+  await page.locator('#note-search-input').fill('QA lifecycle created');
   await page.locator('#search-results [role=option]').filter({has:page.locator('strong',{hasText:'QA lifecycle created'})}).waitFor();
   assert.equal(await page.locator('#search-refresh-index').isVisible(),true);
   await page.locator('#close-search').click();
