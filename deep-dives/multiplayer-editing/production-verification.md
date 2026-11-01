@@ -1,6 +1,6 @@
 # Production collaboration verification
 
-Status: final verification in progress, 2026-11-01. The implementation and its
+Status: final verification in progress, 2026-11-02. The implementation and its
 automated acceptance contract cover one shared backend per brain, browser
 collaboration, streamed CLI agents, observed file edits, separate access and
 coordinated upgrades. The task remains active until the final recorded gate
@@ -33,8 +33,8 @@ the Astra counterexamples and browser/native drivers. Removing or weakening
 them requires a separately reviewed contract and new external pin; a still-high
 test count cannot accept that change silently.
 
-The current candidate contract pins 45 assertion/helper files, SHA-256
-`0e29ffdd0d872a93c0773368ab45232a80e8b266566d39f91e89b569ca34cddf`.
+The current candidate contract pins 48 assertion/helper files, SHA-256
+`932a4fd227f8d6a11d0601ca5d67b02eacd1769f00b1b0c2256ff05e629eb757`.
 It additionally protects actual positional-intent and native-gateway cases,
 the Linux runner, and package budget/manifest helpers. The measured runtime
 artifact ceiling is reviewed separately in [build footprint](../../docs/build-footprint.md);
@@ -45,7 +45,7 @@ production gate requires all of these:
 
 | Check | Required evidence |
 | --- | --- |
-| Production editor | Two browser contexts, source fidelity, actor undo, presence, streaming, direct writes, IME events, offline body/title recovery and cloned-tab isolation. |
+| Production editor | Two browser contexts, source fidelity, actor undo, presence, streaming, direct writes, IME events, offline body/title recovery and cloned-tab isolation, 132 default CLI actors and fresh-human editing/Undo expiry. |
 | Lexical structure | Existing rich editor behavior and source/security assertions at desktop and narrow widths. |
 | Hosted session | Cookie authentication, cross-tab credential replacement, reader enforcement and explicit retained-draft recovery. |
 | Retained-version UI | Eleven shipped-shell scenarios for notification, compare/copy, guarded restore, roles/revocation, draft preservation, storage failure, copy budgets, discovery and scope changes. |
@@ -76,7 +76,7 @@ Each stage is assessed by behavior rather than test count:
 | L05 raw files | Stable/partial/atomic/deleted/recreated file fixtures, publisher failure injection and authenticated retained-version UI. |
 | L06 durable Saved | Publication faults/restarts, uncertain-ack browser recovery, retained private versions and packaged native recovery. |
 | L07 access/scope | Real authenticated HTTP/WS/TLS, reader/revocation, invalid origins, gateway brain/credential switches and obsolete handshake rejection. |
-| L08 bounded work | Frame/queue/history/stream limits, slow consumers, both fixed workload budgets and resource cleanup. |
+| L08 bounded work | Frame/queue/history/stream limits, finite Undo-owner retirement, real default-CLI churn, slow consumers, both fixed workload budgets and resource cleanup. |
 | L09 upgrade/legacy writes | Serialized guarded HTTP/live races, extracted-package old-to-new preservation/retry/rollback and same-ID root isolation. |
 
 The exact new assertion files are pinned in the production contract. The frozen
@@ -193,6 +193,32 @@ Strict clipping/nonoverlap checks remain, and repeat after a real viewport
 resize. Three consecutive full production-editor runs pass without retries.
 These preflights do not replace the required clean-HEAD gate and independent
 review.
+
+## Additional actor-lifecycle review
+
+Clean HEAD `01ca65f74c8deaab154ea5d9e4b016a42669ca7f` passed the full
+1,773-test suite, four protected browser flows and all twelve production checks.
+Its report SHA-256 is
+`4433c15e958b9ce5a1116dfd62b1d2bd71d12dc4d57652e4a2fdd6b29e356f8c`.
+The third Astra high review independently passed 104 focused checks and actual
+shipped positional-intent, recovery, IME and cursor-label scenarios. It then
+found an additional P1 outside that oracle: 64 departed default CLI actors filled
+the retained Undo-owner cache, so the next agent and a new human could not write.
+The previous run remains valid for its recorded scenarios; it did not establish
+actor-churn readiness. Review and reproduction are retained under
+`.local-pack/astra-final/`.
+
+The correction retires finite combined Undo/Redo owners, preferring inactive
+histories, while preserving canonical source, revision history and receipt
+safety. Cache pressure cannot impose a lifetime writer quota. Stable recent
+identities keep cached Undo across disconnects; expired history is explicit and
+the browser permits further typing. Model and Hub fixtures cover bounded caches,
+reconnect, leases, revocation and stale connection disposal. The mandatory shipped
+proof holds a browser subscription through 132 actual default CLI processes and
+checks fresh-human publication, history replay/expiry and recent agent Undo.
+Build `fdc67474bfe9d94e` passes 36 focused built tests and actual packaged native
+input/accessibility. The new clean-candidate gate and independent re-review
+remain required before completion.
 
 ## Reproduction prerequisites
 

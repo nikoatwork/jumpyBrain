@@ -1025,3 +1025,15 @@ does not by itself mean content was removed and does not create a destructive
 recovery copy. If bounded alignment fails, the fallback marks the whole observed
 replacement as ambiguous. Positions pause without silently resurrecting source
 or resetting unrelated history merely because one range was ambiguous.
+
+### Undo-owner retention
+
+The 64 cached Undo/Redo owners are separate from the limits on live connections,
+presence and retained source operations. Writer churn retires least-recent owner
+histories, preferring inactive owners; activity preference is best-effort and
+cannot block a newly authorized writer indefinitely. Ordinary disconnect does
+not immediately erase Undo. Reconnecting with the same principal/client identity
+can use surviving history until pressure or source-retention expiry. An expired
+Undo/Redo fails with `history_expired` without changing canonical source; further
+edits remain available. Source history, causal identities and surviving
+idempotency receipts are not deleted merely because an Undo owner retires.

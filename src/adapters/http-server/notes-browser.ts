@@ -1608,6 +1608,10 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
       if (cancelled || state.editor !== editor) return;
       const current = editor.state;
       current.draft = collaboration.body;
+      if (live.historyNotice && current.historyNoticeSequence !== live.historyNotice.sequence) {
+        current.historyNoticeSequence = live.historyNotice.sequence;
+        toast.show("history", live.historyNotice.text);
+      }
       if (typeof collaboration.title === "string") current.title = collaboration.title;
       current.dirty = live.dirty || current.title !== current.savedTitle;
       current.unconfirmedSave = ["offline", "conflict", "blocked"].includes(live.status) && current.dirty;

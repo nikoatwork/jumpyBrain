@@ -134,3 +134,12 @@ The protected package test now asserts all four ceilings literally, and the
 production contract pins the budget and package-manifest helpers. Future
 helper-only budget relaxation cannot silently satisfy the original test. This
 measured contract delta is independent of the immutable M0 baseline.
+
+
+## 2026-11-02 finite editor histories
+
+Build `fdc67474bfe9d94e` adds bounded active-aware Undo/Redo owner retirement
+and an explicit expired-history notice. It measures 663,583 minified editor
+bytes and 219,663 gzip bytes with the same 15 bundled packages. All package,
+editor, dependency and canonical latency/resource ceilings remain unchanged;
+the final verification report records package and runtime measurements.

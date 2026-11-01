@@ -395,3 +395,30 @@ test("readers can load a healthy saved version without a privileged resync, whil
     }
   }finally{globalThis.WebSocket=previous}
 });
+
+test("expired Undo/Redo shows a nonblocking notice; an unconfirmed history action still preserves recovery",async()=>{
+  const previous=globalThis.WebSocket;
+  try{
+    for(const code of['history_expired','unconfirmed']){
+      let canonical='body',revision=0;const frames=[],drafts=createCollaborationDraftStore(memoryStorage());
+      const snapshot=operation=>({documentId:'note',epoch:'epoch',revision,body:canonical,title:'Title',contentHash:'hash-'+revision,saved:true,operation});
+      class Socket{static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;constructor(){queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}send(raw){const frame=JSON.parse(raw);frames.push(frame);queueMicrotask(()=>{
+        if(['undo','redo'].includes(frame.method)){this.onmessage?.({data:JSON.stringify({id:frame.id,ok:false,error:{code,message:'History action rejected'}})});return}
+        let operation;if(frame.method==='edit'){for(const op of [...frame.params.operations].reverse())canonical=canonical.slice(0,op.start)+op.insert+canonical.slice(op.start+op.deleteCount);revision++;operation={actor:'["writer","tab"]',operationId:frame.params.operationId,revision,start:4,deleteCount:0,splices:frame.params.operations}}
+        this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result:frame.method==='hello'?{protocol:2,principal:{id:'writer',role:'writer'}}:snapshot(operation)})});
+      })}close(){this.readyState=3;this.onclose?.({code:1000})}}
+      globalThis.WebSocket=Socket;let editor;
+      try{
+        let body='body';const scope='history-notice-'+code;editor=createCollaborationEditor({url:'ws://localhost/ws',scope,documentId:'note',clientId:'tab',drafts,editor:{getMarkdown:()=>body,applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
+        await editor.undo();assert.equal(canonical,'body');assert.equal(body,'body');
+        if(code==='history_expired'){
+          assert.equal(editor.state.status,'saved');assert.equal(editor.state.dirty,false);assert.equal(editor.state.canWrite,true);assert.match(editor.state.historyNotice.text,/Undo history is unavailable/);const sequence=editor.state.historyNotice.sequence;
+          await editor.redo();assert.equal(editor.state.status,'saved');assert.match(editor.state.historyNotice.text,/Redo history is unavailable/);assert.ok(editor.state.historyNotice.sequence>sequence);
+          body='bodyQ';inputIntent(editor,body,[{start:4,deleteCount:0,insert:'Q'}]);assert.equal(await editor.flush(),true);assert.equal(canonical,'bodyQ');assert.equal(editor.state.status,'saved');assert.equal(frames.filter(frame=>frame.method==='edit').length,1);
+        }else{
+          assert.equal(editor.state.status,'conflict');assert.equal(await editor.flush(),false);assert.equal(editor.state.historyNotice,undefined);assert.equal(frames.filter(frame=>frame.method==='edit').length,0);assert.ok(drafts.read({scope,principalId:'writer',documentId:'note',clientId:'tab'}).value.unconfirmed,'unknown history outcome is still retained before any further publication');
+        }
+      }finally{editor?.dispose()}
+    }
+  }finally{globalThis.WebSocket=previous}
+});
