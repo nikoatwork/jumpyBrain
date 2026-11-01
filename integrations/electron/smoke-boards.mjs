@@ -59,7 +59,8 @@ try {
   // Optional personal tree uses real Settings controls and guarded page navigation.
   const boardBefore=await readFile(path.join(config.root,'boards',id+'.json'),'utf8');
   await js("navigation.navigate('/settings?section=boards')");await wait(`document.querySelector('[data-board-id="${id}"] input[type=checkbox]')`);
-  assert.equal(await js(`document.querySelector('[data-board-id="${id}"] input[type=checkbox]').checked`),true);
+  assert.equal(await js(`document.querySelector('[data-board-id="${id}"] input[type=checkbox]').checked`),false);
+  await js(`document.querySelector('[data-board-id="${id}"] input[type=checkbox]').click()`);
   await js("Promise.all(document.querySelector('[data-settings-panel=boards]').getAnimations().map(animation=>animation.finished))");
   await capture('tree-settings');await js("navigation.navigate('/')");
   const tree='[data-sidebar-board="'+id+'"]';
@@ -121,8 +122,10 @@ try {
   await js(`navigation.navigate('/settings?section=boards')`);await wait('document.querySelector(".board-settings-name")');
   assert.equal(await js('document.querySelector(".board-settings-name").disabled'),false);
   assert.equal(await js('[...document.querySelectorAll(".board-settings-actions button")].every(b=>b.disabled)'),true);
-  assert.equal(await js('document.querySelector(".board-settings-sidebar input").checked'),true,'new remote brain defaults to enabled');
+  assert.equal(await js('document.querySelector(".board-settings-sidebar input").checked'),false,'new remote brain defaults to disabled');
   assert.equal(await js('document.querySelector(".board-settings-sidebar input").disabled'),false,'read-only allows personal navigation');
+  await js('document.querySelector(".board-settings-sidebar input").click()');
+  assert.equal(await js('document.querySelector(".board-settings-sidebar input").checked'),true,'read-only can opt in');
   await js('document.querySelector(".board-settings-sidebar input").click()');
   assert.equal(await js('document.querySelector(".board-settings-sidebar input").checked'),false,'read-only can opt out');
   await js('document.querySelector(".board-settings-sidebar input").click()');

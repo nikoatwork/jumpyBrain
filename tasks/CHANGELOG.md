@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — Board sidebar pages default off
+
+- Unconfigured boards keep sidebar pages hidden; explicit saved choices remain intact. [Verification and limits](done/2026-11-01_tasks-board-sidebar-default-off.md).
+
 ## 2026-11-01 — Verified agent installation
 
 - Added one CLI + Mac app + agents operation, verified release inputs, private Node/search provisioning, recoverable setup and actual installed readiness checks. Verified disposable and authorized personal reinstalls with canonical data preserved. Public rollout and native-toolchain removal remain pending. [Implementation and limits](done/2026-11-01_tasks-agent-installation.md).
