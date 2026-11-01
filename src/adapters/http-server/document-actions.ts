@@ -6,6 +6,7 @@ import type { Toast } from "./browser-toast.js";
 type Editor = ReturnType<typeof createDocumentEditor>;
 export function installDocumentActions(options: {
   document: Document; editor(): Editor | null; writable(): boolean; scope(): string;
+  filePath(editor: Editor): string | null;
   json(url: string, options?: RequestInit): Promise<unknown>;
   toast: Toast;
   onDeleted(id: string, message: string): Promise<void>;
@@ -45,6 +46,18 @@ export function installDocumentActions(options: {
         $("recovery-message").textContent = "Select and copy your draft below; clipboard access is unavailable.";
         $<HTMLTextAreaElement>("recovery-draft").select();
       }
+    }
+  }
+  async function copyFilePath() {
+    const editor = options.editor();
+    if (!editor?.state.loaded || editor.state.cancelled || editor.state.navigationPending) return;
+    const path = options.filePath(editor), scope = options.scope();
+    if (!path) return;
+    try {
+      await doc.defaultView!.navigator.clipboard.writeText(path);
+      if (valid(editor, scope)) options.toast.show("file-path", "File path copied.");
+    } catch {
+      if (valid(editor, scope)) options.toast.show("file-path", "Could not copy the file path. Check clipboard access.", { error: true });
     }
   }
   async function openRecovery() {
@@ -135,6 +148,7 @@ export function installDocumentActions(options: {
   }
   $("note-recover").addEventListener("click", openRecovery);
   $("copy-note-draft").addEventListener("click", () => copy());
+  $("copy-note-file-path").addEventListener("click", copyFilePath);
   $("recovery-copy").addEventListener("click", () => copy(bound));
   $("recovery-close").addEventListener("click", close);
   $("recovery-reload").addEventListener("click", reload);

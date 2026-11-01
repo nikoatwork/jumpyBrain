@@ -99,7 +99,23 @@ const boardsUI = (() => {
     const retry=button('Check again',load);retry.dataset.boardRetry='';host.replaceChildren(document.createTextNode(unsupportedMessage+' '),retry);
   }
   const compatibility=document.createElement('div');compatibility.id='sidebar-boards-compatibility';compatibility.setAttribute('role','status');compatibility.hidden=true;$('sidebar-boards').after(compatibility);
+  function syncNote() {
+    const host=$('note-board-memberships'),editor=state.editor;
+    const id=state.view==='note'&&editor?.state.loaded&&!editor.state.cancelled?editor.state.documentId:null;
+    const boards=id&&scope()&&bound===scope()&&support==='supported'?packet.boards.filter(b=>b.columns.some(c=>c.pages.includes(id))):[];
+    const retained=new Set();
+    for(const board of boards){
+      let entry=Array.from(host.children).find(el=>el.dataset.boardId===board.id);
+      if(!entry){entry=button('',()=>navigation.navigate('/?board='+board.id));entry.classList.add('quiet-button--plain');entry.dataset.boardId=board.id;host.append(entry);}
+      const name=board.name+(board.archived?' · Settled':'');
+      if(entry.textContent!==name)entry.textContent=name;entry.title='Open board: '+name;entry.setAttribute('aria-label','Open board: '+name);
+      entry.disabled=companionFrozen||!scope();retained.add(entry);
+    }
+    for(const entry of Array.from(host.children))if(!retained.has(entry))entry.remove();
+    host.hidden=!boards.length;
+  }
   function render() {
+    syncNote();
     sidebarUI.render();if(support!=='unsupported')settingsUI.render();
     compatibility.hidden=support!=='unsupported';
     if(support==='unsupported'){compatibilityMessage(compatibility);compatibilityMessage($('settings-boards-list'));}
@@ -370,6 +386,6 @@ const boardsUI = (() => {
   $('new-board').onclick=create;$('settings-new-board').onclick=create;
   window.addEventListener('pagehide',()=>dismissComposer(false));
   window.addEventListener('focus',()=>{if(!$('note-board-dialog').open&&!busy&&!formBusy)load();});
-  return {pending(){return busy||formBusy;},fence(){settingsUI.reset();dismissComposer(false);rename=null;render();},show(id){settingsUI.reset();$('note-board-dialog').close();if(id!==selected){dismissComposer(false);rename=null;}selected=id;$('boards-view').hidden=!id;load();},refresh:load};
+  return {syncNote,pending(){return busy||formBusy;},fence(){settingsUI.reset();dismissComposer(false);rename=null;render();},show(id){settingsUI.reset();$('note-board-dialog').close();if(id!==selected){dismissComposer(false);rename=null;}selected=id;$('boards-view').hidden=!id;load();},refresh:load};
 })();
 `;

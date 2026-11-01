@@ -257,7 +257,12 @@ ${referencePresentationStyles}
     .page-card-heading { justify-content: space-between; padding-inline: var(--space-3); }
     .page-card-heading h2 { margin: 0; color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-regular); }
     .page-card-actions button { background: transparent; }
-    #note-add-to-board { margin-top: var(--space-1); }
+    #note-add-to-board { display: inline-flex; align-items: center; gap: var(--space-2); width: fit-content; margin-top: var(--space-1); border: 0; }
+    #note-add-to-board[hidden], #note-board-memberships[hidden] { display: none; }
+    #note-add-to-board svg { width: var(--icon-size); height: var(--icon-size); flex: none; }
+    #note-board-memberships { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--space-3); }
+    #note-board-memberships button { min-width: 0; max-width: 100%; height: auto; text-align: left; overflow-wrap: anywhere; white-space: normal; font-size: var(--text-caption); }
+    @media (max-width: 680px) { #note-add-to-board, #note-board-memberships button { min-height: var(--control-touch); } }
     .page-card-facts { margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--line); }
     #note-details-content { padding: 0 var(--space-3) var(--space-2); }
     .page-facts-toggle[aria-expanded="true"] .details-chevron { transform: rotate(180deg); }
@@ -523,11 +528,13 @@ export const notesViews = String.raw`
     <aside id="page-details" aria-label="Page actions and details" hidden>
       <div class="page-card-heading"><h2>Page</h2><div class="page-card-actions" role="group" aria-label="Page actions">
   <button id="copy-note-draft" class="quiet-button note-icon document-copy" type="button" aria-label="Copy" title="Copy" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg></button>
+  <button id="copy-note-file-path" class="quiet-button note-icon document-copy" type="button" aria-label="Copy file path" title="Copy file path" hidden>${browserIcons.link}</button>
   <button id="delete-note" class="quiet-button note-icon document-delete-action" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div></div>
-      <button id="note-add-to-board" class="quiet-button quiet-button--plain action-row" type="button" aria-haspopup="dialog" aria-controls="note-board-dialog" hidden><span>Add to board</span><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <div id="note-board-memberships" role="group" aria-label="Boards containing this page" hidden></div>
+      <button id="note-add-to-board" class="quiet-button quiet-button--plain" type="button" aria-haspopup="dialog" aria-controls="note-board-dialog" hidden>${browserIcons.plus}<span>Add to board</span></button>
       <div class="page-card-facts">
-      <button id="toggle-page-details" class="quiet-button quiet-button--plain action-row page-facts-toggle" type="button" aria-expanded="false" aria-controls="note-details-content"><span>Saved version</span><svg class="details-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="toggle-page-details" class="quiet-button quiet-button--plain action-row page-facts-toggle" type="button" aria-expanded="false" aria-controls="note-details-content"><span>More info</span><svg class="details-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <div id="note-details-content" hidden>
       <section class="saved-version" aria-label="Saved version">
 
@@ -1356,6 +1363,7 @@ async function showNote(documentId, focusEnd = false) {
     extensionUI?.documentChanged();
     $("note-title").textContent = "";
     toast.clear("draft");
+    toast.clear("file-path");
     $("note-title").hidden = false;
     $("note-name").hidden = true;
     $("note-save-error").hidden = true;
@@ -1370,6 +1378,7 @@ async function showNote(documentId, focusEnd = false) {
     $("note-retry").hidden = true;
     $("note-recover").hidden = true;
     $("copy-note-draft").hidden = true;
+    $("copy-note-file-path").hidden = true;
     $("delete-note").hidden = true;
     $("insert-reference").hidden = true;
     $("note-save-state").textContent = "";
@@ -1498,6 +1507,9 @@ function syncEditorUi(editorState) {
   $("note-recover").disabled = editorState.navigationPending;
   $("note-recover").textContent = editorState.saveErrorCode === "precondition_failed" ? "Review changes" : "Recover draft";
   $("copy-note-draft").hidden = !editorState.loaded;
+  $("copy-note-file-path").hidden = !currentNoteFilePath();
+  $("copy-note-file-path").disabled = editorState.navigationPending || (companionMode && (companionFrozen || companionSessionFailed));
+  if (companionMode && typeof boardsUI !== "undefined") boardsUI.syncNote();
   $("delete-note").hidden = !editorState.loaded;
   $("delete-note").disabled = editorState.navigationPending || companionLocked;
   $("recovery-reload").disabled = companionLocked || editorState.navigationPending;
@@ -1637,8 +1649,15 @@ $("search-refresh-index").addEventListener("click", async () => {
     if (revision === credentialRevision && searchDialog.open) noteSearch.state.feedback = "Index refresh could not be confirmed. Check the connection before trying again.";
   } finally { searchIndexRefreshing = false; if (searchDialog.open) renderNoteSearch(noteSearch.state); }
 });
+function currentNoteFilePath(editor = state.editor) {
+  const root = companionMode && companionRegistered && companionState?.active?.kind === "local" ? companionState.active.root : null;
+  const file = editor?.state.file;
+  if (!root?.startsWith("/") || !editor?.state.loaded || editor.state.cancelled || !file || file.startsWith("/") || file.split("/").some(part => part === "..")) return null;
+  return root.replace(/\/+$/, "") + "/" + file;
+}
 const lifecycleActions = installDocumentActions({
   document, editor: () => state.editor,
+  filePath: editor => companionMode && !companionFrozen && !companionSessionFailed ? currentNoteFilePath(editor) : null,
   writable: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()),
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
   json: graphJson, toast,
