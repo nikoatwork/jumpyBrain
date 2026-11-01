@@ -19,7 +19,7 @@
 
 ## Folder explorer
 
-`folder-explorer.ts` owns `listServerMemoryFiles({ root, signal? })`: a fresh metadata-only listing of all eligible Markdown in the editor's canonical buckets, independent of retrieval `indexRoot`, indexes and attention state. The packet contains only root-relative `file`, optional `title` and a valid unique `id` or `null` for an unopenable file. Hidden files are omitted but participate in duplicate-ID detection, matching editor lookup. Missing files during a scan are skipped; other failures propagate. Empty or attachment-only directories are not represented. Input scans and output count are uncapped; the existing gateway response-byte limit still applies. No canonical or derived-state writes, body payloads, persistent caches or scheduler are introduced.
+`folder-explorer.ts` owns `listServerMemoryFiles({ root, signal? })`: a fresh metadata-only listing of all eligible Markdown in the editor's canonical buckets, independent of retrieval `indexRoot`, indexes and attention state. The packet contains only root-relative `file`, optional `title` and a valid unique `id` or `null` for an unopenable file. Hidden files are omitted but participate in duplicate-ID detection, matching editor lookup. Missing files during a scan are skipped; other failures propagate. Callers may request `includeFolders:true` to include a `folders` array of visible canonical directories, including empty and attachment-only directories; the legacy packet shape remains unchanged by default. Input scans and output count are uncapped; the existing gateway response-byte limit still applies. No canonical or derived-state writes, body payloads, persistent caches or scheduler are introduced.
 
 ## Note attention
 
@@ -79,3 +79,7 @@ Hosted rich search forwards the same opt-in recognition options to local-memory 
 ## Board organization
 
 `boards.ts` exposes shared app board CRUD/status against the server-local canonical root. Results contain layout/hashes and root-relative note provenance, never host paths. Protocol hosts own auth, precondition headers and write queuing. Board changes do not alter notes, dirty indexes or schedule indexing. Shared status discovers the corpus once per request, reads bounded evidence with cancellation, and rechecks the board hash.
+
+## Explorer file operations
+
+`folder-explorer-operations.ts` composes explicit folder creation and hash/path-guarded ID-addressed file moves/renames over core canonical operations. Hosts must serialize the complete use case with ordinary writes. Folder creation does not dirty the retrieval index. Successful file moves mark derived index state stale; bookkeeping failures return `moved:true` with failed-index guidance rather than reporting canonical failure. Packets contain only relative provenance, never host roots. File deletion continues through the existing preview/apply operation. No agent host calls the hosted API directly as part of this workflow.

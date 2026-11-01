@@ -84,3 +84,5 @@ The internal `readinessOnly` launch option forces an empty extension execution s
 ## Canonical brain boards
 
 Board operations proxy the ordinary authenticated `/memories/all/boards` routes to the selected local or remote brain. GET is observational; POST/PUT/DELETE are writes and require the profile's `allowWrites` permission. Existing generation/tab admission, queue draining and save barriers apply. There is no app-support board store, `/companion/collections` route or native CLI capability advertisement. Per-board content hashes protect layout changes. Copying the brain carries its organization; two profiles of the same brain see the same boards. See [agent boards](../../docs/boards.md).
+
+File explorer `POST /memories/all/files/operations` forwards explicit folder creation and guarded file moves/renames through ordinary write admission, preserving If-Match and the selected target until the request drains. Read-only profiles reject it. Acknowledged tabs and old generations cannot start another operation. The browser includes in-flight explorer operations in its existing save barrier. The optional `includeFolders=1` listing remains observational.

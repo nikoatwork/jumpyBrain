@@ -1,11 +1,13 @@
-import { buildExplorerTree, explorerFiles, explorerRows, revealExplorerFile, type ExplorerFile, type ExplorerNode, type ExplorerRow } from "./folder-explorer-model.js";
+import { installExplorerActions, type ExplorerOperationHost } from "./folder-explorer-actions.js";
+import { buildExplorerTree, explorerFiles, explorerFolders, explorerRows, revealExplorerFile, type ExplorerFile, type ExplorerNode, type ExplorerRow } from "./folder-explorer-model.js";
 
-/** Read-only panel. The host owns authentication, brain scope and guarded navigation. */
+/** Scoped panel. The host owns authentication, write admission and guarded navigation. */
 export function installFolderExplorer(options: {
   document: Document; window: Window;
   scope(): string; enabled(): boolean;
   fetch(signal: AbortSignal): Promise<unknown>;
   navigate(id: string): Promise<boolean>;
+  operations?: ExplorerOperationHost;
 }) {
   const { document, window } = options;
   const panel = document.getElementById("folder-explorer")!;
@@ -18,10 +20,23 @@ export function installFolderExplorer(options: {
   const narrow = window.matchMedia("(max-width: 680px)");
   const overlay = window.matchMedia("(max-width: 1000px)");
   let scope = options.scope(), selected: string | null = null, opened = false, stopped = false;
+  let directories: string[] = [];
   let files: ExplorerFile[] = [], tree: ExplorerNode[] = [], rows: ExplorerRow[] = [];
   let request: AbortController | null = null, loading = false, navigating = false, revision = 0;
   let expanded = new Set<string>(), searchCollapsed = new Set<string>(), focused: string | null = null;
   const buttons = new Map<string, HTMLButtonElement>();
+
+  function findNode(path: string, nodes = tree): ExplorerNode | undefined {
+    for (const node of nodes) { if (node.path === path) return node; const found = findNode(path, node.children); if (found) return found; }
+  }
+  const actions = installExplorerActions({
+    document, window, tree: treeElement, host: options.operations,
+    scope: options.scope, enabled: options.enabled, node: findNode,
+    folders: () => directories,
+    refresh: () => refresh(), focus,
+    reveal: path => { revealExplorerFile(tree, path, expanded); render(); },
+    message: text => { message.textContent = text; },
+  });
 
   function cancel() {
     revision++; request?.abort(); request = null; loading = false;
@@ -36,17 +51,18 @@ export function installFolderExplorer(options: {
     } else { panel.removeAttribute("role"); panel.removeAttribute("aria-modal"); }
   }
   function close(restoreFocus = true) {
-    opened = false; cancel(); updatePresentation();
+    opened = false; actions.reset(); cancel(); updatePresentation();
     if (restoreFocus && !toggle.disabled) toggle.focus();
   }
   function sync() {
     if (stopped) return;
     const next = options.scope(), enabled = options.enabled();
     toggle.disabled = !enabled;
+    actions.sync();
     if (next !== scope || !enabled) {
       const hadFocus = panel.contains(document.activeElement);
       scope = next; close(hadFocus);
-      files = []; tree = []; rows = []; buttons.clear(); treeElement.replaceChildren();
+      directories = []; files = []; tree = []; rows = []; buttons.clear(); treeElement.replaceChildren();
       expanded = new Set(); searchCollapsed = new Set(); search.value = ""; focused = null; message.textContent = "";
     }
   }
@@ -75,6 +91,7 @@ export function installFolderExplorer(options: {
         button.append(glyph, label); buttons.set(node.path, button);
       }
       button.dataset.explorerPath = node.path;
+      button.draggable = node.kind === "file" && Boolean(node.id) && Boolean(options.operations?.writable()) && !actions.isBusy();
       if (node.kind === "folder") {
         button.dataset.folderPath = node.path; delete button.dataset.filePath;
         button.setAttribute("aria-expanded", String(row.expanded));
@@ -115,7 +132,7 @@ export function installFolderExplorer(options: {
     try {
       const packet = await options.fetch(controller.signal);
       if (controller.signal.aborted || token !== revision || origin !== options.scope() || !options.enabled()) return;
-      files = explorerFiles(packet); tree = buildExplorerTree(files);
+      files = explorerFiles(packet); directories = explorerFolders(packet); tree = buildExplorerTree(files, directories);
       if (reveal) revealSelected();
       loading = false; render();
     } catch {
@@ -146,7 +163,7 @@ export function installFolderExplorer(options: {
     sync();
     const file = files.find(item => item.id === id);
     if (!file || file.title === title) return;
-    file.title = title; tree = buildExplorerTree(files); render();
+    file.title = title; tree = buildExplorerTree(files, directories); render();
   }
   function disclose(row: ExplorerRow, value = !row.expanded) {
     if (search.value.trim()) {
@@ -158,7 +175,7 @@ export function installFolderExplorer(options: {
   }
   async function activate(row: ExplorerRow) {
     sync();
-    if (!opened || !options.enabled()) return;
+    if (!opened || !options.enabled() || actions.isBusy()) return;
     if (row.node.kind === "folder") { disclose(row); return; }
     if (!row.node.id || navigating) return;
     const origin = scope, current = selected === row.node.id;
@@ -180,6 +197,7 @@ export function installFolderExplorer(options: {
   treeElement.addEventListener("click", event => {
     const button = (event.target as Element).closest<HTMLElement>("[data-explorer-path]");
     const row = rows.find(item => item.node.path === button?.dataset.explorerPath);
+    if (actions.isBusy()) return;
     if (row) { focused = row.node.path; void activate(row); }
   });
   treeElement.addEventListener("focusin", event => {
@@ -211,7 +229,7 @@ export function installFolderExplorer(options: {
       else close();
     }
     if (event.key === "Tab" && narrow.matches) {
-      const controls = [refreshButton, closeButton, search, ...buttons.values()].filter(button => !button.disabled && button.tabIndex >= 0);
+      const controls = [document.getElementById("folder-explorer-new") as HTMLButtonElement, refreshButton, closeButton, search, ...buttons.values()].filter(button => !button.disabled && button.tabIndex >= 0);
       const first = controls[0], last = controls.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -221,5 +239,5 @@ export function installFolderExplorer(options: {
   window.addEventListener("pagehide", () => { close(false); stopped = true; files = []; tree = []; rows = []; buttons.clear(); treeElement.replaceChildren(); });
   window.addEventListener("pageshow", () => { stopped = false; sync(); });
   sync();
-  return { sync, refresh, select, rename, close, isOpen: () => opened };
+  return { sync, refresh, select, rename, close, isOpen: () => opened, isBusy: actions.isBusy, isActionOpen: actions.isOpen };
 }

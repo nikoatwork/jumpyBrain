@@ -1,4 +1,4 @@
-import { listCanonicalMemoryMarkdownFiles, readMarkdownDocument, resolveMemoryRoot } from "../../core/canonical/index.js";
+import { listCanonicalMemoryFolders, listCanonicalMemoryMarkdownFiles, readMarkdownDocument, resolveMemoryRoot } from "../../core/canonical/index.js";
 import { isValidMemoryDocumentId } from "../../core/document-id.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
 
@@ -9,10 +9,10 @@ export interface MemoryExplorerFile {
   title?: string;
 }
 
-export interface MemoryExplorerPacket { files: MemoryExplorerFile[] }
+export interface MemoryExplorerPacket { files: MemoryExplorerFile[]; folders?: string[] }
 
 /** Complete canonical metadata listing, independent of retrieval indexes and attention. */
-export async function listServerMemoryFiles(options: { root: string; signal?: AbortSignal }): Promise<MemoryExplorerPacket> {
+export async function listServerMemoryFiles(options: { root: string; signal?: AbortSignal; includeFolders?: boolean }): Promise<MemoryExplorerPacket> {
   const { signal } = options;
   signal?.throwIfAborted();
   const root = await resolveMemoryRoot(options.root);
@@ -36,5 +36,5 @@ export async function listServerMemoryFiles(options: { root: string; signal?: Ab
   }
   for (const file of files) if (file.id && counts.get(file.id) !== 1) file.id = null;
   files.sort((a, b) => a.file < b.file ? -1 : a.file > b.file ? 1 : 0);
-  return { files };
+  return { files, ...(options.includeFolders ? { folders: await listCanonicalMemoryFolders(root, signal) } : {}) };
 }
