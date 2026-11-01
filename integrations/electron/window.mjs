@@ -64,7 +64,14 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
       && details.isMainFrame && isAppNavigation(requestingOrigin, origin));
   session.webRequest.onBeforeRequest((details, callback) => {
     let allowed = false;
-    try { allowed = new URL(details.url).origin === origin; } catch { /* Deny. */ }
+    try {
+      const url = new URL(details.url), gateway = new URL(origin);
+      const liveProtocol = gateway.protocol === 'http:' ? 'ws:' : gateway.protocol === 'https:' ? 'wss:' : null;
+      allowed = url.origin === origin || Boolean(liveProtocol && details.resourceType === 'webSocket'
+        && url.protocol === liveProtocol && url.host === gateway.host && url.pathname === '/ws'
+        && !url.username && !url.password && !url.search && !url.hash
+        && details.url === `${liveProtocol}//${gateway.host}/ws`);
+    } catch { /* Deny. */ }
     callback({ cancel: !allowed });
   });
   const onDownload = (event, item, source) => {

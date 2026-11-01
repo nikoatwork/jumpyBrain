@@ -3,7 +3,8 @@ import { splitEditableDocument } from "./document-controller.js";
 import { memoryDocumentPath } from "../http-protocol.js";
 import type { MemoryDocumentDeletePreview, MemoryDocumentDeleteResult, MemoryDocumentReadResult } from "../../types.js";
 import type { Toast } from "./browser-toast.js";
-type Editor = ReturnType<typeof createDocumentEditor> & {
+import { installRetainedVersions, type RetainedVersionsEditor } from "./document-retained-versions.js";
+type Editor = ReturnType<typeof createDocumentEditor> & RetainedVersionsEditor & {
   publishReviewedDraft?(contentHash: string): Promise<boolean>;
   getRecoveryDrafts?(): Array<{clientId: string; updatedAt: number}>;
   recoverDraft?(draft: any): boolean;
@@ -19,6 +20,14 @@ export function installDocumentActions(options: {
   const $ = <T extends HTMLElement = HTMLElement>(id: string) => doc.getElementById(id) as T;
   const recovery = $<HTMLDialogElement>("document-recovery");
   const removal = $<HTMLDialogElement>("document-delete");
+  const retained = installRetainedVersions({
+    document: doc, editor: options.editor, writable: options.writable, scope: options.scope,
+    readCurrent: async (editor) => {
+      const saved = await options.json(memoryDocumentPath((editor as Editor).state.documentId)) as MemoryDocumentReadResult;
+      if (typeof saved.content !== "string" || typeof saved.contentHash !== "string" || typeof saved.title !== "string") throw new Error("Invalid saved note");
+      return { title: saved.title, body: splitEditableDocument(saved.content).body, contentHash: saved.contentHash };
+    },
+  });
   let busy = false, sequence = 0;
   let preview: MemoryDocumentDeletePreview | null = null;
   let bound: Editor | null = null, boundScope = "", comparisonHash = "", selectedRecovery = "";
@@ -26,6 +35,7 @@ export function installDocumentActions(options: {
   const draftText = (editor: Editor) => editor.state.title + "\n\n" + editor.state.draft;
   function close() {
     if (busy) return;
+    retained.close();
     sequence++; preview = null; bound = null; comparisonHash = ""; selectedRecovery = "";
     recovery.close(); removal.close();
     // Do not retain an old brain's note bodies in hidden dialogs.
@@ -192,5 +202,5 @@ export function installDocumentActions(options: {
   $("delete-cancel").addEventListener("click", close);
   $("delete-confirm").addEventListener("click", applyDelete);
   for (const dialog of [recovery, removal]) dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
-  return { close, openRecovery, openDelete, copy, isOpen: () => recovery.open || removal.open, isBusy: () => busy };
+  return { close, openRecovery, openDelete, copy, refreshRetained: retained.refresh, isOpen: () => recovery.open || removal.open || retained.isOpen(), isBusy: () => busy || retained.isBusy() };
 }

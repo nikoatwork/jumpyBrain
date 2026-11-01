@@ -366,3 +366,9 @@ one root owner with the app and foreground server. Streaming stdin publishes
 bounded UTF-8 chunks before EOF; a stable `--client-id` or JUMPYBRAIN_CLIENT_ID
 keeps agent undo scoped across invocations. Existing one-shot commands retain
 their data/use-case behavior and guarded whole-document hashes.
+
+For positioned writes, use the body and epoch/revision from `collaborate open
+--json` together: `edit --start N --delete N --epoch READ_EPOCH --base-revision
+READ_REVISION`, or `stream --start N` with the same read flags. The backend
+rebases against that read or rejects it; reopening cannot make stale offsets
+current. A stream without `--start` appends to the latest saved body.

@@ -1,5 +1,6 @@
 // Production source binding: real contenteditable, real WS backend, disposable root.
 import assert from "node:assert/strict";
+import { runStructuralCursorProof, runLiveCursorProof } from "./collaboration-cursor-proof.mjs";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -59,7 +60,7 @@ try {
   assert.equal(await isolated.locator("#note-editor h1").innerText(), "Live source");
   assert.deepEqual(await isolated.evaluate(() => richEditor.collaborativeSelection()), { anchor: 4, focus: 4 }, "plain heading projection counts its exact source prefix");
   await selectEditorText(isolated, "Live source".length + "Keep ".length + 1);
-  assert.equal(await isolated.evaluate(() => richEditor.collaborativeSelection()), null, "formatted spelling degrades without guessed coordinates");
+  assert.deepEqual(await isolated.evaluate(() => richEditor.collaborativeSelection()), { anchor: crlf.indexOf("bold") + 1, focus: crlf.indexOf("bold") + 1 }, "formatted source uses exact delimiter-aware coordinates");
   await isolated.locator("#note-editor pre[data-language]").evaluate((element) => {
     element.closest('[contenteditable]').focus(); const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT), text = walker.nextNode(); const range = document.createRange(); range.setStart(text, 5); range.collapse(true); getSelection().removeAllRanges(); getSelection().addRange(range);
   });
@@ -79,6 +80,7 @@ try {
   await isolated.waitForFunction((body) => richEditor.getMarkdown() === body, repeated);
   assert.equal(await editorMarkdown(isolated), repeated, "removing a final local paragraph preserves its trailing newline");
   assert.deepEqual(errors, []);
+  await runStructuralCursorProof(isolated);
   await isolated.close();
   if (process.env.JUMPYBRAIN_EDITOR_ISOLATED_ONLY === "1") { console.log("Production editor reconciliation smoke passed (isolated structural subset)."); }
   else {
@@ -116,10 +118,10 @@ try {
     assert.equal(await editorMarkdown(pages[0]), original, "Undo of a sent edit consumes its actor history instead of recording a redo-like inverse edit");
 
     await selectEditorText(pages[0], 2);
-    await pages[1].waitForFunction(() => document.querySelectorAll('[data-collaboration-actor]').length > 0);
-    assert.ok(await pages[1].evaluate(() => live.snapshot.presence.some((peer) => peer.anchor === 4 && peer.focus === 4)), "scoped source caret reaches another context");
+    await pages[1].waitForFunction(() => live.snapshot.presence.some((peer) => peer.anchor === 4 && peer.focus === 4));
+    assert.ok(await pages[1].locator('[data-collaboration-actor]').count() > 0, "scoped source caret reaches another context");
     await selectEditorText(pages[0], "Live source".length + "Keep ".length + 1);
-    await pages[1].waitForFunction(() => document.querySelectorAll('[data-collaboration-actor]').length === 0);
+    await pages[1].waitForFunction(() => document.querySelectorAll('[data-collaboration-actor]').length > 0);
 
     await appendEditorText(pages[0], "Human zero");
     await pages[0].waitForFunction(() => live.state.status === "saved" && richEditor.getMarkdown().includes("Human zero"));
@@ -221,6 +223,7 @@ try {
     assert.equal(await pages[0].evaluate(() => live.snapshot.title), "Offline recovered title");
     assert.deepEqual(errors, []);
     for (const context of contexts) await context.close();
+    await runLiveCursorProof({browser,serverUrl:server.url,token,root,bundle:bundle.outputFiles[0].text,errors});
     // The shipped shell must use the same live path without legacy PUT autosave.
     const shellContexts = [await browser.newContext(), await browser.newContext()];
     const shellPages = await Promise.all(shellContexts.map((context) => context.newPage()));
@@ -316,7 +319,7 @@ try {
     assert.equal((await readFile(path.join(root, "notes/live.md"), "utf8")).includes("unique current A body"), false, "private recovery does not silently publish either version");
     await cloneContext.close();
     assert.deepEqual(errors, []);
-    console.log("Production collaboration editor smoke passed: two contexts, source convergence, actor undo, canonical external writes, agent streams, IME, offline body/title reload recovery, shipped notes shell, cloned-tab actor isolation and explicit recovery selector, title normalization and draft-version preservation.");
+    console.log("Production collaboration editor smoke passed: two contexts, source convergence, actor undo, canonical external writes, agent streams, IME, offline body/title reload recovery, shipped notes shell, cloned-tab actor isolation and explicit recovery selector, title normalization and draft-version preservation, granular edits and visible revisioned cursors.");
   }
 } finally {
   agent?.close(); await browser?.close(); await server?.close(); if (sourceServer) await new Promise((resolve) => sourceServer.close(resolve)); await rm(root, { recursive: true, force: true });

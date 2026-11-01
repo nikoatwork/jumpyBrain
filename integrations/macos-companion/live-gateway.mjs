@@ -1,4 +1,4 @@
-import { WebSocket, WebSocketServer } from '../../dist/adapters/live/ws.js';
+import { WebSocket, WebSocketServer } from '../../dist/adapters/websocket/index.js';
 
 // Each admitted operation pins the selected brain until its acknowledgement.
 // Credentials are substituted here, never exposed to the renderer or URL.

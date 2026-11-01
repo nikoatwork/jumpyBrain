@@ -7,8 +7,8 @@
       "kind": "assertion",
       "file": "scripts/collaboration-smoke-transport.mjs",
       "oldSha256": null,
-      "newSha256": "532993e369c44e42d6def1d93f61d220108c63a6994d69b96ab4732c7991ccd4",
-      "reason": "Pin the new real WebSocket fault harness. Production frames pass through; held/lost acknowledgements cover RPC replies and identified document events. Closed transports cannot dispatch held writes.",
+      "newSha256": "9fd8e45514255e0823c3fecddd82944615fc204662bb62eddbb7b51c4e48e45d",
+      "reason": "Pin the new real WebSocket fault harness. Production frames pass through; held/lost acknowledgements cover RPC replies and identified document events. Closed transports cannot dispatch held writes. Also hold/drop matching operation receipts carried by other RPC snapshots (including presence), so alternate authenticated confirmations cannot escape an intentionally lost-ack test.",
       "scenarioIds": [
         "P04",
         "P05",
@@ -87,8 +87,8 @@
       "kind": "assertion",
       "file": "scripts/markdown-formatting-smoke.mjs",
       "oldSha256": "dd9cf12a7c778f2992f9bf27b2c79af09c972528e0bc53a66f26549ce0c5ca75",
-      "newSha256": "f7bf208fd8bf79ce618e4346c103928341128e4a02bb63e6f0c2774516d3d778",
-      "reason": "Retain formatting, CRLF, no-final-newline, security, failed-save and recovery outcomes through live edits. Inspect actual canonical bytes instead of retired PUT bodies. Lost-ack tests suppress both confirmation channels and explicitly reconnect before resolution.",
+      "newSha256": "acaa62f1121ac88f44f93b5af6d2fe9a96a577ac184faccc741f599302610c7f",
+      "reason": "Retain formatting, CRLF, no-final-newline, security, failed-save and recovery outcomes through live edits. Inspect actual canonical bytes instead of retired PUT bodies. Lost-ack tests suppress both confirmation channels and explicitly reconnect before resolution. After reload, wait for authenticated live-open Saved before injecting the external change; initial hydration legitimately has no remote-change highlight. Keep the original positive highlight, source, caret and no-echo assertions.",
       "scenarioIds": [
         "P02",
         "P05",
@@ -118,13 +118,14 @@
       "kind": "assertion",
       "file": "test/architecture-boundaries.test.js",
       "oldSha256": "6f3b719e76159fb5979a9296dcd75b613b86fee9eae3df708a4d8c44fb3885be",
-      "newSha256": "05a36c6c8baa80810044c9c03884a64aaf2be41242b7213fc811d4089bb13857",
-      "reason": "Classify backend, access and live adapters explicitly and allow only the specific CLI/backend-application edges required for ownership. Preserve core independence and the remaining approved import graph.",
+      "newSha256": "4031b19be4c3f58e27e757a0a132de6b9e5b9b4a7aa0f86a2d615aec18eea094",
+      "reason": "Classify backend, access and live policy adapters explicitly, with a separate shared WebSocket transport adapter for CLI/live consumers. Preserve CLI-to-live-policy prohibition, vendor independence, core independence and the remaining approved import graph; forbid a duplicate vendor entry under live policy.",
       "scenarioIds": [
         "P12"
       ],
       "evidence": [
-        "source imports follow the approved CLI/app/core/adapters layer graph"
+        "source imports follow the approved CLI/app/core/adapters layer graph",
+        "shared WebSocket transport exposes only ws and never permits CLI access to live application policy"
       ]
     },
     {
@@ -146,8 +147,8 @@
       "kind": "assertion",
       "file": "test/lexical-bundle.test.js",
       "oldSha256": "7aba3ac654489ea2cf2c8c327273c2d3ddafe0fe4a4c0c9ce01eec0a6fbf32e4",
-      "newSha256": "a0685c5d562cebf32102000d7cbae814b9d8b05f43b910a2e28311f9693bece5",
-      "reason": "Review the measured approximately 205KB-gzip source binding, private drafts and supervisor under a 210KB ceiling. Retain inline safety/licenses/dependency separation; pinned server ws stays outside the browser bundle. Include landed master folder actions.",
+      "newSha256": "5e93da1b25b2c52ae69c58a1d0680fddc40eb1f3f6f90127e47fb85f5b35f994",
+      "reason": "Review the measured 212237-byte gzip editor after exact structural source maps, granular reconciliation and authenticated retained-version UI (6501 bytes / 3.16% over the prior production preflight). Set a 220000-byte ceiling with 3.7% headroom; retain inline safety, license and dependency-separation assertions, the same 15 editor packages, unchanged package ceilings and fixed latency/resource budgets.",
       "scenarioIds": [
         "P06",
         "P12"
@@ -195,8 +196,8 @@
       "kind": "assertion",
       "file": "test/notes-browser.test.js",
       "oldSha256": "9c90fe7d1139fdc398c43db578a6651284bac358c045838af69e341072de2384",
-      "newSha256": "98a4915fab11e4291bafa95acff7ed727e9f1ef7250d424fd0c342cd7d6bb954",
-      "reason": "Supply live-binding and HttpOnly-session seams in isolated VM tests and await asynchronous credential transitions. Keep late-response, reference cancellation and persisted-credential removal expectations; real browser tests separately exercise identity fences and old socket disposal.",
+      "newSha256": "7d54b85828cce8f212e9d6221c145ce2975f0bc0fd4c8ad5bfb6d945d361831d",
+      "reason": "Supply live-binding and HttpOnly-session seams in isolated VM tests and await asynchronous credential transitions. Keep late-response, reference cancellation and persisted-credential removal expectations; real browser tests separately exercise identity fences and old socket disposal. Supply the retained-version lifecycle seam in extracted-function VM fixtures and assert credential changes refresh that scope; preserve every existing credential, reference, cancellation and late-response assertion.",
       "scenarioIds": [
         "P05",
         "P07",

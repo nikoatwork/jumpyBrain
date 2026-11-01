@@ -75,6 +75,8 @@ jumpybrain tree --target-url https://memory.example.com --connections --json
 
 The overview reports canonical Markdown counts, buckets, tags, index freshness, and optional explicit Markdown/wiki-link connection stats. It does not return memory bodies. Use compact recall/search for passages, conditional `expand` for evidence gaps, and `show`/`update` for full-document editing.
 
+For a note being edited live, use the [collaborative CLI](collaboration.md#streaming-agents) with a stable agent client ID. `collaborate open --json` returns the source body and its epoch/revision; calculate positions from that body and pass the same `--epoch` and `--base-revision` to `edit` or a positioned `stream`. Default streaming appends to current saved source. A fresh internal open must never relabel stale offsets. Connection loss requires inspecting saved state before retrying. This shares the same backend with humans while preserving ordinary memory commands and direct-file recovery.
+
 ## Recall before sparring/research
 
 Run a visible prior-knowledge scan before deep work:

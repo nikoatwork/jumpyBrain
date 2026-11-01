@@ -100,3 +100,9 @@ without mutating process-global environment.
 revocable roles and streaming source operations. Agent chunks are decoded
 incrementally, bounded and sent with backpressure; no mutation is replayed on
 connection loss. See [collaboration commands](../../docs/collaboration.md).
+
+Positioned collaboration writes carry the actual caller read epoch/revision:
+`edit` and `stream --start` require `--epoch` and `--base-revision`. Their
+connection's fresh open is discovery/subscription state, never authority to
+relabel stale offsets. Default streaming explicitly appends to current saved
+source. A stream rejects `--delete` rather than ignoring an unsupported range.

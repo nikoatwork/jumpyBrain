@@ -5,17 +5,17 @@ import {execFileSync} from 'node:child_process';
 import {mkdtemp,mkdir,readFile,writeFile,rm} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import {readProductionContract,assertIntegrationHead,productionSourceMap,readPinnedLinuxReport,assertDesktopArtifact,assessProductionCheck} from '../scripts/multiplayer-production-verify.mjs';
+import {readProductionContract,assertScenarioAssertions,assertIntegrationHead,productionSourceMap,readPinnedLinuxReport,assertDesktopArtifact,assessProductionCheck} from '../scripts/multiplayer-production-verify.mjs';
 
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex'),json=value=>JSON.stringify(value,null,2)+'\n';
 const contractFile=new URL('../deep-dives/multiplayer-editing/production-gate-contract.json',import.meta.url);
 async function directory(t){const root=await mkdtemp(path.join(os.tmpdir(),'jb-production-gate-'));t.after(()=>rm(root,{recursive:true,force:true}));return root;}
 async function save(root,name,value){const file=path.join(root,name),bytes=json(value);await writeFile(file,bytes);return{file,pin:sha(bytes)};}
 test('production contract has an external pin and retains all checks, original M0 and budget floors',async t=>{
-  const bytes=await readFile(contractFile),contract=await readProductionContract(contractFile,sha(bytes));assert.equal(contract.checks.length,10);
+  const bytes=await readFile(contractFile),contract=await readProductionContract(contractFile,sha(bytes));assert.equal(contract.checks.length,12);
   await assert.rejects(readProductionContract(contractFile),/externally pinned/);await assert.rejects(readProductionContract(contractFile,'a'.repeat(64)),/digest disagrees/);
   const root=await directory(t);
-  for(const mutate of [value=>value.checks.pop(),value=>value.protectedM0.baselineSha256='a'.repeat(64),value=>value.workloadAcceptance.canonicalP95Ms=10000,value=>value.checks.find(item=>item.id==='shared-workload').workload.humans=2,value=>value.checks.find(item=>item.id==='composed-linux').command.pop(),value=>value.checks.find(item=>item.id==='packaged-upgrade').command.pop(),value=>value.linuxNodeVersions[22]='v22.23.4']){
+  for(const mutate of [value=>value.checks.pop(),value=>value.protectedM0.baselineSha256='a'.repeat(64),value=>value.workloadAcceptance.canonicalP95Ms=10000,value=>value.checks.find(item=>item.id==='shared-workload').workload.humans=2,value=>value.checks.find(item=>item.id==='composed-linux').command.pop(),value=>value.checks.find(item=>item.id==='packaged-upgrade').command.pop(),value=>value.linuxNodeVersions[22]='v22.23.4',value=>value.checks.find(item=>item.id==='native-input-accessibility').command.pop(),value=>delete value.scenarioAssertions['test/collaboration-advanced-model.test.js']]){
     const value=structuredClone(contract);mutate(value);const saved=await save(root,'changed.json',value);await assert.rejects(readProductionContract(saved.file,saved.pin),/weakened/);
   }
 });
@@ -32,6 +32,20 @@ test('packaged upgrade requires frozen old source, exact package/runtime pins an
   const data={version:1,passed:true,...context,old:{sourceCommit:'be5493ba9a3c5aa796d371043e56d6539d6dabf4',build:'old-build'},target:{build:'build'},roots:2,upgradeMode:'disposable-runtime-replacement',sameIdRoots:true,canonicalPreserved:true,recoveryPreserved:true,searchBeforeAfter:true,interruptedRetry:true,rollbackRecovered:true};
   const assess=value=>assessProductionCheck(check,{code:0,output:json(value)},context);assert.equal(assess(data).status,'passed');
   for(const mutate of [value=>value.packageSha256=sha('different'),value=>value.runtimeArtifactSha256=sha('different'),value=>value.old.sourceCommit='unknown',value=>value.target.build='old',value=>value.roots=1,value=>value.recoveryPreserved=false,value=>value.interruptedRetry=false,value=>value.rollbackRecovered=false,value=>value.upgradeMode='mocked']){const value=structuredClone(data);mutate(value);assert.equal(assess(value).status,'failed');}
+});
+test('retained-version UI proof requires every real authenticated browser scenario on the current source',async()=>{
+  const contract=JSON.parse(await readFile(contractFile)),check=contract.checks.find(value=>value.id==='retained-version-ui'),context={head:'current',build:'build',scriptSha256:sha('script')};
+  const ids=['notification','compare-copy','writer-restore','reader-readonly','stale-comparison','revocation','unique-draft','storage-failure','large-copy-fallback','discovery-incomplete','scope-switch'];
+  const data={version:1,passed:true,realBrowser:true,authenticatedAPI:true,...context,scenarios:ids.map(id=>({id,passed:true}))};
+  const assess=value=>assessProductionCheck(check,{code:0,output:json(value)},context);assert.equal(assess(data).status,'passed');
+  for(const mutate of [value=>value.realBrowser=false,value=>value.authenticatedAPI=false,value=>value.head='old',value=>value.scriptSha256=sha('old'),value=>value.scenarios.pop(),value=>value.scenarios[0].passed=false,value=>value.scenarios[0].id=value.scenarios[1].id]){const value=structuredClone(data);mutate(value);assert.equal(assess(value).status,'failed');}
+});
+test('protected production regressions cannot be removed or weakened behind a passing test count',async t=>{
+  const root=await directory(t);await mkdir(path.join(root,'test'));const file=path.join(root,'test/scenario.test.js');
+  await writeFile(file,'assert.equal(actual, expected);');const contract={scenarioAssertions:{'test/scenario.test.js':sha(await readFile(file))}};
+  await assertScenarioAssertions(root,contract);
+  await writeFile(file,'assert.ok(true);');await assert.rejects(assertScenarioAssertions(root,contract),/Protected production scenario assertion changed/);
+  await rm(file);await assert.rejects(assertScenarioAssertions(root,contract));
 });
 test('integration must be clean, contain current target and retain exact HEAD and target during verification',async t=>{
   const root=await directory(t),git=args=>execFileSync('git',args,{cwd:root,encoding:'utf8',stdio:'pipe'}).trim();git(['init','-q','-b','master']);git(['config','user.name','Production Fixture']);git(['config','user.email','gate@example.invalid']);

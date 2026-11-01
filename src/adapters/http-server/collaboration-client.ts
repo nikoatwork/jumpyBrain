@@ -2,8 +2,10 @@ export interface CollaborationSnapshot {
   documentId: string; epoch: string; revision: number; body: string; title: string; contentHash: string; saved: boolean;
   prefix?: string; file?: string; recognition?: unknown;
   operation?: { start: number; deleteCount: number; insert?: string; snapshotOnly?: boolean; actor?: string; operationId?: string };
-  presence?: { actor: string; name: string; kind: "human" | "agent"; anchor?: number; focus?: number }[];
+  presence?: { actor: string; principalId?: string; clientId?: string; name: string; kind: "human" | "agent"; activity?: "viewing" | "editing" | "streaming"; epoch?: string; revision?: number; leaseExpiresAt?: number; anchor?: number; focus?: number }[];
   conflict?: { code: string; message?: string };
+  recovery?: { code: "external_destructive_replacement"; recoveryId: string; baseContentHash: string; externalContentHash: string };
+  recoveryDiscovery?: "incomplete";
 }
 export type CollaborationConnectionState = "connecting" | "ready" | "offline" | "blocked" | "closed";
 export interface CollaborationPrincipal { id: string; name?: string; role: string }

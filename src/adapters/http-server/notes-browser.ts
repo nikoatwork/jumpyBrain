@@ -166,6 +166,9 @@ ${noteOutlineStyles}
     @media (prefers-reduced-motion: reduce) {
       #note-editor > .external-change { animation: none; background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
     }
+    #note-presence { display: flex; gap: var(--space-2); flex-wrap: wrap; max-width: 100%; }
+    #note-presence[hidden] { display: none; }
+    .note-participant { border-left: 3px solid var(--participant-color); padding-left: var(--space-2); overflow: hidden; text-overflow: ellipsis; max-width: 240px; white-space: nowrap; color: var(--ink-soft); font-size: var(--text-caption); }
     #note-external-state { color: var(--ink-soft); font-size: var(--text-caption); }
     #note-editor .editor-inline-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; background: var(--control-fill); border-radius: var(--radius-sm); padding: 0 var(--space-1); }
     #note-editor .markdown-literal code, #note-editor .markdown-literal .editor-inline-code, #note-editor .markdown-code-block .editor-inline-code, #note-editor .markdown-reference { font: inherit; background: transparent; padding: 0; border-radius: 0; }
@@ -1155,6 +1158,7 @@ async function setConnectionKey(key) {
   credentialRevision++;
   systemMessages.sync();
   livingSources.sync();
+  lifecycleActions?.refreshRetained?.();
   folderExplorer.sync();
   relatedPages.sync();
   recentWrites.reset();
@@ -1544,6 +1548,20 @@ $("note-name").addEventListener("blur", () => state.editor?.flush());
 
 // Preserve the document controller's navigation/action contract while live
 // publication owns the body and its acknowledgement. Legacy autosave never runs.
+let presenceSignature = "";
+function renderLivePresence(snapshot, status, ownClientId) {
+  const root = $("note-presence");
+  const peers = ["saved", "saving", "readonly", "conflict"].includes(status) ? (snapshot?.presence || []).filter(peer => peer.clientId !== ownClientId && (!peer.leaseExpiresAt || peer.leaseExpiresAt > Date.now())) : [];
+  const signature = JSON.stringify(peers.map(peer => [peer.actor, peer.principalId, peer.name, peer.kind, peer.activity]));
+  if (signature === presenceSignature) return;
+  presenceSignature = signature; root.replaceChildren(); root.hidden = !peers.length;
+  for (const peer of peers) {
+    const appearance = JumpyBrainBrowser.participantAppearance(peer), chip = document.createElement("span");
+    chip.className = "note-participant"; chip.dataset.actor = peer.actor; chip.dataset.kind = peer.kind;
+    chip.style.setProperty("--participant-color", appearance.color); chip.textContent = appearance.label + " · " + appearance.activity;
+    chip.title = appearance.description; chip.setAttribute("aria-label", appearance.description); root.append(chip);
+  }
+}
 async function attachLiveEditor(editor, documentId, focusEnd) {
   editor.state.autoSaveBlocked = true; editor.state.liveStatus = "connecting"; editor.state.liveHasOpened = false;
   syncEditorUi(editor.state);
@@ -1574,8 +1592,6 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
       if (contentChanged) {current.reconcileToken++; current.draftRevision++;}
       if (view.remote) { current.externalStatus = "updated"; setTimeout(() => {if (state.editor === editor) {current.externalStatus = ""; syncEditorUi(current);}}, 4000);}
       $("note-file").textContent = snapshot.file || "";
-      const peers = snapshot.presence || [];
-      $("note-presence").textContent = peers.length > 1 ? peers.length + " editing · " + [...new Set(peers.map(peer => peer.name))].join(", ") : "";
       if (contentChanged) {
       sidebarPages.rename({id: documentId, title: snapshot.title});
       if (sidebarRefresh) clearTimeout(sidebarRefresh);
@@ -1598,6 +1614,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
       current.saveStatus = live.status === "saved" && !current.dirty ? "saved" : ["conflict", "blocked"].includes(live.status) ? "failed" : "saving";
       current.saveErrorCode = live.status === "conflict" ? "precondition_failed" : "";
       current.saveError = live.message || "";
+      renderLivePresence(collaboration.snapshot, live.status, collaboration.clientId);
       current.liveStatus = live.status; current.liveCanWrite = live.canWrite; current.recoveryDrafts = live.recoveryDrafts; current.durableDraft = live.durableDraft;
       const firstOpen = !current.liveHasOpened && live.canWrite;
       current.liveHasOpened ||= live.canWrite || live.status === "readonly" || live.status === "saved";
@@ -1614,6 +1631,10 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
   editor.startSave = editor.flush;
   editor.retry = () => collaboration.resolveConflict("draft");
   editor.publishReviewedDraft = (hash) => collaboration.resolveConflict("draft", hash);
+  editor.getRetainedRecovery = () => collaboration.snapshot?.recovery;
+  editor.getRetainedDiscovery = () => collaboration.snapshot?.recoveryDiscovery;
+  editor.readRetainedVersion = (recovery, copy) => collaboration.readRetainedVersion(recovery, copy);
+  editor.restoreRetainedVersion = (version, expectedHash) => collaboration.restoreRetainedVersion(version, expectedHash);
   editor.getRecoveryDrafts = () => collaboration.state.recoveryDrafts;
   editor.recoverDraft = (record) => collaboration.recoverDraft(record);
   editor.hasPending = () => editor.state.dirty || collaboration.state.dirty;
@@ -1624,7 +1645,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
     if (editor.state.liveStatus === "blocked") {await showNote(documentId); return state.editor !== editor && Boolean(state.editor?.state.loaded);}
     return collaboration.resolveConflict("saved");
   };
-  editor.cancel = () => {cancelled = true; clearTimeout(sidebarRefresh); collaboration.dispose(); originalCancel();};
+  editor.cancel = () => {renderLivePresence(null, "offline"); cancelled = true; clearTimeout(sidebarRefresh); collaboration.dispose(); originalCancel();};
   collaboration.connect();
   return collaboration;
 }
@@ -1637,6 +1658,7 @@ function syncEditorUi(editorState) {
   noteAttention.sync();
   sidebarPages.sync();
   livingSources.sync();
+  lifecycleActions?.refreshRetained?.();
   folderExplorer.sync();
   relatedPages.sync();
   if (typeof feedbackDiagnostics !== "undefined") {

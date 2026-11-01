@@ -1,27 +1,22 @@
-export class CollaborationError extends Error {
-  constructor(
-    readonly code: string,
-    message = code,
-  ) {
-    super(message);
-    this.name = "CollaborationError";
-  }
-}
-function fail(code: string, message?: string): never {
-  throw new CollaborationError(code, message);
-}
+import {
+  CollaborationError,
+  collaborationFailure as fail,
+  isSourceText,
+  sourceBoundary as boundary,
+} from "./errors.js";
+import {
+  applySourceSplices,
+  invertSourceSplices,
+  rebaseSourceSplices,
+  sourceDifference,
+  transformSourcePosition,
+  validateSourceSplices,
+  type SourceSplice,
+  type AppliedSourceSplice,
+} from "./source.js";
+export { CollaborationError, isSourceText } from "./errors.js";
+export { sourceDifference } from "./source.js";
 const bytes = (text: string) => new TextEncoder().encode(text).length;
-export const isSourceText = (text: string) =>
-  !/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u.test(
-    text,
-  );
-const boundary = (text: string, at: number) =>
-  !(
-    at > 0 &&
-    at < text.length &&
-    /[\uD800-\uDBFF]/.test(text[at - 1]!) &&
-    /[\uDC00-\uDFFF]/.test(text[at]!)
-  );
 export interface SourceEdit {
   actor: string;
   operationId: string;
@@ -31,14 +26,182 @@ export interface SourceEdit {
   deleteCount: number;
   insert: string;
 }
-export interface SourceOperation {
+export interface SourceBatchEdit {
   actor: string;
   operationId: string;
-  start: number;
-  deleteCount: number;
-  insert: string;
-  removed: string;
+  epoch: string;
+  baseRevision: number;
+  operations: SourceSplice[];
+}
+interface OperationIdentity {
+  actor: string;
+  operationId: string;
   revision: number;
+}
+export interface SourceOperation extends AppliedSourceSplice {
+  actor: string;
+  operationId: string;
+  revision: number;
+  /** All coordinates refer to the same pre-transaction source. */
+  operations?: AppliedSourceSplice[];
+  inverseOf?: OperationIdentity;
+}
+export const operationSplices = (
+  operation: SourceOperation,
+): AppliedSourceSplice[] =>
+  operation.operations ?? [
+    {
+      start: operation.start,
+      deleteCount: operation.deleteCount,
+      insert: operation.insert,
+      removed: operation.removed,
+    },
+  ];
+function coalesce(operations: AppliedSourceSplice[]): AppliedSourceSplice[] {
+  const result: AppliedSourceSplice[] = [];
+  for (const operation of operations) {
+    const previous = result.at(-1);
+    if (
+      previous &&
+      (previous.start + previous.deleteCount === operation.start ||
+        (previous.start === operation.start &&
+          (!previous.deleteCount || !operation.deleteCount)))
+    ) {
+      previous.deleteCount += operation.deleteCount;
+      previous.insert += operation.insert;
+      previous.removed += operation.removed;
+    } else result.push({ ...operation });
+  }
+  return result;
+}
+function transaction(
+  actor: string,
+  operationId: string,
+  revision: number,
+  operations: AppliedSourceSplice[],
+  inverseOf?: OperationIdentity,
+): SourceOperation {
+  const first = operations[0] ?? {
+    start: 0,
+    deleteCount: 0,
+    insert: "",
+    removed: "",
+  };
+  return {
+    actor,
+    operationId,
+    revision,
+    ...first,
+    ...(operations.length !== 1 ? { operations } : {}),
+    ...(inverseOf ? { inverseOf } : {}),
+  };
+}
+function sameSplices(
+  left: AppliedSourceSplice[],
+  right: AppliedSourceSplice[],
+) {
+  return (
+    left.length === right.length &&
+    left.every((operation, index) => {
+      const other = right[index]!;
+      return (
+        operation.start === other.start &&
+        operation.deleteCount === other.deleteCount &&
+        operation.insert === other.insert &&
+        operation.removed === other.removed
+      );
+    })
+  );
+}
+/** Remove only still-owned source; never consume a later actor's inserted text. */
+function selectiveRebase(
+  local: AppliedSourceSplice[],
+  remote: readonly SourceSplice[],
+  projectInterior = false,
+): AppliedSourceSplice[] {
+  let result = local;
+  for (let index = remote.length - 1; index >= 0; index--) {
+    const other = remote[index]!;
+    if (!other.deleteCount && !other.insert) continue;
+    const otherEnd = other.start + other.deleteCount,
+      next: AppliedSourceSplice[] = [];
+    const anchor = (position: number, allowInterior: boolean) => {
+      if (!other.deleteCount)
+        return position >= other.start
+          ? position + other.insert.length
+          : position;
+      if (position <= other.start) return position;
+      if (position >= otherEnd)
+        return position + other.insert.length - other.deleteCount;
+      if (!allowInterior)
+        fail(
+          "overlapping_edit",
+          "Undo cannot prove an insertion anchor removed by another writer. Retain the draft for review.",
+        );
+      return other.start + other.insert.length;
+    };
+    for (const operation of result) {
+      const end = operation.start + operation.deleteCount;
+      if (!operation.deleteCount) {
+        next.push({
+          ...operation,
+          start: anchor(operation.start, projectInterior),
+        });
+        continue;
+      }
+      const overlap = operation.start < otherEnd && end > other.start;
+      if (
+        overlap &&
+        other.deleteCount &&
+        other.insert &&
+        operation.insert &&
+        !projectInterior
+      )
+        fail(
+          "overlapping_edit",
+          "Undo overlaps another writer's replacement. Both intents require review.",
+        );
+      const pieces: AppliedSourceSplice[] = [];
+      const add = (start: number, finish: number) => {
+        if (finish > start)
+          pieces.push({
+            start:
+              start >= otherEnd
+                ? start + other.insert.length - other.deleteCount
+                : start,
+            deleteCount: finish - start,
+            insert: "",
+            removed: operation.removed.slice(
+              start - operation.start,
+              finish - operation.start,
+            ),
+          });
+      };
+      add(operation.start, Math.min(end, other.start));
+      add(Math.max(operation.start, otherEnd), end);
+      const restoreAt = anchor(operation.start, true);
+      if (operation.insert) {
+        if (pieces[0]?.start === restoreAt) pieces[0].insert = operation.insert;
+        else
+          pieces.unshift({
+            start: restoreAt,
+            deleteCount: 0,
+            insert: operation.insert,
+            removed: "",
+          });
+      }
+      next.push(...pieces);
+    }
+    result = coalesce(next).filter(
+      (operation) => operation.removed !== operation.insert,
+    );
+    if (result.length > 256)
+      fail(
+        "history_expired",
+        "Selective history exceeds the bounded splice budget.",
+      );
+  }
+  return result;
 }
 interface Receipt {
   signature: string;
@@ -130,8 +293,11 @@ export class SourceModel {
   }
   get retainedBytes() {
     const operationBytes = (operation: SourceOperation) =>
-      bytes(operation.insert) +
-      bytes(operation.removed) +
+      operationSplices(operation).reduce(
+        (sum, splice) =>
+          sum + bytes(splice.insert) + bytes(splice.removed) + 64,
+        0,
+      ) +
       bytes(operation.actor) +
       bytes(operation.operationId) +
       128;
@@ -153,24 +319,15 @@ export class SourceModel {
     );
   }
   private retain(limit = this.maxHistoryBytes) {
-    // Active streams retain a current anchor rather than pinning full old
-    // snapshots. Independent edits can therefore outlive bounded read history.
+    // Active streams carry current anchors instead of pinning unbounded snapshots.
     for (const [key, stream] of this.streams) {
-      let start = stream.start,
-        valid = true;
-      for (const operation of this.history)
-        if (operation.revision > stream.baseRevision) {
-          if (operation.start + operation.deleteCount <= start)
-            start += operation.insert.length - operation.deleteCount;
-          else if (start > operation.start) {
-            valid = false;
-            break;
-          }
-        }
-      if (valid) {
-        stream.start = start;
+      try {
+        stream.start = this.transformPosition(
+          stream.start,
+          stream.baseRevision,
+        );
         stream.baseRevision = this.revision;
-      } else {
+      } catch {
         stream.state = "cancelled";
         this.streams.delete(key);
         this.retiredStreams.set(key, stream);
@@ -206,129 +363,246 @@ export class SourceModel {
     while (this.redoStacks.size && this.retainedBytes > limit)
       this.redoStacks.delete(this.redoStacks.keys().next().value!);
   }
-  apply(
-    request: SourceEdit,
-    undo: false | true | "redo" = false,
+  private base(revision: number) {
+    if (
+      !Number.isSafeInteger(revision) ||
+      revision < 0 ||
+      revision > this.revision
+    )
+      fail("invalid_revision");
+    const body = this.versions.get(revision);
+    if (body === undefined)
+      fail(
+        "history_expired",
+        "The read revision expired. Resynchronize and reconcile the retained draft.",
+      );
+    return body;
+  }
+  /** Reduce only verified inverse pairs, commuting intervening independent edits. */
+  private effectiveHistory(
+    baseRevision: number,
+    charge: (cost: number) => void = () => {},
+  ) {
+    const result: SourceOperation[] = [];
+    for (const actual of this.history.filter(
+      (operation) => operation.revision > baseRevision,
+    )) {
+      const target = actual.inverseOf,
+        index = target
+          ? result.findIndex(
+              (operation) =>
+                operation.actor === target.actor &&
+                operation.operationId === target.operationId &&
+                operation.revision === target.revision,
+            )
+          : -1;
+      if (index < 0) {
+        result.push(actual);
+        continue;
+      }
+      const original = result[index]!,
+        middle = result.slice(index + 1),
+        commuted: SourceOperation[] = [];
+      let inverse = invertSourceSplices(operationSplices(original));
+      for (const operation of middle) {
+        const splices = operationSplices(operation);
+        charge(Math.max(1, inverse.length * splices.length * 2));
+        const mapped = selectiveRebase(splices, inverse, true);
+        const advanced = selectiveRebase(inverse, splices);
+        commuted.push(
+          transaction(
+            operation.actor,
+            operation.operationId,
+            operation.revision,
+            coalesce(mapped),
+            operation.inverseOf,
+          ),
+        );
+        inverse = coalesce(advanced);
+      }
+      if (!sameSplices(coalesce(inverse), coalesce(operationSplices(actual))))
+        fail(
+          "history_expired",
+          "An inverse history pair could not be proven. Resynchronize before editing.",
+        );
+      result.splice(index, result.length - index, ...commuted);
+    }
+    return result;
+  }
+  transformPosition(
+    position: number,
+    baseRevision: number,
+    association: -1 | 1 | "left" | "right" = 1,
+  ) {
+    const body = this.base(baseRevision);
+    if (
+      !Number.isSafeInteger(position) ||
+      position < 0 ||
+      position > body.length ||
+      !boundary(body, position)
+    )
+      fail("invalid_base_range");
+    let cost = 0,
+      result = position;
+    const charge = (amount: number) => {
+      if ((cost += amount) > 1_000_000)
+        fail(
+          "history_expired",
+          "The retained transform budget expired. Resynchronize.",
+        );
+    };
+    for (const operation of this.effectiveHistory(baseRevision, charge)) {
+      charge(operationSplices(operation).length);
+      result = transformSourcePosition(
+        result,
+        operationSplices(operation),
+        association,
+      );
+    }
+    if (result < 0 || result > this.body.length || !boundary(this.body, result))
+      fail("invalid_range");
+    return result;
+  }
+  apply(request: SourceEdit, mode: false | true | "redo" = false) {
+    return this.applyBatch(
+      {
+        ...request,
+        operations: [
+          {
+            start: request.start,
+            deleteCount: request.deleteCount,
+            insert: request.insert,
+          },
+        ],
+      },
+      mode,
+    );
+  }
+  applyBatch(
+    request: SourceBatchEdit,
+    mode: false | true | "redo" = false,
+    inverseOf?: OperationIdentity,
   ): { operation?: SourceOperation; duplicate?: boolean; unchanged?: boolean } {
     if (request.epoch !== this.epoch)
       fail(
         "epoch_changed",
         "The document restarted or was replaced. Resynchronize before publishing.",
       );
-    const {
-      actor,
-      operationId,
-      baseRevision,
-      start: requestedStart,
-      deleteCount,
-      insert,
-    } = request;
-    const key = this.identity(actor, operationId);
+    const { actor, operationId, baseRevision } = request,
+      key = this.identity(actor, operationId);
+    if (!Array.isArray(request.operations) || request.operations.length > 256)
+      fail("batch_limit");
+    if (
+      request.operations.some(
+        (operation) =>
+          !operation ||
+          typeof operation.insert !== "string" ||
+          !isSourceText(operation.insert) ||
+          !Number.isSafeInteger(operation.start) ||
+          operation.start < 0 ||
+          !Number.isSafeInteger(operation.deleteCount) ||
+          operation.deleteCount < 0,
+      )
+    )
+      fail("invalid_patch");
+    if (
+      request.operations.reduce(
+        (sum, operation) => sum + bytes(operation.insert),
+        0,
+      ) > this.maxBytes
+    )
+      fail("document_limit");
     const signature = JSON.stringify([
       actor,
       operationId,
       request.epoch,
       baseRevision,
-      requestedStart,
-      deleteCount,
-      insert,
-      undo,
+      request.operations.map((operation) => [
+        operation.start,
+        operation.deleteCount,
+        operation.insert,
+      ]),
+      mode,
     ]);
     const prior = this.receipts.get(key);
     if (prior) {
       if (prior.signature !== signature) fail("operation_identity_reused");
       return { operation: prior.operation, duplicate: true };
     }
+    const base = this.base(baseRevision);
+    validateSourceSplices(base, request.operations);
     if (
-      !Number.isSafeInteger(baseRevision) ||
-      baseRevision < 0 ||
-      baseRevision > this.revision
+      request.operations.reduce(
+        (sum, operation) => sum + bytes(operation.insert),
+        0,
+      ) > this.maxBytes
     )
-      fail("invalid_revision");
-    const base = this.versions.get(baseRevision);
-    if (base === undefined)
-      fail(
-        "history_expired",
-        "The read revision expired. Resynchronize and reconcile the retained draft.",
-      );
+      fail("document_limit");
     if (
-      !Number.isSafeInteger(requestedStart) ||
-      requestedStart < 0 ||
-      !Number.isSafeInteger(deleteCount) ||
-      deleteCount < 0 ||
-      typeof insert !== "string" ||
-      !isSourceText(insert) ||
-      bytes(insert) > this.maxBytes
-    )
-      fail("invalid_patch");
-    if (
-      requestedStart + deleteCount > base.length ||
-      !boundary(base, requestedStart) ||
-      !boundary(base, requestedStart + deleteCount)
-    )
-      fail("invalid_base_range");
-    if (
-      !undo &&
+      !mode &&
       !this.undoStacks.has(actor) &&
       this.undoStacks.size >= this.maxActors
     )
       fail("actor_limit");
-    let start = requestedStart;
-    for (const other of this.history.filter(
-      (op) => op.revision > baseRevision,
-    )) {
-      const end = start + deleteCount,
-        otherEnd = other.start + other.deleteCount;
-      if (
-        other.deleteCount === 0 &&
-        deleteCount === 0 &&
-        start === other.start
-      ) {
-        start += other.insert.length;
-        continue;
-      }
-      if (otherEnd <= start) {
-        start += other.insert.length - other.deleteCount;
-        continue;
-      }
-      if (end <= other.start) continue;
-      fail(
-        "overlapping_edit",
-        "Both edits change the same source range. Keep the draft and reconcile against the current note.",
-      );
+    let operations: AppliedSourceSplice[] = request.operations.map(
+        (operation) => ({
+          ...operation,
+          removed: base.slice(
+            operation.start,
+            operation.start + operation.deleteCount,
+          ),
+        }),
+      ),
+      cost = 0;
+    const charge = (amount: number) => {
+      if ((cost += amount) > 1_000_000)
+        fail(
+          "history_expired",
+          "The retained rebase budget expired. Resynchronize before publishing.",
+        );
+    };
+    for (const other of this.effectiveHistory(baseRevision, charge)) {
+      const splices = operationSplices(other);
+      charge(Math.max(1, operations.length * splices.length));
+      operations = mode
+        ? selectiveRebase(operations, splices)
+        : rebaseSourceSplices(operations, splices).map((operation, index) => ({
+            ...operation,
+            removed: operations[index]!.removed,
+          }));
     }
-    if (
-      start < 0 ||
-      start + deleteCount > this.body.length ||
-      !boundary(this.body, start) ||
-      !boundary(this.body, start + deleteCount)
-    )
-      fail("invalid_range");
-    const removed = this.body.slice(start, start + deleteCount);
-    if (removed !== base.slice(requestedStart, requestedStart + deleteCount))
-      fail("rebase_content_mismatch");
-    if (removed === insert) {
+    const applied = coalesce(
+      operations
+        .map((operation) => {
+          const removed = this.body.slice(
+            operation.start,
+            operation.start + operation.deleteCount,
+          );
+          if (removed !== operation.removed) fail("rebase_content_mismatch");
+          return { ...operation, removed };
+        })
+        .filter((operation) => operation.insert !== operation.removed),
+    );
+    validateSourceSplices(this.body, applied);
+    const next = applySourceSplices(this.body, applied);
+    if (bytes(next) > this.maxBytes) fail("document_limit");
+    if (!applied.length && !inverseOf) {
       this.receipts.set(key, { signature, revision: this.revision });
       this.retain();
       return { unchanged: true };
     }
-    const next =
-      this.body.slice(0, start) + insert + this.body.slice(start + deleteCount);
-    if (bytes(next) > this.maxBytes) fail("document_limit");
-    const operation = {
+    const operation = transaction(
       actor,
       operationId,
-      start,
-      deleteCount,
-      insert,
-      removed,
-      revision: ++this.revision,
-    };
+      ++this.revision,
+      applied,
+      inverseOf,
+    );
     this.body = next;
     this.history.push(operation);
     this.versions.set(this.revision, next);
     this.receipts.set(key, { signature, operation, revision: this.revision });
-    if (!undo) {
+    if (!mode) {
       const stack = this.undoStacks.get(actor) ?? [];
       stack.push(operation);
       this.undoStacks.set(actor, stack);
@@ -365,81 +639,106 @@ export class SourceModel {
     this.retain();
     return { operation };
   }
-  undo(actor: string, operationId: string) {
+  private historyMutation(
+    actor: string,
+    operationId: string,
+    mode: true | "redo",
+  ) {
     const key = this.identity(actor, operationId),
       prior = this.receipts.get(key);
     if (prior) {
-      if (JSON.parse(prior.signature).at(-1) !== true)
+      if (JSON.parse(prior.signature).at(-1) !== mode)
         fail("operation_identity_reused");
       return { operation: prior.operation, duplicate: true };
     }
-    const original = this.undoStacks.get(actor)?.at(-1);
-    if (!original) fail("nothing_to_undo");
-    const result = this.apply(
+    const source = mode === true ? this.undoStacks : this.redoStacks,
+      target = mode === true ? this.redoStacks : this.undoStacks,
+      original = source.get(actor)?.at(-1);
+    if (!original) fail(mode === true ? "nothing_to_undo" : "nothing_to_redo");
+    // If an ancestor's inverse discarded this operation's original source,
+    // restoring that retired source would resurrect another actor's undone text.
+    const oldest = this.versions.keys().next().value!;
+    if (
+      this.history.some(
+        (operation) =>
+          operation.revision > original.revision &&
+          operation.inverseOf &&
+          operation.inverseOf.revision <= oldest,
+      )
+    )
+      fail(
+        "history_expired",
+        "An intervening inverse lost its original ownership history. Review retained versions before restoring source.",
+      );
+    let normalizationCost = 0;
+    const charge = (amount: number) => {
+      if ((normalizationCost += amount) > 1_000_000)
+        fail(
+          "history_expired",
+          "Selective history exceeded its bounded proof budget.",
+        );
+    };
+    const projected =
+      mode === true
+        ? this.effectiveHistory(oldest, charge).find(
+            (operation) =>
+              operation.actor === original.actor &&
+              operation.operationId === original.operationId &&
+              operation.revision === original.revision,
+          )
+        : undefined;
+    if (projected) {
+      const authored = (operation: SourceOperation) =>
+        JSON.stringify([
+          operationSplices(operation)
+            .map((splice) => splice.insert)
+            .join(""),
+          operationSplices(operation)
+            .map((splice) => splice.removed)
+            .join(""),
+        ]);
+      if (authored(projected) !== authored(original))
+        fail(
+          "overlapping_edit",
+          "Undo's original source was retired by another inverse. Review the retained versions before restoring it.",
+        );
+    }
+    const result = this.applyBatch(
       {
         actor,
         operationId,
         epoch: this.epoch,
         baseRevision: original.revision,
-        start: original.start,
-        deleteCount: original.insert.length,
-        insert: original.removed,
+        operations: invertSourceSplices(operationSplices(original)),
       },
-      true,
+      mode,
+      {
+        actor: original.actor,
+        operationId: original.operationId,
+        revision: original.revision,
+      },
     );
-    const stack = this.undoStacks.get(actor) ?? [],
+    const stack = source.get(actor) ?? [],
       index = stack.findIndex(
-        (op) =>
-          op.revision === original.revision &&
-          op.operationId === original.operationId,
+        (operation) =>
+          operation.revision === original.revision &&
+          operation.operationId === original.operationId,
       );
     if (index >= 0) stack.splice(index, 1);
-    if (!stack.length) this.undoStacks.delete(actor);
+    if (!stack.length) source.delete(actor);
     if (result.operation) {
-      const redo = this.redoStacks.get(actor) ?? [];
-      redo.push(result.operation);
-      this.redoStacks.set(actor, redo);
+      const destination = target.get(actor) ?? [];
+      destination.push(result.operation);
+      target.set(actor, destination);
       this.retain();
     }
     return result;
   }
+  undo(actor: string, operationId: string) {
+    return this.historyMutation(actor, operationId, true);
+  }
   redo(actor: string, operationId: string) {
-    const key = this.identity(actor, operationId),
-      prior = this.receipts.get(key);
-    if (prior) {
-      if (JSON.parse(prior.signature).at(-1) !== "redo")
-        fail("operation_identity_reused");
-      return { operation: prior.operation, duplicate: true };
-    }
-    const inverse = this.redoStacks.get(actor)?.at(-1);
-    if (!inverse) fail("nothing_to_redo");
-    const result = this.apply(
-      {
-        actor,
-        operationId,
-        epoch: this.epoch,
-        baseRevision: inverse.revision,
-        start: inverse.start,
-        deleteCount: inverse.insert.length,
-        insert: inverse.removed,
-      },
-      "redo",
-    );
-    const redo = this.redoStacks.get(actor) ?? [],
-      index = redo.findIndex(
-        (op) =>
-          op.revision === inverse.revision &&
-          op.operationId === inverse.operationId,
-      );
-    if (index >= 0) redo.splice(index, 1);
-    if (!redo.length) this.redoStacks.delete(actor);
-    if (result.operation) {
-      const undo = this.undoStacks.get(actor) ?? [];
-      undo.push(result.operation);
-      this.undoStacks.set(actor, undo);
-      this.retain();
-    }
-    return result;
+    return this.historyMutation(actor, operationId, "redo");
   }
   startStream(
     actor: string,
@@ -491,7 +790,7 @@ export class SourceModel {
     if (sequence < stream.sequence) {
       const prior = this.receipts.get(this.identity(actor, operationId));
       if (!prior) fail("history_expired");
-      if (JSON.parse(prior.signature)[6] !== insert)
+      if (JSON.parse(prior.signature)[4]?.[0]?.[2] !== insert)
         fail("stream_duplicate_mismatch");
       return { operation: prior.operation, duplicate: true };
     }
@@ -544,31 +843,4 @@ export class SourceModel {
       null
     );
   }
-}
-export function sourceDifference(before: string, after: string) {
-  let start = 0,
-    endBefore = before.length,
-    endAfter = after.length;
-  while (
-    start < endBefore &&
-    start < endAfter &&
-    before[start] === after[start]
-  )
-    start++;
-  while (
-    endBefore > start &&
-    endAfter > start &&
-    before[endBefore - 1] === after[endAfter - 1]
-  ) {
-    endBefore--;
-    endAfter--;
-  }
-  if (!boundary(before, start) || !boundary(after, start)) start--;
-  if (!boundary(before, endBefore)) endBefore++;
-  if (!boundary(after, endAfter)) endAfter++;
-  return {
-    start,
-    deleteCount: endBefore - start,
-    insert: after.slice(start, endAfter),
-  };
 }

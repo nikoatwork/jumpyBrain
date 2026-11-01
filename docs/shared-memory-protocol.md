@@ -846,17 +846,17 @@ Safety baseline:
 
 - Run the server on localhost or a private interface; put HTTPS, compression, rate limits, and request-size limits at the reverse proxy.
 - Keep API keys only in private host/provider secret storage; do not commit them, pass them in shell history/process arguments for production, or write them to memory Markdown.
-- Back up the canonical Markdown memory root. `.jumpybrain/` is support/derived state but can be included in backups for faster recovery.
-- Rotate API keys by editing server env/config and restarting the process.
+- Back up canonical Markdown, canonical boards/configuration, and private operational state. `.jumpybrain/access.json` contains individually revocable credential hashes; `.jumpybrain/recovery/` contains unique retained versions. Both are durable data, not disposable index/cache. Include interrupted `.pending` recovery directories in backups.
+- Rotate configured bootstrap/operator API keys through server env/config and restart. Named reader/writer credentials are individually revocable through the authenticated access commands; revocation is checked on each HTTP/WS operation and active WS sessions are revalidated, without restarting the server.
 - Run one server process against one local disk memory root for V1; do not horizontally scale this server yet.
 - Server auto-indexing is enabled by default and checks stale remote memory every 5 minutes. Manual `POST /memories/all/index` is still useful when operators want an immediate update.
 - Server request and operation logs are written to `.jumpybrain/logs/server-YYYY-MM-DD.log` under the memory root. Logs are compact text lines with method/path/status/duration, write/index metadata, and stable error codes. Access logs over SSH or host filesystem tooling; V1 intentionally does not expose a developer logs HTTP endpoint.
 
-## Deferred from V1
+## Remaining scope limits
 
 - Named target registries/default remote targets.
-- Multiple memories, team/project/repo namespaces, RBAC, accounts, invitations, and dashboards.
-- Delete operations, path-addressed editing, block IDs, hidden Markdown comments, line/section patches, CRDT/OT, and collaborative editing.
+- Multiple memories, team/project/repo namespaces, per-note permissions, accounts, invitations, and dashboards. Root-scoped named reader/writer credentials are implemented.
+- Block IDs and hidden Markdown comments. Guarded deletion, path moves/renames and live source operations are implemented in the sections below.
 - Client-side remote mirrors or sync engines.
 - Multi-process/horizontally scaled server semantics.
 
@@ -919,8 +919,63 @@ snapshots. Epoch/revision identify operation history; contentHash identifies
 canonical bytes. Mutations acknowledge only after publication. Unknown versions,
 expired bases, bounded capacity and ambiguous overlaps fail explicitly.
 
-Methods include open/close/edit/undo/redo/presence/resync/title and stream.start,
+Methods include open/close/edit/undo/redo/presence/resync/title/recovery.read and stream.start,
 stream.chunk, stream.status, stream.finish, stream.cancel. Stream sequence starts
 at0; duplicate chunks must match, gaps fail, completion differs from cancellation.
 HTTP readers and WS readers cannot publish. See the typed core/app/live modules
 for exact schemas and [operations](collaboration.md) for recovery and limits.
+
+### Revisioned presence
+
+`presence` requires `documentId`, `clientId`, `epoch`, and `baseRevision` from the
+actual confirmed source snapshot. Optional `selection:{anchor,focus}` uses UTF-16
+source offsets, including Markdown syntax. Surrogate interiors are invalid. A
+monotonically increasing `presenceSequence` rejects reordered selection packets
+within a tab; older accepted read revisions cannot replace newer selections.
+The server transforms retained, contiguous-history positions to the current
+revision. Wrong epochs, future revisions and expired history fail explicitly;
+deleted/ambiguous anchors are cleared instead of painted against unrelated text.
+Canonical human, streamed agent, and observed raw-file publications project all
+peer positions before emitting their new snapshot.
+
+Presence contains separate stable `principalId` and ephemeral `clientId`/`actor`,
+the declared `kind:human|agent`, `activity:viewing|editing|streaming`, current
+`epoch`/`revision`, `leaseExpiresAt`, and valid optional `anchor`/`focus`.
+Appearance is keyed by principal; undo/draft identity remains tab-scoped. Active
+agent streams advertise their current insertion anchor. The 30-second presence
+lease is renewed by client activity (the browser sends a heartbeat every ten
+seconds), not server-side credential checks. Expiry, disconnect and credential
+revocation remove peers; offline clients clear their local cursor display.
+
+### Authenticated retained-version reads
+
+An observed destructive external replacement remains canonical and Saved, while
+snapshot `recovery` advertises `code:external_destructive_replacement`, opaque
+`recoveryId`, `baseContentHash` and `externalContentHash`. Reopening a session also
+discovers the latest version through a private atomic `latest.json` hint whose
+ID and hashes are verified against the retained bytes. A missing/corrupt hint
+falls back to a bounded recent window; `recoveryDiscovery:incomplete` explicitly
+discloses an unprovable latest version. The hint is derived metadata. Recovery
+copies have no automatic eviction and must never be treated as rebuildable index data.
+
+After opening the document, authenticated reader/writer/admin sessions may call
+`recovery.read` with `documentId`, `clientId`, `recoveryId`, `expectedBaseHash`, and
+`expectedExternalHash`. It returns `reason`, `recoveryId`,
+`base:{content,contentHash}`, `external:{content,contentHash}`, and the freshly read
+`currentContentHash`. Optional `copy:base|external` returns one copy for a large
+note; the combined or single-copy response must fit the live frame budget.
+The browser requests `format:editable` to receive `{title,body,contentHash}`
+instead of duplicated full canonical content. The body retains exact source line
+endings; protected identity/frontmatter is never an editable restore candidate.
+IDs are validated, metadata and exact bytes are hash-checked, and bounded reads
+reject symlinks/unsafe ancestors. No arbitrary file path, credential state or
+absolute server path is exposed. `recovery_changed` requires fresh metadata;
+`unsafe_recovery` is not permission to overwrite or delete retained data.
+
+This API only reads. Copy/compare does not modify canonical Markdown. Explicit
+restore first checks the reviewed current hash and then uses the ordinary
+epoch/revision-guarded body/title operations. Reviewed edits additionally require
+`expectedContentHash` and the exact current revision inside the serialized
+publication queue; they never rebase a whole-version restore across a new save.
+The operation cannot replace protected document
+identity/frontmatter through a recovery shortcut. Readers cannot restore.

@@ -74,9 +74,15 @@ returned in its result. UTF-8 input is decoded incrementally and sent as bounded
 source operations with backpressure; changes reach Markdown before input ends.
 Successful EOF finishes the stream. A lost reply is never blindly retried.
 
-`collaborate edit --start OFFSET --delete COUNT` reads an insertion from stdin;
-offsets are UTF-16 positions in the opened document body. `open --json` returns
-the epoch/revision and source body. `watch` subscribes to confirmed snapshots;
+`collaborate edit --start OFFSET --delete COUNT --epoch READ_EPOCH
+--base-revision READ_REVISION` reads an insertion from stdin. First use
+`collaborate open --json`, calculate UTF-16 offsets against that returned body,
+and pass its epoch/revision to the write. The backend transforms the edit from
+that actual read state or rejects an expired/overlapping base; a new internal
+open never reassigns old offsets to newer text. A positioned
+`stream --start OFFSET` requires the same read flags. A stream without `--start`
+explicitly appends to the latest saved document; `--delete` belongs to `edit`.
+`watch` subscribes to confirmed snapshots;
 `undo` affects that principal/client's edits, preserving other writers. `resync`
 is an explicit return to current saved state. `status|cancel|finish --stream-id STREAM_ID` controls a stream owned by the same
 credential and client ID. Supply `stream --stream-id STREAM_ID` when another

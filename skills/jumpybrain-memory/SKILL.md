@@ -73,6 +73,8 @@ __JUMPYBRAIN_CLI_COMMAND__ show --target-url <url> --id <mem_id> --json
 
 When authoring authorized memory, use real Markdown headings, separate paragraphs, and manageable source lines. Inline labels in a giant paragraph are not section boundaries. Keep qualifications close to their claims and independently useful; no domain-specific labels or general template are required. Structure helps selective reads, not guaranteed completeness.
 
+When humans or other agents are editing the same note, prefer the collaborative CLI on that same authorized root/target. Read `jumpybrain collaborate open --id NOTE_ID --json`, calculate UTF-16 offsets against its returned body, then pass that exact `--epoch` and `--base-revision` to `collaborate edit --start OFFSET --delete COUNT` while piping the authorized replacement text. Positioned `stream --start OFFSET` uses the same read flags; `stream` without a position appends to the latest saved body. Keep a stable `--client-id` for the agent. Never attach a newer open revision to offsets calculated from older text, replay an uncertain write, or replace the entire current note for each generated chunk. Direct file writers remain observable inputs with retained-version recovery; they cannot provide the same read-base protection. See `jumpybrain collaborate --help` for the installed contract.
+
 ## Remember durable context
 
 An explicit request such as “Remember that the community event is on 18 November” authorizes saving that fact to the configured personal local memory root, without asking for the same permission again. A machine-wide (`--scope global`) installation can still use a personal local brain; installation scope is not a shared-memory destination.

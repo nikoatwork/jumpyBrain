@@ -17,6 +17,7 @@ test("source reconciliation keeps disjoint edits, same-position insertions, and 
   assert.deepEqual(reconcileSource("one two", "ONE two", "one TWO"), { body: "ONE TWO", conflict: false });
   assert.deepEqual(reconcileSource("ab", "aLOCALb", "aREMOTEb"), { body: "aREMOTELOCALb", conflict: false });
   assert.deepEqual(reconcileSource("ab", "aXXb", "aXXb"), { body: "aXXXXb", conflict: false }, "identical intentional inserts by different writers both survive");
+  assert.deepEqual(reconcileSource("alpha\nmiddle\nomega\n", "ALPHA\nmiddle\nOMEGA\n", "alpha\nMIDDLE\nomega\n"), {body:"ALPHA\nMIDDLE\nOMEGA\n",conflict:false}, "separate first and last edits never claim the unchanged middle");
   assert.deepEqual(reconcileSource("text", "draft", "saved"), { body: "draft", conflict: true });
 });
 function memoryStorage() {
@@ -230,4 +231,87 @@ test("older draft adoption preserves unique body/title/uncertainty and fails clo
     assert.deepEqual(drafts.read(scope).value.unconfirmed, originalA.unconfirmed);
     assert.ok(drafts.list(scope).value.some((record) => record.body === older.body), "adoption never removes the older unique version");
   } finally { editor?.dispose(); globalThis.WebSocket = previous; }
+});
+
+test("presence receipts confirm an in-flight batch without duplicating intent and retain dirty peer coordinates", async () => {
+  const previous = globalThis.WebSocket, frames = [], snapshots = [];
+  let canonical = "alpha\nmiddle\nomega\n", revision = 0, heldOperation;
+  const snapshot = () => ({ documentId:"note",epoch:"epoch",revision,prefix:"",body:canonical,title:"Title",contentHash:"hash-"+revision,saved:true,operation:heldOperation,presence:[{actor:'["peer","other"]',principalId:"peer",clientId:"other",name:"Peer",kind:"human",epoch:"epoch",revision,anchor:6,focus:6}] });
+  class Socket {
+    static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;
+    constructor(){queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}
+    send(raw){
+      const frame=JSON.parse(raw);frames.push(frame);
+      const respond=result=>queueMicrotask(()=>this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result})}));
+      if(frame.method==='hello'){respond({protocol:2,principal:{id:"writer",role:"writer"}});return}
+      if(frame.method==='edit'){
+        assert.ok(Array.isArray(frame.params.operations));
+        for(const operation of [...frame.params.operations].reverse())canonical=canonical.slice(0,operation.start)+operation.insert+canonical.slice(operation.start+operation.deleteCount);
+        revision++;heldOperation={operationId:frame.params.operationId};
+        if(revision===1)return; // Saved source will arrive through presence RPC.
+      }
+      respond(snapshot());
+    }
+    close(){this.readyState=3;this.onclose?.({code:1000})}
+  }
+  globalThis.WebSocket=Socket;let editor;
+  try{
+    let body=canonical;
+    editor=createCollaborationEditor({url:"ws://localhost/ws",scope:"presence-confirmation",documentId:"note",clientId:"writer",drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=>body,collaborativeSelection:()=>({anchor:body.indexOf('middle')+2,focus:body.indexOf('middle')+2}),setCollaborativePresence:peers=>snapshots.push(peers),applyCollaborativeMarkdown(value){body=value;return {status:"applied"}}}});
+    editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
+    body += " local";editor.input(body);const publication=editor.flush();
+    body=body.replace('alpha','PREFIX ALPHA').replace('omega','OMEGA');editor.input(body);
+    assert.ok(snapshots.at(-1).some(peer=>peer.actor==='["peer","other"]'&&peer.anchor===13),'peer presence is not hidden merely because local edits are pending');
+    assert.equal(await publication,true);
+    assert.equal(body,"PREFIX ALPHA\nmiddle\nOMEGA\n local");assert.equal(editor.snapshot.body,body);
+    const presence=frames.find(frame=>frame.method==='presence');assert.ok(presence);assert.equal(presence.params.epoch,'epoch');assert.equal(presence.params.baseRevision,0);assert.ok(presence.params.presenceSequence>0);
+    assert.ok(frames.some(frame=>frame.method==='edit'&&frame.params.operations.length>=2));
+    assert.equal(editor.state.status,'saved');
+  }finally{editor?.dispose();globalThis.WebSocket=previous}
+});
+
+test("reviewed retained restores guard body and title receipts and never relabel a foreign intervening save", async () => {
+  const previous=globalThis.WebSocket;
+  try{
+    for(const mode of ['body-and-title','title-only','foreign-after-body','large-reviewed-body']){
+      let canonical=mode==='large-reviewed-body'?'a'.repeat(3000):'Current saved body',title='Current title',revision=0;
+      const frames=[],retained={body:mode==='title-only'?canonical:mode==='large-reviewed-body'?'b'.repeat(3000):'Retained body',title:'Retained title'};
+      const snapshot=operation=>({documentId:'note',epoch:'epoch',revision,body:canonical,title,contentHash:'hash-'+revision,saved:true,operation});
+      class Socket{
+        static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;
+        constructor(){queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}
+        send(raw){const frame=JSON.parse(raw);frames.push(frame);const emit=value=>this.onmessage?.({data:JSON.stringify(value)});
+          queueMicrotask(()=>{
+            if(frame.method==='hello'){emit({id:frame.id,ok:true,result:{protocol:2,principal:{id:'writer',role:'writer'}}});return}
+            if(['edit','title'].includes(frame.method)){
+              assert.equal(frame.params.expectedContentHash,'hash-'+revision,mode+' sends the reviewed hash at every mutation');assert.equal(frame.params.baseRevision,revision);
+              if(frame.method==='edit')for(const operation of [...frame.params.operations].reverse())canonical=canonical.slice(0,operation.start)+operation.insert+canonical.slice(operation.start+operation.deleteCount);
+              else title=frame.params.title;
+              revision++;const committed=snapshot({operationId:frame.params.operationId});
+              emit({event:'document',documentId:'note',snapshot:committed});
+              if(mode==='foreign-after-body'&&frame.method==='edit'){canonical='Foreign prefix '+canonical;revision++;emit({event:'document',documentId:'note',snapshot:snapshot({operationId:'foreign-operation'})})}
+              emit({id:frame.id,ok:true,result:committed});return;
+            }
+            emit({id:frame.id,ok:true,result:snapshot()});
+          });
+        }
+        close(){this.readyState=3;this.onclose?.({code:1000})}
+      }
+      globalThis.WebSocket=Socket;let editor;
+      try{
+        let body=canonical;
+        editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'strict-restore-'+mode,documentId:'note',clientId:'writer',drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=>body,applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});
+        editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
+        const restored=await editor.restoreRetainedVersion(retained,'hash-0');
+        if(mode==='foreign-after-body'){
+          assert.equal(restored,false);assert.equal(title,'Current title','a foreign source receipt cannot authorize restoring metadata');assert.equal(frames.filter(frame=>frame.method==='title').length,0);assert.equal(editor.title,retained.title);assert.equal(editor.state.status,'conflict');assert.match(editor.state.message,/changed after review/);
+        }else{
+          assert.equal(restored,true,mode);assert.equal(canonical,retained.body);assert.equal(title,retained.title);assert.equal(body,retained.body);assert.equal(editor.state.status,'saved');
+          const mutations=frames.filter(frame=>['edit','title'].includes(frame.method));
+          assert.deepEqual(mutations.map(frame=>frame.method),mode==='title-only'?['title']:['edit','title']);
+          if(mode==='large-reviewed-body')assert.deepEqual(mutations[0].params.operations,[{start:0,deleteCount:3000,insert:retained.body}],'only explicitly reviewed replacement may exceed the granular alignment budget');
+        }
+      }finally{editor?.dispose()}
+    }
+  }finally{globalThis.WebSocket=previous}
 });

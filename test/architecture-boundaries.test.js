@@ -76,6 +76,7 @@ function sourceLayer(file) {
   if (file.startsWith("src/app/backend-host/")) return "backend-app";
   if (file.startsWith("src/adapters/backend-host/")) return "backend-adapter";
   if (file.startsWith("src/adapters/access-control/")) return "access-adapter";
+  if (file.startsWith("src/adapters/websocket/")) return "websocket-transport";
   if (file.startsWith("src/adapters/live/")) return "live-adapter";
   if (isCliPath(file)) return "cli-boundary";
   if (isServerPath(file)) return "server-boundary";
@@ -95,9 +96,10 @@ const approvedLayerImports = new Map([
   ["backend-app", new Set(["backend-app", "backend-adapter"])],
   ["backend-adapter", new Set(["backend-adapter"])],
   ["access-adapter", new Set(["access-adapter"])],
-  ["live-adapter", new Set(["live-adapter", "app-use-case", "core-domain"])],
+  ["live-adapter", new Set(["websocket-transport", "live-adapter", "app-use-case", "core-domain"])],
+  ["websocket-transport", new Set()],
   ["package-entrypoint", new Set(["runtime-app"])],
-  ["cli-boundary", new Set(["backend-app", "access-adapter", "cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app", "feedback-adapter"])],
+  ["cli-boundary", new Set(["websocket-transport", "backend-app", "access-adapter", "cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app", "feedback-adapter"])],
   ["http-protocol-adapter", new Set(["http-protocol-adapter"])],
   ["http-client-adapter", new Set(["http-client-adapter", "http-protocol-adapter", "core-domain"])],
   ["server-boundary", new Set(["backend-app", "backend-adapter", "access-adapter", "server-boundary", "app-use-case", "core-domain", "http-server-adapter", "infrastructure-adapter"])],
@@ -184,6 +186,24 @@ test("source imports follow the approved CLI/app/core/adapters layer graph", asy
     },
     "source imports must follow the approved CLI/app/core/adapters layer graph",
   );
+});
+
+test("shared WebSocket transport exposes only ws and never permits CLI access to live application policy", async () => {
+  const vendor = await importsIn("adapters/websocket");
+  assert.ok(vendor.length > 0, "the shared transport must actually expose its vendor library");
+  assertNoImportEdges(vendor, edge => Boolean(edge.target) || edge.specifier !== "ws",
+    "shared WebSocket transport imports only the external ws library, never application or server policy");
+  assert.equal(sourceLayer("src/adapters/websocket/index.ts"), "websocket-transport");
+  assert.equal(existsSync(path.join(srcRoot, "adapters", "live", "ws.ts")), false,
+    "the shared vendor entrypoint must not remain duplicated under live server policy");
+  assert.equal(approvedLayerImports.get("cli-boundary").has("live-adapter"), false,
+    "sharing a transport must not authorize CLI imports of live application policy");
+  assert.deepEqual([...approvedLayerImports].filter(([, allowed]) => allowed.has("websocket-transport")).map(([layer]) => layer).sort(),
+    ["cli-boundary", "live-adapter"], "only the client and live boundary may import the shared transport");
+  const cli = await importEdgesForFile(path.join(srcRoot, "cli", "collaborate.ts"));
+  assert.ok(cli.some(edge => edge.target === "src/adapters/websocket/index.ts"));
+  assertNoImportEdges(cli, edge => sourceLayer(edge.target ?? "") === "live-adapter",
+    "the collaboration CLI consumes the transport without importing live server policy");
 });
 
 test("CLI entrypoint stays a small shim over command modules", async () => {

@@ -93,3 +93,21 @@ does not carry arbitrary root production dependencies. Editor libraries remain
 build-only dependencies. The revised ceilings retain approximately seven percent
 compressed and runtime headroom; byte-growth checks and package-content checks
 remain enforced. No models or Electron distribution are added to CLI installs.
+
+## 2026-11-01 multiplayer correctness and cursor review
+
+The Astra-fix preflight build `6e4b55ba677a2dfd` measured 1,403,975 archive
+bytes, 4,458,902 unpacked bytes, 2,980,234 runtime bytes and 619 files. Those
+remain below the existing package ceilings. Final artifact measurements belong
+to the production verification record.
+
+The editor measured 641,002 minified bytes and 212,237 gzip bytes, an increase
+of 6,501 gzip bytes (3.16%) over the prior 205,736-byte production preflight.
+That cost provides exact structural selection/cursor maps, granular edit
+reconciliation and authenticated retained-version review. The 15 bundled editor
+packages and production dependency set remain unchanged. Raise only the editor
+ceiling from 210,000 to 220,000 gzip bytes, leaving 3.7% headroom over this
+measurement; retain inline safety, licenses, dependency separation, package
+ceilings and the fixed canonical latency/resource gates. This is an explicit
+measured feature cost, not a replacement baseline or a claim about network
+latency on every machine.

@@ -2,8 +2,8 @@
 import {
   $addUpdateTag, $getNodeByKey, $createRangeSelection, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
-  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
-  ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
+  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, IS_BOLD, IS_ITALIC, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
+  ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type ElementNode, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
 import { createEmptyHistoryState, registerHistory } from "@lexical/history";
@@ -23,6 +23,9 @@ import { createTaskCompletionFeedback } from "./editor-task-presentation.js";
 import { referenceRanges, safeTitle } from "./reference-ranges.js";
 import { completedReferenceTitles } from "./reference-creation.js";
 import { externalLineChanges } from "./external-document-updates.js";
+import { participantAppearance } from "./collaboration-appearance.js";
+import { markdownSourceMap, visibleToSource, sourceToVisible, type EditorSourceMap } from "./editor-source-map.js";
+import { sourceDifferences, transformSourcePosition } from "../../core/collaboration/source.js";
 import "./reference-autocomplete.js";
 
 // Unsupported blocks are ordinary editable text, never HTML or silently discarded nodes.
@@ -682,46 +685,92 @@ export function createNoteEditor(element: HTMLElement, options: {
   }
   cleanups.push(installSlashCommands(editor, element, applyFormat));
   let highlightTimer: number | undefined;
-  type PeerCursor = { actor: string; name: string; kind: "human" | "agent"; anchor?: number; focus?: number };
+  type PeerCursor = { actor: string; principalId?: string; clientId?: string; name: string; kind: "human" | "agent"; activity?: string; leaseExpiresAt?: number; anchor?: number; focus?: number };
   let peerCursors: PeerCursor[] = [];
   const cursorLayer = element.ownerDocument.createElement("div");
   cursorLayer.dataset.collaborationCursors = "true";
   cursorLayer.setAttribute("aria-hidden", "true");
   cursorLayer.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:12;overflow:hidden";
   element.ownerDocument.body.append(cursorLayer);
-  // Only exact source/presentation correspondences produce cursor coordinates.
-  // Supported rich spellings that cannot be projected exactly retain the peer
-  // label in the host's awareness UI; no guessed caret is displayed.
-  function projectedBlocks() {
+  // The exporter reads only its container's children. This readonly view
+  // exports one attached block without moving nodes or mutating the document.
+  function blockSource(node: LexicalNode, newline = sourceNewline) {
+    const view = { getChildren: () => [node] } as unknown as ElementNode;
+    let value = $convertToMarkdownString(transformers, view, true);
+    if (newline === "\r\n") { value = value.replace(/\r?\n/g, "\r\n"); if (node.getNextSibling() && !value.endsWith("\r")) value += "\r"; }
+    return value;
+  }
+  function blockMap(node: LexicalNode, raw: string): EditorSourceMap | null {
+    let start = 0, end = raw.length;
+    const literal = node instanceof LiteralMarkdownNode || node instanceof FencedCodeMarkdownNode;
+    if (node instanceof FencedCodeMarkdownNode && !(node instanceof TableMarkdownNode)) { start = raw.indexOf("\n") + 1; end = Math.max(start, raw.lastIndexOf("\n")); }
+    else if (node instanceof TaskMarkdownNode) start = /^( *)- \[[ xX]\] /.exec(raw)?.[0].length ?? 0;
+    else if (node instanceof HeadingNode) start = /^#{1,6}\s/.exec(raw)?.[0].length ?? 0;
+    const text = node.getTextContent(), formats = new Uint8Array(text.length); let offset = 0;
+    const visit = (child: LexicalNode) => {
+      if ($isTextNode(child)) { const size = child.getTextContentSize(); formats.fill(child.getFormat() & (IS_BOLD | IS_ITALIC | (child instanceof PageReferenceNode ? 0 : IS_CODE)), offset, offset + size); offset += size; }
+      else if ($isElementNode(child)) child.getChildren().forEach(visit);
+      else offset += child.getTextContentSize();
+    }; visit(node);
+    return markdownSourceMap(raw, text, formats, { start, end, literal });
+  }
+  function mappedBlocks(nodes: LexicalNode[], newline = sourceNewline) {
     let offset = 0;
-    return $getRoot().getChildren().map((node) => {
-      const source = sources.get(node.getKey()), exact = source?.snapshot === snapshot(node);
-      const raw = source?.original ?? "";
-      let start = 0, end = raw.length;
-      if (node instanceof FencedCodeMarkdownNode && !(node instanceof TableMarkdownNode)) { start = raw.indexOf("\n") + 1; end = raw.lastIndexOf("\n"); }
-      else if (node instanceof TaskMarkdownNode) start = /^( *)- \[[ xX]\] /.exec(raw)?.[0].length ?? 0;
-      else if (node instanceof HeadingNode) start = /^ {0,3}#{1,6}[ \t]+/.exec(raw)?.[0].length ?? 0;
-      const content = raw.slice(start, end), text = content.replace(/\r(?=\n|$)/g, "");
-      const map: number[] = [start];
-      for (let i = 0; i < content.length; i++) { if (content[i] === "\r" && (content[i + 1] === "\n" || i === content.length - 1)) continue; map.push(start + i + 1); }
-      const block = { node, offset, raw, exact: Boolean(exact), map: text === node.getTextContent() ? map : null };
+    return nodes.map((node) => {
+      const raw = blockSource(node, newline), map = blockMap(node, raw), block = { node, offset, raw, map };
       offset += raw.length + 1; return block;
     });
   }
-  function pointInBlock(block: LexicalNode, offset: number) {
+  const projectedBlocks = () => mappedBlocks($getRoot().getChildren());
+  function sourcePoint(point: RangeSelection["anchor"], blocks: ReturnType<typeof mappedBlocks>) {
+    if (!blocks.length) return null;
+    const root = $getRoot(); let node = point.getNode(), visible = 0, index = -1;
+    if (node === root && point.type === "element") {
+      index = Math.min(point.offset, blocks.length - 1); visible = point.offset >= blocks.length ? blocks[index].node.getTextContentSize() : 0;
+    } else {
+      visible = point.type === "text" ? point.offset : $isElementNode(node) ? node.getChildren().slice(0, point.offset).reduce((size, child) => size + child.getTextContentSize(), 0) : 0;
+      while (node.getParent() && node.getParent() !== root) { visible += node.getPreviousSiblings().reduce((size, sibling) => size + sibling.getTextContentSize(), 0); node = node.getParent()!; }
+      index = blocks.findIndex((block) => block.node.getKey() === node.getKey());
+    }
+    const block = blocks[index]; if (!block?.map) return null;
+    const source = visibleToSource(block.map, visible, visible === 0 || point.type === "text" && point.offset === 0 ? "right" : "left");
+    return source === null ? null : block.offset + source;
+  }
+  function pointInBlock(block: LexicalNode, offset: number): { node: Node; offset: number; empty?: HTMLElement } | null {
     const leaves: LexicalNode[] = [];
     const visit = (node: LexicalNode) => { if ($isElementNode(node)) node.getChildren().forEach(visit); else leaves.push(node); }; visit(block);
     for (const leaf of leaves) {
       const size = leaf.getTextContentSize();
       if (offset <= size && $isTextNode(leaf)) {
-        const dom = editor.getElementByKey(leaf.getKey()); if (!dom) return null;
+        const dom = editor.getElementByKey(leaf.getKey()); if (!dom || dom.closest("details:not([open])")) return null;
         const walker = element.ownerDocument.createTreeWalker(dom, NodeFilter.SHOW_TEXT);
         let text: Node | null; while ((text = walker.nextNode())) { if (offset <= (text.textContent?.length ?? 0)) return { node: text, offset }; offset -= text.textContent?.length ?? 0; }
         return null;
       }
       offset -= size;
     }
-    const dom = editor.getElementByKey(block.getKey()); return dom ? { node: dom as Node, offset: 0 } : null;
+    let dom = editor.getElementByKey(block.getKey());
+    if (dom && block instanceof TaskMarkdownNode) dom = dom.lastElementChild as HTMLElement;
+    if (dom && block instanceof TableMarkdownNode) dom = dom.lastElementChild?.lastElementChild as HTMLElement;
+    return dom && !block.getTextContentSize() ? { node: dom, offset: 0, empty: dom } : null;
+  }
+  function cursorBounds(node: Node) {
+    const bounds = { left: 0, right: win.innerWidth, top: 0, bottom: win.innerHeight };
+    let current = node.nodeType === Node.ELEMENT_NODE ? node as HTMLElement : node.parentElement;
+    while (current) {
+      const style = win.getComputedStyle(current), rect = current.getBoundingClientRect();
+      if (/(auto|scroll|hidden|clip)/.test(style.overflowX)) { bounds.left = Math.max(bounds.left, rect.left + current.clientLeft); bounds.right = Math.min(bounds.right, rect.left + current.clientLeft + current.clientWidth); }
+      if (/(auto|scroll|hidden|clip)/.test(style.overflowY)) { bounds.top = Math.max(bounds.top, rect.top + current.clientTop); bounds.bottom = Math.min(bounds.bottom, rect.top + current.clientTop + current.clientHeight); }
+      current = current.parentElement;
+    }
+    return bounds;
+  }
+  function emptyCaret(container: HTMLElement) {
+    if (!container.getClientRects().length) return null;
+    const rect = container.getBoundingClientRect(), style = win.getComputedStyle(container);
+    const height = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.2 || 20;
+    const left = rect.left + (parseFloat(style.paddingLeft) || 0), top = rect.top + (parseFloat(style.paddingTop) || 0);
+    return { left, right: left + 2, top, bottom: top + height, width: 2, height };
   }
   function renderCursors() {
     cursorLayer.replaceChildren();
@@ -729,50 +778,55 @@ export function createNoteEditor(element: HTMLElement, options: {
     editor.getEditorState().read(() => {
       const blocks = projectedBlocks();
       const project = (sourceOffset: number) => {
-        let precedingExact = true;
-        for (const block of blocks) {
-          if (sourceOffset >= block.offset && sourceOffset <= block.offset + block.raw.length) {
-            if (!precedingExact || !block.exact || !block.map) return null;
-            const index = block.map.indexOf(sourceOffset - block.offset);
-            return index < 0 ? null : pointInBlock(block.node, index);
-          }
-          precedingExact &&= block.exact;
+        for (const block of blocks) if (sourceOffset >= block.offset && sourceOffset <= block.offset + block.raw.length) {
+          if (!block.map) return null;
+          const index = sourceToVisible(block.map, sourceOffset - block.offset);
+          return index === null ? null : pointInBlock(block.node, index);
         }
         return null;
       };
-      const bounds = element.getBoundingClientRect();
       for (const peer of peerCursors.slice(0, 64)) {
-        if (peer.anchor === undefined || peer.focus === undefined) continue;
+        if (peer.leaseExpiresAt !== undefined && peer.leaseExpiresAt <= Date.now() || peer.anchor === undefined || peer.focus === undefined) continue;
         const anchor = project(peer.anchor), focus = project(peer.focus); if (!anchor || !focus) continue;
         const range = element.ownerDocument.createRange();
         try {
           const backward = peer.anchor > peer.focus;
           range.setStart((backward ? focus : anchor).node, (backward ? focus : anchor).offset);
           range.setEnd((backward ? anchor : focus).node, (backward ? anchor : focus).offset);
-          const hash = Array.from(peer.actor).reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0), color = ["#8b5cf6", "#0891b2", "#d97706", "#16a34a"][hash % 4];
-          const rects = Array.from(range.getClientRects());
-          if (range.collapsed && !rects.length) { const rect = range.getBoundingClientRect(); if (rect.height) rects.push(rect); }
+          const appearance = participantAppearance(peer), bounds = cursorBounds(range.commonAncestorContainer);
+          if (bounds.right <= bounds.left || bounds.bottom <= bounds.top) continue;
+          const rects: Array<Pick<DOMRect, "left" | "right" | "top" | "bottom" | "width" | "height">> = Array.from(range.getClientRects());
+          if (range.collapsed && !rects.some((rect) => rect.height) && focus.empty) { const rect = emptyCaret(focus.empty); if (rect) rects.push(rect); }
+          const unique = new Set<string>();
           for (const rect of rects.slice(0, 100)) {
-            if (rect.bottom < bounds.top || rect.top > bounds.bottom || !rect.height) continue;
-            const mark = element.ownerDocument.createElement("span"); mark.dataset.collaborationActor = peer.actor;
-            mark.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${Math.max(2, rect.width)}px;height:${rect.height}px;background:${color}25;border-left:2px solid ${color};box-sizing:border-box`;
+            const left = Math.max(bounds.left, rect.left), right = Math.min(bounds.right, Math.max(rect.right, rect.left + 2));
+            const top = Math.max(bounds.top, rect.top), bottom = Math.min(bounds.bottom, rect.bottom);
+            if (right <= left || bottom <= top) continue;
+            const key = [left, top, right, bottom].map((value) => Math.round(value * 10)).join(":"); if (unique.has(key)) continue; unique.add(key);
+            const mark = element.ownerDocument.createElement("span"); mark.dataset.collaborationActor = peer.actor; mark.dataset.collaborationKind = peer.kind;
+            mark.style.cssText = `position:absolute;left:${left}px;top:${top}px;width:${right-left}px;height:${bottom-top}px;background:color-mix(in srgb, ${appearance.color} 18%, transparent);border-left:2px solid ${appearance.color};box-sizing:border-box`;
             cursorLayer.append(mark);
           }
           const caretRange = element.ownerDocument.createRange(); caretRange.setStart(focus.node, focus.offset); caretRange.collapse(true);
-          const caret = caretRange.getClientRects()[0];
-          if (caret && caret.top >= bounds.top && caret.bottom <= bounds.bottom) {
-            const label = element.ownerDocument.createElement("span"); label.textContent = peer.name;
-            label.dataset.collaborationLabel = "true";
-            label.style.cssText = `position:absolute;left:${caret.left}px;top:${Math.max(bounds.top, caret.top - 15)}px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:10px system-ui;background:${color};color:white;padding:1px 3px;border-radius:3px`;
-            cursorLayer.append(label);
+          let caret: Pick<DOMRect, "left" | "right" | "top" | "bottom" | "width" | "height"> | undefined = Array.from(caretRange.getClientRects()).find((rect) => rect.height > 0);
+          caret ??= focus.empty ? emptyCaret(focus.empty) ?? undefined : undefined;
+          if (caret && caret.left >= bounds.left && caret.left < bounds.right && caret.bottom > bounds.top && caret.top < bounds.bottom) {
+            const label = element.ownerDocument.createElement("span"); label.textContent = appearance.label + " · " + appearance.activity;
+            label.dataset.collaborationLabel = "true"; label.dataset.collaborationKind = peer.kind;
+            label.style.cssText = `position:absolute;left:${caret.left}px;top:${Math.max(bounds.top, caret.top - 16)}px;max-width:${Math.min(180,bounds.right-bounds.left)}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:10px system-ui;background:${appearance.color};color:white;padding:1px 3px;border-radius:3px;box-sizing:border-box`;
+            cursorLayer.append(label); label.style.left = Math.max(bounds.left, Math.min(caret.left, bounds.right - label.getBoundingClientRect().width)) + "px";
           }
-        } catch { /* An unmappable browser range remains label-only in awareness. */ }
+        } catch { /* Invalidated coordinates remain awareness-only until refreshed. */ }
       }
     });
   }
-  const cursorScroll = () => renderCursors();
-  element.ownerDocument.addEventListener("scroll", cursorScroll, true); win.addEventListener("resize", cursorScroll);
-  cleanups.push(() => { element.ownerDocument.removeEventListener("scroll", cursorScroll, true); win.removeEventListener("resize", cursorScroll); cursorLayer.remove(); });
+  let cursorFrame = 0;
+  const cursorLayout = () => { if (!cursorFrame) cursorFrame = win.requestAnimationFrame(() => { cursorFrame = 0; renderCursors(); }); };
+  element.ownerDocument.addEventListener("scroll", cursorLayout, true); win.addEventListener("resize", cursorLayout);
+  const cursorResize = new ResizeObserver(cursorLayout);
+  for (let ancestor: HTMLElement | null = element; ancestor; ancestor = ancestor.parentElement) cursorResize.observe(ancestor);
+  cleanups.push(editor.registerUpdateListener(cursorLayout));
+  cleanups.push(() => { element.ownerDocument.removeEventListener("scroll", cursorLayout, true); win.removeEventListener("resize", cursorLayout); cursorResize.disconnect(); win.cancelAnimationFrame(cursorFrame); cursorLayer.remove(); });
   const api = {
     getMarkdown: () => markdown,
     isComposing: () => editor.isComposing(),
@@ -782,13 +836,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       return editor.getEditorState().read(() => {
         const selected = $getSelection(); if (!$isRangeSelection(selected)) return null;
         const blocks = projectedBlocks();
-        const points = [selected.anchor, selected.focus].map((point) => {
-          let node = point.getNode(), visible = point.type === "text" ? point.offset : $isElementNode(node) ? node.getChildren().slice(0, point.offset).reduce((size, child) => size + child.getTextContentSize(), 0) : 0;
-          while (node.getParent() && node.getParent() !== $getRoot()) { visible += node.getPreviousSiblings().reduce((size, sibling) => size + sibling.getTextContentSize(), 0); node = node.getParent()!; }
-          const index = blocks.findIndex((block) => block.node.getKey() === node.getKey()), block = blocks[index];
-          if (!block?.exact || !block.map || blocks.slice(0, index).some((item) => !item.exact) || block.map[visible] === undefined) return null;
-          return block.offset + block.map[visible];
-        });
+        const points = [selected.anchor, selected.focus].map((point) => sourcePoint(point, blocks));
         return points.every((point) => point !== null) ? { anchor: points[0]!, focus: points[1]! } : null;
       });
     },
@@ -846,45 +894,22 @@ export function createNoteEditor(element: HTMLElement, options: {
       try {
         editor.update(() => {
           const root = $getRoot(), oldNodes = root.getChildren();
-          const oldParsed = parseMarkdown(previous), newNodes = parseMarkdown(value);
-          if (oldParsed.length !== oldNodes.length) { failure = "Source structure changed during reconciliation"; return; }
-          const originals = oldParsed.map((node) => sources.get(node.getKey())!.original);
-          const incoming = newNodes.map((node) => sources.get(node.getKey())!.original);
+          const oldBlocks = mappedBlocks(oldNodes, previousNewline), originals = oldBlocks.map((block) => block.raw);
+          const newNodes = parseMarkdown(value), incoming = newNodes.map((node) => sources.get(node.getKey())!.original);
+          if (originals.join("\n") !== previous) { failure = "The current editable source could not be mapped exactly"; return; }
           const selection = $getSelection();
-          // Map visible offsets through source punctuation. Unsupported syntax,
-          // code and tables are literal; supported emphasis/heading markers are
-          // skipped by this monotonic map. Ambiguity never changes source bytes.
-          function visibleToSource(source: string, text: string, offset: number) {
-            let sourceOffset = 0;
-            for (let i = 0; i < Math.min(offset, text.length); i++) {
-              const found = source.indexOf(text[i], sourceOffset);
-              if (found < 0) return Math.min(source.length, offset);
-              sourceOffset = found + 1;
-            }
-            return sourceOffset;
-          }
-          function sourceToVisible(source: string, text: string, offset: number) {
-            let cursor = 0, count = 0;
-            for (const character of text) {
-              const found = source.indexOf(character, cursor);
-              if (found < 0 || found >= offset) break;
-              cursor = found + character.length; count += character.length;
-            }
-            return count;
-          }
           const originalPoints = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => ({ key: point.key, offset: point.offset, type: point.type, text: point.getNode().getTextContent() })) : null;
-          const points = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => {
-            let node = point.getNode(), offset = point.type === "text" ? point.offset : $isElementNode(node) ? node.getChildren().slice(0, point.offset).reduce((n, child) => n + child.getTextContentSize(), 0) : 0;
-            while (node.getParent() && node.getParent() !== root) { offset += node.getPreviousSiblings().reduce((n, child) => n + child.getTextContentSize(), 0); node = node.getParent()!; }
-            const index = oldNodes.findIndex((block) => block.getKey() === node.getKey());
-            if (index < 0) return null;
-            return originals.slice(0, index).reduce((n, source) => n + source.length + 1, 0) + visibleToSource(originals[index], node.getTextContent(), offset);
-          }) : null;
-          let start = 0;
-          while (start < previous.length && start < value.length && previous[start] === value[start]) start++;
-          let endOld = previous.length, endNew = value.length;
-          while (endOld > start && endNew > start && previous[endOld - 1] === value[endNew - 1]) { endOld--; endNew--; }
-          const mapOffset = (offset: number) => offset < start ? offset : offset >= endOld ? offset + endNew - endOld : start + Math.min(offset - start, endNew - start);
+          const points = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => sourcePoint(point, oldBlocks)) : null;
+          if (points?.some((point) => point === null)) { failure = "The active selection could not be mapped exactly; both source versions are retained"; return; }
+          const operations = sourceDifferences(previous, value);
+          const mapOffset = (offset: number, association: "left" | "right") => {
+            try { return transformSourcePosition(offset, operations, association); }
+            catch (error) {
+              if ((error as { code?: string }).code !== "position_deleted") throw error;
+              const removed = operations.find((operation) => operation.start < offset && offset < operation.start + operation.deleteCount);
+              return removed ? transformSourcePosition(removed.start, operations, association) : offset;
+            }
+          };
           // A source-ordered match preserves repeated blocks deterministically.
           // Only blocks between surviving anchors are reconciled or replaced.
           const sourceIdentity = (source: string) => source.replace(/\r(?=\n|$)/g, "");
@@ -948,15 +973,18 @@ export function createNoteEditor(element: HTMLElement, options: {
             [nextSelection.anchor, nextSelection.focus].forEach((point, i) => {
               const original = originalPoints![i], surviving = $getNodeByKey(original.key);
               if (surviving?.isAttached() && surviving.getTextContent() === original.text) { point.set(original.key, original.offset, original.type); return; }
-              let remaining = Math.max(0, Math.min(value.length, mapOffset(points[i]!))), index = 0;
+              let remaining = Math.max(0, Math.min(value.length, mapOffset(points[i]!, points[0] === points[1] || points[i]! < points[1 - i]! ? "right" : "left"))), index = 0;
               while (index < incoming.length - 1 && remaining > incoming[index].length) { remaining -= incoming[index].length + 1; index++; }
               const block = chosen[index];
-              let visible = sourceToVisible(incoming[index], block.getTextContent(), remaining);
+              const map = blockMap(block, incoming[index]);
+              let visible = map ? sourceToVisible(map, remaining) : null;
+              if (visible === null) visible = map && remaining >= map.contentEnd ? map.visibleLength : 0;
               const leaves: LexicalNode[] = [];
               const visit = (node: LexicalNode) => { if ($isElementNode(node)) node.getChildren().forEach(visit); else leaves.push(node); }; visit(block);
               for (const leaf of leaves) { if ($isTextNode(leaf) && visible <= leaf.getTextContentSize()) { point.set(leaf.getKey(), visible, "text"); return; } visible -= leaf.getTextContentSize(); }
               point.set(block.getKey(), $isElementNode(block) ? block.getChildrenSize() : 0, "element");
             });
+            if ($isRangeSelection(selection)) { nextSelection.format = selection.format; nextSelection.style = selection.style; }
             $setSelection(nextSelection); lastSelection = nextSelection.clone();
           }
           completionBaseline = referenceText();

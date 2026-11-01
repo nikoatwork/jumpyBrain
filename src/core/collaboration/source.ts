@@ -1,0 +1,339 @@
+import {
+  collaborationFailure as fail,
+  isSourceText,
+  sourceBoundary,
+} from "./errors.js";
+
+export interface SourceSplice {
+  start: number;
+  deleteCount: number;
+  insert: string;
+}
+export interface AppliedSourceSplice extends SourceSplice {
+  removed: string;
+}
+export interface SourceDiffOptions {
+  maxBytes?: number;
+  maxOperations?: number;
+  maxWork?: number;
+  maxDistance?: number;
+  maxTraceCells?: number;
+}
+const byteLength = (text: string) => new TextEncoder().encode(text).length;
+
+/** Canonical ordering: all coordinates refer to the same pre-transaction text. */
+export function validateSourceSplices(
+  body: string,
+  operations: readonly SourceSplice[],
+  maxOperations = 256,
+) {
+  if (!Array.isArray(operations) || operations.length > maxOperations)
+    fail("batch_limit");
+  let previousEnd = -1,
+    previousStart = -1;
+  for (const operation of operations) {
+    if (
+      !operation ||
+      !Number.isSafeInteger(operation.start) ||
+      operation.start < 0 ||
+      !Number.isSafeInteger(operation.deleteCount) ||
+      operation.deleteCount < 0 ||
+      typeof operation.insert !== "string" ||
+      !isSourceText(operation.insert)
+    )
+      fail("invalid_patch");
+    const end = operation.start + operation.deleteCount;
+    if (
+      end > body.length ||
+      !sourceBoundary(body, operation.start) ||
+      !sourceBoundary(body, end)
+    )
+      fail("invalid_base_range");
+    if (operation.start < previousEnd || operation.start === previousStart)
+      fail(
+        "overlapping_batch",
+        "Batch splices must be sorted and nonoverlapping.",
+      );
+    previousEnd = end;
+    previousStart = operation.start;
+  }
+}
+export function applySourceSplices(
+  body: string,
+  operations: readonly SourceSplice[],
+): string {
+  validateSourceSplices(body, operations);
+  let result = body;
+  for (let index = operations.length - 1; index >= 0; index--) {
+    const operation = operations[index]!;
+    result =
+      result.slice(0, operation.start) +
+      operation.insert +
+      result.slice(operation.start + operation.deleteCount);
+  }
+  return result;
+}
+/** Transform one transaction across another transaction; insertion ties use server order. */
+export function rebaseSourceSplices(
+  local: readonly SourceSplice[],
+  remote: readonly SourceSplice[],
+): SourceSplice[] {
+  return local.map((operation) => {
+    let start = operation.start;
+    for (let index = remote.length - 1; index >= 0; index--) {
+      const other = remote[index]!,
+        end = start + operation.deleteCount,
+        otherEnd = other.start + other.deleteCount;
+      if (
+        !other.deleteCount &&
+        !operation.deleteCount &&
+        start === other.start
+      ) {
+        start += other.insert.length;
+        continue;
+      }
+      if (otherEnd <= start) {
+        start += other.insert.length - other.deleteCount;
+        continue;
+      }
+      if (end <= other.start) continue;
+      fail(
+        "overlapping_edit",
+        "Both edits change the same source range. Keep the draft and reconcile against the current note.",
+      );
+    }
+    return { ...operation, start };
+  });
+}
+/** Project a source anchor through one transaction, rejecting removed interiors. */
+export function transformSourcePosition(
+  position: number,
+  operations: readonly SourceSplice[],
+  association: -1 | 1 | "left" | "right" = 1,
+): number {
+  let result = position;
+  for (let index = operations.length - 1; index >= 0; index--) {
+    const operation = operations[index]!,
+      end = operation.start + operation.deleteCount;
+    if (result > operation.start && result < end) fail("position_deleted");
+    if (result > end || (result === end && operation.deleteCount > 0))
+      result += operation.insert.length - operation.deleteCount;
+    else if (
+      result === operation.start &&
+      (association === 1 || association === "right")
+    )
+      result += operation.insert.length;
+  }
+  return result;
+}
+export function invertSourceSplices(
+  operations: readonly AppliedSourceSplice[],
+): AppliedSourceSplice[] {
+  let shift = 0;
+  const result: AppliedSourceSplice[] = [];
+  for (const operation of operations) {
+    const inverse = {
+      start: operation.start + shift,
+      deleteCount: operation.insert.length,
+      insert: operation.removed,
+      removed: operation.insert,
+    };
+    shift += operation.insert.length - operation.deleteCount;
+    const previous = result.at(-1);
+    if (
+      previous &&
+      (previous.start + previous.deleteCount === inverse.start ||
+        (previous.start === inverse.start &&
+          (!previous.deleteCount || !inverse.deleteCount)))
+    ) {
+      previous.deleteCount += inverse.deleteCount;
+      previous.insert += inverse.insert;
+      previous.removed += inverse.removed;
+    } else result.push(inverse);
+  }
+  return result;
+}
+/** Legacy outer envelope; callers needing intent-preserving reconciliation use sourceDifferences. */
+export function sourceDifference(before: string, after: string): SourceSplice {
+  let start = 0,
+    endBefore = before.length,
+    endAfter = after.length;
+  while (
+    start < endBefore &&
+    start < endAfter &&
+    before[start] === after[start]
+  )
+    start++;
+  while (
+    endBefore > start &&
+    endAfter > start &&
+    before[endBefore - 1] === after[endAfter - 1]
+  ) {
+    endBefore--;
+    endAfter--;
+  }
+  if (!sourceBoundary(before, start) || !sourceBoundary(after, start)) start--;
+  if (!sourceBoundary(before, endBefore)) endBefore++;
+  if (!sourceBoundary(after, endAfter)) endAfter++;
+  return {
+    start,
+    deleteCount: endBefore - start,
+    insert: after.slice(start, endAfter),
+  };
+}
+function codepoints(value: string) {
+  const codes = new Uint32Array(value.length),
+    offsets = new Uint32Array(value.length + 1);
+  let count = 0;
+  for (let offset = 0; offset < value.length; ) {
+    offsets[count] = offset;
+    const code = value.codePointAt(offset)!;
+    codes[count++] = code;
+    offset += code > 0xffff ? 2 : 1;
+  }
+  offsets[count] = value.length;
+  return {
+    codes: codes.subarray(0, count),
+    offsets: offsets.subarray(0, count + 1),
+  };
+}
+/** Bounded exact Myers alignment. Never folds unchanged islands into a replacement. */
+export function sourceDifferences(
+  before: string,
+  after: string,
+  options: SourceDiffOptions = {},
+): SourceSplice[] {
+  const maxBytes = options.maxBytes ?? 2 * 1024 * 1024,
+    maxOperations = options.maxOperations ?? 256,
+    maxWork = options.maxWork ?? 16_000_000,
+    maxDistance = options.maxDistance ?? 2048,
+    maxTraceCells = options.maxTraceCells ?? 4_500_000;
+  if (!isSourceText(before) || !isSourceText(after)) fail("invalid_patch");
+  if (byteLength(before) > maxBytes || byteLength(after) > maxBytes)
+    fail(
+      "diff_limit",
+      "This source exceeds the bounded diff limit. Retain the draft for explicit review.",
+    );
+  if (before === after) return [];
+  const envelope = sourceDifference(before, after),
+    old = before.slice(envelope.start, envelope.start + envelope.deleteCount),
+    next = envelope.insert;
+  if (!old || !next) return [envelope];
+  const a = codepoints(old),
+    b = codepoints(next),
+    n = a.codes.length,
+    m = b.codes.length,
+    trace: Int32Array[] = [];
+  let work = 0,
+    cells = 0;
+  const get = (row: Int32Array, d: number, k: number) =>
+    k < -d || k > d ? -1 : row[k + d]!;
+  for (let distance = 0; distance <= Math.min(maxDistance, n + m); distance++) {
+    cells += 2 * distance + 1;
+    if (cells > maxTraceCells) break;
+    const row = new Int32Array(2 * distance + 1).fill(-1),
+      previous = trace[distance - 1];
+    for (let diagonal = -distance; diagonal <= distance; diagonal += 2) {
+      if (++work > maxWork)
+        fail(
+          "diff_limit",
+          "The source changes exceed the bounded alignment budget. Retain the draft for explicit review.",
+        );
+      let x =
+        distance === 0
+          ? 0
+          : diagonal === -distance ||
+              (diagonal !== distance &&
+                get(previous!, distance - 1, diagonal - 1) <
+                  get(previous!, distance - 1, diagonal + 1))
+            ? get(previous!, distance - 1, diagonal + 1)
+            : get(previous!, distance - 1, diagonal - 1) + 1;
+      let y = x - diagonal;
+      while (x < n && y < m && a.codes[x] === b.codes[y]) {
+        x++;
+        y++;
+        if (++work > maxWork) fail("diff_limit");
+      }
+      row[diagonal + distance] = x;
+      if (x >= n && y >= m) {
+        trace.push(row);
+        const atoms: {
+          old: number;
+          next: number;
+          kind: "insert" | "delete";
+        }[] = [];
+        let endX = n,
+          endY = m;
+        for (let d = distance; d > 0; d--) {
+          const previousRow = trace[d - 1]!,
+            k = endX - endY,
+            previousK =
+              k === -d ||
+              (k !== d &&
+                get(previousRow, d - 1, k - 1) < get(previousRow, d - 1, k + 1))
+                ? k + 1
+                : k - 1;
+          const previousX = get(previousRow, d - 1, previousK),
+            previousY = previousX - previousK;
+          while (endX > previousX && endY > previousY) {
+            endX--;
+            endY--;
+          }
+          if (endX === previousX) {
+            atoms.push({ old: previousX, next: previousY, kind: "insert" });
+            endY--;
+          } else {
+            atoms.push({ old: previousX, next: previousY, kind: "delete" });
+            endX--;
+          }
+        }
+        atoms.reverse();
+        const groups: {
+          oldStart: number;
+          oldEnd: number;
+          newStart: number;
+          newEnd: number;
+        }[] = [];
+        for (const atom of atoms) {
+          const current = groups.at(-1);
+          if (
+            current &&
+            atom.old === current.oldEnd &&
+            atom.next === current.newEnd
+          ) {
+            current.oldEnd += atom.kind === "delete" ? 1 : 0;
+            current.newEnd += atom.kind === "insert" ? 1 : 0;
+          } else
+            groups.push({
+              oldStart: atom.old,
+              oldEnd: atom.old + (atom.kind === "delete" ? 1 : 0),
+              newStart: atom.next,
+              newEnd: atom.next + (atom.kind === "insert" ? 1 : 0),
+            });
+        }
+        if (groups.length > maxOperations)
+          fail(
+            "diff_limit",
+            "Too many independent source edits. Retain the draft for review.",
+          );
+        const operations = groups.map((group) => ({
+          start: envelope.start + a.offsets[group.oldStart]!,
+          deleteCount: a.offsets[group.oldEnd]! - a.offsets[group.oldStart]!,
+          insert: next.slice(
+            b.offsets[group.newStart],
+            b.offsets[group.newEnd],
+          ),
+        }));
+        validateSourceSplices(before, operations, maxOperations);
+        if (applySourceSplices(before, operations) !== after)
+          fail("diff_invariant");
+        return operations;
+      }
+    }
+    trace.push(row);
+  }
+  fail(
+    "diff_limit",
+    "The edit distance exceeds the bounded alignment budget. Retain the draft for explicit review.",
+  );
+}

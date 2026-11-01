@@ -15,6 +15,8 @@ the original contract SHA-256 is
 The separately reviewed [contract delta](production-contract-delta.json) pins
 15 exact old/new assertion or harness changes and their behavioral reasons.
 Its SHA-256 is
+`9e35ecad0ab63f862cd40a27b58d31955c00e73cba31d464dee3d2d934a954f0`.
+The earlier accepted seven-check integration used the prior delta pin
 `6da314fd9db7a891750db0f04e7351226b804c090305ee5b3ca585e97177645e`.
 An approved transport or timing change does not replace canonical-content,
 conflict, actor-undo or no-echo assertions with weaker HTTP request counts.
@@ -26,6 +28,10 @@ tracked file, assertion, tested runtime and target must remain unchanged during
 verification. Linux receipts need independent digest pins, exact current source
 maps, preserved logs, zero-skip TAP and byte-identical built runtimes. The signed
 desktop must contain those same runtime bytes and the current shell modules.
+The contract additionally pins 36 production scenario assertion files, including
+the Astra counterexamples and browser/native drivers. Removing or weakening
+them requires a separately reviewed contract and new external pin; a still-high
+test count cannot accept that change silently.
 
 After the original deterministic suite and four protected browser flows, the
 production gate requires all of these:
@@ -35,10 +41,12 @@ production gate requires all of these:
 | Production editor | Two browser contexts, source fidelity, actor undo, presence, streaming, direct writes, IME events, offline body/title recovery and cloned-tab isolation. |
 | Lexical structure | Existing rich editor behavior and source/security assertions at desktop and narrow widths. |
 | Hosted session | Cookie authentication, cross-tab credential replacement, reader enforcement and explicit retained-draft recovery. |
+| Retained-version UI | Eleven shipped-shell scenarios for notification, compare/copy, guarded restore, roles/revocation, draft preservation, storage failure, copy budgets, discovery and scope changes. |
 | Composed local | Two repeated trials with two real browser users, a shipped streaming CLI and a raw file writer. |
 | Composed Linux | The same composed actors against a pinned Linux backend; no host-backend fallback. |
 | Local workload | Two human protocol actors plus one agent, 20 rounds, 128 seed notes, fixed seed. |
 | Shared workload | Five human protocol actors plus three agents, 100 rounds, 256 seed notes, fixed seed. |
+| Native input/accessibility | Actual packaged Electron composition and renderer accessibility-tree checks on disposable data; physical IME and assistive-technology usability remain outside the claim. |
 | Signed desktop | Actual packaged normal, backend-crash and recovery lifecycles on disposable data. |
 | Packaged diagnostics | Actual packaged shell/runtime diagnostics, without checkout module substitution. |
 | Packaged upgrade | Frozen old runtime to extracted candidate package on two same-ID roots, exact preservation, interrupted retry and recoverable rollback. |
@@ -70,6 +78,38 @@ This report does not attest later source changes. Final audits found additional
 stream-lifecycle, raw-replacement recovery, title normalization and private-draft
 version-retention cases. The final gate requires their regression tests plus
 the composed actor and extracted-package upgrade demonstrations.
+
+The expanded candidate at `eb5c50925d16b3cb23c26e06324b602043f05ab2`
+passed 95 tests on each pinned Linux version and all focused recovery preflights.
+Its full macOS suite rejected one import-layer edge (1,672 passes, one failure):
+the CLI used the vendor WebSocket module grouped with live-server policy. That
+run is retained as failed evidence. The shared transport is being extracted into
+its own adapter, with the CLI/server-policy separation kept explicit. The final
+required gate also adds actual Electron input/accessibility coverage.
+
+That native proof found an actual runtime defect: the desktop window's network
+filter accepted its HTTP gateway origin but rejected the paired WebSocket
+origin. Browser and standalone gateway success did not establish desktop live
+publication. The final gate requires real packaged-shell connection, IME edits
+and publication, alongside explicit network-denial cases.
+
+## Architecture assumptions challenged by Astra
+
+The user requested GPT-6 Astra at high reasoning effort. Its read-only review
+and executable probes are retained in `.local-pack/astra-review/`. It agreed
+with one root owner, Markdown authority, publication-confirmed Saved, separate
+indexing, scoped private drafts and independently revocable access. It rejected
+the inference that conservative single-splice convergence and retained recovery
+alone establish smooth multiplayer.
+
+The six reproduced P1 blockers are actual CLI read-base loss, repeated actor
+undo failure, greedy code selection mapping, false conflicts from broad diff
+ranges, missing cursors in ordinary formatted/empty text, and unversioned
+presence coordinates. Further requirements cover scroll clipping, stale peers,
+stable person appearance versus tab identity, agent activity anchors and
+discoverable retained raw-file versions. These are required implementation and
+test work; they are not accepted architectural limitations. The final clean
+integration gate and follow-up review must include their counterexamples.
 
 ## Reproduction prerequisites
 
