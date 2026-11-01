@@ -6,6 +6,7 @@ export const HTTP_MEMORY_ROUTES = {
   index: `${MEMORY_PREFIX}/index`,
   overview: `${MEMORY_PREFIX}/overview`,
   tree: `${MEMORY_PREFIX}/tree`,
+  files: `${MEMORY_PREFIX}/files`,
   graphJson: `${MEMORY_PREFIX}/graph.json`,
   search: `${MEMORY_PREFIX}/search`,
   recall: `${MEMORY_PREFIX}/recall`,

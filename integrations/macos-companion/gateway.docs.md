@@ -49,6 +49,10 @@ GET `/memories/all/attention` is observational. Document PATCH is a write with i
 
 POST `/memories/all/ensure-title` is a write, including requests that might reuse an existing page. Its bounded JSON title request uses the same session/Origin checks, generation/tab admission, request drain and target-specific `allowWrites` policy as note creation. POST `/memories/all/resolve-title` remains observational, so read-only profiles can still resolve existing references without permission to create missing pages. The target app owns canonical title lookup and find-or-create publication.
 
+## Folder explorer
+
+GET `/memories/all/files` is an observational canonical metadata listing forwarded through the existing generation/tab admission and response-size limit. Read-only local and remote profiles can browse folders; no filesystem root, note bodies or write permission are exposed by the listing. Older remote servers without this route return an ordinary unavailable response, not an incomplete overview fallback.
+
 ## Unified desktop hosting and shutdown
 
 Owned local engines use the same host automatic incremental index lifecycle as hosted servers: startup, coalesced confirmed writes and five-minute external-write reconciliation. The gateway no longer disables local maintenance; stopping/switching away from the owned engine cancels its scheduler and drains work. Remote profiles never acquire a client-created maintenance timer or an implicit index mutation; target permissions and server policy still apply. No process-global/default CLI root is retargeted.

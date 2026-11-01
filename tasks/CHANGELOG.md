@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — Folder explorer
+
+- Browse nested Markdown folders with focused search, compact trees and guarded note opening in a collapsible right sidebar. [Details](done/2026-11-01_tasks-folder-explorer.md).
+
 ## 2026-11-01 — Obsidian folder preservation verified
 
 - Clarified existing nested-folder preservation under `notes/` in import guidance and CLI summaries; verified deep folders and distinct same-named notes through import and reruns. [Verification and limits](done/2026-11-01_tasks-obsidian-folder-preservation.md).

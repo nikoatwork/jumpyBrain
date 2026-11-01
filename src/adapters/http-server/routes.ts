@@ -12,6 +12,7 @@ import type { FileLogger } from "../logging/index.js";
 import { packageVersion } from "../package-info/index.js";
 import { getDreamWindow, abandonDreamBatch, completeDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, graphServerMemory, indexServerMemory, overviewServerMemory, previewServerMemoryDeletion, deleteServerMemoryDocument, readServerMemoryDocument, recentServerMemory, resolveServerMemoryTitle, searchServerMemory, serverMemoryStatus, updateServerMemoryDocument, writeServerMemoryWithIdempotency } from "../../app/server-memory/index.js";
 import { attentionServerMemory, patchServerMemoryAttention } from "../../app/server-memory/attention.js";
+import { listServerMemoryFiles } from "../../app/server-memory/folder-explorer.js";
 import { ensureServerMemoryTitle, isSafeReferencePageTitle } from "../../app/server-memory/index.js";
 import { compactSearchServerMemory } from "../../app/server-memory/compact.js";
 import { expandServerMemoryDocument } from "../../app/server-memory/expansion.js";
@@ -540,6 +541,21 @@ export async function routeRequest(context: { request: IncomingMessage; response
 
   if (url.pathname === HTTP_MEMORY_ROUTES.graphJson) {
     writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${HTTP_MEMORY_ROUTES.graphJson}.`));
+    return;
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.files) {
+    response.setHeader("cache-control", "no-store");
+    if (request.method !== "GET") {
+      writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${HTTP_MEMORY_ROUTES.files}.`));
+      return;
+    }
+    try {
+      writeJson(response, 200, await listServerMemoryFiles({ root, signal }));
+    } catch {
+      if (signal?.aborted) return;
+      writeJson(response, 500, errorResponse("files_failed", "Remote file listing failed."));
+    }
     return;
   }
 

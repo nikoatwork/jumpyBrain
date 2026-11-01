@@ -48,6 +48,7 @@ import { getDreamWindow, abandonDreamBatch, createDreamBatch, getDreamBatch, get
 export { getDreamWindow, abandonDreamBatch, createDreamBatch, getDreamBatch, getDreamStatus, completeDreamBatch };
 
 export { recentServerMemory, type RemoteMemoryRecentNote, type RemoteMemoryRecentPacket } from "./recent.js";
+export { listServerMemoryFiles, type MemoryExplorerFile, type MemoryExplorerPacket } from "./folder-explorer.js";
 export { resolveServerMemoryTitle } from "./resolve-title.js";
 export { ensureServerMemoryTitle, isSafeReferencePageTitle, type EnsureServerMemoryTitleResult } from "./ensure-title.js";
 

@@ -310,6 +310,7 @@ function companionLock(value) {
   if (state.editor) syncEditorUi(state.editor.state);
   else richEditor.setReadOnly(companionReadOnly());
   sidebarPages.sync();
+  folderExplorer.sync();
   noteAttention.sync();
   for (const [id, path] of [["home-link", "/"], ["notes-link", "/"], ["graph-link", "/graph"]]) $(id).href = companionScopeUrl(path);
 }

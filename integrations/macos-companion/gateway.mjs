@@ -120,7 +120,7 @@ function allowedMemoryRoute(method, pathname) {
   if (method === 'POST' && pathname === '/memories/all/boards') return { write: true };
   if (['PUT', 'DELETE'].includes(method) && /^\/memories\/all\/boards\/[0-9a-f-]+$/.test(pathname)) return { write: true };
 
-  if (method === 'GET' && /^\/memories\/all\/(status|recent|attention|overview|tree|graph\.json|dream\/window)$/.test(pathname)) return { write: false };
+  if (method === 'GET' && /^\/memories\/all\/(status|recent|attention|overview|tree|files|graph\.json|dream\/window)$/.test(pathname)) return { write: false };
   if (method === 'POST' && /^\/memories\/all\/(search|recall|recall\/compact|expand|resolve-title|dream\/sources\/check)$/.test(pathname)) return { write: false };
   if (method === 'GET' && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: false };
   if (['PUT', 'PATCH', 'DELETE'].includes(method) && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: true };

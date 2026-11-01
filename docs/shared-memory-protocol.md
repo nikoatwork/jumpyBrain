@@ -361,6 +361,18 @@ Authenticated attention-only changes require `If-Match: sha256:<64 hex>` from a 
 
 Publication uses the same queue, guarded file identities and atomic replacement as content saves. Attention changes preserve body bytes, unknown metadata/comments, title and edit timestamps. Settle also records `attention_settled_hash`, a semantic digest excluding attention and contributor fields; Snooze/Bring back remove it. Saved body/title changes remove existing null settlement overrides, including when the submitted whole document retains the old null. No-op saves remain settled, snoozes survive content edits, and explicit snooze values remain editable. Success returns the complete published GET document packet (`content`, `frontmatter`, `contentHash`, identity/title/type/file and safe target fields), plus `oldContentHash`, `newContentHash`, `indexed: false`, and conservative stale `index` state. The packet describes publication directly; it does not re-read a potentially newer revision. Missing If-Match returns 428, stale/unsafe identity 412, invalid intent 422, missing ID 404 and duplicate ID 409. Unsupported media/body errors follow PUT. Stale attempts never recreate deleted notes or overwrite later content. The companion gateway admits PATCH only for an authorized writable target and live registered tab/generation, including its bounded request body and If-Match.
 
+### `GET /memories/all/files`
+
+Authenticated, read-only canonical metadata for the folder explorer:
+
+```json
+{"files":[{"id":"mem_12345678-1234-4234-8234-123456789abc","file":"notes/projects/architecture.md","title":"Architecture"}]}
+```
+
+Every eligible Markdown file under the editor's canonical memory buckets is listed, including settled and snoozed notes. Paths are root-relative; optional titles come from frontmatter. Missing, invalid or duplicated IDs return `id: null`, preserving the file's presence without suggesting it can be opened. Hidden paths are omitted; hidden duplicate IDs still make visible occurrences unopenable. Indexes and retrieval-only `indexRoot` do not affect the listing. No server root, body, canonical write or index update is included.
+
+Directories are inferred from listed Markdown paths, so empty and attachment-only directories are absent. This endpoint has no limit or pagination: scan work and packet count grow with the corpus; the companion gateway retains its existing 16 MiB response cap. Cancellation stops request work. Fresh reads reflect external changes; discovery and subsequent document opening are not atomic. Other methods return 405; failures return a generic `files_failed` error. Responses use `Cache-Control: no-store`.
+
 ### `GET /memories/all/recent`
 
 Authenticated read-only recent-note discovery scans canonical Markdown through server-memory, without consulting the search index. The response is `{ memory: "all", target: "remote", root: "remote:all", notes: [...] }`, with at most eight unique-ID notes containing `id`, `title`, root-relative `file`, and optional `updatedAt`/`createdAt` from valid update/creation metadata. Evidence `date` is not a file-activity timestamp. Each file appears once with its current metadata; no event history, editor identity, or deletion log is retained. The cap is not query-configurable; no body, frontmatter, index status, or server filesystem root is returned. Other methods return 405 after authentication; failures return generic 500 `recent_failed`. Ordering and canonical eligibility belong to the [server-memory contract](../src/app/server-memory/server-memory.docs.md).
