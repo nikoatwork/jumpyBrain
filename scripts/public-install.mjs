@@ -1,13 +1,24 @@
 #!/usr/bin/env node
+import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { constants as fsConstants, existsSync } from "node:fs";
-import { access, chmod, cp, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { access, chmod, cp, lstat, mkdir, mkdtemp, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeRemoteTargetOrigin } from "./remote-target-origin.mjs";
 import { companionUpdatePlan, checkCompanionUpdate, commitCompanionUpdate } from "./macos-companion.mjs";
 import { checkQmdInstallation, QMD_PACKAGE } from "./qmd-install-check.mjs";
+import { atomicJSON, cliShim, preflight, selectEngine, discoverRelease, installRelease } from "./install-support.mjs";
+
+const installerToken = randomUUID();
+let unlock = async () => {};
+let selectedQmd;
+let installationHome;
+let selectedRelease;
+let resultReport = { schemaVersion: 1, state: "blocked", checks: {}, remainingActions: [] };
+const jsonOutput = process.argv.includes("--json");
+if (jsonOutput) console.log = (...args) => console.error(...args);
 
 const DEFAULT_REPO = "https://github.com/nikoatwork/jumpyBrain.git";
 const MANIFEST_VERSION = 1;
@@ -24,15 +35,20 @@ async function main(argv = process.argv.slice(2)) {
   ensureNodeVersion();
 
   const home = path.resolve(options.home ?? process.env.HOME ?? os.homedir());
+  installationHome = home;
   const cwd = path.resolve(options.cwd ?? process.cwd());
   const installRoot = path.resolve(expandHome(options.installRoot ?? path.join(home, ".jumpybrain"), home));
-  // Serialize staging, native replacement, shim and manifest bookkeeping. Never
-  // remove another invocation's stage, or guess that a stale PID is safe to kill.
-  const releaseLock = options.dryRun ? async () => {} : await lockInstallation(installRoot);
   try {
     await installManaged({ options, home, cwd, installRoot });
-  } finally {
-    await releaseLock();
+  } finally { await unlock(); }
+  if (jsonOutput) process.stdout.write(JSON.stringify(resultReport) + "\n");
+}
+
+async function physicalPath(target) {
+  try { return await realpath(target); }
+  catch (error) {
+    if (error.code !== 'ENOENT' || path.dirname(target) === target) throw error;
+    return path.join(await physicalPath(path.dirname(target)), path.basename(target));
   }
 }
 
@@ -49,10 +65,38 @@ async function installManaged({ options, home, cwd, installRoot }) {
     previousManifest?.memoryRoot ?? options.memoryRoot ?? (scope === "project" ? path.join(cwd, "memory") : path.join(installRoot, "memory")),
     home,
   ));
-  const source = options.source ?? previousManifest?.source ?? process.env.JUMPYBRAIN_INSTALL_SOURCE ?? DEFAULT_REPO;
+  const source = options.source ?? (options.ref
+    ? (previousManifest?.distribution === "release" ? DEFAULT_REPO : previousManifest?.source ?? DEFAULT_REPO)
+    : (previousManifest?.distribution === "release" ? "release" : previousManifest?.source))
+    ?? process.env.JUMPYBRAIN_INSTALL_SOURCE ?? "release";
   const ref = options.ref ?? previousManifest?.ref ?? undefined;
   const integrations = previousManifest?.integrationMode ?? options.integrations;
-  const manifestSource = await normalizeInstallSource(source);
+  const manifestSource = source === "release" ? DEFAULT_REPO : await normalizeInstallSource(source);
+  const remoteOnly = options.remoteOnly || previousManifest?.remoteOnly === true;
+  options.remoteOnly = remoteOnly;
+  if (existsSync(path.join(home, "Applications/jumpyBrain.app")) && previousManifest?.desktopPort && options.appPort && options.appPort !== previousManifest.desktopPort) throw new Error("The existing app port is preserved. Do not change it during setup.");
+  for (const key of ["skipBuild", "skipQmdInstall", "skipInitialIndex"]) options[key] ||= Boolean(previousManifest?.installerOptions?.[key]);
+  if (remoteOnly && (integrations !== "none" || options.withApp)) throw new Error("--remote-only requires --integrations none and cannot include --with-app.");
+  const physicalMemory = await physicalPath(memoryRoot);
+  for (const directory of [appDir, binDir, path.join(installRoot, "engines")]) {
+    const protectedDir = await physicalPath(directory);
+    if (physicalMemory === protectedDir || physicalMemory.startsWith(protectedDir + path.sep) || protectedDir.startsWith(physicalMemory + path.sep)) throw new Error("Memory must not overlap replaceable program or engine directories.");
+  }
+  resultReport = { ...resultReport, dryRun: options.dryRun, installRoot, cliPath, memoryRoot: remoteOnly ? null : memoryRoot, source, remoteOnly, integrations: [], skippedIntegrations: [] };
+  await preflight({ options, installRoot, memoryRoot, source, home });
+  if (!options.dryRun) {
+    unlock = await lockInstallation(installRoot);
+    const lockedManifest = await readInstallManifest(manifestPath, { installRoot, appDir, binDir, cliPath, cliConfigPath });
+    if (JSON.stringify(lockedManifest) !== JSON.stringify(previousManifest)) throw new Error("Installation changed while waiting for its lock. Rerun the same command.");
+  }
+  selectedQmd = await selectEngine({ installRoot, appDir, skipInstall: options.skipQmdInstall, dryRun: options.dryRun, remoteOnly, previous: previousManifest?.qmd });
+  resultReport.engine = selectedQmd;
+  if (selectedQmd) log(`${options.dryRun && !existsSync(selectedQmd) ? "Would install private" : "Selected"} QMD CLI + SDK: ${selectedQmd}`);
+  else if (!remoteOnly) log("Search dependency unavailable; skipping install and initial index as requested.");
+  options.reuseApp = Boolean(options.withApp && previousManifest?.state !== "installing" && previousManifest && !options.source && !options.ref);
+  if (source === "release") selectedRelease = options.reuseApp ? previousManifest.release : await discoverRelease();
+  resultReport.release = selectedRelease || null;
+  resultReport.state = options.dryRun ? "planned" : "failed";
 
   const summary = {
     installRoot,
@@ -67,7 +111,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
     dryRun: options.dryRun,
   };
 
-  if (previousManifest) {
+  if (previousManifest && previousManifest.state !== "installing") {
     await updateExistingInstall({
       options,
       previousManifest,
@@ -95,67 +139,82 @@ async function installManaged({ options, home, cwd, installRoot }) {
   summary.cliPolicy = policyPlan.description;
   logPolicyPlan(policyPlan);
 
+  const integrationPlan = planIntegrations({ integrations, scope, home, cwd });
+  if (!previousManifest) for (const item of integrationPlan.install) {
+    if (existsSync(item.path)) throw new Error(`An integration already exists at ${item.path}. Preserve it or select --integrations none; it will not be overwritten.`);
+  }
+  const now = new Date().toISOString();
+  const manifest = {
+    version: MANIFEST_VERSION, installer: INSTALLER_NAME, state: "installing",
+    createdAt: previousManifest?.createdAt ?? now, updatedAt: now,
+    source: manifestSource, distribution: source === "release" ? "release" : "source", release: selectedRelease || null, ref: ref ?? null,
+    scope, installRoot, appDir, binDir, cliPath, cliConfigPath, memoryRoot,
+    node: process.execPath, qmd: selectedQmd || null, desktopPort: options.appPort || previousManifest?.desktopPort, remoteOnly, integrationMode: integrations,
+    integrations: integrationPlan.install.map(({ kind, path }) => ({ kind, path })),
+    installerOptions: { skipBuild: Boolean(options.skipBuild), skipQmdInstall: Boolean(options.skipQmdInstall), skipInitialIndex: Boolean(options.skipInitialIndex) },
+    files: [cliPath, ...integrationPlan.install.map(item => item.path)],
+    integrationHashes: previousManifest?.integrationHashes || {},
+  };
   if (!options.dryRun) {
+    await atomicJSON(manifestPath, manifest);
     await mkdir(installRoot, { recursive: true });
     await installApp({ source, ref, appDir, skipBuild: options.skipBuild });
     await mkdir(binDir, { recursive: true });
     await writeCliShim({ cliPath, appDir, cliConfigPath });
     await writeRemoteAccessPolicy(policyPlan);
-    await initializeMemoryRoot({ cliPath, memoryRoot });
+    if (!remoteOnly) await initializeMemoryRoot({ cliPath, memoryRoot });
   }
 
-  const qmdAvailable = await ensureQmd({ appDir, skipInstall: options.skipQmdInstall, dryRun: options.dryRun });
+  const qmdAvailable = Boolean(selectedQmd);
   summary.searchReady = qmdAvailable && !options.skipInitialIndex;
   if (!options.dryRun && qmdAvailable && !options.skipInitialIndex) await indexMemoryRoot({ cliPath, memoryRoot });
 
-  const integrationPlan = planIntegrations({ integrations, scope, home, cwd });
   for (const item of integrationPlan.install) {
-    if (!options.dryRun) await installIntegration({ item, memoryRoot, cliPath, appDir });
+    if (!options.dryRun) {
+      await installIntegration({ item, memoryRoot, cliPath, appDir });
+      manifest.integrationHashes[item.path] = createHash("sha256").update(await readFile(item.path)).digest("hex");
+      await atomicJSON(manifestPath, manifest);
+    }
     summary.integrations.push(`${item.kind}:${item.path}`);
   }
   for (const item of integrationPlan.skipped) summary.skippedIntegrations.push(`${item.kind}:${item.reason}`);
 
   if (!options.dryRun) {
-    const now = new Date().toISOString();
-    const manifest = {
-      version: MANIFEST_VERSION,
-      installer: INSTALLER_NAME,
-      createdAt: previousManifest?.createdAt ?? now,
-      updatedAt: now,
-      installedVersion: await readInstalledVersion(appDir),
-      source: manifestSource,
-      ref: ref ?? null,
-      scope,
-      installRoot,
-      appDir,
-      binDir,
-      cliPath,
-      cliConfigPath,
-      memoryRoot,
-      integrationMode: integrations,
-      integrations: integrationPlan.install.map((item) => ({ kind: item.kind, path: item.path })),
-      installerOptions: {
-        skipBuild: Boolean(options.skipBuild),
-        skipQmdInstall: Boolean(options.skipQmdInstall),
-        skipInitialIndex: Boolean(options.skipInitialIndex),
-      },
-      files: [cliPath, ...integrationPlan.install.map((item) => item.path)],
-    };
-    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    manifest.installedVersion = await readInstalledVersion(appDir);
+    await verifyInstallation({ options, cliPath, memoryRoot });
+    if (options.withApp) await setupDesktop({ appDir, installRoot, home, memoryRoot, options });
+    manifest.state = "ready";
+    await atomicJSON(manifestPath, manifest);
   }
+  Object.assign(resultReport, { version: manifest.installedVersion || selectedRelease?.version || null, integrations: summary.integrations, skippedIntegrations: summary.skippedIntegrations });
+  if (summary.integrations.length && !options.dryRun) resultReport.remainingActions.push("Restart/reload any already-running assistant to activate its integration; file presence does not prove activation.");
 
+  if (!options.dryRun) resultReport.state = resultReport.remainingActions.length ? "pending_user_action" : "ready";
   printSummary(summary);
 }
 
 async function lockInstallation(installRoot) {
   await mkdir(installRoot, { recursive: true });
+  if ((await lstat(installRoot)).isSymbolicLink()) throw new Error("Install root must be a real directory, not a symlink.");
   const lock = path.join(installRoot, ".installer-lock");
-  try {
-    await mkdir(lock, { mode: 0o700 });
-  } catch (error) {
-    if (error.code === "EEXIST") throw new Error(`Another installer/update is active: ${lock}. If a previous installer crashed, verify no update is running before removing this lock directory manually.`);
-    throw error;
+  try { await mkdir(lock, { mode: 0o700 }); }
+  catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    const recovery = path.join(installRoot, ".installer-recovery-lock");
+    try { await mkdir(recovery, { mode: 0o700 }); }
+    catch { throw new Error("Another installer is recovering its lock. Retry when it finishes."); }
+    try {
+      const owner = JSON.parse(await readFile(path.join(lock, "owner.json"), "utf8").catch(() => "null"));
+      if (!owner || !Number.isSafeInteger(owner.pid) || owner.pid < 2 || owner.host !== os.hostname()) throw new Error("Installer lock has no verifiable owner. Verify no install is running before manually removing .installer-lock.");
+      let alive = true;
+      try { process.kill(owner.pid, 0); } catch (e) { if (e.code === "ESRCH") alive = false; else throw e; }
+      if (alive) throw new Error("Another installer/update is active. Wait for it to finish.");
+      if ((await lstat(lock)).isSymbolicLink()) throw new Error("Refusing a linked installer lock.");
+      await rm(lock, { recursive: true });
+      await mkdir(lock, { mode: 0o700 });
+    } finally { await rm(recovery, { recursive: true }); }
   }
+  await atomicJSON(path.join(lock, "owner.json"), { pid: process.pid, host: os.hostname(), token: installerToken });
   return () => rm(lock, { recursive: true });
 }
 
@@ -193,7 +252,7 @@ async function updateExistingInstall({
   logPolicyPlan(policyPlan);
 
   if (options.dryRun) {
-    await ensureQmd({ appDir, skipInstall: options.skipQmdInstall, dryRun: true });
+    resultReport.state = "planned";
     console.log("\njumpyBrain update dry run complete.");
     console.log(`CLI: ${cliPath}`);
     console.log(`Memory preserved: ${memoryRoot}`);
@@ -201,8 +260,13 @@ async function updateExistingInstall({
     return;
   }
 
-  await installApp({ source, ref, appDir, skipBuild: options.skipBuild, companion,
-    beforePublish: (stagedApp) => ensureQmd({ appDir: stagedApp, skipInstall: options.skipQmdInstall, dryRun: false }),
+  if (!options.reuseApp) await installApp({ source, ref, appDir, skipBuild: options.skipBuild, companion,
+    beforePublish: async stagingDir => {
+      const candidate = path.join(stagingDir, 'verify-cli');
+      await writeFile(candidate, cliShim({ appDir: stagingDir, cliConfigPath, qmd: selectedQmd }), { mode: 0o755 });
+      try { await verifyInstallation({ options: { ...options, readOnly: true }, cliPath: candidate, memoryRoot }); }
+      finally { await rm(candidate, { force: true }); }
+    },
   });
   await mkdir(binDir, { recursive: true });
   await writeCliShim({ cliPath, appDir, cliConfigPath });
@@ -217,6 +281,9 @@ async function updateExistingInstall({
     updatedAt: now,
     installedVersion: await readInstalledVersion(appDir),
     source: manifestSource,
+    distribution: source === "release" ? "release" : "source",
+    release: selectedRelease || null,
+    node: process.execPath, qmd: selectedQmd || null, desktopPort: options.appPort || previousManifest.desktopPort,
     ref: ref ?? null,
     scope,
     installRoot,
@@ -227,7 +294,10 @@ async function updateExistingInstall({
     memoryRoot,
     integrationMode: integrations,
   };
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await verifyInstallation({ options: { ...options, readOnly: true }, cliPath, memoryRoot });
+  if (options.withApp) { await atomicJSON(manifestPath, manifest); await setupDesktop({ appDir, installRoot, home, memoryRoot, options }); }
+  await atomicJSON(manifestPath, manifest);
+  Object.assign(resultReport, { version: manifest.installedVersion, state: resultReport.remainingActions.length ? "pending_user_action" : "ready" });
 
   console.log("\njumpyBrain update complete.");
   console.log(`CLI: ${cliPath}`);
@@ -253,6 +323,10 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === "--help" || token === "-h") options.help = true;
+    else if (token === "--json") options.json = true;
+    else if (token === "--app-port") options.appPort = Number(requiredValue(argv, ++index, token));
+    else if (token === "--with-app") options.withApp = true;
+    else if (token === "--remote-only") options.remoteOnly = true;
     else if (token === "--dry-run") options.dryRun = true;
     else if (token === "--yes" || token === "-y") options.yes = true;
     else if (token === "--skip-build") options.skipBuild = true;
@@ -273,6 +347,8 @@ function parseArgs(argv) {
 
   if (!["global", "project"].includes(options.scope)) throw new Error("--scope must be global or project.");
   if (!["auto", "all", "none"].includes(options.integrations)) throw new Error("--integrations must be auto, all, or none.");
+  if (options.appPort !== undefined && (!options.withApp || !Number.isInteger(options.appPort) || options.appPort < 1024 || options.appPort > 65535)) throw new Error("--app-port requires --with-app and a port from 1024 to 65535.");
+  if (options.remoteOnly && !options.provided.has("integrations")) options.integrations = "none";
   assertCompatiblePolicyFlags(options);
   return options;
 }
@@ -288,6 +364,10 @@ function usage() {
     "Usage: install.sh [options]",
     "",
     "Options:",
+    "  --with-app                  Also install and verify the Mac app using this brain",
+    "  --app-port <port>           Local Mac helper port (default: 3787; existing setting preserved)",
+    "  --remote-only               Install CLI without a local engine or brain (integrations none)",
+    "  --json                      Emit one structured result; progress goes to stderr",
     "  --scope global|project       Install global memory/integrations or project-local ones (default: global)",
     "  --memory-root <path>         Override memory root",
     "  --integrations auto|all|none Install detected integrations, all integrations, or none (default: auto)",
@@ -317,7 +397,9 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
   const stagingDir = await mkdtemp(`${appDir}.installing-`);
   let backupContainer;
   try {
-    if (isLocalPath(source)) {
+    if (source === "release") {
+      await installRelease(stagingDir, selectedRelease);
+    } else if (isLocalPath(source)) {
       const sourceRoot = await realpath(source.startsWith("file://") ? fileURLToPath(source) : path.resolve(source));
       log(`Copying app from ${sourceRoot}`);
       await cp(sourceRoot, stagingDir, {
@@ -326,7 +408,7 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
           const relative = path.relative(sourceRoot, src);
           if (!relative) return true;
           const parts = relative.split(path.sep);
-          return ![".git", "node_modules", ".local-pack", ".dogfood-memory", ".jumpybrain", "tasks"].includes(parts[0])
+          return ![".git", "node_modules", ".local-pack", ".dogfood-memory", ".jumpybrain", "tasks", "evals"].includes(parts[0])
             && !parts.some((part) => part === "node_modules" || part === ".build" || part === "__pycache__");
         },
       });
@@ -345,9 +427,9 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
 
     if (!skipBuild) {
       log("Installing dependencies");
-      run("npm", ["install"], { cwd: stagingDir });
-      log("Building CLI");
-      run("npm", ["run", "build"], { cwd: stagingDir });
+      if (source === "release" && !existsSync(path.join(stagingDir, "package-lock.json"))) throw new Error("This release predates reproducible installer assets. Use an explicit trusted --source until a compatible release is published.");
+      run("npm", source === "release" ? ["ci", "--omit=dev", "--no-audit", "--no-fund"] : ["ci", "--no-audit", "--no-fund"], { cwd: stagingDir });
+      if (source !== "release") { log("Building CLI"); run("npm", ["run", "build"], { cwd: stagingDir }); }
     } else if (!existsSync(path.join(stagingDir, "dist", "cli.js"))) {
       throw new Error("--skip-build was passed but dist/cli.js is missing from the install source.");
     }
@@ -379,18 +461,12 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
 }
 
 async function writeCliShim({ cliPath, appDir, cliConfigPath }) {
-  const cliTarget = path.join(appDir, "dist", "cli.js");
-  await rm(cliPath, { force: true });
-  await writeFile(cliPath, [
-    "#!/usr/bin/env sh",
-    "if [ -z \"${JUMPYBRAIN_CLI_CONFIG+x}\" ]; then",
-    `  export JUMPYBRAIN_CLI_CONFIG=${shellQuote(cliConfigPath)}`,
-    "fi",
-    `exec node ${shellQuote(cliTarget)} "$@"`,
-    "",
-  ].join("\n"), "utf8");
-  await chmod(cliPath, 0o755);
-  await access(cliPath, fsConstants.X_OK);
+  const temporary = `${cliPath}.tmp-${process.pid}`;
+  try {
+    await writeFile(temporary, cliShim({ appDir, cliConfigPath, qmd: selectedQmd }), { mode: 0o755 });
+    await access(temporary, fsConstants.X_OK);
+    await rename(temporary, cliPath);
+  } finally { await rm(temporary, { force: true }); }
 }
 
 async function planRemoteAccessPolicy(cliConfigPath, options) {
@@ -478,30 +554,40 @@ async function indexMemoryRoot({ cliPath, memoryRoot }) {
   run(cliPath, ["index", "--root", memoryRoot], { cwd: process.cwd() });
 }
 
-async function ensureQmd({ appDir, skipInstall, dryRun }) {
-  const configured = process.env.JUMPYBRAIN_QMD_BIN?.trim();
-  const bundled = path.join(appDir, "node_modules", ".bin", "qmd");
-  const binary = configured || (existsSync(bundled) ? bundled : "qmd");
-  if (checkQmdInstallation(binary)) {
-    log(`QMD available: ${QMD_PACKAGE} (CLI + SDK)`);
-    return true;
+
+async function verifyInstallation({ options, cliPath, memoryRoot }) {
+  if (options.remoteOnly) {
+    run(cliPath, ["--version"], {});
+    resultReport.checks.cli = true;
+    return;
   }
-  if (skipInstall) {
-    log(`Compatible ${QMD_PACKAGE} CLI + SDK not found; skipping install and initial index because --skip-qmd-install was passed.`);
-    return false;
+  if (!selectedQmd || options.skipInitialIndex) {
+    resultReport.remainingActions.push("Local recall was not verified; run doctor --check and recall after preparing the engine/index.");
+    return;
   }
-  // An explicit/bundled selection shadows global npm installs at runtime too.
-  if (configured || existsSync(bundled)) {
-    throw new Error(`Selected QMD is incompatible; install ${QMD_PACKAGE} with CLI and SDK together, or fix JUMPYBRAIN_QMD_BIN/package-local QMD.`);
+  verificationCommand(cliPath, ["doctor", "--root", memoryRoot, "--check", "--json"]);
+  resultReport.checks.doctor = true;
+  verificationCommand(cliPath, ["recall", "--root", memoryRoot, "--topic", "installation check", "--limit", "1", "--json", ...(options.readOnly ? ["--read-only"] : [])]);
+  resultReport.checks.recall = true;
+}
+function verificationCommand(cliPath, args) {
+  const checked = spawnSync(cliPath, args, { env: { ...process.env, HOME: installationHome, ...(selectedQmd ? { JUMPYBRAIN_QMD_BIN: selectedQmd } : {}) }, encoding: "utf8", timeout: 90000, maxBuffer: 2 * 1024 * 1024 });
+  if (checked.error || checked.status !== 0) {
+    resultReport.checks[args[0]] = false;
+    throw new Error(`Installed ${args[0]} verification failed (${checked.error?.code || checked.status}). Run ${shellQuote(cliPath)} ${args[0]} --root ${shellQuote(resultReport.memoryRoot)} to inspect readiness. ${(checked.stderr || "").slice(-1000)}`);
   }
-  if (dryRun) {
-    log(`Would install QMD with: npm install -g ${QMD_PACKAGE}`);
-    return false;
-  }
-  log(`Installing ${QMD_PACKAGE} globally (CLI + SDK)`);
-  run("npm", ["install", "-g", QMD_PACKAGE], { cwd: process.cwd() });
-  if (!checkQmdInstallation("qmd")) throw new Error(`QMD install completed but compatible ${QMD_PACKAGE} CLI + SDK was not found. Ensure npm global bin is first on PATH or set JUMPYBRAIN_QMD_BIN.`);
-  return true;
+  const packet = JSON.parse(checked.stdout);
+  const readOnlyReady = args.includes('--read-only') && packet.readiness?.freshness === 'fresh'
+    && packet.retrieval?.status === 'partial' && packet.retrieval.warnings?.length > 0
+    && packet.retrieval.warnings.every(warning => ['read_only_index', 'read_only_lexical_fallback'].includes(warning));
+  if (args[0] === "doctor" ? packet.ok !== true : packet.retrieval?.status !== "complete" && !readOnlyReady) throw new Error(`Installed ${args[0]} did not report complete readiness.`);
+  if (readOnlyReady) resultReport.recallMode = 'verified-read-only-lexical';
+  log(`Verified installed ${args[0]}; note contents are omitted from setup output.`);
+}
+async function setupDesktop({ appDir, installRoot, home, memoryRoot, options }) {
+  run(process.execPath, [path.join(fileURLToPath(new URL('.', import.meta.url)), "setup-desktop.mjs"), "--prepared", appDir, "--home", home, ...(options.reuseApp ? ["--reuse"] : [])], { env: { JUMPYBRAIN_INSTALLER_LOCK_TOKEN: installerToken } });
+  resultReport.appPath = path.join(home, "Applications/jumpyBrain.app");
+  resultReport.checks.desktop = true;
 }
 
 function planIntegrations({ integrations, scope, home, cwd }) {
@@ -538,6 +624,7 @@ async function installIntegration({ item, memoryRoot, cliPath, appDir }) {
   await mkdir(path.dirname(item.path), { recursive: true });
   const assetPath = item.asset === "skill" ? path.join(appDir, "skills", "jumpybrain-memory", "SKILL.md") : path.join(appDir, "integrations", "pi", "jumpybrain-memory.ts");
   const rendered = renderTemplate(await readFile(assetPath, "utf8"), { memoryRoot, cliPath, asset: item.asset });
+  if (existsSync(item.path) && await readFile(item.path, "utf8") !== rendered) throw new Error(`Integration was customized: ${item.path}. Preserve it before retrying.`);
   await writeFile(item.path, rendered, "utf8");
 }
 
@@ -671,7 +758,7 @@ function commandExists(command) {
 }
 
 function run(command, args, options) {
-  const result = spawnSync(command, args, { ...options, stdio: "inherit" });
+  const result = spawnSync(command, args, { ...options, env: { ...process.env, ...options?.env, HOME: installationHome, PATH: `${path.dirname(process.execPath)}:${process.env.PATH || ""}`, ...(selectedQmd ? { JUMPYBRAIN_QMD_BIN: selectedQmd } : {}) }, stdio: jsonOutput ? ["ignore", 2, 2] : "inherit", timeout: 600000 });
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status ?? "unknown"}.`);
 }
 
@@ -684,6 +771,7 @@ function log(message) {
 }
 
 main().catch((error) => {
+  if (jsonOutput) process.stdout.write(JSON.stringify({ ...resultReport, error: error.message, blockers: error.blockers || [] }) + "\n");
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
 });

@@ -63,3 +63,5 @@ export { checkDreamSources } from "../app/dream/source-check.js";
 export type { SourceCheckRequest, SourceCheckResult } from "../core/dream/source-references.js";
 
 export * from "./boards.js";
+
+export { inspectLocalSearchEngine } from "../app/local-memory/index.js";

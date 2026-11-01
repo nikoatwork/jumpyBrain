@@ -14,7 +14,7 @@ checks to its real tarball before recording successful package metadata.
   idle machine, separately from other builds and tests that consume `dist`.
 - `npm audit` and `npm --prefix integrations/electron audit`: both lockfiles.
 
-Budgets in `scripts/package-budget.mjs` are 1.3 MB compressed, 3.8 MB unpacked,
+Budgets in `scripts/package-budget.mjs` are 1.3 MB compressed, 4.0 MB unpacked,
 2.5 MB under `dist/`, and 600 files (decimal units). Existing editor tests retain
 187 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer. A budget increase needs a measured explanation and review;
@@ -72,3 +72,7 @@ The [existing desktop-update measurements](../tasks/todo/tasks-desktop-update-30
 record a 34.187-second median fresh Swift compilation and keep release-built
 helper work active. Do not confuse a 1.8-second TypeScript/editor build with a
 complete Mac app build, dependency download, local model installation or update.
+
+## 2026-11-01 installation assets
+
+The private-engine lock adds 82,440 bytes; the root dependency lock now travels in `dist/runtime-package-lock.json` because npm omits the root lockfile. Installer/bootstrap/verification helpers also ship. The measured intermediate package reached 3,801,589 unpacked bytes, exceeding the prior 3.8 MB ceiling. Increase only the unpacked ceiling to 4.0 MB for these reproducibility and recovery assets; retain the 1.3 MB compressed, 2.5 MB runtime and 600-file caps. Native engines, Node binaries and Electron remain separate platform downloads, not bundled into the CLI tarball.

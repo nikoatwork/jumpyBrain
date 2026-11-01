@@ -14,7 +14,7 @@
 
 ## Index lifecycle and readiness
 
-Resolver setup failures identify an explicit `JUMPYBRAIN_QMD_BIN` selection and advise correcting/unsetting it before installation advice. This is diagnostic guidance around the existing resolver, not another discovery strategy; doctor remains a separate CLI-owned bounded version probe and does not claim SDK/inference validation.
+Resolver setup failures identify an explicit `JUMPYBRAIN_QMD_BIN` selection and advise correcting/unsetting it before installation advice. This is diagnostic guidance around the existing resolver, not another discovery strategy; doctor uses the same resolver through the app/runtime inspection seam and does not claim inference validation.
 
 `qmd-lifecycle.ts` owns publication/exclusion; the isolated `qmd-worker.ts` uses **@tobilu/qmd@2.8.3**, with CLI and SDK from the same package. A standalone executable or a different package version is unsupported. App/core own canonical discovery and persisted policy; the adapter invokes core’s stat/read/stat canonical snapshot reader inside the root lock, once per supplied candidate (without an earlier app content/parse pass), including deferred excluded-name migration-envelope checks; rejected envelopes never reach the worker. Post-index observational readiness retains its independent scanner/envelope checks, so this is an indexing-input count rather than a whole-operation filesystem-read guarantee; the worker consumes exactly the supplied Markdown content (including empty/whitespace documents), never a second QMD filesystem scan.
 
@@ -144,3 +144,7 @@ At **query time**:
 - Repaired identical hits use a real content/location hash, avoiding the old truncated-file-prefix ID collision that could hide distinct raw evidence.
 
 This bounded lexical supplement improves candidate recall, not exhaustive semantic recall. Maps missed by its two lexical queries may still be found by ordinary hybrid retrieval; very large documents may require explicit expansion beyond the repair prefix. Ranking calibration is backed by synthetic ordering/cutoff regressions and CLI/HTTP/browser parity tests, not a broad quality benchmark.
+
+## Installation diagnostics
+
+`inspectLocalSearchEngine` uses the same binary/SDK resolver as retrieval, validates pinned package identity and SDK files, and runs a bounded version probe. The app/runtime seam exposes it to doctor; it does not load model code or prove search. Managed launchers and Desktop supply the installer-selected absolute engine path.

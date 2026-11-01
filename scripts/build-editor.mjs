@@ -40,3 +40,6 @@ const notices = await Promise.all([...packages].sort().map(async (folder) => `${
 await writeFile("dist/adapters/http-server/editor-LICENSES.txt", notices.join("\n\n---\n\n"));
 console.log(`Lexical editor: ${Buffer.byteLength(bundle)} bytes minified, ${gzipSync(bundle).length} bytes gzip (${packages.size} bundled packages).`);
 console.log(`Optional desktop extensions UI: ${Buffer.byteLength(extensionBundle)} bytes minified, ${gzipSync(extensionBundle).length} bytes gzip.`);
+
+// npm omits the root lockfile; carry the exact release dependency graph with built assets.
+await writeFile("dist/runtime-package-lock.json", await readFile("package-lock.json"));

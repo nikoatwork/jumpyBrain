@@ -1,6 +1,6 @@
 import type { RetrievalReadiness } from "../types.js";
 import { existsSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { inspectLocalSearchEngine } from "../runtime/index.js";
 import os from "node:os";
 import path from "node:path";
 import { packageVersion } from "../adapters/package-info/index.js";
@@ -28,11 +28,7 @@ export interface DoctorReport {
 export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemoryTransport): Promise<DoctorReport> {
   const version = await packageVersion();
   const root = stringArg(args, "root", false).trim() || process.env.JUMPYBRAIN_MEMORY_ROOT || path.join(os.homedir(), ".jumpybrain", "memory");
-  const override = process.env.JUMPYBRAIN_QMD_BIN?.trim();
-  const qmdBin = override || "qmd";
-  const qmdCheck = spawnSync(qmdBin, ["--version"], { encoding: "utf8", timeout: 5000, maxBuffer: 64 * 1024 });
-  const qmdVersion = qmdCheck.status === 0 ? qmdCheck.stdout.trim().match(/^(?:qmd\s+)?v?(\d+\.\d+\.\d+)(?:\s+\([a-f0-9]+\))?$/i)?.[1] : undefined;
-  const qmdOk = qmdVersion === "2.8.3";
+  const engine = inspectLocalSearchEngine();
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   const integrations = integrationChecks(os.homedir(), false);
   // Explicit roots establish only this scope, never unrelated cwd/ancestor projects.
@@ -58,11 +54,7 @@ export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemory
     ok: false,
     cli: { ok: true, version, message: `jumpybrain ${version}` },
     node: { ok: nodeMajor >= 22, version: process.version, message: nodeMajor >= 22 ? `Node ${process.version}` : `Node >=22 is required; current ${process.version}` },
-    qmd: {
-      ok: qmdOk,
-      binary: qmdBin,
-      message: qmdOk ? "QMD 2.8.3 is available (version probe only; CLI/SDK are required for retrieval)." : `${override ? "The selected JUMPYBRAIN_QMD_BIN override failed the QMD 2.8.3 version check. Correct it or run `unset JUMPYBRAIN_QMD_BIN` to use normal resolution, then retry. " : ""}QMD 2.8.3 is required for local/server indexing and recall. If still unavailable, install with \`npm install -g @tobilu/qmd@2.8.3\` or set JUMPYBRAIN_QMD_BIN.`,
-    },
+    qmd: engine,
     memoryRoot,
     integrations,
     integrationsScope: "global",

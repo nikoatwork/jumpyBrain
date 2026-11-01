@@ -49,7 +49,7 @@ test("doctor keeps legacy exit 0, strict check fails with JSON and no root/home 
   assert.equal(strict.stderr, "");
   const report = JSON.parse(strict.stdout);
   assert.match(report.memoryRoot.message, /Memory root does not exist.*jumpybrain init --root/su);
-  assert.match(report.qmd.message, /JUMPYBRAIN_QMD_BIN.*Correct.*unset.*If still unavailable/su);
+  assert.match(report.qmd.message, /CLI and SDK.*Correct or unset JUMPYBRAIN_QMD_BIN.*rerun the installer/su);
   assert.equal(report.qmd.binary, f.env.JUMPYBRAIN_QMD_BIN);
   assert.deepEqual(await snapshot(f.temp), before);
 });

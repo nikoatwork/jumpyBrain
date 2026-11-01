@@ -145,4 +145,32 @@ class CompilerSnapshotTests(unittest.TestCase):
             with self.assertRaisesRegex(installer.SafetyError, 'pinned runtime version'):
                 installer.copy_extension_compiler(source, runtime)
 
+
+class InstallerLockHandoffTests(unittest.TestCase):
+    def test_matching_live_parent_retains_its_lock_and_wrong_token_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary)
+            lock = home / '.jumpybrain/.installer-lock'
+            lock.mkdir(parents=True)
+            (lock / 'owner.json').write_text(json.dumps(dict(pid=os.getpid(), host=os.uname().nodename, token='fixture-token')))
+            with patch.dict(os.environ, {'JUMPYBRAIN_INSTALLER_LOCK_TOKEN': 'fixture-token'}):
+                with installer.installation_lock(home):
+                    self.assertTrue(lock.exists())
+            self.assertTrue(lock.exists(), 'child never releases the parent lock')
+            with patch.dict(os.environ, {'JUMPYBRAIN_INSTALLER_LOCK_TOKEN': 'wrong-token'}):
+                with self.assertRaisesRegex(installer.SafetyError, 'Invalid installer lock handoff'):
+                    with installer.installation_lock(home):
+                        self.fail('must not enter')
+            self.assertTrue(lock.exists())
+
+    def test_fresh_configuration_uses_managed_tools_and_port_without_path_lookup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary)
+            manifest = dict(node='/private/runtime/bin/node', qmd='/private/engine/bin/qmd', memoryRoot=str(home / 'brain'), desktopPort=43210)
+            with patch.object(installer, 'validate_manifest', return_value=manifest), patch.object(installer.shutil, 'which', return_value=None):
+                config = installer.configuration(home)
+            self.assertEqual(config['node'], manifest['node'])
+            self.assertEqual(config['qmd'], manifest['qmd'])
+            self.assertEqual(config['port'], 43210)
+
 if __name__ == '__main__': unittest.main()

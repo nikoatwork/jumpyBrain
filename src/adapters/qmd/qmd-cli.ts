@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { runQmdChild } from "./qmd-execution.js";
 import { existsSync, realpathSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -58,6 +59,18 @@ export async function runQmd(root: string, args: string[], model?: string): Prom
       GGML_METAL_NO_RESIDENCY: process.env.QMD_METAL_KEEP_RESIDENCY ? process.env.GGML_METAL_NO_RESIDENCY : "1",
     },
   });
+}
+
+export function inspectLocalSearchEngine(): { ok: boolean; binary: string; message: string } {
+  const binary = resolveQmdBinary();
+  try {
+    const sdk = resolveQmdSdk();
+    if (!["index.js", "store.js", "llm.js"].every(file => existsSync(path.join(path.dirname(sdk), file)))) throw new Error("QMD SDK files are missing.");
+    const probe = spawnSync(binary, ["--version"], { encoding: "utf8", timeout: 5000, maxBuffer: 65536 });
+    const version = probe.status === 0 ? probe.stdout.trim().match(/^(?:qmd\s+)?v?(\d+\.\d+\.\d+)(?:\s+\([a-f0-9]+\))?$/i)?.[1] : undefined;
+    if (version !== SUPPORTED_QMD_VERSION) throw new Error("QMD 2.8.3 version check failed.");
+    return { ok: true, binary, message: "QMD 2.8.3 CLI and SDK are available; retrieval requires a separate check." };
+  } catch { return { ok: false, binary, message: "The selected QMD must provide compatible @tobilu/qmd@2.8.3 CLI and SDK. Correct or unset JUMPYBRAIN_QMD_BIN, or rerun the installer." }; }
 }
 
 function bundledQmdBinary(): string | undefined {

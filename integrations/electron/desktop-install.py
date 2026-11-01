@@ -58,8 +58,11 @@ def configuration(home):
             raise SafetyError('An unrelated app occupies ~/Applications/jumpyBrain.app.')
     else:
         manifest = validate_manifest(root)
-        result = dict(node=shutil.which('node'), qmd=shutil.which('qmd'), memoryRoot=manifest['memoryRoot'],
-                      supportDirectory=str(home / 'Library/Application Support/jumpyBrain Companion'), port=3787)
+        result = dict(node=manifest.get('node') or shutil.which('node'), qmd=manifest.get('qmd') or shutil.which('qmd'), memoryRoot=manifest['memoryRoot'],
+                      supportDirectory=str(home / 'Library/Application Support/jumpyBrain Companion'), port=manifest.get('desktopPort', 3787))
+    if os.environ.get('JUMPYBRAIN_MANAGED_DESKTOP_SETUP') == '1':
+        manifest = validate_manifest(root)
+        result.update(node=manifest.get('node') or result.get('node'), qmd=manifest.get('qmd') or result.get('qmd'))
     for name in ('node', 'qmd', 'memoryRoot', 'supportDirectory'):
         if not isinstance(result.get(name), str) or not Path(result[name]).is_absolute():
             raise SafetyError(f'Missing or invalid {name}; repair the installation first.')
@@ -131,7 +134,7 @@ def prepare(bundle, home, source=SOURCE):
         with build_timing('native-copy'):
             shutil.copytree(built, destination)
     shutil.copy2(source / 'integrations/macos-companion/MenuBarBrain.png', resources / 'MenuBarBrain.png')
-    (resources / 'desktop.json').write_text(json.dumps(dict(schema=1, supportDirectory=config['supportDirectory'],
+    (resources / 'desktop.json').write_text(json.dumps(dict(schema=1, homeDirectory=str(home), userDataDirectory=str(home / 'Library/Application Support/jumpyBrain Electron Prototype'), supportDirectory=config['supportDirectory'],
         launchAgent=config['launchAgent'], port=config['port']), indent=2) + '\n')
 
 def running_apps(apps):
@@ -161,10 +164,24 @@ def installation_lock(home):
     root.mkdir(parents=True, exist_ok=True)
     if root.is_symlink(): raise SafetyError('Refusing a linked CLI install root.')
     lock = root / '.installer-lock'
+    handoff = os.environ.get('JUMPYBRAIN_INSTALLER_LOCK_TOKEN')
+    if handoff and lock.exists():
+        owner_file = regular(lock / 'owner.json')
+        owner = json.loads(owner_file.read_text())
+        if lock.is_symlink() or owner_file.stat().st_uid != os.getuid() or owner.get('token') != handoff or owner.get('host') != os.uname().nodename or type(owner.get('pid')) is not int:
+            raise SafetyError('Invalid installer lock handoff.')
+        try: os.kill(owner['pid'], 0)
+        except OSError: raise SafetyError('The owning installer stopped; retry installation.')
+        yield
+        return
     try: lock.mkdir(mode=0o700)
     except FileExistsError: raise SafetyError('Another CLI/app installer or GUI update is active. Wait for it to finish.')
-    try: yield
-    finally: lock.rmdir()
+    try:
+        (lock / 'owner.json').write_text(json.dumps(dict(pid=os.getpid(), host=os.uname().nodename)))
+        yield
+    finally:
+        (lock / 'owner.json').unlink(missing_ok=True)
+        lock.rmdir()
 
 def install_bundle(built, home, *, inspect_running=running_apps, unload_legacy=True):
     with installation_lock(home):

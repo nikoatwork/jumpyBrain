@@ -4,6 +4,13 @@ const distDirPrefix = (...segments) => `${distFile(...segments)}/`;
 
 export const requiredLocalPackFiles = Object.freeze([
   "package/package.json",
+  "package/dist/runtime-package-lock.json",
+  "package/scripts/install-support.mjs",
+  "package/scripts/bootstrap-node.sh",
+  "package/scripts/engine/package.json",
+  "package/scripts/engine/package-lock.json",
+  "package/scripts/setup-desktop.mjs",
+  "package/scripts/desktop-prerequisites.mjs",
   "package/extensions.js",
   "package/extensions.d.ts",
   "package/docs/extensions.md",
@@ -21,7 +28,7 @@ export const requiredLocalPackFiles = Object.freeze([
   "package/examples/extensions/related-notes/main.ts",
   "package/examples/extensions/related-notes/ui.ts",
   ...['package.json', 'package-lock.json', 'install.mjs', 'desktop-install.py', 'application.mjs', 'updater.mjs', 'update-worker.mjs',
-    'update-policy.mjs', 'update-cli.mjs', 'update-control.mjs', 'update-inline.mjs', 'update-release.mjs', 'update-transaction.py', 'update-window.mjs', 'update-preload.cjs', 'update.html', 'update.css',
+    'install-shim.mjs', 'update-policy.mjs', 'update-cli.mjs', 'update-control.mjs', 'update-inline.mjs', 'update-release.mjs', 'update-transaction.py', 'update-window.mjs', 'update-preload.cjs', 'update.html', 'update.css',
     'update-renderer.js', 'assets/app-icon.icns'].map(file => `package/integrations/electron/${file}`),
   "package/install.sh",
   "package/uninstall.sh",

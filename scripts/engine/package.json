@@ -1,0 +1,6 @@
+{
+  "name": "jumpybrain-local-engine",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": { "@tobilu/qmd": "2.8.3" }
+}

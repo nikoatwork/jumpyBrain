@@ -54,7 +54,8 @@
     "smoke:desktop-update": "npm run build && node scripts/desktop-update-smoke.mjs",
     "dogfood:install": "node scripts/dogfood-local.mjs install",
     "dogfood:status": "node scripts/dogfood-local.mjs status",
-    "dogfood:rollback": "node scripts/dogfood-local.mjs rollback"
+    "dogfood:rollback": "node scripts/dogfood-local.mjs rollback",
+    "smoke:install": "npm run cli:pack && node scripts/agent-install-smoke.mjs"
   },
   "files": [
     "dist",
@@ -71,7 +72,12 @@
     "scripts/public-uninstall.mjs",
     "extensions.js",
     "extensions.d.ts",
-    "examples/extensions"
+    "examples/extensions",
+    "scripts/install-support.mjs",
+    "scripts/engine",
+    "scripts/setup-desktop.mjs",
+    "scripts/desktop-prerequisites.mjs",
+    "scripts/bootstrap-node.sh"
   ],
   "engines": {
     "node": ">=22"

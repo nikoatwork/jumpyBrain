@@ -395,3 +395,13 @@ test('paired CLI detection leaves CLI-only installs alone and protects pinned/so
   await assert.rejects(pairedInstallation(options), /Nothing was changed/);
   assert.equal(await pairedInstallation({ ...options, installRoot: path.join(f.home, 'custom-root') }), null);
 });
+
+test('release-managed private Node/QMD launcher remains eligible for paired updates', async t => {
+  const f = await fixture(t);
+  const { cliShim } = await import('../integrations/electron/install-shim.mjs');
+  f.manifest.distribution = 'release'; f.manifest.ref = null;
+  f.manifest.node = process.execPath; f.manifest.qmd = path.join(f.root, 'engines/qmd/bin/qmd');
+  await f.save();
+  await writeFile(f.manifest.cliPath, cliShim({ appDir: f.app, cliConfigPath: path.join(f.root, 'cli-config.json'), node: f.manifest.node, qmd: f.manifest.qmd }));
+  assert.equal((await cliPolicy(f.home)).kind, 'managed');
+});

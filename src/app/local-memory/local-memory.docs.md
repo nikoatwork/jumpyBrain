@@ -69,3 +69,7 @@ Rich search accepts opt-in `recognition` calendar/editor/sort/paging options. Va
 `search-recognition.ts` reads only candidate paths at the configured retrieval root, verifies current ID/title against each hit, rejects unsafe/outside-canonical paths and invalid UTF-8, and returns optional dates/current declared editor plus an 8192-character body prefix for UI display. Reads are sequential, cancellation-aware, at most 1 MiB per file/8 MiB aggregate; oversized, changed or unavailable sources produce `metadataStatus: unavailable`, not guessed timestamps/editors. It adds no persistent cache, per-result HTTP request or additional root-wide identity scan. It does not newly guarantee unique IDs or a multi-file snapshot; existing editor GET still validates identity.
 
 The version-1 acknowledgement echoes normalized options, `candidateLimit:120`, candidate/match/unavailable counts, `partial:true`, and optional `nextOffset`. Filters operate over these ranked candidates, not the entire corpus; `recognition_bounded_candidates` always marks partial retrieval, including zero matches. Relevance is default; edit sorting puts unknown dates last and uses file-path ties. Date-only values retain calendar meaning; timestamp dates resolve in the requested IANA timezone. Evidence-date `temporal` remains separate.
+
+## Setup inspection
+
+The runtime exposes `inspectLocalSearchEngine` through this app seam for bounded binary/SDK/version diagnostics. It delegates to the QMD adapter and does not initialize memory or execute retrieval.

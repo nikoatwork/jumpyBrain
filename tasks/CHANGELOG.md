@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — Verified agent installation
+
+- Added one CLI + Mac app + agents operation, verified release inputs, private Node/search provisioning, recoverable setup and actual installed readiness checks. Verified disposable and authorized personal reinstalls with canonical data preserved. Public rollout and native-toolchain removal remain pending. [Implementation and limits](done/2026-11-01_tasks-agent-installation.md).
+
 ## 2026-11-01 — Folder explorer
 
 - Browse nested Markdown folders with focused search, compact trees and guarded note opening in a collapsible right sidebar. [Details](done/2026-11-01_tasks-folder-explorer.md).

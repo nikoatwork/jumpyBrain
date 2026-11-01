@@ -38,7 +38,8 @@ try {
     dir: source, name: 'jumpyBrain', appBundleId: 'local.jumpybrain.desktop',
     appVersion: metadata.version, platform: 'darwin', arch: process.arch, out: output,
     icon: path.join(source, 'assets/app-icon.icns'), appCategoryType: 'public.app-category.productivity',
-    asar: true, prune: true,
+    // Packager clears its entire temp base on start; isolate concurrent installers.
+    tmpdir: output, asar: true, prune: true,
     electronZipDir: path.dirname(zip),
     afterExtract: [phase('electron-unpack-and-setup')],
     afterCopy: [phase('electron-copy-source')],

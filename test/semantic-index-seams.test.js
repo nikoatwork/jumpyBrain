@@ -1,3 +1,4 @@
+import { installFakeQmd } from "./fake-qmd-helper.js";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -127,7 +128,7 @@ test("overlapping rebuild is queued rather than silently joining an incremental 
 
 test("doctor requires QMD 2.8.3 and status readiness without model work or raw diagnostics", async (t) => {
   const root = await temporary(t);
-  const binary = path.join(root, "qmd");
+  const { bin: binary } = await installFakeQmd(root);
   const old = process.env.JUMPYBRAIN_QMD_BIN;
   process.env.JUMPYBRAIN_QMD_BIN = binary;
   t.after(() => { if (old === undefined) delete process.env.JUMPYBRAIN_QMD_BIN; else process.env.JUMPYBRAIN_QMD_BIN = old; });
