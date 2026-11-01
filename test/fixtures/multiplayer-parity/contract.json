@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "id": "multiplayer-M0-current-behavior",
+  "description": "Existing semantic assertions before changing backend ownership, transport, or editing.",
+  "assertionRoots": [
+    "test",
+    "scripts/external-document-updates-smoke.mjs",
+    "scripts/note-lifecycle-smoke.mjs",
+    "scripts/markdown-formatting-smoke.mjs",
+    "scripts/companion-gateway-smoke.mjs",
+    "scripts/playwright-runtime.mjs",
+    "scripts/editor-smoke-helpers.mjs",
+    "scripts/fixtures"
+  ],
+  "checks": [
+    {
+      "id": "deterministic-suite",
+      "scenarioIds": ["P01", "P02", "P03", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12"],
+      "command": ["npm", "test", "--", "--test-reporter=tap", "--test-concurrency=4"],
+      "timeoutMs": 600000,
+      "tap": true
+    },
+    {
+      "id": "external-file-editor",
+      "scenarioIds": ["P04", "P05", "P06"],
+      "command": ["node", "scripts/external-document-updates-smoke.mjs"],
+      "timeoutMs": 180000,
+      "requires": "deterministic-suite",
+      "markers": ["\"width\":1280", "\"width\":390", "same-passage review"]
+    },
+    {
+      "id": "note-lifecycle",
+      "scenarioIds": ["P03", "P05", "P09", "P11"],
+      "command": ["node", "scripts/note-lifecycle-smoke.mjs"],
+      "timeoutMs": 180000,
+      "requires": "deterministic-suite",
+      "markers": ["PASS: real note capture"]
+    },
+    {
+      "id": "markdown-formatting",
+      "scenarioIds": ["P06"],
+      "command": ["node", "scripts/markdown-formatting-smoke.mjs"],
+      "timeoutMs": 180000,
+      "requires": "deterministic-suite",
+      "markers": ["PASS canonical formatting/save/refresh/failure/conflict 1280px", "PASS canonical formatting/save/refresh/failure/conflict 390px"]
+    },
+    {
+      "id": "companion-gateway",
+      "scenarioIds": ["P07", "P08"],
+      "command": ["node", "scripts/companion-gateway-smoke.mjs"],
+      "timeoutMs": 180000,
+      "requires": "deterministic-suite",
+      "markers": ["companion real gateway Chromium smoke: PASS ("]
+    }
+  ],
+  "limits": [
+    "This gate reproduces existing semantic assertions; it does not implement or establish live simultaneous editing.",
+    "Semantic model quality, real VPS/HTTPS deployment, physical Keychain/IME/accessibility, installed app updates and untested operating systems require separate evidence.",
+    "Direct filesystem writers can bypass cooperating locks; passing tests do not establish filesystem compare-and-swap.",
+    "Frozen test files are regression oracles, not proof of exhaustive behavioral coverage."
+  ]
+}

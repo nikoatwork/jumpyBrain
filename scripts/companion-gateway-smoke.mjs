@@ -173,7 +173,10 @@ try {
     await settings.goto(gateway.url + "/settings#companion=" + controlKey);
     await ready(settings);
     assert.equal(new URL(settings.url()).hash, "");
-    assert.equal(traffic.some((item) => item.path.startsWith("/memories/")), false, "settings fetched memories");
+    // Settings now displays board organization. Allow only that metadata read;
+    // document bodies, search, indexing and writes must still stay out of setup.
+    assert.deepEqual(traffic.filter((item) => item.path.startsWith("/memories/")
+      && !(item.method === "GET" && item.path === "/memories/all/boards")), [], "settings fetched note content or issued a memory operation beyond board metadata");
     b = await addProfile("Smoke local B", "local", roots.b);
     r = await addProfile("Smoke remote", "remote", remote.url, remoteKey, true);
     await row("Smoke remote").getByRole("button", { name: "Edit", exact: true }).click();
@@ -342,7 +345,11 @@ try {
     await ready(editor);
     assert.equal(new URL(editor.url()).searchParams.has("note"), false);
     assert.match(await editor.locator("#toast-message").textContent(), /not scoped/);
-    assert.doesNotMatch(await editor.locator("body").innerText(), /Replacement private body/);
+    // Current-brain sidebar previews are legitimate. The rejected bookmark must
+    // not activate or hydrate a document in the editor under the old identity.
+    assert.equal(await editor.locator("#home-new").isVisible(), true);
+    assert.equal(await editor.locator("#note-panel").isVisible(), false);
+    assert.doesNotMatch(await editor.locator("#note-editor").textContent(), /Replacement private body/);
     b = changed;
   });
   await check("restart fences dirty tabs; clean reconnect leaves no ghost registration", async () => {
