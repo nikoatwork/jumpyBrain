@@ -76,7 +76,7 @@ Use the canonical real root as service identity, not only a configured path, URL
 
 Specify simultaneous starts, symlink/path aliases, stale registrations, incompatible installed app/CLI versions, service crash/restart, explicit stop, OS login, window close, and app quit. An explicit host stop must drain or reject pending work and leave draft recovery available. Window close is not service shutdown.
 
-The service must be independently launchable so CLI use needs no Electron window, GUI login, or Keychain dialog. Preserve the local runtime/library API for explicit embedding; it must participate in or fail clearly against an active root owner rather than quietly become a second live writer.
+The service must be independently launchable so CLI use needs no Electron window, GUI login, or Keychain dialog. An explicit embedding API may change with the coordinated update; it must participate in or fail clearly against an active root owner rather than quietly become a second live writer.
 
 One owner coordinates cooperating application writers. Files remain writable to their filesystem owner. Raw changes and older tools are external inputs, not proof that single-writer coordination has been achieved. Multi-server active/active access to one root and cross-machine filesystem sync are out of scope.
 
