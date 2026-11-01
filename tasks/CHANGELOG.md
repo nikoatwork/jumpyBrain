@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — Search excludes the current page
+
+- Web and Mac navigation search hide the current page through frontend filtering, preserving shared ranking and reference pickers. [Verification](done/2026-11-01_tasks-search-exclude-current-page.md).
+
 ## 2026-11-01 — v0.3.16 beta published
 
 - Shipped folder browsing, verified agent installation, Obsidian folder guidance and default-off board sidebar pages. Public artifact and aligned versions verified. [Release notes](done/releases/v0.3.16.md), [QA](done/releases/v0.3.16.qa.md).
