@@ -64,4 +64,4 @@ export type { SourceCheckRequest, SourceCheckResult } from "../core/dream/source
 
 export * from "./boards.js";
 
-export { inspectLocalSearchEngine } from "../app/local-memory/index.js";
+export { inspectLocalSearchEngine, resolveLocalSearchEngineBinary } from "../app/local-memory/index.js";

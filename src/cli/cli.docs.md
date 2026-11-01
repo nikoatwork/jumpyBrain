@@ -84,3 +84,19 @@ The gateway's private support-directory control descriptor locates the exact liv
 ## Managed installation
 
 Doctor calls the runtime engine-inspection seam, so package-local and installer-selected CLI/SDK diagnostics agree with retrieval. Release-managed CLI updates preserve their release distribution policy; explicit source/ref installations retain theirs. Remote-only installation skips local provisioning. Installation itself remains in scripts, with private dependency selection and machine-readable completion.
+
+## Shared ownership
+
+Canonical mutations and repairing retrieval use the authenticated root backend.
+Pure inspections/previews/strict read-only retrieval remain observational. Initial
+creation/import can bootstrap a new directory. Local RPC strips caller root
+selection, preserves CLI packets and carries only the host signal to app work.
+SIGINT/SIGTERM request cancellation and await drained authoritative results;
+canonical success retains its identity if subsequent indexing is cancelled.
+Engine selection is resolved in the caller and scoped per backend operation,
+without mutating process-global environment.
+
+`backend`, `access` and `collaborate` expose owner lifecycle, independently
+revocable roles and streaming source operations. Agent chunks are decoded
+incrementally, bounded and sent with backpressure; no mutation is replayed on
+connection loss. See [collaboration commands](../../docs/collaboration.md).

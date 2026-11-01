@@ -77,7 +77,8 @@
     "scripts/engine",
     "scripts/setup-desktop.mjs",
     "scripts/desktop-prerequisites.mjs",
-    "scripts/bootstrap-node.sh"
+    "scripts/bootstrap-node.sh",
+    "scripts/multiplayer-upgrade.mjs"
   ],
   "engines": {
     "node": ">=22"
@@ -89,11 +90,13 @@
     "@lexical/rich-text": "0.51.0",
     "@lexical/selection": "0.51.0",
     "@types/node": "^25.9.9",
+    "@types/ws": "8.18.2",
     "fast-check": "^4.10.2",
     "lexical": "0.51.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "esbuild": "0.28.2"
+    "esbuild": "0.28.2",
+    "ws": "8.22.1"
   }
 }

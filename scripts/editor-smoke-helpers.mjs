@@ -11,6 +11,7 @@ export async function openNoteFormatting(page) {
 }
 
 export async function selectEditorText(page, start, end = start) {
+  await waitForEditorWritable(page);
   await page.locator("#note-editor").evaluate((element, { start, end }) => {
     if (!element.isContentEditable) throw new Error("#note-editor must be contenteditable before editing");
     element.focus({ preventScroll: true });
@@ -35,6 +36,7 @@ export async function selectEditorText(page, start, end = start) {
 }
 
 export async function editorEnd(page) {
+  await waitForEditorWritable(page);
   await page.locator("#note-editor").evaluate((element) => {
     if (!element.isContentEditable) throw new Error("#note-editor must be contenteditable before editing");
     element.focus({ preventScroll: true });
@@ -69,6 +71,7 @@ export async function editorAtEnd(page) {
 }
 
 export async function replaceEditorText(page, text) {
+  await waitForEditorWritable(page);
   await page.locator("#note-editor").evaluate((element) => {
     if (!element.isContentEditable) throw new Error("#note-editor must be contenteditable before editing");
     element.focus();
@@ -96,4 +99,10 @@ export async function undoEditor(page) {
   const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
   await page.locator("#note-editor").focus();
   await page.keyboard.press(modifier + "+z");
+}
+
+async function waitForEditorWritable(page) {
+  // The live shell locks the editor until authenticated open establishes its
+  // canonical baseline; visibility alone is no longer an editing-ready signal.
+  await page.waitForFunction(() => document.querySelector("#note-editor")?.isContentEditable === true);
 }

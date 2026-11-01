@@ -1,6 +1,6 @@
 # Shared backend and live multiplayer editing
 
-Status: active, 2026-11-01. M0 and the M1 design gate are complete for their recorded scope. Production M1 implementation and M2–M5 remain unstarted. Dedicated branch: plan/multiplayer-memory-architecture.
+Status: active, 2026-11-01. M0 and the M1 design gate are complete for their recorded scope. Production M1–M4 are implemented and undergoing the final integrated regression gate; M5 evidence is being collected. Dedicated branch: plan/multiplayer-memory-architecture.
 
 ## Goal
 
@@ -13,7 +13,7 @@ Deliver smooth live simultaneous editing for humans and streaming agents over on
 - Direct writes to Markdown remain a required detection/reconciliation path. Prefer coordinated CLI edits, but do not pretend filesystem writers can be prohibited by a CLI rule. Preserve observed conflicting content; document unavoidable unobserved/raw-writer races.
 - Keep one engine for local and hosted roots. Do not add a model provider, mandatory cloud account, synchronization service, authoritative binary content database, MCP prerequisite, or full T3 orchestration framework.
 - Existing guarded updates, retrieval/index behavior, source fidelity, boards, native capabilities and user data are regression surfaces. The user explicitly permits breaking CLI/API/integration contracts during the internal beta and coordinated updates of all clients; long-term V1 or mixed-version compatibility is not a requirement. Changes must have a smooth documented upgrade path and must not silently retarget existing brains.
-- Current authorized work is task 2.0, the M1 design gate, after completed M0. Root-owner/auth/transport production implementation remains in later tasks.
+- Current authorization is the complete implementation and verification roadmap, including all automated gates and subagents in this dedicated worktree. The user permits coordinated breaking changes and requests a runnable README upgrade path.
 - Planning seed: 1cc3b4153922935ada80f509cbe3cc227ce4c1ce. Unrelated folder-explorer edits in the original checkout are outside this worktree and outside the frozen seed; incorporate their final supported behavior before a later integration if they land.
 
 ## Maturity and merge conditions
@@ -21,11 +21,11 @@ Deliver smooth live simultaneous editing for humans and streaming agents over on
 | Level | Completion evidence | Current state |
 | --- | --- | --- |
 | M0 | Protected current-behavior contract, immutable baseline/artifact/environment manifest, reproducible checks, negative verifier tests, explicit coverage gaps. | Passed for the recorded macOS/loopback automated scope; see the evidence record. |
-| M1 | One discoverable root owner; coordinated app/CLI lifecycle; reader/writer enforcement; proven storage/editor prototype. | Design gate passed; full M1 remains incomplete until production task 3.0 passes. |
-| M2 | Scoped authenticated live state, external-file invalidation, gap-free snapshots, bounded reconnect and revocation. | Unstarted. |
-| M3 | Two humans edit concurrently with correct source preservation, undo, selection, drafts and durable Markdown saves. | Unstarted. |
-| M4 | Streaming agents and observed direct-file edits coexist safely with humans, including failures and recovery. | Unstarted. |
-| M5 | Repeated integrated Mac/Linux/VPS, compatibility, resource, failure and rollback scenarios pass. | Unstarted. |
+| M1 | One discoverable root owner; coordinated app/CLI lifecycle; reader/writer enforcement; proven storage/editor prototype. | Implemented; root/auth/upgrade and Mac/Linux owner tests pass. Final parity verification remains pending. |
+| M2 | Scoped authenticated live state, external-file invalidation, gap-free snapshots, bounded reconnect and revocation. | Implemented; final integrated regression verification pending. |
+| M3 | Two humans edit concurrently with correct source preservation, undo, selection, drafts and durable Markdown saves. | Implemented; final integrated regression verification pending. |
+| M4 | Streaming agents and observed direct-file edits coexist safely with humans, including failures and recovery. | Implemented; final integrated regression verification pending. |
+| M5 | Repeated integrated Mac/Linux hosted/TLS, compatibility, resource, failure and rollback scenarios pass; untested physical/public-deployment boundaries are explicit. | In progress: signed desktop lifecycle and both Linux Node versions pass; final frozen-oracle verification pending. |
 
 A merge requires the frozen M0 assertions plus the new stage's relevant scenarios against the proposed integration snapshot. Missing required evidence is blocked or untested, never passed. A stage's green tests do not authorize enabling unverified later behavior. Feature gating must itself be tested. Record a contract delta separately for intentional behavior changes; do not regenerate a baseline to accept a regression.
 
@@ -142,7 +142,7 @@ The expected first gate includes npm test and the existing scripts/external-docu
 - The [design decision](../../deep-dives/multiplayer-editing/M1-design-decision.md) records scope, upgrade policy, prototype budgets, independent digests and the local pre-merge procedure. Clean-source M1 execution at 42635cceb4dbcff3b715146595aabace9e333b61 passed: source 33 cases, durability 23, composition three; native comparison retains 24 passes and seven rejection counterexamples. The 20 gate and nine integration-guard checks pass.
 - Protected M0 parity on the same commit passed all 1,566 tests and all four real browser smokes, with no required skips. All 438 runtime files remain byte-identical to the original baseline. Candidate M0 manifest: 311679498aa887854ba4d957e7041bd54cdfefa7445f53c0c0ccde098effeafd. M1 design report: e7f2452ff66b54bd16ea256d1a6e6fc2b945b2a249f510ae9dc9637335239a62.
 - Parent integrity recheck confirmed the design's 712 recorded inputs, original frozen assertions and runtime file map after M0 rebuilt the artifact. This task adds prototypes/documentation only; root dependency manifests and production source are unchanged. The final evidence commit changes documentation only.
-- Actual integration remains blocked: master has advanced to cd3db8612412bb064df88c003228037e78820002 and is not yet contained here. Its behavior must be incorporated and verified before a merge. No merge, push, app/VPS update or release was performed. The roadmap remains active for production ownership/auth implementation and later live-editing gates.
+- At the M1-design checkpoint, integration was blocked: master had advanced to cd3db8612412bb064df88c003228037e78820002 and was not yet contained here. Its behavior had to be incorporated and verified before a merge. No merge, push, app/VPS update or release was performed. The roadmap remains active for production ownership/auth implementation and later live-editing gates.
 
 ## Relevant existing seams
 
@@ -151,3 +151,11 @@ The expected first gate includes npm test and the existing scripts/external-docu
 - [Browser/editor](../../src/adapters/http-server/browser.docs.md), [HTTP adapter](../../src/adapters/http-server/http-server.docs.md), [shared protocol](../../docs/shared-memory-protocol.md).
 - [Desktop](../../integrations/electron/electron.docs.md), [gateway](../../integrations/macos-companion/gateway.docs.md), [connections](../../integrations/macos-companion/connections.docs.md).
 - [Release checks](../../docs/release-testing.md), [lean beta policy](../../docs/lean-beta-releases.md), [task workflow](../../docs/task-workflow.md).
+
+### Production implementation in progress
+
+- Master folder-explorer work was incorporated by merge f1d35b49bcc50e98ef95ccb943c1db85bd2b7f0c, containing master cd3db8612412bb064df88c003228037e78820002. Its supported file actions remain in the regression suite. The original checkout remains untouched.
+- Production root ownership, persistent revocable roles, live source coordination, editor binding, private drafts, agent CLI streaming and direct-file reconciliation are implemented. A signed packaged desktop passes normal/crash/recovery lifecycle checks; root owners survive window close.
+- Linux/arm64 container builds on Node22.23.4 and26.7.0 passed the selected real owner/auth/HTTP/WS/TLS/storage/upgrade suites with no skips; these are representative hosted environments, not a public VPS deployment claim.
+- Real browser regressions found and fixed CRLF/caret, quick actor undo, reconnect recovery, metadata/stream continuity, credential replacement, cloned-tab actors and fresh-open boundaries. Final assertions remain mandatory; implementation alone does not complete a gate.
+- The original M0 baseline and contract remain immutable. Reviewed exact old/new assertion/harness deltas will bind the approved live-transport changes, explicit single-owner serve setup and measured resource budgets. A new helper cannot silently weaken an old smoke.

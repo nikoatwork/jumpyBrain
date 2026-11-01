@@ -86,3 +86,14 @@ The internal `readinessOnly` launch option forces an empty extension execution s
 Board operations proxy the ordinary authenticated `/memories/all/boards` routes to the selected local or remote brain. GET is observational; POST/PUT/DELETE are writes and require the profile's `allowWrites` permission. Existing generation/tab admission, queue draining and save barriers apply. There is no app-support board store, `/companion/collections` route or native CLI capability advertisement. Per-board content hashes protect layout changes. Copying the brain carries its organization; two profiles of the same brain see the same boards. See [agent boards](../../docs/boards.md).
 
 File explorer `POST /memories/all/files/operations` forwards explicit folder creation and guarded file moves/renames through ordinary write admission, preserving If-Match and the selected target until the request drains. Read-only profiles reject it. Acknowledged tabs and old generations cannot start another operation. The browser includes in-flight explorer operations in its existing save barrier. The optional `includeFolders=1` listing remains observational.
+
+## Shared root owners and WebSockets
+
+Local destinations join `ensureRootBackend`; switching or closing the gateway
+does not kill another app/CLI's backend. The `/ws` bridge enforces the existing
+Host/Origin/cookie boundary, tab registration, generation and write approval.
+It substitutes the native credential in the hello frame and pins each admitted
+operation until acknowledgement. A generation change closes old subscriptions.
+Unconfirmed upstream work retains admission fences instead of claiming a safe
+switch. The packaged native helper includes live-gateway and the runtime vendors
+its WebSocket dependency; neither relies on development node_modules.

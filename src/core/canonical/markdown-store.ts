@@ -42,6 +42,8 @@ export interface CanonicalMemoryDocumentLocation {
 export interface ReadCanonicalMemoryDocumentOptions {
   /** Reuse guarded inode/ancestor/ID checks for source evidence reads; reject hardlinks. */
   guarded?: boolean;
+  /** Opt-in live-session source/read budget. Other callers retain existing behavior. */
+  maxSourceBytes?: number;
   signal?: AbortSignal;
   target?: MemoryDocumentTargetKind;
   rootLabel?: string;
@@ -73,13 +75,13 @@ export async function listMarkdownFiles(root: string, signal?: AbortSignal): Pro
   return walkMarkdownFiles(root, [root], { signal });
 }
 
-export async function listCanonicalMemoryMarkdownFiles(root: string, signal?: AbortSignal): Promise<string[]> {
-  return walkMarkdownFiles(root, CANONICAL_MEMORY_BUCKETS.map((bucket) => path.join(root, bucket)), { ignoreMissingStart: true, signal });
+export async function listCanonicalMemoryMarkdownFiles(root: string, signal?: AbortSignal, maxSourceBytes?: number): Promise<string[]> {
+  return walkMarkdownFiles(root, CANONICAL_MEMORY_BUCKETS.map((bucket) => path.join(root, bucket)), { ignoreMissingStart: true, signal, maxSourceBytes });
 }
 
-export async function readMarkdownDocument(root: string, absolutePath: string, signal?: AbortSignal): Promise<MarkdownDocument> {
+export async function readMarkdownDocument(root: string, absolutePath: string, signal?: AbortSignal, maxSourceBytes?: number): Promise<MarkdownDocument> {
   signal?.throwIfAborted();
-  const parsed = await readMarkdownMetadata(absolutePath, signal);
+  const parsed = await readMarkdownMetadata(absolutePath, signal, maxSourceBytes);
   return {
     absolutePath,
     relativePath: normalizeRelative(root, absolutePath),
@@ -89,9 +91,10 @@ export async function readMarkdownDocument(root: string, absolutePath: string, s
 }
 
 /** Metadata callers need no body. Oversized/unfinished headers retain the full parser's behavior. */
-async function readMarkdownMetadata(file: string, signal?: AbortSignal) {
-  const handle = await open(file, "r");
+async function readMarkdownMetadata(file: string, signal?: AbortSignal, maxSourceBytes?: number) {
+  const handle = await open(file, maxSourceBytes===undefined?"r":constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
   try {
+    if(maxSourceBytes!==undefined){const stat=await handle.stat();if(!stat.isFile()||stat.nlink!==1)throw Object.assign(new Error("Unsafe live metadata source."),{code:"source_unavailable"});}
     const chunks: Buffer[] = [];
     let length = 0;
     while (length < 65536) {
@@ -119,6 +122,7 @@ async function readMarkdownMetadata(file: string, signal?: AbortSignal) {
       }
       if (eof) return { frontmatter: {}, bodyStartLine: 1 };
     }
+    if (maxSourceBytes !== undefined) throw Object.assign(new Error("Live metadata header exceeds the bounded discovery budget."), {code:"document_limit"});
     // Positional reads above do not advance the handle's readFile offset.
     return parseFrontmatter(await handle.readFile({ encoding: "utf8", signal }));
   } finally { await handle.close(); }
@@ -172,13 +176,13 @@ export async function readMarkdownDocuments(root: string, signal?: AbortSignal):
 }
 
 /** Request-scoped discovery; matched reads revalidate current file identity/bytes. */
-export async function discoverCanonicalMemoryDocumentsById(rootArg: string, ids: Iterable<string>, signal?: AbortSignal) {
+export async function discoverCanonicalMemoryDocumentsById(rootArg: string, ids: Iterable<string>, signal?: AbortSignal, maxSourceBytes?: number) {
   signal?.throwIfAborted();
   const root = await resolveMemoryRoot(rootArg);
   const requested = new Set([...ids].filter(isValidMemoryDocumentId));
   const matches = new Map<string, CanonicalMemoryDocumentLocation[]>();
-  if (requested.size) for (const absolutePath of await listCanonicalMemoryMarkdownFiles(root, signal)) {
-    const document = await readMarkdownDocument(root, absolutePath, signal);
+  if (requested.size) for (const absolutePath of await listCanonicalMemoryMarkdownFiles(root, signal, maxSourceBytes)) {
+    const document = await readMarkdownDocument(root, absolutePath, signal, maxSourceBytes);
     const id = document.frontmatter.id;
     if (typeof id !== "string" || !requested.has(id)) continue;
     const locations = matches.get(id) ?? [];
@@ -201,19 +205,19 @@ export async function discoverCanonicalMemoryDocumentsById(rootArg: string, ids:
   };
 }
 
-export async function findCanonicalMemoryDocumentById(rootArg: string, id: string, signal?: AbortSignal): Promise<CanonicalMemoryDocumentLocation> {
+export async function findCanonicalMemoryDocumentById(rootArg: string, id: string, signal?: AbortSignal, maxSourceBytes?: number): Promise<CanonicalMemoryDocumentLocation> {
   if (!isValidMemoryDocumentId(id)) throw new MemoryDocumentLookupError("invalid_id", `Invalid memory document id '${id}'. Expected mem_<uuid>.`, { id });
-  return (await discoverCanonicalMemoryDocumentsById(rootArg, [id], signal)).find(id);
+  return (await discoverCanonicalMemoryDocumentsById(rootArg, [id], signal, maxSourceBytes)).find(id);
 }
 
 export async function readCanonicalMemoryDocumentById(rootArg: string, id: string, options: ReadCanonicalMemoryDocumentOptions = {}): Promise<MemoryDocumentReadResult> {
-  const location = await findCanonicalMemoryDocumentById(rootArg, id, options.signal);
+  const location = await findCanonicalMemoryDocumentById(rootArg, id, options.signal, options.maxSourceBytes);
   return readCanonicalMemoryDocumentAtLocation(location, options);
 }
 
 async function readCanonicalMemoryDocumentAtLocation(location: CanonicalMemoryDocumentLocation, options: ReadCanonicalMemoryDocumentOptions): Promise<MemoryDocumentReadResult> {
   const id = location.id;
-  const bytes = options.guarded ? (await replacementSnapshot(location, undefined, options.signal)).bytes : await readFile(location.absolutePath, { signal: options.signal });
+  const bytes = options.maxSourceBytes !== undefined ? await readBoundedCanonicalSource(location.root,location.absolutePath,options.maxSourceBytes) : options.guarded ? (await replacementSnapshot(location, undefined, options.signal)).bytes : await readFile(location.absolutePath, { signal: options.signal });
   options.signal?.throwIfAborted();
   const content = bytes.toString("utf8");
   const parsed = parseFrontmatter(content);
@@ -391,8 +395,8 @@ export async function moveCanonicalMemoryDocumentById(rootArg: string, id: strin
 async function replaceCanonicalMemoryDocument(
   root: string, id: string, submittedContent: string, options: ReplaceCanonicalMemoryDocumentOptions,
 ): Promise<MemoryDocumentUpdateResult> {
-  const location = await findCanonicalMemoryDocumentById(root, id);
-  const original = await replacementSnapshot(location);
+  const location = await findCanonicalMemoryDocumentById(root, id, options.signal, options.maxSourceBytes);
+  const original = await replacementSnapshot(location,undefined,options.signal,options.maxSourceBytes);
   const oldBytes = original.bytes;
   const oldContentHash = hashMemoryDocumentContent(oldBytes);
   if (options.ifMatch !== undefined && options.ifMatch !== oldContentHash) {
@@ -414,9 +418,9 @@ async function replaceCanonicalMemoryDocument(
   const newTitle = normalizedDocumentTitle(merged.frontmatter.title);
   if (newTitle && newTitle !== oldTitle) {
     const conflicts: string[] = [];
-    for (const absolutePath of await listCanonicalMemoryMarkdownFiles(location.root)) {
+    for (const absolutePath of await listCanonicalMemoryMarkdownFiles(location.root,options.signal,options.maxSourceBytes)) {
       if (absolutePath === location.absolutePath) continue;
-      const document = await readMarkdownDocument(location.root, absolutePath);
+      const document = await readMarkdownDocument(location.root, absolutePath,options.signal,options.maxSourceBytes);
       if (normalizedDocumentTitle(document.frontmatter.title) === newTitle) {
         conflicts.push(document.relativePath);
       }
@@ -430,7 +434,7 @@ async function replaceCanonicalMemoryDocument(
     }
   }
 
-  await atomicWriteUtf8File(location, merged.content, original, oldContentHash);
+  await atomicWriteUtf8File(location, merged.content, original, oldContentHash,options.maxSourceBytes);
   // Describe the bytes we published, not a subsequent external writer's revision.
   const newBytes = Buffer.from(merged.content, "utf8");
   const target = options.target ?? "local";
@@ -485,10 +489,10 @@ function isImportOutputPath(relative: string): boolean {
     parts.every((part) => !!part && !part.startsWith("."));
 }
 
-async function isImportedMigrationDocument(root: string, absolute: string, signal?: AbortSignal): Promise<boolean> {
+async function isImportedMigrationDocument(root: string, absolute: string, signal?: AbortSignal, maxSourceBytes?: number): Promise<boolean> {
   const relative = normalizeRelative(root, absolute);
   if (!isImportOutputPath(relative)) return false;
-  const { frontmatter } = await readMarkdownDocument(root, absolute, signal);
+  const { frontmatter } = await readMarkdownDocument(root, absolute, signal, maxSourceBytes);
   return isImportedMigrationFrontmatter(relative, frontmatter);
 }
 
@@ -504,8 +508,9 @@ function isImportedMigrationFrontmatter(relative: string, frontmatter: Frontmatt
     frontmatter.type === (journal ? "session" : "note") && frontmatter.source_path === sourcePath;
 }
 
-async function walkMarkdownFiles(root: string, starts: string[], options: { ignoreMissingStart?: boolean; signal?: AbortSignal; deferredMigration?: Set<string> } = {}): Promise<string[]> {
+async function walkMarkdownFiles(root: string, starts: string[], options: { ignoreMissingStart?: boolean; signal?: AbortSignal; deferredMigration?: Set<string>; maxSourceBytes?: number } = {}): Promise<string[]> {
   const results: string[] = [];
+  let scanned=0;
 
   async function walk(dir: string, importsOnly = false): Promise<void> {
     options.signal?.throwIfAborted();
@@ -520,6 +525,7 @@ async function walkMarkdownFiles(root: string, starts: string[], options: { igno
     entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
       options.signal?.throwIfAborted();
+      if(options.maxSourceBytes!==undefined&&++scanned>10000)throw Object.assign(new Error("Live discovery exceeds 10000 filesystem entries."),{code:"document_limit"});
       const absolute = path.join(dir, entry.name);
       const relative = normalizeRelative(root, absolute);
       const ignored = IGNORED_DIRS.has(entry.name);
@@ -533,7 +539,7 @@ async function walkMarkdownFiles(root: string, starts: string[], options: { igno
       const excluded = importsOnly || IGNORED_FILE_PATTERNS.some((pattern) => pattern.test(relative));
       if (excluded && options.deferredMigration) {
         if (isImportOutputPath(relative)) { options.deferredMigration.add(absolute); results.push(absolute); }
-      } else if (!excluded || await isImportedMigrationDocument(root, absolute, options.signal)) results.push(absolute);
+      } else if (!excluded || await isImportedMigrationDocument(root, absolute, options.signal,options.maxSourceBytes)) results.push(absolute);
     }
   }
 
@@ -570,7 +576,7 @@ function replacementConflict(location: CanonicalMemoryDocumentLocation, currentC
   );
 }
 
-async function replacementSnapshot(location: CanonicalMemoryDocumentLocation, expected?: ReplacementSnapshot, signal?: AbortSignal): Promise<ReplacementSnapshot> {
+async function replacementSnapshot(location: CanonicalMemoryDocumentLocation, expected?: ReplacementSnapshot, signal?: AbortSignal, maxBytes?:number): Promise<ReplacementSnapshot> {
   let handle;
   try {
     signal?.throwIfAborted();
@@ -592,7 +598,7 @@ async function replacementSnapshot(location: CanonicalMemoryDocumentLocation, ex
     handle = await open(location.absolutePath, constants.O_RDONLY | constants.O_NOFOLLOW);
     const opened = await handle.stat();
     if (!sameIdentity(file, opened) || !opened.isFile() || opened.nlink !== 1) throw replacementConflict(location);
-    const bytes = await handle.readFile({ signal });
+    const bytes = maxBytes===undefined?await handle.readFile({ signal }):await readBoundedCanonicalSource(location.root,location.absolutePath,maxBytes);
     signal?.throwIfAborted();
     if (parseFrontmatter(bytes.toString("utf8")).frontmatter.id !== location.id) throw replacementConflict(location);
     await handle.close();
@@ -615,7 +621,7 @@ async function replacementSnapshot(location: CanonicalMemoryDocumentLocation, ex
   }
 }
 
-async function atomicWriteUtf8File(location: CanonicalMemoryDocumentLocation, content: string, original: ReplacementSnapshot, oldContentHash: MemoryDocumentContentHash): Promise<void> {
+async function atomicWriteUtf8File(location: CanonicalMemoryDocumentLocation, content: string, original: ReplacementSnapshot, oldContentHash: MemoryDocumentContentHash,maxSourceBytes?:number): Promise<void> {
   const file = location.absolutePath;
   const dir = path.dirname(file);
   const tempFile = path.join(dir, `.${path.basename(file)}.${process.pid}.${randomUUID()}.tmp`);
@@ -629,7 +635,7 @@ async function atomicWriteUtf8File(location: CanonicalMemoryDocumentLocation, co
     await handle.close();
     handle = undefined;
     await withDocumentLock(location, async () => {
-      const latest = await replacementSnapshot(location, original);
+      const latest = await replacementSnapshot(location, original,undefined,maxSourceBytes);
       const latestHash = hashMemoryDocumentContent(latest.bytes);
       if (latestHash !== oldContentHash) throw replacementConflict(location, latestHash);
       await rename(tempFile, file);

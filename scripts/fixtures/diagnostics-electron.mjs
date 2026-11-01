@@ -2,9 +2,11 @@
 import { app } from 'electron';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
-import { createEditorWindow } from '../../integrations/electron/window.mjs';
-import { startElectronDiagnostics } from '../../integrations/electron/diagnostics.mjs';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
 const config = JSON.parse(await readFile(process.env.JUMPYBRAIN_DIAGNOSTICS_FIXTURE, 'utf8'));
+const {createEditorWindow} = await import(pathToFileURL(path.join(config.electronModules,'window.mjs')).href);
+const {startElectronDiagnostics} = await import(pathToFileURL(path.join(config.electronModules,'diagnostics.mjs')).href);
 app.setPath('userData', config.userData);
 let window, stage = 'startup';
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

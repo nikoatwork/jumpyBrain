@@ -37,3 +37,5 @@ export { createPageNavigation } from "./workspace-navigation.js";
 export { installNoteWorkspace } from "./note-workspace.js";
 
 export { installFolderExplorer } from "./folder-explorer.js";
+
+export { createCollaborationEditor } from "./collaboration-editor.js";

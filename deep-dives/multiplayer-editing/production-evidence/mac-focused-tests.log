@@ -1,0 +1,47 @@
+✔ foreground 127.0.0.1 exposes the same owner through an adoptable private HTTP/WS control alias (324.704333ms)
+✔ foreground localhost exposes the same owner through an adoptable private HTTP/WS control alias (224.662667ms)
+✔ foreground ::1 exposes the same owner through an adoptable private HTTP/WS control alias (201.198417ms)
+✔ foreground 0.0.0.0 exposes the same owner through an adoptable private HTTP/WS control alias (151.566208ms)
+✔ foreground :: exposes the same owner through an adoptable private HTTP/WS control alias (151.201917ms)
+✔ closing a private control proxy drains both directions of held TCP connections (2.616292ms)
+✔ readiness stays inference-free while explicit app attachment activates shared maintenance (86.536625ms)
+✔ shipped CLI streams before EOF, preserves a concurrent human save, and finishes explicitly (1377.354833ms)
+✔ malformed collaboration flags fail before a backend is started (62.912291ms)
+✔ acknowledged streamed publication survives SIGKILL; restart epochs reject delayed agent chunks (335.486667ms)
+✔ simultaneous metadata HTTP PUT and live source edit cannot silently overwrite one another (162.673542ms)
+✔ legacy whole-document proposals require a current hash during live editing (92.176083ms)
+✔ canonical publication precedes reply; independent actors and guarded legacy writes preserve source (87.172709ms)
+✔ external writes and renames reconcile; metadata title updates preserve the live body (96.652833ms)
+✔ partial file writes stabilize, deletion preserves recovery and explicit resync restores canonical source (88.638791ms)
+✔ publication failure retains canonical body and does not acknowledge the rejected draft (2038.134209ms)
+✔ raw deletion during streamed agent output is not resurrected by later chunks (21.64425ms)
+✔ live source reads bound malformed metadata without changing ordinary canonical reads (2.549334ms)
+✔ real canonical fsync failure never commits live model, receipt or Saved event (14.417167ms)
+✔ real canonical rename failure never commits live model, receipt or Saved event (15.145167ms)
+✔ escaped wire budget and canonical metadata growth reject edits before publication (38.702833ms)
+✔ total open sessions, idle eviction and retained history have explicit resource gauges (10.629458ms)
+✔ streamed newlines preserve canonical CRLF and keep stream anchors across metadata publications (24.484292ms)
+✔ canonical whitespace delimiters retain their actual protected source boundary (2.50625ms)
+✔ reopening awaits external settlement before acknowledging its Saved snapshot (57.767916ms)
+✔ an immediate local patch rebases over a safe raw append before publication (66.340458ms)
+✔ legacy guards settle observed raw bytes before comparing a current canonical hash (59.045042ms)
+✔ real WS publishes source operations, subscriptions, streamed agent text and scoped undo (129.01825ms)
+✔ reader denial, per-message credential revocation and idle socket revocation (56.598042ms)
+✔ cross-origin and token-in-URL handshakes are rejected (21.23525ms)
+✔ authentication deadline and bounded incoming frames disconnect incomplete clients (51.647625ms)
+✔ production HTTP and WS share persistent reader authorization and idle revocation (1283.3195ms)
+✔ pending request queue budgets disconnect excessive clients (5.183209ms)
+✔ source operations preserve structures, merge independent stale edits and protect overlap (3.864625ms)
+✔ duplicate publication and actor undo are idempotent and preserve other actors (0.718333ms)
+✔ seeded concurrent source replacements match an independent base-offset oracle (597.476959ms)
+✔ near-limit source models retain bounded history without silently accepting expired edits (44.183125ms)
+✔ streamed chunks merge human text, reject gaps and stop after cancellation (0.449959ms)
+✔ Unicode boundaries, expired history and epoch changes require reconciliation (0.40675ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2744.68425

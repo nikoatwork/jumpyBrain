@@ -311,3 +311,19 @@ Right-click a file for **New folder…**, **Copy link to file**, **Rename…**, 
 Writable, uniquely ID-addressed files can be dragged onto highlighted folders, including empty ones; hovering opens a collapsed target. **Move to…** provides a keyboard alternative. External and cross-brain drags are rejected. File operations flush the editor first, reject changed source paths/hash conflicts and existing destinations, and participate in companion switch/shutdown barriers. Confirmed same-scope results update active editor provenance even if the panel was closed while the request ran. Scope changes close/clear transient UI and fence late reads/results. Read-only brains retain copy/navigation while disabling mutations and dragging. Folder renames, recursive folder deletion, external file import and backlink rewriting are not supported. Delete reuses the existing irreversible preview/hash confirmation, supports a context target independently of the editor, and keeps a different current note open.
 
 `scripts/folder-explorer-actions-smoke.mjs` exercises real hosted/companion writes, draft flush and post-move saves, target deletion/cancel, keyboard movement, collision preservation and 1280/390/320 light/dark dialogs. Its isolated lifecycle fixture verifies scope changes, delayed reads, confirmed results after closing the panel and read-only controls. `test/folder-explorer-operations.test.js` covers canonical and authenticated HTTP safety; companion tests verify read-only profiles and generation draining/fencing.
+
+## Live source editing
+
+The shipped note surface binds `collaboration-editor` to bounded server-ordered
+source operations. Reconciliation retains unaffected Lexical nodes, source
+spellings and mapped selection; IME preedit is deferred. Actor-specific undo/redo
+and source-proven remote carets avoid overwriting another writer. The controller
+facade preserves existing navigation, deletion, attention and switch barriers
+while disabling its legacy body autosave and active-note polling.
+
+Private body/title drafts are scoped by brain/principal/document/tab and survive
+reload when browser storage permits. Offline work reconnects before publication;
+uncertain/conflicting work requires explicit review. Quota/storage denial remains
+visible. Recovery can select older drafts and publishes only against the reviewed
+canonical hash. Hosted credentials use HttpOnly cookies, and desktop credentials
+stay behind the native gateway. See [user/operational behavior](../../../docs/collaboration.md).

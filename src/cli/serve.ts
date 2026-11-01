@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+import { claimRootBackend, startBackendControlProxy } from "../app/backend-host/index.js";
 import { stringArg, stringListArg, type ParsedCliArgs } from "./args.js";
 
 export async function serveCli(args: ParsedCliArgs): Promise<void> {
@@ -21,15 +23,25 @@ export async function serveCli(args: ParsedCliArgs): Promise<void> {
     }
   }
 
-  const started = await server.startJumpyBrainHttpServer(config);
-  console.log(`jumpyBrain server listening on ${started.url}`);
-
-  await new Promise<void>((resolve) => {
-    const shutdown = async () => {
-      await started.close();
-      resolve();
-    };
-    process.once("SIGINT", shutdown);
-    process.once("SIGTERM", shutdown);
-  });
+  const owner = await claimRootBackend(config.root);
+  const token = randomBytes(32).toString("base64url");
+  let stop!: () => void;
+  const lifetime = new Promise<void>(resolve => {stop = resolve;});
+  const shutdown = () => stop();
+  process.once("SIGINT", shutdown); process.once("SIGTERM", shutdown);
+  let started: Awaited<ReturnType<typeof server.startJumpyBrainHttpServer>> | undefined;
+  let control: Awaited<ReturnType<typeof startBackendControlProxy>> | undefined;
+  try {
+    started = await server.startJumpyBrainHttpServer({...config, apiKeys: [...config.apiKeys, token], localOwnerToken: token,
+      backendControl: {...owner.lease, stop: shutdown}});
+    const address = started.server.address() as import("node:net").AddressInfo;
+    control = await startBackendControlProxy(address);
+    await owner.publish({url: control.url, token});
+    console.log(`jumpyBrain server listening on ${started.url}`);
+    await lifetime;
+  } finally {
+    process.off("SIGINT", shutdown); process.off("SIGTERM", shutdown);
+    try { await started?.close(); }
+    finally { try { await control?.close(); } finally { await owner.release(); } }
+  }
 }

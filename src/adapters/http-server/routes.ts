@@ -1,3 +1,5 @@
+import type { Principal } from "../access-control/index.js";
+import type { CollaborationHub } from "../../app/collaboration/index.js";
 import { applyServerMemoryFileOperation } from "../../app/server-memory/folder-explorer-operations.js";
 import { listBoards, readBoard, saveBoard, deleteBoard, getBoardStatus, BoardError } from "../../app/server-memory/boards.js";
 import { normalizeMemoryActor } from "../../core/contribution.js";
@@ -34,7 +36,7 @@ interface JsonError {
 
 export const RESPONSE_ERROR_CODE = Symbol("jumpybrain.responseErrorCode");
 
-export async function routeRequest(context: { request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number; feedback?: (request: IncomingMessage, response: ServerResponse) => Promise<void>; onMemoryWrite?: () => void; onMemoryActivity?: () => void; maintenance?: () => { enabled: boolean; indexing: boolean; failed: boolean } }): Promise<void> {
+export async function routeRequest(context: { principal?: Principal; collaboration?: CollaborationHub; request: IncomingMessage; response: ServerResponse; root: string; apiKeys: string[]; enqueueWrite: <T>(operation: () => Promise<T>) => Promise<T>; indexRunner: RemoteIndexRunner; logger: FileLogger; signal?: AbortSignal; searchTimeoutMs?: number; feedback?: (request: IncomingMessage, response: ServerResponse) => Promise<void>; onMemoryWrite?: () => void; onMemoryActivity?: () => void; maintenance?: () => { enabled: boolean; indexing: boolean; failed: boolean } }): Promise<void> {
   const { request, response, root, apiKeys, enqueueWrite, indexRunner, logger, signal, searchTimeoutMs } = context;
   const url = new URL(request.url ?? "/", "http://localhost");
 
@@ -81,7 +83,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
   }
 
   if (url.pathname === "/feedback" && context.feedback) {
-    const failure = authenticate(request, apiKeys);
+    const failure = context.principal ? undefined : authenticate(request, apiKeys);
     if (failure) writeJson(response, 401, failure);
     else await context.feedback(request, response);
     return;
@@ -92,7 +94,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
     return;
   }
 
-  const authFailure = authenticate(request, apiKeys);
+  const authFailure = context.principal ? undefined : authenticate(request, apiKeys);
   if (authFailure) {
     writeJson(response, 401, authFailure);
     return;
@@ -435,7 +437,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
         writeJson(response, 400, errorResponse("validation_failed", "Permanent deletion requires only { apply: true }.")); return;
       }
       try {
-        const packet = await enqueueWrite(() => deleteServerMemoryDocument({ root, id, ifMatch, apply: true }));
+        const packet = await enqueueWrite(async () => { await context.collaboration?.beforeLegacyWrite(id, ifMatch); const packet = await deleteServerMemoryDocument({ root, id, ifMatch, apply: true }); await context.collaboration?.notifyCanonicalWrite(id); return packet; });
         context.onMemoryWrite?.();
         writeJson(response, 200, packet);
       } catch (error) {
@@ -451,7 +453,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
       const mutation = await parseJsonBody(request);
       if (isJsonError(mutation)) { writeJson(response, mutation.statusCode, mutation.body); return; }
       try {
-        const packet = await enqueueWrite(() => patchServerMemoryAttention({ root, id, ifMatch, mutation }));
+        const packet = await enqueueWrite(async () => { await context.collaboration?.beforeLegacyWrite(id, ifMatch); const packet = await patchServerMemoryAttention({ root, id, ifMatch, mutation }); await context.collaboration?.notifyCanonicalWrite(id); return packet; });
         context.onMemoryWrite?.();
         writeJson(response, 200, packet);
       } catch (error) {
@@ -489,7 +491,7 @@ export async function routeRequest(context: { request: IncomingMessage; response
         try { normalizeMemoryActor(parsedBody.actor); } catch { writeJson(response, 422, errorResponse("invalid_actor", "Invalid declared editor.")); return; }
       }
       try {
-        const packet = await enqueueWrite(() => updateServerMemoryDocument({ root, id, content, ifMatch, actor: normalizeMemoryActor(parsedBody.actor) }));
+        const packet = await enqueueWrite(async () => { await context.collaboration?.beforeLegacyWrite(id, ifMatch); const packet = await updateServerMemoryDocument({ root, id, content, ifMatch, actor: normalizeMemoryActor(parsedBody.actor) }); await context.collaboration?.notifyCanonicalWrite(id); return packet; });
         if (!packet.unchanged) context.onMemoryWrite?.();
         logger.info("remote_document_update_success", {
           method: request.method,
@@ -797,7 +799,7 @@ class JsonBodyError {
   constructor(readonly statusCode: number, readonly body: JsonError) {}
 }
 
-async function parseJsonBody(request: IncomingMessage, options: { allowEmpty?: boolean } = {}): Promise<Record<string, unknown> | JsonBodyError> {
+export async function parseJsonBody(request: IncomingMessage, options: { allowEmpty?: boolean } = {}): Promise<Record<string, unknown> | JsonBodyError> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
@@ -828,7 +830,7 @@ async function parseJsonBody(request: IncomingMessage, options: { allowEmpty?: b
   }
 }
 
-function isJsonError(value: unknown): value is JsonBodyError {
+export function isJsonError(value: unknown): value is JsonBodyError {
   // A JSON request object must never impersonate a parser failure/HTTP response.
   return value instanceof JsonBodyError;
 }
@@ -857,6 +859,8 @@ function documentReadErrorResponse(error: unknown): { statusCode: number; body: 
 }
 
 function documentUpdateErrorResponse(error: unknown): { statusCode: number; body: JsonError } {
+  const code = (error as {code?: unknown})?.code;
+  if (code === "source_conflict" || code === "live_edits_pending") return {statusCode:409,body:errorResponse(code,"The live document needs recovery or has a publication in flight. Retain the draft before retrying.")};
   if (isMemoryDocumentEditError(error)) {
     const statusCode = documentUpdateStatusCode(error.code);
     return { statusCode, body: errorResponse(error.code, error.message, safeErrorDetails(error.details)) };

@@ -464,6 +464,8 @@ test("read-only remote integration allows reads and sends no mutation requests",
 });
 
 async function startCliServer(root) {
+  // Foreground serve takes over the same single-owner lease explicitly.
+  runCli(["backend", "stop", "--root", root]);
   const child = spawn(process.execPath, [cliPath, "serve", "--root", root, "--host", "127.0.0.1", "--port", "0", "--init"], {
     cwd: repoRoot,
     encoding: "utf8",

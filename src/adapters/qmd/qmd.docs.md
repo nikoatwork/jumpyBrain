@@ -148,3 +148,12 @@ This bounded lexical supplement improves candidate recall, not exhaustive semant
 ## Installation diagnostics
 
 `inspectLocalSearchEngine` uses the same binary/SDK resolver as retrieval, validates pinned package identity and SDK files, and runs a bounded version probe. The app/runtime seam exposes it to doctor; it does not load model code or prove search. Managed launchers and Desktop supply the installer-selected absolute engine path.
+
+## Shared-host engine selection
+
+Authenticated local-owner RPC resolves the CLI-selected executable before sending
+the operation. `withQmdBinary` uses async-local scope so independent callers can
+select their installed CLI/SDK consistently without racing process.env. Derived
+index/query work uses the existing root execution admission, independently from
+the live canonical publication queue. Remote reader/writer routes cannot choose
+executables.

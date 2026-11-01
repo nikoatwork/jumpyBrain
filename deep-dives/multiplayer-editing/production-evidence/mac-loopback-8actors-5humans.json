@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "environment": {
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "os": "24.6.0",
+    "cpu": "Apple M3 Pro",
+    "filesystem": {
+      "type": 26,
+      "blockSize": 4096
+    },
+    "indexing": "disabled; derived staleness markers only",
+    "publication": "real canonical publisher: file fsync, guarded rename, best-effort directory fsync",
+    "concurrency": "exclusive-after-suite",
+    "head": "f1d35b49bcc50e98ef95ccb943c1db85bd2b7f0c",
+    "sourceSha256": "187cf43d97f36ff95ae4c5b54ee84f156bf718b98650d4643903aa409e8a1772",
+    "verifiedBuild": {
+      "version": "0.3.16",
+      "build": "2ecf10bbe7258607",
+      "allTypeScriptSha256": "2ecf10bbe7258607043c640b533e97b83a1fbd9b54b4f2a39d41f020e19f982f"
+    },
+    "runtimeSha256": "19dcdaa7c41b0ba3c90c63c2c0f81b1f41f6f60ac52195a6cafcd606f67c9a5b",
+    "sourceInputs": [
+      "src/core/collaboration/model.ts",
+      "src/core/canonical/markdown-store.ts",
+      "src/app/local-memory/index.ts",
+      "src/app/collaboration/index.ts",
+      "src/adapters/live/index.ts",
+      "src/adapters/live/ws.ts",
+      "src/adapters/access-control/index.ts",
+      "src/core/document-update.ts",
+      "src/core/contribution.ts",
+      "src/core/frontmatter.ts",
+      "scripts/collaboration-production-evidence.mjs",
+      "package.json",
+      "package-lock.json"
+    ]
+  },
+  "seed": 1592594997,
+  "rounds": 100,
+  "actors": 8,
+  "humans": 5,
+  "agents": 3,
+  "canonicalNotes": 257,
+  "confirmedEdits": 800,
+  "streamChecks": [
+    "duplicate",
+    "gap",
+    "cancel"
+  ],
+  "reconnects": 20,
+  "externalReconciliation": true,
+  "nearLimitSourceBytes": 2095216,
+  "resources": {
+    "hub": {
+      "sessions": 2,
+      "historyBytes": 4877485,
+      "streams": 0,
+      "presence": 9,
+      "subscriptions": 9
+    },
+    "transport": {
+      "connections": 8,
+      "queuedBytes": 0
+    },
+    "peaks": {
+      "historyBytes": 4877485,
+      "queuedBytes": 2207
+    }
+  },
+  "acceptance": {
+    "canonicalP95Ms": 1000,
+    "peakRssBytes": 536870912,
+    "historyBytes": 33554432,
+    "queuedBytes": 33554432,
+    "rpcDeadlineMs": 10000
+  },
+  "checks": {
+    "canonicalP95": true,
+    "peakRss": true,
+    "history": true,
+    "queue": true
+  },
+  "passed": true,
+  "observations": {
+    "elapsedMs": 21455,
+    "rpcCount": 865,
+    "rpcP50Ms": 101.92,
+    "rpcP95Ms": 199.32,
+    "canonicalRpcCount": 804,
+    "canonicalP95Ms": 199.89,
+    "rssBefore": 77692928,
+    "rssAfter": 333168640,
+    "heapUsedAfter": 28793368,
+    "maxRssKiB": 329392
+  },
+  "claims": "Observed on this machine with these inputs; no universal latency or RSS guarantee."
+}

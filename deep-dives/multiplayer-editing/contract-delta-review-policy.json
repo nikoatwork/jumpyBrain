@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "status": "policy-only-not-an-approval",
+  "originalBaselineSha256": "739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2",
+  "originalContractSha256": "27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a",
+  "unchangedRules": [
+    "Original baseline evidence, contract command definitions, environment checks and npm test script remain unchanged.",
+    "Every existing frozen assertion and harness file remains present.",
+    "All required semantic checks execute, with zero failures, cancellations, skips or TODOs, and no reduced TAP test totals.",
+    "Changing an existing assertion or harness file requires externally pinned exact old/new SHA-256 values, a substantive reason and original-scenario/evidence mappings.",
+    "New assertion files are additive. New harness helpers require explicit null-old-hash entries and exact new hashes.",
+    "Literal relative script helpers outside the original assertion roots require explicit assertion entries with null old hash and exact new hash. Import discovery never executes the helper; omitted, changed, missing or unreferenced extra helpers block verification. The helper is copied into candidate assertion evidence and checked again after execution.",
+    "Missing, unused, duplicate, unreviewed, stale-hash or incorrectly baseline-bound declarations block verification.",
+    "A declaration documents reviewed changes; it does not establish behavioral equivalence without passing the preserved checks."
+  ],
+  "draftCommand": "node scripts/multiplayer-verification/contract-delta.mjs --baseline .local-pack/multiplayer/M0-baseline-accepted-2026-11-01 --baseline-sha256 739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2 --out deep-dives/multiplayer-editing/candidate-contract-delta.draft.json",
+  "reviewSequence": [
+    "Wait until candidate assertions, browser smokes and verifier helper source are final; generate a new draft in a nonexistent output file.",
+    "Review each complete original-to-candidate diff, including all helper bytes. Preserve behavioral, durability, authorization and conflict expectations; document intentional implementation-shape changes.",
+    "Fill each entry's reason, original P01-P12 scenarioIds and exact evidence/test mappings, including extracted helpers such as scripts/collaboration-smoke-transport.mjs. The generator leaves these fields empty and status draft. Computed import expressions require manual dependency review; literal-import discovery is not a whole-program proof.",
+    "Set status reviewed only after that explicit review, preserve the original baseline and independently pin the completed declaration's SHA-256 in the verification invocation or trusted integration configuration.",
+    "Run the original verification contract with --delta FILE --delta-sha256 DIGEST. Any later assertion/helper edit requires new review and a new independently pinned declaration digest.",
+    "Inspect the report/manifest's complete contractDelta declaration and exact applied changes together with command logs; a drafted declaration or blocked run is not maturity evidence."
+  ],
+  "candidateDeclaration": null,
+  "candidateDeclarationSha256": null,
+  "note": "No candidate changes are approved or frozen by this policy file. Candidate browser smokes are still under development."
+}

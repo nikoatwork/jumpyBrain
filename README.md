@@ -134,7 +134,18 @@ Tell your agent:
 
 > Upgrade my existing jumpyBrain installation using docs/install-for-agents.md and docs/install.md. Inventory my app, CLI, server, agent integrations and actual brain folders first. Save pending edits and back up the brain and configuration without printing credentials. Apply the published release and its documented migration steps, keeping my existing notes and connections. Verify the installed versions, open and search existing notes, and test editing on a disposable copy. Keep the backup and previous software until verification passes; report any unfinished step.
 
-The supported updater is `jumpybrain update`; follow the [update guide](docs/install.md#update) for managed Mac pairs, CLI-only installs and source checkouts. A future architecture migration will document its exact supported upgrade steps here before it ships.
+Use the coordinated upgrade helper from the installed runtime folder or a built checkout. Wait for Saved, export any disconnected browser draft, close app windows, and pause agents and direct file writers. Closing a window keeps the shared backend available; the prepare command stops its authenticated owner explicitly. Choose a new private backup directory outside your brain:
+
+```bash
+node scripts/multiplayer-upgrade.mjs --root /absolute/path/to/brain --mode prepare --backup /absolute/path/to/new-backup
+node scripts/multiplayer-upgrade.mjs --root /absolute/path/to/brain --mode prepare --backup /absolute/path/to/new-backup --apply
+jumpybrain update
+node scripts/multiplayer-upgrade.mjs --root /absolute/path/to/brain --mode verify --backup /absolute/path/to/new-backup
+```
+
+The first command previews the operation. The second backs up canonical files, the unchanged `jumpybrain.json` schema/policy, named access credentials and recovery copies, then verifies the backup. The helper never prints credentials or installs software. Stop any legacy server that predates authenticated root ownership through its existing service manager first; this helper never guesses process identities or kills unrelated processes. Use the [update guide](docs/install.md#update) for the applicable managed Mac pair, CLI-only, source-checkout or VPS deployment steps; update agent integrations and every shared-brain client in the same maintenance window. On Mac, add `--app-runtime /path/to/jumpyBrain.app/Contents/Resources/runtime` to the verification command to require identical app/CLI build fingerprints. Without this option, app parity is explicitly unchecked. A mismatched live backend refuses adoption until stopped and updated.
+
+Before resuming, open and search existing notes and test human/agent editing on a disposable copy. Keep the backup and previous release until these checks pass. `--mode status` inspects ownership/builds; `--mode restore --backup …` previews recovery, and adding `--apply` restores only missing files. Restore refuses changed files or changed/revoked credentials. This release changes the collaboration protocol, not the canonical Markdown or root schema. **Do not delete the entire brain's `.jumpybrain/` directory:** `access.json` and `recovery/` are private durable operational state, alongside disposable indexes. Browser drafts stay in their originating browser and must be saved/exported separately.
 
 ### With your team
 
@@ -194,3 +205,5 @@ Local use needs no jumpyBrain account or subscription. Shared brains run on infr
 - [Shared-brain quickstart](docs/cloud-shared-memory.md) · [Protocol reference](docs/shared-memory-protocol.md)
 - [Memory file format](docs/memory-format.md) · [Technical design](docs/technical.md)
 - [Product vision](docs/product-vision.md) · [Release policy](docs/releases.md)
+
+Live humans and streaming agents share the same local/VPS backend. See [collaboration, access and recovery](docs/collaboration.md) for commands, limits and upgrade details.

@@ -14,9 +14,9 @@ checks to its real tarball before recording successful package metadata.
   idle machine, separately from other builds and tests that consume `dist`.
 - `npm audit` and `npm --prefix integrations/electron audit`: both lockfiles.
 
-Budgets in `scripts/package-budget.mjs` are 1.3 MB compressed, 4.0 MB unpacked,
-2.5 MB under `dist/`, and 600 files (decimal units). Existing editor tests retain
-187 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+Budgets in `scripts/package-budget.mjs` are 1.45 MB compressed, 4.6 MB unpacked,
+3.0 MB under `dist/`, and 660 files (decimal units). Existing editor tests retain
+210 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
@@ -76,3 +76,20 @@ complete Mac app build, dependency download, local model installation or update.
 ## 2026-11-01 installation assets
 
 The private-engine lock adds 82,440 bytes; the root dependency lock now travels in `dist/runtime-package-lock.json` because npm omits the root lockfile. Installer/bootstrap/verification helpers also ship. The measured intermediate package reached 3,801,589 unpacked bytes, exceeding the prior 3.8 MB ceiling. Increase only the unpacked ceiling to 4.0 MB for these reproducibility and recovery assets; retain the 1.3 MB compressed, 2.5 MB runtime and 600-file caps. Native engines, Node binaries and Electron remain separate platform downloads, not bundled into the CLI tarball.
+
+## 2026-11-01 collaboration review
+
+The integrated production candidate measured 1,355,138 compressed bytes,
+4,266,843 unpacked bytes, 2,808,097 runtime bytes and 604 files using
+`npm pack --dry-run --json` on the same macOS/Node toolchain. The shared editor
+measured 202,508 gzip bytes. These are an intermediate source snapshot; final
+artifact measurements belong to the multiplayer verification record.
+
+The increase delivers the backend ownership/authentication modules, bounded
+source coordinator, scoped draft recovery, structural editor reconciliation,
+upgrade helper and a self-contained 129,617-byte WebSocket server bundle.
+Vendoring that transport is necessary because the packaged desktop runtime
+does not carry arbitrary root production dependencies. Editor libraries remain
+build-only dependencies. The revised ceilings retain approximately seven percent
+compressed and runtime headroom; byte-growth checks and package-content checks
+remain enforced. No models or Electron distribution are added to CLI installs.

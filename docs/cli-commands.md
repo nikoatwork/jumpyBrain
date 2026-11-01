@@ -357,3 +357,12 @@ cat revised.md | jumpybrain update --root ./memory --id mem_... --if-match sha25
 ```
 
 `--actor human|agent|unknown` plus optional `--actor-id/--actor-name` supplies declared provenance, not verified identity. Omission/unknown on an edit clears last-editor attribution; it never inherits a previous human editor. Human callers can choose an ID and query it with `--last-editor you --editor-id personal-editor`. The app's You label uses its own browser-local ID and is not a shared account identity. For agent-created Dream pages, pass `--actor agent` explicitly. Imported/legacy authorship stays unknown.
+
+## Shared backends and collaborative agents
+
+See [collaboration](collaboration.md) for `backend start|status|stop`, `access
+issue|list|revoke`, and `collaborate open|watch|edit|stream|undo|resync`. These share
+one root owner with the app and foreground server. Streaming stdin publishes
+bounded UTF-8 chunks before EOF; a stable `--client-id` or JUMPYBRAIN_CLIENT_ID
+keeps agent undo scoped across invocations. Existing one-shot commands retain
+their data/use-case behavior and guarded whole-document hashes.

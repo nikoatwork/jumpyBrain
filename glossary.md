@@ -79,3 +79,15 @@ An explicit observational comparison of current canonical file bytes with a fing
 ### Board
 
 A collection of ordinary Markdown page IDs arranged into three named columns, visualized in the Mac app and accessible to agents through the optional `board` CLI namespace. Membership and positions are canonical `boards/<UUID>.json` files in the brain, shared by local/hosted CLI and Mac. They do not change page metadata or memory retrieval; board writes follow the brain’s write permissions. Settling a board archives it until restored from Settings → Boards or the CLI. Board status combines column placement with explicitly bounded current note evidence, not an inferred completion score.
+
+## Root backend
+
+The authenticated local/VPS process registered as the cooperating owner of a canonical brain directory.
+
+## Session epoch/revision
+
+Bounded live-operation history identity and order, distinct from a canonical content hash. Backend restart requires resynchronization.
+
+## Private draft
+
+Unpublished body/title/recovery state scoped to one brain, principal, document and page actor. It is unique data, not an index; reloaded pages offer older records for explicit recovery.

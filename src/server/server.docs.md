@@ -12,5 +12,14 @@ Server config accepts `searchTimeoutMs`/`indexTimeoutMs`, also read from `JUMPYB
 
 - Do not import CLI command parsing or CLI helper modules.
 - Do not implement HTTP routes directly in the server boundary when the HTTP server adapter can own protocol details.
-- Do not require local-first CLI users to run a server.
+- Do not require users to start a server manually; local CLI/app entry points start a shared headless owner on demand.
 - Do not add dreaming schedulers, AI provider configuration, or server-side model calls; remote dreaming is a CLI/local-agent workflow over server-tracked batches.
+
+## Owned headless lifetime
+
+`daemon.ts` starts a detached, discoverable loopback root owner for local app/CLI
+use. Foreground `serve` claims the same root lease before binding; compatible
+local clients join that host. Readiness proves nonce/root/build/runtime identity.
+Window closure does not stop the owner; explicit shutdown drains work. Missing
+roots/lost leases stop detached fixture owners. Lazy maintenance starts after
+writes and retains canonical Saved separately from indexing.
