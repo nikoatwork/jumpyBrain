@@ -14,6 +14,8 @@ import { processMemory } from "../processing/index.js";
 import type { IndexMemoryOptions, RetrievalOutcome, RetrievalReadiness, IndexMemoryResult, MemoryDocumentContentHash, MemoryDocumentEditError, MemoryDocumentEditErrorCode, MemoryDocumentReadResult, MemoryDocumentUpdateResult, ProcessMemoryResult, SearchMemoryOptions, SearchMemoryResult } from "../../types.js";
 
 export interface UpdateMemoryDocumentOptions {
+  /** Opt-in collaboration source budget. */
+  maxSourceBytes?: number;
   actor?: import("../../types.js").MemoryActor;
   /** Optimistic-concurrency token from a prior document read/show result. */
   ifMatch?: MemoryDocumentContentHash | string;
@@ -111,10 +113,10 @@ export async function searchMemory(rootArg: string, query: string, limit: number
   });
 }
 
-export async function readMemoryDocument(rootArg: string, id: string): Promise<MemoryDocumentReadResult> {
+export async function readMemoryDocument(rootArg: string, id: string,options:{maxSourceBytes?:number}={}): Promise<MemoryDocumentReadResult> {
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
-  const document = await readCanonicalMemoryDocumentById(root, id);
+  const document = await readCanonicalMemoryDocumentById(root, id,options);
   return { ...document, recognition: { metadataStatus: "current", updatedAt: metadataDate(document.frontmatter.updated_at) ?? metadataDate(document.frontmatter.updatedAt), createdAt: metadataDate(document.frontmatter.created_at) ?? metadataDate(document.frontmatter.createdAt), editor: currentMemoryEditor(document.content) } };
 }
 
@@ -137,7 +139,7 @@ export async function updateMemoryDocument(
   }
 
   try {
-    return await replaceCanonicalMemoryDocumentById(root, id, content, { ifMatch, updatedAt: options.updatedAt, actor });
+    return await replaceCanonicalMemoryDocumentById(root, id, content, { ifMatch, updatedAt: options.updatedAt, actor,maxSourceBytes:options.maxSourceBytes });
   } catch (error) {
     // Keep the public precondition error shape for conflicts discovered at publication.
     if ((error as MemoryDocumentEditError).code === "precondition_failed") {
@@ -155,3 +157,5 @@ export async function ensureMemoryDocumentIds(rootArg: string): Promise<ProcessM
 export { previewMemoryDocumentDeletion, deleteMemoryDocument } from "./document-delete.js";
 
 export { inspectLocalSearchEngine } from "../../adapters/qmd/index.js";
+
+export { resolveLocalSearchEngineBinary } from "../../adapters/qmd/index.js";

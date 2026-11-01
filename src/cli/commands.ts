@@ -29,6 +29,14 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
 async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   const command = args._[0];
 
+  if (command === "backend" || command === "access") {
+    const { backendCli, accessCli } = await import("./backend-commands.js");
+    await (command === "backend" ? backendCli : accessCli)(args); return;
+  }
+  if (command === "collaborate") {
+    const { collaborateCli } = await import("./collaborate.js"); await enforceRemoteAccessPolicy(args); await collaborateCli(args); return;
+  }
+
   if (command === "board") {
     if (!args.help) await enforceRemoteAccessPolicy(args);
     const { boardsCli } = await import("./boards.js");

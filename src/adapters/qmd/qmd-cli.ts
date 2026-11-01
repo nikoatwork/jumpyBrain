@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { spawnSync } from "node:child_process";
 import { runQmdChild } from "./qmd-execution.js";
 import { existsSync, realpathSync, readFileSync } from "node:fs";
@@ -12,8 +13,12 @@ export function derivedRoot(root: string): string { return path.join(root, ".jum
 export function manifestPath(root: string): string { return path.join(derivedRoot(root), "index.json"); }
 export function databasePath(root: string): string { return path.join(derivedRoot(root), "qmd-cache", "qmd", "index.sqlite"); }
 
+const selectedEngine = new AsyncLocalStorage<{binary: string | null}>();
+/** An authenticated local owner may select its installed engine per operation. */
+export function withQmdBinary<T>(binary: string | null, operation: () => T): T { return selectedEngine.run({binary}, operation); }
 export function resolveQmdBinary(env: NodeJS.ProcessEnv = process.env): string {
-  return env.JUMPYBRAIN_QMD_BIN?.trim() || bundledQmdBinary() || "qmd";
+  const selected = selectedEngine.getStore();
+  return (selected ? selected.binary?.trim() : env.JUMPYBRAIN_QMD_BIN?.trim()) || bundledQmdBinary() || "qmd";
 }
 
 /** The CLI and transactional SDK must come from the same explicitly supported installation. */
@@ -40,7 +45,8 @@ export function resolveQmdSdk(): string {
 }
 
 function qmdSetupMessage(reason: string): string {
-  const override = process.env.JUMPYBRAIN_QMD_BIN?.trim();
+  const selected = selectedEngine.getStore();
+  const override = selected ? selected.binary?.trim() : process.env.JUMPYBRAIN_QMD_BIN?.trim();
   return `${reason} ${override ? `Selected JUMPYBRAIN_QMD_BIN=${JSON.stringify(override)}. Correct this override or run \`unset JUMPYBRAIN_QMD_BIN\` to use normal resolution, then retry. ` : ""}If still unavailable, install with \`npm install -g @tobilu/qmd@2.8.3\` or set JUMPYBRAIN_QMD_BIN to its CLI.`;
 }
 

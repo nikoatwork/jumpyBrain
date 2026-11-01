@@ -8,7 +8,7 @@ import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback
 
 const script = [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals = {}) {
-  const context = vm.createContext({ noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
+  const context = vm.createContext({ hostedIdentityChannel: null, hostedPrincipalId: null, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
   vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }
@@ -76,7 +76,7 @@ test("connection reflects confirmed auth, ignores old credentials, and preserves
   assert.equal(context.connectionStatus, "unavailable");
 });
 
-test("connection settings mask keys, discard canceled edits, and remove persisted credentials", () => {
+test("connection settings mask keys, discard canceled edits, and remove persisted credentials", async () => {
   const elements = new Map();
   const $ = (id) => {
     if (!elements.has(id)) elements.set(id, { dataset: {}, setAttribute(name, value) { this[name] = value; } });
@@ -96,7 +96,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   assert.equal(context.apiKeyInput.value, "saved-key");
   assert.equal(context.apiKeyInput.type, "password");
   assert.equal($("toggle-api-key")["aria-pressed"], "false");
-  context.setConnectionKey("");
+  await context.setConnectionKey("");
   assert.equal(context.activeApiKey, "");
   assert.equal(context.apiKeyInput.value, "");
   assert.equal(context.credentialRevision, 1);
@@ -105,7 +105,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   assert.equal($("disconnect").hidden, true);
   assert.deepEqual(removed, ["jumpybrain.graph.apiKey"]);
   context.localStorage.removeItem = () => { throw new Error("storage blocked"); };
-  assert.doesNotThrow(() => context.setConnectionKey(""));
+  await assert.doesNotReject(() => context.setConnectionKey(""));
 });
 
 test("recent notes cancel stale loads and recover from auth, network, and malformed responses", async () => {
@@ -599,7 +599,7 @@ test("late document GETs cannot overwrite a new full-page selection", async () =
   const state = { noteToken: 0, editor: null };
   const richEditor = { markdown: "", setMarkdown(value) { this.markdown = value; }, getMarkdown() { return this.markdown; }, focus() {} };
   const context = runtime(["showNote", "isValidMemoryDocumentId", "noteLoadError"], {
-    $, state, richEditor, document: { title: "" }, window: { setTimeout, clearTimeout },
+    $, state, richEditor, attachLiveEditor() {}, document: { title: "" }, window: { setTimeout, clearTimeout },
     stagedReferenceNote: null, credentialRevision: 0, cancelReferenceInteraction() {},
     splitEditableDocument() {}, composeEditableDocument() {}, writeGraphDocument() {}, syncEditorUi() {},
     searchDialog: { open: false }, connectionDialog: { open: false }, dreamDialog: { open: false },
@@ -880,7 +880,7 @@ test("credentials and modal openings cancel pending references, including transp
       if (phase !== "save") await h.saved();
       if (phase === "preflight") await h.found();
       const signal = h.context.referenceRequest.signal;
-      cancel(h);
+      await cancel(h);
       assert.equal(signal.aborted, true);
       if (phase === "save") await h.saved();
       if (phase === "resolve") await h.found();

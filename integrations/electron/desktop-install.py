@@ -116,7 +116,7 @@ def prepare(bundle, home, source=SOURCE):
         copy_extension_compiler(source, runtime)
     native = runtime / 'integrations/macos-companion'
     native.mkdir(parents=True)
-    for name in ('gateway.mjs', 'extensions-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs'):
+    for name in ('gateway.mjs', 'extensions-gateway.mjs', 'live-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs'):
         shutil.copy2(source / 'integrations/macos-companion' / name, native / name)
     # Configuration.json is sealed into the native helper's ad-hoc signature.
     # A random packaging directory changes its cdhash (and therefore its Keychain

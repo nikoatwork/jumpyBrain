@@ -1,5 +1,6 @@
 // Companion-only host adapter. Never loaded by the CLI, public runtime, or hosted serve.
 import http from 'node:http';
+import { attachCompanionLive } from './live-gateway.mjs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { lstat, realpath, readFile, writeFile, rename, unlink } from 'node:fs/promises';
@@ -116,6 +117,7 @@ export function nativeCredentials(input = process.stdin, output = process.stdout
 }
 
 function allowedMemoryRoute(method, pathname) {
+  if (method === 'GET' && pathname === '/capabilities') return { write: false };
   if (method === 'POST' && pathname === '/memories/all/files/operations') return { write: true };
   if (method === 'GET' && /^\/memories\/all\/boards(?:\/[0-9a-f-]+(?:\/status)?)?$/.test(pathname)) return { write: false };
   if (method === 'POST' && pathname === '/memories/all/boards') return { write: true };
@@ -152,7 +154,13 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   credentials.setDiagnosticReporter?.((event) => diagnostics.record(event));
   let supportPending = null, supportAt = 0, supportCache = null, supportScope = null;
   const importedEvents = new Set();
-  const localStart = localFactory || ((options) => startJumpyBrainHttpServer(options));
+  const { ensureRootBackend } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/backend-host/index.js')).href);
+  const localStart = localFactory || (async options => { const backend = await ensureRootBackend(options.root);
+    // Opening a local brain retains its existing maintenance startup behavior;
+    // CLI doctor/readiness alone still never starts inference.
+    const activated = await fetch(backend.url + '/_backend/activate', {method:'POST',redirect:'manual',headers:{Authorization:'Bearer ' + backend.token},signal:AbortSignal.timeout(5000)});
+    await activated.body?.cancel(); if (!activated.ok) failure('offline','The local backend could not activate.',503);
+    return {url: backend.url, token: backend.token, close: async () => {}}; });
   let local = null, localProfile = null, localKey = null;
   let origin, cookieName;
   const cookieToken = randomBytes(32).toString('hex');
@@ -182,6 +190,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       await stopLocal();
       localKey = randomBytes(32).toString('hex');
       local = await localStart({ root: profile.root, apiKeys: [localKey], host: '127.0.0.1', port: 0 });
+      if (local.token) localKey = local.token;
       localProfile = profile.id;
     }
     return { url: local.url, key: localKey };
@@ -327,7 +336,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
             const absent = (component) => ({ component, availability: 'unavailable', events: [], dropped: 0, failures: 0, truncatedBytes: 0 });
             supportPending = collectSupportDiagnostics([
               { component: 'gateway', snapshot: () => diagnostics.snapshot() },
-              { component: 'server', snapshot: () => profile?.kind === 'local' && localProfile === profile.id && local?.diagnostics ? local.diagnostics.snapshot() : Promise.resolve(absent('server')) },
+              { component: 'server', snapshot: async () => {if (profile?.kind !== 'local') return absent('server'); if (local?.diagnostics && localProfile === profile.id) return local.diagnostics.snapshot(); try { const packet = await targetFetch(profile, '/_backend/diagnostics'); return packet.status === 200 ? JSON.parse(packet.body) : absent('server'); } catch {return absent('server');}} },
               { component: 'native', snapshot: () => readNativeDiagnosticSnapshot(path.join(directory, 'native-diagnostics.json')) },
               { component: 'electron', snapshot: async () => { const source = await electronDiagnostics.snapshot(); return source.events.length ? source : absent('electron'); } },
             ]).then((sources) => { supportCache = { schema: 1, runtime: runtimeInfo, sources }; supportScope = scope; supportAt = Date.now(); return supportCache; }).finally(() => { supportPending = null; });
@@ -468,6 +477,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     const operation = handler(request, response).catch(() => { response.destroy(); });
     requests.add(operation); void operation.finally(() => requests.delete(operation));
   });
+  const live = attachCompanionLive({server, authenticate, coordinator, active, destination: resolveDestination, origin: () => origin});
   server.requestTimeout = 30000; server.headersTimeout = 15000;
   try {
     await new Promise((resolve, reject) => {
@@ -492,7 +502,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   void extensions.scopeChanged();
   return { url: origin, server, store, coordinator, state, diagnostics,
     close: async () => {
-      stopping = true; coordinator.close(); extensions.cancel();
+      stopping = true; coordinator.close(); extensions.cancel(); await live.close();
       for (const controller of controllers) controller.abort();
       const closed = new Promise((resolve) => server.close(resolve));
       server.closeAllConnections(); // Also abort incomplete request-body receipt before draining handlers.

@@ -1,0 +1,18 @@
+✔ CLI help and instructions expose stable command names and important flags (189.838791ms)
+✔ CLI local baseline smoke covers doctor, init, status, remember, recall, wrapup, and process lint JSON (1350.514166ms)
+✔ doctor keeps legacy exit 0, strict check fails with JSON and no root/home writes (134.452541ms)
+✔ doctor validates every flag before executing dependency probes or creating files (673.62425ms)
+✔ missing explicit root gets an executable literal same-root init hint, then empty recall recovers (685.592667ms)
+✔ bad explicit QMD override identifies correction first; unsetting restores same saved memory (910.207041ms)
+✔ doctor distinguishes malformed config without exposing raw errors or init advice (342.914792ms)
+✔ explicit project scope sees project-only Codex, Claude and Pi files while global remains separate (601.462417ms)
+✔ inaccessible explicit root remains a permission failure without initialization or redirection (166.174792ms)
+✔ a missing configured index root is not mistaken for an absent selected memory root (107.667125ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3665.399541

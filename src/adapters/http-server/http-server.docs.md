@@ -7,7 +7,7 @@
 - Notes POST forwards optional untrusted `date` to app validation without string coercion or fallback. Document error mapping allowlists known domain codes; unexpected native I/O errors return generic messages so paths/content cannot escape through error text.
 
 - Own server lifecycle, authentication, request decoding, response encoding, safe error mapping, and the content-free nonce-protected browser shell.
-- Generate/validate bounded `X-JumpyBrain-Request` correlation and carry it through async request context. Mirror safe operation/status/duration/code/index-outcome facts to schema diagnostics under `.jumpybrain/logs/diagnostics`. Default persistence is bounded; a custom logger preserves the no-filesystem-write embedding contract unless an explicit store opts in. No public server diagnostics/log route is added. Shutdown drains owned app work and performs bounded diagnostic/text-log flushing.
+- Generate/validate bounded `X-JumpyBrain-Request` correlation and carry it through async request context. Mirror safe operation/status/duration/code/index-outcome facts to schema diagnostics under `.jumpybrain/logs/diagnostics`. Default persistence is bounded; a custom logger preserves the no-filesystem-write embedding contract unless an explicit store opts in. Diagnostics remain operator-only and are not exposed through the desktop browser route allowlist. Shutdown drains owned app work and performs bounded diagnostic/text-log flushing.
 - Keep routes thin: delegate memory behavior to [server-memory use cases](../../app/server-memory/server-memory.docs.md); share route literals with the HTTP client through `http-protocol.ts`.
 - Authenticated `POST /memories/all/ensure-title` accepts only a safe literal `title`, then queues the app's complete canonical find-or-create operation alongside ordinary writes. `resolve-title` remains read-only. Ensure-title exposes minimal found/ID/created outcomes plus safe indexing guidance after actual creation, never titles, bodies or paths. Companion gateways classify ensure-title as a write so read-only profiles reject it.
 - Discriminate JSON parser errors by internal class; untrusted `statusCode`/`body` fields must never become responses or logged error codes.
@@ -61,3 +61,19 @@ Authenticated `/memories/all/boards` and per-ID/status routes delegate to `app/s
 ## Explorer mutation transport
 
 `POST /memories/all/files/operations` is a thin authenticated decoder into `app/server-memory/folder-explorer-operations.ts`, using the existing write queue and safe document-error mapping. Folder creation accepts only `{action:"create-folder",path}`. File move/rename accepts only `{action:"move-file",id,file,destination}` with `If-Match`. Successful moves notify index maintenance; empty-folder creation does not. GET `/memories/all/files?includeFolders=1` adds visible canonical directories without changing the default packet. The companion gateway classifies file operations as writes under ordinary profile/generation/tab admission.
+
+## Shared backend and live operations
+
+The host composes the collaboration hub and protocol-2 `/ws` adapter using the
+same canonical publication queue as HTTP document writes. Guarded PUT/PATCH/DELETE
+notify live sessions; derived QMD work retains separate admission so inference
+does not hold the typing queue. Reader/writer/admin authorization applies to
+every protected route. Operator-only `/_backend` readiness, cancellation,
+local RPC, stop and sanitized diagnostics support the private owner descriptor.
+These administrative endpoints never pass through the desktop browser allowlist.
+
+Hosted `/session` GET establishes a brain-scoped HttpOnly SameSite=Strict24-hour
+cookie from a valid bearer credential; DELETE clears it. Cookie-authenticated
+mutations require exact Origin and every request revalidates authorization.
+WS resolves the browser-session marker from the authenticated upgrade cookie;
+credentials never enter the socket URL. See [collaboration](../../../docs/collaboration.md).

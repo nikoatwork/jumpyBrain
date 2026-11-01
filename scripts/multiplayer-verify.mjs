@@ -18,6 +18,35 @@ const git = (root, args) => execFileSync('git', args, { cwd: root, encoding: 'ut
 const isGatePath = (file) => gatePaths.some((entry) => entry.endsWith('/') ? file.startsWith(entry) : file === entry);
 const relativeFile = (root, file) => path.relative(root, file).split(path.sep).join('/');
 
+export async function verificationHarnessRoots(root) {
+  const roots = ['scripts/multiplayer-verify.mjs'];
+  try { await lstat(path.join(root, 'scripts/multiplayer-verification')); roots.push('scripts/multiplayer-verification'); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
+  return roots;
+}
+
+// Keep this bootstrap in the runner: importing a mutable delta helper before
+// independently checking its approved bytes would let it approve itself.
+async function assertPinnedHarnessDelta(frozen, harness, deltaFile, deltaSha256, baselineSha256) {
+  let declaration;
+  if (deltaFile) {
+    if (!/^[a-f0-9]{64}$/.test(deltaSha256 ?? '')) throw new Error('An externally pinned --delta-sha256 digest is required.');
+    const stat = await lstat(deltaFile);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 1024 * 1024) throw new Error('Contract delta must be a bounded regular file.');
+    const bytes = await readFile(deltaFile);
+    if (hash(bytes) !== deltaSha256) throw new Error('Contract delta digest does not match the externally pinned digest.');
+    declaration = JSON.parse(bytes);
+    if (declaration.version !== 1 || declaration.status !== 'reviewed' || declaration.baselineSha256 !== baselineSha256 || !Array.isArray(declaration.entries)) throw new Error('Contract delta must be reviewed and bound to the pinned original baseline.');
+  }
+  for (const file of new Set([...Object.keys(frozen.harness), ...Object.keys(harness)])) {
+    const before = frozen.harness[file] ?? null, after = harness[file];
+    if (!after) throw new Error('Frozen harness missing; existing files cannot be removed: ' + file);
+    if (before === after) continue;
+    const matching = declaration?.entries.filter(entry => entry.kind === 'harness' && entry.file === file);
+    if (matching?.length !== 1 || matching[0].oldSha256 !== before || matching[0].newSha256 !== after) throw new Error('Frozen harness changed without an exact independently pinned old/new declaration: ' + file);
+  }
+}
+
 export async function filesBelow(root, roots) {
   const files = new Set();
   async function visit(file) {
@@ -252,8 +281,9 @@ function sameEnvironment(baseline, candidate) {
   return JSON.stringify(controlled(baseline)) === JSON.stringify(controlled(candidate));
 }
 
-export async function runGate({ mode, root = repository, out, baseline, baselineSha256, contractFile = contractPath, probe = probeEnvironment, log = console.log }) {
+export async function runGate({ mode, root = repository, out, baseline, baselineSha256, deltaFile, deltaSha256, contractFile = contractPath, probe = probeEnvironment, log = console.log }) {
   if (!['capture', 'verify'].includes(mode)) throw new Error('Mode must be capture or verify.');
+  if (!!deltaFile !== !!deltaSha256 || mode === 'capture' && deltaFile) throw new Error('A contract delta is verify-only and requires both --delta and externally pinned --delta-sha256.');
   root = await realpath(root);
   const output = await resolvedDestination(out);
   if (baseline) baseline = await realpath(baseline);
@@ -276,13 +306,29 @@ export async function runGate({ mode, root = repository, out, baseline, baseline
     report.contractHash = hash(contractBytes);
     const frozen = mode === 'verify' ? await readBaseline(path.resolve(baseline), baselineSha256) : undefined;
     if (frozen && frozen.contractHash !== report.contractHash) throw new Error('Frozen scenario contract changed.');
-    const assertionFiles = await filesBelow(root, contract.assertionRoots);
-    const assertions = await fingerprints(root, assertionFiles);
-    const harness = await fingerprints(root, await filesBelow(root, ['scripts/multiplayer-verify.mjs']));
+    const assertionRoots = [...contract.assertionRoots, ...Object.keys(frozen?.assertions ?? {}).filter(file => !contract.assertionRoots.some(entry => file === entry || file.startsWith(entry + '/')))];
+    const assertionFiles = await filesBelow(root, assertionRoots);
+    let assertions = await fingerprints(root, assertionFiles);
+    const harnessRoots = await verificationHarnessRoots(root);
+    const harness = await fingerprints(root, await filesBelow(root, harnessRoots));
     if (frozen) {
-      await assertFingerprints(root, frozen.assertions, 'Frozen assertion');
-      await assertFingerprints(root, frozen.harness, 'Frozen harness');
+      await assertPinnedHarnessDelta(frozen, harness, deltaFile, deltaSha256, baselineSha256);
+      const { readContractDelta, validateContractDelta, discoverAssertionHelpers, assertExtraAssertionDeclarations } = await import('./multiplayer-verification/contract-delta.mjs');
+      const delta = deltaFile ? await readContractDelta(path.resolve(deltaFile), deltaSha256, { baselineSha256 }) : undefined;
+      const extraAssertions = await discoverAssertionHelpers(root, assertionFiles);
+      assertExtraAssertionDeclarations({ frozen, assertionFiles, extraAssertions, delta });
+      Object.assign(assertions, await fingerprints(root, extraAssertions));
+      assertionRoots.push(...extraAssertions);
+      const inventory = validateContractDelta({ frozen, assertions, harness, delta, extraAssertions });
+      report.contractDelta = { ...inventory, ...(delta ? { sha256: delta.sha256, declaration: delta.declaration } : {}) };
+      if (delta) log('Applying externally pinned reviewed contract delta: ' + delta.sha256 + ' (' + inventory.changed.length + ' exact file changes).');
+    } else {
+      const { discoverAssertionHelpers } = await import('./multiplayer-verification/contract-delta.mjs');
+      const extraAssertions = await discoverAssertionHelpers(root, assertionFiles);
+      Object.assign(assertions, await fingerprints(root, extraAssertions));
+      assertionRoots.push(...extraAssertions);
     }
+    assertions = Object.fromEntries(Object.keys(assertions).sort().map(file => [file, assertions[file]]));
     const pkg = JSON.parse(await readFile(path.join(root, 'package.json')));
     const testScript = pkg.scripts?.test;
     if (!testScript || (frozen && frozen.testScript !== testScript)) throw new Error('The frozen npm test script changed or is missing.');
@@ -313,8 +359,8 @@ export async function runGate({ mode, root = repository, out, baseline, baseline
       }
       else if (artifact) await assertTreeFingerprints(root, ['dist'], artifact, 'Tested runtime artifact during run');
     }
-    await assertTreeFingerprints(root, contract.assertionRoots, assertions, 'Assertion input during run');
-    await assertFingerprints(root, harness, 'Harness input during run');
+    await assertTreeFingerprints(root, assertionRoots, assertions, 'Assertion input during run');
+    await assertTreeFingerprints(root, await verificationHarnessRoots(root), harness, 'Harness input during run');
     const after = await runtimeSnapshot(root);
     if (JSON.stringify(source) !== JSON.stringify(after)) throw new Error('Runtime source changed during verification.');
     if (environment.installedDependencies) {
@@ -339,6 +385,7 @@ export async function runGate({ mode, root = repository, out, baseline, baseline
       version: 1, status: 'passed', source, environment, contractHash: report.contractHash,
       testScript, assertions, harness, checks: report.checks, limits: report.limits,
       baselineSha256: mode === 'verify' ? baselineSha256 : null,
+      ...(report.contractDelta ? { contractDelta: report.contractDelta } : {}),
       integrity: await fingerprints(output, await filesBelow(output, ['runtime', 'assertions', 'logs', 'report.json'])),
     };
     const manifestBytes = json(manifest);
@@ -357,14 +404,15 @@ async function main() {
   const [mode, ...args] = process.argv.slice(2);
   const values = {};
   for (let index = 0; index < args.length; index += 2) {
-    if (!['--out', '--baseline', '--baseline-sha256'].includes(args[index]) || !args[index + 1] || args[index + 1].startsWith('--') || values[args[index]]) {
-      throw new Error('Usage: multiplayer-verify.mjs capture --out DIR | verify --baseline DIR --baseline-sha256 DIGEST --out DIR');
+    if (!['--out', '--baseline', '--baseline-sha256', '--delta', '--delta-sha256'].includes(args[index]) || !args[index + 1] || args[index + 1].startsWith('--') || values[args[index]]) {
+      throw new Error('Usage: multiplayer-verify.mjs capture --out DIR | verify --baseline DIR --baseline-sha256 DIGEST [--delta FILE --delta-sha256 DIGEST] --out DIR');
     }
     values[args[index]] = args[index + 1];
   }
   if (!values['--out'] || (mode === 'verify' && (!values['--baseline'] || !values['--baseline-sha256']))
-    || (mode === 'capture' && (values['--baseline'] || values['--baseline-sha256']))) throw new Error('Missing or incompatible evidence arguments.');
-  const result = await runGate({ mode, out: values['--out'], baseline: values['--baseline'], baselineSha256: values['--baseline-sha256'] });
+    || (mode === 'capture' && (values['--baseline'] || values['--baseline-sha256'] || values['--delta'] || values['--delta-sha256']))
+    || !!values['--delta'] !== !!values['--delta-sha256']) throw new Error('Missing or incompatible evidence arguments.');
+  const result = await runGate({ mode, out: values['--out'], baseline: values['--baseline'], baselineSha256: values['--baseline-sha256'], deltaFile: values['--delta'], deltaSha256: values['--delta-sha256'] });
   console.log(json({ status: result.status, checks: result.checks.map(({ id, status, reason }) => ({ id, status, ...(reason ? { reason } : {}) })), ...(result.error ? { error: result.error } : {}), ...(result.manifestSha256 ? { manifestSha256: result.manifestSha256 } : {}) }));
   process.exitCode = result.status === 'passed' ? 0 : 1;
 }

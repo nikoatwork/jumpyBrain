@@ -347,7 +347,12 @@ export function installPageNavigation(options: {
     },
     select(id: string | null) { selected = id; render(); if (attention) void attention.load(); },
     visit(page: Page) { selected = page.id; if (!history.visit(page)) render(); },
-    rename(page: Page) { previews.delete(page.id); history.rename(page); render(); },
+    rename(page: Page) {
+      // A confirmed live title is newer than an attention snapshot already on screen.
+      // Keep it until the next fresh metadata read, including responsive rerenders.
+      if (attention) for (const row of [...attention.state.notes, ...attention.state.settled]) if (row.id === page.id) row.title = page.title;
+      previews.delete(page.id); history.rename(page); render();
+    },
     remove(id: string) { history.remove(id); if (attention) void attention.load(); },
     refresh() { render(); if (attention) void attention.load(); },
     reloadAttention(id?: string) { revealId = id; if (attention) void attention.load(); },

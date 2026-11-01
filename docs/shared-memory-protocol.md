@@ -908,3 +908,19 @@ Board fields are exactly `{schemaVersion:1,id,name,archived,columns:[{name,pages
 Routes require normal bearer authentication. Mac read-only profiles and CLI read-only target policy reject writes; these client policies are not server ACLs. Normal explicit authorization for shared writes applies. Mutations serialize with the host queue plus a filesystem lock across cooperating processes, recheck exact-byte hashes, and publish one file atomically. Missing/malformed preconditions return 428; invalid schema or unsafe board returns 400; missing board returns 404; conflict/busy returns 409; unexpected filesystem failures return a safe 500. No indexing or note-content mutation occurs.
 
 Status reads fresh Markdown with root-relative paths, canonical ID/hash and whole-line excerpts. Default coverage is 12 cards, maximum 50; missing, omitted and truncated evidence remain explicit. A changed board hash aborts status. There is no multi-file snapshot or inferred completion score. See [agent workflow and breaking storage change](boards.md).
+
+## Live protocol 2
+
+The production live transport is authenticated JSON RPC at `/ws`, alongside the
+existing HTTP use cases. The first request is `hello` with protocol2 and token;
+browser sessions may use their HttpOnly cookie marker. Requests have id/method/
+params, replies id/ok/result or error, and subscriptions emit scoped document
+snapshots. Epoch/revision identify operation history; contentHash identifies
+canonical bytes. Mutations acknowledge only after publication. Unknown versions,
+expired bases, bounded capacity and ambiguous overlaps fail explicitly.
+
+Methods include open/close/edit/undo/redo/presence/resync/title and stream.start,
+stream.chunk, stream.status, stream.finish, stream.cancel. Stream sequence starts
+at0; duplicate chunks must match, gaps fail, completion differs from cancellation.
+HTTP readers and WS readers cannot publish. See the typed core/app/live modules
+for exact schemas and [operations](collaboration.md) for recovery and limits.

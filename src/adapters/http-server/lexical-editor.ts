@@ -1,6 +1,6 @@
 // Browser-only adapter. Bundled separately; never imported by the server runtime.
 import {
-  $addUpdateTag, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
+  $addUpdateTag, $getNodeByKey, $createRangeSelection, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
   COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
   ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
@@ -145,6 +145,7 @@ function snapshot(node: LexicalNode): string {
     const children: Part[] = [];
     if ($isElementNode(current)) for (const child of current.getChildren()) {
       const part = visit(child), previous = children.at(-1);
+      if (part.text === "") continue; // Lexical removes empty leaves during normalization.
       if (part.text !== undefined && previous?.text !== undefined && previous.attributes === part.attributes) previous.text += part.text;
       else children.push(part);
     }
@@ -168,6 +169,7 @@ export function createNoteEditor(element: HTMLElement, options: {
 }) {
   const sources = new Map<string, { original: string; snapshot: string }>();
   const referenceListeners = new Set<() => void>();
+  const compositionListeners = new Set<() => void>();
   const notifyReferenceContext = () => referenceListeners.forEach((listener) => listener());
   const preserve: Transformer = {
     type: "element", dependencies: [], regExp: /(?!) /, replace: () => {},
@@ -186,7 +188,10 @@ export function createNoteEditor(element: HTMLElement, options: {
   element.contentEditable = "true";
   editor.setRootElement(element);
   const history = createEmptyHistoryState();
-  const cleanups = [registerRichText(editor), registerHistory(editor, history, 300)];
+  let collaborativeHistory: { undo: () => void; redo?: () => void } | null = null;
+  const attachHistory = () => registerHistory(editor, history, 300);
+  let detachHistory = attachHistory();
+  const cleanups = [registerRichText(editor), () => detachHistory()];
   const taskFeedback = createTaskCompletionFeedback(element);
   cleanups.push(() => taskFeedback.clear());
   cleanups.push(installReferencePresentation(editor, element));
@@ -271,6 +276,8 @@ export function createNoteEditor(element: HTMLElement, options: {
   }
   cleanups.push(editor.registerNodeTransform(RootNode, scanReferences));
   let markdown = "";
+  let sourceNewline: "\n" | "\r\n" | null = "\n";
+  const detectNewline = (value: string) => value.includes("\r\n") ? /(?<!\r)\n/.test(value) ? null : "\r\n" as const : "\n" as const;
   let loading = false;
   let completionBaseline = "", redoPending = false, completionTimer = 0;
   const win = element.ownerDocument.defaultView!;
@@ -294,14 +301,18 @@ export function createNoteEditor(element: HTMLElement, options: {
     if (completed.length) options.onCompletedReferences?.(completed);
   }
   cleanups.push(editor.registerCommand(REDO_COMMAND, () => {
+    if (collaborativeHistory) { const active = collaborativeHistory; queueMicrotask(() => { if (collaborativeHistory === active) active.redo?.(); }); return true; }
     redoPending = true;
     // History can first commit a no-op, then restore its snapshot in a later
     // microtask. Consume intent only when reference text actually changes.
     return false;
   }, COMMAND_PRIORITY_HIGH));
-  cleanups.push(editor.registerCommand(UNDO_COMMAND, () => { redoPending = false; return false; }, COMMAND_PRIORITY_HIGH));
+  cleanups.push(editor.registerCommand(UNDO_COMMAND, () => { redoPending = false; if (collaborativeHistory) { const active = collaborativeHistory; queueMicrotask(() => { if (collaborativeHistory === active) active.undo(); }); return true; } return false; }, COMMAND_PRIORITY_HIGH));
   let lastSelection: RangeSelection | null = null;
-  const serialize = () => $convertToMarkdownString(transformers, undefined, true);
+  const serialize = () => {
+    const value = $convertToMarkdownString(transformers, undefined, true);
+    return sourceNewline === "\r\n" ? value.replace(/\r?\n/g, "\r\n") : value;
+  };
   cleanups.push(editor.registerUpdateListener(({ editorState, dirtyElements, dirtyLeaves, tags }) => {
     if (loading) return;
     editorState.read(() => {
@@ -319,7 +330,10 @@ export function createNoteEditor(element: HTMLElement, options: {
     // Some browsers commit the final composition through a later input event.
     // Keep the baseline across preedit updates and inspect only committed state.
     completionTimer = win.setTimeout(() => {
-      if (!loading && !editor.isComposing()) editor.getEditorState().read(() => reportCompletions());
+      if (!loading && !editor.isComposing()) {
+        editor.getEditorState().read(() => reportCompletions());
+        compositionListeners.forEach((listener) => listener());
+      }
     }, 0);
   };
   element.addEventListener("compositionend", compositionEnd);
@@ -595,22 +609,22 @@ export function createNoteEditor(element: HTMLElement, options: {
 
   // Loading and pasting share the same conservative Markdown grammar.
   function parseMarkdown(value: string): LexicalNode[] {
-    const nodes: LexicalNode[] = [], lines = value.split("\n");
+    const nodes: LexicalNode[] = [], rawLines = value.split("\n"), lines = rawLines.map((line) => line.endsWith("\r") ? line.slice(0, -1) : line);
     let fence: { char: string; length: number } | null = null;
     let previousTask: number | null = null;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i], closed = !fence ? codeFence(lines, i) : null;
       const parsedTable = !fence ? markdownTable(lines, i) : null;
       if (parsedTable) {
-        const original = lines.slice(i, parsedTable.end + 1).join("\n");
-        const node = new TableMarkdownNode().append(...$generateNodesFromRawText(original).map((node) => $isTextNode(node) ? node.setFormat("code") : node));
+        const original = rawLines.slice(i, parsedTable.end + 1).join("\n");
+        const node = new TableMarkdownNode().append(...$generateNodesFromRawText(lines.slice(i, parsedTable.end + 1).join("\n")).map((node) => $isTextNode(node) ? node.setFormat("code") : node));
         nodes.push(node); sources.set(node.getKey(), { original, snapshot: snapshot(node) });
         i = parsedTable.end; previousTask = null; continue;
       }
       if (closed) {
         const node = new FencedCodeMarkdownNode(closed.language).append(...$generateNodesFromRawText(closed.text).map((node) => $isTextNode(node) ? node.setFormat("code") : node));
         nodes.push(node);
-        sources.set(node.getKey(), { original: lines.slice(i, closed.end + 1).join("\n"), snapshot: snapshot(node) });
+        sources.set(node.getKey(), { original: rawLines.slice(i, closed.end + 1).join("\n"), snapshot: snapshot(node) });
         i = closed.end; previousTask = null; continue;
       }
       const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
@@ -631,7 +645,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       }
       previousTask = node instanceof TaskMarkdownNode ? node.__spaces : null;
       nodes.push(node);
-      sources.set(node.getKey(), { original: line, snapshot: snapshot(node) });
+      sources.set(node.getKey(), { original: rawLines[i], snapshot: snapshot(node) });
       if (marker) {
         if (!fence) fence = { char: marker[1][0], length: marker[1].length };
         else if (marker[1][0] === fence.char && marker[1].length >= fence.length && /^ {0,3}(?:`+|~+)[ \t]*$/.test(line)) fence = null;
@@ -668,11 +682,122 @@ export function createNoteEditor(element: HTMLElement, options: {
   }
   cleanups.push(installSlashCommands(editor, element, applyFormat));
   let highlightTimer: number | undefined;
+  type PeerCursor = { actor: string; name: string; kind: "human" | "agent"; anchor?: number; focus?: number };
+  let peerCursors: PeerCursor[] = [];
+  const cursorLayer = element.ownerDocument.createElement("div");
+  cursorLayer.dataset.collaborationCursors = "true";
+  cursorLayer.setAttribute("aria-hidden", "true");
+  cursorLayer.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:12;overflow:hidden";
+  element.ownerDocument.body.append(cursorLayer);
+  // Only exact source/presentation correspondences produce cursor coordinates.
+  // Supported rich spellings that cannot be projected exactly retain the peer
+  // label in the host's awareness UI; no guessed caret is displayed.
+  function projectedBlocks() {
+    let offset = 0;
+    return $getRoot().getChildren().map((node) => {
+      const source = sources.get(node.getKey()), exact = source?.snapshot === snapshot(node);
+      const raw = source?.original ?? "";
+      let start = 0, end = raw.length;
+      if (node instanceof FencedCodeMarkdownNode && !(node instanceof TableMarkdownNode)) { start = raw.indexOf("\n") + 1; end = raw.lastIndexOf("\n"); }
+      else if (node instanceof TaskMarkdownNode) start = /^( *)- \[[ xX]\] /.exec(raw)?.[0].length ?? 0;
+      else if (node instanceof HeadingNode) start = /^ {0,3}#{1,6}[ \t]+/.exec(raw)?.[0].length ?? 0;
+      const content = raw.slice(start, end), text = content.replace(/\r(?=\n|$)/g, "");
+      const map: number[] = [start];
+      for (let i = 0; i < content.length; i++) { if (content[i] === "\r" && (content[i + 1] === "\n" || i === content.length - 1)) continue; map.push(start + i + 1); }
+      const block = { node, offset, raw, exact: Boolean(exact), map: text === node.getTextContent() ? map : null };
+      offset += raw.length + 1; return block;
+    });
+  }
+  function pointInBlock(block: LexicalNode, offset: number) {
+    const leaves: LexicalNode[] = [];
+    const visit = (node: LexicalNode) => { if ($isElementNode(node)) node.getChildren().forEach(visit); else leaves.push(node); }; visit(block);
+    for (const leaf of leaves) {
+      const size = leaf.getTextContentSize();
+      if (offset <= size && $isTextNode(leaf)) {
+        const dom = editor.getElementByKey(leaf.getKey()); if (!dom) return null;
+        const walker = element.ownerDocument.createTreeWalker(dom, NodeFilter.SHOW_TEXT);
+        let text: Node | null; while ((text = walker.nextNode())) { if (offset <= (text.textContent?.length ?? 0)) return { node: text, offset }; offset -= text.textContent?.length ?? 0; }
+        return null;
+      }
+      offset -= size;
+    }
+    const dom = editor.getElementByKey(block.getKey()); return dom ? { node: dom as Node, offset: 0 } : null;
+  }
+  function renderCursors() {
+    cursorLayer.replaceChildren();
+    if (!peerCursors.length || !element.isConnected) return;
+    editor.getEditorState().read(() => {
+      const blocks = projectedBlocks();
+      const project = (sourceOffset: number) => {
+        let precedingExact = true;
+        for (const block of blocks) {
+          if (sourceOffset >= block.offset && sourceOffset <= block.offset + block.raw.length) {
+            if (!precedingExact || !block.exact || !block.map) return null;
+            const index = block.map.indexOf(sourceOffset - block.offset);
+            return index < 0 ? null : pointInBlock(block.node, index);
+          }
+          precedingExact &&= block.exact;
+        }
+        return null;
+      };
+      const bounds = element.getBoundingClientRect();
+      for (const peer of peerCursors.slice(0, 64)) {
+        if (peer.anchor === undefined || peer.focus === undefined) continue;
+        const anchor = project(peer.anchor), focus = project(peer.focus); if (!anchor || !focus) continue;
+        const range = element.ownerDocument.createRange();
+        try {
+          const backward = peer.anchor > peer.focus;
+          range.setStart((backward ? focus : anchor).node, (backward ? focus : anchor).offset);
+          range.setEnd((backward ? anchor : focus).node, (backward ? anchor : focus).offset);
+          const hash = Array.from(peer.actor).reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0), color = ["#8b5cf6", "#0891b2", "#d97706", "#16a34a"][hash % 4];
+          const rects = Array.from(range.getClientRects());
+          if (range.collapsed && !rects.length) { const rect = range.getBoundingClientRect(); if (rect.height) rects.push(rect); }
+          for (const rect of rects.slice(0, 100)) {
+            if (rect.bottom < bounds.top || rect.top > bounds.bottom || !rect.height) continue;
+            const mark = element.ownerDocument.createElement("span"); mark.dataset.collaborationActor = peer.actor;
+            mark.style.cssText = `position:absolute;left:${rect.left}px;top:${rect.top}px;width:${Math.max(2, rect.width)}px;height:${rect.height}px;background:${color}25;border-left:2px solid ${color};box-sizing:border-box`;
+            cursorLayer.append(mark);
+          }
+          const caretRange = element.ownerDocument.createRange(); caretRange.setStart(focus.node, focus.offset); caretRange.collapse(true);
+          const caret = caretRange.getClientRects()[0];
+          if (caret && caret.top >= bounds.top && caret.bottom <= bounds.bottom) {
+            const label = element.ownerDocument.createElement("span"); label.textContent = peer.name;
+            label.dataset.collaborationLabel = "true";
+            label.style.cssText = `position:absolute;left:${caret.left}px;top:${Math.max(bounds.top, caret.top - 15)}px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:10px system-ui;background:${color};color:white;padding:1px 3px;border-radius:3px`;
+            cursorLayer.append(label);
+          }
+        } catch { /* An unmappable browser range remains label-only in awareness. */ }
+      }
+    });
+  }
+  const cursorScroll = () => renderCursors();
+  element.ownerDocument.addEventListener("scroll", cursorScroll, true); win.addEventListener("resize", cursorScroll);
+  cleanups.push(() => { element.ownerDocument.removeEventListener("scroll", cursorScroll, true); win.removeEventListener("resize", cursorScroll); cursorLayer.remove(); });
   const api = {
     getMarkdown: () => markdown,
+    isComposing: () => editor.isComposing(),
+    setCollaborativeNewline(value: "\n" | "\r\n" | null) { sourceNewline = value; },
+    collaborativeSelection(): { anchor: number; focus: number } | null {
+      if (element.ownerDocument.activeElement !== element || editor.isComposing()) return null;
+      return editor.getEditorState().read(() => {
+        const selected = $getSelection(); if (!$isRangeSelection(selected)) return null;
+        const blocks = projectedBlocks();
+        const points = [selected.anchor, selected.focus].map((point) => {
+          let node = point.getNode(), visible = point.type === "text" ? point.offset : $isElementNode(node) ? node.getChildren().slice(0, point.offset).reduce((size, child) => size + child.getTextContentSize(), 0) : 0;
+          while (node.getParent() && node.getParent() !== $getRoot()) { visible += node.getPreviousSiblings().reduce((size, sibling) => size + sibling.getTextContentSize(), 0); node = node.getParent()!; }
+          const index = blocks.findIndex((block) => block.node.getKey() === node.getKey()), block = blocks[index];
+          if (!block?.exact || !block.map || blocks.slice(0, index).some((item) => !item.exact) || block.map[visible] === undefined) return null;
+          return block.offset + block.map[visible];
+        });
+        return points.every((point) => point !== null) ? { anchor: points[0]!, focus: points[1]! } : null;
+      });
+    },
+    setCollaborativePresence(peers: PeerCursor[]) { peerCursors = peers; renderCursors(); },
+    subscribeSelection(listener: () => void) { referenceListeners.add(listener); const blur = () => listener(); element.addEventListener("blur", blur); return () => {referenceListeners.delete(listener); element.removeEventListener("blur", blur);}; },
     setMarkdown(value: string, reset = false) {
       if (!reset && value === markdown && editor.getEditorState().isEmpty() === false) return;
       taskFeedback.clear();
+      sourceNewline = detectNewline(value);
       loading = true;
       redoPending = false;
       win.clearTimeout(completionTimer);
@@ -690,6 +815,188 @@ export function createNoteEditor(element: HTMLElement, options: {
       history.current = { editor, editorState: editor.getEditorState() };
       loading = false;
       notifyReferenceContext();
+    },
+    // Remote source changes reconcile only affected subtrees. Unchanged blocks
+    // retain their Lexical keys, DOM, reference state and selection identity.
+    // No remote state enters the local history stack.
+    applyCollaborativeMarkdown(value: string, presentation: { highlight?: boolean } = {}): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string } {
+      if (value === markdown) {
+        // A local edit already renders the acknowledged source. Refresh its
+        // sidecar without replacing nodes so source cursor projection is exact.
+        const clean = editor.getEditorState().read(() => $getRoot().getChildren().every((node) => sources.get(node.getKey())?.snapshot === snapshot(node)));
+        if (!clean && !editor.isComposing()) {
+          loading = true;
+          try { editor.update(() => {
+            const actual = $getRoot().getChildren(), parsed = parseMarkdown(value);
+            if (actual.length === parsed.length) actual.forEach((node, index) => {
+              const source = sources.get(parsed[index].getKey())!;
+              if (snapshot(node) === snapshot(parsed[index])) sources.set(node.getKey(), { original: source.original, snapshot: snapshot(node) });
+            });
+            const keys = new Set(actual.map((node) => node.getKey())); for (const key of sources.keys()) if (!keys.has(key)) sources.delete(key);
+          }, { discrete: true, tag: HISTORIC_TAG }); } finally { loading = false; }
+        }
+        return { status: "unchanged" };
+      }
+      if (editor.isComposing()) return { status: "deferred" };
+      const before = editor.getEditorState(), previous = markdown, savedSources = new Map(sources), previousNewline = sourceNewline;
+      sourceNewline = detectNewline(value);
+      const scroll = element.closest("#note-panel"), top = scroll?.scrollTop, left = scroll?.scrollLeft;
+      let failure: string | undefined;
+      loading = true;
+      try {
+        editor.update(() => {
+          const root = $getRoot(), oldNodes = root.getChildren();
+          const oldParsed = parseMarkdown(previous), newNodes = parseMarkdown(value);
+          if (oldParsed.length !== oldNodes.length) { failure = "Source structure changed during reconciliation"; return; }
+          const originals = oldParsed.map((node) => sources.get(node.getKey())!.original);
+          const incoming = newNodes.map((node) => sources.get(node.getKey())!.original);
+          const selection = $getSelection();
+          // Map visible offsets through source punctuation. Unsupported syntax,
+          // code and tables are literal; supported emphasis/heading markers are
+          // skipped by this monotonic map. Ambiguity never changes source bytes.
+          function visibleToSource(source: string, text: string, offset: number) {
+            let sourceOffset = 0;
+            for (let i = 0; i < Math.min(offset, text.length); i++) {
+              const found = source.indexOf(text[i], sourceOffset);
+              if (found < 0) return Math.min(source.length, offset);
+              sourceOffset = found + 1;
+            }
+            return sourceOffset;
+          }
+          function sourceToVisible(source: string, text: string, offset: number) {
+            let cursor = 0, count = 0;
+            for (const character of text) {
+              const found = source.indexOf(character, cursor);
+              if (found < 0 || found >= offset) break;
+              cursor = found + character.length; count += character.length;
+            }
+            return count;
+          }
+          const originalPoints = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => ({ key: point.key, offset: point.offset, type: point.type, text: point.getNode().getTextContent() })) : null;
+          const points = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => {
+            let node = point.getNode(), offset = point.type === "text" ? point.offset : $isElementNode(node) ? node.getChildren().slice(0, point.offset).reduce((n, child) => n + child.getTextContentSize(), 0) : 0;
+            while (node.getParent() && node.getParent() !== root) { offset += node.getPreviousSiblings().reduce((n, child) => n + child.getTextContentSize(), 0); node = node.getParent()!; }
+            const index = oldNodes.findIndex((block) => block.getKey() === node.getKey());
+            if (index < 0) return null;
+            return originals.slice(0, index).reduce((n, source) => n + source.length + 1, 0) + visibleToSource(originals[index], node.getTextContent(), offset);
+          }) : null;
+          let start = 0;
+          while (start < previous.length && start < value.length && previous[start] === value[start]) start++;
+          let endOld = previous.length, endNew = value.length;
+          while (endOld > start && endNew > start && previous[endOld - 1] === value[endNew - 1]) { endOld--; endNew--; }
+          const mapOffset = (offset: number) => offset < start ? offset : offset >= endOld ? offset + endNew - endOld : start + Math.min(offset - start, endNew - start);
+          // A source-ordered match preserves repeated blocks deterministically.
+          // Only blocks between surviving anchors are reconciled or replaced.
+          const sourceIdentity = (source: string) => source.replace(/\r(?=\n|$)/g, "");
+          const oldKeys = new Set(oldNodes.map((node) => node.getKey()));
+          const positions = new Map<string, { indexes: number[]; cursor: number }>();
+          originals.forEach((source, i) => { const key = oldNodes[i].getType() + "\0" + sourceIdentity(source); const entry = positions.get(key) ?? { indexes: [], cursor: 0 }; entry.indexes.push(i); positions.set(key, entry); });
+          let cursor = 0;
+          const chosen = newNodes.map((node, index) => {
+            const candidates = positions.get(node.getType() + "\0" + sourceIdentity(incoming[index]));
+            if (candidates) while (candidates.cursor < candidates.indexes.length && candidates.indexes[candidates.cursor] < cursor) candidates.cursor++;
+            const match = candidates?.indexes[candidates.cursor];
+            if (match === undefined) return node;
+            cursor = match + 1; return oldNodes[match];
+          });
+          function metadata(node: LexicalNode) { const { children: _children, text: _text, ...rest } = node.exportJSON() as Record<string, unknown>; return JSON.stringify(rest); }
+          function reconcile(old: LexicalNode, next: LexicalNode): LexicalNode {
+            if (old.getType() !== next.getType() || metadata(old) !== metadata(next)) return next;
+            if ($isTextNode(old) && $isTextNode(next)) {
+              const a = old.getTextContent(), b = next.getTextContent(); let first = 0, aEnd = a.length, bEnd = b.length;
+              while (first < aEnd && first < bEnd && a[first] === b[first]) first++;
+              while (aEnd > first && bEnd > first && a[aEnd - 1] === b[bEnd - 1]) { aEnd--; bEnd--; }
+              old.spliceText(first, aEnd - first, b.slice(first, bEnd)); return old;
+            }
+            if ($isElementNode(old) && $isElementNode(next)) {
+              const a = old.getChildren(), b = next.getChildren(), oldChildKeys = new Set(a.map((child) => child.getKey()));
+              const matches = new Map<string, { indexes: number[]; cursor: number }>();
+              a.forEach((child, i) => { const signature = snapshot(child), entry = matches.get(signature) ?? { indexes: [], cursor: 0 }; entry.indexes.push(i); matches.set(signature, entry); });
+              let after = 0;
+              const children = b.map((child) => {
+                const entry = matches.get(snapshot(child));
+                if (entry) while (entry.cursor < entry.indexes.length && entry.indexes[entry.cursor] < after) entry.cursor++;
+                const index = entry?.indexes[entry.cursor];
+                if (index === undefined) return child;
+                after = index + 1; return a[index];
+              });
+              const kept = new Set(children.filter((child) => oldChildKeys.has(child.getKey())).map((child) => child.getKey()));
+              children.forEach((child, i) => {
+                if (oldChildKeys.has(child.getKey()) || !a[i] || kept.has(a[i].getKey())) return;
+                children[i] = reconcile(a[i], child); kept.add(children[i].getKey());
+              });
+              old.splice(0, a.length, children); return old;
+            }
+            return next;
+          }
+          const retained = new Set(chosen.filter((node) => oldKeys.has(node.getKey())));
+          // Reuse compatible changed blocks at their source position as well.
+          chosen.forEach((node, i) => {
+            if (oldKeys.has(node.getKey())) return;
+            const old = oldNodes[i];
+            if (old && !retained.has(old)) { chosen[i] = reconcile(old, node); retained.add(chosen[i]); }
+          });
+          // Moving existing nodes one at a time avoids detaching unaffected DOM.
+          chosen.forEach((node, i) => { const at = root.getChildAtIndex(i); if (at?.getKey() !== node.getKey()) { if (at) at.insertBefore(node); else root.append(node); } });
+          const chosenKeys = new Set(chosen.map((node) => node.getKey()));
+          for (const node of root.getChildren()) if (!chosenKeys.has(node.getKey())) node.remove();
+          chosen.forEach((node, i) => sources.set(node.getKey(), { original: incoming[i], snapshot: snapshot(node) }));
+          scanReferences();
+          chosen.forEach((node, i) => sources.set(node.getKey(), { original: incoming[i], snapshot: snapshot(node) }));
+          if (points?.every((point) => point !== null)) {
+            const nextSelection = $createRangeSelection();
+            [nextSelection.anchor, nextSelection.focus].forEach((point, i) => {
+              const original = originalPoints![i], surviving = $getNodeByKey(original.key);
+              if (surviving?.isAttached() && surviving.getTextContent() === original.text) { point.set(original.key, original.offset, original.type); return; }
+              let remaining = Math.max(0, Math.min(value.length, mapOffset(points[i]!))), index = 0;
+              while (index < incoming.length - 1 && remaining > incoming[index].length) { remaining -= incoming[index].length + 1; index++; }
+              const block = chosen[index];
+              let visible = sourceToVisible(incoming[index], block.getTextContent(), remaining);
+              const leaves: LexicalNode[] = [];
+              const visit = (node: LexicalNode) => { if ($isElementNode(node)) node.getChildren().forEach(visit); else leaves.push(node); }; visit(block);
+              for (const leaf of leaves) { if ($isTextNode(leaf) && visible <= leaf.getTextContentSize()) { point.set(leaf.getKey(), visible, "text"); return; } visible -= leaf.getTextContentSize(); }
+              point.set(block.getKey(), $isElementNode(block) ? block.getChildrenSize() : 0, "element");
+            });
+            $setSelection(nextSelection); lastSelection = nextSelection.clone();
+          }
+          completionBaseline = referenceText();
+        }, { discrete: true, tag: HISTORIC_TAG });
+        if (!failure && editor.getEditorState().read(serialize) !== value) failure = "Source round trip did not preserve the incoming document";
+        if (failure) {
+          sources.clear(); savedSources.forEach((source, key) => sources.set(key, source));
+          editor.setEditorState(before, { tag: HISTORIC_TAG });
+          markdown = previous; sourceNewline = previousNewline;
+          return { status: "recovery", reason: failure };
+        }
+        markdown = value;
+        if (presentation.highlight) {
+          win.clearTimeout(highlightTimer);
+          element.querySelectorAll(".external-change").forEach((block) => block.classList.remove("external-change"));
+          const changes = externalLineChanges(previous.replace(/\r\n/g, "\n"), value.replace(/\r\n/g, "\n")), blocks = sourceBlocks();
+          const highlighted = Array.from(element.children).filter((_, index) => blocks[index] && changes.changed.slice(blocks[index].start, blocks[index].end).some(Boolean));
+          highlighted.forEach((block) => block.classList.add("external-change"));
+          highlightTimer = win.setTimeout(() => highlighted.forEach((block) => block.classList.remove("external-change")), 4000);
+        }
+        // Detached parsing nodes must not retain a growing source sidecar.
+        editor.getEditorState().read(() => { const keys = new Set($getRoot().getChildren().map((node) => node.getKey())); for (const key of sources.keys()) if (!keys.has(key)) sources.delete(key); });
+        return { status: "applied" };
+      } catch (error) {
+        sources.clear(); savedSources.forEach((source, key) => sources.set(key, source));
+        editor.setEditorState(before, { tag: HISTORIC_TAG }); markdown = previous; sourceNewline = previousNewline;
+        return { status: "recovery", reason: error instanceof Error ? error.message : "Reconciliation failed" };
+      } finally {
+        loading = false;
+        if (scroll && top !== undefined && left !== undefined) { scroll.scrollTop = top; scroll.scrollLeft = left; }
+        notifyReferenceContext();
+      }
+    },
+    subscribeCompositionEnd(listener: () => void) { compositionListeners.add(listener); return () => { compositionListeners.delete(listener); }; },
+    setCollaborativeHistory(value: { undo: () => void; redo?: () => void } | null) {
+      if (Boolean(value) === Boolean(collaborativeHistory)) { collaborativeHistory = value; return; }
+      detachHistory(); collaborativeHistory = value;
+      editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
+      history.current = { editor, editorState: editor.getEditorState() };
+      detachHistory = value ? () => {} : attachHistory();
     },
     setExternalMarkdown(value: string) {
       if (value === markdown) return;
@@ -784,7 +1091,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     },
     destroy() {
       element.ownerDocument.defaultView!.clearTimeout(highlightTimer);
-      referenceListeners.clear();
+      referenceListeners.clear(); compositionListeners.clear();
       cleanups.forEach((cleanup) => cleanup());
       editor.setRootElement(null);
     },

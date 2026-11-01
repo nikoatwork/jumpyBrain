@@ -235,10 +235,9 @@ ${companion ? companionPrelude : ""}
 const apiKeyInput = $("api-key");
 if (!companionMode) {
   const hashKey = new URLSearchParams(location.hash.replace(/^#/, "")).get("apiKey");
-  try { apiKeyInput.value = localStorage.getItem("jumpybrain.graph.apiKey") || ""; } catch { /* Browser storage may be disabled. */ }
+  try { localStorage.removeItem("jumpybrain.graph.apiKey"); } catch { /* Browser storage may be disabled. */ }
   if (hashKey) {
     apiKeyInput.value = hashKey;
-    try { localStorage.setItem("jumpybrain.graph.apiKey", hashKey); } catch { /* Session-only access. */ }
     history.replaceState(history.state, "", location.pathname + location.search);
   }
 
@@ -247,6 +246,8 @@ if (!companionMode) {
 // Keep the committed credential separate from edits in the settings dialog.
 let activeApiKey = companionMode ? "companion-session" : apiKeyInput.value.trim();
 let credentialRevision = 0;
+let hostedPrincipalId = null;
+const hostedIdentityChannel = !companionMode && typeof BroadcastChannel === "function" ? new BroadcastChannel("jumpybrain.browser.identity.v2") : null;
 let connectionStatus = activeApiKey ? "checking" : "disconnected";
 
 let searchMaintenance = null;
@@ -437,6 +438,7 @@ async function selectNode(node) {
 }
 
 async function requestEditorNavigation(action) {
+  if ((typeof noteTitleComposing !== "undefined" && noteTitleComposing) || (typeof richEditor !== "undefined" && richEditor.isComposing?.())) return false;
   if (documentActions.isBusy()) return false;
   if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return false;
   referenceAutocomplete.dismiss();
@@ -487,7 +489,15 @@ searchMaintenance = JumpyBrainBrowser.installSearchMaintenance({
 });
 $("graph-index-state").addEventListener("click", () => browserCommands.execute("search.open"));
 for (const dialog of [dreamDialog, connectionDialog, $("feedback-dialog")]) dialog.addEventListener("toggle", () => { if (dialog.open) searchMaintenance.suspend(); else searchMaintenance.resume(); });
-if (!companionMode) showPage(initialEntry.url);
+if (!companionMode) {
+  (async () => {
+    try {
+      const response = await fetch("/session", {headers: activeApiKey ? {Authorization:"Bearer " + activeApiKey} : {}});
+      if (response.ok) {hostedPrincipalId = (await response.json()).principal?.id; activeApiKey = "browser-session"; apiKeyInput.value = ""; connectionStatus = "connected";}
+    } catch { /* The connection dialog remains available offline. */ }
+    showPage(initialEntry.url); renderConnection();
+  })();
+}
 ${companion ? String.raw`
 function syncCompanionExtensions() {
   if (!extensionUI) {

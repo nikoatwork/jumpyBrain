@@ -73,6 +73,10 @@ function sourceLayer(file) {
   if (file.startsWith("src/app/extensions/")) return "extension-app";
   if (file.startsWith("src/adapters/extensions/")) return "extension-adapter";
   if (file.startsWith("src/adapters/feedback/")) return "feedback-adapter";
+  if (file.startsWith("src/app/backend-host/")) return "backend-app";
+  if (file.startsWith("src/adapters/backend-host/")) return "backend-adapter";
+  if (file.startsWith("src/adapters/access-control/")) return "access-adapter";
+  if (file.startsWith("src/adapters/live/")) return "live-adapter";
   if (isCliPath(file)) return "cli-boundary";
   if (isServerPath(file)) return "server-boundary";
   if (isAppPath(file)) return "app-use-case";
@@ -88,12 +92,16 @@ function sourceLayer(file) {
 }
 
 const approvedLayerImports = new Map([
+  ["backend-app", new Set(["backend-app", "backend-adapter"])],
+  ["backend-adapter", new Set(["backend-adapter"])],
+  ["access-adapter", new Set(["access-adapter"])],
+  ["live-adapter", new Set(["live-adapter", "app-use-case", "core-domain"])],
   ["package-entrypoint", new Set(["runtime-app"])],
-  ["cli-boundary", new Set(["cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app", "feedback-adapter"])],
+  ["cli-boundary", new Set(["backend-app", "access-adapter", "cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app", "feedback-adapter"])],
   ["http-protocol-adapter", new Set(["http-protocol-adapter"])],
   ["http-client-adapter", new Set(["http-client-adapter", "http-protocol-adapter", "core-domain"])],
-  ["server-boundary", new Set(["server-boundary", "app-use-case", "core-domain", "http-server-adapter", "infrastructure-adapter"])],
-  ["http-server-adapter", new Set(["http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter", "extension-contract", "feedback-adapter"])],
+  ["server-boundary", new Set(["backend-app", "backend-adapter", "access-adapter", "server-boundary", "app-use-case", "core-domain", "http-server-adapter", "infrastructure-adapter"])],
+  ["http-server-adapter", new Set(["access-adapter", "live-adapter", "http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter", "extension-contract", "feedback-adapter"])],
   ["runtime-app", new Set(["runtime-app", "app-use-case", "core-domain", "infrastructure-adapter"])],
   ["app-use-case", new Set(["app-use-case", "core-domain", "qmd-adapter", "diagnostics-adapter"])],
   ["qmd-adapter", new Set(["qmd-adapter", "core-domain"])],

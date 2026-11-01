@@ -59,9 +59,11 @@ async function ready(page) {
   await page.waitForFunction(() => companionRegistered && !companionFrozen && companionState.phase === "idle");
 }
 async function openEditor(page, id, brain) {
+  await liveControl(page);
   await page.goto(gateway.url + "/?note=" + id + "&brain=" + brain);
   await page.locator("#note-editor").waitFor();
   await ready(page);
+  await page.waitForFunction(() => ["saved", "readonly"].includes(state.editor?.collaboration?.state.status));
 }
 async function switchUI(name, id) {
   await ready(settings);
@@ -78,12 +80,27 @@ async function reloaded(id) {
 async function saved(page) {
   await page.waitForFunction(() => document.getElementById("note-save-state").textContent === "Saved");
 }
-async function delayWrites(page) {
-  await page.route("**/memories/all/documents/*", async (route) => {
-    if (route.request().method() === "PUT") await pause(1400);
-    await route.continue(); // Never synthesize the memory/control response.
+const liveControls = new WeakMap();
+async function liveControl(page) {
+  if (liveControls.has(page)) return liveControls.get(page);
+  const controls = {delay: 0, holdSnapshots: false, failEdits: false, edits: 0};
+  liveControls.set(page, controls);
+  await page.routeWebSocket("**/ws", route => {
+    const upstream = route.connectToServer();
+    route.onMessage(async message => {
+      const packet = JSON.parse(String(message));
+      if (["edit", "title"].includes(packet.method)) {
+        controls.edits++;
+        if (controls.failEdits) {route.send(JSON.stringify({id: packet.id,ok: false,error:{code:"source_unavailable",message:"Disposable publication failure"}})); return;}
+        if (controls.delay) await pause(controls.delay);
+      }
+      upstream.send(message);
+    });
+    upstream.onMessage(message => {const packet = JSON.parse(String(message)); if (!(controls.holdSnapshots && packet.event === "document")) route.send(message);});
   });
+  return controls;
 }
+async function delayWrites(page) { (await liveControl(page)).delay = 1400; }
 async function closePage(page) {
   const count = gateway.coordinator.tabs.size;
   page.on("dialog", (dialog) => dialog.accept());
@@ -117,7 +134,7 @@ async function createInEditor(page, marker) {
   assert.equal(response.status(), 200, await response.text());
   const packet = await response.json();
   await page.waitForURL((url) => url.searchParams.get("note") === packet.id);
-  await page.locator("#note-editor").waitFor();
+  await page.locator("#note-editor[contenteditable=true]").waitFor();
   await appendEditorText(page, marker);
   await saved(page);
   return packet.id;
@@ -186,7 +203,7 @@ try {
     await settings.locator("#companion-cancel").click();
     await noSecrets();
   });
-  editor = await context.newPage();
+  editor = await context.newPage(); await liveControl(editor);
   await editor.goto(gateway.url + "/?brain=" + a);
   await ready(editor);
   await check("local UI note creation + editor write", async () => {
@@ -224,16 +241,15 @@ try {
     assert.equal((await browserRequest(settings, "/companion/poll", { tabId: randomUUID(), generation: gateway.state().generation })).status, 409);
     assert.equal((await browserRequest(settings, "/memories/all/recent", undefined, { "X-Companion-Tab": oldTabs[0], "X-Companion-Generation": String(oldGeneration) })).status, 409);
   });
-  await check("real 412 conflict blocks UI and native switches without overwrite", async () => {
+  await check("real overlapping live edit blocks UI and native switches without overwrite", async () => {
     await openEditor(editor, ids[0], b.id); await openEditor(second, ids[0], b.id);
     // Concurrent appends can merge safely. Replace the same source line so this
     // fixture proves the overlapping-edit review and switch barrier instead.
+    (await liveControl(second)).holdSnapshots = true;
     await replaceEditorText(editor, "Confirmed B first writer\n"); await saved(editor);
-    const conflict = second.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/documents/"));
     await replaceEditorText(second, "Retained B conflicting draft\n");
-    assert.equal((await conflict).status(), 412, "must exercise real optimistic-concurrency conflict");
     await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
-    const writes = traffic.filter((item) => item.method === "PUT").length;
+    const writes = (await liveControl(second)).edits;
     await row("Local brain").getByRole("button", { name: "Use this brain", exact: true }).click();
     await settings.waitForFunction(() => document.getElementById("toast-message").textContent.includes("unsaved or unconfirmed"));
     await ready(second);
@@ -243,7 +259,7 @@ try {
     await ready(second);
     assert.equal(gateway.state().activeId, b.id);
     assert.match(await editorMarkdown(second), /Retained B conflicting draft/);
-    assert.equal(traffic.filter((item) => item.method === "PUT").length, writes, "barrier retried conflicted write");
+    assert.equal((await liveControl(second)).edits, writes, "barrier retried conflicted write");
     const content = await readFile(path.join(roots.b, "notes", "fixture-0.md"), "utf8");
     assert.match(content, /Confirmed B first writer/); assert.doesNotMatch(content, /Retained B conflicting draft/);
   });
@@ -267,10 +283,9 @@ try {
   await check("failed remote save blocks active key repair without changing credentials", async () => {
     second = await context.newPage();
     await openEditor(editor, ids[0], r.id); await openEditor(second, ids[0], r.id);
+    (await liveControl(second)).holdSnapshots = true;
     await replaceEditorText(editor, "Confirmed remote first writer\n"); await saved(editor);
-    const conflict = second.waitForResponse((response) => response.request().method() === "PUT" && response.url().includes("/documents/"));
     await replaceEditorText(second, "Retained remote conflicting draft\n");
-    assert.equal((await conflict).status(), 412);
     await second.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
     const before = gateway.state(), beforeCredentials = [...keys.entries()];
     const response = await native("/companion/profiles", {
@@ -356,11 +371,9 @@ try {
     second = await context.newPage();
     await second.goto(gateway.url + "/?brain=" + b.id); await ready(second);
     await openEditor(editor, ids[0], b.id);
-    await editor.route("**/memories/all/documents/*", async (route) => {
-      if (route.request().method() === "PUT") await route.abort(); else await route.continue();
-    });
+    (await liveControl(editor)).failEdits = true;
     await appendEditorText(editor, "Retained restart draft");
-    await editor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Save failed");
+    await editor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
     const port = new URL(gateway.url).port;
     await gateway.close();
     gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots.a, port: Number(port), controlKey, credentials, switchTimeoutMs: 10000, targetTimeoutMs: 5000 });

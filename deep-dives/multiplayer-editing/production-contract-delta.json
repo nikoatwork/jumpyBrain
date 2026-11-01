@@ -1,0 +1,262 @@
+{
+  "version": 1,
+  "status": "reviewed",
+  "baselineSha256": "739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2",
+  "entries": [
+    {
+      "kind": "assertion",
+      "file": "scripts/collaboration-smoke-transport.mjs",
+      "oldSha256": null,
+      "newSha256": "532993e369c44e42d6def1d93f61d220108c63a6994d69b96ab4732c7991ccd4",
+      "reason": "Pin the new real WebSocket fault harness. Production frames pass through; held/lost acknowledgements cover RPC replies and identified document events. Closed transports cannot dispatch held writes.",
+      "scenarioIds": [
+        "P04",
+        "P05",
+        "P06",
+        "P08"
+      ],
+      "evidence": [
+        "scripts/external-document-updates-smoke.mjs",
+        "scripts/markdown-formatting-smoke.mjs"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "scripts/companion-gateway-smoke.mjs",
+      "oldSha256": "2fbc410427cdccbb3abcfac456d4fdd7f845d108c15670924923bd7795ad26d2",
+      "newSha256": "b9d875ba964d1421cfd56e8b4ad4f4aee2b5147f8d0e11ae773d69e18404bf0d",
+      "reason": "Move delay/conflict/failure injection from retired PUT autosave to real live requests and delayed peer snapshots. Retain all fourteen credential, read-only, generation, draft and switch barriers; overlapping edits use the real source coordinator.",
+      "scenarioIds": [
+        "P05",
+        "P07",
+        "P08"
+      ],
+      "evidence": [
+        "companion-gateway: fourteen production browser/gateway checks"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "scripts/editor-smoke-helpers.mjs",
+      "oldSha256": "b6c84abd05a55de410330b43cd49561335c1b5d662eafd7801d03b3ab6685803",
+      "newSha256": "27166a403ecfda359d3c6fde385cb2b16f40f0785eba67b7162d6f693a3771a4",
+      "reason": "Wait for authenticated editing readiness before keyboard input; visibility now precedes live-open completion. Preserve exact source/selection helpers without forced contenteditable or global newline normalization.",
+      "scenarioIds": [
+        "P05",
+        "P06"
+      ],
+      "evidence": [
+        "lexical-structure",
+        "external-file-editor",
+        "markdown-formatting"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "scripts/external-document-updates-smoke.mjs",
+      "oldSha256": "4d17bab31e31201d6ef17dec56f17e082127984ef70db425259943d38d29d27f",
+      "newSha256": "f67923c6e24bb4689fd8278942dafc4a2096dfcfeef4cd387e8e67a501b40148",
+      "reason": "Replace polling/PUT timing assumptions with source subscriptions. Retain exact source, caret, scroll, undo, same-passage conflict, real deletion/restoration and stale-navigation outcomes. Add actual WS mutation counts and canonical bytes/mtime for clean hydration no-echo. Live typing can commit before Undo; the old physical 750ms no-write timing becomes exact final-source and actor isolation, with absence of legacy PUTs stated separately.",
+      "scenarioIds": [
+        "P04",
+        "P05",
+        "P06",
+        "P08"
+      ],
+      "evidence": [
+        "external-file-editor: desktop/mobile CLI, filesystem and peer editing"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "scripts/fixtures/diagnostics-electron.mjs",
+      "oldSha256": "3fa1a369551c7df4aee876825ba347ee2652f597e6cc8e0d2ed58ea2b23fb418",
+      "newSha256": "a3925498b4318389a0533dc4028bd0639a2de0170a1c71470a87474bcb56ce2d",
+      "reason": "Load Electron window/diagnostic modules from the supplied packaged app when artifact testing is requested. Keep all crash, privacy, exception, opt-out and cancellation assertions, while preventing repository modules from masquerading as tested packaged code.",
+      "scenarioIds": [
+        "P07",
+        "P08",
+        "P12"
+      ],
+      "evidence": [
+        "packaged-diagnostics",
+        "scripts/diagnostics-electron-smoke.mjs"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "scripts/markdown-formatting-smoke.mjs",
+      "oldSha256": "dd9cf12a7c778f2992f9bf27b2c79af09c972528e0bc53a66f26549ce0c5ca75",
+      "newSha256": "f7bf208fd8bf79ce618e4346c103928341128e4a02bb63e6f0c2774516d3d778",
+      "reason": "Retain formatting, CRLF, no-final-newline, security, failed-save and recovery outcomes through live edits. Inspect actual canonical bytes instead of retired PUT bodies. Lost-ack tests suppress both confirmation channels and explicitly reconnect before resolution.",
+      "scenarioIds": [
+        "P02",
+        "P05",
+        "P06"
+      ],
+      "evidence": [
+        "markdown-formatting: 1280px, 390px, 320px"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "scripts/note-lifecycle-smoke.mjs",
+      "oldSha256": "9bb6f922904afd23e3d6650f01fc3ee466ba9f787f077347b2f1d14472ba1477",
+      "newSha256": "6244032830182a8c5f8002524f1aed8cc790f98d241df3f17f64b850c4a524fd",
+      "reason": "Keep capture/search/graph/title/layout/deletion and retained-draft outcomes. Hold a real same-base replacement before a winning peer write to produce an actual overlap; a sequential live editor now legitimately sees current content.",
+      "scenarioIds": [
+        "P03",
+        "P05",
+        "P09",
+        "P11"
+      ],
+      "evidence": [
+        "note-lifecycle: production capture/search/map/conflict/delete/layout"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/architecture-boundaries.test.js",
+      "oldSha256": "6f3b719e76159fb5979a9296dcd75b613b86fee9eae3df708a4d8c44fb3885be",
+      "newSha256": "05a36c6c8baa80810044c9c03884a64aaf2be41242b7213fc811d4089bb13857",
+      "reason": "Classify backend, access and live adapters explicitly and allow only the specific CLI/backend-application edges required for ownership. Preserve core independence and the remaining approved import graph.",
+      "scenarioIds": [
+        "P12"
+      ],
+      "evidence": [
+        "source imports follow the approved CLI/app/core/adapters layer graph"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/folder-explorer-model.test.js",
+      "oldSha256": "87ac7f838183573d71e98999b454eb102011853f7543f1f123d93c39c5a7ae7f",
+      "newSha256": "cb177c600ddf11e1a839abb8848e57ff8e19ef078333c757532cbb439594fe10",
+      "reason": "Incorporate the landed master folder-action contract before integration. Retain discovery/identity/navigation expectations and add supported file/folder action behavior rather than reverting current master.",
+      "scenarioIds": [
+        "P11",
+        "P12"
+      ],
+      "evidence": [
+        "master cd3db8612412bb064df88c003228037e78820002",
+        "test/folder-explorer-operations.test.js"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/lexical-bundle.test.js",
+      "oldSha256": "7aba3ac654489ea2cf2c8c327273c2d3ddafe0fe4a4c0c9ce01eec0a6fbf32e4",
+      "newSha256": "a0685c5d562cebf32102000d7cbae814b9d8b05f43b910a2e28311f9693bece5",
+      "reason": "Review the measured approximately 205KB-gzip source binding, private drafts and supervisor under a 210KB ceiling. Retain inline safety/licenses/dependency separation; pinned server ws stays outside the browser bundle. Include landed master folder actions.",
+      "scenarioIds": [
+        "P06",
+        "P12"
+      ],
+      "evidence": [
+        "docs/build-footprint.md",
+        "actual package-footprint tests",
+        "lexical-structure"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/macos-companion-gateway.test.js",
+      "oldSha256": "5eab5a9fd2ce21a7d2e33db45f10f885a4c65d7c7f33c16230b65c54065534c9",
+      "newSha256": "e934bdcc5a4c2cc72121e44add49553a7bf7758e3b51ab38fb2ed6852d2bb9d9",
+      "reason": "Incorporate landed master file-operation gateway coverage while preserving credentials, Host/Origin, read-only and switch-generation assertions. This is current-master parity, not removal of native boundaries.",
+      "scenarioIds": [
+        "P07",
+        "P08",
+        "P11",
+        "P12"
+      ],
+      "evidence": [
+        "master cd3db8612412bb064df88c003228037e78820002",
+        "test/macos-companion-gateway.test.js"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/memory-cli.test.js",
+      "oldSha256": "ad638be1600c2eeebeee4cb88cc74fb944ee2e02c94ded4e06c20d200f0e0a15",
+      "newSha256": "7536faf5b15da60fadd205e136903e0c4194c617e8a1bf6539b053123ea2a925",
+      "reason": "Stop the registered local owner explicitly before the fixture starts foreground serve on the same root. This tests the intentional one-owner cutover while retaining all remote read-only and no-hidden-mutation assertions.",
+      "scenarioIds": [
+        "P07",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/backend-control.test.js",
+        "read-only remote integration sends no mutation requests"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/notes-browser.test.js",
+      "oldSha256": "9c90fe7d1139fdc398c43db578a6651284bac358c045838af69e341072de2384",
+      "newSha256": "98a4915fab11e4291bafa95acff7ed727e9f1ef7250d424fd0c342cd7d6bb954",
+      "reason": "Supply live-binding and HttpOnly-session seams in isolated VM tests and await asynchronous credential transitions. Keep late-response, reference cancellation and persisted-credential removal expectations; real browser tests separately exercise identity fences and old socket disposal.",
+      "scenarioIds": [
+        "P05",
+        "P07",
+        "P08"
+      ],
+      "evidence": [
+        "test/notes-browser.test.js",
+        "scripts/browser-session-smoke.mjs"
+      ]
+    },
+    {
+      "kind": "harness",
+      "file": "scripts/multiplayer-verification/contract-delta.mjs",
+      "oldSha256": null,
+      "newSha256": "c4481e4c103c58a962a2bbd3fe3d3ddd18552638d04afa8df55b2f0a8659611f",
+      "reason": "Add exact old/new oracle fingerprints with external pins, coverage reasons and referenced extra-helper admission. Reject missing, removed, duplicate, unused, changed or unreviewed entries while preserving the original baseline.",
+      "scenarioIds": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09",
+        "P10",
+        "P11",
+        "P12"
+      ],
+      "evidence": [
+        "test/multiplayer-contract-delta.test.js",
+        "test/multiplayer-verification.test.js"
+      ]
+    },
+    {
+      "kind": "harness",
+      "file": "scripts/multiplayer-verify.mjs",
+      "oldSha256": "50101c3fa239ecbcc37b66edb98e3fbe42fd70e0382f2b3056d8758a8997980a",
+      "newSha256": "1e6a9c778cdc1e88a469a6111a930c6639b78a86f71c4b06485cae2ae8a61073",
+      "reason": "Retain the original scenario contract, environment, test command/count checks and immutable evidence. Independently preflight delta/harness hashes before loading the validator, then copy and recheck explicitly pinned new smoke helpers.",
+      "scenarioIds": [
+        "P01",
+        "P02",
+        "P03",
+        "P04",
+        "P05",
+        "P06",
+        "P07",
+        "P08",
+        "P09",
+        "P10",
+        "P11",
+        "P12"
+      ],
+      "evidence": [
+        "test/multiplayer-contract-delta.test.js",
+        "test/multiplayer-verification.test.js"
+      ]
+    }
+  ],
+  "review": "Parent-reviewed exact baseline-to-candidate diffs for the authorized internal-beta live-editing cutover. This declaration does not itself establish a passed integration gate."
+}

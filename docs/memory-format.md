@@ -167,3 +167,12 @@ Creator fields are protected on supported edits. Last editor is replaced from an
 The app declares human edits using a random ID held in that browser's local storage. “You” means an exact match with that browser identity; another browser/profile or cleared storage cannot recover it as a verified person. CLI/agents declare an actor explicitly. Automated wrapups and extractive processing record agent declarations; imports retain unknown historical authorship. Dream-writing agents should pass `--actor agent` on creation/update.
 
 This stores creator and latest editor only. “I edited it yesterday, then an agent edited it” cannot be answered from a last-editor filter: retained last-human-edit metadata/history remains outside this feature. Dates remain declared creation/edit metadata, separate from evidence time and filesystem copy time.
+
+## Live editing operational state
+
+Markdown and board JSON remain canonical. Live source history is bounded and
+rebuildable from those files; backend restart creates fresh session epochs.
+`.jumpybrain/access.json` and `.jumpybrain/recovery/` contain unique credentials
+and recovery data, despite being ignored by Git. Browser private drafts are
+unique too. Preserve them during backup/upgrade; do not delete the complete
+support directory as derived cache. See [collaboration](collaboration.md).

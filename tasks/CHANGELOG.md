@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-01 — Shared backends and live editing
+
+- Humans and streaming agents edit canonical Markdown together through one local/VPS backend, with revocable access, private drafts and coordinated upgrades. [Implementation](todo/tasks-multiplayer-editing-architecture.md).
+
 ## 2026-11-01 — File explorer actions
 
 - Added contextual file rename, copy links and guarded deletion, empty-folder creation, and drag-and-drop or keyboard file moves. [Verification](done/2026-11-01_tasks-folder-explorer-actions.md).

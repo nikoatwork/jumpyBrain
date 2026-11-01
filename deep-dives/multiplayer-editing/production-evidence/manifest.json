@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "createdAt": "2026-11-01T18:33:05.803003+00:00",
+  "scope": "Intermediate worktree production proof before integration commit. Darwin loopback; real canonical publisher and named credentials; indexer disabled. Browser, Linux and public network/VPS validation are separate. Final integration gate remeasures its exact clean candidate HEAD.",
+  "build": {
+    "version": "0.3.16",
+    "build": "2ecf10bbe7258607",
+    "allTypeScriptSha256": "2ecf10bbe7258607043c640b533e97b83a1fbd9b54b4f2a39d41f020e19f982f"
+  },
+  "runtimeSha256": "19dcdaa7c41b0ba3c90c63c2c0f81b1f41f6f60ac52195a6cafcd606f67c9a5b",
+  "sourceSha256": "187cf43d97f36ff95ae4c5b54ee84f156bf718b98650d4643903aa409e8a1772",
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "scripts/collaboration-production-evidence.mjs",
+        "--rounds=20",
+        "--actors=3",
+        "--humans=2",
+        "--notes=128",
+        "--seed=1592594996",
+        "--concurrency=exclusive-after-suite"
+      ],
+      "exitCode": 0,
+      "artifact": "mac-loopback-3actors-2humans.json"
+    },
+    {
+      "argv": [
+        "node",
+        "scripts/collaboration-production-evidence.mjs",
+        "--rounds=100",
+        "--actors=8",
+        "--humans=5",
+        "--notes=256",
+        "--seed=1592594997",
+        "--concurrency=exclusive-after-suite"
+      ],
+      "exitCode": 0,
+      "artifact": "mac-loopback-8actors-5humans.json"
+    },
+    {
+      "argv": [
+        "node",
+        "--test",
+        "test/collaboration-model.test.js",
+        "test/collaboration-hub.test.js",
+        "test/collaboration-live.test.js",
+        "test/collaboration-durability.test.js",
+        "test/collaboration-http-races.test.js",
+        "test/collaboration-cli.test.js",
+        "test/backend-maintenance.test.js",
+        "test/backend-control.test.js"
+      ],
+      "exitCode": 0,
+      "artifact": "mac-focused-tests.log"
+    },
+    {
+      "argv": [
+        "node",
+        "--test",
+        "test/cli-baseline-contracts.test.js",
+        "test/cli-doctor-followup.test.js"
+      ],
+      "exitCode": 0,
+      "artifact": "mac-cli-parity-tests.log"
+    }
+  ],
+  "tests": {
+    "focused": {
+      "tests": 39,
+      "pass": 39,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "cliParity": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "inputs": {
+      "test/collaboration-model.test.js": {
+        "sha256": "94758a692faa5bc16afb54f41367ace5b31cc06e709b8439e6a71a998cb38d82",
+        "bytes": 6718
+      },
+      "test/collaboration-hub.test.js": {
+        "sha256": "e1c5ef108048ccfa073b7d6c21234c71b1552b7512ba4f7cf99fc2044b1f53fe",
+        "bytes": 14573
+      },
+      "test/collaboration-live.test.js": {
+        "sha256": "33f82824336f7a4bf4fc09893424cb33d3929bf5a8d95338e527a6d028488587",
+        "bytes": 10935
+      },
+      "test/collaboration-durability.test.js": {
+        "sha256": "d69414e5ae19a93438b1af848daf452efb63c4d27117e24fce6d9961876989da",
+        "bytes": 4566
+      },
+      "test/collaboration-http-races.test.js": {
+        "sha256": "73184f4772cd722fdf55e58487668a5a6da61fd84febda69514acaf182082d25",
+        "bytes": 5767
+      },
+      "test/collaboration-cli.test.js": {
+        "sha256": "6522e72d13b47df4bd99fe638f7d0e0b8222f3e3498775be474da0f956112936",
+        "bytes": 4369
+      },
+      "test/backend-maintenance.test.js": {
+        "sha256": "2e7c4b06ad277b6d3b57b02745b0349c6c6c5445cb51a21a48b2dab5c4d6b27a",
+        "bytes": 1721
+      },
+      "test/backend-control.test.js": {
+        "sha256": "18b5a9eb1b38f7e049340b18929df835d886dd8f13abbe495cb4dbc882d3ee23",
+        "bytes": 6123
+      },
+      "test/cli-baseline-contracts.test.js": {
+        "sha256": "f91d67070b1a522dc4c0081f7624abd4aa82a67b2b0e90aa77fb6a86db1a8f2d",
+        "bytes": 7847
+      },
+      "test/cli-doctor-followup.test.js": {
+        "sha256": "2e6ce0773b576d5241a9470662fb245e0f93fe039c50155f689e37dca4a77cd7",
+        "bytes": 11667
+      }
+    }
+  },
+  "artifacts": {
+    "mac-cli-parity-tests.log": {
+      "sha256": "16d71182663439ed3204381422b9f898de17ac8362df2d466ab23ede3a17019a",
+      "bytes": 1191
+    },
+    "mac-focused-tests.log": {
+      "sha256": "aa59a257f4d5920f167dc4b7553db143dd01d54727d6550ec0f17e88dcd84ec1",
+      "bytes": 4057
+    },
+    "mac-loopback-3actors-2humans.json": {
+      "sha256": "97f4860a2ca79003967ebcd2f65204a75ed7a8c2a357df64c43cc2a6123f3cd6",
+      "bytes": 2647
+    },
+    "mac-loopback-8actors-5humans.json": {
+      "sha256": "4b5c07570f54dc7147f07c1d3552247ceed605b9303af6f5948577176c35b2f8",
+      "bytes": 2658
+    }
+  }
+}

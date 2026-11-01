@@ -8,7 +8,11 @@ const { startJumpyBrainHttpServer } = await import(process.env.JUMPYBRAIN_SMOKE_
   ? pathToFileURL(path.join(process.env.JUMPYBRAIN_SMOKE_PACKAGE_DIR, "dist/server/index.js")).href
   : new URL("../dist/server/index.js", import.meta.url).href);
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
-import { editorMarkdown, appendEditorText, selectEditorText, replaceEditorText, undoEditor, openNoteFormatting } from "./editor-smoke-helpers.mjs";
+import { editorMarkdown as editorSource, appendEditorText, selectEditorText, replaceEditorText, undoEditor, openNoteFormatting } from "./editor-smoke-helpers.mjs";
+
+// Source collaboration exposes canonical CRLF; display semantics use LF while
+// canonical-byte assertions below still verify the original encoding.
+const editorMarkdown = async (page) => (await editorSource(page)).replace(/\r\n/g, "\n");
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-lexical-smoke-"));
 const key = "disposable-lexical-key";
@@ -56,7 +60,8 @@ try {
     assert.equal(await editorMarkdown(page), body + "Edited below unsupported Markdown.");
     const edited = await readFile(canonicalPath, "utf8");
     assert.match(edited, /custom: ["']?keep-me/);
-    assert.ok(puts.at(-1).content.endsWith((body + "Edited below unsupported Markdown.").replace(/\n/g, "\r\n")), "browser submits original CRLF style");
+    assert.ok(edited.endsWith((body + "Edited below unsupported Markdown.").replace(/\n/g, "\r\n")), "versioned source edits retain original canonical CRLF style");
+    assert.equal(puts.length, 0, "live source edits do not send whole-document PUTs");
     assert.equal(edited.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").replace(/\r\n/g, "\n"), body + "Edited below unsupported Markdown.", "untouched Markdown survives the server's existing newline normalization");
     await page.reload();
     await page.locator("#note-editor").waitFor({ state: "visible" });

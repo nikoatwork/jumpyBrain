@@ -5,7 +5,7 @@ import { constants } from 'node:fs';
 import type { ParsedCliArgs } from './args.js';
 import { boardUsage } from './board-args.js';
 import { commandMemoryTarget } from './memory-target.js';
-import { createLocalMemoryTransport } from './local-transport.js';
+import { localBackendCall, createLocalMemoryTransport } from './local-transport.js';
 import { listBoards, saveBoard, deleteBoard, getBoardStatus, changeBoard, selectBoard, type BoardChange } from '../runtime/boards.js';
 
 const resolvePath = (value: string) => path.resolve(value === '~' ? os.homedir() : value.startsWith('~/') ? path.join(os.homedir(), value.slice(2)) : value);
@@ -30,10 +30,10 @@ export async function boardsCli(args: ParsedCliArgs): Promise<void> {
   const definition = args.file ? await definitionFile(String(args.file)) : undefined;
   const target = await commandMemoryTarget(args, createLocalMemoryTransport());
   const transport = target.kind === 'remote' ? target.memory : {
-    listBoards: () => listBoards(target.root),
-    saveBoard: (board: Parameters<typeof saveBoard>[1], ifMatch?: string) => saveBoard(target.root, board, ifMatch),
-    deleteBoard: (id: string, ifMatch: string) => deleteBoard(target.root, id, ifMatch),
-    getBoardStatus: (id: string, limit: number) => getBoardStatus(target.root, id, limit),
+    listBoards: () => localBackendCall<Awaited<ReturnType<typeof listBoards>>>(target.root, "listBoards", []),
+    saveBoard: (board: Parameters<typeof saveBoard>[1], ifMatch?: string) => localBackendCall<Awaited<ReturnType<typeof saveBoard>>>(target.root, "saveBoard", [board, ifMatch]),
+    deleteBoard: (id: string, ifMatch: string) => localBackendCall<Awaited<ReturnType<typeof deleteBoard>>>(target.root, "deleteBoard", [id, ifMatch]),
+    getBoardStatus: (id: string, limit: number) => localBackendCall<Awaited<ReturnType<typeof getBoardStatus>>>(target.root, "getBoardStatus", [id, limit]),
   };
   const packet = await transport.listBoards();
   const brain = target.kind === 'local' ? {kind:'local',root:target.root} : {kind:'remote',url:target.url};

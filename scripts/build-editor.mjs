@@ -43,3 +43,13 @@ console.log(`Optional desktop extensions UI: ${Buffer.byteLength(extensionBundle
 
 // npm omits the root lockfile; carry the exact release dependency graph with built assets.
 await writeFile("dist/runtime-package-lock.json", await readFile("package-lock.json"));
+
+// Desktop updates copy dist without installing the root dependency graph. Ship
+// the JS-only WebSocket transport with it; optional native accelerators are off.
+await build({
+  entryPoints: ["src/adapters/live/ws.ts"], outfile: "dist/adapters/live/ws.js",
+  bundle: true, platform: "node", format: "esm", target: "node22", legalComments: "eof",
+  banner: { js: "import { createRequire as __jbCreateRequire } from 'node:module'; const require = __jbCreateRequire(import.meta.url);" },
+  define: { "process.env.WS_NO_BUFFER_UTIL": '"1"', "process.env.WS_NO_UTF_8_VALIDATE": '"1"' },
+});
+await writeFile("dist/adapters/live/ws-LICENSE.txt", await readFile("node_modules/ws/LICENSE"));

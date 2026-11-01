@@ -10,9 +10,9 @@ const bundle = await readFile(new URL("../dist/adapters/http-server/editor-bundl
 test("editor bundle is self-contained, production-sized, and safe to inline under the shell nonce", () => {
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
-  // Reviewed production size is ~195.3 KB gzip. The dependency-free folder explorer actions
-  // retain a tight budget for dependency-free context menus and file operations.
-  assert.ok(gzipSync(bundle).length < 196_000, "review editor weight if the production bundle exceeds 196 KB gzip");
+  // Reviewed live editing adds source reconciliation, connection supervision and private drafts.
+  // Keep editor dependencies bundled and a measured 210 KB gzip ceiling.
+  assert.ok(gzipSync(bundle).length < 210_000, "review editor weight if the production bundle exceeds 210 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);
@@ -27,7 +27,7 @@ test("bundled editor code ships license notices without production editor depend
   assert.match(notices, /node_modules\/lexical/);
   assert.match(notices, /Permission is hereby granted/);
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
-  assert.deepEqual(pkg.dependencies, { esbuild: "0.28.2" }, "only the lazily loaded extension compiler is a production dependency");
+  assert.deepEqual(pkg.dependencies, { esbuild: "0.28.2", ws: "8.22.1" }, "production dependencies are the lazy extension compiler and vendored server transport");
   assert.doesNotMatch(bundle, /node_modules\/esbuild|JumpyBrainExtensionBrowser/, "ordinary editor does not embed the extension compiler or renderer");
   for (const [name, version] of Object.entries(pkg.devDependencies)) {
     if (name === "lexical" || name.startsWith("@lexical/")) assert.equal(version, pkg.devDependencies.lexical);
