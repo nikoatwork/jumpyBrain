@@ -540,6 +540,7 @@ for (const kind of ['local', 'remote']) test(`folder explorer reads nested canon
   assert.equal((await fetch(f.gateway.url + '/memories/all/files')).status, 401);
   assert.equal((await f.browser('/memories/all/files', undefined, { Origin: 'https://evil.invalid' })).status, 403);
   assert.equal((await f.memory('files', {}, tab, generation)).status, 404);
+  assert.equal((await f.memory('files/operations', { action: 'create-folder', path: 'notes/forbidden' }, tab, generation)).status, 403, 'file operations obey read-only profiles');
   assert.equal(await readFile(file, 'utf8'), content);
   assert.equal((await stat(file)).mtimeMs, before.mtimeMs);
 });
@@ -595,4 +596,32 @@ for (const kind of ['local', 'remote']) test(`source-version checks forward save
   assert.deepEqual(await readFile(sourceFile), source);
   assert.equal((await stat(pageFile)).mtimeMs, before.page.mtimeMs);
   assert.equal((await stat(sourceFile)).mtimeMs, before.source.mtimeMs);
+});
+
+
+test('file operations pin the admitted brain through switching and fence old generations', async t => {
+  let release, admitted = 0;
+  const f = await fixture(t, { fetchImpl: async (url, options) => {
+    if (url.endsWith('/memories/all/files/operations')) {
+      admitted++;
+      return new Promise(resolve => { release = () => resolve(new Response(JSON.stringify({ created: true, folder: 'notes/created' }), { headers: { 'Content-Type': 'application/json' } })); });
+    }
+    return fetch(url, options);
+  } });
+  const generation = f.gateway.coordinator.generation;
+  const saved = await f.save({ name: 'File operation target', kind: 'local', root: f.roots[1] });
+  const target = saved.profiles.find(profile => profile.name === 'File operation target');
+  await f.browser('/companion/register', { tabId: 'file-tab', generation });
+  const writing = f.memory('files/operations', { action: 'create-folder', path: 'notes/created' }, 'file-tab', generation);
+  await until(() => release);
+  const switching = f.native('/companion/switch', { id: target.id });
+  await until(() => f.gateway.coordinator.pending);
+  await f.browser('/companion/ack', { tabId: 'file-tab', switchId: f.gateway.coordinator.pending.id, ok: true });
+  assert.equal(f.gateway.coordinator.generation, generation);
+  assert.equal((await f.memory('files/operations', { action: 'create-folder', path: 'notes/late' }, 'file-tab', generation)).status, 409);
+  release();
+  assert.equal((await writing).status, 200);
+  assert.equal((await switching).status, 200);
+  assert.equal((await f.memory('files/operations', { action: 'create-folder', path: 'notes/old' }, 'file-tab', generation)).status, 409);
+  assert.equal(admitted, 1);
 });

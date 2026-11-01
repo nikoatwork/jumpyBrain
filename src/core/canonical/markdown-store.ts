@@ -2,7 +2,7 @@ import { attributionHash, currentMemoryEditor } from "../contribution.js";
 import { metadataDate } from "./metadata-date.js";
 import { createHash, randomUUID } from "node:crypto";
 import { constants, type Stats } from "node:fs";
-import { lstat, open, readdir, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
+import { link, lstat, open, readdir, readFile, realpath, rename, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { normalizedDocumentTitle } from "../document-title.js";
 export { normalizedDocumentTitle } from "../document-title.js";
@@ -14,20 +14,8 @@ import type { Frontmatter, MarkdownDocument, MemoryDocumentContentHash, MemoryDo
 
 export { parseFrontmatter } from "../frontmatter.js";
 
-const IGNORED_DIRS = new Set([
-  ".git",
-  ".obsidian",
-  ".trash",
-  ".jumpybrain",
-  ".qmd",
-  "node_modules",
-  "dist",
-  "build",
-  "logs",
-  "reports",
-]);
-
-export const CANONICAL_MEMORY_BUCKETS = ["notes", "findings", "decisions", "preferences", "sessions", "pages"] as const;
+import { CANONICAL_MEMORY_BUCKETS, CANONICAL_IGNORED_DIRS as IGNORED_DIRS, CANONICAL_IGNORED_FILE_PATTERNS as IGNORED_FILE_PATTERNS, canonicalDirectoryIdentity, validateCanonicalExplorerPath } from "./directories.js";
+export { CANONICAL_MEMORY_BUCKETS } from "./directories.js";
 
 const CANONICAL_MEMORY_TYPES = new Set<MemoryNoteType>(["note", "finding", "decision", "preference", "session", "page"]);
 
@@ -40,7 +28,6 @@ const CANONICAL_BUCKET_TYPES = {
   pages: "page",
 } as const satisfies Record<(typeof CANONICAL_MEMORY_BUCKETS)[number], MemoryNoteType>;
 
-const IGNORED_FILE_PATTERNS = [/gold/i, /answer_session_ids/i];
 
 export interface CanonicalMemoryDocumentLocation {
   id: string;
@@ -364,6 +351,40 @@ export async function deleteCanonicalMemoryDocumentById(rootArg: string, id: str
     });
     return { root, target: "local", id, file: location.file, removed: true, oldContentHash: hash,
       indexed: false, index: { stale: true, indexed: false }, indexing: { status: "pending" } };
+  });
+}
+
+/** Move one ID-addressed Markdown file without overwriting a destination or changing bytes. */
+export async function moveCanonicalMemoryDocumentById(rootArg: string, id: string, options: { file: string; destination: string; ifMatch: string }) {
+  if (!/^sha256:[0-9a-f]{64}$/.test(options.ifMatch ?? "")) throw new MemoryDocumentLookupError("precondition_required", "Moving a file requires its current content hash.");
+  try { validateCanonicalExplorerPath(options.file, true); validateCanonicalExplorerPath(options.destination, true); }
+  catch { throw new MemoryDocumentLookupError("validation_failed", "Choose a visible Markdown path within the memory folders."); }
+  const root = await resolveMemoryRoot(rootArg);
+  return withCanonicalMutation(root, async () => {
+    const location = await findCanonicalMemoryDocumentById(root, id);
+    if (location.file !== options.file) throw replacementConflict(location);
+    const original = await replacementSnapshot(location);
+    const hash = hashMemoryDocumentContent(original.bytes);
+    if (hash !== options.ifMatch) throw replacementConflict(location, hash);
+    if (location.file === options.destination) return { id, file: location.file, previousFile: location.file, contentHash: hash, moved: false };
+    const destination = { ...location, file: options.destination, absolutePath: path.join(root, options.destination) };
+    const parent = path.posix.dirname(destination.file);
+    const identity = await canonicalDirectoryIdentity(root, parent);
+    await withDocumentLock(location, () => withDocumentLock(destination, async () => {
+      const latest = await replacementSnapshot(location, original);
+      if (hashMemoryDocumentContent(latest.bytes) !== hash || await canonicalDirectoryIdentity(root, parent) !== identity) throw replacementConflict(location);
+      // link is no-clobber on all supported platforms; rename would replace an existing file.
+      try { await link(location.absolutePath, destination.absolutePath); }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "EEXIST") throw new MemoryDocumentLookupError("validation_failed", "A file or folder already exists with that name.");
+        throw error;
+      }
+      try { await unlink(location.absolutePath); }
+      catch (error) { await unlink(destination.absolutePath).catch(() => undefined); throw error; }
+      await fsyncDirectoryBestEffort(path.dirname(location.absolutePath));
+      await fsyncDirectoryBestEffort(path.dirname(destination.absolutePath));
+    }));
+    return { id, file: destination.file, previousFile: location.file, contentHash: hash, moved: true };
   });
 }
 

@@ -97,22 +97,23 @@ export function installDocumentActions(options: {
       if (valid(editor, scope)) editor.setNavigationPending(false);
     }
   }
-  async function openDelete() {
+  const validDeletion = (editor: Editor | null, scope: string) => options.editor() === editor && (!editor || !editor.state.cancelled) && options.scope() === scope;
+  async function openDelete(id = options.editor()?.state.documentId) {
     const editor = options.editor();
-    if (!editor?.state.loaded || busy || !options.writable()) return;
+    if (!id || (editor && !editor.state.loaded) || busy || !options.writable()) return;
     close(); bound = editor; boundScope = options.scope();
     const scope = boundScope, token = ++sequence;
     removal.showModal();
-    $("delete-note-title").textContent = editor.state.title;
+    $("delete-note-title").textContent = editor?.state.documentId === id ? editor.state.title : "Selected file";
     $("delete-message").textContent = "Preparing deletion…";
     $<HTMLButtonElement>("delete-confirm").disabled = true;
-    busy = true; editor.setNavigationPending(true);
+    busy = true; editor?.setNavigationPending(true);
     try {
-      if (!await editor.flush()) throw new Error("Resolve the failed save before deleting this note.");
-      if (!valid(editor, scope) || !options.writable()) return;
-      const packet = await options.json(memoryDocumentPath(editor.state.documentId) + "?deletePreview=1") as MemoryDocumentDeletePreview;
-      if (token !== sequence || !valid(editor, scope) || !options.writable()) return;
-      if (packet.id !== editor.state.documentId || packet.contentHash !== editor.state.contentHash || packet.permanent !== true) throw new Error("The note changed. Cancel and review the saved version before deleting.");
+      if (editor && !await editor.flush()) throw new Error("Resolve the failed save before deleting this note.");
+      if (!validDeletion(editor, scope) || !options.writable()) return;
+      const packet = await options.json(memoryDocumentPath(id) + "?deletePreview=1") as MemoryDocumentDeletePreview;
+      if (token !== sequence || !validDeletion(editor, scope) || !options.writable()) return;
+      if (packet.id !== id || !/^sha256:[0-9a-f]{64}$/.test(packet.contentHash) || (editor?.state.documentId === id && packet.contentHash !== editor.state.contentHash) || packet.permanent !== true) throw new Error("The note changed. Cancel and review the saved version before deleting.");
       preview = packet;
       $("delete-note-title").textContent = packet.title || packet.file;
       $("delete-message").textContent = "";
@@ -121,19 +122,19 @@ export function installDocumentActions(options: {
       if (token === sequence) $("delete-message").textContent = error instanceof Error ? error.message : "Could not prepare deletion.";
     } finally {
       busy = false;
-      if (valid(editor, scope)) editor.setNavigationPending(false);
+      if (validDeletion(editor, scope)) editor?.setNavigationPending(false);
     }
   }
   async function applyDelete() {
     const editor = bound, packet = preview, scope = boundScope;
-    if (!editor || !packet || busy || !options.writable() || !valid(editor, scope)) return;
+    if (!packet || busy || !options.writable() || !validDeletion(editor, scope)) return;
     preview = null; // One attempt per reviewed preview; never auto-retry an uncertain deletion.
-    busy = true; editor.setNavigationPending(true);
+    busy = true; editor?.setNavigationPending(true);
     $<HTMLButtonElement>("delete-confirm").disabled = true;
     $("delete-message").textContent = "Deleting note…";
     try {
       const result = await options.json(memoryDocumentPath(packet.id), { method: "DELETE", headers: { "Content-Type": "application/json", "If-Match": packet.contentHash }, body: JSON.stringify({ apply: true }) }) as MemoryDocumentDeleteResult;
-      if (!valid(editor, scope)) return;
+      if (!validDeletion(editor, scope)) return;
       if (result.removed !== true || result.id !== packet.id) throw new Error("Unconfirmed deletion");
       busy = false; close();
       await options.onDeleted(packet.id, result.indexing?.status === "failed" ? "Note deleted. Index refresh needs attention." : "Note deleted. Search index refresh is pending.");
@@ -143,7 +144,7 @@ export function installDocumentActions(options: {
         : "Deletion could not be confirmed. Cancel and check whether the note still exists before trying again.";
     } finally {
       busy = false;
-      if (valid(editor, scope)) editor.setNavigationPending(false);
+      if (validDeletion(editor, scope)) editor?.setNavigationPending(false);
     }
   }
   $("note-recover").addEventListener("click", openRecovery);
@@ -152,9 +153,9 @@ export function installDocumentActions(options: {
   $("recovery-copy").addEventListener("click", () => copy(bound));
   $("recovery-close").addEventListener("click", close);
   $("recovery-reload").addEventListener("click", reload);
-  $("delete-note").addEventListener("click", openDelete);
+  $("delete-note").addEventListener("click", () => openDelete());
   $("delete-cancel").addEventListener("click", close);
   $("delete-confirm").addEventListener("click", applyDelete);
   for (const dialog of [recovery, removal]) dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
-  return { close, openRecovery, copy, isOpen: () => recovery.open || removal.open, isBusy: () => busy };
+  return { close, openRecovery, openDelete, copy, isOpen: () => recovery.open || removal.open, isBusy: () => busy };
 }

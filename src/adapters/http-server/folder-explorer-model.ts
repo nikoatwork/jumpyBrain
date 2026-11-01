@@ -26,9 +26,27 @@ export function explorerFiles(packet: unknown): ExplorerFile[] {
   });
 }
 
-export function buildExplorerTree(files: ExplorerFile[]): ExplorerNode[] {
+/** Empty directories are optional for compatibility with older read-only catalogs. */
+export function explorerFolders(packet: unknown): string[] {
+  const folders = (packet as { folders?: unknown })?.folders;
+  if (folders === undefined) return [];
+  if (!Array.isArray(folders)) throw new Error("Invalid folder list");
+  return [...new Set(folders.filter((value): value is string => typeof value === "string" && !value.includes("\\") && !/[\u0000-\u001f]/.test(value) && !value.split("/").some(part => !part || part.startsWith("."))))];
+}
+
+export function buildExplorerTree(files: ExplorerFile[], directories: string[] = []): ExplorerNode[] {
   const root: ExplorerNode = { kind: "folder", path: "", name: "", id: null, title: "", children: [] };
   const folders = new Map<string, ExplorerNode>([["", root]]);
+  for (const directory of [...directories].sort()) {
+    const parts = directory.split("/");
+    let parent = root;
+    for (let index = 0; index < parts.length; index++) {
+      const path = parts.slice(0, index + 1).join("/");
+      let folder = folders.get(path);
+      if (!folder) { folder = { kind: "folder", path, name: parts[index]!, id: null, title: "", children: [] }; folders.set(path, folder); parent.children.push(folder); }
+      parent = folder;
+    }
+  }
   for (const file of files) {
     const parts = file.file.split("/");
     let parent = root;

@@ -116,6 +116,7 @@ export function nativeCredentials(input = process.stdin, output = process.stdout
 }
 
 function allowedMemoryRoute(method, pathname) {
+  if (method === 'POST' && pathname === '/memories/all/files/operations') return { write: true };
   if (method === 'GET' && /^\/memories\/all\/boards(?:\/[0-9a-f-]+(?:\/status)?)?$/.test(pathname)) return { write: false };
   if (method === 'POST' && pathname === '/memories/all/boards') return { write: true };
   if (['PUT', 'DELETE'].includes(method) && /^\/memories\/all\/boards\/[0-9a-f-]+$/.test(pathname)) return { write: true };

@@ -169,7 +169,7 @@ async function checkSurface(name, url) {
     await open();
     await search.fill('');
     let failCatalogue = true;
-    await page.route('**/memories/all/files', route => failCatalogue
+    await page.route(/\/memories\/all\/files(?:\?.*)?$/, route => failCatalogue
       ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Fixture catalogue temporarily unavailable' } }) })
       : route.continue());
     await refresh.click();
@@ -177,7 +177,7 @@ async function checkSurface(name, url) {
     failCatalogue = false;
     await refresh.click();
     await folderRow('notes').waitFor();
-    await page.unroute('**/memories/all/files');
+    await page.unroute(/\/memories\/all\/files(?:\?.*)?$/);
 
     const external = { file: 'notes/external/new-' + name + '.md', title: 'External arrival ' + name, id: id(name === 'hosted' ? 20 : 21) };
     await writeFixture(external);

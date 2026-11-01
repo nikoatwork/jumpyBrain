@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { explorerFiles, buildExplorerTree, explorerRows, revealExplorerFile } from '../dist/adapters/http-server/folder-explorer-model.js';
+import { explorerFiles, explorerFolders, buildExplorerTree, explorerRows, revealExplorerFile } from '../dist/adapters/http-server/folder-explorer-model.js';
 const id = n => `mem_a0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const file = (path, n = 1, title) => ({ file: path, id: id(n), title });
 
@@ -57,4 +57,14 @@ test('active reveal opens only ancestors, including compacted chains', () => {
   const expanded = new Set(); revealExplorerFile(tree, 'notes/work/project/one.md', expanded);
   assert.deepEqual([...expanded], ['notes', 'notes/work', 'notes/work/project']);
   assert.deepEqual(explorerRows(tree, expanded).map(row => row.label), ['notes', 'other', 'work/project', 'one', 'pages']);
+});
+
+
+test('explicit empty folders merge with inferred ancestry and remain searchable', () => {
+  const folders = explorerFolders({ folders: ['notes/empty', 'notes/empty', 'pages', '../escape', 'notes/.hidden', '/absolute', null] });
+  assert.deepEqual(folders, ['notes/empty', 'pages']);
+  const tree = buildExplorerTree([file('notes/existing/a.md')], folders);
+  assert.deepEqual(explorerRows(tree, new Set(['notes'])).map(row => row.node.path), ['notes', 'notes/empty', 'notes/existing', 'pages']);
+  assert.deepEqual(explorerRows(tree, new Set(), 'empty').map(row => row.node.path), ['notes', 'notes/empty']);
+  assert.deepEqual(explorerFolders({ files: [] }), []);
 });
