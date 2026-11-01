@@ -16,6 +16,7 @@ export function shellFunctions(script, names, context) {
     documentActions: { isBusy: () => false, isOpen: () => false, close() {}, openRecovery() {} },
     recentWrites: { remember() {}, remove() {}, reset() {} }, searchIndexRefreshing: false, sessionRetry: { disabled: false },
     referenceCreation: { reset() {}, hasPending: () => false, settle: async () => true, saved: async () => true, rebase: async () => true, completed() {} },
+    folderExplorer: { sync() {}, select() {}, refresh() {}, rename() {}, close() {}, isOpen: () => false },
     sidebarPages: { select() {}, visit() {}, rename() {}, remove() {}, refresh() {} },
   })) if (!(key in context)) context[key] = value;
   if (!("browserCommands" in context)) {

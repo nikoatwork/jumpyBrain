@@ -509,6 +509,41 @@ test('gateway attention PATCH forwards body/hash, fences generation/tab and keep
 });
 
 
+for (const kind of ['local', 'remote']) test(`folder explorer reads nested canonical files through a read-only ${kind} companion profile`, async t => {
+  const f = await fixture(t);
+  const root = kind === 'local' ? f.roots[0] : f.roots[2];
+  const file = path.join(root, 'notes/projects/deep/note.md');
+  const nestedId = 'mem_a0000000-0000-4000-8000-000000000002';
+  await mkdir(path.dirname(file), { recursive: true });
+  const content = `---\nid: ${nestedId}\ntitle: Nested companion note\n---\nPrivate body\n`;
+  await writeFile(file, content);
+  const before = await stat(file);
+  if (kind === 'remote') {
+    const saved = await f.save({ name: 'Explorer remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key', allowWrites: false });
+    const profile = saved.profiles.find(profile => profile.kind === 'remote');
+    assert.equal((await f.native('/companion/switch', { id: profile.id })).status, 200);
+  } else {
+    const profile = f.gateway.store.snapshot().profiles.find(profile => profile.kind === 'local');
+    await f.save({ id: profile.id, name: 'Explorer local', kind: 'local', root, allowWrites: false });
+  }
+  const generation = f.gateway.coordinator.generation, tab = 'explorer-tab';
+  await f.browser('/companion/register', { tabId: tab, generation });
+  const response = await f.memory('files', undefined, tab, generation);
+  assert.equal(response.status, 200, await response.clone().text());
+  const packet = await response.json();
+  assert.deepEqual(packet.files.find(row => row.id === nestedId), { id: nestedId, file: 'notes/projects/deep/note.md', title: 'Nested companion note' });
+  assert.equal(JSON.stringify(packet).includes(root), false);
+  assert.equal(JSON.stringify(packet).includes('Private body'), false);
+  assert.equal((await f.memory('documents/' + nestedId, undefined, tab, generation)).status, 200);
+  assert.equal((await f.memory('files', undefined, tab, generation - 1)).status, 409);
+  assert.equal((await f.memory('files', undefined, 'unknown-tab', generation)).status, 409);
+  assert.equal((await fetch(f.gateway.url + '/memories/all/files')).status, 401);
+  assert.equal((await f.browser('/memories/all/files', undefined, { Origin: 'https://evil.invalid' })).status, 403);
+  assert.equal((await f.memory('files', {}, tab, generation)).status, 404);
+  assert.equal(await readFile(file, 'utf8'), content);
+  assert.equal((await stat(file)).mtimeMs, before.mtimeMs);
+});
+
 for (const kind of ['local', 'remote']) test(`source-version checks forward saved/draft requests on a read-only ${kind} companion profile`, async t => {
   const route = '/memories/all/dream/sources/check', forwarded = [];
   const f = await fixture(t, { fetchImpl: async (url, options) => {

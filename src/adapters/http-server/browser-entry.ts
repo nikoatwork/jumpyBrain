@@ -35,3 +35,5 @@ export { installControlLabels } from "./browser-control-labels.js";
 export { createPageNavigation } from "./workspace-navigation.js";
 
 export { installNoteWorkspace } from "./note-workspace.js";
+
+export { installFolderExplorer } from "./folder-explorer.js";

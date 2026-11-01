@@ -1,3 +1,4 @@
+import { folderExplorerToggle } from "./folder-explorer-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
 import { referencePresentationStyles } from "./editor-reference-presentation.js";
@@ -394,6 +395,7 @@ export const notesMarkup = String.raw`
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
 
 </div>
+${folderExplorerToggle}
 </div>
 ${noteAttentionMarkup}
 <p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
@@ -1136,6 +1138,7 @@ function setConnectionKey(key) {
   credentialRevision++;
   systemMessages.sync();
   livingSources.sync();
+  folderExplorer.sync();
   relatedPages.sync();
   recentWrites.reset();
   map.reset();
@@ -1206,6 +1209,13 @@ $("navigate-back").addEventListener("click", () => navigation.back());
 $("navigate-forward").addEventListener("click", () => navigation.forward());
 syncWorkspaceHistory();
 let documentActions;
+const folderExplorer = JumpyBrainBrowser.installFolderExplorer({
+  document, window,
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
+  enabled: () => Boolean(activeApiKey) && state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
+  fetch: (signal) => graphJson("/memories/all/files", { signal }),
+  navigate: (id) => navigateSidebar("/?note=" + encodeURIComponent(id)),
+});
 const livingSources = JumpyBrainBrowser.installLivingSources({
   document, editor: () => state.editor,
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
@@ -1289,6 +1299,7 @@ function showPage(url) {
   state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : companionMode && target.searchParams.has("board") ? "board" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
   if (companionMode) { $("board-navigation").hidden=false; $("new-board").hidden=false; boardsUI.show(state.view === "board" ? target.searchParams.get("board") : null); }
   sidebarPages.select(documentId);
+  folderExplorer.select(documentId);
   document.body.dataset.view = state.view;
   if (companionMode) syncSettingsNavigation(url);
   if (typeof searchMaintenance !== "undefined") searchMaintenance?.check();
@@ -1388,6 +1399,7 @@ async function showNote(documentId, focusEnd = false) {
         extensionUI?.emit({ type: "document.saved", document: { id: documentId, title: editor.state.savedTitle } });
         sidebarPages.rename({ id: documentId, title: editor.state.savedTitle });
         sidebarPages.reloadAttention();
+        folderExplorer.rename(documentId, editor.state.savedTitle);
         recentWrites.remember({ recognition: payload.recognition, id: documentId, title: editor.state.savedTitle, body: editor.state.savedBody, file: String(payload.file || $("note-file").textContent || "") });
         state.graph = null;
         noteSearch.markStale(); referenceAutocomplete.markStale();
@@ -1466,6 +1478,7 @@ function syncEditorUi(editorState) {
   noteAttention.sync();
   sidebarPages.sync();
   livingSources.sync();
+  folderExplorer.sync();
   relatedPages.sync();
   if (typeof feedbackDiagnostics !== "undefined") {
     const marker = editorState.saveStatus + ":" + editorState.unconfirmedSave + ":" + editorState.saveErrorCode;
@@ -1630,6 +1643,7 @@ const lifecycleActions = installDocumentActions({
   json: graphJson, toast,
   onDeleted: async (id, message) => {
     sidebarPages.remove(id);
+    folderExplorer.refresh();
     recentWrites.remove(id); noteSearch.markStale(); referenceAutocomplete.markStale();
     state.graph = null;
     if (state.editor?.state.documentId === id) { state.editor.cancel(); state.editor = null; }
@@ -1661,6 +1675,7 @@ const externalUpdates = JumpyBrainBrowser.installExternalDocumentUpdates({
     && (!companionRegistered || companionFrozen || companionSessionFailed)),
   read: readGraphDocument,
   onUpdated: () => {
+    folderExplorer.rename(state.editor.state.documentId, state.editor.state.savedTitle);
     sidebarPages.rename({ id: state.editor.state.documentId, title: state.editor.state.savedTitle });
     sidebarPages.reloadAttention();
     state.graph = null;

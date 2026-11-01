@@ -50,6 +50,10 @@ See the [protocol reference](../../../docs/shared-memory-protocol.md#temporal-re
 
 Authenticated POST `/memories/all/dream/sources/check` delegates to shared app policy, outside the write queue, with no-store responses and existing JSON/error limits. Bodies accept only `id` OR `content,file`, never a caller root. The content-free shell includes an on-demand source panel; no server model or scheduler. See [protocol](../../../docs/shared-memory-protocol.md#living-page-source-checks).
 
+## Folder explorer protocol
+
+Authenticated `GET /memories/all/files` delegates canonical metadata listing to `app/server-memory/folder-explorer.ts`, passing request cancellation and returning no-store JSON. It is read-only and does not use the write queue or signal indexing. Other methods return 405; unexpected errors return the generic `files_failed` response. See the [protocol](../../../docs/shared-memory-protocol.md#get-memoriesallfiles).
+
 ## Board protocol
 
 Authenticated `/memories/all/boards` and per-ID/status routes delegate to `app/server-memory/boards`. POST creates; PUT/DELETE require a SHA-256 If-Match and share the host write queue. Core enforces strict schema and 64 KiB file size; unexpected I/O errors receive safe generic messages. No index mutation or desktop dependency. See [protocol](../../../docs/shared-memory-protocol.md#boards).

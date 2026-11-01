@@ -1,3 +1,4 @@
+import { folderExplorerMarkup, folderExplorerStyles } from "./folder-explorer-view.js";
 import { systemMessageMarkup, systemMessageStyles } from "./browser-system-messages.js";
 import { extensionStyles, extensionPanelMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
@@ -129,6 +130,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
     ${notesStyles}
+    ${folderExplorerStyles}
     ${graphTopicStyles}
     ${feedbackStyles}
     ${dreamStyles}
@@ -198,6 +200,7 @@ ${systemMessageMarkup}
   ${companion ? companionMarkup : ""}
 </main>
 </div>
+${folderExplorerMarkup}
 <script nonce="${nonce}">
 ${lexicalBundle}
 ${companion ? extensionBundle : ""}
