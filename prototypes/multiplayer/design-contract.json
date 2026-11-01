@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "id": "M1-design-canonical-source",
+  "selection": "source-model-v1",
+  "claim": "Design fit only; structural editor binding and production ownership/auth/transports remain later work.",
+  "comparisons": [
+    {
+      "key": "native",
+      "candidate": "lexical-native-v1",
+      "command": [
+        "node",
+        "prototypes/multiplayer/lexical-native/verify.mjs"
+      ],
+      "outputEnvironment": "JUMPYBRAIN_M1_NATIVE_OUT",
+      "expectedStatus": "rejected",
+      "expectedExit": 1,
+      "requiredIds": [
+        "native-roundtrip-plain-repeated",
+        "native-unrelated-source-plain-repeated",
+        "native-roundtrip-inline-source",
+        "native-unrelated-source-inline-source",
+        "native-roundtrip-references",
+        "native-unrelated-source-references",
+        "native-roundtrip-tasks",
+        "native-unrelated-source-tasks",
+        "native-roundtrip-fenced-code",
+        "native-unrelated-source-fenced-code",
+        "native-roundtrip-source-table",
+        "native-unrelated-source-source-table",
+        "native-roundtrip-literal-unsupported",
+        "native-unrelated-source-literal-unsupported",
+        "native-roundtrip-unicode",
+        "native-unrelated-source-unicode",
+        "native-roundtrip-crlf",
+        "native-unrelated-source-crlf",
+        "native-roundtrip-no-final-newline",
+        "native-unrelated-source-no-final-newline",
+        "native-roundtrip-trailing-blank-lines",
+        "native-unrelated-source-trailing-blank-lines",
+        "native-roundtrip-incomplete-fence",
+        "native-unrelated-source-incomplete-fence",
+        "native-independent-concurrent-edits",
+        "native-same-position-concurrent-inserts",
+        "native-streaming-and-duplicate-delivery",
+        "native-local-undo-keeps-remote-edit",
+        "native-real-contenteditable-input",
+        "native-container-delete-versus-concurrent-human",
+        "native-stale-offset-repeated-text"
+      ],
+      "counterexamples": [
+        "native-roundtrip-inline-source",
+        "native-roundtrip-tasks",
+        "native-unrelated-source-tasks",
+        "native-roundtrip-fenced-code",
+        "native-unrelated-source-fenced-code",
+        "native-container-delete-versus-concurrent-human",
+        "native-stale-offset-repeated-text"
+      ]
+    },
+    {
+      "key": "source",
+      "candidate": "source-model-v1",
+      "command": [
+        "node",
+        "prototypes/multiplayer/source-model/verify.mjs"
+      ],
+      "outputEnvironment": "JUMPYBRAIN_M1_SOURCE_OUT",
+      "expectedStatus": "passed",
+      "expectedExit": 0,
+      "requiredIds": [
+        "source-concurrent-independent-human-edits",
+        "source-repeated-text-addresses-read-offset-not-search",
+        "source-overlap-rejected-with-canonical-and-draft-retained",
+        "source-stream-duplicate-gap-and-cancel-preserve-human",
+        "source-undo-removes-only-own-edit-or-rejects-overlap",
+        "source-history-epoch-byte-and-surrogate-limits",
+        "source-invalid-base-unicode-and-identity-collisions-reject",
+        "source-stream-and-actor-state-stay-bounded",
+        "source-exhaustive-independent-splices-preserve-both-arrival-orders",
+        "source-noop-has-stable-identity-without-a-revision",
+        "source-undo-retry-is-idempotent-with-current-snapshot",
+        "source-restart-default-epoch-fences-old-read",
+        "source-editor-roundtrip-and-unrelated-preservation/plain-repeated",
+        "source-editor-roundtrip-and-unrelated-preservation/inline-source",
+        "source-editor-roundtrip-and-unrelated-preservation/references",
+        "source-editor-roundtrip-and-unrelated-preservation/tasks",
+        "source-editor-roundtrip-and-unrelated-preservation/fenced-code",
+        "source-editor-roundtrip-and-unrelated-preservation/source-table",
+        "source-editor-roundtrip-and-unrelated-preservation/literal-unsupported",
+        "source-editor-roundtrip-and-unrelated-preservation/unicode",
+        "source-editor-roundtrip-and-unrelated-preservation/crlf",
+        "source-editor-roundtrip-and-unrelated-preservation/no-final-newline",
+        "source-editor-roundtrip-and-unrelated-preservation/trailing-blank-lines",
+        "source-editor-roundtrip-and-unrelated-preservation/incomplete-fence",
+        "source-editor-custom-node/task-leaf",
+        "source-editor-custom-node/code-leaf",
+        "source-editor-custom-node/table-leaf",
+        "source-editor-custom-node/reference-leaf",
+        "source-editor-empty-note-stream-start",
+        "source-real-two-human-stream-and-local-undo",
+        "source-real-structural-recovery-retains-both-inputs",
+        "source-real-inline-markup-applies-or-recovers-without-loss",
+        "source-real-injected-serialization-failure-restores-editor"
+      ],
+      "counterexamples": []
+    },
+    {
+      "key": "durability",
+      "candidate": "durability-v1",
+      "command": [
+        "node",
+        "prototypes/multiplayer/durability/verify.mjs"
+      ],
+      "outputEnvironment": "JUMPYBRAIN_M1_DURABILITY_OUT",
+      "expectedStatus": "passed",
+      "expectedExit": 0,
+      "requiredIds": [
+        "D01-receipt-after-canonical-publication",
+        "D02-protected-metadata-and-whole-file-hash",
+        "D03-publisher-failure-keeps-draft-no-saved-receipt",
+        "D04-legacy-disk-hash-cannot-overwrite-admitted-live-text",
+        "D05-rebuild-from-markdown-epoch-and-recovery-separation",
+        "D06-independent-external-in-place-without-watch-event",
+        "D06-independent-external-atomic-rename-without-watch-event",
+        "D07-overlap-preserves-exact-observed-versions",
+        "D08-truncate-then-write-never-hydrates-temporary-empty-file",
+        "D09-intentional-empty-body-is-valid-content",
+        "D10-empty-idless-file-bounds-wait-and-preserves-raw-bytes",
+        "D11-continuous-partial-writer-reaches-finite-recovery",
+        "D12-delete-recreate-requires-new-session-epoch",
+        "D13-duplicate-identities-never-select-an-arbitrary-file",
+        "D14-corpus-publication-matches-existing-canonical-policy",
+        "D15-uniform-crlf-publication-preserves-current-body-bytes",
+        "D17-partial-invalid-utf8-is-not-silently-replaced",
+        "D16-crash-before-call",
+        "D16-crash-before-rename",
+        "D16-crash-after-rename",
+        "D16-crash-after-call",
+        "D16-crash-receipt",
+        "D16-crash-rename-failure"
+      ],
+      "counterexamples": []
+    },
+    {
+      "key": "integration",
+      "candidate": "integration-v1",
+      "command": [
+        "node",
+        "prototypes/multiplayer/integration-cases.mjs"
+      ],
+      "outputEnvironment": "JUMPYBRAIN_M1_INTEGRATION_OUT",
+      "expectedStatus": "passed",
+      "expectedExit": 0,
+      "requiredIds": [
+        "I01-streaming-source-operations-publish-and-rebuild-from-markdown",
+        "I02-legacy-client-cannot-bypass-pending-source-model",
+        "I03-bounded-source-history-workload"
+      ],
+      "counterexamples": []
+    }
+  ]
+}

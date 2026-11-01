@@ -126,6 +126,16 @@ In a later session, or with another supported agent:
 
 [Installation and updates →](docs/install.md) · [Agent workflows →](docs/agent-workflows.md)
 
+### Upgrade with your agent
+
+During the internal beta, releases may change the CLI, API or integration contracts. Update the app, CLI, backend and agent integrations together. For a shared brain, coordinate the server and all clients before editing resumes.
+
+Tell your agent:
+
+> Upgrade my existing jumpyBrain installation using docs/install-for-agents.md and docs/install.md. Inventory my app, CLI, server, agent integrations and actual brain folders first. Save pending edits and back up the brain and configuration without printing credentials. Apply the published release and its documented migration steps, keeping my existing notes and connections. Verify the installed versions, open and search existing notes, and test editing on a disposable copy. Keep the backup and previous software until verification passes; report any unfinished step.
+
+The supported updater is `jumpybrain update`; follow the [update guide](docs/install.md#update) for managed Mac pairs, CLI-only installs and source checkouts. A future architecture migration will document its exact supported upgrade steps here before it ships.
+
 ### With your team
 
 Run the same app against a server-local Markdown folder, then connect your team and their agents. Start with the [shared-brain quickstart](docs/cloud-shared-memory.md), or follow the [VPS](docs/vps-deploy.md) or [Coolify](docs/coolify-deploy.md) deployment guide.

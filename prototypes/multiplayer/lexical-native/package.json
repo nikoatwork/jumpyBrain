@@ -1,0 +1,7 @@
+{
+  "name": "jumpybrain-m1-lexical-native-prototype",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node verify.mjs" },
+  "dependencies": { "@lexical/yjs": "0.51.0", "yjs": "13.6.33" }
+}
