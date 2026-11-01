@@ -98,6 +98,7 @@ interface Session {
   model: SourceModel;
   listeners: Set<(snapshot: CollaborationSnapshot) => void>;
   presence: Map<string, Presence>;
+  connections: Map<string, { count:number; principalId:string; role:CollaborationPrincipal["role"] }>;
   accessedAt: number;
   busy: boolean;
   streamActivity: Map<string, number>;
@@ -395,6 +396,7 @@ export class CollaborationHub {
       model,
       listeners: new Set(),
       presence: new Map(),
+      connections: new Map(),
       accessedAt: Date.now(),
       busy: false,
       streamActivity: new Map(),
@@ -518,13 +520,25 @@ export class CollaborationHub {
       const session = await this.session(validId(documentId));
       await this.settleOpen(session);
       this.setPresence(session, principal, params);
-      session.listeners.add(listener);
+      const actor = this.actor(principal, params);
+      const connection = session.connections.get(actor) ?? {count:0,principalId:principal.id,role:principal.role};
+      connection.count++; connection.role = principal.role; session.connections.set(actor,connection);
+      const publish = (snapshot:CollaborationSnapshot) => listener(snapshot);
+      session.listeners.add(publish);
+      this.syncActiveUndoActors(session);
       this.emit(session);
+      let disposed = false;
       return {
         snapshot: this.snapshot(session),
         dispose: () => {
-          session.listeners.delete(listener);
+          if (disposed) return; disposed = true;
+          session.listeners.delete(publish);
+          const current = session.connections.get(actor);
+          if (current === connection && --current.count === 0) session.connections.delete(actor);
+          const removed = !session.connections.has(actor) && session.presence.delete(actor);
+          this.syncActiveUndoActors(session);
           session.accessedAt = Date.now();
+          if (removed) this.emit(session);
         },
       };
     });
@@ -602,6 +616,18 @@ export class CollaborationHub {
         value.sequence = integer(params.presenceSequence);
     }
     session.presence.set(actor, value);
+    this.syncActiveUndoActors(session);
+  }
+  private activeUndoActors(session:Session) {
+    const actors = new Set<string>(),now = Date.now();
+    for (const [actor, connection] of session.connections)
+      if (connection.count > 0 && connection.role !== "reader" && (session.presence.get(actor)?.leaseExpiresAt ?? 0) > now) actors.add(actor);
+    for (const [key, stream] of session.model.streams)
+      if (stream.state === "active" && now-(session.streamActivity.get(key) ?? -Infinity) < (this.options.streamLeaseMs ?? 60_000)) actors.add(stream.actor);
+    return actors;
+  }
+  private syncActiveUndoActors(session:Session) {
+    session.model.setActiveActors(this.activeUndoActors(session));
   }
   private projectPresence(session: Session, persist = true): Presence[] {
     const projected: Presence[] = [];
@@ -655,6 +681,7 @@ export class CollaborationHub {
       if (persist) session.presence.set(actor, value);
       projected.push(value);
     }
+    if (persist) this.syncActiveUndoActors(session);
     return projected;
   }
   leave(
@@ -666,9 +693,11 @@ export class CollaborationHub {
     for (const session of this.sessions.values())
       if (
         (!documentId || session.documentId === documentId) &&
+        !session.connections.has(actor) &&
         session.presence.delete(actor)
       )
         this.emit(session);
+    for (const session of this.sessions.values()) this.syncActiveUndoActors(session);
   }
   private expireStreams(session: Session) {
     let expired = false;
@@ -687,6 +716,7 @@ export class CollaborationHub {
         expired = true;
       }
     }
+    this.syncActiveUndoActors(session);
     if (expired) this.emit(session);
   }
   async revokePrincipal(principalId: string) {
@@ -694,6 +724,8 @@ export class CollaborationHub {
     await this.serialize(async () => {
       for (const session of this.sessions.values()) {
         let revoked = false;
+        for (const [actor,connection] of session.connections)
+          if (connection.principalId === principalId) {session.connections.delete(actor);revoked = true;}
         for (const [actor, presence] of session.presence)
           if (presence.principalId === principalId) {
             session.presence.delete(actor);
@@ -716,6 +748,7 @@ export class CollaborationHub {
             revoked = true;
           }
         }
+        this.syncActiveUndoActors(session);
         if (revoked) this.emit(session);
       }
     });
@@ -799,6 +832,7 @@ export class CollaborationHub {
             "The saved note changed after review. Refresh the comparison before restoring.",
           );
       }
+      this.syncActiveUndoActors(session);
       const actor = this.actor(principal, params),
         candidate = session.model.fork();
       let operation: SourceOperation | undefined,
@@ -1338,6 +1372,7 @@ export class CollaborationHub {
       maxSourceBytes: this.maxDocumentBytes,
     });
     if (current.contentHash !== candidate.hash) return;
+    this.syncActiveUndoActors(session);
     const next = session.model.fork(),
       difference = sourceDifference(
         session.model.body,
@@ -1489,6 +1524,8 @@ export class CollaborationHub {
         (sum, session) => sum + session.listeners.size,
         0,
       ),
+      undoOwners: [...this.sessions.values()].reduce((sum,session) => sum+new Set([...session.model.undoStacks.keys(),...session.model.redoStacks.keys()]).size,0),
+      activeUndoOwners: [...this.sessions.values()].reduce((sum,session) => {const owners = new Set([...session.model.undoStacks.keys(),...session.model.redoStacks.keys()]);return sum+[...this.activeUndoActors(session)].filter(actor=>owners.has(actor)).length;},0),
     };
   }
   async close() {

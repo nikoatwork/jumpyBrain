@@ -1,6 +1,7 @@
 // Production source binding: real contenteditable, real WS backend, disposable root.
 import assert from "node:assert/strict";
 import {runIntentProof,runRestartIntentProof} from "./collaboration-intent-proof.mjs";
+import {runActorChurnProof} from "./collaboration-actor-churn-proof.mjs";
 import { runStructuralCursorProof, runLiveCursorProof } from "./collaboration-cursor-proof.mjs";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -324,8 +325,9 @@ try {
     assert.equal((await readFile(path.join(root, "notes/live.md"), "utf8")).includes("unique current A body"), false, "private recovery does not silently publish either version");
     await cloneContext.close();
     await runRestartIntentProof({browser,root,token,errors,startServer:port=>startJumpyBrainHttpServer({root,apiKeys:[token],port,autoIndex:false})});
+    await runActorChurnProof({browser,errors});
     assert.deepEqual(errors, []);
-    console.log("Production collaboration editor smoke passed: two contexts, source convergence, actor undo, canonical external writes, agent streams, IME, offline body/title reload recovery, shipped notes shell, cloned-tab actor isolation and explicit recovery selector, title normalization and draft-version preservation, granular edits and visible revisioned cursors, actual positional intent and authoritative selection history.");
+    console.log("Production collaboration editor smoke passed: two contexts, source convergence, actor undo, canonical external writes, agent streams, IME, offline body/title reload recovery, shipped notes shell, cloned-tab actor isolation and explicit recovery selector, title normalization and draft-version preservation, granular edits and visible revisioned cursors, actual positional intent and authoritative selection history, bounded default CLI actor churn.");
   }
 } finally {
   agent?.close(); await browser?.close(); await server?.close(); if (sourceServer) await new Promise((resolve) => sourceServer.close(resolve)); await rm(root, { recursive: true, force: true });

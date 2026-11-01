@@ -18,6 +18,7 @@ interface EditorBinding {
 export interface CollaborationEditorState {
   status: "connecting" | "saved" | "saving" | "offline" | "conflict" | "readonly" | "blocked";
   dirty: boolean; canWrite: boolean; durableDraft: boolean; message?: string;
+  historyNotice?: { sequence: number; text: string };
   recoveryDrafts: CollaborationDraft[];
 }
 function confirmation() {
@@ -52,6 +53,7 @@ export function createCollaborationEditor(options: Options) {
   let deferredConfirmation: { flight: NonNullable<typeof flight>; epoch: string; revision: number } | undefined;
   const undoBodies: string[] = [], redoBodies: string[] = [];
   let recoveryDrafts: CollaborationDraft[] = [];
+  let historyNotice: CollaborationEditorState["historyNotice"], historyNoticeSequence = 0;
   let state: CollaborationEditorState = { status: "connecting", dirty: false, canWrite: false, durableDraft: true, recoveryDrafts: [] };
   const bodyDirty = () => !baseline ? dirtyBeforeOpen : Boolean(pendingOperations.length) || body !== baseline.body;
   const titleDirty = () => draftTitle !== undefined && draftTitle !== baseline?.title;
@@ -76,7 +78,7 @@ export function createCollaborationEditor(options: Options) {
     if (signature !== renderedPresence) { renderedPresence = signature; options.editor.setCollaborativePresence?.(peers); }
     state = {
       status: conflict ? "conflict" : openFailure ? "blocked" : client.state === "blocked" ? "blocked" : client.state === "connecting" || client.state === "ready" && !opened ? "connecting" : client.state !== "ready" ? "offline" : !canWrite() ? "readonly" : dirty() || flight || titlePromise || historyFlight ? "saving" : "saved",
-      dirty: dirty() || Boolean(flight || titlePromise || historyFlight), canWrite: Boolean(opened && canWrite() && !conflict), durableDraft: durable, message, recoveryDrafts,
+      dirty: dirty() || Boolean(flight || titlePromise || historyFlight), canWrite: Boolean(opened && canWrite() && !conflict), durableDraft: durable, message, recoveryDrafts, historyNotice,
     };
     options.onState?.(state);
     schedulePresence();
@@ -327,6 +329,10 @@ export function createCollaborationEditor(options: Options) {
       if (disposed || current.acknowledged) return;
       const code = error && typeof error === "object" && "code" in error ? String(error.code) : "history_failed";
       if (["nothing_to_undo", "nothing_to_redo"].includes(code)) return;
+      if (code === "history_expired") {
+        historyNotice = { sequence: ++historyNoticeSequence, text: (method === "undo" ? "Undo" : "Redo") + " history is unavailable for this editor. You can keep editing." };
+        return;
+      }
       uncertain = ["unconfirmed", "offline", "closed"].includes(code); conflict = true;
       message = error instanceof Error ? error.message : "History operation failed. The saved version and draft are retained.";
     }).finally(() => { if (historyFlight === current) historyFlight = undefined; current.confirm(); if (!disposed) { persist(); notify(); schedule(); } });

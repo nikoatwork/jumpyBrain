@@ -155,6 +155,16 @@ projected only where the source spelling maps unambiguously to rendered text;
 unsupported inline formatting keeps awareness without a guessed cursor. IME
 preedit is deferred until composition completes. Undo/redo is actor-specific.
 
+Each live note retains at most 64 Undo/Redo owners, independently of the 128
+recent source operations used for revision transforms. Retention prefers editors
+with live writer connections, presence or streams, then retires the least recently
+used history; even an all-active cache remains finite and admits new edits.
+Disconnecting does not immediately discard recent history: a stable client ID can
+reconnect and Undo while its history remains cached. Retirement never removes
+saved Markdown or prevents new people/agents from editing. Expired Undo/Redo
+returns `history_expired`; the app shows a notice and allows continued editing.
+Resync reads current saved source; it cannot recreate retired Undo history.
+
 `.jumpybrain/access.json`, `.jumpybrain/recovery/` and browser drafts are unique
 operational data. Back them up; do not delete all of `.jumpybrain` as cache.
 Backend leases/descriptors are private coordination state. A malformed lease or

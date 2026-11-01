@@ -385,6 +385,11 @@ export class SourceModel {
   streams = new Map<string, Stream>();
   retiredStreams = new Map<string, Stream>();
   redoStacks = new Map<string, SourceOperation[]>();
+  /** Retained Undo/Redo owners, oldest successful history use first. */
+  historyOwners = new Map<string, true>();
+  activeHistoryActors = new Set<string>();
+  retiredHistoryActors = new Map<string, number>();
+  private historyWasRetired = false;
   constructor(body: string, options: ModelOptions) {
     this.epoch = options.epoch;
     this.historyLimit = options.historyLimit ?? 128;
@@ -419,7 +424,77 @@ export class SourceModel {
     copy.redoStacks = structuredClone(this.redoStacks);
     copy.streams = structuredClone(this.streams);
     copy.retiredStreams = structuredClone(this.retiredStreams);
+    copy.historyOwners = new Map(this.historyOwners);
+    copy.activeHistoryActors = new Set(this.activeHistoryActors);
+    copy.retiredHistoryActors = new Map(this.retiredHistoryActors);
+    copy.historyWasRetired = this.historyWasRetired;
     return copy;
+  }
+  /** Advisory live-writer preference; it never consumes a connection or history slot. */
+  setActiveActors(actors: Iterable<string>) {
+    const active = new Set<string>();
+    let available =
+      this.maxHistoryBytes -
+      this.retainedBytes +
+      [...this.activeHistoryActors].reduce(
+        (sum, actor) => sum + bytes(actor) + 64,
+        0,
+      );
+    const prefer = (actor: string) => {
+      const cost = bytes(actor) + 64;
+      if (
+        !active.has(actor) &&
+        this.historyOwners.has(actor) &&
+        cost <= available
+      ) {
+        active.add(actor);
+        available -= cost;
+      }
+    };
+    if (actors instanceof Set) {
+      for (const actor of this.historyOwners.keys())
+        if (actors.has(actor)) prefer(actor);
+    } else {
+      let visited = 0;
+      for (const actor of actors) {
+        if (++visited > this.maxActors * 4) break;
+        prefer(actor);
+      }
+    }
+    this.activeHistoryActors = active;
+  }
+  private retireHistoryOwner(actor: string) {
+    this.undoStacks.delete(actor);
+    this.redoStacks.delete(actor);
+    this.historyOwners.delete(actor);
+    this.activeHistoryActors.delete(actor);
+    this.historyWasRetired = true;
+    this.retiredHistoryActors.delete(actor);
+    this.retiredHistoryActors.set(actor, this.revision);
+    while (this.retiredHistoryActors.size > this.historyLimit)
+      this.retiredHistoryActors.delete(
+        this.retiredHistoryActors.keys().next().value!,
+      );
+  }
+  private touchHistoryOwner(actor: string) {
+    if (!this.historyOwners.has(actor)) {
+      while (this.historyOwners.size >= this.maxActors) {
+        const oldest =
+          [...this.historyOwners.keys()].find(
+            (owner) => !this.activeHistoryActors.has(owner),
+          ) ?? this.historyOwners.keys().next().value!;
+        this.retireHistoryOwner(oldest);
+      }
+    }
+    this.historyOwners.delete(actor);
+    this.historyOwners.set(actor, true);
+    this.retiredHistoryActors.delete(actor);
+  }
+  private retainReceipts(limit = this.maxHistoryBytes) {
+    while (this.receipts.size > this.historyLimit)
+      this.receipts.delete(this.receipts.keys().next().value!);
+    while (this.receipts.size && this.retainedBytes > limit)
+      this.receipts.delete(this.receipts.keys().next().value!);
   }
   private identity(actor: string, id: string) {
     if (
@@ -454,7 +529,12 @@ export class SourceModel {
       ) +
       [...this.undoStacks.values(), ...this.redoStacks.values()]
         .flat()
-        .reduce((n, operation) => n + operationBytes(operation), 0)
+        .reduce((n, operation) => n + operationBytes(operation), 0) +
+      [
+        ...this.historyOwners.keys(),
+        ...this.activeHistoryActors,
+        ...this.retiredHistoryActors.keys(),
+      ].reduce((n, actor) => n + bytes(actor) + 64, 0)
     );
   }
   pruneHistory(limit: number) {
@@ -492,20 +572,24 @@ export class SourceModel {
         if (retained.length) stacks.set(actor, retained);
         else stacks.delete(actor);
       }
+    for (const actor of this.historyOwners.keys())
+      if (!this.undoStacks.has(actor) && !this.redoStacks.has(actor))
+        this.retireHistoryOwner(actor);
     for (const [id, stream] of this.streams)
       if (stream.baseRevision < oldest) {
         stream.state = "cancelled";
         this.retiredStreams.set(id, stream);
         this.streams.delete(id);
       }
-    for (const map of [this.receipts, this.retiredStreams])
+    for (const map of [this.retiredStreams])
       while (map.size > this.historyLimit) map.delete(map.keys().next().value!);
-    while (this.receipts.size && this.retainedBytes > limit)
-      this.receipts.delete(this.receipts.keys().next().value!);
-    while (this.undoStacks.size && this.retainedBytes > limit)
-      this.undoStacks.delete(this.undoStacks.keys().next().value!);
-    while (this.redoStacks.size && this.retainedBytes > limit)
-      this.redoStacks.delete(this.redoStacks.keys().next().value!);
+    this.retainReceipts(limit);
+    while (this.historyOwners.size && this.retainedBytes > limit)
+      this.retireHistoryOwner(this.historyOwners.keys().next().value!);
+    while (this.retiredHistoryActors.size && this.retainedBytes > limit)
+      this.retiredHistoryActors.delete(
+        this.retiredHistoryActors.keys().next().value!,
+      );
   }
   private base(revision: number) {
     if (
@@ -666,12 +750,6 @@ export class SourceModel {
       ) > this.maxBytes
     )
       fail("document_limit");
-    if (
-      !mode &&
-      !this.undoStacks.has(actor) &&
-      this.undoStacks.size >= this.maxActors
-    )
-      fail("actor_limit");
     let operations: AppliedSourceSplice[] = request.operations.map(
         (operation) => ({
           ...operation,
@@ -719,7 +797,7 @@ export class SourceModel {
     if (bytes(next) > this.maxBytes) fail("document_limit");
     if (!applied.length && !inverseOf) {
       this.receipts.set(key, { signature, revision: this.revision });
-      this.retain();
+      this.retainReceipts();
       return { unchanged: true };
     }
     const operation = transaction(
@@ -738,6 +816,7 @@ export class SourceModel {
       stack.push(operation);
       this.undoStacks.set(actor, stack);
       this.redoStacks.delete(actor);
+      this.touchHistoryOwner(actor);
     }
     this.retain();
     return { operation };
@@ -786,7 +865,14 @@ export class SourceModel {
     const source = mode === true ? this.undoStacks : this.redoStacks,
       target = mode === true ? this.redoStacks : this.undoStacks,
       original = source.get(actor)?.at(-1);
-    if (!original) fail(mode === true ? "nothing_to_undo" : "nothing_to_redo");
+    if (!original) {
+      if (!this.historyOwners.has(actor) && this.historyWasRetired)
+        fail(
+          "history_expired",
+          "Undo/Redo history is no longer retained for this editor identity. The saved document is unchanged.",
+        );
+      fail(mode === true ? "nothing_to_undo" : "nothing_to_redo");
+    }
     // If an ancestor's inverse discarded this operation's original source,
     // restoring that retired source would resurrect another actor's undone text.
     const oldest = this.versions.keys().next().value!;
@@ -862,6 +948,7 @@ export class SourceModel {
       const destination = target.get(actor) ?? [];
       destination.push(result.operation);
       target.set(actor, destination);
+      this.touchHistoryOwner(actor);
       this.retain();
     }
     return result;
