@@ -19,7 +19,7 @@ const commands = [
 let nextId = 0;
 
 // Selection and invocation stay in Lexical; the popup never owns document text.
-export function installSlashCommands(editor: LexicalEditor, element: HTMLElement, format: (kind: string) => void) {
+export function installSlashCommands(editor: LexicalEditor, element: HTMLElement, format: (kind: string) => void, beforeAccept?: () => void) {
   const doc = element.ownerDocument, win = doc.defaultView!;
   const popup = doc.createElement("div"), id = "editor-slash-" + ++nextId;
   popup.id = id; popup.className = "editor-slash-menu";
@@ -92,6 +92,7 @@ export function installSlashCommands(editor: LexicalEditor, element: HTMLElement
     if (!previous || !command) return false;
     const live = context();
     if (!live || live.signature !== previous.signature) return false;
+    beforeAccept?.();
     $addUpdateTag(HISTORY_PUSH_TAG);
     live.selection.anchor.set(live.selection.anchor.key, live.start, "text");
     $setSelection(live.selection);

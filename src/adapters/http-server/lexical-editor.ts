@@ -23,9 +23,10 @@ import { createTaskCompletionFeedback } from "./editor-task-presentation.js";
 import { referenceRanges, safeTitle } from "./reference-ranges.js";
 import { completedReferenceTitles } from "./reference-creation.js";
 import { externalLineChanges } from "./external-document-updates.js";
+import {placePeerLabels,type PeerLabel} from "./collaboration-labels.js";
 import { participantAppearance } from "./collaboration-appearance.js";
 import { markdownSourceMap, visibleToSource, sourceToVisible, type EditorSourceMap } from "./editor-source-map.js";
-import { sourceDifferences, transformSourcePosition } from "../../core/collaboration/source.js";
+import { applySourceSplices, transformSourcePosition, type SourceSplice } from "../../core/collaboration/source.js";
 import "./reference-autocomplete.js";
 
 // Unsupported blocks are ordinary editable text, never HTML or silently discarded nodes.
@@ -157,8 +158,10 @@ function snapshot(node: LexicalNode): string {
   return JSON.stringify(visit(node));
 }
 
+export interface EditorSourceIntent { before: string; after: string; operations: SourceSplice[]; reason?: string }
+
 export function createNoteEditor(element: HTMLElement, options: {
-  onChange: (markdown: string) => void;
+  onChange: (markdown: string, intent?: EditorSourceIntent) => void;
   // Only committed edits to active reference text; never hydration or refresh.
   onCompletedReferences?: (titles: string[]) => void;
   // Companion-only input shortcut; stored references always use [[…]].
@@ -282,6 +285,115 @@ export function createNoteEditor(element: HTMLElement, options: {
   let sourceNewline: "\n" | "\r\n" | null = "\n";
   const detectNewline = (value: string) => value.includes("\r\n") ? /(?<!\r)\n/.test(value) ? null : "\r\n" as const : "\n" as const;
   let loading = false;
+  let capturedIntent: { before: string; ranges: Array<{start:number;end:number;removedKey?:string}>; inputType: string } | undefined;
+  let lastSourceIntent: EditorSourceIntent | undefined;
+  let continuationIntent:typeof capturedIntent,continuationTimer:number|undefined;
+  function captureSourceIntent(inputType: string, range?: StaticRange, blockScope = false, inserted?:string) {
+    if (loading || !editor.isEditable() || capturedIntent?.inputType==="slash"&&capturedIntent.before===markdown) return;
+    continuationIntent=undefined;element.ownerDocument.defaultView!.clearTimeout(continuationTimer);
+    try { editor.getEditorState().read(() => {
+      const blocks = projectedBlocks();
+      if (blocks.map(block=>block.raw).join("\n") !== markdown) return;
+      let selection = $getSelection();
+      if (range) { const resolved = $createRangeSelection(); resolved.applyDOMRange(range); selection = resolved; }
+      if (!$isRangeSelection(selection)) return;
+      let a = sourcePoint(selection.anchor, blocks), b = sourcePoint(selection.focus, blocks);
+      if (a === null || b === null) return;
+      if (a === b && /^delete/.test(inputType)) {
+        const block = blocks.find(block=>block.map && a!>=block.offset && a!<=block.offset+block.raw.length);
+        const visible = block?.map ? sourceToVisible(block.map,a-block.offset) : null;
+        if (block?.map && visible !== null && inputType === "deleteContentBackward" && visible>0) {
+          const segments=[...new Intl.Segmenter(undefined,{granularity:"grapheme"}).segment(block.node.getTextContent().slice(0,visible))];
+          const previous=segments.at(-1)?.index;
+          if(previous!==undefined) a=block.offset+visibleToSource(block.map,previous,"right")!;
+        } else if(block?.map && visible !== null && inputType === "deleteContentForward" && visible<block.map.visibleLength) {
+          const next=[...new Intl.Segmenter(undefined,{granularity:"grapheme"}).segment(block.node.getTextContent().slice(visible))][0]?.segment.length;
+          if(next!==undefined)b=block.offset+visibleToSource(block.map,visible+next,"left")!;
+        }
+      }
+      const low=Math.min(a,b),high=Math.max(a,b),ranges:Array<{start:number;end:number;removedKey?:string}>=[];
+      const boundaries=(source:number)=>{
+        const result=new Set([source]);
+        for(const block of blocks)if(block.map && source>=block.offset && source<=block.offset+block.raw.length){
+          const visible=sourceToVisible(block.map,source-block.offset);
+          if(visible!==null)for(const span of block.map.spans)if(!span.escaped&&span.from===visible && span.to===visible){result.add(block.offset+span.start);result.add(block.offset+span.end)}
+        }
+        return [...result];
+      };
+      for(const start of boundaries(low))for(const end of boundaries(high))if(start<=end)ranges.push({start,end});
+      if(inserted&&/^insert/.test(inputType)){
+        const block=blocks.find(block=>block.map&&low>=block.offset&&high<=block.offset+block.raw.length);
+        if(block?.map){
+          const visible=sourceToVisible(block.map,low-block.offset);
+          if(visible!==null){
+            const prefix=block.node.getTextContent().slice(0,visible)+inserted;
+            for(const tag of ["***","___","**","__","*","_","`"])if(prefix.endsWith(tag)){
+              const opening=prefix.lastIndexOf(tag,prefix.length-tag.length-1);
+              if(opening>=0&&opening<visible){const source=visibleToSource(block.map,opening,"right");if(source!==null)for(const start of boundaries(block.offset+source))ranges.push({start,end:high})}
+            }
+          }
+        }
+      }
+      if(blockScope){const selected=blocks.filter(block=>block.offset+block.raw.length>=low&&block.offset<=high);if(selected.length)ranges.push({start:selected[0].offset,end:selected.at(-1)!.offset+selected.at(-1)!.raw.length})}
+      if(low===high && /^delete/.test(inputType)){
+        const index=blocks.findIndex(block=>block.map && low===block.offset+block.map.contentStart);
+        if(index>=0){ranges.push({start:blocks[index].offset,end:low});if(index>0)ranges.push({start:blocks[index-1].offset+blocks[index-1].raw.length,end:low})}
+      }
+      if(/^delete/.test(inputType)){
+        for(const [index,block]of blocks.entries())if(block.map&&low<=block.offset+block.map.contentStart&&high>=block.offset+block.map.contentEnd&&low!==high){
+          ranges.push({start:index===blocks.length-1&&index>0?block.offset-1:Math.min(low,block.offset),end:index<blocks.length-1?Math.max(high,block.offset+block.raw.length+1):Math.max(high,block.offset+block.raw.length),removedKey:block.node.getKey()});
+        }
+        if(low===high&&inputType==="deleteContentForward"){
+          const index=blocks.findIndex(block=>block.map&&low===block.offset+block.map.contentEnd);
+          if(index>=0&&index+1<blocks.length){const next=blocks[index+1];if(next.map)ranges.push({start:low,end:next.offset+next.map.contentStart})}
+        }
+      }
+      if(range?.startContainer===element && range.startOffset===0 && range.endContainer===element && range.endOffset===element.childNodes.length)ranges.unshift({start:0,end:markdown.length});
+      capturedIntent={before:markdown,ranges,inputType};
+    }, {editor}); } catch { capturedIntent=undefined; }
+  }
+  function sourceIntent(before:string,after:string):EditorSourceIntent {
+    const capture=capturedIntent??continuationIntent;capturedIntent=undefined;continuationIntent=undefined;
+    if(capture?.before===before){
+      // Verify the exact user-targeted interval. Repeated text never authorizes
+      // moving it to a different occurrence merely because a diff is shorter.
+      const candidates=capture.ranges.flatMap(({start,end,removedKey})=>{
+        if(removedKey&&editor.getEditorState().read(()=>$getNodeByKey(removedKey)?.isAttached()??false))return [];
+        const suffix=before.slice(end),prefix=before.slice(0,start),insertEnd=after.length-suffix.length;
+        if(insertEnd<start || !after.startsWith(prefix) || !after.endsWith(suffix))return [];
+        const operation={start,deleteCount:end-start,insert:after.slice(start,insertEnd)};
+        try{return applySourceSplices(before,[operation])===after?[operation]:[]}catch{return []}
+      });
+      // Syntax-only boundary alternatives are ranked by the smallest verified
+      // interval, never by a search for matching characters elsewhere.
+      candidates.sort((a,b)=>a.deleteCount-b.deleteCount||a.insert.length-b.insert.length);
+      if(candidates.length){
+        const selected=candidates[0];
+        const project=(position:number,association:"left"|"right")=>position>selected.start&&position<selected.start+selected.deleteCount?selected.start+(association==="right"?selected.insert.length:0):transformSourcePosition(position,[selected],association);
+        continuationIntent={before:after,inputType:capture.inputType,ranges:capture.ranges.map(range=>({start:project(range.start,"left"),end:project(range.end,"right")}))};
+        element.ownerDocument.defaultView!.clearTimeout(continuationTimer);
+        continuationTimer=element.ownerDocument.defaultView!.setTimeout(()=>{continuationIntent=undefined},0);
+        return {before,after,operations:[selected]};
+      }
+    }
+    return {before,after,operations:[],reason:"This input could not be mapped to its actual source range. Its draft is retained; review before publishing."};
+  }
+  const beforeInput=(event:InputEvent)=>{const ranges=event.getTargetRanges?.();captureSourceIntent(event.inputType,ranges?.[0],false,event.data??undefined);};
+  const keyIntent=(event:KeyboardEvent)=>{
+    if(event.isComposing)return;
+    if(event.key==="Backspace"||event.key==="Delete")captureSourceIntent(event.key==="Backspace"?"deleteContentBackward":"deleteContentForward");
+    else if(event.key==="Enter"||event.key==="Tab")captureSourceIntent(event.key==="Enter"?"insertParagraph":"insertText");
+  };
+  const inputIntent=()=>queueMicrotask(()=>{
+    if(loading||!capturedIntent||!/^insert/.test(capturedIntent.inputType))return;
+    const next=editor.getEditorState().read(serialize);
+    const intent=sourceIntent(markdown,next);
+    if(!intent.reason&&intent.operations.some(operation=>operation.deleteCount||operation.insert)){markdown=next;lastSourceIntent=intent;options.onChange(next,intent)}
+  });
+  const compositionIntent=()=>captureSourceIntent("compositionstart");
+  element.addEventListener("compositionstart",compositionIntent,true);
+  element.addEventListener("beforeinput",beforeInput,true);element.addEventListener("keydown",keyIntent,true);element.addEventListener("input",inputIntent);
+  cleanups.push(()=>{element.removeEventListener("compositionstart",compositionIntent,true);element.removeEventListener("beforeinput",beforeInput,true);element.removeEventListener("keydown",keyIntent,true);element.removeEventListener("input",inputIntent)});
   let completionBaseline = "", redoPending = false, completionTimer = 0;
   const win = element.ownerDocument.defaultView!;
   const referenceText = () => $getRoot().getChildren().map((block) => block.getTextContent()).join("\n");
@@ -323,7 +435,12 @@ export function createNoteEditor(element: HTMLElement, options: {
       if ($isRangeSelection(selection)) lastSelection = selection.clone();
       if (!dirtyElements.size && !dirtyLeaves.size) return;
       const next = serialize();
-      if (next !== markdown) { markdown = next; options.onChange(next); }
+      if (next !== markdown || capturedIntent) {
+        const intent=sourceIntent(markdown,next);
+        if(next!==markdown || intent.operations.some(operation=>operation.deleteCount||operation.insert)){
+          markdown=next;lastSourceIntent=intent;options.onChange(next,intent);
+        }
+      }
       if (!editor.isComposing()) reportCompletions(tags.has(HISTORIC_TAG) && !redoPending);
     });
     notifyReferenceContext();
@@ -350,6 +467,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   cleanups.push(editor.registerCommand(PASTE_COMMAND, (event) => {
     if (!event) return false;
     if (!editor.isEditable()) return true;
+    captureSourceIntent("insertFromPaste",undefined,true);
     const transfer = "clipboardData" in event ? event.clipboardData : "dataTransfer" in event ? event.dataTransfer : null;
     if (!transfer) return false;
     event.preventDefault();
@@ -412,6 +530,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     event.preventDefault();
     if (!editor.isEditable()) return;
     let completed = false;
+    editor.getEditorState().read(()=>{const node=$getNearestNodeFromDOMNode(button);const block=projectedBlocks().find(block=>block.node.getKey()===node?.getKey());if(block&&node instanceof TaskMarkdownNode)capturedIntent={before:markdown,ranges:[{start:block.offset+node.__spaces+3,end:block.offset+node.__spaces+4}],inputType:"taskToggle"}}, {editor});
     editor.update(() => {
       const node = $getNearestNodeFromDOMNode(button);
       if (node instanceof TaskMarkdownNode) {
@@ -674,6 +793,7 @@ export function createNoteEditor(element: HTMLElement, options: {
 
   // Shared operation for toolbar and slash acceptance, inside one history edit.
   function applyFormat(kind: string) {
+    captureSourceIntent("format",undefined,!["bold","italic","code"].includes(kind));
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) return;
     if (kind === "bold" || kind === "italic" || kind === "code") editor.dispatchCommand(FORMAT_TEXT_COMMAND, kind);
@@ -683,7 +803,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       selection.setFormat(0);
     }
   }
-  cleanups.push(installSlashCommands(editor, element, applyFormat));
+  cleanups.push(installSlashCommands(editor, element, applyFormat,()=>captureSourceIntent("slash",undefined,true)));
   let highlightTimer: number | undefined;
   type PeerCursor = { actor: string; principalId?: string; clientId?: string; name: string; kind: "human" | "agent"; activity?: string; leaseExpiresAt?: number; anchor?: number; focus?: number };
   let peerCursors: PeerCursor[] = [];
@@ -785,6 +905,7 @@ export function createNoteEditor(element: HTMLElement, options: {
         }
         return null;
       };
+      const labels:PeerLabel[]=[];
       for (const peer of peerCursors.slice(0, 64)) {
         if (peer.leaseExpiresAt !== undefined && peer.leaseExpiresAt <= Date.now() || peer.anchor === undefined || peer.focus === undefined) continue;
         const anchor = project(peer.anchor), focus = project(peer.focus); if (!anchor || !focus) continue;
@@ -814,10 +935,11 @@ export function createNoteEditor(element: HTMLElement, options: {
             const label = element.ownerDocument.createElement("span"); label.textContent = appearance.label + " · " + appearance.activity;
             label.dataset.collaborationLabel = "true"; label.dataset.collaborationKind = peer.kind;
             label.style.cssText = `position:absolute;left:${caret.left}px;top:${Math.max(bounds.top, caret.top - 16)}px;max-width:${Math.min(180,bounds.right-bounds.left)}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:10px system-ui;background:${appearance.color};color:white;padding:1px 3px;border-radius:3px;box-sizing:border-box`;
-            cursorLayer.append(label); label.style.left = Math.max(bounds.left, Math.min(caret.left, bounds.right - label.getBoundingClientRect().width)) + "px";
+            cursorLayer.append(label);labels.push({element:label,bounds}); label.style.left = Math.max(bounds.left, Math.min(caret.left, bounds.right - label.getBoundingClientRect().width)) + "px";
           }
         } catch { /* Invalidated coordinates remain awareness-only until refreshed. */ }
       }
+      placePeerLabels(labels);
     });
   }
   let cursorFrame = 0;
@@ -829,6 +951,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   cleanups.push(() => { element.ownerDocument.removeEventListener("scroll", cursorLayout, true); win.removeEventListener("resize", cursorLayout); cursorResize.disconnect(); win.cancelAnimationFrame(cursorFrame); cursorLayer.remove(); });
   const api = {
     getMarkdown: () => markdown,
+    takeCollaborativeIntent(before:string,after:string) {const intent=lastSourceIntent;lastSourceIntent=undefined;return intent?.before===before&&intent.after===after?intent:null;},
     isComposing: () => editor.isComposing(),
     setCollaborativeNewline(value: "\n" | "\r\n" | null) { sourceNewline = value; },
     collaborativeSelection(): { anchor: number; focus: number } | null {
@@ -844,7 +967,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     subscribeSelection(listener: () => void) { referenceListeners.add(listener); const blur = () => listener(); element.addEventListener("blur", blur); return () => {referenceListeners.delete(listener); element.removeEventListener("blur", blur);}; },
     setMarkdown(value: string, reset = false) {
       if (!reset && value === markdown && editor.getEditorState().isEmpty() === false) return;
-      taskFeedback.clear();
+      taskFeedback.clear();capturedIntent=undefined;continuationIntent=undefined;lastSourceIntent=undefined;
       sourceNewline = detectNewline(value);
       loading = true;
       redoPending = false;
@@ -867,8 +990,8 @@ export function createNoteEditor(element: HTMLElement, options: {
     // Remote source changes reconcile only affected subtrees. Unchanged blocks
     // retain their Lexical keys, DOM, reference state and selection identity.
     // No remote state enters the local history stack.
-    applyCollaborativeMarkdown(value: string, presentation: { highlight?: boolean } = {}): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string } {
-      if (value === markdown) {
+    applyCollaborativeMarkdown(value: string, presentation: { highlight?: boolean;operationSequence?: readonly (readonly SourceSplice[])[] } = {}): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string } {
+      if (value === markdown && !presentation.operationSequence?.some(operations=>operations.length)) {
         // A local edit already renders the acknowledged source. Refresh its
         // sidecar without replacing nodes so source cursor projection is exact.
         const clean = editor.getEditorState().read(() => $getRoot().getChildren().every((node) => sources.get(node.getKey())?.snapshot === snapshot(node)));
@@ -901,14 +1024,20 @@ export function createNoteEditor(element: HTMLElement, options: {
           const originalPoints = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => ({ key: point.key, offset: point.offset, type: point.type, text: point.getNode().getTextContent() })) : null;
           const points = $isRangeSelection(selection) ? [selection.anchor, selection.focus].map((point) => sourcePoint(point, oldBlocks)) : null;
           if (points?.some((point) => point === null)) { failure = "The active selection could not be mapped exactly; both source versions are retained"; return; }
-          const operations = sourceDifferences(previous, value);
-          const mapOffset = (offset: number, association: "left" | "right") => {
-            try { return transformSourcePosition(offset, operations, association); }
-            catch (error) {
-              if ((error as { code?: string }).code !== "position_deleted") throw error;
-              const removed = operations.find((operation) => operation.start < offset && offset < operation.start + operation.deleteCount);
-              return removed ? transformSourcePosition(removed.start, operations, association) : offset;
+          let operationSequence=presentation.operationSequence;
+          if(!operationSequence){
+            if(element.ownerDocument.activeElement===element && $isRangeSelection(selection)){failure="The incoming snapshot has no positional edit history. Review before continuing this selection.";return}
+            operationSequence=previous===value?[]:[[{start:0,deleteCount:previous.length,insert:value}]];
+          }
+          let verified=previous;for(const operations of operationSequence)verified=applySourceSplices(verified,operations);
+          if(verified!==value){failure="The incoming operations do not reproduce the supplied source. Both versions are retained.";return}
+          const mapOffset=(offset:number,association:"left"|"right")=>{
+            let position=offset;
+            for(const operations of operationSequence!){
+              try{position=transformSourcePosition(position,operations,association)}
+              catch(error){if((error as {code?:string}).code!=="position_deleted")throw error;const removed=operations.find(operation=>operation.start<position&&position<operation.start+operation.deleteCount);if(!removed)throw error;position=transformSourcePosition(removed.start,operations,association)}
             }
+            return position;
           };
           // A source-ordered match preserves repeated blocks deterministically.
           // Only blocks between surviving anchors are reconciled or replaced.
@@ -972,7 +1101,7 @@ export function createNoteEditor(element: HTMLElement, options: {
             const nextSelection = $createRangeSelection();
             [nextSelection.anchor, nextSelection.focus].forEach((point, i) => {
               const original = originalPoints![i], surviving = $getNodeByKey(original.key);
-              if (surviving?.isAttached() && surviving.getTextContent() === original.text) { point.set(original.key, original.offset, original.type); return; }
+              if (!presentation.operationSequence && surviving?.isAttached() && surviving.getTextContent() === original.text) { point.set(original.key, original.offset, original.type); return; }
               let remaining = Math.max(0, Math.min(value.length, mapOffset(points[i]!, points[0] === points[1] || points[i]! < points[1 - i]! ? "right" : "left"))), index = 0;
               while (index < incoming.length - 1 && remaining > incoming[index].length) { remaining -= incoming[index].length + 1; index++; }
               const block = chosen[index];
@@ -1101,6 +1230,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     focus(end = false) { editor.focus(undefined, { defaultSelection: end ? "rootEnd" : "rootStart" }); },
     insertReference(range: { selection: RangeSelection; value: string }, text: string) {
       if (!editor.isEditable() || range.value !== markdown) return false;
+      editor.getEditorState().read(()=>{const blocks=projectedBlocks(),selection=range.selection;const a=sourcePoint(selection.anchor,blocks),b=sourcePoint(selection.focus,blocks);if(a!==null&&b!==null)capturedIntent={before:markdown,ranges:[{start:Math.min(a,b),end:Math.max(a,b)}],inputType:"insertReference"}});
       editor.update(() => {
         $setSelection(range.selection.clone());
         const selection = $getSelection();
@@ -1118,7 +1248,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       editor.focus();
     },
     destroy() {
-      element.ownerDocument.defaultView!.clearTimeout(highlightTimer);
+      element.ownerDocument.defaultView!.clearTimeout(highlightTimer);element.ownerDocument.defaultView!.clearTimeout(continuationTimer);
       referenceListeners.clear(); compositionListeners.clear();
       cleanups.forEach((cleanup) => cleanup());
       editor.setRootElement(null);

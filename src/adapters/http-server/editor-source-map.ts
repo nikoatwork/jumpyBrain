@@ -6,7 +6,7 @@ import { IS_BOLD, IS_CODE, IS_ITALIC } from "lexical";
  * The complete rendered text AND format runs must agree before a map is used.
  */
 export interface EditorSourceMap {
-  spans: Array<{ start: number; end: number; from: number; to: number }>;
+  spans: Array<{ start: number; end: number; from: number; to: number; escaped?: boolean }>;
   contentStart: number; contentEnd: number; visibleLength: number;
 }
 export function markdownSourceMap(raw: string, visible: string, formats: ArrayLike<number>, options: { start?: number; end?: number; literal?: boolean } = {}): EditorSourceMap | null {
@@ -17,7 +17,7 @@ export function markdownSourceMap(raw: string, visible: string, formats: ArrayLi
   const mask = IS_BOLD | IS_ITALIC | IS_CODE;
   const normalized = raw.slice(start, end).replace(/\r(?=\n|$)/g, "");
   const literal = options.literal || normalized === visible;
-  const gap = (start: number, end: number) => { const previous = spans.at(-1); if (previous && previous.from === previous.to && previous.end === start) previous.end = end; else spans.push({ start, end, from: rendered, to: rendered }); };
+  const gap = (start: number, end: number, escaped = false) => { const previous = spans.at(-1); if (previous && !previous.escaped && !escaped && previous.from === previous.to && previous.end === start) previous.end = end; else spans.push({ start, end, from: rendered, to: rendered, ...(escaped?{escaped:true}:{}) }); };
   function emit(until: number, expected: number, checkFormat: boolean) {
     while (position < until) {
       if (raw[position] === "\r" && (raw[position + 1] === "\n" || position === end - 1)) { gap(position, position + 1); position++; continue; }
@@ -33,6 +33,13 @@ export function markdownSourceMap(raw: string, visible: string, formats: ArrayLi
   if (literal) {
     if (!emit(end, 0, false)) return null;
   } else while (position < end) {
+    // Lexical exports typed, not-yet-completed Markdown delimiters with an
+    // escape. The backslash has no glyph in this actual rich-text leaf.
+    if(raw[position]==="\\" && /[*_`~\\]/.test(raw[position+1]??"")){
+      gap(position,position+1,true);position++;
+      if(!emit(position+1,format,true))return null;
+      continue;
+    }
     if (raw.startsWith("[[", position)) {
       const close = raw.indexOf("]]", position + 2);
       if (close < 0 || close + 2 > end || !emit(close + 2, format, true)) return null;
@@ -71,6 +78,8 @@ export function markdownSourceMap(raw: string, visible: string, formats: ArrayLi
 export function visibleToSource(map: EditorSourceMap, position: number, association: "left" | "right" = "right"): number | null {
   if (!Number.isInteger(position) || position < 0 || position > map.visibleLength) return null;
   if (!map.visibleLength) return map.contentStart;
+  const escaped=map.spans.find(span=>span.escaped&&span.from===position);
+  if(escaped&&(association==="right"||position===0))return escaped.start;
   const text = map.spans.filter((span) => span.to > span.from);
   if (association === "left" && position > 0) {
     const span = text.find((span) => span.from < position && position <= span.to);

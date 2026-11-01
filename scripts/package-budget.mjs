@@ -3,7 +3,7 @@
 export const packageBudget = Object.freeze({
   archiveBytes: 1_450_000,
   unpackedBytes: 4_600_000,
-  runtimeBytes: 3_000_000,
+  runtimeBytes: 3_100_000,
   files: 660,
 });
 

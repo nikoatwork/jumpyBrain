@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createCollaborationEditor, sourceDifference, reconcileSource } from "../dist/adapters/http-server/collaboration-editor.js";
+import { createCollaborationEditor } from "../dist/adapters/http-server/collaboration-editor.js";
+import {sourceDifference,applySourceSplices,rebaseSourcePair} from "../dist/core/collaboration/source.js";
 import { collaborationClientId, createCollaborationDraftStore } from "../dist/adapters/http-server/collaboration-drafts.js";
 import { createCollaborationClient } from "../dist/adapters/http-server/collaboration-client.js";
 
@@ -13,13 +14,15 @@ test("source differences reconstruct UTF-16 edits without splitting emoji", () =
     assert.ok(!/^[\uDC00-\uDFFF]/.test(before.slice(diff.start + diff.deleteCount)), "end does not bisect surrogate");
   }
 });
-test("source reconciliation keeps disjoint edits, same-position insertions, and both versions on overlap", () => {
-  assert.deepEqual(reconcileSource("one two", "ONE two", "one TWO"), { body: "ONE TWO", conflict: false });
-  assert.deepEqual(reconcileSource("ab", "aLOCALb", "aREMOTEb"), { body: "aREMOTELOCALb", conflict: false });
-  assert.deepEqual(reconcileSource("ab", "aXXb", "aXXb"), { body: "aXXXXb", conflict: false }, "identical intentional inserts by different writers both survive");
-  assert.deepEqual(reconcileSource("alpha\nmiddle\nomega\n", "ALPHA\nmiddle\nOMEGA\n", "alpha\nMIDDLE\nomega\n"), {body:"ALPHA\nMIDDLE\nOMEGA\n",conflict:false}, "separate first and last edits never claim the unchanged middle");
-  assert.deepEqual(reconcileSource("text", "draft", "saved"), { body: "draft", conflict: true });
+test("explicit positional transactions keep disjoint edits and insertion ties and reject actual overlap", () => {
+  const merge=(base,local,remote)=>applySourceSplices(applySourceSplices(base,remote),rebaseSourcePair(base,local,remote).local);
+  assert.equal(merge("one two",[{start:0,deleteCount:3,insert:"ONE"}],[{start:4,deleteCount:3,insert:"TWO"}]),"ONE TWO");
+  assert.equal(merge("ab",[{start:1,deleteCount:0,insert:"LOCAL"}],[{start:1,deleteCount:0,insert:"REMOTE"}]),"aREMOTELOCALb");
+  assert.equal(merge("ab",[{start:1,deleteCount:0,insert:"XX"}],[{start:1,deleteCount:0,insert:"XX"}]),"aXXXXb","identical intentional inserts by different writers both survive");
+  assert.equal(merge("alpha\nmiddle\nomega\n",[{start:0,deleteCount:5,insert:"ALPHA"},{start:13,deleteCount:5,insert:"OMEGA"}],[{start:6,deleteCount:6,insert:"MIDDLE"}]),"ALPHA\nMIDDLE\nOMEGA\n","first and last source ranges never claim the unchanged middle");
+  assert.throws(()=>merge("text",[{start:0,deleteCount:4,insert:"draft"}],[{start:0,deleteCount:4,insert:"saved"}]),error=>error.code==="overlapping_edit");
 });
+function inputIntent(editor, value, operations) {editor.input(value,{before:editor.body,after:value,operations})}
 function memoryStorage() {
   const entries = new Map();
   return { get length() { return entries.size; }, key(index) { return [...entries.keys()][index] ?? null; }, getItem(key) { return entries.get(key) ?? null; }, setItem(key, value) { entries.set(key, value); }, removeItem(key) { entries.delete(key); } };
@@ -137,7 +140,7 @@ test("clean offline navigation succeeds while a real offline draft stays unpubli
     editor.connect(); await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(editor.state.status, "saved"); sockets[0].close(1012);
     assert.equal(editor.state.status, "offline"); assert.equal(await editor.flush(), true, "a saved document can be left while the backend is offline");
-    editor.input("Canonical body plus unpublished draft");
+    inputIntent(editor,"Canonical body plus unpublished draft",[{start:editor.body.length,deleteCount:0,insert:" plus unpublished draft"}]);
     assert.equal(editor.state.dirty, true); assert.equal(editor.state.durableDraft, true); assert.equal(await editor.flush(), false, "an actual offline draft still blocks publication and navigation");
   } finally { editor?.dispose(); globalThis.WebSocket = previous; }
 });
@@ -146,7 +149,7 @@ test("clean offline navigation succeeds while a real offline draft stays unpubli
 test("canonical title normalization preserves later local typing and real foreign conflicts", async () => {
   const previous = globalThis.WebSocket, sockets = [], heldTitles = [];
   let canonicalTitle = "Existing title", revision = 0;
-  const snapshot = () => ({ documentId: "note", epoch: "epoch", revision, prefix: "", file: "notes/note.md", body: "Canonical body", title: canonicalTitle, contentHash: "hash-" + revision, saved: true });
+  const snapshot = () => ({ documentId: "note", epoch: "epoch", revision, prefix: "", file: "notes/note.md", body: "Canonical body", title: canonicalTitle, contentHash: "hash-" + revision, saved: true,operation:{revision,start:0,deleteCount:0,splices:[]} });
   const receive = (socket, message) => socket.onmessage?.({ data: JSON.stringify(message) });
   const publish = (socket, title) => { canonicalTitle = title; revision++; receive(socket, { event: "document", documentId: "note", snapshot: snapshot() }); };
   class Socket {
@@ -171,14 +174,14 @@ test("canonical title normalization preserves later local typing and real foreig
     editor.inputTitle("  First submitted title  "); const firstFlush = editor.flush();
     assert.equal(heldTitles.length, 1);
     editor.inputTitle("Later local title");
-    publish(sockets[0], "First submitted title");
+    publish(sockets[0], "First submitted title");await new Promise(resolve=>setTimeout(resolve,0));
     assert.notEqual(editor.state.status, "conflict", "our normalized acknowledgement is not a foreign title conflict");
     assert.equal(editor.title, "Later local title", "an acknowledgement must not replace later local typing");
     receive(sockets[0], { id: heldTitles[0].id, ok: true, result: snapshot() });
     assert.equal(await firstFlush, true); assert.equal(editor.snapshot.title, "Later local title");
     editor.inputTitle("  My pending title  "); const conflictingFlush = editor.flush();
     assert.equal(heldTitles.length, 2);
-    publish(sockets[0], "A different writer's title");
+    publish(sockets[0], "A different writer's title");await new Promise(resolve=>setTimeout(resolve,0));
     assert.equal(editor.state.status, "conflict"); assert.equal(editor.title, "  My pending title  ");
     receive(sockets[0], { id: heldTitles[1].id, ok: false, error: { code: "title_conflict", message: "Another writer changed the title." } });
     assert.equal(await conflictingFlush, false); assert.equal(editor.snapshot.title, "A different writer's title");
@@ -204,7 +207,7 @@ test("older draft adoption preserves unique body/title/uncertainty and fails clo
     let body = "Canonical body";
     editor = createCollaborationEditor({ url: "ws://localhost/ws", ...scope, drafts, editor: { getMarkdown: () => body, applyCollaborativeMarkdown(next) { body = next; return { status: "applied" }; } } });
     editor.connect(); await new Promise((resolve) => setTimeout(resolve, 0));
-    body = "Unique current A body"; editor.input(body); editor.inputTitle("Unique current A title");
+    body = "Unique current A body"; inputIntent(editor,body,[{start:0,deleteCount:editor.body.length,insert:body}]); editor.inputTitle("Unique current A title");
     const pending = editor.flush(); sockets[0].close(1012); assert.equal(await pending, false);
     const originalA = drafts.read(scope).value; assert.ok(originalA.unconfirmed);
     denyWrites = true;
@@ -247,7 +250,7 @@ test("presence receipts confirm an in-flight batch without duplicating intent an
       if(frame.method==='edit'){
         assert.ok(Array.isArray(frame.params.operations));
         for(const operation of [...frame.params.operations].reverse())canonical=canonical.slice(0,operation.start)+operation.insert+canonical.slice(operation.start+operation.deleteCount);
-        revision++;heldOperation={operationId:frame.params.operationId};
+        revision++;heldOperation={operationId:frame.params.operationId,actor:'["writer","writer"]',revision,start:frame.params.operations[0]?.start??0,deleteCount:frame.params.operations[0]?.deleteCount??0,splices:frame.params.operations};
         if(revision===1)return; // Saved source will arrive through presence RPC.
       }
       respond(snapshot());
@@ -259,8 +262,8 @@ test("presence receipts confirm an in-flight batch without duplicating intent an
     let body=canonical;
     editor=createCollaborationEditor({url:"ws://localhost/ws",scope:"presence-confirmation",documentId:"note",clientId:"writer",drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=>body,collaborativeSelection:()=>({anchor:body.indexOf('middle')+2,focus:body.indexOf('middle')+2}),setCollaborativePresence:peers=>snapshots.push(peers),applyCollaborativeMarkdown(value){body=value;return {status:"applied"}}}});
     editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
-    body += " local";editor.input(body);const publication=editor.flush();
-    body=body.replace('alpha','PREFIX ALPHA').replace('omega','OMEGA');editor.input(body);
+    body += " local";inputIntent(editor,body,[{start:editor.body.length,deleteCount:0,insert:" local"}]);const publication=editor.flush();
+    body=body.replace('alpha','PREFIX ALPHA').replace('omega','OMEGA');inputIntent(editor,body,[{start:0,deleteCount:5,insert:'PREFIX ALPHA'},{start:editor.body.indexOf('omega'),deleteCount:5,insert:'OMEGA'}]);
     assert.ok(snapshots.at(-1).some(peer=>peer.actor==='["peer","other"]'&&peer.anchor===13),'peer presence is not hidden merely because local edits are pending');
     assert.equal(await publication,true);
     assert.equal(body,"PREFIX ALPHA\nmiddle\nOMEGA\n local");assert.equal(editor.snapshot.body,body);
@@ -287,9 +290,9 @@ test("reviewed retained restores guard body and title receipts and never relabel
               assert.equal(frame.params.expectedContentHash,'hash-'+revision,mode+' sends the reviewed hash at every mutation');assert.equal(frame.params.baseRevision,revision);
               if(frame.method==='edit')for(const operation of [...frame.params.operations].reverse())canonical=canonical.slice(0,operation.start)+operation.insert+canonical.slice(operation.start+operation.deleteCount);
               else title=frame.params.title;
-              revision++;const committed=snapshot({operationId:frame.params.operationId});
+              revision++;const committed=snapshot({operationId:frame.params.operationId,actor:'["writer","writer"]',revision,start:0,deleteCount:0,splices:frame.method==='edit'?frame.params.operations:[]});
               emit({event:'document',documentId:'note',snapshot:committed});
-              if(mode==='foreign-after-body'&&frame.method==='edit'){canonical='Foreign prefix '+canonical;revision++;emit({event:'document',documentId:'note',snapshot:snapshot({operationId:'foreign-operation'})})}
+              if(mode==='foreign-after-body'&&frame.method==='edit'){canonical='Foreign prefix '+canonical;revision++;emit({event:'document',documentId:'note',snapshot:snapshot({operationId:'foreign-operation',revision,start:0,deleteCount:0,splices:[{start:0,deleteCount:0,insert:'Foreign prefix '}]})})}
               emit({id:frame.id,ok:true,result:committed});return;
             }
             emit({id:frame.id,ok:true,result:snapshot()});
@@ -311,6 +314,83 @@ test("reviewed retained restores guard body and title receipts and never relabel
           assert.deepEqual(mutations.map(frame=>frame.method),mode==='title-only'?['title']:['edit','title']);
           if(mode==='large-reviewed-body')assert.deepEqual(mutations[0].params.operations,[{start:0,deleteCount:3000,insert:retained.body}],'only explicitly reviewed replacement may exceed the granular alignment budget');
         }
+      }finally{editor?.dispose()}
+    }
+  }finally{globalThis.WebSocket=previous}
+});
+
+test("same-byte positional input is published once and its delivered receipt cannot replay at composition end",async()=>{
+  const previous=globalThis.WebSocket,frames=[];let revision=0,last,compositionEnd;
+  const snapshot=operation=>({documentId:'note',epoch:'epoch',revision,body:'aaaa',title:'Title',contentHash:'hash-'+revision,saved:true,operation});
+  class Socket{static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;constructor(){queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}send(raw){const frame=JSON.parse(raw);frames.push(frame);queueMicrotask(()=>{const result=frame.method==='hello'?{protocol:2,principal:{id:'writer',role:'writer'}}:frame.method==='edit'?(revision++,snapshot({actor:'["writer","tab"]',operationId:frame.params.operationId,revision,start:0,deleteCount:1,splices:frame.params.operations})):snapshot();this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result})})})}close(){this.readyState=3;this.onclose?.({code:1000})}}
+  globalThis.WebSocket=Socket;let editor;
+  try{
+    editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'same-byte-once',documentId:'note',clientId:'tab',drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=> 'aaaa',applyCollaborativeMarkdown(){return {status:'unchanged'}},takeCollaborativeIntent(){const receipt=last;last=undefined;return receipt??null},subscribeCompositionEnd(listener){compositionEnd=listener;return()=>{}}}});
+    editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
+    last={before:'aaaa',after:'aaaa',operations:[{start:0,deleteCount:1,insert:'a'}]};editor.input('aaaa',last);
+    assert.equal(last,undefined,'supplied metadata still consumes the single editor receipt');assert.equal(editor.state.dirty,true,'equal bytes do not erase a logical replacement');
+    assert.equal(await editor.flush(),true);assert.equal(revision,1);compositionEnd();assert.equal(await editor.flush(),true);assert.equal(frames.filter(frame=>frame.method==='edit').length,1);
+  }finally{editor?.dispose();globalThis.WebSocket=previous}
+});
+
+test("unproven input remains a durable private draft and never becomes a guessed mutation",async()=>{
+  const previous=globalThis.WebSocket,frames=[];
+  class Socket{static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;constructor(){queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}send(raw){const frame=JSON.parse(raw);frames.push(frame);queueMicrotask(()=>this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result:frame.method==='hello'?{protocol:2,principal:{id:'writer',role:'writer'}}:{documentId:'note',epoch:'epoch',revision:0,body:'aaaa',title:'Title',contentHash:'hash',saved:true}})}))}close(){this.readyState=3;this.onclose?.({code:1000})}}
+  globalThis.WebSocket=Socket;let editor;const drafts=createCollaborationDraftStore(memoryStorage());
+  try{
+    let body='aaaa';editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'unproven',documentId:'note',clientId:'tab',drafts,editor:{getMarkdown:()=>body,applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
+    body='aaa';editor.input(body);assert.equal(editor.state.status,'conflict');assert.equal(await editor.flush(),false);assert.equal(editor.state.durableDraft,true);assert.equal(frames.filter(frame=>frame.method==='edit').length,0);assert.equal(drafts.read({scope:'unproven',principalId:'writer',documentId:'note',clientId:'tab'}).value.body,'aaa');assert.match(editor.state.message,/no verified positional edit range/);
+    assert.equal(await editor.resolveConflict('saved'),true);assert.equal(body,'aaaa');assert.equal(editor.state.status,'saved');
+  }finally{editor?.dispose();globalThis.WebSocket=previous}
+});
+
+test("private Undo and Redo retain their actual ranges across a disjoint peer edit",async()=>{
+  const previous=globalThis.WebSocket,frames=[];let socket,canonical='aa',revision=0;
+  const snapshot=operation=>({documentId:'note',epoch:'epoch',revision,body:canonical,title:'Title',contentHash:'hash-'+revision,saved:true,operation});
+  class Socket{static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;constructor(){socket=this;queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}send(raw){const frame=JSON.parse(raw);frames.push(frame);queueMicrotask(()=>{let operation;if(frame.method==='edit'){for(const op of [...frame.params.operations].reverse())canonical=canonical.slice(0,op.start)+op.insert+canonical.slice(op.start+op.deleteCount);revision++;operation={actor:'["writer","tab"]',operationId:frame.params.operationId,revision,start:0,deleteCount:0,splices:frame.params.operations}}this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result:frame.method==='hello'?{protocol:2,principal:{id:'writer',role:'writer'}}:snapshot(operation)})})})}close(){this.readyState=3;this.onclose?.({code:1000})}}
+  globalThis.WebSocket=Socket;let editor;
+  try{
+    let body='aa';editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'private-history',documentId:'note',clientId:'tab',drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=>body,applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
+    body='aQa';inputIntent(editor,body,[{start:1,deleteCount:0,insert:'Q'}]);await editor.undo();assert.equal(body,'aa');assert.equal(frames.filter(frame=>frame.method==='edit').length,0,'the pending input was undone before publication');
+    canonical='Xaa';revision++;socket.onmessage({data:JSON.stringify({event:'document',documentId:'note',snapshot:snapshot({actor:'peer',operationId:'peer-prefix',revision,start:0,deleteCount:0,splices:[{start:0,deleteCount:0,insert:'X'}]})})});await new Promise(resolve=>setTimeout(resolve,0));assert.equal(body,'Xaa');
+    await editor.redo();assert.equal(body,'XaQa');assert.equal(await editor.flush(),true);assert.equal(canonical,'XaQa');assert.deepEqual(frames.find(frame=>frame.method==='edit').params.operations,[{start:2,deleteCount:0,insert:'Q'}]);assert.equal(frames.filter(frame=>frame.method==='redo').length,0,'a private Redo cannot accidentally target older server history');
+  }finally{editor?.dispose();globalThis.WebSocket=previous}
+});
+
+test("a new epoch with changed source cannot retarget a clean old caret; identical-source reconnect stays clean",async()=>{
+  const previous=globalThis.WebSocket;
+  try{
+    for(const changed of[false,true]){
+      let epoch='old-epoch',canonical='aaaa',socket;const frames=[];
+      class Socket{static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;constructor(){socket=this;queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}send(raw){const frame=JSON.parse(raw);frames.push(frame);queueMicrotask(()=>this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result:frame.method==='hello'?{protocol:2,principal:{id:'writer',role:'writer'}}:{documentId:'note',epoch,revision:0,body:canonical,title:'Title',contentHash:'hash-'+epoch,saved:true}})}))}close(code=1000){this.readyState=3;this.onclose?.({code})}}
+      globalThis.WebSocket=Socket;let editor;
+      try{
+        let body='aaaa';editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'epoch-source-'+changed,documentId:'note',clientId:'tab',drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=>body,collaborativeSelection:()=>({anchor:2,focus:2}),applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));assert.equal(editor.state.status,'saved');
+        socket.close(1012);epoch='new-epoch';canonical=changed?'aaaaa':'aaaa';editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
+        if(changed){assert.equal(editor.state.status,'conflict');assert.equal(body,'aaaa','unknown epoch history cannot move the old caret by a fabricated replacement');assert.equal(editor.snapshot.body,'aaaaa');body='aaQaa';inputIntent(editor,body,[{start:2,deleteCount:0,insert:'Q'}]);assert.equal(await editor.flush(),false);assert.equal(frames.filter(frame=>frame.method==='edit').length,0);assert.equal(canonical,'aaaaa');assert.equal(editor.state.durableDraft,true)}
+        else{assert.equal(editor.state.status,'saved');assert.equal(editor.snapshot.epoch,'new-epoch');assert.equal(body,'aaaa');assert.equal(await editor.flush(),true)}
+      }finally{editor?.dispose()}
+    }
+  }finally{globalThis.WebSocket=previous}
+});
+
+test("readers can load a healthy saved version without a privileged resync, while unsafe source keeps their draft",async()=>{
+  const previous=globalThis.WebSocket;
+  try{
+    for(const unsafe of[false,true]){
+      const frames=[];let recovery=false;
+      const snapshot=()=>({documentId:'note',epoch:'epoch',revision:0,body:'Canonical body',title:'Title',contentHash:'hash',saved:!(recovery&&unsafe),...(recovery&&unsafe?{conflict:{message:'Unsafe external source'}}:{})});
+      class Socket{static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;constructor(){queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}send(raw){const frame=JSON.parse(raw);frames.push(frame);queueMicrotask(()=>this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result:frame.method==='hello'?{protocol:2,principal:{id:'reader',role:'reader'}}:snapshot()})}))}close(){this.readyState=3;this.onclose?.({code:1000})}}
+      globalThis.WebSocket=Socket;let editor;
+      try{
+        let body='';const scope='reader-recovery-'+unsafe;
+        editor=createCollaborationEditor({url:'ws://localhost/ws',scope,documentId:'note',clientId:'reader-tab',drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=>body,applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));assert.equal(editor.state.status,'readonly');
+        assert.equal(editor.recoverDraft({version:2,scope,principalId:'reader',documentId:'note',clientId:'older-tab',epoch:'epoch',baseRevision:0,baseBody:'Canonical body',body:'Private recovered draft',updatedAt:1}),true);assert.equal(body,'Private recovered draft');recovery=true;
+        assert.equal(await editor.resolveConflict('saved'),!unsafe);
+        if(unsafe){assert.equal(body,'Private recovered draft');assert.equal(editor.state.status,'conflict');assert.match(editor.state.message,/writer must resolve/);assert.equal(editor.state.durableDraft,true)}
+        else{assert.equal(body,'Canonical body');assert.equal(editor.state.status,'readonly')}
+        assert.equal(frames.filter(frame=>['resync','edit','title','undo','redo'].includes(frame.method)).length,0,'read-only recovery makes no privileged or canonical mutation request');
+        assert.ok(frames.filter(frame=>frame.method==='open').length>=2,'the reader explicitly rereads the current saved version');
       }finally{editor?.dispose()}
     }
   }finally{globalThis.WebSocket=previous}

@@ -168,7 +168,7 @@ ${noteOutlineStyles}
     }
     #note-presence { display: flex; gap: var(--space-2); flex-wrap: wrap; max-width: 100%; }
     #note-presence[hidden] { display: none; }
-    .note-participant { border-left: 3px solid var(--participant-color); padding-left: var(--space-2); overflow: hidden; text-overflow: ellipsis; max-width: 240px; white-space: nowrap; color: var(--ink-soft); font-size: var(--text-caption); }
+    .note-participant { --participant-color: var(--ink-soft); border-left: 3px solid var(--participant-color); padding-left: var(--space-2); overflow: hidden; text-overflow: ellipsis; max-width: 240px; white-space: nowrap; color: var(--ink-soft); font-size: var(--text-caption); }
     #note-external-state { color: var(--ink-soft); font-size: var(--text-caption); }
     #note-editor .editor-inline-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; background: var(--control-fill); border-radius: var(--radius-sm); padding: 0 var(--space-1); }
     #note-editor .markdown-literal code, #note-editor .markdown-literal .editor-inline-code, #note-editor .markdown-code-block .editor-inline-code, #note-editor .markdown-reference { font: inherit; background: transparent; padding: 0; border-radius: 0; }
@@ -1625,7 +1625,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
   });
   editor.collaboration = collaboration;
   editor.state.autoSaveBlocked = true;
-  editor.input = (body) => {editor.state.draft = body; editor.state.draftRevision++; collaboration.input(body);};
+  editor.input = (body, intent) => {editor.state.draft = body; editor.state.draftRevision++; collaboration.input(body, intent);};
   editor.inputTitle = (title) => {editor.state.title = title; collaboration.inputTitle(title); syncEditorUi(editor.state);};
   editor.flush = async () => collaboration.flush();
   editor.startSave = editor.flush;

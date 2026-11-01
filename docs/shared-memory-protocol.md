@@ -919,7 +919,7 @@ snapshots. Epoch/revision identify operation history; contentHash identifies
 canonical bytes. Mutations acknowledge only after publication. Unknown versions,
 expired bases, bounded capacity and ambiguous overlaps fail explicitly.
 
-Methods include open/close/edit/undo/redo/presence/resync/title/recovery.read and stream.start,
+Methods include open/close/edit/undo/redo/presence/resync/title/recovery.read/history.read and stream.start,
 stream.chunk, stream.status, stream.finish, stream.cancel. Stream sequence starts
 at0; duplicate chunks must match, gaps fail, completion differs from cancellation.
 HTTP readers and WS readers cannot publish. See the typed core/app/live modules
@@ -979,3 +979,49 @@ epoch/revision-guarded body/title operations. Reviewed edits additionally requir
 publication queue; they never rebase a whole-version restore across a new save.
 The operation cannot replace protected document
 identity/frontmatter through a recovery shortcut. Readers cannot restore.
+
+### Exact operation history
+
+Small publication receipts expose `operation.revision` and exact public
+`operation.splices:[{start,deleteCount,insert}]`. Splice coordinates refer to the
+source immediately before that revision, including byte-identical transactions;
+metadata checkpoints have an empty source splice list. A before/after text diff
+cannot identify which occurrence of repeated text was edited. Clients preserve
+editor transaction provenance and apply actual authoritative splices when moving
+selections or pending operations through time.
+
+A missing/oversized receipt or multi-revision snapshot gap requires authenticated
+`history.read` after opening the document. Parameters are `documentId`, `clientId`,
+`epoch`, `fromRevision` and optional `toRevision` (defaults to the current
+revision). The lower bound is exclusive and upper bound inclusive. The result repeats that scope/range and returns contiguous
+`operations:[{revision,actor,operationId,splices}]` in actual publication order.
+Readers may inspect history; credentials are rechecked like other WS methods.
+Verified Undo/Redo operations may include
+`inverseOf:{actor,operationId,revision}` identifying their actual causal source
+operation. This identity is copied from the model, never inferred from equal
+bytes or accepted from an ordinary edit request. Clients can prove inverse
+cancellation while retaining distinct intentional equal-byte edits. No removed
+strings or private undo stacks are returned. Ranges are bounded to
+128 revisions and the live response byte budget; they never silently truncate.
+Wrong epochs, expired/gapped history, future revisions and oversized responses
+fail with `epoch_changed`, `history_expired`, `invalid_revision` or `history_limit`.
+Clients retain the draft and enter explicit recovery when exact history cannot be
+proved, rather than inferring positional intent from snapshots. Backend restart
+creates a new epoch; history is not a second canonical content store.
+
+Raw-file observations have no editor transaction/read stamp. When repeated source
+admits several equivalent alignments, the backend expands the uncertain range
+and marks its public splice `ambiguous:true`. These are conservative inferred
+adoptions of canonical raw bytes, not a claim about the raw writer's cursor.
+Unprovable cursor/pending origins require explicit recovery (`ambiguous_source`);
+origins whose mapping is identical across the alignments remain usable, including
+right-associated EOF appends and unique source outside the affected range. A
+missing selection in a presence packet clears the old cursor. Typed client edits
+cannot declare ambiguous provenance or inverse identities themselves.
+
+Actual observed content replacements/deletions preserve the prior acknowledged
+and observed versions. A conservative positional envelope for a pure insertion
+does not by itself mean content was removed and does not create a destructive
+recovery copy. If bounded alignment fails, the fallback marks the whole observed
+replacement as ambiguous. Positions pause without silently resurrecting source
+or resetting unrelated history merely because one range was ambiguous.

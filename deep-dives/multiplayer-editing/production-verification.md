@@ -13,9 +13,9 @@ The original M0 baseline remains immutable. Its manifest SHA-256 is
 the original contract SHA-256 is
 `27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a`.
 The separately reviewed [contract delta](production-contract-delta.json) pins
-15 exact old/new assertion or harness changes and their behavioral reasons.
+17 exact old/new assertion or harness changes and their behavioral reasons.
 Its SHA-256 is
-`9e35ecad0ab63f862cd40a27b58d31955c00e73cba31d464dee3d2d934a954f0`.
+`891b30e3fa49fa85baadd333a717fd7271c42f87ca8104e785422c1f1c77c4d3`.
 The earlier accepted seven-check integration used the prior delta pin
 `6da314fd9db7a891750db0f04e7351226b804c090305ee5b3ca585e97177645e`.
 An approved transport or timing change does not replace canonical-content,
@@ -28,10 +28,17 @@ tracked file, assertion, tested runtime and target must remain unchanged during
 verification. Linux receipts need independent digest pins, exact current source
 maps, preserved logs, zero-skip TAP and byte-identical built runtimes. The signed
 desktop must contain those same runtime bytes and the current shell modules.
-The contract additionally pins 36 production scenario assertion files, including
+The contract additionally pins production scenario assertion files, including
 the Astra counterexamples and browser/native drivers. Removing or weakening
 them requires a separately reviewed contract and new external pin; a still-high
 test count cannot accept that change silently.
+
+The current candidate contract pins 45 assertion/helper files, SHA-256
+`6bc0a05ea040d6dea9a1bda29aef1b50b19ad5682d589ea7818fd8a45809e3d8`.
+It additionally protects actual positional-intent and native-gateway cases,
+the Linux runner, and package budget/manifest helpers. The measured runtime
+artifact ceiling is reviewed separately in [build footprint](../../docs/build-footprint.md);
+all canonical latency, memory, history and queue limits remain fixed.
 
 After the original deterministic suite and four protected browser flows, the
 production gate requires all of these:
@@ -57,6 +64,24 @@ editor and composed checks. Workload limits are fixed before acceptance:
 canonical p95 at most 1,000 ms, peak RSS at most 512 MiB, retained history and
 queued payloads each at most 32 MiB, and each RPC at most 10 seconds. These are
 measurements on the recorded machine, not universal capacity guarantees.
+
+Each stage is assessed by behavior rather than test count:
+
+| Scenario | Required oracle surfaces |
+| --- | --- |
+| L01 root ownership | Real competing starts/path aliases, lifecycle and gateway control tests; packaged close/crash/reopen. |
+| L02 ordered state | Snapshot handoff, exact bounded operation history, duplicate/gap/epoch tests and browser held-ack/reconnect cases. |
+| L03 human intent | Real keyboard ranges in repeated text, next-keystroke caret intent, granular held edits, source fidelity, actor undo and visible cursor geometry. |
+| L04 streamed agents | CLI actual read-stamp checks, bounded stream lifecycle and repeated two-browser/CLI composed trials. |
+| L05 raw files | Stable/partial/atomic/deleted/recreated file fixtures, publisher failure injection and authenticated retained-version UI. |
+| L06 durable Saved | Publication faults/restarts, uncertain-ack browser recovery, retained private versions and packaged native recovery. |
+| L07 access/scope | Real authenticated HTTP/WS/TLS, reader/revocation, invalid origins, gateway brain/credential switches and obsolete handshake rejection. |
+| L08 bounded work | Frame/queue/history/stream limits, slow consumers, both fixed workload budgets and resource cleanup. |
+| L09 upgrade/legacy writes | Serialized guarded HTTP/live races, extracted-package old-to-new preservation/retry/rollback and same-ID root isolation. |
+
+The exact new assertion files are pinned in the production contract. The frozen
+M0 corpus covers P01–P12; deliberate internal-beta wire/lifetime changes require
+the separately pinned reviewed delta, while canonical outcomes remain protected.
 
 ## Intermediate accepted integration
 
@@ -110,6 +135,35 @@ stable person appearance versus tab identity, agent activity anchors and
 discoverable retained raw-file versions. These are required implementation and
 test work; they are not accepted architectural limitations. The final clean
 integration gate and follow-up review must include their counterexamples.
+
+The follow-up review at `12f2a6130658a55486076acefc23dab912c0978b`
+verified the original read-stamp, fence-selection, undo and presence fixes, but
+reproduced two further positional-intent failures in repeated text: deleting
+the first character of `aaaa` sent offset 3, and an explicit remote insertion
+at offset 0 failed to advance a caret at offset 2. Both could finish Saved with
+the wrong intended result. Evidence is retained in `.local-pack/astra-followup/`.
+Exact source reconstruction is insufficient: connected editor operations must
+retain actual positions through batching, transport and selection updates.
+These remain required blockers until their real-browser reproductions pass.
+
+The same candidate's full regression run stopped with 1,720 passes and two
+failures out of 1,722 tests, with no skipped/cancelled/TODO cases. One was an
+undefined participant CSS default; the other was fixture teardown racing its
+new persistent backend. The latter must drain the disposable owner before
+removing its brain, preserving the original onboarding assertions. No production
+checks ran after these failures. Its successful 139-test Linux receipts on each
+Node version do not override the failed full gate.
+
+The subsequent real packaged native input preflight at build
+`490497f765e7e1c4` found another integration defect: the companion gateway's
+method allowlist rejected the new `history.read` request during IME/CLI
+reconciliation. The browser/server proof alone could not cover that native
+boundary. Its failed app, log and sanitized report are retained separately in
+`.local-pack/astra-followup/`. The fix must classify history and retained-version
+reads correctly, keep Redo and conflict-resetting resync writer-only, preserve
+generation fences, and pass the matching repackaged native proof. Read-only
+client recovery uses a healthy `open` snapshot, never privileged resync, and
+retains the private draft when the source is unsafe.
 
 ## Reproduction prerequisites
 

@@ -28,6 +28,7 @@ test("inline source maps retain plain, formatted, code, nested, reference and Un
   verify("***both***", "both", new Uint8Array(4).fill(IS_BOLD|IS_ITALIC), {}, [[3,0],[5,2],[10,4]]);
   verify("a `*literal*` 🐐", "a *literal* 🐐", [0,0,...new Uint8Array(9).fill(IS_CODE),0,0,0], {}, [[3,2],[7,6],[13,11]]);
   verify("**bold *nested* end**", "bold nested end", [...new Uint8Array(5).fill(IS_BOLD),...new Uint8Array(6).fill(IS_BOLD|IS_ITALIC),...new Uint8Array(4).fill(IS_BOLD)], {}, [[2,0],[8,5],[13,10],[20,15]]);
+  verify("\\*literal\\*", "*literal*", new Uint8Array(9), {}, [[0,0],[1,0],[2,1],[11,9]]);
   const reference = "a [[Literal ** title]] β";
   verify(reference, reference, new Uint8Array(reference.length), {}, [[14,14]]);
   verify("- [ ] **task**", "task", new Uint8Array(4).fill(IS_BOLD), {start:6}, [[8,0],[10,2]]);

@@ -23,7 +23,7 @@
 
 ## Non-responsibilities
 
-No alternate memory engine/editor, implicit sync or remote writes, CLI/agent retargeting, public signing/notarization, unattended updates, or crash-persistent drafts. Node/QMD are selected by the managed installer and recorded in native configuration; standalone setup still needs provisioned tools. The bundled runtime is the same app code with its own release lifecycle; CLI-only installation does not need Electron or a Mac app.
+The desktop uses the shared engine/editor and explicit configured write permissions. It adds no implicit cross-brain sync, CLI/agent retargeting, public signing/notarization or unattended updates. Recoverable drafts belong to the shared editor and its scoped browser storage; clearing app/site data removes them. Node/QMD are selected by the managed installer and recorded in native configuration; standalone setup still needs provisioned tools. The bundled runtime is the same app code with its own release lifecycle; CLI-only installation does not need Electron or a Mac app.
 
 ## Executable extensions
 

@@ -380,6 +380,10 @@ export function createLiveServer(options: LiveServerOptions) {
           send({ id, ok: true, result: await options.hub.readRecovery(params, current) });
           return;
         }
+        if (method === "history.read") {
+          send({ id, ok: true, result: await options.hub.readHistory(params, current) });
+          return;
+        }
         if (!methods.has(method))
           throw new CollaborationError("unknown_method");
         send({

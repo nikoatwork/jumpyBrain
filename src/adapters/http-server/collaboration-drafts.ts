@@ -1,8 +1,10 @@
+import {applySourceSplices,type SourceSplice} from "../../core/collaboration/source.js";
 // Recovery records contain source and scope identifiers, never credentials.
 export interface CollaborationDraft {
   version: 2; scope: string; principalId: string; documentId: string; clientId: string;
   epoch: string; baseRevision: number; baseBody: string; body: string; updatedAt: number;
   title?: string; baseTitle?: string;
+  operations?: SourceSplice[];
   archivedFromClientId?: string;
   unconfirmed?: { operationId: string; submittedBody: string };
 }
@@ -12,6 +14,7 @@ const keyFor = (record: Pick<CollaborationDraft, "scope" | "principalId" | "docu
 function valid(value: unknown): value is CollaborationDraft {
   if (!value || typeof value !== "object") return false;
   const record = value as CollaborationDraft;
+  if(record.operations!==undefined){try{if(!Array.isArray(record.operations)||applySourceSplices(record.baseBody,record.operations)!==record.body)return false}catch{return false}}
   return record.version === 2 && [record.scope, record.principalId, record.documentId, record.clientId, record.epoch, record.baseBody, record.body].every((part) => typeof part === "string") && (record.title === undefined || typeof record.title === "string") && (record.baseTitle === undefined || typeof record.baseTitle === "string") && (record.archivedFromClientId === undefined || typeof record.archivedFromClientId === "string") && Number.isSafeInteger(record.baseRevision) && typeof record.updatedAt === "number" && record.body.length <= 2 * 1024 * 1024 && record.baseBody.length <= 2 * 1024 * 1024;
 }
 export function createCollaborationDraftStore(storage?: Storage) {

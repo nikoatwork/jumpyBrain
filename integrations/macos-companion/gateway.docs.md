@@ -92,8 +92,23 @@ File explorer `POST /memories/all/files/operations` forwards explicit folder cre
 Local destinations join `ensureRootBackend`; switching or closing the gateway
 does not kill another app/CLI's backend. The `/ws` bridge enforces the existing
 Host/Origin/cookie boundary, tab registration, generation and write approval.
-It substitutes the native credential in the hello frame and pins each admitted
-operation until acknowledgement. A generation change closes old subscriptions.
+It substitutes the native credential in the hello frame and pins admitted
+mutations until acknowledgement; observational calls validate scope without
+leaving a mutation/save barrier. A generation change closes old subscriptions.
 Unconfirmed upstream work retains admission fences instead of claiming a safe
 switch. The packaged native helper includes live-gateway and the runtime vendors
 its WebSocket dependency; neither relies on development node_modules.
+
+The live bridge explicitly classifies source RPCs. `open`, `close`, `ping`,
+`presence`, `stream.status`, `history.read` and `recovery.read` are observational.
+They validate the registered tab/generation and stay on their captured upstream,
+but release admission immediately so a delayed read or failed hello cannot leave
+an uncertain mutation/save barrier. Replies from a retired generation are dropped.
+`edit`, `undo`, `redo`, `title`, stream start/chunk/cancel/finish, and `resync`
+require profile write approval and retain admission until acknowledgement.
+`resync` remains writer-only here because an elevated substituted upstream
+credential could reset a conflicted session/epoch even though a healthy resync
+is observational. Read-only profiles cannot gain that capability. Unknown RPCs
+remain denied. Interrupted dispatched writes retain their uncertain admission;
+read/hello disconnects do not. Focused actual-cookie/WS/upstream and switch-drain
+coverage: `node --test test/companion-live-gateway.test.js`.

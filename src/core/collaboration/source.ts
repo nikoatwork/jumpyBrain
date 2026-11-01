@@ -8,6 +8,8 @@ export interface SourceSplice {
   start: number;
   deleteCount: number;
   insert: string;
+  /** Inferred raw-file alignment cannot identify the original source in this envelope. */
+  ambiguous?: true;
 }
 export interface AppliedSourceSplice extends SourceSplice {
   removed: string;
@@ -39,6 +41,7 @@ export function validateSourceSplices(
       !Number.isSafeInteger(operation.deleteCount) ||
       operation.deleteCount < 0 ||
       typeof operation.insert !== "string" ||
+      (operation.ambiguous !== undefined && operation.ambiguous !== true) ||
       !isSourceText(operation.insert)
     )
       fail("invalid_patch");
@@ -77,6 +80,7 @@ export function applySourceSplices(
 export function rebaseSourceSplices(
   local: readonly SourceSplice[],
   remote: readonly SourceSplice[],
+  insertionOrder: "after" | "before" = "after",
 ): SourceSplice[] {
   return local.map((operation) => {
     let start = operation.start;
@@ -85,11 +89,22 @@ export function rebaseSourceSplices(
         end = start + operation.deleteCount,
         otherEnd = other.start + other.deleteCount;
       if (
+        other.ambiguous &&
+        other.deleteCount > 0 &&
+        (operation.deleteCount === 0
+          ? start >= other.start && start < otherEnd
+          : start < otherEnd && end > other.start)
+      )
+        fail(
+          "ambiguous_source",
+          "An observed raw-file change lost the source identity at this position. Review the retained draft.",
+        );
+      if (
         !other.deleteCount &&
         !operation.deleteCount &&
         start === other.start
       ) {
-        start += other.insert.length;
+        if (insertionOrder === "after") start += other.insert.length;
         continue;
       }
       if (otherEnd <= start) {
@@ -105,6 +120,144 @@ export function rebaseSourceSplices(
     return { ...operation, start };
   });
 }
+/** Both sides retain their actual positions; canonical remote insertions win ties. */
+export function rebaseSourcePair(
+  base: string,
+  local: readonly SourceSplice[],
+  remote: readonly SourceSplice[],
+): { local: SourceSplice[]; remote: SourceSplice[] } {
+  validateSourceSplices(base, local);
+  validateSourceSplices(base, remote);
+  const localBody = applySourceSplices(base, local),
+    remoteBody = applySourceSplices(base, remote),
+    afterRemote = rebaseSourceSplices(local, remote),
+    afterLocal = rebaseSourceSplices(remote, local, "before");
+  if (
+    applySourceSplices(remoteBody, afterRemote) !==
+    applySourceSplices(localBody, afterLocal)
+  )
+    fail(
+      "provenance_mismatch",
+      "The actual source transactions cannot be reconciled.",
+    );
+  return { local: afterRemote, remote: afterLocal };
+}
+export interface SourceCompositionOptions {
+  maxBytes?: number;
+  maxTransactions?: number;
+  maxOperations?: number;
+  maxPieces?: number;
+  maxWork?: number;
+}
+/** Compose actual sequential transactions with source-origin pieces, never a text diff. */
+export function composeSourceSplices(
+  base: string,
+  transactions: readonly (readonly SourceSplice[])[],
+  options: SourceCompositionOptions = {},
+): SourceSplice[] {
+  const maxBytes = options.maxBytes ?? 2 * 1024 * 1024,
+    maxTransactions = options.maxTransactions ?? 1024,
+    maxOperations = options.maxOperations ?? 256,
+    maxPieces = options.maxPieces ?? 4096,
+    maxWork = options.maxWork ?? 32_000_000;
+  if (!isSourceText(base)) fail("invalid_patch");
+  if (byteLength(base) > maxBytes || transactions.length > maxTransactions)
+    fail("provenance_limit");
+  type Piece = { start: number; length: number } | { text: string };
+  const pieces: Piece[] = base.length
+    ? [{ start: 0, length: base.length }]
+    : [];
+  let current = base,
+    work = 0,
+    ambiguous = false;
+  const charge = (amount: number) => {
+    if ((work += amount) > maxWork) fail("provenance_limit");
+  };
+  const length = (piece: Piece) =>
+    "text" in piece ? piece.text.length : piece.length;
+  const split = (offset: number) => {
+    let position = 0;
+    for (let index = 0; index < pieces.length; index++) {
+      charge(1);
+      const piece = pieces[index]!,
+        end = position + length(piece);
+      if (position === offset) return index;
+      if (offset < end) {
+        const at = offset - position;
+        pieces.splice(
+          index,
+          1,
+          ...("text" in piece
+            ? [
+                { text: piece.text.slice(0, at) },
+                { text: piece.text.slice(at) },
+              ]
+            : [
+                { start: piece.start, length: at },
+                { start: piece.start + at, length: piece.length - at },
+              ]),
+        );
+        return index + 1;
+      }
+      position = end;
+    }
+    if (position !== offset) fail("provenance_mismatch");
+    return pieces.length;
+  };
+  for (const operations of transactions) {
+    validateSourceSplices(current, operations, maxOperations);
+    ambiguous ||= operations.some((operation) => operation.ambiguous);
+    charge(
+      current.length +
+        operations.reduce((sum, operation) => sum + operation.insert.length, 0),
+    );
+    for (let index = operations.length - 1; index >= 0; index--) {
+      const operation = operations[index]!;
+      if (!operation.deleteCount && !operation.insert) continue;
+      // Split the start first: splitting it can move the end's piece index.
+      const from = split(operation.start),
+        to = split(operation.start + operation.deleteCount);
+      pieces.splice(
+        from,
+        to - from,
+        ...(operation.insert ? [{ text: operation.insert }] : []),
+      );
+      if (pieces.length > maxPieces) fail("provenance_limit");
+    }
+    current = pieces
+      .map((piece) =>
+        "text" in piece
+          ? piece.text
+          : base.slice(piece.start, piece.start + piece.length),
+      )
+      .join("");
+    if (byteLength(current) > maxBytes) fail("provenance_limit");
+  }
+  const result: SourceSplice[] = [];
+  let cursor = 0,
+    insert = "";
+  const flush = (until: number) => {
+    if (until > cursor || insert)
+      result.push({ start: cursor, deleteCount: until - cursor, insert });
+    cursor = until;
+    insert = "";
+  };
+  for (const piece of pieces) {
+    if ("text" in piece) insert += piece.text;
+    else {
+      flush(piece.start);
+      cursor += piece.length;
+    }
+  }
+  flush(base.length);
+  if (ambiguous) {
+    if (!result.length) fail("ambiguous_source");
+    for (const operation of result) operation.ambiguous = true;
+  }
+  if (result.length > maxOperations) fail("provenance_limit");
+  if (applySourceSplices(base, result) !== current) fail("provenance_mismatch");
+  return result;
+}
 /** Project a source anchor through one transaction, rejecting removed interiors. */
 export function transformSourcePosition(
   position: number,
@@ -115,6 +268,18 @@ export function transformSourcePosition(
   for (let index = operations.length - 1; index >= 0; index--) {
     const operation = operations[index]!,
       end = operation.start + operation.deleteCount;
+    const right = association === 1 || association === "right";
+    if (
+      operation.ambiguous &&
+      operation.deleteCount > 0 &&
+      ((result > operation.start && result < end) ||
+        (result === operation.start && right) ||
+        (result === end && !right))
+    )
+      fail(
+        "ambiguous_source",
+        "The raw-file alignment cannot preserve this source anchor. Review before continuing.",
+      );
     if (result > operation.start && result < end) fail("position_deleted");
     if (result > end || (result === end && operation.deleteCount > 0))
       result += operation.insert.length - operation.deleteCount;
@@ -137,6 +302,7 @@ export function invertSourceSplices(
       deleteCount: operation.insert.length,
       insert: operation.removed,
       removed: operation.insert,
+      ...(operation.ambiguous ? { ambiguous: true as const } : {}),
     };
     shift += operation.insert.length - operation.deleteCount;
     const previous = result.at(-1);
@@ -149,6 +315,7 @@ export function invertSourceSplices(
       previous.deleteCount += inverse.deleteCount;
       previous.insert += inverse.insert;
       previous.removed += inverse.removed;
+      if (inverse.ambiguous) previous.ambiguous = true;
     } else result.push(inverse);
   }
   return result;
@@ -196,6 +363,137 @@ function codepoints(value: string) {
     codes: codes.subarray(0, count),
     offsets: offsets.subarray(0, count + 1),
   };
+}
+/** Observed files have no edit coordinates: invalidate equivalent repeated-source alignments. */
+export function rawSourceDifferences(
+  before: string,
+  after: string,
+  options: SourceDiffOptions = {},
+): SourceSplice[] {
+  const operations = sourceDifferences(before, after, options);
+  if (!operations.length) return [];
+  let work = 0;
+  const charge = () => {
+    if (++work > (options.maxWork ?? 16_000_000)) fail("diff_limit");
+  };
+  const previous = (text: string, offset: number) =>
+    offset -
+    (offset > 1 &&
+    text.charCodeAt(offset - 1) >= 0xdc00 &&
+    text.charCodeAt(offset - 1) <= 0xdfff
+      ? 2
+      : 1);
+  const next = (text: string, offset: number) =>
+    offset + (text.codePointAt(offset)! > 0xffff ? 2 : 1);
+  const intervals = operations.map((operation) => {
+    let left = operation.start,
+      right = operation.start;
+    const size = operation.deleteCount;
+    if (!size && operation.insert) {
+      const token = operation.insert;
+      let rotation = 0;
+      while (left > 0) {
+        charge();
+        const at = previous(token, rotation || token.length),
+          old = previous(before, left);
+        if (token.codePointAt(at) !== before.codePointAt(old)) break;
+        rotation = at;
+        left = old;
+      }
+      rotation = 0;
+      while (right < before.length) {
+        charge();
+        if (token.codePointAt(rotation) !== before.codePointAt(right)) break;
+        right = next(before, right);
+        rotation = next(token, rotation) % token.length;
+      }
+    } else if (size && !operation.insert) {
+      while (left > 0) {
+        charge();
+        const at = previous(before, left),
+          end = previous(before, left + size);
+        if (before.codePointAt(at) !== before.codePointAt(end)) break;
+        left = at;
+      }
+      while (right + size < before.length) {
+        charge();
+        if (before.codePointAt(right) !== before.codePointAt(right + size))
+          break;
+        right = next(before, right);
+      }
+    }
+    return {
+      start: left,
+      end: right + size,
+      ambiguous: left !== operation.start || right !== operation.start,
+    };
+  });
+  // Opposite alignment catches correlated rotations (e.g. ababa -> babab).
+  const reverse = (text: string) => Array.from(text).reverse().join("");
+  const alternative = sourceDifferences(
+    reverse(before),
+    reverse(after),
+    options,
+  )
+    .map((operation) => ({
+      start: before.length - operation.start - operation.deleteCount,
+      deleteCount: operation.deleteCount,
+      insert: reverse(operation.insert),
+    }))
+    .reverse();
+  const same = (a: SourceSplice, b: SourceSplice) =>
+    a.start === b.start &&
+    a.deleteCount === b.deleteCount &&
+    a.insert === b.insert;
+  const changed = operations.filter(
+    (operation) => !alternative.some((other) => same(operation, other)),
+  );
+  const otherChanged = alternative.filter(
+    (operation) => !operations.some((other) => same(operation, other)),
+  );
+  if (
+    otherChanged.some(
+      (operation) =>
+        !intervals.some(
+          (interval) =>
+            interval.ambiguous &&
+            operation.start >= interval.start &&
+            operation.start + operation.deleteCount <= interval.end,
+        ),
+    )
+  ) {
+    const different = [...changed, ...otherChanged];
+    intervals.push({
+      start: Math.min(...different.map((operation) => operation.start)),
+      end: Math.max(
+        ...different.map(
+          (operation) => operation.start + operation.deleteCount,
+        ),
+      ),
+      ambiguous: true,
+    });
+  }
+  intervals.sort((a, b) => a.start - b.start || a.end - b.end);
+  const groups: typeof intervals = [];
+  for (const interval of intervals) {
+    const prior = groups.at(-1);
+    if (prior && interval.start <= prior.end) {
+      prior.end = Math.max(prior.end, interval.end);
+      prior.ambiguous ||= interval.ambiguous;
+    } else groups.push({ ...interval });
+  }
+  const result: SourceSplice[] = groups.map((interval) => ({
+    start: interval.start,
+    deleteCount: interval.end - interval.start,
+    insert: after.slice(
+      transformSourcePosition(interval.start, operations, "left"),
+      transformSourcePosition(interval.end, operations, "right"),
+    ),
+    ...(interval.ambiguous ? { ambiguous: true as const } : {}),
+  }));
+  validateSourceSplices(before, result);
+  if (applySourceSplices(before, result) !== after) fail("diff_invariant");
+  return result;
 }
 /** Bounded exact Myers alignment. Never folds unchanged islands into a replacement. */
 export function sourceDifferences(

@@ -130,6 +130,12 @@ An observed replacement that removes saved source retains the previous and
 observed canonical versions under `.jumpybrain/recovery/`; a live snapshot names
 that relative recovery directory. The raw file remains authoritative. Retention
 does not infer whether its writer intended to remove another person's changes.
+The note shows **Review retained version** after an observed destructive
+replacement. Its dialog offers **Show changed passages**, both complete copies,
+copy actions and an explicit reviewed restore for writers. Large comparisons
+show bounded excerpts; restoring always uses the complete selected version and
+rechecks the current saved hash. Readers can compare and copy. Changing brains
+or credentials clears the comparison.
 
 ## Limits and recovery
 

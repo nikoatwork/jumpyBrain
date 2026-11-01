@@ -15,8 +15,8 @@ checks to its real tarball before recording successful package metadata.
 - `npm audit` and `npm --prefix integrations/electron audit`: both lockfiles.
 
 Budgets in `scripts/package-budget.mjs` are 1.45 MB compressed, 4.6 MB unpacked,
-3.0 MB under `dist/`, and 660 files (decimal units). Existing editor tests retain
-210 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+3.1 MB under `dist/`, and 660 files (decimal units). Existing editor tests retain
+220 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
@@ -111,3 +111,26 @@ measurement; retain inline safety, licenses, dependency separation, package
 ceilings and the fixed canonical latency/resource gates. This is an explicit
 measured feature cost, not a replacement baseline or a claim about network
 latency on every machine.
+
+## 2026-11-01 actual operation provenance
+
+Coordinated build `105f6c2b1ff1ec07` measures 663,268 minified editor bytes and
+219,550 gzip bytes, with the same 15 bundled packages and unchanged 220,000-byte
+editor ceiling. The package preflight measures 1,426,892 archive bytes,
+4,547,385 unpacked bytes, 3,058,908 compiled runtime bytes and 621 files. Final
+archive measurements may change with documentation; the runtime inventory is
+independently matched across platforms and packaged artifacts by the final gate.
+
+Actual editor ranges, source-origin composition, verified inverse ancestry,
+bounded authoritative history and conservative raw-file ambiguity add 78,674
+runtime bytes (2.64%) over the earlier 2,980,234-byte preflight. They address
+reproduced wrong-edit and wrong-caret failures that text convergence missed.
+The measured runtime exceeds the previous 3,000,000-byte ceiling by 58,908
+bytes. Review that one ceiling to 3,100,000 bytes, leaving 1.34% headroom over
+this build. Keep the compressed, unpacked, file-count and editor ceilings, all
+dependencies, and canonical latency/RSS/history/queue limits unchanged.
+
+The protected package test now asserts all four ceilings literally, and the
+production contract pins the budget and package-manifest helpers. Future
+helper-only budget relaxation cannot silently satisfy the original test. This
+measured contract delta is independent of the immutable M0 baseline.

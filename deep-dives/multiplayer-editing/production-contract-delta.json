@@ -209,6 +209,38 @@
       ]
     },
     {
+      "kind": "assertion",
+      "file": "test/onboarding-install.test.js",
+      "oldSha256": "d0890117ee627c03c7abe4bb96e39a8701cc459bb57f9371f9f4e803a19b4672",
+      "newSha256": "5d21492f5e6e16aff4220a4cdac9b265e2980d40a1c7f806ff9df55dd865eee9",
+      "reason": "Drain the authenticated disposable root backend before removing onboarding fixture files. The new shared owner intentionally outlives its installed CLI process. Preserve every original dry-run, shell quoting, installed integration, canonical write and recall assertion; the fix only makes teardown honor owner lifetime.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/onboarding-install.test.js",
+        "test/backend-host.test.js"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/package-footprint.test.js",
+      "oldSha256": "91b11d4b96d50fb4bdbc07d05b5d463c88701b26a412118a0d42a959e238455e",
+      "newSha256": "1ba0fd1544a5750545077373922b043fe8de06ed15427927e1335ccd66b4f441",
+      "reason": "Build 105f6c2b1ff1ec07 measures 3058908 runtime bytes for actual transaction provenance, verified inverse ancestry, bounded history and conservative raw alignment, exceeding the 3000000-byte ceiling by 58908 bytes. Review runtime ceiling 3100000 (1.34% headroom), retaining archive1450000, unpacked4600000, files660 and editor220000 gzip ceilings. Strengthen this protected assertion to pin all four package ceilings literally; production contract independently pins budget and manifest helpers. No functional/canonical/latency/RSS/history/queue assertion is weakened.",
+      "scenarioIds": [
+        "P06",
+        "P12"
+      ],
+      "evidence": [
+        "docs/build-footprint.md",
+        "scripts/package-budget.mjs",
+        "test/package-footprint.test.js"
+      ]
+    },
+    {
       "kind": "harness",
       "file": "scripts/multiplayer-verification/contract-delta.mjs",
       "oldSha256": null,

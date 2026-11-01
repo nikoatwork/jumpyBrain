@@ -15,6 +15,7 @@ function pack(cwd) {
 }
 
 test('actual distribution retains install resources within download, disk and runtime budgets', () => {
+  assert.deepEqual(packageBudget, { archiveBytes: 1_450_000, unpackedBytes: 4_600_000, runtimeBytes: 3_100_000, files: 660 }, 'changing a release ceiling requires an explicit reviewed assertion delta');
   const info = pack(root);
   validateLocalPackFiles(info.files.map(file => `package/${file.path}`));
   const metrics = validatePackageBudget(info);

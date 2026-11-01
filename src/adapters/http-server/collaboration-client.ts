@@ -1,11 +1,15 @@
 export interface CollaborationSnapshot {
   documentId: string; epoch: string; revision: number; body: string; title: string; contentHash: string; saved: boolean;
   prefix?: string; file?: string; recognition?: unknown;
-  operation?: { start: number; deleteCount: number; insert?: string; snapshotOnly?: boolean; actor?: string; operationId?: string };
+  operation?: { revision?: number; start: number; deleteCount: number; insert?: string; splices?: { start:number; deleteCount:number; insert:string; ambiguous?:true }[]; inverseOf?:{actor:string;operationId:string;revision:number}; snapshotOnly?: boolean; actor?: string; operationId?: string };
   presence?: { actor: string; principalId?: string; clientId?: string; name: string; kind: "human" | "agent"; activity?: "viewing" | "editing" | "streaming"; epoch?: string; revision?: number; leaseExpiresAt?: number; anchor?: number; focus?: number }[];
   conflict?: { code: string; message?: string };
   recovery?: { code: "external_destructive_replacement"; recoveryId: string; baseContentHash: string; externalContentHash: string };
   recoveryDiscovery?: "incomplete";
+}
+export interface CollaborationHistory {
+  documentId: string; epoch: string; fromRevision: number; toRevision: number;
+  operations: { revision: number; actor: string; operationId: string; inverseOf?:{actor:string;operationId:string;revision:number}; splices: { start:number; deleteCount:number; insert:string; ambiguous?:true }[] }[];
 }
 export type CollaborationConnectionState = "connecting" | "ready" | "offline" | "blocked" | "closed";
 export interface CollaborationPrincipal { id: string; name?: string; role: string }
