@@ -87,9 +87,9 @@ test("CLI command parsing uses local transport and target-selection boundaries",
 });
 
 test("CLI target selection preserves local roots and recognizes remote placeholders", () => {
-  assert.deepEqual(resolveCliTarget({ root: "./memory" }), { kind: "local", root: "./memory" });
-  assert.deepEqual(resolveCliTarget({}, { allowDiscovery: true }), { kind: "local" });
-  assert.deepEqual(resolveCliTarget({ "target-url": "https://brain.example" }), { kind: "remote", url: "https://brain.example" });
+  assert.deepEqual(resolveCliTarget({ root: "./memory" }), { kind: "local", root: "./memory", source: "flag" });
+  assert.deepEqual(resolveCliTarget({}, { allowDiscovery: true }), { kind: "local", source: "recipe-discovery" });
+  assert.deepEqual(resolveCliTarget({ "target-url": "https://brain.example" }), { kind: "remote", url: "https://brain.example", source: "flag" });
   assert.throws(() => resolveCliTarget({}), /--root is required/);
 });
 

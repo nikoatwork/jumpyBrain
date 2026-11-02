@@ -352,9 +352,9 @@ export class ConnectionStore {
       return this.snapshot();
     });
   }
-  async setActive(id) {
+  async setActive(id, expectedRevision) {
     return this.#mutate(async () => {
-      const state = await this.#current();
+      const state = await this.#current(expectedRevision);
       if (!state.profiles.some((profile) => profile.id === id)) fail("NOT_FOUND");
       if (state.activeId === id) return this.snapshot();
       state.activeId = id; state.revision++;

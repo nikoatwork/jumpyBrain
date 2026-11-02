@@ -4,8 +4,8 @@ import type { LocalMemoryTransport, SearchResult } from "./local-transport.js";
 import { resolveCliTarget } from "./targets.js";
 
 export type CommandMemoryTarget =
-  | { kind: "local"; root: string }
-  | { kind: "remote"; url: string; memory: RemoteMemoryTransport };
+  | { kind: "local"; root: string; source?: string }
+  | { kind: "remote"; url: string; source?: string; memory: RemoteMemoryTransport };
 
 export async function commandMemoryTarget(
   args: ParsedCliArgs,
@@ -13,9 +13,9 @@ export async function commandMemoryTarget(
   options: { allowDiscovery?: boolean } = {},
 ): Promise<CommandMemoryTarget> {
   const target = resolveCliTarget(args, { allowDiscovery: options.allowDiscovery });
-  if (target.kind === "remote") return { kind: "remote", url: target.url, memory: createRemoteMemoryTransport({ url: target.url, apiKey: remoteApiKey() }) };
+  if (target.kind === "remote") return { ...target, memory: createRemoteMemoryTransport({ url: target.url, apiKey: remoteApiKey() }) };
   const root = target.root ?? await localMemory.findMemoryRoot();
-  return { kind: "local", root };
+  return { ...target, root };
 }
 
 function remoteApiKey(): string {

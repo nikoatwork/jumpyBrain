@@ -41,7 +41,7 @@ export async function liveCompanion(support: string, label = "extension manageme
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       const result = await response.json();
-      if (!response.ok) throw Object.assign(new Error(`Companion ${label} failed (${response.status}).`), { status: response.status });
+      if (!response.ok) throw Object.assign(new Error(`Companion ${label} failed (${response.status}).`), { status: response.status, code: result?.error?.code });
       return result;
     },
   };

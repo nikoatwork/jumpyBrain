@@ -1,5 +1,5 @@
 import { packageVersion } from "../adapters/package-info/index.js";
-import { parseArgs } from "./args.js";
+import { parseArgs, stringArg } from "./args.js";
 import { doctorReport, formatDoctorReport } from "./doctor.js";
 import { dreamCli } from "./dream.js";
 import { agentInstructions } from "./instructions.js";
@@ -9,7 +9,7 @@ import { migrateCli } from "./migrate.js";
 import { runRecipe } from "./recipes.js";
 import { enforceRemoteAccessPolicy } from "./remote-access-policy.js";
 import { serveCli } from "./serve.js";
-import { memoryRootInspectionMessage, requireLocalRoot } from "./targets.js";
+import { memoryRootInspectionMessage, requireLocalRoot, resolveCliTarget } from "./targets.js";
 import { updateCli } from "./update.js";
 import { helpForArgv, usage } from "./usage.js";
 
@@ -24,7 +24,10 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
   try { await dispatchCli(args); }
   catch (error) {
-    const root = typeof args.root === "string" && !args["target-url"] && !args["remote-url"] ? args.root.trim() : undefined;
+    let root;
+    if (isMemoryCommand(args._[0]!) || args._[0] === "run") {
+      try { const target = resolveCliTarget(args); if (target.kind === "local") root = target.root; } catch {}
+    }
     const message = root ? memoryRootInspectionMessage(error, root) : undefined;
     if (message) throw new Error(message);
     throw error;
@@ -33,6 +36,10 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
 
 async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   const command = args._[0];
+
+  if (command === "connections") {
+    const { connectionsCli } = await import("./connections.js"); await connectionsCli(args); return;
+  }
 
   if (command === "identity") {
     const { identityCli } = await import("./identity.js"); await identityCli(args); return;
@@ -117,6 +124,7 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   }
 
   if (command === "init") {
+    stringArg(args, "root"); // Initialization always requires an explicit destination.
     const root = requireLocalRoot(args);
     const result = await localMemory.initializeMemoryRoot(root, { force: Boolean(args.force) });
     if (args.json) {
