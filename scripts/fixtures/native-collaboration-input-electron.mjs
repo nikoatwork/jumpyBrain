@@ -1,6 +1,6 @@
 // Test-only main process. Real packaged application/native host/browser bundle;
 // Chromium CDP input and AX APIs, not synthetic DOM composition events.
-import { app, BrowserWindow, dialog } from 'electron';
+import { app, BrowserWindow, dialog, Menu } from 'electron';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { writeFileSync } from 'node:fs';
@@ -18,16 +18,37 @@ const js = source => window.webContents.executeJavaScript(source, true);
 const cdp = (method, params = {}) => window.webContents.debugger.sendCommand(method, params);
 async function until(check, timeout = 20000) { const end = Date.now() + timeout; while (Date.now() < end) { if (application.getStartupError()) throw application.getStartupError(); if (await check()) return; await pause(30); } throw new Error('Native input condition timed out at ' + stage); }
 function mark(next) { stage = next; console.log('Native input: ' + stage); }
-async function agentEdit(text, rangeForRead = () => ({ start: 0, deleteCount: 0 })) {
+async function agentEdit(text, rangeForRead = () => ({ start: 0, deleteCount: 0 }), clientId = 'native-proof-agent') {
   const run = (operation, flags = [], input = '') => new Promise((resolve, reject) => {
     const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE;
-    const child = spawn(fixture.node, [fixture.cli, 'collaborate', operation, '--root', fixture.root, '--id', fixture.id, '--client-id', 'native-proof-agent', '--json', ...flags], { env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(fixture.node, [fixture.cli, 'collaborate', operation, '--root', fixture.root, '--id', fixture.id, '--client-id', clientId, '--json', ...flags], { env, stdio: ['pipe', 'pipe', 'pipe'] });
     let output = '', error = ''; child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { error += chunk; });
     child.once('error', reject); child.once('exit', code => code === 0 ? resolve(JSON.parse(output)) : reject(new Error('Packaged agent CLI failed at ' + stage + ' (exit ' + code + ')'))); child.stdin.end(input);
   });
   const read = await run('open');
   const { start, deleteCount } = rangeForRead(read.body);
   return run('edit', ['--start', String(start), '--delete', String(deleteCount), '--epoch', read.epoch, '--base-revision', String(read.revision)], text);
+}
+async function historyMenu(action) {
+  const edit = Menu.getApplicationMenu().items.find(item => item.role?.toLowerCase() === 'editmenu').submenu;
+  const item = edit.items.find(item => item.label.toLowerCase() === action);
+  assert.ok(item?.enabled, 'The native history action must be available');
+  item.click(item, window);
+}
+async function nativeText(text) {
+  for (const keyCode of text) {
+    window.webContents.sendInputEvent({type:'keyDown',keyCode});
+    window.webContents.sendInputEvent({type:'char',keyCode});
+    window.webContents.sendInputEvent({type:'keyUp',keyCode});
+  }
+}
+async function focusBodyStart() {
+  await js(`(()=>{const e=document.getElementById('note-editor');e.focus();const r=document.createRange();r.selectNodeContents(e);r.collapse(true);getSelection().removeAllRanges();getSelection().addRange(r)})()`);
+  await until(() => js('richEditor.collaborativeSelection()?.anchor === 0 && richEditor.collaborativeSelection()?.focus === 0'));
+}
+async function savedBody(body) {
+  await until(() => js(`state.editor.collaboration.state.status === 'saved' && richEditor.getMarkdown() === ${JSON.stringify(body)}`));
+  assert.equal((await readFile(fixture.root+'/notes/native-input.md','utf8')).replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,''),body);
 }
 async function axNode(selector) {
   const { root } = await cdp('DOM.getDocument'); const { nodeId } = await cdp('DOM.querySelector', { nodeId: root.nodeId, selector });
@@ -60,6 +81,28 @@ void (async () => {
     const titleAX = await axNode('#note-name'); assert.equal(titleAX.role, 'textbox'); assert.equal(titleAX.name, 'Page name');
     const saveAX = await axNode('#note-save-state'); assert.equal(saveAX.role, 'status'); assert.equal(saveAX.name, 'Saved'); assert.equal(saveAX.properties.live, 'polite'); evidence.accessibility.savedStatus = saveAX;
     evidence.checks.push('native AX editor/title labels and multiline/status live semantics');
+    mark('native menu Undo and Redo');
+    const initialBody = await js('richEditor.getMarkdown()');
+    await focusBodyStart(); await nativeText('K'); await savedBody('K'+initialBody);
+    await historyMenu('undo'); await savedBody(initialBody);
+    await historyMenu('redo'); await savedBody('K'+initialBody);
+    await nativeText('L'); await savedBody('KL'+initialBody);
+    window.webContents.sendInputEvent({type:'keyDown',keyCode:'Z',modifiers:['meta']});
+    window.webContents.sendInputEvent({type:'keyUp',keyCode:'Z',modifiers:['meta']});
+    await savedBody('K'+initialBody);
+    window.webContents.sendInputEvent({type:'keyDown',keyCode:'Z',modifiers:['meta','shift']});
+    window.webContents.sendInputEvent({type:'keyUp',keyCode:'Z',modifiers:['meta','shift']});
+    await savedBody('KL'+initialBody);
+    await historyMenu('undo'); await savedBody('K'+initialBody);
+    await historyMenu('undo'); await savedBody(initialBody);
+    const originalTitle = await js('document.getElementById("note-name").value');
+    await js('(()=>{const e=document.getElementById("note-name");e.focus();e.setSelectionRange(e.value.length,e.value.length)})()');
+    await nativeText('Z'); await until(() => js(`state.editor.collaboration.state.status === 'saved' && document.getElementById('note-name').value === ${JSON.stringify(originalTitle+'Z')}`));
+    await historyMenu('undo'); await until(() => js(`state.editor.collaboration.state.status === 'saved' && document.getElementById('note-name').value === ${JSON.stringify(originalTitle)}`));
+    await historyMenu('redo'); await until(() => js(`state.editor.collaboration.state.status === 'saved' && document.getElementById('note-name').value === ${JSON.stringify(originalTitle+'Z')}`));
+    await historyMenu('undo'); await until(() => js(`state.editor.collaboration.state.status === 'saved' && document.getElementById('note-name').value === ${JSON.stringify(originalTitle)}`));
+    await savedBody(initialBody);
+    evidence.checks.push('native menu Undo/Redo and keyboard parity preserve canonical body; title input retains native history');
     mark('native preedit with concurrent packaged CLI agent');
     await js(`(()=>{const e=document.getElementById('note-editor');e.focus();const r=document.createRange();r.selectNodeContents(e.lastElementChild);r.collapse(false);getSelection().removeAllRanges();getSelection().addRange(r)})()`);
     await until(() => js('(()=>{const s=richEditor.collaborativeSelection();const end=state.editor.collaboration.snapshot.body.length;return s?.anchor===end&&s.focus===end})()')); 
@@ -96,6 +139,22 @@ void (async () => {
     assert.ok((await js('document.getElementById("recovery-draft").value')).includes('競合'));
     evidence.checks.push('overlapping native IME retains both versions, blocks flush, exposes labeled readonly recovery fields and actions in AX tree');
     await click('#recovery-reload'); await until(() => js('!document.getElementById("document-recovery").open && state.editor.collaboration.state.status === "saved"'));
+    mark('native menu expired history');
+    for (let index=0;index<65;index++) await agentEdit('|'+index, body=>({start:body.length,deleteCount:0}), 'native-expiry-'+index);
+    const beforeExpired = await readFile(fixture.root+'/notes/native-input.md','utf8');
+    window.webContents.reload();
+    await until(() => js(`state.editor?.state.documentId === ${JSON.stringify(fixture.id)} && state.editor.collaboration?.state.status === 'saved'`));
+    await focusBodyStart();
+    for (const action of ['undo','redo']) {
+      await historyMenu(action);
+      await until(() => js(`document.getElementById('toast-message').textContent.includes('${action === 'undo' ? 'Undo' : 'Redo'} history is unavailable')`));
+      assert.deepEqual(await js('({status:state.editor.collaboration.state.status,dirty:state.editor.collaboration.state.dirty,canWrite:state.editor.collaboration.state.canWrite})'),{status:'saved',dirty:false,canWrite:true});
+      assert.equal(await readFile(fixture.root+'/notes/native-input.md','utf8'),beforeExpired);
+    }
+    const expiredBody = await js('richEditor.getMarkdown()');
+    await nativeText('Q'); await savedBody('Q'+expiredBody);
+    evidence.checks.push('native menu expired Undo/Redo informs without blocking fresh editing or changing saved source');
+    console.log('Native collaborative menu Undo/Redo: PASS');
     mark('clean quit'); completed = true; app.quit();
   } catch (error) {
     failure = error;

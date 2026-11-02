@@ -135,6 +135,8 @@ The minimum final demonstration is two separate human browser contexts, one agen
 
   - [ ] 8.11 Retire bounded Undo/Redo owners without exhausting lifetime actor admission. Keep active/recent history where possible, preserve saved text and source history, and explicitly report expired history while allowing new editing. Prove more than 128 actual default CLI actors with a shipped browser subscribed, fresh-human publication, stable-ID reconnect/Undo, reader/agent revocation and bounded caches.
 
+  - [ ] 8.12 Route native Edit → Undo/Redo through focused editor history while preserving standard title/input/native control history. Verify actual packaged menu actions, keyboard parity, expired-history notices and further publication; retain origin/focus boundaries and other native edit roles.
+
 ## Evidence protocol
 
 M0 tooling and exact commands are implemented; use the [M0 verification guide and evidence](../../deep-dives/multiplayer-editing/M0-verification.md). Later-stage scenarios describe intended checks, not existing collaboration capability.
@@ -201,3 +203,7 @@ The expected first gate includes npm test and the existing scripts/external-docu
 - The focused lifetime audit found the same missing drain in 16 additional existing CLI fixtures. Their 874 assertions and the memory CLI fixture's 305 assertions remain byte-identical; no retries or ignored shutdown errors were added. The original M0 baseline remains immutable, with 33 explicit reviewed deltas now covering the lifetime-aware teardown changes.
 
 - Lifetime-aware fixture verification passes twice: 30/30 main CLI cases and 136/136 additional fixture cases, each with zero skips. Both fresh exact Linux versions pass 214/214 with identical 491-file runtime maps. The 19 gate/delta guards pass. These are preflights; another clean-HEAD full gate and independent review are still required.
+
+- Clean 431f05c passes 1,785 tests, four protected browser flows and all twelve production checks. Astra high independently verifies 265 actual fresh CLI actors, bounded 1,024-actor model history, failed-publication isolation, 189 focused tests and shipped editor/cursors, with no P0/P1. One P2 native menu Undo routing defect remains; it is being corrected and added to mandatory packaged acceptance before archival.
+
+- Native menu fix preflight passes in the actual packaged app: menu Undo/Redo, keyboard parity, title/native history fallback, both IME/recovery cases, expired Undo/Redo notices and next publication. Build aa16b18047387a08 remains within the unchanged editor/package ceilings. A first unsupported-API construction attempt was rejected by the packaged check and corrected; final source is frozen for fresh Linux and full clean-HEAD verification.

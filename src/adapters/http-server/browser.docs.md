@@ -335,3 +335,9 @@ Previews are text-only review aids and never publication inputs. Restoring uses
 the complete selected copy, preserves the private draft first and rechecks the
 reviewed canonical hash inside publication. A scope change clears both full
 copies and excerpts; readers retain comparison/copy without restore access.
+
+The focused note editor consumes the cancelable `jumpybrain:history` event for
+native menu Undo/Redo, dispatching Lexical's existing history commands. Other
+inputs do not claim it; read-only notes consume it without mutation. The listener
+is removed with the editor. This introduces no native capability or alternate
+publication path.

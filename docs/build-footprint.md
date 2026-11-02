@@ -143,3 +143,8 @@ and an explicit expired-history notice. It measures 663,583 minified editor
 bytes and 219,663 gzip bytes with the same 15 bundled packages. All package,
 editor, dependency and canonical latency/resource ceilings remain unchanged;
 the final verification report records package and runtime measurements.
+
+Native menu routing in build `aa16b18047387a08` measures 663,948 minified editor
+bytes and 219,783 gzip bytes, retaining all ceilings and 15 bundled packages.
+The focused cancelable history event adds 120 gzip bytes over `fdc67474bfe9d94e`;
+the native menu itself stays in the Electron shell.

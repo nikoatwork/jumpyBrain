@@ -6,6 +6,8 @@ import { mountInlineUpdates, nativeUpdateAction } from './update-inline.mjs';
 import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 import { installBackNavigation } from './back-navigation.mjs';
 
+const editorOrigins = new WeakMap();
+
 export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, updater, starterPage } = {}) {
   const window = new BrowserWindow({
     title: 'jumpyBrain', icon: fileURLToPath(new URL('./assets/app-icon.png', import.meta.url)), width: 1200, height: 860, minWidth: 480, minHeight: 480,
@@ -19,6 +21,7 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     },
   });
   const contents = window.webContents;
+  editorOrigins.set(contents, origin);
   // Host-owned presentation only: no preload, renderer native capability or browser inset.
   async function publishWindowChrome() {
     if (process.platform !== 'darwin' || contents.isDestroyed() || !isAppNavigation(contents.getURL(), origin)) return;
@@ -135,7 +138,7 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
 }
 
 export function setApplicationMenu({ app, getWindow, reconnect, settings, updates }) {
-  const menu = Menu.buildFromTemplate([
+  let menu = Menu.buildFromTemplate([
     { label: 'jumpyBrain', submenu: [
       { label: 'About jumpyBrain', click: () => app.showAboutPanel() },
       ...(updates ? [{ label: 'Check for updates…', click: updates }] : []),
@@ -162,6 +165,30 @@ export function setApplicationMenu({ app, getWindow, reconnect, settings, update
     { role: 'windowMenu' },
   ]);
   // Extend Electron's platform menu so native edit/speech/writing roles survive.
+  const editParent = menu.items.find(item => item.role?.toLowerCase() === 'editmenu');
+  const editItems = editParent?.submenu.items.map(original => {
+    const action = original.role?.toLowerCase();
+    if (action !== 'undo' && action !== 'redo') return original;
+    return new MenuItem({ label: original.label,
+      accelerator: action === 'undo' ? 'CommandOrControl+Z' : 'CommandOrControl+Shift+Z',
+      click: (_item, focusedWindow) => {
+        const window = focusedWindow ?? BrowserWindow.getFocusedWindow();
+        const contents = window?.webContents;
+        const fallback = () => {
+          if (process.platform === 'darwin') Menu.sendActionToFirstResponder(action + ':');
+          else if (contents && !contents.isDestroyed()) contents[action]();
+        };
+        const origin = contents && editorOrigins.get(contents);
+        if (!origin || contents.isDestroyed() || !isAppNavigation(contents.getURL(), origin)) { fallback(); return; }
+        // Only the focused editor can claim this user command. Inputs, dialogs
+        // and native controls keep their platform editing history.
+        void contents.executeJavaScript(`!document.activeElement.dispatchEvent(new CustomEvent('jumpybrain:history', {bubbles:true,cancelable:true,detail:${JSON.stringify(action)}}))`, true)
+          .then(handled => { if (!handled) fallback(); }, fallback);
+      },
+    });
+  });
+  if (editParent) menu = Menu.buildFromTemplate(menu.items.map(item => item === editParent
+    ? {role:'editMenu',label:item.label,submenu:Menu.buildFromTemplate(editItems)} : item));
   const edit = menu.items.find(item => item.role?.toLowerCase() === 'editmenu')?.submenu;
   edit?.append(new MenuItem({ type: 'separator' }));
   edit?.append(new MenuItem({ label: 'Find in Note…', accelerator: 'CommandOrControl+F', click: () => {
