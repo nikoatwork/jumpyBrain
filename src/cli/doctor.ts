@@ -18,6 +18,7 @@ export interface DoctorReport {
   cli: DoctorCheck & { version: string };
   node: DoctorCheck & { version: string };
   qmd: DoctorCheck & { binary: string };
+  retrievalProbe: { status: "not_run" | "passed" | "empty" | "failed"; mode: "lexical"; message: string; warnings?: string[] };
   memoryRoot: DoctorCheck & { root: string; source?: string; initialized?: boolean; compatible?: boolean; readiness?: RetrievalReadiness };
   integrations: Record<string, DoctorCheck & { path: string }>;
   integrationsScope: "global";
@@ -26,6 +27,8 @@ export interface DoctorReport {
 }
 
 export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemoryTransport): Promise<DoctorReport> {
+  const probeQuery = stringArg(args, "probe-query", false);
+  if (args["probe-query"] !== undefined && (!probeQuery.trim() || probeQuery.length > 512)) throw new Error("--probe-query requires 1–512 characters of nonblank query text.");
   const version = await packageVersion();
   const target = resolveCliTarget(args, { fallbackRoot: path.join(os.homedir(), ".jumpybrain", "memory") });
   if (target.kind !== "local") throw new Error("doctor inspects local roots only.");
@@ -52,17 +55,30 @@ export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemory
     memoryRoot = { root, ok: false, message: memoryRootInspectionMessage(error, root) ?? "Unable to inspect memory root readiness." };
   }
 
+  const retrievalProbe: DoctorReport["retrievalProbe"] = { status: "not_run", mode: "lexical", message: "Retrieval not tested; use --probe-query <text> for a read-only lexical check." };
+  if (probeQuery) {
+    retrievalProbe.status = "failed";
+    retrievalProbe.message = "Read-only lexical probe failed or was unavailable; inspect engine/root readiness and published index state. No repair attempted.";
+    if (engine.ok && memoryRoot.compatible) try {
+      const result = await localMemory.searchMemory(root, probeQuery, 1, { readOnly: true, refresh: false, timeoutMs: 5000 });
+      retrievalProbe.status = result.results.length ? "passed" : "empty";
+      retrievalProbe.warnings = result.retrieval?.warnings ?? [];
+      retrievalProbe.message = "Read-only lexical execution succeeded; " + (result.results.length ? "a result was returned." : "no result was returned.") + " Semantic inference, relevance and answer correctness are untested.";
+    } catch { /* Never print query, matches, raw backend errors or private paths. */ }
+  }
+
   const report: DoctorReport = {
     ok: false,
     cli: { ok: true, version, message: `jumpybrain ${version}` },
     node: { ok: nodeMajor >= 22, version: process.version, message: nodeMajor >= 22 ? `Node ${process.version}` : `Node >=22 is required; current ${process.version}` },
     qmd: engine,
+    retrievalProbe,
     memoryRoot: { ...memoryRoot, source: target.source },
     integrations,
     integrationsScope: "global",
     ...(projectRoot ? { projectRoot, projectIntegrations: integrationChecks(projectRoot, true) } : {}),
   };
-  report.ok = report.cli.ok && report.node.ok && report.qmd.ok && report.memoryRoot.ok;
+  report.ok = report.cli.ok && report.node.ok && report.qmd.ok && report.memoryRoot.ok && retrievalProbe.status !== "failed";
   return report;
 }
 
@@ -86,6 +102,9 @@ export function formatDoctorReport(report: DoctorReport): string {
     `- QMD: ${statusIcon(report.qmd.ok)} ${report.qmd.message}`,
     `- Memory root: ${statusIcon(report.memoryRoot.ok)} ${report.memoryRoot.root} (${report.memoryRoot.source}) — ${report.memoryRoot.message}`,
     ...(report.memoryRoot.readiness ? [`- Readiness: ${report.memoryRoot.readiness.freshness}; modes: ${report.memoryRoot.readiness.modes.join(", ") || "none"}; embeddings: ${report.memoryRoot.readiness.embedding}`] : []),
+    "- Modes/coverage describe index metadata, not verified inference or relevance; lexical-only retrieval can miss paraphrases.",
+    `- Retrieval probe: ${report.retrievalProbe.status} — ${report.retrievalProbe.message}`,
+    ...(report.retrievalProbe.warnings?.length ? [`  Warnings: ${report.retrievalProbe.warnings.join(", ")}`] : []),
     "- Global integration file presence (optional; host activation not checked):",
   ];
   for (const [name, check] of Object.entries(report.integrations)) {
