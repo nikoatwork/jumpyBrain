@@ -13,3 +13,7 @@
 - Do not own memory semantics, retrieval behavior, or write policy.
 - Do not parse CLI commands or HTTP requests.
 - Do not make tests depend on synchronous log writes; callers that inspect logs should poll for expected content.
+
+Host raw stderr is separate from this text logger: updater tails and the native
+pipe sink each cap current logs at 256 KiB. Only schema diagnostics enter support
+exports; retained update logs follow terminal-generation retention, not note age.

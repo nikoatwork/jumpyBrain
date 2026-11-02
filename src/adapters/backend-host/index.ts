@@ -28,10 +28,10 @@ export async function backendPaths(rootArg: string, create = false) {
   await checkDirectory(support, create); await checkDirectory(directory, create);
   return { root, directory, lease: path.join(directory, "owner.json"), descriptor: path.join(directory, "connection.json"), log: path.join(directory, "backend.log") };
 }
-async function readPrivateJson(file: string): Promise<unknown | undefined> {
+export async function readPrivateJson(file: string): Promise<unknown | undefined> {
   try {
     const stat = await lstat(file);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink > 2 || (stat.mode & 0o077) !== 0 || stat.size > 16384)
+    if (stat.uid !== process.getuid?.() || !stat.isFile() || stat.isSymbolicLink() || stat.nlink > 2 || (stat.mode & 0o077) !== 0 || stat.size > 16384)
       throw new BackendHostError("backend_state_unsafe", "Backend state must be bounded private regular files.");
     return JSON.parse(await readFile(file, "utf8"));
   } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw new BackendHostError("backend_state_invalid", "Backend state is invalid; inspect it before recovery."); }

@@ -75,7 +75,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     wrapup: { values: [...targets, "title", "topic", "limit", "tag"], repeat: ["tag"] },
     init: { values: ["root"], booleans: ["force"] },
     serve: { values: ["root", "host", "port", "api-key", "public-base-url"], booleans: ["init"], repeat: ["api-key"] },
-    backend: { values: ["root"], positional: 2 },
+    backend: { values: ["root"], repeat: argv[1] === "list" ? ["root"] : [], positional: 2 },
     access: { values: ["root", "name", "role", "id"], positional: 2 },
     collaborate: { values: [...targets, "id", "start", "delete", "epoch", "base-revision", "client-id", "stream-id"], positional: 2 },
   };

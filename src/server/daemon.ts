@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createAccessStore } from "../adapters/access-control/index.js";
 import { acquireBackendLease, backendPaths, currentBackendIdentity, publishBackendDescriptor, releaseBackendLease, readBackendLease } from "../adapters/backend-host/index.js";
+import { pinBackendRuntime } from "../adapters/backend-host/runtime-pins.js";
 import { startJumpyBrainHttpServer } from "./index.js";
 
 /** Headless shared lifetime: deliberately independent of any app window. */
@@ -11,6 +12,8 @@ export async function runBackendDaemon(rootArgument: string): Promise<void> {
   const identity = await currentBackendIdentity();
   const lease = await acquireBackendLease(root, identity);
   if (!lease) return;
+  try { await pinBackendRuntime(root, lease); }
+  catch (error) { await releaseBackendLease(root, lease.instanceId); throw error; }
   const token = randomBytes(32).toString("base64url");
   const accessStore = createAccessStore(root, { bootstrapKeys: [token], bootstrapOwner: {token, id: "local-owner:" + lease.rootId} });
   let server: Awaited<ReturnType<typeof startJumpyBrainHttpServer>> | undefined;

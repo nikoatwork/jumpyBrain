@@ -395,3 +395,9 @@ For positioned writes, use the body and epoch/revision from `collaborate open
 READ_REVISION`, or `stream --start N` with the same read flags. The backend
 rebases against that read or rejects it; reopening cannot make stale offsets
 current. A stream without `--start` appends to the latest saved body.
+
+`jumpybrain backend list --root <brain> [--root <another>] [--json]` provides a
+bounded inventory of at most 32 explicitly named roots through their private
+owned descriptors. It reports status, `pidAlive` and available redacted runtime
+identity (including stopped historical descriptors). It never scans processes or
+unrelated folders, starts services, or changes CLI/app brain selection.
