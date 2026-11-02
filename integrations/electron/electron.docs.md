@@ -141,6 +141,16 @@ lock. It keeps the two newest completed dead-worker generations plus the current
 worker, all live pins, incomplete journals, unknown legacy trees and active
 preparations. An exclusive runtime retirement sentinel fences new backend startup
 before inspecting bounded private pins. Cleanup never uses age as ownership proof.
+For `*.app/Contents/Resources/runtime`, pins and the sentinel live in private
+`~/.jumpybrain-runtime-pins/<device>-<inode>/` state outside sealed resources.
+The runtime and Python helper share the compiled `BUNDLE_PIN_PROTOCOL = 1`
+capability and directory-generation identity; moves retain live protection.
+Unknown/older bundle protocols and live legacy in-bundle pins prevent cleanup.
+Ordinary CLI runtime placement stays unchanged. Small external generation records
+are retained; there is no broad device-state sweep. The signature regression
+suite runs real backends in a disposable signed Mac app through move, stop and
+relaunch, plus startup/retirement races; it does not prove the separately reported
+Quit/LaunchAgent failure resolved.
 Unsafe/busy retention is nonfatal. Interrupted unmarked staging needs explicit
 inspection; no broad legacy cleanup or new public prune command is added.
 

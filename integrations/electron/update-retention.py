@@ -63,19 +63,31 @@ def retire_runtimes(candidates):
     sentinels = []
     try:
         for runtime in candidates:
-            if not ordinary(runtime, True).st_mode & 0o200: raise ValueError('Frozen runtime')
+            owner = ordinary(runtime, True)
+            if not owner.st_mode & 0o200: raise ValueError('Frozen runtime')
             # Old releases have no pin protocol: retain for explicit migration.
-            ordinary(runtime / 'dist/adapters/backend-host/runtime-pins.js')
-            sentinel = runtime / '.retiring'
+            protocol = runtime / 'dist/adapters/backend-host/runtime-pins.js'
+            ordinary(protocol)
+            state = runtime
+            if runtime.name == 'runtime' and runtime.parent.name == 'Resources' and runtime.parent.parent.name == 'Contents' and runtime.parents[2].name.endswith('.app'):
+                if not re.search(r'\bBUNDLE_PIN_PROTOCOL\s*=\s*1;', protocol.read_text()): raise ValueError('Unknown bundle pin protocol')
+                base = Path.home() / '.jumpybrain-runtime-pins'
+                state = base / f'{owner.st_dev}-{owner.st_ino}'
+                for directory in [base, state]:
+                    directory.mkdir(mode=0o700, exist_ok=True)
+                    if ordinary(directory, True).st_mode & 0o077: raise ValueError('Unsafe bundle pin state')
+            sentinel = state / '.retiring'
             with sentinel.open('x') as stream: stream.write('retention\n')
             sentinels.append(sentinel)
-            pins = runtime / '.backend-pins'
-            if pins.exists():
-                ordinary(pins, True)
+            # Retain legacy in-bundle pins too; never mutate their sealed resources.
+            for pins in dict.fromkeys([runtime / '.backend-pins', state / '.backend-pins']):
+                if not os.path.lexists(pins): continue
+                if ordinary(pins, True).st_mode & 0o077: raise ValueError('Unsafe runtime pins')
                 entries = list(pins.iterdir())
                 if len(entries) > 256: raise ValueError('Too many runtime pins')
                 for pin in entries:
                     if alive(packet(pin)['pid']): raise ValueError('Live runtime pin')
+            if runtime != state and os.path.lexists(runtime / '.retiring'): raise ValueError('Legacy runtime retirement')
         return sentinels
     except BaseException:
         for sentinel in sentinels: sentinel.unlink(missing_ok=True)

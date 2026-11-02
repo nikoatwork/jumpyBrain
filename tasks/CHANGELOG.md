@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — Preserve signed Mac app resources
+
+- Bundled backends keep generation-bound runtime pins and retirement fences outside the signed app, preserving signature verification while retaining live runtimes through moves. [Verification and limits](done/2026-11-02_tasks-signed-bundle-runtime-pins.md).
+
 ## 2026-11-02 — Local backend restart recovery
 
 - The Mac gateway rediscovers authenticated replacement backends, fences retired requests/subscriptions and preserves private draft review. [Verification and limits](done/2026-11-02_tasks-backend-restart-recovery.md).
