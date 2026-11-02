@@ -3,7 +3,7 @@
 Requested 2026-11-02: cut release immediately following the completed shared-backend/live-editing work. Default patch beta release. Latest published release v0.3.16 is November 1; no release today in Europe/Berlin. Clean isolated release checkout starts at implementation snapshot 124c416, containing fetched origin/master 9208c7f and all landed local master changes through cd3db86. The original checkout's two unrelated untracked task notes remain excluded and untouched.
 
 - [x] Review live feedback, publication history, source ancestry and release scope.
-- [ ] Prepare fresh build/desktop package and core note-lifecycle flow, reusing unchanged feature evidence.
+- [x] Prepare fresh build/desktop package and core note-lifecycle flow, reusing unchanged feature evidence.
 - [ ] Run release dry run and full aligned-version test/pack/commit/tag/push/publication workflow.
 - [ ] Verify public tag, notes, component versions and downloaded asset SHA-256.
 - [ ] Archive exact public notes and QA, reset only shipped pending notes, and push bookkeeping.
@@ -24,4 +24,6 @@ Sanitized triage: current release adds folder actions and separate remote creden
 
 ## Release record
 
-Pending selected preparation and publication. Public GitHub release and its downloaded asset will be authoritative; an archive alone is not publication evidence.
+Preparation passed: fresh build, fresh signed outer desktop package, and the real note-lifecycle smoke (capture, immediate search, graph/title navigation, guarded two-tab recovery, narrow layouts, deletion and index refresh). Release dry run selects 0.3.17 beta. All implementation inputs are unchanged from the accepted 124c416 candidate; only release notes/task bookkeeping changed. The isolated clone's remote fetch mapping was normalized and fetched origin/master ancestry verified before publication.
+
+Logs: `.local-pack/release-prep/{build,desktop,core-note,dry-run}.log` in the parent worktree. No installed app/CLI, personal brain or VPS was changed. The full release-owned versioned suite and distribution/publication verification remain required.
