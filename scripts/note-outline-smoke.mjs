@@ -45,7 +45,7 @@ try {
   await aligned(4);
   assert.deepEqual(await editorSelection(page), selection, 'pointer jump retains live selection');
   await page.waitForFunction(() => document.querySelectorAll('.note-outline-tick')[4].dataset.current === 'true');
-  assert.equal(await editorMarkdown(page), body);
+  assert.equal(await editorMarkdown(page), body.replace(/\n/g, '\r\n'), 'navigation preserves source line endings');
   await hover(5);
   assert.equal(await preview.locator('img').count(), 0, 'headings are text only');
   assert.equal(await page.locator('#note-outline-title').textContent(), headings[5]);
@@ -65,6 +65,24 @@ try {
     await page.evaluate(theme => { document.documentElement.dataset.theme = theme; document.documentElement.dataset.nativeMac = 'true'; }, theme);
     if (width > 680) {
       await rail.waitFor();
+      if (width === 1280) {
+        await page.mouse.move(800, 10);
+        await page.screenshot({ path: path.join(output, `indicators-resting-${theme}.png`) });
+        const marks = await page.locator('.note-outline-tick').evaluateAll(ticks => ticks.slice(0, 6).map(tick => {
+          const style = getComputedStyle(tick);
+          return { width: parseFloat(style.width), height: parseFloat(style.height) };
+        }));
+        assert.deepEqual(marks.map(mark => mark.width), [11, 10, 9, 8, 7, 6], 'all heading levels use half-width marks');
+        assert.ok(marks[0].height > marks[1].height && marks[1].height > marks[2].height, 'H1/H2/H3 have distinct vertical hierarchy');
+        assert.ok(marks.slice(2).every(mark => mark.height >= 2), 'deeper headings stay legible');
+        assert.ok((await rail.boundingBox()).width >= 32, 'compact marks retain the full pointer target');
+        await hover(0);
+        await page.screenshot({ path: path.join(output, `indicators-hover-${theme}.png`) });
+        await rail.focus(); await rail.press('Home');
+        assert.equal(await page.locator('#note-outline-title').innerText(), headings[0]);
+        await page.screenshot({ path: path.join(output, `indicators-focus-${theme}.png`) });
+        await rail.evaluate(element => element.blur());
+      }
       await hover(3);
       const bounds = await preview.boundingBox();
       assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width && bounds.y >= 0 && bounds.y + bounds.height <= 900);
