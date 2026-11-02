@@ -1,5 +1,9 @@
 # Changes
 
+- Word and line deletion save reliably in existing notes, including keyboard shortcuts and repeated text.
+
+- The packaged Mac app starts normally from agent shells that inherit Electron's Node-mode variable; reopening after Quit works independently of Start at Login.
+
 - The Mac app reconnects to a restarted local brain backend without quitting, retaining unpublished drafts for review and restoring notes, boards and search.
 
 - Doctor offers an explicit read-only lexical probe with content-free execution results; readiness guidance distinguishes engine presence, index metadata and untested semantic relevance.

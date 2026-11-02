@@ -11,6 +11,7 @@
     "pack": "node install.mjs --output ../../.local-pack/desktop"
   },
   "devDependencies": {
+    "@electron/fuses": "2.1.3",
     "@electron/get": "5.1.0",
     "@electron/packager": "20.3.0",
     "electron": "44.10.0",

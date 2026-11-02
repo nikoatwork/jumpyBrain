@@ -48,8 +48,8 @@ Priorities are planning judgments. Rows can ship separately as soon as their own
 | Priority | Shipping unit | Ownership / boundary |
 | --- | --- | --- |
 | P0 | Recover app after local backend restart | [Focused implementation](../done/2026-11-02_tasks-backend-restart-recovery.md); task 1 below tracks completion. |
-| P0 | Resolve idle-note edit failure | Continue [idle editing](tasks-stale-note-editing.md); do not duplicate its source fix or declare its unknown reproduction resolved. |
-| P0 | Restore reliable Quit/open launch | Continue [runtime hygiene](tasks-desktop-runtime-hygiene.md), tasks 3.4/4.3. **F1 adds a concrete sequence:** failure after Quit, direct/open launch exits, LaunchAgent bootstrap restores startup. Re-test both loaded/unloaded service states on a matching disposable packaged app; this narrows the previous missing-reproduction blocker without proving a cause. Keep source diagnostics separate from required packaged launch verification. |
+| P0 | Reliable deletion of existing text | [Completed command-path fix](../done/2026-11-02_tasks-stale-note-editing.md): word/line deletion reproduces the source-range error without idle; exact native boundaries now save. The original historical shortcut remains unknown. |
+| P0 | Restore reliable Quit/open launch | [Packaged environment fix](../done/2026-11-02_tasks-desktop-shell-launch.md) reproduces/fixes inherited Electron Node-mode exit zero; actual direct/open/Quit and loaded/unloaded service checks pass. [Runtime hygiene](tasks-desktop-runtime-hygiene.md), tasks 3.4/4.3, retains the unverified macOS 26 report boundary. |
 | P1 | Natural-language semantic eligibility | New task 2; retain exact-query controls. |
 | P1 | Useful vector contribution | New task 3; test independently from task 2. |
 | P1 | Dated daily captures | New task 4. |

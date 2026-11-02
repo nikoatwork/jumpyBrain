@@ -323,6 +323,13 @@ The shipped note surface binds `collaboration-editor` to bounded server-ordered
 source operations. Collapsed deletion of an empty paragraph includes its exact
 source interval only when its captured node is actually removed; trailing blank
 paragraphs in a fresh daily note remain editable without inferred text diffs.
+Word/line deletion commands can run on keydown without `beforeinput`. A high-priority
+observer measures the browser's native word/line boundary, clones the range and
+restores the original caret before leaving the default Lexical command in control.
+Only a collapsed caret moves temporarily; no transient selection replaces X11's
+PRIMARY clipboard. The captured interval still requires the existing exact
+before/after splice proof, preserving repeated-word identity and failing closed
+when a native boundary cannot be measured. No generic diff or whole-note replacement.
 Once a draft requires review, subsequent typing stays private and preserves the
 first failure rather than composing onto stale proven operations.
 
@@ -342,7 +349,8 @@ and mobile widths. This uses a disposable root; it does not install or alter the
 Mac app or personal notes.
 
 Existing-note regression: `npx --package=playwright node scripts/stale-note-editing-smoke.mjs`
-checks real Backspace/Delete, selected/cross-paragraph deletion and empty blocks
+checks real Backspace/Delete, selected/cross-paragraph deletion, empty blocks,
+backward/forward word deletion, repeated-word identity and Mac line deletion
 through unchanged observations (including 35 seconds without input), socket
 reconnect, identical-source backend restart and disjoint external append. It
 asserts the outgoing positional operation, canonical bytes, reload and actor

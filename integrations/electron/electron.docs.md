@@ -120,6 +120,26 @@ history followed by new editing.
 
 The production sandboxed welcome offers an optional name for local and remote setup, passed through a fixed bounded IPC action to the authenticated companion identity route. Setup and Settings → Your name share the CLI's device-local display preference; no name is guessed and existing notes keep their recorded provenance. The compact welcome field preserves reachable actions at 960/680px. `scripts/simple-onboarding-smoke.mjs` verifies persistence with a disposable preference file and real production welcome. `scripts/contextual-attribution-smoke.mjs` covers Settings, live human saves, CLI agent prefixes and the saved-note selection hint.
 
+## Packaged launch environment
+
+`install.mjs` uses the pinned build-only `@electron/fuses` helper to disable
+RunAsNode before signing the bundle. An inherited `ELECTRON_RUN_AS_NODE=1` must
+not turn the packaged executable into plain Node and bypass `main.mjs`, its tray
+and diagnostics. The generic development Electron binary keeps its defaults;
+backends already run with configured system Node, not Electron-main `fork`.
+
+`scripts/desktop-launch-smoke.mjs --app <matching-built-app>` tests the actual
+packaged executable with inherited Node-mode and clean environments, AppleScript
+Quit, LaunchServices open, and a unique temporary LaunchAgent loaded and unloaded.
+It changes only copied bundle configuration/identity and disposable data. A CDP
+port exists only on the fixture; second-instance success requires a registered
+editor, not just an existing gateway. `--baseline` demonstrates the pre-fix exit
+zero; `--editing` checks ordinary/repeated Backspace, selected text, word/line
+deletion and formatted/repeated words. `--idle` checks canonical bytes and reload after 35-second idle,
+65-second renderer suspension and empty-paragraph deletion. Draining owned
+processes precedes removal of fixture runtime/pin state. Physical sleep/IME,
+macOS 26 and the reporter's unknown selection sequence remain separate evidence.
+
 ## Runtime retention
 
 A detached or foreground backend pins its runtime before readiness. Pins move with
