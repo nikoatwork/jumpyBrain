@@ -341,6 +341,16 @@ replacement/reload, retained-draft review and safe dismissible feedback at deskt
 and mobile widths. This uses a disposable root; it does not install or alter the
 Mac app or personal notes.
 
+Existing-note regression: `npx --package=playwright node scripts/stale-note-editing-smoke.mjs`
+checks real Backspace/Delete, selected/cross-paragraph deletion and empty blocks
+through unchanged observations (including 35 seconds without input), socket
+reconnect, identical-source backend restart and disjoint external append. It
+asserts the outgoing positional operation, canonical bytes, reload and actor
+Undo/Redo, plus private-draft retention on a genuine external overlap. The
+runner records actual elapsed time, epochs/revisions and selection for synthetic
+notes only. Browser input idle still permits presence heartbeats; this does not
+simulate OS sleep, hidden-tab suspension or packaged Electron lifecycle.
+
 Reconciliation retains unaffected Lexical nodes, source
 spellings and mapped selection; IME preedit is deferred. Actor-specific undo/redo
 and source-proven remote carets avoid overwriting another writer. The controller
