@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — Hosted container packaging
+
+- Repaired clean-context Docker builds and locked runtime/search dependencies, with non-root hosting and a real disposable retrieval/rotation/restore gate. [Verification and remaining Linux service gate](todo/tasks-hosted-build-and-operations.md).
+
 ## 2026-11-02 — Fresh-note editing and calm error feedback
 
 - Fixed deleting the daily prompt through empty paragraphs and replaced technical editor errors with dismissible recovery toasts. [Verification](done/2026-11-02_tasks-fresh-note-edit-feedback.md).
