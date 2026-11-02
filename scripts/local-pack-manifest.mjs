@@ -4,6 +4,7 @@ const distDirPrefix = (...segments) => `${distFile(...segments)}/`;
 
 export const requiredLocalPackFiles = Object.freeze([
   "package/package.json",
+  "package/docs/product-vision.md",
   "package/dist/runtime-package-lock.json",
   ...moduleFiles("adapters", "live", "index"),
   ...moduleFiles("adapters", "websocket", "index"),
