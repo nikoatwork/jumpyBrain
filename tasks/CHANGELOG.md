@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — v0.3.18 beta release
+
+- Published editor deletion, Mac recovery/launch, CLI usability and hosted packaging fixes; all 1,851 tests and public artifact verification passed. [Release QA](done/releases/v0.3.18.qa.md).
+
 ## 2026-11-02 — Daily-note evidence dates
 
 - New daily notes record their selected local calendar day for temporal recall and dream windows, rejecting conflicting supplied dates before writing. [Verification and limits](done/2026-11-02_tasks-daily-note-evidence-date.md).
