@@ -4,9 +4,9 @@ Requested 2026-11-02: cut release immediately following the completed shared-bac
 
 - [x] Review live feedback, publication history, source ancestry and release scope.
 - [x] Prepare fresh build/desktop package and core note-lifecycle flow, reusing unchanged feature evidence.
-- [ ] Run release dry run and full aligned-version test/pack/commit/tag/push/publication workflow.
-- [ ] Verify public tag, notes, component versions and downloaded asset SHA-256.
-- [ ] Archive exact public notes and QA, reset only shipped pending notes, and push bookkeeping.
+- [x] Run release dry run and full aligned-version test/pack/commit/tag/push/publication workflow.
+- [x] Verify public tag, notes, component versions and downloaded asset SHA-256.
+- [x] Archive exact public notes and QA, reset only shipped pending notes, and push bookkeeping.
 
 ## Scope and evidence
 
@@ -29,3 +29,15 @@ Preparation passed: fresh build, fresh signed outer desktop package, and the rea
 Logs: `.local-pack/release-prep/{build,desktop,core-note,dry-run}.log` in the parent worktree. No installed app/CLI, personal brain or VPS was changed. The full release-owned versioned suite and distribution/publication verification remain required.
 
 The first full release attempt correctly stopped before commit/tag/push/publication: 1,787/1,788 tests passed, with one `ENOTEMPTY` race in project-installer fixture teardown. Only the four uncommitted version metadata changes were restored before fixing the fixture. Global/project install fixtures now drain their own indexing backend before removal; all 155 behavioral assertions remain byte-identical (AST SHA-256 `80ed4f565932e6f54620b3552b284afd53a97db751b8f5e7be3636aa8b22767f`). The affected 33-test suite passes twice, zero skips. The reviewed baseline delta now has 34 entries, SHA-256 `55185e6dac021ba67c0a816d477aedbea493c1e6fcf591b2658278398cc1953c`; the immutable baseline and product/runtime code are unchanged. Gate/delta guards are rerun before the next full workflow. Failure and focused logs remain in the parent `.local-pack/release-prep/` directory.
+
+## Published outcome
+
+Published and verified 2026-11-02T08:07:09Z: https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.17, commit
+`48e2e59d69099e594ad036cb8b1816b3afb02b0c`. Mandatory versioned suite 1,788/1,788, zero skips;
+284 distribution assets and all size budgets pass. Source/package versions,
+annotated tag and exact public notes verified. Local/downloaded/GitHub asset
+SHA-256 agree: `79b45e428d3c74f9778c9f5827303d0ecfab9acdafc09d86590c27a453bc0228`. Exact notes are archived at
+[releases/v0.3.17.md](releases/v0.3.17.md); the pending queue is reset with no
+deferred bullets. [QA and explicit limits](releases/v0.3.17.qa.md) retain failed
+and successful checks, feedback review and reused evidence scope. Publication
+is separate from personal app/CLI installation and VPS deployment.
