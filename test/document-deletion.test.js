@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdtemp, readFile, writeFile, rm, link, symlink, readdir, mkdir } from 'node:fs/promises';
@@ -14,7 +16,7 @@ const markdown = (id, title, body = 'Original body') => `---\nid: "${id}"\ntitle
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-delete-test-'));
   const cleanup = { close: async () => {} };
-  t.after(async () => { await cleanup.close(); await rm(root, { recursive: true, force: true }); });
+  t.after(async () => { await cleanup.close(); if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); });
   await initializeMemoryRoot(root);
   const file = path.join(root, 'notes/hashed-source.md');
   await writeFile(file, markdown(id, 'Human title'));

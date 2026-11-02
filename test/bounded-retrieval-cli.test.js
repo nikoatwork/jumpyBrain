@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -19,7 +21,7 @@ const run = (args, env = {}) => execute(process.execPath, [cli, ...args], { env:
 
 test("bounded CLI local/remote/recipe output is exactly one budgeted JSON packet, with legacy show preserved", async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), "jumpy-bounded-cli-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); });
   await mkdir(path.join(root, "notes"));
   const content = `---\nid: ${id}\ncreated_at: 2024-01-01\n---\n# Trial\nCalibration is provisional. NOT approved for production.\n\n# Detail\n${"Only under supervision. 🐙\n".repeat(60)}`;
   await writeFile(path.join(root, "notes/trial.md"), content);

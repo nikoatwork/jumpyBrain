@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtemp, readFile, writeFile, rm, chmod, realpath } from "node:fs/promises";
@@ -124,7 +126,7 @@ test("canonical app writes preserve no-ops and return current declared editors t
     assert.equal((await readMemoryDocument(root, saved.id)).recognition.editor, undefined);
     const bad = await fetch(`${server.url}/memories/all/search`, { method: "POST", headers: { Authorization: "Bearer disposable-key", "Content-Type": "application/json" }, body: JSON.stringify({ query: "mistral", recognition: { from: "2026-02-30" } }) });
     assert.equal(bad.status, 400);
-  } finally { await server?.close(); await rm(root, { recursive: true, force: true }); }
+  } finally { await server?.close(); if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); }
 });
 
 test("filters consider candidates beyond the first screen, page deterministically and match local/remote/CLI", { timeout: 30000 }, async () => {
@@ -173,7 +175,7 @@ test("filters consider candidates beyond the first screen, page deterministicall
     assert.equal(unknown.results.length, 1);
     assert.equal(unknown.results[0].recognition.editor, undefined);
     assert.equal(unknown.results[0].recognition.updatedAt, "2026-10-23T15:42:00Z", "declared metadata is not inferred mtime");
-  } finally { if (previous === undefined) delete process.env.JUMPYBRAIN_QMD_BIN; else process.env.JUMPYBRAIN_QMD_BIN = previous; await server?.close(); await rm(root, { recursive: true, force: true }); }
+  } finally { if (previous === undefined) delete process.env.JUMPYBRAIN_QMD_BIN; else process.env.JUMPYBRAIN_QMD_BIN = previous; await server?.close(); if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); }
 });
 
 test("recent confirmed writes carry dates/editor, filter before paging and do not borrow stale attribution", async () => {

@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { lstat, mkdir, mkdtemp, readFile, realpath, rm, stat, unlink, writeFile } from "node:fs/promises";
@@ -49,7 +51,7 @@ test("unsupported syntax is preserved byte-for-byte with body-free warnings", ()
 
 async function fixture(t) {
   const base = await realpath(await mkdtemp(path.join(os.tmpdir(), "jumpy-logseq-readable-")));
-  t.after(() => rm(base, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(base, { recursive: true, force: true }); });
   const source = path.join(base, "source"), root = path.join(base, "memory");
   await mkdir(path.join(source, "pages"), { recursive: true });
   await mkdir(path.join(source, "journals"));

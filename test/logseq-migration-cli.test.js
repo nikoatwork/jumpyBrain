@@ -1,3 +1,4 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -28,7 +29,7 @@ function invoke(args, { ok = true, env = {} } = {}) {
 
 async function fixture(t) {
   const temp = await realpath(await mkdtemp(path.join(os.tmpdir(), "jumpybrain-logseq-cli-")));
-  t.after(() => rm(temp, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(temp, { recursive: true, force: true }); });
   const source = path.join(temp, "graph with 'quote");
   const root = path.join(temp, "memory with 'quote");
   for (const dir of ["pages/nested", "journals", "assets", "logseq/bak"]) {

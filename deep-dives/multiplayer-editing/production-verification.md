@@ -13,9 +13,9 @@ The original M0 baseline remains immutable. Its manifest SHA-256 is
 the original contract SHA-256 is
 `27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a`.
 The separately reviewed [contract delta](production-contract-delta.json) pins
-17 exact old/new assertion or harness changes and their behavioral reasons.
+33 exact old/new assertion or harness changes and their behavioral reasons.
 Its SHA-256 is
-`891b30e3fa49fa85baadd333a717fd7271c42f87ca8104e785422c1f1c77c4d3`.
+`b7b93fd1fea2e31a2d930b4db8859bdc46c6739d755d96f72edbb3a37a18ca74`.
 The earlier accepted seven-check integration used the prior delta pin
 `6da314fd9db7a891750db0f04e7351226b804c090305ee5b3ca585e97177645e`.
 An approved transport or timing change does not replace canonical-content,
@@ -217,8 +217,21 @@ reconnect, leases, revocation and stale connection disposal. The mandatory shipp
 proof holds a browser subscription through 132 actual default CLI processes and
 checks fresh-human publication, history replay/expiry and recent agent Undo.
 Build `fdc67474bfe9d94e` passes 36 focused built tests and actual packaged native
-input/accessibility. The new clean-candidate gate and independent re-review
-remain required before completion.
+input/accessibility. The first clean `add84ee` full run stopped at 1,784/1,785 tests because an old
+CLI fixture removed its temporary root before draining the persistent owner
+(`ENOTEMPTY`). It ran no production checks. Failed report SHA-256:
+`9a87506f4fbbda3912c68ba115b74a1afe44587a60f9634b79f3e6a30aa08cf9`.
+The fixture correction must preserve command/data assertions and authenticate
+owner shutdown before removal; it receives an explicit reviewed M0 delta.
+The focused lifetime audit also corrects 16 existing CLI fixture files. Their
+874 behavioral assertions remain byte-identical; the memory CLI fixture retains
+all 305 assertions. The reviewed delta grows to 33 exact entries, including
+these teardown changes, without replacing the original baseline. A fresh
+clean-candidate gate and independent re-review remain required. Both memory CLI
+runs pass 30/30; both additional fixture runs pass 136/136 with zero skips.
+Fresh pinned Linux 22.12.0 and 26.7.0 receipts each pass 214/214 and match every
+runtime byte of build `fdc67474bfe9d94e`. No app runtime changed in this fixture
+correction.
 
 ## Reproduction prerequisites
 

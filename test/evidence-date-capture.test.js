@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFile, spawnSync } from 'node:child_process';
@@ -16,7 +18,7 @@ const invalidDates = ['', null, true, 20240229, [], {}, '2023-02-29', '2024-02-3
 const draft = { type: 'finding', title: 'Backfilled observation', body: 'Evidence remained provisional.' };
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'jb-evidence-date-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); });
   await initializeMemoryRoot(root);
   return root;
 }

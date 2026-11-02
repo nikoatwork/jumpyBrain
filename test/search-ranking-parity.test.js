@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import { extractShellFunction } from "./browser-shell-helpers.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
@@ -146,6 +148,7 @@ else { console.error('Unexpected QMD operation: ' + args[0]); process.exit(1); }
     for (const [key, value] of Object.entries(savedEnv)) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value;
     }
+    if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root);
     await rm(root, { recursive: true, force: true });
   }
 });

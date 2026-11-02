@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -14,7 +16,7 @@ import { repoRoot } from "./source-graph-helpers.js";
 
 async function disposableRoot(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-dream-writing-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); });
   return root;
 }
 
