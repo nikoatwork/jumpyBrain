@@ -340,7 +340,9 @@ export function createNoteEditor(element: HTMLElement, options: {
         if(index>=0){ranges.push({start:blocks[index].offset,end:low});if(index>0)ranges.push({start:blocks[index-1].offset+blocks[index-1].raw.length,end:low})}
       }
       if(/^delete/.test(inputType)){
-        for(const [index,block]of blocks.entries())if(block.map&&low<=block.offset+block.map.contentStart&&high>=block.offset+block.map.contentEnd&&low!==high){
+        // A collapsed caret can remove its empty paragraph, including its
+        // separator. Accept that exact range only if this node was removed.
+        for(const [index,block]of blocks.entries())if(block.map&&low<=block.offset+block.map.contentStart&&high>=block.offset+block.map.contentEnd&&(low!==high||block.map.visibleLength===0&&low===block.offset+block.map.contentStart)){
           ranges.push({start:index===blocks.length-1&&index>0?block.offset-1:Math.min(low,block.offset),end:index<blocks.length-1?Math.max(high,block.offset+block.raw.length+1):Math.max(high,block.offset+block.raw.length),removedKey:block.node.getKey()});
         }
         if(low===high&&inputType==="deleteContentForward"){

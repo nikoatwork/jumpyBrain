@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — Fresh-note editing and calm error feedback
+
+- Fixed deleting the daily prompt through empty paragraphs and replaced technical editor errors with dismissible recovery toasts. [Verification](done/2026-11-02_tasks-fresh-note-edit-feedback.md).
+
 ## 2026-11-02 — Contextual editor attribution and client naming
 
 - Removed sidebar actor glyphs, added saved-note attribution beside text selections, and shared optional owner names across Mac onboarding/Settings and CLI agent labels. [Verification](done/2026-11-02_tasks-contextual-editor-attribution.md).

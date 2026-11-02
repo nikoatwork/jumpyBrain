@@ -408,6 +408,10 @@ export function createCollaborationEditor(options: Options) {
       reviewedPublication=undefined;if(!opened&&!baseline)dirtyBeforeOpen=true;
       const before=body,previousOperations=pendingOperations;
       body=value;
+      // A retained draft can keep changing during review, but its positional
+      // history is no longer proven. Preserve the first failure and do not
+      // compose later edits onto the last successfully tracked body.
+      if(conflict){persist();notify();return}
       try{
         if(!intent||intent.reason||intent.before!==before||intent.after!==value||applySourceSplices(before,intent.operations)!==value)throw new CollaborationError("unproven_input",intent?.reason??"This input has no verified positional edit range. Its draft is retained for review.");
         pendingOperations=composeSourceSplices(pendingBase,[pendingOperations,intent.operations]);
