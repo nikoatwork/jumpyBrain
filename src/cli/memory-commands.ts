@@ -228,6 +228,7 @@ function indexOptionsFromArgs(args: ParsedCliArgs): IndexMemoryOptions {
 function printReadiness(readiness?: RetrievalReadiness): void {
   if (!readiness) return;
   console.log(`Readiness: ${readiness.freshness}; modes: ${readiness.modes.join(", ") || "none"}; embeddings: ${readiness.embedding}`);
+  console.log("Modes/coverage describe index metadata, not verified inference or relevance; lexical-only retrieval can miss paraphrases.");
   if (readiness.lastFailure) console.log(`Last index failure: ${readiness.lastFailure.code}`);
 }
 

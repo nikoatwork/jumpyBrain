@@ -7,8 +7,35 @@ import { evidenceDate, evidenceInInterval, resolveTemporalQuery } from "../dist/
 import { readMarkdownDocuments, searchMemory, compactSearchMemory } from "../dist/runtime/index.js";
 import { manifestPath } from "../dist/adapters/qmd/qmd-driver.js";
 import { installFakeQmd } from "./fake-qmd-helper.js";
+import { planLogseqDocument, planObsidianDocument, parseMigrationEnvelope } from "../dist/core/migration/index.js";
+import { documentTime, temporalBoostFor } from "../dist/adapters/qmd/qmd-ranking.js";
 
 const interval = query => resolveTemporalQuery(query);
+test("actual import envelopes expose creation fallback skew without rewriting source dates", () => {
+  const body = Buffer.from("---\ndate: 2020-02-29\ncreated_at: 2020-03-01\n---\nHarbor approval was conditional.\n");
+  const olderImport = "2025-01-01T00:00:00.000Z", newerImport = "2026-11-01T00:00:00.000Z";
+  const stats = { min: Date.parse(olderImport), max: Date.parse(newerImport) };
+  for (const [plan, sourcePath] of [[planObsidianDocument, "Harbor.md"], [planLogseqDocument, "pages/Harbor.md"]]) {
+    for (const [now, expectedBoost] of [[olderImport, 0], [newerImport, 0.18]]) {
+      const result = plan({ sourcePath, body, now, bodyFormat: "preserve" });
+      const { metadata, body: preserved } = parseMigrationEnvelope(result.output);
+      assert.deepEqual(preserved, body);
+      assert.equal(metadata.created_at, now);
+      assert.equal(metadata.date, undefined, "source YAML stays body evidence, not authoritative envelope metadata");
+      assert.equal(documentTime(metadata), Date.parse(now));
+      assert.equal(temporalBoostFor("harbor approval", metadata, stats, 1), expectedBoost);
+      assert.equal(evidenceDate(result.entry.outputPath, metadata).basis, "unknown");
+    }
+  }
+  for (const now of [olderImport, newerImport]) {
+    const result = planLogseqDocument({ sourcePath: "journals/2020_02_29.md", body, now, bodyFormat: "preserve" });
+    const { metadata } = parseMigrationEnvelope(result.output);
+    assert.equal(metadata.created_at, now);
+    assert.equal(metadata.date, "2020-02-29");
+    assert.equal(documentTime(metadata), Date.parse("2020-02-29"));
+    assert.deepEqual(evidenceDate(result.entry.outputPath, metadata), { basis: "declared", value: "2020-02-29" });
+  }
+});
 test("strict UTC bounds: inclusive leap days, exclusive instants, offsets and pinned relative days", () => {
   const leap = interval({ from: "2024-02-29", to: "2024-02-29" });
   assert.equal(leap.from, "2024-02-29T00:00:00.000Z");
@@ -177,4 +204,51 @@ test("source date edits and missing sources fail closed even for ID-less rich te
   assert.ok(stale.retrieval.warnings.includes("source_changed"));
   await rm(path.join(root,"notes/source.md"));
   assert.ok((await search({ from:"2020-01-01" })).retrieval.warnings.includes("source_changed"));
+}));
+
+test("paired imported-date diagnosis preserves scores, evidence dates and unknown event years without policy changes", async () => fixture(async ({ root, put, index, search }) => {
+  const body = "Harbor parcel approval remains provisional. The ceremony is on 18 November; the event year was not specified.";
+  const metadata = { title: "Harbor memo", type: "note", date: "2020-02-29", created_at: "2026-01-01", updated_at: "2026-02-01" };
+  const old = await put("notes/imported.md", metadata, body);
+  const newer = await put("notes/newer.md", { title: "Harbor update", date: "2024-01-01", created_at: "2024-01-01" }, "Harbor parcel approval is now withdrawn.");
+  const query = "harbor parcel approval";
+  await index([old, newer]);
+  const before = await search(undefined, 5, "normal", query);
+  const indexed = before.results.find(row => row.provenance.file === old.file);
+  assert.equal(indexed.scoreBreakdown.temporalRelevance, 0);
+  assert.equal(before.results.find(row => row.provenance.file === newer.file).scoreBreakdown.temporalRelevance, 0.18);
+  assert.match(indexed.snippet, /event year was not specified/);
+  // Change ONLY writing/import/edit metadata, not evidence time, candidates or text.
+  const changed = await put(old.file, { ...metadata, created_at: "2090-01-01", updated_at: "2091-01-01" }, body);
+  await index([changed, newer]);
+  const after = await search(undefined, 5, "normal", query);
+  assert.deepEqual(after.results.map(row => [row.provenance.file, row.score, row.scoreBreakdown]), before.results.map(row => [row.provenance.file, row.score, row.scoreBreakdown]));
+  const scoped = await search({ from: "2020-02-29", to: "2020-02-29" }, 5, "normal", query);
+  assert.deepEqual(files(scoped), [old.file]);
+  assert.deepEqual(scoped.results[0].provenance.evidenceDate, { basis: "declared", value: "2020-02-29" });
+  assert.equal(scoped.results[0].scoreBreakdown.temporalRelevance, 0);
+  const compact = await compactSearchMemory(root, query, 5, { refresh: false, temporal: { from: "2020-02-29", to: "2020-02-29" } });
+  assert.equal(compact.passages[0].date.value, "2090-01-01");
+  assert.equal(compact.passages[0].evidenceDate.value, "2020-02-29");
+}));
+
+test("absent-page shallow human decision evidence survives; controlled distractors demonstrate rank is not confidence", async () => fixture(async ({ put, index, search }) => {
+  const note = await put("notes/human.md", { type: "note", title: "Harbor minutes", creator_kind: "human" }, "Harbor parcel approval: we decided to postpone dispatch until the owner signs. This is conditional, not production approval.");
+  const distractor = await put("notes/distractor.md", { type: "note", title: "Harbor training" }, "Harbor parcel approval is a practice phrase in a typing exercise; no dispatch decision is recorded here.");
+  // Frozen backend rows exercise selection/excerpts, not genuine lexical/semantic discovery.
+  await index([note, distractor]);
+  for (const depth of ["shallow", "normal", "deep"]) {
+    const result = await search(undefined, 5, depth, "harbor parcel approval");
+    assert.equal(result.results.length, 2);
+    assert.ok(result.results.every(row => row.provenance.metadata.type === "note"));
+    assert.match(result.results.find(row => row.provenance.file === note.file).snippet, /conditional, not production approval/);
+    assert.equal(result.results.find(row => row.provenance.file === note.file).provenance.metadata.creator_kind, "human");
+    assert.equal(result.results.find(row => row.provenance.file === note.file).scoreBreakdown.memoryStrength, 0);
+    assert.equal(result.results.find(row => row.provenance.file === distractor.file).scoreBreakdown.qmdScore, 0.8);
+  }
+  await index([distractor]);
+  const absent = await search(undefined, 5, "shallow", "harbor parcel approval");
+  assert.deepEqual(files(absent), [distractor.file]);
+  assert.equal(absent.results[0].scoreBreakdown.qmdScore, 1, "rank fallback can make the sole irrelevant candidate look strong");
+  assert.equal(absent.results.some(row => row.provenance.file === note.file), false, "candidate absence is distinct from packet omission");
 }));

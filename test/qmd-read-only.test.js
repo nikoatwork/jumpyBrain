@@ -8,6 +8,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+import { doctorReport, formatDoctorReport } from "../dist/cli/doctor.js";
+import { createLocalMemoryTransport } from "../dist/cli/local-transport.js";
+import { parseArgs } from "../dist/cli/args.js";
 
 const build = process.env.JUMPYBRAIN_TEST_BUILD_DIR
   ? pathToFileURL(`${process.env.JUMPYBRAIN_TEST_BUILD_DIR}/`) : new URL("../dist/", import.meta.url);
@@ -36,8 +39,10 @@ async function setup(t) {
   await mkdir(path.join(pkg, "bin"));
   await mkdir(path.join(pkg, "node_modules/better-sqlite3"), { recursive: true });
   await writeFile(path.join(pkg, "package.json"), JSON.stringify({ name: "@tobilu/qmd", version: "2.8.3", type: "module" }));
-  await writeFile(path.join(pkg, "bin/qmd"), "not a CLI: do not execute");
+  await writeFile(path.join(pkg, "bin/qmd"), `#!${process.execPath}\nif(process.argv[2] !== '--version') throw Error('unexpected query CLI'); console.log('qmd 2.8.3');\n`);
+  await chmod(path.join(pkg, "bin/qmd"), 0o700);
   await writeFile(path.join(pkg, "dist/index.js"), "throw Error('do not load SDK entry/createStore')");
+  await writeFile(path.join(pkg, "dist/llm.js"), "throw Error('do not load models')");
   await copyFile(path.join(fixture, "store.js.fixture"), path.join(pkg, "dist/store.js"));
   await copyFile(path.join(fixture, "sqlite.cjs.fixture"), path.join(pkg, "node_modules/better-sqlite3/index.js"));
   const previous = process.env.JUMPYBRAIN_QMD_BIN;
@@ -155,4 +160,85 @@ test("outer guard rejects filesystem, publication and generation changes across 
   } finally { for (const [file, mode] of modes) await chmod(path.join(root, file), Number(mode) & 0o777); }
   await writeFile(path.join(root, ".jumpybrain/index.lock"), "do not reclaim");
   await unchanged(root, () => assert.rejects(remote.searchMemory("dispatch approval", 5, { readOnly: true }), { code: "read_only_busy" }));
+});
+
+test("doctor default observes readiness; explicit bounded probe distinguishes hits, empty, stale and failure without writes/content", async t => {
+  const { root, state, put } = await setup(t);
+  await mkdir(path.join(root, "notes"));
+  const source = path.join(root, "notes/a.md");
+  const content = "---\ntitle: Harbor memo\n---\ndispatch approval requires the owner; private-fixture-qualification\n";
+  await writeFile(source, content);
+  const info = await stat(source);
+  state.rows = [{ filepath: "qmd://jumpybrain/notes/a.md", hash: "abcdef123", score: 0.001, body: content }];
+  state.expectedFetch = 80;
+  state.manifest = { version: 1, root, generation: "published", qmdCollection: "jumpybrain", generatedAt: "2026-01-01T00:00:00Z",
+    policy: { mode: "lexical" }, embedding: { state: "disabled" }, documents: await readMarkdownDocuments(root),
+    sources: [{ file: "notes/a.md", size: info.size, mtimeMs: info.mtimeMs, ctimeMs: info.ctimeMs }] };
+  const publish = async () => { await put(); await writeFile(manifestPath(root), JSON.stringify(state.manifest)); };
+  await publish();
+  const transport = createLocalMemoryTransport();
+  const args = extra => parseArgs(["doctor", "--root", root, ...extra]);
+  await unchanged(root, async () => {
+    const unprobed = await doctorReport(args([]), { ...transport, searchMemory() { throw Error("default must not retrieve"); } });
+    assert.equal(unprobed.ok, true);
+    assert.equal(unprobed.retrievalProbe.status, "not_run");
+    assert.deepEqual(unprobed.memoryRoot.readiness, { freshness: "fresh", modes: ["lexical"], embedding: "disabled" });
+    let calls = 0;
+    const probed = await doctorReport(args(["--probe-query", "dispatch approval"]), { ...transport,
+      searchMemory(...values) {
+        calls++;
+        assert.deepEqual(values, [root, "dispatch approval", 1, { readOnly: true, refresh: false, timeoutMs: 5000 }]);
+        return transport.searchMemory(...values);
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(probed.retrievalProbe.status, "passed");
+    assert.ok(probed.retrievalProbe.warnings.includes("read_only_index"));
+    assert.doesNotMatch(JSON.stringify(probed) + formatDoctorReport(probed), /private-fixture-qualification|dispatch approval|Harbor memo/);
+    assert.match(formatDoctorReport(probed), /Semantic inference, relevance and answer correctness are untested/);
+  });
+  // Synthetic metadata proves diagnostics/fallback only: never load a model.
+  const model = path.join(root, ".jumpybrain/model.gguf");
+  await writeFile(model, "fictional model bytes; must not be loaded");
+  const modelInfo = await stat(model);
+  const policy = { mode: "semantic", model };
+  await writeFile(path.join(root, "jumpybrain.json"), JSON.stringify({ schemaVersion: 1, indexing: policy }));
+  state.manifest.policy = policy;
+  state.manifest.embedding = { state: "complete" };
+  state.manifest.modelStat = { size: modelInfo.size, mtimeMs: modelInfo.mtimeMs, ctimeMs: modelInfo.ctimeMs };
+  await publish();
+  await unchanged(root, async () => {
+    const semantic = await doctorReport(args(["--probe-query", "dispatch approval"]), transport);
+    assert.deepEqual(semantic.memoryRoot.readiness, { freshness: "fresh", modes: ["lexical", "semantic"], embedding: "complete" });
+    assert.equal(semantic.retrievalProbe.mode, "lexical");
+    assert.ok(semantic.retrievalProbe.warnings.includes("read_only_lexical_fallback"));
+  });
+  await writeFile(model, "changed model bytes");
+  await unchanged(root, async () => {
+    const incomplete = await doctorReport(args([]), transport);
+    assert.deepEqual(incomplete.memoryRoot.readiness, { freshness: "stale", modes: ["lexical"], embedding: "incomplete" });
+    assert.equal(incomplete.retrievalProbe.status, "not_run");
+  });
+  state.rows = []; await put();
+  await unchanged(root, async () => assert.equal((await doctorReport(args(["--probe-query", "absent"]), transport)).retrievalProbe.status, "empty"));
+  await writeFile(source, content + "external edit\n");
+  await unchanged(root, async () => {
+    const stale = await doctorReport(args(["--probe-query", "absent"]), transport);
+    assert.equal(stale.memoryRoot.readiness.freshness, "stale");
+    assert.equal(stale.retrievalProbe.status, "empty");
+    assert.ok(stale.retrievalProbe.warnings.includes("index_not_fresh"));
+  });
+  for (const name of ["index.lock", "index-pending.json"]) {
+    await writeFile(path.join(root, ".jumpybrain", name), "private-fixture-error");
+    await unchanged(root, async () => {
+      const failed = await doctorReport(args(["--probe-query", "absent"]), transport);
+      assert.equal(failed.ok, false);
+      assert.equal(failed.retrievalProbe.status, "failed");
+      assert.doesNotMatch(JSON.stringify(failed), /private-fixture-error/);
+      const cli = await execute(process.execPath, [fileURLToPath(new URL("cli.js", build)), "doctor", "--root", root, "--probe-query", "absent", "--check", "--json"]).catch(error => error);
+      assert.equal(cli.code, 1);
+      assert.equal(JSON.parse(cli.stdout).retrievalProbe.status, "failed");
+    });
+    await rm(path.join(root, ".jumpybrain", name));
+  }
 });
