@@ -9,7 +9,7 @@ Make the documented Docker deployment build from a clean context and give operat
 ## Evidence and current coverage
 
 - [VPS deployment report, 2026-10-30](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=fb7d4d0a-6c1b-49ce-b7e6-4d64dbe76bc1) identifies missing build scripts in Dockerfile and requests scoped credentials, reproducible setup, safer service defaults and restore guidance.
-- Current Dockerfile copies source/configuration before `npm run build` but omits `scripts/`; the build invokes an editor build script. The precise complete build/runtime closure and actual failure still require clean-context verification.
+- Before repair, Dockerfile copied source/configuration before `npm run build` but omitted `scripts/`; the build invokes an editor build script. Clean-context reproduction and full build/runtime closure are verified below.
 - Scoped named reader/writer credentials and revocation now exist in [collaboration](../../docs/collaboration.md#separate-access). Do not create a duplicate authorization subsystem or describe all issued credentials as whole-brain writers.
 - [Portable installation](tasks-portable-installation-project-integration.md) owns published artifact installation. [Public sandbox hardening](tasks-public-sandbox-hardening.md) owns sandbox-specific deployment restrictions; this list owns private hosted build/runbook gaps.
 - [Remote UX outcome](../done/2026-10-31_tasks-remote-switching-ux.md) covers app permission explanations, older-server boards and identical-install Keychain continuity. Signing across changed releases remains a separate distribution limit.
