@@ -1,6 +1,6 @@
 # M0: reproducible current-behavior gate
 
-Status: M0 passed for the recorded automated scope, 2026-11-01. The [task list](../../tasks/todo/tasks-multiplayer-editing-architecture.md) owns later stages; the [inventory](current-behavior-inventory.md) identifies P01–P12, and the [architecture proposal](architecture-and-verification.md) defines later levels.
+Status: M0 passed for the recorded automated scope, 2026-11-01. The [task list](../../tasks/done/2026-11-02_tasks-multiplayer-editing-architecture.md) records the completed later stages; the [inventory](current-behavior-inventory.md) identifies P01–P12, and the [architecture proposal](architecture-and-verification.md) defines later levels.
 
 ## What this gate establishes
 

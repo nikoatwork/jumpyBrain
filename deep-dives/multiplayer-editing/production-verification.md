@@ -1,10 +1,6 @@
 # Production collaboration verification
 
-Status: final verification in progress, 2026-11-02. The implementation and its
-automated acceptance contract cover one shared backend per brain, browser
-collaboration, streamed CLI agents, observed file edits, separate access and
-coordinated upgrades. The task remains active until the final recorded gate
-passes.
+Status: completed for the recorded automated scope, 2026-11-02. The shared-backend and live-editing implementation passes the declared maturity gates; deployment and physical-interaction limits remain explicit.
 
 ## Evidence and acceptance
 
@@ -82,6 +78,65 @@ Each stage is assessed by behavior rather than test count:
 The exact new assertion files are pinned in the production contract. The frozen
 M0 corpus covers P01–P12; deliberate internal-beta wire/lifetime changes require
 the separately pinned reviewed delta, while canonical outcomes remain protected.
+
+## Final verified implementation
+
+All declared automated M0–M5 gates pass on source HEAD
+`b06e4f9faf02d6cd7a74bbd887525484a6353a73`, tree `d541e295dc3422c7d8c165130ba212b49d451e1e`,
+containing master `cd3db8612412bb064df88c003228037e78820002`. Runtime build:
+`aa16b18047387a08`. The complete report is retained at
+`.local-pack/multiplayer/production-gate-b06e4f9-second/report.json`, SHA-256 `bf4ee28003afe886380a154c3bf13d1e7ccb5417e68a09bdcff8e673ccc0c365`.
+Protected M0 candidate manifest SHA-256:
+`858b330d4c8f1fa2e1eae42fc4ed96ec090c59fc4f6046de59f6069056aff7d8`.
+
+The suite passes **1,788/1,788**, zero failures, cancellations, skips or TODOs;
+all four original browser flows and all twelve production checks pass. Each
+pinned Linux runtime (Node 22.12.0 and 26.7.0, Linux/arm64) passes **217/217**;
+all 491 runtime files match the Mac artifact. Their preserved reports are:
+
+- `.local-pack/multiplayer/Linux-Node22.12-menu-aa16b180-accepted/report.json`,
+  SHA-256 `f7ae6b80412f9a63ee36b9f38945dff3091584d646c1b08652badc31050c814f`.
+- `.local-pack/multiplayer/Linux-Node26-menu-aa16b180-accepted/report.json`,
+  SHA-256 `0d8201e0107592d72bb57f895a6b55d2bda8334a488695fce3fff95d8193846e`.
+
+Both source maps have SHA-256
+`073b3b829201b14f0d1fd8f2bd422d2be5e440c24a80c887edccfcb7bef078b5`.
+The matching locally signed app is
+`.local-pack/desktop-aa16b18047387a08-menu2/jumpyBrain.app`.
+The extracted-package upgrade proof uses
+`.local-pack/multiplayer/candidate-package-menu-aa16/jumpybrain-0.3.16.tgz`,
+SHA-256 `2bf301138c765663a762f483a136ba01e7009bdf90238d2268d8c9d0feab65ee`.
+Package measurements: 1,430,814 archive bytes, 4,561,620 unpacked bytes,
+3,068,729 runtime bytes, 621 files. Editor: 219,783 gzip bytes, 15 bundled
+packages. All reviewed ceilings remain enforced.
+
+| Observed workload | Rounds | Canonical p95 | Peak RSS | Peak history | Peak queue |
+| --- | --- | --- | --- | --- | --- |
+| 2 humans + 1 agents | 20 | 56.48 ms | 220.20 MiB | 4,317,951 B | 819 B |
+| 5 humans + 3 agents | 100 | 249.41 ms | 354.58 MiB | 4,897,475 B | 2,207 B |
+
+These serial-gate fixtures use the real canonical publisher and disabled
+semantic indexing; no inference cost or semantic-quality measurement is implied.
+Composed checks separately repeat two real browser contexts, a shipped streaming
+CLI and a raw writer twice locally and twice against Linux. The actual packaged
+app covers native menu/keyboard Undo/Redo, title history, expired-history notices,
+Japanese preedit/commit with a peer, recovery, AX semantics, lifecycle and
+private diagnostics. The package upgrade covers old-runtime roots, preservation,
+interrupted retry and recovery.
+
+Astra high's final architecture review found no P0/P1 and independently verified
+265 actual fresh CLI actors, 1,024 bounded model actors, failed-publication
+history isolation, 189 focused tests and shipped editor/cursor cases. Its one
+P2 native menu-routing finding is corrected by the parent and verified through
+the expanded packaged proof in this gate; Astra did not re-review those final
+menu bytes. The review and raw evidence remain in
+`.local-pack/astra-acceptance/REVIEW.md`. Earlier failures and accepted checkpoints
+below retain their exact scope; they are not substituted for this final result.
+
+Completion bookkeeping changes only the task archive and these analysis records.
+The same strict gate must attest that final clean documentation HEAD before
+handoff. This is a local integration procedure, not installed branch protection
+or an automatic merge/release.
 
 ## Intermediate accepted integration
 
@@ -269,6 +324,10 @@ the worktree; committed digests cannot replace missing evidence files.
   physical keyboard/IME, VoiceOver or other assistive-technology interaction.
   Power-loss durability and semantic retrieval/model quality are also outside
   these automated checks.
+- The shared preview browser emitted an extra history input that was not reproduced
+  in shipped Playwright Chromium or packaged Electron; the unresolved automation
+  observation remains in the Astra review evidence. It is not claimed as fixed
+  or as a confirmed product failure.
 - Unsupported overlapping transformations require visible recovery. Caret
   projection is limited to unambiguous source mappings. Browser drafts depend
   on available site storage and remain private to that browser profile.
