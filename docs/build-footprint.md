@@ -23,6 +23,8 @@ normal concurrent test suite to avoid machine-load-dependent failures.
 
 README artwork is served from the repository when viewing the README. It is not
 part of the runtime download. User/install docs and notices remain packaged.
+The internal `docs/design-system.md` renderer reference stays in the source
+repository; it is not an installed user guide or required runtime resource.
 Native smoke/tests, private configuration and build caches are excluded;
 Swift/helper sources and desktop updater/build resources remain available.
 CLI-only installs still do not include Electron or editor development packages.

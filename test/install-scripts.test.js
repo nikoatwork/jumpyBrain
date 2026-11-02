@@ -815,8 +815,13 @@ test("supported distribution entrypoints ship the QMD check and pin Docker insta
   const docker = await readFile(path.join(repoRoot, "Dockerfile"), "utf8");
   const companion = await readFile(path.join(repoRoot, "integrations/macos-companion/install.py"), "utf8");
   const pkg = JSON.parse(await readFile(path.join(repoRoot, "package.json"), "utf8"));
+  const engine = JSON.parse(await readFile(path.join(repoRoot, "scripts/engine/package.json"), "utf8"));
+  const engineLock = JSON.parse(await readFile(path.join(repoRoot, "scripts/engine/package-lock.json"), "utf8"));
   assert.match(shell, /for FILE in .*scripts\/qmd-install-check\.mjs/);
-  assert.match(docker, /npm install -g @tobilu\/qmd@2\.8\.3/);
+  assert.match(docker, /COPY scripts\/engine\/package\.json scripts\/engine\/package-lock\.json/);
+  assert.match(docker, /npm ci --omit=dev/);
+  assert.equal(engine.dependencies["@tobilu/qmd"], "2.8.3");
+  assert.equal(engineLock.packages["node_modules/@tobilu/qmd"].version, "2.8.3");
   assert.match(docker, /node scripts\/qmd-install-check\.mjs qmd/);
   assert.match(companion, /runtime \/ "scripts\/qmd-install-check\.mjs", config\["qmd"\]/);
   assert.ok(pkg.files.includes("scripts/qmd-install-check.mjs"));
