@@ -37,10 +37,11 @@ const rules = [
   "- For requested boards use jumpybrain board --help. list/status --board with --root or --target-url inspect layouts and bounded evidence. Keep edits on the same target, require remote write authorization and returned per-board hashes; column position does not prove completion.",
   "- Local Markdown memory/search needs no account or remote memory server. Installation does not upload the brain. Recalled evidence enters the agent context and may reach its provider; feedback, explicit remote connections and file sync have separate sharing paths.",
   "- Installation/Desktop: follow docs/install-for-agents.md, docs/install.md and docs/faq.md (https://github.com/nikoatwork/jumpyBrain/tree/master/docs). Reuse ~/.jumpybrain/app and select the same root; app selection does not retarget CLI. Check prerequisites; complete authorized setup and respect actual execution denials.",
-  "- For an authorized personal save: printf '%s\\n' \"<fact>\" | jumpybrain remember --root <memory-root> --type finding --title \"<title>\" --actor agent. Use --target-url only with explicit destination authorization."
+  "- For an authorized personal save: printf '%s\\n' \"<fact>\" | jumpybrain remember --root <memory-root> --type finding --title \"<title>\" --actor agent. Use --target-url only with explicit destination authorization.",
+  "- For concurrent edits, use collaborate open on the same target; calculate UTF-16 offsets from that body and pass its actual --epoch and --base-revision to edit or positioned stream. Keep a stable --client-id. Never relabel old offsets with a newer revision, replay uncertain writes or replace the whole note per chunk. Unpositioned stream appends to current saved source; see collaborate --help."
 ];
 const initial = [0,1,2,3,4,5,6,7,13,8,24,9,10,29,30];
-const topics: Record<string, number[]> = {"recall":[11,12,6,13,14,15,16,17,18,19],"expand":[16,20,21,22,17,23],"write":[24,3,13,25,26,27,9,28,29,10,30,37],"maintenance":[27,19,31,32],"feedback":[33],"board":[34],"setup":[35,36]};
+const topics: Record<string, number[]> = {"recall":[11,12,6,13,14,15,16,17,18,19],"expand":[16,20,21,22,17,23],"write":[24,3,13,25,26,27,9,28,29,10,30,37,38],"maintenance":[27,19,31,32],"feedback":[33],"board":[34],"setup":[35,36]};
 
 export function agentInstructions(topic?: string): string {
   if (topic === undefined) return initial.map(index => rules[index]).join("\n\n");
