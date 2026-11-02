@@ -9,7 +9,7 @@ Make the common recall/write workflow economical to learn while keeping provenan
 ## Evidence and boundaries
 
 - [Agent review part 4, 2026-11-02](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=e08f741d-3203-468b-8ea2-ab760fe362ba) reports long overlapping skill/instruction text, multiple result shapes, unknown actor defaults, feedback chunking and no read-only lint preview.
-- Its proposed single JSON shape, automatic actor inference, larger feedback envelope and replacement of built-in recipes are options to evaluate, not approved breaking changes. Help organization is owned by [CLI help](tasks-cli-help-and-validation.md), and root parity by [brain targeting](tasks-brain-connections-and-targeting.md).
+- Its proposed single JSON shape, automatic actor inference, larger feedback envelope and replacement of built-in recipes are options to evaluate, not approved breaking changes. Help organization is owned by [CLI help](../done/2026-11-02_tasks-cli-help-and-validation.md), and root parity by [brain targeting](tasks-brain-connections-and-targeting.md).
 - Preserve evidence versus writing dates, same-target ID/hash checks, continuation/partial reporting, saved-versus-indexed outcomes and explicit global/team/remote write authorization. TTY state alone does not establish authorship.
 
 ## Relevant files

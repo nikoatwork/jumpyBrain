@@ -101,8 +101,8 @@ test("CLI attribution and recognition options are explicit and compose with stri
   process.env.JUMPYBRAIN_IDENTITY_FILE = path.join(os.tmpdir(), "jb-absent-identity-" + crypto.randomUUID());
   t.after(() => { if (previous === undefined) delete process.env.JUMPYBRAIN_IDENTITY_FILE; else process.env.JUMPYBRAIN_IDENTITY_FILE = previous; });
   assert.deepEqual(await actorFromArgs(parseArgs(["remember", "--title", "Title", "--actor", "agent", "--actor-name", "Codex"])), { kind: "agent", name: "Codex" });
-  assert.equal(await actorFromArgs(parseArgs(["update", "--actor", "unknown"])), undefined);
-  await assert.rejects(() => actorFromArgs(parseArgs(["update", "--actor-id", "a"])), /require/);
+  assert.equal(await actorFromArgs(parseArgs(["update", "--id", "fixture", "--actor", "unknown"])), undefined);
+  await assert.rejects(() => actorFromArgs(parseArgs(["update", "--id", "fixture", "--actor-id", "a"])), /require/);
   const options = recognitionFromArgs(parseArgs(["search", "--query", "mistral", "--last-editor=human", "--edited-from", "2026-10-23", "--sort", "edited", "--offset", "24", "--read-only", "--json"]));
   assert.equal(options.editor, "human"); assert.equal(options.offset, 24); assert.equal(options.sort, "edited");
 });
