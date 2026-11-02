@@ -132,7 +132,7 @@ test("local and hosted recall/search share plain formatting and leave JSON packe
 test("distributed skill and copyable guidance teach bounded conditional expansion and explicit whole reads", async () => {
   const skill = await readFile(new URL("../skills/jumpybrain-memory/SKILL.md", import.meta.url), "utf8");
   const workflows = await readFile(new URL("../docs/agent-workflows.md", import.meta.url), "utf8");
-  for (const guidance of [skill, workflows, agentInstructions()]) {
+  for (const guidance of [skill + "\n" + agentInstructions("all"), workflows, agentInstructions("all")]) {
     assert.match(guidance, /sufficient (?:evidence|snippets)|snippets.*sufficient/);
     assert.match(guidance, /narrow/i);
     assert.match(guidance, /broader context|broad context/);

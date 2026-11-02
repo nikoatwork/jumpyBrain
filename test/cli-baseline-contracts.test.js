@@ -54,9 +54,11 @@ test("CLI help and instructions expose stable command names and important flags"
   const instructions = runCli(["instructions"]).stdout;
   assert.match(instructions, /jumpyBrain memory hint for coding agents/);
   assert.match(instructions, /jumpybrain run memory:recall --topic/);
-  assert.match(instructions, /--depth shallow\|normal\|deep/);
-  assert.match(instructions, /jumpybrain show --root <memory-root> --id <mem_id>/);
-  assert.match(instructions, /process --root <memory-root> --mode ensure-ids --apply/);
+  assert.match(instructions, /--topic recall\|expand\|write/);
+  const detail = runCli(["instructions", "--topic", "all"]).stdout;
+  assert.match(detail, /--depth shallow\|normal\|deep/);
+  assert.match(detail, /jumpybrain show --root <memory-root> --id <mem_id>/);
+  assert.match(detail, /process --root <memory-root> --mode ensure-ids --apply/);
   assert.match(instructions, /Do not memorize secrets/);
 });
 

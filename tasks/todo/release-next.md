@@ -1,5 +1,7 @@
 # Changes
 
+- Agent guidance starts with short prerequisites and discoverable CLI topics. Local lint has an explicit observational `--preview`; report writes still require `--apply`.
+
 - CLI help supports `--help`, `-h` and `help <command>` for commands, namespaces and recipes without running operations. Root help is shorter; plain retrieval and other operational commands reject misspelled, missing and repeated flags.
 - Self-hosted Docker builds include the browser build scripts and locked search/runtime dependencies, run without root, and have a disposable build/recovery check.
 

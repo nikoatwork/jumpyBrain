@@ -6,6 +6,8 @@
 - Preserve runtime `JUMPYBRAIN_FEEDBACK_URL` precedence (empty disables delivery) and the existing packaged `http-server/feedback-config.json` location.
 - Keep the fixed-recipient AgentMail sender available to the central relay. Only that operator process supplies a mail key; product clients need none.
 
+The agent-interface review retained the existing single-message cap/protocol: long reports can be distilled explicitly; multipart/category/thread state needs evidence and coordinated relay/UI versioning. CLI dry-run/matching-ID receipts and no automatic attachments/retries remain unchanged.
+
 ## Non-responsibilities
 
 - No CLI parsing, HTTP route admission/authentication, automatic diagnostic collection, retries, memory access or inbox reading.

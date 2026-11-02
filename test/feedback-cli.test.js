@@ -128,7 +128,7 @@ test('feedback help and both agent instruction surfaces expose explicit authoriz
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /user authorization/);
   assert.match(help.stdout, /--dry-run/);
-  for (const instructions of [agentInstructions(), readFileSync('skills/jumpybrain-memory/SKILL.md', 'utf8')]) {
+  for (const instructions of [agentInstructions("feedback"), readFileSync('skills/jumpybrain-memory/SKILL.md', 'utf8') + '\n' + agentInstructions('feedback')]) {
     assert.match(instructions, /feedback --message/);
     assert.match(instructions, /--dry-run/);
     assert.match(instructions, /authoriz/);

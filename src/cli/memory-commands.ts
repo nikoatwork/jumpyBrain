@@ -52,6 +52,11 @@ export async function runMemoryCommand(
       if (typeof result.modifiedCount === "number") console.log(`Modified count: ${result.modifiedCount}`);
       for (const file of result.files) console.log(`File: ${file}`);
       for (const line of result.summary) console.log(`- ${line}`);
+      if (args.preview) for (const issue of result.issues ?? []) {
+        console.log(`[${issue.code}; ${issue.severity}] ${issue.message}`);
+        console.log(`  ${issue.rationale}`);
+        for (const evidence of issue.evidence) console.log(`  ${evidence.file}:${evidence.lineStart ?? "?"}-${evidence.lineEnd ?? "?"} ${evidence.text}`);
+      }
     }
     return;
   }
@@ -195,6 +200,7 @@ function processOptionsFromArgs(args: ParsedCliArgs) {
   return {
     mode: stringArg(args, "mode"),
     apply: processApplyArg(args),
+    preview: args.preview === true,
     topic: stringArg(args, "topic", false).trim() || undefined,
     since: stringArg(args, "since", false).trim() || undefined,
     ifMatch: stringArg(args, "if-match", false).trim() || undefined,

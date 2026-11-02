@@ -28,6 +28,8 @@ Index/search/compact recall accept `ExecutionOptions` (`signal?: AbortSignal`, `
 
 Export `compactSearchMemory(root, query, limit, options)` plus compact packet/options types and serializer, and `expandMemoryDocument(root, options)` plus canonical expansion types/serializer. Both compose the same local/server app operations, preserve unbudgeted search/show contracts, and return version-1 root-relative packets with a 1024–65536 serialized UTF-8 byte budget (default 8192, including LF). Callers must not wrap or pretty-print packets after packing. See [local-memory](../app/local-memory/local-memory.docs.md#opt-in-compact-recall) and [guarded expansion](../core/canonical/canonical.docs.md#guarded-evidence-expansion).
 
+`processMemory(root, {mode:"lint",preview:true})` is observational: existing issue/scope shape, no report/run ID or canonical/derived writes. Apply remains explicit; CLI preview bypasses the backend owner rather than starting a mutating workflow. No hosted processing trigger is added.
+
 ## Non-responsibilities
 
 - Do not parse CLI commands or own stdout/stderr formatting.

@@ -64,6 +64,8 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
   const actor = ["actor", "actor-id", "actor-name"];
   const documentUpdate = argv[0] === "run" || argv.some(token => /^--(?:id|if-match|root|target-url|remote-url)(?:=|$)/u.test(token));
   const specs: Record<string, { values?: string[]; booleans?: string[]; optionalBooleans?: string[]; repeat?: string[]; positional?: number }> = {
+    instructions: { values: ["topic"] },
+    "agent-hint": { values: ["topic"] },
     status: { values: targets },
     index: { values: [...targets, "semantic-model"], booleans: ["rebuild", "lexical"] },
     tree: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
@@ -71,7 +73,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     show: { values: [...targets, "id"] },
     update: documentUpdate ? { values: [...targets, "id", "if-match", ...actor] }
       : { values: ["home", "install-root", "source", "ref"], booleans: ["dry-run"] },
-    process: { values: [...targets, "mode", "topic", "since", "if-match", "limit"], optionalBooleans: ["apply"] },
+    process: { values: [...targets, "mode", "topic", "since", "if-match", "limit"], booleans: ["preview"], optionalBooleans: ["apply"] },
     wrapup: { values: [...targets, "title", "topic", "limit", "tag"], repeat: ["tag"] },
     init: { values: ["root"], booleans: ["force"] },
     serve: { values: ["root", "host", "port", "api-key", "public-base-url"], booleans: ["init"], repeat: ["api-key"] },
@@ -105,6 +107,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
       args[key] = spec.repeat?.includes(key) ? [...stringListArg(args, key), value] : value;
     }
   }
+  if (operation === "process" && args.preview && (args.mode !== "lint" || args.apply !== undefined)) throw new Error("--preview requires --mode lint and cannot combine with --apply.");
   if (operation === "index" && args.lexical && args["semantic-model"] !== undefined) throw new Error("Use only one of --lexical or --semantic-model.");
   return args;
 }

@@ -130,7 +130,7 @@ export function createLocalMemoryTransport(): LocalMemoryTransport {
       ? cancelOnCliSignal(options.signal, signal => runtime.compactSearchMemory(root, query, limit, {...options, signal}))
       : localBackendCall(root, "compactSearchMemory", [query, limit, options], options.signal),
     expandMemoryDocument: runtime.expandMemoryDocument,
-    processMemory: (root, options) => localBackendCall(root, "processMemory", [options]),
+    processMemory: (root, options) => options.preview || options.apply !== true ? runtime.processMemory(root, options) : localBackendCall(root, "processMemory", [options]),
     readMemoryDocument: runtime.readMemoryDocument,
     previewMemoryDocumentDeletion: runtime.previewMemoryDocumentDeletion,
     deleteMemoryDocument: (root, id, options) => localBackendCall(root, "deleteMemoryDocument", [id, options]),

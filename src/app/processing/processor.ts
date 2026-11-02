@@ -20,6 +20,10 @@ export async function processMemory(rootArg: string, options: ProcessMemoryOptio
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
   const mode = normalizeProcessMode(options.mode);
+  if (options.preview) {
+    if (mode !== "lint" || options.apply === true) throw new Error("--preview requires --mode lint and cannot combine with --apply.");
+    return lintMemory(root, options);
+  }
   if (options.apply !== true) throw new Error("jumpybrain process mutates memory/support state. Re-run with --apply to continue.");
   if (mode === "synthesize") return synthesizeMemory(root, options);
   if (mode === "ensure-ids") return ensureMemoryIds(root);
@@ -99,11 +103,14 @@ async function lintMemory(root: string, options: ProcessMemoryOptions): Promise<
   const eligible = selectLintSources(documents, { topic, sinceTime });
   const scoped = eligible.slice(0, limit);
   const issues = lintDocuments(scoped, documents, document => documentTime(document.frontmatter));
-  const now = new Date().toISOString();
-  const runId = `${now.replace(/[:.]/g, "-")}-${randomUUID()}`;
   const scope: ProcessingLintScope = { total: documents.length, eligible: eligible.length, inspected: scoped.length,
     candidateDocuments: documents.filter(isPrimarySource).length, topic, since: options.since,
     sinceTime: sinceTime === undefined ? undefined : new Date(sinceTime).toISOString(), limit };
+  if (options.preview) return { root, mode: "lint", applied: false, topic, files: [], issueCount: issues.length, issues, scope,
+    summary: [`Preview: ${issues.length} findings; inspected ${scope.inspected}/${scope.eligible} eligible documents (${scope.eligible - scope.inspected} omitted); comparisons use ${scope.total} canonical documents.`,
+      "Proposed action: use --apply instead of --preview to write a derived lint report. Findings require review; no source edits or ID repairs are authorized."] };
+  const now = new Date().toISOString();
+  const runId = `${now.replace(/[:.]/g, "-")}-${randomUUID()}`;
   const reportDir = path.join(root, DERIVED_DIR, "reports");
   await assertSafeDestination(root, path.join(reportDir, "report.md"));
   const markdown = renderLintReport({ runId, generatedAt: now, scope, issues });

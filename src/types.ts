@@ -394,6 +394,8 @@ export interface WrapupWriteResult extends MemoryWriteResult {
 export type ProcessMode = "lint" | "synthesize" | "ensure-ids";
 
 export interface ProcessMemoryOptions {
+  /** Observational lint only: no report, index, ID repair or backend lifecycle. */
+  preview?: boolean;
   mode: ProcessMode | string;
   apply?: boolean;
   topic?: string;
