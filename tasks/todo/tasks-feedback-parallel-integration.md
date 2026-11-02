@@ -37,3 +37,10 @@ No push, public PR, release, personal installation, hosted deployment or feedbac
 - Fast-forwarded `master` to source tip `06289035deda31a26e96613fe7889fa95820f5a5`; `git merge-base --is-ancestor <source-tip> master` passed. Local script syntax and diff whitespace checks passed. Delegate recorded build, 48 focused tests and real fresh-note/collaboration/stale-note smokes; combined full-suite validation remains pending the other lanes.
 - Editor task and source thread stay active because the actual failure reproduction and matching packaged-Mac verification remain required. Integration of useful coverage does not resolve the bug or justify task/thread settlement.
 - CLI/hosted results have not yet been delivered; no running-task polling is used. Continue automatically when their completion wakes this integration thread.
+
+### CLI integration
+
+- Read the completed CLI source thread and reviewed help dispatch, command metadata, strict parser changes, sentinel/compatibility tests and archived task. Accepted source tip `b79f1e61c1149300981f7fa3d533ac721c5c763f` from `t3/cli-help-validation`.
+- Merged with ancestry preserved as `18c29e767620da7a7e9d51b6e7e11010461c441e`; `git merge-base --is-ancestor <source-tip> master` passed. The existing editor/progress changes merged cleanly.
+- Parent combined editor/CLI snapshot: `npm run build` passed; 17 focused CLI parser, help/sentinel, baseline and remote-access-policy tests passed with no skips. Delegate's full suite passed 1,798 tests with one existing opt-in real-QMD skip. Full combined integration checks remain pending hosted delivery.
+- CLI task is complete and archived at [verification](../done/2026-11-02_tasks-cli-help-and-validation.md); no runtime/install/release blocker remains for this lane. Source thread can be settled after this integration record is committed.
