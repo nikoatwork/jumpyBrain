@@ -9,8 +9,8 @@ const source = await read("src/cli/instructions.ts");
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } });
 const { agentInstructions } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 const guidance = [
-  ["generated instructions", agentInstructions()],
-  ["distributed skill", await read("skills/jumpybrain-memory/SKILL.md")],
+  ["generated instructions", agentInstructions("all")],
+  ["distributed skill with discoverable detail", (await read("skills/jumpybrain-memory/SKILL.md")) + "\n" + agentInstructions("all")],
   ["agent workflows", await read("docs/agent-workflows.md")],
 ];
 

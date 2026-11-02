@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — On-demand agent guidance and lint observation
+
+- Short entry guidance discovers detailed CLI topics; explicit local lint preview returns findings without reports, indexes or backend startup. [Verification and measured limits](done/2026-11-02_tasks-agent-interface-efficiency.md).
+
 ## 2026-11-02 — Hosted container packaging
 
 - Repaired clean-context Docker builds and locked runtime/search dependencies, with non-root hosting and a real disposable retrieval/rotation/restore gate. [Verification and remaining Linux service gate](todo/tasks-hosted-build-and-operations.md).

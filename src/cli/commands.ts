@@ -89,7 +89,7 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   }
 
   if (command === "instructions" || command === "agent-hint") {
-    console.log(agentInstructions());
+    console.log(agentInstructions(typeof args.topic === "string" ? args.topic : undefined));
     return;
   }
 

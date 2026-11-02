@@ -23,7 +23,7 @@ Preserve actionable feedback as focused plans, avoid reopening completed work, a
 | P0/P1 | [CLI help and validation](../done/2026-11-02_tasks-cli-help-and-validation.md) | Stop help from executing operations; make help/argument errors consistent. |
 | P1 | [Brain connections and targeting](tasks-brain-connections-and-targeting.md) | Supported local app connection management, effective target diagnostics and shared precedence. |
 | P1 | [Desktop runtime hygiene](tasks-desktop-runtime-hygiene.md) | Safe staging/log retention, durable daemon paths, managed skill drift and lifecycle diagnostics. |
-| P1/P2 | [Agent interface efficiency](tasks-agent-interface-efficiency.md) | Smaller initial guidance, compatible output/identity decisions, read-only lint and support-report ergonomics. |
+| P1/P2 | [Agent interface efficiency](../done/2026-11-02_tasks-agent-interface-efficiency.md) | Smaller initial guidance, compatible output/identity decisions, read-only lint and support-report ergonomics. |
 | P1 | [Retrieval trust/readiness](tasks-retrieval-trust-and-readiness.md) | Honest readiness, semantic setup, weak-match calibration and evidence-date investigation. |
 | P1/P2 | [Hosted build/operations](tasks-hosted-build-and-operations.md) | Missing Docker build inputs, current access docs, migration and recovery. |
 | P2 | This list | Evaluate onboarding, graph/source maps, digest/eval/docs and board adoption before adding scope. |

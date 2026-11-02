@@ -6,6 +6,7 @@ description: Consolidate scattered jumpyBrain memories into concise topical drea
 # How to dream
 
 Dreaming is additive maintenance, not an exactly-once processing pipeline.
+This workflow includes its operation prerequisites; ordinary recall/edit details are discoverable with `jumpybrain instructions --topic recall|expand|write` (choose one topic). Observational local lint: `jumpybrain process --root "$ROOT" --mode lint --preview --json`; findings do not authorize edits or report publication.
 Markdown is canonical; indexes are rebuildable. Do not schedule runs or call providers automatically.
 
 ## 1. Confirm target, permission, and budget

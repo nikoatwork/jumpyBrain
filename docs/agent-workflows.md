@@ -2,6 +2,8 @@
 
 For first-time setup or adding the Mac app, follow [Helping a user install jumpyBrain](install-for-agents.md). It covers reusing an existing installation, keeping app and CLI on one brain, completing authorized setup without repeated confirmations, and explaining the [privacy boundaries](faq.md#when-can-data-leave-my-computer).
 
+`jumpybrain instructions` gives short prerequisites and a topic directory. Before ordinary operations read `instructions --topic recall`, `expand` or `write` as relevant; use `--topic all` for the full reference. Topics also cover maintenance, feedback, boards and setup, without root/credentials/app discovery. The optional how-to-dream workflow includes its own operation prerequisites. Text/rich/compact output, IDs/hashes and recipes remain compatible; no actor inference or automatic feedback is introduced. Local lint can be observed with `process --root <root> --mode lint --preview --json`; `--apply` remains explicit for reports.
+
 ## Installed integrations
 
 The installer sets up harness-specific integration files without editing broad global instruction files:
