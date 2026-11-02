@@ -1,0 +1,46 @@
+# Release v0.3.18
+
+Status: preparing the next patch from clean local `master`, implementation snapshot `4722c598613d3043b8b562f5578decf7498ac403`.
+
+## Scope and authorization
+
+- User requested “Cut a release” on 2026-11-02. Full patch publication is authorized, subject to the repository's explicit same-day and shorter-test decisions.
+- Latest published numeric release is v0.3.17, published 2026-11-02 08:07:09 UTC (09:07:09 Europe/Berlin). Requested the required second-release override; awaiting answer before publication.
+- Fetched `origin/master` and tags; local master is 35 commits ahead, with no divergence or uncommitted work at intake. Review covers v0.3.17 through the implementation snapshot, including previously integrated completed increments. Active hosted/systemd and product-evaluation work remains active.
+- Curated [pending notes](release-next.md) into seven user-facing bullets matching included behavior. No semantic ranking improvement, historical-note backfill, arbitrary staging cleanup or verified systemd deployment is claimed.
+
+## Feedback review
+
+- Live read-only full available received/non-spam inbox checked at `2026-11-02T15:07:58.146Z`: no lower or upper filter, one page, `complete:true`, 38 scanned, two explicitly marked delivery tests excluded, 36 genuine reports retained. Message dates span 2026-10-20 through 2026-11-02. Trash, blocked mail and spam are outside this default scope.
+- Read all 17 reports dated 2026-11-02 in full by 15:08:13 UTC; reconciled older reports against the existing feedback/integration records and earlier released fixes. Reports include owner/user observations and agent-authored evaluations, rather than 36 independent external beta users. No replies, test submissions, attachment downloads or label changes.
+- Included actionable fixes: ordinary/fresh-note deletion; backend restart recovery; agent-shell launch; runtime lifetime/signature protection; help/flag validation; app connection control and target diagnostics; guidance/lint preview; new daily-note dates; hosted build closure. Existing feature task records preserve reproduction limits.
+- Deferred: semantic branch/ranking and imported-date changes to the frozen [workspace evaluation](tasks-workspace-retrieval-evaluation.md); cross-brain routing, journal migration/backfill, broader provenance/weekly views, feedback/accessibility polish and product-surface proposals to [independent increments](tasks-feedback-independent-increments.md). Real systemd enforcement remains in [hosted operations](tasks-hosted-build-and-operations.md). No new demonstrated data-loss issue beyond the repaired deletion paths was established by this review.
+- Raw message bodies remain outside Git in temporary operator files; no private message text or diagnostics copied into this record.
+
+## Candidate and environment
+
+- macOS 15.7.7 (24G720), ARM64; Node v26.7.0; QMD 2.8.3 (`facd35e`), `/opt/homebrew/bin/qmd`; Docker Engine 27.4.0 available.
+- `npm run dogfood:status` reports an obsolete v0.3.13 candidate `820eb944c1720ebd71cf1c29275a192430300ca5`, installed 2026-10-31 19:11:08 UTC, `current:false`. Installation age is not active use evidence. No matching current real-brain test window is verified; requested the owner's shorter-test decision. Publication does not install or replace the owner's app.
+- Reused feature-specific evidence: packaged deletion/launch 17 checks and 40-case lifecycle editing matrix from [deletion](../done/2026-11-02_tasks-stale-note-editing.md) and [launch](../done/2026-11-02_tasks-desktop-shell-launch.md); packaged backend replacement 5/5 from [restart recovery](../done/2026-11-02_tasks-backend-restart-recovery.md); signature/lifetime checks from [signed runtime pins](../done/2026-11-02_tasks-signed-bundle-runtime-pins.md). Relevant code is unchanged after those checks except the separately tested daily-date addition. The release-owned full suite validates their integration.
+
+## Tasks
+
+- [x] Review live feedback, history, environment and pending scope.
+- [x] Build the implementation snapshot (`npm run build`); shared editor 220,115 gzip bytes, optional extensions 5,669 gzip bytes.
+- [x] Build a fresh desktop package and pass the core note-lifecycle smoke.
+- [x] Run the focused hosted gate for changed container inputs; record Linux platform and image/input digest.
+- [/] Record owner's same-day and shorter-test decisions; preparation committed and `npm run release -- --dry-run` passed (0.3.17 → 0.3.18). Explicit decisions remain pending.
+- [ ] Run the full release workflow with aligned CLI/app versions, deterministic suite and distribution validation.
+- [ ] Verify public tag, exact notes, single asset and downloaded digest; archive exact notes and QA, reset pending notes, finalize this list and commit bookkeeping.
+
+## Limits
+
+No new real-brain use window, Intel/macOS 26, physical keyboard/IME, actual OS sleep, public signing/notarization, Linux AMD64/semantic container, real systemd manager, production deployment or installed public update is established by automated release checks. Preserve existing source-task limits and do not mark them complete through publication.
+
+## Preparation results
+
+- `npm run desktop:pack` passed: fresh `.local-pack/desktop/jumpyBrain.app`, native compile, packaged RunAsNode fuse and deep signature verification. The compiler emitted the existing deprecated Keychain API warning; packaging succeeded.
+- `JUMPYBRAIN_QMD_BIN=/opt/homebrew/bin/qmd npx --package=playwright node scripts/note-lifecycle-smoke.mjs` passed: canonical capture, immediate search, title/graph navigation, two-tab stale-save recovery, narrow layouts, guarded deletion, backlink preservation and index refresh.
+- `PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH" npm run smoke:hosted` passed against implementation `4722c59`: Linux ARM64, Node 22.23.4, QMD 2.8.3; input SHA-256 `f6c885636a9f07a9c2e739405839b3333364c63cce8354a39c3f3e7aaf8af166`; image `sha256:459d912156c7d0b5d85932ce0ab672d14490940a475228f1a575e6a3a8bdca8f`. Checks cover clean build context, non-root dependencies/assets, real lexical recall, reader denial, key/cookie revocation, graceful replacement, exact byte persistence, stopped-root backup/loss/restore and changed-access refusal. Disposable resources were removed.
+- Logs: `/tmp/jumpybrain-v0.3.18-{build,desktop-pack,lifecycle,hosted}.log`. Preparation package retains version 0.3.17; only the full release workflow stamps/validates/publishes 0.3.18. No duplicate pre-release full-suite/CLI-pack run.
+- Publication remains gated by the owner's explicit same-day override and shorter real-use decision. Keep this list active until publication/verification/bookkeeping is complete.
