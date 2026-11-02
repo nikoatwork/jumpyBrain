@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { boundedFetch, verifyArtifact } from './update-release.mjs';
 import { readJSON, alive, installedVersion, cliPolicy } from './update-policy.mjs';
+import { refreshManagedIntegrations } from './managed-integrations.mjs';
 import { bundledHost, startDesktopHost } from './desktop-host.mjs';
 import { probeCompanion, readControlKey } from './host.mjs';
 
@@ -46,7 +47,8 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
   async function run(command, args, cwd = directory, timeout = 20 * 60 * 1000) {
     if (controller.signal.aborted) throw new Error('Update preparation canceled.');
     const child = spawn(command, args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
-    child.stdout.on('data', output); child.stderr.on('data', output);
+    let captured = '';
+    child.stdout.on('data', bytes => { captured = (captured + bytes).slice(-131072); output(bytes); }); child.stderr.on('data', output);
     const completed = new Promise((resolve, reject) => { child.once('error', reject); child.once('close', code => code === 0 ? resolve() : reject(new Error(`${path.basename(command)} did not complete. Check the private update log and retry. Repair Node 22.12+, npm, Python 3, Xcode Command Line Tools or external QMD if missing.`))); });
     // Install listeners before any filesystem await (ENOENT may arrive immediately).
     void completed.catch(() => {});
@@ -57,6 +59,7 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       await atomicJSON(path.join(directory, 'child.json'), { pid: child.pid || null });
       if (controller.signal.aborted) kill();
       await completed;
+      return captured;
     } finally {
       clearTimeout(timer); controller.signal.removeEventListener('abort', kill);
       await rm(path.join(directory, 'child.json'), { force: true });
@@ -159,6 +162,15 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       const journal = await readJSON(path.join(directory, 'transaction.json'));
       await atomicJSON(path.join(directory, 'transaction.json'), { ...journal, phase: 'success' });
     }
+    if (!recovering && request.updateCLI) {
+      try {
+        const file = path.join(root, 'install-manifest.json');
+        const manifest = await readJSON(file);
+        const refreshed = await refreshManagedIntegrations(manifest, { home: request.home });
+        await atomicJSON(file, { ...manifest, integrationHashes: refreshed.hashes });
+        await atomicJSON(path.join(directory, 'integration-refresh.json'), refreshed.results);
+      } catch { output('\nManaged integration refresh unavailable; rerun the authorized installer update to inspect it.\n'); }
+    }
     await status(recovering ? 'recovered' : 'success', recovering ? 'Previous installation restored and reopened.' : (request.updateCLI ? 'App, bundled runtime, and managed CLI updated and reopened.' : 'App and bundled runtime updated and reopened. The CLI was left unchanged as requested.'));
   } catch (error) {
     if (launched && launched.exitCode === null) {
@@ -188,6 +200,20 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
     clearInterval(monitor);
     await writeFile(path.join(directory, 'update.log'), log, { mode: 0o600 });
     const journal = await readJSON(path.join(directory, 'transaction.json')).catch(() => null);
+    try {
+      if (!journal || ['success', 'rolled-back'].includes(journal.phase)) {
+        await atomicJSON(path.join(directory, 'retention.json'), { schema: 1, terminal: true });
+        if (['success', 'recovered'].includes((await readJSON(path.join(directory, 'state.json'))).phase)) {
+          // Inventory is reviewable; apply revalidates ownership/pins under its own lock.
+          const retention = path.join(directory, 'update-retention.py');
+          try {
+            const preview = await run('python3', ['-B', retention, path.dirname(directory)]);
+            await writeFile(path.join(directory, 'retention-preview.json'), preview, { mode: 0o600 });
+            await run('python3', ['-B', retention, path.dirname(directory), '--apply']);
+          } catch { /* Keep unknown/busy staging; retention never invalidates a verified update. */ }
+        }
+      }
+    } catch { /* Retention metadata failure preserves all staging. */ }
     // Retain the lock for an incomplete journal. GUI recovery owns that lock.
     if (!journal || ['success', 'rolled-back'].includes(journal.phase)) {
       const owner = await readJSON(path.join(lock, 'desktop.json')).catch(() => null);

@@ -175,6 +175,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     if (previous) await previous.close();
   };
   const destination = async (profile) => {
+    if (readinessOnly) failure('offline', 'Update readiness does not open a brain.', 503);
     if (!profile) failure('offline', 'No brain is selected.', 503);
     if (profile.kind === 'remote') {
       let key;
@@ -255,7 +256,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     } catch (error) { return error.code === 'credential_unavailable' ? 'credential_unavailable' : 'offline'; }
   };
   const refreshHealth = async () => {
-    if (coordinator.pending || stopping) return;
+    if (readinessOnly || coordinator.pending || stopping) return;
     if (!healthPending && Date.now() - healthAt > 2000) {
       const id = store.snapshot().activeId, generation = coordinator.generation;
       healthPending = testProfile(active()).then((next) => {

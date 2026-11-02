@@ -29,7 +29,7 @@ Native smoke/tests, private configuration and build caches are excluded;
 Swift/helper sources and desktop updater/build resources remain available.
 CLI-only installs still do not include Electron or editor development packages.
 
-The build removes emitted whitespace from the CLI argument, help and instruction
+The build removes emitted whitespace from CLI and backend-ownership
 JavaScript modules with the existing esbuild dependency. Identifiers, syntax and
 legal notices are retained; source and API declarations remain readable. This
 keeps combined CLI capabilities inside the original package ceilings without
@@ -156,3 +156,14 @@ Native menu routing in build `aa16b18047387a08` measures 663,948 minified editor
 bytes and 219,783 gzip bytes, retaining all ceilings and 15 bundled packages.
 The focused cancelable history event adds 120 gzip bytes over `fdc67474bfe9d94e`;
 the native menu itself stays in the Electron shell.
+
+## 2026-11-02 runtime hygiene lane
+
+Runtime pins, bounded explicit backend inventory, shutdown diagnostics, managed
+integration refresh and forward staging retention keep the original package gates.
+Repository-only task-workflow and footprint developer references leave
+the installed artifact; the Product vision document linked by README,
+install/operator guidance and all executable assets stay. This reduces redundant distribution weight without removing features
+or changing assertions. The active runtime-hygiene task records final metrics and
+the independent lane's runtime delta; parent must evaluate the combined snapshot
+with the guidance lane rather than infer budget compliance from either branch.

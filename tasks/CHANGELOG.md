@@ -7,6 +7,10 @@
 
 - Agents can register and select local app connections through guarded companion control; status and doctor expose independently resolved targets. [Verification](done/2026-11-02_tasks-brain-connections-and-targeting.md).
 
+## 2026-11-02 — Runtime ownership and retention
+
+- Added pin-aware forward update retention, unchanged-file integration refresh and explicit backend inventory; corrected expected shutdown classification. [Verification and remaining launch evidence](todo/tasks-desktop-runtime-hygiene.md).
+
 ## 2026-11-02 — Hosted container packaging
 
 - Repaired clean-context Docker builds and locked runtime/search dependencies, with non-root hosting and a real disposable retrieval/rotation/restore gate. [Verification and remaining Linux service gate](todo/tasks-hosted-build-and-operations.md).
