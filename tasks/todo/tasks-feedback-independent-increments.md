@@ -1,6 +1,6 @@
 # Independently shippable feedback increments
 
-Status: active, 2026-11-02. Backend restart recovery (unit 1) is complete; remaining units retain their own gates. This is an implementation backlog, not a release commitment. The original review was planning only.
+Status: active, 2026-11-02. Backend restart recovery (unit 1) and daily-note evidence dates (unit 4) are complete; remaining units retain their own gates. This is an implementation backlog, not a release commitment. The original review was planning only.
 
 ## Goal
 
@@ -52,7 +52,7 @@ Priorities are planning judgments. Rows can ship separately as soon as their own
 | P0 | Restore reliable Quit/open launch | [Packaged environment fix](../done/2026-11-02_tasks-desktop-shell-launch.md) reproduces/fixes inherited Electron Node-mode exit zero; actual direct/open/Quit and loaded/unloaded service checks pass. [Runtime hygiene](tasks-desktop-runtime-hygiene.md), tasks 3.4/4.3, retains the unverified macOS 26 report boundary. |
 | P1 | Natural-language semantic eligibility | New task 2; retain exact-query controls. |
 | P1 | Useful vector contribution | New task 3; test independently from task 2. |
-| P1 | Dated daily captures | New task 4. |
+| P1 | Dated daily captures | [Completed implementation](../done/2026-11-02_tasks-daily-note-evidence-date.md); task 4 below tracks completion. |
 | P1 | Accurate stream attribution and health identity | Tasks 5 and 6, two separate small shipments. |
 | P1 | Relevant recovery actions and resilient feedback form | Tasks 7 and 8, two separate UI shipments. |
 | P1 | Consistent indexing outcomes | Task 9; preserve asynchronous success semantics where intentional. |
@@ -91,9 +91,8 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
   - [ ] 3.2 Choose the smallest fusion change supported by paired evidence; preserve limits, cancellation, exact-title navigation, temporal filtering and honest failed-branch warnings. Do not prescribe RRF or add votes across correlated lexical variants without the comparison.
   - [ ] 3.3 **Ship when:** the existing evaluation adoption gates show paraphrase benefit with required evidence/abstention nonregression at the stated context/resource budgets, including cold/warm costs and local/hosted CLI parity. Task 2 is not a prerequisite: evaluate on currently eligible queries and keep constraint policy fixed. If no candidate passes, record the defer result rather than shipping an unproven ranking change.
 
-- [ ] 4.0 **P1 — Give new daily notes their selected evidence date.** F2 B6, F5.
-  - [ ] 4.1 Propagate validated `dailyDate` to canonical `date` for explicit daily creation; define conflicting supplied dates as invalid. Use the selected local calendar day, not an inferred event year or ingestion timestamp. Preserve existing titles, suffixes, IDs, `type: note` and idempotent retry behavior.
-  - [ ] 4.2 **Ship when:** a new daily note is available to same-day temporal recall and the corresponding dream evidence window; midnight/time-zone boundaries, retries and multiple daily notes pass. Ordinary undated notes remain undated. No historical title/created-time backfill, type migration or default navigation change is included.
+- [x] 4.0 **P1 — Give new daily notes their selected evidence date.** F2 B6, F5.
+  - Completed outcome and verification: [daily-note evidence dates](../done/2026-11-02_tasks-daily-note-evidence-date.md).
 
 - [ ] 5.0 **P1 — Verify consistent declared agent attribution through live writes; repair only a residual gap.** F2 B7, F5.
   - [ ] 5.1 Compare the reported installed build with [completed attribution work](../done/2026-11-02_tasks-contextual-editor-attribution.md). Current CLI streams pass `declaredActor` from the owner/client-name configuration. Trace name/ID through publication and filters; distinguish a live session `--client-id` from a declared display name and document the supported setup. Do not infer authorship from access-principal labels or TTY state.
@@ -155,3 +154,7 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
 ## 2026-11-02 completed unit 1
 
 - [Backend restart recovery](../done/2026-11-02_tasks-backend-restart-recovery.md): reproduced old-port HTTP 503 after real CLI stop/recall replacement; authenticated rediscovery, retired-request/subscription fences and existing draft epoch review now recover the same brain. Final focused tests 64/64; packaged macOS ARM64 5/5 scenarios; full suite 1,831 passed, two skipped, zero failed before the recorded final focused changes. Remaining independent units stay pending; idle-note and launch investigations remain open. A separate runtime-pin sealed-resource observation is assigned to runtime hygiene.
+
+## 2026-11-02 completed unit 4
+
+- [Daily-note evidence dates](../done/2026-11-02_tasks-daily-note-evidence-date.md): explicit daily capture records the selected local day as canonical `date` and rejects conflicting supplied dates before writing. Local/hosted temporal recall and dream windows, real timezone boundaries, retries and ordinary undated creation pass; full suite 1,849 passed, two skipped, zero failed. Existing notes are not backfilled. This is a source change, not a release or installed-app update; the remaining feedback units stay active.

@@ -2,6 +2,7 @@ import { shellFunctions } from "./browser-shell-helpers.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import vm from "node:vm";
+import { execFileSync } from "node:child_process";
 import { graphPageHtml } from "../dist/adapters/http-server/graph-page.js";
 import { extractCanonicalLinks, resolveCanonicalLinkTarget, buildCanonicalLinkTargetLookup } from "../dist/core/canonical/links.js";
 
@@ -70,6 +71,18 @@ test("dated capture uses local calendar getters across midnight, not UTC", () =>
   assert.equal(datedNoteDraft(before).title, undefined, "server chooses the numbered title");
   assert.equal(datedNoteDraft(before).body, "");
   assert.equal(datedNoteDraft(before).type, "note");
+});
+
+test("local-midnight capture keeps the selected day across positive and negative timezone offsets", () => {
+  const { datedNoteDraft } = runtime(["datedNoteDraft"]);
+  const program = `const capture = ${datedNoteDraft.toString()}; process.stdout.write(JSON.stringify(process.argv.slice(1).map(value => capture(new Date(value)).dailyDate)));`;
+  for (const [timezone, instants, dates] of [
+    ["Pacific/Kiritimati", ["2026-12-31T09:59:59.999Z", "2026-12-31T10:00:00.001Z"], ["2026-12-31", "2027-01-01"]],
+    ["America/Los_Angeles", ["2026-12-31T07:59:59.999Z", "2026-12-31T08:00:00.001Z"], ["2026-12-30", "2026-12-31"]],
+  ]) {
+    const result = execFileSync(process.execPath, ["-e", program, ...instants], { env: { ...process.env, TZ: timezone }, encoding: "utf8", timeout: 10000 });
+    assert.deepEqual(JSON.parse(result), dates, timezone);
+  }
 });
 
 test("capture coalesces concurrent creates and retries the identical body/key after a lost response", async () => {

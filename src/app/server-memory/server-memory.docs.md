@@ -2,7 +2,7 @@
 
 ## Responsibilities
 
-- Creation validates optional untrusted `date` with core writing policy before passing the typed draft to the writer. Evidence date is independent of quick-capture `dailyDate` title allocation; neither derives the other.
+- Creation validates optional untrusted `date` with core writing policy before passing the typed draft to the writer. Explicit daily quick capture supplies its validated `dailyDate` as canonical date-only evidence `date`; ordinary creation never infers one.
 
 - Compose server-local memory status, indexing, search/recall, graph assembly, document reads/updates, remote writes, idempotency records, auto-index state, and the shared dream workflow against one Markdown memory root.
 - Return remote-safe packets that preserve public HTTP/CLI JSON shapes without exposing the server filesystem root; document reads/updates rewrite local-root metadata to `target: "remote"`, `memory: "all"`, and `root: "remote:all"`.
@@ -34,6 +34,7 @@ Hosted creation preserves identity/type/title/validation and the legacy `index` 
 ## Daily quick capture
 
 - Note creation accepts optional `dailyDate` on the server write descriptor only, not the general remote writing draft. It must be a real browser-local `YYYY-MM-DD` date (years 0001–9999), with exactly `type: "note"`, a blank string body, and no explicit title. Invalid types, rollover dates, or conflicting titles are rejected in the app. Without `dailyDate`, explicit-title creation is unchanged.
+- The validated day also becomes canonical `date`, making new daily notes eligible for that day's temporal recall and declared-date dream window. A supplied `date` must exactly equal `dailyDate`; different days and timestamp representations fail before publication. Server timezone, writing timestamps and filenames do not change the selected day. This dates the daily capture, not every event later written in its body. Existing notes and replayed creations are not backfilled.
 - Inside the idempotency create callback, scan fresh canonical Markdown across every bucket at the memory root (not retrieval `indexRoot`), including ID-less documents. Read frontmatter titles, never filenames, headings, QMD, or counters. Match rename normalization: NFKC, trim, lowercase, NFC.
 - Generate a readable English date title such as `October 14, 2026`, then `October 14, 2026 · 2`. Use the validated browser-local calendar date with UTC formatting so the server timezone cannot shift it. Allocate above the maximum matching suffix across both readable titles and legacy `YYYY-MM-DD_note_N` titles (including normalized/zero-padded imported suffixes); the plain readable date counts as 1. Gaps are not reused while a higher suffix exists; deleted/renamed-away maxima can be reused. Each date has an independent sequence. The writer receives the app-owned heading `How is your day?` instead of repeating the date title. No existing files are renamed or migrated and no persistent counter is added.
 - Allocation and writing share the HTTP server's existing write queue. This prevents collisions among writes through **one server queue**, not across server processes or external filesystem edits. Direct app callers must serialize writes themselves. Existing legacy explicit-title writes may still introduce duplicates.
