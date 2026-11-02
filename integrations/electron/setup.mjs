@@ -80,7 +80,7 @@ export async function activateRemoteBrain(connection, input, { control = compani
 
 // Bounded, authenticated local control only; never redirect or expose keys to UI.
 export function companionControl({ origin, key }, route = 'state', body) {
-  if (!['state', 'profiles', 'switch', 'test'].includes(route)) throw new Error('Unsupported setup action.');
+  if (!['state', 'profiles', 'switch', 'test', 'identity'].includes(route)) throw new Error('Unsupported setup action.');
   return new Promise((resolve, reject) => {
     const data = body === undefined ? undefined : JSON.stringify(body);
     const request = http.request(new URL('/companion/' + route, origin), {
@@ -94,7 +94,7 @@ export function companionControl({ origin, key }, route = 'state', body) {
         let result;
         try { result = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { reject(new Error('Invalid setup response.')); return; }
         if (response.statusCode !== 200) { reject(new Error(result?.error?.message || 'Could not save the connection. Try again.')); return; }
-        if (route === 'test' ? !['connected', 'available', 'offline', 'authentication_failed', 'credential_unavailable'].includes(result?.health)
+        if (route === 'identity' ? typeof result?.name !== 'string' || result.name.length > 48 : route === 'test' ? !['connected', 'available', 'offline', 'authentication_failed', 'credential_unavailable'].includes(result?.health)
           : !Array.isArray(result?.profiles) || !Number.isSafeInteger(result.revision)) { reject(new Error('Invalid setup response.')); return; }
         resolve(result);
       });

@@ -79,7 +79,7 @@ The gateway's private support-directory control descriptor locates the exact liv
 
 ## Declared actors and recognition
 
-`recognition.ts` parses explicit write actor flags and rich-search recognition options; strict search parsing accepts them alongside read-only/no-refresh/temporal flags. Reject recognition with compact packets rather than silently dropping its scope. CLI defaults to unknown editor; `--actor human|agent` opts in, with optional `--actor-id`/`--actor-name`. `--actor unknown` explicitly leaves an edit unattributed. Search controls are independent of historical evidence-date filters. See [CLI reference](../../docs/cli-commands.md#recognizing-notes-in-search).
+`recognition.ts` parses explicit write actor flags and rich-search recognition options; strict search parsing accepts them alongside read-only/no-refresh/temporal flags. Reject recognition with compact packets rather than silently dropping its scope. CLI defaults to unknown editor; `--actor human|agent` opts in, with optional `--actor-id`/`--actor-name`. `identity` configures the optional device-local owner name through the client-identity adapter. Explicit human writes use it as their default name; explicit agent writes prefix their client name (`--actor-name` or `JUMPYBRAIN_CLIENT_NAME`) with it. Omitted actors remain unknown. Live `collaborate` writes carry the same declared name separately from their authenticated principal. `--actor unknown` explicitly leaves an edit unattributed. Search controls are independent of historical evidence-date filters. See [CLI reference](../../docs/cli-commands.md#recognizing-notes-in-search).
 
 ## Managed installation
 

@@ -18,7 +18,7 @@ export async function rememberFromStdin(
     throw new Error("--dream must be a boolean flag or true/false.");
   }
   const dream = dreamArg === undefined ? undefined : dreamArg === true || dreamArg === "true";
-  const actor = actorFromArgs(args);
+  const actor = await actorFromArgs(args);
   const body = readStdin();
   const draft = { type, title, body, ...(actor ? { actor } : {}), tags: stringListArg(args, "tag"),
     ...(args.date === undefined ? {} : { date: stringArg(args, "date") }),

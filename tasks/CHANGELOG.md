@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — Contextual editor attribution and client naming
+
+- Removed sidebar actor glyphs, added saved-note attribution beside text selections, and shared optional owner names across Mac onboarding/Settings and CLI agent labels. [Verification](done/2026-11-02_tasks-contextual-editor-attribution.md).
+
 ## 2026-11-02 — Compact editor section indicators
 
 - Halved heading-rail line widths and added taller H1/H2 marks while retaining pointer targets and navigation. [Verification](done/2026-11-02_tasks-editor-indicator-lines.md).

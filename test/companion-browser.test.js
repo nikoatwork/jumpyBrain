@@ -252,6 +252,7 @@ function interactionHarness() {
     URL, location: { origin: "http://127.0.0.1:1234", replace: (url) => calls.replacements.push(url) },
     companionState: { profiles: [], generation: 1, phase: "idle", activeId: "a", active: { allowWrites: true } },
     companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
+    browserActor: { kind: "human", id: "browser:fixture" }, identityNameDirty: false,
     companionRendered: true, companionStopped: false, companionActionBusy: false,
     companionAcknowledged: new Set(), creatingNote: false,
     state: { view: "note", editor: { state: { navigationPending: false }, setNavigationPending() {} } },

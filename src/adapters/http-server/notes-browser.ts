@@ -77,18 +77,16 @@ ${noteOutlineStyles}
     .sidebar-page-link[aria-current="page"] { color: var(--ink); background: transparent; }
     .sidebar-page-link:focus-visible, .sidebar-page-pin:focus-visible { outline-offset: -2px; }
     .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 var(--control-compact); width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); border: 0; border-radius: var(--radius-sm); color: var(--ink-soft); background: transparent; opacity: 0; }
-    .sidebar-page-link { display: grid; grid-template-columns: var(--icon-size) minmax(0, 1fr) minmax(var(--space-8), max-content); gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }
-    .sidebar-page-editor { grid-column: 1; grid-row: 1; display: flex; color: var(--ink-soft); }
-    .sidebar-page-editor svg { width: var(--icon-size); height: var(--icon-size); }
-    .sidebar-page-title { grid-column: 2; grid-row: 1; color: var(--ink); font-weight: var(--weight-semibold); }
-    .sidebar-page-preview { grid-row: 2; grid-column: 2; color: var(--ink-faint); font-size: var(--text-caption); }
-    .sidebar-page-age { grid-column: 3; grid-row: 1; justify-self: end; text-align: right; font-size: var(--text-caption); color: var(--ink-faint); }
+    .sidebar-page-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(var(--space-8), max-content); gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }
+    .sidebar-page-title { grid-column: 1; grid-row: 1; color: var(--ink); font-weight: var(--weight-semibold); }
+    .sidebar-page-preview { grid-row: 2; grid-column: 1; color: var(--ink-faint); font-size: var(--text-caption); }
+    .sidebar-page-age { grid-column: 2; grid-row: 1; justify-self: end; text-align: right; font-size: var(--text-caption); color: var(--ink-faint); }
     .sidebar-page { position: relative; }
     .sidebar-page .sidebar-page-actions { position: absolute; right: var(--space-4); top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none; border-radius: var(--radius-sm); }
     .sidebar-page:hover .sidebar-page-actions, .sidebar-page:focus-within .sidebar-page-actions { opacity: 1; pointer-events: auto; }
     @media (hover: hover) {
       .sidebar-page:has(.sidebar-page-actions):is(:hover, :focus-within) .sidebar-page-link { padding-right: calc(3 * var(--control-compact) + var(--space-2)); }
-      .sidebar-page:has(.sidebar-page-actions):is(:hover, :focus-within) :is(.sidebar-page-title, .sidebar-page-preview) { grid-column: 2 / -1; }
+      .sidebar-page:has(.sidebar-page-actions):is(:hover, :focus-within) :is(.sidebar-page-title, .sidebar-page-preview) { grid-column: 1 / -1; }
       .sidebar-page:has(.sidebar-page-actions):is(:hover, :focus-within) .sidebar-page-age { visibility: hidden; }
     }
     #sidebar-resize { position: absolute; z-index: 1; right: 0; top: 0; bottom: 0; width: 5px; cursor: col-resize; touch-action: none; -webkit-app-region: no-drag; }
@@ -96,7 +94,7 @@ ${noteOutlineStyles}
     @media (hover: none) { .sidebar-page .sidebar-page-actions { position: static; transform: none; opacity: 1; pointer-events: auto; } }
     @media (max-width: 680px) { #sidebar-resize { display: none; } }
     .sidebar-page-pin[aria-pressed="true"] svg path:last-child, .sidebar-page-pin-mark svg path:last-child { fill: currentColor; }
-    .sidebar-page-pin-mark { grid-column: 1; grid-row: 2; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
+    .sidebar-page-pin-mark { position: absolute; left: var(--space-1); top: var(--space-3); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
     .sidebar-page-pin-mark svg { width: 12px; height: 12px; }
     .sidebar-page[data-settling] { pointer-events: none; overflow: hidden; }
     .sidebar-page-pin svg { width: 16px; height: 16px; }
@@ -254,6 +252,10 @@ ${referencePresentationStyles}
     .document-copy, .document-delete-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
     :is(.document-copy, .document-delete-action) svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     #note-layout { display: flex; flex-direction: column; }
+    #note-attribution { position: fixed; z-index: 30; max-width: min(300px, calc(100vw - 16px)); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink-soft); box-shadow: 0 4px 16px #0002; font: var(--text-caption)/1.5 var(--font-ui); overflow-wrap: anywhere; pointer-events: none; }
+    #note-attribution[hidden] { display: none; }
+    #note-attribution > * { display: block; }
+    #note-attribution strong { color: var(--ink); font-weight: var(--weight-semibold); }
     #page-details { order: -1; align-self: flex-end; width: min(224px, calc(100% - var(--space-8))); margin: var(--space-4) var(--space-4) 0; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); font: var(--text-ui)/var(--leading-ui) var(--font-ui); color: var(--ink-soft); min-width: 0; }
     #page-details[hidden], #note-details-content[hidden] { display: none; }
     .page-card-heading, .page-card-actions { display: flex; align-items: center; gap: var(--space-2); }
@@ -357,6 +359,9 @@ ${referencePresentationStyles}
 `;
 
 export const notesMarkup = String.raw`
+<aside id="note-attribution" aria-label="Saved note attribution" aria-live="polite" hidden>
+  <strong>Saved note · last editor</strong><span id="note-attribution-facts"></span><span id="note-attribution-scope"></span>
+</aside>
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
   <div id="sidebar-resize" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-valuemin="224" aria-valuemax="480" aria-valuenow="280"></div>
   <div class="nav-brand"><button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>
@@ -543,7 +548,7 @@ export const notesViews = String.raw`
       <div id="note-details-content" hidden>
       <section class="saved-version" aria-label="Saved version">
 
-        <dl><dt>Last editor</dt><dd id="saved-version-editor"></dd><dt>Last edited</dt><dd id="saved-version-edited"></dd><dt>Location</dt><dd id="note-file"></dd></dl>
+        <dl><dt>Saved note · last editor</dt><dd id="saved-version-editor"></dd><dt>Last edited</dt><dd id="saved-version-edited"></dd><dt>Location</dt><dd id="note-file"></dd></dl>
         <p class="context-caption">Editor names are declared by the writing tool.</p>
       </section>
       <details id="living-sources" class="note-frontmatter" hidden>
@@ -1573,6 +1578,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
   let cancelled = false, sidebarRefresh = null;
   const originalCancel = editor.cancel;
   const collaboration = JumpyBrainBrowser.createCollaborationEditor({
+    actor: () => browserActor,
     url: endpoint.href, token: activeApiKey,
     scope: location.origin + ":" + capabilities.brainId + ":" + (companionMode ? String(companionState?.activeId || "") : "hosted"),
     documentId, editor: richEditor, expectedBrainId: capabilities.brainId,

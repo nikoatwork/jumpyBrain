@@ -96,10 +96,13 @@ test("strict calendar dates and local day filtering retain timezone/DST meaning"
   assert.equal(resultEditContext({ createdAt: "2026-10-22" }, now).label, "", "creation never substitutes for edit time");
 });
 
-test("CLI attribution and recognition options are explicit and compose with strict read-only flags", () => {
-  assert.deepEqual(actorFromArgs(parseArgs(["remember", "--title", "Title", "--actor", "agent", "--actor-name", "Codex"])), { kind: "agent", name: "Codex" });
-  assert.equal(actorFromArgs(parseArgs(["update", "--actor", "unknown"])), undefined);
-  assert.throws(() => actorFromArgs(parseArgs(["update", "--actor-id", "a"])), /require/);
+test("CLI attribution and recognition options are explicit and compose with strict read-only flags", async t => {
+  const previous = process.env.JUMPYBRAIN_IDENTITY_FILE;
+  process.env.JUMPYBRAIN_IDENTITY_FILE = path.join(os.tmpdir(), "jb-absent-identity-" + crypto.randomUUID());
+  t.after(() => { if (previous === undefined) delete process.env.JUMPYBRAIN_IDENTITY_FILE; else process.env.JUMPYBRAIN_IDENTITY_FILE = previous; });
+  assert.deepEqual(await actorFromArgs(parseArgs(["remember", "--title", "Title", "--actor", "agent", "--actor-name", "Codex"])), { kind: "agent", name: "Codex" });
+  assert.equal(await actorFromArgs(parseArgs(["update", "--actor", "unknown"])), undefined);
+  await assert.rejects(() => actorFromArgs(parseArgs(["update", "--actor-id", "a"])), /require/);
   const options = recognitionFromArgs(parseArgs(["search", "--query", "mistral", "--last-editor=human", "--edited-from", "2026-10-23", "--sort", "edited", "--offset", "24", "--read-only", "--json"]));
   assert.equal(options.editor, "human"); assert.equal(options.offset, 24); assert.equal(options.sort, "edited");
 });

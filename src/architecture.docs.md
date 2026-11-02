@@ -79,6 +79,10 @@ Deterministic source-boundary and package-entrypoint tests enforce these directi
 
 For browser changes, follow the [HTTP adapter map](adapters/http-server/http-server.docs.md) to the [browser/editor contract](adapters/http-server/browser.docs.md). For retrieval lifecycle changes, start with [local memory](app/local-memory/local-memory.docs.md), then the [QMD adapter](adapters/qmd/qmd.docs.md); remote deadlines belong to the [HTTP client](adapters/http-client/http-client.docs.md).
 
+## Client display preferences
+
+`adapters/client-identity` owns the optional device-local owner display name shared by desktop setup/Settings and CLI identity setup. It is infrastructure configuration outside canonical memory and does not select roots or grant access. Core validates declared actors; live application operations keep authenticated principal/client ownership separate from display provenance.
+
 ## Mac app ownership
 
 The unified Electron bundle owns the desktop window, menu bar, login preference, and lifecycle. An internal Swift helper owns Keychain/folder capabilities and a child gateway over the bundled copy of this same runtime. Closing the window keeps the service available; explicit quit uses the all-tab save barrier before stopping owned children. Parent watchdogs prevent orphan services. CLI-only installation and separately hosted servers remain independent. See [the desktop boundary](../integrations/electron/electron.docs.md).

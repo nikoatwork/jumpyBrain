@@ -15,7 +15,11 @@
     <p class="footnote">Your ideas. Yours to keep.</p>
   </aside>
   <main>
-    <div class="step"><span class="step-dot"></span> A fresh start</div>
+    <div class="identity-setup">
+      <label for="display-name">Your name <span>(optional)</span></label>
+      <input id="display-name" maxlength="48" autocomplete="name" aria-describedby="name-help" title="Name your edits and recognize your agents. Change this in Settings." />
+    </div>
+    <p id="name-help" class="sr-only">Name your edits and recognize your agents. You can change this in Settings.</p>
     <section id="local-panel" aria-labelledby="local-title">
       <h2 id="local-title">A home for<br />what’s on your mind.</h2>
       <p class="lead">Keep your notes and ideas together. Start with a folder on this Mac — no account needed.</p>

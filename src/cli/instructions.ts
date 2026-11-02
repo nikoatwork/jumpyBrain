@@ -6,6 +6,7 @@ export function agentInstructions(): string {
     "",
     "- Prefer explicit, bounded recall; do not silently inject memory into prompts.",
     "- Remember writes memory; recall reads memory.",
+    "- For declared authorship, set the user-supplied owner name with jumpybrain identity --name and use --actor agent --actor-name <client> on writes (or JUMPYBRAIN_CLIENT_NAME per host). This records owner · client when an owner is configured. Never guess a person’s name. Setup alone writes no memory.",
     "- An explicit remember request authorizes that fact's save to the configured personal local brain. A machine-wide --scope global installation can still be personal local memory. Setup/check alone authorizes no sample write; ordinary conversation, recall and useful findings do not authorize spontaneous capture.",
     "- If this repo has memory/jumpybrain.json, run: jumpybrain run memory:recall --topic \"<current task/topic>\" --limit 5 --compact",
     "- For a specific question, run: jumpybrain run memory:recall --query \"<question>\" --limit 10 --compact",

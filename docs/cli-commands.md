@@ -349,12 +349,25 @@ Options: `--recognition`, `--last-editor human|agent|unknown|you`, `--editor-id 
 
 Recognition always declares partial coverage over up to 120 ranked candidates, filters before the page cap, and returns optional `recognition.nextOffset`. A filtered empty result does not mean no matching note exists anywhere. Unknown dates sort last; missing/invalid dates fail a date filter. There is no retained edit history.
 
+Set your optional display name once on each machine. Mac onboarding and Settings → Your name use the same local preference:
+
+```bash
+jumpybrain identity --name 'Alex'
+jumpybrain identity --json                 # inspect; no memory write
+jumpybrain identity --name ''              # clear
+```
+
+The preference lives in `~/.jumpybrain/identity.json`; `JUMPYBRAIN_IDENTITY_FILE` explicitly selects a different preference file. Renaming affects future declarations, never existing notes, credentials or brain selection. A name is declared provenance, not an account.
+
 Declare the writer on supported creation/update flows:
 
 ```bash
 cat body.md | jumpybrain remember --root ./memory --type finding --title 'Mistral research' --actor agent --actor-name Codex
+# Agent hosts may instead set JUMPYBRAIN_CLIENT_NAME=Codex for their CLI process.
 cat revised.md | jumpybrain update --root ./memory --id mem_... --if-match sha256:... --actor human --actor-id personal-editor
 ```
+
+With owner `Alex`, `--actor agent --actor-name Codex` records `Alex · Codex`. `JUMPYBRAIN_CLIENT_NAME` supplies the client label when `--actor-name` is omitted; with an owner but no client name the label is `Alex · Agent`. Configure that environment variable per agent host rather than sharing one default client across all agents. `--actor human` uses the configured name unless an explicit name is supplied. `collaborate` commands declare agent names from the same owner preference and `JUMPYBRAIN_CLIENT_NAME`; their authenticated principal still owns access, undo and drafts. Final names must fit the existing 120-character actor limit.
 
 `--actor human|agent|unknown` plus optional `--actor-id/--actor-name` supplies declared provenance, not verified identity. Omission/unknown on an edit clears last-editor attribution; it never inherits a previous human editor. Human callers can choose an ID and query it with `--last-editor you --editor-id personal-editor`. The app's You label uses its own browser-local ID and is not a shared account identity. For agent-created Dream pages, pass `--actor agent` explicitly. Imported/legacy authorship stays unknown.
 

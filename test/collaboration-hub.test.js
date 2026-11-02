@@ -689,3 +689,21 @@ for (const failure of ["fsync", "rename"]) {
     );
   });
 }
+
+test('declared client names survive live publication and rename without changing authorization or undo ownership', async t => {
+  const { hub, file } = await fixture(t);
+  const client = { clientId: 'named-agent', declaredActor: { kind: 'agent', name: 'Alex · Codex' } };
+  const start = await hub.open(id, principal, client);
+  const saved = await hub.dispatch('edit', { ...params(start), ...client, operationId: 'named-edit', start: 0, deleteCount: 0, insert: 'Named ' }, principal);
+  assert.equal(saved.recognition.editor.name, 'Alex · Codex');
+  assert.equal(saved.recognition.editor.kind, 'agent');
+  assert.equal(saved.presence.find(peer => peer.clientId === client.clientId).principalId, principal.id);
+  assert.equal(saved.presence.find(peer => peer.clientId === client.clientId).name, 'Alex · Codex');
+  const renamed = await hub.dispatch('title', { ...params(saved), ...client, declaredActor: { kind: 'agent', name: 'Sam · Codex' }, title: 'Renamed' }, principal);
+  assert.equal(renamed.recognition.editor.name, 'Sam · Codex');
+  assert.equal(renamed.presence.find(peer => peer.clientId === client.clientId).name, 'Sam · Codex');
+  const before = await readFile(file, 'utf8');
+  await assert.rejects(hub.dispatch('edit', { ...params(renamed), ...client, operationId: 'blocked', start: 0, deleteCount: 0, insert: 'Blocked' }, { ...principal, role: 'reader' }), { code: 'forbidden' });
+  await assert.rejects(hub.dispatch('edit', { ...params(renamed), ...client, declaredActor: { kind: 'agent', name: 'Invalid\nName' }, operationId: 'invalid', start: 0, deleteCount: 0, insert: 'Invalid' }, principal));
+  assert.equal(await readFile(file, 'utf8'), before);
+});

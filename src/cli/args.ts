@@ -8,6 +8,7 @@ export interface ParsedCliArgs {
 }
 
 export function parseArgs(argv: string[]): ParsedCliArgs {
+  if (argv[0] === "identity") return parseIdentityArgs(argv);
   if (argv[0] === "board") return parseBoardArgs(argv);
   if (argv[0] === "feedback") return parseFeedbackArgs(argv);
   if (argv[0] === "doctor") return parseDoctorArgs(argv);
@@ -51,6 +52,25 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     throw new Error("--apply must not be repeated.");
   }
   return args._[0] === "migrate" ? parseMigrationArgs(argv) : args;
+}
+
+function parseIdentityArgs(argv: string[]): ParsedCliArgs {
+  const args: ParsedCliArgs = { _: ["identity"] };
+  for (let index = 1; index < argv.length; index++) {
+    const token = argv[index]!;
+    const equal = token.indexOf("="), key = token.slice(2, equal < 0 ? undefined : equal);
+    if (!token.startsWith("--") || !["name", "json", "help"].includes(key)) throw new Error("Use jumpybrain identity [--name <name>] [--json].");
+    if (Object.hasOwn(args, key)) throw new Error(`--${key} must not be repeated.`);
+    if (key === "name") {
+      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+      if (value === undefined || value.startsWith("--")) throw new Error("--name requires a value; use an empty string to clear it.");
+      args.name = value;
+    } else {
+      if (equal >= 0) throw new Error(`--${key} takes no value.`);
+      args[key] = true;
+    }
+  }
+  return args;
 }
 
 function parseFeedbackArgs(argv: string[]): ParsedCliArgs {

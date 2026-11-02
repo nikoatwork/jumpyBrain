@@ -25,7 +25,7 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
         const state = await control(connection);
         let folderError;
         try { selected = await suggest(state); } catch (error) { selected = null; folderError = error.message; }
-        return { selected, folderError, active: state.profiles.find((profile) => profile.id === state.activeId) || null };
+        return { selected, folderError, identity: state.identity, active: state.profiles.find((profile) => profile.id === state.activeId) || null };
       } catch { return { error: 'We couldn’t reach the local helper. Try again, or quit and reopen jumpyBrain.', retryable: true }; }
     },
     choose: async () => {
@@ -38,6 +38,10 @@ export function createOnboardingWindow(connection, { chooseFolder, activate = ac
       selected = null;
       selected = await inspectBrainFolder(result.filePaths[0]);
       return selected;
+    },
+    identity: async (input) => {
+      if (!connection || typeof input?.name !== 'string' || input.name.length > 48) throw new Error('Use a display name of at most 48 characters.');
+      return control(connection, 'identity', { name: input.name });
     },
     open: async () => {
       if (!connection || !selected) throw new Error('Choose your brain folder first.');

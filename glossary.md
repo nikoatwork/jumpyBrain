@@ -34,7 +34,7 @@ A read-only home view of up to eight current Markdown files ordered by their lat
 
 ## Contribution actor
 
-Optional declared human/agent provenance for a supported write, with an optional actor ID/name. Canonical Markdown retains creator and latest editor; a revision digest invalidates stale last-editor claims after untracked content changes. It is not verified identity, a permission or a retained contributor history. The app's “You” label requires the same browser-local identity. Legacy/external unknowns stay unknown. See [memory format](docs/memory-format.md#declared-creator-and-last-editor).
+Optional declared human/agent provenance for a supported write, with an optional actor ID/name. Canonical Markdown retains creator and latest editor; a revision digest invalidates stale last-editor claims after untracked content changes. It is not verified identity, a permission or a retained contributor history. The app's “You” label requires the same browser-local identity. An optional device-local display name, configured in Mac onboarding/Settings or CLI `identity`, labels future human edits and prefixes declared agent client names (for example `Alex · Codex`). This does not change authenticated principal/client ownership or backfill earlier notes. Legacy/external unknowns stay unknown. See [memory format](docs/memory-format.md#declared-creator-and-last-editor).
 
 ## Support diagnostic report
 

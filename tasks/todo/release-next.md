@@ -1,3 +1,5 @@
 # Changes
 
 - Editor section indicators are half as wide, with thicker H1 and H2 marks to make heading levels easier to distinguish.
+- Editor attribution moves from sidebar icons to a floating saved-note hint when selecting text; unavailable section history stays explicit.
+- Set your display name during Mac onboarding or in Settings, shared with CLI identity setup; agent writes can show owner-prefixed client labels such as Alex · Codex.

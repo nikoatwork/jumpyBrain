@@ -1,6 +1,7 @@
 import { metadataDate } from "../../core/canonical/metadata-date.js";
 import type { createDocumentEditor } from "./document-controller.js";
 import type { MemoryActor, SearchRecognitionMetadata } from "../../types.js";
+import { installNoteAttribution } from "./note-attribution.js";
 import { installNoteOutline } from "./note-outline.js";
 
 /** Facts about the accepted saved revision; never attribution for a live draft. */
@@ -29,6 +30,7 @@ export function installNoteWorkspace(options: {
     const state = options.editor()?.state;
     return Boolean(state?.loaded && !state.cancelled && !state.navigationPending);
   } });
+  const attribution = installNoteAttribution({ ...options, context: () => savedVersionContext(options.editor()?.state.recognition, options.actor()) });
   function showFormatting(value: boolean, restore = false) {
     formatting = value;
     tools.hidden = !formatting;
@@ -43,6 +45,7 @@ export function installNoteWorkspace(options: {
   }
   function sync() {
     outline.sync();
+    attribution.sync();
     const state = options.editor()?.state;
     const loaded = state?.loaded && !state.cancelled;
     const next = loaded ? String(state.generation) + ":" + state.documentId : "";

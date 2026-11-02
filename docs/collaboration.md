@@ -176,3 +176,7 @@ Protocol 2 is a coordinated client upgrade. It rejects obsolete WebSocket
 handshakes; it does not emulate mixed client generations. The T3 inspiration is
 server ownership, scoped contracts, subscriptions and lifecycle, not MCP as the
 browser transport or an event database replacing Markdown.
+
+### Client display names
+
+Use `jumpybrain identity --name 'Alex'` (also configurable in Mac onboarding/Settings) and set `JUMPYBRAIN_CLIENT_NAME=Codex` in the agent host to label future CLI collaboration writes `Alex · Codex`. Browser live saves use the configured human display name. Validated `declaredActor` values describe provenance and presence only; authenticated principals and client IDs continue to control authorization, Undo, drafts and streams. Older servers/clients must be upgraded to support these declarations. This does not retain block-level attribution history.

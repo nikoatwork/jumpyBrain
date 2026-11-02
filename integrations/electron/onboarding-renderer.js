@@ -7,7 +7,7 @@ function message(text, error = false) {
 }
 function lock(value) {
   busy = value;
-  for (const id of ['choose', 'continue', 'remote-choice', 'back', 'connect', 'remote-url', 'remote-key', 'retry']) $(id).disabled = value;
+  for (const id of ['choose', 'continue', 'remote-choice', 'back', 'connect', 'remote-url', 'remote-key', 'retry', 'display-name']) $(id).disabled = value;
   $('open').disabled = value || !selected;
   $('local-panel').setAttribute('aria-busy', String(value));
   $('remote-form').setAttribute('aria-busy', String(value));
@@ -38,9 +38,15 @@ $('choose').addEventListener('click', async () => {
 });
 $('open').addEventListener('click', () => action(async () => {
   message(selected?.existing ? 'Opening your notes…' : 'Creating a home for your notes…');
+  const identity = await window.desktopSetup.identity($('display-name').value);
+  if (identity?.error) throw new Error(identity.error);
   return window.desktopSetup.open();
 }));
-$('continue').addEventListener('click', () => action(() => window.desktopSetup.continue()));
+$('continue').addEventListener('click', () => action(async () => {
+  const identity = await window.desktopSetup.identity($('display-name').value);
+  if (identity?.error) throw new Error(identity.error);
+  return window.desktopSetup.continue();
+}));
 $('remote-choice').addEventListener('click', () => {
   if (busy) return;
   message(''); $('local-panel').hidden = true; $('remote-panel').hidden = false;
@@ -56,6 +62,8 @@ $('remote-form').addEventListener('submit', event => {
   if (!$('remote-form').reportValidity()) return;
   void action(async () => {
     message('Connecting to your brain…');
+    const identity = await window.desktopSetup.identity($('display-name').value);
+    if (identity?.error) throw new Error(identity.error);
     const result = await window.desktopSetup.remote($('remote-url').value.trim(), $('remote-key').value);
     if (!result?.error) $('remote-key').value = '';
     return result;
@@ -71,6 +79,7 @@ async function loadStatus() {
       $('retry').hidden = !result.retryable;
       throw new Error(result.error);
     }
+    $('display-name').value = result.identity?.name || '';
     showFolder(result.selected);
     if (result.folderError) message(result.folderError, true);
     $('continue').textContent = result.active?.kind === 'remote' ? 'Open ' + result.active.name + ' (remote)' : '';

@@ -48,7 +48,7 @@ async function fixture(t, options = {}) {
   const keys = new Map();
   const credentials = { get: async (ref) => keys.get(ref) ?? null, set: async (ref, key) => { keys.set(ref, key); }, delete: async (ref) => { keys.delete(ref); }, selectFolder: async () => roots[1] };
   const remote = await startJumpyBrainHttpServer({ root: roots[2], apiKeys: ['remote-test-key'], port: 0, autoIndex: false });
-  const gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots[0], port: 0, controlKey, credentials, switchTimeoutMs: 2000, ...options });
+  const gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots[0], port: 0, controlKey, credentials, switchTimeoutMs: 2000, identityFile: path.join(temporary, 'identity.json'), ...options });
   let cookie;
   const native = async (route, body, headers = {}) => fetch(gateway.url + route, {
     method: body === undefined ? 'GET' : 'POST', headers: { Authorization: 'Bearer ' + controlKey, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers },
@@ -624,4 +624,23 @@ test('file operations pin the admitted brain through switching and fence old gen
   assert.equal((await switching).status, 200);
   assert.equal((await f.memory('files/operations', { action: 'create-folder', path: 'notes/old' }, 'file-tab', generation)).status, 409);
   assert.equal(admitted, 1);
+});
+
+test('display-name setup is local, authenticated and shared with CLI preferences', async t => {
+  const f = await fixture(t);
+  const file = path.join(f.temporary, 'identity.json');
+  assert.equal((await (await f.native('/companion/state')).json()).identity.name, '');
+  assert.equal((await fetch(f.gateway.url + '/companion/identity', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Untrusted' }) })).status, 403);
+  const saved = await f.browser('/companion/identity', { name: 'Alex' });
+  assert.equal(saved.status, 200);
+  assert.deepEqual(await saved.json(), { name: 'Alex' });
+  assert.equal(JSON.parse(await readFile(file, 'utf8')).name, 'Alex');
+  const cli = spawnSync(process.execPath, ['dist/cli.js', 'identity', '--name', 'Sam', '--json'], { encoding: 'utf8', env: { ...process.env, JUMPYBRAIN_IDENTITY_FILE: file } });
+  assert.equal(cli.status, 0, cli.stderr);
+  assert.equal((await (await f.native('/companion/state')).json()).identity.name, 'Sam');
+  assert.equal((await f.browser('/companion/identity', { name: 'x'.repeat(49) })).status, 400);
+  assert.equal((await f.browser('/companion/identity', { name: 'Alex', root: f.roots[0] })).status, 400);
+  const csrf = await fetch(f.gateway.url + '/companion/identity', { method: 'POST', headers: { Authorization: 'Bearer ' + controlKey, Origin: 'https://evil.invalid', 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Untrusted' }) });
+  assert.equal(csrf.status, 403);
+  assert.equal(JSON.parse(await readFile(file, 'utf8')).name, 'Sam');
 });

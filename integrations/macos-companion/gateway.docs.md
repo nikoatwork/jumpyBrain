@@ -112,3 +112,7 @@ is observational. Read-only profiles cannot gain that capability. Unknown RPCs
 remain denied. Interrupted dispatched writes retain their uncertain admission;
 read/hello disconnects do not. Focused actual-cookie/WS/upstream and switch-drain
 coverage: `node --test test/companion-live-gateway.test.js`.
+
+## Local display name
+
+Authenticated POST `/companion/identity` accepts only `{name}` and writes the device-local preference through `adapters/client-identity`. It never forwards a name-setting request or credentials to a brain. State/register/poll packets expose the current preference, or `identity.unavailable` if unreadable; the browser can repair it in Settings. An injected `identityFile` keeps fixtures isolated. This preference is independent of brain write permission and does not alter selected targets or access policy.

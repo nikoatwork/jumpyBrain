@@ -18,6 +18,7 @@ export class CollaborationError extends Error {
 }
 interface ClientOptions {
   url: string; token?: string; scope: string; expectedBrainId?: string;
+  actor?: () => { kind: "human" | "agent"; id?: string; name?: string };
   connectionContext?: () => { tabId?: string; generation?: number };
   onState?: (state: CollaborationConnectionState, principal?: CollaborationPrincipal, error?: CollaborationError) => void;
   onSnapshot?: (snapshot: CollaborationSnapshot) => void;
@@ -105,7 +106,7 @@ export function createCollaborationClient(options: ClientOptions) {
   let disposed = false;
   return {
     connect: () => { if (!disposed) supervisor!.connect(); },
-    request: (method: string, params: Record<string, unknown>) => disposed ? Promise.reject(new CollaborationError("closed", "The session was closed.")) : supervisor!.request(method, params),
+    request: (method: string, params: Record<string, unknown>) => disposed ? Promise.reject(new CollaborationError("closed", "The session was closed.")) : supervisor!.request(method, { ...params, ...(options.actor ? { declaredActor: options.actor() } : {}) }),
     get state() { return supervisor!.state; },
     dispose() { if (disposed) return; disposed = true; if (!supervisor!.remove(listener)) supervisors.delete(key); },
   };

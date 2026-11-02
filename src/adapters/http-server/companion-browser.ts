@@ -94,6 +94,16 @@ ${boardsMarkup}
     </form>
     </details>
     </section>
+    <section class="settings-panel settings-card" data-settings-panel="identity" aria-label="Your name" hidden>
+      <h2>Your name</h2>
+      <form id="identity-form">
+        <label for="identity-name">Display name</label>
+        <input id="identity-name" maxlength="48" autocomplete="name" aria-describedby="identity-help" />
+        <p id="identity-help">Used for future edits from this Mac. Agents using the CLI on this Mac add your name to their client label, for example Alex · Codex. Existing edits keep their recorded names.</p>
+        <button class="button button-primary" type="submit">Save name</button>
+        <p id="identity-message" role="status"></p>
+      </form>
+    </section>
     <section id="settings-panel-appearance" class="settings-panel" data-settings-panel="appearance" aria-label="Appearance" hidden>
       ${appearanceMarkup}
     </section>
@@ -361,6 +371,10 @@ function companionApplyState(next) {
   }
   const wasPreparing = companionState?.phase === "preparing";
   companionState = next;
+  const identity = next.identity;
+  if (identity?.unavailable) $("identity-message").textContent = "Could not read your saved name. Save it again here.";
+  browserActor = { kind: "human", ...(browserActor.id ? { id: browserActor.id } : {}), ...(identity?.name ? { name: identity.name } : {}) };
+  if (document.activeElement !== $("identity-name") && !identityNameDirty) $("identity-name").value = identity?.name || "";
   renderCompanionConnection();
   if (next.phase === "preparing") {
     companionLock(true);

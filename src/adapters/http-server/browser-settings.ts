@@ -6,6 +6,7 @@ export const settingsNavigationMarkup = String.raw`
 <div id="settings-navigation" aria-label="Settings sections" hidden>
   <p class="settings-nav-label">Settings</p>
   <a class="quiet-button nav-item" href="/settings" data-settings-section="brains">${browserIcons.connect}<span>Brains</span></a>
+  <a class="quiet-button nav-item" href="/settings?section=identity" data-settings-section="identity">${browserIcons.connect}<span>Your name</span></a>
   <a class="quiet-button nav-item" href="/settings?section=boards" data-settings-section="boards">${browserIcons.board}<span>Boards</span></a>
   <a class="quiet-button nav-item" href="/settings?section=appearance" data-settings-section="appearance">${browserIcons.appearance}<span>Appearance</span></a>
   <a class="quiet-button nav-item" href="/settings?section=extensions" data-settings-section="extensions">${browserIcons.extensions}<span>Extensions</span></a>
@@ -55,13 +56,29 @@ export const settingsStyles = String.raw`
 `;
 
 export const settingsScript = String.raw`
+let identityNameDirty = false;
+$("identity-name").addEventListener("input", () => { identityNameDirty = true; });
+$("identity-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!$("identity-form").reportValidity()) return;
+  const button = $("identity-form").querySelector("button");
+  button.disabled = true;
+  try {
+    const identity = await companionControl("identity", { name: $("identity-name").value });
+    identityNameDirty = false;
+    browserActor = { kind: "human", ...(browserActor.id ? { id: browserActor.id } : {}), ...(identity.name ? { name: identity.name } : {}) };
+    $("identity-name").value = identity.name;
+    $("identity-message").textContent = "Name saved. Future edits will use this name.";
+  } catch { $("identity-message").textContent = "Could not save your name. Try again."; }
+  finally { button.disabled = false; }
+});
 let settingsLastAppUrl = null;
 let settingsReturnUrl = null;
 function syncSettingsNavigation(url) {
   const target = new URL(url, location.origin);
   const settings = state.view === "settings";
   const requested = target.searchParams.get("section");
-  const section = ["appearance", "extensions", "boards"].includes(requested) ? requested : "brains";
+  const section = ["appearance", "extensions", "boards", "identity"].includes(requested) ? requested : "brains";
   if (settings && document.body.dataset.settingsPage === "brains" && section !== "brains") companionClearForm();
   if (settings && !document.body.dataset.settingsPage) settingsReturnUrl = settingsLastAppUrl;
   if (!settings) settingsLastAppUrl = target.pathname + target.search;
@@ -75,7 +92,7 @@ function syncSettingsNavigation(url) {
     if (current) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
   }
   for (const panel of document.querySelectorAll("[data-settings-panel]")) panel.hidden = panel.dataset.settingsPanel !== section;
-  $("settings-section-title").textContent = section === "boards" ? "Boards" : section === "brains" ? "Brains" : section === "appearance" ? "Appearance" : "Extensions";
+  $("settings-section-title").textContent = section === "identity" ? "Your name" : section === "boards" ? "Boards" : section === "brains" ? "Brains" : section === "appearance" ? "Appearance" : "Extensions";
   $("companion-refresh-index").hidden = section !== "brains";
   sidebarPreference.sync();
 }
