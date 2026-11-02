@@ -2,7 +2,7 @@
 
 ## 2026-11-01 — Shared backends and live editing
 
-- Humans and streaming agents edit canonical Markdown together through one local/VPS backend, with revocable access, private drafts and coordinated upgrades. [Implementation](todo/tasks-multiplayer-editing-architecture.md).
+- Humans and streaming agents edit canonical Markdown together through one local/VPS backend, with revocable access, private drafts and coordinated upgrades. [Implementation](done/2026-11-02_tasks-multiplayer-editing-architecture.md).
 
 ## 2026-11-01 — File explorer actions
 

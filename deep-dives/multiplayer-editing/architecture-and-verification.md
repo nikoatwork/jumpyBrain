@@ -1,6 +1,6 @@
 # Multiplayer editing: architecture and verification proposal
 
-Status: proposed target, 2026-11-01. The [active task list](../../tasks/todo/tasks-multiplayer-editing-architecture.md) owns execution and maturity evidence. This document does not describe shipped collaboration support.
+Status: historical architecture proposal from 2026-11-01. The [completed task](../../tasks/done/2026-11-02_tasks-multiplayer-editing-architecture.md), [operating guide](../../docs/collaboration.md) and [production verification](production-verification.md) record the delivered implementation and automated maturity evidence. Planning-seed behavior below is historical.
 
 ## Outcome and agreed scope
 
@@ -172,7 +172,7 @@ Maturity is a set of passed scenario IDs for an exact source/artifact/environmen
 | M2: reliable live state | Authenticated scoped subscriptions cover supported writes and observed file changes; snapshots, gaps, reconnect, revocation, and slow consumers behave correctly. Save-notification support alone ends here. |
 | M3: human collaboration | Two real editors type concurrently, retain expected changes and source fidelity, and have correct local undo/selection/draft recovery and Markdown durability. |
 | M4: agent/file collaboration | Streaming agent edits coexist with humans and direct files; chunks, cancel/retry, stale bases, overlap recovery, and attribution satisfy the same shared contract. |
-| M5: rollout readiness | Mac and Linux/VPS evidence, mixed-version compatibility, bounded resources, fault recovery, rollback, and repeated end-to-end scenarios pass on the integration candidate. |
+| M5: rollout readiness | Mac and representative Linux/TLS evidence, coordinated upgrades/version fencing, bounded resources, fault recovery, rollback, and repeated end-to-end scenarios pass on the integration candidate. |
 
 The first implementation gate is M0 only. M1 algorithm/ownership prototypes must pass before broad source movement. Ship readiness requires M5; partial stages must not be presented as finished multiplayer.
 

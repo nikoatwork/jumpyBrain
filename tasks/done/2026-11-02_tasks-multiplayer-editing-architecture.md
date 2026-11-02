@@ -1,6 +1,6 @@
 # Shared backend and live multiplayer editing
 
-Status: active, 2026-11-01. M0 and the M1 design gate are complete for their recorded scope. Production M1–M4 are implemented and undergoing the final integrated regression gate; M5 evidence is being collected. Dedicated branch: plan/multiplayer-memory-architecture.
+Status: completed for the recorded automated M0–M5 scope, 2026-11-02. All required implementation and verification work passes on b06e4f9; final completion bookkeeping receives the same strict integration gate. Dedicated branch: plan/multiplayer-memory-architecture.
 
 ## Goal
 
@@ -8,24 +8,24 @@ Deliver smooth live simultaneous editing for humans and streaming agents over on
 
 ## Scope and decisions
 
-- The [architecture and verification proposal](../../deep-dives/multiplayer-editing/architecture-and-verification.md) explains ownership, durability, transports, merging, failure semantics, rollout, and pinned T3 inspiration. It is a proposal, not a claim of implementation.
+- The [architecture and verification proposal](../../deep-dives/multiplayer-editing/architecture-and-verification.md) explains ownership, durability, transports, merging, failure semantics, rollout, and pinned T3 inspiration. It is the historical proposal; the [production evidence](../../deep-dives/multiplayer-editing/production-verification.md) records the delivered implementation and exact acceptance scope.
 - User-selected requirements: live simultaneous editing; streaming agent output; recoverable disconnected drafts with reconnect before publishing; separate revocable reader/writer credentials without per-note ACLs; one on-demand local backend usable without the app window.
 - Direct writes to Markdown remain a required detection/reconciliation path. Prefer coordinated CLI edits, but do not pretend filesystem writers can be prohibited by a CLI rule. Preserve observed conflicting content; document unavoidable unobserved/raw-writer races.
 - Keep one engine for local and hosted roots. Do not add a model provider, mandatory cloud account, synchronization service, authoritative binary content database, MCP prerequisite, or full T3 orchestration framework.
 - Existing guarded updates, retrieval/index behavior, source fidelity, boards, native capabilities and user data are regression surfaces. The user explicitly permits breaking CLI/API/integration contracts during the internal beta and coordinated updates of all clients; long-term V1 or mixed-version compatibility is not a requirement. Changes must have a smooth documented upgrade path and must not silently retarget existing brains.
 - Current authorization is the complete implementation and verification roadmap, including all automated gates and subagents in this dedicated worktree. The user permits coordinated breaking changes and requests a runnable README upgrade path.
-- Planning seed: 1cc3b4153922935ada80f509cbe3cc227ce4c1ce. Unrelated folder-explorer edits in the original checkout are outside this worktree and outside the frozen seed; incorporate their final supported behavior before a later integration if they land.
+- Planning seed: 1cc3b4153922935ada80f509cbe3cc227ce4c1ce. Its landed folder-explorer behavior is incorporated through master cd3db8612412bb064df88c003228037e78820002; remaining unrelated edits in the original checkout are outside this worktree and preserved.
 
 ## Maturity and merge conditions
 
 | Level | Completion evidence | Current state |
 | --- | --- | --- |
 | M0 | Protected current-behavior contract, immutable baseline/artifact/environment manifest, reproducible checks, negative verifier tests, explicit coverage gaps. | Passed for the recorded macOS/loopback automated scope; see the evidence record. |
-| M1 | One discoverable root owner; coordinated app/CLI lifecycle; reader/writer enforcement; proven storage/editor prototype. | Implemented; root/auth/upgrade and Mac/Linux owner tests pass. Final parity verification remains pending. |
-| M2 | Scoped authenticated live state, external-file invalidation, gap-free snapshots, bounded reconnect and revocation. | Implemented; final integrated regression verification pending. |
-| M3 | Two humans edit concurrently with correct source preservation, undo, selection, drafts and durable Markdown saves. | Implemented; final integrated regression verification pending. |
-| M4 | Streaming agents and observed direct-file edits coexist safely with humans, including failures and recovery. | Implemented; final integrated regression verification pending. |
-| M5 | Repeated integrated Mac/Linux hosted/TLS, compatibility, resource, failure and rollback scenarios pass; untested physical/public-deployment boundaries are explicit. | In progress: signed desktop lifecycle and both Linux Node versions pass; final frozen-oracle verification pending. |
+| M1 | One discoverable root owner; coordinated app/CLI lifecycle; reader/writer enforcement; proven storage/editor prototype. | Passed: shared owner/auth/upgrade on Mac and both exact Linux runtimes. |
+| M2 | Scoped authenticated live state, external-file invalidation, gap-free snapshots, bounded reconnect and revocation. | Passed in the final integrated gate; see production evidence. |
+| M3 | Two humans edit concurrently with correct source preservation, undo, selection, drafts and durable Markdown saves. | Passed in the final integrated gate; see production evidence. |
+| M4 | Streaming agents and observed direct-file edits coexist safely with humans, including failures and recovery. | Passed in the final integrated gate; see production evidence. |
+| M5 | Repeated integrated Mac/Linux hosted/TLS, compatibility, resource, failure and rollback scenarios pass; untested physical/public-deployment boundaries are explicit. | Passed for the recorded Mac/Linux/TLS automated scope; physical and public-deployment limits remain explicit. |
 
 A merge requires the frozen M0 assertions plus the new stage's relevant scenarios against the proposed integration snapshot. Missing required evidence is blocked or untested, never passed. A stage's green tests do not authorize enabling unverified later behavior. Feature gating must itself be tested. Record a contract delta separately for intentional behavior changes; do not regenerate a baseline to accept a regression.
 
@@ -78,68 +78,68 @@ The minimum final demonstration is two separate human browser contexts, one agen
   - [x] 2.5 Select source-operation coordination for the demonstrated conservative scope, record resource/dependency budgets and the remaining structural-binding requirement. Reject the native adapter as wired with its counterexamples retained. Authoritative M1 and protected M0 checks pass; no full M3 or production readiness is implied.
   - [x] 2.6 Provide the executable local integration procedure: prepared clean commit containing the current target, independently pinned M0 and M1 contracts, sequential verification and source/target stability checks. Guard checks cover target movement and the actual advanced master is blocked. This is not installed branch protection; integration must follow the recorded procedure.
 
-- [ ] 3.0 M1 implementation: one backend owner and real server authorization.
-  - [ ] 3.1 Define root-instance discovery/readiness, atomic startup ownership, explicit stop/drain and executable/protocol compatibility. Exercise concurrent starts, stale records, path aliases, foreign ports and crashes.
-  - [ ] 3.2 Route local app and CLI operations through the root owner, starting it on demand without a GUI. Preserve explicit root/remote selection; update any embedding API to participate in ownership rather than retaining obsolete signatures. Do not silently create a second writer or switch the CLI to the app's selected brain.
-  - [ ] 3.3 Separate window-close lifetime from backend lifetime. Integrate quit, login, update replacement and save barriers; retain scoped native Keychain/folder capabilities without renderer secret access.
-  - [ ] 3.4 Add separately revocable reader/writer principals and per-operation server enforcement. Specify local same-user bootstrap, VPS provisioning/rotation, legacy-key migration and safe diagnostic identity. Role downgrade must also stop existing streams.
-  - [ ] 3.5 Implement an explicit protocol/API cutover with coordinated client updates and useful version-mismatch errors before mutation. Retain data/use-case parity, add root-owner/credential tests and real local CLI-without-app plus Linux-hosted CLI evidence. Intentional approved contract changes may replace structural/wire expectations with reviewed equivalent behavior assertions. Pass the applicable parity and L01/L07/L09 gates before claiming M1.
-  - [ ] 3.6 Provide and test the upgrade path before a breaking release: inventory all components/roots, drain saves/streams, back up canonical Markdown/boards/configuration/recovery data, update server/app/CLI/integrations together, migrate only required operational state, reset session epochs, then verify existing notes/search and disposable-copy editing. Document one runnable command or copyable agent instruction in README, exact supported source/target versions, interrupted-upgrade retry and software/data rollback limits. Never delete unique recovery data as cache.
+- [x] 3.0 M1 implementation: one backend owner and real server authorization.
+  - [x] 3.1 Define root-instance discovery/readiness, atomic startup ownership, explicit stop/drain and executable/protocol compatibility. Exercise concurrent starts, stale records, path aliases, foreign ports and crashes.
+  - [x] 3.2 Route local app and CLI operations through the root owner, starting it on demand without a GUI. Preserve explicit root/remote selection; update any embedding API to participate in ownership rather than retaining obsolete signatures. Do not silently create a second writer or switch the CLI to the app's selected brain.
+  - [x] 3.3 Separate window-close lifetime from backend lifetime. Integrate quit, login, update replacement and save barriers; retain scoped native Keychain/folder capabilities without renderer secret access.
+  - [x] 3.4 Add separately revocable reader/writer principals and per-operation server enforcement. Specify local same-user bootstrap, VPS provisioning/rotation, legacy-key migration and safe diagnostic identity. Role downgrade must also stop existing streams.
+  - [x] 3.5 Implement an explicit protocol/API cutover with coordinated client updates and useful version-mismatch errors before mutation. Retain data/use-case parity, add root-owner/credential tests and real local CLI-without-app plus Linux-hosted CLI evidence. Intentional approved contract changes may replace structural/wire expectations with reviewed equivalent behavior assertions. Pass the applicable parity and L01/L07/L09 gates before claiming M1.
+  - [x] 3.6 Provide and test the upgrade path before a breaking release: inventory all components/roots, drain saves/streams, back up canonical Markdown/boards/configuration/recovery data, update server/app/CLI/integrations together, migrate only required operational state, reset session epochs, then verify existing notes/search and disposable-copy editing. Document one runnable command or copyable agent instruction in README, exact supported source/target versions, interrupted-upgrade retry and software/data rollback limits. Never delete unique recovery data as cache.
 
-- [ ] 4.0 M2: shared contract and reliable live subscriptions.
-  - [ ] 4.1 Define versioned command/event/error envelopes, capability negotiation, document epoch/revision versus content hash, request IDs, cancellation and per-operation retry/status semantics. HTTP/WS adapters call the same app policy.
-  - [ ] 4.2 Add authenticated WebSocket RPC/subscriptions with snapshot/cursor handoff, gap recovery and bounded frames/queues. Subscribe only to needed brains/documents; enforce roles for every message, not only upgrade.
-  - [ ] 4.3 Build one connection supervisor per environment with platform adapters for browser/CLI, bounded jittered reconnect, foreground health checks and separate synchronization states. Dispose old subscriptions on scope/credential changes.
-  - [ ] 4.4 Publish confirmed supported writes and stable observed file changes; reconcile periodically. Replace relevant polling only after equivalent refresh/merge protection passes. Unsupported versions must fail clearly rather than silently fall back to weaker writes.
-  - [ ] 4.5 Test L02/L05/L07/L08 with injected gaps, disconnects, missed events, stale same-ID brain responses, slow readers and revocation. Run the protected parity gate before enabling this stage.
+- [x] 4.0 M2: shared contract and reliable live subscriptions.
+  - [x] 4.1 Define versioned command/event/error envelopes, capability negotiation, document epoch/revision versus content hash, request IDs, cancellation and per-operation retry/status semantics. HTTP/WS adapters call the same app policy.
+  - [x] 4.2 Add authenticated WebSocket RPC/subscriptions with snapshot/cursor handoff, gap recovery and bounded frames/queues. Subscribe only to needed brains/documents; enforce roles for every message, not only upgrade.
+  - [x] 4.3 Build one connection supervisor per environment with platform adapters for browser/CLI, bounded jittered reconnect, foreground health checks and separate synchronization states. Dispose old subscriptions on scope/credential changes.
+  - [x] 4.4 Publish confirmed supported writes and stable observed file changes; reconcile periodically. Replace relevant polling only after equivalent refresh/merge protection passes. Unsupported versions must fail clearly rather than silently fall back to weaker writes.
+  - [x] 4.5 Test L02/L05/L07/L08 with injected gaps, disconnects, missed events, stale same-ID brain responses, slow readers and revocation. Run the protected parity gate before enabling this stage.
 
-- [ ] 5.0 M3: live human collaboration with truthful saving and draft recovery.
-  - [ ] 5.1 Bind the selected shared model to existing editor nodes without whole-document rehydration on every remote edit. Preserve literal Markdown, custom references, task/code/table editing and unrelated bytes.
-  - [ ] 5.2 Integrate scoped cursors/presence, local-only undo, selection mapping, IME, accessible status and read-only views. Remote changes must not create duplicate autosaves or erase another writer through Undo.
-  - [ ] 5.3 Implement recoverable client drafts with clear storage/privacy/retention policy and visible unavailable-storage behavior. Reconnect/authenticate/resynchronize before publishing; do not silently replay offline work.
-  - [ ] 5.4 Integrate durable publication batches, saved hashes, protected metadata, attention and index scheduling. Coordinate legacy PUT/PATCH with pending live edits; a valid disk hash alone must not authorize overwriting admitted work. A token/frame acknowledgement must never be shown as Saved before canonical publication.
-  - [ ] 5.5 Pass L03/L06 and the entire affected baseline in two real browser contexts. Test reload/crash, disk-full/permission failure, overlapping edits and schema mismatch, plus targeted native IME/accessibility checks where affected.
-  - [ ] 5.6 Selecting an older recovery record must retain any unique current body/title/uncertain state. Prove both versions remain recoverable and storage failure cannot discard the current draft.
-  - [ ] 5.7 Prove actual packaged Electron can establish its gateway WebSocket and publish an edit. Keep the desktop network allowlist restricted to its gateway HTTP origin and exact paired WebSocket endpoint, with explicit denial tests for other paths/origins and URL credentials.
+- [x] 5.0 M3: live human collaboration with truthful saving and draft recovery.
+  - [x] 5.1 Bind the selected shared model to existing editor nodes without whole-document rehydration on every remote edit. Preserve literal Markdown, custom references, task/code/table editing and unrelated bytes.
+  - [x] 5.2 Integrate scoped cursors/presence, local-only undo, selection mapping, IME, accessible status and read-only views. Remote changes must not create duplicate autosaves or erase another writer through Undo.
+  - [x] 5.3 Implement recoverable client drafts with clear storage/privacy/retention policy and visible unavailable-storage behavior. Reconnect/authenticate/resynchronize before publishing; do not silently replay offline work.
+  - [x] 5.4 Integrate durable publication batches, saved hashes, protected metadata, attention and index scheduling. Coordinate legacy PUT/PATCH with pending live edits; a valid disk hash alone must not authorize overwriting admitted work. A token/frame acknowledgement must never be shown as Saved before canonical publication.
+  - [x] 5.5 Pass L03/L06 and the entire affected baseline in two real browser contexts. Test reload/crash, disk-full/permission failure, overlapping edits and schema mismatch, plus targeted native IME/accessibility checks where affected.
+  - [x] 5.6 Selecting an older recovery record must retain any unique current body/title/uncertain state. Prove both versions remain recoverable and storage failure cannot discard the current draft.
+  - [x] 5.7 Prove actual packaged Electron can establish its gateway WebSocket and publish an edit. Keep the desktop network allowlist restricted to its gateway HTTP origin and exact paired WebSocket endpoint, with explicit denial tests for other paths/origins and URL credentials.
 
-- [ ] 6.0 M4: agents stream into the same document model; files remain usable.
-  - [ ] 6.1 Add CLI collaboration operations for opening a base revision, streaming bounded ordered chunks, status, completion and cancellation. Preserve ordinary one-shot memory commands and agent independence.
-  - [ ] 6.2 Map agent edits to their read state with stable/proven anchors or equivalent transformations. Reject stale/ambiguous operations; never apply old offsets blindly or replace the whole current document for every token.
-  - [ ] 6.3 Make partial streamed Markdown safe and recoverable, deduplicate chunks, bound buffers and expose generated/committed/conflicted/unconfirmed outcomes. Cancellation must not revert concurrent human edits or mislabel partial output as complete.
-  - [ ] 6.4 Reconcile external file saves through the session, preserve both sides on unresolved overlaps, and correctly handle invalid IDs, rename/delete/recreate and changing files. Retain unknown attribution for raw edits.
-  - [ ] 6.5 Pass L04/L05/L06 and legacy-write L09 with two typing humans, a streaming agent and raw writer. Inject duplicate chunks, disconnect-after-commit, server restart, old-client PUT/PATCH, agent death/cancel and overlapping structural edits; assert exact canonical content and retained recovery material.
-  - [ ] 6.6 Bound abandoned stream lifetime, renew legitimate generation pauses, retire revoked principals, and interrupt CLI streaming with an open stdin producer. Preserve already published chunks and prove stream slots become reusable.
-  - [ ] 6.7 Retain the prior saved version when an observed destructive raw-file replacement removes acknowledged content. Raw writers have no base token; do not infer their intent or resurrect deleted text automatically.
+- [x] 6.0 M4: agents stream into the same document model; files remain usable.
+  - [x] 6.1 Add CLI collaboration operations for opening a base revision, streaming bounded ordered chunks, status, completion and cancellation. Preserve ordinary one-shot memory commands and agent independence.
+  - [x] 6.2 Map agent edits to their read state with stable/proven anchors or equivalent transformations. Reject stale/ambiguous operations; never apply old offsets blindly or replace the whole current document for every token.
+  - [x] 6.3 Make partial streamed Markdown safe and recoverable, deduplicate chunks, bound buffers and expose generated/committed/conflicted/unconfirmed outcomes. Cancellation must not revert concurrent human edits or mislabel partial output as complete.
+  - [x] 6.4 Reconcile external file saves through the session, preserve both sides on unresolved overlaps, and correctly handle invalid IDs, rename/delete/recreate and changing files. Retain unknown attribution for raw edits.
+  - [x] 6.5 Pass L04/L05/L06 and legacy-write L09 with two typing humans, a streaming agent and raw writer. Inject duplicate chunks, disconnect-after-commit, server restart, old-client PUT/PATCH, agent death/cancel and overlapping structural edits; assert exact canonical content and retained recovery material.
+  - [x] 6.6 Bound abandoned stream lifetime, renew legitimate generation pauses, retire revoked principals, and interrupt CLI streaming with an open stdin producer. Preserve already published chunks and prove stream slots become reusable.
+  - [x] 6.7 Retain the prior saved version when an observed destructive raw-file replacement removes acknowledged content. Raw writers have no base token; do not infer their intent or resurrect deleted text automatically.
 
-- [ ] 7.0 M5: prove the integration candidate can replace the old path.
-  - [ ] 7.1 Extend the baseline corpus/gates for new supported behavior while preserving data/use-case assertions; record intentional approved breaking contract deltas separately. Supply missing Mac/Linux, supported minimum Node/runtime, real TLS/proxy/WS upgrade, unsupported-version rejection and coordinated upgrade evidence for changed surfaces.
-  - [ ] 7.2 Freeze measured latency/resource limits before enabling collaboration. Exercise the declared two-human/one-agent fixture and a five-human/three-agent workload, slow client, large notes and bounded soak; report source, rates, sizes, RTT, disk and semantic-index costs.
-  - [ ] 7.3 Verify the documented old-to-new coordinated upgrade and recovery from the packaged candidate with existing roots, same-ID brains and preserved drafts. Reject obsolete live handshakes; do not build permanent legacy emulation. Direct-writing old binaries remain noncooperating file writers and must be stopped during upgrades. Rebuild derived collaboration/index state from Markdown and prevent stale sessions replaying it.
-  - [ ] 7.4 Run required parity and stage checks against the actual proposed integration result. Reject missing, flaky or failed required evidence; record reused evidence only for identical relevant inputs. Do not merge because a branch once passed.
-  - [ ] 7.5 Enable in explicit stages, then retire duplicate polling/writer paths only after replacement evidence passes. Document operator recovery, limits and observability without logging note contents or credentials.
-  - [ ] 7.6 Update architecture/module, CLI/protocol, memory format, desktop/gateway and installation docs, reusable glossary terms and release notes for delivered behavior. Keep release checks proportional; this refactor gate does not activate the unrelated deferred scale-up release program.
-  - [ ] 7.7 Record final maturity evidence and unresolved limits; finalize/archive the implementation task when its required work is actually complete. A partial M0 result leaves this roadmap active. No automatic push, merge, installation or release.
-  - [ ] 7.8 Repeat the composed two-browser-context, shipped streaming CLI and raw-file writer demonstration locally and against a Linux backend. Verify the frozen old runtime's disposable roots through an extracted candidate package, including backup, interrupted retry, exact preservation and rollback recovery.
+- [x] 7.0 M5: prove the integration candidate can replace the old path.
+  - [x] 7.1 Extend the baseline corpus/gates for new supported behavior while preserving data/use-case assertions; record intentional approved breaking contract deltas separately. Supply missing Mac/Linux, supported minimum Node/runtime, real TLS/proxy/WS upgrade, unsupported-version rejection and coordinated upgrade evidence for changed surfaces.
+  - [x] 7.2 Freeze measured latency/resource limits before enabling collaboration. Exercise the declared two-human/one-agent fixture and a five-human/three-agent workload, slow client, large notes and bounded soak; report source, rates, sizes, RTT, disk and semantic-index costs.
+  - [x] 7.3 Verify the documented old-to-new coordinated upgrade and recovery from the packaged candidate with existing roots, same-ID brains and preserved drafts. Reject obsolete live handshakes; do not build permanent legacy emulation. Direct-writing old binaries remain noncooperating file writers and must be stopped during upgrades. Rebuild derived collaboration/index state from Markdown and prevent stale sessions replaying it.
+  - [x] 7.4 Run required parity and stage checks against the actual proposed integration result. Reject missing, flaky or failed required evidence; record reused evidence only for identical relevant inputs. Do not merge because a branch once passed.
+  - [x] 7.5 Enable in explicit stages, then retire duplicate polling/writer paths only after replacement evidence passes. Document operator recovery, limits and observability without logging note contents or credentials.
+  - [x] 7.6 Update architecture/module, CLI/protocol, memory format, desktop/gateway and installation docs, reusable glossary terms and release notes for delivered behavior. Keep release checks proportional; this refactor gate does not activate the unrelated deferred scale-up release program.
+  - [x] 7.7 Record final maturity evidence and unresolved limits; finalize/archive the implementation task when its required work is actually complete. A partial M0 result leaves this roadmap active. No automatic push, merge, installation or release.
+  - [x] 7.8 Repeat the composed two-browser-context, shipped streaming CLI and raw-file writer demonstration locally and against a Linux backend. Verify the frozen old runtime's disposable roots through an extracted candidate package, including backup, interrupted retry, exact preservation and rollback recovery.
 
-- [ ] 8.0 Resolve the Astra high review's reproduced multiplayer blockers and meet the visible-cursor UX requirement.
-  - [ ] 8.1 Bind CLI positioned edits/streams to the actual read epoch/revision. Reproduce a human prefix insertion between read and edit; transform to the intended text or reject, never relabel old offsets with a fresh open revision.
-  - [ ] 8.2 Correct repeated actor undo/redo for replacements, typing/backspace and interleaved other writers. Surface failed history actions visibly without misrepresenting canonical save state.
-  - [ ] 8.3 Preserve granular multi-splice intent through local batching, remote rebasing and atomic publication. First/last local changes must merge with an independent middle edit, including held acknowledgements and queued snapshots.
-  - [ ] 8.4 Share exact structural source mappings for local selection preservation and remote caret/ranges. Cover code fence-language ambiguity, Unicode, ordinary mixed-format text, empty paragraphs, tasks/tables/references, scroll clipping and layout changes.
-  - [ ] 8.5 Version presence coordinates, transform or invalidate them on publication, reject stale epochs/gaps and expire sleeping/disconnected peers. Keep cursors visible during ordinary local typing with correct coordinate mapping.
-  - [ ] 8.6 Give people stable visual identity distinct from tab/undo identity, show agent activity anchors, and expose retained external-file versions through authenticated compare/copy/reviewed restore UI.
-  - [ ] 8.7 Re-run the review counterexamples and real multiplayer interaction, inspect visible cursors/selections, obtain an Astra high follow-up review, and include the resulting assertions in the final clean-HEAD gate.
-  - [ ] 8.8 Preserve actual positional intent in repeated text. Prove first-occurrence deletion with a held request and concurrent interior insertion; prove a remote same-character insertion transforms the local caret/range and next keystroke. Carry actual operations through Lexical transactions, pending batches, canonical event/history delivery and selection mapping. Byte equality or inferred text diffs must not erase logical operations; missing provenance must pause safely with a recoverable draft.
-  - [ ] 8.9 Verify actual positional intent through the shipped notes shell, including buffered typing, verified peer edit/Undo before our acknowledgement, one-use logical input receipts and empty-paragraph/stacked IME. Cancel only backend-verified inverse ancestry; ordinary equal-byte replacements retain their logical positions. Keep co-located cursor labels readable and retained-version comparisons discoverable.
-  - [ ] 8.10 Treat nonunique raw-file alignment as uncertain origin. A raw `aaaa → aaaaa` cannot prove prefix versus suffix insertion: retain the observed truth and preserve prior versions when saved content is removed, invalidate unsafe positions/old-base edits in the uncertain passage, and keep uniquely mapped outside positions mergeable. Carry that uncertainty through history, composition, streams and browser selection/presence; failed recovery must not relabel a private caret as a current canonical position. Verify interior and boundary cases, Unicode, repeated paragraphs and ordinary raw append parity.
+- [x] 8.0 Resolve the Astra high review's reproduced multiplayer blockers and meet the visible-cursor UX requirement.
+  - [x] 8.1 Bind CLI positioned edits/streams to the actual read epoch/revision. Reproduce a human prefix insertion between read and edit; transform to the intended text or reject, never relabel old offsets with a fresh open revision.
+  - [x] 8.2 Correct repeated actor undo/redo for replacements, typing/backspace and interleaved other writers. Surface failed history actions visibly without misrepresenting canonical save state.
+  - [x] 8.3 Preserve granular multi-splice intent through local batching, remote rebasing and atomic publication. First/last local changes must merge with an independent middle edit, including held acknowledgements and queued snapshots.
+  - [x] 8.4 Share exact structural source mappings for local selection preservation and remote caret/ranges. Cover code fence-language ambiguity, Unicode, ordinary mixed-format text, empty paragraphs, tasks/tables/references, scroll clipping and layout changes.
+  - [x] 8.5 Version presence coordinates, transform or invalidate them on publication, reject stale epochs/gaps and expire sleeping/disconnected peers. Keep cursors visible during ordinary local typing with correct coordinate mapping.
+  - [x] 8.6 Give people stable visual identity distinct from tab/undo identity, show agent activity anchors, and expose retained external-file versions through authenticated compare/copy/reviewed restore UI.
+  - [x] 8.7 Re-run the review counterexamples and real multiplayer interaction, inspect visible cursors/selections, obtain an Astra high follow-up review, and include the resulting assertions in the final clean-HEAD gate.
+  - [x] 8.8 Preserve actual positional intent in repeated text. Prove first-occurrence deletion with a held request and concurrent interior insertion; prove a remote same-character insertion transforms the local caret/range and next keystroke. Carry actual operations through Lexical transactions, pending batches, canonical event/history delivery and selection mapping. Byte equality or inferred text diffs must not erase logical operations; missing provenance must pause safely with a recoverable draft.
+  - [x] 8.9 Verify actual positional intent through the shipped notes shell, including buffered typing, verified peer edit/Undo before our acknowledgement, one-use logical input receipts and empty-paragraph/stacked IME. Cancel only backend-verified inverse ancestry; ordinary equal-byte replacements retain their logical positions. Keep co-located cursor labels readable and retained-version comparisons discoverable.
+  - [x] 8.10 Treat nonunique raw-file alignment as uncertain origin. A raw `aaaa → aaaaa` cannot prove prefix versus suffix insertion: retain the observed truth and preserve prior versions when saved content is removed, invalidate unsafe positions/old-base edits in the uncertain passage, and keep uniquely mapped outside positions mergeable. Carry that uncertainty through history, composition, streams and browser selection/presence; failed recovery must not relabel a private caret as a current canonical position. Verify interior and boundary cases, Unicode, repeated paragraphs and ordinary raw append parity.
 
-  - [ ] 8.11 Retire bounded Undo/Redo owners without exhausting lifetime actor admission. Keep active/recent history where possible, preserve saved text and source history, and explicitly report expired history while allowing new editing. Prove more than 128 actual default CLI actors with a shipped browser subscribed, fresh-human publication, stable-ID reconnect/Undo, reader/agent revocation and bounded caches.
+  - [x] 8.11 Retire bounded Undo/Redo owners without exhausting lifetime actor admission. Keep active/recent history where possible, preserve saved text and source history, and explicitly report expired history while allowing new editing. Prove more than 128 actual default CLI actors with a shipped browser subscribed, fresh-human publication, stable-ID reconnect/Undo, reader/agent revocation and bounded caches.
 
-  - [ ] 8.12 Route native Edit → Undo/Redo through focused editor history while preserving standard title/input/native control history. Verify actual packaged menu actions, keyboard parity, expired-history notices and further publication; retain origin/focus boundaries and other native edit roles.
+  - [x] 8.12 Route native Edit → Undo/Redo through focused editor history while preserving standard title/input/native control history. Verify actual packaged menu actions, keyboard parity, expired-history notices and further publication; retain origin/focus boundaries and other native edit roles.
 
 ## Evidence protocol
 
-M0 tooling and exact commands are implemented; use the [M0 verification guide and evidence](../../deep-dives/multiplayer-editing/M0-verification.md). Later-stage scenarios describe intended checks, not existing collaboration capability.
+M0 tooling and exact commands are implemented; use the [M0 verification guide and evidence](../../deep-dives/multiplayer-editing/M0-verification.md). The [production verification record](../../deep-dives/multiplayer-editing/production-verification.md) maps delivered M1–M5 behavior to final accepted evidence.
 
 Each run must record baseline/contract/harness identity, source/artifact/tree and lockfile hashes, toolchain/platform, declared scenario IDs, command results, canonical output assertions, skips, and untested boundaries. Candidate changes must not replace expected output with observed output. Keep bulky logs/artifacts in ignored local output; commit only the small sanitized manifest/summary needed to reproduce it.
 
@@ -173,7 +173,7 @@ The expected first gate includes npm test and the existing scripts/external-docu
 - [Desktop](../../integrations/electron/electron.docs.md), [gateway](../../integrations/macos-companion/gateway.docs.md), [connections](../../integrations/macos-companion/connections.docs.md).
 - [Release checks](../../docs/release-testing.md), [lean beta policy](../../docs/lean-beta-releases.md), [task workflow](../../docs/task-workflow.md).
 
-### Production implementation in progress
+### Production implementation record
 
 - Master folder-explorer work was incorporated by merge f1d35b49bcc50e98ef95ccb943c1db85bd2b7f0c, containing master cd3db8612412bb064df88c003228037e78820002. Its supported file actions remain in the regression suite. The original checkout remains untouched.
 - Production root ownership, persistent revocable roles, live source coordination, editor binding, private drafts, agent CLI streaming and direct-file reconciliation are implemented. A signed packaged desktop passes normal/crash/recovery lifecycle checks; root owners survive window close.
@@ -207,3 +207,20 @@ The expected first gate includes npm test and the existing scripts/external-docu
 - Clean 431f05c passes 1,785 tests, four protected browser flows and all twelve production checks. Astra high independently verifies 265 actual fresh CLI actors, bounded 1,024-actor model history, failed-publication isolation, 189 focused tests and shipped editor/cursors, with no P0/P1. One P2 native menu Undo routing defect remains; it is being corrected and added to mandatory packaged acceptance before archival.
 
 - Native menu fix preflight passes in the actual packaged app: menu Undo/Redo, keyboard parity, title/native history fallback, both IME/recovery cases, expired Undo/Redo notices and next publication. Build aa16b18047387a08 remains within the unchanged editor/package ceilings. A first unsupported-API construction attempt was rejected by the packaged check and corrected; final source is frozen for fresh Linux and full clean-HEAD verification.
+
+## Completion
+
+All required implementation tasks and declared automated gates pass. Final source
+HEAD `b06e4f9faf02d6cd7a74bbd887525484a6353a73` contains the current target; report SHA-256
+`bf4ee28003afe886380a154c3bf13d1e7ccb5417e68a09bdcff8e673ccc0c365`. Results: 1,788 tests, four protected browser flows, twelve production
+checks and 217 selected checks on each pinned Linux runtime, with zero required
+skips. The [production evidence](../../deep-dives/multiplayer-editing/production-verification.md)
+records exact source/artifact/pin identities, performance and upgrade outcomes.
+Astra high independently challenged the architecture and verified the actor,
+intent, cursor and recovery corrections. Its final native menu P2 is fixed and
+covered by actual packaged menu/keyboard/title/expired-history assertions.
+
+Public VPS rollout, publisher notarization, semantic-model quality, physical
+IME/VoiceOver and power-loss guarantees remain outside this automated acceptance
+scope; no such deployment or release was requested. Completed in the dedicated
+worktree. The original checkout's unrelated work is preserved.
