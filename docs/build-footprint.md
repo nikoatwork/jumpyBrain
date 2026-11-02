@@ -150,3 +150,14 @@ Native menu routing in build `aa16b18047387a08` measures 663,948 minified editor
 bytes and 219,783 gzip bytes, retaining all ceilings and 15 bundled packages.
 The focused cancelable history event adds 120 gzip bytes over `fdc67474bfe9d94e`;
 the native menu itself stays in the Electron shell.
+
+## 2026-11-02 runtime hygiene lane
+
+Runtime pins, bounded explicit backend inventory, shutdown diagnostics, managed
+integration refresh and forward staging retention keep the original package gates.
+Repository-only product vision/task workflow/footprint developer references leave
+the installed artifact (18,516 bytes); install/operator guidance and all executable
+assets stay. This reduces redundant distribution weight without removing features
+or changing assertions. The active runtime-hygiene task records final metrics and
+the independent lane's runtime delta; parent must evaluate the combined snapshot
+with the guidance lane rather than infer budget compliance from either branch.

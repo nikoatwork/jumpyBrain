@@ -644,3 +644,14 @@ test('display-name setup is local, authenticated and shared with CLI preferences
   assert.equal(csrf.status, 403);
   assert.equal(JSON.parse(await readFile(file, 'utf8')).name, 'Sam');
 });
+
+
+test('update readiness authenticates the gateway without launching a staging backend or contacting a brain', async t => {
+  const f = await fixture(t, { readinessOnly: true, hostInstance: 'fixture-readiness',
+    localFactory: async () => assert.fail('readiness must never start a shared backend'),
+    fetchImpl: async () => assert.fail('readiness must never contact a selected brain'),
+  });
+  const state = await f.native('/companion/state'); assert.equal(state.status, 200);
+  const packet = await state.json(); assert.equal(packet.hostInstance, 'fixture-readiness'); assert.equal(packet.health, 'offline');
+  const memory = await f.native('/memories/all/status', undefined, { 'X-Companion-Generation': String(f.gateway.coordinator.generation) }); assert.equal(memory.status, 503);
+});

@@ -116,3 +116,9 @@ coverage: `node --test test/companion-live-gateway.test.js`.
 ## Local display name
 
 Authenticated POST `/companion/identity` accepts only `{name}` and writes the device-local preference through `adapters/client-identity`. It never forwards a name-setting request or credentials to a brain. State/register/poll packets expose the current preference, or `identity.unavailable` if unreadable; the browser can repair it in Settings. An injected `identityFile` keeps fixtures isolated. This preference is independent of brain write permission and does not alter selected targets or access policy.
+
+Native gateway stderr now uses bounded pipe ingestion: 64 KiB chunks into a
+private no-follow 256 KiB log, truncated when full. Existing legacy `.previous`
+files are preserved for explicit inspection. Owned TERM/clean exits are `normal`;
+unexpected exits and failed/forced shutdown remain `child_terminated`. Bridge EOF
+during an already requested stop does not add a spurious bridge failure.

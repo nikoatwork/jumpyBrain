@@ -169,6 +169,29 @@ extension Companion {
         var info = stat()
         check(lstat(diagnosticURL.path, &info) == 0 && info.st_mode & 0o777 == 0o600, "private diagnostic snapshot")
         print("PASS diagnostics: private bounded native lifecycle history, failure priority, omissions, safe snapshot")
+        stopping = true
+        recordChildExit(status: 0, reason: .exit)
+        recordChildExit(status: SIGTERM, reason: .uncaughtSignal)
+        recordChildExit(status: SIGKILL, reason: .uncaughtSignal)
+        recordChildExit(status: 1, reason: .exit)
+        stopping = false
+        recordChildExit(status: 0, reason: .exit)
+        let finalPacket = try! JSONSerialization.jsonObject(with: Data(contentsOf: diagnosticURL)) as! [String: Any]
+        let finalEvents = Array((finalPacket["events"] as! [[String: Any]]).suffix(5))
+        check(finalEvents.map { $0["code"] as! String } == ["normal", "normal", "child_terminated", "child_terminated", "child_terminated"], "expected vs failing shutdown")
+        check(finalEvents.map { $0["outcome"] as! String } == ["ok", "ok", "failed", "failed", "failed"], "shutdown outcomes survive snapshot normalization")
+        prepareLog()
+        for _ in 0..<100 { appendPrivateLog(Data(repeating: 65, count: 65536)) }
+        let logInfo = try! FileManager.default.attributesOfItem(atPath: logURL.path)
+        check((logInfo[.size] as! NSNumber).intValue <= 262144, "continuous stderr bound")
+        output = nil
+        try! FileManager.default.removeItem(at: logURL)
+        let foreign = directory + "/foreign-log"
+        try! Data("preserved".utf8).write(to: URL(fileURLWithPath: foreign))
+        try! FileManager.default.createSymbolicLink(atPath: logURL.path, withDestinationPath: foreign)
+        prepareLog(); appendPrivateLog(Data("must not write".utf8))
+        check(String(data: try! Data(contentsOf: URL(fileURLWithPath: foreign)), encoding: .utf8) == "preserved", "linked log never changed")
+        print("PASS runtime hygiene: expected/failing native shutdown, continuous 256 KiB log ceiling, foreign symlink preserved")
     }
 }
 

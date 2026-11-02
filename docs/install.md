@@ -278,3 +278,22 @@ jumpyBrain is structured around three paths while keeping one memory system:
 Vercel is not a supported production target for the memory server because the current server needs durable local filesystem state; see [`vercel-deploy.md`](vercel-deploy.md).
 
 Markdown remains canonical in all paths; indexes and support state remain derived/rebuildable.
+
+Managed updates refresh only recorded integration files whose installed SHA-256
+still matches the manifest. Customized, missing, linked and untracked files are
+preserved and reported. Legacy files without hashes gain a baseline only if they
+already exactly match the current rendered template; otherwise review/reinstall
+that integration explicitly. New project installations record their owner folder;
+legacy project destinations without that owner remain untouched. Reload assistants
+after refresh. This flow changes no skill guidance source or memory policy.
+
+`cli-config.json` is optional: absent means no device-local remote read-only rules.
+The shim may advertise its intended path before any policy has been configured.
+Only explicit policy options create/update it; credentials never belong there.
+
+CLI-only source updates also retire only their own just-created previous runtime:
+live pins, legacy/frozen runtimes, or unavailable Python inspection retain that
+backup and print its path. No Python installation is required by this fallback,
+and earlier unknown backups are never swept. Foreign/frozen package runtimes can
+run without pins; automatic cleanup refuses them. Inspect retained legacy paths
+explicitly after all dependent backends have stopped.

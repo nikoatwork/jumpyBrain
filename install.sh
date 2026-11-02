@@ -27,7 +27,7 @@ else
   RAW_BASE="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/$SHA"
 fi
 mkdir -p "$TMP_DIR/scripts/engine" "$TMP_DIR/integrations/macos-companion" "$TMP_DIR/integrations/electron"
-for FILE in scripts/bootstrap-node.sh scripts/public-install.mjs scripts/install-support.mjs scripts/setup-desktop.mjs scripts/desktop-prerequisites.mjs scripts/engine/package.json scripts/engine/package-lock.json scripts/qmd-install-check.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/electron/update-release.mjs integrations/electron/install-shim.mjs integrations/macos-companion/update.py integrations/macos-companion/lifecycle.py; do
+for FILE in scripts/bootstrap-node.sh scripts/public-install.mjs scripts/install-support.mjs scripts/setup-desktop.mjs scripts/desktop-prerequisites.mjs scripts/engine/package.json scripts/engine/package-lock.json scripts/qmd-install-check.mjs scripts/remote-target-origin.mjs scripts/macos-companion.mjs integrations/electron/update-release.mjs integrations/electron/install-shim.mjs integrations/electron/managed-integrations.mjs integrations/electron/update-retention.py integrations/macos-companion/update.py integrations/macos-companion/lifecycle.py; do
   fetch "$RAW_BASE/$FILE" "$TMP_DIR/$FILE" || fail 'Could not download the selected installer. Retry the same command.'
 done
 INSTALL_ROOT=

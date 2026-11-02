@@ -2,3 +2,8 @@
 assets/
 # Internal renderer design reference remains in the source repository.
 /design-system.md
+# Contributor intent/workflow guides are repository references, not runtime assets.
+/product-vision.md
+/task-workflow.md
+# Package measurements and contributor gates remain accessible in the repository.
+/build-footprint.md

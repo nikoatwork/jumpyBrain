@@ -3,6 +3,7 @@ import {
   currentBackendIdentity, readBackendDescriptor, readBackendLease, processAlive,
   spawnRootBackend, verifyBackendReady, acquireBackendLease, publishBackendDescriptor, releaseBackendLease,
 } from "../../adapters/backend-host/index.js";
+import { pinBackendRuntime } from "../../adapters/backend-host/runtime-pins.js";
 export type { BackendDescriptor, BackendIdentity } from "../../adapters/backend-host/index.js";
 export { BackendHostError } from "../../adapters/backend-host/index.js";
 export { startBackendControlProxy } from "../../adapters/backend-host/control-proxy.js";
@@ -12,6 +13,8 @@ export async function claimRootBackend(rootArgument: string, options: { executab
   const { root } = await backendPaths(rootArgument, true), identity = await currentBackendIdentity(options.executable);
   const lease = await acquireBackendLease(root, identity);
   if (!lease) throw new BackendHostError("backend_already_running", "This brain already has a live backend owner. Stop it before starting another host.");
+  try { await pinBackendRuntime(root, lease); }
+  catch (error) { await releaseBackendLease(root, lease.instanceId); throw error; }
   return {
     root, lease,
     publish: (connection: { url: string; token: string }) => publishBackendDescriptor({ ...lease, root, ...connection }),
@@ -44,9 +47,12 @@ export async function ensureRootBackend(rootArg: string, options: EnsureBackendO
   throw new BackendHostError("backend_not_ready", "The registered backend did not become ready. Inspect its private backend log; no foreign process was adopted or stopped.");
 }
 export type BackendStatus = { status: "stopped" | "starting" | "running" | "unavailable"; backend?: Omit<BackendDescriptor, "token">; };
-export async function backendStatus(root: string): Promise<BackendStatus> {
+export async function backendStatus(root: string, includeStopped = false): Promise<BackendStatus> {
   const lease = await readBackendLease(root), descriptor = await readBackendDescriptor(root);
-  if (!lease || !processAlive(lease.pid)) return { status: "stopped" };
+  if (!lease || !processAlive(lease.pid)) {
+    if (includeStopped && descriptor) { const { token: _secret, ...backend } = descriptor; return { status: "stopped", backend }; }
+    return { status: "stopped" };
+  }
   if (!descriptor || descriptor.instanceId !== lease.instanceId) return { status: "starting" };
   const { token: _secret, ...backend } = descriptor;
   return { status: await verifyBackendReady(descriptor) ? "running" : "unavailable", backend };

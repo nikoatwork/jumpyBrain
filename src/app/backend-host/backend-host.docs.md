@@ -11,3 +11,7 @@ Foreground serve claims the same root lease and publishes a private loopback con
 ## Non-responsibilities
 
 No CLI parsing, server route implementation, canonical memory policy, GUI lifetime or provider calls. A different-build live owner fails with update/stop guidance rather than spawning a competing writer.
+
+Both foreground claims and detached daemons pin their runtime before serving.
+`backendStatus(root, true)` additionally exposes a redacted historical descriptor
+for explicit inventory when the process has stopped; its default packet is unchanged.

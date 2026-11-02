@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { refreshManagedIntegrations, renderIntegration } from '../integrations/electron/managed-integrations.mjs';
 import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { constants as fsConstants, existsSync } from "node:fs";
@@ -154,6 +155,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
     installerOptions: { skipBuild: Boolean(options.skipBuild), skipQmdInstall: Boolean(options.skipQmdInstall), skipInitialIndex: Boolean(options.skipInitialIndex) },
     files: [cliPath, ...integrationPlan.install.map(item => item.path)],
     integrationHashes: previousManifest?.integrationHashes || {},
+    ...(scope === "project" ? { projectRoot: cwd } : {}),
   };
   if (!options.dryRun) {
     await atomicJSON(manifestPath, manifest);
@@ -243,7 +245,7 @@ async function updateExistingInstall({
   const companion = companionUpdatePlan({ installRoot, home });
   log(companion
     ? "Updating shared runtime, CLI, and installed macOS companion; memory and agent integrations are preserved"
-    : "Updating app and CLI only; memory, memory-root config, derived indexes, and integrations will not be changed (CLI policy changes only with explicit target flags)");
+    : "Updating app and CLI only; memory, memory-root config, derived indexes remain unchanged; untouched managed integrations refresh (CLI policy changes only with explicit target flags)");
   if (companion) {
     log("macOS companion: wait for Saved, Quit from the menu bar before updating, then reopen after success. No automatic restart.");
     if (!options.dryRun) checkCompanionUpdate(companion);
@@ -296,14 +298,17 @@ async function updateExistingInstall({
   };
   await verifyInstallation({ options: { ...options, readOnly: true }, cliPath, memoryRoot });
   if (options.withApp) { await atomicJSON(manifestPath, manifest); await setupDesktop({ appDir, installRoot, home, memoryRoot, options }); }
+  const refreshed = await refreshManagedIntegrations(manifest, { home });
+  manifest.integrationHashes = refreshed.hashes;
+  for (const item of refreshed.results) log(`Integration ${item.status}: ${item.path}`);
   await atomicJSON(manifestPath, manifest);
-  Object.assign(resultReport, { version: manifest.installedVersion, state: resultReport.remainingActions.length ? "pending_user_action" : "ready" });
+  Object.assign(resultReport, { integrationRefresh: refreshed.results, version: manifest.installedVersion, state: resultReport.remainingActions.length ? "pending_user_action" : "ready" });
 
   console.log("\njumpyBrain update complete.");
   console.log(`CLI: ${cliPath}`);
   console.log(`Memory preserved: ${memoryRoot}`);
   console.log(`CLI policy: ${policyPlan.description}`);
-  console.log("Integrations unchanged.");
+  console.log("Untouched managed integrations refreshed; customized, missing and untracked files preserved.");
 }
 
 function parseArgs(argv) {
@@ -408,7 +413,7 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
           const relative = path.relative(sourceRoot, src);
           if (!relative) return true;
           const parts = relative.split(path.sep);
-          return ![".git", "node_modules", ".local-pack", ".dogfood-memory", ".jumpybrain", "tasks", "evals"].includes(parts[0])
+          return ![".git", "node_modules", ".local-pack", ".dogfood-memory", ".jumpybrain", ".backend-pins", ".retiring", "tasks", "evals"].includes(parts[0])
             && !parts.some((part) => part === "node_modules" || part === ".build" || part === "__pycache__");
         },
       });
@@ -451,7 +456,11 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
       if (existsSync(backupDir) && !existsSync(appDir)) await rename(backupDir, appDir);
       throw error;
     }
-    await rm(backupContainer, { recursive: true, force: true });
+    if (existsSync(backupDir)) {
+      const retirement = spawnSync('python3', ['-B', fileURLToPath(new URL('../integrations/electron/update-retention.py', import.meta.url)), '--runtime', backupDir], { encoding: 'utf8', timeout: 10000 });
+      if (retirement.status === 0) { log(`Previous runtime retirement: ${retirement.stdout.trim()}`); await rm(backupContainer, { recursive: true, force: true }); }
+      else log(`Previous runtime retained (live, legacy, frozen or unverified): ${backupDir}`);
+    } else await rm(backupContainer, { recursive: true, force: true });
   } catch (error) {
     await rm(stagingDir, { recursive: true, force: true });
     // Keep a backup containing an unrecovered app for manual recovery.
@@ -628,18 +637,7 @@ async function installIntegration({ item, memoryRoot, cliPath, appDir }) {
   await writeFile(item.path, rendered, "utf8");
 }
 
-function renderTemplate(content, { memoryRoot, cliPath, asset }) {
-  // Skills contain shell examples; Pi contains JS string literals passed to spawn.
-  // Keep display paths separate from executable syntax in either language.
-  if (asset === "skill") return content
-    .replaceAll("__JUMPYBRAIN_CLI_COMMAND__", () => shellQuote(cliPath))
-    .replaceAll("__JUMPYBRAIN_ROOT_ARGUMENT__", () => shellQuote(memoryRoot))
-    .replaceAll("__JUMPYBRAIN_MEMORY_ROOT__", () => memoryRoot)
-    .replaceAll("__JUMPYBRAIN_CLI__", () => cliPath);
-  return content
-    .replaceAll("__JUMPYBRAIN_MEMORY_ROOT__", () => JSON.stringify(memoryRoot).slice(1, -1))
-    .replaceAll("__JUMPYBRAIN_CLI__", () => JSON.stringify(cliPath).slice(1, -1));
-}
+const renderTemplate = renderIntegration;
 
 function printSummary(summary) {
   console.log(summary.dryRun ? "\njumpyBrain install dry run complete. No changes made." : "\njumpyBrain install complete.");
