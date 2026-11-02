@@ -1,6 +1,6 @@
 # Bound desktop update storage and expose runtime ownership
 
-Priority: P1. Status: active; implementation and disposable verification completed, reported agent-shell launch reproduction remains unverified. Reported installation sizes remain observations, not reproduced measurements.
+Priority: P1. Status: active; runtime hygiene and signed-resource fixes verified. An inherited Electron Node-mode direct-launch failure is now reproduced/fixed with real packaged launch/Quit/open checks; the reporter's complete macOS 26 launch sequence remains unverified. Reported installation sizes remain observations, not reproduced measurements.
 
 ## Goal
 
@@ -33,7 +33,7 @@ Stop obsolete update staging and logs from growing indefinitely, keep live daemo
   - [x] 3.1 Add bounded backend enumeration from private owned descriptors, with root, PID/liveness, executable and supported diagnostic fields. Do not infer ownership solely from process names or scan unrelated files.
   - [x] 3.2 Track installed hashes for managed skill files; refresh untouched files through the documented authorized integration-update flow, and report customized/conflicted files without overwriting them. Define migration when no prior hash exists.
   - [x] 3.3 Resolve the missing-config reference by documenting intentional optional absence or creating the minimal file at its proper owner; do not manufacture policy to silence a warning.
-  - [/] 3.4 Distinguish expected shutdown from child failure and add a bounded pre-startup failure breadcrumb where feasible. Verify agent-shell launch separately from user launch before attributing code-signing failures.
+  - [/] 3.4 Distinguish expected shutdown from child failure and add a bounded pre-startup failure breadcrumb where feasible. [Packaged follow-up](../done/2026-11-02_tasks-desktop-shell-launch.md) reproduces/fixes inherited Node-mode exit zero and verifies clean direct/LaunchServices/loaded-unloaded service paths. The report's macOS 26 `open` failures and actual environment remain unverified; no signing attribution.
 - [/] 4.0 Verify and finalize.
   - [x] 4.1 Test successful/repeated/failed/interrupted updates, rollback, a daemon still using staging, foreign/symlink paths and concurrent cleanup. Assert protected data remains byte-identical and no live runtime is removed.
   - [x] 4.2 Test customized/unmodified/missing integration files and normal/failing shutdown diagnostics; run affected installed-update and backend lifecycle checks.
@@ -187,3 +187,20 @@ headroom but cannot solve the runtime ceiling.
 ### Separate signature observation — backend restart verification, 2026-11-02
 
 The [completed restart task](../done/2026-11-02_tasks-backend-restart-recovery.md) initially symlinked a disposable native resource tree to a freshly signed matching runtime. Backend startup added `Contents/Resources/runtime/.backend-pins/<instance>.json` to that input app. Subsequent `/usr/bin/codesign --verify --deep --strict --verbose=4` reported an added sealed resource and failed. The corrected restart harness copies the runtime and passes its independent reconnect/draft checks; that isolated its artifact without repairing installed pin placement. The [subsequent focused fix](../done/2026-11-02_tasks-signed-bundle-runtime-pins.md) completes 4.4 with external generation-bound state and signature/lifetime verification. No historical launch root cause, public-signing behavior or installation repair is claimed.
+
+### Packaged shell-launch follow-up — 2026-11-02
+
+The [focused environment fix](../done/2026-11-02_tasks-desktop-shell-launch.md)
+reproduces exit zero before host startup when the actual packaged executable
+inherits `ELECTRON_RUN_AS_NODE=1`; this agent shell sets that variable. Disabling
+packaged RunAsNode before signing fixes that path. Clean direct launch,
+LaunchServices open, AppleScript Quit, a unique disposable LaunchAgent and
+second-instance editor opening pass, including after service unload. No installed
+app or actual login preference was changed. The secondary-instance test initially
+mistook a short state-request timeout during editor startup for service loss;
+waiting for actual editor registration and subsequent gateway readiness passes.
+
+This is a proven current-package cause for one reported symptom. The report does
+not state its environment and also reports LaunchServices failure on macOS 26;
+that part did not reproduce on macOS 15.7.7. Retain this broader task for that
+unverified report boundary, with the focused fix committed independently.

@@ -18,6 +18,13 @@ const cases = [
   { name: "selected", body: "Alpha same 🐐\n\nBeta same\n", start: 6, end: 10, operation: { start: 6, deleteCount: 4, insert: "" }, key: "Backspace", expected: "Alpha  🐐\n\nBeta same\n" },
   { name: "cross-paragraph", body: "Alpha same\n\n\nBeta same\n\nTail", start: 6, end: 14, operation: { start: 6, deleteCount: 11, insert: "" }, key: "Backspace", expected: "Alpha  same\n\nTail" },
   { name: "empty-block", body: "Alpha same\n\n\nBeta same\n\nTail", emptyBlock: 2, operation: { start: 11, deleteCount: 1, insert: "" }, key: "Backspace", expected: "Alpha same\n\nBeta same\n\nTail" },
+  { name: "word-backward", body: "Alpha same 🐐\n\nBeta same\n", start: 10, operation: { start: 6, deleteCount: 4, insert: "" }, key: process.platform === "darwin" ? "Alt+Backspace" : "Control+Backspace", expected: "Alpha  🐐\n\nBeta same\n" },
+  { name: "word-forward", body: "Alpha same 🐐\n\nBeta same\n", start: 6, operation: { start: 6, deleteCount: 4, insert: "" }, key: process.platform === "darwin" ? "Alt+Delete" : "Control+Delete", expected: "Alpha  🐐\n\nBeta same\n" },
+  { name: "repeated-word", body: "same same same\n\nTail", start: 9, operation: { start: 5, deleteCount: 4, insert: "" }, key: process.platform === "darwin" ? "Alt+Backspace" : "Control+Backspace", expected: "same  same\n\nTail" },
+  ...(process.platform === "darwin" ? [
+    { name: "line-backward", body: "Alpha same\n\nTail", start: 10, operation: { start: 0, deleteCount: 10, insert: "" }, key: "Meta+Backspace", expected: "\n\nTail" },
+    { name: "line-forward", body: "Alpha same\n\nTail", start: 6, operation: { start: 6, deleteCount: 4, insert: "" }, key: "Meta+Delete", expected: "Alpha \n\nTail" },
+  ] : []),
 ];
 let server, browser;
 const errors = [];
@@ -94,6 +101,10 @@ try {
         if (scenario === "idle" || scenario === "reconnect") assert.equal(current.revision, before.revision);
         assert.deepEqual(await editorSelection(page), selection, "unchanged source coordinates retain the real DOM selection");
         const idleMs = Date.now() - quietSince;
+        await page.evaluate(() => {
+          window.deletionInputTypes = [];
+          document.getElementById("note-editor").addEventListener("beforeinput", event => window.deletionInputTypes.push(event.inputType), true);
+        });
         await page.keyboard.press(fixture.key);
         await page.evaluate(() => state.editor.flush());
         const result = await page.evaluate(() => state.editor.collaboration.state);
@@ -104,20 +115,21 @@ try {
         assert.equal(edits.length, 1, "one input sends one operation batch");
         assert.deepEqual(edits[0].params.operations, [fixture.operation], "the selected occurrence owns the exact source interval");
         assert.equal(applySourceSplices(current.body, edits[0].params.operations), fixture.expected + suffix);
+        const beforeInputTypes = await page.evaluate(() => window.deletionInputTypes);
         await undoEditor(page);
         await exact(page, file, fixture.body + suffix);
         const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
         await page.keyboard.press(`${modifier}+Shift+z`);
         await exact(page, file, fixture.expected + suffix);
         await page.reload(); await exact(page, file, fixture.expected + suffix);
-        console.log(JSON.stringify({ scenario, input: fixture.name, idleMs, before: { epoch: before.epoch, revision: before.revision }, edited: { epoch: accepted.epoch, revision: accepted.revision }, selection, operations: edits[0].params.operations }));
+        console.log(JSON.stringify({ scenario, input: fixture.name, idleMs, before: { epoch: before.epoch, revision: before.revision }, edited: { epoch: accepted.epoch, revision: accepted.revision }, selection, beforeInputTypes, operations: edits[0].params.operations }));
       } finally { await page.close(); }
     }
   }
   // A real overlapping raw write while an input request is held must retain
   // the private draft; further typing must preserve the first recovery reason.
   {
-    const id = "mem_92222222-2222-4222-8222-000000000021";
+    const id = "mem_92222222-2222-4222-8222-999999999999";
     const file = path.join(root, "notes/overlap.md");
     const prefix = `---\nid: ${id}\ntype: note\ntitle: Disposable overlap\n---\n`;
     const body = "Alpha same\n\nTail", draft = "Alpha \n\nTail", canonical = "Alpha saved\n\nTail";

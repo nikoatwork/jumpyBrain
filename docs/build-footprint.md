@@ -16,10 +16,25 @@ checks to its real tarball before recording successful package metadata.
 
 Budgets in `scripts/package-budget.mjs` are 1.45 MB compressed, 4.6 MB unpacked,
 3.1 MB under `dist/`, and 660 files (decimal units). Existing editor tests retain
-220 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+220.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
+
+## 2026-11-02 native deletion correction
+
+The actual packaged Mac editor reproduced a source-range failure on Option+Backspace:
+Lexical handles word/line commands on keydown without `beforeinput`, while the
+existing proof captured only a character. The bounded native-boundary observer
+fixes ordinary editing while retaining default command behavior and exact splice
+validation. It adds 167 gzip bytes to the 219,949-byte editor baseline: 220,116
+bytes total, about 0.076% growth, with unchanged editor dependencies. Set the
+shared-editor ceiling to 220,250 bytes (250 bytes above the prior ceiling) for
+this demonstrated correctness fix. Review retains the original source-validation
+checks rather than replacing them with size-driven rewrites. Archive, unpacked,
+runtime, file-count and optional-renderer budgets remain unchanged. The separate
+packaging-only `@electron/fuses` dev dependency is excluded from the shipped app
+and CLI runtime dependency graph.
 
 README artwork is served from the repository when viewing the README. It is not
 part of the runtime download. User/install docs and notices remain packaged.

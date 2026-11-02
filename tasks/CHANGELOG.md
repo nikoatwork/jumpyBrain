@@ -1,5 +1,13 @@
 # Task Changelog
 
+## 2026-11-02 — Existing-word and line deletion
+
+- Native word/line keyboard commands capture their exact source range before publication, fixing retained-draft errors without requiring idle time. [Reproduction and verification](done/2026-11-02_tasks-stale-note-editing.md).
+
+## 2026-11-02 — Mac launch from agent shells
+
+- Packaged Mac builds ignore inherited Electron Node-mode, preventing silent startup bypass. Actual executable/Quit/open checks cover disposable loaded/unloaded login-service states. [Verification and remaining editor/report limits](done/2026-11-02_tasks-desktop-shell-launch.md).
+
 ## 2026-11-02 — Preserve signed Mac app resources
 
 - Bundled backends keep generation-bound runtime pins and retirement fences outside the signed app, preserving signature verification while retaining live runtimes through moves. [Verification and limits](done/2026-11-02_tasks-signed-bundle-runtime-pins.md).

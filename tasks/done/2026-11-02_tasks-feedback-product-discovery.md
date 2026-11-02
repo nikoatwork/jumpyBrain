@@ -19,7 +19,7 @@ Preserve actionable feedback as focused plans, avoid reopening completed work, a
 
 | Priority | Owner | Scope |
 | --- | --- | --- |
-| P0 | [Idle-note editing](../todo/tasks-stale-note-editing.md) | Reproduce source mapping failure after idle and preserve exact source/drafts. |
+| P0 | [Idle-note editing](../done/2026-11-02_tasks-stale-note-editing.md) | Reproduce source mapping failure after idle and preserve exact source/drafts. |
 | P0/P1 | [CLI help and validation](2026-11-02_tasks-cli-help-and-validation.md) | Stop help from executing operations; make help/argument errors consistent. |
 | P1 | [Brain connections and targeting](2026-11-02_tasks-brain-connections-and-targeting.md) | Supported local app connection management, effective target diagnostics and shared precedence. |
 | P1 | [Desktop runtime hygiene](../todo/tasks-desktop-runtime-hygiene.md) | Safe staging/log retention, durable daemon paths, managed skill drift and lifecycle diagnostics. |

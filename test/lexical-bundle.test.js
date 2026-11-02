@@ -10,9 +10,8 @@ const bundle = await readFile(new URL("../dist/adapters/http-server/editor-bundl
 test("editor bundle is self-contained, production-sized, and safe to inline under the shell nonce", () => {
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
-  // Exact source maps, granular reconciliation and retained-version review add 6.5 KB gzip.
-  // The measured 212.3 KB bundle keeps the same editor dependencies and a 220 KB ceiling.
-  assert.ok(gzipSync(bundle).length < 220_000, "review editor weight if the production bundle exceeds 220 KB gzip");
+  // Native word/line deletion proof needs a small measured allowance; see docs/build-footprint.md.
+  assert.ok(gzipSync(bundle).length < 220_250, "review editor weight if the production bundle exceeds 220.25 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);

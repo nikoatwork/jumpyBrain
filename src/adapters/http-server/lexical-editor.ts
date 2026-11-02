@@ -2,7 +2,7 @@
 import {
   $addUpdateTag, $getNodeByKey, $createRangeSelection, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
-  COMMAND_PRIORITY_HIGH, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG, IS_BOLD, IS_ITALIC, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
+  COMMAND_PRIORITY_HIGH, DELETE_WORD_COMMAND, DELETE_LINE_COMMAND, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG, IS_BOLD, IS_ITALIC, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
   ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type ElementNode, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
@@ -288,7 +288,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   let capturedIntent: { before: string; ranges: Array<{start:number;end:number;removedKey?:string}>; inputType: string } | undefined;
   let lastSourceIntent: EditorSourceIntent | undefined;
   let continuationIntent:typeof capturedIntent,continuationTimer:number|undefined;
-  function captureSourceIntent(inputType: string, range?: StaticRange, blockScope = false, inserted?:string) {
+  function captureSourceIntent(inputType: string, range?: StaticRange | Range, blockScope = false, inserted?:string) {
     if (loading || !editor.isEditable() || capturedIntent?.inputType==="slash"&&capturedIntent.before===markdown) return;
     continuationIntent=undefined;element.ownerDocument.defaultView!.clearTimeout(continuationTimer);
     try { editor.getEditorState().read(() => {
@@ -396,6 +396,26 @@ export function createNoteEditor(element: HTMLElement, options: {
   element.addEventListener("compositionstart",compositionIntent,true);
   element.addEventListener("beforeinput",beforeInput,true);element.addEventListener("keydown",keyIntent,true);element.addEventListener("input",inputIntent);
   cleanups.push(()=>{element.removeEventListener("compositionstart",compositionIntent,true);element.removeEventListener("beforeinput",beforeInput,true);element.removeEventListener("keydown",keyIntent,true);element.removeEventListener("input",inputIntent)});
+  // Lexical can handle word/line deletion on keydown without beforeinput. Measure
+  // the same native boundary, retaining the original caret and default command.
+  // Move a collapsed caret only: a transient selection would replace X11 PRIMARY.
+  for (const [command, unit] of [[DELETE_WORD_COMMAND, "word"], [DELETE_LINE_COMMAND, "lineboundary"]] as const) cleanups.push(editor.registerCommand(command, backward => {
+    const native = element.ownerDocument.getSelection();
+    let range: Range | undefined;
+    if (native?.isCollapsed && native.anchorNode && element.contains(native.anchorNode)) {
+      const node = native.anchorNode, offset = native.anchorOffset;
+      capturedIntent = undefined;
+      try {
+        native.modify("move", backward ? "backward" : "forward", unit);
+        if (native.focusNode && element.contains(native.focusNode)) {
+          range = native.getRangeAt(0).cloneRange();
+          range[backward ? "setEnd" : "setStart"](node, offset);
+        }
+      } catch { range = undefined; } finally { native.collapse(node, offset); }
+    }
+    if (range || !native?.isCollapsed) captureSourceIntent(backward ? "deleteContentBackward" : "deleteContentForward", range);
+    return false;
+  }, COMMAND_PRIORITY_HIGH));
   let completionBaseline = "", redoPending = false, completionTimer = 0;
   const win = element.ownerDocument.defaultView!;
   const referenceText = () => $getRoot().getChildren().map((block) => block.getTextContent()).join("\n");

@@ -24,6 +24,11 @@ No. The Mac app starts local services bound to `127.0.0.1` (also called loopback
 
 Closing the window leaves the app running in the menu bar. **Quit jumpyBrain** saves open editors and stops its owned services. Independently installed CLI commands still work with local files after quitting the app.
 
+After quitting, open jumpyBrain normally from Finder, Spotlight or the Dock;
+**Start at Login** does not need to be enabled. Opening an already running
+background app brings up its editor. Start at Login launches the menu-bar app
+without opening a window.
+
 ## Are the app and CLI two versions of my brain?
 
 They are two ways to work with the **same folder of notes**. The app is a window for writing and browsing. The CLI lets agents remember and recall. Point both at the same folder and there is one canonical set of Markdown files, with no import, copying, or sync needed between them.

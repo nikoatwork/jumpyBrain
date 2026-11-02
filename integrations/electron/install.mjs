@@ -1,5 +1,6 @@
 import { packager } from '@electron/packager';
 import { downloadArtifact, FetchDownloader } from '@electron/get';
+import { flipFuses, FuseVersion, FuseV1Options } from '@electron/fuses';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +52,9 @@ try {
   }));
   const built = path.join(bundle, 'jumpyBrain.app');
   await measure('desktop-prepare', () => execFileSync('python3', ['-B', path.join(source, 'desktop-install.py'), 'prepare', '--bundle', built], { stdio: 'inherit' }));
+  // The app uses the configured system Node for backends. Shell Node-mode must
+  // never bypass Electron/main.mjs before startup diagnostics can run.
+  await measure('desktop-fuses', () => flipFuses(built, { version: FuseVersion.V1, [FuseV1Options.RunAsNode]: false }));
   // Nested host keeps its own identifier and credential service; sign it before the outer app.
   await measure('desktop-sign', () => execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', built], { stdio: 'pipe' }));
   await measure('desktop-verify', () => execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', built], { stdio: 'pipe' }));
