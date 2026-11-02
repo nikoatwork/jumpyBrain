@@ -1,6 +1,6 @@
 # Repair container build inputs and close hosted operation gaps
 
-Priority: P1 for container build; P2 for operator documentation and credential ergonomics. Status: build-input omission verified by source inspection; a container build was not run during triage.
+Priority: P1 for container build; P2 for operator documentation and credential ergonomics. Status: packaging implemented and Linux ARM64 image/operations fixtures passed on 2026-11-02; active pending actual systemd-manager validation of the documented unit's sandbox, boot/restart and resource enforcement. No deployment or image publication performed.
 
 ## Goal
 
@@ -19,20 +19,43 @@ Make the documented Docker deployment build from a clean context and give operat
 - `Dockerfile`, `.dockerignore`, `package.json`, `scripts/build-editor.mjs` — container build closure.
 - `src/server/index.ts`, `src/app/server-memory/server-memory.docs.md`, `src/adapters/access-control/access-control.docs.md` — server composition and credentials.
 - `docs/cloud-shared-memory.md`, `docs/collaboration.md`, `docs/release-testing.md` — operator instructions and appropriate change-specific gates.
+- `scripts/hosted-container-smoke.mjs`, `scripts/hosted-runtime-checks.mjs` — clean declared-input context, private sentinel exclusion, real Docker/QMD retrieval, access rotation, replacement and restore fixture.
+- `scripts/engine/package{,-lock}.json` — existing locked QMD graph reused unchanged.
+- `docs/vps-deploy.md`, `docs/coolify-deploy.md` — checksum-pinned release example, non-root container ownership, bounded service defaults and deployment/backup guidance.
 
 ## Tasks
 
-- [ ] 1.0 Repair and verify container packaging.
-  - [ ] 1.1 Reproduce from a clean context and enumerate every build input, embedded browser/feedback asset and runtime dependency. Check .dockerignore rather than assuming copying one script is sufficient.
-  - [ ] 1.2 Copy the required build inputs and include the actual hosted runtime dependency closure. Keep secrets, local state, evals and private memory out of the image.
-  - [ ] 1.3 Run the built image against a disposable mounted brain; verify health, initialization, authenticated CLI read/write/index paths and restart persistence. A health response alone does not prove retrieval readiness.
-  - [ ] 1.4 Add a focused clean-context build check to the relevant deployment/release gate; report Docker/platform availability honestly without expanding the dormant scale-testing program.
-- [ ] 2.0 Reconcile credential and deployment guidance with current support.
-  - [ ] 2.1 Link issued reader/writer credentials from the shared-memory guide; distinguish bootstrap administration, server authorization and device-local read-only settings.
-  - [ ] 2.2 Document deliberate rotate/revoke verification with old-key rejection and safe secret delivery. Evaluate whether CLI credential storage is still missing after reusing existing environment/native seams; decide separately from brain target routing.
-  - [ ] 2.3 Provide a checksum-pinned release/systemd example with explicit writable paths, bounded resources and existing-proxy/firewall assumptions. Test the declared example on a disposable Linux environment before calling it supported.
-  - [ ] 2.4 Add a migration inventory/drain checklist for all service/container/CLI/raw-file writers and retired redeployments/secrets. Explain client and server upgrades separately.
-  - [ ] 2.5 Distinguish replacement backups from recurring off-host backups, identify canonical versus unique operational data, and exercise restoration into a disposable root before documenting recovery success.
-- [ ] 3.0 Verify and finalize.
-  - [ ] 3.1 Record image/source digest, platform, actual runtime smoke and restore/credential checks; leave untested Linux/proxy assumptions explicit.
-  - [ ] 3.2 Update owning docs and release notes for implemented changes, then archive/commit under [task completion](../../docs/task-workflow.md). Do not deploy to a user's VPS or publish an image as part of this task without authorization.
+- [x] 1.0 Repair and verify container packaging.
+  - [x] 1.1 Reproduce from a clean context and enumerate every build input, embedded browser/feedback asset and runtime dependency. Check .dockerignore rather than assuming copying one script is sufficient.
+  - [x] 1.2 Copy the required build inputs and include the actual hosted runtime dependency closure. Keep secrets, local state, evals and private memory out of the image.
+  - [x] 1.3 Run the built image against a disposable mounted brain; verify health, initialization, authenticated CLI read/write/index paths and restart persistence. A health response alone does not prove retrieval readiness.
+  - [x] 1.4 Add a focused clean-context build check to the relevant deployment/release gate; report Docker/platform availability honestly without expanding the dormant scale-testing program.
+- [/] 2.0 Reconcile credential and deployment guidance with current support.
+  - [x] 2.1 Link issued reader/writer credentials from the shared-memory guide; distinguish bootstrap administration, server authorization and device-local read-only settings.
+  - [x] 2.2 Document deliberate rotate/revoke verification with old-key rejection and safe secret delivery. CLI remains environment-only; reuse agent-host secret injection and existing Mac native storage. A new cross-platform CLI store is explicitly deferred because provider/unattended-access policy is separate from this packaging repair and target routing.
+  - [/] 2.3 Checksum-pinned release/systemd example, explicit writable paths, resource limits and proxy/firewall assumptions documented. Disposable Debian checks passed for checksum mismatch refusal, extraction, locked installs, non-root init/index/serve, `systemd-analyze verify` and nginx HTTPS/authenticated protocol-2 WSS. **Remaining:** run the actual unit under a disposable Linux systemd manager; verify sandbox writable-path behavior, boot/restart/stop and cgroup limits. The docs label the unit as an operator example until this passes.
+  - [x] 2.4 Add a migration inventory/drain checklist for all service/container/CLI/raw-file writers and retired redeployments/secrets. Explain client and server upgrades separately.
+  - [x] 2.5 Distinguish replacement backups from recurring off-host backups, identify canonical versus unique operational data, and exercise restoration into a disposable root before documenting recovery success.
+- [/] 3.0 Verify and finalize.
+  - [x] 3.1 Record image/source digest, platform, actual runtime smoke and restore/credential checks; leave untested Linux/proxy assumptions explicit.
+  - [/] 3.2 Owning docs, pending release note and selective hosted-container changelog updated. Commit the verified scoped increment; retain this active list until 2.3 passes, then archive and repair inbound references under [task completion](../../docs/task-workflow.md). Do not deploy to a user's VPS or publish an image as part of this task without authorization.
+
+## Verification — 2026-11-02
+
+Tested source base: `a2a90cfe8c314e7d3ed8be45d9c5d45a8a2b0a25` plus this lane's scoped working diff. The handoff commit identifies that diff. Container build-input SHA-256: `6f4054dc9e2002a3942e597d3a6ad427acb5ae037c2fc8801feebf3f4eb83f58`. Final tested image ID: `sha256:f5f93963a25db2a26c165456e54b0f85af1f9162bd6ca24f6d80a5ba5b803ef6` (local fixture removed after verification, never published). Docker Desktop 4.37.2 / Engine 27.4.0, Linux ARM64, Node 22.23.4, QMD 2.8.3; base resolved to `node:22-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da`.
+
+- Before repair, real `docker build` failed at missing `/app/scripts/build-editor.mjs`. Adding the build scripts exposed QMD's missing Python/native build toolchain on Linux ARM64. Separate engine compilation now uses the existing engine lockfile. The local maintenance fixture also exposed that the QMD environment override must be absolute; image/runbook defaults now provide it.
+- `npm run smoke:hosted` passed on the final build inputs. It checked filtered context with excluded private sentinel files (including beneath `src/` and `scripts/engine/`), required generated assets and production esbuild/WebSocket/QMD dependencies; fresh nonempty lexical recall; canonical byte hashes; reader mutation denial; issued writer replacement/revocation and old-cookie rejection; overlapping then removed bootstrap keys; graceful SIGTERM exit 0; fresh readiness/access/canonical persistence through container recreation.
+- The same smoke stopped the owner, created a checksum-verified private backup including canonical files, root policy, access/revocations and retained recovery source; deleted the entire disposable brain; restored at its original absolute path; verified exact bytes; rebuilt the index and recalled the known note after restart. Restoring over subsequently changed/revoked credentials failed as intended. No personal brain, real secrets, public ports or semantic model was used.
+- In a separate disposable `node:22-slim` Linux container, `npm ci`, `npm run build` and `node --test test/architecture-boundaries.test.js test/package-entrypoints.test.js test/package-footprint.test.js test/access-control.test.js test/multiplayer-upgrade.test.js` passed **29/29**. `npm run cli:pack` passed, validating 284 required files; archive 1,445,214 bytes, unpacked 4,599,679 bytes, runtime 3,083,142 bytes, 629 files on that snapshot. No package versions or lockfiles changed.
+- A disposable Debian fixture used the local compiled archive (not a published GitHub download), required matching SHA-256 and rejected a wrong one, extracted the release, installed locked root/engine production dependencies and ran the documented service identity's init/index/stop/foreground commands. It extracted the exact unit/nginx code blocks from `docs/vps-deploy.md`; `systemd-analyze verify` and `nginx -t` passed. With a trusted disposable TLS certificate and local proxy, HTTPS health plus authenticated protocol-2 WSS hello passed. No user host service was modified.
+- The first host `npm run build` attempt could not find `tsc` because this isolated worktree has no installed dependencies. Required focused build/package checks subsequently passed inside the disposable Linux container; no host installation was performed. The parent owns combined-snapshot/full deterministic checks.
+- Final runner syntax checks, changed-document relative file links, `git diff --check` and the staged private-data guard passed. The clean-context smoke passed again after adding explicit fixture-cleanup failure reporting.
+
+## Open gates and limits
+
+- **Required, 2.3:** this environment's containers did not run systemd as PID 1. Unit syntax and direct service commands passed, but actual systemd sandbox/boot/restart/cgroup enforcement remains unverified. Complete it in a disposable Linux VM/systemd test environment before archiving. Do not modify the user's host services to satisfy it.
+- Generic nginx HTTPS/WSS passed locally; real Coolify, public DNS/TLS/firewall, remote secret distribution and off-host backup storage/encryption were not tested or deployed. Operators must verify their own environment.
+- Linux ARM64 lexical retrieval passed. Linux AMD64, semantic GGUF/GPU runtime behavior and model sizing were not tested; no semantic or multi-platform support claim is added.
+- Root/engine dependency graphs are locked. The Node base/Debian inputs can move; record/promote an actual tested image digest rather than promising bit-identical rebuilds.
+- Task remains active deliberately; references from the feedback index/integration list still point here. Parent may integrate the verified packaging increment while retaining the named systemd gate.

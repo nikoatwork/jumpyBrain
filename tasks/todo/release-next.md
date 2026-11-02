@@ -1,5 +1,7 @@
 # Changes
 
+- Self-hosted Docker builds include the browser build scripts and locked search/runtime dependencies, run without root, and have a disposable build/recovery check.
+
 - Clearing a fresh note through its empty heading and blank lines saves reliably; editor failures use plain-language, dismissible recovery toasts.
 
 - Editor section indicators are half as wide, with thicker H1 and H2 marks to make heading levels easier to distinguish.
