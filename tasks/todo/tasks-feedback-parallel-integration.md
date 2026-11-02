@@ -1,6 +1,6 @@
 # Parallel feedback fixes and integration
 
-Status: active. Authorized 2026-11-02: dispatch independent subagents and bring completed work together on local `master`.
+Status: active. Authorized 2026-11-02: dispatch independent subagents and bring completed work together on local `master`. First three lanes integrated; second batch follows the ownership review below.
 
 ## Scope and ownership
 
@@ -36,7 +36,7 @@ No push, public PR, release, personal installation, hosted deployment or feedbac
 - Read the editor delegate's completed source thread and inspected all three changed files. Accepted investigation/regression coverage without a runtime repair: current source passes the proposed matrix, and the diagnostic build predates `11f9951` without identifying the actual failed input.
 - Fast-forwarded `master` to source tip `06289035deda31a26e96613fe7889fa95820f5a5`; `git merge-base --is-ancestor <source-tip> master` passed. Local script syntax and diff whitespace checks passed. Delegate recorded build, 48 focused tests and real fresh-note/collaboration/stale-note smokes; combined full-suite validation remains pending the other lanes.
 - Editor task and source thread stay active because the actual failure reproduction and matching packaged-Mac verification remain required. Integration of useful coverage does not resolve the bug or justify task/thread settlement.
-- CLI/hosted results have not yet been delivered; no running-task polling is used. Continue automatically when their completion wakes this integration thread.
+- At the editor integration checkpoint, CLI/hosted results had not yet been delivered. Their subsequent integration is recorded below; no running-task polling is used.
 
 ### CLI integration
 
@@ -44,3 +44,20 @@ No push, public PR, release, personal installation, hosted deployment or feedbac
 - Merged with ancestry preserved as `18c29e767620da7a7e9d51b6e7e11010461c441e`; `git merge-base --is-ancestor <source-tip> master` passed. The existing editor/progress changes merged cleanly.
 - Parent combined editor/CLI snapshot: `npm run build` passed; 17 focused CLI parser, help/sentinel, baseline and remote-access-policy tests passed with no skips. Delegate's full suite passed 1,798 tests with one existing opt-in real-QMD skip. Full combined integration checks remain pending hosted delivery.
 - CLI task is complete and archived at [verification](../done/2026-11-02_tasks-cli-help-and-validation.md); no runtime/install/release blocker remains for this lane. Source thread can be settled after this integration record is committed.
+
+### Hosted integration
+
+- Read the completed hosted source thread and reviewed Docker/runtime dependency closure, smoke runners and operator guidance. Merged source tip `86c937bd91e197508909ef0ae6c4fd12353cf3ec` from `t3/fix-hosted-docker-build` as `c9886de1d07ccdd5d3d584fcc0f06b78c7a559a1`; ancestry verification passed. Changelog/release-note conflicts were resolved by retaining both CLI and hosted outcomes.
+- Parent `smoke:hosted` passed on the combined `c9886de` source: Linux ARM64, Node 22.23.4, QMD 2.8.3; input SHA-256 `41350d8435b5818153c1abd36cda5c46c7caabfceb987672ca77a64b39e99cb4`; temporary image `sha256:d3b0b9ff3a6960ae4aac84837a9bdf1472d63ae491bffe278d324d9d24ab2e50`. Real lexical retrieval, access/cookie/bootstrap revocation, graceful replacement, exact persistence and stopped-root loss/restore passed; disposable resources were removed. Host Docker CLI needed its existing application bin directory added to this command's PATH.
+- Full combined `npm test` is running with output at `/tmp/jumpybrain-feedback-c9886de-tests.log`; finish and record the actual result before closing integration.
+- CLI source-thread settlement succeeded after `65680c1`. Editor and hosted source threads retain unfinished task ownership: actual idle failure/package verification and real systemd-manager enforcement respectively. They remain active rather than claiming completed tasks.
+
+## Second-batch scope
+
+After reviewing the first batch, three further independent implementation lanes are ready from the integrated source. Each must record design decisions and preserve explicit targeting/permissions, existing output formats and unique recovery state.
+
+- [Brain connections/targeting](tasks-brain-connections-and-targeting.md): owns target resolver, doctor target diagnostics, companion connection-control orchestration and additive CLI registration. Preserve app/CLI selection separation; do not create a competing registry or infer shared write authorization. It does not own updater cleanup, lint or guidance refactoring.
+- [Runtime hygiene](tasks-desktop-runtime-hygiene.md): owns updater staging/runtime lifetimes, safe retention, managed integration refresh mechanics, backend enumeration and host diagnostic classification. It must not modify target precedence, connection management, skill content or lint behavior. Additive backend help/dispatch changes may require parent reconciliation with other CLI changes.
+- [Agent interface efficiency](tasks-agent-interface-efficiency.md): owns concise/on-demand guidance, read-only lint preview and documented compatibility/feedback decisions. It must not change target precedence, connection orchestration, updater cleanup or retrieval ranking. Preserve output contracts; do not implement speculative actor inference or larger feedback protocols solely because they were proposed.
+
+Shared CLI metadata/registration and docs are additive integration seams, not permission to replace another lane's implementation. Parent reconciles them. Retrieval readiness/temporal diagnostics wait for the target/doctor lane to finish; larger product proposals retain their discovery/evidence gates.
