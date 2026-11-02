@@ -16,7 +16,7 @@ The remaining lists contain overlapping target/backend/CLI work or proposals req
 
 ## Tasks
 
-- [ ] 1. Dispatch three isolated delegates and record returned task/thread links.
+- [x] 1. Dispatch three isolated delegates and record returned task/thread links.
 - [ ] 2. Read each completed result, inspect its scoped diff and validation, and fix small integration/review findings.
 - [ ] 3. Merge accepted branch tips into local `master`, preserving ancestry and unrelated work. Record each source tip and integration commit.
 - [ ] 4. Run build/full deterministic suite on the combined snapshot plus relevant changed-flow checks. Record skips, prerequisite failures and remaining validation honestly.
@@ -24,3 +24,16 @@ The remaining lists contain overlapping target/backend/CLI work or proposals req
 - [ ] 6. Read and settle each completed integrated source T3 thread, then finalize this integration list under [task completion](../../docs/task-workflow.md).
 
 No push, public PR, release, personal installation, hosted deployment or feedback reply is authorized by this integration request.
+
+## Delegates
+
+- Editor: <t3-thread://v2/e2ddce68-4862-4cde-bb7d-20fe060e49b8/thread:delegated-task:command%3Amcp%3A18cafb8e-e1d4-42d3-b1a1-a5e64a2fa69a%3Adelegate-task%3A87488616-c133-44cd-92d7-0fd1b23e45d3>.
+- CLI: <t3-thread://v2/e2ddce68-4862-4cde-bb7d-20fe060e49b8/thread:delegated-task:command%3Amcp%3A18cafb8e-e1d4-42d3-b1a1-a5e64a2fa69a%3Adelegate-task%3A460be7e9-e4fe-4988-be43-d6b294e04ade>.
+- Hosted: <t3-thread://v2/e2ddce68-4862-4cde-bb7d-20fe060e49b8/thread:delegated-task:command%3Amcp%3A18cafb8e-e1d4-42d3-b1a1-a5e64a2fa69a%3Adelegate-task%3A7e063ef6-4491-488f-8658-7c4dfe6a36ef>.
+
+## Integration progress — 2026-11-02
+
+- Read the editor delegate's completed source thread and inspected all three changed files. Accepted investigation/regression coverage without a runtime repair: current source passes the proposed matrix, and the diagnostic build predates `11f9951` without identifying the actual failed input.
+- Fast-forwarded `master` to source tip `06289035deda31a26e96613fe7889fa95820f5a5`; `git merge-base --is-ancestor <source-tip> master` passed. Local script syntax and diff whitespace checks passed. Delegate recorded build, 48 focused tests and real fresh-note/collaboration/stale-note smokes; combined full-suite validation remains pending the other lanes.
+- Editor task and source thread stay active because the actual failure reproduction and matching packaged-Mac verification remain required. Integration of useful coverage does not resolve the bug or justify task/thread settlement.
+- CLI/hosted results have not yet been delivered; no running-task polling is used. Continue automatically when their completion wakes this integration thread.
