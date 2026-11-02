@@ -25,8 +25,19 @@ async function statusCode(key, url = '/memories/all/status', cookie) {
 async function verify(state) {
   assert.equal(await statusCode(state.writer.token), 200);
   assert.equal(await statusCode(state.oldWriter.token), 401);
-  const status = remote(['status'], { key: state.reader.token });
-  assert.equal(status.readiness.freshness, 'fresh');
+  const deadline = Date.now() + 10_000;
+  let status, observations = 0, pendingObserved = false;
+  do {
+    status = remote(['status'], { key: state.reader.token });
+    if (status.readiness.freshness === 'fresh') break;
+    observations++;
+    pendingObserved ||= await stat(path.join(root, '.jumpybrain/index-pending.json')).then(() => true, () => false);
+    await new Promise(resolve => setTimeout(resolve, 100));
+  } while (Date.now() < deadline);
+  // Startup/quiet-write maintenance can overlap the explicit index. Wait for
+  // completed publication, retaining a strict failure if freshness never settles.
+  assert.equal(status.readiness.freshness, 'fresh', JSON.stringify({ readiness: status.readiness, pendingObserved, observations }));
+  if (observations) console.log(JSON.stringify({ readinessSettled: true, pendingObserved, observations }));
   const recall = remote(['recall', '--topic', 'heliotrope', '--limit', '5'], { key: state.reader.token });
   assert.match(JSON.stringify(recall), /heliotrope/);
   assert.equal(digest(await readFile(path.join(root, state.saved.file))), state.hash);

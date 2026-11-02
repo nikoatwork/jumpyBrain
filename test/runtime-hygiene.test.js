@@ -76,6 +76,9 @@ test('a runtime exchange between identity and pin rejects startup instead of pin
   await assert.rejects(pinBackendRuntime('/fixture/brain', { ...identity, instanceId: 'exchanged', pid: process.pid }), /Runtime changed/);
   await assert.rejects(lstat(path.join(runtime, '.backend-pins')), { code: 'ENOENT' });
   assert.notEqual(await readRuntimeGeneration(identity.executable), identity.runtimeGeneration);
+  await chmod(runtime, 0o500);
+  await assert.rejects(pinBackendRuntime('/fixture/brain', { ...identity, instanceId: 'frozen-replacement', pid: process.pid }), /Runtime changed/);
+  await chmod(runtime, 0o700);
 });
 
 test('an exchange and rollback during pin publication cannot make a wrong-generation pin prove readiness', async t => {
@@ -182,7 +185,8 @@ test('a real backend pins a moved staging runtime until authenticated drain; not
 test('foreign/frozen runtimes remain usable without writes, and are ineligible for automatic retirement', async t => {
   const runtime = await fixture(t); await mkdir(path.join(runtime, 'dist/server'), { recursive: true });
   await chmod(runtime, 0o500);
-  await pinBackendRuntime('/fixture/brain', { executable: path.join(runtime, 'dist/server/daemon.js'), instanceId: 'frozen', pid: process.pid });
+  const executable = path.join(runtime, 'dist/server/daemon.js');
+  await pinBackendRuntime('/fixture/brain', { executable, runtimeGeneration: await readRuntimeGeneration(executable), instanceId: 'frozen', pid: process.pid });
   await assert.rejects(lstat(path.join(runtime, '.backend-pins')), { code: 'ENOENT' });
   const result = spawnSync('python3', ['-B', 'integrations/electron/update-retention.py', '--runtime', runtime], { encoding: 'utf8' });
   assert.notEqual(result.status, 0); await assert.rejects(lstat(path.join(runtime, '.retiring')), { code: 'ENOENT' });
