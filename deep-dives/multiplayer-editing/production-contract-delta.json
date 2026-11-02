@@ -562,6 +562,23 @@
         "two complete 16-file zero-skip fixture runs",
         "assertion AST SHA-256 ec8c9f39b5038817d06fb414e046c57bcc08885174c238f766a22ea59b9a77bf"
       ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/install-scripts.test.js",
+      "oldSha256": "c39d7f89ed8d2b951d61f58997325cabdb8345b330dda7309dcbf8dbb4b6944b",
+      "newSha256": "2cff53796c99329e6045e9b9752bc5bef3750f7a6d864b79ababec817b6015a4",
+      "reason": "Authenticate and drain the temporary global/project install indexing backend before removing its fixture brain. Its lifetime now outlives the installer CLI. All 155 existing assertions remain byte-identical; no retry, ignored failure, runtime change or cleanup during observation windows.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/install-scripts.test.js",
+        "two complete zero-skip installer fixture runs",
+        "assertion AST SHA-256 80ed4f565932e6f54620b3552b284afd53a97db751b8f5e7be3636aa8b22767f"
+      ]
     }
   ],
   "review": "Parent-reviewed exact baseline-to-candidate diffs for the authorized internal-beta live-editing cutover. This declaration does not itself establish a passed integration gate."

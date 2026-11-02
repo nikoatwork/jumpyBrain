@@ -9,9 +9,9 @@ The original M0 baseline remains immutable. Its manifest SHA-256 is
 the original contract SHA-256 is
 `27603e7296338f633f73a75f39a255ec2b886602ad92d67ac78d7781e45cee5a`.
 The separately reviewed [contract delta](production-contract-delta.json) pins
-33 exact old/new assertion or harness changes and their behavioral reasons.
+34 exact old/new assertion or harness changes and their behavioral reasons.
 Its SHA-256 is
-`b7b93fd1fea2e31a2d930b4db8859bdc46c6739d755d96f72edbb3a37a18ca74`.
+`55185e6dac021ba67c0a816d477aedbea493c1e6fcf591b2658278398cc1953c`.
 The earlier accepted seven-check integration used the prior delta pin
 `6da314fd9db7a891750db0f04e7351226b804c090305ee5b3ca585e97177645e`.
 An approved transport or timing change does not replace canonical-content,
@@ -367,3 +367,13 @@ agent/IME recovery, and expired menu history followed by typing. The first
 preflight rejected an unsupported menu mutation API; the final implementation
 uses documented Menu.buildFromTemplate construction, retaining platform items.
 No editor/package/resource ceilings or baseline expectations were relaxed.
+
+## Release fixture correction
+
+Release preparation for v0.3.17 exposed the same persistent-owner teardown
+race in the global/project public-installer fixtures. These two teardowns now
+authenticate and drain their own indexing backend before removal. All 155
+existing assertions remain byte-identical, with no product/runtime change.
+The current reviewed delta has 34 exact entries; earlier implementation reports
+retain their original 33-entry pins and scope. The release-owned versioned suite
+checks the corrected fixture; no older report is relabeled as a new run.
