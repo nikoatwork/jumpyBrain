@@ -30,6 +30,7 @@ test('short CLI and installed skill entry points discover every operation topic 
   assert.match(agentInstructions('recall'), /JUMPYBRAIN_API_KEY/);
   assert.match(agentInstructions('write'), /saved:true/);
   assert.match(agentInstructions('write'), /Shared\/global\/team\/remote/);
+  for (const rule of [/collaborate open/, /UTF-16/, /actual --epoch and --base-revision/, /Never relabel old offsets/, /replay uncertain writes/, /whole note per chunk/]) assert.match(agentInstructions('write'), rule);
   assert.match(agentInstructions('expand'), /same hash/);
   assert.match(agentInstructions('maintenance'), /--preview/);
 });

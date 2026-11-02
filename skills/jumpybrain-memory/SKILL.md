@@ -39,6 +39,7 @@ jumpybrain instructions --topic write
 - `recall`: output choices, byte bounds, evidence dates, local index repair and strict read-only retrieval. Compact is bounded, not universally smaller. Text/rich/compact shapes and recipes remain supported.
 - `expand`: narrower queries, same-target ID/hash handles, partial results, continuation and explicit whole reads. Read this before expansion. Never invent a hash or stamp IDs to enable reads.
 - `write`: authorization, declared actors, remember/update examples, historical capture, saved/indexed outcomes and strict wrapup sections. Read this before any write.
+  Its collaboration guidance covers concurrent edits and actual read-base epoch/revision; read it before calculating positions.
 - `maintenance`: observational `process --mode lint --preview`, explicit report apply and optional dreaming.
 - `setup`: installation, app/CLI selection and privacy. See the [agent installation guide](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install-for-agents.md), [installation commands](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/install.md) and [FAQ](https://github.com/nikoatwork/jumpyBrain/blob/master/docs/faq.md).
 - `feedback`: explicit consent, redaction, dry-run, delivery uncertainty and deliberate same-ID retries. Never send automatically.
