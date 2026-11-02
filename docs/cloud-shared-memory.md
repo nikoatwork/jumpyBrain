@@ -5,7 +5,7 @@ This quickstart runs one authenticated jumpyBrain server against a dedicated, pe
 ## Prerequisites
 
 - Linux or macOS with a POSIX-compatible shell
-- Node.js 22+, npm, Git, and `curl` or `wget`
+- Node.js 22.12+, npm, Git, and `curl` or `wget`
 - a persistent local filesystem for the server memory root
 - a private API key stored in deployment-secret storage
 - HTTPS termination before exposing the server beyond a trusted network
@@ -17,7 +17,7 @@ For a production-shaped deployment, choose the [VPS guide](vps-deploy.md) or [Co
 ```bash
 git clone https://github.com/nikoatwork/jumpyBrain.git
 cd jumpyBrain
-npm install
+npm ci
 npm run build
 npm install -g @tobilu/qmd@2.8.3
 node scripts/qmd-install-check.mjs qmd
@@ -34,6 +34,16 @@ export JUMPYBRAIN_SERVER_PORT=3787
 export JUMPYBRAIN_SERVER_API_KEYS="$(openssl rand -hex 32)"
 export JUMPYBRAIN_API_KEY="$JUMPYBRAIN_SERVER_API_KEYS"
 ```
+
+These configured bootstrap keys are **administrator** capabilities. Keep them
+with the operator. Use the existing [named reader/writer issuance and revocation
+commands](collaboration.md#separate-access) for each person and agent; a reader
+cannot write, while a writer can publish to this brain. There are no per-note
+ACLs. Issuance returns a secret once: redirect it into a new private file with
+`umask 077` or capture it in an approved secret manager, then deliver it through
+an authenticated private channel. Do not paste it into a ticket, chat, URL,
+shell argument, Git, build argument or image. Root filesystem access remains an
+operator capability, regardless of protocol role.
 
 QMD must include both the CLI and SDK from the pinned package. Initialize the dedicated root once (lexical by default):
 
@@ -53,6 +63,8 @@ Later routine/manual/auto-index runs reuse this policy and unchanged vectors. Re
 ## 3. Start the server
 
 ```bash
+# Local index commands may have started an on-demand owner. Drain it first.
+node dist/cli.js backend stop --root "$JUMPYBRAIN_SERVER_ROOT"
 node dist/cli.js serve
 ```
 
@@ -90,7 +102,7 @@ Write checklists with `- [ ] ` or `- [x] `, or use **Task checkbox**. Click a ch
 
 Wrap inline code in matching backticks, or use **Inline code**. For a code block, type three backticks and an optional language such as `js`, then press Enter, or use **Code block**. Enter adds a newline, Tab inserts a tab, and Ctrl/Cmd+Enter continues below the block. Imported closed backtick fences at column zero support simple language labels; unsupported/unclosed fences stay literal. Code keeps tabs, blank lines and literal Markdown/HTML/page-reference text without executing it or creating linked pages. Edited supported lines may normalize delimiters; untouched source is preserved. Tables remain literal Markdown for now.
 
-The writing surface uses white backgrounds, warm-grey controls, charcoal text, subtle borders, and visible focus/error states. Headings, bold, and italic render directly as you type, with small formatting controls and Cmd/Ctrl+B/I shortcuts—no preview mode. Files remain Markdown. Unsupported blocks stay visible as literal text without decorative underlines; choose Text or a heading control to explicitly convert a block. Pasted content is plain text, never executable HTML. Unsaved drafts and creation retry keys are held in the current tab, not an offline or crash-recovery store; do not reload a failed/unconfirmed creation before retrying. Server idempotency receipts are not transactionally coupled to canonical file creation, so server crashes between those writes are not covered by the ordinary lost-response retry guarantee.
+The writing surface uses white backgrounds, warm-grey controls, charcoal text, subtle borders, and visible focus/error states. Headings, bold, and italic render directly as you type, with small formatting controls and Cmd/Ctrl+B/I shortcuts—no preview mode. Files remain Markdown. Unsupported blocks stay visible as literal text without decorative underlines; choose Text or a heading control to explicitly convert a block. Pasted content is plain text, never executable HTML. Disconnected note drafts can persist in the originating browser profile, subject to storage availability and explicit recovery checks; see [drafts and recovery](collaboration.md#drafts-conflicts-and-files). Export them before migration or clearing browser data. Creation retry keys remain tab-local; do not reload a failed/unconfirmed creation before retrying. Server idempotency receipts are not transactionally coupled to canonical file creation, so server crashes between those writes are not covered by the ordinary lost-response retry guarantee.
 
 `/graph` remains available as a secondary explicit-link map. Neither the almost-empty home nor the HTML shell embeds note content or credentials, and the Lexical editor is bundled locally with the Node package, with no CDN or separate frontend service.
 
@@ -118,6 +130,13 @@ jumpybrain recall --target-url https://memory.example.com --topic "current proje
 
 An installer-created CLI can mark a remote origin read-only in device-local `cli-config.json`. That is accidental-write protection, not server authorization. Enforce access at the server or reverse proxy.
 
+The Mac app has its existing native credential storage; that does not supply a
+CLI environment automatically. A shell/agent host can inject an issued key from
+its secret manager into `JUMPYBRAIN_API_KEY`. A new cross-platform CLI credential
+store is deferred: it needs a separate decision about provider integration and
+unattended access, and is not required to build or operate this image. Brain
+target routing and credential storage are separate concerns.
+
 ## 6. Verify the deployment
 
 ```bash
@@ -126,9 +145,108 @@ JUMPYBRAIN_API_KEY='<private-client-secret>' jumpybrain status --target-url http
 JUMPYBRAIN_API_KEY='<private-client-secret>' jumpybrain tree --target-url https://memory.example.com --limit 20
 ```
 
-The server requires one explicit memory root and one process over one persistent local disk in V1. Authenticated status reports freshness separately from embedding coverage and available retrieval modes, using stats rather than model inference. Partial search fallback is labeled; total failure is not an empty result. Busy cross-process search/index operations reject after five seconds rather than serving reader snapshots. Markdown and `jumpybrain.json` policy survive derived-state deletion; stop operations first. Atomic publication recovery is not a power-loss guarantee; retain canonical backups and follow the [recovery procedure](technical.md#readiness-and-recovery).
+The server requires one explicit memory root and one owner over one persistent
+local disk. Authenticated status reports freshness separately from embedding
+coverage and available retrieval modes, using stats rather than model inference.
+Partial search fallback is labeled; total failure is not an empty result. Busy
+cross-process search/index operations reject after five seconds rather than
+serving reader snapshots. Markdown and `jumpybrain.json` policy survive removal
+of specifically identified derived index state; stop operations first and retain
+access/recovery data. Atomic publication recovery is not a power-loss guarantee;
+retain canonical backups and follow the [recovery procedure](technical.md#readiness-and-recovery).
 
 Search/index waits are nonblocking and admission-bounded; overload is HTTP 503 and backend deadlines are 504. Default deadlines are 60 seconds/search and 600 seconds/index, configurable on the host with `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS`. Match proxy/client timeouts for long indexing; these limits are not a VPS sizing promise. See [execution and capacity limits](vps-deploy.md#execution-and-capacity-limits).
+
+## Rotate and revoke deliberately
+
+For an issued credential, issue a replacement with the required reader/writer
+role using [Separate access](collaboration.md#separate-access), deliver it
+privately, and verify authenticated status and permitted operations with that
+credential. Switch the intended clients, then revoke the **old credential ID**.
+Check that the old key fails authenticated status with HTTP 401, the new key
+still succeeds, and a reader's attempted mutation is denied with HTTP 403.
+Public `/health` succeeding with an old key is expected and proves nothing about
+revocation. Existing browser cookies and live sockets are revalidated; reconnect
+with the replacement key. Revocation does not erase already downloaded notes or
+save an offline private draft.
+
+Configured bootstrap keys have no issued credential ID and cannot be revoked
+through `access revoke`. To rotate one without locking yourself out, place old
+and new keys in the comma-separated `JUMPYBRAIN_SERVER_API_KEYS` secret, recreate
+or restart the **single** owner, and verify both against authenticated status.
+Move operator clients to the new key. Remove the old key from deployment secrets,
+recreate/restart again, and verify old-key 401 plus new-key success. A Docker
+restart alone reuses its original environment; recreate the container to change
+it. Remove old environment files, disabled service definitions and redeployment
+secrets as well. Never start two server replicas over the same root during a
+rotation. A compromised key should be revoked/removed promptly, accepting the
+required client reconnects rather than extending an overlap window.
+
+## Drain writers before migration or replacement
+
+Inventory the canonical absolute root and every route that can write it:
+systemd units/drop-ins, Docker/Coolify containers and replicas, automatic
+redeployments, detached local backends, Mac app tabs, agents/CLI jobs, scheduled
+imports/index jobs, library integrations, raw-file editors and sync/backup tools.
+Include old hosts, retired volumes and old credentials that could restart a
+writer later. A target URL is not a second synchronized copy of a personal brain.
+
+1. Announce a maintenance window. Wait for Saved, resolve uncertain writes and
+   save/export disconnected browser drafts. Pause agents and raw-file writers;
+   closing a Mac window alone leaves its backend running.
+2. Disable service/container restart and automatic deployment triggers. Stop the
+   relevant manager before running the existing [coordinated upgrade
+   helper](../README.md#upgrade-with-your-agent). Its `prepare` operation stops
+   an authenticated root owner; it cannot stop unknown legacy services, remote
+   machines or raw filesystem writers. Check the actual units/containers and
+   root-owner status; never infer ownership from a port or PID alone.
+3. Create and verify a private backup outside the brain, retain the previous
+   software/image digest, and migrate storage only while all writers are paused.
+   Never bring both the old and new mounts online as writable copies.
+4. Upgrade the server runtime/image separately from each client CLI, app and
+   agent integration. Updating a client does not update the server. Protocol 2
+   requires coordinated compatible clients; verify the intended versions/builds
+   before reconnecting. Container packaging changes require a rebuilt image.
+5. Verify canonical bytes/policy/access state, ownership and mounted persistence;
+   index and recall a known note. Test editing on a disposable copy, reconnect
+   clients, then re-enable the one intended manager. Retire obsolete mounts,
+   deployment definitions and bootstrap secrets after the retention decision.
+
+## Backups and recovery
+
+An installer replacement backup or a volume renamed during cutover is a
+one-time rollback aid. It is not recurring off-host protection. Schedule private,
+encrypted, retained off-host backups, monitor failures and periodically restore
+them into an isolated fixture. Quiesce all writers or use a consistent storage
+snapshot; copying files while edits continue is not a verified point-in-time
+backup. Keep encryption keys recoverable outside the failed host.
+
+Preserve canonical Markdown, `boards/` JSON, `jumpybrain.json` and other deliberate
+brain files. `.jumpybrain/access.json` (hashed named credentials/revocations) and
+`.jumpybrain/recovery/` (retained source copies) are unique private operational
+data. Do not delete all of `.jumpybrain` as cache. Derived index/embedding state
+can be rebuilt; backend leases/descriptors and live history should not be
+reactivated from a backup. Browser drafts live in their original browser profile
+and must be exported separately. Back up deployment secrets, service/proxy
+configuration and provisioned GGUFs through their own private backup policy;
+the brain helper does not copy them.
+
+Use `scripts/multiplayer-upgrade.mjs` as documented in the README for private,
+checksum-verified prepare/verify and missing-file restoration. It binds its
+manifest to the **original absolute root**, omits derived state and refuses to
+overwrite changed files or changed/revoked access state. It is not a general
+cross-path migration tool. Exercise it on a disposable root first. For off-host
+recovery, restore your verified snapshot to an isolated host at the expected
+path, with no old service/client traffic, and re-issue/revoke credentials before
+exposure if the snapshot predates revocations. Do not roll live access state
+back to re-enable a retired key.
+
+After restoration, verify checksums and private operational permissions, rebuild
+the index with the intended service identity, check authenticated readiness and
+nonempty recall, and compare canonical source bytes before admitting writers.
+Health alone cannot establish recovery. The [container smoke](coolify-deploy.md#clean-context-container-gate)
+exercises full loss/restore only on a disposable Linux root; it does not test
+your off-host storage, encryption, reverse proxy or disaster recovery process.
 
 ## Next references
 
