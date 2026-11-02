@@ -1,6 +1,6 @@
 # Independently shippable feedback increments
 
-Status: planned, 2026-11-02. This is an implementation backlog, not a release commitment. No product change is implemented by this review.
+Status: active, 2026-11-02. Backend restart recovery (unit 1) is complete; remaining units retain their own gates. This is an implementation backlog, not a release commitment. The original review was planning only.
 
 ## Goal
 
@@ -47,7 +47,7 @@ Priorities are planning judgments. Rows can ship separately as soon as their own
 
 | Priority | Shipping unit | Ownership / boundary |
 | --- | --- | --- |
-| P0 | Recover app after local backend restart | New task 1 below. |
+| P0 | Recover app after local backend restart | [Focused implementation](../done/2026-11-02_tasks-backend-restart-recovery.md); task 1 below tracks completion. |
 | P0 | Resolve idle-note edit failure | Continue [idle editing](tasks-stale-note-editing.md); do not duplicate its source fix or declare its unknown reproduction resolved. |
 | P0 | Restore reliable Quit/open launch | Continue [runtime hygiene](tasks-desktop-runtime-hygiene.md), tasks 3.4/4.3. **F1 adds a concrete sequence:** failure after Quit, direct/open launch exits, LaunchAgent bootstrap restores startup. Re-test both loaded/unloaded service states on a matching disposable packaged app; this narrows the previous missing-reproduction blocker without proving a cause. Keep source diagnostics separate from required packaged launch verification. |
 | P1 | Natural-language semantic eligibility | New task 2; retain exact-query controls. |
@@ -76,10 +76,10 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
 
 ## Tasks — independent delivery units
 
-- [ ] 1.0 **P0 — Reconnect the app to a restarted local brain backend.** F2 B2, F5.
-  - [ ] 1.1 Reproduce with a disposable selected local root: open a note/board, stop the backend through the CLI, let recall start a replacement on a different port, then use Retry. Record old/new backend identity and the failing gateway operation.
-  - [ ] 1.2 Rediscover and authenticate the replacement through the existing host/descriptor seam with bounded retry. Fence old requests/subscriptions by brain/profile/backend identity, resynchronize live revisions, and preserve unpublished drafts. Do not automatically republish an old draft or retarget another brain.
-  - [ ] 1.3 **Ship when:** saved notes, boards and search recover without quitting; unchanged and conflicting private drafts remain recoverable; changed roots, stale/foreign descriptors, incompatible versions and a genuinely unavailable backend fail clearly. Verify the production gateway and matching packaged Mac path. This unit requires no launch-service redesign or retrieval change.
+- [x] 1.0 **P0 — Reconnect the app to a restarted local brain backend.** F2 B2, F5.
+  - [x] 1.1 Reproduce with a disposable selected local root: open a note/board, stop the backend through the CLI, let recall start a replacement on a different port, then use Retry. Record old/new backend identity and the failing gateway operation.
+  - [x] 1.2 Rediscover and authenticate the replacement through the existing host/descriptor seam with bounded retry. Fence old requests/subscriptions by brain/profile/backend identity, resynchronize live revisions, and preserve unpublished drafts. Do not automatically republish an old draft or retarget another brain.
+  - [x] 1.3 **Ship when:** saved notes, boards and search recover without quitting; unchanged and conflicting private drafts remain recoverable; changed roots, stale/foreign descriptors, incompatible versions and a genuinely unavailable backend fail clearly. Verify the production gateway and matching packaged Mac path. This unit requires no launch-service redesign or retrieval change.
 
 - [ ] 2.0 **P1 — Let ordinary language reach semantic discovery while retaining exact constraints.** F3.
   - [ ] 2.1 Freeze paired fictional questions containing natural negation, hyphenated words, contractions, camelCase and ticket IDs, with exact phrase/path/exclusion controls and distractors that violate the identifier or negation. Establish actual QMD syntax before defining a narrower rule.
@@ -151,3 +151,7 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
 - Start each reported defect with the smallest current-source/matching-artifact check. If existing source already covers it, record that coverage and remaining publication limits, then close the candidate without speculative code or redundant tests. A verification-only outcome does not need its own release note.
 - Archive a completed focused owner under [task workflow](../../docs/task-workflow.md) in the same turn. Keep this list active while required selected work is outstanding. A source commit is not a published fix, installation or authorization to ship.
 - Planning checks: live inbox pagination and today's full-body coverage verified; current decisions/owners compared; relative links, explicit repository paths and whitespace checked before committing. No runtime test result, private-corpus reproduction, model provision, installation, remote-memory write or product improvement is claimed by task creation. Changelog and pending release notes are unchanged for planning alone.
+
+## 2026-11-02 completed unit 1
+
+- [Backend restart recovery](../done/2026-11-02_tasks-backend-restart-recovery.md): reproduced old-port HTTP 503 after real CLI stop/recall replacement; authenticated rediscovery, retired-request/subscription fences and existing draft epoch review now recover the same brain. Final focused tests 64/64; packaged macOS ARM64 5/5 scenarios; full suite 1,831 passed, two skipped, zero failed before the recorded final focused changes. Remaining independent units stay pending; idle-note and launch investigations remain open. A separate runtime-pin sealed-resource observation is assigned to runtime hygiene.

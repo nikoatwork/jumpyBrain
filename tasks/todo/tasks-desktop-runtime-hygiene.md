@@ -38,6 +38,7 @@ Stop obsolete update staging and logs from growing indefinitely, keep live daemo
   - [x] 4.1 Test successful/repeated/failed/interrupted updates, rollback, a daemon still using staging, foreign/symlink paths and concurrent cleanup. Assert protected data remains byte-identical and no live runtime is removed.
   - [x] 4.2 Test customized/unmodified/missing integration files and normal/failing shutdown diagnostics; run affected installed-update and backend lifecycle checks.
   - [/] 4.3 Record bounded before/after storage, runtime paths and platform limits; update install/update/module docs and relevant release notes, then archive/commit under [task completion](../../docs/task-workflow.md).
+  - [ ] 4.4 Investigate runtime pin files inside signed bundle resources. Preserve runtime-retirement safety while ensuring ordinary backend startup does not invalidate bundle integrity; verify before/after startup and shutdown on a matching disposable bundle. This separate finding is not proof of the reported launch cause.
 
 
 ## Implementation checkpoint — 2026-11-02
@@ -182,3 +183,7 @@ without changing behavior. Dropping inventory alone cannot recover the full
 projected excess. Any budget policy change requires the parent's explicit measured
 decision; this lane makes none. Repository-only docs exclusions provide unpacked
 headroom but cannot solve the runtime ceiling.
+
+### Separate signature observation — backend restart verification, 2026-11-02
+
+The [completed restart task](../done/2026-11-02_tasks-backend-restart-recovery.md) initially symlinked a disposable native resource tree to a freshly signed matching runtime. Backend startup added `Contents/Resources/runtime/.backend-pins/<instance>.json` to that input app. Subsequent `/usr/bin/codesign --verify --deep --strict --verbose=4` reported an added sealed resource and failed. The corrected restart harness copies the runtime and passes its independent reconnect/draft checks; this isolates its artifact but does not repair pin placement in a real installed bundle. Keep task 4.4 open. No historical launch root cause, public-signing behavior or installation repair is claimed.

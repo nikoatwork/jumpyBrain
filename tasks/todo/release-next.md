@@ -1,5 +1,7 @@
 # Changes
 
+- The Mac app reconnects to a restarted local brain backend without quitting, retaining unpublished drafts for review and restoring notes, boards and search.
+
 - Doctor offers an explicit read-only lexical probe with content-free execution results; readiness guidance distinguishes engine presence, index metadata and untested semantic relevance.
 - Agent guidance starts with short prerequisites and discoverable CLI topics. Local lint has an explicit observational `--preview`; report writes still require `--apply`.
 - Manage local app connections from the CLI through the running companion’s save barriers. Doctor/status show target sources and honor configured CLI roots independently of app selection.

@@ -62,13 +62,14 @@ async function controlled(t,{holdHello=false,failDestination=false}={}){
   wss.on('connection',ws=>ws.on('message',raw=>{const packet=JSON.parse(raw.toString());received.push({ws,packet});if(packet.method==='hello'&&!holdHello)ws.send(JSON.stringify({id:packet.id,ok:true,result:{protocol:2,principal:{id:'fixture',role:'writer'}}}));}));
   upstream.listen(0,'127.0.0.1');await once(upstream,'listening');
   const coordinator=new SwitchCoordinator({timeoutMs:200}),generation=coordinator.generation;coordinator.register('tab',generation);
-  const server=createServer((_req,res)=>res.end());let origin;
-  const bridge=attachCompanionLive({server,authenticate:request=>{if(request.headers['x-test-session']!=='authorized')throw new Error('Denied');},coordinator,active:()=>({allowWrites:true}),destination:async()=>{if(failDestination)throw new Error('Injected destination failure');return{url:`http://127.0.0.1:${upstream.address().port}`,key:randomBytes(16).toString('hex')};},origin:()=>origin});
+  const server=createServer((_req,res)=>res.end());let origin, current=true;
+  const dest={url:`http://127.0.0.1:${upstream.address().port}`,key:randomBytes(16).toString('hex')};
+  const bridge=attachCompanionLive({server,authenticate:request=>{if(request.headers['x-test-session']!=='authorized')throw new Error('Denied');},coordinator,active:()=>({allowWrites:true}),destination:async()=>{if(failDestination)throw new Error('Injected destination failure');return dest;},destinationCurrent:()=>current,origin:()=>origin});
   server.listen(0,'127.0.0.1');await once(server,'listening');origin=`http://127.0.0.1:${server.address().port}`;
   const client=await socket(origin.replace(/^http/,'ws')+'/ws',{origin,headers:{'x-test-session':'authorized'}});
   const hello=()=>client.rpc('hello',{protocol:2,token:'companion-session',generation,tabId:'tab'});
   t.after(async()=>{client.ws.terminate();await bridge.close();coordinator.close();for(const ws of wss.clients)ws.terminate();await new Promise(resolve=>wss.close(resolve));await Promise.all([new Promise(resolve=>server.close(resolve)),new Promise(resolve=>upstream.close(resolve))]);});
-  return{coordinator,generation,client,hello,received};
+  return{coordinator,generation,client,hello,received,retire:()=>{current=false;bridge.retireDestination(dest);}};
 }
 for(const method of ['history.read','recovery.read'])test(`delayed ${method} is observational and cannot block switch or leak an old-scope reply`,async t=>{
   const f=await controlled(t);assert.equal((await f.hello()).ok,true);const reading=f.client.rpc(method,{documentId,clientId:'editor',epoch:'fixture',fromRevision:0}).catch(()=>null);await until(()=>f.received.some(entry=>entry.packet.method===method));assert.equal(f.coordinator.inFlight,0);
@@ -96,4 +97,16 @@ test('an interrupted dispatched write keeps its uncertain switch barrier',async 
 });
 for(const kind of ['unknown tab','stale generation'])test(`${kind} hello never reaches the pinned upstream`,async t=>{
   const f=await controlled(t);const result=await f.client.rpc('hello',{protocol:2,token:'companion-session',generation:f.generation-(kind==='stale generation'?1:0),tabId:kind==='unknown tab'?'unregistered':'tab'});assert.equal(result.error.code,'stale_generation');assert.equal(f.received.length,0);assert.equal(f.coordinator.inFlight,0);
+});
+
+test('backend retirement closes its subscription and fences a late same-brain reply',async t=>{
+  const f=await controlled(t);assert.equal((await f.hello()).ok,true);
+  const reading=f.client.rpc('history.read',{documentId,clientId:'editor',epoch:'old',fromRevision:0}).catch(()=>null);
+  await until(()=>f.received.some(entry=>entry.packet.method==='history.read'));
+  f.retire();
+  const held=f.received.find(entry=>entry.packet.method==='history.read');
+  held.ws.send(JSON.stringify({id:held.packet.id,ok:true,result:{retiredBackendMustNotEscape:true}}));
+  await reading;
+  assert.equal(f.client.packets.some(packet=>packet.result?.retiredBackendMustNotEscape),false);
+  assert.equal(f.coordinator.inFlight,0);
 });

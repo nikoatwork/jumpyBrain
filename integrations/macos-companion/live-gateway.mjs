@@ -8,8 +8,8 @@ const writes = new Set(['edit', 'undo', 'redo', 'resync', 'title', 'stream.start
 // Mutations pin the selected brain until acknowledgement. Reads only validate
 // scope: they stay on the captured upstream and cannot dirty a switch barrier.
 // Credentials are substituted here, never exposed to the renderer or URL.
-export function attachCompanionLive({server, authenticate, coordinator, active, destination, origin}) {
-  const sockets = new Set();
+export function attachCompanionLive({server, authenticate, coordinator, active, destination, destinationCurrent = () => true, invalidateDestination = () => {}, origin}) {
+  const sockets = new Set(), destinations = new Map();
   const wss = new WebSocketServer({noServer: true, maxPayload: 3 * 1024 * 1024, perMessageDeflate: false});
   server.on('upgrade', (request, socket, head) => {
     try {
@@ -20,7 +20,7 @@ export function attachCompanionLive({server, authenticate, coordinator, active, 
   });
   wss.on('connection', client => {
     sockets.add(client);
-    let upstream, context, profile, connected = false, authenticating = false;
+    let upstream, context, profile, dest, connected = false, authenticating = false;
     const pending = new Map();
     const helloTimer = setTimeout(() => client.close(1008, 'Authenticate first'), 5000);
     const send = packet => { if (client.readyState === WebSocket.OPEN) {if (client.bufferedAmount > 6 * 1024 * 1024) client.close(1009, 'Resynchronize'); else client.send(JSON.stringify(packet));} };
@@ -40,24 +40,27 @@ export function attachCompanionLive({server, authenticate, coordinator, active, 
           authenticating = true;
           context = {generation: packet.params.generation, tabId: packet.params.tabId};
           admit(packet.id, false); profile = active();
-          const dest = await destination(profile);
+          dest = await destination(profile);
           if (client.readyState !== WebSocket.OPEN) {release(packet.id); return;}
+          destinations.set(client, dest);
+          if (!destinationCurrent(dest)) throw new Error();
           const recheck = coordinator.enter(context.generation, context.tabId); recheck();
           const endpoint = new URL('/ws', dest.url); endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
           upstream = new WebSocket(endpoint, {origin: new URL(dest.url).origin, maxPayload: 3 * 1024 * 1024, perMessageDeflate: false, handshakeTimeout: 10000, followRedirects: false});
           upstream.on('message', raw => {
             let response; try { response = JSON.parse(raw.toString()); } catch {upstream.close(); return;}
             if (response.id === packet.id) {connected = response.ok === true; clearTimeout(helloTimer); if (connected && profile.allowWrites !== true) response.result.principal.role = 'reader';}
-            if (context.generation === coordinator.generation) send(response);
+            if (context.generation === coordinator.generation && destinationCurrent(dest)) send(response);
             if (response.id) release(response.id);
           });
           // An interrupted upstream with dispatched writes has an uncertain
           // outcome. Keep its admissions fenced; a switch must fail visibly.
-          upstream.on('close', () => {releaseReads();client.close(1011, pending.size ? 'Unconfirmed write; reopen the app' : 'Backend disconnected');});
-          upstream.on('error', () => {releaseReads();client.close(1011, 'Backend unavailable');});
+          upstream.on('close', () => {if (client.readyState === WebSocket.OPEN) invalidateDestination(dest);releaseReads();client.close(1011, pending.size ? 'Unconfirmed write; reopen the app' : 'Backend disconnected');});
+          upstream.on('error', () => {if (client.readyState === WebSocket.OPEN) invalidateDestination(dest);releaseReads();client.close(1011, 'Backend unavailable');});
           upstream.once('open', () => upstream.send(JSON.stringify({...packet, params: {token: dest.key, protocol: 2}})));
           return;
         }
+        if (!destinationCurrent(dest)) {client.close(1012, 'Backend changed; resynchronize'); return;}
         if (packet.method === 'hello' || pending.has(packet.id) || pending.size >= 64) throw new Error();
         if (!reads.has(packet.method) && !writes.has(packet.method)) {reject(packet.id, 'unknown_method', 'Unsupported live operation.'); return;}
         const write = writes.has(packet.method);
@@ -71,8 +74,8 @@ export function attachCompanionLive({server, authenticate, coordinator, active, 
         else client.close(1008, 'Invalid live request');
       }
     });
-    client.on('close', () => {clearTimeout(helloTimer); clearInterval(check); transition(); sockets.delete(client); releaseReads(); if (!pending.size) upstream?.close();});
+    client.on('close', () => {clearTimeout(helloTimer); clearInterval(check); transition(); sockets.delete(client); destinations.delete(client); releaseReads(); if (!pending.size) upstream?.close();});
     client.on('error', () => client.close());
   });
-  return {close: async () => {for (const socket of sockets) socket.terminate(); wss.close();}};
+  return {retireDestination: dest => { for (const [client, captured] of destinations) if (captured === dest) client.close(1012, 'Backend changed; resynchronize'); }, close: async () => {for (const socket of sockets) socket.terminate(); wss.close();}};
 }
