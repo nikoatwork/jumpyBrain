@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — Local backend restart recovery
+
+- The Mac gateway rediscovers authenticated replacement backends, fences retired requests/subscriptions and preserves private draft review. [Verification and limits](done/2026-11-02_tasks-backend-restart-recovery.md).
+
 ## 2026-11-02 — On-demand agent guidance and lint observation
 
 - Short entry guidance discovers detailed CLI topics; explicit local lint preview returns findings without reports, indexes or backend startup. [Verification and measured limits](done/2026-11-02_tasks-agent-interface-efficiency.md).

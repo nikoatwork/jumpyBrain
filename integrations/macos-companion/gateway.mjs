@@ -157,13 +157,22 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   let supportPending = null, supportAt = 0, supportCache = null, supportScope = null;
   const importedEvents = new Set();
   const { ensureRootBackend } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/backend-host/index.js')).href);
-  const localStart = localFactory || (async options => { const backend = await ensureRootBackend(options.root);
+  const { readBackendDescriptor, readBackendLease, processAlive } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/backend-host/index.js')).href);
+  const localStart = localFactory || (async options => {
+    const backend = await ensureRootBackend(options.root, { signal: options.signal, timeoutMs: 5000 });
     // Opening a local brain retains its existing maintenance startup behavior;
     // CLI doctor/readiness alone still never starts inference.
-    const activated = await fetch(backend.url + '/_backend/activate', {method:'POST',redirect:'manual',headers:{Authorization:'Bearer ' + backend.token},signal:AbortSignal.timeout(5000)});
+    const activated = await fetch(backend.url + '/_backend/activate', {method:'POST',redirect:'manual',headers:{Authorization:'Bearer ' + backend.token},signal:AbortSignal.any([options.signal || new AbortController().signal, AbortSignal.timeout(5000)])});
     await activated.body?.cancel(); if (!activated.ok) failure('offline','The local backend could not activate.',503);
-    return {url: backend.url, token: backend.token, close: async () => {}}; });
-  let local = null, localProfile = null, localKey = null;
+    return {url: backend.url, token: backend.token, close: async () => {}, current: async () => {
+      // Cheap private-registry checks on normal requests. Changed owners must go
+      // through authenticated ensureRootBackend again, never a bare port probe.
+      const descriptor = await readBackendDescriptor(options.root), lease = await readBackendLease(options.root);
+      return !!descriptor && lease?.instanceId === backend.instanceId && lease.pid === backend.pid && processAlive(lease.pid)
+        && Object.keys(backend).every(field => descriptor[field] === backend[field]);
+    }}; });
+  let local = null, localProfile = null, localKey = null, live;
+  const rootGenerations = new Map();
   let origin, cookieName;
   const cookieToken = randomBytes(32).toString('hex');
   let health = 'offline', healthAt = 0, healthPending = null, stopping = false;
@@ -172,9 +181,9 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const active = () => store.get(store.snapshot().activeId);
   const stopLocal = async () => {
     const previous = local; local = null; localProfile = null; localKey = null;
-    if (previous) await previous.close();
+    if (previous) { previous.retired = true; live?.retireDestination(previous); await previous.close(); }
   };
-  const destination = async (profile) => {
+  const destination = async (profile, signal) => {
     if (readinessOnly) failure('offline', 'Update readiness does not open a brain.', 503);
     if (!profile) failure('offline', 'No brain is selected.', 503);
     if (profile.kind === 'remote') {
@@ -184,26 +193,45 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       if (typeof key !== 'string' || !key.trim()) failure('credential_unavailable', 'The Keychain credential is missing. Re-enter the key in Settings.', 503);
       return { url: profile.url, key };
     }
-    if (!local || localProfile !== profile.id) {
-      // No initialization/migration, including when the selected folder disappeared.
-      try {
-        const root = await lstat(profile.root), marker = await lstat(path.join(profile.root, 'jumpybrain.json'));
-        if (!root.isDirectory() || root.isSymbolicLink() || !marker.isFile() || marker.nlink !== 1) throw new Error();
-      } catch { failure('offline', 'The selected local memory folder is unavailable.', 503); }
+    // Remember the selected directory generation across reconnects. Replacing a
+    // folder at the same path requires deliberate selection of that new brain.
+    try {
+      const root = await lstat(profile.root), marker = await lstat(path.join(profile.root, 'jumpybrain.json'));
+      if (!root.isDirectory() || root.isSymbolicLink() || !marker.isFile() || marker.isSymbolicLink() || marker.nlink !== 1) throw new Error();
+      const generation = `${root.dev}:${root.ino}`, known = rootGenerations.get(profile.id);
+      if (known && known !== generation) throw new Error();
+      rootGenerations.set(profile.id, generation);
+    } catch { await stopLocal(); failure('offline', 'The selected local memory folder is unavailable or changed. Select the intended brain in Settings.', 503); }
+    if (local && localProfile === profile.id && !local.retired && local.current) {
+      try { if (!await local.current()) await stopLocal(); }
+      catch (error) { await stopLocal(); throw new ControlError(error.code || 'offline', 'The local backend ownership could not be verified. Inspect the backend and retry.', 503); }
+    }
+    if (!local || local.retired || localProfile !== profile.id) {
       await stopLocal();
       localKey = randomBytes(32).toString('hex');
-      local = await localStart({ root: profile.root, apiKeys: [localKey], host: '127.0.0.1', port: 0 });
+      let candidate;
+      try { candidate = await localStart({ root: profile.root, apiKeys: [localKey], host: '127.0.0.1', port: 0, signal }); }
+      catch (error) { if (signal?.aborted) failure('target_timeout', 'Brain request timed out.', 504); throw new ControlError(error.code || 'offline', error.name === 'BackendHostError' ? error.message : 'The local backend is unavailable. Retry when it is ready.', 503); }
+      if (stopping || signal?.aborted) { await candidate.close(); failure('target_timeout', 'Brain connection was cancelled. Retry deliberately.', 504); }
+      const currentRoot = await lstat(profile.root).catch(() => null);
+      if (!currentRoot || `${currentRoot.dev}:${currentRoot.ino}` !== rootGenerations.get(profile.id)) { await candidate.close(); failure('offline', 'The selected local memory folder changed during connection.', 503); }
+      local = candidate;
       if (local.token) localKey = local.token;
+      local.key = localKey;
       localProfile = profile.id;
     }
-    return { url: local.url, key: localKey };
+    return local;
+  };
+  const destinationCurrent = dest => !dest.retired;
+  const invalidateDestination = dest => {
+    if (dest && dest === local && !dest.retired) { dest.retired = true; healthAt = 0; live?.retireDestination(dest); }
   };
   // All requests to a local target are serialized through one startup promise too.
   let targetTail = Promise.resolve();
   const resolveDestination = (profile, signal) => {
     const result = targetTail.then(() => {
       if (signal?.aborted) failure('target_timeout', 'Brain request timed out.', 504);
-      return destination(profile);
+      return destination(profile, signal);
     });
     targetTail = result.catch(() => {});
     return result;
@@ -216,8 +244,9 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     options.signal?.addEventListener('abort', abort, { once: true });
     if (options.signal?.aborted) abort();
     const timer = setTimeout(abort, deadline);
+    let dest;
     try {
-      const dest = await resolveDestination(profile, controller.signal);
+      dest = await resolveDestination(profile, controller.signal);
       if (options.signal?.aborted) failure('extension_cancelled', 'Extension operation was cancelled.', 409);
       if (controller.signal.aborted) failure('target_timeout', 'Brain request timed out.', 504);
       const transport = fetchImpl === fetch && route.split('?')[0].endsWith('/index') ? fetchIndexTarget : fetchImpl;
@@ -228,11 +257,14 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       catch (error) { controller.abort(); throw error; }
       if (options.signal?.aborted) failure('extension_cancelled', 'Extension operation was cancelled.', 409);
       if (controller.signal.aborted) failure('target_timeout', 'Brain request timed out.', 504);
+      if (!destinationCurrent(dest)) failure('backend_replaced', 'The backend changed during this request. Retry after reviewing any unconfirmed write.', 409);
       // Do not send upstream cookies, authentication challenges, or redirects to the shell.
       diagnostics.record({ operation: diagnosticOperation(route, options.method), request: diagnosticRequest, status: response.status, durationMs: performance.now() - started,
         severity: response.ok ? 'info' : 'warn', outcome: response.ok ? 'ok' : 'failed', code: statusCode(response.status) });
       return { status: response.status, body, contentType: response.headers.get('content-type') || 'application/json' };
     } catch (error) {
+      // Never replay a request with an ambiguous outcome, including mutations.
+      if (!(error instanceof ControlError) && !controller.signal.aborted) invalidateDestination(dest);
       diagnostics.record({ operation: diagnosticOperation(route, options.method), request: diagnosticRequest, durationMs: performance.now() - started,
         severity: 'warn', outcome: 'failed', code: error instanceof ControlError ? diagnosticCode(error.code) : controller.signal.aborted ? 'target_timeout' : 'offline' });
       if (options.signal?.aborted) failure('extension_cancelled', 'Extension operation was cancelled.', 409);
@@ -515,7 +547,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     const operation = handler(request, response).catch(() => { response.destroy(); });
     requests.add(operation); void operation.finally(() => requests.delete(operation));
   });
-  const live = attachCompanionLive({server, authenticate, coordinator, active, destination: resolveDestination, origin: () => origin});
+  live = attachCompanionLive({server, authenticate, coordinator, active, destination: resolveDestination, destinationCurrent, invalidateDestination, origin: () => origin});
   server.requestTimeout = 30000; server.headersTimeout = 15000;
   try {
     await new Promise((resolve, reject) => {

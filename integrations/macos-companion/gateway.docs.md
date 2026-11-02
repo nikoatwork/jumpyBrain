@@ -12,7 +12,7 @@ Swift maintains a separate 0600 `<support>/native-diagnostics.json`: at most 64 
 
 `gateway.mjs` is an opt-in host adapter launched only by the native companion, not by CLI parsing, the public runtime, or ordinary hosted `serve`. It composes the existing nonce-protected browser shell and local HTTP engine; memory semantics remain in app/core. Mutable metadata belongs to [`connections.mjs`](connections.docs.md); `switch-coordinator.mjs` owns one authoritative save barrier.
 
-The stable loopback origin serves `/`, `/graph`, and `/settings` even when the selected brain is offline. A local target uses the same server engine on an ephemeral loopback port with a separate random key; no other process/port is adopted or killed. Local target startup does not initialize/migrate memory. Its owned engine enables incremental background indexing after startup, quiet writes and periodic reconciliation; canonical saves still complete independently, and explicit Refresh Search Index remains recovery. A remote target uses its saved origin and Keychain credential, injected only on server-side forwarding. Browser requests use a fixed allowlist of existing memory routes/methods, finite request/response sizes, finite transport deadlines, and manual redirects (never followed). No remote cookie or authentication challenge is forwarded to the browser.
+The stable loopback origin serves `/`, `/graph`, and `/settings` even when the selected brain is offline. A local target joins the authenticated root-owned backend through its private descriptor; a port alone never establishes ownership. Local target startup does not initialize/migrate memory. Its owned engine enables incremental background indexing after startup, quiet writes and periodic reconciliation; canonical saves still complete independently, and explicit Refresh Search Index remains recovery. A remote target uses its saved origin and Keychain credential, injected only on server-side forwarding. Browser requests use a fixed allowlist of existing memory routes/methods, finite request/response sizes, finite transport deadlines, and manual redirects (never followed). No remote cookie or authentication challenge is forwarded to the browser.
 
 Index forwarding uses Node HTTP/HTTPS streams so the existing 610-second index deadline is not preempted by Node fetch's implicit five-minute response-header timeout. The same controller covers connection, headers and response-body consumption; cancellation still drains the admitted request before switch/shutdown. Redirects are never followed. Identity encoding is requested, with gzip/deflate/Brotli decoding when supplied; the existing 16 MiB response cap applies to decoded bytes, and the stream bridge has 64 KiB backpressure. Ordinary routes retain fetch and the 70-second app deadline. Injected test transports keep their existing seam.
 
@@ -124,3 +124,32 @@ private no-follow 256 KiB log, truncated when full. Existing legacy `.previous`
 files are preserved for explicit inspection. Owned TERM/clean exits are `normal`;
 unexpected exits and failed/forced shutdown remain `child_terminated`. Bridge EOF
 during an already requested stop does not add a spurious bridge failure.
+
+## Backend restart recovery
+
+Local destination resolution rechecks the private descriptor/lease and process,
+plus the selected directory's device/inode generation. A changed or disconnected
+owner retires its cached target. The next deliberate request or live reconnect
+uses bounded authenticated `ensureRootBackend` discovery/activation; normal
+requests only read registry state. Startup honors the enclosing request signal.
+Unknown registry state, mismatched builds, unavailable owners and replaced roots
+fail explicitly. No request is automatically replayed, including a failed write.
+
+Retirement closes that target's browser WebSockets with reconnectable status and
+fences late HTTP/live responses. Browser brain/profile generation stays stable
+for a same-root backend replacement. The existing document epoch and private
+draft rules perform source resynchronization; unpublished or unconfirmed work
+requires review and never becomes an automatic overwrite. Uncertain dispatched
+live writes keep their existing switch/save admission until acknowledgement.
+Remote destination credentials, profile switching and its save barrier retain
+separate ownership.
+
+`test/companion-backend-restart.test.js` exercises real CLI stop/recall replacement,
+HTTP recovery and negative ownership/response/replay cases. After building a fresh
+Mac bundle, `node scripts/backend-restart-smoke.mjs --resources <Contents/Resources>`
+uses matching packaged application/native host/runtime/CLI resources in a
+disposable brain, verifying Retry, notes/boards/search, fresh native editing and
+private drafts over unchanged/changed canonical text. Its session interceptor
+holds new WebSocket handshakes only while seeding an unsent positional draft
+through the production editor API. It does not install an app or verify real
+sleep, Intel, LaunchAgent or published-updater behavior.
