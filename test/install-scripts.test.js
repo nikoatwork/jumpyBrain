@@ -9,6 +9,7 @@ import test from "node:test";
 import { checkQmdInstallation, QMD_PACKAGE } from "../scripts/qmd-install-check.mjs";
 import { installFakeQmd } from "./fake-qmd-helper.js";
 import { resolveQmdBinary } from "../dist/adapters/qmd/qmd-cli.js";
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testDir, "..");
@@ -90,6 +91,8 @@ test("public installer installs global memory and detected integrations without 
     assert.equal(manifest.cliConfigPath, path.join(installRoot, "cli-config.json"));
     assert.equal(existsSync(manifest.cliConfigPath), false);
   } finally {
+    const brain = path.join(installRoot, "memory");
+    if (existsSync(path.join(brain, ".jumpybrain/backend/owner.json"))) await stopRootBackend(brain);
     await rm(temp, { recursive: true, force: true });
   }
 });
@@ -235,6 +238,8 @@ test("public installer supports project scope without touching global skill loca
     assert.equal(existsSync(path.join(project, ".pi", "extensions", "jumpybrain-memory.ts")), true);
     assert.equal(existsSync(path.join(home, ".agents", "skills", "jumpybrain-memory", "SKILL.md")), false);
   } finally {
+    const brain = path.join(project, "memory");
+    if (existsSync(path.join(brain, ".jumpybrain/backend/owner.json"))) await stopRootBackend(brain);
     await rm(temp, { recursive: true, force: true });
   }
 });
