@@ -2,6 +2,8 @@
 // Use existing dist (do not build here):
 // npx --package=playwright node scripts/companion-gateway-smoke.mjs
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { randomBytes, randomUUID } from "node:crypto";
 import { mkdtemp, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -47,6 +49,11 @@ function native(route, body) {
     headers: { Authorization: "Bearer " + controlKey, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(15000),
   });
+}
+async function connections(...args) {
+  const { stdout } = await promisify(execFile)(process.execPath, [path.join(runtimeRoot, "dist/cli.js"), "connections", ...args,
+    "--directory", path.join(temporary, "support"), "--json"], { env: { ...process.env, HOME: temporary }, timeout: 15000 });
+  return JSON.parse(stdout);
 }
 async function browserRequest(page, route, body, headers = {}) {
   return page.evaluate(async ({ route, body, headers }) => {
@@ -169,7 +176,8 @@ try {
     for (const [index, id] of ids.entries()) await writeFile(path.join(roots[name], "notes", "fixture-" + index + ".md"), `---\nid: ${id}\ntype: note\ntitle: Smoke ${name} ${index}\n---\nBody ${name} ${index}\n`);
   }
   remote = await startJumpyBrainHttpServer({ root: roots.remote, apiKeys: [remoteKey, repairedKey], host: "127.0.0.1", port: 0, autoIndex: false });
-  gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots.a, port: 0, controlKey, credentials, switchTimeoutMs: 10000, targetTimeoutMs: 5000 });
+  gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots.a, port: 0, controlKey, credentials, switchTimeoutMs: 10000, targetTimeoutMs: 5000, identityFile: path.join(temporary, "identity.json") });
+  await writeFile(path.join(directory, "api-key"), controlKey, { mode: 0o600 });
   assert.ok(Number.isSafeInteger(gateway.state().generation) && gateway.state().generation > 0);
   const chromium = await loadPlaywrightChromium();
   browser = await launchPlaywrightChromium({ chromium });
@@ -257,6 +265,8 @@ try {
     const response = await native("/companion/switch", { id: a });
     assert.equal(response.status, 409, await response.text());
     await ready(second);
+    await assert.rejects(connections("select", "--id", a, "--revision", String(gateway.state().revision)), error => /save\/switch is blocked/.test(error.stderr));
+    await ready(second);
     assert.equal(gateway.state().activeId, b.id);
     assert.match(await editorMarkdown(second), /Retained B conflicting draft/);
     assert.equal((await liveControl(second)).edits, writes, "barrier retried conflicted write");
@@ -264,6 +274,19 @@ try {
     assert.match(content, /Confirmed B first writer/); assert.doesNotMatch(content, /Retained B conflicting draft/);
   });
   await closePage(second); second = null;
+  await check("CLI connection selection saves a real pending editor draft before activation", async () => {
+    await delayWrites(editor);
+    await appendEditorText(editor, "CLI B barrier draft");
+    const listed = await connections("list");
+    const operation = connections("select", "--id", a, "--revision", String(listed.revision));
+    await editor.waitForFunction(() => document.querySelector("main").inert);
+    assert.equal(gateway.state().activeId, b.id);
+    assert.equal((await operation).activeId, a);
+    await reloaded(a);
+    assert.match(await readFile(path.join(roots.b, "notes", "fixture-0.md"), "utf8"), /CLI B barrier draft/);
+    await switchUI(b.name, b.id);
+    await openEditor(editor, ids[0], b.id);
+  });
   await check("native bearer switch flushes old draft through same barrier", async () => {
     await delayWrites(editor);
     await appendEditorText(editor, "Native B barrier draft");
@@ -376,7 +399,7 @@ try {
     await editor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Changes need review");
     const port = new URL(gateway.url).port;
     await gateway.close();
-    gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots.a, port: Number(port), controlKey, credentials, switchTimeoutMs: 10000, targetTimeoutMs: 5000 });
+    gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: roots.a, port: Number(port), controlKey, credentials, switchTimeoutMs: 10000, targetTimeoutMs: 5000, identityFile: path.join(temporary, "identity.json") });
     assert.equal(gateway.state().activeId, b.id, "restart must preserve selected profile");
     await settings.goto(gateway.url + "/settings#companion=" + controlKey); await ready(settings);
     await editor.evaluate(() => startCompanion());

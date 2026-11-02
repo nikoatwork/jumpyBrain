@@ -20,6 +20,8 @@ The native bootstrap's private `api-key` is now a **control** capability, not a 
 
 Native Keychain/folder capabilities travel through bounded anonymous stdin/stdout pipes: `{id,operation,reference?,key?}` requests and `{id,result}` / `{id,error}` replies. Only the native app owns Security APIs. Node stdout is exclusively this protocol; diagnostics use static stderr. Missing/denied/locked credentials have no plaintext fallback. Unknown/malformed frames fail closed.
 
+`/companion/connections` is native-only: safe GET snapshot; revision-checked POST local add/remove/select through the singleton store/save barrier, including first activation. Active removal and offline CLI edits are refused; selection never retargets the CLI.
+
 ## Switch protocol
 
 - Every browser page registers a fresh tab ID and integer process-session generation before fetching memory. Memory requests, including Settings index refresh, carry `X-Companion-Generation` and `X-Companion-Tab`. The native menu leaves brain switching and indexing to browser Settings; native bearer authentication remains for companion control/state.

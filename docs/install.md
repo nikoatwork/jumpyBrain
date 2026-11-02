@@ -4,6 +4,8 @@
 
 **The app and CLI work with the same brain folder.** The app gives you a window to write and browse; the CLI lets your agents use those files. You can use either or both. There is no note migration or second copy of your brain when both point at the same folder.
 
+For an additional existing brain, use [`connections`](cli-commands.md#app-connections) while the Mac app runs. App selection never retargets CLI memory commands.
+
 Choose your starting point:
 
 - **Agents:** run the installer below. It installs the CLI, local text search, and detected agent integrations.

@@ -16,14 +16,17 @@ Most memory commands work against either a local Markdown memory root or a hoste
 
 | Flag / environment | Meaning |
 | --- | --- |
-| `--root <memory-root>` | Use a local Markdown memory directory. Top-level memory commands usually require this flag for local mode. |
+| `--root <memory-root>` | Select a local Markdown memory directory. |
 | `--target-url <url>` | Use a remote jumpyBrain server instead of local files. |
 | `--remote-url <url>` | Alias for `--target-url <url>`. |
+| `JUMPYBRAIN_MEMORY_ROOT` | Configured local CLI default, below explicit selectors. |
 | `JUMPYBRAIN_API_KEY` | API key required when using `--target-url` or `--remote-url`. |
 | `JUMPYBRAIN_CLI_CONFIG` | Optional path to device-local CLI policy; defaults to `~/.jumpybrain/cli-config.json`. |
 | `--json` | Print machine-readable JSON when the command supports it. |
 
-The `jumpybrain run memory:*` recipe commands are mostly the same as the top-level memory commands, but they may discover a local memory root from the current working directory. They are useful for agent integrations and `npx jumpybrain` workflows.
+Use one explicit root/URL selector; combinations fail. Otherwise use nonempty `JUMPYBRAIN_MEMORY_ROOT`, then `memoryRoot` in the owning managed `app/../install-manifest.json`. Malformed defaults fail unless explicitly overridden. Cwd manifests and app-active profiles never select CLI defaults; remote-only manifests supply no root.
+
+With no configured destination, direct memory commands require `--root`; doctor alone inspects `~/.jumpybrain/memory`. `run memory:*` retains legacy ancestor/child-`memory` marker discovery as its last fallback. Discovery grants no approval; trusted project selection remains future work. `status --json` adds `target: {kind, source, root|url}`; doctor adds `memoryRoot.source`: `flag`, `environment`, `install-manifest`, `recipe-discovery` or `personal-fallback`. `init` still requires an explicit root; server/install commands retain their own configuration.
 
 ### Protected remote targets
 
@@ -119,11 +122,24 @@ jumpybrain index --target-url <url> --rebuild          # uses server-local polic
 
 Status/doctor report freshness, available modes, embedding coverage, and safe failures without inference/download. Search/recall warn about partial fallback or stale/incomplete state; total backend failure is an error, not “no memories.” Index JSON adds work counts (`embedded` counts chunks). `/health` is only liveness. For interrupted publication, busy locks, physically corrupt SQLite, and safe derived-state deletion, see [recovery limits](technical.md#readiness-and-recovery); `--rebuild` does not repair corrupt SQLite.
 
-Doctor is observational: it never initializes a root, indexes, downloads models, or writes a sample note. Default doctor retains exit 0 for an unhealthy report; inspect JSON `ok`, or use `doctor --check --json` to get exit 1 with the same parseable report when required CLI/Node/QMD-version/root-compatibility checks fail. A stale/missing index or absent optional integration does not by itself fail `--check`. The bounded QMD version probe does not verify SDK completeness, model inference, SQLite integrity, or host activation; successful recall remains a separate functional check. Doctor accepts only `--root`, `--json` and `--check`; the latter two are valueless booleans. Unknown/repeated flags, valued booleans and missing root values fail before probes or filesystem inspection.
+Doctor strictly validates `--root`, `--json`, and valueless `--check` before probes. It never initializes/indexes/downloads/writes notes. Unhealthy reports exit 0; `--check` exits 1 for CLI/Node/QMD-version/root-compatibility failures, excluding index freshness and optional integrations. Bounded QMD probes prove neither SDK completeness, inference, SQLite integrity nor host activation; verify retrieval separately.
 
-Doctor's `integrations`/`integrationsScope: "global"` report only home-directory file presence. Explicit `--root` additionally reports `projectRoot`/`projectIntegrations`: inspect the root directory itself, or its parent when the root's basename is `memory`. Project paths are `.agents/skills/jumpybrain-memory/SKILL.md`, `.claude/skills/jumpybrain-memory/SKILL.md`, and `.pi/extensions/jumpybrain-memory.ts`; global Pi uses `.pi/agent/extensions/`. No ancestor search, cwd inference, target-policy selection, or proof of agent discovery/activation is implied. Without explicit `--root`, project scope remains uninspected.
+`integrationsScope: "global"` reports home file presence. Explicit roots add `projectRoot`/`projectIntegrations` (root, or parent of `memory`). Codex/Claude paths: `.agents/skills/jumpybrain-memory/SKILL.md`, `.claude/skills/jumpybrain-memory/SKILL.md`; Pi: `.pi/extensions/jumpybrain-memory.ts` (project), `.pi/agent/extensions/` (global). No cwd/ancestor lookup or activation proof.
 
-A missing explicit local root produces a shell-quoted `jumpybrain init --root '<same-path>'` hint and remains absent until you initialize it explicitly. Config parse/access errors stay distinct and do not select another root. If `JUMPYBRAIN_QMD_BIN` selects a bad engine, correct that override or `unset JUMPYBRAIN_QMD_BIN` and retry before reinstalling QMD; an override continues to take priority after a reinstall.
+A missing selected root gets a shell-quoted same-root init hint; config/access failures never redirect. Correct or unset a bad `JUMPYBRAIN_QMD_BIN` before reinstalling; explicit overrides remain authoritative.
+
+## App connections
+
+Requires the running Mac companion; otherwise fails without file edits. `--directory` overrides `~/Library/Application Support/jumpyBrain Companion`. `--json` returns profiles, `activeId`, and `revision` without credentials.
+
+```sh
+jumpybrain connections list --json
+jumpybrain connections add --name "Work" --root /existing/brain --revision 0
+jumpybrain connections select --id <local-profile-id> --revision 1
+jumpybrain connections remove --id <inactive-local-profile-id> --revision 2
+```
+
+Use listed revisions; refresh and retry deliberately after conflicts. Selection requires saved drafts; active removal is refused. Add canonicalizes an existing root without initialization/indexing; removal preserves notes. First registration becomes app-active through the barrier. Selection affects only the app; CLI operations use their own selectors. Remote profiles stay in Settings: named lookup would require a new CLI/Keychain credential contract.
 
 ## Obsidian import (local only)
 

@@ -67,7 +67,7 @@ test("doctor validates every flag before executing dependency probes or creating
     const result = f.run(["doctor", ...flags], { env: { JUMPYBRAIN_QMD_BIN: probe, PROBE_SENTINEL: sentinel } });
     assert.equal(result.status, 1, flags.join(" "));
     assert.equal(result.stdout, "");
-    assert.match(result.stderr, /Unknown doctor flag|takes? no value|must not be repeated|requires a non-empty value/u);
+    assert.match(result.stderr, /Unknown doctor flag|Unexpected doctor argument|takes? no value|must not be repeated|requires a value/u);
   }
   assert.deepEqual(await snapshot(f.temp), before);
 });

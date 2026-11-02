@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — CLI app connection control
+
+- Agents can register and select local app connections through guarded companion control; status and doctor expose independently resolved targets. [Verification](done/2026-11-02_tasks-brain-connections-and-targeting.md).
+
 ## 2026-11-02 — Hosted container packaging
 
 - Repaired clean-context Docker builds and locked runtime/search dependencies, with non-root hosting and a real disposable retrieval/rotation/restore gate. [Verification and remaining Linux service gate](todo/tasks-hosted-build-and-operations.md).
