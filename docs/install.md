@@ -299,3 +299,8 @@ backup and print its path. No Python installation is required by this fallback,
 and earlier unknown backups are never swept. Foreign/frozen package runtimes can
 run without pins; automatic cleanup refuses them. Inspect retained legacy paths
 explicitly after all dependent backends have stopped.
+
+Mac app backends keep runtime-retention pins outside the signed bundle in private
+`~/.jumpybrain-runtime-pins/` directories keyed by runtime generation. Startup and
+cleanup previews preserve signed resources; moving an app retains live protection.
+Older bundles without this protocol remain retained for explicit inspection.

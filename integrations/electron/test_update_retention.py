@@ -48,7 +48,7 @@ class Retention(unittest.TestCase):
 
     def test_live_pins_unknown_legacy_and_interrupted_journal_are_never_removed(self):
         live, runtime = self.stage(0)
-        pins = runtime / '.backend-pins'; pins.mkdir()
+        pins = runtime / '.backend-pins'; pins.mkdir(mode=0o700)
         (pins / 'live.json').write_text(json.dumps(dict(pid=os.getpid())))
         legacy, _ = self.stage(1, pins=False)
         interrupted, _ = self.stage(2, journal='publishing')
@@ -59,6 +59,35 @@ class Retention(unittest.TestCase):
         self.assertFalse(failed.exists()); self.assertFalse((runtime / '.retiring').exists())
         (pins / 'live.json').write_text(json.dumps(dict(pid=99999999)))
         r.retain(self.updates, True); self.assertFalse(live.exists())
+
+    def test_bundle_cleanup_uses_external_generation_state_and_retains_legacy_bundles(self):
+        directory, cli = self.stage(0)
+        bundle = directory / 'built/jumpyBrain.app/Contents/Resources/runtime'
+        backend = bundle / 'dist/adapters/backend-host'; backend.mkdir(parents=True)
+        protocol = backend / 'runtime-pins.js'; protocol.write_text('export const BUNDLE_PIN_PROTOCOL=1;')
+        self.stage(1); self.stage(2)
+        owner = bundle.stat()
+        base = Path(self.temp.name) / '.jumpybrain-runtime-pins'
+        state = base / f'{owner.st_dev}-{owner.st_ino}'
+        pins = state / '.backend-pins'; pins.mkdir(parents=True, mode=0o700)
+        base.chmod(0o700); state.chmod(0o700)
+        live = pins / 'live.json'; live.write_text(json.dumps(dict(pid=os.getpid())))
+        with patch.object(Path, 'home', return_value=Path(self.temp.name)):
+            self.assertEqual(r.retain(self.updates, True), [])
+            self.assertFalse((state / '.retiring').exists())
+            self.assertFalse((cli / '.retiring').exists(), 'earlier runtime fences unwind when the bundle is live')
+            live.write_text(json.dumps(dict(pid=99999999)))
+            protocol.write_text('legacy fixture')
+            self.assertEqual(r.retain(self.updates, True), [])
+            protocol.write_text('export const BUNDLE_PIN_PROTOCOL = 1;')
+            live.write_text('invalid')
+            self.assertEqual(r.retain(self.updates, True), [])
+            live.write_text(json.dumps(dict(pid=99999999)))
+            pins.chmod(0o755)
+            self.assertEqual(r.retain(self.updates, True), [])
+            pins.chmod(0o700)
+            self.assertEqual(len(r.retain(self.updates, True)), 1)
+        self.assertFalse(directory.exists()); self.assertFalse((state / '.retiring').exists())
 
     def test_symlinks_foreign_entries_and_concurrent_cleanup_fail_closed(self):
         directory, runtime = self.stage(0)

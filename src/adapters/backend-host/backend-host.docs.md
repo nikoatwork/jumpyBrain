@@ -10,9 +10,18 @@ Descriptors contain a local administrative capability and require private file p
 
 No note writes, authentication role policy, GUI or CLI parsing. The registry does not secure against malicious code running as the filesystem owner. Unknown/corrupt state fails closed. A process killed inside dead-generation cleanup before unlink can leave a recovery guard requiring explicit inspection; no competitor is started through that uncertainty.
 
-`runtime-pins.ts` is retention protocol 1: publish a private per-instance PID/root
-pin before readiness, with retirement checks on both sides. Pins travel with a
-swapped runtime and are conservatively live until PID exit (including PID reuse).
+`runtime-pins.ts` publishes a private per-instance PID/root pin before readiness,
+with retirement checks on both sides. Ordinary runtimes use retention protocol 1
+inside the runtime; their pins travel with a directory exchange. The exact
+`*.app/Contents/Resources/runtime` layout instead uses
+`~/.jumpybrain-runtime-pins/<device>-<inode>/{.backend-pins,.retiring}` so startup
+and retirement previews preserve signed resources. State directories must be
+private, owned and not symbolic links. The `BUNDLE_PIN_PROTOCOL = 1` capability in the compiled module
+lets the Python updater recognize this layout; older/unknown bundles remain
+retained, as do live legacy in-bundle pins. No registry-wide scan is needed.
+Bundle moves preserve the generation and its external pins. Small generation
+records remain outside staging cleanup; unknown state requires explicit inspection.
+Pins are conservatively live until PID exit (including PID reuse).
 Startup captures the runtime directory's device/inode generation with its
 executable identity, rejects a changed generation before pinning/serving, and
 rechecks both generation and published pin identity before readiness. Detached
