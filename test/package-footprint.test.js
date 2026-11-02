@@ -32,7 +32,7 @@ test('npm exclusions reject newly added artwork, native tests and private build 
     await cp(new URL(file, root), path.join(dir, file));
   }
   await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'footprint-fixture', version: '1.0.0', files: ['docs', 'integrations'] }));
-  const excluded = ['docs/assets/future-screenshot.png',
+  const excluded = ['docs/assets/future-screenshot.png', 'docs/design-system.md',
     'integrations/macos-companion/test_future.py', 'integrations/macos-companion/smoke_future.py',
     'integrations/macos-companion/.build/private.json', 'integrations/macos-companion/__pycache__/private.pyc',
     'integrations/macos-companion/Configuration.json', 'integrations/macos-companion/.env'];
