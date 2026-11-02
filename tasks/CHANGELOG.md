@@ -9,7 +9,7 @@
 
 ## 2026-11-02 — Runtime ownership and retention
 
-- Added pin-aware forward update retention, unchanged-file integration refresh and explicit backend inventory; corrected expected shutdown classification. [Verification and remaining launch evidence](todo/tasks-desktop-runtime-hygiene.md).
+- Added pin-aware forward update retention, unchanged-file integration refresh and explicit backend inventory; corrected expected shutdown classification. [Remaining launch evidence](todo/tasks-desktop-runtime-hygiene.md), [integration and lifetime review](done/2026-11-02_tasks-feedback-parallel-integration.md).
 
 ## 2026-11-02 — Hosted container packaging
 

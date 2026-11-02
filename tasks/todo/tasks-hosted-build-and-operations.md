@@ -54,6 +54,8 @@ Tested source base: `a2a90cfe8c314e7d3ed8be45d9c5d45a8a2b0a25` plus this lane's 
 
 ## Open gates and limits
 
+- Parent's [final combined integration](../done/2026-11-02_tasks-feedback-parallel-integration.md) passed all 1,828 tests with real QMD and the Linux ARM64 container gate after other CLI/runtime changes. Hosted fixture waits boundedly for fresh publication when maintenance overlaps explicit indexing; it retains strict freshness, exact canonical/access hashes and retrieval/restore assertions. The real systemd-manager gate below remains open.
+
 - **Required, 2.3:** this environment's containers did not run systemd as PID 1. Unit syntax and direct service commands passed, but actual systemd sandbox/boot/restart/cgroup enforcement remains unverified. Complete it in a disposable Linux VM/systemd test environment before archiving. Do not modify the user's host services to satisfy it.
 - Generic nginx HTTPS/WSS passed locally; real Coolify, public DNS/TLS/firewall, remote secret distribution and off-host backup storage/encryption were not tested or deployed. Operators must verify their own environment.
 - Linux ARM64 lexical retrieval passed. Linux AMD64, semantic GGUF/GPU runtime behavior and model sizing were not tested; no semantic or multi-platform support claim is added.

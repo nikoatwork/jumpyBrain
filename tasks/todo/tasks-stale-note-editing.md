@@ -61,5 +61,7 @@ This task remains active because diagnosis and any warranted repair are incomple
 
 ## Blockers
 
+- Parent reran the full 20-case stale-note matrix and real gateway flows on the [integrated source](../done/2026-11-02_tasks-feedback-parallel-integration.md), with all 1,828 deterministic/real-QMD tests passing. Those current-source results do not supply the missing reporter sequence or packaged-Mac evidence described below.
+
 - The report omits exact note shape, selection/input, elapsed idle and connection/suspension sequence. Its diagnostic attachment lacks the mapping event. Current-source reproduction has not failed; a new causal runtime repair would be speculative.
 - No matching current packaged-Mac artifact was supplied or built in this lane. Installed build evidence predates the source fix; matching packaged validation remains required before declaring the user report resolved.
