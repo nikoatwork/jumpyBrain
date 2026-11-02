@@ -1,4 +1,6 @@
 import path from "node:path";
+import { lstatSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 export interface CliArgs {
   [key: string]: string | boolean | string[] | undefined;
@@ -7,32 +9,57 @@ export interface CliArgs {
 export interface LocalMemoryTarget {
   kind: "local";
   root?: string;
+  source?: string;
 }
 
 export interface RemoteMemoryTarget {
   kind: "remote";
   url: string;
+  source?: string;
 }
 
 export type CliMemoryTarget = LocalMemoryTarget | RemoteMemoryTarget;
 
 export interface ResolveCliTargetOptions {
   allowDiscovery?: boolean;
+  fallbackRoot?: string;
 }
 
-const REMOTE_URL_FLAGS = ["target-url", "remote-url"] as const;
-
 export function resolveCliTarget(args: CliArgs, options: ResolveCliTargetOptions = {}): CliMemoryTarget {
-  for (const flag of REMOTE_URL_FLAGS) {
-    const url = stringFlag(args, flag);
-    if (url !== undefined) return { kind: "remote", url };
+  const selectors = ["root", "target-url", "remote-url"].filter(flag => args[flag] !== undefined);
+  if (selectors.length > 1) throw new Error("Use only one target selector: --root, --target-url or --remote-url.");
+  if (selectors.length) {
+    const flag = selectors[0]!;
+    const value = stringFlag(args, flag)!;
+    return flag === "root" ? { kind: "local", root: value, source: "flag" } : { kind: "remote", url: value, source: "flag" };
   }
+  if (process.env.JUMPYBRAIN_MEMORY_ROOT !== undefined) {
+    const root = process.env.JUMPYBRAIN_MEMORY_ROOT.trim();
+    if (!root) throw new Error("JUMPYBRAIN_MEMORY_ROOT must be a non-empty path when set.");
+    return { kind: "local", root, source: "environment" };
+  }
+  const root = installedRoot();
+  if (root) return { kind: "local", root, source: "install-manifest" };
+  if (options.allowDiscovery) return { kind: "local", source: "recipe-discovery" };
+  if (options.fallbackRoot) return { kind: "local", root: options.fallbackRoot, source: "personal-fallback" };
+  throw new Error("--root is required. Set JUMPYBRAIN_MEMORY_ROOT for a configured CLI default.");
+}
 
-  const root = stringFlag(args, "root");
-  if (root !== undefined) return { kind: "local", root };
-  if (options.allowDiscovery) return { kind: "local" };
-
-  throw new Error("--root is required.");
+// Only the owning managed app's adjacent manifest is configuration. Never read cwd files.
+function installedRoot(): string | undefined {
+  const app = fileURLToPath(new URL("../../", import.meta.url));
+  if (path.basename(path.resolve(app)) !== "app") return;
+  const filename = path.resolve(app, "../install-manifest.json");
+  try {
+    const info = lstatSync(filename);
+    if (!info.isFile() || info.nlink !== 1 || info.size > 131072) throw new Error();
+    const manifest = JSON.parse(readFileSync(filename, "utf8"));
+    if (manifest.installer !== "jumpybrain-installer" || (manifest.remoteOnly !== undefined && typeof manifest.remoteOnly !== "boolean") || (!manifest.remoteOnly && (typeof manifest.memoryRoot !== "string" || !path.isAbsolute(manifest.memoryRoot)))) throw new Error();
+    return manifest.remoteOnly ? undefined : manifest.memoryRoot;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw new Error("Invalid owning install-manifest.json; repair the managed installation or pass --root explicitly.");
+  }
 }
 
 export function requireLocalRoot(args: CliArgs, options?: { allowDiscovery?: false }): string;
@@ -45,16 +72,10 @@ export function requireLocalRoot(args: CliArgs, options: ResolveCliTargetOptions
   return target.root;
 }
 
-function stringFlag(args: CliArgs, key: string): string | undefined {
+function stringFlag(args: CliArgs, key: string): string {
   const value = args[key];
-  if (value === undefined) return undefined;
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (!trimmed) throw new Error(`--${key} must not be empty.`);
-    return trimmed;
-  }
-  if (Array.isArray(value) && typeof value[0] === "string") {
-    const trimmed = value[0].trim();
     if (!trimmed) throw new Error(`--${key} must not be empty.`);
     return trimmed;
   }

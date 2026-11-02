@@ -274,14 +274,22 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     mutation = true;
     try { return await operation(); } finally { mutation = false; }
   };
-  const switchTo = (id) => change(async () => {
+  const connectionState = () => {
+    const { version, revision, activeId, profiles } = store.snapshot();
+    return { version, revision, activeId, profiles: profiles.map(safeProfile) };
+  };
+  const checkRevision = (revision) => {
+    if (!Number.isSafeInteger(revision) || revision < 0 || revision !== store.snapshot().revision) failure('REVISION_CONFLICT', 'Connections changed. List connections and retry deliberately.', 409);
+  };
+  const switchTo = (id, revision) => change(async () => {
+    if (revision !== undefined) checkRevision(revision);
     if (!store.get(id)) failure('not_found', 'Connection not found.', 404);
     if (id === store.snapshot().activeId) return state();
     await coordinator.switch(id, async () => {
       // Finish observational startup/probes as well as registered memory request scopes.
       await healthPending;
       await targetTail;
-      await store.setActive(id); // Commit selected identity before attempting its availability.
+      await store.setActive(id, revision); // Commit selected identity before attempting its availability.
       health = 'offline'; healthAt = 0;
       try { await stopLocal(); } catch { /* Selection remains committed and safely offline. */ }
     });
@@ -349,6 +357,25 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       }
       if (url.pathname.startsWith('/companion/')) {
         displayIdentity = await readIdentity(identityFile).catch(() => ({ name: "", unavailable: true }));
+        if (url.pathname === '/companion/connections') {
+          if (!auth.native) failure('unauthorized', 'Native connection control required.', 403);
+          if (request.method === 'GET') { json(response, 200, connectionState()); return; }
+          if (request.method !== 'POST') failure('method_not_allowed', 'Use GET or POST.', 405);
+          const body = await jsonBody(request);
+          checkRevision(body.revision);
+          if (body.action === 'select' && exact(body, ['action','id','revision'])) {
+            if (store.get(body.id)?.kind !== 'local') failure('invalid_request', 'Select a local app profile.');
+            await switchTo(body.id, body.revision);
+          } else await change(async () => {
+            checkRevision(body.revision);
+            if (body.action === 'add' && exact(body, ['action','profile','revision']) && exact(body.profile, ['name','kind','root']) && body.profile.kind === 'local') {
+              if (store.snapshot().activeId === null) { await coordinator.switch(null, () => store.save(body.profile, body.revision)); void extensions.scopeChanged(); }
+              else await store.save(body.profile, body.revision);
+            } else if (body.action === 'remove' && exact(body, ['action','id','revision']) && store.get(body.id)?.kind === 'local') await store.remove(body.id, body.revision);
+            else failure('invalid_request', 'Use local add, remove or select with a current revision.');
+          });
+          json(response, 200, connectionState()); return;
+        }
         if (url.pathname === '/companion/state' && request.method === 'GET') { await refreshHealth(); json(response, 200, state()); return; }
         if (request.method !== 'POST') failure('method_not_allowed', 'Use POST for companion actions.', 405);
         const body = await jsonBody(request);

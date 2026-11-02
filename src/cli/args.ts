@@ -11,7 +11,6 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
   if (argv[0] === "identity") return parseIdentityArgs(argv);
   if (argv[0] === "board") return parseBoardArgs(argv);
   if (argv[0] === "feedback") return parseFeedbackArgs(argv);
-  if (argv[0] === "doctor") return parseDoctorArgs(argv);
   if (argv[0] === "extensions") return parseExtensionsArgs(argv);
   if (argv[0] === "migrate") return parseMigrationArgs(argv);
   const operation = argv[0] === "run" ? argv[1]?.replace(/^memory:/u, "") : argv[0];
@@ -64,6 +63,8 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
   const actor = ["actor", "actor-id", "actor-name"];
   const documentUpdate = argv[0] === "run" || argv.some(token => /^--(?:id|if-match|root|target-url|remote-url)(?:=|$)/u.test(token));
   const specs: Record<string, { values?: string[]; booleans?: string[]; optionalBooleans?: string[]; repeat?: string[]; positional?: number }> = {
+    doctor: { values: ["root"], booleans: ["check"] },
+    connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "revision"], remove: ["id", "revision"], select: ["id", "revision"] }[argv[1] ?? ""] ?? [])] },
     status: { values: targets },
     index: { values: [...targets, "semantic-model"], booleans: ["rebuild", "lexical"] },
     tree: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
@@ -104,6 +105,12 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
       if (!value || value.startsWith("--") || !value.trim()) throw new Error(`--${key} requires a value.`);
       args[key] = spec.repeat?.includes(key) ? [...stringListArg(args, key), value] : value;
     }
+  }
+  if (operation === "connections") {
+    const action = argv[1];
+    if (!["list", "add", "remove", "select"].includes(action ?? "")) throw new Error("Use jumpybrain connections list|add|remove|select --help.");
+    for (const key of action === "list" ? [] : action === "add" ? ["name", "root", "revision"] : ["id", "revision"]) stringArg(args, key);
+    if (action !== "list" && (!/^(?:0|[1-9][0-9]*)$/.test(String(args.revision)) || !Number.isSafeInteger(Number(args.revision)))) throw new Error("--revision must be a nonnegative safe integer from connections list.");
   }
   if (operation === "index" && args.lexical && args["semantic-model"] !== undefined) throw new Error("Use only one of --lexical or --semantic-model.");
   return args;
@@ -149,25 +156,6 @@ function parseFeedbackArgs(argv: string[]): ParsedCliArgs {
   return args;
 }
 
-function parseDoctorArgs(argv: string[]): ParsedCliArgs {
-  const args: ParsedCliArgs = { _: ["doctor"] };
-  for (let index = 1; index < argv.length; index++) {
-    const token = argv[index]!;
-    if (!token.startsWith("--")) throw new Error(`Unexpected doctor argument: ${token}. Boolean flags take no value.`);
-    const equal = token.indexOf("="), key = token.slice(2, equal < 0 ? undefined : equal);
-    if (!["root", "json", "check"].includes(key)) throw new Error(`Unknown doctor flag --${key}.`);
-    if (Object.hasOwn(args, key)) throw new Error(`--${key} must not be repeated.`);
-    if (key !== "root") {
-      if (equal >= 0) throw new Error(`--${key} is a boolean flag and takes no value.`);
-      args[key] = true;
-    } else {
-      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
-      if (!value || value.startsWith("--") || !value.trim()) throw new Error("--root requires a non-empty value.");
-      args.root = value;
-    }
-  }
-  return args;
-}
 
 function parseRememberArgs(argv: string[]): ParsedCliArgs {
   const positional = argv[0] === "run" ? 2 : 1;

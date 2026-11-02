@@ -7,10 +7,10 @@ import { assertProperty, fc, safeScalarString } from "./property-helpers.js";
 
 const nonEmptyString = safeScalarString.filter((value) => value.trim().length > 0);
 
-test("remote CLI target flags take precedence over local root", () => {
+test("incompatible explicit target selectors fail rather than silently overriding a destination", () => {
   assertProperty(fc.property(nonEmptyString, nonEmptyString, (url, root) => {
-    assert.deepEqual(resolveCliTarget({ root, "target-url": url }), { kind: "remote", url: url.trim() });
-    assert.deepEqual(resolveCliTarget({ root, "remote-url": url }), { kind: "remote", url: url.trim() });
+    for (const flag of ["target-url", "remote-url"]) assert.throws(() => resolveCliTarget({ root, [flag]: url }), /only one target selector/);
+    assert.throws(() => resolveCliTarget({ "target-url": url, "remote-url": url }), /only one target selector/);
   }));
 });
 
@@ -30,10 +30,10 @@ test("target flags reject empty or valueless inputs with flag-specific errors", 
 });
 
 test("allowDiscovery returns local discovery only without explicit root or remote flags", () => {
-  assert.deepEqual(resolveCliTarget({}, { allowDiscovery: true }), { kind: "local" });
+  assert.deepEqual(resolveCliTarget({}, { allowDiscovery: true }), { kind: "local", source: "recipe-discovery" });
 
   assertProperty(fc.property(nonEmptyString, (root) => {
-    assert.deepEqual(resolveCliTarget({ root }, { allowDiscovery: true }), { kind: "local", root: root.trim() });
+    assert.deepEqual(resolveCliTarget({ root }, { allowDiscovery: true }), { kind: "local", root: root.trim(), source: "flag" });
   }));
 });
 
