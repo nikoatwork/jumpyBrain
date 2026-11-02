@@ -310,7 +310,7 @@ try {
     assert.equal(await editorMarkdown(popup), currentA, "storage failure leaves the current unique draft visible");
     assert.ok((await popup.locator("#recovery-draft").inputValue()).startsWith("Unique current A title\n\n"));
     assert.equal(await popup.locator("#recovery-versions").inputValue(), "", "failed selection keeps the current dialog version");
-    assert.match(await popup.locator("#recovery-message").innerText(), /could not be stored/);
+    assert.equal(await popup.locator("#recovery-message").innerText(), "Keep this window open and copy your draft before reloading.");
     await popup.evaluate(() => { Storage.prototype.setItem = originalDraftSetItem; });
     await popup.locator("#recovery-versions").selectOption("0");
     assert.ok((await popup.locator("#recovery-draft").inputValue()).includes("private reload draft"), "the recoverable private draft is offered through the actual shell selector");

@@ -25,6 +25,9 @@ async function geometry(page, selector, position) {
 }
 async function assertCursor(page, rawOffset, selector, visibleOffset) {
   await page.evaluate(rawOffset=>richEditor.setCollaborativePresence([{actor:'["alice","one-tab"]',principalId:"alice",clientId:"one-tab",name:"Alice",kind:"human",anchor:rawOffset,focus:rawOffset}]),rawOffset);
+  // Source hydration can still settle selection/scroll layout on the next frame.
+  // Wait for its actual cursor before comparing the exact coordinates.
+  await page.locator('[data-collaboration-actor]').first().waitFor({state:"visible"});
   const expected = await geometry(page,selector,visibleOffset);
   const mark = await page.locator('[data-collaboration-actor]').first().boundingBox();
   assert.ok(expected && mark, `visible marker for ${selector} at source ${rawOffset}`);

@@ -59,7 +59,7 @@
 - `graph-labels.ts` projects to screen space, uses a collision grid and prioritizes focus/hover/selection, then direct matches before context. Fixed 12px labels wrap to two lines, try alternate anchors, then truncate with full accessible titles. Zoom/pan/resize request one frame; measurements have a bounded cache. Dense graph arrow keys traverse every loaded note, centering an offscreen target and making its SVG button accessible; Enter/Space opens, and click-only assistive activation remains supported. Visible labels also activate the same note. Physical devices and assistive technologies still require separate QA.
 - Hover/focus highlights incident connections and quiets competing edges. Mouse/wheel anchoring and touch drag/cancel are explicit; pointer ownership prevents cancelled/right-button gestures from opening notes. Hidden/navigation-away scenes release their DOM/listeners, pending frame/layout/filter work and Canvas backing store, while preserving bounded history data. Theme changes redraw the visible Canvas; reduced motion adds no simulation or mandatory transition.
 - `search-maintenance.ts` observes authenticated status only while graph/search is visible: serial 10 s checks, 5 s deadline, scope fencing and hide/pagehide abort. Dream, connection and feedback dialogs suspend observation; closing them schedules the next check without immediate network traffic. A confirmed fresh `lastIndexedAt` generation refreshes the current visible query once without an index mutation. Normal background work stays quiet; unavailable/failed search exposes a compact recovery control. Existing Settings/search explicit indexing remains recovery, permission-gated on remote brains. Historical failure state cannot override fresh canonical readiness.
-- Edit page names as title metadata through the serialized live queue alongside body operations, without rewriting filenames, headings, or references. Canonical updates reject duplicate renamed titles using fresh Markdown, not indexed search. Display save errors inline and retain rejected drafts. Unchanged legacy duplicate titles remain body-editable.
+- Edit page names as title metadata through the serialized live queue alongside body operations, without rewriting filenames, headings, or references. Canonical updates reject duplicate renamed titles using fresh Markdown, not indexed search. Use action-oriented system toasts for live save failures and retain rejected drafts. Unchanged legacy duplicate titles remain body-editable.
 - Keep the persistent rich editor/caret stable through blur, search, saves and reconciliation. The shipped note surface uses authenticated source operations and publication-confirmed Saved; its facade disables legacy body PUT autosave and active-note polling. Retain actual operation positions through editor transactions, queued edits, canonical history and selection updates, including repeated text and byte-identical logical replacements. Preserve literal source and unrelated nodes. Unknown provenance, overlaps, failed reads and unconfirmed publications preserve the private draft and block unsafe navigation/switching. No automatic reconnect layer may replay a mutation.
 - `document-editor.ts` and `document-merge.ts` retain the isolated guarded HTTP controller contract for explicit consumers/tests: sequential If-Match saves, conservative contiguous-range merge on confirmed 412 and bounded retries. They are not the shipped live editor's source-operation reconciliation path. Canonical HTTP writes still share the backend's serialized publication policy and cannot bypass admitted live edits.
 - Guard in-app and Back/Forward navigation before abandoning a draft. Restore a history traversal to the current entry before flushing, replay it only on success, and keep the editor read-only until the approved destination is applied. Close modal dialogs on history navigation. Canonical whole-document/frontmatter policy remains in existing app/core seams.
@@ -320,7 +320,28 @@ Writable, uniquely ID-addressed files can be dragged onto highlighted folders, i
 ## Live source editing
 
 The shipped note surface binds `collaboration-editor` to bounded server-ordered
-source operations. Reconciliation retains unaffected Lexical nodes, source
+source operations. Collapsed deletion of an empty paragraph includes its exact
+source interval only when its captured node is actually removed; trailing blank
+paragraphs in a fresh daily note remain editable without inferred text diffs.
+Once a draft requires review, subsequent typing stays private and preserves the
+first failure rather than composing onto stale proven operations.
+
+`collaboration-feedback` maps live status and draft durability to plain-language
+user actions, serialized into the existing shell alongside note UI. Technical backend/editor messages never enter error banners,
+status tooltips or accessible status labels. Save failures use the shared
+system-message toast, dismissible and deduplicated across state refreshes;
+recovery or leaving the note clears it. Compact save/review/offline status and
+recovery controls remain available after dismissal. Content-free save/editor
+diagnostic events remain available for support. Unexpected Lexical errors use
+the same actionable toast instead of appending raw exception text.
+
+Build first, then run `npx --package=playwright node scripts/fresh-note-feedback-smoke.mjs`
+for production-shell rapid/slow/held-ack prompt deletion, blank-note publication,
+replacement/reload, retained-draft review and safe dismissible feedback at desktop
+and mobile widths. This uses a disposable root; it does not install or alter the
+Mac app or personal notes.
+
+Reconciliation retains unaffected Lexical nodes, source
 spellings and mapped selection; IME preedit is deferred. Actor-specific undo/redo
 and source-proven remote carets avoid overwriting another writer. The controller
 facade preserves existing navigation, deletion, attention and switch barriers

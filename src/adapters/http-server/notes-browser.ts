@@ -1,3 +1,4 @@
+import { collaborationFeedback } from "./collaboration-feedback.js";
 import { folderExplorerToggle } from "./folder-explorer-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
@@ -570,7 +571,7 @@ export const notesViews = String.raw`
   </section>
 `;
 
-export const notesScript = String.raw`
+export const notesScript = collaborationFeedback.toString() + String.raw`
 // Recent notes come from fresh Markdown metadata, not the search index.
 function createRecentNotes(options) {
   let generation = 0;
@@ -1623,7 +1624,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
       current.unconfirmedSave = ["offline", "conflict", "blocked"].includes(live.status) && current.dirty;
       current.saveStatus = live.status === "saved" && !current.dirty ? "saved" : ["conflict", "blocked"].includes(live.status) ? "failed" : "saving";
       current.saveErrorCode = live.status === "conflict" ? "precondition_failed" : "";
-      current.saveError = live.message || "";
+      current.saveError = collaborationFeedback(live);
       renderLivePresence(collaboration.snapshot, live.status, collaboration.clientId);
       current.liveStatus = live.status; current.liveCanWrite = live.canWrite; current.recoveryDrafts = live.recoveryDrafts; current.durableDraft = live.durableDraft;
       const firstOpen = !current.liveHasOpened && live.canWrite;
@@ -1655,7 +1656,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
     if (editor.state.liveStatus === "blocked") {await showNote(documentId); return state.editor !== editor && Boolean(state.editor?.state.loaded);}
     return collaboration.resolveConflict("saved");
   };
-  editor.cancel = () => {renderLivePresence(null, "offline"); cancelled = true; clearTimeout(sidebarRefresh); collaboration.dispose(); originalCancel();};
+  editor.cancel = () => {toast.clear("editor-save"); renderLivePresence(null, "offline"); cancelled = true; clearTimeout(sidebarRefresh); collaboration.dispose(); originalCancel();};
   collaboration.connect();
   return collaboration;
 }
@@ -1700,7 +1701,11 @@ function syncEditorUi(editorState) {
   $("note-title").hidden = editorState.loaded;
   $("note-name").readOnly = editorState.navigationPending || companionLocked;
   $("note-name").setAttribute("aria-invalid", String(["duplicate_title", "invalid_title"].includes(editorState.saveErrorCode)));
-  $("note-save-error").hidden = editorState.saveStatus !== "failed" && editorState.durableDraft !== false;
+  if (editorState.liveStatus) {
+    if (editorState.saveError) toast.dispatch({ source: "editor-save", text: editorState.saveError, severity: "error", revision: editorState.documentId, duration: 8000 });
+    else toast.clear("editor-save");
+  }
+  $("note-save-error").hidden = Boolean(editorState.liveStatus) || editorState.saveStatus !== "failed" && editorState.durableDraft !== false;
   $("note-save-error").textContent = editorState.saveError || "";
   $("note-save-error").dataset.review = String(needsReview);
   if (editorState.navigationPending || !editorState.loaded) referenceAutocomplete.dismiss();
