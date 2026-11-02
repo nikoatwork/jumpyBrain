@@ -39,14 +39,14 @@ try {
   assert.equal(await page.locator('#sidebar-settled-section').getAttribute('open'), null);
   assert.equal(await page.locator('#sidebar-settled a').count(), 0, 'collapsed shelf does not hydrate hidden rows');
   await page.locator('#sidebar-recent-more').click();
-  await page.locator(`#sidebar-recent [data-page-link="${id(1)}"] [data-editor-kind="human"]`).waitFor();
+  await page.locator(`#sidebar-recent [data-page-link="${id(1)}"]`).waitFor();
   await page.locator(`#sidebar-recent [data-page-pin="${id(1)}"]`).focus(); await page.keyboard.press('Enter');
   await page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"]`).waitFor();
   assert.equal(await page.locator('#sidebar-pinned, #sidebar-pinned-heading').count(), 0);
   assert.equal(await page.locator('#sidebar-recent > li').first().evaluate(el => el.classList.contains('is-pinned') ? 'true' : 'false'), 'true');
   await page.locator('#sidebar-settled-section summary').click();
-  const agent = page.locator(`#sidebar-settled [data-page-link="${id(2)}"] [data-editor-kind="agent"]`); await agent.waitFor();
-  assert.match(await agent.getAttribute('aria-label'), /agent.*Mistral/);
+  const agent = page.locator(`#sidebar-settled [data-page-link="${id(2)}"]`); await agent.waitFor();
+  assert.equal(await page.locator('.sidebar-page-editor').count(), 0);
   await page.locator(`#sidebar-settled [data-page-link="${id(2)}"]`).focus();
   await page.locator(`#sidebar-settled [data-page-action="${id(2)}:reactivate"]`).focus(); await page.keyboard.press("Enter");
   await page.locator(`#sidebar-recent [data-page-link="${id(2)}"]`).waitFor();
@@ -63,8 +63,8 @@ try {
   await json(doc(1), { method: 'PUT', headers: { 'If-Match': human.contentHash }, body: JSON.stringify({ content: human.content.replace('Human draft', 'Renamed shared draft'), actor: { kind: 'agent', name: 'Mistral' } }) });
   await page.clock.fastForward(16000);
   await page.locator(`#sidebar-recent [data-page-link="${id(13)}"]`).waitFor();
-  await page.locator(`#sidebar-recent [data-page-link="${id(2)}"] [data-editor-kind="unknown"]`).waitFor();
-  await page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"] [data-editor-kind="agent"]`).waitFor();
+  await page.locator(`#sidebar-recent [data-page-link="${id(2)}"]`).waitFor();
+  await page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"]`).waitFor();
   assert.equal(await page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"] .sidebar-page-title`).textContent(), 'Renamed shared draft');
   assert.equal(await editorMarkdown(page), body, 'background sidebar updates preserve body');
   assert.deepEqual(await editorSelection(page), caret, 'background sidebar updates preserve caret');
@@ -77,8 +77,12 @@ try {
   await page.waitForFunction(() => state.editor.state.frontmatterPrefix.includes('attention_at: null') && !state.editor.state.navigationPending);
   await appendEditorText(page, ' A human adds a thought.'); await page.clock.fastForward(1000);
   await page.waitForFunction(() => state.editor.state.saveStatus === 'saved' && !state.editor.state.dirty);
-  await page.locator(`#sidebar-recent [data-page-link="${id(2)}"] [data-editor-kind="human"]`).waitFor();
+  await page.locator(`#sidebar-recent [data-page-link="${id(2)}"]`).waitFor();
   assert.equal((await json(doc(2))).frontmatter.attention_at, undefined);
+  // Drain the live publisher's debounced sidebar reload before measuring idle polling.
+  const publicationRefresh = page.waitForResponse(response => response.url().includes('/memories/all/attention'));
+  await page.clock.fastForward(1000); await publicationRefresh;
+  await page.waitForFunction(() => document.querySelector('#sidebar-recent-empty').hidden);
   // Quiet polling retains row DOM and keyboard focus.
   const target = page.locator(`#sidebar-recent .is-pinned [data-page-link="${id(1)}"]`);
   await target.focus(); const handle = await target.elementHandle();
@@ -95,14 +99,14 @@ try {
     await page.screenshot({ path: path.join(captures, `sidebar-${width}-${theme}.png`) });
   }
   await page.setViewportSize({ width: 1280, height: 850 }); await page.reload();
-  await page.locator('#sidebar-recent .is-pinned .sidebar-page-editor[data-editor-kind="agent"]').waitFor();
+  assert.equal(await page.locator(".sidebar-page-editor").count(), 0);
   assert.equal(await page.locator('#sidebar-settled-section').getAttribute('open'), null);
   const shelf = await page.locator('#sidebar-settled-section summary').boundingBox();
   const footer = await page.locator('.nav-preferences').boundingBox();
   assert.ok(shelf.y >= 0 && shelf.y + shelf.height <= footer.y && footer.y + footer.height <= 850, 'collapsed Settled and the icon bar stay visible below the scrolling Attention list');
   await page.screenshot({ path: path.join(captures, 'sidebar-default.png') });
   assert.deepEqual(errors, []);
-  console.log('Collaborative sidebar smoke: PASS (sections, paging, actor icons, periodic create/edit refresh, raw and browser wake, caret/focus, six layouts).');
+  console.log('Collaborative sidebar smoke: PASS (sections, paging, no actor glyphs, periodic create/edit refresh, raw and browser wake, caret/focus, six layouts).');
 } finally {
   await browser?.close(); await server?.close(); await rm(root, { recursive: true, force: true });
 }

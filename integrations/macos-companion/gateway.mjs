@@ -131,7 +131,7 @@ function allowedMemoryRoute(method, pathname) {
   return null;
 }
 
-export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance, feedbackSender, safeMode = false, readinessOnly = false } = {}) {
+export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance, feedbackSender, safeMode = false, readinessOnly = false, identityFile } = {}) {
   if (!path.isAbsolute(runtimeRoot || '') || !/^[0-9a-f]{64}$/i.test(controlKey || '')) throw new Error('Invalid companion bootstrap.');
   // /var is a legitimate macOS alias; the persistence seam itself rejects symlinks.
   directory = await realpath(directory);
@@ -142,6 +142,8 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const { startJumpyBrainHttpServer } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/server/index.js')).href);
   const { createFeedbackForwarder, createFeedbackHandler } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/feedback-delivery.js')).href);
   const { createExtensionHost } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/extensions/index.js')).href);
+  const { readIdentity, writeIdentity } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/client-identity/index.js')).href);
+  let displayIdentity = await readIdentity(identityFile).catch(() => ({ name: "", unavailable: true }));
   const feedback = createFeedbackHandler(feedbackSender ?? createFeedbackForwarder());
   const { createDiagnosticStore, newDiagnosticId, readNativeDiagnosticSnapshot } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/store.js')).href);
   const { diagnosticId, diagnosticOperation, diagnosticCode, statusCode, sanitizeDiagnosticEvent } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/events.js')).href);
@@ -264,7 +266,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   };
   const state = () => {
     const snapshot = store.snapshot(); const profile = active();
-    return { ...snapshot, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), extensions: extensions.signal(), health, ...(hostInstance ? { hostInstance } : {}),
+    return { ...snapshot, identity: displayIdentity, profiles: snapshot.profiles.map(safeProfile), active: safeProfile(profile), ...coordinator.state(), extensions: extensions.signal(), health, ...(hostInstance ? { hostInstance } : {}),
       target: profile?.kind === 'remote' ? profile.url : null };
   };
   const change = async (operation) => {
@@ -346,10 +348,18 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
         return;
       }
       if (url.pathname.startsWith('/companion/')) {
+        displayIdentity = await readIdentity(identityFile).catch(() => ({ name: "", unavailable: true }));
         if (url.pathname === '/companion/state' && request.method === 'GET') { await refreshHealth(); json(response, 200, state()); return; }
         if (request.method !== 'POST') failure('method_not_allowed', 'Use POST for companion actions.', 405);
         const body = await jsonBody(request);
         switch (url.pathname) {
+          case '/companion/identity': {
+            if (!exact(body, ['name'])) failure('invalid_request', 'Provide your display name.');
+            try { displayIdentity = await writeIdentity(body.name, identityFile); }
+            catch (error) { if (error.code === 'invalid_identity') failure('invalid_request', 'Use a display name of at most 48 characters without control characters.'); throw error; }
+            json(response, 200, displayIdentity); return;
+          }
+
           case '/companion/shutdown': {
             if (!auth.native) failure('unauthorized', 'Native shutdown capability required.', 403);
             if (exact(body, ['action']) && body.action === 'prepare') {

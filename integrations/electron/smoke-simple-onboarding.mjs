@@ -48,11 +48,13 @@ try {
   assert.equal(await js('typeof require'), 'undefined');
   await js('document.getElementById("choose").click()'); await until('!document.getElementById("choose").disabled');
   assert.equal(await js('document.getElementById("open").disabled'), false);
+  await js('document.getElementById("display-name").value = "Alex"');
   await capture('local');
   await js('document.getElementById("choose").focus()');
   window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' }); window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
   await until('document.activeElement.id === "open"');
   await js('document.getElementById("open").click()'); assert.equal(await welcome.completed, true);
+  assert.equal((await companionControl(f)).identity.name, 'Alex');
   assert.ok(welcome.starterPage); await access(path.join(root, 'pages/today.md')); await close();
   welcome = createOnboardingWindow(f, options); window = welcome.window; await welcome.loaded;
   console.log('Simple onboarding: welcome loaded');

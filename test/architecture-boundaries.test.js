@@ -43,7 +43,7 @@ function isHttpServerAdapterPath(file) {
 }
 
 function isInfrastructureAdapterPath(file) {
-  return file.startsWith("src/adapters/logging/") || file.startsWith("src/adapters/package-info/");
+  return file.startsWith("src/adapters/client-identity/") || file.startsWith("src/adapters/logging/") || file.startsWith("src/adapters/package-info/");
 }
 
 function isQmdPath(file) {

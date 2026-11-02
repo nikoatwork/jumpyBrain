@@ -1,3 +1,4 @@
+import { normalizeMemoryActor } from "../../core/contribution.js";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, lstat, rename, rm } from "node:fs/promises";
 import path from "node:path";
@@ -189,6 +190,8 @@ function stampActor(
   principal: CollaborationPrincipal,
   params: Record<string, unknown>,
 ): MemoryActor {
+  const declared = normalizeMemoryActor(params.declaredActor);
+  if (declared) return declared;
   return {
     kind: params.actorKind === "agent" ? "agent" : "human",
     id: principal.id,
@@ -567,22 +570,22 @@ export class CollaborationHub {
     if (!session.presence.has(actor) && session.presence.size >= 64)
       fail("actor_limit");
     const previous = session.presence.get(actor);
+    const declared = stampActor(principal, params);
     const value: Presence = {
       actor,
       principalId: principal.id,
       clientId:
         typeof params.clientId === "string" ? params.clientId : "default",
-      name: principal.name,
-      kind: params.actorKind === "agent" ? "agent" : "human",
       activity: "viewing",
       epoch: session.model.epoch,
       revision: session.model.revision,
       leaseExpiresAt: Date.now() + (this.options.presenceLeaseMs ?? 30_000),
       ...(previous?.epoch === session.model.epoch ? previous : {}),
+      name: declared.name || principal.name,
+      kind: declared.kind,
     };
     value.leaseExpiresAt =
       Date.now() + (this.options.presenceLeaseMs ?? 30_000);
-    if (params.actorKind === "agent") value.kind = "agent";
     if (params.presenceSequence !== undefined) {
       const sequence = integer(params.presenceSequence);
       if (previous?.sequence !== undefined && sequence <= previous.sequence)

@@ -32,7 +32,7 @@ export async function updateMemoryDocumentFromArgs(
     throw new Error("jumpybrain update requires --if-match <contentHash> from `jumpybrain show`. Re-run `jumpybrain show` before retrying.");
   }
 
-  const actor = actorFromArgs(args);
+  const actor = await actorFromArgs(args);
   const content = readStdin();
   try {
     const result = target.kind === "remote"

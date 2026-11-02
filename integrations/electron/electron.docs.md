@@ -115,3 +115,7 @@ platform first responder, preserving title/native control history. Other edit
 roles remain the platform menu's roles; no preload or renderer capability is added.
 The packaged native proof covers menu/keyboard parity, title fallback and expired
 history followed by new editing.
+
+## Human and agent display names
+
+The production sandboxed welcome offers an optional name for local and remote setup, passed through a fixed bounded IPC action to the authenticated companion identity route. Setup and Settings → Your name share the CLI's device-local display preference; no name is guessed and existing notes keep their recorded provenance. The compact welcome field preserves reachable actions at 960/680px. `scripts/simple-onboarding-smoke.mjs` verifies persistence with a disposable preference file and real production welcome. `scripts/contextual-attribution-smoke.mjs` covers Settings, live human saves, CLI agent prefixes and the saved-note selection hint.

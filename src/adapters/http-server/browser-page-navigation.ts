@@ -4,7 +4,7 @@ import { recognitionDay } from "../../core/search-recognition.js";
 import { createAttentionList, type AttentionPage } from "./browser-attention.js";
 import { readablePreview, resultEditContext } from "./search-presentation.js";
 import type { MemoryActor, SearchRecognitionMetadata } from "../../types.js";
-import { browserEditorIcons, browserPinIcon } from "./browser-icons.js";
+import { browserPinIcon } from "./browser-icons.js";
 
 type Page = { id: string; title: string; preview?: string; updatedAt?: string; editor?: MemoryActor };
 type History = { pinned: Page[]; recent: Page[] };
@@ -197,10 +197,9 @@ export function installPageNavigation(options: {
           title.className = "sidebar-page-title";
           const preview = document.createElement("span"); preview.className = "sidebar-page-preview";
           const age = document.createElement("span"); age.className = "sidebar-page-age";
-          const editor = document.createElement("span"); editor.className = "sidebar-page-editor"; editor.setAttribute("role", "img");
           const pinMark = document.createElement("span"); pinMark.className = "sidebar-page-pin-mark";
           pinMark.innerHTML = browserPinIcon; pinMark.setAttribute("role", "img"); pinMark.setAttribute("aria-label", "Pinned");
-          link.append(editor, pinMark, title, preview, age);
+          link.append(pinMark, title, preview, age);
           link.addEventListener("click", (event) => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
             event.preventDefault(); options.navigate(link.getAttribute("href")!);
@@ -241,11 +240,6 @@ export function installPageNavigation(options: {
             if (button.dataset.pagePin) button.setAttribute("aria-pressed", String(pinned));
             button.setAttribute("aria-label", button.title);
           }
-          const glyph = link.querySelector<HTMLElement>(".sidebar-page-editor")!;
-          const kind = page.editor?.kind === "human" || page.editor?.kind === "agent" ? page.editor.kind : "unknown";
-          const label = kind === "unknown" ? "Last editor unknown" : "Last edited by " + (kind === "agent" ? "an agent" : "a human") + (page.editor?.name ? " · " + page.editor.name : "");
-          if (glyph.dataset.editorKind !== kind) { glyph.dataset.editorKind = kind; glyph.innerHTML = browserEditorIcons[kind]; }
-          glyph.title = label; glyph.setAttribute("aria-label", label);
           const preview = link.querySelector(".sidebar-page-preview");
           if (preview) preview.textContent = readablePreview(page.preview || "", page.title) || "No preview text";
           const age = link.querySelector<HTMLElement>(".sidebar-page-age");

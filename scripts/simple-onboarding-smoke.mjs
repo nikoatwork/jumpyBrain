@@ -22,9 +22,9 @@ await new Promise(resolve => remote.listen(0, '127.0.0.1', resolve));
 let gateway;
 try {
   const support = path.join(temporary, 'support'); await mkdir(support, { mode: 0o700 });
-  gateway = await startCompanionGateway({ runtimeRoot: repo, directory: support, port: 0, controlKey: key,
+  gateway = await startCompanionGateway({ runtimeRoot: repo, identityFile: path.join(temporary, 'identity.json'), directory: support, port: 0, controlKey: key,
     credentials: { get: async ref => credentials.get(ref), set: async (ref, value) => credentials.set(ref, value), delete: async ref => credentials.delete(ref) } });
-  const fixture = { origin: gateway.url, key, runtimeRoot: repo, home: path.join(temporary, 'home'), screenshots,
+  const fixture = { origin: gateway.url, key, runtimeRoot: repo, identityFile: path.join(temporary, 'identity.json'), home: path.join(temporary, 'home'), screenshots,
     remoteUrl: `http://127.0.0.1:${remote.address().port}`, result: path.join(temporary, 'result.json'), userData: path.join(temporary, 'electron') };
   const configPath = path.join(temporary, 'fixture.json'); await writeFile(configPath, JSON.stringify(fixture), { mode: 0o600 });
   const entry = path.join(temporary, 'entry'); await mkdir(entry);

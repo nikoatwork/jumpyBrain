@@ -29,6 +29,10 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
 async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
   const command = args._[0];
 
+  if (command === "identity") {
+    const { identityCli } = await import("./identity.js"); await identityCli(args); return;
+  }
+
   if (command === "backend" || command === "access") {
     const { backendCli, accessCli } = await import("./backend-commands.js");
     await (command === "backend" ? backendCli : accessCli)(args); return;

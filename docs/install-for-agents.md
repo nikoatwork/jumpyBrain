@@ -21,6 +21,12 @@ When discussing privacy, add the relevant boundary: a cloud assistant may send r
 
 Use `doctor --root "<actual-root>" --check --json` on current versions: required-check failures exit nonzero while preserving the report. Default `doctor` retains exit 0 for compatibility; on older versions inspect JSON `ok` and findings. Doctor checks version/root readiness and integration-file presence, not actual retrieval or host activation. A dry-run summary is a plan, not an installation. Do not hand setup back as complete until the actual CLI and local recall work. An empty new brain is a successful search check; do not save a sample memory unless the user asks.
 
+## Name human and agent clients
+
+Mac onboarding offers an optional display name; Settings → Your name can change or clear it. CLI-only setup can use `jumpybrain identity --name 'Alex'` with the user's supplied name. Do not guess it from an OS account. The local preference is shared with the Mac app on that machine, independent of the selected brain.
+
+Configure each agent host with its own `JUMPYBRAIN_CLIENT_NAME` (for example `Codex`), or pass `--actor-name Codex` alongside `--actor agent` on remember/update. With owner Alex, future writes are labeled `Alex · Codex`; unnamed clients can say `Alex · Agent`. Live `collaborate` uses that environment label too. Names are declarations, not verified accounts or permissions. No notes are backfilled or written merely by setup. See [CLI details](cli-commands.md#recognizing-notes-in-search).
+
 ## Carry out the authorized request
 
 “Install it” or “go ahead” authorizes the described installation and its necessary routine checks. Continue through that scope without repeatedly asking the same question. Ask only when information or a materially different action needs the user's decision, or when your host actually requires approval. Do not add a generic workplace-IT approval gate without an applicable device policy or user concern.

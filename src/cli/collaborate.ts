@@ -1,3 +1,4 @@
+import { readIdentity, agentDisplayName } from "../adapters/client-identity/index.js";
 import { randomUUID } from "node:crypto";
 import { WebSocket } from "../adapters/websocket/index.js";
 import { ensureRootBackend } from "../app/backend-host/index.js";
@@ -240,7 +241,10 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
         : process.env.JUMPYBRAIN_CLIENT_ID?.trim() || randomUUID();
     if (!clientId || clientId.length > 128)
       throw new Error("--client-id must contain 1–128 characters.");
-    const base = { documentId: args.id, clientId, actorKind: "agent" };
+    const owner = await readIdentity();
+    const name = agentDisplayName(owner.name, process.env.JUMPYBRAIN_CLIENT_NAME?.trim() || "Agent");
+    const declaredActor = { kind: "agent", name };
+    const base = { documentId: args.id, clientId, actorKind: "agent", declaredActor };
     let snapshot = await request("open", base);
     if (operation === "open") {
       print({ ...snapshot, clientId });

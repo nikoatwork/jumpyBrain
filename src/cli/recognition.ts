@@ -1,16 +1,22 @@
+import { readIdentity, agentDisplayName } from "../adapters/client-identity/index.js";
 import { normalizeMemoryActor } from "../core/contribution.js";
 import { normalizeRecognitionOptions } from "../core/search-recognition.js";
 import { stringArg, numberArg, type ParsedCliArgs } from "./args.js";
 
-export function actorFromArgs(args: ParsedCliArgs) {
+export async function actorFromArgs(args: ParsedCliArgs) {
   if (args.actor === undefined) {
     if (args["actor-id"] !== undefined || args["actor-name"] !== undefined) throw new Error("--actor-id/name require --actor human|agent.");
     return undefined;
   }
   if (args.actor === "unknown" && args["actor-id"] === undefined && args["actor-name"] === undefined) return undefined;
+  const configured = await readIdentity();
+  const kind = stringArg(args, "actor");
+  const explicitName = args["actor-name"] === undefined ? undefined : stringArg(args, "actor-name");
+  const client = explicitName ?? process.env.JUMPYBRAIN_CLIENT_NAME?.trim();
+  const name = kind === "agent" ? (client || configured.name ? agentDisplayName(configured.name, client ?? "Agent") : undefined) : explicitName ?? configured.name;
   return normalizeMemoryActor({ kind: stringArg(args, "actor"),
     ...(args["actor-id"] === undefined ? {} : { id: stringArg(args, "actor-id") }),
-    ...(args["actor-name"] === undefined ? {} : { name: stringArg(args, "actor-name") }) });
+    ...(name ? { name } : {}) });
 }
 
 export function recognitionFromArgs(args: ParsedCliArgs) {

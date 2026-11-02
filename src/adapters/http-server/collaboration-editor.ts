@@ -28,6 +28,7 @@ function confirmation() {
 }
 interface Options {
   url: string; token?: string; scope: string; expectedBrainId?: string; documentId: string; editor: EditorBinding; clientId?: string;
+  actor?: () => { kind: "human" | "agent"; id?: string; name?: string };
   connectionContext?: () => { tabId?: string; generation?: number };
   drafts?: CollaborationDraftStore;
   onState?: (state: CollaborationEditorState) => void;

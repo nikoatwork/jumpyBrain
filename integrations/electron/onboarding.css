@@ -49,3 +49,9 @@ button:disabled { cursor: default; opacity: .5; }
 @media (prefers-color-scheme: dark) { :root { --paper: #252524; --surface: #2c2c2a; --ink: #eee9df; --muted: #aaa69d; --line: #43423d; --tint: #20201f; --error: #f6a5a5; } }
 @media (max-width: 740px) { body { grid-template-columns: 1fr; } aside { display: none; } main { width: 100%; padding: 24px 32px; margin: auto; } h2 { font-size: 31px; margin: 16px 0 12px; } .lead { margin-bottom: 18px; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.identity-setup { display: flex; align-items: center; gap: 12px; }
+.identity-setup label { margin: 0; flex: 0 0 auto; color: var(--muted); }
+.identity-setup label span { font-weight: 400; }
+.identity-setup input { padding: 8px 10px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
