@@ -67,6 +67,35 @@ class Fixture(unittest.TestCase):
                        "update-check.mjs", "install.py", "update.py", "uninstall.py", "lifecycle.py"):
             (source / helper).write_text(f"// {version} {helper}\n")
 
+    def test_replacement_retains_legacy_and_live_backend_runtime_backups(self):
+        backend = self.runtime / 'dist/adapters/backend-host'
+        backend.mkdir(parents=True)
+        (backend / 'runtime-pins.js').write_text('retention fixture')
+        pins = self.runtime / '.backend-pins'
+        pins.mkdir()
+        (pins / 'live.json').write_text(json.dumps({'pid': os.getpid()}))
+        built = self.base / 'built.app'
+        self.make_app(built, self.config)
+        update.replace_pair(self.stage, built, self.root, self.home)
+        retained = list(self.root.glob('.companion-runtime-*/old/.backend-pins/live.json'))
+        self.assertEqual(len(retained), 1)
+        self.assertEqual(json.loads(retained[0].read_text())['pid'], os.getpid())
+        self.assertTrue((self.runtime / 'dist/cli.js').exists())
+        self.assertEqual((self.memory / 'notes.md').read_text(), 'Canonical fixture content\n')
+
+    def test_replacement_retires_only_proven_dead_runtime_and_preserves_unknown_legacy(self):
+        built = self.base / 'built.app'
+        self.make_app(built, self.config)
+        update.replace_pair(self.stage, built, self.root, self.home)
+        self.assertEqual(len(list(self.root.glob('.companion-runtime-*/old/dist/cli.js'))), 1)
+        backend = self.runtime / 'dist/adapters/backend-host'
+        backend.mkdir(parents=True)
+        (backend / 'runtime-pins.js').write_text('retention fixture')
+        self.make_runtime(self.stage, 'newer')
+        update.replace_pair(self.stage, built, self.root, self.home)
+        # Only the first, unproven legacy generation remains.
+        self.assertEqual(len(list(self.root.glob('.companion-runtime-*/old/dist/cli.js'))), 1)
+
     def make_app(self, path, config):
         (path / "Contents/Resources").mkdir(parents=True)
         (path / "Contents/MacOS").mkdir()
@@ -342,7 +371,9 @@ class TransactionTests(Fixture):
         self.assertEqual((self.support / "companion.lock").stat().st_ino, ino)
         with update.companion_lock(self.support):
             pass
-        self.assertFalse(list(self.root.glob(".companion-*")))
+        backups = list(self.root.glob(".companion-runtime-*/old/dist/cli.js"))
+        self.assertEqual(len(backups), 1, "unproven legacy runtime remains available for inspection")
+        self.assertEqual(backups[0].read_text(), "// old\n")
         self.assertFalse(list(self.app.parent.glob(".companion-*")))
 
     def test_native_build_failure_changes_nothing(self):

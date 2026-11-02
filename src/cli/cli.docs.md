@@ -110,3 +110,8 @@ Positioned collaboration writes carry the actual caller read epoch/revision:
 connection's fresh open is discovery/subscription state, never authority to
 relabel stale offsets. Default streaming explicitly appends to current saved
 source. A stream rejects `--delete` rather than ignoring an unsupported range.
+
+`backend list --root <brain> [--root <another>] [--json]` inspects 1..32 explicit
+roots, returning redacted ownership/status, PID liveness and recorded executable.
+It never searches the machine or discovers/retargets brains. Invalid state is
+reported per root without exposing capability/error contents; help is observational.

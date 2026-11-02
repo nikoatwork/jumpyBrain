@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const BACKEND_PROTOCOL = 2 as const;
-export interface BackendIdentity { executable: string; executableHash: string; build: string; version: string; }
+export interface BackendIdentity { executable: string; executableHash: string; build: string; version: string; runtimeGeneration?: string; }
 export interface BackendLease extends BackendIdentity { protocol: 2; rootId: string; pid: number; instanceId: string; startedAt: string; }
 export interface BackendDescriptor extends BackendLease { root: string; url: string; token: string; }
 export class BackendHostError extends Error {
@@ -28,10 +28,10 @@ export async function backendPaths(rootArg: string, create = false) {
   await checkDirectory(support, create); await checkDirectory(directory, create);
   return { root, directory, lease: path.join(directory, "owner.json"), descriptor: path.join(directory, "connection.json"), log: path.join(directory, "backend.log") };
 }
-async function readPrivateJson(file: string): Promise<unknown | undefined> {
+export async function readPrivateJson(file: string): Promise<unknown | undefined> {
   try {
     const stat = await lstat(file);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink > 2 || (stat.mode & 0o077) !== 0 || stat.size > 16384)
+    if (stat.uid !== process.getuid?.() || !stat.isFile() || stat.isSymbolicLink() || stat.nlink > 2 || (stat.mode & 0o077) !== 0 || stat.size > 16384)
       throw new BackendHostError("backend_state_unsafe", "Backend state must be bounded private regular files.");
     return JSON.parse(await readFile(file, "utf8"));
   } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw new BackendHostError("backend_state_invalid", "Backend state is invalid; inspect it before recovery."); }
@@ -67,12 +67,19 @@ async function privateJson(file: string, value: unknown) {
 async function syncDirectory(directory: string) {
   try { const handle = await open(directory, "r"); try { await handle.sync(); } finally { await handle.close(); } } catch {}
 }
+export async function readRuntimeGeneration(executable: string): Promise<string> {
+  const info = await lstat(path.resolve(path.dirname(executable), "../.."), { bigint: true });
+  return `${info.dev}:${info.ino}`;
+}
 export async function currentBackendIdentity(executableArgument?: string): Promise<BackendIdentity> {
   const executable = await realpath(executableArgument ?? fileURLToPath(new URL("../../server/daemon.js", import.meta.url)));
+  const runtimeGeneration = await readRuntimeGeneration(executable);
   const buildFile = fileURLToPath(new URL("../diagnostics/build-info.json", import.meta.url));
   const info = JSON.parse(await readFile(buildFile, "utf8")) as { version: string; build: string };
   if (typeof info.version !== "string" || !info.version || typeof info.build !== "string" || !info.build) throw new BackendHostError("backend_runtime_missing", "Build the runtime before starting its backend.");
-  return { executable, executableHash: createHash("sha256").update(await readFile(executable)).digest("hex"), version: info.version, build: info.build };
+  const executableHash = createHash("sha256").update(await readFile(executable)).digest("hex");
+  if (await readRuntimeGeneration(executable) !== runtimeGeneration) throw new BackendHostError("backend_runtime_changed", "Runtime changed during startup; retry from the installed runtime.");
+  return { executable, executableHash, version: info.version, build: info.build, runtimeGeneration };
 }
 /** Fully write a candidate, then hard-link it exclusively: no empty lock window. */
 export async function acquireBackendLease(root: string, identity: BackendIdentity, instanceId = randomUUID()): Promise<BackendLease | undefined> {
@@ -148,7 +155,7 @@ export async function spawnRootBackend(root: string, identity: BackendIdentity):
   const log = await open(paths.log, stat && stat.size > 256 * 1024 ? "w" : "a", 0o600);
   try {
     const child = spawn(process.execPath, [identity.executable], {
-      env: { ...process.env, JUMPYBRAIN_BACKEND_ROOT: paths.root }, detached: true,
+      env: { ...process.env, JUMPYBRAIN_BACKEND_ROOT: paths.root, JUMPYBRAIN_BACKEND_GENERATION: identity.runtimeGeneration }, detached: true,
       stdio: ["ignore", log.fd, log.fd],
     });
     await new Promise<void>((resolve, reject) => { child.once("spawn", resolve); child.once("error", reject); });

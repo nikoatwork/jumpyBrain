@@ -53,13 +53,14 @@ export async function startDesktopHost(config, { spawnHost = spawn, probe = prob
     const child = spawnHost(config.executable, ['--desktop-host'], {
       env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LANG: 'en_US.UTF-8', JUMPYBRAIN_DESKTOP_INSTANCE: instance, ...(readinessOnly ? { JUMPYBRAIN_READINESS_ONLY: '1' } : {}) }, stdio: ['ignore', 'ignore', 'ignore'],
     });
-    let exited = false, stopping = null;
+    let exited = false, stopping = null, expected = false;
     const ended = new Promise((resolve) => {
-      const done = () => { if (!exited) { exited = true; resolve(); onExit(); } };
+      const done = (code, signal) => { if (!exited) { exited = true; resolve(); onExit({ expected, code: Number.isInteger(code) ? code : null, signal: typeof signal === 'string' ? signal : null }); } };
       child.once('exit', done); child.once('error', done);
     });
     const stop = () => stopping ??= (async () => {
       if (exited) return;
+      expected = true;
       child.kill('SIGTERM');
       const timer = setTimeout(() => { if (!exited) child.kill('SIGKILL'); }, 12000);
       try { await ended; } finally { clearTimeout(timer); }

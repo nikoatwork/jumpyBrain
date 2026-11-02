@@ -9,6 +9,7 @@ import argparse
 import os
 from pathlib import Path
 import shutil
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,18 @@ from lifecycle import (LABEL, QUIT_MESSAGE, SafetyError, NotOwned, absolute,
                        regular, read_json, app_path, validate_runtime, validate_manifest,
                        overlaps, inspect_companion, validate_key, companion_lock,
                        preflight, cleanup, build_workspace)
+
+
+def retire_backup(container, runtime):
+    """Retain legacy, live or uncertain runtimes after a verified replacement."""
+    if runtime.exists():
+        try:
+            helper = Path(__file__).resolve().parent.parent / "electron/update-retention.py"
+            runpy.run_path(str(helper))["retire_runtimes"]([runtime])
+        except (OSError, ValueError, KeyError, TypeError):
+            print(f"Previous runtime retained (live, legacy or unverified): {runtime}")
+            return
+    cleanup(container)
 
 
 def replace_pair(staged_runtime, built_app, install_root, home):
@@ -52,8 +65,8 @@ def replace_pair(staged_runtime, built_app, install_root, home):
         if gui_transaction is not None:
             cleanup(gui_transaction)
         raise
-    cleanup(runtime_backup)
-    cleanup(gui_transaction)
+    retire_backup(runtime_backup, runtime_backup / "old")
+    retire_backup(gui_transaction, gui_transaction / "old.app/Contents/Resources/runtime")
 
 
 def commit(staging, install_root, home):

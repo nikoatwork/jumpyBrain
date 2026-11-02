@@ -36,7 +36,7 @@ test('npm exclusions reject newly added artwork, native tests and private build 
     'integrations/macos-companion/test_future.py', 'integrations/macos-companion/smoke_future.py',
     'integrations/macos-companion/.build/private.json', 'integrations/macos-companion/__pycache__/private.pyc',
     'integrations/macos-companion/Configuration.json', 'integrations/macos-companion/.env'];
-  const retained = ['docs/install.md', 'integrations/macos-companion/install.py', 'integrations/macos-companion/Companion.swift'];
+  const retained = ['docs/install.md', 'docs/product-vision.md', 'integrations/macos-companion/install.py', 'integrations/macos-companion/Companion.swift'];
   for (const file of [...excluded, ...retained]) {
     await mkdir(path.dirname(path.join(dir, file)), { recursive: true });
     await writeFile(path.join(dir, file), 'fixture');

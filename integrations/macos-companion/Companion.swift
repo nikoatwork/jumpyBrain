@@ -273,6 +273,8 @@ final class Companion: NSObject, NSApplicationDelegate {
     private var updateHandoffDirectory: URL?
     private var server: Process?
     private var output: FileHandle?
+    private var errorPipe: Pipe?
+    private let logLock = NSLock()
     private var healthTimer: Timer?
     private var signals: [DispatchSourceSignal] = []
     private var healthInFlight = false
@@ -293,7 +295,7 @@ final class Companion: NSObject, NSApplicationDelegate {
     private func recordNativeDiagnostic(_ operation: String, _ code: String, exitCode: Int32? = nil) {
         guard config != nil else { return }
         let operations = ["startup", "shutdown", "bridge", "update", "connection"]
-        let codes = ["none", "native_start_failed", "native_update_failed", "child_terminated", "bridge_lost", "unavailable"]
+        let codes = ["none", "native_start_failed", "native_update_failed", "child_terminated", "bridge_lost", "unavailable", "normal"]
         guard operations.contains(operation), codes.contains(code) else { return }
         let fm = FileManager.default, directory = URL(fileURLWithPath: config.supportDirectory)
         var parent = stat()
@@ -313,14 +315,14 @@ final class Companion: NSObject, NSApplicationDelegate {
                     guard let at = item["at"] as? String, let date = formatter.date(from: at), Date().timeIntervalSince(date) < 7 * 86400, date.timeIntervalSinceNow < 60,
                           let op = item["operation"] as? String, operations.contains(op), let kind = item["code"] as? String, codes.contains(kind),
                           let session = item["session"] as? String, session.range(of: "^d_[a-f0-9]{32}$", options: .regularExpression) != nil else { continue }
-                    var clean: [String: Any] = ["schema": 1, "component": "native", "at": at, "operation": op, "code": kind, "session": session, "severity": kind == "none" ? "info" : "warn", "outcome": kind == "none" ? "ok" : "failed"]
+                    var clean: [String: Any] = ["schema": 1, "component": "native", "at": at, "operation": op, "code": kind, "session": session, "severity": ["none", "normal"].contains(kind) ? "info" : "warn", "outcome": ["none", "normal"].contains(kind) ? "ok" : "failed"]
                     if let number = item["exitCode"] as? Int, number >= -65535, number <= 65535 { clean["exitCode"] = number }
                     events.append(clean)
                 }
             }
             Darwin.close(fd)
         } else if errno != ENOENT { return }
-        var event: [String: Any] = ["schema": 1, "component": "native", "at": Date().ISO8601Format(), "operation": operation, "code": code, "session": diagnosticSession, "severity": code == "none" ? "info" : "warn", "outcome": code == "none" ? "ok" : "failed"]
+        var event: [String: Any] = ["schema": 1, "component": "native", "at": Date().ISO8601Format(), "operation": operation, "code": code, "session": diagnosticSession, "severity": ["none", "normal"].contains(code) ? "info" : "warn", "outcome": ["none", "normal"].contains(code) ? "ok" : "failed"]
         if let value = exitCode { event["exitCode"] = Int(value) }
         events.append(event)
         if events.count > 64 {
@@ -443,7 +445,7 @@ final class Companion: NSObject, NSApplicationDelegate {
     private func setStatus(_ text: String, healthy: Bool) {
         ready = healthy
         if statusLine.title != text && connectionState == nil {
-            if let line = "\(Date().ISO8601Format()) companion: \(text)\n".data(using: .utf8) { try? output?.write(contentsOf: line) }
+            if let line = "\(Date().ISO8601Format()) companion: \(text)\n".data(using: .utf8) { appendPrivateLog(line) }
         }
         statusLine.title = text
         let connected = healthy && (connectionState == nil || connectionState?.health == "connected")
@@ -466,16 +468,24 @@ final class Companion: NSObject, NSApplicationDelegate {
     }
 
     private func prepareLog() {
-        // Bound the local log at startup, keeping one previous generation.
-        let fm = FileManager.default
-        if let attrs = try? fm.attributesOfItem(atPath: logURL.path), let size = attrs[.size] as? NSNumber, size.intValue > 5_000_000 {
-            let old = logURL.appendingPathExtension("previous")
-            try? fm.removeItem(at: old)
-            try? fm.moveItem(at: logURL, to: old)
-        }
-        if !fm.fileExists(atPath: logURL.path) { fm.createFile(atPath: logURL.path, contents: nil, attributes: [.posixPermissions: 0o600]) }
-        output = try? FileHandle(forWritingTo: logURL)
-        output?.seekToEndOfFile()
+        let fd = Darwin.open(logURL.path, O_WRONLY | O_APPEND | O_CREAT | O_NOFOLLOW, 0o600)
+        guard fd >= 0 else { return }
+        var info = stat()
+        guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG,
+              info.st_uid == getuid(), info.st_nlink == 1 else { Darwin.close(fd); return }
+        _ = fchmod(fd, 0o600)
+        if info.st_size > 262144 { _ = ftruncate(fd, 0) }
+        output = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+    }
+
+    private func appendPrivateLog(_ data: Data) {
+        logLock.lock(); defer { logLock.unlock() }
+        guard let output = output else { return }
+        let bounded = Data(data.suffix(65536))
+        var info = stat()
+        guard fstat(output.fileDescriptor, &info) == 0 else { return }
+        if info.st_size + Int64(bounded.count) > 262144 { _ = ftruncate(output.fileDescriptor, 0) }
+        try? output.write(contentsOf: bounded)
     }
 
     private func makeProcess(_ arguments: [String]) -> Process {
@@ -504,6 +514,11 @@ final class Companion: NSObject, NSApplicationDelegate {
         return p
     }
 
+    private func recordChildExit(status: Int32, reason: Process.TerminationReason) {
+        let expected = stopping && ((reason == .exit && status == 0) || (reason == .uncaughtSignal && status == SIGTERM))
+        recordNativeDiagnostic("shutdown", expected ? "normal" : "child_terminated", exitCode: status)
+    }
+
     private func startServer() {
         guard !quitting, server == nil else { return }
         stopping = false
@@ -518,11 +533,19 @@ final class Companion: NSObject, NSApplicationDelegate {
         let p = makeProcess([gateway, config.runtimeRoot, config.supportDirectory, config.memoryRoot, String(config.port)])
         let requests = Pipe()
         let responses = Pipe()
+        let errors = Pipe()
+        errorPipe = errors
+        errors.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            if data.isEmpty { handle.readabilityHandler = nil }
+            else { self?.appendPrivateLog(data) }
+        }
+        p.standardError = errors
         p.standardOutput = requests // stdout is exclusively newline-delimited RPC.
         p.standardInput = responses
         let bridge = NativeBridge(reader: requests.fileHandleForReading, writer: responses.fileHandleForWriting) { [weak self, weak p] in
             guard let self = self, let p = p, self.server === p else { return }
-            self.recordNativeDiagnostic("bridge", "bridge_lost")
+            if !self.stopping { self.recordNativeDiagnostic("bridge", "bridge_lost") }
             if p.isRunning { p.terminate() }
             self.setStatus("Native connection service unavailable — restart server", healthy: false)
         }
@@ -530,7 +553,9 @@ final class Companion: NSObject, NSApplicationDelegate {
         p.terminationHandler = { [weak self] child in
             DispatchQueue.main.async {
                 guard let self = self, self.server === child else { return }
-                self.recordNativeDiagnostic("shutdown", "child_terminated", exitCode: child.terminationStatus)
+                self.recordChildExit(status: child.terminationStatus, reason: child.terminationReason)
+                self.errorPipe?.fileHandleForReading.readabilityHandler = nil
+                self.errorPipe = nil
                 self.nativeBridge?.stop()
                 self.nativeBridge = nil
                 self.connectionState = nil
@@ -547,6 +572,8 @@ final class Companion: NSObject, NSApplicationDelegate {
             bridge.start()
             checkHealth()
         } catch {
+            errors.fileHandleForReading.readabilityHandler = nil
+            errorPipe = nil
             bridge.stop()
             recordNativeDiagnostic("startup", "native_start_failed")
             nativeBridge = nil

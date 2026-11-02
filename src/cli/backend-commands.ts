@@ -9,13 +9,24 @@ function validate(args: ParsedCliArgs, allowed: string[]) {
   if (args.json !== undefined && args.json !== true) throw new Error("--json takes no value.");
 }
 export async function backendCli(args: ParsedCliArgs): Promise<void> {
+  if (args._[1] === "list") {
+    validate({ ...args, root: "" }, ["root", "json"]);
+    const roots = typeof args.root === "string" ? [args.root] : args.root;
+    if (!Array.isArray(roots) || roots.length < 1 || roots.length > 32) throw new Error("backend list requires 1..32 explicit --root values.");
+    const backends = [];
+    for (const root of [...new Set(roots)]) {
+      try { const value = await backendStatus(root, true); backends.push({ root, ...value, pidAlive: value.status !== "stopped" }); }
+      catch { backends.push({ root, status: "invalid" }); }
+    }
+    console.log(JSON.stringify({ backends }, null, args.json ? undefined : 2)); return;
+  }
   validate(args, ["root", "json"]);
   const root = stringArg(args, "root"), operation = args._[1];
   let result: unknown;
   if (operation === "status") result = await backendStatus(root);
   else if (operation === "stop") result = await stopRootBackend(root);
   else if (operation === "start") { const { token: _secret, ...backend } = await ensureRootBackend(root); result = { status: "running", backend }; }
-  else throw new Error("Usage: jumpybrain backend <start|status|stop> --root <directory> [--json]");
+  else throw new Error("Usage: jumpybrain backend <start|status|stop|list> --root <directory> [--json]");
   console.log(JSON.stringify(result, null, args.json ? undefined : 2));
 }
 export async function accessCli(args: ParsedCliArgs): Promise<void> {

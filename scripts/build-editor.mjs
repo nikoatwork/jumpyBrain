@@ -6,15 +6,18 @@ import { resolveFeedbackUrl } from './feedback-config.mjs';
 
 const pkg = JSON.parse(await readFile("package.json", "utf8"));
 const { version } = pkg;
-// Compact only presentation/parser artifacts. Keep source, declarations,
+// Compact CLI and backend-ownership artifacts. Keep source, declarations,
 // identifiers, syntax and legal notices; no new bundle or runtime dependency.
-for (const name of ["args", "usage", "instructions"]) {
-  const file = `dist/cli/${name}.js`;
-  const result = await transform(await readFile(file, "utf8"), {
-    minifyWhitespace: true, minifyIdentifiers: false, minifySyntax: false,
-    target: "node22", legalComments: "inline",
-  });
-  await writeFile(file, result.code);
+for (const directory of ["cli", "adapters/backend-host", "app/backend-host"]) {
+  for (const name of await readdir(`dist/${directory}`)) {
+    if (!name.endsWith(".js")) continue;
+    const file = `dist/${directory}/${name}`;
+    const result = await transform(await readFile(file, "utf8"), {
+      minifyWhitespace: true, minifyIdentifiers: false, minifySyntax: false,
+      target: "node22", legalComments: "inline",
+    });
+    await writeFile(file, result.code);
+  }
 }
 // Public routing configuration only; the native helper deliberately drops shell env.
 const feedbackUrl = resolveFeedbackUrl(pkg);

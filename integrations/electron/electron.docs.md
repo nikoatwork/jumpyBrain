@@ -119,3 +119,45 @@ history followed by new editing.
 ## Human and agent display names
 
 The production sandboxed welcome offers an optional name for local and remote setup, passed through a fixed bounded IPC action to the authenticated companion identity route. Setup and Settings → Your name share the CLI's device-local display preference; no name is guessed and existing notes keep their recorded provenance. The compact welcome field preserves reachable actions at 960/680px. `scripts/simple-onboarding-smoke.mjs` verifies persistence with a disposable preference file and real production welcome. `scripts/contextual-attribution-smoke.mjs` covers Settings, live human saves, CLI agent prefixes and the saved-note selection hint.
+
+## Runtime retention
+
+A detached or foreground backend pins its runtime before readiness. Pins move with
+app/CLI directory exchanges; the launch path in its root descriptor can describe
+the pre-exchange location. A live PID conservatively retains the whole generation,
+including lazy-loaded files, until that process exits. Updates do not stop shared
+CLI/server backends. Old runtimes without the pin protocol remain retained.
+Startup identity also binds the runtime directory generation. A replacement
+between identity capture and pin publication fails before serving; pin identity
+is rechecked after publication, including exchange/rollback races. Detached
+launches carry their caller's expected generation. Legacy companion replacement
+uses the same conservative retirement check for previous CLI and bundled GUI
+runtimes rather than unconditionally removing their backup containers.
+
+After verified success/recovery, `update-retention.py` inventories at most 256
+immediate update entries under the owned update directory, saves reclaimable paths
+and bytes in `retention-preview.json`, then revalidates under an exclusive cleanup
+lock. It keeps the two newest completed dead-worker generations plus the current
+worker, all live pins, incomplete journals, unknown legacy trees and active
+preparations. An exclusive runtime retirement sentinel fences new backend startup
+before inspecting bounded private pins. Cleanup never uses age as ownership proof.
+Unsafe/busy retention is nonfatal. Interrupted unmarked staging needs explicit
+inspection; no broad legacy cleanup or new public prune command is added.
+
+Update logs are 256 KiB tails per retained transaction. Native gateway stderr is
+continuously bounded to 256 KiB (64 KiB input chunks); obsolete `.previous` logs
+from older releases remain for explicit inspection. Structured diagnostics retain
+their existing seven-day/ten-segment policy. These logs are disposable; drafts,
+credentials, profiles and canonical notes never enter this cleanup namespace.
+Expected owned TERM/clean shutdown records `normal`; unexpected clean exits,
+nonzero exits and KILL remain failures. Electron records a bounded content-free
+`startup-failure.json` in its existing user-data directory when imports/config fail
+before host diagnostics, if that destination is safe and available. This is a
+breadcrumb, not a code-signing diagnosis; pre-Electron failures cannot write it.
+
+Readiness-only gateways now skip brain health/target requests entirely and reject
+memory forwarding; they verify native/gateway startup without creating a shared
+backend in a replacement tree. Their existing authenticated probe did not require
+connected brain health. Normal relaunch opens the selected brain from the installed
+runtime. New pin-aware runtimes reap confirmed dead private pins on startup with
+bounded inspection; foreign/frozen runtimes remain outside automatic retirement.
