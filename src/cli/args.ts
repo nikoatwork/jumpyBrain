@@ -18,11 +18,13 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
   if (operation === "dream" && argv.some(token => /^--(?:check-sources|draft|page-file|id)(?:=|$)/u.test(token))) return parseDreamSourceArgs(argv);
   if (operation === "remember") return parseRememberArgs(argv);
   if (operation === "delete") return parseDeleteArgs(argv);
-  if (operation === "expand" || (["recall", "search"].includes(operation)
-    && argv.some(token => /^--(?:compact|max-bytes|diagnostics|no-refresh|read-only|from|to|reference-date|order|recognition|last-editor|editor-id|edited-from|edited-to|date-field|time-zone|sort|offset)(?:=|$)/u.test(token)))) {
+  if (["expand", "recall", "search"].includes(operation)) {
     return parseBoundedReadArgs(argv, operation);
   }
+  const strict = parseCommandFlags(argv, operation);
+  if (strict) return strict;
   const args: ParsedCliArgs = { _: [] };
+  const flags: string[] = [];
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (!token.startsWith("--")) {
@@ -31,6 +33,8 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     }
 
     const key = token.slice(2);
+    if (operation === "dream" && Object.hasOwn(args, key)) throw new Error(`--${key} must not be repeated.`);
+    flags.push(token);
     const next = argv[index + 1];
     if (!next || next.startsWith("--")) {
       args[key] = true;
@@ -38,6 +42,7 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     }
 
     const current = args[key];
+    flags.push(next);
     if (current === undefined) {
       args[key] = next;
     } else if (Array.isArray(current)) {
@@ -47,11 +52,61 @@ export function parseArgs(argv: string[]): ParsedCliArgs {
     }
     index += 1;
   }
-  const processing = args._[0] === "process" || (args._[0] === "run" && args._[1] === "memory:process");
-  if (processing && argv.filter(token => /^--apply(?:=|$)/.test(token)).length > 1) {
-    throw new Error("--apply must not be repeated.");
+  // Preserve legacy flags-before-command spelling without letting it bypass
+  // command-specific validation. The first pass only identifies positionals.
+  return args._.length && argv[0] !== args._[0] ? parseArgs([...args._, ...flags]) : args;
+}
+
+// The remaining legacy command families share token validation only. Their
+// handlers retain semantic validation, target policy and output ownership.
+function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | undefined {
+  const targets = ["root", "target-url", "remote-url"];
+  const actor = ["actor", "actor-id", "actor-name"];
+  const documentUpdate = argv[0] === "run" || argv.some(token => /^--(?:id|if-match|root|target-url|remote-url)(?:=|$)/u.test(token));
+  const specs: Record<string, { values?: string[]; booleans?: string[]; optionalBooleans?: string[]; repeat?: string[]; positional?: number }> = {
+    status: { values: targets },
+    index: { values: [...targets, "semantic-model"], booleans: ["rebuild", "lexical"] },
+    tree: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
+    overview: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
+    show: { values: [...targets, "id"] },
+    update: documentUpdate ? { values: [...targets, "id", "if-match", ...actor] }
+      : { values: ["home", "install-root", "source", "ref"], booleans: ["dry-run"] },
+    process: { values: [...targets, "mode", "topic", "since", "if-match", "limit"], optionalBooleans: ["apply"] },
+    wrapup: { values: [...targets, "title", "topic", "limit", "tag"], repeat: ["tag"] },
+    init: { values: ["root"], booleans: ["force"] },
+    serve: { values: ["root", "host", "port", "api-key", "public-base-url"], booleans: ["init"], repeat: ["api-key"] },
+    backend: { values: ["root"], positional: 2 },
+    access: { values: ["root", "name", "role", "id"], positional: 2 },
+    collaborate: { values: [...targets, "id", "start", "delete", "epoch", "base-revision", "client-id", "stream-id"], positional: 2 },
+  };
+  if (!Object.hasOwn(specs, operation)) return undefined;
+  const spec = specs[operation]!;
+  const positional = argv[0] === "run" ? 2 : spec.positional ?? 1;
+  const args: ParsedCliArgs = { _: argv.slice(0, positional) };
+  const values = new Set(spec.values), booleans = new Set(["json", ...(spec.booleans ?? [])]);
+  const optionalBooleans = new Set(spec.optionalBooleans);
+  for (let index = positional; index < argv.length; index++) {
+    const token = argv[index]!;
+    if (!token.startsWith("--")) throw new Error(`Unexpected ${operation} argument: ${token}. See jumpybrain ${operation} --help.`);
+    const equal = token.indexOf("="), key = token.slice(2, equal < 0 ? undefined : equal);
+    if (!values.has(key) && !booleans.has(key) && !optionalBooleans.has(key)) throw new Error(`Unknown ${operation} flag --${key}. See jumpybrain ${operation} --help.`);
+    if (Object.hasOwn(args, key) && !spec.repeat?.includes(key)) throw new Error(`--${key} must not be repeated.`);
+    if (booleans.has(key)) {
+      if (equal >= 0) throw new Error(`--${key} is a boolean flag and takes no value.`);
+      args[key] = true;
+    } else if (optionalBooleans.has(key)) {
+      let value = equal >= 0 ? token.slice(equal + 1) : undefined;
+      if (value === undefined && argv[index + 1] !== undefined && !argv[index + 1]!.startsWith("--")) value = argv[++index];
+      if (value !== undefined && value !== "true" && value !== "false") throw new Error(`--${key} must be a boolean flag or true/false.`);
+      args[key] = value === undefined ? true : value;
+    } else {
+      const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
+      if (!value || value.startsWith("--") || !value.trim()) throw new Error(`--${key} requires a value.`);
+      args[key] = spec.repeat?.includes(key) ? [...stringListArg(args, key), value] : value;
+    }
   }
-  return args._[0] === "migrate" ? parseMigrationArgs(argv) : args;
+  if (operation === "index" && args.lexical && args["semantic-model"] !== undefined) throw new Error("Use only one of --lexical or --semantic-model.");
+  return args;
 }
 
 function parseIdentityArgs(argv: string[]): ParsedCliArgs {

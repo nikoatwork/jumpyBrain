@@ -11,11 +11,16 @@ import { enforceRemoteAccessPolicy } from "./remote-access-policy.js";
 import { serveCli } from "./serve.js";
 import { memoryRootInspectionMessage, requireLocalRoot } from "./targets.js";
 import { updateCli } from "./update.js";
-import { usage } from "./usage.js";
+import { helpForArgv, usage } from "./usage.js";
 
 const localMemory = createLocalMemoryTransport();
 
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
+  const help = helpForArgv(argv);
+  if (help !== undefined) {
+    console.log(help);
+    return;
+  }
   const args = parseArgs(argv);
   try { await dispatchCli(args); }
   catch (error) {

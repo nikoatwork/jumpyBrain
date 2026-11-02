@@ -37,7 +37,7 @@ test('extension parsing is strict before remote policy, credentials and filesyst
     ['extensions', 'enable', '--id', 'x', 'unexpected'], ['extensions', 'list', '--root', '/brain'],
   ]) assert.throws(() => parseArgs(argv));
   assert.equal(parseArgs(['extensions', 'install', '--source=/local/package', '--directory=/host/extensions']).source, '/local/package');
-  const help = await cli(['enable', '--help']); assert.match(help.stdout, /extensions install --source/);
+  const help = await cli(['enable', '--help']); assert.match(help.stdout, /extensions enable/); assert.match(help.stdout, /--id <extension-id>/);
   await assert.rejects(cli(['list', '--target-url'], { JUMPYBRAIN_CLI_CONFIG: '/no/access', JUMPYBRAIN_API_KEY: '' }), error => /desktop-local/.test(error.stderr) && !/API key|cli-config/.test(error.stderr));
 });
 

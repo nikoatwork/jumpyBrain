@@ -634,7 +634,7 @@ function documentWithDate(relativePath, frontmatter) {
 test("CLI run memory usage lists document edit and ID-stamping recipes", () => {
   const result = runCliFailure(["run"]);
   assert.match(result.stderr, /jumpybrain run memory:show --id <mem_id>/);
-  assert.match(result.stderr, /\[--target-url <url>\]/);
+  assert.match(result.stderr, /--target-url <url>/);
   assert.match(result.stderr, /jumpybrain run memory:update --id <mem_id> --if-match <contentHash>/);
   assert.match(result.stderr, /jumpybrain run memory:process --mode lint\|synthesize\|ensure-ids/);
 });
