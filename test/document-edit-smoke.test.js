@@ -214,16 +214,22 @@ test("in-process remote CLI document edit smoke remembers, shows, updates, reind
   }
 });
 
-test("CLI usage smoke pins document show, update, and ID-stamping commands", () => {
-  const help = runCli(["help"]).stdout;
-  assert.match(help, /jumpybrain show --root <memory-root> --id <mem_id> \[--json\]/);
-  assert.match(help, /jumpybrain show --target-url <url> --id <mem_id> \[--json\]/);
-  assert.match(help, /cat revised\.md \| jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> \[--json\]/);
-  assert.match(help, /cat revised\.md \| jumpybrain update --target-url <url> --id <mem_id> --if-match <contentHash> \[--json\]/);
-  assert.match(help, /jumpybrain process --root <memory-root> --mode lint\|synthesize\|ensure-ids \[--topic "\.\.\."\] --apply/);
+test("CLI command help pins document show, update, and ID-stamping commands", () => {
+  const show = runCli(["show", "--help"]).stdout;
+  assert.match(show, /--id <mem_id> \[--json\]/);
+  assert.match(show, /--root <memory-root> OR --target-url <url>/);
+  const update = runCli(["update", "--help"]).stdout;
+  assert.match(update, /cat revised\.md \| jumpybrain update/);
+  assert.match(update, /--id <mem_id> --if-match <contentHash>/);
+  const processHelp = runCli(["process", "--help"]).stdout;
+  assert.match(processHelp, /--mode lint\|synthesize\|ensure-ids/);
+  assert.match(processHelp, /--apply/);
 
   const runHelp = runCliFailure(["run"]).stderr;
-  assert.match(runHelp, /jumpybrain run memory:show --id <mem_id> \[--root <memory-root>\] \[--target-url <url>\] \[--json\]/);
-  assert.match(runHelp, /cat revised\.md \| jumpybrain run memory:update --id <mem_id> --if-match <contentHash> \[--root <memory-root>\] \[--target-url <url>\] \[--json\]/);
-  assert.match(runHelp, /jumpybrain run memory:process --mode lint\|synthesize\|ensure-ids \[--topic "\.\.\."\] \[--root <memory-root>\] --apply/);
+  for (const recipe of ["show", "update", "process"]) {
+    assert.match(runHelp, new RegExp(`memory:${recipe}`));
+    const detail = runCli(["run", `memory:${recipe}`, "--help"]).stdout;
+    assert.match(detail, new RegExp(`Usage: jumpybrain run memory:${recipe}`));
+    assert.match(detail, /--root/);
+  }
 });

@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- `commands.ts` resolves exact `--help`, `-h`, `help <command>` and namespace help from raw argv before argument validation or operation dispatch. Help wins over other flags, including malformed/missing values; unknown command/recipe paths still fail without executing. `usage.ts` owns presentation-only command metadata, namespace children and recipe help (derived from recipe-enabled entries), keeping root help short. Extend the metadata when integrating a command; do not import operation modules into help.
+- All recall/search forms use the existing strict bounded-read token parser, even without compact/temporal flags. Remaining legacy operational families share only token-shape validation in `args.ts`: unknown/missing/repeated flags and valued booleans fail before target policy/credentials. Deliberate repeated tags/API keys, tree aliases and explicit process-apply true/false remain supported. Command handlers retain semantic validation, output and policy ownership.
 - `board` is an optional namespace using normal root/remote target selection, independent of desktop discovery. `board-args.ts` validates command-specific flags and hash preconditions. `boards.ts` composes runtime board operations or the HTTP transport. `commands.ts` enforces remote read-only policy before input files/credentials; only list/show/status are reads. Status is bounded to 12 cards by default (explicitly up to 50), with provenance and evidence gaps; it rechecks the individual board hash. No automatic indexing or Markdown writes. See [board contract](../../docs/boards.md).
 - `companion.ts` provides private native descriptor/key discovery for extension management. The historical `extensions-control.json` filename remains; boards do not use this channel.
 
@@ -16,7 +18,7 @@
 - Own `migrate obsidian` and `migrate logseq` in `migrate.ts`: strict source/root and boolean flags, body-free human summaries or the unchanged app JSON result, safely quoted apply/index hints, and explicit separate indexing. Dispatch this local-only command before remote policy/credentials; reject either remote target flag even when malformed or combined with local flags.
 - Obsidian always preserves original body/YAML bytes, returns notes/reference/omission counts, and rejects `--body-format`; it shares local-only strict parsing and body-free output with Logseq.
 - `migrate logseq --body-format readable|preserve` uses strict nonrepeated values (readable default), reports body conversion/version/limitations, and pins the mode in apply hints. Canonical migration and explicit indexing remain separate.
-- Keep migration argument strictness scoped in `args.ts`; process additionally rejects repeated apply flags, including mixed bare/value/equals spellings, without changing other legacy command parsing.
+- Keep migration-specific validation in `args.ts`; process rejects repeated apply flags, including mixed bare/value/equals spellings.
 - Delegate local work through `src/cli/local-transport.ts` to the runtime/app seam.
 - Delegate remote work through the HTTP client adapter while keeping API keys and URLs at the CLI boundary.
 - Own target selection: `--root` selects local memory, `--target-url`/`--remote-url` selects the single remote V1 namespace, and remote API keys come only from `JUMPYBRAIN_API_KEY` in the CLI environment rather than adapters or local config.
@@ -57,7 +59,7 @@ Local search/index execution deadlines can be set with `JUMPYBRAIN_SEARCH_TIMEOU
 
 ## Explicit temporal retrieval
 
-`temporal.ts` validates `--from`, `--to`, `--reference-date`, and `--order` before target credentials. Search/recall and recipes switch to strict bounded-read argument parsing whenever any temporal flag is present: unknown/repeated flags, missing values, and valued booleans fail. The handler passes one `temporal` object through either transport. Human output reports the resolved UTC half-open interval, coverage, evidence-date basis, explicit relationship declarations, and partial warnings; non-temporal formatting stays unchanged. See [CLI temporal contract](../../docs/cli-commands.md#explicit-temporal-retrieval).
+`temporal.ts` validates `--from`, `--to`, `--reference-date`, and `--order` before target credentials. Search/recall and recipes always use strict bounded-read argument parsing: unknown/repeated flags, missing values, and valued booleans fail. The handler passes one `temporal` object through either transport. Human output reports the resolved UTC half-open interval, coverage, evidence-date basis, explicit relationship declarations, and partial warnings; non-temporal formatting stays unchanged. See [CLI temporal contract](../../docs/cli-commands.md#explicit-temporal-retrieval).
 
 ## Delete command
 

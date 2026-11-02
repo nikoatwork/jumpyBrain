@@ -38,30 +38,11 @@ function runCli(args, options = {}) {
 }
 
 function assertUsageContract(output) {
-  for (const expected of [
-    "jumpybrain --version",
-    "jumpybrain instructions",
-    "jumpybrain doctor [--root <memory-root>] [--json]",
-    "jumpybrain update [--dry-run] [--install-root <path>]",
-    "jumpybrain serve --root <memory-root> --host 127.0.0.1 --port 3787",
-    "jumpybrain run memory:remember --type finding --title \"...\"",
-    "jumpybrain run memory:recall --topic \"...\" --limit 5",
-    "jumpybrain init --root <memory-root>",
-    "jumpybrain status --root <memory-root> --json",
-    "jumpybrain recall --root <memory-root> --topic \"...\" --limit 5 --depth shallow",
-    "jumpybrain recall --root <memory-root> --query \"...\" --limit 10 --depth normal --json",
-    "jumpybrain show --root <memory-root> --id <mem_id> [--json]",
-    "jumpybrain show --target-url <url> --id <mem_id> [--json]",
-    "jumpybrain dream --root <memory-root>|--target-url <url> [--from t-0d|YYYY-MM-DD] [--days 3] [--date-basis evidence|modified] [--offset 0] [--out dream-window.json] [--json]",
-    "cat body.md | jumpybrain remember --root <memory-root>|--target-url <url> --type page --dream --title \"Topic map\"",
-    "cat revised.md | jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> [--json]",
-    "cat revised.md | jumpybrain update --target-url <url> --id <mem_id> --if-match <contentHash> [--json]",
-    "jumpybrain process --root <memory-root> --mode lint|synthesize|ensure-ids [--topic \"...\"] --apply",
-    "cat memory.md | jumpybrain remember --root <memory-root> --type finding --title \"...\"",
-    "cat wrapup.md | jumpybrain wrapup --root <memory-root> --title \"...\" --topic \"...\"",
-  ]) {
-    assert.match(output, new RegExp(escapeRegExp(expected)), `usage should include: ${expected}`);
+  assert.ok(output.split("\n").length <= 15, "root help stays a short command overview");
+  for (const name of ["recall", "search", "expand", "show", "remember", "update", "delete", "wrapup", "init", "status", "index", "tree", "process", "dream", "doctor", "serve", "backend", "access", "collaborate", "board", "extensions", "migrate", "identity", "feedback", "instructions", "run", "version"]) {
+    assert.match(output, new RegExp(`\\b${name}\\b`));
   }
+  assert.match(output, /jumpybrain <command> --help/);
 }
 
 test("CLI help and instructions expose stable command names and important flags", () => {
