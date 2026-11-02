@@ -1,13 +1,30 @@
-.git
-node_modules
-dist
-.local-pack
-.jumpybrain
-.env
-.env.*
-AGENTS.md
-AGENTS.local.md
-tasks
-memory
-*.tgz
-.DS_Store
+# Explicit build-input allowlist. Do not send local state, secrets, personal
+# memory, evals, desktop dependencies or unrelated scripts to the builder.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!package-lock.json
+!tsconfig.json
+!src/
+!src/**
+!scripts/
+scripts/**
+!scripts/build-editor.mjs
+!scripts/feedback-config.mjs
+!scripts/qmd-install-check.mjs
+!scripts/multiplayer-upgrade.mjs
+!scripts/engine/
+scripts/engine/**
+!scripts/engine/package.json
+!scripts/engine/package-lock.json
+# Never admit private/generated files even underneath an allowed source tree.
+**/.env
+**/.env.*
+**/.npmrc
+**/*.pem
+**/*.key
+**/node_modules
+**/.jumpybrain
+**/AGENTS.md
+**/AGENTS.local.md
