@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-02 — Daily-note evidence dates
+
+- New daily notes record their selected local calendar day for temporal recall and dream windows, rejecting conflicting supplied dates before writing. [Verification and limits](done/2026-11-02_tasks-daily-note-evidence-date.md).
+
 ## 2026-11-02 — Existing-word and line deletion
 
 - Native word/line keyboard commands capture their exact source range before publication, fixing retained-draft errors without requiring idle time. [Reproduction and verification](done/2026-11-02_tasks-stale-note-editing.md).

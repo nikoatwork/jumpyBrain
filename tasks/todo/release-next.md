@@ -1,5 +1,7 @@
 # Changes
 
+- New daily notes retain their selected local calendar day for dated recall and dream windows.
+
 - Word and line deletion save reliably in existing notes, including keyboard shortcuts and repeated text.
 
 - The packaged Mac app starts normally from agent shells that inherit Electron's Node-mode variable; reopening after Quit works independently of Start at Login.

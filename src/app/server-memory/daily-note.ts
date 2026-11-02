@@ -31,6 +31,9 @@ export async function prepareServerNote(rootArg: string, draft: ServerMemoryNote
   if (draft.type !== "note" || draft.body.trim() !== "" || draft.title !== undefined) {
     throw new Error("dailyDate requires type note, a blank body, and no explicit title.");
   }
+  if (date !== undefined && date !== dailyDate) {
+    throw new Error("date must match dailyDate for daily note creation.");
+  }
 
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
@@ -51,5 +54,5 @@ export async function prepareServerNote(rootArg: string, draft: ServerMemoryNote
     }
   }
   // BigInt avoids rounding into an occupied suffix for unusually large imported titles.
-  return { ...draft, date, type: "note", body: draft.body, title: highest === 0n ? dateTitle : `${dateTitle} · ${highest + 1n}` };
+  return { ...draft, date: dailyDate, type: "note", body: draft.body, title: highest === 0n ? dateTitle : `${dateTitle} · ${highest + 1n}` };
 }
