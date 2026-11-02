@@ -3,6 +3,9 @@
 ## 2026-11-02 — On-demand agent guidance and lint observation
 
 - Short entry guidance discovers detailed CLI topics; explicit local lint preview returns findings without reports, indexes or backend startup. [Verification and measured limits](done/2026-11-02_tasks-agent-interface-efficiency.md).
+## 2026-11-02 — CLI app connection control
+
+- Agents can register and select local app connections through guarded companion control; status and doctor expose independently resolved targets. [Verification](done/2026-11-02_tasks-brain-connections-and-targeting.md).
 
 ## 2026-11-02 — Hosted container packaging
 

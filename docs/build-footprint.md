@@ -29,6 +29,12 @@ Native smoke/tests, private configuration and build caches are excluded;
 Swift/helper sources and desktop updater/build resources remain available.
 CLI-only installs still do not include Electron or editor development packages.
 
+The build removes emitted whitespace from the CLI argument, help and instruction
+JavaScript modules with the existing esbuild dependency. Identifiers, syntax and
+legal notices are retained; source and API declarations remain readable. This
+keeps combined CLI capabilities inside the original package ceilings without
+dropping commands, guidance or installed resources.
+
 ## 2026-10-29 review
 
 macOS 15.7.7 arm64, Node 26.7.0, npm 11.19.0. Three sequential clean builds per

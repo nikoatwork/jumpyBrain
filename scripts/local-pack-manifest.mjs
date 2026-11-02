@@ -21,6 +21,7 @@ export const requiredLocalPackFiles = Object.freeze([
   ...moduleFiles("adapters", "http-server", "document-retained-versions"),
   ...moduleFiles("server", "daemon"),
   ...moduleFiles("cli", "backend-commands"),
+  ...moduleFiles("cli", "connections"),
   ...moduleFiles("cli", "collaborate"),
   "package/scripts/install-support.mjs",
   "package/scripts/bootstrap-node.sh",

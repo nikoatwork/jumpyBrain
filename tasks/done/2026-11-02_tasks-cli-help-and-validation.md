@@ -10,7 +10,7 @@ Every supported command should answer help without executing its operation, requ
 
 - [Agent review, 2026-11-02, part 1](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=93c68f07-038e-4d2a-8247-f565481d0361) reports missing/inconsistent subcommand help, an update performed during a help request, absent conventional help aliases and silently accepted flags on some read commands in 0.3.17.
 - The report is agent-authored feedback. The disposable audit below independently reproduced dispatch/parser defects in the release tag and starting source without executing operations; it does not establish that an actual installation was changed.
-- Root discovery belongs to [brain targeting](../todo/tasks-brain-connections-and-targeting.md). Agent policy length belongs to [agent interface](2026-11-02_tasks-agent-interface-efficiency.md).
+- Root discovery belongs to [brain targeting](2026-11-02_tasks-brain-connections-and-targeting.md). Agent policy length belongs to [agent interface](2026-11-02_tasks-agent-interface-efficiency.md).
 
 ## Relevant files
 

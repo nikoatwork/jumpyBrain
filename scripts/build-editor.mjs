@@ -1,4 +1,4 @@
-import { build } from "esbuild";
+import { build, transform } from "esbuild";
 import { readFile, writeFile, readdir } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
@@ -6,6 +6,16 @@ import { resolveFeedbackUrl } from './feedback-config.mjs';
 
 const pkg = JSON.parse(await readFile("package.json", "utf8"));
 const { version } = pkg;
+// Compact only presentation/parser artifacts. Keep source, declarations,
+// identifiers, syntax and legal notices; no new bundle or runtime dependency.
+for (const name of ["args", "usage", "instructions"]) {
+  const file = `dist/cli/${name}.js`;
+  const result = await transform(await readFile(file, "utf8"), {
+    minifyWhitespace: true, minifyIdentifiers: false, minifySyntax: false,
+    target: "node22", legalComments: "inline",
+  });
+  await writeFile(file, result.code);
+}
 // Public routing configuration only; the native helper deliberately drops shell env.
 const feedbackUrl = resolveFeedbackUrl(pkg);
 await writeFile("dist/adapters/http-server/feedback-config.json", JSON.stringify({ url: feedbackUrl }));

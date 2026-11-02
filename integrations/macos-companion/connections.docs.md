@@ -6,7 +6,7 @@
 
 - `snapshot()` returns a synchronous clone of `{ version: 1, revision, activeId, profiles }`; `get(id)` returns a cloned profile or `undefined`. Neither returns keys.
 - `save({ id?, name, kind, root? , url?, key?, allowWrites? }, expectedRevision)` and `remove(id, expectedRevision)` require the current integer revision and return a snapshot. Supplying `id` updates an existing profile; callers cannot choose new IDs or credential references. Inputs must contain only the listed fields, not an entire persisted remote profile.
-- `setActive(id)` serializes activation and returns a snapshot. Same-active selection is a no-op. Removing the active profile is refused; switch first.
+- `setActive(id, expectedRevision?)` serializes activation (CLI control supplies the revision) and returns a snapshot. Same-active selection is a no-op. Removing the active profile is refused; switch first.
 - New local profiles allow writes by default; new remote profiles do not. An unchanged destination retains its existing permission when omitted; changing destination resets the default. Explicit `allowWrites: true` is target-specific approval, not authorization inferred from connectivity.
 
 Profiles have UUID destination-identity IDs (a root/origin replacement allocates a new ID and updates the active ID when applicable, invalidating old browser links), trimmed names, `kind: local | remote`, `allowWrites`, and either an absolute `root` or normalized `url` plus opaque `credentialRef`. Remote URLs must be origins: HTTPS, or HTTP at literal `127.0.0.1`, `localhost`, or `[::1]`. A trailing slash/default port is normalized; paths, userinfo, query, fragment, backslashes, and alternate HTTP IP spellings are rejected. Local saves resolve real paths and require a regular, non-hardlinked `jumpybrain.json` marker, without reading/writing its contents. Duplicate destinations are refused.
@@ -23,7 +23,7 @@ Errors have static safe messages and a `code`; no filesystem/Keychain error caus
 
 ## Non-responsibilities
 
-No CLI/agent configuration, memory initialization/migration/indexing, connectivity checks, real Keychain implementation, browser/IPC authentication, server lifecycle, or all-tab save barrier. This low-level store does not authorize an activation or edit to an active profile's destination: orchestration must guard those actions through the same switch coordinator before committing. Do not expose credentials or unguarded `setActive` to browser callers.
+No CLI memory-target configuration, memory initialization/migration/indexing, connectivity checks, real Keychain implementation, browser/IPC authentication, server lifecycle, or all-tab save barrier. This low-level store does not authorize an activation or edit to an active profile's destination: orchestration must guard those actions through the same switch coordinator before committing. Do not expose credentials or unguarded `setActive` to browser callers.
 
 Run disposable filesystem/fake-Keychain coverage with:
 

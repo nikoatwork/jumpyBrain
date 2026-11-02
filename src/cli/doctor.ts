@@ -6,7 +6,7 @@ import path from "node:path";
 import { packageVersion } from "../adapters/package-info/index.js";
 import { stringArg, type ParsedCliArgs } from "./args.js";
 import type { LocalMemoryTransport } from "./local-transport.js";
-import { memoryRootInspectionMessage } from "./targets.js";
+import { memoryRootInspectionMessage, resolveCliTarget } from "./targets.js";
 
 interface DoctorCheck {
   ok: boolean;
@@ -18,7 +18,7 @@ export interface DoctorReport {
   cli: DoctorCheck & { version: string };
   node: DoctorCheck & { version: string };
   qmd: DoctorCheck & { binary: string };
-  memoryRoot: DoctorCheck & { root: string; initialized?: boolean; compatible?: boolean; readiness?: RetrievalReadiness };
+  memoryRoot: DoctorCheck & { root: string; source?: string; initialized?: boolean; compatible?: boolean; readiness?: RetrievalReadiness };
   integrations: Record<string, DoctorCheck & { path: string }>;
   integrationsScope: "global";
   projectRoot?: string;
@@ -27,7 +27,9 @@ export interface DoctorReport {
 
 export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemoryTransport): Promise<DoctorReport> {
   const version = await packageVersion();
-  const root = stringArg(args, "root", false).trim() || process.env.JUMPYBRAIN_MEMORY_ROOT || path.join(os.homedir(), ".jumpybrain", "memory");
+  const target = resolveCliTarget(args, { fallbackRoot: path.join(os.homedir(), ".jumpybrain", "memory") });
+  if (target.kind !== "local") throw new Error("doctor inspects local roots only.");
+  const root = target.root!;
   const engine = inspectLocalSearchEngine();
   const nodeMajor = Number(process.versions.node.split(".")[0]);
   const integrations = integrationChecks(os.homedir(), false);
@@ -55,7 +57,7 @@ export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemory
     cli: { ok: true, version, message: `jumpybrain ${version}` },
     node: { ok: nodeMajor >= 22, version: process.version, message: nodeMajor >= 22 ? `Node ${process.version}` : `Node >=22 is required; current ${process.version}` },
     qmd: engine,
-    memoryRoot,
+    memoryRoot: { ...memoryRoot, source: target.source },
     integrations,
     integrationsScope: "global",
     ...(projectRoot ? { projectRoot, projectIntegrations: integrationChecks(projectRoot, true) } : {}),
@@ -82,7 +84,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     `- CLI: ${statusIcon(report.cli.ok)} ${report.cli.message}`,
     `- Node: ${statusIcon(report.node.ok)} ${report.node.message}`,
     `- QMD: ${statusIcon(report.qmd.ok)} ${report.qmd.message}`,
-    `- Memory root: ${statusIcon(report.memoryRoot.ok)} ${report.memoryRoot.root} — ${report.memoryRoot.message}`,
+    `- Memory root: ${statusIcon(report.memoryRoot.ok)} ${report.memoryRoot.root} (${report.memoryRoot.source}) — ${report.memoryRoot.message}`,
     ...(report.memoryRoot.readiness ? [`- Readiness: ${report.memoryRoot.readiness.freshness}; modes: ${report.memoryRoot.readiness.modes.join(", ") || "none"}; embeddings: ${report.memoryRoot.readiness.embedding}`] : []),
     "- Global integration file presence (optional; host activation not checked):",
   ];
