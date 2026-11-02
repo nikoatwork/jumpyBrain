@@ -63,8 +63,10 @@ try {
   assert.equal(report.ok, true, report.error); assert.equal(code, 0); assert.equal(report.versions.electron, packagedElectronVersion, 'The input proof must use the packaged Electron engine version.');
   assert.deepEqual(report.checks, [
     'native AX editor/title labels and multiline/status live semantics',
+    'native menu Undo/Redo and keyboard parity preserve canonical body; title input retains native history',
     'CDP native IME preedit blocks flush; remote packaged CLI edit survives Japanese commit and canonical Saved',
     'overlapping native IME retains both versions, blocks flush, exposes labeled readonly recovery fields and actions in AX tree',
+    'native menu expired Undo/Redo informs without blocking fresh editing or changing saved source',
   ], 'Every required native input/AX scenario must finish.');
   console.log('Native collaboration IME/accessibility: PASS');
 } finally {

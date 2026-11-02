@@ -423,6 +423,14 @@ export function createNoteEditor(element: HTMLElement, options: {
     return false;
   }, COMMAND_PRIORITY_HIGH));
   cleanups.push(editor.registerCommand(UNDO_COMMAND, () => { redoPending = false; if (collaborativeHistory) { const active = collaborativeHistory; queueMicrotask(() => { if (collaborativeHistory === active) active.undo(); }); return true; } return false; }, COMMAND_PRIORITY_HIGH));
+  const nativeHistory = (event: Event) => {
+    const action = (event as CustomEvent).detail;
+    if (event.target !== element || element.ownerDocument.activeElement !== element || !["undo", "redo"].includes(action)) return;
+    event.preventDefault();
+    if (editor.isEditable()) editor.dispatchCommand(action === "undo" ? UNDO_COMMAND : REDO_COMMAND, undefined);
+  };
+  element.addEventListener("jumpybrain:history", nativeHistory);
+  cleanups.push(() => element.removeEventListener("jumpybrain:history", nativeHistory));
   let lastSelection: RangeSelection | null = null;
   const serialize = () => {
     const value = $convertToMarkdownString(transformers, undefined, true);

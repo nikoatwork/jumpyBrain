@@ -106,3 +106,12 @@ The public installer composes `setup-desktop.mjs --prepared` against its owned d
 Setup probes the installed native host without extensions, verifies the active local root, completes fresh onboarding, then launches the exact installed executable and authenticates readiness. `CFFIXED_USER_HOME` accompanies an explicitly selected setup home to isolate Cocoa/Electron state in disposable installation checks. A matching running app can be verified on an add-app rerun without replacing it. A conflicting saved profile is reported, not switched. Source-built Mac setup still requires Python/Swift tools; public signing/notarization and release-built native artifacts are not provided by this change.
 
 Desktop packaging passes its unique invocation directory as the Electron packager temporary base. Packager clears that base on startup; using the shared OS default can delete another installation’s extraction in progress. The existing finally cleanup removes only this invocation’s artifacts.
+
+Native Edit → Undo/Redo first offers a cancelable history command to the focused
+editor on the owned gateway origin. Lexical consumes it through the same history
+commands as keyboard input; the shared client still enforces composition, access,
+publication and expired-history policy. Unclaimed input/dialog commands use the
+platform first responder, preserving title/native control history. Other edit
+roles remain the platform menu's roles; no preload or renderer capability is added.
+The packaged native proof covers menu/keyboard parity, title fallback and expired
+history followed by new editing.

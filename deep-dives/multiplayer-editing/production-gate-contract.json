@@ -200,7 +200,8 @@
       ],
       "timeoutMs": 180000,
       "markers": [
-        "Native collaboration IME/accessibility: PASS"
+        "Native collaboration IME/accessibility: PASS",
+        "Native collaborative menu Undo/Redo: PASS"
       ]
     },
     {
@@ -274,13 +275,13 @@
     "scripts/collaboration-production-evidence.mjs": "fdbf49d73fcfabfbd3f1e2188cf0b1116a398d9aeb4f204812a0addda43c86b4",
     "scripts/collaboration-retained-versions-smoke.mjs": "e9d49847a40c9396a26e6ae46c4933572e8f3aebabbbef89676cb208250243b7",
     "scripts/diagnostics-electron-smoke.mjs": "0572352d0b6b483111281997455b7a5ffb994c576fc2edf333fb432ca04add18",
-    "scripts/fixtures/native-collaboration-input-electron.mjs": "ba763d3da2fede7ea9662821b55af545e1e30f177de6c691d9f3daa4f5de0e1a",
+    "scripts/fixtures/native-collaboration-input-electron.mjs": "b03aada508b016554e8b228b57a4f9088ce00030ba34dc2dd5e05479c69dd99c",
     "scripts/lexical-editor-smoke.mjs": "0b65b98d940e53c8123d2ad2818e740597dbb6b99249332f5dce94c10ae25115",
     "scripts/local-pack-manifest.mjs": "b05a132869140cfa595608eaadd068c9df4c7b669ff17eb7ee2100e3eef1ab75",
-    "scripts/multiplayer-linux-verify.mjs": "9bfb597d55ebfec44517c53c465b6bc0d4fa75a7cf09d47af2f466efc888e0e0",
+    "scripts/multiplayer-linux-verify.mjs": "9b0e838d20c0cf68a1ef292b254c95e673bcdca18b987f380d63a60ea852e2d4",
     "scripts/multiplayer-packaged-upgrade-smoke.mjs": "2f91d388423ab9af5f3fa8223da2d5b8dbce4499ea0967c08f60aef81a30828c",
-    "scripts/multiplayer-production-verify.mjs": "af3627d81c475fe26c829b12b068b9790c0a960c15c5f83a6c93262d69b90ede",
-    "scripts/native-collaboration-input-smoke.mjs": "4bbd4f61731205ea080b55a5e8bad16cfd5039780e061b9a981cc2dcc3d0e1e6",
+    "scripts/multiplayer-production-verify.mjs": "7fb086039269b9c4ac22ee80d37ff1cae8e4fef4d26d1d2f99e947cef2746de9",
+    "scripts/native-collaboration-input-smoke.mjs": "fa583d510f75c00544e161879c1b8265466691f97df84b3513e4b703edbba187",
     "scripts/package-budget.mjs": "aa011151e50a9135a1e339f03fef28befbf2c6d94bcfd67d4a58a8d3421ffdfa",
     "scripts/unified-desktop-smoke.mjs": "3fa19fe501a89858f1856ead46284f9b280e23546f92d4fe1b94f9d309a202dd",
     "test/access-control.test.js": "44334275ba528bb0be4e7da14d0ac02ac41ea997735e9cdc414c2d800ab86043",
@@ -307,9 +308,10 @@
     "test/collaboration-tls.test.js": "f659640ceac8227ccf9f286f4c406155cf58a1dcbfbdfcf1a41de81d7a642778",
     "test/companion-live-gateway.test.js": "4fe68894587f7d473590575b9d87b1cf4d688bb9b08ddccf08832247a6483356",
     "test/editor-source-map.test.js": "55ca6458409df3e72ea0eedf4a168eb64d5baa947a4a881c2db805b8af09f8e3",
+    "test/electron-history-menu.test.js": "43601d9c09969105e3dd436b44beeca60b815ba80165202442eb1dc3a6b34ddb",
     "test/electron-live-network.test.js": "e69f09c2691e8549d9ee3bc62ad99081e8322b4eedd536bd415e0589465fbd2f",
     "test/filesystem-publication.test.js": "7caaa085307ca1e726779f1dc66ebae75ce7f0663ee55957ed51cc229275a164",
-    "test/multiplayer-production-gate.test.js": "ad728edc2407f02eca8531a5413ce4e2f5f962d89666d90df37744bae74efcf5",
+    "test/multiplayer-production-gate.test.js": "ab55d978c12ea0e5bf8bdbe904026ed9a69b409a30917357e846230217c15767",
     "test/multiplayer-upgrade.test.js": "8a0f7dcfc6439ffbffec25eccc2f568105b7c0bfc4be82c4b83d4ba312fe377f",
     "test/retained-comparison-preview.test.js": "91a1144766f11cd193d1d60ccfc9c617593961cc655a033c6f6544fe41355a18"
   }

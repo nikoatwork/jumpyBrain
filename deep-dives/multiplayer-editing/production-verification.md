@@ -33,8 +33,8 @@ the Astra counterexamples and browser/native drivers. Removing or weakening
 them requires a separately reviewed contract and new external pin; a still-high
 test count cannot accept that change silently.
 
-The current candidate contract pins 48 assertion/helper files, SHA-256
-`932a4fd227f8d6a11d0601ca5d67b02eacd1769f00b1b0c2256ff05e629eb757`.
+The current candidate contract pins 49 assertion/helper files, SHA-256
+`7e51657a09f87148355f3b857c19495846c02ae138a062620bd93ef9dd85c2e8`.
 It additionally protects actual positional-intent and native-gateway cases,
 the Linux runner, and package budget/manifest helpers. The measured runtime
 artifact ceiling is reviewed separately in [build footprint](../../docs/build-footprint.md);
@@ -282,3 +282,29 @@ the worktree; committed digests cannot replace missing evidence files.
 The [operating guide](../../docs/collaboration.md) describes live limits,
 credentials, drafts, stream behavior and recovery. The README supplies the
 coordinated upgrade commands and an instruction an agent can execute.
+
+## Astra acceptance and native menu correction
+
+Clean `431f05c` passed all 1,785 tests, four protected browser flows and all
+twelve production checks. Report SHA-256:
+`52cf3918f6acd2d05fce76a53dbb00767b2773ebb94971671dc789c1dc762577`.
+Astra high independently verified 265 fresh CLI actors, 1,024 bounded model
+actors, failed-publication cache isolation, 189 focused tests and the shipped
+editor/cursor proofs. It found no P0/P1, agrees with the architecture, and
+requested one P2 correction: the enabled native Edit → Undo did nothing while
+keyboard Undo worked. Evidence: `.local-pack/astra-acceptance/REVIEW.md`.
+
+Native menu history now targets only the owned gateway's focused note editor;
+unclaimed input/native controls retain platform history. It uses the existing
+Lexical/shared-client commands, with no native capability or alternate writer.
+The mandatory packaged proof adds actual menu Undo/Redo, keyboard parity, title
+input fallback, expired-history notices and subsequent publication. New unit
+cases retain origin/focus boundaries and other platform edit roles. A fresh
+clean gate is required for these bytes.
+
+Build `aa16b18047387a08` passes the expanded actual packaged native proof:
+menu Undo/Redo, exactly-once keyboard parity, native title history, concurrent
+agent/IME recovery, and expired menu history followed by typing. The first
+preflight rejected an unsupported menu mutation API; the final implementation
+uses documented Menu.buildFromTemplate construction, retaining platform items.
+No editor/package/resource ceilings or baseline expectations were relaxed.
