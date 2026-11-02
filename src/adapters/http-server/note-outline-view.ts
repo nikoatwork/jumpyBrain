@@ -10,6 +10,8 @@ export const noteOutlineStyles = `
   #note-outline-control::before { content: ''; position: absolute; left: var(--space-2); top: 0; bottom: 0; width: 1px; background: var(--line); opacity: .6; }
   #note-outline-control:focus-visible { outline-offset: -2px; }
   .note-outline-tick { display: block; position: absolute; height: 2px; border-radius: 2px; background: var(--ink-faint); opacity: .55; transform-origin: left; transition: transform 120ms ease, background 120ms ease; }
+  .note-outline-tick[data-level="1"] { height: var(--space-1); }
+  .note-outline-tick[data-level="2"] { height: calc(var(--space-0-5) * 1.5); }
   .note-outline-tick[data-current="true"] { background: var(--accent); opacity: 1; }
   #note-outline:hover .note-outline-tick, #note-outline:focus-within .note-outline-tick { opacity: 1; }
   #note-outline-preview { position: absolute; left: var(--space-10); width: min(300px, calc(100vw - 96px)); padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: var(--text-ui)/var(--leading-ui) var(--font-ui); overflow-wrap: anywhere; }

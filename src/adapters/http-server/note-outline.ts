@@ -59,7 +59,8 @@ export function installNoteOutline(options: { document: Document; available(): b
         ticks = headings.map((heading, index) => {
           const tick = doc.createElement("span");
           tick.className = "note-outline-tick";
-          tick.style.width = `${24 - Number(heading.tagName[1]) * 2}px`;
+          tick.dataset.level = heading.tagName[1]!;
+          tick.style.width = `${12 - Number(tick.dataset.level)}px`;
           tick.style.top = `${(index + .5) / headings.length * 100}%`;
           tick.setAttribute("aria-hidden", "true");
           return tick;
