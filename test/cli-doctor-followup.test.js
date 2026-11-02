@@ -62,12 +62,12 @@ test("doctor validates every flag before executing dependency probes or creating
   await writeFile(probe, '#!/usr/bin/env node\nrequire("node:fs").writeFileSync(process.env.PROBE_SENTINEL, "ran");\n');
   await chmod(probe, 0o700);
   const before = await snapshot(f.temp);
-  const invalid = [["--check=true"], ["--check", "false"], ["--check", "--check"], ["--check", "--check=false"], ["--chek"], ["--json=false"], ["--json", "--json"], ["--root"], ["--root="], ["--root", f.root, "--root", f.root], ["--target-url", "https://brain.example"], ["--check", "--version"]];
+  const invalid = [["--probe-query"], ["--probe-query="], ["--probe-query", "   "], ["--probe-query", "x".repeat(513)], ["--probe-query", "x", "--probe-query=y"], ["--check=true"], ["--check", "false"], ["--check", "--check"], ["--check", "--check=false"], ["--chek"], ["--json=false"], ["--json", "--json"], ["--root"], ["--root="], ["--root", f.root, "--root", f.root], ["--target-url", "https://brain.example"], ["--check", "--version"]];
   for (const flags of invalid) {
     const result = f.run(["doctor", ...flags], { env: { JUMPYBRAIN_QMD_BIN: probe, PROBE_SENTINEL: sentinel } });
     assert.equal(result.status, 1, flags.join(" "));
     assert.equal(result.stdout, "");
-    assert.match(result.stderr, /Unknown doctor flag|Unexpected doctor argument|takes? no value|must not be repeated|requires a value/u);
+    assert.match(result.stderr, /Unknown doctor flag|Unexpected doctor argument|takes? no value|must not be repeated|requires a value|nonblank query/u);
   }
   assert.deepEqual(await snapshot(f.temp), before);
 });

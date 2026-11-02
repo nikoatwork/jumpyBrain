@@ -65,7 +65,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
   const specs: Record<string, { values?: string[]; booleans?: string[]; optionalBooleans?: string[]; repeat?: string[]; positional?: number }> = {
     instructions: { values: ["topic"] },
     "agent-hint": { values: ["topic"] },
-    doctor: { values: ["root"], booleans: ["check"] },
+    doctor: { values: ["root", "probe-query"], booleans: ["check"] },
     connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "revision"], remove: ["id", "revision"], select: ["id", "revision"] }[argv[1] ?? ""] ?? [])] },
     status: { values: targets },
     index: { values: [...targets, "semantic-model"], booleans: ["rebuild", "lexical"] },
