@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
@@ -95,7 +97,7 @@ test("temporal CLI strictly rejects malformed, repeated and unknown flags before
 
 test("temporal local/HTTP/CLI parity, safe invalid_temporal errors, and changed-source omission", async t => {
   const root = await mkdtemp(path.join(os.tmpdir(), "jumpy-temporal-wire-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); });
   await mkdir(path.join(root, "notes"));
   const file = path.join(root, "notes/evidence.md");
   const content = "---\nid: mem_aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\ntype: note\ndate: 2025-01-02\ncreated_at: 2026-01-01\nconflicts_with: [Old claim, Other claim]\nsupersedes: Previous claim\n---\nCalibration is provisional, NOT production approved.\n";

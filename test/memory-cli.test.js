@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { parseFrontmatter } from "../dist/core/canonical/markdown-store.js";
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
 import { resolveCliTarget } from "../dist/cli/targets.js";
 import { normalizeQmdLookupPath } from "../dist/adapters/qmd/qmd-cli.js";
 import { qmdLexQueries } from "../dist/adapters/qmd/qmd-query.js";
@@ -122,6 +123,7 @@ test("CLI dream deprecates every batch flag without touching legacy state or rea
     }
     assert.deepEqual(await filesystemSnapshot(tempRoot), before);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -184,6 +186,7 @@ test("CLI dream window flags bound read-only evidence and ignore legacy state", 
     }
     assert.deepEqual(await filesystemSnapshot(tempRoot), before);
   } finally {
+    if (existsSync(tempRoot)) await stopRootBackend(tempRoot);
     await rm(tempParent, { recursive: true, force: true });
   }
 });
@@ -271,6 +274,7 @@ test("CLI dream overlapping windows reuse a dream page and preserve original evi
     assert.equal(existsSync(path.join(tempRoot, ".jumpybrain", "dream")), false);
     assert.equal(existsSync(path.join(tempRoot, ".jumpybrain", "remote", "dream-state.json")), false);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -395,6 +399,7 @@ test("CLI remote target smoke covers status remember wrapup index search and rec
   } finally {
     started.child.kill("SIGTERM");
     await started.closed;
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -459,6 +464,7 @@ test("read-only remote integration allows reads and sends no mutation requests",
       started.child.kill("SIGTERM");
       await started.closed;
     }
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -665,6 +671,7 @@ test("CLI run memory recipes discover the repo memory root", async () => {
     assert.equal(status.root, await realpath(tempRoot));
     assert.equal(status.compatible, true);
   } finally {
+    if (existsSync(tempRoot)) await stopRootBackend(tempRoot);
     await rm(tempParent, { recursive: true, force: true });
   }
 });
@@ -690,6 +697,7 @@ test("CLI init creates a stable, compatible memory root", async () => {
     assert.equal(status.compatible, true);
     assert.equal(status.schemaVersion, 1);
   } finally {
+    if (existsSync(tempRoot)) await stopRootBackend(tempRoot);
     await rm(tempParent, { recursive: true, force: true });
   }
 });
@@ -705,6 +713,7 @@ test("CLI refuses writes when memory root schema is newer than the CLI", async (
     assert.match(result.stderr, /Update the CLI/);
     assert.equal(existsSync(path.join(tempRoot, "decisions")), false);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -736,6 +745,7 @@ test("CLI index stores original Markdown document metadata, not derived chunks",
     assert.equal(manifest.documents[0].frontmatter.session_id, "s-alpha");
     assert.equal(manifest.chunks, undefined);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -769,6 +779,8 @@ test("CLI index/recall returns real QMD provenance-rich memory results", async (
     ].join("\n"));
 
     runCli(["index", "--root", tempRoot]);
+    // Drain the owner before deliberately removing its credentials with the derived cache.
+    await stopRootBackend(tempRoot);
     await rm(path.join(tempRoot, ".jumpybrain"), { recursive: true, force: true });
     runCli(["index", "--root", tempRoot]);
 
@@ -788,6 +800,7 @@ test("CLI index/recall returns real QMD provenance-rich memory results", async (
     assert.match(recall.stdout, /Prior memory scan/);
     assert.match(recall.stdout, /sessions\/a.md/);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -842,6 +855,7 @@ test("CLI process synthesizes a topical page and recall depth can retrieve it", 
     assert.equal(deep.depth, "deep");
     assert.ok(deep.results.some((result) => result.provenance.file.startsWith("sessions/")));
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -915,6 +929,7 @@ test("CLI process validates mode and writes a deterministic support report", asy
     assert.match(report, /Conflict: `findings\/sales-conflict\.md` declares a conflict with `decisions\/sales-price-book\.md`/);
     assert.match(report, /Review candidate for open question in `sessions\/sales-open-question\.md` from `decisions\/sales-price-book\.md`/);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -946,6 +961,7 @@ test("CLI process ensure-ids reports modified canonical files without absolute p
     assert.match(markdown, /^id: "mem_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"$/m);
     assert.doesNotMatch(markdown, /updated_at: "2026-01-01T00:00:00.000Z"/);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -1034,6 +1050,7 @@ test("CLI show and update edit local documents by ID with content-hash precondit
     assert.match(stale.stderr, /content hash is stale/i);
     assert.match(stale.stderr, /Re-run `jumpybrain show --id/);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -1056,6 +1073,7 @@ test("CLI remember writes editable Markdown memory and updates the index", async
     assert.match(markdown, /Markdown remains canonical/);
     assert.equal(existsSync(path.join(tempRoot, ".jumpybrain", "index.json")), true);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -1067,6 +1085,7 @@ test("CLI remember rejects empty stdin body", async () => {
     assert.match(result.stderr, /Memory body is empty/);
     assert.equal(existsSync(path.join(tempRoot, "decisions")), false);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -1082,6 +1101,7 @@ test("CLI note commands report remember migration", async () => {
     const oldRecipe = runCliFailure(["run", "memory:note", "--root", tempRoot, "--type", "decision", "--title", "Old"], { input: "body\n" });
     assert.match(oldRecipe.stderr, /renamed to `jumpybrain run memory:remember`/);
   } finally {
+    if (existsSync(tempRoot)) await stopRootBackend(tempRoot);
     await rm(tempParent, { recursive: true, force: true });
   }
 });
@@ -1093,6 +1113,7 @@ test("CLI no-refresh recall reports missing index clearly", async () => {
     assert.match(result.stderr, /Memory index not found/);
     assert.match(result.stderr, /jumpybrain index --root/);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -1119,6 +1140,7 @@ test("CLI wrapup writes one editable session file with strict sections", async (
     assert.match(markdown, /# Boundary refactor wrapup/);
     assert.match(markdown, /## Conflicts \/ Corrections/);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -1139,6 +1161,7 @@ test("CLI wrapup rejects missing required sections without writing", async () =>
     assert.match(result.stderr, /## Conflicts \/ Corrections/);
     assert.equal(existsSync(path.join(tempRoot, "sessions")), false);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });
@@ -1153,6 +1176,7 @@ test("CLI wrapup with duplicate title does not overwrite existing files", async 
     assert.equal(existsSync(path.join(tempRoot, first.file)), true);
     assert.equal(existsSync(path.join(tempRoot, second.file)), true);
   } finally {
+    await stopRootBackend(tempRoot);
     await rm(tempRoot, { recursive: true, force: true });
   }
 });

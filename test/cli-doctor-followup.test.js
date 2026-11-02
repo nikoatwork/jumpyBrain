@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
@@ -11,7 +13,7 @@ const repo = fileURLToPath(new URL("../", import.meta.url));
 const cli = path.join(repo, "dist/cli.js");
 async function fixture(t) {
   const temp = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-doctor-followup-"));
-  t.after(() => rm(temp, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(temp, { recursive: true, force: true }); });
   const home = path.join(temp, "home"), root = path.join(temp, "project", "memory");
   await mkdir(home);
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(?:JUMPYBRAIN_|QMD_|XDG_|CODEX_|ANTHROPIC_|OPENAI_)/u.test(key)));

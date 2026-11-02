@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -62,7 +64,7 @@ function partition(t, label, output, packet, texts) {
 
 async function fixture(t, body, query) {
   const root = await mkdtemp(path.join(os.tmpdir(), "jumpy-interaction-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); });
   const file = "notes/evidence.md";
   const content = `---\nid: ${id}\ntype: note\ntitle: Evidence\ncreated_at: 2024-01-01\n---\n${body}`;
   await mkdir(path.join(root, "notes"));

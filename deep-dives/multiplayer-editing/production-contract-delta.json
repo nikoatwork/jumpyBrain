@@ -180,8 +180,8 @@
       "kind": "assertion",
       "file": "test/memory-cli.test.js",
       "oldSha256": "ad638be1600c2eeebeee4cb88cc74fb944ee2e02c94ded4e06c20d200f0e0a15",
-      "newSha256": "7536faf5b15da60fadd205e136903e0c4194c617e8a1bf6539b053123ea2a925",
-      "reason": "Stop the registered local owner explicitly before the fixture starts foreground serve on the same root. This tests the intentional one-owner cutover while retaining all remote read-only and no-hidden-mutation assertions.",
+      "newSha256": "f0687e169219cff88abc12c7c7a4520273f9642298beb5df0016724bf09c2a74",
+      "reason": "Stop the registered local owner explicitly before foreground serve, before deliberate mid-test coordination-cache removal, and before each disposable root teardown. The persistent owner intentionally outlives CLI commands; authenticated drain prevents ENOTEMPTY races and orphaned owners. All 305 existing assertions remain byte-identical, including empty-body rejection, remote read-only and no-hidden-mutation checks; no retries, ignored shutdown errors or relaxed outputs.",
       "scenarioIds": [
         "P07",
         "P09",
@@ -189,7 +189,8 @@
       ],
       "evidence": [
         "test/backend-control.test.js",
-        "read-only remote integration sends no mutation requests"
+        "test/memory-cli.test.js: two complete zero-skip runs",
+        "assertion AST SHA-256 cb50fc6e0e41392abf6847d875e7d18bad5ffac4f7844bda6da7167e22e682af"
       ]
     },
     {
@@ -288,6 +289,278 @@
       "evidence": [
         "test/multiplayer-contract-delta.test.js",
         "test/multiplayer-verification.test.js"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/automatic-index-cli.test.js",
+      "oldSha256": "9b88e32cbcb24251959222039de9446f04b346b473eea56d028f1aecc0b6906f",
+      "newSha256": "5d20acdf2d0d9ef2bda447739bb09578d6654202fd2ab5b83f39d7f620e68085",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 18 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/automatic-index-cli.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 8ecb79ce5979faf39393d81d5ef58f1b510d25707f7300ef53490bc736ed6d87"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/boards-cli.test.js",
+      "oldSha256": "1c45fb32792124a6a08637b9e7c57d6dfee5ad5b57373f76c93960c2057e7e44",
+      "newSha256": "9a80a462c27c090f9208cb8f1e438ffc64f016679c12f0b98ec0140b9e008d77",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 15 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/boards-cli.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 ce1bb99e7ca05b198a3764d589ac0076ec7582e35052e5a859135e58d93bc17a"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/bounded-retrieval-cli.test.js",
+      "oldSha256": "746a5ad660024231092ab148e656174245aa605b95ffaed811ae3faa989381f9",
+      "newSha256": "f6187f2c1f35220c523fe25c4987b135daa234d54b9297c57bbe3b59b4dca245",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 19 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/bounded-retrieval-cli.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 eefb59881e1ae57a088c59a55e185367039d597aef732af02440b81e6c5e02c9"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/cli-doctor-followup.test.js",
+      "oldSha256": "2e6ce0773b576d5241a9470662fb245e0f93fe039c50155f689e37dca4a77cd7",
+      "newSha256": "cc3f76c7ff1d26254543d1d97b466dfe3f659739fd426eedc0ff9fbc36fa6bbc",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 58 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/cli-doctor-followup.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 9bf7e31466e598bbdab7f2a5adaf1d8062bdbc91e9cf67c07593ab1b3da67739"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/creation-outcomes.test.js",
+      "oldSha256": "5909c9955b9f95df2c67111600a97826b77682bdde21e583311900b4a62436d6",
+      "newSha256": "5e1d943cf17d138396dc22c4a921bf3b58e2824a60b1ad8d3254ae71476fdf10",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 88 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/creation-outcomes.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 6297b980c1df767660fe23c3b2edae9c8c07c66970ddb582f6260acaafc41054"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/document-deletion.test.js",
+      "oldSha256": "8aaa2c3276dc73e737c7090105e2138f3ceb269d3ec79faca0fa75fb08730ec3",
+      "newSha256": "196723496080210b6c60e2317c3992a31c421942bf37ee5d9b12a6fb86191d83",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 53 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/document-deletion.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 897023377c113d0d3ece1aa2e8bd049757415f424a4a23adbc9ab8de1576be51"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/dream-writing.test.js",
+      "oldSha256": "8b2533a51eca191dbaa1d0a3591c38b4cbb9d49f43591db278bb288c155ed3ff",
+      "newSha256": "778b7a251ace79a2022d6cfb0124f7d4166ed418933f31df06a1991e3e61201b",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 40 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/dream-writing.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 122445340850a6922629f002051c29e814397739c65c7f10327e9967d08cb257"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/evidence-date-capture.test.js",
+      "oldSha256": "1b9ccb9ae8bd216ce57f5b1c05e095aa34aad3a92bf0b76a902c61bc9046d2ed",
+      "newSha256": "ba5f6157d4122678e07267424219e66eb8f44c6e315d2abf3ec4bf11bb985a95",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 33 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/evidence-date-capture.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 cf731e0e7d9adb6f1f5530ccf99828be3cf92b31b5cdb680c8d1153c9a24df4c"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/logseq-migration-cli.test.js",
+      "oldSha256": "7b5f16c44dfd13f03b3cc32f25d9042c090ceac08538c36faa22fdd00cf227ec",
+      "newSha256": "0b5309fb1ee8258ec8d3dbef08cc63eae12cdffac45e2c392b1005598b5e473d",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 65 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/logseq-migration-cli.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 9874cfdf54ef16e9fc05c1255e050ffb9c94f0b7302014c55a0e3a92f724307c"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/logseq-readable-import.test.js",
+      "oldSha256": "11519e293bfe67f078934a86a585914de716c91435b04db6e0efb043731915fc",
+      "newSha256": "c3efe1e4d106388e016ae4ade27f89ae8e93020285137108d1690777670be00e",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 68 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/logseq-readable-import.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 b4934edd53595c2319c0c3467dd140822486f8f6a57a0e0bd568494ed87df0cc"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/obsidian-migration.test.js",
+      "oldSha256": "8489022c893e47bb1caea9e53ba927d3dc6305f37d7b476cb555114c24f6e270",
+      "newSha256": "675a3ed6012e981b23b33b5413e2dc7de8362dd9efc07aa01e5b4c1a1a6e4937",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 128 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/obsidian-migration.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 52cdab145e7b03688bb830a14c2aeaf879f7d5c3d0eb9e5866ad7faa347900a2"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/qmd-execution.test.js",
+      "oldSha256": "35b5b55363bb380df6d2444f363e4ef0c1c644b663308b4b49befc2f00c19726",
+      "newSha256": "e6743aee15fad6d299d309eb241691c0e56b4648bc508971f6d8786b84adf427",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 66 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/qmd-execution.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 ab11332e164ad840cfbe91665edba78444aa84fbc458aaf7e5daa8b1871f69f4"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/recall-interaction-cost.test.js",
+      "oldSha256": "1474056098c7f355eae3aab8eef4c141216246ca0efd757e35d4a4ea43bbf656",
+      "newSha256": "901dcd753968d2918d1d1847c96f9b5618fc7477d62ef7a1075f037739d2e8d9",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 70 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/recall-interaction-cost.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 a6dfee75fde3003fef604e64fda7826da4f12170ef3e7018a5a8e102862c8bf3"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/search-ranking-parity.test.js",
+      "oldSha256": "9dec138448bdfd37169e245dca1c6a343096d4f16c488ab247948aed0cdc045a",
+      "newSha256": "1143b940525216a21371de81a9197e54ef933c14a4326a187a64ef6fbada1c7f",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 28 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/search-ranking-parity.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 50f481c111fc4e8c494c111c8e56a961aab5bad7ae9abcca2eff231df172356c"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/search-recognition.test.js",
+      "oldSha256": "8a6aa34a4312416e6de8fcdb7a64169756949790fb874e5bfc8f6ab1f46291c8",
+      "newSha256": "3ad963dc56fe4b24e97c7b33e03e5533725f7f82fdded8b8f9f538ae4ea58fa6",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 84 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/search-recognition.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 1e04f2a54bc9e852721cdf1c0e3d9fbec20bebe46f61728bff3fa21705d1ee31"
+      ]
+    },
+    {
+      "kind": "assertion",
+      "file": "test/temporal-transport.test.js",
+      "oldSha256": "10fd7675c0051930a6f1b16ce0a9fd8b91b10381fafd9e763159fb6298ca2b33",
+      "newSha256": "6093c38fd22bc395a916222d43a99c2e15eb9c38919c9ff8c750e0dd6335ec38",
+      "reason": "Authenticate and drain the fixture-owned persistent local backend before removing its disposable root, after all command/data assertions and existing server cleanup. Retain all 41 behavioral assertions byte-for-byte; do not retry deletion, ignore shutdown errors or stop during observation windows. This accommodates the approved backend lifetime change without weakening canonical/retrieval/authorization behavior.",
+      "scenarioIds": [
+        "P01",
+        "P09",
+        "P12"
+      ],
+      "evidence": [
+        "test/temporal-transport.test.js",
+        "two complete 16-file zero-skip fixture runs",
+        "assertion AST SHA-256 ec8c9f39b5038817d06fb414e046c57bcc08885174c238f766a22ea59b9a77bf"
       ]
     }
   ],

@@ -1,3 +1,5 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
+import { existsSync } from "node:fs";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFile } from 'node:child_process';
@@ -24,7 +26,7 @@ test('board parsing requires exactly one ordinary target, strict hashes and fiel
 for(const remote of [false,true])test(`complete board CLI workflow ${remote?'through hosted transport':'without a Mac app'}`,async t=>{
   const root=await mkdtemp(path.join(os.tmpdir(),'jb-board-cli-root-'));await initializeMemoryRoot(root);
   let server;if(remote)server=await startJumpyBrainHttpServer({root,apiKeys:['fixture'],host:'127.0.0.1',port:0,autoIndex:false});
-  t.after(async()=>{await server?.close();await rm(root,{recursive:true,force:true});});
+  t.after(async()=>{await server?.close(); if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root,{recursive:true,force:true});});
   const target=remote?['--target-url',server.url]:['--root',root];
   const run=async(...args)=>JSON.parse((await cli([...args,...target,'--json'],{JUMPYBRAIN_API_KEY:'fixture'})).stdout);
   const content=`---\nid: ${page}\ntitle: Venue shortlist\ntype: note\n---\nNo bookings confirmed.\n`;

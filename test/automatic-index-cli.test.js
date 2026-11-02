@@ -1,3 +1,4 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -16,7 +17,7 @@ const cli = new URL("../dist/cli.js", import.meta.url).pathname;
 const id = "mem_80000000-0000-4000-8000-000000000001";
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), "jb-auto-cli-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); });
   const { bin } = await installFakeQmd(root);
   await writeFile(bin, `#!${process.execPath}
 const fs = require('node:fs');

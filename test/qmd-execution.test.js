@@ -1,3 +1,4 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getEventListeners, setMaxListeners } from 'node:events';
@@ -32,6 +33,7 @@ async function temp(t) {
     const server = ownedServers.get(root);
     if (server?.server.listening) await server.close();
     ownedServers.delete(root);
+    if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root);
     await rm(root, { recursive: true, force: true });
   });
   return root;

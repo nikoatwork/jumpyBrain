@@ -1,3 +1,4 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -16,7 +17,7 @@ async function put(root, file, body = "Synthetic private body\r\n- Intentional l
 }
 async function fixture(t) {
   const base = await realpath(await mkdtemp(path.join(os.tmpdir(), "jumpy-obsidian-")));
-  t.after(() => rm(base, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(base, { recursive: true, force: true }); });
   const source = path.join(base, "vault with 'quote"), root = path.join(base, "memory");
   await mkdir(source);
   return { base, source, root };

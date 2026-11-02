@@ -1,3 +1,4 @@
+import { stopRootBackend } from "../dist/app/backend-host/index.js";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
@@ -16,7 +17,7 @@ const cli = new URL("../dist/cli.js", import.meta.url).pathname;
 const wrapup = ["Findings", "Decisions", "Conflicts / Corrections", "Open Questions"].map(section => `## ${section}\n- None captured.`).join("\n\n");
 async function fixture(t) {
   const root = await mkdtemp(path.join(os.tmpdir(), "jb-creation-"));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(root, { recursive: true, force: true }); });
   const { bin, model } = await installFakeQmd(root);
   const queryScript = (await readFile(new URL("./fixtures/fake-qmd-lifecycle/bin/qmd", import.meta.url), "utf8"))
     .replace('import { readFileSync } from "node:fs";', 'const { readFileSync } = require("node:fs");')
