@@ -2,6 +2,14 @@
 
 This page lists the user-facing `jumpybrain` CLI commands and explains what each one does in plain language.
 
+## Help and argument errors
+
+`jumpybrain --help`, `-h`, `help`, or no arguments prints a short command overview. Use `jumpybrain <command> --help`, `<command> -h`, or `help <command>` for flags and examples. Nested forms work too: `board create --help`, `help extensions check`, and `run memory:recall -h`.
+
+Exact `--help`/`-h` tokens take precedence over all other flags, even invalid or missing values. For example, `update --install-root --help` prints help and performs no update. Help runs before target selection, configuration/secret reads, stdin, backend startup, indexing or networking. Unknown command/subcommand/recipe paths still fail with an actionable help error. `--help=value` is not a help request.
+
+Ordinary recall/search and their recipes reject unknown/repeated flags, missing values, valued booleans and unexpected positional arguments, using the same strict parser as compact reads. A typo such as `recall --qurey text` fails before backend work. Other operational command families also reject these token errors; intentionally repeatable `--tag` and server `--api-key` values remain supported. `process --apply` retains explicit true/false spellings. Argument failures print to stderr and exit 1; successful command output formats are unchanged.
+
 ## Targets and common flags
 
 Most memory commands work against either a local Markdown memory root or a hosted/shared jumpyBrain server.
@@ -38,6 +46,8 @@ The error code is `JUMPYBRAIN_REMOTE_TARGET_READ_ONLY`. It describes a local adv
 | `jumpybrain` | Print CLI usage help. |
 | `jumpybrain help` | Print CLI usage help. |
 | `jumpybrain --help` | Print CLI usage help. |
+| `jumpybrain -h` | Print CLI usage help. |
+| `jumpybrain help <command> [subcommand]` | Print command-specific help without running the operation. |
 | `jumpybrain --version` | Print the installed jumpyBrain version. |
 | `jumpybrain version` | Print the installed jumpyBrain version. |
 | `jumpybrain -v` | Print the installed jumpyBrain version. |
@@ -182,7 +192,7 @@ jumpybrain recall --root <memory-root> --query "release decision" --from t-7d --
 jumpybrain run memory:search --target-url <url> --query "release decision" --from 2025-01-01 --to 2025-01-08 --compact
 ```
 
-Use real ISO calendar dates or timezone-explicit ISO timestamps with at most three fractional-second digits (millisecond precision). Natural-language dates in the query do not create filters. Any temporal flag enables strict parsing: malformed/missing values, unknown/repeated flags, and valued booleans fail before credentials. An empty/reversed resolved interval is invalid.
+Use real ISO calendar dates or timezone-explicit ISO timestamps with at most three fractional-second digits (millisecond precision). Natural-language dates in the query do not create filters. All recall/search forms parse strictly: malformed/missing values, unknown/repeated flags, and valued booleans fail before credentials. An empty/reversed resolved interval is invalid.
 
 The scope is **document evidence time**, not fact-validity time or last modification. Valid explicit `date` wins; recognized dated session filenames are the conservative fallback. Invalid explicit dates are not replaced by filename/creation dates. Undated syntheses do not acquire dates from filenames; creation/import/mtime never establishes evidence time. Date-bounded retrieval excludes unknown dates; chronological-only retrieval can retain them. Inspect returned coverage and partial/stale warnings: bounded discovery and result limits are not exhaustive corpus coverage, and newest is not necessarily correct.
 
