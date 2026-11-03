@@ -19,7 +19,7 @@ Owner requested live feedback review, independent reproduction and a pragmatic p
 - [x] Preserve useful backend error codes in diagnostics and actionable UI guidance.
 - [x] Run meaningful regression and packaged update/core-flow checks; record exact evidence and limits.
 - [x] Finalize implementation, docs, pending release notes and this task; commit scoped changes.
-- [x] Transfer publication ownership to [release v0.3.19](../todo/tasks-release-v0.3.19.md); no publication claim from implementation alone.
+- [x] Transfer publication ownership to [release v0.3.19](2026-11-03_tasks-release-v0.3.19.md); no publication claim from implementation alone.
 
 ## Current evidence
 
