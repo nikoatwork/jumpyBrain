@@ -1,6 +1,6 @@
 # Mac updates within 30 seconds
 
-Status: active. Measurement increment completed 2026-10-27; next is task 2, a release-built native-helper prototype. Work in small increments; completing the whole list in one session is not required.
+Status: completed 2026-11-03. Optional verified release-native helpers retained; repeated supported-path trials meet the approximate target. Source fallback and historical-worker migration remain slower, with limits recorded below.
 
 ## Goal
 
@@ -8,7 +8,7 @@ Bring post-download update application to roughly 30 seconds for both unchanged-
 
 ## Tested findings
 
-Implementation: `06dd8ed`. Full evidence: [completed update-speed work](../done/2026-10-27_tasks-desktop-update-speed.md). Environment: macOS 15.7.7, arm64, Node 26.7.0. Installed tests used disposable homes and synthetic releases; no public release or personal installation was changed.
+Implementation: `06dd8ed`. Full evidence: [completed update-speed work](2026-10-27_tasks-desktop-update-speed.md). Environment: macOS 15.7.7, arm64, Node 26.7.0. Installed tests used disposable homes and synthetic releases; no public release or personal installation was changed.
 
 | Path | Post-download preparation | Handoff to verified success | Combined application |
 | --- | ---: | ---: | ---: |
@@ -32,7 +32,7 @@ Implementation: `06dd8ed`. Full evidence: [completed update-speed work](../done/
   - Preserve each trial's result directory instead of overwriting the previous one. Run builds sequentially with checks that consume `dist`; concurrent fixture runs must not rebuild shared output.
   - Record the dominant measured cost and choose just the next experiment. This measurement/report is a useful stopping point.
 
-- [ ] 2. Prototype release-built native helpers if compilation remains the dominant cost.
+- [x] 2. Prototype release-built native helpers if compilation remains the dominant cost.
   - Prefer a prototype that places optional architecture-specific helper artifacts in the existing verified release package, so the CLI distribution remains independently usable. Compare this with a universal helper only if the build/distribution tradeoff warrants it.
   - Bind an artifact to the actual native source, build recipe and architecture. Validate the selected release bytes and native executable; refresh device configuration and sign/verify the staged bundle before publication.
   - Keep a clear source-build fallback for absent/incompatible artifacts and developer installs. A normal supported update should not need Swift compilation; CLI-only users must not need Electron or Mac build tools.
@@ -40,17 +40,17 @@ Implementation: `06dd8ed`. Full evidence: [completed update-speed work](../done/
   - Measure a downloaded update with changed native source and no local compiler/module cache. Keep the prototype only if it demonstrates a material improvement without moving unbounded work into restart.
   - Record the result and distribution/release implications before broadening the implementation. Do not publish or install into the user's Applications folder as part of this experiment.
 
-- [ ] 3. Try compiler-cache reuse as a smaller alternative only if release-built artifacts are deferred.
+- [x] 3. Try compiler-cache reuse as a smaller alternative only if release-built artifacts are deferred.
   - Measure whether preserving a private, rebuildable Swift module cache materially reduces changed-source builds. Separate initial-cache and reused-cache results.
   - Scope reuse to the compiler/SDK/architecture/options; validate ownership, discard invalid caches and retain a clean-build fallback. Do not restore full SDK tree hashing to the update path.
   - State the limit explicitly: a cache populated on this Mac cannot by itself guarantee a fast first migration or first build. Do not implement this in addition to release-built artifacts without a measured need.
 
-- [ ] 4. Optimize remaining packaging work only if the measured path still exceeds 30 s.
+- [x] 4. Optimize remaining packaging work only if the measured path still exceeds 30 s.
   - Investigate redundant Electron acquisition/unpacking, dependency installation and bundle copies in measured order. Consider validated cached archives or installed components only when version, integrity and ownership can be established.
   - Compare each experiment against the unchanged baseline; revert changes without a demonstrated benefit. Avoid a new updater framework, extra services or separate CLI lifecycle solely for this target.
   - Retain staged readiness, safe shutdown, version agreement and rollback. Remove or relocate a check only after demonstrating what equivalent validation covers its failure mode.
 
-- [ ] 5. Validate and close the implemented increment.
+- [x] 5. Validate and close the implemented increment.
   - Run the production installed success path for both unchanged and changed/missing native helpers. Confirm approximately 30 s post-download application with repeated measurements and report any path that still exceeds it.
   - Test the failure mode changed by the implementation: invalid/mismatched artifact or cache must fail safely or rebuild; relaunch failure must restore the previous components. Reuse unchanged coverage instead of automatically running every updater mode.
   - Verify paired app/CLI version agreement, app-only policy preservation, standalone CLI packaging/execution and lazy extension compilation. Preserve canonical Markdown, targets, login preference and extension state; readiness probes must not activate extensions in the current worker.
@@ -63,7 +63,7 @@ Implementation: `06dd8ed`. Full evidence: [completed update-speed work](../done/
 - `integrations/macos-companion/install.py` — native compilation and artifact reuse policy.
 - `scripts/desktop-update-smoke.mjs`, `integrations/electron/test_desktop_install.py`, `integrations/macos-companion/test_update.py` — installed measurements and focused regressions.
 - `scripts/{release,pack-local,local-pack-manifest}.mjs`, `docs/{releases,release-testing}.md` — distribution/release changes if needed.
-- [Mac installation clarity](../done/2026-10-27_tasks-mac-installation-clarity.md) and [portable installation](tasks-portable-installation-project-integration.md) — coordinate supported commands, prerequisite claims and CLI/app ownership.
+- [Mac installation clarity](2026-10-27_tasks-mac-installation-clarity.md) and [portable installation](../todo/tasks-portable-installation-project-integration.md) — coordinate supported commands, prerequisite claims and CLI/app ownership.
 
 ## Measurement increment — 2026-10-27
 
@@ -111,3 +111,13 @@ The last row is diagnostic subtraction, not a download-free measurement: npm acq
 **Limits and stopping point:** task 1 is complete; tasks 2–5 remain active. No speed optimization, release-built artifact, compiler cache, release, push or personal installation was performed. Changed Swift-source updates, artifact/cache rejection, new rollback modes, an exact v0.3.7 worker rerun, Intel hardware and live public-release upgrades were not tested in this increment. Existing replacement/rollback/app-only/historical-worker coverage is recorded in the preceding completed task; it does not establish the later prototype's distribution/migration behavior. The full deterministic suite was not rerun for this diagnostic increment. Do not archive this list until the remaining implementation and its required validation are complete.
 
 Planning alone does not add a changelog highlight or release note. The user authorized continuation on 2026-10-27. Builds and installed experiments use disposable fixtures; publication and installation into the user's Applications folder remain outside this task.
+
+## Completed release-native increment — 2026-11-03
+
+- Adopted optional separate arm64/x64 helper assets rather than adding native bytes to the tightly bounded standalone CLI tarball. Source/build-recipe/loader/architecture/version/digest validation precedes configuration, signing and staged readiness. Current workers skip unconditional Swift checks on the valid artifact/reuse path; missing/incompatible artifacts retain source compilation and bad outer bytes stop safely. The full release workflow builds/validates both assets before commit/push and publishes them with the CLI tarball. No publication ran here.
+- [Repeated timings, all outcomes, artifact identities and limits](../../deep-dives/desktop-updates/2026-11-03-native-helpers.md); [machine-readable summary](../../deep-dives/desktop-updates/2026-11-03-native-helpers.json). Three changed/missing-helper and three unchanged-helper successes each stayed under approximately 30 seconds. Cold median 23.540 s; unchanged median 22.165 s. Compiler-cache reuse (task 3) and further packaging optimization (task 4) were explicitly unnecessary conditional branches, not additional implemented optimizations.
+- Corrupt inner executable bytes were rejected and safely rebuilt; source fallback took 99.700 s and is outside the timing claim. Real relaunch failure restored previous components and preferences. Exact v0.3.7 migration passed with its existing Swift/source-build and readiness-activation limits. Both native architectures were actually built, signed/digest/architecture checked; Intel execution remains untested.
+- One earlier metadata-only saved-note mismatch remains retained as a failed trial, not a passing result. Three instrumented repeats passed. A separate deterministic same-title checkpoint bug was reproduced and fixed while preserving operation history; its connection to the transient mismatch is unproven. The final-source production packaged update also passed complete byte preservation before/after failed barriers, relaunch/preferences, paired versions, nine protected files, targets/source policy and installed-CLI extension compilation, at 23.228 s combined. No historical draft/conflict cause is claimed.
+- Final-source full suite: **1,893 passed, two skips, zero failures** (1,895 total). The same-title hub/history/HTTP-race regressions passed 38 cases. Python native suites passed 72. Final CLI artifact: **1,444,062 packed bytes, 4,587,916 unpacked, 3,075,486 runtime, 644 files**, 305 required paths; editor **221,439 gzip bytes**, all original ceilings retained. The final package/build succeeded sequentially after the full suite; one earlier overlapping build/test run was discarded.
+- Final package is retained as `.local-pack/feedback-final-20261103.tgz`; final GUI evidence `.local-pack/update-smoke/native-reuse/2026-11-03T21-31-01.936Z-foG4rL/`. The repeat study's immutable source package and all failed/successful raw directories remain preserved. Native updater/installer source was unchanged across timing repetitions and final source verification.
+- Existing app-only policy and transaction coverage is reused where unchanged, alongside final current-worker version/source/protected-file checks. No live public release, notarization, Intel runtime, arbitrary historical Keychain state, slow-network guarantee, push, personal installation or memory mutation was performed. Owning docs and pending notes are updated.

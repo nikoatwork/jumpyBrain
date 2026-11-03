@@ -21,3 +21,5 @@ An optional `indexing.modelHash` pins local model bytes by SHA-256. Indexing ver
 - Do not own QMD indexing/search execution or derived index state beyond path policy constants.
 - Do not parse CLI commands or serve HTTP requests.
 - Do not read package metadata, logging adapters, remote API configuration, or secrets.
+
+Semantic policy may alternatively use `modelId: "sha256:<64 lowercase hex>"` with the matching modelHash. Core validates and compares portable identity, never resolves its device path or downloads files. The QMD adapter supplies the local path in derived manifests; canonical configuration contains no machine path for this selection. Explicit absolute `model` remains supported.

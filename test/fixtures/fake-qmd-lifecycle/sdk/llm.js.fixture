@@ -1,6 +1,6 @@
 import helpers from "../database.cjs";
 export class LlamaCpp {
-  constructor({ embedModel }) { this.model = embedModel; helpers.event("llm", { model: embedModel }); }
+  constructor({ embedModel }) { this.model = embedModel; helpers.event("llm", { model: embedModel, parallelism: process.env.QMD_EMBED_PARALLELISM || "automatic" }); }
   async resolveModel() { throw new Error("implicit model resolution/download forbidden in fixture"); }
   async ensureLlama(allowBuild) {
     if (allowBuild !== false) throw new Error("native downloads/builds forbidden in fixture");

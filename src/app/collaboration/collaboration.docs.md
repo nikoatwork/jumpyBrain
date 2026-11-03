@@ -37,6 +37,8 @@ Selections carry the actual read epoch/revision and optional monotonic per-tab s
 
 Snapshots expose actual admitted source splices when the public operation fits its byte budget, including byte-identical transactions. Metadata-only checkpoints expose no source splices. `history.read` returns a bounded contiguous range from retained actual model history, with scope/epoch/revision checks, reader authorization and no removed/private undo text. Missing/expired/oversized history fails explicitly. Snapshot text is canonical evidence, but it is not a substitute for the positions of actual operations in repeated source.
 
+A title checkpoint whose trimmed value already equals the canonical title advances operation history without republishing Markdown or changing attribution/timestamps. This mirrors byte-identical body transactions and avoids falsely predicting metadata changes when the guarded writer correctly returns unchanged.
+
 Observed raw source uses conservative ambiguity-aware alignment. Multiple equivalent repeated-text alignments expand into a marked inferred replacement; affected unprovable anchors/pending origins pause, while unique outside anchors and provably equal right-EOF mappings remain valid. Actual observed content replacement/deletion, rather than an artificial positional envelope for a pure insertion, determines whether both durable versions must be retained. Bounded alignment failure uses an explicitly ambiguous whole-source replacement. Public splices carry the marker; normal typed edits cannot forge it.
 
 ## Bounded Undo owners and connection churn

@@ -25,6 +25,7 @@ try {
   if (capture("git", ["tag", "--list", tag])) throw new Error(`Tag ${tag} already exists; inspect/resume that release instead of overwriting it.`);
   console.log(`Release ${current} → ${next}: validate, pack, commit, tag, push, publish${next.startsWith("0.") ? " (beta)" : ""}.`);
   if (options.dryRun) process.exit(0);
+  run(process.execPath, ["scripts/pack-native-helpers.mjs", "--check"]);
   run("gh", ["auth", "status"]);
   run("git", ["fetch", "origin", "master", "--tags"]);
   // Remote fetch can reveal an existing tag absent from the local preflight.
@@ -38,6 +39,10 @@ try {
   run("npm", ["--prefix", "integrations/electron", "version", next, "--no-git-tag-version", "--ignore-scripts"]);
   run("npm", ["test"]);
   run("npm", ["run", "cli:pack"]);
+  run(process.execPath, ["scripts/pack-native-helpers.mjs"]);
+  const pack = JSON.parse(readFileSync(path.join(cwd, ".local-pack/latest.json"), "utf8"));
+  const native = JSON.parse(readFileSync(path.join(cwd, ".local-pack/native-helpers.json"), "utf8"));
+  if (native.version !== next || native.artifacts?.length !== 2) throw new Error("Native assets must match this release version and both supported Mac architectures.");
   const changes = capture("git", ["status", "--porcelain"]);
   if (changes.split("\n").some(line => !versionFiles.includes(line.slice(3)))) {
     throw new Error("Files changed during release beyond version metadata; inspect them before committing or publishing.");
@@ -47,8 +52,7 @@ try {
   run("git", ["commit", "-m", `release: ${tag}${next.startsWith("0.") ? " (beta)" : ""}`]);
   run("git", ["tag", "-a", tag, "-m", `jumpyBrain ${tag}`]);
   run("git", ["push", "--atomic", "origin", "HEAD:refs/heads/master", `refs/tags/${tag}`]);
-  const pack = JSON.parse(readFileSync(path.join(cwd, ".local-pack/latest.json"), "utf8"));
-  run("gh", ["release", "create", tag, pack.tarballPath, "--repo", repository, "--verify-tag",
+  run("gh", ["release", "create", tag, pack.tarballPath, ...native.artifacts, "--repo", repository, "--verify-tag",
     "--title", `jumpyBrain ${tag}${next.startsWith("0.") ? " (beta)" : ""}`,
     ...(existsSync(notes) ? ["--notes-file", notes] : ["--generate-notes"]),
     ...(next.startsWith("0.") ? ["--prerelease"] : [])]);

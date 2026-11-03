@@ -308,3 +308,13 @@ Mac app backends keep runtime-retention pins outside the signed bundle in privat
 `~/.jumpybrain-runtime-pins/` directories keyed by runtime generation. Startup and
 cleanup previews preserve signed resources; moving an app retains live protection.
 Older bundles without this protocol remain retained for explicit inspection.
+
+## Optional semantic model setup
+
+Local text search works without a model. To add semantic retrieval explicitly, run `jumpybrain index --root <brain> --setup-semantic` to review the preset's download cost and [Gemma model terms](https://ai.google.dev/gemma/terms). Repeat with `--download-model` to download and verify it, or `--model-file /absolute/embeddinggemma-300M-Q8_0.gguf` to select already-provisioned bytes. Setup then indexes that same brain; recall, status and doctor never download.
+
+The pinned [upstream artifact](https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF/blob/0f741b5a6585bd53aeb15cd1372c56f2a0f65e12/embeddinggemma-300M-Q8_0.gguf) is 333,590,944 bytes (about 334 MB); allow up to twice that for temporary disk budgeting. Model-active RAM is additional and corpus/backend dependent, not the download size. This flow requires the supported QMD package and provisioned native runtime. Real-model verification here covers macOS ARM64; it is not a new Linux/Intel/Windows inference guarantee.
+
+Brain configuration stores a SHA-256 model identity, while device-local files live under `~/.jumpybrain/models`. A cloned brain can reuse the same verified model or explicitly provision it on the new device. Existing `index --semantic-model /absolute/path.gguf` remains supported. Advanced model-directory overrides must be consistent with the root backend's environment; stop that backend after changing an override.
+
+Missing/corrupt/interrupted setup remains unavailable or incomplete, never semantic-ready. Failed transfers remove their owned partial file; cached corruption requires inspecting/removing only the derived model artifact before repeating explicit setup. A hard process kill can retain a private partial file that is never selected. Canonical notes remain unchanged. Restore the model and reindex, or use an existing published index with explicit `recall --read-only` for labeled lexical retrieval; `index --lexical` explicitly returns the brain to lexical policy. Changing model identity may require `--rebuild`.

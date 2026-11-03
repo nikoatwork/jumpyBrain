@@ -19,7 +19,7 @@ export interface DoctorReport {
   node: DoctorCheck & { version: string };
   qmd: DoctorCheck & { binary: string };
   retrievalProbe: { status: "not_run" | "passed" | "empty" | "failed"; mode: "lexical"; message: string; warnings?: string[] };
-  memoryRoot: DoctorCheck & { root: string; source?: string; initialized?: boolean; compatible?: boolean; readiness?: RetrievalReadiness };
+  memoryRoot: DoctorCheck & { root: string; source?: string; initialized?: boolean; compatible?: boolean; semanticSetup?: import("../types.js").SemanticSetupStatus; readiness?: RetrievalReadiness };
   integrations: Record<string, DoctorCheck & { path: string }>;
   integrationsScope: "global";
   projectRoot?: string;
@@ -48,6 +48,7 @@ export async function doctorReport(args: ParsedCliArgs, localMemory: LocalMemory
       initialized: status.initialized,
       compatible: status.compatible,
       readiness: status.readiness,
+      semanticSetup: status.semanticSetup,
       ok: status.compatible,
       message: status.compatible ? "Memory root is compatible." : status.message ?? "Memory root is not compatible.",
     };
@@ -101,6 +102,7 @@ export function formatDoctorReport(report: DoctorReport): string {
     `- Node: ${statusIcon(report.node.ok)} ${report.node.message}`,
     `- QMD: ${statusIcon(report.qmd.ok)} ${report.qmd.message}`,
     `- Memory root: ${statusIcon(report.memoryRoot.ok)} ${report.memoryRoot.root} (${report.memoryRoot.source}) — ${report.memoryRoot.message}`,
+    ...(report.memoryRoot.semanticSetup ? [`- Semantic setup: ${report.memoryRoot.semanticSetup.state}${report.memoryRoot.semanticSetup.nextAction ? ". " + report.memoryRoot.semanticSetup.nextAction : ""}`] : []),
     ...(report.memoryRoot.readiness ? [`- Readiness: ${report.memoryRoot.readiness.freshness}; modes: ${report.memoryRoot.readiness.modes.join(", ") || "none"}; embeddings: ${report.memoryRoot.readiness.embedding}`] : []),
     "- Modes/coverage describe index metadata, not verified inference or relevance; lexical-only retrieval can miss paraphrases.",
     `- Retrieval probe: ${report.retrievalProbe.status} — ${report.retrievalProbe.message}`,

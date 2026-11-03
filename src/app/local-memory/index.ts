@@ -1,3 +1,4 @@
+import { semanticSetupStatus } from "../semantic-setup.js";
 import { metadataDate } from "../../core/canonical/metadata-date.js";
 import { normalizeMemoryActor, currentMemoryEditor } from "../../core/contribution.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
@@ -45,7 +46,8 @@ export { overviewMemory } from "./overview.js";
 
 export async function memoryStatus(rootArg: string) {
   const status = await memoryRootStatus(rootArg);
-  return { ...status, readiness: await retrievalReadiness(status.root) };
+  const readiness = await retrievalReadiness(status.root);
+  return { ...status, readiness, semanticSetup: await semanticSetupStatus(status.root, readiness) };
 }
 
 /** Shared automatic maintenance: one incremental attempt, never policy persistence or rebuild. */

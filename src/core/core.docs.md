@@ -25,3 +25,5 @@
 `contribution.ts` validates optional declared `MemoryActor` values and owns canonical creator/last-editor stamping plus revision checking. This is provenance, never authentication or an ACL. The digest covers parsed metadata and normalized body, excluding contribution fields, `attention_at` and `attention_settled_hash`; untracked body/title/timestamp changes invalidate the last editor. Guarded document merging protects existing creator fields, ignores submitted attribution, and replaces last editor from the explicit write option (omission clears it). Exact no-ops and the separate attention operation retain attribution.
 
 `search-recognition.ts` owns browser-safe strict optional edit/creation calendar-day predicates, declared-editor matching, timezone validation and the 120-candidate constant. It does not retrieve, scan, rank or authenticate users.
+
+`execution-limits.ts` owns pure finite backend defaults and validation plus ten-second transport headroom (clamped at the JavaScript timer ceiling). Hosts choose environment/per-call values; core performs no environment, transport or process work.

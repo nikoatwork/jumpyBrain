@@ -1,6 +1,6 @@
 # Independently shippable feedback increments
 
-Status: active, 2026-11-02. Backend restart recovery (unit 1), daily-note evidence dates (unit 4) and usability/state units 5–11 are complete; semantic eligibility, vector contribution and optional portable setup (2, 3, 12) retain their own gates. This is an implementation backlog, not a release commitment. The original review was planning only.
+Status: active, 2026-11-02. Backend restart recovery (unit 1), daily-note evidence dates (unit 4) and usability/state units 5–11 are complete; semantic eligibility and vector contribution (2, 3) retain their own gates; portable setup (12) is complete. This is an implementation backlog, not a release commitment. The original review was planning only.
 
 ## Goal
 
@@ -72,7 +72,7 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
 - `src/adapters/http-server/document-actions.ts`, `src/adapters/http-server/collaboration-drafts.ts`, `test/feedback-dialog.test.js` — scoped draft recovery and feedback UI entry points.
 - `src/app/writing/`, `src/app/local-memory/document-delete.ts`, `src/app/server-memory/`, `src/cli/local-transport.ts` — publication and derived-index outcomes.
 - `src/core/attention.ts`, `src/app/server-memory/attention.ts`, `src/adapters/http-server/browser-attention.ts`, `src/cli/` — attention policy, read/write transport and sidebar observation.
-- `scripts/public-install.mjs`, `docs/install.md`, `docs/cli-commands.md` — explicit semantic setup and configuration ownership. Coordinate model resource work with [RAM improvements](tasks-desktop-ram-next-improvements.md).
+- `scripts/public-install.mjs`, `docs/install.md`, `docs/cli-commands.md` — explicit semantic setup and configuration ownership. Coordinate model resource work with [RAM improvements](../done/2026-11-03_tasks-desktop-ram-next-improvements.md).
 
 ## Tasks — independent delivery units
 
@@ -123,10 +123,10 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
   - [x] 11.1 Measure production-shell requests on a fixed eight-note fixture: cold connect, reconnect, idle poll and one note edit. Attribute repeated document/status/attention loads to their caller before choosing request coalescing, existing projections or an endpoint change.
   - [x] 11.2 **Ship when:** the measured duplicate work falls without losing card excerpts, timely confirmed writes or independent error/readiness states. Record counts/bytes and delayed-transport behavior, cancel stale brain requests, and retain visible caps. No canonical body cache or shared pin schema is justified by this task alone.
 
-- [ ] 12.0 **P2 — Offer one explicit, portable semantic setup path.** F4, F8 C11.
-  - [ ] 12.1 Extend the existing setup/index seam with an explicit consented local-model provision/select flow and verified artifact identity, expected disk/download cost and compatible-platform limits. Resolve a stable model identity through device-local configuration; retain explicit-path compatibility and keep machine paths out of shared canonical policy where possible. Do not create a second brain registry.
-  - [ ] 12.2 Make app/status/doctor distinguish lexical, semantic-ready, unavailable and failed/incomplete states, with one supported next action. Recall/status remain non-downloading; remote agents cannot send arbitrary model paths to a server. Keep lexical use functional without model setup.
-  - [ ] 12.3 **Ship when:** consent/decline, offline/corrupt/interrupted provision, repeat invocation, a moved/cloned brain and missing-model fallback are truthful; canonical notes remain unchanged. Record actual model/platform cold/warm and memory limits with the existing RAM owner. Optional setup can ship alone; semantic-by-default and daemon model warming require separately demonstrated quality/resource benefit, including tasks 2/3 findings, before adoption.
+- [x] 12.0 **P2 — Offer one explicit, portable semantic setup path.** F4, F8 C11.
+  - [x] 12.1 Extend the existing setup/index seam with an explicit consented local-model provision/select flow and verified artifact identity, expected disk/download cost and compatible-platform limits. Resolve a stable model identity through device-local configuration; retain explicit-path compatibility and keep machine paths out of shared canonical policy where possible. Do not create a second brain registry.
+  - [x] 12.2 Make app/status/doctor distinguish lexical, semantic-ready, unavailable and failed/incomplete states, with one supported next action. Recall/status remain non-downloading; remote agents cannot send arbitrary model paths to a server. Keep lexical use functional without model setup.
+  - [x] 12.3 **Ship when:** consent/decline, offline/corrupt/interrupted provision, repeat invocation, a moved/cloned brain and missing-model fallback are truthful; canonical notes remain unchanged. Record actual model/platform cold/warm and memory limits with the existing RAM owner. Optional setup can ship alone; semantic-by-default and daemon model warming require separately demonstrated quality/resource benefit, including tasks 2/3 findings, before adoption.
 
 ## Coverage, deferrals and scope cuts
 
@@ -178,3 +178,9 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
 - [Completed implementation and verification](../done/2026-11-03_tasks-usability-state-and-sidebar.md): fixed executing-build identity and pending-send dismissal, added guarded attention CLI operations, reduced unchanged sidebar preview traffic and retained finite editor recovery reasons. Named-agent attribution and asynchronous write/index outcomes were verified as already covered.
 - Inspected both November 2 recovery/settlement diagnostic attachments read-only. Both name 0.3.17; dropped/omitted events and one generic conflict do not prove a cause. Current saved/recovery controls and retained-draft safeguards pass; no new historical-conflict fix or concurrency-policy relaxation is claimed.
 - Full suite before the final small diagnostic callback: 1,881 passed, two skips, zero failures. Final affected suite: 53 passed. Real local/hosted CLI writes converge through quiet maintenance without repeated writes; packaged Mac pending-send Escape and retained text pass. Remaining 2/3/12 work stays active.
+
+## 2026-11-03 explicit model setup and final-source follow-up
+
+- [Portable semantic setup completed](../done/2026-11-03_tasks-portable-semantic-setup.md): one verified consented model, stable portable identity, truthful non-downloading readiness and retained lexical defaults. Provisioned offline/corrupt/cancellation/clone cases and production-shell states pass; platform/download limits remain explicit.
+- A same-title checkpoint falsely predicted a metadata publication when the writer returned unchanged. The reproduced narrow fix preserves canonical bytes and the actual operation-history revision. Hub/history/HTTP race checks pass 38 cases; final full suite 1,893 passed, two skips. This does not identify the cause of the earlier 0.3.17 reports or the retained one-off metadata-only updater fixture observation. Final packaged preservation checks pass.
+- Search cases/candidates are independently authored and frozen; baseline and candidate comparisons remain active. No ranking or semantic-default change has been adopted.

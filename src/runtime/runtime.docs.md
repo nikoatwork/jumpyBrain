@@ -56,3 +56,7 @@ The public local runtime re-exports `MemoryActor`, `SearchRecognitionOptions`, `
 ## Note attention
 
 `listMemoryAttention(root)` returns independently capped active/settled lists with totals and valid declared creators. `patchMemoryDocumentAttention(root,id,{ifMatch,mutation})` changes canonical attention through existing guarded policy; publication and indexing remain separate. Hosts serialize mutations and notify collaboration/maintenance.
+
+## Optional model provisioning
+
+`prepareSemanticModel({download?,file?,signal?})` explicitly provisions/verifies the pinned optional device-local model and returns a portable policy. Without consent and without an available cache, it returns the cost/terms plan without writing. Indexing is a separate selected-root operation. Status adds safe semanticSetup state; default lexical operation remains available without setup.

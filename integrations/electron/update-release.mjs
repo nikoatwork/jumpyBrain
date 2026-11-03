@@ -9,7 +9,7 @@ export function compareVersions(a, b) {
   for (let i = 0; i < 3; i++) if (aa[i] !== bb[i]) return Math.sign(aa[i] - bb[i]);
   return 0;
 }
-export function selectRelease(releases) {
+export function selectRelease(releases, { arch = process.arch } = {}) {
   if (!Array.isArray(releases)) throw new Error('Invalid release response. Retry checking for updates.');
   const candidates = releases.filter(r => !r.draft && r.published_at && /^v\d+\.\d+\.\d+$/.test(r.tag_name) && versionParts(r.tag_name.slice(1)));
   candidates.sort((a, b) => compareVersions(b.tag_name.slice(1), a.tag_name.slice(1)));
@@ -23,7 +23,14 @@ export function selectRelease(releases) {
     || a.browser_download_url !== `https://github.com/${REPOSITORY}/releases/download/${r.tag_name}/${name}`) {
     throw new Error('The newest release has no verifiable desktop distribution. Retry after its publication is complete.');
   }
-  return { version, tag: r.tag_name, releaseId: r.id, assetId: a.id, size: a.size, digest: a.digest,
+  const helperName = `jumpybrain-native-${version}-darwin-${arch}.json`;
+  const helpers = ['arm64','x64'].includes(arch) ? r.assets?.filter(asset => asset.name === helperName && asset.state === 'uploaded') : [];
+  const helper = helpers?.length === 1 ? helpers[0] : null;
+  const nativeHelper = helper && /^sha256:[a-f0-9]{64}$/.test(helper.digest || '') && Number.isSafeInteger(helper.id)
+    && Number.isSafeInteger(helper.size) && helper.size > 0 && helper.size <= 4 * 1024 * 1024
+    && helper.browser_download_url === `https://github.com/${REPOSITORY}/releases/download/${r.tag_name}/${helperName}`
+    ? { size: helper.size, digest: helper.digest, url: helper.browser_download_url, assetId: helper.id } : null;
+  return { ...(nativeHelper ? { nativeHelper } : {}), version, tag: r.tag_name, releaseId: r.id, assetId: a.id, size: a.size, digest: a.digest,
     url: a.browser_download_url, notes: String(r.body || 'No release notes supplied.').slice(0, 24000) };
 }
 export async function boundedFetch(url, { fetcher = fetch, signal, limit = 2 * 1024 * 1024, timeout = 15000 } = {}) {

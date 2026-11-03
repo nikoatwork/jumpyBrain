@@ -165,3 +165,7 @@ Remaining source-size hotspots are intentionally documented at their module boun
 ## Versioned releases
 
 [Release workflow](releases.md) owns patch-by-default versioning, explicit minor bumps, user-approved major releases, validation, tags, and GitHub publication.
+
+Mac ARM64 semantic index workers use two embedding contexts by default; explicit QMD_EMBED_PARALLELISM overrides are respected. Other platforms and semantic query pools retain upstream policy. This preserves the same model and complete embeddings while bounding a demonstrated index-stage working set; it is not a whole-app RAM guarantee.
+
+Local index RPC selects one finite backend timeout (600 seconds default, explicit option/environment override) and keeps ten-second HTTP headroom through the reply body. Gateway index forwarding derives matching local headroom or an explicitly configured target transport budget, using HTTP streams without fetch's implicit five-minute header cap. Hosted public clients do not reconfigure server deadlines. Native host environment forwarding is limited to the named index/model-directory settings; changing them requires restarting the existing root owner.

@@ -145,7 +145,7 @@ def prepare(bundle, home, source=SOURCE):
         previous = source / '.local-pack/desktop/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app'
         if not previous.is_dir():
             previous = home / 'Applications/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app'
-        built = build_app(source, scratch, config, previous_app=previous if previous.is_dir() else None, reuse_artifact=True)
+        built = build_app(source, scratch, config, previous_app=previous if previous.is_dir() else None, reuse_artifact=True, native_artifact=os.environ.get("JUMPYBRAIN_NATIVE_HELPER_ARTIFACT"))
         destination = resources / 'native/jumpyBrain Host.app'
         destination.parent.mkdir()
         with build_timing('native-copy'):

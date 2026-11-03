@@ -405,3 +405,16 @@ test('release-managed private Node/QMD launcher remains eligible for paired upda
   await writeFile(f.manifest.cliPath, cliShim({ appDir: f.app, cliConfigPath: path.join(f.root, 'cli-config.json'), node: f.manifest.node, qmd: f.manifest.qmd }));
   assert.equal((await cliPolicy(f.home)).kind, 'managed');
 });
+
+test('release-native assets select only this supported architecture with verified fixed-origin metadata', () => {
+  const r = release('0.3.20');
+  const helper = arch => ({ id: 20, name: `jumpybrain-native-0.3.20-darwin-${arch}.json`, state: 'uploaded', size: 500000,
+    digest: 'sha256:' + 'b'.repeat(64), browser_download_url: `https://github.com/nikoatwork/jumpyBrain/releases/download/v0.3.20/jumpybrain-native-0.3.20-darwin-${arch}.json` });
+  r.assets.push(helper('arm64'), helper('x64'));
+  assert.match(selectRelease([r], { arch: 'arm64' }).nativeHelper.url, /darwin-arm64\.json$/);
+  assert.match(selectRelease([r], { arch: 'x64' }).nativeHelper.url, /darwin-x64\.json$/);
+  assert.equal(selectRelease([r], { arch: 'unsupported' }).nativeHelper, undefined);
+  r.assets[1].browser_download_url = 'https://untrusted.invalid/native.json';
+  assert.equal(selectRelease([r], { arch: 'arm64' }).nativeHelper, undefined);
+  assert.equal(selectRelease([release('0.3.20')], { arch: 'arm64' }).nativeHelper, undefined, 'older/CLI-only assets keep source fallback');
+});

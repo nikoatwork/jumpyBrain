@@ -31,3 +31,5 @@ export * from "./memory-root/index.js";
 export * from "./provenance.js";
 export * from "./retrieval-policy/index.js";
 export * from "./writing/index.js";
+
+export { MEMORY_EXECUTION_DEFAULTS, memoryExecutionDeadlineMs, memoryTransportDeadlineMs } from "./execution-limits.js";

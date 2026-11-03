@@ -7,3 +7,5 @@
 
 - Agents can list, settle, snooze and bring back notes through the CLI; unchanged sidebar previews avoid repeated document loads.
 - Feedback can close with Escape while sending and retains its text through reconnects; backend health keeps the executing version and support logs distinguish editor recovery causes.
+- Optional semantic setup verifies one portable local model; app/status/doctor explain readiness, and Mac ARM64 indexing uses a smaller embedding context pool.
+- Mac updates can use verified release-built native helpers, avoiding Swift compilation on the supported current-worker path while retaining fallback and rollback.

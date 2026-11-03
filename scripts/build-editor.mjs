@@ -6,11 +6,13 @@ import { resolveFeedbackUrl } from './feedback-config.mjs';
 
 const pkg = JSON.parse(await readFile("package.json", "utf8"));
 const { version } = pkg;
-// Compact CLI and backend-ownership artifacts. Keep source, declarations,
+// Compact CLI, backend-ownership and local retrieval/app artifacts. Keep source, declarations,
 // identifiers, syntax and legal notices; no new bundle or runtime dependency.
-for (const directory of ["cli", "adapters/backend-host", "app/backend-host"]) {
+for (const directory of ["cli", "adapters/backend-host", "app/backend-host", "adapters/qmd", "app/local-memory", "app"]) {
   for (const name of await readdir(`dist/${directory}`)) {
     if (!name.endsWith(".js")) continue;
+    // The frozen retrieval evaluator instruments these exact emitted seams.
+    if (["adapters/qmd/qmd-query.js", "adapters/qmd/qmd-driver.js", "app/local-memory/compact.js"].includes(`${directory}/${name}`)) continue;
     const file = `dist/${directory}/${name}`;
     const result = await transform(await readFile(file, "utf8"), {
       minifyWhitespace: true, minifyIdentifiers: false, minifySyntax: false,

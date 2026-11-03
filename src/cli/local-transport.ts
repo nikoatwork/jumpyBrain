@@ -70,7 +70,7 @@ export interface LocalMemoryTransport {
 }
 
 /** CLI owns OS signal policy; library/runtime callers supply AbortSignal explicitly. */
-async function cancelOnCliSignal<T>(signal: AbortSignal | undefined, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
+export async function cancelOnCliSignal<T>(signal: AbortSignal | undefined, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController();
   const abort = () => controller.abort();
   process.once("SIGINT", abort);
@@ -83,6 +83,9 @@ async function cancelOnCliSignal<T>(signal: AbortSignal | undefined, operation: 
 export async function localBackendCall<T>(root: string, method: string, args: unknown[], signal?: AbortSignal): Promise<T> {
   return cancelOnCliSignal(signal, async signal => {
     if (signal.aborted) throw new Error("Memory operation canceled.");
+    const indexOptionsAt = method === "indexMemory" ? 0 : method === "ensureSavedMemoryIndexed" ? 1 : undefined;
+    const indexTimeoutMs = indexOptionsAt === undefined ? undefined : runtime.memoryExecutionDeadlineMs("index",
+      (args[indexOptionsAt] as IndexMemoryOptions | undefined)?.timeoutMs ?? (process.env.JUMPYBRAIN_INDEX_TIMEOUT_MS === undefined ? undefined : Number(process.env.JUMPYBRAIN_INDEX_TIMEOUT_MS)));
     // Invalid roots/configuration and a bad explicit engine choice must fail
     // without starting a service or manufacturing operational state.
     await runtime.memoryRootStatus(root);
@@ -99,9 +102,11 @@ export async function localBackendCall<T>(root: string, method: string, args: un
     const selectedEngine = runtime.resolveLocalSearchEngineBinary();
     const qmdBinary = path.isAbsolute(selectedEngine) || selectedEngine.includes(path.sep) ? path.resolve(selectedEngine)
       : (process.env.PATH ?? "").split(path.delimiter).map(directory => path.join(directory, selectedEngine)).find(candidate => existsSync(candidate)) ?? selectedEngine;
-    const serialArgs = [...args]; while (serialArgs.length && serialArgs[serialArgs.length - 1] === undefined) serialArgs.pop();
+    const serialArgs = [...args];
+    if (indexOptionsAt !== undefined) serialArgs[indexOptionsAt] = { ...(serialArgs[indexOptionsAt] as object), timeoutMs: indexTimeoutMs };
+    while (serialArgs.length && serialArgs[serialArgs.length - 1] === undefined) serialArgs.pop();
     if (signal.aborted) cancel();
-    const response = await fetch(backend.url + "/_backend/call", {method: "POST", redirect: "manual", signal: AbortSignal.timeout(650_000),
+    const response = await fetch(backend.url + "/_backend/call", {method: "POST", redirect: "manual", signal: AbortSignal.timeout(indexOptionsAt === undefined ? 650_000 : runtime.memoryTransportDeadlineMs("index", indexTimeoutMs)),
       headers: {Authorization: "Bearer " + backend.token, "content-type": "application/json", "x-jumpybrain-operation": id},
       body: JSON.stringify({method, args: serialArgs, qmdBinary})});
     if (signal.aborted) cancel();

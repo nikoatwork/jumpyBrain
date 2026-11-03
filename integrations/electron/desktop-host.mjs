@@ -50,8 +50,9 @@ export async function startDesktopHost(config, { spawnHost = spawn, probe = prob
 
   async function launch() {
     // No inherited credentials, renderer arguments, shell, detached child, or PID adoption.
+    const localEnvironment = Object.fromEntries(['JUMPYBRAIN_INDEX_TIMEOUT_MS', 'JUMPYBRAIN_MODEL_DIRECTORY'].filter(key => process.env[key] !== undefined).map(key => [key, process.env[key]]));
     const child = spawnHost(config.executable, ['--desktop-host'], {
-      env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LANG: 'en_US.UTF-8', JUMPYBRAIN_DESKTOP_INSTANCE: instance, ...(readinessOnly ? { JUMPYBRAIN_READINESS_ONLY: '1' } : {}) }, stdio: ['ignore', 'ignore', 'ignore'],
+      env: { ...localEnvironment, PATH: '/usr/bin:/bin:/usr/sbin:/sbin', LANG: 'en_US.UTF-8', JUMPYBRAIN_DESKTOP_INSTANCE: instance, ...(readinessOnly ? { JUMPYBRAIN_READINESS_ONLY: '1' } : {}) }, stdio: ['ignore', 'ignore', 'ignore'],
     });
     let exited = false, stopping = null, expected = false;
     const ended = new Promise((resolve) => {

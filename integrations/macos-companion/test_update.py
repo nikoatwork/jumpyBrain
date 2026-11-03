@@ -519,10 +519,10 @@ class NativeBuildTests(Fixture):
         if "--verify" in args and self.verify_fails:
             raise subprocess.CalledProcessError(1, "codesign")
 
-    def build(self, runtime=None, previous=None, *, reuse_artifact=False):
+    def build(self, runtime=None, previous=None, *, reuse_artifact=False, native_artifact=None):
         scratch = Path(tempfile.mkdtemp(prefix="native-build-", dir=self.base))
         with redirect_stdout(io.StringIO()):
-            return install.build_app(runtime or self.runtime, scratch, self.config, previous_app=previous, reuse_artifact=reuse_artifact)
+            return install.build_app(runtime or self.runtime, scratch, self.config, previous_app=previous, reuse_artifact=reuse_artifact, native_artifact=native_artifact)
 
     def compilations(self):
         return sum(command[0] == str(self.compiler) for command in self.commands)
@@ -535,6 +535,20 @@ class NativeBuildTests(Fixture):
         shutil.copy2(self.runtime / "integrations/macos-companion/Companion.swift",
                      self.stage / "integrations/macos-companion/Companion.swift")
         self.commands.clear()
+
+    def test_verified_release_native_bytes_avoid_compiler_and_sdk_probes(self):
+        import base64
+        import hashlib
+        code = b"\xcf\xfa\xed\xfe" + b"fixture native executable"
+        artifact = self.base / "release-native.json"
+        fingerprint = install.artifact_fingerprint(self.runtime / "integrations/macos-companion", install.platform.machine(), self.recipe)
+        artifact.write_text(json.dumps(dict(schemaVersion=1, version=json.loads((self.runtime / "package.json").read_text())["version"],
+            architecture=install.platform.machine(), artifactFingerprint=fingerprint,
+            executableDigest=hashlib.sha256(code).hexdigest(), executableBase64=base64.b64encode(code).decode())))
+        with patch("native_artifacts.subprocess.run"), patch.object(install.subprocess, "check_output", side_effect=AssertionError("Release bytes need no compiler or SDK")):
+            built = self.build(reuse_artifact=True, native_artifact=artifact)
+        self.assertEqual((built / "Contents/MacOS/jumpyBrain").read_bytes(), code)
+        self.assertEqual(self.compilations(), 0)
 
     def test_desktop_reuses_verified_artifact_without_inspecting_toolchain(self):
         with patch.object(install, "native_fingerprint", side_effect=AssertionError("SDK must not be hashed")):
@@ -560,7 +574,7 @@ class NativeBuildTests(Fixture):
                 if change == "binary": (first / "Contents/MacOS/jumpyBrain").write_bytes(b"corrupt executable")
                 if change == "record": (first / "Contents/Resources/NativeBuild.json").write_text("{}")
                 if change == "signature": self.verify_fails = True
-                architecture = "different" if change == "architecture" else install.platform.machine()
+                architecture = ("x86_64" if install.platform.machine() == "arm64" else "arm64") if change == "architecture" else install.platform.machine()
                 with patch.object(install.platform, "machine", return_value=architecture):
                     self.build(previous=first, reuse_artifact=True)
                 self.verify_fails = False

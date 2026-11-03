@@ -119,3 +119,7 @@ reported per root without exposing capability/error contents; help is observatio
 ## Note attention commands
 
 `attention list|settle|snooze|bring-back` uses the selected local/remote brain. List is observational, capped at 100 per group with totals/omissions and creator declarations (unknown stays unknown). Mutations require a prior document hash; local writes join the root backend, hosted writes reuse authenticated PATCH. Read-only target policy is enforced before credentials. No automatic retry or read/approval inference; pins remain device-local.
+
+`index --setup-semantic` reviews the pinned model's cost/terms before a download. Explicit `--download-model` or absolute `--model-file` provisions verified bytes; a verified existing cache is reused offline. The command then indexes the same local root with portable modelId policy. SIGINT/SIGTERM cancel provisioning and remove owned partial output; unknown-response creation is never retried. All provisioning/policy flags reject remote targets before credentials/network. Doctor/status describe semantic setup state separately from index readiness; neither downloads.
+
+Local index/ensure-saved RPC now forwards the selected finite per-call/JUMPYBRAIN_INDEX_TIMEOUT_MS value to the owner, with ten-second client headroom through body consumption, replacing its fixed 650-second cap. Other RPC methods retain their existing budget. Cooperative cancellation still asks the owner to drain so saved creation identity is preserved.

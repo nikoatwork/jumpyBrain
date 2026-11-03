@@ -422,6 +422,7 @@ ${noteAttentionMarkup}
   </div>
   <ul id="search-results" role="listbox" aria-label="Matching notes"></ul>
   <div class="search-footer">
+    <p id="search-semantic-state" hidden></p>
     <p id="search-message" role="status" aria-live="polite"></p>
     <p id="reference-help" hidden>Insert a literal [[Page Title]] reference, not a unique-ID link. Duplicate titles are ambiguous. Exact page titles are shared with the map; legacy paths remain supported there.</p>
     <button id="search-retry" class="quiet-button" hidden>Retry search</button>

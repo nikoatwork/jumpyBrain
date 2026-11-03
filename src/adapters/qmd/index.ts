@@ -8,3 +8,5 @@ export { inspectLocalSearchEngine } from "./qmd-cli.js";
 export { withQmdBinary } from "./qmd-cli.js";
 
 export { resolveQmdBinary as resolveLocalSearchEngineBinary } from "./qmd-cli.js";
+
+export { provisionLocalModel, localModelAvailable } from "./model-setup.js";

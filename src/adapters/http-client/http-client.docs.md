@@ -69,3 +69,5 @@ Rich search forwards normalized opt-in `recognition` options and requires a vers
 ## Note attention
 
 `listMemoryAttention` uses existing GET attention and `patchMemoryDocumentAttention` uses guarded document PATCH. Both retain ordinary authentication/deadlines; no automatic retries. Shared packet types live in `types.ts`, with no client import of app implementations.
+
+Default transport budgets now derive from the shared pure execution limits; the existing 70/610-second defaults and explicit client deadline semantics remain unchanged. A separately configured hosted backend still requires matching caller/gateway headroom; no timeout is serialized to its public protocol.

@@ -18,15 +18,16 @@ import { maintainInstalledSoftware } from '../integrations/electron/software-mai
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const mode = process.argv[2] || 'success';
 const options = process.argv.slice(3);
-const existingClient = options[0] === '--client-v0.3.7';
-const coldNative = options[0] === '--cold-native';
-if (existingClient || coldNative) options.shift();
-const sourcePackage = options[0] === '--package' && options[1] ? path.resolve(options[1]) : null;
-if ((options.length && (!sourcePackage || options.length !== 2)) || ((existingClient || coldNative) && mode !== 'success')) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7 | --cold-native (success only)] [--package <immutable npm tarball>]');
+function flag(name) { const index=options.indexOf(name); if(index<0)return false; options.splice(index,1); return true; }
+function value(name) { const index=options.indexOf(name); if(index<0)return null; const selected=options[index+1]; if(!selected||selected.startsWith('--'))throw new Error(name+' requires a path'); options.splice(index,2); return path.resolve(selected); }
+const existingClient = flag('--client-v0.3.7'), coldNative = flag('--cold-native'), corruptNativeHelper = flag('--corrupt-native-helper');
+const sourcePackage = value('--package'), nativeHelperSource = value('--native-helper');
+const baseline = value('--baseline') || path.join(repo, '.local-pack/desktop/jumpyBrain.app');
+if (options.length || ((existingClient || coldNative) && mode !== 'success') || corruptNativeHelper && !nativeHelperSource) throw new Error('Usage: desktop-update-smoke.mjs <mode> [--client-v0.3.7] [--cold-native] [--package <tarball>] [--native-helper <artifact.json>] [--corrupt-native-helper] [--baseline <app>]');
 if (!['success','app-only','relaunch-failure','helper-crash','app-crash','cli-open','cli-closed'].includes(mode)) throw new Error('Unsupported smoke mode');
 const asar = await import(path.join(repo, 'integrations/electron/node_modules/@electron/asar/lib/asar.js'));
 const home = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-update-smoke-')));
-const artifactRoot = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : coldNative ? 'cold-native' : mode);
+const artifactRoot = path.join(repo, '.local-pack/update-smoke', existingClient ? 'client-v0.3.7' : nativeHelperSource ? (corruptNativeHelper ? 'native-corrupt' : coldNative ? 'native-cold' : 'native-reuse') : coldNative ? 'cold-native' : mode);
 await mkdir(artifactRoot, { recursive: true });
 const artifactDir = await mkdtemp(path.join(artifactRoot, new Date().toISOString().replaceAll(':', '-') + '-'));
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -40,18 +41,18 @@ try {
     startedAt: new Date().toISOString(), mode, coldNative, existingClient,
     checkoutCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(),
     checkoutTrackedDiffDigest: digest(execFileSync('git', ['diff', 'HEAD', '--'], { cwd: repo, maxBuffer: 8 * 1024 * 1024 })),
-    sourcePackage,
+    sourcePackage, nativeHelperSource, corruptNativeHelper, baseline,
     machine: { model: execFileSync('/usr/sbin/sysctl', ['-n', 'hw.model'], { encoding: 'utf8' }).trim(),
       cpus: os.cpus().length, memoryBytes: os.totalmem(), arch: process.arch,
       macOS: execFileSync('/usr/bin/sw_vers', ['-productVersion'], { encoding: 'utf8' }).trim(), node: process.version },
     cacheState: { npm: 'new disposable HOME; empty npm cache', electron: 'new disposable HOME; archive/checksum network records below',
-      native: coldNative ? 'missing installed reuse record; fresh private compiler/module cache' : 'signed matching installed helper; no compilation' },
-    baselineExecutableDigest: digest(await readFile(path.join(repo, '.local-pack/desktop/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app/Contents/MacOS/jumpyBrain'))),
-    baselineRecord: JSON.parse(await readFile(path.join(repo, '.local-pack/desktop/jumpyBrain.app/Contents/Resources/native/jumpyBrain Host.app/Contents/Resources/NativeBuild.json'))),
+      native: nativeHelperSource ? 'verified release-native bytes; no local compiler/module cache required' : coldNative ? 'missing installed reuse record; fresh private compiler/module cache' : 'signed matching installed helper; no compilation' },
+    baselineExecutableDigest: digest(await readFile(path.join(baseline, 'Contents/Resources/native/jumpyBrain Host.app/Contents/MacOS/jumpyBrain'))),
+    baselineRecord: JSON.parse(await readFile(path.join(baseline, 'Contents/Resources/native/jumpyBrain Host.app/Contents/Resources/NativeBuild.json'))),
   };
   await json(path.join(artifactDir, 'trial.json'), trial);
   const appPath = path.join(home, 'Applications/jumpyBrain.app'); await mkdir(path.dirname(appPath), { recursive: true });
-  await cp(path.join(repo, '.local-pack/desktop/jumpyBrain.app'), appPath, { recursive: true, verbatimSymlinks: true });
+  await cp(baseline, appPath, { recursive: true, verbatimSymlinks: true });
   const resources = path.join(appPath, 'Contents/Resources');
   const root = path.join(home, '.jumpybrain'), memory = path.join(home, 'memory'), support = path.join(home, 'support');
   await mkdir(support, { mode: 0o700 }); await mkdir(path.join(root, 'bin'), { recursive: true });
@@ -130,10 +131,14 @@ try {
   const archive = path.join(home, 'release.tgz'); execFileSync('tar', ['-czf', archive, '-C', home, 'package'], { env: { ...process.env, COPYFILE_DISABLE: '1' } });
   const bytes = await readFile(archive);
   await json(path.join(artifactDir, 'trial.json'), { ...trial, packedSourceDigest: digest(await readFile(packageFile)), releaseDigest: digest(bytes), releaseBytes: bytes.length });
-  server = http.createServer((_req, res) => { setTimeout(() => { res.writeHead(200, { 'Content-Length': bytes.length }); res.end(bytes); }, 600); });
+  const nativeRecord = nativeHelperSource ? JSON.parse(await readFile(nativeHelperSource, 'utf8')) : null;
+  const nativeBytes = nativeRecord ? Buffer.from(JSON.stringify({ ...nativeRecord, version: nextVersion, ...(corruptNativeHelper ? { executableDigest: '0'.repeat(64) } : {}) }) + '\n') : null;
+  if (nativeBytes) await writeFile(path.join(artifactDir, 'native-helper.json'), nativeBytes);
+  server = http.createServer((req, res) => { const body = req.url === '/native-helper.json' && nativeBytes ? nativeBytes : bytes; setTimeout(() => { res.writeHead(200, { 'Content-Length': body.length }); res.end(body); }, 600); });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const release = { version: nextVersion, tag: 'v' + nextVersion, size: bytes.length, digest: 'sha256:' + createHash('sha256').update(bytes).digest('hex'),
     url: `http://127.0.0.1:${server.address().port}/release.tgz`, notes: 'Disposable immutable GUI upgrade fixture. <script>must remain text</script>' };
+  if (nativeBytes) release.nativeHelper = { size: nativeBytes.length, digest: 'sha256:' + digest(nativeBytes), url: `http://127.0.0.1:${server.address().port}/native-helper.json` };
   const userData = path.join(home, 'user-data'); await mkdir(userData); await json(path.join(userData, 'desktop-setup.json'), { version: 1 });
   await json(fixturePath, { home, userData, support, oldVersion, nextVersion, release, artifactDir, mode });
   const extensionDirectory = path.join(support, 'extensions');
@@ -267,7 +272,7 @@ try {
     assert.equal(storage.lastCleanup.removed.length, 1);
     await json(path.join(artifactDir, 'storage.json'), storage);
   }
-  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, profilePreferences: ['success','relaunch-failure'].includes(mode), probeActivationSuppressed: !existingClient && ['success','relaunch-failure'].includes(mode), coldNative, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
+  await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, profilePreferences: ['success','relaunch-failure'].includes(mode), nativeHelper: Boolean(nativeHelperSource), corruptNativeHelper, probeActivationSuppressed: !existingClient && ['success','relaunch-failure'].includes(mode), coldNative, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
   let performanceResult;
   const updateDirectories = await readdir(path.join(home, 'Library/Application Support/jumpyBrain Updates'));
   for (const name of updateDirectories) {
@@ -277,14 +282,15 @@ try {
       if (value) {
         await writeFile(path.join(artifactDir, file), value);
         if (file === 'update.log' && mode === 'success') {
-          assert.match(value.toString(), coldNative ? /Compiling native companion/ : /Reusing unchanged native companion executable/);
-          if (!coldNative) assert.doesNotMatch(value.toString(), /Compiling native companion/);
+          const expectCompilation = coldNative && (!nativeHelperSource || existingClient || corruptNativeHelper);
+          assert.match(value.toString(), expectCompilation ? /Compiling native companion/ : nativeHelperSource && !existingClient ? /Using verified release-native helper|Reusing unchanged native companion executable/ : /Reusing unchanged native companion executable/);
+          if (!expectCompilation) assert.doesNotMatch(value.toString(), /Compiling native companion/);
           // Historical workers still capture incoming install.mjs stdout. Keep
           // the raw log and export only fixed stage records for comparison.
           const buildTimings = [...value.toString().matchAll(/^\[build-timing\] (.+)$/gm)].map(match => JSON.parse(match[1]));
           assert.ok(buildTimings.length > 0, 'incoming build must expose its measured stages');
           assert.ok(buildTimings.every(record => record.schema === 1 && record.outcome === 'ok' && Number.isFinite(record.durationMs) && record.durationMs >= 0));
-          assert.equal(buildTimings.some(record => record.stage === 'native-compile'), coldNative);
+          assert.equal(buildTimings.some(record => record.stage === 'native-compile'), expectCompilation);
           for (const stage of ['electron-acquire-verify', 'electron-unpack-and-setup', 'runtime-copy', 'extension-compiler-copy', 'desktop-sign', 'desktop-verify', 'desktop-copy-final']) {
             assert.equal(buildTimings.filter(record => record.stage === stage).length, 1, `one timing for ${stage}`);
           }

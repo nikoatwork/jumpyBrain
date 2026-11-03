@@ -502,6 +502,9 @@ final class Companion: NSObject, NSApplicationDelegate {
             "JUMPYBRAIN_SERVER_API_KEYS": apiKey,
             "JUMPYBRAIN_NO_UPDATE_CHECK": "1"
         ]
+        for key in ["JUMPYBRAIN_INDEX_TIMEOUT_MS", "JUMPYBRAIN_MODEL_DIRECTORY"] {
+            if let value = ProcessInfo.processInfo.environment[key] { p.environment?[key] = value }
+        }
         if desktopHost, let instance = ProcessInfo.processInfo.environment["JUMPYBRAIN_DESKTOP_INSTANCE"] {
             p.environment?["JUMPYBRAIN_DESKTOP_INSTANCE"] = instance
         }

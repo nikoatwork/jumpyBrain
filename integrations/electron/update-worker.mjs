@@ -92,10 +92,16 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       await status('preparing', 'Checking prerequisites and free space… You can keep editing.');
       const space = await diskSpace(directory);
       if (space.bavail * space.bsize < 3 * 1024 ** 3) throw new Error('At least 3 GB of free space is needed to prepare and retain the previous installation. Free space and retry.');
-      for (const [cmd, args] of [[request.node, ['-e', 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||a===22&&b>=12?0:1)']], ['npm', ['--version']], ['python3', ['--version']], ['/usr/bin/xcrun', ['--find', 'swiftc']]]) await run(cmd, args, directory, 15000);
+      for (const [cmd, args] of [[request.node, ['-e', 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||a===22&&b>=12?0:1)']], ['npm', ['--version']], ['python3', ['--version']]]) await run(cmd, args, directory, 15000);
       await status('preparing', `Downloading verified release ${request.release.version}…`);
       const bytes = await measure('download', () => download(request.release.url, { signal: controller.signal, limit: 128 * 1024 * 1024, timeout: 120000 }));
       verifyArtifact(bytes, request.release);
+      if (request.release.nativeHelper) {
+        const nativeBytes = await measure('native-download', () => download(request.release.nativeHelper.url, { signal: controller.signal, limit: 4 * 1024 * 1024, timeout: 30000 }));
+        verifyArtifact(nativeBytes, request.release.nativeHelper);
+        env.JUMPYBRAIN_NATIVE_HELPER_ARTIFACT = path.join(directory, 'native-helper.json');
+        await writeFile(env.JUMPYBRAIN_NATIVE_HELPER_ARTIFACT, nativeBytes, { mode: 0o600 });
+      }
       await writeFile(path.join(directory, 'release.tgz'), bytes, { mode: 0o600 });
       await measure('extract', () => run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'extract', directory]));
       const source = path.join(directory, 'unpacked/package'), electron = path.join(source, 'integrations/electron');

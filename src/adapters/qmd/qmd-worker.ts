@@ -13,6 +13,7 @@ export interface WorkerPolicy {
   mode: "lexical" | "semantic";
   model?: string;
   modelHash?: string;
+  modelId?: string;
 }
 export interface WorkerIndexRequest {
   action?: "index";

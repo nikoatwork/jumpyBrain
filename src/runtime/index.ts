@@ -68,3 +68,5 @@ export { inspectLocalSearchEngine, resolveLocalSearchEngineBinary } from "../app
 
 export { listMemoryAttention, patchMemoryDocumentAttention } from "../app/attention.js";
 export type { MemoryAttentionNote, MemoryAttentionPacket } from "../app/attention.js";
+
+export { prepareSemanticModel } from "../app/semantic-setup.js";
