@@ -42,4 +42,4 @@ Measure recent build and download growth, remove unnecessary shipping weight, ad
 
 - One macOS arm64 machine, Node 26.7.0, npm 11.19.0. Historical timings use the same installed pre-update dev dependencies, warm filesystem caches, no dependency-download time; not population latency claims.
 - No public-release upgrade, Intel/Linux/Windows hardware check, user installation, push or release. Desktop checks used disposable brains/profiles; personal app/memory remain untouched.
-- The CLI/source tarball reduction does not shrink bundled Chromium or prove Mac app size/update-time improvement. Existing fresh Swift build latency remains tracked in [the separate active update task](../todo/tasks-desktop-update-30-seconds.md); release-built helpers and compiler migration are outside this measured maintenance change.
+- The CLI/source tarball reduction does not shrink bundled Chromium or prove Mac app size/update-time improvement. Existing fresh Swift build latency remains tracked in [the separate active update task](2026-11-03_tasks-desktop-update-30-seconds.md); release-built helpers and compiler migration are outside this measured maintenance change.

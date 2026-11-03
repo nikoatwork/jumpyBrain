@@ -104,7 +104,7 @@ uses the TypeScript JavaScript `transpileModule` API in guidance tests. Retain
 upgrades, unnecessary for the identified security fix.
 
 This review does not establish installed Mac bundle growth or update latency.
-The [existing desktop-update measurements](../tasks/todo/tasks-desktop-update-30-seconds.md)
+The [existing desktop-update measurements](../tasks/done/2026-11-03_tasks-desktop-update-30-seconds.md)
 record a 34.187-second median fresh Swift compilation and keep release-built
 helper work active. Do not confuse a 1.8-second TypeScript/editor build with a
 complete Mac app build, dependency download, local model installation or update.
@@ -209,3 +209,7 @@ All four literal byte/file ceilings and editor/dependency gates stay unchanged.
 The packaged CLI also discards completed Electron build dependencies, retaining
 its pinned extension compiler; installed-footprint evidence is separate from npm
 archive budgets and APFS free-space claims.
+
+## Optional semantic setup packaging
+
+Extend existing emitted-whitespace compaction to QMD, app/local-memory and app-root JavaScript before adding portable model setup. Three evaluator instrumentation seams (`qmd-query`, `qmd-driver`, local-memory `compact`) retain their emitted formatting. Source, declarations, identifiers, syntax and legal notices remain; esbuild was already a development dependency. This retains existing distribution byte ceilings rather than increasing them for the feature. Model weights and separate release-native helper assets stay outside the CLI package.

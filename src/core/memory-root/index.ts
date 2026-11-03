@@ -113,14 +113,15 @@ export async function configuredIndexingPolicy(root: string): Promise<IndexingPo
 }
 
 export function indexingPolicyMatches(configured: IndexingPolicy | undefined, indexed: IndexingPolicy | undefined, modelHash?: string): boolean {
-  return !configured || (configured.mode === indexed?.mode && configured.model === indexed?.model
+  return !configured || (configured.mode === indexed?.mode && (configured.modelId ? configured.modelId === indexed?.modelId && configured.modelId === `sha256:${modelHash}` : configured.model === indexed?.model)
     && (!configured.modelHash || configured.modelHash.toLowerCase() === modelHash));
 }
 
 function validateIndexingPolicy(policy: IndexingPolicy): void {
   if (policy?.modelHash !== undefined && (typeof policy.modelHash !== "string" || !/^[a-f0-9]{64}$/i.test(policy.modelHash))) throw new Error("Invalid indexing modelHash: expected SHA-256.");
   if (!policy || !["lexical", "semantic"].includes(policy.mode)) throw new Error("Invalid indexing policy: use lexical or semantic.");
-  if (policy.mode === "semantic" && (typeof policy.model !== "string" || !path.isAbsolute(policy.model))) {
+  if (policy.modelId !== undefined && (typeof policy.modelId !== "string" || !/^sha256:[a-f0-9]{64}$/.test(policy.modelId) || policy.modelHash && policy.modelHash !== policy.modelId.slice(7))) throw new Error("Invalid device-local model identity.");
+  if (policy.mode === "semantic" && !policy.modelId && (typeof policy.model !== "string" || !path.isAbsolute(policy.model))) {
     throw new Error("Semantic indexing requires a provisioned absolute local GGUF model path; set indexing.model or use index --semantic-model.");
   }
 }

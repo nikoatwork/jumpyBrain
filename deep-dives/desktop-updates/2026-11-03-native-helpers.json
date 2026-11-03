@@ -1,0 +1,350 @@
+{
+  "schemaVersion": 1,
+  "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+  "helpers": [
+    {
+      "version": "0.3.19",
+      "architecture": "arm64",
+      "artifactFingerprint": "238f6bff071b3904f9237c2c443f55828b61f443808cefe71e460c22d7b22e5a",
+      "executableDigest": "85a77c4cbe2b5651079939d69b3b6c01e6d490b3b38efff957740b1ea27541f0",
+      "artifactSha256": "46cf49bab9650b2ed29976921e117cce1c6eef14718d24bcd7a6755f0dab2ff0",
+      "bytes": 419011
+    },
+    {
+      "version": "0.3.19",
+      "architecture": "x86_64",
+      "artifactFingerprint": "273dc8a8e65fc0483380913d86e4f66b008d38478043b8c235be36c5208e4bd9",
+      "executableDigest": "01a00cadca2826cc642f62f2e6b5bddf5e1d3bae6c25fc940629e852325aa707",
+      "artifactSha256": "305427e211c93a7364566a1d30c3ae4e90e2e0c6746a647d0b8185c21bc99905",
+      "bytes": 397508
+    }
+  ],
+  "records": [
+    {
+      "directory": ".local-pack/update-smoke/native-cold/2026-11-03T21-06-03.441Z-sk7KNB",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:06:03.443Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "f7b83474c172beb8f2dc4746ae13a5a1fb4bdf9c81dd45e44b54fdd654f4eba7",
+      "baseline": "usability-desktop/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": true,
+      "existingClient": false,
+      "ok": true,
+      "versions": {
+        "app": "0.3.4",
+        "runtime": "0.3.4",
+        "cli": "0.3.4"
+      },
+      "protectedFiles": 9,
+      "extensionActivations": 2,
+      "installedCliExtensionCompilation": true,
+      "timings": {
+        "postDownloadPreparationMs": 19685,
+        "restartToVerifiedSuccessMs": 3855,
+        "applicationMs": 23540
+      }
+    },
+    {
+      "directory": ".local-pack/update-smoke/native-cold/2026-11-03T21-11-52.394Z-NnBmkf",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:11:52.396Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "f9774119a4dac9cc4aabb5f33a86f6c6d6e6976bb9ac04a133ec656919feaa03",
+      "baseline": "usability-desktop/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": true,
+      "existingClient": false,
+      "ok": true,
+      "versions": {
+        "app": "0.3.4",
+        "runtime": "0.3.4",
+        "cli": "0.3.4"
+      },
+      "protectedFiles": 9,
+      "extensionActivations": 2,
+      "installedCliExtensionCompilation": true,
+      "timings": {
+        "postDownloadPreparationMs": 17522,
+        "restartToVerifiedSuccessMs": 3827,
+        "applicationMs": 21349
+      }
+    },
+    {
+      "directory": ".local-pack/update-smoke/native-cold/2026-11-03T21-13-06.958Z-3NO6E3",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:13:06.964Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "297bc72a7cc0323f84ebafdeca1fb1b8f7ea57f2a9c0e9c4fecbadda7458ca29",
+      "baseline": "usability-desktop/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": true,
+      "existingClient": false,
+      "ok": true,
+      "versions": {
+        "app": "0.3.4",
+        "runtime": "0.3.4",
+        "cli": "0.3.4"
+      },
+      "protectedFiles": 9,
+      "extensionActivations": 2,
+      "installedCliExtensionCompilation": true,
+      "timings": {
+        "postDownloadPreparationMs": 22359,
+        "restartToVerifiedSuccessMs": 4836,
+        "applicationMs": 27195
+      }
+    },
+    {
+      "directory": ".local-pack/update-smoke/native-reuse/2026-11-03T21-14-07.720Z-sbgomX",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:14:07.754Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "795884d757cdd861f77045cab0d0045b3ab3783c256496b84c6995dc2a143b61",
+      "baseline": "update-prebuilt-baseline/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": false,
+      "existingClient": false,
+      "ok": false,
+      "failure": "Canonical saved-body check found updated_at and last_editor_hash changed; body and other metadata unchanged. No result/performance claimed.",
+      "timings": null
+    },
+    {
+      "directory": ".local-pack/update-smoke/native-reuse/2026-11-03T21-18-43.685Z-8U2R5P",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:18:43.686Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "22952a2efb6eeac2f87001f420a681b662d929f16750a70ee65e1d5a07690bfb",
+      "baseline": "update-prebuilt-baseline/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": false,
+      "existingClient": false,
+      "ok": true,
+      "versions": {
+        "app": "0.3.4",
+        "runtime": "0.3.4",
+        "cli": "0.3.4"
+      },
+      "protectedFiles": 9,
+      "extensionActivations": 2,
+      "installedCliExtensionCompilation": true,
+      "timings": {
+        "postDownloadPreparationMs": 17485,
+        "restartToVerifiedSuccessMs": 3644,
+        "applicationMs": 21129
+      }
+    },
+    {
+      "directory": ".local-pack/update-smoke/native-reuse/2026-11-03T21-21-00.582Z-BRPLh5",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:21:00.583Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "2d9bb4f7f906857cf2b0a2675f2aa829e03ff144563d720d07f03217e5a47d73",
+      "baseline": "update-prebuilt-baseline/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": false,
+      "existingClient": false,
+      "ok": true,
+      "versions": {
+        "app": "0.3.4",
+        "runtime": "0.3.4",
+        "cli": "0.3.4"
+      },
+      "protectedFiles": 9,
+      "extensionActivations": 2,
+      "installedCliExtensionCompilation": true,
+      "timings": {
+        "postDownloadPreparationMs": 22247,
+        "restartToVerifiedSuccessMs": 4903,
+        "applicationMs": 27150
+      }
+    },
+    {
+      "directory": ".local-pack/update-smoke/native-reuse/2026-11-03T21-22-04.834Z-ZQcca8",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:22:04.840Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "c52cc15ff244d9a3321ad325fd2ebe1114e6e5ec47809f4816f36c6b75e62fa9",
+      "baseline": "update-prebuilt-baseline/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": false,
+      "existingClient": false,
+      "ok": true,
+      "versions": {
+        "app": "0.3.4",
+        "runtime": "0.3.4",
+        "cli": "0.3.4"
+      },
+      "protectedFiles": 9,
+      "extensionActivations": 2,
+      "installedCliExtensionCompilation": true,
+      "timings": {
+        "postDownloadPreparationMs": 18522,
+        "restartToVerifiedSuccessMs": 3643,
+        "applicationMs": 22165
+      }
+    },
+    {
+      "directory": ".local-pack/update-smoke/native-reuse/2026-11-03T21-25-14.757Z-CVhJZr",
+      "mode": "relaunch-failure",
+      "startedAt": "2026-11-03T21:25:14.759Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "d23d20aba160aef38d4debc8fbfa7edf4c3037c79add5de84079b67c96292094",
+      "baseline": "update-prebuilt-baseline/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": false,
+      "existingClient": false,
+      "ok": true,
+      "protectedFiles": 9,
+      "extensionActivations": 2,
+      "rollback": true,
+      "installedCliExtensionCompilation": true,
+      "timings": null
+    },
+    {
+      "directory": ".local-pack/update-smoke/native-corrupt/2026-11-03T21-23-02.948Z-W33CSZ",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:23:02.949Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "961cd2524c627dbab28cd5e75a59c4591a2c1cde6c20b153974b6aa1c85f9ad3",
+      "baseline": "usability-desktop/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": true,
+      "existingClient": false,
+      "ok": true,
+      "versions": {
+        "app": "0.3.4",
+        "runtime": "0.3.4",
+        "cli": "0.3.4"
+      },
+      "protectedFiles": 9,
+      "extensionActivations": 2,
+      "installedCliExtensionCompilation": true,
+      "timings": {
+        "postDownloadPreparationMs": 95290,
+        "restartToVerifiedSuccessMs": 4410,
+        "applicationMs": 99700
+      }
+    },
+    {
+      "directory": ".local-pack/update-smoke/client-v0.3.7/2026-11-03T21-25-50.813Z-6sI9Tk",
+      "mode": "success",
+      "startedAt": "2026-11-03T21:25:50.815Z",
+      "packageSha256": "eaa15908ea47c0da7029e8971bd118f339e5ceecf000cafbce7b89d3f40803b7",
+      "releaseSha256": "84876717ad652b14a4836756299400921a888dec74beb1c176f1153f26b61cb7",
+      "baseline": "usability-desktop/jumpyBrain.app",
+      "machine": {
+        "model": "Mac15,6",
+        "cpus": 11,
+        "memoryBytes": 19327352832,
+        "arch": "arm64",
+        "macOS": "15.7.7",
+        "node": "v26.7.0"
+      },
+      "nativeHelper": true,
+      "coldNative": true,
+      "existingClient": true,
+      "ok": true,
+      "versions": {
+        "app": "0.3.8",
+        "runtime": "0.3.8",
+        "cli": "0.3.8"
+      },
+      "protectedFiles": 9,
+      "extensionActivations": 4,
+      "installedCliExtensionCompilation": true,
+      "timings": null
+    }
+  ],
+  "limits": [
+    "Synthetic releases and disposable homes; no public upgrade or personal installation",
+    "Trials overlapped quality/deterministic work; timings are observed functional fixture results, not population guarantees",
+    "One retained metadata-only preservation failure; three subsequent instrumented repeats passed without explaining its cause",
+    "Source fallback and historical workers remain slower and require toolchains",
+    "x64 built/signature/architecture checked, not run on Intel hardware"
+  ],
+  "finalVerification": {
+    "packageSha256": "6cafcfb976657edcb95a53da6f1f866bc2fb9e3e05aa9b616de4e1f888a39116",
+    "directory": ".local-pack/update-smoke/native-reuse/2026-11-03T21-31-01.936Z-foG4rL",
+    "passed": true,
+    "applicationMs": 23228,
+    "fullSuite": {
+      "passed": 1893,
+      "skipped": 2,
+      "failed": 0
+    },
+    "sameTitleRegressions": 38
+  }
+}

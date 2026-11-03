@@ -1,3 +1,4 @@
+import { memoryExecutionDeadlineMs } from "../core/execution-limits.js";
 export interface JumpyBrainServerConfig {
   root: string;
   host: string;
@@ -30,9 +31,7 @@ export function resolveServerConfig(input: ResolveServerConfigInput = {}, env: N
   const publicBaseUrl = firstNonEmpty(input.publicBaseUrl, env.JUMPYBRAIN_PUBLIC_BASE_URL);
   const timeout = (value: number | string | undefined): number | undefined => {
     if (value === undefined) return undefined;
-    const parsed = Number(value);
-    if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 2_147_483_647) throw new Error("Execution timeout must be a positive integer no larger than 2147483647 ms.");
-    return parsed;
+    return memoryExecutionDeadlineMs("index", Number(value));
   };
   const searchTimeoutMs = timeout(input.searchTimeoutMs ?? env.JUMPYBRAIN_SEARCH_TIMEOUT_MS);
   const indexTimeoutMs = timeout(input.indexTimeoutMs ?? env.JUMPYBRAIN_INDEX_TIMEOUT_MS);

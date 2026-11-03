@@ -1,3 +1,4 @@
+import { localModelPath } from "./model-setup.js";
 import { checkExecution, isExecutionControlError, MemoryExecutionError, runQmdChild } from "./qmd-execution.js";
 import { randomUUID } from "node:crypto";
 import { existsSync, openSync, closeSync, writeFileSync, readFileSync, unlinkSync, statSync } from "node:fs";
@@ -76,7 +77,8 @@ async function worker(request: Record<string, unknown>): Promise<{ manifest: Qmd
   try { result = await runQmdChild(process.execPath, [fileURLToPath(new URL("./qmd-worker.js", import.meta.url))], {
     input: JSON.stringify({ ...request, ownerPid: process.pid }), maxBytes: 64 * 1024 * 1024, acceptNonzero: true,
     command: request.action === "manifest" ? "query" : "index",
-    env: { ...process.env, QMD_SQLITE_BUSY_TIMEOUT: "5000" },
+    env: { ...process.env, QMD_SQLITE_BUSY_TIMEOUT: "5000",
+      ...(process.platform === "darwin" && process.arch === "arm64" && !process.env.QMD_EMBED_PARALLELISM?.trim() ? { QMD_EMBED_PARALLELISM: "2" } : {}) },
   }); } catch (error) {
     if (isExecutionControlError(error) || error instanceof MemoryExecutionError) throw error;
     throw new MemoryExecutionError("execution_failed");
@@ -155,8 +157,8 @@ export async function qmdReadiness(root: string, manifest?: QmdManifest, stale?:
   let semantic = !missing && manifest.embedding?.state === "complete" && manifest.policy?.mode === "semantic";
   if (semantic) {
     try {
-      const current = await stat(manifest!.policy!.model!);
-      semantic = current.isFile() && !!manifest!.modelStat && current.size === manifest!.modelStat.size && current.mtimeMs === manifest!.modelStat.mtimeMs
+      const current = await stat(localModelPath(manifest!.policy!)!);
+      semantic = localModelPath(manifest!.policy!) === manifest!.policy!.model && current.isFile() && !!manifest!.modelStat && current.size === manifest!.modelStat.size && current.mtimeMs === manifest!.modelStat.mtimeMs
         && (manifest!.modelStat.ctimeMs === undefined || current.ctimeMs === manifest!.modelStat.ctimeMs);
     } catch { semantic = false; }
   }

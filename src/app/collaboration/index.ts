@@ -922,6 +922,13 @@ export class CollaborationHub {
             ? text(params.operationId)
             : randomUUID(),
         ).operation;
+        // Like a byte-identical body transaction, a same-title checkpoint is
+        // real history without a canonical content change or attribution stamp.
+        if (title === session.base.title) {
+          this.capHistory(candidate, session);
+          session.model = candidate;
+          return this.emit(session, operation);
+        }
         await this.publish(
           session,
           candidate,

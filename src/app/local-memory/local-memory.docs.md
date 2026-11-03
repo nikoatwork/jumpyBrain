@@ -73,3 +73,5 @@ The version-1 acknowledgement echoes normalized options, `candidateLimit:120`, c
 ## Setup inspection
 
 The runtime exposes `inspectLocalSearchEngine` through this app seam for bounded binary/SDK/version diagnostics. It delegates to the QMD adapter and does not initialize memory or execute retrieval.
+
+`memoryStatus` includes observational `semanticSetup`: lexical, ready, unavailable, incomplete or failed, with a static next action and optional portable model ID. No full model hash, inference or download is performed by status. Fresh verified readiness wins over historical failure metadata.

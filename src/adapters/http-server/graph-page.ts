@@ -473,6 +473,11 @@ searchMaintenance = JumpyBrainBrowser.installSearchMaintenance({
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : ""),
   enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen)) && !dreamDialog.open && !connectionDialog.open && !feedback.isOpen() && (state.view === "graph" || searchDialog.open),
   read: signal => graphJson("/memories/all/status", { signal }),
+  onPacket: packet => {
+    const label = $("search-semantic-state");
+    label.textContent = ({lexical:"Text search. Semantic search is optional; use CLI model setup to add it.",ready:"Semantic search ready.",unavailable:"The selected semantic model is unavailable. Ask the brain owner to restore it with CLI setup.",incomplete:"Semantic indexing is incomplete. Ask the brain owner to refresh the index.",failed:"Semantic indexing failed. Ask the brain owner to retry indexing."})[packet?.semanticSetup?.state] || "";
+    label.hidden = !label.textContent;
+  },
   onFresh: () => {
     map.invalidateTopology();
     if (state.view === "graph") loadGraph();

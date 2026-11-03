@@ -28,7 +28,7 @@ The full release command already runs **`npm test` and `npm run cli:pack`** agai
 
 The core note smoke checks actual canonical capture, immediate search, graph/title navigation, two-tab stale-save recovery, narrow layouts, deletion cancel/apply, preserved referencing files and index refresh. The deterministic suite covers local/hosted policy, CLI/provenance and the frozen extension contract. Inspect the changed screens using the relevant feature's existing screenshots/checks; do not repeat unrelated theme/device permutations.
 
-Before calling it shipped, verify the public tag, exact release notes, one distribution asset, aligned package/lockfile versions and the downloaded asset's SHA-256 digest. Git push alone is not publication. Publishing does not update the user's installed app.
+Before calling it shipped, verify the public tag, exact release notes, CLI distribution plus both release-native helper assets, aligned package/lockfile versions and all downloaded SHA-256 digests. Git push alone is not publication. Publishing does not update the user's installed app.
 
 ## Choose extra checks for changed behavior
 

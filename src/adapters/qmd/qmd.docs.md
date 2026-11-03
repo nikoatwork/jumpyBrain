@@ -161,3 +161,15 @@ select their installed CLI/SDK consistently without racing process.env. Derived
 index/query work uses the existing root execution admission, independently from
 the live canonical publication queue. Remote reader/writer routes cannot choose
 executables.
+
+## Explicit device-local model setup
+
+`model-setup.ts` provisions one optional EmbeddingGemma Q8_0 preset only on explicit local setup, pinned to upstream revision, 333,590,944 bytes and SHA-256. Consent-free planning creates nothing; verified cached/local bytes need no download. Bounded streaming, a finite abortable deadline, private unique partial files and exclusive atomic publication prevent corrupt/incomplete selections. Existing corrupt cache bytes produce an explicit inspection error, never a hidden download or overwrite. Status/recall never provision.
+
+Canonical policy may select `modelId: "sha256:<digest>"`; the adapter resolves it under device-local `~/.jumpybrain/models` (advanced `JUMPYBRAIN_MODEL_DIRECTORY` override). Derived manifests retain the resolved path; a moved cache invalidates readiness until explicit/authorized reindexing. Model hashing and full coverage still occur in the worker. Explicit absolute model paths remain compatible. Configure overrides before starting the root backend; restart it after changing that device environment.
+
+## Mac ARM64 indexing working set
+
+Index workers default to two embedding contexts on macOS ARM64 using pinned QMD's supported QMD_EMBED_PARALLELISM. Explicit nonempty overrides remain authoritative; other platforms and search-query pools retain upstream defaults. The same model and complete chunk coverage are required. One frozen 10,000-note pair reduced model-active tracked-process physical footprint, with unchanged finite-deadline completion; see the dated RAM report. This is not a desktop-idle or universal memory budget.
+
+Backend deadline defaults come from pure core execution limits. Existing environment/per-call overrides remain finite; no deadline is widened here.

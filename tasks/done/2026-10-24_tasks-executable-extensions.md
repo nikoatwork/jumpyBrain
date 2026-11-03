@@ -113,7 +113,7 @@ explicitly installed local extension package
 - `src/app/server-memory/`, `src/runtime/`, `src/cli/`, `test/{architecture-boundaries,package-entrypoints}.test.js` — approved operations, CLI management and import-boundary verification.
 - `scripts/build-editor.mjs`, package manifests/exports and local-pack tooling — optional code preparation, assets and SDK distribution.
 - `integrations/pi/jumpybrain-memory.ts` — existing integration into the external Pi agent; distinct from the proposed jumpyBrain extension host.
-- `tasks/todo/tasks-desktop-ram-next-improvements.md` — independent RAM work; coordinate touched files and reuse evidence without inheriting or spending its experimental budget for this task.
+- `tasks/done/2026-11-03_tasks-desktop-ram-next-improvements.md` — independent RAM work; coordinate touched files and reuse evidence without inheriting or spending its experimental budget for this task.
 
 ## Outcome, verification and limits
 

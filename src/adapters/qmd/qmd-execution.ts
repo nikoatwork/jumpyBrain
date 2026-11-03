@@ -1,3 +1,4 @@
+import { MEMORY_EXECUTION_DEFAULTS, memoryExecutionDeadlineMs } from "../../core/execution-limits.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { spawn } from "node:child_process";
 import { realpath } from "node:fs/promises";
@@ -17,12 +18,11 @@ export class MemoryExecutionError extends Error {
   constructor(readonly code: ExecutionCode) { super(messages[code]); this.name = "MemoryExecutionError"; }
 }
 
-export const EXECUTION_LIMITS = Object.freeze({ active: 2, queue: 16, commandMs: 30_000, searchMs: 60_000, indexMs: 600_000, killGraceMs: 250 });
+export const EXECUTION_LIMITS = Object.freeze({ active: 2, queue: 16, commandMs: 30_000, searchMs: MEMORY_EXECUTION_DEFAULTS.search, indexMs: MEMORY_EXECUTION_DEFAULTS.index, killGraceMs: 250 });
 export function executionTimeout(kind: ExecutionKind, options: ExecutionOptions = {}): number {
   const variable = kind === "index" ? "JUMPYBRAIN_INDEX_TIMEOUT_MS" : "JUMPYBRAIN_SEARCH_TIMEOUT_MS";
   const value = options.timeoutMs ?? (process.env[variable] === undefined ? EXECUTION_LIMITS[kind === "index" ? "indexMs" : "searchMs"] : Number(process.env[variable]));
-  if (!Number.isSafeInteger(value) || value < 1 || value > 2_147_483_647) throw new Error("Execution timeout must be a positive integer no larger than 2147483647 ms.");
-  return value;
+  return memoryExecutionDeadlineMs(kind, value);
 }
 
 /** Also used by joined index callers: detaching a waiter does not cancel its peers. */

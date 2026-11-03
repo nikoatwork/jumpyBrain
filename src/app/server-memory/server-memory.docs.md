@@ -84,3 +84,5 @@ Hosted rich search forwards the same opt-in recognition options to local-memory 
 ## Explorer file operations
 
 `folder-explorer-operations.ts` composes explicit folder creation and hash/path-guarded ID-addressed file moves/renames over core canonical operations. Hosts must serialize the complete use case with ordinary writes. Folder creation does not dirty the retrieval index. Successful file moves mark derived index state stale; bookkeeping failures return `moved:true` with failed-index guidance rather than reporting canonical failure. Packets contain only relative provenance, never host roots. File deletion continues through the existing preview/apply operation. No agent host calls the hosted API directly as part of this workflow.
+
+Status forwards safe semantic setup state/model identity/static next action; device model paths never enter that addition. Remote agents cannot select paths or provision models. The operator uses the local index setup flow on the server.

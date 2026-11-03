@@ -40,7 +40,7 @@ function json(response, status, packet, headers = {}) {
   response.end(JSON.stringify(packet) + '\n');
 }
 
-// Indexing has a 610-second enclosing deadline. Node fetch's implicit five-minute
+// Indexing has a finite enclosing deadline with backend headroom. Node fetch's implicit five-minute
 // response-header limit must not cut that operation short or label it offline.
 // Other routes retain the existing fetch transport and its shorter app deadline.
 export async function fetchIndexTarget(url, options = {}) {
@@ -131,8 +131,11 @@ function allowedMemoryRoute(method, pathname) {
   return null;
 }
 
-export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, localFactory, fetchImpl = fetch, hostInstance, feedbackSender, safeMode = false, readinessOnly = false, identityFile } = {}) {
+export async function startCompanionGateway({ runtimeRoot, directory, initialRoot, port = 3787, controlKey, credentials, switchTimeoutMs = 15000, targetTimeoutMs = 70000, indexTargetTimeoutMs, localFactory, fetchImpl = fetch, hostInstance, feedbackSender, safeMode = false, readinessOnly = false, identityFile } = {}) {
   if (!path.isAbsolute(runtimeRoot || '') || !/^[0-9a-f]{64}$/i.test(controlKey || '')) throw new Error('Invalid companion bootstrap.');
+  const { memoryExecutionDeadlineMs, memoryTransportDeadlineMs } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/core/execution-limits.js')).href);
+  const localIndexDeadline = process.env.JUMPYBRAIN_INDEX_TIMEOUT_MS === undefined ? undefined : Number(process.env.JUMPYBRAIN_INDEX_TIMEOUT_MS);
+  const indexTransportDeadline = indexTargetTimeoutMs === undefined ? memoryTransportDeadlineMs('index', localIndexDeadline) : memoryExecutionDeadlineMs('index', indexTargetTimeoutMs);
   // /var is a legitimate macOS alias; the persistence seam itself rejects symlinks.
   directory = await realpath(directory);
   const store = await ConnectionStore.open({ directory, initialRoot, credentials });
@@ -516,7 +519,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
         const headers = {};
         for (const name of ['content-type','if-match','idempotency-key']) if (request.headers[name]) headers[name] = request.headers[name];
         headers['X-JumpyBrain-Request'] = requestId;
-        const packet = await targetFetch(profile, url.pathname + url.search, { method: request.method, headers, body }, url.pathname.endsWith('/index') ? 610000 : targetTimeoutMs);
+        const packet = await targetFetch(profile, url.pathname + url.search, { method: request.method, headers, body }, url.pathname.endsWith('/index') ? indexTransportDeadline : targetTimeoutMs);
         // Response payloads preserve existing protocol; only static gateway failures are generated here.
         response.writeHead(packet.status, { 'Content-Type': packet.contentType.startsWith('application/json') ? 'application/json; charset=utf-8' : 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
         response.end(packet.body);

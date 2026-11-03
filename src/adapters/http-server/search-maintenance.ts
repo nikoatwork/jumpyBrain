@@ -1,4 +1,5 @@
 export interface SearchMaintenancePacket {
+  semanticSetup?: { state: string };
   index?: { lastIndexedAt?: string; stale?: boolean };
   readiness?: { freshness?: string };
   maintenance?: { enabled: boolean; indexing: boolean; failed: boolean };
@@ -18,6 +19,7 @@ export function installSearchMaintenance(options: {
   enabled(): boolean;
   read(signal: AbortSignal): Promise<SearchMaintenancePacket>;
   onFresh(): void;
+  onPacket?(packet?: SearchMaintenancePacket): void;
   onState(state: SearchMaintenanceState): void;
 }) {
   const { document, window } = options;
@@ -71,6 +73,7 @@ export function installSearchMaintenance(options: {
       generation = undefined;
       needsFresh = false;
       previousState = undefined;
+      options.onPacket?.();
     }
     const controller = new AbortController();
     const job = { scope, controller, promise: undefined! as Promise<void> };
@@ -92,6 +95,7 @@ export function installSearchMaintenance(options: {
           aborted,
         ]);
         if (!current()) return;
+        options.onPacket?.(packet);
         const fresh =
           packet.readiness?.freshness === "fresh" &&
           packet.index?.stale !== true;
@@ -116,6 +120,7 @@ export function installSearchMaintenance(options: {
         }
       } catch {
         if (current()) {
+          options.onPacket?.();
           needsFresh = true;
           emit("unavailable");
         }

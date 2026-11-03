@@ -662,3 +662,14 @@ test('guarded removal during indexing leaves stale evidence explicit and increme
   }
   assert.deepEqual(await readFile(path.join(f.root, 'notes/survivor.md')), survivor);
 });
+
+
+test("index worker bounds Mac ARM64 contexts while preserving explicit backend overrides", async t => {
+  const f = await setup(t);
+  await f.put("notes/contexts.md", "quartz context coverage");
+  await f.run("index", { indexing: f.policy }, { QMD_EMBED_PARALLELISM: "" });
+  assert.equal((await f.events()).filter(event => event.type === "llm").at(-1).parallelism, process.platform === "darwin" && process.arch === "arm64" ? "2" : "automatic");
+  await f.put("notes/contexts.md", "quartz changed context coverage");
+  await f.run("index", {}, { QMD_EMBED_PARALLELISM: "1" });
+  assert.equal((await f.events()).filter(event => event.type === "llm").at(-1).parallelism, "1");
+});

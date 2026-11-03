@@ -22,6 +22,7 @@ async function fixture(t, failTests = false, canPublish = true) {
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "scripts")); await mkdir(path.join(root, "bin"));
   for (const file of ["release.mjs", "release-policy.mjs"]) await copyFile(new URL(`../scripts/${file}`, import.meta.url), path.join(root, "scripts", file));
+  await writeFile(path.join(root,"scripts/pack-native-helpers.mjs"), `import fs from 'node:fs';import path from 'node:path';fs.appendFileSync('calls.jsonl',JSON.stringify(['native',...process.argv.slice(2)])+'\\n');if(!process.argv.includes('--check')){fs.mkdirSync('.local-pack',{recursive:true});const version=JSON.parse(fs.readFileSync('package.json')).version;fs.writeFileSync('.local-pack/native-helpers.json',JSON.stringify({version,artifacts:['arm64','x64'].map(arch=>path.resolve('.local-pack/native-'+arch+'.json'))}));}`);
   await writeFile(path.join(root, "package.json"), JSON.stringify({version:"0.3.0"}));
   await mkdir(path.join(root, "integrations/electron"), { recursive: true });
   await writeFile(path.join(root, "integrations/electron/package.json"), JSON.stringify({version:"0.3.0"}));
@@ -65,11 +66,25 @@ test("release validates before commit and atomically pushes branch/tag before be
   const published=calls.find(c=>c[0]==='gh'&&c[1]==='release');
   assert.ok(published.includes('--prerelease'));assert.ok(published.includes('--verify-tag'));
   assert.ok(published.includes('--generate-notes'));
+  assert.ok(published.includes(path.join(await realpath(f.root),'.local-pack/native-arm64.json')));
+  assert.ok(published.includes(path.join(await realpath(f.root),'.local-pack/native-x64.json')));
+  assert.ok(calls.findIndex(c=>c[0]==='native'&&c[1]==='--check')<index('npm','version'));
+  assert.ok(calls.findIndex(c=>c[0]==='native'&&c.length===1)<index('git','commit'));
   assert.ok(index('git','push')<index('gh','release'));
 });
 
 test("failed validation cannot commit, tag or publish",async t=>{
   const f=await fixture(t,true);const result=f.run([]);assert.notEqual(result.status,0);
+  const calls=await f.calls();
+  assert.ok(!calls.some(c=>c[0]==='git'&&['commit','push'].includes(c[1])));
+  assert.ok(!calls.some(c=>c[0]==='git'&&c[1]==='tag'&&c[2]==='-a'));
+  assert.ok(!calls.some(c=>c[0]==='gh'&&c[1]==='release'));
+});
+
+test("native asset failure cannot commit, tag, push or publish",async t=>{
+  const f=await fixture(t);
+  await writeFile(path.join(f.root,'scripts/pack-native-helpers.mjs'), "if (!process.argv.includes('--check')) process.exit(1);\n");
+  const result=f.run([]);assert.notEqual(result.status,0);
   const calls=await f.calls();
   assert.ok(!calls.some(c=>c[0]==='git'&&['commit','push'].includes(c[1])));
   assert.ok(!calls.some(c=>c[0]==='git'&&c[1]==='tag'&&c[2]==='-a'));

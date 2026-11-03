@@ -11,6 +11,9 @@ export async function run(fixturePath) {
   // extraction of the external worker, rather than importing the checkout app.
   const { startDesktopApplication } = await import(path.join(process.resourcesPath, 'app.asar/application.mjs'));
   const fixture = JSON.parse(await readFile(fixturePath, 'utf8'));
+  const checkpoint = async label => {
+    if (fixture.mode === 'success') await writeFile(path.join(fixture.artifactDir, `work-${label}.md`), await readFile(path.join(fixture.home,'memory/notes/work.md')));
+  };
   if (fixture.mode === 'relaunch-failure' && app.getVersion() === fixture.nextVersion) { app.exit(4); return; }
   if (fixture.mode === 'helper-crash' && app.getVersion() === fixture.nextVersion) {
     await writeFile(path.join(fixture.home, 'launched.json'), JSON.stringify({ pid: process.pid }));
@@ -94,7 +97,9 @@ export async function run(fixturePath) {
         assert.equal(await editor.webContents.executeJavaScript('!!document.getElementById("desktop-update-panel")'), false);
         assert.equal(await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").hidden'), false);
         assert.equal(await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").getAttribute("aria-label")'), 'Up to date; check for updates');
+        await checkpoint('relaunched');
         if (fixture.mode === 'success') await verifyPreferences();
+        await checkpoint('preferences');
         const state = await application.updater.snapshot();
         assert.equal(state.installed.app, fixture.nextVersion); assert.equal(state.installed.runtime, fixture.nextVersion); assert.equal(state.installed.cli, fixture.mode === 'app-only' ? fixture.oldVersion : fixture.nextVersion);
         await writeFile(path.join(fixture.artifactDir, 'success.png'), (await (editor || updateWindow()).webContents.capturePage()).toPNG());
@@ -145,6 +150,7 @@ export async function run(fixturePath) {
       await until(async () => await editor.webContents.executeJavaScript('document.getElementById("desktop-updates").getAttribute("aria-label") === "Relaunch to apply update"'));
       assert.equal(updateWindow(), undefined);
       const before = await desktopControl(application.getHost().connection, 'state');
+      await checkpoint('before-barriers');
       await post('register', { tabId: 'failed-draft-tab', generation: before.generation });
       await click('restart');
       let state; await until(async () => { state = await desktopControl(application.getHost().connection, 'state'); return state.phase === 'preparing'; });
@@ -155,6 +161,7 @@ export async function run(fixturePath) {
       assert.equal((await application.updater.snapshot()).phase, 'ready');
       await post('unregister', { tabId: 'failed-draft-tab', generation: before.generation });
       await until(async () => await editor.webContents.executeJavaScript('!companionFrozen'));
+      await checkpoint('failed-barrier');
       if (fixture.mode === 'success') {
         const count = messages.length;
         await post('register', { tabId: 'unresponsive-tab', generation: before.generation });
@@ -166,6 +173,7 @@ export async function run(fixturePath) {
         assert.equal((await application.updater.snapshot()).phase, 'ready');
         await post('unregister', { tabId: 'unresponsive-tab', generation: before.generation });
         await until(async () => await editor.webContents.executeJavaScript('!companionFrozen'));
+        await checkpoint('timeout-barrier');
       }
       await click('restart');
     } catch (error) {

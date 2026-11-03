@@ -1,3 +1,4 @@
+import { memoryTransportDeadlineMs } from "../../core/execution-limits.js";
 import type { Board, BoardRecord, BoardList } from "../../core/boards/model.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
@@ -96,7 +97,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   const fetchImpl = options.fetchImpl ?? fetch;
 
   async function execute<T>(execution: ExecutionOptions, index: boolean, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
-    const timeoutMs = execution.timeoutMs ?? (index ? 610_000 : 70_000);
+    const timeoutMs = execution.timeoutMs ?? memoryTransportDeadlineMs(index ? "index" : "search");
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 2_147_483_647) throw new Error("Invalid execution timeout.");
     const controller = new AbortController();
     const error = (code: string) => new RemoteMemoryError(code === "execution_timeout" ? 504 : 499, code, code === "execution_timeout" ? "Memory operation deadline exceeded; retry or adjust the local deadline." : "Memory operation canceled.");

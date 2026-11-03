@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "experimentStart": "2026-11-03T11:28:18Z",
+  "hardStop": "2026-11-03T13:28:18Z",
+  "runsEndedBefore": "2026-11-03T11:56:31Z",
+  "retentionDecisionBefore": "2026-11-03T12:01:32Z",
+  "lateAdministrativeCloseout": true,
+  "identity": {
+    "at": "2026-11-03T11:35:51.400Z",
+    "driver": {
+      "bytes": 993,
+      "sha256": "ca682cfc5b28b384c21ebf445ccb28e97ef3a0af52b72eb921fb653ca66332d6"
+    },
+    "sampler": {
+      "bytes": 51256,
+      "sha256": "169a08579da0edfcb051b402803709095746c6065482e19076996b4df4d1dc7c"
+    },
+    "modelHash": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63",
+    "node": "v26.7.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "ramBytes": 19327352832,
+    "os": "15.7.7",
+    "deadlineMs": 900000,
+    "count": 10000,
+    "experimentStopAt": "2026-11-03T13:28:18.000Z",
+    "control": "QMD automatic contexts",
+    "candidate": "QMD_EMBED_PARALLELISM=2",
+    "runtime": {
+      "sha256": "43eca651cebd5d2499b6ebbd1ce8d4a8a5cfd15e9c126f02e7a7ed565de2805e",
+      "files": 807,
+      "bytes": 5484346
+    }
+  },
+  "corpusHash": "4d437565dae961d3d58b16dddece2518862837468302bb124bf9ac8acc8d091a",
+  "results": [
+    {
+      "variant": "automatic",
+      "ok": true,
+      "exit": {
+        "code": null,
+        "note": "Parent collector missed stream-finish after completed index; saved result and complete process drainage verified before manual continuation."
+      },
+      "ms": 559779,
+      "samples": 5221,
+      "incompleteSamples": 0,
+      "peakPhysicalBytes": 5459260416,
+      "peakRssBytes": 2519810048,
+      "result": {
+        "root": "/Users/monkey/dev/jumpyBrain/.local-pack/ram-focused-20261103/automatic/brain",
+        "documents": 10000,
+        "qmdCollection": "jumpybrain",
+        "readiness": {
+          "freshness": "fresh",
+          "modes": [
+            "lexical",
+            "semantic"
+          ],
+          "embedding": "complete"
+        },
+        "work": {
+          "added": 10000,
+          "updated": 0,
+          "unchanged": 0,
+          "removed": 0,
+          "embedded": 17000
+        }
+      },
+      "finalSample": {
+        "timeMs": 1793706313339.93,
+        "processes": [],
+        "complete": true,
+        "physical": 0,
+        "rss": 0,
+        "sampleMs": 0.555
+      },
+      "samplesSha256": "6a38b1806d912255ff64094fb317cd81ac6bfb4a41f20947c37d10e684ac8b90"
+    },
+    {
+      "variant": "two",
+      "ok": true,
+      "exit": {
+        "code": 0,
+        "signal": null
+      },
+      "ms": 555837,
+      "samples": 5279,
+      "incompleteSamples": 0,
+      "peakPhysicalBytes": 2093800384,
+      "peakRssBytes": 2073444352,
+      "observedProcesses": [
+        96937,
+        96939
+      ],
+      "result": {
+        "root": "/Users/monkey/dev/jumpyBrain/.local-pack/ram-focused-20261103/two/brain",
+        "documents": 10000,
+        "qmdCollection": "jumpybrain",
+        "readiness": {
+          "freshness": "fresh",
+          "modes": [
+            "lexical",
+            "semantic"
+          ],
+          "embedding": "complete"
+        },
+        "work": {
+          "added": 10000,
+          "updated": 0,
+          "unchanged": 0,
+          "removed": 0,
+          "embedded": 17000
+        }
+      },
+      "finalSample": {
+        "timeMs": 1793706990735.918,
+        "processes": [],
+        "complete": true,
+        "physical": 0,
+        "rss": 0,
+        "sampleMs": 0.499
+      },
+      "samplesSha256": "097ae50dbbb041ec3f7750bf267b9476d739c16dfd02c6130b892b2ff57ab65b"
+    }
+  ],
+  "limits": [
+    "One directional pair; no quiet-window speed claim",
+    "Node indexing tree only; no whole-desktop idle/leak budget",
+    "Unrelated Podcasts/VM activity observed",
+    "Control collector failed after completed index/drain; child exit code unavailable; no control rerun",
+    "Ledger recorded after first launch; original hard stop unchanged; no new RAM run after cap"
+  ],
+  "experimentalWindowMinutesUpperBound": 34
+}

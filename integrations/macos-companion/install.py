@@ -21,6 +21,8 @@ import sys
 import tempfile
 import time
 
+from native_artifacts import artifact_fingerprint, load_native_artifact
+
 from lifecycle import (LABEL, SafetyError, app_path, build_workspace, cleanup, companion_lock,
                     absolute, overlaps, preflight, regular, validate_key,
                     validate_manifest, validate_runtime, read_json)
@@ -152,7 +154,7 @@ def reuse_native(previous_app, executable, fingerprint, *, field="fingerprint"):
         return False
 
 
-def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False):
+def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False, native_artifact=None, architecture=None):
     """Build only native assets in caller-owned scratch space; config targets final runtime."""
     package = validate_runtime(runtime)
     source = runtime / "integrations/macos-companion"
@@ -171,19 +173,24 @@ def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False
     native_source = build / "Companion.swift"
     shutil.copy2(regular(source / "Companion.swift"), native_source)
     executable = macos / "jumpyBrain"
-    artifact_fingerprint = None
-    if reuse_artifact:
+    target_architecture = architecture or platform.machine()
+    if target_architecture not in ("arm64", "x86_64"):
+        raise SafetyError("Unsupported native helper architecture")
+    selected_fingerprint = None
+    if reuse_artifact or native_artifact:
         # An already working signed binary needs no compiler/SDK revalidation.
         # Source, recipe and target architecture govern reuse, like a distributed
         # native artifact. Toolchain updates alone do not require recompilation.
-        artifact_fingerprint = hashlib.sha256(json.dumps({
-            "schema": 1, "source": file_digest(native_source),
-            "recipe": file_digest(Path(__file__)), "architecture": platform.machine(),
-        }, sort_keys=True).encode()).hexdigest()
+        selected_fingerprint = artifact_fingerprint(source, target_architecture, Path(__file__))
     with build_timing("native-reuse-verify"):
-        artifact_reused = reuse_native(previous_app, executable, artifact_fingerprint, field="artifactFingerprint")
+        artifact_reused = reuse_native(previous_app, executable, selected_fingerprint, field="artifactFingerprint")
+    record = read_json(previous_app / "Contents/Resources" / NATIVE_BUILD_RECORD) if artifact_reused else None
+    if not artifact_reused and native_artifact:
+        with build_timing("native-release-verify"):
+            record = load_native_artifact(native_artifact, executable, selected_fingerprint, target_architecture, package["version"])
+            artifact_reused = record is not None
+        print("Using verified release-native helper." if artifact_reused else "Release-native helper is incompatible; building from source.", flush=True)
     if artifact_reused:
-        record = read_json(previous_app / "Contents/Resources" / NATIVE_BUILD_RECORD)
         (resources / NATIVE_BUILD_RECORD).write_text(json.dumps(record, indent=2) + "\n")
     else:
         compiler = Path(subprocess.check_output(["xcrun", "--find", "swiftc"], text=True).strip())
@@ -202,7 +209,7 @@ def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False
             compiler_options += ["-vfsoverlay", str(overlay)]
             print("Using a build-local overlay for duplicate CLT SwiftBridging maps.")
         sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
-        options = ["-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{platform.machine()}-apple-macos13.0",
+        options = ["-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{target_architecture}-apple-macos13.0",
                    "-framework", "AppKit", "-framework", "Security", "-framework", "LocalAuthentication"]
         # Make compiler inputs explicit rather than trusting arbitrary shell flags.
         environment = {"PATH": f"{compiler.parent}:/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "C",
@@ -240,9 +247,9 @@ def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False
                         print("Native build inputs changed during compilation; not recording a reuse hit.", flush=True)
                 except (SafetyError, OSError, ValueError, RuntimeError, subprocess.SubprocessError):
                     fingerprint = None
-        if fingerprint is not None or artifact_fingerprint is not None:
+        if fingerprint is not None or selected_fingerprint is not None:
             (resources / NATIVE_BUILD_RECORD).write_text(json.dumps({
-                "schemaVersion": 1, "fingerprint": fingerprint, "artifactFingerprint": artifact_fingerprint,
+                "schemaVersion": 1, "fingerprint": fingerprint, "artifactFingerprint": selected_fingerprint,
                 "executableDigest": file_digest(executable),
             }, indent=2) + "\n")
     for helper in ("menu-update.mjs", "update-check.mjs"):

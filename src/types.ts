@@ -93,6 +93,8 @@ export interface IndexingPolicy {
   mode: "lexical" | "semantic";
   /** Provisioned local GGUF; never a download URI. */
   model?: string;
+  /** Content-addressed model resolved in device-local storage; portable across brains. */
+  modelId?: string;
   /** Optional SHA-256 pin for explicitly provisioned model bytes. */
   modelHash?: string;
 }
@@ -722,7 +724,13 @@ export interface MemoryRootInitResult {
   gitignoreUpdated: boolean;
 }
 
+export interface SemanticSetupStatus {
+  state: "lexical" | "ready" | "unavailable" | "failed" | "incomplete";
+  modelId?: string; nextAction?: string;
+}
+
 export interface MemoryRootStatus {
+  semanticSetup?: SemanticSetupStatus;
   readiness?: RetrievalReadiness;
   root: string;
   initialized: boolean;

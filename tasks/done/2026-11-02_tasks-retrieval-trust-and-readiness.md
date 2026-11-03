@@ -11,7 +11,7 @@ Tell users and agents what retrieval is ready to do, identify weak or degraded m
 - [Agent review part 2, 2026-11-02](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=9254c8d1-7155-45b1-9dc7-dc49c85b9fe0) reports weak conceptual lexical results, no semantic setup nudge, migrated-note date skew and unclear inactive score components on a lexical-only brain.
 - These are one reviewer's observations. Do not copy their private query corpus or infer a universal quality threshold from reported QMD scores. Lexical readiness, semantic availability and actual answer relevance are distinct.
 - [Workspace evaluation](../todo/tasks-workspace-retrieval-evaluation.md) remains the owner of frozen quality/interaction-cost comparisons and broader human/VPS judgments. This list owns diagnostics and targeted date/readiness regressions; reuse that suite for any ranking change.
-- [Desktop RAM](../todo/tasks-desktop-ram-next-improvements.md) owns its existing model-cost experiment budget. No automatic model download, semantic activation or new benchmark sweep belongs to this plan.
+- [Desktop RAM](2026-11-03_tasks-desktop-ram-next-improvements.md) owns its existing model-cost experiment budget. No automatic model download, semantic activation or new benchmark sweep belongs to this plan.
 
 ## Relevant files
 

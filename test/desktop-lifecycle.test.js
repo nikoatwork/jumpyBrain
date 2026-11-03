@@ -115,3 +115,17 @@ test('readiness-only native launches carry an explicit internal flag; ordinary l
     await host.stop();
   }
 });
+
+test('desktop host forwards only explicit local deadline/model configuration alongside its fixed bootstrap environment', async t => {
+  const config = await fixture(t), previous = [process.env.JUMPYBRAIN_INDEX_TIMEOUT_MS, process.env.JUMPYBRAIN_MODEL_DIRECTORY];
+  process.env.JUMPYBRAIN_INDEX_TIMEOUT_MS = '900000'; process.env.JUMPYBRAIN_MODEL_DIRECTORY = path.join(config.supportDirectory, 'models');
+  t.after(() => { for (const [key,value] of [['JUMPYBRAIN_INDEX_TIMEOUT_MS',previous[0]],['JUMPYBRAIN_MODEL_DIRECTORY',previous[1]]]) { if(value===undefined)delete process.env[key];else process.env[key]=value; } });
+  let calls = 0, instance;
+  const child = new EventEmitter(); child.kill = () => child.emit('exit', 0);
+  const host = await startDesktopHost(config, { spawnHost(_file,_args,{env}) {
+    assert.deepEqual(Object.keys(env).sort(), ['PATH','LANG','JUMPYBRAIN_DESKTOP_INSTANCE','JUMPYBRAIN_INDEX_TIMEOUT_MS','JUMPYBRAIN_MODEL_DIRECTORY'].sort());
+    assert.equal(env.JUMPYBRAIN_INDEX_TIMEOUT_MS,'900000'); assert.equal(env.JUMPYBRAIN_MODEL_DIRECTORY,process.env.JUMPYBRAIN_MODEL_DIRECTORY);
+    instance=env.JUMPYBRAIN_DESKTOP_INSTANCE; return child;
+  }, probe: async()=>{if(!calls++)throw Object.assign(new Error(),{code:'ECONNREFUSED'});return{hostInstance:instance};} });
+  await host.stop();
+});

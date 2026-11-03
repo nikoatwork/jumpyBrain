@@ -1,3 +1,4 @@
+import path from "node:path";
 import { isValidMemoryDocumentId } from "../core/document-id-format.js";
 import { validateMemoryAttentionAction } from "../core/attention.js";
 import { extensionsUsage } from "./usage.js";
@@ -71,7 +72,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "revision"], remove: ["id", "revision"], select: ["id", "revision"] }[argv[1] ?? ""] ?? [])] },
     attention: { positional: 2, values: [...targets, ...({ list: [], settle: ["id", "if-match"], "bring-back": ["id", "if-match"], snooze: ["id", "if-match", "until"] }[argv[1] ?? ""] ?? [])] },
     status: { values: targets },
-    index: { values: [...targets, "semantic-model"], booleans: ["rebuild", "lexical"] },
+    index: { values: [...targets, "semantic-model", "model-file"], booleans: ["rebuild", "lexical", "setup-semantic", "download-model"] },
     tree: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
     overview: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
     show: { values: [...targets, "id"] },
@@ -126,6 +127,12 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     if (!["list", "add", "remove", "select"].includes(action ?? "")) throw new Error("Use jumpybrain connections list|add|remove|select --help.");
     for (const key of action === "list" ? [] : action === "add" ? ["name", "root", "revision"] : ["id", "revision"]) stringArg(args, key);
     if (action !== "list" && (!/^(?:0|[1-9][0-9]*)$/.test(String(args.revision)) || !Number.isSafeInteger(Number(args.revision)))) throw new Error("--revision must be a nonnegative safe integer from connections list.");
+  }
+  if (operation === "index") {
+    if ((args["download-model"] || args["model-file"]) && !args["setup-semantic"]) throw new Error("Model provisioning requires explicit --setup-semantic.");
+    if (args["setup-semantic"] && (args.lexical || args["semantic-model"])) throw new Error("Use --setup-semantic or an explicit indexing policy, not both.");
+    if (args["model-file"] && !path.isAbsolute(String(args["model-file"]))) throw new Error("--model-file requires an absolute local path.");
+    if (args["download-model"] && args["model-file"]) throw new Error("Choose --download-model or --model-file.");
   }
   if (operation === "index" && args.lexical && args["semantic-model"] !== undefined) throw new Error("Use only one of --lexical or --semantic-model.");
   return args;

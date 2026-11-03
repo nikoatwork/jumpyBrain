@@ -45,6 +45,16 @@ const params = (s) => ({
   epoch: s.epoch,
   baseRevision: s.revision,
 });
+test("same-title checkpoints preserve canonical bytes and still advance operation history", async t => {
+  const {hub,file}=await fixture(t);
+  const opened=await hub.open(id,principal,{clientId:'tab'});
+  const before=await readFile(file);
+  const titled=await hub.dispatch('title',{...params(opened),title:'  Live  ',operationId:'same-title'},principal);
+  assert.equal(titled.title,'Live');assert.equal(titled.revision,opened.revision+1);
+  assert.deepEqual(titled.operation.splices,[]);
+  assert.equal(titled.contentHash,opened.contentHash);
+  assert.deepEqual(await readFile(file),before);
+});
 test("canonical publication precedes reply; independent actors and guarded legacy writes preserve source", async (t) => {
   const { hub, file } = await fixture(t);
   const start = await hub.open(id, principal, { clientId: "tab" });

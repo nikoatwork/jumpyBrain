@@ -1,3 +1,4 @@
+import { resolveLocalModelPolicy } from "./model-setup.js";
 import { createHash, randomUUID } from "node:crypto";
 import { withQmdOperation, readExecution, executionSignal, checkExecution, MemoryExecutionError } from "./qmd-execution.js";
 import { readFile, stat } from "node:fs/promises";
@@ -54,9 +55,10 @@ export async function buildQmdIndex(root: string, documents: Array<string | Cano
     try {
       const legacy = truthy(process.env.JUMPYBRAIN_QMD_EMBED)
         ? { mode: "semantic" as const, model: process.env.QMD_EMBED_MODEL } : undefined;
-      const policy = options.persistPolicy === false
+      const configuredPolicy = options.persistPolicy === false
         ? await readExecution(automaticIndexingPolicy(root))
         : await indexingPolicy(root, options.indexing, legacy);
+      const policy = resolveLocalModelPolicy(configuredPolicy);
       const snapshots = [];
       const sources = [];
       for (const doc of documents) {

@@ -90,6 +90,7 @@ export interface ServerMemoryRuntime {
 }
 
 export interface RemoteMemoryStatusPacket {
+  semanticSetup?: MemoryRootStatus["semanticSetup"];
   memory: "all";
   canonical: "markdown";
   readOnlyRetrieval: "lexical-immutable-v1";
@@ -199,6 +200,7 @@ export async function serverMemoryStatus(rootArg: string): Promise<RemoteMemoryS
     configFile: status.configFile,
     schemaVersion: status.schemaVersion,
     readiness: status.readiness,
+    semanticSetup: status.semanticSetup,
     index,
   };
 }

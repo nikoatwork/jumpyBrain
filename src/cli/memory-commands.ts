@@ -1,11 +1,12 @@
 import { recognitionFromArgs } from "./recognition.js";
 import path from "node:path";
-import { pendingCreationIndex } from "../runtime/index.js";
+import { prepareSemanticModel, pendingCreationIndex } from "../runtime/index.js";
 import { temporalOptions } from "./temporal.js";
 import type { IndexMemoryOptions, MemoryWriteResult, RetrievalReadiness, SearchMemoryResult } from "../types.js";
 import { numberArg, stringArg, stringListArg, type ParsedCliArgs } from "./args.js";
 import { deleteMemoryDocumentFromArgs, showMemoryDocumentFromArgs, updateMemoryDocumentFromArgs } from "./document-edit.js";
 import { formatHumanResults } from "./formatting.js";
+import { cancelOnCliSignal } from "./local-transport.js";
 import type { LocalMemoryTransport } from "./local-transport.js";
 import { commandMemoryTarget, recallRelatedMemory } from "./memory-target.js";
 import { resolveCliTarget } from "./targets.js";
@@ -61,10 +62,10 @@ export async function runMemoryCommand(
     return;
   }
 
-  if (command === "index" && (args.lexical !== undefined || args["semantic-model"] !== undefined) && resolveCliTarget(args, { allowDiscovery: options.allowDiscovery }).kind === "remote") {
-    throw new Error("--lexical and --semantic-model are server-local policy flags; configure them on the server memory root, not a remote target.");
+  if (command === "index" && (args.lexical !== undefined || args["semantic-model"] !== undefined || args["setup-semantic"] !== undefined) && resolveCliTarget(args, { allowDiscovery: options.allowDiscovery }).kind === "remote") {
+    throw new Error("--lexical, --semantic-model and --setup-semantic are server-local policy flags; configure them on the server memory root, not a remote target.");
   }
-  const indexOptions = command === "index" ? indexOptionsFromArgs(args) : undefined;
+  let indexOptions = command === "index" ? indexOptionsFromArgs(args) : undefined;
   const target = await commandMemoryTarget(args, localMemory, { allowDiscovery: options.allowDiscovery });
 
   if (expansion) {
@@ -83,11 +84,24 @@ export async function runMemoryCommand(
       console.log(`Compatible: ${result.compatible ? "yes" : "no"}`);
       if (result.message) console.log(result.message);
       printReadiness(result.readiness);
+      if (result.semanticSetup) console.log(`Semantic setup: ${result.semanticSetup.state}${result.semanticSetup.nextAction ? ". " + result.semanticSetup.nextAction : ""}`);
     }
     return;
   }
 
   if (command === "index") {
+    if (args["setup-semantic"]) {
+      if (target.kind !== "local") throw new Error("Model setup is local to the brain owner.");
+      if (!(await localMemory.memoryRootStatus(target.root)).compatible) throw new Error("Select a compatible brain before model setup.");
+      const prepared = await cancelOnCliSignal(undefined, signal => prepareSemanticModel({ signal, download: args["download-model"] === true, ...(args["model-file"] ? { file: String(args["model-file"]) } : {}) }));
+      if (prepared.status === "consent_required") {
+        const nextAction = "Review download cost and model terms, then repeat with --download-model, or select verified bytes with --model-file /absolute/model.gguf.";
+        if (args.json) console.log(JSON.stringify({ ...prepared, nextAction }, null, 2));
+        else console.log(`${prepared.name}: ${prepared.downloadBytes} download bytes, up to ${prepared.temporaryDiskBudgetBytes} temporary disk bytes.\nModel terms: ${prepared.terms}\n${nextAction}`);
+        return;
+      }
+      indexOptions = { ...indexOptions, indexing: prepared.policy };
+    }
     const result = target.kind === "remote" ? await target.memory.indexMemory(indexOptions) : await localMemory.indexMemory(target.root, indexOptions);
     if (args.json) console.log(JSON.stringify(result, null, 2));
     else {

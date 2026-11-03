@@ -1,5 +1,13 @@
 # Task Changelog
 
+## 2026-11-03 — Portable semantic setup and bounded indexing
+
+- Added explicit verified local-model setup and actionable readiness while retaining lexical defaults. A bounded Mac ARM64 context pool reduces measured model-active indexing footprint; index deadlines share finite validation and transport headroom. [Setup verification](done/2026-11-03_tasks-portable-semantic-setup.md), [RAM evidence and limits](done/2026-11-03_tasks-desktop-ram-next-improvements.md).
+
+## 2026-11-03 — Release-native Mac updates
+
+- Verified release-built native helpers avoid compilation on current supported updates, retaining source fallback, staged readiness and rollback. Repeated fixture paths meet the approximate 30-second target; historical workers and fallback remain slower. [Verification and limits](done/2026-11-03_tasks-desktop-update-30-seconds.md).
+
 ## 2026-11-03 — Usability state and sidebar
 
 - Added guarded note-attention CLI operations, reduced idle sidebar document traffic, fixed executing-build health identity and pending Feedback dismissal, and retained safe editor recovery reasons. [Verification and limits](done/2026-11-03_tasks-usability-state-and-sidebar.md).
@@ -409,7 +417,7 @@
 
 ## 2026-10-27 — Mac update profiling
 
-- Fresh-helper profiling identifies native compilation as the remaining bottleneck; release-built helpers are the next experiment. [Measurements](todo/tasks-desktop-update-30-seconds.md#measurement-increment--2026-10-27).
+- Fresh-helper profiling identifies native compilation as the remaining bottleneck; release-built helpers are the next experiment. [Measurements](done/2026-11-03_tasks-desktop-update-30-seconds.md#measurement-increment--2026-10-27).
 
 ## 2026-10-27 — Faster Mac updates
 
