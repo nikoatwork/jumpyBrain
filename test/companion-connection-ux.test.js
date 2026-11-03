@@ -45,6 +45,35 @@ test('Read-only notice identifies a local app preference without silently granti
   assert.match(c.companionConnectionNotice(remote, 'offline').text, /internet connection and server address/);
 });
 
+test('backend build mismatches explain software recovery instead of blaming the memory folder', () => {
+  const c = runtime(['companionHealthText', 'companionHealthLabel', 'companionConnectionNotice']);
+  const local = { id: 'local', name: 'Personal', kind: 'local', allowWrites: true };
+  assert.equal(c.companionHealthLabel('backend_version_mismatch'), 'Software update needed');
+  const notice = c.companionConnectionNotice(local, 'backend_version_mismatch');
+  assert.match(notice.text, /another software version.*Update jumpyBrain and the CLI, then retry/);
+  assert.doesNotMatch(notice.text, /memory folder|Quit/);
+  assert.equal(notice.field, 'companion-root');
+  assert.equal(local.allowWrites, true);
+});
+
+test('board loading reuses static software mismatch guidance and keeps unexpected error text private', async () => {
+  const notices = [];
+  const c = runtime(['companionHealthText', 'companionConnectionNotice'], {
+    scope: () => 'same-brain', bound: 'same-brain', sequence: 0,
+    companionState: { active: { kind: 'local', name: 'Personal', allowWrites: true } },
+    notice: text => notices.push(text),
+  });
+  const boards = readFileSync(new URL('../src/adapters/http-server/boards-view.ts', import.meta.url), 'utf8');
+  vm.runInContext(extractShellFunction(boards, 'load'), c);
+  for (const code of ['backend_version_mismatch', 'untrusted_private_code']) {
+    c.graphJson = async () => { throw Object.assign(new Error('private-path-and-token'), { status: 503, code }); };
+    await c.load();
+  }
+  assert.match(notices[0], /Update jumpyBrain and the CLI, then retry/);
+  assert.equal(notices[1], 'Could not load boards. Try again.');
+  assert.doesNotMatch(notices.join(' '), /private/);
+});
+
 function formFixture(health = 'credential_unavailable') {
   const elements = new Map(); let focused;
   const element = id => {

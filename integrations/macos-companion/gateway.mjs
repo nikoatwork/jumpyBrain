@@ -159,7 +159,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const { ensureRootBackend } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/backend-host/index.js')).href);
   const { readBackendDescriptor, readBackendLease, processAlive } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/backend-host/index.js')).href);
   const localStart = localFactory || (async options => {
-    const backend = await ensureRootBackend(options.root, { signal: options.signal, timeoutMs: 5000 });
+    const backend = await ensureRootBackend(options.root, { signal: options.signal, timeoutMs: 15000, upgradeOlder: true });
     // Opening a local brain retains its existing maintenance startup behavior;
     // CLI doctor/readiness alone still never starts inference.
     const activated = await fetch(backend.url + '/_backend/activate', {method:'POST',redirect:'manual',headers:{Authorization:'Bearer ' + backend.token},signal:AbortSignal.any([options.signal || new AbortController().signal, AbortSignal.timeout(5000)])});
@@ -285,7 +285,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       if ([401, 403].includes(response.status)) return 'authentication_failed';
       let packet; try { packet = JSON.parse(response.body); } catch { return 'offline'; }
       return response.status === 200 && packet.memory === 'all' ? 'connected' : 'offline';
-    } catch (error) { return error.code === 'credential_unavailable' ? 'credential_unavailable' : 'offline'; }
+    } catch (error) { return ['credential_unavailable', 'backend_version_mismatch'].includes(error.code) ? error.code : 'offline'; }
   };
   const refreshHealth = async () => {
     if (readinessOnly || coordinator.pending || stopping) return;

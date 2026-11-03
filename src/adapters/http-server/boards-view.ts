@@ -194,7 +194,7 @@ const boardsUI = (() => {
       // Only the collection read establishes feature support. A missing note or
       // individual board, authentication failure, or temporary outage does not.
       if(e.status===404||e.status===405){support='unsupported';packet={boards:[],hashes:{}};names.clear();previews.clear();pageStates.clear();dismissComposer(false);rename=null;creation=null;toast.clear('boards');render();}
-      else notice('Could not load boards. Try again.');
+      else notice(e.code==='backend_version_mismatch'?companionConnectionNotice(companionState?.active,e.code).text:'Could not load boards. Try again.');
     }
   }
   async function titles(s,token){

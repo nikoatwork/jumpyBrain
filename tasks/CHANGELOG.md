@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-03 — Desktop update brain recovery
+
+- Existing local brains gracefully replace authenticated older background owners after updates; version guidance and precise backend support codes accompany the fix. [Reproduction and verification](done/2026-11-03_tasks-desktop-update-brain-hotfix.md).
+
 ## 2026-11-02 — v0.3.18 beta release
 
 - Published editor deletion, Mac recovery/launch, CLI usability and hosted packaging fixes; all 1,851 tests and public artifact verification passed. [Release QA](done/releases/v0.3.18.qa.md).

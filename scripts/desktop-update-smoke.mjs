@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { createServerMemoryRuntime } from '../dist/server/index.js';
+import { stopRootBackend } from '../dist/app/backend-host/index.js';
 import { loginPlist } from '../integrations/electron/login.mjs';
 import { installExtension } from '../dist/app/extensions/index.js';
 import { seedV1Extension, v1Context } from './extensions-v1-fixture.mjs';
@@ -285,6 +286,11 @@ try {
   if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
   // Test-only app entry writes its result then quits through the real barrier.
   await pause(3000);
-  if (success) await rm(home, { recursive: true, force: true });
+  // Shared brain owners outlive the GUI. Drain this fixture's authenticated
+  // owner before removing its root, avoiding recreation during recursive rm.
+  if (success) {
+    await stopRootBackend(path.join(home, 'memory'));
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  }
   else console.error('Retained disposable failure evidence:', home);
 }

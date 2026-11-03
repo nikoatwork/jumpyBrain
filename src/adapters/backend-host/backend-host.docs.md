@@ -8,6 +8,12 @@ Descriptors contain a local administrative capability and require private file p
 
 ## Non-responsibilities
 
+Optional detached-only readiness accepts only the known daemon identity fields.
+Legacy foreground `serve` readiness includes its lease's `startedAt`; that and
+unknown extra fields refuse automatic desktop handoff, preserving configured
+listen ports and bootstrap policy. This is a conservative legacy shape check,
+not a new ownership protocol or proof from an executable filename.
+
 No note writes, authentication role policy, GUI or CLI parsing. The registry does not secure against malicious code running as the filesystem owner. Unknown/corrupt state fails closed. A process killed inside dead-generation cleanup before unlink can leave a recovery guard requiring explicit inspection; no competitor is started through that uncertainty.
 
 `runtime-pins.ts` publishes a private per-instance PID/root pin before readiness,

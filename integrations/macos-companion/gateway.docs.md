@@ -132,8 +132,12 @@ plus the selected directory's device/inode generation. A changed or disconnected
 owner retires its cached target. The next deliberate request or live reconnect
 uses bounded authenticated `ensureRootBackend` discovery/activation; normal
 requests only read registry state. Startup honors the enclosing request signal.
-Unknown registry state, mismatched builds, unavailable owners and replaced roots
-fail explicitly. No request is automatically replayed, including a failed write.
+Opening a local brain after an update gracefully drains an authenticated older
+numeric-version backend and starts/joins the current one within a bounded wait.
+Each saved local profile receives this lazy handoff when next opened, including
+profiles inactive during the update. Same-version divergent builds, newer/unknown
+versions, unknown registry state, unavailable owners and replaced roots fail
+explicitly. No request is automatically replayed, including a failed write.
 
 Retirement closes that target's browser WebSockets with reconnectable status and
 fences late HTTP/live responses. Browser brain/profile generation stays stable
