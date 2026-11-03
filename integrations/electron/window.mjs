@@ -3,12 +3,12 @@ import { createSystemMessages } from './system-messages.mjs';
 import { BrowserWindow, dialog, Menu, MenuItem, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { mountInlineUpdates, nativeUpdateAction } from './update-inline.mjs';
-import { isAppNavigation, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
+import { isAppNavigation, isExternalWebLink, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 import { installBackNavigation } from './back-navigation.mjs';
 
 const editorOrigins = new WeakMap();
 
-export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), diagnostics, updater, starterPage } = {}) {
+export function createEditorWindow({ origin, key }, { confirmClose, openFeedbackEmail = (url) => shell.openExternal(url), openExternalLink = (url) => shell.openExternal(url), diagnostics, updater, starterPage } = {}) {
   const window = new BrowserWindow({
     title: 'jumpyBrain', icon: fileURLToPath(new URL('./assets/app-icon.png', import.meta.url)), width: 1200, height: 860, minWidth: 480, minHeight: 480,
     show: false, backgroundColor: '#f7f4ed',
@@ -83,7 +83,13 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   };
   session.on('will-download', onDownload);
   contents.once('destroyed', () => session.removeListener('will-download', onDownload));
-  contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  contents.setWindowOpenHandler(({ url } = {}) => {
+    if (isAppNavigation(contents.getURL(), origin) && isExternalWebLink(url, origin)) {
+      void Promise.resolve().then(() => openExternalLink(url)).catch(() => notify({ source: 'external-link', severity: 'error',
+        text: 'Could not open this link. Try again in your browser.' }));
+    }
+    return { action: 'deny' };
+  });
   contents.on('will-navigate', (event, url) => {
     const action = nativeUpdateAction(url);
     if (action && updater && isAppNavigation(contents.getURL(), origin)) {

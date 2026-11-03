@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-03 — External Markdown links
+
+- Markdown links render clickable labels and open in the browser while preserving source edits and undo. [Implementation](done/2026-11-03_tasks-external-markdown-links.md).
+
 ## 2026-11-03 — Sidebar header alignment
 
 - Right-aligned the wordmark and collapse button with flexible clearance from the Mac window controls. [Verification and limits](done/2026-11-03_tasks-sidebar-header-alignment.md).

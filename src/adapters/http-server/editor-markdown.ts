@@ -1,4 +1,18 @@
 // Conservative editor grammar. Canonical Markdown policy stays in core.
+// Plain/emphasized labels, HTTP(S) URLs with one balanced parenthesis level
+// (or escaped parentheses), and optional plain quoted titles. Other forms stay literal.
+export const externalLinkPattern = /(?<![!\\\[])\[((?:\\[\\\[\]*_`~]|[^\[\]\\\r\n])+)\]\((https?:\/\/(?:\\[()\\]|[^\s()<>"\\]|\((?:\\[()\\]|[^\s()<>"\\])*\))+)(?: "([^"\\\r\n]*)")?\)/i;
+export function externalLinkMatch(text: string) {
+  const match = externalLinkPattern.exec(text);
+  if (!match) return null;
+  const url = match[2].replace(/\\([()\\])/g, "$1");
+  try {
+    const parsed = new URL(url);
+    if (!/^https?:$/.test(parsed.protocol) || !parsed.hostname || parsed.username || parsed.password || /[\u0000-\u0020\u007f]/.test(url)) return null;
+  } catch { return null; }
+  return { match, url, label: match[1], title: match[3], start: match.index!, end: match.index! + match[0].length };
+}
+
 export function inlineCodeRanges(text: string) {
   const runs = Array.from(text.matchAll(/`+/g));
   const ranges: { start: number; end: number }[] = [];

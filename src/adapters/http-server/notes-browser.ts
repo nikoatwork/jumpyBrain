@@ -179,9 +179,9 @@ ${noteOutlineStyles}
     .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 ${taskCompletionStyles}
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
-    .markdown-reference[data-page-reference="true"]:hover { background: var(--hover-fill); }
+    .markdown-external-link:hover, .markdown-reference[data-page-reference="true"]:hover { background: var(--hover-fill); }
 ${referencePresentationStyles}
-    .markdown-reference[data-page-reference="true"] { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
+    .markdown-external-link, .markdown-reference[data-page-reference="true"] { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
     .markdown-table { margin: var(--space-3) 0; max-width: 100%; }
     .markdown-table-preview { overflow-x: auto; white-space: normal; }
     .markdown-table table { border-collapse: collapse; min-width: 100%; font-size: 1em; }
@@ -201,7 +201,7 @@ ${referencePresentationStyles}
     .editor-slash-menu [data-kind="code"], .editor-slash-menu [data-kind="code-block"] { font-family: var(--font-mono); }
     .editor-slash-menu [data-kind="code"] .editor-slash-glyph, .editor-slash-menu [data-kind="code-block"] .editor-slash-glyph { font-family: var(--font-mono); font-size: var(--text-caption); }
     @media (max-width: 680px), (pointer: coarse) { .editor-slash-menu [role="option"] { min-height: var(--control-touch); } }
-    .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+    .markdown-external-link:focus-visible, .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     #reference-creation-status { color: var(--error-ink); font-size: var(--text-ui); }
     .markdown-literal::selection { background: var(--surface-hover); }
     .note-tool-row { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-6); }

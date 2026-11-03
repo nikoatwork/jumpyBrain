@@ -90,6 +90,7 @@
   "license": "MIT",
   "devDependencies": {
     "@lexical/history": "0.51.0",
+    "@lexical/link": "0.51.0",
     "@lexical/markdown": "0.51.0",
     "@lexical/rich-text": "0.51.0",
     "@lexical/selection": "0.51.0",

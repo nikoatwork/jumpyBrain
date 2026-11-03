@@ -10,8 +10,8 @@ const bundle = await readFile(new URL("../dist/adapters/http-server/editor-bundl
 test("editor bundle is self-contained, production-sized, and safe to inline under the shell nonce", () => {
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
-  // Native word/line deletion proof needs a small measured allowance; see docs/build-footprint.md.
-  assert.ok(gzipSync(bundle).length < 220_250, "review editor weight if the production bundle exceeds 220.25 KB gzip");
+  // External-link rendering and exact label/source mapping have a measured allowance; see docs/build-footprint.md.
+  assert.ok(gzipSync(bundle).length < 221_500, "review editor weight if the production bundle exceeds 221.5 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);

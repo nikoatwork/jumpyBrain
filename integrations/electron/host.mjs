@@ -73,3 +73,11 @@ export function probeCompanion(origin, key, { timeoutMs = 2500 } = {}) {
     request.on('error', reject);
   });
 }
+// External note links leave the sandbox only through the system HTTP(S) browser.
+export function isExternalWebLink(value, origin) {
+  if (typeof value !== 'string' || /[\u0000-\u0020\u007f]/.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return /^https?:$/.test(url.protocol) && Boolean(url.hostname) && !url.username && !url.password && url.origin !== origin;
+  } catch { return false; }
+}
