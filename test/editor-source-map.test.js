@@ -50,3 +50,14 @@ test("principal appearance is stable across tabs while session and agent identit
   const agent = participantAppearance({actor:"agent",principalId:"agent-key",clientId:"stream",name:"Builder",kind:"agent",activity:"streaming"});
   assert.match(agent.label,/Agent Builder/); assert.equal(agent.activity,"generating"); assert.notEqual(agent.color,first.color);
 });
+
+test('link source maps prove rendered labels and preserve URL syntax outside edit ranges', () => {
+  const raw='See [**Issue**](https://example.com/a_(b) "Details") now';
+  const visible='See Issue now', formats=[0,0,0,0,...new Uint8Array(5).fill(IS_BOLD),0,0,0,0];
+  const map=verify(raw,visible,formats,{links:[{from:4,to:9}]},[[7,4],[9,6],[raw.indexOf(' now'),9]]);
+  assert.equal(visibleToSource(map,6),9,'An edit inside the label maps inside the label, never inside the URL.');
+  assert.equal(markdownSourceMap(raw,visible,formats),null,'Hidden link syntax requires actual model link evidence.');
+  assert.equal(markdownSourceMap(raw,visible,formats,{links:[{from:4,to:8}]}),null);
+  verify('[A\\*\\[B](https://example.com)', 'A*[B', new Uint8Array(4), {links:[{from:0,to:4}]}, [[1,0],[3,1],[5,2],[7,4]]);
+  verify('[x](https://example.com)', '[x](https://example.com)',new Uint8Array(24).fill(IS_CODE),{literal:true},[[3,3]]);
+});

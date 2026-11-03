@@ -45,3 +45,9 @@ test('pipe tables retain escaped/code pipes and alignment with strict literal fa
     ['> a | b', '--- | ---'], ['# a | b', '--- | ---'], ['- a | b', '--- | ---'],
   ]) assert.equal(markdownTable(source), null, source.join('\n'));
 });
+
+test('external link grammar accepts labeled HTTP(S) and retains unsafe/ambiguous forms literally', async () => {
+  const {externalLinkMatch} = await import('../dist/adapters/http-server/editor-markdown.js');
+  for (const source of ['[Issue](https://example.com/issue/1145)', '[AI\\*\\[test\\]](https://example.com/)', '[**Issue**](https://example.com/a_(b))', '[Issue](https://example.com/a\\(b\\) "Details")', '[café 日本語](HTTP://example.com/?a=1&b=2#part)']) assert.ok(externalLinkMatch(source), source);
+  for (const source of ['![image](https://example.com/a.png)', '\\[escaped](https://example.com/)', '[[nested](https://example.com/)]', '[x](javascript:alert(1))', '[x](data:text/html,x)', '[x](file:///tmp/x)', '[x](https://user:secret@example.com)', '[x](/relative)', '[x](https://)', '[x](https://example.com/\u0000)']) assert.equal(externalLinkMatch(source), null, source);
+});

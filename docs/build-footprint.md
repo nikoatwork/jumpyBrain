@@ -16,10 +16,23 @@ checks to its real tarball before recording successful package metadata.
 
 Budgets in `scripts/package-budget.mjs` are 1.45 MB compressed, 4.6 MB unpacked,
 3.1 MB under `dist/`, and 660 files (decimal units). Existing editor tests retain
-220.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+221.5 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
+
+## 2026-11-03 external Markdown links
+
+A matched esbuild comparison against pre-change HEAD measured 220,216 gzip bytes
+before and 221,169 after external-link rendering, exact source-label mapping and
+keyboard/gesture activation: +953 bytes (0.43%). Both builds used the same pinned
+packages, version, production settings and fixed build fingerprint. The final
+read-only activation callback and editable escaped-label handling bring the
+build to 221,233 gzip bytes, recorded in the [task archive](../tasks/done/2026-11-03_tasks-external-markdown-links.md).
+`@lexical/link` is now declared directly at the existing 0.51.0 pin; it was
+already transitive and the bundle still contains 15 packages. No production
+runtime dependency or network request is added. The reviewed 221,500-byte ceiling
+covers this user-facing capability while retaining an explicit bounded gate.
 
 ## 2026-11-02 native deletion correction
 

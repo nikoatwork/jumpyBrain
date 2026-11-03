@@ -1,4 +1,5 @@
 import { IS_BOLD, IS_CODE, IS_ITALIC } from "lexical";
+import { externalLinkMatch } from "./editor-markdown.js";
 
 /** Exact UTF-16 correspondence between editable presentation and Markdown.
  * Structural prefixes/fences are outside this map. Formatting delimiters have
@@ -9,11 +10,12 @@ export interface EditorSourceMap {
   spans: Array<{ start: number; end: number; from: number; to: number; escaped?: boolean }>;
   contentStart: number; contentEnd: number; visibleLength: number;
 }
-export function markdownSourceMap(raw: string, visible: string, formats: ArrayLike<number>, options: { start?: number; end?: number; literal?: boolean } = {}): EditorSourceMap | null {
+export function markdownSourceMap(raw: string, visible: string, formats: ArrayLike<number>, options: { start?: number; end?: number; literal?: boolean; links?: Array<{ from: number; to: number }> } = {}): EditorSourceMap | null {
   const start = options.start ?? 0, end = options.end ?? raw.length;
   if (start < 0 || end < start || end > raw.length) return null;
   const spans: EditorSourceMap["spans"] = [];
   let position = start, rendered = 0, format = 0;
+  let linkEnd: { labelEnd: number; end: number; visibleEnd: number; format: number } | null = null;
   const mask = IS_BOLD | IS_ITALIC | IS_CODE;
   const normalized = raw.slice(start, end).replace(/\r(?=\n|$)/g, "");
   const literal = options.literal || normalized === visible;
@@ -33,9 +35,20 @@ export function markdownSourceMap(raw: string, visible: string, formats: ArrayLi
   if (literal) {
     if (!emit(end, 0, false)) return null;
   } else while (position < end) {
+    if (linkEnd && position === linkEnd.labelEnd) {
+      if (rendered !== linkEnd.visibleEnd || format !== linkEnd.format) return null;
+      gap(position, linkEnd.end); position = linkEnd.end; linkEnd = null; continue;
+    }
+    if (!linkEnd && raw[position] === "[" && options.links?.some(link => link.from === rendered)) {
+      const parsed = externalLinkMatch(raw.slice(position, end));
+      const link = options.links.find(link => link.from === rendered);
+      if (!parsed || parsed.start !== 0 || !link) return null;
+      linkEnd = { labelEnd: position + 1 + parsed.label.length, end: position + parsed.end, visibleEnd: link.to, format };
+      gap(position, position + 1); position++; continue;
+    }
     // Lexical exports typed, not-yet-completed Markdown delimiters with an
     // escape. The backslash has no glyph in this actual rich-text leaf.
-    if(raw[position]==="\\" && /[*_`~\\]/.test(raw[position+1]??"")){
+    if(raw[position]==="\\" && /[\[\]*_`~\\]/.test(raw[position+1]??"")){
       gap(position,position+1,true);position++;
       if(!emit(position+1,format,true))return null;
       continue;
@@ -72,7 +85,7 @@ export function markdownSourceMap(raw: string, visible: string, formats: ArrayLi
     }
     if (!emit(position + 1, format, true)) return null;
   }
-  if (rendered !== visible.length || !literal && format !== 0) return null;
+  if (rendered !== visible.length || linkEnd || !literal && format !== 0) return null;
   return { spans, contentStart: start, contentEnd: end, visibleLength: visible.length };
 }
 export function visibleToSource(map: EditorSourceMap, position: number, association: "left" | "right" = "right"): number | null {

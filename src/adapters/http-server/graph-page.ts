@@ -317,6 +317,8 @@ const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
   onActivateReference: (title) => activatePageReference(title),
   canActivateReference: () => companionMode && companionRegistered && !companionFrozen && !companionSessionFailed
     && Boolean(state.editor?.state.loaded) && !state.editor.state.navigationPending,
+  canActivateExternalLink: () => (!companionMode || companionRegistered && !companionFrozen && !companionSessionFailed)
+    && Boolean(state.editor?.state.loaded) && !state.editor.state.navigationPending,
   onError: () => {
     feedbackDiagnostics.event("editor", { severity: "error", outcome: "failed", code: "error" });
     toast.dispatch({ source: "editor-error", text: "Keep this window open and copy your draft before reloading.", severity: "error" });
