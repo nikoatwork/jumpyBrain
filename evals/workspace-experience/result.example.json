@@ -1,0 +1,12 @@
+{
+  "checkpoint": "J2-handoff",
+  "attempt": 1,
+  "outcome": "unverified",
+  "classification": "missing_evidence",
+  "observation": "Replace with a sanitized factual observation.",
+  "assistance": [],
+  "actions": 0,
+  "states": { "publication": "confirmed", "index": "unobserved" },
+  "evidence": ["ui/001-handoff.png", "ui/001-handoff.json", "cli/001-show.json"],
+  "judgments": [{ "dimension": "feedback_clarity", "rating": "not_observed", "reason": "Replace with an evidence-grounded judgment.", "judgeRelationship": "same_executor" }]
+}

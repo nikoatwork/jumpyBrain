@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "notes": [
+    { "key": "brief", "title": "Workshop brief", "body": "# Community repair workshop\n\nWe are planning a fictional Saturday workshop for twelve neighbors. The goal is to repair small household items together.\n\nAccessibility is a requirement. No venue or date is confirmed.\n\n## Next decisions\n\nChoose a quiet room and prepare a tool checklist.\n" },
+    { "key": "logistics", "title": "Workshop logistics", "body": "# Workshop logistics\n\nBring a basic screwdriver kit and safety glasses. Avoid tools requiring specialist training.\n\nVenue options: the library room or community hall. Neither is booked.\n" },
+    { "key": "draft", "title": "Workshop announcement", "body": "# Workshop announcement\n\nHuman paragraph: This is a draft for our fictional community workshop.\n\n## Agent contributions\n\n" }
+  ],
+  "board": { "name": "Workshop planning", "columns": ["Ideas", "Preparing", "Ready"] },
+  "chunks": ["Agent draft: Bring one small household item and learn a safe repair together.\n\n", "Agent details: Venue and date remain unconfirmed; participation is limited to twelve neighbors.\n"]
+}
