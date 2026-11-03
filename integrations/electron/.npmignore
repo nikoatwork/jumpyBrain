@@ -2,3 +2,5 @@ node_modules/
 __pycache__/
 smoke-*.mjs
 test_*.py
+# Co-located implementation references stay in the repository.
+*docs.md

@@ -182,3 +182,17 @@ install/operator guidance and all executable assets stay. This reduces redundant
 or changing assertions. The active runtime-hygiene task records final metrics and
 the independent lane's runtime delta; parent must evaluate the combined snapshot
 with the guidance lane rather than infer budget compliance from either branch.
+
+## 2026-11-03 installation retention
+
+The shared ownership/rollback planner and storage command initially put the archive
+at 1,457,123 bytes, above the unchanged 1,450,000-byte ceiling. Excluding co-located
+`*docs.md` implementation references under Electron/native integrations removes
+repository-only material from the download. User/operator guides, licenses, native
+build sources and all executable maintenance helpers remain shipped. The measured
+candidate is 1,434,772 archive bytes, 4,572,105 unpacked bytes, 3,075,643 runtime
+bytes and 633 files; final measurements belong to the completed pruning task.
+All four literal byte/file ceilings and editor/dependency gates stay unchanged.
+The packaged CLI also discards completed Electron build dependencies, retaining
+its pinned extension compiler; installed-footprint evidence is separate from npm
+archive budgets and APFS free-space claims.

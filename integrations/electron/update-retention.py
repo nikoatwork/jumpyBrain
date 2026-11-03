@@ -59,26 +59,49 @@ def inventory(updates):
     return [directory for _, directory in sorted(records, reverse=True)[2:]]
 
 
-def retire_runtimes(candidates):
+def inspect_runtime(runtime, *, home=None, expected=None):
+    """Observational half of retirement; no sentinel, mkdir or stale-pin reap."""
+    runtime = Path(runtime)
+    owner = ordinary(runtime, True)
+    if expected is not None and [owner.st_dev, owner.st_ino] != expected: raise ValueError('Runtime generation changed')
+    if not owner.st_mode & 0o200: raise ValueError('Frozen runtime')
+    protocol = runtime / 'dist/adapters/backend-host/runtime-pins.js'
+    if ordinary(protocol).st_size > 131072: raise ValueError('Oversized runtime protocol')
+    bundled = runtime.name == 'runtime' and runtime.parent.name == 'Resources' and runtime.parent.parent.name == 'Contents' and runtime.parents[2].name.endswith('.app')
+    state = runtime
+    if bundled:
+        if not re.search(r'\bBUNDLE_PIN_PROTOCOL\s*=\s*1;', protocol.read_text()): raise ValueError('Unknown bundle pin protocol')
+        base = (home or Path.home()) / '.jumpybrain-runtime-pins'
+        state = base / f'{owner.st_dev}-{owner.st_ino}'
+        for directory in [base, state]:
+            if os.path.lexists(directory) and ordinary(directory, True).st_mode & 0o077: raise ValueError('Unsafe bundle pin state')
+    for pins in dict.fromkeys([runtime / '.backend-pins', state / '.backend-pins']):
+        if not os.path.lexists(pins): continue
+        if ordinary(pins, True).st_mode & 0o077: raise ValueError('Unsafe runtime pins')
+        with os.scandir(pins) as entries:
+            for number, pin in enumerate(entries):
+                if number >= 256: raise ValueError('Too many runtime pins')
+                if alive(packet(Path(pin.path))['pid']): raise ValueError('Live runtime pin')
+    return owner, state
+
+
+def retire_runtimes(candidates, *, home=None, expected=None):
     sentinels = []
     try:
-        for runtime in candidates:
-            owner = ordinary(runtime, True)
-            if not owner.st_mode & 0o200: raise ValueError('Frozen runtime')
-            # Old releases have no pin protocol: retain for explicit migration.
-            protocol = runtime / 'dist/adapters/backend-host/runtime-pins.js'
-            ordinary(protocol)
-            state = runtime
-            if runtime.name == 'runtime' and runtime.parent.name == 'Resources' and runtime.parent.parent.name == 'Contents' and runtime.parents[2].name.endswith('.app'):
-                if not re.search(r'\bBUNDLE_PIN_PROTOCOL\s*=\s*1;', protocol.read_text()): raise ValueError('Unknown bundle pin protocol')
-                base = Path.home() / '.jumpybrain-runtime-pins'
-                state = base / f'{owner.st_dev}-{owner.st_ino}'
+        if expected is not None and len(expected) != len(candidates): raise ValueError('Unverified runtime generations')
+        for index, runtime in enumerate(candidates):
+            runtime = Path(runtime)
+            owner, state = inspect_runtime(runtime, home=home, expected=expected[index] if expected is not None else None)
+            generation = [owner.st_dev, owner.st_ino]
+            if state != runtime:
+                base = state.parent
                 for directory in [base, state]:
                     directory.mkdir(mode=0o700, exist_ok=True)
                     if ordinary(directory, True).st_mode & 0o077: raise ValueError('Unsafe bundle pin state')
             sentinel = state / '.retiring'
             with sentinel.open('x') as stream: stream.write('retention\n')
             sentinels.append(sentinel)
+            inspect_runtime(runtime, home=home, expected=generation)
             # Retain legacy in-bundle pins too; never mutate their sealed resources.
             for pins in dict.fromkeys([runtime / '.backend-pins', state / '.backend-pins']):
                 if not os.path.lexists(pins): continue

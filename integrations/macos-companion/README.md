@@ -89,6 +89,8 @@ Build failures leave both old versions intact; ordinary replacement errors roll 
 
 Power-loss/SIGKILL recovery is manual: preserve `.companion-runtime-*` under the install root and `.companion-app-*` under `~/Applications` for recovery. Old fixed `app.installing`/`app.previous` paths are never automatically deleted. CLI shim/manifest bookkeeping follows paired replacement; a later bookkeeping error can leave updated code with old manifest metadata and is reported as an error.
 
+New managed source updates register their pair in the shared [software-retention ledger](../../docs/installation-storage.md). The outer installer selects rollback only after verification and retries superseded owned copies. Historical/direct private-helper backups without a shared receipt retain their earlier conservative policy.
+
 ## Privacy and beta limits
 
 - The server is **loopback-only**. Never expose this local app publicly.

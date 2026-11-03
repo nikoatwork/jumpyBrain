@@ -14,6 +14,7 @@ if (args.length && (args.length !== 2 || args[0] !== '--output' || !args[1])) th
 const outputDirectory = args.length ? path.resolve(args[1]) : path.resolve(source, '../../.local-pack/desktop');
 const metadata = JSON.parse(await readFile(path.join(source, 'package.json'), 'utf8'));
 const output = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-desktop-package-'));
+let artifactLock;
 // Fixed, content-free records go to the worker's existing private bounded log.
 function timing(stage, started, outcome = 'ok') {
   console.log('[build-timing] ' + JSON.stringify({ schema: 1, stage, durationMs: Math.round(performance.now() - started), outcome }));
@@ -59,13 +60,30 @@ try {
   await measure('desktop-sign', () => execFileSync('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', built], { stdio: 'pipe' }));
   await measure('desktop-verify', () => execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', built], { stdio: 'pipe' }));
   await mkdir(outputDirectory, { recursive: true });
+  const lock = path.join(outputDirectory, '.jumpybrain-build-lock');
+  await mkdir(lock, { mode: 0o700 });
+  artifactLock = lock;
   const target = path.join(outputDirectory, 'jumpyBrain.app');
   // Output is a replaceable build artifact, never the live Applications destination.
   if (outputDirectory === path.join(os.homedir(), 'Applications') || outputDirectory === '/Applications') throw new Error('Use desktop:setup to install into Applications. --output is for build artifacts.');
   if (outputDirectory !== path.resolve(source, '../../.local-pack/desktop')) {
     try { await lstat(target); throw new Error('A build already exists at the requested output. Choose an empty output directory.'); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
-  } else await rm(target, { recursive: true, force: true });
+  } else {
+    try {
+      const previous = await lstat(target);
+      if (!previous.isDirectory() || previous.isSymbolicLink()) throw new Error('Unsafe build artifact path.');
+      const runtime = path.join(target, 'Contents/Resources/runtime'), generation = await lstat(runtime);
+      // A fixed build artifact can still host a backend from a prior developer
+      // launch. Retire its generation before replacing any lazy-loaded files.
+      execFileSync('python3', ['-B', path.join(source, 'update-retention.py'), '--runtime', runtime], { stdio: 'pipe' });
+      const current = await lstat(target), currentRuntime = await lstat(runtime);
+      if (current.dev !== previous.dev || current.ino !== previous.ino || currentRuntime.dev !== generation.dev || currentRuntime.ino !== generation.ino) throw new Error('Build artifact generation changed.');
+      await rm(target, { recursive: true });
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw new Error('Previous build artifact is live, legacy or unsafe; retain it and choose an empty --output directory. ' + error.message);
+    }
+  }
   await measure('desktop-copy-final', () => execFileSync('/usr/bin/ditto', [built, target], { stdio: 'pipe' }));
   console.log(`Packaged: ${target}`);
   if (!args.length) {
@@ -73,4 +91,7 @@ try {
     execFileSync('/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister', ['-f', path.join(os.homedir(), 'Applications/jumpyBrain.app')], { stdio: 'pipe' });
     console.log('Open jumpyBrain from Finder, Spotlight, or the Dock. Closing its window keeps the brain live in the menu bar.');
   }
-} finally { await rm(output, { recursive: true, force: true }); }
+} finally {
+  if (artifactLock) await rm(artifactLock, { recursive: true });
+  await rm(output, { recursive: true, force: true });
+}

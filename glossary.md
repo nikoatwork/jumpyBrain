@@ -1,5 +1,12 @@
 # Glossary
 
+## Software generation
+
+An installation ledger's group of owned software payloads, bound to filesystem
+identities and one operation's completion/recovery state. Shared CLI/desktop
+rollback references select generations; live runtime pins can protect additional
+payloads. See [installation storage](docs/installation-storage.md).
+
 ## System message
 
 Tab-local app feedback dispatched with a stable source key through one shared component. Severity controls priority; repeated outcomes are deduplicated, and brain scope fences stale messages/actions. Desktop installation/host results explicitly use app scope. Messages do not own canonical save state, form validation or authorization. See [the browser contract](src/adapters/http-server/browser.docs.md#system-messages).

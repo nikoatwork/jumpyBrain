@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-03 — Automatic installation retention
+
+- Installers share verified rollback references and prune owned obsolete software, protecting live/recovery copies and exposing a storage preview. [Implementation](done/2026-11-03_tasks-automatic-installation-pruning.md).
+
 ## 2026-11-03 — Native workspace experience evaluation
 
 - Added opt-in real Mac/CLI local and VPS journeys, separate UX judgments, guarded fixture cleanup and retained run evidence. The [first diagnostic baseline](../evals/workspace-experience/reports/2026-11-03-baseline.md) records working local flows, hosted live-editor blockers and misleading feedback; [implementation and verification](done/2026-11-03_tasks-workspace-experience-evaluation.md).

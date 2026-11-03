@@ -9,6 +9,7 @@ import { cliPolicy, readJSON } from '../integrations/electron/update-policy.mjs'
 import { bundledHost, startDesktopHost } from '../integrations/electron/desktop-host.mjs';
 import { probeCompanion, readControlKey } from '../integrations/electron/host.mjs';
 import { desktopPrerequisites } from './desktop-prerequisites.mjs';
+import { softwareStorage, finishSoftware, maintainSoftware } from './installation-storage.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -100,25 +101,32 @@ async function main(args) {
   await mkdir(store, { recursive: true, mode: 0o700 });
   const lock = path.join(root, '.installer-lock');
   await mkdir(lock, { mode: 0o700 }); // Fail closed if any installer owns it.
-  let directory, retainLock = false;
+  await json(path.join(lock, 'owner.json'), { pid: process.pid, host: os.hostname() });
+  const storageOptions = { home, root, owner: process.pid };
+  let directory, generation, retainLock = false, probeStarted = false;
   try {
     if (action === 'rollback') {
       const receipt = await readJSON(path.join(store, 'current.json'));
       if (receipt.phase !== 'installed' || path.dirname(receipt.directory) !== store) throw new Error('No installed candidate is available for rollback.');
       directory = receipt.directory;
+      generation = receipt.generation;
       // Inode checks in guarded_rollback reject later replacements, even at the same version.
       await quit(app);
       const journalPath = path.join(directory, 'transaction.json');
       const journal = await readJSON(journalPath);
       if (journal.phase !== 'success') throw new Error('Incomplete transaction; inspect ' + directory);
+      if (generation) softwareStorage('recover', { ...storageOptions, generation });
       await json(journalPath, { ...journal, phase: 'published' });
       run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'rollback', directory]);
       await json(path.join(store, 'current.json'), { ...receipt, phase: 'rolled-back', rolledBackAt: new Date().toISOString() });
+      if (generation) finishSoftware(generation, { ...storageOptions, outcome: 'rolled-back', payloads: [{ path: directory, runtimes: ['built/jumpyBrain.app/Contents/Resources/runtime', 'unpacked/package'] }] });
+      maintainSoftware(storageOptions);
       console.log('Previous app, CLI and install manifest restored. Brain files and settings were not rolled back.');
       await reopen(app);
       return;
     }
     directory = await mkdtemp(path.join(store, 'candidate-'));
+    generation = softwareStorage('begin', { ...storageOptions, producer: 'dogfood', components: ['cli', 'desktop'], payloads: [{ path: directory }] });
     const candidate = await snapshot(repo, directory, ref);
     console.log(`Building committed ${candidate.commit} (base version ${candidate.version}). Working-tree edits are excluded.`);
     const { source } = candidate;
@@ -127,6 +135,8 @@ async function main(args) {
     run('npm', ['run', 'build'], source);
     run('npm', ['ci', '--no-audit', '--no-fund'], path.join(source, 'integrations/electron'));
     run(process.execPath, ['install.mjs', '--output', path.join(directory, 'built')], path.join(source, 'integrations/electron'));
+    run('python3', ['-B', path.join(repo, 'integrations/electron/desktop-install.py'), 'trim-cli', '--bundle', source]);
+    run('npm', ['prune', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], source);
     const configuration = JSON.parse(run('python3', ['-B', '-c',
       'import importlib.util,json,pathlib,sys; s=importlib.util.spec_from_file_location("desktop",sys.argv[1]); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); print(json.dumps(m.configuration(pathlib.Path.home())))',
       path.join(source, 'integrations/electron/desktop-install.py')], source, true));
@@ -134,18 +144,21 @@ async function main(args) {
       release: { version: candidate.version, channel: 'local', commit: candidate.commit }, preparedAt: new Date().toISOString() };
     await json(path.join(directory, 'request.json'), request);
     await quit(app);
+    probeStarted = true;
     await ready(path.join(directory, 'built/jumpyBrain.app'));
     run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'publish', directory]);
     await ready(app);
     const manifest = await readJSON(path.join(root, 'install-manifest.json'));
     run(path.join(root, 'bin/jumpybrain'), ['doctor', '--root', manifest.memoryRoot, '--check']);
     const receipt = { schema: 1, phase: 'installed', commit: candidate.commit, version: candidate.version,
-      installedAt: new Date().toISOString(), directory, memoryRoot: manifest.memoryRoot };
+      installedAt: new Date().toISOString(), directory, generation, memoryRoot: manifest.memoryRoot };
     if (!matchesCandidate(receipt, await readJSON(path.join(root, 'app/package.json')),
       await readJSON(path.join(app, 'Contents/Resources/runtime/package.json')), appVersion(app))) throw new Error('Installed candidate components disagree.');
     const journalPath = path.join(directory, 'transaction.json');
     await json(journalPath, { ...await readJSON(journalPath), phase: 'success' });
     await json(path.join(store, 'current.json'), receipt);
+    finishSoftware(generation, { ...storageOptions, payloads: [{ path: directory, runtimes: ['built/jumpyBrain.app/Contents/Resources/runtime', 'unpacked/package'] }], versions: { installed: candidate.version } });
+    maintainSoftware(storageOptions);
     console.log(`Installed local candidate ${candidate.commit}. Previous software retained in ${directory}.`);
     await reopen(app);
     await status(root, app);
@@ -155,6 +168,14 @@ async function main(args) {
       if (journal && !['success', 'rolled-back'].includes(journal.phase)) {
         try { run('python3', ['-B', path.join(directory, 'update-transaction.py'), 'rollback', directory]); }
         catch { retainLock = true; console.error('Recovery needs inspection. Installer lock and backups retained: ' + directory); }
+      }
+      if (generation && !retainLock && (!journal || journal.phase !== 'success')) {
+        const runtimes = [];
+        for (const relative of probeStarted || journal ? ['built/jumpyBrain.app/Contents/Resources/runtime', 'unpacked/package'] : []) {
+          if (await readJSON(path.join(directory, relative, 'package.json')).catch(() => null)) runtimes.push(relative);
+        }
+        finishSoftware(generation, { ...storageOptions, outcome: 'failed', payloads: [{ path: directory, runtimes }] });
+        maintainSoftware(storageOptions);
       }
       console.error('Candidate/build evidence: ' + directory);
     }

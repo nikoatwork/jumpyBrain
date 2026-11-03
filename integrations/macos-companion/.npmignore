@@ -12,3 +12,5 @@ api-key
 # Developer-only validation never runs in an installed runtime.
 test_*.py
 smoke*.py
+# Co-located implementation references stay in the repository.
+*docs.md

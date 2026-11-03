@@ -13,6 +13,8 @@ import { stopRootBackend } from '../dist/app/backend-host/index.js';
 import { loginPlist } from '../integrations/electron/login.mjs';
 import { installExtension } from '../dist/app/extensions/index.js';
 import { seedV1Extension, v1Context } from './extensions-v1-fixture.mjs';
+import { softwareStorage } from './installation-storage.mjs';
+import { maintainInstalledSoftware } from '../integrations/electron/software-maintenance.mjs';
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const mode = process.argv[2] || 'success';
 const options = process.argv.slice(3);
@@ -240,6 +242,31 @@ try {
   assert.ok(cliExtension.prepared.revision, 'installed CLI must compile a fresh TS/UI extension after upgrade');
   const manifest = JSON.parse(await readFile(path.join(root, 'install-manifest.json')));
   assert.equal(manifest.source, 'https://github.com/nikoatwork/jumpyBrain.git'); assert.equal(manifest.ref, mode === 'app-only' ? 'v0.3.3' : 'master');
+  if (mode === 'success' && !existingClient) {
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline && await readFile(path.join(root, '.installer-lock/desktop.json')).catch(() => null)) await pause(100);
+    const ledger = JSON.parse(await readFile(path.join(root, 'software-retention.json')));
+    assert.equal(ledger.rollback.cli, ledger.rollback.desktop, 'one shared app/CLI rollback generation');
+    const rollback = ledger.records.find(record => record.id === ledger.rollback.cli);
+    assert.equal(rollback.phase, 'terminal'); assert.equal(rollback.outcome, 'success');
+    const old = rollback.payloads[0].path;
+    assert.equal(execFileSync(process.execPath, [path.join(old, 'unpacked/package/dist/cli.js'), '--version'], { env, encoding: 'utf8' }).trim(), oldVersion);
+    execFileSync('/usr/bin/codesign', ['--verify', '--deep', '--strict', path.join(old, 'built/jumpyBrain.app')]);
+    assert.equal(await readFile(path.join(old, 'release.tgz')).catch(() => null), null, 'terminal downloads are disposable');
+    assert.equal(await readdir(path.join(root, 'app/integrations/electron/node_modules')).catch(() => null), null, 'completed Electron build dependencies do not ship into the CLI');
+    // Retry a terminal disposable payload with the actual packaged Python
+    // helpers after the worker lock has drained, as managed startup does.
+    const stale = path.join(root, 'app.previous-retention-smoke'); await mkdir(stale);
+    await writeFile(path.join(stale, 'software'), 'disposable software');
+    const generation = softwareStorage('begin', { root, home, producer: 'source-cli', components: [], payloads: [{ path: stale }] });
+    softwareStorage('finish', { root, home, generation, outcome: 'failed' });
+    await maintainInstalledSoftware({ resources, home });
+    const storage = softwareStorage('preview', { root, home });
+    assert.equal(await readdir(stale).catch(() => null), null);
+    assert.equal(storage.rollback.cli, ledger.rollback.cli);
+    assert.equal(storage.lastCleanup.removed.length, 1);
+    await json(path.join(artifactDir, 'storage.json'), storage);
+  }
   await json(path.join(artifactDir, 'result.json'), { ...report, protectedFiles: protectedPaths.length, sourcePolicyPreserved: true, extensionV1Preserved: true, installedCliExtensionCompilation: true, profilePreferences: ['success','relaunch-failure'].includes(mode), probeActivationSuppressed: !existingClient && ['success','relaunch-failure'].includes(mode), coldNative, existingClient: existingClient ? 'v0.3.7' : undefined, clientWorkerDigest });
   let performanceResult;
   const updateDirectories = await readdir(path.join(home, 'Library/Application Support/jumpyBrain Updates'));

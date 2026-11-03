@@ -27,8 +27,11 @@ class NativeIdentityTests(unittest.TestCase):
             (source / 'package.json').write_text('{"version":"0.3.13"}')
             native = source / 'integrations/macos-companion'
             native.mkdir(parents=True)
-            for name in ('gateway.mjs', 'extensions-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs', 'MenuBarBrain.png'):
+            for name in ('gateway.mjs', 'extensions-gateway.mjs', 'live-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs', 'MenuBarBrain.png'):
                 (native / name).write_text('fixture')
+            tools = source / 'integrations/electron'; tools.mkdir()
+            for name in ('installation-retention.py', 'update-retention.py'):
+                shutil.copy2(Path(__file__).with_name(name), tools / name)
             config = dict(runtimeRoot=str(home / '.jumpybrain/app'), memoryRoot=str(home / 'notes'),
                           supportDirectory=str(home / 'support'), launchAgent=str(home / 'agent.plist'),
                           port=3787, node='/usr/bin/node', qmd='/usr/bin/qmd')

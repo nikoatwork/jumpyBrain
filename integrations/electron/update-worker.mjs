@@ -44,9 +44,12 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
     await atomicJSON(path.join(directory, 'state.json'), { phase, detail, pid: process.pid, version: request.release.version, updatedAt: Date.now() });
   };
   const output = bytes => { log = Buffer.concat([log, Buffer.isBuffer(bytes) ? bytes : Buffer.from(String(bytes))]).subarray(-256 * 1024); };
-  async function run(command, args, cwd = directory, timeout = 20 * 60 * 1000) {
-    if (controller.signal.aborted) throw new Error('Update preparation canceled.');
-    const child = spawn(command, args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  let generation;
+  let runtimeProbed = false;
+  async function run(command, args, cwd = directory, timeout = 20 * 60 * 1000, input) {
+    if (controller.signal.aborted && input === undefined) throw new Error('Update preparation canceled.');
+    const child = spawn(command, args, { cwd, env, detached: true, stdio: [input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'] });
+    if (input !== undefined) { child.stdin.on('error', () => {}); child.stdin.end(input); }
     let captured = '';
     child.stdout.on('data', bytes => { captured = (captured + bytes).slice(-131072); output(bytes); }); child.stderr.on('data', output);
     const completed = new Promise((resolve, reject) => { child.once('error', reject); child.once('close', code => code === 0 ? resolve() : reject(new Error(`${path.basename(command)} did not complete. Check the private update log and retry. Repair Node 22.12+, npm, Python 3, Xcode Command Line Tools or external QMD if missing.`))); });
@@ -54,10 +57,10 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
     void completed.catch(() => {});
     const kill = () => { try { process.kill(-child.pid, 'SIGKILL'); } catch {} };
     const timer = setTimeout(kill, timeout);
-    controller.signal.addEventListener('abort', kill, { once: true });
+    if (input === undefined) controller.signal.addEventListener('abort', kill, { once: true });
     try {
       await atomicJSON(path.join(directory, 'child.json'), { pid: child.pid || null });
-      if (controller.signal.aborted) kill();
+      if (controller.signal.aborted && input === undefined) kill();
       await completed;
       return captured;
     } finally {
@@ -66,11 +69,20 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       await writeFile(path.join(directory, 'update.log'), log, { mode: 0o600 });
     }
   }
+  async function storage(operation, options = {}) {
+    return JSON.parse(await run('python3', ['-B', path.join(directory, 'installation-retention.py')], directory, 120000,
+      JSON.stringify({ operation, root, home: request.home, owner: process.pid, ...options })));
+  }
   let monitor;
   try {
   const ownedLock = await readJSON(path.join(lock, 'desktop.json'));
   if (ownedLock.directory !== directory || ![request.parentPid, process.pid].includes(ownedLock.pid)) throw new Error('Updater lock changed.');
   await atomicJSON(path.join(lock, 'desktop.json'), { directory, pid: process.pid });
+  try {
+    const receipt = await readJSON(path.join(directory, 'software-generation.json')).catch(() => null);
+    generation = receipt?.generation || await storage('begin', { producer: 'updater', components: request.updateCLI ? ['cli', 'desktop'] : ['desktop'], payloads: [{ path: directory }] });
+    await atomicJSON(path.join(directory, 'software-generation.json'), { generation });
+  } catch (error) { output(error.message); }
   monitor = setInterval(async () => {
     try {
       if (!stopped && (!alive(request.parentPid) || await readFile(path.join(directory, 'cancel'), 'utf8').catch(() => '') === 'cancel')) controller.abort();
@@ -95,6 +107,7 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
       await status('preparing', 'Building the Mac app for this Mac… You can keep editing.');
       await measure('dependencies', () => run('npm', ['ci', '--include=dev', '--prefer-offline', '--no-audit', '--no-fund'], electron));
       await measure('build', () => run(request.node, ['install.mjs', '--output', path.join(directory, 'built')], electron));
+      await run('python3', ['-B', path.join(source, 'integrations/electron/desktop-install.py'), 'trim-cli', '--bundle', source]);
       await status('ready', 'Ready to restart. All open editor tabs must save before installation. You can restart later.');
     } else await status('ready', 'Recovery is ready. Restart to restore the previous installation safely.');
 
@@ -127,6 +140,7 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
         if (current.kind !== 'managed' || current.manifestHash !== request.cli.manifestHash || current.shimHash !== request.cli.shimHash) throw new Error('CLI ownership or configuration changed. Nothing was installed.');
       }
       await measure('staged-readiness', async () => {
+        runtimeProbed = true;
         const stagedHost = await startDesktopHost(await bundledHost(path.join(directory, 'built/jumpyBrain.app/Contents/Resources')), { readinessOnly: true });
         await stagedHost.stop();
       });
@@ -203,13 +217,18 @@ export async function runWorker(directory, { recovering = false, notifyFailure, 
     try {
       if (!journal || ['success', 'rolled-back'].includes(journal.phase)) {
         await atomicJSON(path.join(directory, 'retention.json'), { schema: 1, terminal: true });
-        if (['success', 'recovered'].includes((await readJSON(path.join(directory, 'state.json'))).phase)) {
-          // Inventory is reviewable; apply revalidates ownership/pins under its own lock.
-          const retention = path.join(directory, 'update-retention.py');
+        if (generation) {
           try {
-            const preview = await run('python3', ['-B', retention, path.dirname(directory)]);
-            await writeFile(path.join(directory, 'retention-preview.json'), preview, { mode: 0o600 });
-            await run('python3', ['-B', retention, path.dirname(directory), '--apply']);
+            const phase = (await readJSON(path.join(directory, 'state.json'))).phase;
+            const runtimes = [];
+            for (const relative of phase === 'failed' && !runtimeProbed && !journal ? [] : ['built/jumpyBrain.app/Contents/Resources/runtime', 'unpacked/package']) {
+              if (await readJSON(path.join(directory, relative, 'package.json')).catch(() => null)) runtimes.push(relative);
+            }
+            await storage('finish', { generation, outcome: phase === 'success' ? 'success' : phase === 'recovered' ? 'rolled-back' : 'failed',
+              payloads: [{ path: directory, runtimes }], versions: { previous: request.installed } });
+            // Download bytes have no rollback role after a terminal journal.
+            await rm(path.join(directory, 'release.tgz'), { force: true });
+            await storage('apply');
           } catch { /* Keep unknown/busy staging; retention never invalidates a verified update. */ }
         }
       }

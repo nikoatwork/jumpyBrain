@@ -6,9 +6,10 @@ import { mkdir, mkdtemp, readFile, writeFile, rm, readdir, realpath } from 'node
 import { discoverRelease, compareVersions } from './update-release.mjs';
 import { cliPolicy, readJSON, regular, installedVersion, alive, overlaps } from './update-policy.mjs';
 import { atomicJSON } from './update-worker.mjs';
+import { maintainInstalledSoftware } from './software-maintenance.mjs';
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const execute = promisify(execFile);
-const files = ['install-shim.mjs', 'update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'update-retention.py', 'managed-integrations.mjs', 'desktop-host.mjs', 'host.mjs'];
+const files = ['install-shim.mjs', 'update-worker.mjs', 'update-release.mjs', 'update-policy.mjs', 'update-transaction.py', 'update-retention.py', 'installation-retention.py', 'managed-integrations.mjs', 'desktop-host.mjs', 'host.mjs'];
 export function startUpdatePolling(updater, shouldCheck = () => true, { schedule = setInterval, unschedule = clearInterval } = {}) {
   const timer = schedule(() => {
     if (shouldCheck()) return updater.checkInBackground().catch(() => {});
@@ -105,6 +106,9 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
     return snapshot();
   }
   async function checkOnStartup() {
+    // Bounded lifecycle retry after old workers/backends have exited. A busy or
+    // unknown installer lock defers without changing startup/update outcomes.
+    await maintainInstalledSoftware({ resources, home });
     const current = await snapshot();
     // Completed transaction records survive relaunch; they must not suppress
     // discovery forever. Preserve pending work and actionable failures/recovery.
