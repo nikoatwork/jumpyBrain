@@ -12,6 +12,7 @@ Stop obsolete update staging and logs from growing indefinitely, keep live daemo
 - [Second-brain setup report](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=53419d9b-2c42-4686-b20d-d226e2f8dc8a) also reports old app copies and an agent-shell launch exiting before useful diagnostics. A reported code-signing line is not an established launch cause.
 - Never prune a running executable, current preparation, required rollback, user data, credentials or drafts. Inventory and dry-run precede deletion; no cleanup of the user's machine is authorized by creation of this plan.
 - [Update speed](tasks-desktop-update-30-seconds.md) owns prebuilt-helper latency work. [Portable installation](tasks-portable-installation-project-integration.md) owns CLI-only payload measurement and trimming; reuse those owners instead of adding a package split here.
+- Follow-up, 2026-11-03: [automatic installation pruning](tasks-automatic-installation-pruning.md) owns bounded retention across direct desktop backup archives, dogfood candidates and deferred installer copies. The [owner-authorized maintenance run](../done/2026-11-03_tasks-workspace-experience-evaluation.md) reclaimed roughly 12 GB while preserving canonical files. Existing checked updater/pin tasks below describe their implemented scope, not complete cross-installer retention. Preserve this list's separate unresolved launch evidence.
 
 ## Relevant files
 
