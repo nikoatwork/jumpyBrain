@@ -65,3 +65,6 @@ export type { SourceCheckRequest, SourceCheckResult } from "../core/dream/source
 export * from "./boards.js";
 
 export { inspectLocalSearchEngine, resolveLocalSearchEngineBinary } from "../app/local-memory/index.js";
+
+export { listMemoryAttention, patchMemoryDocumentAttention } from "../app/attention.js";
+export type { MemoryAttentionNote, MemoryAttentionPacket } from "../app/attention.js";

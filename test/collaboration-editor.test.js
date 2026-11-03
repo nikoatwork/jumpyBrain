@@ -334,12 +334,12 @@ test("same-byte positional input is published once and its delivered receipt can
 });
 
 test("unproven input remains a durable private draft and never becomes a guessed mutation",async()=>{
-  const previous=globalThis.WebSocket,frames=[];
+  const previous=globalThis.WebSocket,frames=[], reasons=[];
   class Socket{static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;constructor(){queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}send(raw){const frame=JSON.parse(raw);frames.push(frame);queueMicrotask(()=>this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result:frame.method==='hello'?{protocol:2,principal:{id:'writer',role:'writer'}}:{documentId:'note',epoch:'epoch',revision:0,body:'aaaa',title:'Title',contentHash:'hash',saved:true}})}))}close(){this.readyState=3;this.onclose?.({code:1000})}}
   globalThis.WebSocket=Socket;let editor;const drafts=createCollaborationDraftStore(memoryStorage());
   try{
-    let body='aaaa';editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'unproven',documentId:'note',clientId:'tab',drafts,editor:{getMarkdown:()=>body,applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
-    body='aaa';editor.input(body);assert.equal(editor.state.status,'conflict');assert.equal(await editor.flush(),false);assert.equal(editor.state.durableDraft,true);assert.equal(frames.filter(frame=>frame.method==='edit').length,0);assert.equal(drafts.read({scope:'unproven',principalId:'writer',documentId:'note',clientId:'tab'}).value.body,'aaa');assert.match(editor.state.message,/no verified positional edit range/);
+    let body='aaaa';editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'unproven',documentId:'note',clientId:'tab',drafts,onRecovery: code => reasons.push(code),editor:{getMarkdown:()=>body,applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
+    body='aaa';editor.input(body);assert.equal(editor.state.status,'conflict');assert.equal(await editor.flush(),false);assert.equal(editor.state.durableDraft,true);assert.equal(frames.filter(frame=>frame.method==='edit').length,0);assert.equal(drafts.read({scope:'unproven',principalId:'writer',documentId:'note',clientId:'tab'}).value.body,'aaa');assert.match(editor.state.message,/no verified positional edit range/);assert.deepEqual(reasons,['unproven_input']);
     assert.equal(await editor.resolveConflict('saved'),true);assert.equal(body,'aaaa');assert.equal(editor.state.status,'saved');
   }finally{editor?.dispose();globalThis.WebSocket=previous}
 });

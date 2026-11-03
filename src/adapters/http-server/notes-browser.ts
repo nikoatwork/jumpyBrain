@@ -1326,7 +1326,7 @@ const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   attentionScope: () => activeApiKey ? String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted") : null,
   enabled: () => state.view !== "settings" && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   writable: () => Boolean(activeApiKey) && !(companionMode && companionReadOnly()) && !documentActions?.isBusy(),
-  fetchPreview: (id) => readGraphDocument(id),
+  fetchPreview: (id, signal) => readGraphDocument(id, { signal }),
   fetchAttention: (signal) => graphJson("/memories/all/attention", { signal }),
   onAttentionUpdated: () => noteAttention.sync(),
   onAction: (action, page, anchor) => noteAttention.act(action, page, anchor),
@@ -1580,6 +1580,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
   const originalCancel = editor.cancel;
   const collaboration = JumpyBrainBrowser.createCollaborationEditor({
     actor: () => browserActor,
+    onRecovery: code => feedbackDiagnostics.event("save", {severity:"warn",outcome:"unconfirmed",code}),
     url: endpoint.href, token: activeApiKey,
     scope: location.origin + ":" + capabilities.brainId + ":" + (companionMode ? String(companionState?.activeId || "") : "hosted"),
     documentId, editor: richEditor, expectedBrainId: capabilities.brainId,

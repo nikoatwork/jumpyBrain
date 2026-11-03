@@ -105,12 +105,11 @@ export function installFeedback(options: {
     send.textContent = sending ? "Sending…" : "Send feedback";
     message.disabled = sending;
     include.disabled = sending;
-    element<HTMLButtonElement>("feedback-close").disabled = sending;
+    element<HTMLButtonElement>("feedback-close").disabled = false;
     dialog.dataset.collecting = String(collecting);
     status.hidden = !status.textContent;
   }
   function close(restoreFocus = true) {
-    if (sending && restoreFocus) return;
     if (!dialog.open) return;
     openSequence++; collection?.abort(); collection = null; collecting = false;
     dialog.close();
@@ -118,14 +117,14 @@ export function installFeedback(options: {
     if (restoreFocus) element("open-feedback").focus({ preventScroll: true });
   }
   element("open-feedback").addEventListener("click", () => {
-    if (sending || dialog.open || document.querySelector("dialog[open]")) return;
+    if (dialog.open || document.querySelector("dialog[open]")) return;
     options.onOpen?.();
     snapshot = submission?.diagnostics ?? diagnostics.snapshot(options.context(), window.navigator.userAgent);
     status.textContent = "";
     update();
     dialog.showModal();
     message.focus();
-    if (include.checked && !submission) void collect();
+    if (include.checked && !submission && !sending) void collect();
   });
   send.addEventListener("click", async () => {
     if (sending || collecting || !dialog.open || !message.value.trim()) return;

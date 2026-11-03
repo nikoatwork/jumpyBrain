@@ -68,6 +68,17 @@ async function run() {
     await pause(250);
     assert.equal(await js('document.getElementById("feedback-dialog").open'), false);
     assert.deepEqual(JSON.parse(await readFile(config.received, 'utf8')), without);
+    stage = 'pending feedback dismissal';
+    await js('document.getElementById("open-feedback").click(); document.getElementById("feedback-include-logs").checked = false; document.getElementById("feedback-include-logs").dispatchEvent(new Event("change")); document.getElementById("feedback-message").value = "Pending dismissal"; document.getElementById("feedback-message").dispatchEvent(new Event("input")); document.getElementById("feedback-send").click()');
+    await until('document.getElementById("feedback-send").textContent === "Sending…"');
+    stage = 'pending feedback native Escape';
+    window.focus();
+    window.webContents.sendInputEvent({type: 'keyDown', keyCode: 'Escape'});
+    window.webContents.sendInputEvent({type: 'keyUp', keyCode: 'Escape'});
+    await until('!document.getElementById("feedback-dialog").open');
+    assert.equal(await js('document.getElementById("feedback-message").value'), 'Pending dismissal');
+    stage = 'pending feedback acceptance';
+    await until('document.getElementById("feedback-message").value === ""');
     await diagnostics.store.flush();
     window.destroy();
     await writeFile(config.result, JSON.stringify({ ok: true, stage: 'complete' })); app.exit(0);

@@ -809,3 +809,13 @@ export interface DreamWindow extends MemoryDocumentTargetMetadata {
   warnings: string[];
   instructions: string[];
 }
+
+export interface MemoryAttentionNote {
+  id: string; title: string; file: string; updatedAt?: string; createdAt?: string;
+  attentionAt?: string; creator?: MemoryActor; sourceVersion?: string;
+}
+export interface MemoryAttentionPacket {
+  notes: MemoryAttentionNote[]; settled: MemoryAttentionNote[];
+  total: number; settledTotal: number; nextWakeAt?: string;
+  warnings?: { code: "invalid_attention_at"; id: string }[];
+}

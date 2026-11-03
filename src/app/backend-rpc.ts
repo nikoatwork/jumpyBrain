@@ -10,7 +10,10 @@ import { processMemory } from "./processing/index.js";
 import { ensureSavedMemoryIndexed } from "./creation.js";
 import { checkDreamSources } from "./dream/source-check.js";
 
+import { listMemoryAttention, patchMemoryDocumentAttention } from "./attention.js";
+
 const ordinary = {
+  listMemoryAttention, patchMemoryDocumentAttention,
   memoryRootStatus: memory.memoryStatus, indexMemory: memory.indexMemory,
   overviewMemory: memory.overviewMemory, searchMemory: memory.searchMemory,
   compactSearchMemory: memory.compactSearchMemory, expandMemoryDocument: memory.expandMemoryDocument,
@@ -21,7 +24,7 @@ const ordinary = {
   listBoards: boards.listBoards, readBoard: boards.readBoard, saveBoard: boards.saveBoard,
   deleteBoard: boards.deleteBoard, getBoardStatus: boards.getBoardStatus,
 };
-const reads = new Set(["indexMemory", "ensureSavedMemoryIndexed", "searchMemory", "compactSearchMemory", "memoryRootStatus", "overviewMemory", "readMemoryDocument", "previewMemoryDocumentDeletion", "checkDreamSources", "getDreamWindow", "getDreamStatus", "getDreamBatch", "expandMemoryDocument", "listBoards", "readBoard", "getBoardStatus"]);
+const reads = new Set(["listMemoryAttention", "indexMemory", "ensureSavedMemoryIndexed", "searchMemory", "compactSearchMemory", "memoryRootStatus", "overviewMemory", "readMemoryDocument", "previewMemoryDocumentDeletion", "checkDreamSources", "getDreamWindow", "getDreamStatus", "getDreamBatch", "expandMemoryDocument", "listBoards", "readBoard", "getBoardStatus"]);
 // Derived index work has its own bounded QMD admission; it must not hold the canonical write queue.
 export function backendCallMutates(method: string): boolean { return !reads.has(method); }
 

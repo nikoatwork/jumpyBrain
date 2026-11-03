@@ -115,3 +115,7 @@ source. A stream rejects `--delete` rather than ignoring an unsupported range.
 roots, returning redacted ownership/status, PID liveness and recorded executable.
 It never searches the machine or discovers/retargets brains. Invalid state is
 reported per root without exposing capability/error contents; help is observational.
+
+## Note attention commands
+
+`attention list|settle|snooze|bring-back` uses the selected local/remote brain. List is observational, capped at 100 per group with totals/omissions and creator declarations (unknown stays unknown). Mutations require a prior document hash; local writes join the root backend, hosted writes reuse authenticated PATCH. Read-only target policy is enforced before credentials. No automatic retry or read/approval inference; pins remain device-local.

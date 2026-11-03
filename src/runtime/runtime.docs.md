@@ -52,3 +52,7 @@ Export local `checkDreamSources(root, request)` and `SourceCheckRequest`/`Source
 ## Recognition types
 
 The public local runtime re-exports `MemoryActor`, `SearchRecognitionOptions`, `SearchRecognitionMetadata` and `SearchRecognitionScope`. Existing note/update/search app operations accept the optional declared-actor/recognition fields; no new protocol or CLI dependency enters the runtime.
+
+## Note attention
+
+`listMemoryAttention(root)` returns independently capped active/settled lists with totals and valid declared creators. `patchMemoryDocumentAttention(root,id,{ifMatch,mutation})` changes canonical attention through existing guarded policy; publication and indexing remain separate. Hosts serialize mutations and notify collaboration/maintenance.

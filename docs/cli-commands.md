@@ -422,3 +422,11 @@ bounded inventory of at most 32 explicitly named roots through their private
 owned descriptors. It reports status, `pidAlive` and available redacted runtime
 identity (including stopped historical descriptors). It never scans processes or
 unrelated folders, starts services, or changes CLI/app brain selection.
+
+## Note attention
+
+Use `jumpybrain attention list --root <brain> --json` to inspect resurfacing and settled notes, totals, omissions and declared creators. Missing declarations remain unknown. Lists cap each group at 100; this is attention, not read/approval status.
+
+Read the current hash with `show --id <mem_id>`, then use `attention settle --id <mem_id> --if-match <hash>`, `attention snooze --id <mem_id> --if-match <hash> --until <future-ISO-timestamp>`, or `attention bring-back --id <mem_id> --if-match <hash>`, with the same `--root` or `--target-url`. Mutations require write access, preserve note content/edit dates, and never retry automatically. Device-local pins are independent.
+
+For consistent named-agent declarations across remember, update and live streams, set `JUMPYBRAIN_CLIENT_NAME`; use `--actor agent` for remember/update. Optional device owner names prefix all three paths. A live `--client-id` identifies the collaboration client, not declared authorship; unknown actor IDs stay unknown.

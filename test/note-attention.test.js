@@ -199,3 +199,16 @@ test('settled revision cache avoids unchanged body reads, invalidates edits, bou
   assert.ok((await reader(root, second)).revision, 'the next read retries a failed file');
   await rm(second); assert.equal(await reader(root, second), undefined);
 });
+
+test('preview generation is stable for reads and invalidates raw edits without timestamp changes', async t => {
+  const root = await fixture(t);
+  await note(root, 'notes/version.md', { id: id(1), updated_at: '2026-10-22' }, 'Original body');
+  const first = (await attentionServerMemory({ root })).notes[0];
+  assert.match(first.sourceVersion, /^[a-f0-9]{64}$/);
+  assert.equal((await attentionServerMemory({ root })).notes[0].sourceVersion, first.sourceVersion);
+  const file = path.join(root, 'notes/version.md');
+  await writeFile(file, (await readFile(file, 'utf8')).replace('Original body', 'Changed body'));
+  const changed = (await attentionServerMemory({ root })).notes[0];
+  assert.equal(changed.updatedAt, first.updatedAt);
+  assert.notEqual(changed.sourceVersion, first.sourceVersion);
+});

@@ -3,6 +3,7 @@
 ## Responsibilities
 
 - Read host package metadata needed by CLI/runtime entrypoints, such as the installed package version.
+- Capture version once at module load. Replacing package files never relabels a running backend; a new process loads the replacement version.
 - Keep package.json path probing isolated from core Markdown/setup modules.
 - Return safe fallback metadata when package files are unavailable.
 

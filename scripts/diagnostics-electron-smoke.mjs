@@ -23,7 +23,7 @@ try {
   await mkdir(directory, { mode: 0o700 }); await initializeMemoryRoot(root);
   const key = 'c'.repeat(64);
   gateway = await startCompanionGateway({ runtimeRoot, directory, initialRoot: root, controlKey: key, port: 0,
-    feedbackSender: async report => { await writeFile(received, JSON.stringify(report), { mode: 0o600 }); },
+    feedbackSender: async report => { if (report.message === 'Pending dismissal') await new Promise(resolve => setTimeout(resolve, 600)); await writeFile(received, JSON.stringify(report), { mode: 0o600 }); },
     credentials: { get: async () => null, set: async () => {}, delete: async () => {}, selectFolder: async () => null } });
   const config = path.join(temporary, 'fixture.json'), result = path.join(temporary, 'result.json');
   await writeFile(config, JSON.stringify({ runtimeRoot, electronModules: resources ? path.join(resources, "app.asar") : path.join(repo,"integrations/electron"), origin: gateway.url, key, userData: path.join(temporary, 'electron'), result, received }), { mode: 0o600 });

@@ -13,3 +13,9 @@
 - Do not parse CLI flags or format command output.
 - Do not implement HTTP request routing, authentication, or HTTP status-code selection.
 - Do not contain QMD adapter internals; app local-memory and processing modules may call the QMD adapter barrel as a replaceable backend seam.
+
+## Note attention
+
+`attention.ts` owns shared bounded canonical list and hash-guarded attention mutations. Local runtime and hosted facades reuse it; server bookkeeping stays in server-memory. Valid creator declarations remain distinct from unknown provenance. This does not track reading or approval.
+
+Attention metadata carries an optional opaque SHA-256 stat-generation token, accepted only when pre/post-read device/inode/size/nanosecond times agree. It is a preview invalidation hint, never a canonical content hash or snapshot guarantee; missing/unstable versions force ordinary refresh.
