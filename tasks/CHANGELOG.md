@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-03 — v0.3.19 beta hotfix release
+
+- Published desktop update brain recovery and actionable support diagnostics; all 1,865 tests and public artifact verification passed. [Release QA](done/releases/v0.3.19.qa.md).
+
 ## 2026-11-03 — Desktop update brain recovery
 
 - Existing local brains gracefully replace authenticated older background owners after updates; version guidance and precise backend support codes accompany the fix. [Reproduction and verification](done/2026-11-03_tasks-desktop-update-brain-hotfix.md).
