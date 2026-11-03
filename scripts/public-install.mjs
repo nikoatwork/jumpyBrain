@@ -11,12 +11,14 @@ import { normalizeRemoteTargetOrigin } from "./remote-target-origin.mjs";
 import { companionUpdatePlan, checkCompanionUpdate, commitCompanionUpdate } from "./macos-companion.mjs";
 import { checkQmdInstallation, QMD_PACKAGE } from "./qmd-install-check.mjs";
 import { atomicJSON, cliShim, preflight, selectEngine, discoverRelease, installRelease } from "./install-support.mjs";
+import { softwareStorage, finishSoftware, maintainSoftware } from './installation-storage.mjs';
 
 const installerToken = randomUUID();
 let unlock = async () => {};
 let selectedQmd;
 let installationHome;
 let selectedRelease;
+const pendingSoftware = [];
 let resultReport = { schemaVersion: 1, state: "blocked", checks: {}, remainingActions: [] };
 const jsonOutput = process.argv.includes("--json");
 if (jsonOutput) console.log = (...args) => console.error(...args);
@@ -41,6 +43,10 @@ async function main(argv = process.argv.slice(2)) {
   const installRoot = path.resolve(expandHome(options.installRoot ?? path.join(home, ".jumpybrain"), home));
   try {
     await installManaged({ options, home, cwd, installRoot });
+    if (!options.dryRun) {
+      for (const { generation, versions } of pendingSoftware) finishSoftware(generation, { home, root: installRoot, owner: process.pid, versions });
+      resultReport.storage = maintainSoftware({ home, root: installRoot, owner: process.pid });
+    }
   } finally { await unlock(); }
   if (jsonOutput) process.stdout.write(JSON.stringify(resultReport) + "\n");
 }
@@ -435,6 +441,7 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
       if (source === "release" && !existsSync(path.join(stagingDir, "package-lock.json"))) throw new Error("This release predates reproducible installer assets. Use an explicit trusted --source until a compatible release is published.");
       run("npm", source === "release" ? ["ci", "--omit=dev", "--no-audit", "--no-fund"] : ["ci", "--no-audit", "--no-fund"], { cwd: stagingDir });
       if (source !== "release") { log("Building CLI"); run("npm", ["run", "build"], { cwd: stagingDir }); }
+      if (source !== "release") run('npm', ['prune', '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund'], { cwd: stagingDir });
     } else if (!existsSync(path.join(stagingDir, "dist", "cli.js"))) {
       throw new Error("--skip-build was passed but dist/cli.js is missing from the install source.");
     }
@@ -444,11 +451,28 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
 
     if (companion) {
       commitCompanionUpdate(companion, stagingDir);
+      try {
+        const file = path.join(path.dirname(appDir), 'companion-retention-pending.json');
+        const receipt = JSON.parse(await readFile(file, 'utf8'));
+        pendingSoftware.push({ generation: receipt.generation });
+        await rm(file);
+      } catch (error) { log(`Companion software retention receipt unavailable: ${error.message}`); }
       return;
     }
 
     backupContainer = await mkdtemp(`${appDir}.previous-`);
     const backupDir = path.join(backupContainer, "app");
+    let generation;
+    if (existsSync(appDir)) {
+      // Register before replacement. Failure later leaves an unfinished,
+      // protected recovery generation instead of prematurely retiring it.
+      try {
+        const previous = JSON.parse(await readFile(path.join(path.dirname(appDir), 'install-manifest.json'), 'utf8'));
+        generation = softwareStorage('begin', { home: installationHome, root: path.dirname(appDir), owner: process.pid,
+          producer: 'source-cli', components: previous.state === 'installing' ? [] : ['cli'], payloads: [{ path: backupContainer, runtimes: ['app'] }] });
+        await cp(path.join(path.dirname(appDir), 'install-manifest.json'), path.join(backupContainer, 'install-manifest.json'));
+      } catch (error) { log(error.message); }
+    }
     if (existsSync(appDir)) await rename(appDir, backupDir);
     try {
       await rename(stagingDir, appDir);
@@ -457,9 +481,8 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
       throw error;
     }
     if (existsSync(backupDir)) {
-      const retirement = spawnSync('python3', ['-B', fileURLToPath(new URL('../integrations/electron/update-retention.py', import.meta.url)), '--runtime', backupDir], { encoding: 'utf8', timeout: 10000 });
-      if (retirement.status === 0) { log(`Previous runtime retirement: ${retirement.stdout.trim()}`); await rm(backupContainer, { recursive: true, force: true }); }
-      else log(`Previous runtime retained (live, legacy, frozen or unverified): ${backupDir}`);
+      if (generation) pendingSoftware.push({ generation, versions: { cli: await readInstalledVersion(backupDir) } });
+      log(`Previous runtime retained for verified rollback: ${backupDir}`);
     } else await rm(backupContainer, { recursive: true, force: true });
   } catch (error) {
     await rm(stagingDir, { recursive: true, force: true });

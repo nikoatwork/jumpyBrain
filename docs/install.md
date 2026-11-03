@@ -293,12 +293,16 @@ after refresh. This flow changes no skill guidance source or memory policy.
 The shim may advertise its intended path before any policy has been configured.
 Only explicit policy options create/update it; credentials never belong there.
 
-CLI-only source updates also retire only their own just-created previous runtime:
-live pins, legacy/frozen runtimes, or unavailable Python inspection retain that
-backup and print its path. No Python installation is required by this fallback,
-and earlier unknown backups are never swept. Foreign/frozen package runtimes can
-run without pins; automatic cleanup refuses them. Inspect retained legacy paths
-explicitly after all dependent backends have stopped.
+Verified installers share a bounded software-retention ledger. They keep the
+current installation and one rollback copy per replaced component, revisit
+previously deferred owned backups and discard terminal downloads/build inputs.
+Live, legacy/frozen and unfinished-recovery generations remain protected.
+Unknown historical copies are reported rather than adopted. Missing Python
+defers CLI maintenance without requiring another dependency installation.
+Use `npm run storage -- --preview` from a checkout, or the installed package's
+`scripts/installation-storage.mjs`, to inspect paths, bytes, references and
+cleanup outcomes. See [installation storage](installation-storage.md) for the
+2 GiB soft budget, concrete limits, automatic retries and recovery guidance.
 
 Mac app backends keep runtime-retention pins outside the signed bundle in private
 `~/.jumpybrain-runtime-pins/` directories keyed by runtime generation. Startup and

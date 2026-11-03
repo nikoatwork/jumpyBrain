@@ -14,6 +14,7 @@ import sys
 import tempfile
 import tarfile
 import time
+import runpy
 
 SOURCE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SOURCE / 'integrations/macos-companion'))
@@ -23,6 +24,7 @@ from uninstall import owned_loaded_job
 
 DESKTOP = 'local.jumpybrain.desktop'
 LEGACY = 'local.jumpybrain.companion'
+SoftwareStore = runpy.run_path(str(Path(__file__).with_name('installation-retention.py')))['Store']
 
 def info(app):
     if app.is_symlink() or not app.is_dir():
@@ -102,6 +104,21 @@ def copy_extension_compiler(source, runtime):
     platform_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(native, platform_target)
 
+def trim_prepared_cli(source):
+    """Keep the pinned lazy compiler; discard completed Electron build inputs.
+
+    Called on invocation-owned staging after packaging, before publication.
+    Never operates on the user's checkout or live app.
+    """
+    compiler = source / 'node_modules/esbuild/package.json'
+    if compiler.exists():
+        package = json.loads(regular(source / 'package.json').read_text())
+        if json.loads(regular(compiler).read_text()).get('version') != package['dependencies']['esbuild']:
+            raise SafetyError('Prepared CLI compiler does not match the pinned runtime.')
+    else:
+        copy_extension_compiler(source, source)
+    shutil.rmtree(source / 'integrations/electron/node_modules')
+
 def prepare(bundle, home, source=SOURCE):
     config = configuration(home)
     resources = bundle / 'Contents/Resources'
@@ -134,6 +151,10 @@ def prepare(bundle, home, source=SOURCE):
         with build_timing('native-copy'):
             shutil.copytree(built, destination)
     shutil.copy2(source / 'integrations/macos-companion/MenuBarBrain.png', resources / 'MenuBarBrain.png')
+    tools = resources / 'installation-tools'
+    tools.mkdir()
+    for name in ('installation-retention.py', 'update-retention.py'):
+        shutil.copy2(source / 'integrations/electron' / name, tools / name)
     (resources / 'desktop.json').write_text(json.dumps(dict(schema=1, homeDirectory=str(home), userDataDirectory=str(home / 'Library/Application Support/jumpyBrain Electron Prototype'), supportDirectory=config['supportDirectory'],
         launchAgent=config['launchAgent'], port=config['port']), indent=2) + '\n')
 
@@ -219,6 +240,8 @@ def _install_bundle(built, home, *, inspect_running=running_apps, unload_legacy=
     with companion_lock(support, create=True):
         if inspect_running(apps):
             raise SafetyError('An app started during installation. Quit it and retry.')
+        for app in apps:
+            subprocess.run(['/usr/bin/codesign', '--verify', '--deep', '--strict', str(app)], check=True, capture_output=True)
         # Stopped old LaunchAgent may still be registered with launchd. Validate
         # before unloading; an unknown job must never be removed.
         unloaded = None
@@ -228,7 +251,16 @@ def _install_bundle(built, home, *, inspect_running=running_apps, unload_legacy=
                 subprocess.run(['/bin/launchctl', 'bootout', unloaded], check=True, capture_output=True)
         target.parent.mkdir(parents=True, exist_ok=True)
         transaction = Path(tempfile.mkdtemp(prefix='.jumpybrain-install-', dir=target.parent))
+        store = SoftwareStore(home / '.jumpybrain', home)
+        owner = json.loads(regular(home / '.jumpybrain/.installer-lock/owner.json').read_text())['pid']
+        generation = None
+        try:
+            with store.locked(owner):
+                generation = store.begin('desktop', [store.payload(transaction, 'temporary')], ['desktop'] if target in apps else [])
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(f'Software ownership unavailable; backups will be retained: {error}', file=sys.stderr)
         moves = []
+        archived = None
         try:
             pending = transaction / 'new.app'
             shutil.copytree(built, pending, symlinks=True)
@@ -250,32 +282,70 @@ def _install_bundle(built, home, *, inspect_running=running_apps, unload_legacy=
             backup_root = home / 'Library/Application Support/jumpyBrain Backups'
             backup_root.mkdir(parents=True, exist_ok=True, mode=0o700)
             archived = backup_root / ('before-' + time.strftime('%Y%m%d-%H%M%S') + '-' + secrets.token_hex(3) + '.tar.gz')
+            store.safe_path(archived)
+            fd = os.open(archived, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+            os.close(fd)
+            if generation:
+                with store.locked(owner):
+                    ledger = store.load()
+                    record = next(r for r in ledger['records'] if r['id'] == generation)
+                    record['payloads'].append(store.payload(archived, 'temporary'))
+                    store.save(ledger)
             # Archive symlinks/modes without following them; backups must not
             # register as additional launchable apps in Spotlight/Launch Services.
             with tarfile.open(archived, 'w:gz', dereference=False) as archive:
                 archive.add(transaction, arcname='previous-installation')
             archived.chmod(0o600)
+            # Reopen the finished archive and read every file, detecting truncated
+            # streams before publishing it as the selected rollback.
+            with tarfile.open(archived, 'r:gz') as archive:
+                for member in archive:
+                    if member.isfile():
+                        with archive.extractfile(member) as stream:
+                            while stream.read(1024 * 1024): pass
+            if generation:
+                try:
+                    runtimes = [str(backup.relative_to(transaction)) + '/Contents/Resources/runtime'
+                                for original, backup in moves if original in apps and (backup / 'Contents/Resources/runtime').is_dir()]
+                    with store.locked(owner):
+                        store.finish(generation, payloads=[store.payload(transaction, 'temporary', runtimes), store.payload(archived)],
+                            versions={app.name: info(backup).get('CFBundleShortVersionString') for app, backup in moves if app in apps})
+                except (OSError, ValueError, KeyError, TypeError) as error:
+                    print(f'Installation verified; software cleanup deferred: {error}', file=sys.stderr)
             print(f'Installed {target}\nPrevious apps/login files: {archived}\nStart at login: {"on" if login else "off"}')
         except BaseException:
             for original, moved in reversed(moves):
                 if moved.exists():
                     moved.rename(original)
             shutil.rmtree(transaction)
+            if generation:
+                try:
+                    with store.locked(owner):
+                        store.finish(generation, outcome='failed', payloads=[store.payload(archived, 'temporary')] if archived and archived.exists() else [])
+                        store.cleanup(True)
+                except (OSError, ValueError, KeyError, TypeError) as error:
+                    print(f'Failed-install cleanup deferred: {error}', file=sys.stderr)
             # Do not bootstrap a restored job: rollback must not unexpectedly start an app.
             raise
         else:
-            try: shutil.rmtree(transaction)
-            except OSError: print(f'Installation succeeded; remove leftover build transaction when convenient: {transaction}', file=sys.stderr)
+            if generation:
+                try:
+                    with store.locked(owner): store.cleanup(True)
+                except (OSError, ValueError, KeyError, TypeError) as error:
+                    print(f'Installation succeeded; software cleanup deferred: {error}', file=sys.stderr)
+            else:
+                print(f'Installation succeeded; unregistered backup transaction retained: {transaction}', file=sys.stderr)
     return target
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation', choices=['prepare', 'install'])
+    parser.add_argument('operation', choices=['prepare', 'install', 'trim-cli'])
     parser.add_argument('--bundle', required=True, type=Path)
     parser.add_argument('--home', type=Path, default=Path.home())
     args = parser.parse_args()
     try:
         if args.operation == 'prepare': prepare(args.bundle.resolve(), args.home.resolve())
+        elif args.operation == 'trim-cli': trim_prepared_cli(args.bundle.resolve())
         else: install_bundle(args.bundle.resolve(), args.home.resolve())
     except (SafetyError, OSError, ValueError, subprocess.SubprocessError) as error:
         parser.exit(1, str(error) + '\n')

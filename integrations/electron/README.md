@@ -55,7 +55,7 @@ Connections, control capability, logs, and diagnostics stay in `~/Library/Applic
 
 Keychain service names and credential references are retained. Local ad-hoc signing can change Keychain access eligibility; if Settings reports Keychain unavailable, explicitly repair that connection's key there. No credential is copied into files or the renderer, and no broad Keychain access permission is added.
 
-A failed installation rolls back moved app/login files and leaves a previously running app untouched. Backups are retained after successful publication. For manual rollback, quit the new app, preserve its bundle, restore the previous bundles and login plist from the dated `.tar.gz` backup, and reopen the older app. Do not run both generations together. Custom/global `/Applications` legacy installs require separate migration; setup manages `~/Applications`.
+A failed installation rolls back moved app/login files and leaves a previously running app untouched. Successful installs retain one shared rollback per replaced component and prune superseded owned backups; live runtimes and incomplete recovery stay protected. See [installation storage](../../docs/installation-storage.md) for preview, retries and legacy exceptions. For manual rollback, quit the new app, preserve its bundle, restore the previous bundles and login plist from the selected `.tar.gz` backup, and reopen the older app. Do not run both generations together. Custom/global `/Applications` legacy installs require separate migration; setup manages `~/Applications`.
 
 ## First launch and everyday use
 

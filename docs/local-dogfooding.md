@@ -25,7 +25,7 @@ This saves/quits the app normally and restores the previous app, CLI runtime and
 
 Rollback checks the recorded file identities and refuses to overwrite a later replacement made by another installer. Interrupted transactions retain their evidence and, if recovery fails, the installer lock. Inspect the reported directory before attempting repairs; do not delete an active installer’s lock. A build failure before replacement leaves the existing installation intact. A startup failure after verified installation is reported separately; use rollback if needed.
 
-Candidate builds and previous software are retained under `~/.jumpybrain/dogfood/`; the current receipt is `current.json`. These can consume substantial disk space. Keep the current receipt’s directory while rollback is wanted; older completed candidate directories can be removed manually once no install or recovery references them. There is no automatic pruning.
+Candidate rollback software lives under `~/.jumpybrain/dogfood/`; the current receipt is `current.json`. Successful install/rollback now applies the shared [installation retention policy](installation-storage.md). Completed build dependencies and superseded owned candidates are pruned automatically, while live runtimes and incomplete recovery remain protected. Published/source/desktop installs replace the same component rollback references; superseded dogfood receipts no longer point to removed directories. Run `npm run storage -- --preview` for retained paths, reasons and the last cleanup outcome. Historical unmarked candidates and saved evaluation/package artifacts remain outside automatic deletion.
 
 ## Release decision
 

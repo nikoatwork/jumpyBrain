@@ -154,25 +154,43 @@ launches carry their caller's expected generation. Legacy companion replacement
 uses the same conservative retirement check for previous CLI and bundled GUI
 runtimes rather than unconditionally removing their backup containers.
 
-After verified success/recovery, `update-retention.py` inventories at most 256
-immediate update entries under the owned update directory, saves reclaimable paths
-and bytes in `retention-preview.json`, then revalidates under an exclusive cleanup
-lock. It keeps the two newest completed dead-worker generations plus the current
-worker, all live pins, incomplete journals, unknown legacy trees and active
-preparations. An exclusive runtime retirement sentinel fences new backend startup
-before inspecting bounded private pins. Cleanup never uses age as ownership proof.
-For `*.app/Contents/Resources/runtime`, pins and the sentinel live in private
-`~/.jumpybrain-runtime-pins/<device>-<inode>/` state outside sealed resources.
-The runtime and Python helper share the compiled `BUNDLE_PIN_PROTOCOL = 1`
-capability and directory-generation identity; moves retain live protection.
-Unknown/older bundle protocols and live legacy in-bundle pins prevent cleanup.
-Ordinary CLI runtime placement stays unchanged. Small external generation records
-are retained; there is no broad device-state sweep. The signature regression
-suite runs real backends in a disposable signed Mac app through move, stop and
-relaunch, plus startup/retirement races; it does not prove the separately reported
-Quit/LaunchAgent failure resolved.
-Unsafe/busy retention is nonfatal. Interrupted unmarked staging needs explicit
-inspection; no broad legacy cleanup or new public prune command is added.
+`installation-retention.py` now owns cross-installer policy. Its protocol-1 private
+ledger binds installation/root and generation identities, exact producer payloads,
+terminal state, component rollback references, runtime generations, archive hashes
+and resumable deletion fences. Node installers use `scripts/installation-storage.mjs`;
+desktop Python composes the same Store. Only newly registered software is eligible.
+See [installation storage](../../docs/installation-storage.md) for namespaces, the
+2 GiB soft budget, 256-generation/20-outcome/1 MiB ledger limits and scan bounds.
+The historical `update-retention.py` namespace interface remains for old private
+callers/tests; new supported producers use the shared ledger instead of its old
+two-terminal-generation heuristic. Runtime inspection/retirement stays reusable there.
+
+The lock order is installer directory lock, then `.software-retention.lock` advisory
+lock. A validated live owner PID/host handoff reuses an outer installer lock. Preview
+never acquires/creates locks, reaps pins or writes fences. Apply replans and rechecks
+references, protected-path overlaps, generations and pins; descriptor-relative
+removal rejects directory substitution and leaves retirement fences until executable
+files are gone. Interrupted deletion is recorded before removing files, with fence
+identities retained for retry. Corrupt/missing fences and legacy/unknown ownership
+fail closed. Cleanup errors remain separate from verified installation outcomes.
+
+Prepared updater/dogfood source discards Electron build dependencies before
+publication, retaining the pinned root compiler. Source builds prune root development
+dependencies after compilation. Terminal archive downloads disappear only after the
+journal no longer needs recovery. Direct desktop setup registers both its transaction
+and a verified app/login tar archive; live runtimes may defer removal of the hidden
+transaction even while the archive is the selected rollback. The outer source installer
+publishes its rollback only after final verification. Managed legacy companion pairs
+join that outer completion through a pending receipt; old direct private calls keep
+their conservative retirement behavior.
+
+Managed startup retries through `software-maintenance.mjs` using the same Python
+helpers copied under `Resources/installation-tools/`, outside ASAR and unchanged by
+maintenance. A busy/unknown installer lock defers. CLI-only/custom roots retry on the
+next install or explicit storage apply; no daemon/shutdown import or scheduled sweep
+is added. Unknown historical software and caller-owned package/evaluation outputs
+remain outside automatic adoption. The separate historical launch investigation is
+not resolved by retention checks.
 
 Update logs are 256 KiB tails per retained transaction. Native gateway stderr is
 continuously bounded to 256 KiB (64 KiB input chunks); obsolete `.previous` logs

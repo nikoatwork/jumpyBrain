@@ -41,9 +41,23 @@ def replace_pair(staged_runtime, built_app, install_root, home):
     runtime, app = install_root / "app", app_path(home)
     runtime_backup = Path(tempfile.mkdtemp(prefix=".companion-runtime-", dir=install_root))
     gui_transaction = None
+    store = generation = owner = None
     moves = []
     try:
         gui_transaction = Path(tempfile.mkdtemp(prefix=".companion-app-", dir=app.parent))
+        owner_file = install_root / '.installer-lock/owner.json'
+        # Supported source installs already own this lock. Historical direct
+        # private-helper invocations retain their conservative legacy policy.
+        if owner_file.exists():
+            import json
+            helper = Path(__file__).resolve().parent.parent / 'electron/installation-retention.py'
+            try:
+                store = runpy.run_path(str(helper))['Store'](install_root, home)
+                owner = json.loads(regular(owner_file).read_text())['pid']
+                with store.locked(owner):
+                    generation = store.begin('legacy-companion', [store.payload(runtime_backup), store.payload(gui_transaction)], ['cli', 'desktop'])
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                print(f'Software ownership unavailable; previous copies retained: {error}')
         pending = gui_transaction / "new.app"
         shutil.copytree(built_app, pending)
         for source, target in ((runtime, runtime_backup / "old"), (staged_runtime, runtime),
@@ -65,8 +79,24 @@ def replace_pair(staged_runtime, built_app, install_root, home):
         if gui_transaction is not None:
             cleanup(gui_transaction)
         raise
-    retire_backup(runtime_backup, runtime_backup / "old")
-    retire_backup(gui_transaction, gui_transaction / "old.app/Contents/Resources/runtime")
+    if generation:
+        try:
+            with store.locked(owner):
+                payloads = [store.payload(runtime_backup, runtimes=['old']), store.payload(gui_transaction,
+                    runtimes=['old.app/Contents/Resources/runtime'] if (gui_transaction / 'old.app/Contents/Resources/runtime').exists() else [])]
+                # Outer CLI verification completes the generation. A lost outer
+                # response keeps these copies protected as unfinished recovery.
+                ledger = store.load()
+                record = next(r for r in ledger['records'] if r['id'] == generation)
+                record['payloads'] = payloads
+                store.save(ledger)
+                atomic_receipt = store.root / 'companion-retention-pending.json'
+                runpy.run_path(str(Path(__file__).resolve().parent.parent / 'electron/installation-retention.py'))['atomic'](atomic_receipt, dict(generation=generation))
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(f'Previous software retained; verification bookkeeping deferred: {error}')
+    elif owner is None:
+        retire_backup(runtime_backup, runtime_backup / "old")
+        retire_backup(gui_transaction, gui_transaction / "old.app/Contents/Resources/runtime")
 
 
 def commit(staging, install_root, home):

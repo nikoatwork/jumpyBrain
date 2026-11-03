@@ -54,6 +54,14 @@ Browser scripts use `npx --package=playwright node <script>` unless they documen
 
 ## Record and decide
 
+Installation-retention changes use `node --test test/installation-storage.test.js`
+(20-cycle synthetic producer/mixed fixtures, real CLI replacements and handled
+updater failures), focused Python installer/retirement tests and one
+`node scripts/desktop-update-smoke.mjs success`. That packaged check verifies the
+shared rollback, its executable CLI/signed app, discarded build/download inputs
+and the packaged maintenance retry. It uses disposable homes; it does not clean
+the owner's historical backups or establish reclaimed APFS free space.
+
 Keep a concise report: snapshot/environment, reused evidence, commands and results, failures/fixes, screenshot/log paths and untested limits. After publication retain it at `tasks/done/releases/vX.Y.Z.qa.md`, separately from the exact public notes. Fixture update versions and local artifacts are not proof of a live public-release upgrade.
 
 Fix demonstrated data loss, false Saved/update success, broken core retrieval, mismatched distribution or failed selected gates before shipping. Rerun affected checks after a fix; let the full release command validate the final versioned snapshot. Record omitted checks as untested/reused, not passed. Intel, physical IME/accessibility, real OS clipboard/Keychain history and arbitrary personal/plugin data require their own evidence when affected.

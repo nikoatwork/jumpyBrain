@@ -28,15 +28,17 @@ test('npm exclusions reject newly added artwork, native tests and private build 
   t.after(() => rm(dir, { recursive: true, force: true }));
   await mkdir(path.join(dir, 'docs'));
   await mkdir(path.join(dir, 'integrations/macos-companion'), { recursive: true });
-  for (const file of ['docs/.npmignore', 'integrations/macos-companion/.npmignore']) {
+  await mkdir(path.join(dir, 'integrations/electron'), { recursive: true });
+  for (const file of ['docs/.npmignore', 'integrations/macos-companion/.npmignore', 'integrations/electron/.npmignore']) {
     await cp(new URL(file, root), path.join(dir, file));
   }
   await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'footprint-fixture', version: '1.0.0', files: ['docs', 'integrations'] }));
   const excluded = ['docs/assets/future-screenshot.png', 'docs/design-system.md',
     'integrations/macos-companion/test_future.py', 'integrations/macos-companion/smoke_future.py',
     'integrations/macos-companion/.build/private.json', 'integrations/macos-companion/__pycache__/private.pyc',
-    'integrations/macos-companion/Configuration.json', 'integrations/macos-companion/.env'];
-  const retained = ['docs/install.md', 'docs/product-vision.md', 'integrations/macos-companion/install.py', 'integrations/macos-companion/Companion.swift'];
+    'integrations/macos-companion/Configuration.json', 'integrations/macos-companion/.env',
+    'integrations/electron/electron.docs.md', 'integrations/macos-companion/gateway.docs.md'];
+  const retained = ['docs/install.md', 'docs/product-vision.md', 'docs/installation-storage.md', 'integrations/macos-companion/install.py', 'integrations/macos-companion/Companion.swift', 'integrations/electron/installation-retention.py'];
   for (const file of [...excluded, ...retained]) {
     await mkdir(path.dirname(path.join(dir, file)), { recursive: true });
     await writeFile(path.join(dir, file), 'fixture');
