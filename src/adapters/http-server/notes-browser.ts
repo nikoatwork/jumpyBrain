@@ -32,13 +32,13 @@ ${noteOutlineStyles}
     #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); margin: 0; padding: var(--space-1); background: transparent; }
     #toggle-sidebar svg { width: 20px; height: 20px; }
     .workspace-toolbar > #toggle-sidebar { margin: var(--space-2) var(--space-3); }
-    .nav-brand { display: grid; grid-template-columns: var(--control-compact) minmax(0, 1fr); grid-template-rows: var(--space-12); align-items: center; min-width: 0; min-height: var(--space-12); column-gap: var(--space-1); }
+    .nav-brand { display: grid; grid-template-columns: minmax(0, 1fr) var(--control-compact) minmax(0, max-content); grid-template-rows: var(--space-12); align-items: center; min-width: 0; min-height: var(--space-12); column-gap: var(--space-1); }
+    .nav-brand > #toggle-sidebar { grid-column: 2; }
+    .nav-brand > .home-link { grid-column: 3; }
     .app-nav .home-link { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--weight-regular) var(--text-body)/var(--leading-ui) var(--font-writing); letter-spacing: -.035em; padding: var(--space-2) var(--space-1); background: transparent; color: var(--ink); }
     .home-link .brand-jumpy { font-style: italic; }
     .home-link strong { font-weight: var(--weight-semibold); }
-    :root[data-native-mac="true"] .nav-brand { grid-template-columns: calc(var(--space-16) + var(--space-3)) var(--control-compact) minmax(0, 1fr); column-gap: 0; }
-    :root[data-native-mac="true"] .nav-brand > #toggle-sidebar { grid-column: 2; }
-    :root[data-native-mac="true"] .nav-brand > .home-link { grid-column: 3; }
+    :root[data-native-mac="true"] .nav-brand { grid-template-columns: minmax(calc(var(--space-16) + var(--space-3)), 1fr) var(--control-compact) minmax(0, max-content); column-gap: 0; }
     :root[data-native-mac="true"][data-sidebar-collapsed="true"] .workspace-toolbar { padding-left: calc(var(--space-16) + var(--space-3)); }
     :root[data-native-mac="true"] :is(.nav-brand, .workspace-toolbar) { -webkit-app-region: drag; user-select: none; }
     :root[data-native-mac="true"] :is(a, button, input, select, textarea, [role="button"], [role="tooltip"], [popover], #companion-active) { -webkit-app-region: no-drag; }

@@ -37,7 +37,10 @@ try {
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => colorTheme.setPreference(theme), theme);
       assert.equal(await page.locator('html').getAttribute('data-native-mac'), null, 'hosted shell has no native inset');
-      assert.ok((await page.locator('#toggle-sidebar').boundingBox()).x < 24, 'hosted header begins at normal inset');
+      const brand = await page.locator('#home-link').boundingBox();
+      const header = await page.locator('.nav-brand').boundingBox();
+      assert.ok(Math.abs(brand.x + brand.width - header.x - header.width) < 1, 'header group aligns with the right content edge');
+      assert.ok((await page.locator('#toggle-sidebar').boundingBox()).x > 24, 'flexible space precedes the collapse button');
       assert.equal(await page.locator('#home-link').innerText(), 'jumpyBrain');
       assert.equal(await page.locator('#home-link').evaluate(el => getComputedStyle(el).fontWeight), '400');
       assert.equal(await page.locator('.workspace-brand').count(), 0);

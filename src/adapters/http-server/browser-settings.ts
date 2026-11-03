@@ -22,7 +22,6 @@ export const settingsStyles = String.raw`
   #settings-navigation[hidden], #settings-back[hidden] { display: none; }
   .settings-nav-label { margin: 0 var(--space-3) var(--space-2); font-size: var(--text-caption); color: var(--ink-faint); }
   #settings-navigation .nav-item { min-height: var(--space-10); }
-  body[data-view="settings"] .nav-brand > .home-link { grid-column: 2; }
   #companion-heading:focus { outline: none; }
   #settings-back { margin-top: auto; }
   body[data-view="settings"] .nav-preferences { grid-template-columns: minmax(0, 1fr); margin-top: 0; }
@@ -42,8 +41,6 @@ export const settingsStyles = String.raw`
   @media (max-width: 680px) {
     body[data-view="settings"] .app-nav { display: flex; flex-direction: column; gap: var(--space-2); }
     body[data-view="settings"] .nav-brand { min-height: var(--space-12); }
-    body[data-view="settings"] .nav-brand > .home-link { grid-column: 1 / -1; }
-    :root[data-native-mac="true"] body[data-view="settings"] .nav-brand > .home-link { grid-column: 3; }
     #settings-navigation { flex-direction: row; flex-wrap: wrap; gap: var(--space-1); }
     .settings-nav-label { display: none; }
     #settings-navigation .nav-item { flex: 1; justify-content: center; }

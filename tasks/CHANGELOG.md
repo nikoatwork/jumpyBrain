@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-03 — Sidebar header alignment
+
+- Right-aligned the wordmark and collapse button with flexible clearance from the Mac window controls. [Verification and limits](done/2026-11-03_tasks-sidebar-header-alignment.md).
+
 ## 2026-11-03 — Automatic installation retention
 
 - Installers share verified rollback references and prune owned obsolete software, protecting live/recovery copies and exposing a storage preview. [Implementation](done/2026-11-03_tasks-automatic-installation-pruning.md).
