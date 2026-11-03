@@ -17,6 +17,7 @@
     "test": "npm run build && node --test",
     "validate": "npm test",
     "eval:workspace": "node evals/workspace-retrieval/run.mjs",
+    "eval:experience": "node evals/workspace-experience/run.mjs",
     "smoke:semantic-index": "npm run build && node scripts/semantic-index-smoke.mjs",
     "smoke:hosted": "node scripts/hosted-container-smoke.mjs",
     "smoke:graph": "npx --package=playwright node scripts/graph-ui-smoke.mjs",

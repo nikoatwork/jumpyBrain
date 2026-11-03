@@ -27,6 +27,7 @@ scripts/*.local.sh
 
 # Reproducible eval inputs/reports are tracked; disposable runs are not shipped.
 /evals/workspace-retrieval/.runs/
+/evals/workspace-experience/.runs/
 
 # Local runtime lifetime records are operational state, never source inputs.
 /.backend-pins/

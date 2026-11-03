@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-03 — Native workspace experience evaluation
+
+- Added opt-in real Mac/CLI local and VPS journeys, separate UX judgments, guarded fixture cleanup and retained run evidence. The [first diagnostic baseline](../evals/workspace-experience/reports/2026-11-03-baseline.md) records working local flows, hosted live-editor blockers and misleading feedback; [implementation and verification](done/2026-11-03_tasks-workspace-experience-evaluation.md).
+
 ## 2026-11-03 — v0.3.19 beta hotfix release
 
 - Published desktop update brain recovery and actionable support diagnostics; all 1,865 tests and public artifact verification passed. [Release QA](done/releases/v0.3.19.qa.md).
