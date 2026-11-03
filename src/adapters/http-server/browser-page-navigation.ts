@@ -117,7 +117,7 @@ export function createPageHistory(options: { scope(): string | null; storage(): 
 export function installPageNavigation(options: {
   document: Document; window: Window; scope(): string | null;
   href(id: string): string; navigate(url: string): void;
-  fetchPreview?(id: string): Promise<{ content: string; title?: string; recognition?: SearchRecognitionMetadata }>;
+  fetchPreview?(id: string, signal?: AbortSignal): Promise<{ content: string; title?: string; recognition?: SearchRecognitionMetadata }>;
   fetchAttention?(signal: AbortSignal): Promise<unknown>; attentionScope?(): string | null;
   enabled?(): boolean; writable?(): boolean;
   onAttentionUpdated?(): void;
@@ -128,9 +128,11 @@ export function installPageNavigation(options: {
   let selected: string | null = null;
   const history = createPageHistory({ scope: options.scope, storage: () => window.localStorage, onChange: render });
   let previewScope: string | null = null;
-  type Preview = { preview?: string; title?: string; updatedAt?: string; editor?: MemoryActor; fetchedAt: number; pending?: boolean };
+  type Preview = { failed?: boolean; previewVersion?: string; preview?: string; title?: string; updatedAt?: string; editor?: MemoryActor; fetchedAt: number; pending?: boolean };
   const previews = new Map<string, Preview>();
   let previewReads = 0, paused = false;
+  const previewRequests = new Set<AbortController>();
+  function cancelPreviews() { for (const request of previewRequests) request.abort(); previewRequests.clear(); }
   const cacheScope = () => JSON.stringify([options.scope(), options.attentionScope?.()]);
   let recentLimit = 8, settledLimit = 10, revealId: string | undefined;
   const settledShelf = element("sidebar-settled-section") as HTMLDetailsElement;
@@ -147,7 +149,7 @@ export function installPageNavigation(options: {
     const scope = cacheScope();
     if (departure?.scope === scope) return;
     if (departure) { departure.animation?.cancel(); departure = null; }
-    if (scope !== previewScope) { previews.clear(); signatures.clear(); previewScope = scope; revealId = undefined; recentLimit = 8; settledLimit = 10; settledShelf.open = false; }
+    if (scope !== previewScope) { cancelPreviews(); previews.clear(); signatures.clear(); previewScope = scope; revealId = undefined; recentLimit = 8; settledLimit = 10; settledShelf.open = false; }
     const snapshot = { ...history.snapshot(), settled: [] as Page[] };
     const allNotes = [...(attention?.state.notes || []), ...(attention?.state.settled || [])];
     if (attention) snapshot.settled = attention.state.settled
@@ -176,15 +178,16 @@ export function installPageNavigation(options: {
           return { ...merged, ageLabel: sidebarPageAge(merged, new Date(), source) };
         });
       for (const page of pages) if (options.fetchPreview && previewReads < 4 && !paused && !document.hidden && (!options.attentionScope || options.attentionScope()) && (options.enabled?.() ?? true)
-        && !previews.get(page.id)?.pending && Date.now() - (previews.get(page.id)?.fetchedAt ?? 0) >= 10_000) {
+        && !previews.get(page.id)?.pending && (!previews.get(page.id)?.failed || Date.now() - previews.get(page.id)!.fetchedAt >= 10_000) && (page.sourceVersion ? page.sourceVersion !== previews.get(page.id)?.previewVersion : Date.now() - (previews.get(page.id)?.fetchedAt ?? 0) >= 10_000)) {
         const pending: Preview = { ...previews.get(page.id), fetchedAt: Date.now(), pending: true }; previews.set(page.id, pending); previewReads++;
-        void options.fetchPreview(page.id).then(packet => {
+        const request = new AbortController(); previewRequests.add(request);
+        void options.fetchPreview(page.id, request.signal).then(packet => {
           if (cacheScope() !== scope || previews.get(page.id) !== pending) return;
-          previews.set(page.id, { title: packet.title || page.title, preview: readablePreview(packet.content, packet.title || page.title),
+          previews.set(page.id, { previewVersion: page.sourceVersion, title: packet.title || page.title, preview: readablePreview(packet.content, packet.title || page.title),
             ...(packet.recognition?.updatedAt ? { updatedAt: packet.recognition.updatedAt } : {}), editor: packet.recognition?.metadataStatus === "current" ? packet.recognition.editor : undefined, fetchedAt: Date.now() });
         }).catch(() => {
-          if (cacheScope() === scope && previews.get(page.id) === pending) previews.set(page.id, { fetchedAt: Date.now() });
-        }).finally(() => { previewReads--; render(); });
+          if (cacheScope() === scope && previews.get(page.id) === pending) previews.set(page.id, { fetchedAt: Date.now(), failed: true });
+        }).finally(() => { previewRequests.delete(request); previewReads--; render(); });
       }
       const signature = JSON.stringify(pages.map(({ id }) => ({ id })));
       if (signature !== signatures.get(section)) {
@@ -290,7 +293,7 @@ export function installPageNavigation(options: {
   if (attention) {
     const resume = () => { paused = false; void attention.load(); };
     window.addEventListener("focus", resume); window.addEventListener("pageshow", resume);
-    window.addEventListener("pagehide", () => { paused = true; previews.clear(); attention.cancel(); });
+    window.addEventListener("pagehide", () => { paused = true; cancelPreviews(); previews.clear(); attention.cancel(); });
     document.addEventListener("visibilitychange", () => { if (document.hidden) attention.cancel(); else resume(); });
     void attention.load();
   }

@@ -10,6 +10,8 @@
 - Stores coalesce matching healthy poll/status/document-read events within thirty seconds and expose the process-local count; failures, unconfirmed outcomes and writes are never sampled. The fixture-volume check retains every failure/write while reducing 100 identical healthy reads to one event per sampling interval. Ten MiB is an aggregate ceiling, not a promise of seven days under every workload.
 - A server supplied with a custom logger defaults to memory-only diagnostics, preserving observational/no-filesystem embedding contracts. An explicit `diagnostics` store can opt into persistence separately. Default served/companion servers persist events.
 
+Local editor proof failures, missing causal history, backend epoch changes and unsafe canonical source changes retain finite distinct codes. No source operations, offsets, note IDs or error messages enter these events; unknown codes still normalize to unknown.
+
 ## Non-responsibilities
 
 - No telemetry, mail delivery, arbitrary filesystem/log export, provider calls, HTTP authentication, or memory/index policy.

@@ -54,6 +54,8 @@ export interface RemoteMemoryTransportOptions {
 
 export interface RemoteMemoryTransport {
   readonly url: string;
+  listMemoryAttention(): Promise<import("../../types.js").MemoryAttentionPacket>;
+  patchMemoryDocumentAttention(id: string, options: { ifMatch: string; mutation: import("../../core/attention.js").MemoryAttentionAction }): Promise<MemoryDocumentUpdateResult>;
   listBoards(): Promise<BoardList>;
   readBoard(id: string): Promise<BoardRecord>;
   saveBoard(board: Board, ifMatch?: string): Promise<BoardRecord>;
@@ -176,6 +178,10 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   }
 
   return {
+    listMemoryAttention: () => request(HTTP_MEMORY_ROUTES.attention) as unknown as Promise<import("../../types.js").MemoryAttentionPacket>,
+    patchMemoryDocumentAttention: (id, options) => request(memoryDocumentPath(id), {
+      method: "PATCH", headers: { "If-Match": options.ifMatch }, body: JSON.stringify(options.mutation),
+    }) as unknown as Promise<MemoryDocumentUpdateResult>,
     listBoards: () => request(HTTP_MEMORY_ROUTES.boards) as unknown as Promise<BoardList>,
     readBoard: id => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id)) as unknown as Promise<BoardRecord>,
     saveBoard: (board, ifMatch) => request(ifMatch === undefined ? HTTP_MEMORY_ROUTES.boards : HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(board.id), {

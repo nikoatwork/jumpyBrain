@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-03 — Usability state and sidebar
+
+- Added guarded note-attention CLI operations, reduced idle sidebar document traffic, fixed executing-build health identity and pending Feedback dismissal, and retained safe editor recovery reasons. [Verification and limits](done/2026-11-03_tasks-usability-state-and-sidebar.md).
+
 ## 2026-11-03 — External Markdown links
 
 - Markdown links render clickable labels and open in the browser while preserving source edits and undo. [Implementation](done/2026-11-03_tasks-external-markdown-links.md).

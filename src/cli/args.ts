@@ -1,3 +1,5 @@
+import { isValidMemoryDocumentId } from "../core/document-id-format.js";
+import { validateMemoryAttentionAction } from "../core/attention.js";
 import { extensionsUsage } from "./usage.js";
 import { parseBoardArgs } from "./board-args.js";
 import { normalizeEvidenceDate } from "../core/writing/metadata.js";
@@ -67,6 +69,7 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
     "agent-hint": { values: ["topic"] },
     doctor: { values: ["root", "probe-query"], booleans: ["check"] },
     connections: { positional: 2, values: ["directory", ...({ list: [], add: ["name", "root", "revision"], remove: ["id", "revision"], select: ["id", "revision"] }[argv[1] ?? ""] ?? [])] },
+    attention: { positional: 2, values: [...targets, ...({ list: [], settle: ["id", "if-match"], "bring-back": ["id", "if-match"], snooze: ["id", "if-match", "until"] }[argv[1] ?? ""] ?? [])] },
     status: { values: targets },
     index: { values: [...targets, "semantic-model"], booleans: ["rebuild", "lexical"] },
     tree: { values: [...targets, "limit"], booleans: ["connections", "show-files", "showFiles"] },
@@ -106,6 +109,15 @@ function parseCommandFlags(argv: string[], operation: string): ParsedCliArgs | u
       const value = equal >= 0 ? token.slice(equal + 1) : argv[++index];
       if (!value || value.startsWith("--") || !value.trim()) throw new Error(`--${key} requires a value.`);
       args[key] = spec.repeat?.includes(key) ? [...stringListArg(args, key), value] : value;
+    }
+  }
+  if (operation === "attention") {
+    const action = argv[1];
+    if (!["list", "settle", "snooze", "bring-back"].includes(action ?? "")) throw new Error("Use jumpybrain attention list|settle|snooze|bring-back --help.");
+    if (action !== "list") {
+      if (!isValidMemoryDocumentId(stringArg(args, "id"))) throw new Error("--id requires a canonical memory ID.");
+      if (!/^sha256:[0-9a-f]{64}$/.test(stringArg(args, "if-match"))) throw new Error("--if-match requires a content hash from show.");
+      if (action === "snooze" && !validateMemoryAttentionAction({ action, until: stringArg(args, "until") }, Date.now())) throw new Error("--until requires a future timezone-explicit timestamp.");
     }
   }
   if (operation === "process" && args.preview && (args.mode !== "lint" || args.apply !== undefined)) throw new Error("--preview requires --mode lint and cannot combine with --apply.");

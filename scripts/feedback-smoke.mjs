@@ -15,13 +15,13 @@ const { version } = JSON.parse(await readFile(new URL('../package.json', import.
 let browser, server;
 const errors = [];
 const submissions = [];
-let rejectFeedback = false;
+let rejectFeedback = false, feedbackGate = null;
 try {
   await initializeMemoryRoot(root);
   await mkdir(path.join(root, 'notes'), { recursive: true });
   await writeFile(path.join(root, 'notes/private.md'), `---\nid: ${id}\ntitle: Private title\ntype: note\n---\nPrivate note body.\n`);
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false,
-    feedbackSender: async report => { submissions.push(report); if (rejectFeedback) throw new Error('fixture delivery unavailable'); } });
+    feedbackSender: async report => { submissions.push(report); if (feedbackGate) await feedbackGate; if (rejectFeedback) throw new Error('fixture delivery unavailable'); } });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
   for (const width of [1280, 390, 320]) {
     const context = await browser.newContext({ viewport: { width, height: 850 }, colorScheme: width === 390 ? 'dark' : 'light', acceptDownloads: true });
@@ -70,7 +70,7 @@ try {
     assert.notEqual(submissions.at(-1).id, failedSubmission.id);
     await page.locator('#open-feedback').click();
     await page.locator('#feedback-message').fill(text);
-    await page.locator('#feedback-message').press('Escape');
+    await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.querySelector('#feedback-dialog').open);
     assert.equal(await page.locator('#open-feedback').evaluate((el) => el === document.activeElement), true);
     await page.locator('#open-feedback').click();
@@ -84,41 +84,34 @@ try {
       await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `feedback-${width}.png`) });
     }
     await page.locator('#feedback-close').click();
-    let failWithConflict = false;
-    await page.route('**/memories/all/documents/*', async (route) => {
-      if (route.request().method() !== 'PUT') return route.continue();
-      if (failWithConflict) return route.fulfill({ status: 412, contentType: 'application/json', body: JSON.stringify({ error: { code: 'precondition_failed', message: 'Private failure details' } }) });
-      // Commit through the real server, then lose the reply before the client
-      // sees it. Feedback must say unconfirmed while preserving the draft.
-      assert.equal((await route.fetch()).status(), 200);
-      return route.abort('connectionrefused');
-    });
-    await appendEditorText(page, ' Private unsaved feedback fixture.');
-    await page.waitForFunction(() => state.editor?.state.saveStatus === 'failed');
+    // The production editor now writes over WS. Exercise actual reconnect and
+    // pending support delivery rather than intercepting the retired PUT saver.
+    assert.equal(await page.locator('#note-recover').isVisible(), false);
     await page.locator('#open-feedback').click();
-    await page.locator('#feedback-message').fill('Report the unconfirmed save');
-    await page.locator('#feedback-send').click();
-    await submitted(page);
-    const failed = submissions.at(-1).diagnostics;
-    assert.ok(JSON.parse(failed).events.some((event) => event.code === 'network'));
-    assert.ok(JSON.parse(failed).events.some((event) => event.outcome === 'unconfirmed'));
-    assert.doesNotMatch(failed, /Private|disposable-secret|private\.md/);
-    assert.equal(await page.locator('#note-editor').textContent().then((text) => text.includes('Private unsaved feedback fixture.')), true);
-    failWithConflict = true;
-    await page.locator('#note-retry').click();
-    await page.waitForFunction(() => state.editor?.state.saveErrorCode === 'precondition_failed');
+    await page.locator('#feedback-message').fill('Draft survives connection recovery');
+    await context.setOffline(true);
+    await page.keyboard.press('Escape');
+    await context.setOffline(false);
     await page.locator('#open-feedback').click();
-    await page.locator('#feedback-message').fill('Report the conflict');
+    assert.equal(await page.locator('#feedback-message').inputValue(), 'Draft survives connection recovery');
+    await page.locator('#feedback-include-logs').uncheck();
+    let release;
+    feedbackGate = new Promise(resolve => { release = resolve; });
+    const count = submissions.length;
     await page.locator('#feedback-send').click();
-    await submitted(page);
-    const conflict = submissions.at(-1).diagnostics;
-    assert.ok(JSON.parse(conflict).events.some((event) => event.code === 'conflict'));
-    assert.doesNotMatch(conflict, /Private failure|Private unsaved/);
-    assert.match(await readFile(path.join(root, 'notes/private.md'), 'utf8'), /unsaved feedback/);
+    await page.waitForFunction(() => document.querySelector('#feedback-send').textContent === 'Sending…');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#feedback-dialog').evaluate(el => el.open), false);
+    await page.locator('#open-feedback').click();
+    assert.equal(await page.locator('#feedback-send').isDisabled(), true);
+    release(); feedbackGate = null;
+    await page.waitForFunction(() => document.querySelector('#feedback-message').value === '');
+    assert.equal(submissions.length, count + 1);
+    await page.locator('#feedback-close').click();
     await context.close();
   }
   assert.deepEqual(errors, []);
-  console.log('Feedback smoke: PASS (desktop/narrow, light/dark, attachment/opt-out, privacy, shortcuts, focus, network loss/unconfirmed save/conflict evidence, retained draft)');
+  console.log('Feedback smoke: PASS (desktop/narrow, light/dark, attachment/opt-out, privacy, shortcuts, focus, pending-send Escape, offline reconnect, retained draft, clean recovery controls)');
 } finally {
   await browser?.close(); await server?.close(); await rm(root, { recursive: true, force: true });
 }

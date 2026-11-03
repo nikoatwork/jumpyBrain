@@ -172,7 +172,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
         }
         const operation = async () => {
           if (controller.signal.aborted) throw Object.assign(new Error("Memory operation canceled."),{code:"execution_aborted"});
-          if (method === "updateMemoryDocument" || method === "deleteMemoryDocument") await collaboration.beforeLegacyWrite(String(args[0]), (args[2] as any)?.ifMatch ?? (args[2] as any)?.contentHash ?? (args[1] as any)?.ifMatch);
+          if (method === "updateMemoryDocument" || method === "deleteMemoryDocument" || method === "patchMemoryDocumentAttention") await collaboration.beforeLegacyWrite(String(args[0]), (args[2] as any)?.ifMatch ?? (args[2] as any)?.contentHash ?? (args[1] as any)?.ifMatch);
           const result = await callBackend(root, method, args, controller.signal, await packageVersion(), typeof body.qmdBinary === "string" ? body.qmdBinary : body.qmdBinary === null ? null : undefined);
           if (backendCallMutates(method)) { await collaboration.notifyCanonicalWrite(); options.onMemoryWrite?.(); }
           return result;

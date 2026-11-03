@@ -18,7 +18,8 @@ const settle = () => new Promise(resolve => setImmediate(resolve));
 test('confirmed send closes once, clears only submitted draft and restores focus; failures retry the frozen ID', async () => {
   const h = harness(); h.click('open-feedback'); h.nodes['feedback-message'].value = 'Synthetic feedback';
   h.click('feedback-send'); h.click('feedback-send'); h.click('feedback-close');
-  assert.equal(h.calls.length, 1); assert.equal(h.dialog.open, true);
+  assert.equal(h.calls.length, 1); assert.equal(h.dialog.open, false);
+  h.click('open-feedback');
   h.calls[0].resolve({ accepted: true, id: 'wrong-id' }); await settle();
   assert.equal(h.dialog.open, true); assert.equal(h.nodes['feedback-message'].value, 'Synthetic feedback');
   assert.deepEqual(h.successes, []);
@@ -34,11 +35,29 @@ test('forced session close suppresses late success and failure UI and prevents d
   for (const success of [true, false]) {
     const h = harness(); h.click('open-feedback'); h.nodes['feedback-message'].value = 'Synthetic feedback'; h.click('feedback-send');
     h.feedback.close(false); h.click('open-feedback'); h.click('feedback-send');
-    assert.equal(h.dialog.open, false); assert.equal(h.calls.length, 1);
+    assert.equal(h.dialog.open, true); assert.equal(h.calls.length, 1);
     if (success) h.calls[0].resolve({ accepted: true, id: h.calls[0].report.id }); else h.calls[0].reject(new Error('offline'));
-    await settle(); assert.deepEqual(h.successes, []); assert.equal(h.dialog.open, false);
+    await settle(); assert.deepEqual(h.successes, []); assert.equal(h.dialog.open, true);
+    h.click('feedback-close');
     h.click('open-feedback');
     assert.equal(h.nodes['feedback-message'].value, success ? '' : 'Synthetic feedback');
     assert.equal(h.nodes['feedback-status'].textContent, '');
   }
+});
+
+test('Escape dismisses a pending send without retrying or losing its draft across reconnect', async () => {
+  const h = harness(); h.click('open-feedback'); h.nodes['feedback-message'].value = 'Keep this unsent message';
+  h.click('feedback-send');
+  h.dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+  assert.equal(h.dialog.open, false);
+  assert.equal(h.document.activeElement, h.nodes['open-feedback']);
+  h.feedback.close(false); h.click('open-feedback'); h.click('feedback-send');
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.nodes['feedback-message'].value, 'Keep this unsent message');
+  h.calls[0].reject(new Error('disconnected')); await settle();
+  assert.equal(h.nodes['feedback-message'].value, 'Keep this unsent message');
+  h.click('feedback-send');
+  assert.deepEqual(h.calls[1].report, h.calls[0].report);
+  h.calls[1].resolve({ accepted: true, id: h.calls[1].report.id }); await settle();
+  assert.equal(h.nodes['feedback-message'].value, '');
 });

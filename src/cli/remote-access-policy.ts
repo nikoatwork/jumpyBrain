@@ -121,6 +121,7 @@ export function validateRemoteAccessPolicyConfig(value: unknown): RemoteAccessPo
 export function isReadInvocation(args: ParsedCliArgs): boolean {
   const command = semanticCommand(args);
   if (command === "collaborate") return ["open", "watch"].includes(args._[1] ?? "");
+  if (command === "attention") return args._[1] === "list";
   if (command === "board") return ["list", "show", "status"].includes(args._[1] ?? "");
   if (command === "dream") {
     // Deprecated mutations remain blocked before input/credentials; normal windows are read-only.

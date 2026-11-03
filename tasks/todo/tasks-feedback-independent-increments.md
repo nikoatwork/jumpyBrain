@@ -1,6 +1,6 @@
 # Independently shippable feedback increments
 
-Status: active, 2026-11-02. Backend restart recovery (unit 1) and daily-note evidence dates (unit 4) are complete; remaining units retain their own gates. This is an implementation backlog, not a release commitment. The original review was planning only.
+Status: active, 2026-11-02. Backend restart recovery (unit 1), daily-note evidence dates (unit 4) and usability/state units 5–11 are complete; semantic eligibility, vector contribution and optional portable setup (2, 3, 12) retain their own gates. This is an implementation backlog, not a release commitment. The original review was planning only.
 
 ## Goal
 
@@ -94,34 +94,34 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
 - [x] 4.0 **P1 — Give new daily notes their selected evidence date.** F2 B6, F5.
   - Completed outcome and verification: [daily-note evidence dates](../done/2026-11-02_tasks-daily-note-evidence-date.md).
 
-- [ ] 5.0 **P1 — Verify consistent declared agent attribution through live writes; repair only a residual gap.** F2 B7, F5.
-  - [ ] 5.1 Compare the reported installed build with [completed attribution work](../done/2026-11-02_tasks-contextual-editor-attribution.md). Current CLI streams pass `declaredActor` from the owner/client-name configuration. Trace name/ID through publication and filters; distinguish a live session `--client-id` from a declared display name and document the supported setup. Do not infer authorship from access-principal labels or TTY state.
-  - [ ] 5.2 **Ship when:** remember, guarded update and stream from the same explicitly named agent produce consistent creator/latest-editor declarations and app More info/recall filters; creator remains intact, external edits invalidate stale attribution, and unknown actors remain unknown. Reader/write policy and authenticated lease ownership stay enforced. No contributor-history store is needed.
+- [x] 5.0 **P1 — Verify consistent declared agent attribution through live writes; repair only a residual gap.** F2 B7, F5.
+  - [x] 5.1 Compare the reported installed build with [completed attribution work](../done/2026-11-02_tasks-contextual-editor-attribution.md). Current CLI streams pass `declaredActor` from the owner/client-name configuration. Trace name/ID through publication and filters; distinguish a live session `--client-id` from a declared display name and document the supported setup. Do not infer authorship from access-principal labels or TTY state.
+  - [x] 5.2 **Ship when:** remember, guarded update and stream from the same explicitly named agent produce consistent creator/latest-editor declarations and app More info/recall filters; creator remains intact, external edits invalidate stale attribution, and unknown actors remain unknown. Reader/write policy and authenticated lease ownership stay enforced. No contributor-history store is needed.
 
-- [ ] 6.0 **P1 — Report the executing backend build in health.** F2 B10, F5.
-  - [ ] 6.1 Reproduce health versus backend/UI identity using two disposable runtime versions; distinguish an old running process from a package-version lookup/cache/path bug before changing code.
-  - [ ] 6.2 **Ship when:** `/health`, backend status and UI identify the same executing build where applicable, and a deliberately old daemon is visibly old rather than relabeled with the installed version. Verify staged/installed and hosted paths without leaking local paths or capabilities. This is independently useful even before restart recovery lands.
+- [x] 6.0 **P1 — Report the executing backend build in health.** F2 B10, F5.
+  - [x] 6.1 Reproduce health versus backend/UI identity using two disposable runtime versions; distinguish an old running process from a package-version lookup/cache/path bug before changing code.
+  - [x] 6.2 **Ship when:** `/health`, backend status and UI identify the same executing build where applicable, and a deliberately old daemon is visibly old rather than relabeled with the installed version. Verify staged/installed and hosted paths without leaking local paths or capabilities. This is independently useful even before restart recovery lands.
 
-- [ ] 7.0 **P1 — Verify that draft recovery reflects actual retained state; repair only a residual gap.** F2 B14, F5.
-  - [ ] 7.1 Current rendering already hides the action unless recovery drafts, failed saves or a failed companion session require it. Reproduce the reported Saved-plus-recovery state on the matching artifact and inspect actual draft storage, including invalid or identical records. Reuse draft brain/principal/document/client scope; distinguish an unpublished recovery candidate from the currently saved content. Close as covered if current behavior is correct.
-  - [ ] 7.2 **Ship when:** a clean saved note exposes no irrelevant recovery action visually or to accessibility tools; a real retained draft has a meaningful time/context and remains recoverable across reconnect/reload. Failed inspection or invalid storage must preserve bytes and explain recovery limits. No automatic draft deletion or conflict-policy change.
+- [x] 7.0 **P1 — Verify that draft recovery reflects actual retained state; repair only a residual gap.** F2 B14, F5.
+  - [x] 7.1 Current rendering already hides the action unless recovery drafts, failed saves or a failed companion session require it. Reproduce the reported Saved-plus-recovery state on the matching artifact and inspect actual draft storage, including invalid or identical records. Reuse draft brain/principal/document/client scope; distinguish an unpublished recovery candidate from the currently saved content. Close as covered if current behavior is correct.
+  - [x] 7.2 **Ship when:** a clean saved note exposes no irrelevant recovery action visually or to accessibility tools; a real retained draft has a meaningful time/context and remains recoverable across reconnect/reload. Failed inspection or invalid storage must preserve bytes and explain recovery limits. No automatic draft deletion or conflict-policy change.
 
-- [ ] 8.0 **P1 — Make the feedback dialog dismissible without losing its text.** F2 B2/B14, F5.
-  - [ ] 8.1 Verify existing Escape/focus restoration on the matching packaged app, including sending/collecting states; change it only if a real dismissal gap remains. Preserve unsent text through local-backend reconnect, reusing existing close/reopen retention. Choose an app/device-local draft scope independent of note storage; if restart persistence is retained, bound it, define discard/accepted-send cleanup and keep diagnostic attachments separately opt-in.
-  - [ ] 8.2 **Ship when:** keyboard dismissal, focus trapping, cancel/reopen, reconnect and failed delivery retain the draft appropriately; accepted delivery clears only the confirmed submission and never triggers an automatic retry. Verify with a fake relay and production shell; no live support email is required.
+- [x] 8.0 **P1 — Make the feedback dialog dismissible without losing its text.** F2 B2/B14, F5.
+  - [x] 8.1 Verify existing Escape/focus restoration on the matching packaged app, including sending/collecting states; change it only if a real dismissal gap remains. Preserve unsent text through local-backend reconnect, reusing existing close/reopen retention. Choose an app/device-local draft scope independent of note storage; if restart persistence is retained, bound it, define discard/accepted-send cleanup and keep diagnostic attachments separately opt-in.
+  - [x] 8.2 **Ship when:** keyboard dismissal, focus trapping, cancel/reopen, reconnect and failed delivery retain the draft appropriately; accepted delivery clears only the confirmed submission and never triggers an automatic retry. Verify with a fake relay and production shell; no live support email is required.
 
-- [ ] 9.0 **P1 — Make write/index outcomes consistent and self-explanatory.** F2 B8, F5.
-  - [ ] 9.1 Reproduce remember/wrapup/delete through the shared backend; distinguish intentional deferred indexing from stale status or a missing maintenance trigger. Trace canonical publication, pending work and successful generation observation separately.
-  - [ ] 9.2 Reuse the existing maintenance/publication queue for any proven gap. Report saved/deleted canonical success plus indexed/pending/failed derived state and an actionable next step only when necessary; do not force every live write to wait on embeddings.
-  - [ ] 9.3 **Ship when:** all three paths truthfully report their state, deleted notes do not appear as usable evidence, and quiet maintenance converges without manual repeated writes. Cover immediate recall, concurrent publication, interrupted/failed indexing and local/hosted CLI behavior. Preserve idempotent saved IDs and reader permissions; no synchronous-indexing promise unless its cost is verified.
+- [x] 9.0 **P1 — Make write/index outcomes consistent and self-explanatory.** F2 B8, F5.
+  - [x] 9.1 Reproduce remember/wrapup/delete through the shared backend; distinguish intentional deferred indexing from stale status or a missing maintenance trigger. Trace canonical publication, pending work and successful generation observation separately.
+  - [x] 9.2 Reuse the existing maintenance/publication queue for any proven gap. Report saved/deleted canonical success plus indexed/pending/failed derived state and an actionable next step only when necessary; do not force every live write to wait on embeddings.
+  - [x] 9.3 **Ship when:** all three paths truthfully report their state, deleted notes do not appear as usable evidence, and quiet maintenance converges without manual repeated writes. Cover immediate recall, concurrent publication, interrupted/failed indexing and local/hosted CLI behavior. Preserve idempotent saved IDs and reader permissions; no synchronous-indexing promise unless its cost is verified.
 
-- [ ] 10.0 **P2 — Expose existing note attention through the CLI.** F7.
-  - [ ] 10.1 Add focused list/settle/snooze/bring-back operations through existing app/runtime and local/remote transport seams. Reuse canonical attention semantics, explicit mutation authorization and bounded enumeration with visible omissions.
-  - [ ] 10.2 **Ship when:** an agent can list currently resurfacing notes and explicitly change one note's attention, matching app state; reader credentials can list but cannot mutate. Lists distinguish valid declared actors from unknowns. Settled is not labeled read/approved, and device-local pins/recent are not presented as shared state. No separate inbox database, notification system or automatic session-start injection.
+- [x] 10.0 **P2 — Expose existing note attention through the CLI.** F7.
+  - [x] 10.1 Add focused list/settle/snooze/bring-back operations through existing app/runtime and local/remote transport seams. Reuse canonical attention semantics, explicit mutation authorization and bounded enumeration with visible omissions.
+  - [x] 10.2 **Ship when:** an agent can list currently resurfacing notes and explicitly change one note's attention, matching app state; reader credentials can list but cannot mutate. Lists distinguish valid declared actors from unknowns. Settled is not labeled read/approved, and device-local pins/recent are not presented as shared state. No separate inbox database, notification system or automatic session-start injection.
 
-- [ ] 11.0 **P2 — Bound redundant sidebar loading.** F2 B13, F5.
-  - [ ] 11.1 Measure production-shell requests on a fixed eight-note fixture: cold connect, reconnect, idle poll and one note edit. Attribute repeated document/status/attention loads to their caller before choosing request coalescing, existing projections or an endpoint change.
-  - [ ] 11.2 **Ship when:** the measured duplicate work falls without losing card excerpts, timely confirmed writes or independent error/readiness states. Record counts/bytes and delayed-transport behavior, cancel stale brain requests, and retain visible caps. No canonical body cache or shared pin schema is justified by this task alone.
+- [x] 11.0 **P2 — Bound redundant sidebar loading.** F2 B13, F5.
+  - [x] 11.1 Measure production-shell requests on a fixed eight-note fixture: cold connect, reconnect, idle poll and one note edit. Attribute repeated document/status/attention loads to their caller before choosing request coalescing, existing projections or an endpoint change.
+  - [x] 11.2 **Ship when:** the measured duplicate work falls without losing card excerpts, timely confirmed writes or independent error/readiness states. Record counts/bytes and delayed-transport behavior, cancel stale brain requests, and retain visible caps. No canonical body cache or shared pin schema is justified by this task alone.
 
 - [ ] 12.0 **P2 — Offer one explicit, portable semantic setup path.** F4, F8 C11.
   - [ ] 12.1 Extend the existing setup/index seam with an explicit consented local-model provision/select flow and verified artifact identity, expected disk/download cost and compatible-platform limits. Resolve a stable model identity through device-local configuration; retain explicit-path compatibility and keep machine paths out of shared canonical policy where possible. Do not create a second brain registry.
@@ -172,3 +172,9 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
   changing concurrency policy; distinguish actual canonical changes, reconnect
   epochs and rejected edit sequences. No residual editor fix is claimed by the
   update handoff hotfix. Their diagnostic attachments remain uninspected here.
+
+## 2026-11-03 usability/state delivery — units 5–11
+
+- [Completed implementation and verification](../done/2026-11-03_tasks-usability-state-and-sidebar.md): fixed executing-build identity and pending-send dismissal, added guarded attention CLI operations, reduced unchanged sidebar preview traffic and retained finite editor recovery reasons. Named-agent attribution and asynchronous write/index outcomes were verified as already covered.
+- Inspected both November 2 recovery/settlement diagnostic attachments read-only. Both name 0.3.17; dropped/omitted events and one generic conflict do not prove a cause. Current saved/recovery controls and retained-draft safeguards pass; no new historical-conflict fix or concurrency-policy relaxation is claimed.
+- Full suite before the final small diagnostic callback: 1,881 passed, two skips, zero failures. Final affected suite: 53 passed. Real local/hosted CLI writes converge through quiet maintenance without repeated writes; packaged Mac pending-send Escape and retained text pass. Remaining 2/3/12 work stays active.

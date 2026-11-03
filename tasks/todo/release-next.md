@@ -4,3 +4,6 @@
 - The sidebar wordmark and collapse button align right, giving the Mac window controls more breathing room.
 
 - Markdown links now show clickable labels in the editor and open in your browser, with preserved Markdown, editing and undo.
+
+- Agents can list, settle, snooze and bring back notes through the CLI; unchanged sidebar previews avoid repeated document loads.
+- Feedback can close with Escape while sending and retains its text through reconnects; backend health keeps the executing version and support logs distinguish editor recovery causes.

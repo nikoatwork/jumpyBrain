@@ -32,6 +32,7 @@ interface Options {
   connectionContext?: () => { tabId?: string; generation?: number };
   drafts?: CollaborationDraftStore;
   onState?: (state: CollaborationEditorState) => void;
+  onRecovery?: (code: string) => void;
   onSnapshot?: (snapshot: CollaborationSnapshot, view: { body: string; pending: boolean; remote: boolean }) => void;
 }
 export function createCollaborationEditor(options: Options) {
@@ -104,7 +105,7 @@ export function createCollaborationEditor(options: Options) {
   function paint(value: string, highlight = false, operationSequence?:readonly (readonly SourceSplice[])[]): boolean {
     const applied = options.editor.applyCollaborativeMarkdown(value, { highlight, operationSequence });
     if (applied.status === "deferred") return false;
-    if (applied.status === "recovery") { conflict = true; message = applied.reason ?? "The editor needs explicit recovery. Both versions are retained."; return false; }
+    if (applied.status === "recovery") { options.onRecovery?.("unproven_draft"); conflict = true; message = applied.reason ?? "The editor needs explicit recovery. Both versions are retained."; return false; }
     return true;
   }
   function publishSnapshot(snapshot: CollaborationSnapshot, remote = false) { options.onSnapshot?.(snapshot, { body, pending: dirty() || Boolean(flight || titlePromise || historyFlight), remote }); }
@@ -127,7 +128,7 @@ export function createCollaborationEditor(options: Options) {
   function accept(snapshot:CollaborationSnapshot,own?:typeof flight):Promise<void> {
     reconciling++;
     const work=snapshotQueue.then(()=>acceptNow(snapshot,own)).catch((error)=>{
-      if(!disposed){conflict=true;message=error instanceof Error?error.message:"The exact edit history could not be verified. Review the retained draft.";if(snapshot.saved&&snapshot.documentId===options.documentId){baseline=snapshot;publishSnapshot(snapshot)}persist();notify()}
+      if(!disposed){options.onRecovery?.(error instanceof CollaborationError ? error.code : "history_gap");conflict=true;message=error instanceof Error?error.message:"The exact edit history could not be verified. Review the retained draft.";if(snapshot.saved&&snapshot.documentId===options.documentId){baseline=snapshot;publishSnapshot(snapshot)}persist();notify()}
     }).finally(()=>{reconciling--;if(!disposed){notify();schedule()}});
     snapshotQueue=work;return work;
   }
@@ -146,7 +147,7 @@ export function createCollaborationEditor(options: Options) {
   async function acceptNow(snapshot:CollaborationSnapshot,own?:typeof flight) {
     if(disposed||snapshot.documentId!==options.documentId)return;
     if(baseline&&snapshot.epoch===baseline.epoch&&snapshot.revision<baseline.revision)return;
-    if(!snapshot.saved||snapshot.conflict){conflict=true;message=snapshot.conflict?.message??"The saved file changed unsafely. The local draft is retained.";persist();notify();return}
+    if(!snapshot.saved||snapshot.conflict){options.onRecovery?.("source_changed");conflict=true;message=snapshot.conflict?.message??"The saved file changed unsafely. The local draft is retained.";persist();notify();return}
     if(baseline&&snapshot.epoch===baseline.epoch&&snapshot.revision===baseline.revision&&snapshot.body===baseline.body&&!own){baseline=snapshot;publishSnapshot(snapshot);notify();return}
     if(conflict){baseline=snapshot;persist();publishSnapshot(snapshot);notify();return}
     const remote=Boolean(baseline)&&!own&&(snapshot.revision!==baseline?.revision||snapshot.body!==baseline?.body||snapshot.title!==baseline?.title);
@@ -238,7 +239,7 @@ export function createCollaborationEditor(options: Options) {
     try {
       operations=reviewed?[{start:0,deleteCount:baseline.body.length,insert:body}]:pendingOperations;
       if(pendingBase!==baseline.body && !reviewed || applySourceSplices(baseline.body,operations)!==body)throw new CollaborationError("unproven_draft","The pending positional edits do not match the current source. Review both versions before publishing.");
-    }catch(error){conflict=true;message=error instanceof Error?error.message:"The edit sequence could not be verified.";persist();notify();return}
+    }catch(error){options.onRecovery?.("unproven_draft");conflict=true;message=error instanceof Error?error.message:"The edit sequence could not be verified.";persist();notify();return}
     const current={...confirmation(),reviewedContentHash:reviewed?.contentHash,reviewedTitle:reviewed?.title,id:crypto.randomUUID(),actor:JSON.stringify([principal!.id,clientId]),submitted:body,before:baseline,operations:operations.map(operation=>({...operation})),promise:undefined as Promise<void>|undefined,finishing:undefined as Promise<void>|undefined};
     recoveredUnconfirmed=undefined;reviewedPublication=undefined;flight=current;pendingBase=body;pendingOperations=[];localUndo.length=0;localRedo.length=0;persist();notify();
     current.promise = client.request("edit", { documentId: options.documentId, clientId, epoch: current.before.epoch, baseRevision: current.before.revision, operationId: current.id, operations, ...(current.reviewedContentHash ? { expectedContentHash: current.reviewedContentHash } : {}) }).then((snapshot: unknown) => {
@@ -286,7 +287,7 @@ export function createCollaborationEditor(options: Options) {
         }
       }
       opened = true; lastPresence = undefined;
-      if (baseline && snapshot.epoch !== baseline.epoch && bodyDirty()) { conflict = true; message = "The backend document restarted or was replaced. Review the retained draft before publishing."; }
+      if (baseline && snapshot.epoch !== baseline.epoch && bodyDirty()) { options.onRecovery?.("epoch_mismatch"); conflict = true; message = "The backend document restarted or was replaced. Review the retained draft before publishing."; }
       if (uncertain && body !== snapshot.body) { conflict = true; message = "The last edit was not confirmed. Review the draft against the saved version."; }
       // A freshly opened editor may contain a previous document placeholder;
       // without a persisted draft, the authoritative open snapshot hydrates it.
@@ -417,7 +418,7 @@ export function createCollaborationEditor(options: Options) {
         pendingOperations=composeSourceSplices(pendingBase,[pendingOperations,intent.operations]);
         if(applySourceSplices(pendingBase,pendingOperations)!==value)throw new CollaborationError("intent_mismatch","The edit sequence did not reproduce the local draft.");
         localUndo.push({before,after:value,beforeOperations:previousOperations,afterOperations:pendingOperations,operations:intent.operations});if(localUndo.length>100)localUndo.shift();localRedo.length=0;
-      }catch(error){conflict=true;message=error instanceof Error?error.message:"This edit could not be mapped exactly. Its draft is retained."}
+      }catch(error){options.onRecovery?.(error instanceof CollaborationError ? error.code : "unproven_draft");conflict=true;message=error instanceof Error?error.message:"This edit could not be mapped exactly. Its draft is retained."}
       persist();if(queued&&!flight){const next=queued;queued=undefined;void accept(next)}notify();schedule();
     },
     inputTitle(title: string) {

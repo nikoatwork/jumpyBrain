@@ -65,3 +65,7 @@ Rich search forwards normalized opt-in `recognition` options and requires a vers
 ## Boards
 
 `listBoards`, `readBoard`, `saveBoard`, `deleteBoard` and `getBoardStatus` use ordinary authenticated board routes and the existing request deadline. Creation POSTs a full versioned Board; updates PUT it with If-Match; deletion also requires If-Match. Preserve per-board hashes and bounded status evidence. No native companion discovery or automatic retries. CLI policy controls accidental writes; server authentication remains separate.
+
+## Note attention
+
+`listMemoryAttention` uses existing GET attention and `patchMemoryDocumentAttention` uses guarded document PATCH. Both retain ordinary authentication/deadlines; no automatic retries. Shared packet types live in `types.ts`, with no client import of app implementations.

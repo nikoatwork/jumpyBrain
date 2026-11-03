@@ -53,6 +53,11 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
     const { collaborateCli } = await import("./collaborate.js"); await enforceRemoteAccessPolicy(args); await collaborateCli(args); return;
   }
 
+  if (command === "attention") {
+    await enforceRemoteAccessPolicy(args);
+    const { attentionCli } = await import("./attention.js"); await attentionCli(args); return;
+  }
+
   if (command === "board") {
     if (!args.help) await enforceRemoteAccessPolicy(args);
     const { boardsCli } = await import("./boards.js");
