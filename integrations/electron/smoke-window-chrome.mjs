@@ -66,8 +66,10 @@ try {
       for (const [view, url] of [['home', '/'], ['note', '/?note=' + config.ids[9]], ['graph', '/graph']]) {
         await navigate(url);
         assert.equal(await js('document.documentElement.scrollWidth <= innerWidth'), true);
-        const header = await js('(() => { const t=document.getElementById("toggle-sidebar"), b=document.getElementById("home-link"), r=t.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,brand:b.textContent,weight:getComputedStyle(b).fontWeight,drag:getComputedStyle(document.querySelector(".nav-brand")).webkitAppRegion,noDrag:getComputedStyle(t).webkitAppRegion}; })()');
-        assert.equal(header.x, 88); assert.equal(header.y, 8); assert.equal(header.w, 32);
+        const header = await js('(() => { const t=document.getElementById("toggle-sidebar"), b=document.getElementById("home-link"), r=t.getBoundingClientRect(); return {x:r.x,y:r.y,w:r.width,right:b.getBoundingClientRect().right,headerRight:document.querySelector(".nav-brand").getBoundingClientRect().right,brand:b.textContent,weight:getComputedStyle(b).fontWeight,drag:getComputedStyle(document.querySelector(".nav-brand")).webkitAppRegion,noDrag:getComputedStyle(t).webkitAppRegion}; })()');
+        assert.ok(header.x > 88, 'header group moves away from native controls');
+        assert.ok(Math.abs(header.right - header.headerRight) < 1, 'wordmark ends at the right content edge');
+        assert.equal(header.y, 8); assert.equal(header.w, 32);
         assert.equal(header.brand, 'jumpyBrain'); assert.equal(header.weight, '400');
         assert.equal(header.drag, 'drag'); assert.equal(header.noDrag, 'no-drag');
         await screenshot(`mac-${theme}-${width}-${view}`);
