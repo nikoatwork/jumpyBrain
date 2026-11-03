@@ -222,6 +222,7 @@ function companionHealthText(health) {
 function companionHealthLabel(health) {
   const value = companionHealthText(health);
   return ({ connected: "connected", available: "available", credential_unavailable: "Access key needs attention",
+    backend_version_mismatch: "Software update needed",
     authentication_failed: "Access key rejected", offline: "Connection unavailable", disconnected: "Disconnected",
     unavailable: "Connection unavailable", "session unavailable": "App connection interrupted", checking: "Checking connection…",
     starting: "Connecting…", unknown: "Checking connection…", "Not tested": "Not tested" })[value] || "Connection unavailable";
@@ -229,6 +230,10 @@ function companionHealthLabel(health) {
 function companionConnectionNotice(profile, health) {
   if (!profile) return { text: "", action: "", field: "companion-name" };
   const value = companionHealthText(health);
+  if (value === "backend_version_mismatch") return {
+    text: "This brain is running another software version. Update jumpyBrain and the CLI, then retry.",
+    action: "Connection settings", field: profile.kind === "remote" ? "companion-url" : "companion-root",
+  };
   if (profile.kind === "remote" && value === "credential_unavailable") return {
     text: "The app cannot read the saved access key for “" + profile.name + "” from macOS Keychain. This can happen after an app update. Re-enter the key in this connection’s settings.",
     action: "Re-enter access key", field: "companion-key",

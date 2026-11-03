@@ -3,6 +3,7 @@
 ## Responsibilities
 
 - `events.ts` is browser-safe schema v1: finite component/operation/code vocabularies, bounded numeric facts, canonical timestamps and opaque correlation. Unknown content is discarded, including messages/stacks/paths and nested objects. Error locations identify only the known shell/bundle and numeric line/column.
+- The finite code vocabulary preserves backend build mismatch, ownership/state, startup and drain failures through gateway/browser support export. These static codes distinguish update failures without exporting backend descriptors, versions from error text, paths, credentials or arbitrary exceptions.
 - `events.ts` also owns shared snapshot normalization and unavailable-source defaults. Collection, native reading, and report export revalidate through these rules while retaining their own count limits, freshness checks, and availability policy.
 - `store.ts` persists only schema events in a private, owned directory: bounded queue, seven-day retention, ten 1 MiB segments, continuous rotation, no-follow file access, bounded reads and shutdown flush. Only its own segment names are cleaned up. Storage failure is reported separately; it never fails application operations.
 - Event buffers prioritize failures over repetitive successful polls. Support export remaps session/request identifiers to report-local references. Logs are disposable infrastructure, never canonical memory.

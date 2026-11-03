@@ -158,3 +158,17 @@ Read `src/architecture.docs.md` and the nearest co-located module docs before im
 ## 2026-11-02 completed unit 4
 
 - [Daily-note evidence dates](../done/2026-11-02_tasks-daily-note-evidence-date.md): explicit daily capture records the selected local day as canonical `date` and rejects conflicting supplied dates before writing. Local/hosted temporal recall and dream windows, real timezone boundaries, retries and ordinary undated creation pass; full suite 1,849 passed, two skipped, zero failed. Existing notes are not backfilled. This is a source change, not a release or installed-app update; the remaining feedback units stay active.
+
+
+## 2026-11-03 feedback follow-up
+
+- Full received/non-spam inbox check at 07:53:14.725Z was complete (41 scanned,
+  two marked tests excluded). The new update/opening failure has a dedicated
+  [hotfix task](../done/2026-11-03_tasks-desktop-update-brain-hotfix.md).
+- Read the November 2 16:37 and 17:01 UTC single-user draft/conflict reports in
+  full. They postdate the prior complete review and request reliable ordinary
+  editing plus more useful conflict diagnostics. Unit 7 retains this concrete
+  follow-up: inspect the matching artifact and retained-draft evidence before
+  changing concurrency policy; distinguish actual canonical changes, reconnect
+  epochs and rejected edit sequences. No residual editor fix is claimed by the
+  update handoff hotfix. Their diagnostic attachments remain uninspected here.

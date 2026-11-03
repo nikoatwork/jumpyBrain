@@ -10,7 +10,17 @@ Foreground serve claims the same root lease and publishes a private loopback con
 
 ## Non-responsibilities
 
-No CLI parsing, server route implementation, canonical memory policy, GUI lifetime or provider calls. A different-build live owner fails with update/stop guidance rather than spawning a competing writer.
+No CLI parsing, server route implementation, canonical memory policy, GUI lifetime or provider calls. By default a different-build live owner fails with update/stop guidance rather than spawning a competing writer.
+
+Desktop opening opts into `upgradeOlder`: after protocol/root/process/capability
+verification of the known detached-daemon readiness shape, a strictly older numeric-version owner receives an authenticated
+graceful stop. Startup waits for that exact lease to drain before discovering or
+starting the current service. Concurrent callers may share that handoff. Same-version
+divergent builds, newer/unknown versions, foreground hosts and unauthenticated owners remain explicit
+failures. Stop is bounded, cancellable and optionally instance-fenced; there is no
+forced kill or request replay. Canonical writes drain in the server; disconnected
+clients retain the existing private-draft/review rules. CLI discovery keeps its
+explicit mismatch policy so an older CLI cannot downgrade an upgraded brain.
 
 Both foreground claims and detached daemons pin their runtime before serving.
 `backendStatus(root, true)` additionally exposes a redacted historical descriptor

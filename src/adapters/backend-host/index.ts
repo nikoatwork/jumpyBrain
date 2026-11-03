@@ -127,7 +127,7 @@ export async function releaseBackendLease(root: string, instanceId: string) {
   if (descriptor?.instanceId === instanceId) await unlink(paths.descriptor).catch(error => { if (error.code !== "ENOENT") throw error; });
   await unlink(paths.lease); await syncDirectory(paths.directory);
 }
-export async function verifyBackendReady(descriptor: BackendDescriptor, timeoutMs = 1500): Promise<boolean> {
+export async function verifyBackendReady(descriptor: BackendDescriptor, timeoutMs = 1500, options: { detachedOnly?: boolean } = {}): Promise<boolean> {
   let response: Response;
   try {
     response = await fetch(descriptor.url + "/_backend/ready", { headers: { Authorization: "Bearer " + descriptor.token }, signal: AbortSignal.timeout(timeoutMs), redirect: "manual" });
@@ -146,6 +146,10 @@ export async function verifyBackendReady(descriptor: BackendDescriptor, timeoutM
   try { ready = JSON.parse(text); } catch { throw new BackendHostError("backend_identity_mismatch", "Backend readiness response is malformed."); }
   for (const field of ["protocol", "instanceId", "rootId", "pid", "executable", "executableHash", "build", "version"] as const)
     if (ready[field] !== descriptor[field]) throw new BackendHostError("backend_identity_mismatch", "The endpoint is not the registered root owner.");
+  // Legacy foreground `serve` exposes its entire lease (including startedAt).
+  // Detached daemons expose only this bounded identity shape. Unknown shapes
+  // must not authorize automatic replacement of an explicitly configured host.
+  if (options.detachedOnly && Object.keys(ready).some(field => !["protocol", "instanceId", "rootId", "pid", "executable", "executableHash", "build", "version", "runtimeGeneration"].includes(field))) return false;
   return true;
 }
 export async function spawnRootBackend(root: string, identity: BackendIdentity): Promise<void> {

@@ -27,6 +27,21 @@ test('schema discards hostile/nested data, code text, messages/stacks and invali
   assert.equal(diagnosticCode('save_blocked'), 'switch_rejected');
 });
 
+test('support exports distinguish backend connection failures without exporting their error details', () => {
+  const codes = ['backend_already_running', 'backend_version_mismatch', 'backend_start_aborted', 'backend_not_ready',
+    'backend_identity_mismatch', 'backend_stop_failed', 'backend_stop_pending', 'backend_state_unsafe', 'backend_state_invalid',
+    'backend_runtime_missing', 'backend_runtime_changed', 'backend_recovery_busy', 'backend_owner_changed', 'backend_replaced'];
+  const buffer = createDiagnosticBuffer('gateway');
+  for (const code of codes) buffer.record(event({ component: 'gateway', operation: 'connection', code,
+    message: 'private-path-and-token', descriptor: { token: 'private-token', root: '/private/brain' },
+    cause: new Error('private exception details') }));
+  buffer.record(event({ component: 'gateway', operation: 'connection', code: 'backend_private-path-and-token' }));
+  const report = supportReport([buffer.snapshot()]);
+  assert.deepEqual(report.events.slice(0, codes.length).map(e => e.code), codes);
+  assert.equal(report.events.at(-1).code, 'unknown');
+  assert.doesNotMatch(JSON.stringify(report), /private|descriptor|message|cause|token/);
+});
+
 test('failure evidence survives successful polling storms and report references remain correlated and bounded', () => {
   const buffer = createDiagnosticBuffer('browser', 10), request = newDiagnosticId();
   buffer.record(event({ request }));
@@ -137,12 +152,13 @@ test('support collection has a deadline and does not expose provider errors or m
   assert.doesNotMatch(JSON.stringify(result), /private|provider/); assert.equal(result[2].failures, 0);
 });
 
-test('browser distinguishes network loss, auth, conflict, unconfirmed save and saved-but-index-failed', () => {
+test('browser distinguishes network loss, auth, conflict, backend build mismatch, unconfirmed save and saved-but-index-failed', () => {
   const log = createFeedbackDiagnostics(() => new Date(at));
-  for (const status of [401, 412, 504]) {
-    const response = new Response(JSON.stringify({ error: { code: status === 412 ? 'precondition_failed' : status === 504 ? 'backend_timeout' : 'unauthorized', message: 'private' } }), { status });
+  for (const [status, code] of [[401, 'unauthorized'], [412, 'precondition_failed'], [503, 'backend_version_mismatch'], [504, 'backend_timeout']]) {
+    const payload = { error: { code, message: 'private' } };
+    const response = new Response(JSON.stringify(payload), { status });
     log.finish('/memories/all/documents/private?key=private', 'PUT', log.begin(), response);
-    log.result('/memories/all/documents/private', 'PUT', response, { error: { code: status === 412 ? 'precondition_failed' : status === 504 ? 'backend_timeout' : 'unauthorized', message: 'private' } });
+    log.result('/memories/all/documents/private', 'PUT', response, payload);
   }
   log.finish('/memories/all/documents/private', 'PUT', log.begin());
   log.event('save', { outcome: 'unconfirmed', code: 'unconfirmed', severity: 'warn', body: 'private' });
@@ -150,7 +166,7 @@ test('browser distinguishes network loss, auth, conflict, unconfirmed save and s
   log.result('/memories/all/notes', 'POST', saved, { saved: true, indexing: { status: 'failed' }, title: 'private', file: '/private/path' });
   const report = log.snapshot({ view: 'note', connection: 'connected', companion: false }, 'Chrome/150.0 private-user');
   const codes = JSON.parse(report).events.map((e) => e.code);
-  for (const code of ['unauthorized', 'conflict', 'backend_timeout', 'network', 'unconfirmed', 'index_failed']) assert.ok(codes.includes(code), code);
+  for (const code of ['unauthorized', 'conflict', 'backend_version_mismatch', 'backend_timeout', 'network', 'unconfirmed', 'index_failed']) assert.ok(codes.includes(code), code);
   assert.doesNotMatch(report, /private/);
   assert.ok(Buffer.byteLength(feedbackEmailDraft('\ud800'.repeat(4000), report)) <= MAX_FEEDBACK_BYTES);
   assert.throws(() => feedbackEmailDraft('message', 'x'.repeat(65536)), /limit/);
