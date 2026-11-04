@@ -439,3 +439,12 @@ note and brain transitions clear in-memory observations and visible feedback.
 Stream events are observed before source reconciliation so a held own edit
 receipt cannot erase a terminal transition. Existing generating presence remains
 independent, and focus is never moved by the cue.
+
+Search-maintenance warnings and their recovery indicator belong to active
+Search/graph observation. Suspension or a brain-scope reset clears that source
+without hiding genuine editor errors or claiming the index is ready. Internal
+poll cancellation does not clear/replay notices; resuming a surface reports its
+current state again. Unverified freshness says search **may be out of date**,
+not that all search is unavailable. No index mutation is introduced.
+`scripts/ux-search-warning-scope-smoke.mjs` verifies reentry, copy confirmation
+and save-error priority; cancellation/freshness remain in maintenance unit tests.

@@ -8,16 +8,16 @@ const stale = (maintenance = { enabled: true, indexing: false, failed: false }) 
 function fixture(read = async () => fresh()) {
   let now = 0, next = 0, scope = 'a', enabled = true;
   const timers = new Map(), calls = [], states = [];
-  let refreshes = 0;
+  let refreshes = 0, inactive = 0;
   const document = new EventTarget(); document.visibilityState = 'visible';
   const window = new EventTarget();
   window.setTimeout = (callback, delay) => { const id = ++next; timers.set(id, { at: now + delay, callback }); return id; };
   window.clearTimeout = id => timers.delete(id);
   const observer = installSearchMaintenance({ document, window, scope: () => scope, enabled: () => enabled,
     async read(signal) { calls.push({ signal, scope }); return read(signal, scope); },
-    onFresh: () => { refreshes++; }, onState: state => states.push(state),
+    onFresh: () => { refreshes++; }, onState: state => states.push(state), onInactive: () => { inactive++; },
   });
-  return { observer, calls, states, document, window, timers, refreshes: () => refreshes,
+  return { observer, calls, states, document, window, timers, refreshes: () => refreshes, inactive: () => inactive,
     setScope(value) { scope = value; }, setEnabled(value) { enabled = value; },
     async advance(ms) {
       const target = now + ms;
@@ -115,5 +115,18 @@ test('resuming after a quiet dialog schedules observation without an immediate n
   assert.equal(f.calls.length, before);
   await f.advance(9999); assert.equal(f.calls.length, before);
   await f.advance(1); assert.equal(f.calls.length, before + 1);
+  f.observer.stop();
+});
+
+
+test('inactive surfaces clear their warning and reentry re-reports state without periodic replay', async () => {
+  const f = fixture(async () => stale({ enabled: false, indexing: false, failed: false }));
+  await flush(); const initial = f.inactive();
+  assert.deepEqual(f.states, ['unavailable']);
+  await f.observer.check(); assert.equal(f.inactive(), initial); assert.deepEqual(f.states, ['unavailable']);
+  f.setEnabled(false); await f.observer.check();
+  assert.equal(f.inactive(), initial + 1); assert.deepEqual(f.states, ['unavailable'], 'suspension does not claim readiness');
+  const reads = f.calls.length; await f.advance(30_000); assert.equal(f.calls.length, reads);
+  f.setEnabled(true); await f.observer.check(); assert.deepEqual(f.states, ['unavailable', 'unavailable'], 'same failure is visible when search is used again');
   f.observer.stop();
 });

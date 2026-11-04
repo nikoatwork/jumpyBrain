@@ -20,6 +20,7 @@ export function installSearchMaintenance(options: {
   read(signal: AbortSignal): Promise<SearchMaintenancePacket>;
   onFresh(): void;
   onPacket?(packet?: SearchMaintenancePacket): void;
+  onInactive?(): void;
   onState(state: SearchMaintenanceState): void;
 }) {
   const { document, window } = options;
@@ -39,11 +40,16 @@ export function installSearchMaintenance(options: {
     if (timer !== undefined) window.clearTimeout(timer);
     timer = undefined;
   }
-  function suspend() {
+  function cancelRead() {
     clearTimer();
     const pending = active;
     active = undefined;
     pending?.controller.abort();
+  }
+  function suspend() {
+    cancelRead();
+    previousState = undefined;
+    options.onInactive?.();
   }
   function emit(state: SearchMaintenanceState) {
     if (previousState !== state) {
@@ -67,12 +73,13 @@ export function installSearchMaintenance(options: {
     }
     const scope = options.scope();
     if (active?.scope === scope) return active.promise;
-    suspend();
+    cancelRead();
     if (observedScope !== scope) {
       observedScope = scope;
       generation = undefined;
       needsFresh = false;
       previousState = undefined;
+      options.onInactive?.();
       options.onPacket?.();
     }
     const controller = new AbortController();
