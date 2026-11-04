@@ -462,3 +462,11 @@ editor fences document/epoch and never treats a notice as canonical body/save
 state. The generation observer uses its existing active/terminal identity checks
 and deduplication. An ordinary presence disappearance still cannot establish an
 outcome, and a diagnostic status request is not needed to reveal lease expiry.
+
+Loaded-note guidance and formatting reuse the editor's actual note lock, including
+hosted reader roles and blocked/unopened live sessions. A known writer retains
+private editing affordances during a temporary reconnect. Copy/search/navigation
+remain available to readers. New-note errors distinguish an authenticated 403
+(write access needed) from 401 (access key needed), without caching a global role
+or changing server authorization. `scripts/ux-readonly-affordances-smoke.mjs` and
+`scripts/ux-creation-permission-smoke.mjs` use actual disposable role credentials.
