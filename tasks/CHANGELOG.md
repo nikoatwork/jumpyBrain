@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Honest editing availability
+
+- Live capability failures preserve loaded saved notes with a safe editing retry; clean navigation remains available, and accessible connection status matches visible feedback. [Verification and rejected-candidate correction](done/2026-11-04_tasks-ux-editor-availability.md).
+
 ## 2026-11-04 — Own-edit update feedback
 
 - Own title and Undo receipts stay quiet while other tabs and coalesced foreign changes retain external-update notices. [Reproduction and verification](done/2026-11-04_tasks-ux-own-edit-feedback.md).
