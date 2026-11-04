@@ -55,3 +55,11 @@ Live stream transition snapshots include the opaque actor key alongside stream
 ID, sequence and terminal state. Stream IDs are actor-scoped, so clients must
 not correlate another producer's finish/cancel using the stream ID alone. This
 adds correlation evidence without changing ownership or publishing semantics.
+
+Lease expiry and authorization retirement deliver public terminal stream notices
+alongside one canonical observation through the existing subscription callback.
+The optional notice list contains only actor/stream identity, sequence, state and
+reason. A batch does not republish Markdown or duplicate its full source for
+each stream. Single RPC snapshots retain their existing `stream` field. The
+transport chooses metadata framing; application publication/history policy is
+unchanged.

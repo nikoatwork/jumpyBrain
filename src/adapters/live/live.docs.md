@@ -18,3 +18,11 @@ This adapter does not parse Markdown, publish files, choose conflict policy, own
 Incoming queued bytes are bounded independently from frame size (6 MiB per connection, 32 MiB aggregate by default), with at most 32 pending requests per connection. Outgoing buffered bytes are limited to6 MiB per connection. Resource gauges expose connection and queued byte counts. A write that would exceed the default serialized snapshot budget is rejected before publication by the hub.
 
 When a fresh credential check detects revocation or a writer downgrade, the adapter closes that connection and asks the hub to retire that principal's streams. A normal network disconnect preserves streams only within the hub's bounded inactivity lease. The CLI and native adapters must keep stdin/producer lifetimes tied to transport and heartbeat failures; socket closure alone is not cancellation.
+
+An observed lease expiry or principal retirement sends the ordinary document
+snapshot once, followed by small `{event:"stream",documentId,epoch,saved,stream}`
+notices to that document's authenticated subscribers. The stream descriptor is
+public identity/state only, never source, offsets or private drafts. Multiple
+retirements use multiple bounded metadata frames, not repeated whole-note
+snapshots. Existing frame, outgoing-buffer and subscription authorization
+budgets remain in force. Older clients may ignore this additive event.

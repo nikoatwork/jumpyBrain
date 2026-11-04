@@ -1044,3 +1044,11 @@ principal/client actor key used for live operation identity. Correlate it with
 producers. Older hosts may omit the actor; clients must not infer an owner or
 completion from presence disappearing. This additive correlation field does not
 change authentication, stream ownership or canonical publication.
+
+Subscribers may receive a metadata-only stream retirement event:
+`{event:"stream",documentId,epoch,saved,stream:{actor,streamId,sequence,state,reason}}`.
+It reports confirmed lease expiry or authorization retirement for a subscribed
+note. It is not a document snapshot and must never hydrate body/title/hash or
+mark a private draft saved. A retirement batch sends the canonical document once
+plus bounded descriptors; normal RPC `stream` snapshots remain compatible.
+Older clients can ignore the additive event and inspect stream status normally.

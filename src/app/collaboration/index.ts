@@ -94,11 +94,20 @@ export interface CollaborationSnapshot {
   };
   recoveryDiscovery?: "incomplete";
 }
+type StreamNotice = NonNullable<CollaborationSnapshot["stream"]>;
+type SnapshotListener = (snapshot: CollaborationSnapshot, streams?: readonly StreamNotice[]) => void;
+function publicStream(stream: StreamNotice): StreamNotice {
+  return {
+    ...(stream.actor ? { actor: stream.actor } : {}), streamId: stream.streamId,
+    sequence: stream.sequence, state: stream.state,
+    ...(stream.reason ? { reason: stream.reason } : {}),
+  };
+}
 interface Session {
   documentId: string;
   base: MemoryDocumentReadResult;
   model: SourceModel;
-  listeners: Set<(snapshot: CollaborationSnapshot) => void>;
+  listeners: Set<SnapshotListener>;
   presence: Map<string, Presence>;
   connections: Map<string, { count:number; principalId:string; role:CollaborationPrincipal["role"] }>;
   accessedAt: number;
@@ -311,19 +320,14 @@ export class CollaborationHub {
     session: Session,
     operation?: SourceOperation,
     stream?: CollaborationSnapshot["stream"],
+    streams?: readonly StreamNotice[],
   ) {
     const snapshot = this.snapshot(session, operation);
-    if (stream)
-      snapshot.stream = {
-        ...(stream.actor ? { actor: stream.actor } : {}),
-        streamId: stream.streamId,
-        sequence: stream.sequence,
-        state: stream.state,
-        ...(stream.reason ? { reason: stream.reason } : {}),
-      };
+    if (stream) snapshot.stream = publicStream(stream);
+    const notices = streams?.map(publicStream);
     for (const listener of session.listeners) {
       try {
-        listener(snapshot);
+        listener(snapshot, notices);
       } catch {
         /* a transport cannot break publication */
       }
@@ -519,7 +523,7 @@ export class CollaborationHub {
     documentId: string,
     principal: CollaborationPrincipal,
     params: Record<string, unknown>,
-    listener: (snapshot: CollaborationSnapshot) => void,
+    listener: SnapshotListener,
   ) {
     return this.serialize(async () => {
       const session = await this.session(validId(documentId));
@@ -528,7 +532,7 @@ export class CollaborationHub {
       const actor = this.actor(principal, params);
       const connection = session.connections.get(actor) ?? {count:0,principalId:principal.id,role:principal.role};
       connection.count++; connection.role = principal.role; session.connections.set(actor,connection);
-      const publish = (snapshot:CollaborationSnapshot) => listener(snapshot);
+      const publish: SnapshotListener = (snapshot, streams) => listener(snapshot, streams);
       session.listeners.add(publish);
       this.syncActiveUndoActors(session);
       this.emit(session);
@@ -550,7 +554,7 @@ export class CollaborationHub {
   }
   subscribe(
     documentId: string,
-    listener: (snapshot: CollaborationSnapshot) => void,
+    listener: SnapshotListener,
   ) {
     const session = this.sessions.get(validId(documentId));
     if (!session) fail("document_not_open");
@@ -705,30 +709,30 @@ export class CollaborationHub {
     for (const session of this.sessions.values()) this.syncActiveUndoActors(session);
   }
   private expireStreams(session: Session) {
-    let expired = false;
+    const expired: StreamNotice[] = [];
     for (const [key, stream] of session.model.streams) {
       const last = session.streamActivity.get(key);
       if (
         last === undefined ||
         Date.now() - last >= (this.options.streamLeaseMs ?? 60_000)
       ) {
-        session.model.cancelStream(
+        expired.push(session.model.cancelStream(
           stream.actor,
           stream.streamId,
           "lease_expired",
-        );
+        ));
         session.streamActivity.delete(key);
-        expired = true;
       }
     }
     this.syncActiveUndoActors(session);
-    if (expired) this.emit(session);
+    if (expired.length) this.emit(session, undefined, undefined, expired);
   }
   async revokePrincipal(principalId: string) {
     if (this.closed) return;
     await this.serialize(async () => {
       for (const session of this.sessions.values()) {
         let revoked = false;
+        const streams: StreamNotice[] = [];
         for (const [actor,connection] of session.connections)
           if (connection.principalId === principalId) {session.connections.delete(actor);revoked = true;}
         for (const [actor, presence] of session.presence)
@@ -744,17 +748,17 @@ export class CollaborationHub {
             continue;
           }
           if (Array.isArray(owner) && owner[0] === principalId) {
-            session.model.cancelStream(
+            streams.push(session.model.cancelStream(
               stream.actor,
               stream.streamId,
               "authorization_revoked",
-            );
+            ));
             session.streamActivity.delete(key);
             revoked = true;
           }
         }
         this.syncActiveUndoActors(session);
-        if (revoked) this.emit(session);
+        if (revoked) this.emit(session, undefined, undefined, streams);
       }
     });
   }

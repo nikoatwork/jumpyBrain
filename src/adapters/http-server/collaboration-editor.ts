@@ -1,6 +1,6 @@
 import {composeCausalSourceHistory} from "../../core/collaboration/model.js";
 import { applySourceSplices, composeSourceSplices, rebaseSourcePair, transformSourcePosition, type SourceSplice } from "../../core/collaboration/source.js";
-import { createCollaborationClient, CollaborationError, validSnapshot, type CollaborationPrincipal, type CollaborationSnapshot, type CollaborationHistory } from "./collaboration-client.js";
+import { createCollaborationClient, CollaborationError, validSnapshot, type CollaborationPrincipal, type CollaborationSnapshot, type CollaborationHistory, type CollaborationStreamSnapshot } from "./collaboration-client.js";
 import { archiveCollaborationDraft, collaborationClientId, createCollaborationDraftStore, type CollaborationDraft, type CollaborationDraftStore } from "./collaboration-drafts.js";
 export interface SourceIntent { before:string;after:string;operations:SourceSplice[];reason?:string }
 interface EditorBinding {
@@ -34,7 +34,7 @@ interface Options {
   onState?: (state: CollaborationEditorState) => void;
   onRecovery?: (code: string) => void;
   onSnapshot?: (snapshot: CollaborationSnapshot, view: { body: string; pending: boolean; remote: boolean }) => void;
-  onStream?: (snapshot: CollaborationSnapshot) => void;
+  onStream?: (snapshot: CollaborationStreamSnapshot) => void;
 }
 export function createCollaborationEditor(options: Options) {
   const clientId = options.clientId ?? collaborationClientId(options.scope), store = options.drafts ?? createCollaborationDraftStore();
@@ -319,6 +319,9 @@ export function createCollaborationEditor(options: Options) {
       else { opened = false; generation++; persist(); notify(); }
     },
     onSnapshot: receiveSnapshot,
+    onStream(snapshot) {
+      if (!disposed && opened && snapshot.documentId === options.documentId && snapshot.epoch === baseline?.epoch) options.onStream?.(snapshot);
+    },
   });
   function receiveSnapshot(snapshot: CollaborationSnapshot) {
       if (disposed || !opened || snapshot.documentId !== options.documentId) return;

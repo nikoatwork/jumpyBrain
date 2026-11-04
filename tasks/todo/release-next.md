@@ -1,5 +1,7 @@
 # Changes
 
+- Abandoned generation now reports its confirmed interruption after lease expiry without requiring a status lookup; already saved output stays intact.
+
 - Escape closes the focused formatting controls even while the editor selection remains highlighted.
 
 - Search warnings stay with Search/graph and no longer obscure later note confirmations; uncertain freshness no longer claims all search is unavailable.

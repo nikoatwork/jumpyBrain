@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Abandoned producer feedback
+
+- Confirmed lease expiry/revocation reaches subscribed editors without a diagnostic lookup; metadata-only notices preserve scoped identity and avoid repeating whole notes for retirement batches. [Default-lease reproduction, verification and limits](done/2026-11-04_tasks-ux-generation-interruption.md).
+
 ## 2026-11-04 — UX verification alignment
 
 - Writing/board probes now wait for live confirmation, fault actual source edits and recover through reviewed publication. Platform expectations and narrow generation-feedback checks are explicit. [Verification and limits](done/2026-11-04_tasks-ux-validation-harness.md).
