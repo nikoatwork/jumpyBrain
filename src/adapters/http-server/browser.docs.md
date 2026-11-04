@@ -455,3 +455,10 @@ let that passive hint intercept toolbar, search or find Escape. Formatting
 controls retain their own close/focus-return behavior; editor Escape still
 hides the hint. `scripts/ux-escape-scope-smoke.mjs` exercises both scopes and
 unchanged source at desktop/mobile widths.
+
+Confirmed abandoned/revoked producer outcomes also arrive as scoped metadata-only
+stream notices. The live supervisor accepts them only after authentication; the
+editor fences document/epoch and never treats a notice as canonical body/save
+state. The generation observer uses its existing active/terminal identity checks
+and deduplication. An ordinary presence disappearance still cannot establish an
+outcome, and a diagnostic status request is not needed to reveal lease expiry.

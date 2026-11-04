@@ -12,6 +12,7 @@ export interface CollaborationHistory {
   documentId: string; epoch: string; fromRevision: number; toRevision: number;
   operations: { revision: number; actor: string; operationId: string; inverseOf?:{actor:string;operationId:string;revision:number}; splices: { start:number; deleteCount:number; insert:string; ambiguous?:true }[] }[];
 }
+export type CollaborationStreamSnapshot = Pick<CollaborationSnapshot, "documentId" | "epoch" | "saved" | "stream">;
 export type CollaborationConnectionState = "connecting" | "ready" | "offline" | "blocked" | "closed";
 export interface CollaborationPrincipal { id: string; name?: string; role: string }
 export class CollaborationError extends Error {
@@ -23,8 +24,9 @@ interface ClientOptions {
   connectionContext?: () => { tabId?: string; generation?: number };
   onState?: (state: CollaborationConnectionState, principal?: CollaborationPrincipal, error?: CollaborationError) => void;
   onSnapshot?: (snapshot: CollaborationSnapshot) => void;
+  onStream?: (snapshot: CollaborationStreamSnapshot) => void;
 }
-interface Listener { onState?: ClientOptions["onState"]; onSnapshot?: ClientOptions["onSnapshot"] }
+interface Listener { onState?: ClientOptions["onState"]; onSnapshot?: ClientOptions["onSnapshot"]; onStream?: ClientOptions["onStream"] }
 const supervisors = new Map<string, ReturnType<typeof createSupervisor>>();
 function createSupervisor(options: ClientOptions) {
   const listeners = new Set<Listener>();
@@ -76,6 +78,8 @@ function createSupervisor(options: ClientOptions) {
           else request.reject(new CollaborationError(String(message.error?.code ?? "request_failed"), String(message.error?.message ?? "The backend rejected this request.")));
         } else if (state === "ready" && message.event === "document" && validSnapshot(message.snapshot) && message.documentId === message.snapshot.documentId) {
           for (const listener of listeners) listener.onSnapshot?.(message.snapshot);
+        } else if (state === "ready" && message.event === "stream" && typeof message.documentId === "string" && typeof message.epoch === "string" && typeof message.saved === "boolean") {
+          for (const listener of listeners) listener.onStream?.(message);
         }
       } catch { currentSocket.close(1002); }
     };
@@ -103,7 +107,7 @@ export function createCollaborationClient(options: ClientOptions) {
   const key = JSON.stringify([options.url, options.scope, options.token ?? "", options.expectedBrainId, context?.tabId, context?.generation]);
   let supervisor = supervisors.get(key);
   if (!supervisor) { supervisor = createSupervisor(options); supervisors.set(key, supervisor); }
-  const listener = { onState: options.onState, onSnapshot: options.onSnapshot }; supervisor.add(listener);
+  const listener = { onState: options.onState, onSnapshot: options.onSnapshot, onStream: options.onStream }; supervisor.add(listener);
   let disposed = false;
   return {
     connect: () => { if (!disposed) supervisor!.connect(); },

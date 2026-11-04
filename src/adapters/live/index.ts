@@ -5,7 +5,6 @@ import { CollaborationError } from "../../core/collaboration/index.js";
 import type {
   CollaborationHub,
   CollaborationPrincipal,
-  CollaborationSnapshot,
 } from "../../app/collaboration/index.js";
 
 export interface LiveServerOptions {
@@ -345,7 +344,7 @@ export function createLiveServer(options: LiveServerOptions) {
             params.documentId,
             current,
             params,
-            (snapshot: CollaborationSnapshot) =>
+            (snapshot, streams) => {
               send(
                 {
                   event: "document",
@@ -353,7 +352,11 @@ export function createLiveServer(options: LiveServerOptions) {
                   snapshot,
                 },
                 true,
-              ),
+              );
+              // Expiring/revoking several streams still sends the source once.
+              // Retirement evidence uses small, scoped metadata-only frames.
+              for (const stream of streams ?? []) send({ event: "stream", documentId: snapshot.documentId, epoch: snapshot.epoch, saved: snapshot.saved, stream }, true);
+            },
           );
           if (finished) {
             opened.dispose();
