@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Scoped Escape handling
+
+- A preserved editor selection no longer lets the attribution hint swallow Escape from formatting/search controls; editor dismissal and composition ownership remain intact. [Reproduction and verification](done/2026-11-04_tasks-ux-scoped-escape.md).
+
 ## 2026-11-04 — Search warning scope
 
 - Inactive search warnings no longer obscure note confirmations; reentry reports current uncertainty while real save errors retain priority. [Verification and limits](done/2026-11-04_tasks-ux-search-warning-scope.md).
