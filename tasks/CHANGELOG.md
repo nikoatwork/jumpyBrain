@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Retained-review acknowledgment
+
+- Explicit Keep current quiets the compared record in this tab while keeping earlier versions accessible; new records and failed/stale comparisons retain guidance. [Verification and limits](done/2026-11-04_tasks-ux-retained-review.md).
+
 ## 2026-11-04 — Honest editing availability
 
 - Live capability failures preserve loaded saved notes with a safe editing retry; clean navigation remains available, and accessible connection status matches visible feedback. [Verification and rejected-candidate correction](done/2026-11-04_tasks-ux-editor-availability.md).

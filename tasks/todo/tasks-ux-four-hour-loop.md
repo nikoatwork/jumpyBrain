@@ -28,3 +28,9 @@ Hypothesis before editing: the shared `showNote` catch treats `/capabilities` 40
 Iteration 1 retained: own rename reproduced before the fix; 14 browser checkpoints, 33 focused tests and desktop/mobile external-update neighbors passed. [Archived increment](../done/2026-11-04_tasks-ux-own-edit-feedback.md). No native score assigned.
 
 Iteration 2 retained after one rejected candidate: failed-save state blocked clean Home navigation. Corrected to keep confirmed read status; seven failure/retry/Home/Back scenarios passed with 29 focused tests, fresh-note and 11 retained-version neighbor scenarios. [Archived increment](../done/2026-11-04_tasks-ux-editor-availability.md). This is error honesty/recovery, not a VPS transport repair.
+
+### Iteration 3: acknowledge a retained comparison without losing access
+
+Hypothesis before editing: “Keep current note” closes the dialog but leaves identical retention guidance active indefinitely. Expected gain: after a verified comparison and explicit Keep current, quiet this exact retained-record notice in the current tab/scope while leaving a Retained versions action. New retained records, failed/stale comparisons and incomplete discovery must not be silently acknowledged. Do not delete records or persist note contents/preferences. Clear bounded acknowledgments on scope change; Escape alone is not a review decision.
+
+Iteration 3 retained: explicit verified Keep current quiets its exact record, retaining comparison access. Ten desktop/mobile acknowledgment scenarios, 11 existing recovery scenarios and four comparison tests passed against a source-matched temporary production build. [Archived increment](../done/2026-11-04_tasks-ux-retained-review.md). Native scoring unobserved; acknowledgments reset on reload.

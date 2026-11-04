@@ -81,21 +81,31 @@ export function installRetainedVersions(options: Options) {
   const element = <T extends HTMLElement>(id: string) => dialog.querySelector<T>("#" + id)!;
   const selected = element<HTMLSelectElement>("retained-version-choice"), retainedText = element<HTMLTextAreaElement>("retained-version-text"), currentText = element<HTMLTextAreaElement>("retained-current-text"), message = element<HTMLParagraphElement>("retained-version-message"), restore = element<HTMLButtonElement>("retained-restore"), refreshButton = element<HTMLButtonElement>("retained-refresh");
   let bound: RetainedVersionsEditor | null = null, boundScope = "", sequence = 0, loading = false, mutating = false, comparisonHash = "";
+  let acknowledgementScope = options.scope(), boundRecoveryKey = "";
+  const acknowledged = new Set<string>();
+  const recoveryKey = (scope: string, recovery: Recovery) => JSON.stringify([scope, recovery.recoveryId, recovery.baseContentHash, recovery.externalContentHash]);
   let copies: { base: RetainedVersion; external: RetainedVersion } | undefined;
   const text = (copy: RetainedVersion) => copy.title + "\n\n" + copy.body;
   const valid = (editor = bound, scope = boundScope) => Boolean(editor && options.editor() === editor && editor.state.loaded && !editor.state.cancelled && options.scope() === scope);
   const writable = () => valid() && options.writable() && bound?.state.liveCanWrite !== false && Boolean(bound?.restoreRetainedVersion);
   function close(force = false) {
     if (mutating && !force) return;
-    sequence++; loading = false; comparisonHash = ""; copies = undefined; bound = null; boundScope = "";
+    sequence++; loading = false; comparisonHash = ""; copies = undefined; bound = null; boundScope = ""; boundRecoveryKey = "";
     retainedText.value = currentText.value = message.textContent = comparisonText.textContent = ""; comparison.open = false;
     if (dialog.open) dialog.close();
   }
   function refresh() {
     const editor = options.editor(), recovery = editor?.getRetainedRecovery?.(), incomplete = editor?.getRetainedDiscovery?.() === "incomplete";
+    const scope = options.scope();
+    if (scope !== acknowledgementScope) { acknowledged.clear(); acknowledgementScope = scope; }
+    const reviewed = Boolean(recovery && !incomplete && acknowledged.has(recoveryKey(scope, recovery)));
     banner.hidden = !editor?.state.loaded || editor.state.cancelled || (!recovery && !incomplete);
     banner.style.display = banner.hidden ? "none" : "flex";
+    notice.hidden = reviewed;
+    if (reviewed) { banner.removeAttribute("role"); banner.removeAttribute("aria-live"); }
+    else { banner.setAttribute("role", "status"); banner.setAttribute("aria-live", "polite"); }
     notice.textContent = incomplete ? "Some retained versions could not be verified. Retained copies remain available to the brain operator." : "An external edit was retained. Compare versions if needed.";
+    review.textContent = reviewed ? "Retained versions" : "Review retained version";
     review.hidden = !recovery; review.disabled = Boolean(editor?.state.navigationPending) || !editor?.readRetainedVersion;
     if (dialog.open && !valid()) close(true);
     restore.hidden = !writable(); restore.disabled = loading || mutating || !comparisonHash || !copies || !writable();
@@ -106,6 +116,7 @@ export function installRetainedVersions(options: Options) {
     const editor = options.editor(), recovery = editor?.getRetainedRecovery?.();
     if (!editor?.state.loaded || editor.state.cancelled || !recovery || !editor.readRetainedVersion) return;
     close(); bound = editor; boundScope = options.scope(); const scope = boundScope, token = ++sequence;
+    boundRecoveryKey = recoveryKey(scope, recovery);
     loading = true; selected.value = "base"; message.textContent = "Loading retained text and the current saved note…";
     dialog.showModal(); refresh();
     try {
@@ -152,9 +163,19 @@ export function installRetainedVersions(options: Options) {
       if (valid(editor, scope)) message.textContent = "Could not preserve or confirm this restore. Keep this window open and copy your draft. Check storage access or reconnect, then refresh the comparison before trying again.";
     } finally { mutating = false; if (!valid(editor, scope)) close(); refresh(); }
   }
+  function keepCurrent() {
+    // A successful comparison plus an explicit choice quiets only this exact
+    // record in this tab/scope. Escape, failed reads and stale comparisons do
+    // not acknowledge it; newer records retain their own notice and access.
+    if (!loading && !mutating && copies && comparisonHash && valid() && boundRecoveryKey && bound?.getRetainedDiscovery?.() !== "incomplete") {
+      acknowledged.add(boundRecoveryKey);
+      while (acknowledged.size > 64) acknowledged.delete(acknowledged.values().next().value!);
+    }
+    close(); refresh();
+  }
   review.addEventListener("click", open); selected.addEventListener("change", showSelected);
   element("retained-copy").addEventListener("click", () => copy(false)); element("retained-copy-current").addEventListener("click", () => copy(true));
-  refreshButton.addEventListener("click", open); restore.addEventListener("click", restoreReviewed); element("retained-close").addEventListener("click", () => close());
+  refreshButton.addEventListener("click", open); restore.addEventListener("click", restoreReviewed); element("retained-close").addEventListener("click", keepCurrent);
   dialog.addEventListener("cancel", (event) => { event.preventDefault(); close(); });
   return { close, open, refresh, isOpen: () => dialog.open, isBusy: () => loading || mutating };
 }
