@@ -50,3 +50,25 @@ Engine preparation: existing global QMD is 2.5.3; required 2.8.3 was provisioned
 Broad checks exposed an invalid `--depth sideways` reporting QMD setup failure first when the engine is missing. Expected gain: identify the invalid user option before engine work or remote credential lookup. Protect normal/compact local/remote retrieval and recipe routing. Pre-fix deterministic reproduction reached `localMemory.searchMemory` for invalid input instead of rejecting it; the transport trap failed as expected. This is a validation-order fix, not a retrieval ranking change.
 
 Iteration 5 retained: invalid retrieval depth now names allowed values before engine or remote credential access. The no-transport regression covers eight lanes; six no-engine and 25 pinned-engine neighboring checks passed. [Archived increment](../done/2026-11-04_tasks-ux-retrieval-option-errors.md). No retrieval-policy/ranking or canonical behavior changed.
+
+### Broader mission probes on `c63cbad`
+
+Pinned-engine full suite started against a stable built artifact (no overlapping rebuild). The existing real note-lifecycle browser journey passed capture/title/body, immediate search, graph, guarded two-tab recovery, 390/320 layouts, delete cancel/apply, backlinks and index refresh. This is neighboring browser evidence, not a native score or evidence of new improvement. Writing-workspace and board journeys are running next; pristine updater testing separately checks whether the Linux failure predates this loop.
+
+### Verification harness correction
+
+The broad writing smoke checked “Saved” as soon as HTTP content became visible, before live editing opened. It also injected HTTP PUT failures although source edits now use WS RPC. The board smoke similarly failed its unsaved-draft assertion because its HTTP fault never reached a live edit. These are invalid/premature probes, not observed product loss. Update the helpers to wait for actual confirmed live state, inject failure on the shipped live transport, and recover through visible review UI; retain original failures in the log. Separately, pristine `6d06cb9` reproduces the updater test's macOS-only lock expectation on Linux; assert the actual platform refusal there instead of claiming the lock path was exercised.
+
+### Iteration 6: scoped Escape ownership
+
+The corrected workspace probe found a real defect: Escape on a focused Bold button was already prevented in document capture, with no active dialog/menu. The visible selection-attribution hint consumes Escape globally, even when focus has moved to toolbar/search controls while the editor selection is intentionally preserved. Expected gain: attribution owns Escape only inside the editor, allowing focused formatting/find/search controls to handle their own Escape. Preserve editor-side hint dismissal, IME composition, selection, focus return and Markdown bytes. A targeted production-browser reproduction will separate this from the harness corrections.
+
+Pinned broad run finished: 1,915 tests, 1,897 passed, 17 skipped, one known pre-loop updater platform expectation failed (the worker had loaded the old assertion before its correction). The corrected updater file separately passed 28 tests with four Mac-only skips. All engine-dependent failures disappeared with the pinned isolated engine. No blanket green-suite claim yet; final snapshot will be checked after retained fixes.
+
+Scoped Escape candidate passed six focused browser cases at 1280/390 and the contextual-attribution journey (selection dismissal, saved/private scope, read-only/unknown attribution, responsive themes, Settings identity and actual CLI writes). The larger writing journey now reaches its later copy-feedback probe; that outcome remains under investigation. Candidate artifacts are source-matched temporary builds until the main pinned run finishes.
+
+### Iteration 7: search-warning scope and certainty
+
+The writing copy probe's clipboard readback passed, but its confirmation was blocked by a persistent warning from `search-maintenance` after Search had closed. Observed state: live saving with no editor error, toast “Search is unavailable. Open search for recovery.” Host auto-index is deliberately disabled in that fixture; unavailable freshness does not prove search itself cannot answer. Expected gain: suspend clears only this surface's warning/indicator, reentry rechecks/reports the state, and wording preserves uncertainty. Protect genuine save errors, stale result visibility, read cancellation, same-state reentry and freshness recovery. Do not alter global notification priority or repair indexes automatically.
+
+Iteration 7 retained: six targeted warning-scope cases and 36 related tests passed. After fixing an invalid dual-hold ordering in the copy test fixture, the full writing journey also passed on the combined candidate. Only the owned hung fixture process was stopped; no shared service was touched. [Archived search increment](../done/2026-11-04_tasks-ux-search-warning-scope.md).

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Search warning scope
+
+- Inactive search warnings no longer obscure note confirmations; reentry reports current uncertainty while real save errors retain priority. [Verification and limits](done/2026-11-04_tasks-ux-search-warning-scope.md).
+
 ## 2026-11-04 — Retrieval option error precedence
 
 - Invalid retrieval depth explains allowed choices before engine work or remote credentials, across rich/compact search and recall. [Regression and valid-path verification](done/2026-11-04_tasks-ux-retrieval-option-errors.md).

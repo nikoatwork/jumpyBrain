@@ -1,5 +1,7 @@
 # Changes
 
+- Search warnings stay with Search/graph and no longer obscure later note confirmations; uncertain freshness no longer claims all search is unavailable.
+
 - Invalid search/recall depth options explain the allowed choices before engine setup or remote connection errors.
 
 - A connected note quietly distinguishes confirmed generation finish, stop and interruption, without treating lost presence as completion.
