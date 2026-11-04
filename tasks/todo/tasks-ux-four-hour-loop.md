@@ -166,3 +166,47 @@ recovery follows explicit note locking rather than operational write readiness.
 Four role/capability cases, full writer publication/workspace, ten retained-review
 checks and 132 focused tests pass, with unchanged package ceilings. [Archived
 comparison, correction and limits](../done/2026-11-04_tasks-ux-reader-recovery.md).
+
+Next stability tranche: a new 90-minute frozen-runtime run on the retained
+candidate, keeping 35-second idle intervals, accumulated contributions and
+explicit reconnect/reload observation. Add visible epoch/revision to receipts;
+do not infer history-window rotation from elapsed time alone. The opt-in runner
+accepts up to 90 minutes; earlier inputs remain preserved. A fresh broad suite
+checks the read-only recovery correction after its rejected-candidate fix.
+
+Protected-identity probe: use two actual same-origin tabs with a failed private
+writer draft, then request a reader identity through the visible connection UI.
+The same-tab change must be guarded; a clean second tab's identity change must
+retain/copy the first draft, prevent publication, explicitly reopen saved content
+as a reader, preserve the old identity's recovery record, and leave canonical
+Markdown unchanged. Check 1280/390 before considering any source change.
+
+History/recovery boundary probe: run the existing default CLI actor-churn proof
+and broader production collaboration editor journey against the retained build.
+Require expired Undo to be explicit, no canonical mutation on expiry, fresh
+human writing to remain available, and recent actor Undo/recovery isolation to
+preserve other contributions. This probes a different boundary from the timed
+stable-actor soak; no source modification is planned without a failed checkpoint.
+
+Startup boundary probe: source inspection confirms `attachLiveEditor` sets its
+lock and blocks legacy autosave synchronously before awaiting capabilities.
+Verify that actual delayed HTTP capabilities keep body/title/guidance/format
+locked, attempted typing sends no mutation even past the old debounce interval,
+then confirmed writer input saves exactly once over WS. No startup defect is
+asserted from the earlier hypothesis; use actual browser evidence at 1280/390.
+
+### Iteration 11: latest peer feedback owns its quiet interval
+
+Hypothesis before edits: each remote snapshot schedules an independent four-
+second clear. A peer edit arriving two seconds after another can lose its notice
+when the earlier timer fires. Require the latest peer update's intended interval
+without extending it indefinitely after activity stops; preserve own-edit quiet,
+canonical source, focus and note-scope cancellation. Probe actual peer edits at
+1280/390 before changing timer ownership. The 90-minute earlier artifact remains
+immutable and cannot establish any subsequent timer correction.
+
+Iteration 11 retained: the earlier timer failure reproduced, then all 18 peer/
+own-feedback browser checkpoints, 117 focused tests and eight generation
+feedback neighbors passed on `a29d2f6b48755f42`. [Archived timing correction
+and limits](../done/2026-11-04_tasks-ux-peer-notice-timing.md). Final broad checks
+must cover this later snapshot; earlier frozen results are not relabeled.

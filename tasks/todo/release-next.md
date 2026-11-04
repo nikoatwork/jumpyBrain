@@ -16,7 +16,7 @@
 
 - If live editing cannot connect, loaded saved notes stay readable with a clear editing retry; connection status is consistent for screen readers.
 
-- Opening a note and saving your own title/history changes avoid false external-update notices; retained-version guidance invites comparison without implying text was removed.
+- Opening notes and saving your own changes avoid false external-update notices; rapid peer edits keep their latest notice visible, and retained-version guidance invites comparison without implying text was removed.
 
 - Unsuccessful @ page linking dismisses when you resume typing; smaller checkboxes support Tab/Shift+Tab nesting and preserve child tasks.
 
