@@ -1,6 +1,6 @@
 # Daily-note evidence dates
 
-Status: complete, 2026-11-02. Focused owner for [feedback increment 4](../todo/tasks-feedback-independent-increments.md).
+Status: complete, 2026-11-02. Focused owner for [feedback increment 4](2026-11-04_tasks-feedback-independent-increments.md).
 
 ## Goal and priority
 
@@ -24,7 +24,7 @@ Fix the P1 correctness gap where explicit daily creation chooses a dated title b
 
 - `src/app/server-memory/daily-note.ts` and `server-memory.docs.md` — daily validation/allocation inside idempotent creation.
 - `test/server-daily-note.test.js`, `test/daily-notes-browser.test.js` — canonical HTTP creation and browser-local calendar selection.
-- `docs/memory-format.md`, `docs/shared-memory-protocol.md`, `src/adapters/http-server/browser.docs.md`, `tasks/todo/tasks-feedback-independent-increments.md`, `tasks/todo/release-next.md`, `tasks/CHANGELOG.md` — contract and delivery records.
+- `docs/memory-format.md`, `docs/shared-memory-protocol.md`, `src/adapters/http-server/browser.docs.md`, `tasks/done/2026-11-04_tasks-feedback-independent-increments.md`, `tasks/todo/release-next.md`, `tasks/CHANGELOG.md` — contract and delivery records.
 
 ## Verification and limits
 

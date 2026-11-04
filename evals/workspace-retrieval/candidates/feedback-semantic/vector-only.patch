@@ -1,0 +1,11 @@
+--- a/src/adapters/qmd/qmd-query.ts
++++ b/src/adapters/qmd/qmd-query.ts
+@@ -81,7 +81,7 @@
+   const constrained = hasQueryConstraints(query);
+   if (!options.readOnly && !options.dreamsOnly && options.semantic !== false && constrained) warn("query_constraints_lexical_only");
+   if (!options.readOnly && !options.dreamsOnly && options.semantic !== false && !constrained) try {
+-    const queryLines = [...lexQueries.slice(0, 8).map((lexQuery) => `lex: ${lexQuery}`), `vec: ${query}`];
++    const queryLines = [`vec: ${query}`];
+     const result = await runQmd(root, ["query", queryLines.join("\n"), "--json", "-n", String(limit), "--no-rerank", "-c", collection], options.model);
+     addRows(parseQmdJsonRows(result.stdout), 0.9);
+     successes++;

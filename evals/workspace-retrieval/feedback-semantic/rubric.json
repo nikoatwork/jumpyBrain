@@ -1,0 +1,499 @@
+[
+  {
+    "id": "ashcombe-natural-not",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed cause",
+        "alternatives": [
+          {
+            "file": "findings/ashcombe/queue-audit.md",
+            "required": [
+              "At Ashcombe, the sewing machine masked spoken names and the coat rack hid the bench entrance; three seated visitors missed a turn despite remaining in the building."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "accepted replacement",
+        "alternatives": [
+          {
+            "file": "decisions/ashcombe/queue.md",
+            "required": [
+              "Ashcombe gives each waiting visitor an amber card, displays the matching number at the bench, and waits for a visible acknowledgement before passing that turn."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/ashcombe/queue-audit.md",
+      "decisions/ashcombe/queue.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ashcombe-contraction",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "observed cause",
+        "alternatives": [
+          {
+            "file": "findings/ashcombe/queue-audit.md",
+            "required": [
+              "At Ashcombe, the sewing machine masked spoken names and the coat rack hid the bench entrance; three seated visitors missed a turn despite remaining in the building."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "accepted replacement",
+        "alternatives": [
+          {
+            "file": "decisions/ashcombe/queue.md",
+            "required": [
+              "Ashcombe gives each waiting visitor an amber card, displays the matching number at the bench, and waits for a visible acknowledgement before passing that turn."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/ashcombe/queue-audit.md",
+      "decisions/ashcombe/queue.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ashcombe-lowercase-hyphen",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "assessment and event boundary",
+        "alternatives": [
+          {
+            "file": "decisions/ashcombe/queue.md",
+            "required": [
+              "The walk-in trial covers small household repairs on Saturday mornings only; an amber card reserves an assessment turn, not a successful repair or a place at another event."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "reviewed current limits",
+        "alternatives": [
+          {
+            "file": "findings/ashcombe/trial.md",
+            "required": [
+              "The Ashcombe October check retained the Saturday walk-in assessment trial; it did not authorize weekday drop-offs or guarantee completed repairs."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/ashcombe/queue.md",
+      "findings/ashcombe/trial.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ashcombe-quoted-phrase",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "accepted replacement",
+        "alternatives": [
+          {
+            "file": "decisions/ashcombe/queue.md",
+            "required": [
+              "Ashcombe gives each waiting visitor an amber card, displays the matching number at the bench, and waits for a visible acknowledgement before passing that turn."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "assessment and event boundary",
+        "alternatives": [
+          {
+            "file": "decisions/ashcombe/queue.md",
+            "required": [
+              "The walk-in trial covers small household repairs on Saturday mornings only; an amber card reserves an assessment turn, not a successful repair or a place at another event."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/ashcombe/queue.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ternholt-exact-title",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "canonical release check",
+        "alternatives": [
+          {
+            "file": "notes/ternholt/release-checklist.md",
+            "required": [
+              "The Ternholt release check replays one acknowledged batch and one unacknowledged batch, then verifies that the shore ledger contains exactly one entry for each original key."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ternholt/release-checklist.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ashcombe-historical",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "September intention despite later edit",
+        "alternatives": [
+          {
+            "file": "notes/ashcombe/first-plan.md",
+            "required": [
+              "The September Ashcombe plan used spoken names alone and aimed to open on September 26; no numbered card or visible acknowledgement was planned."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ashcombe/first-plan.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ashcombe-warranty-unknown",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "unrecorded approver and unsigned status",
+        "alternatives": [
+          {
+            "file": "notes/ashcombe/warranty.md",
+            "required": [
+              "The Ashcombe records name no approver for the proposed thirty-day repair warranty; the poster remains an unsigned draft awaiting the service committee's decision."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ashcombe/warranty.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ternholt-camelcase",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "exact operation and acknowledgement boundary",
+        "alternatives": [
+          {
+            "file": "notes/ternholt/spool-flush.md",
+            "required": [
+              "In Ternholt, spoolFlush resends queued counter batches using the original batch key; only a matching shore acknowledgement removes a batch from local storage."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ternholt/spool-flush.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ternholt-ticket-id",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "exact ticket and fix boundary",
+        "alternatives": [
+          {
+            "file": "findings/ternholt/TRN-418.md",
+            "required": [
+              "TRN-418 in Ternholt traced duplicate totals to a retry that generated a new batch key; the accepted fix retains the original key until acknowledgement and does not reset the passenger counter."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/ternholt/TRN-418.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ternholt-literal-path",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "canonical release check",
+        "alternatives": [
+          {
+            "file": "notes/ternholt/release-checklist.md",
+            "required": [
+              "The Ternholt release check replays one acknowledged batch and one unacknowledged batch, then verifies that the shore ledger contains exactly one entry for each original key."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ternholt/release-checklist.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ternholt-minus-exclusion",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "retention within retry bound",
+        "alternatives": [
+          {
+            "file": "decisions/ternholt/retries.md",
+            "required": [
+              "Ternholt permits at most three resend attempts per queued batch in one connection window; an unacknowledged batch stays stored for a later window rather than being discarded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/ternholt/retries.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ternholt-uppercase-not",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "retention within retry bound",
+        "alternatives": [
+          {
+            "file": "decisions/ternholt/retries.md",
+            "required": [
+              "Ternholt permits at most three resend attempts per queued batch in one connection window; an unacknowledged batch stays stored for a later window rather than being discarded."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "decisions/ternholt/retries.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "dunmere-unconstrained-paraphrase",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "substantive barrier",
+        "alternatives": [
+          {
+            "file": "findings/dunmere/privacy.md",
+            "required": [
+              "Dunmere's interviews found that the public means-testing conversation deterred families from collecting schoolwear even when suitable sizes were available."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "accepted remedy with stock qualification",
+        "alternatives": [
+          {
+            "file": "decisions/dunmere/collection.md",
+            "required": [
+              "Dunmere now offers individual collection appointments without an income declaration; a requested size is held only after Priya confirms that a matching garment is actually in stock."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/dunmere/privacy.md",
+      "decisions/dunmere/collection.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "rookfen-unconstrained-paraphrase",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "physical contrast finding",
+        "alternatives": [
+          {
+            "file": "findings/rookfen/subtitle-test.md",
+            "required": [
+              "At Rookfen, white captions disappeared against luminous wardrobe panels; an opaque charcoal rectangle behind the lettering restored contrast during the rehearsal."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "accepted remedy and missing provision",
+        "alternatives": [
+          {
+            "file": "decisions/rookfen/projection.md",
+            "required": [
+              "Rookfen adopted the charcoal caption backing for licensed hall showings; this improves text contrast but supplies no audio description of visual action."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/rookfen/subtitle-test.md",
+      "decisions/rookfen/projection.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "dunmere-current-proposal",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "proposal remains unapproved",
+        "alternatives": [
+          {
+            "file": "notes/dunmere/extension.md",
+            "required": [
+              "The Dunmere home-delivery suggestion is unapproved as of October 26; confirmed individual collection appointments remain the accepted service, and an unfilled size request is still pending."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "actual stock condition",
+        "alternatives": [
+          {
+            "file": "decisions/dunmere/collection.md",
+            "required": [
+              "Dunmere now offers individual collection appointments without an income declaration; a requested size is held only after Priya confirms that a matching garment is actually in stock."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/dunmere/extension.md",
+      "decisions/dunmere/collection.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "rookfen-streaming-unknown",
+    "answerability": "bounded_unknown",
+    "units": [
+      {
+        "label": "bounded unknown feature rights",
+        "alternatives": [
+          {
+            "file": "notes/rookfen/premiere.md",
+            "required": [
+              "No streaming-rights approver for the Rookfen feature premiere is named in this workspace; the online announcement is a proposal awaiting written distributor permission."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "clip permission has narrower scope",
+        "alternatives": [
+          {
+            "file": "notes/rookfen/remote-demo.md",
+            "required": [
+              "The permission applies to that short clip and that private technical test only. It does not license the feature film for a public online premiere."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/rookfen/premiere.md",
+      "notes/rookfen/remote-demo.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ternholt-recovery-qualification",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "tested interruption and untested boundary",
+        "alternatives": [
+          {
+            "file": "findings/ternholt/power-cut.md",
+            "required": [
+              "The Ternholt power-cut trial recovered both persisted batches after reboot, but it did not test loss of power during the initial local write; durability at that earlier point remains unverified."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "exact operation and acknowledgement boundary",
+        "alternatives": [
+          {
+            "file": "notes/ternholt/spool-flush.md",
+            "required": [
+              "In Ternholt, spoolFlush resends queued counter batches using the original batch key; only a matching shore acknowledgement removes a batch from local storage."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "findings/ternholt/power-cut.md",
+      "notes/ternholt/spool-flush.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  },
+  {
+    "id": "ashcombe-natural-without",
+    "answerability": "answerable",
+    "units": [
+      {
+        "label": "unassessed outcome remains undecided",
+        "alternatives": [
+          {
+            "file": "notes/ashcombe/bench-check.md",
+            "required": [
+              "Ashcombe cannot promise a repair without a bench assessment; the queue volunteer may describe a turn as reserved but must leave the repair outcome undecided."
+            ]
+          }
+        ]
+      },
+      {
+        "label": "assessment and event boundary",
+        "alternatives": [
+          {
+            "file": "decisions/ashcombe/queue.md",
+            "required": [
+              "The walk-in trial covers small household repairs on Saturday mornings only; an amber card reserves an assessment turn, not a successful repair or a place at another event."
+            ]
+          }
+        ]
+      }
+    ],
+    "relevant": [
+      "notes/ashcombe/bench-check.md",
+      "decisions/ashcombe/queue.md"
+    ],
+    "interpretation": "Pre-output independent fixture author; exact clauses from the named source are required. Preserve scope, identifiers, evidence date and uncertainty. Mechanical span coverage is not answer accuracy."
+  }
+]

@@ -1,0 +1,2 @@
+# Preserve frozen unified-diff context prefixes on empty lines.
+*.patch whitespace=-blank-at-eol

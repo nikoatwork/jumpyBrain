@@ -1,0 +1,18 @@
+{
+  "baselineSourceSha256": "83b1573f0dd38988c64ec51fedc15bffaebc905978d130d905c81daa2916caeb",
+  "eligibilitySourceSha256": "fe0dc8235abdde0b74cfb40ffe00197ccd3e6a7782398b69677814ee87009399",
+  "vectorOnlySourceSha256": "1aa2f516c7c3803bb62cf8e3fccf5db58217ab315beebf5506bf6da1476d1f36",
+  "entries": [
+    {
+      "file": "eligibility.patch",
+      "bytes": 2215,
+      "sha256": "a962cecc540088a8010b71995ea8c81c17d96f5db8be68def8f7f3abbb0d41c6"
+    },
+    {
+      "file": "vector-only.patch",
+      "bytes": 750,
+      "sha256": "3d59d20cd07231e2748ad36b51d89e3a840d8e21eeef1c44c3267eca16b5e26f"
+    }
+  ],
+  "scope": "Exact pre-output candidate patches preserved for reproduction. Copies do not alter frozen policy, fixture, runtime or quality inputs."
+}

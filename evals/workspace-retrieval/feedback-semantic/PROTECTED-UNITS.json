@@ -1,0 +1,359 @@
+{
+  "policy": "Zero source-specific unit losses on any case; the explicitly protected cases additionally protect navigation, constraints, identifiers, dates and bounded unknowns. This policy is fixed before evaluation and cannot be relaxed after outputs.",
+  "units": [
+    {
+      "case": "ashcombe-natural-not",
+      "label": "observed cause",
+      "alternatives": [
+        {
+          "file": "findings/ashcombe/queue-audit.md",
+          "required": [
+            "At Ashcombe, the sewing machine masked spoken names and the coat rack hid the bench entrance; three seated visitors missed a turn despite remaining in the building."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-natural-not",
+      "label": "accepted replacement",
+      "alternatives": [
+        {
+          "file": "decisions/ashcombe/queue.md",
+          "required": [
+            "Ashcombe gives each waiting visitor an amber card, displays the matching number at the bench, and waits for a visible acknowledgement before passing that turn."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-contraction",
+      "label": "observed cause",
+      "alternatives": [
+        {
+          "file": "findings/ashcombe/queue-audit.md",
+          "required": [
+            "At Ashcombe, the sewing machine masked spoken names and the coat rack hid the bench entrance; three seated visitors missed a turn despite remaining in the building."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-contraction",
+      "label": "accepted replacement",
+      "alternatives": [
+        {
+          "file": "decisions/ashcombe/queue.md",
+          "required": [
+            "Ashcombe gives each waiting visitor an amber card, displays the matching number at the bench, and waits for a visible acknowledgement before passing that turn."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-lowercase-hyphen",
+      "label": "assessment and event boundary",
+      "alternatives": [
+        {
+          "file": "decisions/ashcombe/queue.md",
+          "required": [
+            "The walk-in trial covers small household repairs on Saturday mornings only; an amber card reserves an assessment turn, not a successful repair or a place at another event."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-lowercase-hyphen",
+      "label": "reviewed current limits",
+      "alternatives": [
+        {
+          "file": "findings/ashcombe/trial.md",
+          "required": [
+            "The Ashcombe October check retained the Saturday walk-in assessment trial; it did not authorize weekday drop-offs or guarantee completed repairs."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-quoted-phrase",
+      "label": "accepted replacement",
+      "alternatives": [
+        {
+          "file": "decisions/ashcombe/queue.md",
+          "required": [
+            "Ashcombe gives each waiting visitor an amber card, displays the matching number at the bench, and waits for a visible acknowledgement before passing that turn."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-quoted-phrase",
+      "label": "assessment and event boundary",
+      "alternatives": [
+        {
+          "file": "decisions/ashcombe/queue.md",
+          "required": [
+            "The walk-in trial covers small household repairs on Saturday mornings only; an amber card reserves an assessment turn, not a successful repair or a place at another event."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ternholt-exact-title",
+      "label": "canonical release check",
+      "alternatives": [
+        {
+          "file": "notes/ternholt/release-checklist.md",
+          "required": [
+            "The Ternholt release check replays one acknowledged batch and one unacknowledged batch, then verifies that the shore ledger contains exactly one entry for each original key."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-historical",
+      "label": "September intention despite later edit",
+      "alternatives": [
+        {
+          "file": "notes/ashcombe/first-plan.md",
+          "required": [
+            "The September Ashcombe plan used spoken names alone and aimed to open on September 26; no numbered card or visible acknowledgement was planned."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-warranty-unknown",
+      "label": "unrecorded approver and unsigned status",
+      "alternatives": [
+        {
+          "file": "notes/ashcombe/warranty.md",
+          "required": [
+            "The Ashcombe records name no approver for the proposed thirty-day repair warranty; the poster remains an unsigned draft awaiting the service committee's decision."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ternholt-camelcase",
+      "label": "exact operation and acknowledgement boundary",
+      "alternatives": [
+        {
+          "file": "notes/ternholt/spool-flush.md",
+          "required": [
+            "In Ternholt, spoolFlush resends queued counter batches using the original batch key; only a matching shore acknowledgement removes a batch from local storage."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ternholt-ticket-id",
+      "label": "exact ticket and fix boundary",
+      "alternatives": [
+        {
+          "file": "findings/ternholt/TRN-418.md",
+          "required": [
+            "TRN-418 in Ternholt traced duplicate totals to a retry that generated a new batch key; the accepted fix retains the original key until acknowledgement and does not reset the passenger counter."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ternholt-literal-path",
+      "label": "canonical release check",
+      "alternatives": [
+        {
+          "file": "notes/ternholt/release-checklist.md",
+          "required": [
+            "The Ternholt release check replays one acknowledged batch and one unacknowledged batch, then verifies that the shore ledger contains exactly one entry for each original key."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ternholt-minus-exclusion",
+      "label": "retention within retry bound",
+      "alternatives": [
+        {
+          "file": "decisions/ternholt/retries.md",
+          "required": [
+            "Ternholt permits at most three resend attempts per queued batch in one connection window; an unacknowledged batch stays stored for a later window rather than being discarded."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ternholt-uppercase-not",
+      "label": "retention within retry bound",
+      "alternatives": [
+        {
+          "file": "decisions/ternholt/retries.md",
+          "required": [
+            "Ternholt permits at most three resend attempts per queued batch in one connection window; an unacknowledged batch stays stored for a later window rather than being discarded."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "dunmere-unconstrained-paraphrase",
+      "label": "substantive barrier",
+      "alternatives": [
+        {
+          "file": "findings/dunmere/privacy.md",
+          "required": [
+            "Dunmere's interviews found that the public means-testing conversation deterred families from collecting schoolwear even when suitable sizes were available."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "dunmere-unconstrained-paraphrase",
+      "label": "accepted remedy with stock qualification",
+      "alternatives": [
+        {
+          "file": "decisions/dunmere/collection.md",
+          "required": [
+            "Dunmere now offers individual collection appointments without an income declaration; a requested size is held only after Priya confirms that a matching garment is actually in stock."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "rookfen-unconstrained-paraphrase",
+      "label": "physical contrast finding",
+      "alternatives": [
+        {
+          "file": "findings/rookfen/subtitle-test.md",
+          "required": [
+            "At Rookfen, white captions disappeared against luminous wardrobe panels; an opaque charcoal rectangle behind the lettering restored contrast during the rehearsal."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "rookfen-unconstrained-paraphrase",
+      "label": "accepted remedy and missing provision",
+      "alternatives": [
+        {
+          "file": "decisions/rookfen/projection.md",
+          "required": [
+            "Rookfen adopted the charcoal caption backing for licensed hall showings; this improves text contrast but supplies no audio description of visual action."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "dunmere-current-proposal",
+      "label": "proposal remains unapproved",
+      "alternatives": [
+        {
+          "file": "notes/dunmere/extension.md",
+          "required": [
+            "The Dunmere home-delivery suggestion is unapproved as of October 26; confirmed individual collection appointments remain the accepted service, and an unfilled size request is still pending."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "dunmere-current-proposal",
+      "label": "actual stock condition",
+      "alternatives": [
+        {
+          "file": "decisions/dunmere/collection.md",
+          "required": [
+            "Dunmere now offers individual collection appointments without an income declaration; a requested size is held only after Priya confirms that a matching garment is actually in stock."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "rookfen-streaming-unknown",
+      "label": "bounded unknown feature rights",
+      "alternatives": [
+        {
+          "file": "notes/rookfen/premiere.md",
+          "required": [
+            "No streaming-rights approver for the Rookfen feature premiere is named in this workspace; the online announcement is a proposal awaiting written distributor permission."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "rookfen-streaming-unknown",
+      "label": "clip permission has narrower scope",
+      "alternatives": [
+        {
+          "file": "notes/rookfen/remote-demo.md",
+          "required": [
+            "The permission applies to that short clip and that private technical test only. It does not license the feature film for a public online premiere."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ternholt-recovery-qualification",
+      "label": "tested interruption and untested boundary",
+      "alternatives": [
+        {
+          "file": "findings/ternholt/power-cut.md",
+          "required": [
+            "The Ternholt power-cut trial recovered both persisted batches after reboot, but it did not test loss of power during the initial local write; durability at that earlier point remains unverified."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ternholt-recovery-qualification",
+      "label": "exact operation and acknowledgement boundary",
+      "alternatives": [
+        {
+          "file": "notes/ternholt/spool-flush.md",
+          "required": [
+            "In Ternholt, spoolFlush resends queued counter batches using the original batch key; only a matching shore acknowledgement removes a batch from local storage."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-natural-without",
+      "label": "unassessed outcome remains undecided",
+      "alternatives": [
+        {
+          "file": "notes/ashcombe/bench-check.md",
+          "required": [
+            "Ashcombe cannot promise a repair without a bench assessment; the queue volunteer may describe a turn as reserved but must leave the repair outcome undecided."
+          ]
+        }
+      ]
+    },
+    {
+      "case": "ashcombe-natural-without",
+      "label": "assessment and event boundary",
+      "alternatives": [
+        {
+          "file": "decisions/ashcombe/queue.md",
+          "required": [
+            "The walk-in trial covers small household repairs on Saturday mornings only; an amber card reserves an assessment turn, not a successful repair or a place at another event."
+          ]
+        }
+      ]
+    }
+  ],
+  "protectedCases": [
+    "ashcombe-quoted-phrase",
+    "ternholt-exact-title",
+    "ashcombe-historical",
+    "ashcombe-warranty-unknown",
+    "ternholt-camelcase",
+    "ternholt-ticket-id",
+    "ternholt-literal-path",
+    "ternholt-minus-exclusion",
+    "ternholt-uppercase-not",
+    "dunmere-current-proposal",
+    "rookfen-streaming-unknown",
+    "ternholt-recovery-qualification"
+  ],
+  "unconstrainedParaphraseCases": [
+    "dunmere-unconstrained-paraphrase",
+    "rookfen-unconstrained-paraphrase"
+  ]
+}

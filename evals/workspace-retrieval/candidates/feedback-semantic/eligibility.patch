@@ -1,0 +1,40 @@
+--- a/src/adapters/qmd/qmd-query.ts
++++ b/src/adapters/qmd/qmd-query.ts
+@@ -76,9 +76,10 @@
+     }
+   }
+ 
+-  // Vector discovery cannot enforce lexical phrases, exclusions or identifiers.
+-  // Do not let a structured vec branch bypass a constrained lexical rejection.
+-  const constrained = hasQueryConstraints(query);
++  // Semantic eligibility is separate from lexical rewriting. Only ordinary
++  // question language may relax the broad lexical guard; exact syntax/IDs stay
++  // lexical-only and the original text reaches both discovery branches intact.
++  const constrained = hasSemanticQueryConstraints(query);
+   if (!options.readOnly && !options.dreamsOnly && options.semantic !== false && constrained) warn("query_constraints_lexical_only");
+   if (!options.readOnly && !options.dreamsOnly && options.semantic !== false && !constrained) try {
+     const queryLines = [...lexQueries.slice(0, 8).map((lexQuery) => `lex: ${lexQuery}`), `vec: ${query}`];
+@@ -182,6 +183,23 @@
+     || /[a-z][A-Z]/.test(value);
+ }
+ 
++// Keep the broad lexical guard unchanged. Natural question wording is not QMD
++// exclusion syntax, but vectors still cannot enforce exact phrases or IDs.
++export function hasSemanticQueryConstraints(value: string): boolean {
++  if (!hasQueryConstraints(value)) return false;
++  if (/[\r\n]/.test(value)
++    || !/^\s*(?:what|why|how|when|where|who|which|can|could|should|would|did|does|do|is|are|was|were|has|have)\b/i.test(value)
++    || (value.match(/[a-z]+/gi)?.length ?? 0) < 3) return true;
++  // Normalize only the eligibility probe, never either executed query. Explicit
++  // uppercase Boolean/exclusion spelling, boundary -terms, paths, camelCase,
++  // mixed alphanumeric IDs and ticket/version punctuation remain protected.
++  const probe = value
++    .replace(/\b[a-z]+['’](?:t|s|re|ve|ll|d|m)\b/gi, token => token.replace(/['’]/, ""))
++    .replace(/\b(?:not|no|without|except|exclude|excluding)\b/g, " ")
++    .replace(/\b[a-z]+(?:-[a-z]+)+\b/g, token => token.replace(/-/g, " "));
++  return hasQueryConstraints(probe);
++}
++
+ function relaxationQueries(value: string): string[] {
+   if (hasQueryConstraints(value)) return [];
+   const terms = [...new Set(tokenize(value))];

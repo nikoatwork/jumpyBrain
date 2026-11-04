@@ -1,6 +1,6 @@
 # Recover the app after a local backend restart
 
-Priority: P0. Status: complete, 2026-11-02. Extracted from unit 1 of [independent feedback increments](../todo/tasks-feedback-independent-increments.md).
+Priority: P0. Status: complete, 2026-11-02. Extracted from unit 1 of [independent feedback increments](2026-11-04_tasks-feedback-independent-increments.md).
 
 ## Goal
 
