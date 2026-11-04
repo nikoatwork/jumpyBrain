@@ -106,3 +106,12 @@ async function waitForEditorWritable(page) {
   // canonical baseline; visibility alone is no longer an editing-ready signal.
   await page.waitForFunction(() => document.querySelector("#note-editor")?.isContentEditable === true);
 }
+
+// Narrow note destinations prioritize content; navigation remains an explicit UI action.
+export async function showSidebar(page) {
+  const sidebar = page.locator('#app-sidebar');
+  if (await sidebar.isHidden()) {
+    await page.locator('#toggle-sidebar').click();
+    await sidebar.waitFor({ state: 'visible' });
+  }
+}

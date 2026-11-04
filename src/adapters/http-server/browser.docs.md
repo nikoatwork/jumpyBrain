@@ -486,3 +486,14 @@ newer notice. Editor cancellation clears the timer. Own acknowledgments retain
 their existing quiet behavior, and generation feedback keeps a separate timer.
 `scripts/ux-update-feedback-smoke.mjs` verifies rapid peer updates and eventual
 expiry at desktop/mobile widths with unchanged source and focus.
+
+Direct note routes also invoke the existing transient sidebar dismissal at
+≤680px, and entering that breakpoint while a note is selected does the same.
+This leaves the note body visible before navigation; reopening the sidebar is
+an explicit toggle action. Desktop preference is never rewritten by automatic
+dismissal. Initial Home follows its preference, Settings stays expanded, and
+failed departure does not dismiss an already opened sidebar.
+`scripts/ux-narrow-note-entry-smoke.mjs` verifies direct links, body visibility,
+resize/toggle/preference continuity and retained failed drafts at 320/390.
+Navigation diagnostics explicitly use `showSidebar` before hidden global tools;
+that assistance is not a discoverability rating.

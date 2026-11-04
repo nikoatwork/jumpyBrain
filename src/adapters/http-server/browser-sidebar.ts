@@ -30,7 +30,10 @@ const sidebarPreference = (() => {
     autoCollapsed = false;
     apply();
   });
-  compact?.addEventListener("change", apply);
+  compact?.addEventListener("change", () => {
+    if (compact.matches && document.body?.dataset.view === "note") autoCollapsed = true;
+    apply();
+  });
   apply();
   return {
     sync: apply,

@@ -1392,7 +1392,7 @@ function showPage(url) {
     else $(id).removeAttribute("aria-current");
   }
   $("error").hidden = true;
-  if (state.view === "note") { showNote(documentId, documentId === newNoteId); newNoteId = null; return; }
+  if (state.view === "note") { sidebarPreference.afterNavigate(); showNote(documentId, documentId === newNoteId); newNoteId = null; return; }
   referenceCreation.reset();
   state.noteToken++;
   if (state.editor) state.editor.cancel();

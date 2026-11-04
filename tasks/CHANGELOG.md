@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Narrow note destinations
+
+- Direct note links and entering the narrow breakpoint prioritize the selected note with transient sidebar dismissal; explicit reopen and desktop preference remain intact. [Tradeoff, verification and retained failed attempts](done/2026-11-04_tasks-ux-narrow-note-entry.md).
+
 ## 2026-11-04 — Latest peer feedback timing
 
 - Rapid peer edits restart one scoped update-notice interval; older timers no longer erase newer feedback, and the notice still quiets after activity ends. [Reproduction, verification and limits](done/2026-11-04_tasks-ux-peer-notice-timing.md).

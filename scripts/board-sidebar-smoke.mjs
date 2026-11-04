@@ -88,7 +88,11 @@ try {
   await arrow.click();await columnArrow.click();await page.reload();await columnArrow.waitFor();assert.equal(await columnArrow.getAttribute('aria-expanded'),'false');
   await columnArrow.click();await member.filter({hasText:'Project overview'}).waitFor();
   for(const [width,height,sidebarWidth] of [[1280,850,224],[1280,850,280],[1440,900,480],[900,480,224],[390,850,280],[320,650,280]])for(const theme of ['light','dark']){
-    await page.setViewportSize({width,height});await page.evaluate(theme=>colorTheme.setPreference(theme),theme);
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>new Promise(requestAnimationFrame));
+    // Layout inspection deliberately opens navigation after note-first narrow entry.
+    if(width<=680&&await page.locator('#app-sidebar').isHidden())await page.locator('#toggle-sidebar').click();
+    await page.evaluate(theme=>colorTheme.setPreference(theme),theme);
     if(width>680)await page.locator('#sidebar-resize').evaluate((el,width)=>el.dispatchEvent(width===280?new MouseEvent('dblclick',{bubbles:true}):new KeyboardEvent('keydown',{key:width===224?'Home':'End',bubbles:true})),sidebarWidth);
     await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop=0);await page.mouse.move(width-5,5);await page.evaluate(()=>document.activeElement.blur());
     const geometry=await page.evaluate(()=>{
@@ -109,7 +113,9 @@ try {
   assert.equal(await page.evaluate(()=>{const list=document.querySelector('.sidebar-attention-scroll'),last=document.getElementById('sidebar-recent').lastElementChild;return last.getBoundingClientRect().bottom<=list.getBoundingClientRect().bottom+1;}),true);
   await page.screenshot({path:captures+'/short-window-list-end.png'});
   // A selected destination gets the narrow viewport; reopening preserves branches and desktop preference.
-  await page.setViewportSize({width:320,height:650});await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop=0);
+  await page.setViewportSize({width:320,height:650});await page.evaluate(()=>new Promise(requestAnimationFrame));
+  if(await page.locator('#app-sidebar').isHidden())await page.locator('#toggle-sidebar').click();
+  await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop=0);
   const preference=await page.evaluate(()=>localStorage.getItem('jumpybrain.sidebarCollapsed'));
   await member.scrollIntoViewIfNeeded();const treeScroll=await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop);
   await member.click();await page.waitForFunction(()=>document.documentElement.dataset.sidebarCollapsed==='true');

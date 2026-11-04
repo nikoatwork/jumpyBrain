@@ -86,3 +86,14 @@ test('narrow navigation closes transiently and leaves desktop preference and foc
   h.resize(true);h.afterNavigate();h.resize(false);h.toggle();h.resize(true);h.toggle();
   assert.equal(h.root.dataset.sidebarCollapsed,'false','one click reopens after an explicit desktop collapse with an older automatic dismissal');
 });
+
+// Selecting a note already expresses the destination when the viewport narrows.
+test('entering a narrow selected note dismisses navigation transiently and retains explicit reopen and Settings', () => {
+  const h = harness({stored:'false'});h.document.body.dataset.view='note';
+  h.resize(true);assert.equal(h.root.dataset.sidebarCollapsed,'true');
+  assert.equal(h.values.get('jumpybrain.sidebarCollapsed'),'false');
+  h.toggle();assert.equal(h.root.dataset.sidebarCollapsed,'false');
+  h.resize(false);assert.equal(h.root.dataset.sidebarCollapsed,'false');
+  h.document.body.dataset.view='settings';h.resize(true);assert.equal(h.root.dataset.sidebarCollapsed,'false');
+  h.document.body.dataset.view='home';h.sync();assert.equal(h.root.dataset.sidebarCollapsed,'false');
+});
