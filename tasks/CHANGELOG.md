@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Own-edit update feedback
+
+- Own title and Undo receipts stay quiet while other tabs and coalesced foreign changes retain external-update notices. [Reproduction and verification](done/2026-11-04_tasks-ux-own-edit-feedback.md).
+
 ## 2026-11-04 — UX baseline feedback candidate
 
 - Initial live hydration no longer reports an external update; retained-copy wording avoids an unsupported removal claim. Build, 89 focused tests and both browser smokes passed. Native Mac rerun and UX ratings remain unverified. [Outcome and limits](done/2026-11-04_tasks-ux-feedback-hillclimb.md).
