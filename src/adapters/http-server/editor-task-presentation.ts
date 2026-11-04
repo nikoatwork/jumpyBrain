@@ -37,6 +37,13 @@ export const taskCompletionStyles = `
   transition: background-color 140ms ease, border-color 140ms ease;
 }
 
+/* Keep a forgiving pointer target around the smaller visible box. */
+#note-editor .markdown-task > button::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
 #note-editor .markdown-task > button[aria-checked="true"] {
   border-color: var(--delight-fill);
   background: var(--delight-fill);
@@ -45,9 +52,9 @@ export const taskCompletionStyles = `
 
 #note-editor .markdown-task > button[aria-checked="true"]::after {
   content: "";
-  width: 9px;
-  height: 5px;
-  margin-top: -3px;
+  width: 7px;
+  height: 4px;
+  margin-top: -2px;
   border: solid currentColor;
   border-width: 0 0 2px 2px;
   transform: rotate(-45deg);

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Checklist authoring and page-link dismissal
+
+- Smaller checkboxes support nested task editing with child rows retained; unsuccessful `@` linking dismisses when writing resumes. Existing external-link rendering was reverified. [Verification and limits](done/2026-11-04_tasks-editor-visual-feedback.md).
+
 ## 2026-11-04 — Independent semantic search decisions
 
 - Separate agents authored fresh cases and frozen candidates; two matching baselines and both semantic comparisons completed. Broader eligibility exceeded the fixed context budget, and vector-only retrieval lost required evidence. Both remain unadopted; the [completed feedback list](done/2026-11-04_tasks-feedback-independent-increments.md) and [source-checked report](../evals/workspace-retrieval/reports/2026-11-03-feedback-semantic.md) retain results, canceled optional checks and limits.

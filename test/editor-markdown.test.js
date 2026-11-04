@@ -6,6 +6,7 @@ test('task recognition accepts explicit dash nesting and refuses ambiguous lists
   assert.deepEqual(taskMarker('- [X] café 日本語', null), { indent: 0, checked: true, label: 'café 日本語' });
   assert.equal(taskMarker('  - [ ] child', 0)?.indent, 2);
   assert.equal(taskMarker('    - [ ] grandchild', 2)?.indent, 4);
+  assert.equal(taskMarker('        - [ ] deeper child', 6)?.indent, 8);
   for (const line of ['+ [ ] task', '1. [x] task', '- [y] task', '- [ ]', '\t- [ ] task', ' - [ ] task', '    - [ ] code']) assert.equal(taskMarker(line, null), null, line);
   assert.equal(taskMarker('      - [ ] skipped level', 0), null);
 });

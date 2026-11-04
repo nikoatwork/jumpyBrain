@@ -29,6 +29,7 @@ try{
     await page.addInitScript(()=>{window.openedLinks=[];window.open=(...args)=>{openedLinks.push(args);return null;};});
     await page.goto(`${server.url}/?note=${id}#apiKey=${key}`);
     await page.waitForFunction(()=>document.querySelector('#note-editor')?.isContentEditable);
+    await page.waitForFunction(()=>document.querySelector('#note-save-state')?.textContent==='Saved');
     const links=page.locator('#note-editor a.markdown-external-link');
     assert.equal(await links.count(),3,'Only supported prose/heading/task links become anchors.');
     assert.equal(await links.first().innerText(),'AI-1145');

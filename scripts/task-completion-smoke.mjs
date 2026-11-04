@@ -44,7 +44,8 @@ try {
     assert.deepEqual(await animationNames(page), []);
     const rect = () => checks.nth(1).evaluate(button => {
       const { x, y, width, height } = button.parentElement.getBoundingClientRect();
-      return { x, y, width, height };
+      const editor = button.closest('#note-editor').getBoundingClientRect();
+      return { x: x - editor.x, y: y - editor.y, width, height };
     });
     const before = await rect();
     await checks.nth(1).click();
@@ -63,12 +64,14 @@ try {
     assert.deepEqual(await rect(), before, 'completion has no layout shift');
     await page.waitForFunction(() => document.querySelector('#note-save-state').textContent === 'Saved');
     assert.equal((await readFile(file, 'utf8')).replace(/^---\n[\s\S]*?\n---\n/, ''), body.replace('- [ ] Finish', '- [x] Finish'));
-    assert.ok(puts.some(put => put.content.endsWith(body.replace('- [ ] Finish', '- [x] Finish'))));
+    assert.equal(puts.length, 0, 'live canonical saves do not use legacy PUT');
     await undoEditor(page);
+    await page.waitForFunction(() => document.querySelectorAll('#note-editor [data-task-toggle]')[1]?.getAttribute('aria-checked') === 'false');
     assert.equal(await checks.nth(1).getAttribute('aria-checked'), 'false');
     assert.equal(await active(page).count(), 0);
     const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? 'Meta' : 'Control');
     await page.keyboard.press(`${modifier}+Shift+z`);
+    await page.waitForFunction(() => document.querySelectorAll('#note-editor [data-task-toggle]')[1]?.getAttribute('aria-checked') === 'true');
     assert.equal(await checks.nth(1).getAttribute('aria-checked'), 'true');
     assert.equal(await active(page).count(), 0, 'redo restores success without a new celebration');
     await checks.nth(1).click();
@@ -105,8 +108,10 @@ try {
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({ width, height: 850 });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      await checks.nth(2).scrollIntoViewIfNeeded();
       await page.screenshot({ path: path.join(output, `${palette}-${scheme}-${width}-done.png`) });
     }
+    await page.setViewportSize({ width: 1280, height: 850 });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await checks.nth(3).click();
     assert.equal(await active(page).count(), 1);
@@ -114,6 +119,10 @@ try {
     assert.equal(await active(page).count(), 0, 'document replacement clears pending feedback');
     await page.evaluate(value => richEditor.setExternalMarkdown(value), body.replace('- [ ] Finish', '- [x] Finish'));
     assert.equal(await active(page).count(), 0, 'external checks do not celebrate');
+    // Restore the live canonical baseline after isolated presentation API probes.
+    await page.reload();
+    await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved');
+    if (await checks.nth(2).getAttribute('aria-checked') === 'true') { await checks.nth(2).click(); await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved'); }
     await checks.nth(2).click();
     assert.equal(await active(page).count(), 1);
     // Navigate through the actual sidebar/save guard while feedback is active.

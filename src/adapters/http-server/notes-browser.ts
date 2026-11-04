@@ -175,7 +175,7 @@ ${noteOutlineStyles}
     #note-editor .markdown-code-block code { font: inherit; background: transparent; padding: 0; }
     #note-editor .markdown-task { display: flex; align-items: baseline; gap: var(--space-2); }
     .markdown-task > span { min-width: 0; flex: 1; }
-    .markdown-task > button { flex: 0 0 var(--space-6); width: var(--space-6); height: var(--space-6); min-height: 0; display: inline-grid; place-items: center; font: var(--text-ui)/1 var(--font-ui); align-self: flex-start; margin-top: .35em; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); }
+    .markdown-task > button { flex: 0 0 calc(var(--space-6) * .7); width: calc(var(--space-6) * .7); height: calc(var(--space-6) * .7); min-height: 0; display: inline-grid; place-items: center; font: var(--text-ui)/1 var(--font-ui); align-self: flex-start; margin-top: .46em; padding: 0; border: 1px solid var(--line-strong); border-radius: var(--space-1); background: var(--surface); color: var(--ink); }
     .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 ${taskCompletionStyles}
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }

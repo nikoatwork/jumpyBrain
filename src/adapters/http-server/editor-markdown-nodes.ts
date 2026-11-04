@@ -37,6 +37,21 @@ export class TaskMarkdownNode extends ParagraphNode {
     check.setAttribute("aria-label", `Task: ${this.getTextContent() || "Untitled"}`);
   }
   toggle() { this.getWritable().__checked = !this.getLatest().__checked; }
+  // The contiguous deeper source rows form this task’s subtree.
+  indentRows() {
+    const rows: TaskMarkdownNode[] = [this];
+    let next = this.getNextSibling();
+    while (next instanceof TaskMarkdownNode && next.__spaces > this.getLatest().__spaces) {
+      rows.push(next); next = next.getNextSibling();
+    }
+    return rows;
+  }
+  changeTaskIndent(outdent: boolean) {
+    const spaces = this.getLatest().__spaces, previous = this.getPreviousSibling();
+    if (outdent ? spaces === 0 : !(previous instanceof TaskMarkdownNode) || previous.__spaces < spaces) return false;
+    for (const row of this.indentRows()) row.getWritable().__spaces += outdent ? -2 : 2;
+    return true;
+  }
   insertNewAfter() {
     if (this.isEmpty()) {
       const paragraph = $createParagraphNode(); this.replace(paragraph); paragraph.selectStart(); return paragraph;
