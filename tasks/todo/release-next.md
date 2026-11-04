@@ -1,6 +1,6 @@
 # Changes
 
-- Read-only notes hide writing invitations, and denied note creation explains when write access is needed.
+- Read-only notes hide writing invitations, including in manual-copy recovery; denied note creation explains when write access is needed.
 
 - Abandoned generation now reports its confirmed interruption after lease expiry without requiring a status lookup; already saved output stays intact.
 

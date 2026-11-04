@@ -470,3 +470,12 @@ remain available to readers. New-note errors distinguish an authenticated 403
 (write access needed) from 401 (access key needed), without caching a global role
 or changing server authorization. `scripts/ux-readonly-affordances-smoke.mjs` and
 `scripts/ux-creation-permission-smoke.mjs` use actual disposable role credentials.
+
+Private-draft recovery publication uses the same explicit note-lock policy as
+the editor body, including the manual-copy fallback after clipboard rejection.
+Known readers and blocked/unopened sessions do not get a publication action;
+recoverable writer conflicts still do. Operational `liveCanWrite:false` alone
+cannot establish read-only access because it also describes those conflicts.
+The actions' shared refresh updates open recovery controls when live state
+changes; every submit rechecks the bound scope and publication policy. Saved
+comparison/manual copy remain available without a canonical write.

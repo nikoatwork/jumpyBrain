@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Read-only copy recovery
+
+- Clipboard fallback keeps selectable copy without inviting read-only publication; writer conflict recovery and live capability changes retain their correct controls. [Rejected candidate, corrected verification and limits](done/2026-11-04_tasks-ux-reader-recovery.md).
+
 ## 2026-11-04 — Long-lived UX verification
 
 - A frozen-runtime 45-minute coauthoring/search run passed 60 accumulated cycles; uncertain-save peer recovery, nested-board live faults and owned doctor fixture cleanup retain accurate evidence. [Results and limits](done/2026-11-04_tasks-ux-long-stability.md).
