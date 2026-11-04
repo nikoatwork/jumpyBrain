@@ -8,7 +8,7 @@ import { createFeedbackDiagnostics } from "../dist/adapters/http-server/feedback
 
 const script = [...graphPageHtml("testnonce").matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function runtime(names, globals = {}) {
-  const context = vm.createContext({ hostedIdentityChannel: null, hostedPrincipalId: null, lifecycleActions: { refreshRetained() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
+  const context = vm.createContext({ hostedIdentityChannel: null, hostedPrincipalId: null, lifecycleActions: { refresh() {} }, fetch: async () => ({ok:false}), noteWorkspace: { sync() {} }, graphTopicPreview: { close() {} }, relatedPages: { sync() {} }, livingSources: { sync() {} }, feedback: { close() {}, isOpen: () => false }, map: { reset() {} }, feedbackDiagnostics: createFeedbackDiagnostics(), ...globals });
   vm.runInContext(shellFunctions(script, names, context), context);
   return context;
 }
@@ -86,7 +86,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   let graphResets = 0;
   let retainedRefreshes = 0;
   const context = runtime(["renderConnection", "maskApiKey", "closeConnection", "setConnectionKey"], {
-    lifecycleActions: { refreshRetained() { retainedRefreshes++; } },
+    lifecycleActions: { refresh() { retainedRefreshes++; } },
     $, systemMessages: { sync() {} }, map: { reset() { graphResets++; } }, cancelReferenceInteraction() {}, activeApiKey: "saved-key", credentialRevision: 0, connectionStatus: "connected",
     apiKeyInput: { value: "unsaved-edit", type: "text" },
     connectionDialog: { close() {} }, localStorage: { removeItem: (key) => removed.push(key) },

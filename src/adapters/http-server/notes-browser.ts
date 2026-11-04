@@ -1166,7 +1166,7 @@ async function setConnectionKey(key) {
   credentialRevision++;
   systemMessages.sync();
   livingSources.sync();
-  lifecycleActions?.refreshRetained?.();
+  lifecycleActions?.refresh?.();
   folderExplorer.sync();
   relatedPages.sync();
   recentWrites.reset();
@@ -1706,7 +1706,7 @@ function syncEditorUi(editorState) {
   noteAttention.sync();
   sidebarPages.sync();
   livingSources.sync();
-  lifecycleActions?.refreshRetained?.();
+  lifecycleActions?.refresh?.();
   folderExplorer.sync();
   relatedPages.sync();
   if (typeof feedbackDiagnostics !== "undefined") {
@@ -1889,6 +1889,7 @@ function currentNoteFilePath(editor = state.editor) {
 }
 lifecycleActions = installDocumentActions({
   document, editor: () => state.editor,
+  canPublish: editor => !noteEditingLocked(editor.state),
   filePath: editor => companionMode && !companionFrozen && !companionSessionFailed ? currentNoteFilePath(editor) : null,
   writable: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()),
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),

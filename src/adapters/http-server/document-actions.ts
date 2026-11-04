@@ -10,7 +10,7 @@ type Editor = ReturnType<typeof createDocumentEditor> & RetainedVersionsEditor &
   recoverDraft?(draft: any): boolean;
 };
 export function installDocumentActions(options: {
-  document: Document; editor(): Editor | null; writable(): boolean; scope(): string;
+  document: Document; editor(): Editor | null; writable(): boolean; canPublish(editor: Editor): boolean; scope(): string;
   filePath(editor: Editor): string | null;
   json(url: string, options?: RequestInit): Promise<unknown>;
   toast: Toast;
@@ -33,6 +33,12 @@ export function installDocumentActions(options: {
   let bound: Editor | null = null, boundScope = "", comparisonHash = "", selectedRecovery = "";
   const valid = (editor: Editor, scope: string) => options.editor() === editor && !editor.state.cancelled && options.scope() === scope;
   const draftText = (editor: Editor) => editor.state.title + "\n\n" + editor.state.draft;
+  function refreshRecovery() {
+    const publish = $<HTMLButtonElement>("recovery-publish"), editor = bound;
+    if (!publish) return;
+    publish.hidden = !editor?.publishReviewedDraft || !options.canPublish(editor);
+    publish.disabled = busy || !comparisonHash || !editor || !valid(editor, boundScope) || !options.writable() || !options.canPublish(editor);
+  }
   function close() {
     if (busy) return;
     retained.close();
@@ -86,7 +92,7 @@ export function installDocumentActions(options: {
     const drafts = editor.getRecoveryDrafts?.() ?? [];
     const versions = $<HTMLSelectElement>("recovery-versions");
     if (versions && editor.getRecoveryDrafts) {versions.replaceChildren(); const current = doc.createElement("option"); current.value = ""; current.textContent = "Current draft"; versions.append(current); for (const [index,draft] of drafts.entries()) {const option = doc.createElement("option"); option.value = String(index); option.textContent = new Date(draft.updatedAt).toLocaleString(); versions.append(option);} $("recovery-versions-label").hidden = !drafts.length;}
-    const publish = $<HTMLButtonElement>("recovery-publish"); if (publish) {publish.hidden = !editor.publishReviewedDraft; publish.disabled = true;}
+    refreshRecovery();
     recovery.showModal();
     try {
       const saved = await options.json(memoryDocumentPath(editor.state.documentId)) as MemoryDocumentReadResult;
@@ -94,7 +100,7 @@ export function installDocumentActions(options: {
       if (typeof saved.content !== "string" || typeof saved.contentHash !== "string") throw new Error("Invalid note");
       $<HTMLTextAreaElement>("recovery-saved").value = saved.title + "\n\n" + splitEditableDocument(saved.content).body;
       comparisonHash = saved.contentHash;
-      if (publish) publish.disabled = !options.writable();
+      refreshRecovery();
       $("recovery-message").textContent = "Compare the versions. Loading the saved note discards only this tab’s draft and never overwrites the saved version.";
     } catch {
       if (token === sequence && recovery.open) $("recovery-message").textContent = "Could not read the saved note. Copy your draft and reconnect before reloading.";
@@ -102,7 +108,7 @@ export function installDocumentActions(options: {
   }
   async function publishReviewed() {
     const editor = bound, scope = boundScope;
-    if (!editor?.publishReviewedDraft || !comparisonHash || busy || !options.writable() || !valid(editor,scope)) return;
+    if (!editor?.publishReviewedDraft || !comparisonHash || busy || !options.writable() || !options.canPublish(editor) || !valid(editor,scope)) return;
     busy = true; editor.setNavigationPending(true);
     try {
       if (!await editor.publishReviewedDraft(comparisonHash) || !await editor.flush()) throw new Error("Review again");
@@ -202,5 +208,5 @@ export function installDocumentActions(options: {
   $("delete-cancel").addEventListener("click", close);
   $("delete-confirm").addEventListener("click", applyDelete);
   for (const dialog of [recovery, removal]) dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
-  return { close, openRecovery, openDelete, copy, refreshRetained: retained.refresh, isOpen: () => recovery.open || removal.open || retained.isOpen(), isBusy: () => busy || retained.isBusy() };
+  return { close, openRecovery, openDelete, copy, refresh() { retained.refresh(); refreshRecovery(); }, isOpen: () => recovery.open || removal.open || retained.isOpen(), isBusy: () => busy || retained.isBusy() };
 }

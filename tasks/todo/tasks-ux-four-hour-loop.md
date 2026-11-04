@@ -160,3 +160,9 @@ frozen build `3b7fa7d720f00267`, with 40 finishes/20 cancellations, accumulated
 contributions and all scope/search/Back/reconnect checks retained. Nested-board
 live-fault and six uncertain-save-with-peer cases also pass. [Archived evidence
 and fixture corrections](../done/2026-11-04_tasks-ux-long-stability.md).
+
+Iteration 10 retained after rejecting a writer-recovery regression: manual-copy
+recovery follows explicit note locking rather than operational write readiness.
+Four role/capability cases, full writer publication/workspace, ten retained-review
+checks and 132 focused tests pass, with unchanged package ceilings. [Archived
+comparison, correction and limits](../done/2026-11-04_tasks-ux-reader-recovery.md).

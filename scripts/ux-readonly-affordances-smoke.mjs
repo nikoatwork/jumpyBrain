@@ -77,6 +77,36 @@ try {
       await page.evaluate(() => navigator.clipboard.readText()),
       /Empty reader note/,
     );
+    // Exercise the visible manual-copy fallback with a real reader role.
+    await page.evaluate(() => {
+      window.fixtureClipboardWrite = navigator.clipboard.writeText.bind(
+        navigator.clipboard,
+      );
+      navigator.clipboard.writeText = async () => {
+        throw new DOMException("Fixture clipboard denial", "NotAllowedError");
+      };
+    });
+    await page.locator("#copy-note-draft").click();
+    await page.locator("#document-recovery").waitFor();
+    await page
+      .locator("#recovery-message")
+      .filter({ hasText: "Select and copy" })
+      .waitFor();
+    assert.equal(
+      await page.locator("#recovery-publish").isVisible(),
+      false,
+      "reader manual-copy fallback must not offer publication",
+    );
+    assert.match(
+      await page.locator("#recovery-draft").inputValue(),
+      /Empty reader note/,
+    );
+    await page.locator("#recovery-close").click();
+    await page.evaluate(() => {
+      navigator.clipboard.writeText = window.fixtureClipboardWrite;
+      delete window.fixtureClipboardWrite;
+    });
+
     await page.locator("#open-search").click();
     await page.locator("#note-search-input").fill("Available reference");
     await page
@@ -129,6 +159,49 @@ try {
     content,
   );
   results.push("writer guidance and reconnect remain available");
+  await page.evaluate(() => {
+    navigator.clipboard.writeText = async () => {
+      throw new DOMException("Fixture clipboard denial", "NotAllowedError");
+    };
+  });
+  await page.locator("#toggle-page-details").click();
+  await page.locator("#copy-note-draft").click();
+  await page.locator("#document-recovery").waitFor();
+  await page.waitForFunction(
+    () => !document.querySelector("#recovery-publish").disabled,
+  );
+  assert.equal(
+    await page.locator("#recovery-publish").isVisible(),
+    true,
+    "known writers retain reviewed publication",
+  );
+  await access.revoke(writer.credential.id);
+  await page.waitForFunction(
+    () => state.editor?.collaboration?.state.status === "blocked",
+  );
+  assert.equal(
+    await page.locator("#recovery-publish").isVisible(),
+    false,
+    "an open recovery dialog follows capability loss",
+  );
+  const beforeDeniedClick = transport.observed.filter((message) =>
+    ["edit", "title"].includes(message.method),
+  ).length;
+  await page.locator("#recovery-publish").dispatchEvent("click");
+  assert.equal(
+    transport.observed.filter((message) =>
+      ["edit", "title"].includes(message.method),
+    ).length,
+    beforeDeniedClick,
+  );
+  assert.equal(
+    await readFile(path.join(root, "notes/empty.md"), "utf8"),
+    content,
+  );
+  results.push(
+    "open recovery follows revoked writer capability without publication",
+  );
+
   console.log(
     JSON.stringify({
       passed: true,
