@@ -2,7 +2,7 @@
 import {
   $addUpdateTag, $getNodeByKey, $createRangeSelection, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
   $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
-  COMMAND_PRIORITY_HIGH, DELETE_WORD_COMMAND, DELETE_LINE_COMMAND, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG, IS_BOLD, IS_ITALIC, IS_CODE, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
+  COMMAND_PRIORITY_HIGH, DELETE_CHARACTER_COMMAND, DELETE_WORD_COMMAND, DELETE_LINE_COMMAND, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG, IS_BOLD, IS_ITALIC, IS_CODE, INSERT_PARAGRAPH_COMMAND, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
   ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type ElementNode, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
 } from "lexical";
 import { $createHeadingNode, HeadingNode, registerRichText, type HeadingTagType } from "@lexical/rich-text";
@@ -566,6 +566,42 @@ export function createNoteEditor(element: HTMLElement, options: {
     return true;
   }, COMMAND_PRIORITY_HIGH));
 
+  function changeTaskIndent(block: TaskMarkdownNode, outdent: boolean) {
+    const rows = block.indentRows(), keys = new Set(rows.map(row => row.getKey()));
+    const blocks = projectedBlocks().filter(item => keys.has(item.node.getKey()));
+    if (!block.changeTaskIndent(outdent)) return false;
+    capturedIntent = { before: markdown, inputType: "taskIndent", ranges: [{
+      start: blocks[0].offset, end: blocks.at(-1)!.offset + blocks.at(-1)!.raw.length,
+    }] };
+    $addUpdateTag(HISTORY_PUSH_TAG);
+    return true;
+  }
+  cleanups.push(editor.registerCommand(DELETE_CHARACTER_COMMAND, backward => {
+    const selection = $getSelection();
+    if (!editor.isEditable() || !backward || !$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+    const block = selection.anchor.getNode().getTopLevelElement();
+    if (!(block instanceof TaskMarkdownNode) || !block.__spaces) return false;
+    const atStart = selection.anchor.offset === 0 && (selection.anchor.key === block.getKey() || selection.anchor.getNode().is(block.getFirstDescendant()));
+    if (!atStart || !changeTaskIndent(block, true)) return false;
+    return true;
+  }, COMMAND_PRIORITY_HIGH));
+
+  // Keyboard Enter and native/mobile beforeinput share the same source intent.
+  cleanups.push(editor.registerCommand(INSERT_PARAGRAPH_COMMAND, () => {
+    if (!editor.isEditable()) return true;
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+    const block = selection.anchor.getNode().getTopLevelElement();
+    if (!(block instanceof TaskMarkdownNode) || !block.isEmpty()) return false;
+    if (block.__spaces) changeTaskIndent(block, true);
+    else {
+      const source = projectedBlocks().find(item => item.node.getKey() === block.getKey())!;
+      capturedIntent = { before: markdown, inputType: "taskExit", ranges: [{ start: source.offset, end: source.offset + source.raw.length }] };
+      $addUpdateTag(HISTORY_PUSH_TAG); block.insertNewAfter();
+    }
+    return true;
+  }, COMMAND_PRIORITY_HIGH));
+
   cleanups.push(editor.registerCommand(KEY_ENTER_COMMAND, (event) => {
     if (!editor.isEditable()) return true;
     const selection = $getSelection();
@@ -588,7 +624,13 @@ export function createNoteEditor(element: HTMLElement, options: {
   }, COMMAND_PRIORITY_HIGH));
   cleanups.push(editor.registerCommand(KEY_TAB_COMMAND, (event) => {
     const selection = $getSelection();
-    if (!editor.isEditable() || !$isRangeSelection(selection) || !(selection.anchor.getNode().getTopLevelElement() instanceof FencedCodeMarkdownNode) || event.shiftKey) return false;
+    if (!editor.isEditable() || !$isRangeSelection(selection)) return false;
+    const block = selection.anchor.getNode().getTopLevelElement();
+    if (block instanceof TaskMarkdownNode && selection.isCollapsed() && !event.isComposing) {
+      if (!changeTaskIndent(block, event.shiftKey)) return false;
+      event.preventDefault(); return true;
+    }
+    if (!(block instanceof FencedCodeMarkdownNode) || event.shiftKey) return false;
     event.preventDefault(); selection.insertRawText("\t"); return true;
   }, COMMAND_PRIORITY_HIGH));
   const taskPointer = (event: PointerEvent) => {

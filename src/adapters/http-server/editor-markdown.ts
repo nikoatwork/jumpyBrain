@@ -31,7 +31,7 @@ export function inlineCodeRanges(text: string) {
 }
 
 export function taskMarker(line: string, previousIndent: number | null) {
-  const match = line.match(/^( {0,6})- \[([ xX])\] (.*)$/);
+  const match = line.match(/^( *)- \[([ xX])\] (.*)$/);
   if (!match || match[1].length % 2 || (match[1].length && (previousIndent === null || match[1].length > previousIndent + 2))) return null;
   return { indent: match[1].length, checked: match[2] !== " ", label: match[3] };
 }

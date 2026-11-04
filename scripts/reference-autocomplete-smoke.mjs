@@ -151,6 +151,65 @@ try {
       assert.equal(await page.evaluate(() => richEditor.autocompleteRange().trigger), "[[");
       await page.keyboard.press("Enter"); assert.equal(await editorMarkdown(page), "[[Alpha]]");
     }, true);
+    await check("unsuccessful Mac @ lookup dismisses on continued typing without reopening", async (page) => {
+      const results = await page.evaluate(() => fixtureResults);
+      for (const failure of ["empty", "stale", "error", "auth"]) {
+        await page.evaluate((value) => {
+          fixtureResults = []; transportStale = value === "stale";
+          mode = ["error", "auth"].includes(value) ? value : "ready";
+        }, failure);
+        await load(page, "@missing"); await selectEditorText(page, 8);
+        await page.waitForFunction(() => popup.state.active && ["ready", "auth", "error"].includes(popup.state.status));
+        if (failure === "stale") assert.match(await menu(page).innerText(), /Index may be stale/);
+        const requestCount = await page.evaluate(() => requests.length);
+        await page.keyboard.type(" and keep writing");
+        await page.waitForTimeout(250);
+        assert.equal(await menu(page).isVisible(), false, failure);
+        assert.equal(await editorMarkdown(page), "@missing and keep writing");
+        assert.equal(await page.evaluate(() => document.activeElement.id), "note-editor");
+        await page.evaluate(() => { popup.markStale(); popup.refresh(); });
+        assert.equal(await menu(page).isVisible(), false, "freshness callbacks cannot reopen an abandoned trigger");
+        assert.equal(await page.evaluate(() => requests.length), requestCount);
+        // A new explicit trigger starts a new lookup even in the same paragraph.
+        await page.evaluate((value) => { fixtureResults = value; mode = "ready"; }, results);
+        await page.keyboard.type(" @alpha topic"); await ready(page, "alpha topic");
+        await page.keyboard.press("Enter");
+        assert.equal(await editorMarkdown(page), "@missing and keep writing [[Alpha]]");
+      }
+    }, true);
+    await check("unsuccessful Mac @ dismissal preserves paste and composition input", async (page) => {
+      for (const input of ["paste", "composition"]) {
+        await page.evaluate(() => { fixtureResults = []; transportStale = true; });
+        await load(page, "@missing"); await selectEditorText(page, 8);
+        await page.waitForFunction(() => popup.state.active && popup.state.status === "ready");
+        if (input === "paste") await paste(page, " pasted words");
+        else {
+          await page.locator("#note-editor").dispatchEvent("compositionstart");
+          await page.keyboard.insertText("続ける");
+          await page.locator("#note-editor").dispatchEvent("compositionend");
+        }
+        await page.waitForTimeout(250);
+        assert.equal(await menu(page).isVisible(), false, input);
+        assert.equal(await editorMarkdown(page), "@missing" + (input === "paste" ? " pasted words" : "続ける"));
+      }
+    }, true);
+    await check("Mac @ waits for a search outcome and fences older results after writing resumes", async (page) => {
+      await page.evaluate(() => { mode = "hold"; });
+      await load(page, "@alpha"); await selectEditorText(page, 6);
+      await page.waitForFunction(() => held.length === 1);
+      await page.keyboard.type(" topic");
+      await page.waitForFunction(() => held.length === 2);
+      assert.equal(await menu(page).isVisible(), true, "a pending search must still permit a multiword query");
+      assert.equal(await page.evaluate(() => requests[0].signal.aborted), true);
+      await page.evaluate(() => held.pop()({ results: [], index: { stale: true } }));
+      await page.waitForFunction(() => popup.state.active && popup.state.status === "ready");
+      await page.keyboard.type(" keeps going");
+      await page.evaluate(() => held.shift()({ results: fixtureResults, index: { stale: false } }));
+      await page.waitForTimeout(250);
+      assert.equal(await menu(page).isVisible(), false);
+      assert.equal(await page.evaluate(() => requests.length), 2);
+      assert.equal(await editorMarkdown(page), "@alpha topic keeps going");
+    }, true);
     await check("hosted editor leaves @ literal without requesting search", async (page) => {
       await load(page, "@alp"); await selectEditorText(page, 4);
       await page.waitForTimeout(300);

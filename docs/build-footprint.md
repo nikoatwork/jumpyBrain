@@ -16,10 +16,21 @@ checks to its real tarball before recording successful package metadata.
 
 Budgets in `scripts/package-budget.mjs` are 1.45 MB compressed, 4.6 MB unpacked,
 3.1 MB under `dist/`, and 660 files (decimal units). Existing editor tests retain
-221.5 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+222.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
+
+## 2026-11-04 checklist authoring and reference dismissal
+
+A matched esbuild comparison with the same fixed build fingerprint, package pins
+and production settings measures 221,435 gzip bytes at `5aff399` and 221,976
+with nested checklist editing and unsuccessful `@` lookup dismissal: +541 bytes
+(0.24%). The actual production build measures 221,984 gzip bytes. This adds
+subtree-preserving indentation with canonical source ranges and trigger-scoped
+dismissal, without a new dependency; the bundle still contains 15 packages.
+The shared-editor ceiling is 222,250 bytes. All distribution, runtime,
+file-count and optional-renderer limits remain unchanged.
 
 ## 2026-11-03 external Markdown links
 

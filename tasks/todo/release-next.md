@@ -1,5 +1,7 @@
 # Changes
 
+- Unsuccessful @ page linking dismisses when you resume typing; smaller checkboxes support Tab/Shift+Tab nesting and preserve child tasks.
+
 - Installers now prune superseded owned software automatically, share rollback references, protect live/recovery copies and provide a storage preview with retry guidance.
 - The sidebar wordmark and collapse button align right, giving the Mac window controls more breathing room.
 

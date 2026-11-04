@@ -59,6 +59,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
 
   let destroyed = false, composing = false, frame = 0, active = false;
   let session = options.getSession?.(), signature = "", suppressed = "", feedback = "";
+  let abandonedAt: { key: string; offset: number } | null = null;
   let current: ReturnType<typeof live> = null;
   let renderedKey = "", renderedResults: Result[] = [];
   let blockedClickUntil = 0;
@@ -112,6 +113,18 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
     if (destroyed) return;
     // Retain suppression even when the host has already disabled the editor.
     suppressed = current?.key || live()?.key || "";
+    hide();
+  }
+  function continueWriting() {
+    // An unsuccessful @ lookup is a temporary writing aid. Once the writer
+    // continues inserting text, leave that trigger literal until a new trigger
+    // or context is entered; a per-query suppression would reopen every key.
+    if (!active || popup.hidden || current?.range.trigger !== "@"
+        || !search.state.query || search.state.results.length
+        || !["ready", "auth", "error"].includes(search.state.status)) return;
+    if (live()?.key !== current.key) return;
+    const anchor = current.range.selection.anchor;
+    abandonedAt = { key: anchor.key, offset: anchor.offset };
     hide();
   }
   function position() {
@@ -202,9 +215,13 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
     if (destroyed) return;
     try {
       const nextSession = options.getSession?.();
-      if (!Object.is(session, nextSession)) { session = nextSession; dismiss(); return; }
+      if (!Object.is(session, nextSession)) { session = nextSession; abandonedAt = null; dismiss(); return; }
       const next = live();
-      if (!next) { hide(); return; }
+      if (!next) { if (!composing) abandonedAt = null; hide(); return; }
+      if (abandonedAt && next.range.trigger === "@"
+          && next.range.selection.anchor.key === abandonedAt.key
+          && next.range.selection.anchor.offset === abandonedAt.offset) { hide(); return; }
+      abandonedAt = null;
       if (next.key === suppressed) { hide(); return; }
       suppressed = ""; current = next; active = true;
       if (signature !== next.key) {
@@ -331,8 +348,12 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   listen(doc, "pointerdown", (event) => {
     if (!element.contains(event.target as Node) && !popup.contains(event.target as Node)) dismiss();
   }, true);
-  listen(element, "compositionstart", () => { composing = true; hide(); });
+  listen(element, "compositionstart", () => { continueWriting(); composing = true; hide(); }, true);
   listen(element, "compositionend", () => { composing = false; schedule(); });
+  listen(element, "beforeinput", (event) => {
+    if ((event as InputEvent).inputType?.startsWith("insert")) continueWriting();
+  }, true);
+  listen(element, "paste", continueWriting, true);
   for (const name of ["beforeinput", "input"]) listen(element, name, (event) => {
     if ((event as InputEvent).isComposing) { composing = true; hide(); } else schedule();
   });
