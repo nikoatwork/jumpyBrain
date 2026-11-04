@@ -448,3 +448,10 @@ current state again. Unverified freshness says search **may be out of date**,
 not that all search is unavailable. No index mutation is introduced.
 `scripts/ux-search-warning-scope-smoke.mjs` verifies reentry, copy confirmation
 and save-error priority; cancellation/freshness remain in maintenance unit tests.
+
+The selection-attribution hint owns Escape only when the key originates inside
+the editor and is not part of composition. Preserved editor selection does not
+let that passive hint intercept toolbar, search or find Escape. Formatting
+controls retain their own close/focus-return behavior; editor Escape still
+hides the hint. `scripts/ux-escape-scope-smoke.mjs` exercises both scopes and
+unchanged source at desktop/mobile widths.

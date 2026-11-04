@@ -32,7 +32,9 @@ export function installNoteAttribution(options: {
   doc.addEventListener("scroll", schedule, true);
   win.addEventListener("resize", schedule);
   doc.addEventListener("keydown", event => {
-    if (!event.defaultPrevented && event.key === "Escape" && !hint.hidden) { event.preventDefault(); event.stopPropagation(); dismissed = true; hint.hidden = true; }
+    // The editor selection survives toolbar/search focus. Its passive hint
+    // must not consume Escape belonging to those focused controls or to IME.
+    if (!event.defaultPrevented && !event.isComposing && event.key === "Escape" && body.contains(event.target as Node) && !hint.hidden) { event.preventDefault(); event.stopPropagation(); dismissed = true; hint.hidden = true; }
   }, true);
   win.addEventListener("pagehide", () => { hint.hidden = true; win.cancelAnimationFrame(frame); frame = 0; });
   return { sync };
