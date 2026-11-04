@@ -45,6 +45,7 @@ try {
     await page.goto(`${server.url}/?note=${id}#apiKey=${key}`);
     await page.locator("#note-editor").waitFor({ state: "visible" });
     await page.waitForFunction(() => state.editor?.collaboration?.state.status === "saved");
+    assert.equal(await page.locator("#note-external-state").textContent(), "", "initial hydration must not claim an external update");
     await selectEditorText(page, 5);
     const caret = await editorSelection(page);
     if (width === 1280) {

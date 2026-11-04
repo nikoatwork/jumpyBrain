@@ -422,3 +422,42 @@ test("expired Undo/Redo shows a nonblocking notice; an unconfirmed history actio
     }
   }finally{globalThis.WebSocket=previous}
 });
+
+test("initial live hydration is quiet while later external changes still notify", async () => {
+  const previous = globalThis.WebSocket, sockets = [];
+  let canonical = { documentId: "note", epoch: "epoch", revision: 0, prefix: "", file: "notes/note.md", body: "Canonical body", title: "Note", contentHash: "hash-0", saved: true };
+  class Socket {
+    static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
+    constructor() { sockets.push(this); queueMicrotask(() => { this.readyState = 1; this.onopen?.(); }); }
+    send(raw) {
+      const frame = JSON.parse(raw);
+      const result = frame.method === "hello" ? { protocol: 2, principal: { id: "writer", role: "writer" } } : canonical;
+      queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result }) }));
+    }
+    close() { this.readyState = 3; this.onclose?.({ code: 1000 }); }
+  }
+  globalThis.WebSocket = Socket;
+  try {
+    for (const initial of ["Canonical body", "Previous HTTP snapshot"]) {
+      let body = initial;
+      const events = [];
+      const editor = createCollaborationEditor({
+        url: "ws://localhost/ws", scope: "quiet-hydration-" + initial, documentId: "note", clientId: "tab",
+        drafts: createCollaborationDraftStore(memoryStorage()),
+        editor: { getMarkdown: () => body, applyCollaborativeMarkdown(next) { body = next; return { status: "applied" }; } },
+        onSnapshot: (snapshot, view) => events.push({ revision: snapshot.revision, remote: view.remote }),
+      });
+      try {
+        editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(editor.state.status, "saved"); assert.equal(body, canonical.body);
+        assert.ok(events.length); assert.ok(events.every(event => !event.remote), "opening is not another writer's update");
+        const send = snapshot => sockets.at(-1).onmessage?.({ data: JSON.stringify({ event: "document", documentId: "note", snapshot }) });
+        canonical = { ...canonical, revision: canonical.revision + 1, body: canonical.body + " externally added", operation: { revision: canonical.revision + 1, start: canonical.body.length, deleteCount: 0, insert: " externally added", splices: [{ start: canonical.body.length, deleteCount: 0, insert: " externally added" }], actor: "other-writer" } };
+        send(canonical); await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(body, canonical.body); assert.equal(events.at(-1).remote, true);
+        send(canonical); await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(events.at(-1).remote, false, "repeated presence snapshots do not replay the notice");
+      } finally { editor.dispose(); }
+    }
+  } finally { globalThis.WebSocket = previous; }
+});

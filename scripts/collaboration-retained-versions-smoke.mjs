@@ -33,7 +33,7 @@ try{
   const writer=await openPage(issued[0]),page=writer.page;
   await writeFile(file,content(external));await page.waitForFunction(()=>Boolean(state.editor?.collaboration?.snapshot?.recovery));
   assert.equal(await page.evaluate(()=>state.editor.collaboration.state.status),'saved');assert.equal(await page.evaluate(()=>state.editor.collaboration.state.dirty),false);
-  assert.match(await page.locator('#note-retained-version').innerText(),/External file replaced saved text/);pass('notification');
+  assert.match(await page.locator('#note-retained-version').innerText(),/An external edit was retained\. Compare versions if needed\./);pass('notification');
   await review(page);assert.equal(await page.locator('#retained-version-text').inputValue(),'Retained review\n\n'+initial);assert.equal(await page.locator('#retained-current-text').inputValue(),'Retained review\n\n'+external);
   await page.getByText('Show changed passages',{exact:true}).click();const passages=await page.locator('#retained-changes').innerText();assert.match(passages,/Retained passage:/);assert.match(passages,/Current saved passage:/);assert.match(passages,/Acknowledged human text/);assert.match(passages,/Observed external replacement/);
   await page.locator('#retained-copy').click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'Retained review\n\n'+initial);
