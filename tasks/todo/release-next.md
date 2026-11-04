@@ -1,5 +1,7 @@
 # Changes
 
+- Invalid search/recall depth options explain the allowed choices before engine setup or remote connection errors.
+
 - A connected note quietly distinguishes confirmed generation finish, stop and interruption, without treating lost presence as completion.
 
 - Keeping the current note after comparing retained versions quiets that notice for this tab; earlier versions stay accessible.

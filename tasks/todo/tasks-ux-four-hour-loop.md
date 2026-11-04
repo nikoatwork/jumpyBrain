@@ -44,3 +44,9 @@ Broad-check observation: `node --test` against the built iteration-2 artifact co
 Iteration 4 retained: actor/stream-correlated confirmed terminal cues, never completion from presence loss. Six real CLI/browser cases, ten retained-review neighbors, 66 compiled-artifact tests and 17 boundary checks passed. Measured +595 editor gzip bytes with unchanged dependencies; targeted existing whitespace compaction preserves all distribution ceilings. [Archived increment](../done/2026-11-04_tasks-ux-generation-feedback.md).
 
 Engine preparation: existing global QMD is 2.5.3; required 2.8.3 was provisioned from the repo engine lockfile into a temporary validation directory. No global engine/product install or model download. Pinned-engine CLI error suite passed all three cases. One attempt overlapped a clean rebuild and was invalidated by removed dist files; only the subsequent stable-artifact run counts.
+
+### Iteration 5: actionable invalid retrieval options before tool setup
+
+Broad checks exposed an invalid `--depth sideways` reporting QMD setup failure first when the engine is missing. Expected gain: identify the invalid user option before engine work or remote credential lookup. Protect normal/compact local/remote retrieval and recipe routing. Pre-fix deterministic reproduction reached `localMemory.searchMemory` for invalid input instead of rejecting it; the transport trap failed as expected. This is a validation-order fix, not a retrieval ranking change.
+
+Iteration 5 retained: invalid retrieval depth now names allowed values before engine or remote credential access. The no-transport regression covers eight lanes; six no-engine and 25 pinned-engine neighboring checks passed. [Archived increment](../done/2026-11-04_tasks-ux-retrieval-option-errors.md). No retrieval-policy/ranking or canonical behavior changed.
