@@ -419,3 +419,12 @@ private drafts retain review/copy controls. Offline labels distinguish a saved
 view from a retained draft; accessible status starts with the visible wording.
 `scripts/ux-editor-availability-smoke.mjs` covers failure/retry and Home/Back at
 desktop/mobile widths, plus genuine missing-note handling.
+
+After a stable retained-copy comparison, **Keep current note** acknowledges that
+exact retained record in the current tab/scope. Its notice quiets while a
+**Retained versions** action stays reachable through same-tab note navigation and
+later own saves. Escape, failed/stale comparison and incomplete discovery do not
+acknowledge; a newer recovery record still shows guidance. At most 64 opaque
+record signatures are held in memory; scope changes and reload clear them. No
+recovery data is deleted and no localStorage/canonical write is introduced.
+`scripts/ux-retained-review-smoke.mjs` protects these transitions at 1280/390px.
