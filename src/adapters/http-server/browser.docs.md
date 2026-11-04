@@ -410,3 +410,12 @@ editor's title/body/history receipts from other writers. A second tab of the
 same account remains another actor. Coalesced revisions inspect the complete
 history; unchanged title/body checkpoints do not create a notice. Verify with
 `scripts/ux-update-feedback-smoke.mjs` and `test/collaboration-feedback-origin.test.js`.
+
+A successful canonical read followed by a capabilities/protocol failure keeps
+saved text visible and locked, labels editing unavailable and offers Retry
+editing. It is not a missing-note or failed-save outcome; clean navigation
+remains available. Clean blocked live connections use the same retry, while
+private drafts retain review/copy controls. Offline labels distinguish a saved
+view from a retained draft; accessible status starts with the visible wording.
+`scripts/ux-editor-availability-smoke.mjs` covers failure/retry and Home/Back at
+desktop/mobile widths, plus genuine missing-note handling.

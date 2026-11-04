@@ -1453,6 +1453,7 @@ async function showNote(documentId, focusEnd = false) {
     $("note-save-state").textContent = "";
     $("note-external-state").textContent = "";
     $("note-load-retry").hidden = true;
+    $("note-load-retry").textContent = "Retry loading";
     $("note-message").hidden = false;
     $("note-message").dataset.error = "false";
     $("note-message").textContent = "Loading note…";
@@ -1505,6 +1506,19 @@ async function showNote(documentId, focusEnd = false) {
       if (!searchDialog.open && !connectionDialog.open) richEditor.focus(focusEnd);
     } catch (error) {
       if (token !== state.noteToken || state.editor !== editor) return;
+      if (editor.state.loaded) {
+        // The canonical read succeeded. A missing/incompatible live endpoint
+        // says nothing about whether the note exists; retain its saved text.
+        editor.state.liveStatus = "blocked";
+        editor.state.liveCanWrite = false;
+        // No save was attempted. Keep the confirmed read navigable instead of
+        // turning a clean note into a failed-save navigation barrier.
+        editor.state.saveStatus = "saved";
+        editor.state.saveErrorCode = "";
+        editor.state.saveError = "Saved content is shown. Check your connection and app/server versions, then retry editing.";
+        syncEditorUi(editor.state);
+        return;
+      }
       if (Number(error.status) === 404) sidebarPages.remove(documentId);
       noteLoadError(Number(error.status) === 404 ? "This note is no longer available. Use Search to find another note."
         : Number(error.status) === 401 || Number(error.status) === 403 ? "Connect with an access key to open this note."
@@ -1666,6 +1680,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
 function syncEditorUi(editorState) {
   const companionLocked = (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) || editorState.liveStatus === "readonly" || editorState.liveStatus === "blocked" || (editorState.liveStatus && !editorState.liveHasOpened);
   const needsReview = editorState.saveStatus === "failed" && editorState.saveErrorCode === "precondition_failed";
+  const cleanUnavailable = editorState.liveStatus === "blocked" && !editorState.dirty;
   if (!state.editor || state.editor.state !== editorState) return;
   extensionUI?.documentChanged();
   noteAttention.sync();
@@ -1686,8 +1701,12 @@ function syncEditorUi(editorState) {
     }
   }
 
-  $("note-retry").hidden = editorState.saveStatus !== "failed" || editorState.saveErrorCode === "precondition_failed";
-  $("note-recover").hidden = !editorState.recoveryDrafts?.length && editorState.saveStatus !== "failed" && !(typeof companionMode !== "undefined" && companionMode && companionSessionFailed);
+  $("note-retry").hidden = cleanUnavailable || editorState.saveStatus !== "failed" || editorState.saveErrorCode === "precondition_failed";
+  $("note-recover").hidden = !editorState.recoveryDrafts?.length && (cleanUnavailable || editorState.saveStatus !== "failed") && !(typeof companionMode !== "undefined" && companionMode && companionSessionFailed);
+  if (editorState.loaded) {
+    $("note-load-retry").hidden = !cleanUnavailable;
+    $("note-load-retry").textContent = "Retry editing";
+  }
   $("note-recover").disabled = editorState.navigationPending;
   $("note-recover").textContent = editorState.saveErrorCode === "precondition_failed" ? "Review changes" : "Recover draft";
   $("copy-note-draft").hidden = !editorState.loaded;
@@ -1731,7 +1750,8 @@ function syncEditorUi(editorState) {
   const feedback = editorState.saveStatus === "saving" ? "Saving…"
     : editorState.saveStatus === "failed" ? needsReview ? "Changes need review" : "Save failed"
     : editorState.dirty ? "Editing…" : editorState.loaded ? "Saved" : "";
-  const liveFeedback = editorState.liveStatus === "offline" ? editorState.durableDraft === false ? "Offline · keep this window open" : "Offline · draft kept on this device"
+  const liveFeedback = cleanUnavailable ? "Editing unavailable"
+    : editorState.liveStatus === "offline" ? !editorState.dirty ? "Offline · saved note shown" : editorState.durableDraft === false ? "Offline · keep this window open" : "Offline · draft kept on this device"
     : editorState.liveStatus === "connecting" ? "Connecting…" : editorState.liveStatus === "readonly" ? "Read only"
     : editorState.liveStatus === "conflict" ? "Changes need review" : null;
   $("note-save-state").textContent = liveFeedback || feedback;
@@ -1739,7 +1759,7 @@ function syncEditorUi(editorState) {
     : editorState.externalStatus === "updated" ? "Updated elsewhere" : "";
   $("note-save-state").dataset.state = needsReview ? "review" : editorState.saveStatus;
   $("note-save-state").title = editorState.saveError || "";
-  $("note-save-state").setAttribute("aria-label", feedback + (editorState.saveError ? ": " + editorState.saveError : ""));
+  $("note-save-state").setAttribute("aria-label", (liveFeedback || feedback) + (editorState.saveError ? ": " + editorState.saveError : ""));
 }
 
 const noteCapture = createNoteCapture({
