@@ -210,3 +210,21 @@ own-feedback browser checkpoints, 117 focused tests and eight generation
 feedback neighbors passed on `a29d2f6b48755f42`. [Archived timing correction
 and limits](../done/2026-11-04_tasks-ux-peer-notice-timing.md). Final broad checks
 must cover this later snapshot; earlier frozen results are not relabeled.
+
+### Iteration 12: narrow note destination space
+
+Existing 320px writing captures show an expanded navigation consuming ~350px
+before the selected note, pushing a long-title fixture's body below the fold.
+Selecting a sidebar destination already dismisses it transiently, but direct
+note entry and entering the narrow breakpoint may miss that treatment. Probe
+actual 320/390 direct note URLs and 1280→narrow transitions. Expected gain: the
+selected note uses the viewport without changing desktop preference; toggle,
+initial Home, Settings, failed-save departure, focus and canonical text remain
+protected. This is route/layout evidence, not native/human scoring.
+
+Iteration 12 retained: narrow direct notes and breakpoint entry now use the
+existing temporary sidebar dismissal, preserving explicit reopen and desktop
+preference. Two direct-route cases, 114 focused tests, clean writing/board
+journeys and all eight protected-browser suites passed. The extra navigation
+toggle is an explicit tradeoff/fixture action; failed teardown/layout attempts
+remain recorded. [Archived implementation, evidence and limits](../done/2026-11-04_tasks-ux-narrow-note-entry.md).

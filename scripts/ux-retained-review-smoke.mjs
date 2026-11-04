@@ -1,3 +1,4 @@
+import { showSidebar } from './editor-smoke-helpers.mjs';
 // Explicit review acknowledgment in the production shell; no native UX scoring.
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
@@ -30,13 +31,13 @@ try{
     assert.equal(await page.locator('#review-retained-version').isVisible(),true,'retained copies stay accessible');
     assert.equal(await page.locator('#review-retained-version').innerText(),'Retained versions');
     assert.equal(await readFile(file,'utf8'),unchanged,'acknowledgment is not a canonical write');results.push(`${width}: explicit keep quiets only the notice`);
-    await page.locator('#home-link').click();await page.waitForFunction(()=>state.view==='home');await page.goBack();await saved(page);
+    await showSidebar(page);await page.locator('#home-link').click();await page.waitForFunction(()=>state.view==='home');await page.goBack();await saved(page);
     assert.equal(await page.locator('#note-retained-version > span').isVisible(),false,'same-tab revisit remembers this exact record');
     await appendEditorText(page,' My later save.');await saved(page);
     assert.equal(await page.locator('#note-retained-version > span').isVisible(),false,'own later save does not replay old notice');
     await review(page);assert.match(await page.locator('#retained-current-text').inputValue(),/My later save/);await page.keyboard.press('Escape');results.push(`${width}: revisit, own save and comparison access`);
     const originalGeneration=await page.evaluate(()=>state.noteToken);
-    await page.locator('#open-connection').click();await page.locator('#api-key').fill(otherToken);await page.locator('#connection-submit').click();
+    await showSidebar(page);await page.locator('#open-connection').click();await page.locator('#api-key').fill(otherToken);await page.locator('#connection-submit').click();
     await page.waitForFunction(previous=>state.noteToken>previous&&state.editor?.collaboration?.state.status==='saved',originalGeneration);
     assert.equal(await page.locator('#note-retained-version > span').isVisible(),true,'credential-scope change clears acknowledgement');results.push(`${width}: scope change clears acknowledgement`);
     await writeFile(file,content('A newer external replacement '+width+'.\n'));

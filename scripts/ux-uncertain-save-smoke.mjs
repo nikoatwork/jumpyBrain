@@ -1,3 +1,4 @@
+import { showSidebar } from './editor-smoke-helpers.mjs';
 // Lost acknowledgments and concurrent peer edits on disposable hosted notes.
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
@@ -116,7 +117,7 @@ try {
         "a failed/uncertain draft stays visible through peer updates",
       );
       assert.equal(await page.locator("#note-name").inputValue(), privateTitle);
-      await page.locator("#home-link").click();
+      await showSidebar(page);await page.locator("#home-link").click();
       await page.waitForFunction(() => !state.editor.state.navigationPending);
       assert.equal(
         new URL(page.url()).searchParams.get("note"),

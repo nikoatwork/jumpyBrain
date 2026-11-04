@@ -1,3 +1,4 @@
+import { showSidebar } from './editor-smoke-helpers.mjs';
 // Keyboard ownership in the production shell. Disposable Markdown, no indexing.
 import assert from 'node:assert/strict';import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
 import os from 'node:os';import path from 'node:path';
@@ -28,7 +29,7 @@ try{
     const modifier=await page.evaluate(()=>/Mac|iPhone|iPad/.test(navigator.platform)?'Meta':'Control');
     await page.locator('#note-editor').focus();await page.keyboard.press(`${modifier}+f`);await page.locator('#note-find-input').waitFor({state:'visible'});await page.keyboard.press('Escape');
     assert.equal(await page.locator('#note-find').isHidden(),true,'find owns its Escape');
-    await page.locator('#open-search').click();await page.locator('#note-search-input').waitFor({state:'visible'});await page.keyboard.press('Escape');
+    await showSidebar(page);await page.locator('#open-search').click();await page.locator('#note-search-input').waitFor({state:'visible'});await page.keyboard.press('Escape');
     assert.equal(await page.locator('#note-search-input').isVisible(),false,'search owns its Escape');results.push(`${width}: composition/find/search ownership`);
     assert.equal(await editorMarkdown(page),body);assert.equal(await readFile(path.join(root,'notes/escape.md'),'utf8'),content);await page.close();
   }

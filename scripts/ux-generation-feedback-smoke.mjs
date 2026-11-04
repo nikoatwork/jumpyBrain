@@ -1,3 +1,4 @@
+import { showSidebar } from './editor-smoke-helpers.mjs';
 // Real production shell + supported CLI stream against a disposable localhost root.
 import assert from 'node:assert/strict';import {spawn} from 'node:child_process';
 import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
@@ -46,7 +47,7 @@ try{
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'confirmed feedback fits the viewport');
       assert.ok((await readFile(path.join(root,'notes/draft.md'),'utf8')).includes(marker));
       assert.equal(await page.evaluate(()=>state.editor.state.documentId),id);results.push(`${width}/${outcome}: confirmed terminal cue and saved partial text`);
-      await page.locator('#home-link').click();await page.waitForFunction(()=>state.view==='home');
+      await showSidebar(page);await page.locator('#home-link').click();await page.waitForFunction(()=>state.view==='home');
       assert.equal(await page.locator('#note-generation-state').isVisible(),false,'terminal cue is note-scoped');
       await page.goBack();await page.waitForFunction(()=>state.editor?.collaboration?.state.status==='saved');
       assert.equal(await page.locator('#note-generation-state').isVisible(),false,'opening does not replay historical completion');

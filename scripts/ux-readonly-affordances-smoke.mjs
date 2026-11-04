@@ -1,3 +1,4 @@
+import { showSidebar } from './editor-smoke-helpers.mjs';
 // Real hosted role credentials, empty-note guidance and reconnect affordances.
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
@@ -107,7 +108,7 @@ try {
       delete window.fixtureClipboardWrite;
     });
 
-    await page.locator("#open-search").click();
+    await showSidebar(page);await page.locator("#open-search").click();
     await page.locator("#note-search-input").fill("Available reference");
     await page
       .locator("#search-results [role=option]")

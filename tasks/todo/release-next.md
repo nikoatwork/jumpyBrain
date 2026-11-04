@@ -1,5 +1,7 @@
 # Changes
 
+- Narrow note links and resizing leave room for the selected note; the sidebar reopens without changing the desktop preference.
+
 - Read-only notes hide writing invitations, including in manual-copy recovery; denied note creation explains when write access is needed.
 
 - Abandoned generation now reports its confirmed interruption after lease expiry without requiring a status lookup; already saved output stays intact.
