@@ -96,3 +96,15 @@ Iteration 8 default-lease comparison: original build `3b7fa7d720f00267` had no u
 Broad-run cleanup diagnosis: the doctor follow-up fixture retargeted `f.root` to its quoted-path test but cleanup still captured the original root, leaving the actual test backend writing logs during deletion. Cleanup now stops both owned fixture roots before removal; all eight doctor follow-up tests passed. This is a fixture-lifetime correction, not a product behavior change.
 
 Iteration 8 retained with an unassisted default-lease gain and no lost protected generation cases. [Archived interruption delivery increment](../done/2026-11-04_tasks-ux-generation-interruption.md). Explicit artifact/package measurements remain within the existing ceilings; the in-progress long soak continues on its frozen earlier runtime.
+
+### Iteration 9: read-only note affordances
+
+Inspection found the writing surface uses live role/connection locking, but empty-note guidance and the Format toggle consult only the companion preference. Probe an actual hosted reader credential on an empty note: it must not invite writing or expose formatting while the editor is read-only. Preserve copy/search/navigation, ordinary writer guidance, and private-editing controls during a writer reconnect; do not equate temporary `canWrite:false` with a read-only role.
+
+Iteration 9 related creation probe also reproduced a truthful-guidance defect: a valid hosted reader's real 403 says “Connect with an access key” as if authentication were missing. Keep 401 key-repair advice distinct from 403 write-access advice, with actual visible writer-key repair creating exactly one note. This does not add a global role cache or alter authorization/targeting.
+
+Iteration 9 retained: actual hosted reader guidance/formatting follows the existing
+note lock, and 403 creation guidance now asks for write access while 401 retains
+key repair. Six real-role browser cases, seven blocked-setup neighbors, the full
+writing journey and 39 focused checks passed; 20 checks were repeated after final
+wording. [Archived increment](../done/2026-11-04_tasks-ux-readonly-affordances.md).

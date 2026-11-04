@@ -1313,7 +1313,7 @@ const relatedPages = JumpyBrainBrowser.installRelatedPages({
 const noteWorkspace = JumpyBrainBrowser.installNoteWorkspace({
   document, editor: () => state.view === "note" ? state.editor : null,
   actor: () => browserActor,
-  writable: () => !(companionMode && companionReadOnly()),
+  writable: () => !noteEditingLocked(state.editor?.state),
 });
 const sidebarPages = JumpyBrainBrowser.installPageNavigation({
   document, window,
@@ -1694,8 +1694,11 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
   return collaboration;
 }
 
+function noteEditingLocked(editorState = {}) {
+  return Boolean((typeof companionMode !== "undefined" && companionMode && companionReadOnly()) || editorState.liveStatus === "readonly" || editorState.liveStatus === "blocked" || (editorState.liveStatus && !editorState.liveHasOpened));
+}
 function syncEditorUi(editorState) {
-  const companionLocked = (typeof companionMode !== "undefined" && companionMode && companionReadOnly()) || editorState.liveStatus === "readonly" || editorState.liveStatus === "blocked" || (editorState.liveStatus && !editorState.liveHasOpened);
+  const companionLocked = noteEditingLocked(editorState);
   const needsReview = editorState.saveStatus === "failed" && editorState.saveErrorCode === "precondition_failed";
   const cleanUnavailable = editorState.liveStatus === "blocked" && !editorState.dirty;
   if (!state.editor || state.editor.state !== editorState) return;
@@ -1811,7 +1814,9 @@ async function newNote() {
     $("new-note").title = "New note · " + newShortcut;
   } catch (error) {
     message.dataset.error = "true";
-    message.textContent = Number(error.status) === 401 || Number(error.status) === 403
+    message.textContent = Number(error.status) === 403
+      ? "This connection does not allow creating notes. Ask the brain owner for write access, then retry New note."
+      : Number(error.status) === 401
       ? "Connect with an access key, then retry New note."
       : error.message === "navigation_blocked"
         ? "Could not leave the current note. Retry any failed save, then try New note again."

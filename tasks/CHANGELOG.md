@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Honest read-only affordances
+
+- Hosted readers no longer see empty-note writing/formatting invitations; denied creation distinguishes missing write access from missing authentication. [Real-role verification and limits](done/2026-11-04_tasks-ux-readonly-affordances.md).
+
 ## 2026-11-04 — Abandoned producer feedback
 
 - Confirmed lease expiry/revocation reaches subscribed editors without a diagnostic lookup; metadata-only notices preserve scoped identity and avoid repeating whole notes for retirement batches. [Default-lease reproduction, verification and limits](done/2026-11-04_tasks-ux-generation-interruption.md).

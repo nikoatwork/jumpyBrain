@@ -1,5 +1,7 @@
 # Changes
 
+- Read-only notes hide writing invitations, and denied note creation explains when write access is needed.
+
 - Abandoned generation now reports its confirmed interruption after lease expiry without requiring a status lookup; already saved output stays intact.
 
 - Escape closes the focused formatting controls even while the editor selection remains highlighted.
