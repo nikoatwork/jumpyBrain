@@ -152,7 +152,8 @@ export function createCollaborationEditor(options: Options) {
     if(conflict){baseline=snapshot;persist();publishSnapshot(snapshot);notify();return}
     // Revision -1 is the initial hydration placeholder, not an observed edit
     // by another writer. Later canonical changes still receive remote feedback.
-    const remote=Boolean(baseline && baseline.revision >= 0)&&!own&&(snapshot.revision!==baseline?.revision||snapshot.body!==baseline?.body||snapshot.title!==baseline?.title);
+    const contentChanged = Boolean(baseline && (snapshot.body !== baseline.body || snapshot.title !== baseline.title));
+    let remote=Boolean(baseline && baseline.revision >= 0)&&!own&&contentChanged;
     let remoteSteps:SourceSplice[][]=[];
     const sourceBase=own?.submitted??pendingBase;
     if(!baseline||baseline.revision<0){
@@ -164,6 +165,12 @@ export function createCollaborationEditor(options: Options) {
     }else{
       const history=await canonicalHistory(baseline,snapshot);
       if(disposed)return;
+      // Title and history receipts have no body flight marker. Use the full,
+      // validated actor history, not just the last operation or principal: a
+      // second tab of the same user is still another writer, and a coalesced
+      // receipt can contain both our own and another writer's changes.
+      const ownActor = JSON.stringify([principal!.id, clientId]);
+      remote = contentChanged && history.some(operation => operation.actor !== ownActor);
       if(own){
         const index=history.findIndex(operation=>operation.operationId===own.id&&operation.actor===own.actor);
         if(index<0)throw new CollaborationError("history_gap","The source history did not confirm the submitted operation.");

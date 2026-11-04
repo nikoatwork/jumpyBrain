@@ -404,3 +404,9 @@ Attention rows carry optional opaque stat-generation `sourceVersion` hints. Exis
 Collaboration recovery emits finite support codes for unproven input/intent, private draft proof, missing history, epoch mismatch and unsafe canonical change. These observational events preserve draft/snapshot behavior and contain no content or source coordinates. Clean saved notes keep recovery controls hidden; retained drafts remain explicit review candidates.
 
 The search footer describes optional semantic setup from scoped observational status: lexical, ready, unavailable, incomplete or failed. It directs missing/failed setup to the brain owner; it has no download mutation. Search-maintenance packet notifications run only after cancellation/scope checks, and inaccessible state clears stale labels.
+
+External-update feedback uses validated operation history to distinguish this
+editor's title/body/history receipts from other writers. A second tab of the
+same account remains another actor. Coalesced revisions inspect the complete
+history; unchanged title/body checkpoints do not create a notice. Verify with
+`scripts/ux-update-feedback-smoke.mjs` and `test/collaboration-feedback-origin.test.js`.
