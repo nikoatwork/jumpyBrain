@@ -1592,7 +1592,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
   if (capabilities.protocol !== 2 || typeof capabilities.brainId !== "string") throw new Error("This backend requires a coordinated client upgrade.");
   const endpoint = new URL("/ws", location.href);
   endpoint.protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  let cancelled = false, sidebarRefresh = null, generationTimer = null;
+  let cancelled = false, sidebarRefresh = null, generationTimer = null, externalNoticeTimer = null;
   const generationFeedback = JumpyBrainBrowser.createGenerationFeedback();
   const clearGeneration = () => {
     clearTimeout(generationTimer); generationTimer = null;
@@ -1629,7 +1629,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
       if (!pendingTitle) current.title = snapshot.title;
       current.draft = view.body; current.recognition = snapshot.recognition;
       if (contentChanged) {current.reconcileToken++; current.draftRevision++;}
-      if (view.remote) { current.externalStatus = "updated"; setTimeout(() => {if (state.editor === editor) {current.externalStatus = ""; syncEditorUi(current);}}, 4000);}
+      if (view.remote) { current.externalStatus = "updated"; clearTimeout(externalNoticeTimer); externalNoticeTimer = setTimeout(() => {externalNoticeTimer = null; if (state.editor === editor) {current.externalStatus = ""; syncEditorUi(current);}}, 4000);}
       $("note-file").textContent = snapshot.file || "";
       if (contentChanged) {
       sidebarPages.rename({id: documentId, title: snapshot.title});
@@ -1689,7 +1689,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
     if (editor.state.liveStatus === "blocked") {await showNote(documentId); return state.editor !== editor && Boolean(state.editor?.state.loaded);}
     return collaboration.resolveConflict("saved");
   };
-  editor.cancel = () => {toast.clear("editor-save"); renderLivePresence(null, "offline"); cancelled = true; clearTimeout(sidebarRefresh); generationFeedback.reset(); clearGeneration(); collaboration.dispose(); originalCancel();};
+  editor.cancel = () => {toast.clear("editor-save"); renderLivePresence(null, "offline"); cancelled = true; clearTimeout(sidebarRefresh); clearTimeout(externalNoticeTimer); generationFeedback.reset(); clearGeneration(); collaboration.dispose(); originalCancel();};
   collaboration.connect();
   return collaboration;
 }

@@ -479,3 +479,10 @@ cannot establish read-only access because it also describes those conflicts.
 The actions' shared refresh updates open recovery controls when live state
 changes; every submit rechecks the bound scope and publication policy. Saved
 comparison/manual copy remain available without a canonical write.
+
+External-update feedback has one replaceable four-second timer per editor. A
+new peer change restarts that quiet interval; an older clear cannot erase the
+newer notice. Editor cancellation clears the timer. Own acknowledgments retain
+their existing quiet behavior, and generation feedback keeps a separate timer.
+`scripts/ux-update-feedback-smoke.mjs` verifies rapid peer updates and eventual
+expiry at desktop/mobile widths with unchanged source and focus.
