@@ -50,3 +50,8 @@ The hub supplies best-effort activity hints from refcounted writer-capable subsc
 ## Declared display actors
 
 An optional `declaredActor` is validated with core actor policy for presence and canonical publication. Its name/kind/optional ID are provenance declarations, just as on HTTP writes. They never replace the authenticated principal or client key for authorization, undo, stream ownership or drafts. Legacy clients retain principal-based declarations. Changing the display name updates subsequent presence/publication without rewriting prior Markdown.
+
+Live stream transition snapshots include the opaque actor key alongside stream
+ID, sequence and terminal state. Stream IDs are actor-scoped, so clients must
+not correlate another producer's finish/cancel using the stream ID alone. This
+adds correlation evidence without changing ownership or publishing semantics.

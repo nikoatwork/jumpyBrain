@@ -1,5 +1,7 @@
 # Changes
 
+- A connected note quietly distinguishes confirmed generation finish, stop and interruption, without treating lost presence as completion.
+
 - Keeping the current note after comparing retained versions quiets that notice for this tab; earlier versions stay accessible.
 
 - If live editing cannot connect, loaded saved notes stay readable with a clear editing retry; connection status is consistent for screen readers.

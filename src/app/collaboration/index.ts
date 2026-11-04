@@ -79,6 +79,7 @@ export interface CollaborationSnapshot {
   conflict?: { code: string };
   indexing?: "pending" | "failed";
   stream?: {
+    actor?: string;
     streamId: string;
     sequence: number;
     state: string;
@@ -314,6 +315,7 @@ export class CollaborationHub {
     const snapshot = this.snapshot(session, operation);
     if (stream)
       snapshot.stream = {
+        ...(stream.actor ? { actor: stream.actor } : {}),
         streamId: stream.streamId,
         sequence: stream.sequence,
         state: stream.state,

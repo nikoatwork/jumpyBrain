@@ -428,3 +428,14 @@ acknowledge; a newer recovery record still shows guidance. At most 64 opaque
 record signatures are held in memory; scope changes and reload clear them. No
 recovery data is deleted and no localStorage/canonical write is introduced.
 `scripts/ux-retained-review-smoke.mjs` protects these transitions at 1280/390px.
+
+`generation-feedback` tracks observed active streams by opaque actor/stream and
+epoch within one editor scope. Confirmed terminal events show a quiet eight-second
+**Generation finished**, **Generation stopped** or **Generation interrupted**
+status; they do not claim a completed task or document. Repeated/historical
+terminal states, presence loss and disconnection never establish completion.
+Missing actor identity from older servers produces no inferred cue. Connection,
+note and brain transitions clear in-memory observations and visible feedback.
+Stream events are observed before source reconciliation so a held own edit
+receipt cannot erase a terminal transition. Existing generating presence remains
+independent, and focus is never moved by the cue.

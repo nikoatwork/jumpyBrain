@@ -34,6 +34,7 @@ interface Options {
   onState?: (state: CollaborationEditorState) => void;
   onRecovery?: (code: string) => void;
   onSnapshot?: (snapshot: CollaborationSnapshot, view: { body: string; pending: boolean; remote: boolean }) => void;
+  onStream?: (snapshot: CollaborationSnapshot) => void;
 }
 export function createCollaborationEditor(options: Options) {
   const clientId = options.clientId ?? collaborationClientId(options.scope), store = options.drafts ?? createCollaborationDraftStore();
@@ -321,6 +322,9 @@ export function createCollaborationEditor(options: Options) {
   });
   function receiveSnapshot(snapshot: CollaborationSnapshot) {
       if (disposed || !opened || snapshot.documentId !== options.documentId) return;
+      // Stream transitions are ephemeral events: a source receipt queued behind
+      // our own edit must not erase the distinction between finish and cancel.
+      if (snapshot.stream) options.onStream?.(snapshot);
       if (!snapshot.saved || snapshot.conflict) { accept(snapshot); return; }
       if (historyFlight && snapshot.saved && !snapshot.conflict && snapshot.operation?.operationId === historyFlight.id && snapshot.operation.actor===JSON.stringify([principal?.id,clientId])) {
         const completed = historyFlight; completed.acknowledged = true;

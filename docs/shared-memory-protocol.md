@@ -1037,3 +1037,10 @@ can use surviving history until pressure or source-retention expiry. An expired
 Undo/Redo fails with `history_expired` without changing canonical source; further
 edits remain available. Source history, causal identities and surviving
 idempotency receipts are not deleted merely because an Undo owner retires.
+
+Stream transition snapshots may also include `stream.actor`, the same opaque
+principal/client actor key used for live operation identity. Correlate it with
+`streamId` and the document epoch: stream IDs alone are not unique across
+producers. Older hosts may omit the actor; clients must not infer an owner or
+completion from presence disappearing. This additive correlation field does not
+change authentication, stream ownership or canonical publication.
