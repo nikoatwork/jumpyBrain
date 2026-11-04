@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { checkPageActions } from './page-action-smoke-helpers.mjs';
+import { installCollaborationSmokeTransport } from './collaboration-smoke-transport.mjs';
 import { appendEditorText, editorMarkdown } from './editor-smoke-helpers.mjs';
 import { mkdtemp,mkdir,readFile,writeFile,rm } from 'node:fs/promises';
 import path from 'node:path';import os from 'node:os';
@@ -16,7 +17,7 @@ try{
  await writeFile(path.join(root,'notes/checklist.md'),original);await indexMemory(root,{indexing:{mode:'lexical'}});await mkdir(support,{mode:0o700});await mkdir('/tmp/jumpybrain-boards-qa',{recursive:true});
  gateway=await startCompanionGateway({runtimeRoot:repo,directory:support,initialRoot:root,port:0,controlKey:'b'.repeat(64),credentials:{get:async ref=>keys.get(ref),set:async(ref,value)=>keys.set(ref,value),delete:async ref=>keys.delete(ref)}});
  browser=await launchPlaywrightChromium({chromium:await loadPlaywrightChromium()});
- const page=await browser.newPage({viewport:{width:1280,height:900}});page.setDefaultTimeout(12000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage({viewport:{width:1280,height:900}});page.setDefaultTimeout(12000);const liveTransport=await installCollaborationSmokeTransport(page);const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.addInitScript(()=>{
    window.fixtureClipboard=[];
    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{
@@ -191,11 +192,11 @@ try{
  await page.locator('#copy-note-file-path').click();
  assert.equal(await page.evaluate(()=>fixtureClipboard.at(-1)),path.join(localRoot,await page.evaluate(()=>state.editor.state.file)),'navigation copies the current note path');
  assert.equal(await page.locator('#note-board-memberships').innerText(),'A quieter launch · Settled','navigation clears the preceding note memberships');
- await page.route('**/memories/all/documents/**',async route=>{if(route.request().method()==='PUT')await route.abort();else await route.continue();});
- await appendEditorText(page,'Keep this unsaved thought.');const draft=await editorMarkdown(page);
+ const failedEdit=liveTransport.rejectNext('edit',{code:'source_unavailable'});
+ await appendEditorText(page,'Keep this unsaved thought.');await failedEdit.arrived;const draft=await editorMarkdown(page);
  await page.locator('#note-add-to-board').click();await page.waitForFunction(()=>!document.getElementById('note-board-add').disabled);await page.locator('#note-board-add').click();await page.locator('#note-board-dialog').waitFor({state:'hidden'});
  assert.equal(await editorMarkdown(page),draft);assert.equal(await page.evaluate(()=>state.editor.hasPending()),true);
- await page.unroute('**/memories/all/documents/**');await page.waitForFunction(()=>!state.editor.state.saveInFlight);assert.equal(await page.evaluate(()=>state.editor.retry()),true);
+ await page.locator('#note-recover').click();await page.waitForFunction(()=>!document.getElementById('recovery-publish').disabled);assert.match(await page.locator('#recovery-draft').inputValue(),/Keep this unsaved thought/);await page.locator('#recovery-publish').click();await page.waitForFunction(()=>state.editor.collaboration.state.status==='saved');
  await page.waitForFunction(()=>!document.getElementById('new-board').disabled);
  // Generated names are unique, and repeated activation creates only one board.
  const beforeBoards=await page.locator('#sidebar-boards > li').count();

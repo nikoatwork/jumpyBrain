@@ -21,7 +21,7 @@ try{
   await mkdir(path.join(root,'notes'));await writeFile(path.join(root,'notes/draft.md'),content(id,'Human draft.\n'));await writeFile(path.join(root,'notes/other.md'),content(otherId,'Other note.\n'));await writeFile(config,JSON.stringify({schemaVersion:1,remoteTargets:[]}));
   server=await startJumpyBrainHttpServer({root,apiKeys:[token],port:0,autoIndex:false});
   browser=await launchPlaywrightChromium({chromium:await loadPlaywrightChromium()});
-  for(const width of [1280,390]){
+  for(const width of [1280,390,320]){
     const page=await browser.newPage({viewport:{width,height:844}});page.setDefaultTimeout(10000);
     const transport=await installCollaborationSmokeTransport(page);
     await page.goto(`${server.url}/?note=${id}#apiKey=${token}`);await page.waitForFunction(()=>state.editor?.collaboration?.state.status==='saved');
@@ -43,6 +43,7 @@ try{
       assert.equal(await page.evaluate(()=>document.activeElement?.id),focused,'generation feedback never steals focus');
       assert.equal(await page.locator('#note-generation-state').getAttribute('role'),'status');
       assert.equal(await page.locator('#note-generation-state').getAttribute('aria-live'),'polite');
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'confirmed feedback fits the viewport');
       assert.ok((await readFile(path.join(root,'notes/draft.md'),'utf8')).includes(marker));
       assert.equal(await page.evaluate(()=>state.editor.state.documentId),id);results.push(`${width}/${outcome}: confirmed terminal cue and saved partial text`);
       await page.locator('#home-link').click();await page.waitForFunction(()=>state.view==='home');

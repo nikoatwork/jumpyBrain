@@ -5,7 +5,7 @@ Owner request: “hill climb in a loop for 4h.” Started 2026-11-04 21:21:15 UT
 Use frozen [experience rubric](../../evals/workspace-experience/rubric.md), [missions](../../evals/workspace-experience/journeys/core.md) and [native baseline](../../evals/workspace-experience/reports/2026-11-03-baseline.md). Record proposed effects and protected neighbors before editing. Keep verified improvements; revert losing candidates. Browser/deterministic evidence is separate from native UX scoring; no composite score.
 
 - [x] Confirm clean checkout, read owning docs and freeze deadline/evaluation boundaries.
-- [ ] Reproduce remaining own-edit external feedback, retained-version repetition and live-connection failure messaging.
+- [x] Reproduce remaining own-edit external feedback, retained-version repetition and live-connection failure messaging.
 - [ ] Iterate on reproduced findings with canonical/draft/navigation/access safeguards.
 - [ ] Probe core capture, search/handoff, boards, coauthoring and off-note transitions for further concrete friction.
 - [ ] Run broader checks on the final retained snapshot, record gains/losses and remaining limits.
@@ -74,3 +74,5 @@ The writing copy probe's clipboard readback passed, but its confirmation was blo
 Iteration 7 retained: six targeted warning-scope cases and 36 related tests passed. After fixing an invalid dual-hold ordering in the copy test fixture, the full writing journey also passed on the combined candidate. Only the owned hung fixture process was stopped; no shared service was touched. [Archived search increment](../done/2026-11-04_tasks-ux-search-warning-scope.md).
 
 Iteration 6 retained: scoped Escape passes six targeted cases, contextual attribution and full writing-workspace neighbors. [Archived increment](../done/2026-11-04_tasks-ux-scoped-escape.md). Native/physical IME scoring not observed.
+
+Harness correction finalized: confirmed live-state waits, actual WS faults, mutation accounting and visible reviewed publication now validate the writing/board journeys. Updater Linux expectation is accurate; generation feedback also fits 320px. [Archived verification correction](../done/2026-11-04_tasks-ux-validation-harness.md). No native score follows from harness repair.

@@ -99,7 +99,8 @@ test('checking is observational and duplicate clicks share one operation', async
   assert.deepEqual(state.actions, ['check', 'update']);
   assert.deepEqual(await readFile(path.join(f.root, 'install-manifest.json')), before);
   await mkdir(path.join(f.root, '.installer-lock'));
-  const locked = await updater.action('prepare'); assert.match(locked.detail, /lock/);
+  const locked = await updater.action('prepare');
+  assert.match(locked.detail, process.platform === 'darwin' ? /lock/ : /GUI updates require macOS/, 'non-Mac validation must not claim to exercise the native lock path');
 });
 test('hourly polling belongs to the app lifetime and skips shutdown without stopping after a canceled quit', async () => {
   let tick, interval, checks = 0, quitting = false, stopped = false, unreferenced = false;
