@@ -8,9 +8,10 @@ const pkg = JSON.parse(await readFile("package.json", "utf8"));
 const { version } = pkg;
 // Compact CLI, backend-ownership and local retrieval/app artifacts. Keep source, declarations,
 // identifiers, syntax and legal notices; no new bundle or runtime dependency.
-for (const directory of ["cli", "adapters/backend-host", "app/backend-host", "adapters/qmd", "app/local-memory", "app"]) {
+for (const directory of ["cli", "adapters/backend-host", "app/backend-host", "adapters/qmd", "app/local-memory", "app", "app/collaboration", "adapters/http-server"]) {
   for (const name of await readdir(`dist/${directory}`)) {
     if (!name.endsWith(".js")) continue;
+    if (directory === "adapters/http-server" && !["collaboration-editor.js", "generation-feedback.js", "document-retained-versions.js"].includes(name)) continue;
     // The frozen retrieval evaluator instruments these exact emitted seams.
     if (["adapters/qmd/qmd-query.js", "adapters/qmd/qmd-driver.js", "app/local-memory/compact.js"].includes(`${directory}/${name}`)) continue;
     const file = `dist/${directory}/${name}`;

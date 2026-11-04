@@ -3,6 +3,7 @@ export interface CollaborationSnapshot {
   prefix?: string; file?: string; recognition?: unknown;
   operation?: { revision?: number; start: number; deleteCount: number; insert?: string; splices?: { start:number; deleteCount:number; insert:string; ambiguous?:true }[]; inverseOf?:{actor:string;operationId:string;revision:number}; snapshotOnly?: boolean; actor?: string; operationId?: string };
   presence?: { actor: string; principalId?: string; clientId?: string; name: string; kind: "human" | "agent"; activity?: "viewing" | "editing" | "streaming"; epoch?: string; revision?: number; leaseExpiresAt?: number; anchor?: number; focus?: number }[];
+  stream?: { actor?: string; streamId: string; sequence: number; state: string; reason?: string } | null;
   conflict?: { code: string; message?: string };
   recovery?: { code: "external_destructive_replacement"; recoveryId: string; baseContentHash: string; externalContentHash: string };
   recoveryDiscovery?: "incomplete";

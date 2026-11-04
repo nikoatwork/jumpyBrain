@@ -16,7 +16,7 @@ checks to its real tarball before recording successful package metadata.
 
 Budgets in `scripts/package-budget.mjs` are 1.45 MB compressed, 4.6 MB unpacked,
 3.1 MB under `dist/`, and 660 files (decimal units). Existing editor tests retain
-222.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+223.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
@@ -224,3 +224,26 @@ archive budgets and APFS free-space claims.
 ## Optional semantic setup packaging
 
 Extend existing emitted-whitespace compaction to QMD, app/local-memory and app-root JavaScript before adding portable model setup. Three evaluator instrumentation seams (`qmd-query`, `qmd-driver`, local-memory `compact`) retain their emitted formatting. Source, declarations, identifiers, syntax and legal notices remain; esbuild was already a development dependency. This retains existing distribution byte ceilings rather than increasing them for the feature. Model weights and separate release-native helper assets stay outside the CLI package.
+
+## 2026-11-04 UX feedback loop
+
+A pristine `6d06cb9` build on Linux/Node 22.23.1 measured 222,420 editor gzip
+bytes, already above the prior 222,250-byte guard. Matched production esbuild
+runs with the same fixed build fingerprint measured 222,414 pristine and 223,009
+with origin-aware own-edit feedback, retained-review acknowledgment and scoped
+confirmed generation outcomes: +595 bytes (0.27%). The actual candidate measured
+223,015 gzip bytes. The editor still bundles the same 15 packages; no dependency
+or framework was added. The reviewed editor ceiling is 223,250 bytes, leaving
+235 bytes over that measured candidate. This is a footprint review, not a change
+to the native experience rubric or evidence requirements.
+
+Distribution ceilings remain 1.45 MB compressed, 4.6 MB unpacked, 3.1 MB runtime
+and 660 files. The candidate initially exceeded the archive/unpacked ceilings.
+The build now applies its existing identifier-preserving whitespace compaction
+to the changed collaboration application/editor and retained/generation feedback
+modules. Source, declarations and license notices remain shipped; ordinary
+browser bundle generation and runtime dependencies are unchanged. Compaction
+reduces the collaboration app artifact alone from 53,953 to 34,157 bytes (its
+standalone gzip from 10,994 to 8,507). Retained comparison and generation modules
+also shrink. Full package and source-operation/stream checks protect the final
+compiled artifacts; do not widen distribution ceilings to absorb UX work.

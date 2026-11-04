@@ -404,6 +404,7 @@ export const notesMarkup = String.raw`
 <div class="document-status" role="group" aria-label="Save status">
   <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <span id="note-presence" aria-live="polite"></span>
+  <span id="note-generation-state" class="save-state" role="status" aria-live="polite" hidden></span>
   <span id="note-external-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
@@ -1591,7 +1592,12 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
   if (capabilities.protocol !== 2 || typeof capabilities.brainId !== "string") throw new Error("This backend requires a coordinated client upgrade.");
   const endpoint = new URL("/ws", location.href);
   endpoint.protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  let cancelled = false, sidebarRefresh = null;
+  let cancelled = false, sidebarRefresh = null, generationTimer = null;
+  const generationFeedback = JumpyBrainBrowser.createGenerationFeedback();
+  const clearGeneration = () => {
+    clearTimeout(generationTimer); generationTimer = null;
+    $("note-generation-state").textContent = ""; $("note-generation-state").hidden = true;
+  };
   const originalCancel = editor.cancel;
   const collaboration = JumpyBrainBrowser.createCollaborationEditor({
     actor: () => browserActor,
@@ -1600,6 +1606,16 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
     scope: location.origin + ":" + capabilities.brainId + ":" + (companionMode ? String(companionState?.activeId || "") : "hosted"),
     documentId, editor: richEditor, expectedBrainId: capabilities.brainId,
     connectionContext: () => companionMode ? {tabId: companionTabId, generation: companionState?.generation} : {},
+    onStream: (snapshot) => {
+      if (cancelled || state.editor !== editor) return;
+      const notice = generationFeedback.observe(snapshot);
+      if (!notice) return;
+      clearGeneration();
+      if (notice.kind === "active") return;
+      $("note-generation-state").textContent = notice.text;
+      $("note-generation-state").hidden = false;
+      generationTimer = setTimeout(clearGeneration, 8000);
+    },
     onSnapshot: (snapshot, view) => {
       if (cancelled || state.editor !== editor) return;
       const current = editor.state;
@@ -1629,6 +1645,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
     },
     onState: (live) => {
       if (cancelled || state.editor !== editor) return;
+      if (["offline", "connecting", "blocked"].includes(live.status)) { generationFeedback.reset(); clearGeneration(); }
       const current = editor.state;
       current.draft = collaboration.body;
       if (live.historyNotice && current.historyNoticeSequence !== live.historyNotice.sequence) {
@@ -1672,7 +1689,7 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
     if (editor.state.liveStatus === "blocked") {await showNote(documentId); return state.editor !== editor && Boolean(state.editor?.state.loaded);}
     return collaboration.resolveConflict("saved");
   };
-  editor.cancel = () => {toast.clear("editor-save"); renderLivePresence(null, "offline"); cancelled = true; clearTimeout(sidebarRefresh); collaboration.dispose(); originalCancel();};
+  editor.cancel = () => {toast.clear("editor-save"); renderLivePresence(null, "offline"); cancelled = true; clearTimeout(sidebarRefresh); generationFeedback.reset(); clearGeneration(); collaboration.dispose(); originalCancel();};
   collaboration.connect();
   return collaboration;
 }

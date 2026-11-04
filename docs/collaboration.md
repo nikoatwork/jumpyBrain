@@ -180,3 +180,11 @@ browser transport or an event database replacing Markdown.
 ### Client display names
 
 Use `jumpybrain identity --name 'Alex'` (also configurable in Mac onboarding/Settings) and set `JUMPYBRAIN_CLIENT_NAME=Codex` in the agent host to label future CLI collaboration writes `Alex · Codex`. Browser live saves use the configured human display name. Validated `declaredActor` values describe provenance and presence only; authenticated principals and client IDs continue to control authorization, Undo, drafts and streams. Older servers/clients must be upgraded to support these declarations. This does not retain block-level attribution history.
+
+In a connected open note, an observed generation shows a quiet **Generation
+finished**, **Generation stopped** or **Generation interrupted** cue when its
+corresponding confirmed terminal event arrives. This describes the stream, not
+whether an agent completed its broader task. It does not move focus or announce
+work in other notes. A lost connection or disappearing presence is not a finish;
+missed/historical events are not replayed when reopening. Older servers without
+stream actor identity retain active presence without an inferred outcome cue.

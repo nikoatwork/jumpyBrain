@@ -10,8 +10,8 @@ const bundle = await readFile(new URL("../dist/adapters/http-server/editor-bundl
 test("editor bundle is self-contained, production-sized, and safe to inline under the shell nonce", () => {
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
-  // Nested task editing and reference dismissal have a measured allowance; see docs/build-footprint.md.
-  assert.ok(gzipSync(bundle).length < 222_250, "review editor weight if the production bundle exceeds 222.25 KB gzip");
+  // Measured UX feedback/recovery allowance; see docs/build-footprint.md.
+  assert.ok(gzipSync(bundle).length < 223_250, "review editor weight if the production bundle exceeds 223.25 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);
