@@ -72,6 +72,10 @@
 
 - Initial live hydration no longer reports an external update; retained-copy wording avoids an unsupported removal claim. Build, 89 focused tests and both browser smokes passed. Native Mac rerun and UX ratings remain unverified. [Outcome and limits](done/2026-11-04_tasks-ux-feedback-hillclimb.md).
 
+## 2026-11-04 — v0.3.20 beta
+
+- Published editor improvements, bounded installation storage, CLI note attention, explicit semantic setup and native update helpers. [Release verification](done/releases/v0.3.20.qa.md).
+
 ## 2026-11-04 — Checklist authoring and page-link dismissal
 
 - Smaller checkboxes support nested task editing with child rows retained; unsuccessful `@` linking dismisses when writing resumes. Existing external-link rendering was reverified. [Verification and limits](done/2026-11-04_tasks-editor-visual-feedback.md).

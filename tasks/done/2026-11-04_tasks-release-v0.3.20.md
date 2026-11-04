@@ -1,6 +1,6 @@
 # Release v0.3.20
 
-Status: preparing the requested patch release from clean master at `00df523`.
+Status: complete. Published and independently verified v0.3.20 from release commit `6d06cb94eb5fd2df07879323cf35cf0f75db7f14`.
 
 ## Scope and feedback
 
@@ -17,9 +17,9 @@ Status: preparing the requested patch release from clean master at `00df523`.
 - [x] Live feedback, publication cadence, source scope and clean history reviewed.
 - [x] Fresh build, outer desktop package and core note lifecycle.
 - [x] Selected changed-area evidence reviewed/reused; publication readiness committed with this record.
-- [ ] Release dry run and full versioned test/package/native/tag/push/publication workflow.
-- [ ] Verify public tag, exact notes, component versions, all three assets and downloaded digests.
-- [ ] Archive exact shipped notes and QA, reset pending notes, finalize task and commit bookkeeping.
+- [x] Release dry run and full versioned test/package/native/tag/push/publication workflow.
+- [x] Verify public tag, exact notes, component versions, all three assets and downloaded digests.
+- [x] Archive exact shipped notes and QA, reset pending notes, finalize task and commit bookkeeping with this archive.
 
 ## Environment and limits
 
@@ -39,3 +39,11 @@ macOS 15.7.7 ARM64; Node 26.7.0; provisioned QMD 2.8.3 (facd35e). Disposable fix
 - Inert real sandboxed updater-window smoke passed all phases, light/dark, compact layout, app-only choice, keyboard disclosure and recovery. It does not verify live GitHub/network state transitions or resolve the historical readiness report.
 - GitHub account has push/release permission; Swift/Python/native build prerequisites pass. Whitespace check passes. Logs: `/tmp/jumpybrain-v0.3.20-{build,desktop-pack,lifecycle,updater-ui}.log`.
 - Full versioned suite, CLI tarball and both release-native builds are owned by the release command next; no redundant preliminary full-suite run.
+
+## Published outcome
+
+- Preparation committed as `cde89de`. Release dry run passed; the full `npm run release` aligned both manifests/lockfiles at 0.3.20, ran the deterministic suite, validated the CLI distribution, built both release-native architectures, committed/tagged and atomically pushed master/tag, then published the GitHub beta release at **2026-11-04T21:09:06Z**.
+- Versioned suite: **1,906 total, 1,904 passed, two optional skips, zero failures**, 88.876 seconds. Distribution: 305 required paths; 644 files; 1,445,906 packed / 4,595,148 unpacked / 3,082,718 runtime bytes. Existing size gates passed.
+- Verified the public annotated tag and remote peeled commit, exact published notes, all four version metadata files in the tag/current checkout and the three shipped manifests/lockfiles in the tarball (npm excludes the root package-lock). Downloaded all three assets from public release URLs and matched local bytes, declared size and GitHub SHA-256; decoded native executables also match their inner hashes and declared Mach-O architectures.
+- Published [v0.3.20](https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.20). Exact shipped notes: [v0.3.20.md](releases/v0.3.20.md); verification/digests: [v0.3.20.qa.md](releases/v0.3.20.qa.md). Pending notes reset; deferred work was not described as shipped. No installation or personal-memory mutation.
+- Raw verification and downloaded assets are ignored under `.local-pack/release-v0.3.20-verify/`; release/verification logs are `/tmp/jumpybrain-v0.3.20-{release,verification}.log`. Historical report and platform limits above remain.
