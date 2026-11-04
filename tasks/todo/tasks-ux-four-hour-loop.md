@@ -108,3 +108,55 @@ note lock, and 403 creation guidance now asks for write access while 401 retains
 key repair. Six real-role browser cases, seven blocked-setup neighbors, the full
 writing journey and 39 focused checks passed; 20 checks were repeated after final
 wording. [Archived increment](../done/2026-11-04_tasks-ux-readonly-affordances.md).
+
+Additional protected-neighbor evidence on `d68bf75`: the production Markdown
+formatting journey passed at 1280/390/320, including actual server acceptance
+with a dropped live acknowledgment, retained uncertainty, review/load saved and
+continued edits. This is browser recovery evidence, not native P1 coverage.
+The older companion fixture failed its Settings “no memory fetch” assertion on
+both pristine `6d06cb9` and current builds. Diagnostic paths are only
+`/memories/all/boards`, required by the newer Boards Settings surface. No product
+regression was established; the old fixture's later checkpoints remain unrun
+rather than passing by deleting the assertion. Logs: `/tmp/jumpybrain-ux-companion-{pristine,d68bf75}.log`.
+
+The nested-board sidebar journey also passes its earlier navigation/layout checks
+but times out when it faults an obsolete HTTP PUT save. Pristine `6d06cb9`
+reproduces the same timeout at line 124. This is an unexercised failure checkpoint,
+not a product pass. Update that probe to fault the actual live title RPC and
+recover through reviewed publication; do not remove its preservation assertions.
+
+Next recovery probe: accepted body/title writes with dropped acknowledgments,
+and a rejected private body, each followed by an actual peer edit. Require the
+private version to remain visible, guarded Home, exact copy, current saved
+comparison, explicit saved acceptance and no replay/duplicate canonical write.
+Use fresh notes at 1280/390. This supplements P1 with browser-only uncertainty
+evidence; native uncertain-save recovery remains unobserved.
+
+### Iteration 10: read-only manual-copy recovery
+
+Hypothesis before product edits: clipboard denial opens the general recovery
+dialog even for a clean actual-reader note. Its publication capability checks
+only global connection preferences, unlike retained-version restore. The dialog
+may offer a publisher to a known read-only actor. Require manual selectable copy
+without a publication invitation; preserve real writer reviewed publication,
+scope fences and canonical bytes. Test the actual reader role with an injected
+clipboard rejection at 1280/390 before changing source.
+
+Broad compiled-snapshot run `d68bf75` finished: 1,918 tests, 1,901 passed,
+17 skipped, zero failed, ~630 seconds. QMD pinned to 2.8.3 in an isolated
+validation directory. Log `/tmp/jumpybrain-ux-full-d68bf75.log`. The earlier
+doctor cleanup correction was present; native-only skips remain skips. No
+rebuild overlapped the run. Iteration 10 was source-only while this compiled
+artifact ran and still needs its own verification.
+
+Recovery pilot correction: title broadcasts do not carry an operation ID, so
+dropping only its RPC left a separate confirmation channel intact. The new
+uncertainty fixture holds that broadcast as well. Original failed probe remains
+in `/tmp/jumpybrain-ux-uncertain-save-d68bf75.log`; the corrected six desktop/
+mobile body/title/rejection-with-peer cases passed in `...uncertain-save-02-d68bf75.log`.
+
+The first long stability tranche is complete: 60 cycles over 45 minutes on
+frozen build `3b7fa7d720f00267`, with 40 finishes/20 cancellations, accumulated
+contributions and all scope/search/Back/reconnect checks retained. Nested-board
+live-fault and six uncertain-save-with-peer cases also pass. [Archived evidence
+and fixture corrections](../done/2026-11-04_tasks-ux-long-stability.md).
