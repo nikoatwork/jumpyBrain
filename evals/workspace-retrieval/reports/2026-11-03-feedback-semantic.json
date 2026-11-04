@@ -1,0 +1,1580 @@
+{
+  "schemaVersion": 1,
+  "experimentDate": "2026-11-03",
+  "administrativeCloseout": "2026-11-04",
+  "decision": "Reject both independent candidates; production retrieval unchanged",
+  "counts": {
+    "oldPages": 248,
+    "oldCases": 168,
+    "freshPages": 30,
+    "freshCases": 18
+  },
+  "freezeSha256": "caa6c55f248378181528a34f1f5e11d49160c5390752ffc7eb46de0fc948aa50",
+  "inputDigest": "c385ea46b60607465d3053d5968160d051ccede66f3012f1095c39d59e17126f",
+  "authorFreezeDigest": "fc1369a770e06d9d8180a8dcf57d0519311a5422ce02202e2d25350f755ed32b",
+  "policySha256": "10c0a615540016ad703c835735be4a85967db0b4eb3aaeb825aaa60d71e5ff42",
+  "runnerSha256": "8c3f23daa7056436a3f1e3d77d24c2210aa15aa284529b1fdf958730b8242ce0",
+  "runtimes": {
+    "baseline": {
+      "digest": "ce312db66f12d1c21325d4cc063ab125f7e854dca6f9fdbd1572075a4f44ff59",
+      "sourceHash": "83b1573f0dd38988c64ec51fedc15bffaebc905978d130d905c81daa2916caeb",
+      "differentFiles": []
+    },
+    "eligibility": {
+      "digest": "350671e8b0d5b26e75005c7971c246f6ad1289f470c4dec97a9a9575239020b6",
+      "sourceHash": "fe0dc8235abdde0b74cfb40ffe00197ccd3e6a7782398b69677814ee87009399",
+      "differentFiles": [
+        "src/adapters/qmd/qmd-query.ts",
+        "dist/adapters/qmd/qmd-query.d.ts",
+        "dist/adapters/qmd/qmd-query.js"
+      ]
+    },
+    "vector-only": {
+      "digest": "471241de51ff42ab47c08d6d881b74f12ff518d686f1654c3bd08364fb4eb2e0",
+      "sourceHash": "1aa2f516c7c3803bb62cf8e3fccf5db58217ab315beebf5506bf6da1476d1f36",
+      "differentFiles": [
+        "src/adapters/qmd/qmd-query.ts",
+        "dist/adapters/qmd/qmd-query.js"
+      ]
+    }
+  },
+  "qmd": {
+    "version": "2.8.3",
+    "digest": "8e37bad0a3bc20b073af35f4ba6056b41d06dd0efc737dea8e654eb39683418f"
+  },
+  "model": {
+    "bytes": 333590944,
+    "sha256": "b5ce9d77a3fc4b3b39ccb5643c36777911cc4eb46a66962eadfa3f5f60490d63"
+  },
+  "tokenizer": {
+    "package": "js-tiktoken",
+    "version": "1.0.21",
+    "encoding": "cl100k_base",
+    "digest": "31b513c9a661873dc793d2a69ddba657dbf10660c23ad69074005c8655704bf9"
+  },
+  "hardware": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "24.6.0",
+    "cpu": "Apple M3 Pro",
+    "logicalCpus": 11,
+    "memoryBytes": 19327352832
+  },
+  "baselineRepeatIdentical": true,
+  "runs": [
+    {
+      "name": "semantic-baseline-1",
+      "execution": {
+        "code": 0,
+        "signal": null,
+        "error": null,
+        "elapsedMs": 1086046,
+        "observedProcessTree": {
+          "samples": 2168,
+          "peakTreeKiB": 1977584,
+          "intervalMs": 500,
+          "qualification": "Diagnostic CPU descendant RSS only; no quiet-window adoption claim; no GPU allocation."
+        }
+      },
+      "overall": {
+        "cases": 186,
+        "initialComplete": 74,
+        "finalComplete": 88,
+        "interactionTokens": 494126,
+        "provenanceFailures": 0
+      },
+      "old": {
+        "cases": 168,
+        "initialComplete": 67,
+        "finalComplete": 81,
+        "interactionTokens": 464767,
+        "provenanceFailures": 0
+      },
+      "fresh": {
+        "cases": 18,
+        "initialComplete": 7,
+        "finalComplete": 7,
+        "interactionTokens": 29359,
+        "provenanceFailures": 0
+      },
+      "protected": {
+        "cases": 24,
+        "initialComplete": 8,
+        "finalComplete": 8,
+        "interactionTokens": 33908,
+        "provenanceFailures": 0
+      },
+      "byJourney": {
+        "navigation": {
+          "cases": 16,
+          "initialComplete": 15,
+          "finalComplete": 15,
+          "interactionTokens": 48659,
+          "provenanceFailures": 0
+        },
+        "discovery": {
+          "cases": 12,
+          "initialComplete": 6,
+          "finalComplete": 6,
+          "interactionTokens": 34927,
+          "provenanceFailures": 0
+        },
+        "orientation": {
+          "cases": 20,
+          "initialComplete": 3,
+          "finalComplete": 3,
+          "interactionTokens": 68282,
+          "provenanceFailures": 0
+        },
+        "rationale": {
+          "cases": 18,
+          "initialComplete": 8,
+          "finalComplete": 10,
+          "interactionTokens": 42329,
+          "provenanceFailures": 0
+        },
+        "current": {
+          "cases": 25,
+          "initialComplete": 7,
+          "finalComplete": 8,
+          "interactionTokens": 48581,
+          "provenanceFailures": 0
+        },
+        "historical": {
+          "cases": 13,
+          "initialComplete": 10,
+          "finalComplete": 10,
+          "interactionTokens": 39369,
+          "provenanceFailures": 0
+        },
+        "multi-source": {
+          "cases": 31,
+          "initialComplete": 9,
+          "finalComplete": 12,
+          "interactionTokens": 89976,
+          "provenanceFailures": 0
+        },
+        "limits": {
+          "cases": 13,
+          "initialComplete": 2,
+          "finalComplete": 2,
+          "interactionTokens": 32908,
+          "provenanceFailures": 0
+        },
+        "scope": {
+          "cases": 11,
+          "initialComplete": 1,
+          "finalComplete": 7,
+          "interactionTokens": 30177,
+          "provenanceFailures": 0
+        },
+        "ranking": {
+          "cases": 6,
+          "initialComplete": 0,
+          "finalComplete": 2,
+          "interactionTokens": 20306,
+          "provenanceFailures": 0
+        },
+        "protected": {
+          "cases": 21,
+          "initialComplete": 13,
+          "finalComplete": 13,
+          "interactionTokens": 38612,
+          "provenanceFailures": 0
+        }
+      },
+      "index": {
+        "documents": 278,
+        "chunks": 320,
+        "readiness": {
+          "freshness": "fresh",
+          "modes": [
+            "lexical",
+            "semantic"
+          ],
+          "embedding": "complete"
+        }
+      }
+    },
+    {
+      "name": "semantic-baseline-2",
+      "execution": {
+        "code": 0,
+        "signal": null,
+        "error": null,
+        "elapsedMs": 855144,
+        "observedProcessTree": {
+          "samples": 1707,
+          "peakTreeKiB": 1774000,
+          "intervalMs": 500,
+          "qualification": "Diagnostic CPU descendant RSS only; no quiet-window adoption claim; no GPU allocation."
+        }
+      },
+      "overall": {
+        "cases": 186,
+        "initialComplete": 74,
+        "finalComplete": 88,
+        "interactionTokens": 494126,
+        "provenanceFailures": 0
+      },
+      "old": {
+        "cases": 168,
+        "initialComplete": 67,
+        "finalComplete": 81,
+        "interactionTokens": 464767,
+        "provenanceFailures": 0
+      },
+      "fresh": {
+        "cases": 18,
+        "initialComplete": 7,
+        "finalComplete": 7,
+        "interactionTokens": 29359,
+        "provenanceFailures": 0
+      },
+      "protected": {
+        "cases": 24,
+        "initialComplete": 8,
+        "finalComplete": 8,
+        "interactionTokens": 33908,
+        "provenanceFailures": 0
+      },
+      "byJourney": {
+        "navigation": {
+          "cases": 16,
+          "initialComplete": 15,
+          "finalComplete": 15,
+          "interactionTokens": 48659,
+          "provenanceFailures": 0
+        },
+        "discovery": {
+          "cases": 12,
+          "initialComplete": 6,
+          "finalComplete": 6,
+          "interactionTokens": 34927,
+          "provenanceFailures": 0
+        },
+        "orientation": {
+          "cases": 20,
+          "initialComplete": 3,
+          "finalComplete": 3,
+          "interactionTokens": 68282,
+          "provenanceFailures": 0
+        },
+        "rationale": {
+          "cases": 18,
+          "initialComplete": 8,
+          "finalComplete": 10,
+          "interactionTokens": 42329,
+          "provenanceFailures": 0
+        },
+        "current": {
+          "cases": 25,
+          "initialComplete": 7,
+          "finalComplete": 8,
+          "interactionTokens": 48581,
+          "provenanceFailures": 0
+        },
+        "historical": {
+          "cases": 13,
+          "initialComplete": 10,
+          "finalComplete": 10,
+          "interactionTokens": 39369,
+          "provenanceFailures": 0
+        },
+        "multi-source": {
+          "cases": 31,
+          "initialComplete": 9,
+          "finalComplete": 12,
+          "interactionTokens": 89976,
+          "provenanceFailures": 0
+        },
+        "limits": {
+          "cases": 13,
+          "initialComplete": 2,
+          "finalComplete": 2,
+          "interactionTokens": 32908,
+          "provenanceFailures": 0
+        },
+        "scope": {
+          "cases": 11,
+          "initialComplete": 1,
+          "finalComplete": 7,
+          "interactionTokens": 30177,
+          "provenanceFailures": 0
+        },
+        "ranking": {
+          "cases": 6,
+          "initialComplete": 0,
+          "finalComplete": 2,
+          "interactionTokens": 20306,
+          "provenanceFailures": 0
+        },
+        "protected": {
+          "cases": 21,
+          "initialComplete": 13,
+          "finalComplete": 13,
+          "interactionTokens": 38612,
+          "provenanceFailures": 0
+        }
+      },
+      "index": {
+        "documents": 278,
+        "chunks": 320,
+        "readiness": {
+          "freshness": "fresh",
+          "modes": [
+            "lexical",
+            "semantic"
+          ],
+          "embedding": "complete"
+        }
+      }
+    },
+    {
+      "name": "semantic-eligibility-1",
+      "execution": {
+        "code": 0,
+        "signal": null,
+        "error": null,
+        "elapsedMs": 893651,
+        "observedProcessTree": {
+          "samples": 1784,
+          "peakTreeKiB": 1725776,
+          "intervalMs": 500,
+          "qualification": "Diagnostic CPU descendant RSS only; no quiet-window adoption claim; no GPU allocation."
+        }
+      },
+      "overall": {
+        "cases": 186,
+        "initialComplete": 89,
+        "finalComplete": 106,
+        "interactionTokens": 554559,
+        "provenanceFailures": 0
+      },
+      "old": {
+        "cases": 168,
+        "initialComplete": 80,
+        "finalComplete": 97,
+        "interactionTokens": 515520,
+        "provenanceFailures": 0
+      },
+      "fresh": {
+        "cases": 18,
+        "initialComplete": 9,
+        "finalComplete": 9,
+        "interactionTokens": 39039,
+        "provenanceFailures": 0
+      },
+      "protected": {
+        "cases": 24,
+        "initialComplete": 10,
+        "finalComplete": 10,
+        "interactionTokens": 40198,
+        "provenanceFailures": 0
+      },
+      "byJourney": {
+        "navigation": {
+          "cases": 16,
+          "initialComplete": 15,
+          "finalComplete": 15,
+          "interactionTokens": 48659,
+          "provenanceFailures": 0
+        },
+        "discovery": {
+          "cases": 12,
+          "initialComplete": 6,
+          "finalComplete": 7,
+          "interactionTokens": 37847,
+          "provenanceFailures": 0
+        },
+        "orientation": {
+          "cases": 20,
+          "initialComplete": 3,
+          "finalComplete": 3,
+          "interactionTokens": 68282,
+          "provenanceFailures": 0
+        },
+        "rationale": {
+          "cases": 18,
+          "initialComplete": 10,
+          "finalComplete": 13,
+          "interactionTokens": 54481,
+          "provenanceFailures": 0
+        },
+        "current": {
+          "cases": 25,
+          "initialComplete": 15,
+          "finalComplete": 17,
+          "interactionTokens": 75884,
+          "provenanceFailures": 0
+        },
+        "historical": {
+          "cases": 13,
+          "initialComplete": 11,
+          "finalComplete": 11,
+          "interactionTokens": 42208,
+          "provenanceFailures": 0
+        },
+        "multi-source": {
+          "cases": 31,
+          "initialComplete": 10,
+          "finalComplete": 13,
+          "interactionTokens": 96054,
+          "provenanceFailures": 0
+        },
+        "limits": {
+          "cases": 13,
+          "initialComplete": 5,
+          "finalComplete": 5,
+          "interactionTokens": 42049,
+          "provenanceFailures": 0
+        },
+        "scope": {
+          "cases": 11,
+          "initialComplete": 1,
+          "finalComplete": 7,
+          "interactionTokens": 30177,
+          "provenanceFailures": 0
+        },
+        "ranking": {
+          "cases": 6,
+          "initialComplete": 0,
+          "finalComplete": 2,
+          "interactionTokens": 20306,
+          "provenanceFailures": 0
+        },
+        "protected": {
+          "cases": 21,
+          "initialComplete": 13,
+          "finalComplete": 13,
+          "interactionTokens": 38612,
+          "provenanceFailures": 0
+        }
+      },
+      "index": {
+        "documents": 278,
+        "chunks": 320,
+        "readiness": {
+          "freshness": "fresh",
+          "modes": [
+            "lexical",
+            "semantic"
+          ],
+          "embedding": "complete"
+        }
+      }
+    },
+    {
+      "name": "semantic-vector-only-1",
+      "execution": {
+        "code": 0,
+        "signal": null,
+        "error": null,
+        "elapsedMs": 834375,
+        "observedProcessTree": {
+          "samples": 1665,
+          "peakTreeKiB": 1742544,
+          "intervalMs": 500,
+          "qualification": "Diagnostic CPU descendant RSS only; no quiet-window adoption claim; no GPU allocation."
+        }
+      },
+      "overall": {
+        "cases": 186,
+        "initialComplete": 75,
+        "finalComplete": 89,
+        "interactionTokens": 495400,
+        "provenanceFailures": 0
+      },
+      "old": {
+        "cases": 168,
+        "initialComplete": 68,
+        "finalComplete": 82,
+        "interactionTokens": 466300,
+        "provenanceFailures": 0
+      },
+      "fresh": {
+        "cases": 18,
+        "initialComplete": 7,
+        "finalComplete": 7,
+        "interactionTokens": 29100,
+        "provenanceFailures": 0
+      },
+      "protected": {
+        "cases": 24,
+        "initialComplete": 8,
+        "finalComplete": 8,
+        "interactionTokens": 33574,
+        "provenanceFailures": 0
+      },
+      "byJourney": {
+        "navigation": {
+          "cases": 16,
+          "initialComplete": 15,
+          "finalComplete": 15,
+          "interactionTokens": 48491,
+          "provenanceFailures": 0
+        },
+        "discovery": {
+          "cases": 12,
+          "initialComplete": 5,
+          "finalComplete": 5,
+          "interactionTokens": 35224,
+          "provenanceFailures": 0
+        },
+        "orientation": {
+          "cases": 20,
+          "initialComplete": 3,
+          "finalComplete": 3,
+          "interactionTokens": 68957,
+          "provenanceFailures": 0
+        },
+        "rationale": {
+          "cases": 18,
+          "initialComplete": 8,
+          "finalComplete": 10,
+          "interactionTokens": 42618,
+          "provenanceFailures": 0
+        },
+        "current": {
+          "cases": 25,
+          "initialComplete": 7,
+          "finalComplete": 8,
+          "interactionTokens": 48993,
+          "provenanceFailures": 0
+        },
+        "historical": {
+          "cases": 13,
+          "initialComplete": 11,
+          "finalComplete": 11,
+          "interactionTokens": 38748,
+          "provenanceFailures": 0
+        },
+        "multi-source": {
+          "cases": 31,
+          "initialComplete": 10,
+          "finalComplete": 12,
+          "interactionTokens": 90957,
+          "provenanceFailures": 0
+        },
+        "limits": {
+          "cases": 13,
+          "initialComplete": 2,
+          "finalComplete": 2,
+          "interactionTokens": 32427,
+          "provenanceFailures": 0
+        },
+        "scope": {
+          "cases": 11,
+          "initialComplete": 1,
+          "finalComplete": 7,
+          "interactionTokens": 30300,
+          "provenanceFailures": 0
+        },
+        "ranking": {
+          "cases": 6,
+          "initialComplete": 0,
+          "finalComplete": 3,
+          "interactionTokens": 20204,
+          "provenanceFailures": 0
+        },
+        "protected": {
+          "cases": 21,
+          "initialComplete": 13,
+          "finalComplete": 13,
+          "interactionTokens": 38481,
+          "provenanceFailures": 0
+        }
+      },
+      "index": {
+        "documents": 278,
+        "chunks": 320,
+        "readiness": {
+          "freshness": "fresh",
+          "modes": [
+            "lexical",
+            "semantic"
+          ],
+          "embedding": "complete"
+        }
+      }
+    }
+  ],
+  "comparisons": {
+    "eligibility": {
+      "affectedCases": 21,
+      "affectedCompleteCaseRateBefore": 0,
+      "affectedCompleteCaseRateAfter": 0.8571428571428571,
+      "affectedCompleteCaseGainPercentagePoints": 85.71428571428571,
+      "freshCompleteCaseGains": 2,
+      "gained": [
+        {
+          "id": "harbor-limits",
+          "fresh": false,
+          "protected": false,
+          "journey": "limits"
+        },
+        {
+          "id": "cedar-discovery",
+          "fresh": false,
+          "protected": false,
+          "journey": "discovery"
+        },
+        {
+          "id": "orbit-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "orbit-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical"
+        },
+        {
+          "id": "meadow-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "selkie-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "patchbay-master",
+          "fresh": false,
+          "protected": false,
+          "journey": "multi-source"
+        },
+        {
+          "id": "kilnwick-evening",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "pedalbrook-passenger-reason",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "pedalbrook-passenger-unknown",
+          "fresh": false,
+          "protected": true,
+          "journey": "limits"
+        },
+        {
+          "id": "thistledown-natural-not",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "thistledown-natural-hyphen",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "thistledown-natural-without",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "bellwether-natural-not",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "bellwether-natural-hyphen",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "bellwether-natural-without",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "ashcombe-warranty-unknown",
+          "fresh": true,
+          "protected": true,
+          "journey": "limits"
+        },
+        {
+          "id": "ashcombe-natural-without",
+          "fresh": true,
+          "protected": false,
+          "journey": "current"
+        }
+      ],
+      "lost": [],
+      "unitGains": [
+        {
+          "id": "harbor-limits",
+          "fresh": false,
+          "protected": false,
+          "journey": "limits",
+          "unitIndex": 0,
+          "label": "approver explicitly unknown"
+        },
+        {
+          "id": "juniper-multi-source",
+          "fresh": false,
+          "protected": false,
+          "journey": "multi-source",
+          "unitIndex": 1,
+          "label": "operational consequence"
+        },
+        {
+          "id": "cedar-discovery",
+          "fresh": false,
+          "protected": false,
+          "journey": "discovery",
+          "unitIndex": 0,
+          "label": "observed obstacle"
+        },
+        {
+          "id": "orbit-rationale",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale",
+          "unitIndex": 0,
+          "label": "research cause"
+        },
+        {
+          "id": "orbit-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "accepted plan and date"
+        },
+        {
+          "id": "orbit-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 1,
+          "label": "scope remains conditional"
+        },
+        {
+          "id": "orbit-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 2,
+          "label": "later proposal status"
+        },
+        {
+          "id": "orbit-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical",
+          "unitIndex": 0,
+          "label": "original plan and date"
+        },
+        {
+          "id": "meadow-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "accepted plan and date"
+        },
+        {
+          "id": "meadow-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 1,
+          "label": "scope remains conditional"
+        },
+        {
+          "id": "meadow-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 2,
+          "label": "later proposal status"
+        },
+        {
+          "id": "selkie-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "accepted"
+        },
+        {
+          "id": "selkie-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 1,
+          "label": "proposal"
+        },
+        {
+          "id": "patchbay-master",
+          "fresh": false,
+          "protected": false,
+          "journey": "multi-source",
+          "unitIndex": 0,
+          "label": "copy integrity"
+        },
+        {
+          "id": "patchbay-master",
+          "fresh": false,
+          "protected": false,
+          "journey": "multi-source",
+          "unitIndex": 1,
+          "label": "permission boundary"
+        },
+        {
+          "id": "kilnwick-evening",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "proposal remains pending"
+        },
+        {
+          "id": "kilnwick-evening",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 1,
+          "label": "operative scope"
+        },
+        {
+          "id": "pedalbrook-passenger-reason",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale",
+          "unitIndex": 0,
+          "label": "equipment uncertainty"
+        },
+        {
+          "id": "pedalbrook-passenger-reason",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale",
+          "unitIndex": 1,
+          "label": "decision boundary"
+        },
+        {
+          "id": "pedalbrook-passenger-unknown",
+          "fresh": false,
+          "protected": true,
+          "journey": "limits",
+          "unitIndex": 0,
+          "label": "unknown approver"
+        },
+        {
+          "id": "pedalbrook-passenger-unknown",
+          "fresh": false,
+          "protected": true,
+          "journey": "limits",
+          "unitIndex": 1,
+          "label": "proposal qualification"
+        },
+        {
+          "id": "thistledown-natural-not",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale",
+          "unitIndex": 0,
+          "label": "reason"
+        },
+        {
+          "id": "thistledown-natural-not",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale",
+          "unitIndex": 1,
+          "label": "approved scope"
+        },
+        {
+          "id": "thistledown-natural-hyphen",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "proposal and retained authority"
+        },
+        {
+          "id": "thistledown-natural-without",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "no authority from key"
+        },
+        {
+          "id": "thistledown-natural-without",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 1,
+          "label": "retained trial"
+        },
+        {
+          "id": "bellwether-natural-not",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale",
+          "unitIndex": 0,
+          "label": "reason"
+        },
+        {
+          "id": "bellwether-natural-not",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale",
+          "unitIndex": 1,
+          "label": "approved scope"
+        },
+        {
+          "id": "bellwether-natural-hyphen",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "proposal and retained authority"
+        },
+        {
+          "id": "bellwether-natural-without",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "no authority from key"
+        },
+        {
+          "id": "bellwether-natural-without",
+          "fresh": false,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 1,
+          "label": "retained trial"
+        },
+        {
+          "id": "ashcombe-lowercase-hyphen",
+          "fresh": true,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "assessment and event boundary"
+        },
+        {
+          "id": "ashcombe-warranty-unknown",
+          "fresh": true,
+          "protected": true,
+          "journey": "limits",
+          "unitIndex": 0,
+          "label": "unrecorded approver and unsigned status"
+        },
+        {
+          "id": "ashcombe-natural-without",
+          "fresh": true,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 0,
+          "label": "unassessed outcome remains undecided"
+        },
+        {
+          "id": "ashcombe-natural-without",
+          "fresh": true,
+          "protected": false,
+          "journey": "current",
+          "unitIndex": 1,
+          "label": "assessment and event boundary"
+        }
+      ],
+      "unitLosses": [],
+      "changed": [
+        {
+          "id": "harbor-limits",
+          "fresh": false,
+          "protected": false,
+          "journey": "limits"
+        },
+        {
+          "id": "juniper-multi-source",
+          "fresh": false,
+          "protected": false,
+          "journey": "multi-source"
+        },
+        {
+          "id": "cedar-discovery",
+          "fresh": false,
+          "protected": false,
+          "journey": "discovery"
+        },
+        {
+          "id": "orbit-rationale",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "orbit-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "orbit-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical"
+        },
+        {
+          "id": "meadow-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "selkie-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "patchbay-master",
+          "fresh": false,
+          "protected": false,
+          "journey": "multi-source"
+        },
+        {
+          "id": "kilnwick-evening",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "pedalbrook-passenger-reason",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "pedalbrook-passenger-unknown",
+          "fresh": false,
+          "protected": true,
+          "journey": "limits"
+        },
+        {
+          "id": "thistledown-natural-not",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "thistledown-natural-hyphen",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "thistledown-natural-without",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "bellwether-natural-not",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "bellwether-natural-hyphen",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "bellwether-natural-without",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "ashcombe-lowercase-hyphen",
+          "fresh": true,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "ashcombe-warranty-unknown",
+          "fresh": true,
+          "protected": true,
+          "journey": "limits"
+        },
+        {
+          "id": "ashcombe-natural-without",
+          "fresh": true,
+          "protected": false,
+          "journey": "current"
+        }
+      ],
+      "baselineTokens": 494126,
+      "candidateTokens": 554559,
+      "tokenIncreaseFraction": 0.12230281345243932,
+      "gates": {
+        "freshCompleteCaseGainAtLeastTwo": true,
+        "affectedCompleteCaseGainAtLeastFivePercentagePoints": true,
+        "zeroCompleteCaseLosses": true,
+        "zeroSourceSpecificUnitLosses": true,
+        "zeroProvenanceFailures": true,
+        "zeroProtocolOrMissingPacketFailures": true,
+        "fullInteractionTokensIncreaseAtMostFivePercent": false
+      },
+      "packetQualityAndContextGatesPass": false
+    },
+    "vector-only": {
+      "affectedCases": 75,
+      "affectedCompleteCaseRateBefore": 0.44,
+      "affectedCompleteCaseRateAfter": 0.44,
+      "affectedCompleteCaseGainPercentagePoints": 0,
+      "freshCompleteCaseGains": 0,
+      "gained": [
+        {
+          "id": "lantern-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical"
+        },
+        {
+          "id": "juniper-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical"
+        },
+        {
+          "id": "bracken-ranking",
+          "fresh": false,
+          "protected": false,
+          "journey": "ranking"
+        }
+      ],
+      "lost": [
+        {
+          "id": "lantern-discovery",
+          "fresh": false,
+          "protected": false,
+          "journey": "discovery"
+        },
+        {
+          "id": "ledger-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical"
+        }
+      ],
+      "unitGains": [
+        {
+          "id": "lantern-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical",
+          "unitIndex": 0,
+          "label": "original plan and date"
+        },
+        {
+          "id": "juniper-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical",
+          "unitIndex": 0,
+          "label": "original plan and date"
+        },
+        {
+          "id": "bracken-ranking",
+          "fresh": false,
+          "protected": false,
+          "journey": "ranking",
+          "unitIndex": 0,
+          "label": "restriction"
+        },
+        {
+          "id": "bracken-ranking",
+          "fresh": false,
+          "protected": false,
+          "journey": "ranking",
+          "unitIndex": 1,
+          "label": "deviation record"
+        }
+      ],
+      "unitLosses": [
+        {
+          "id": "lantern-discovery",
+          "fresh": false,
+          "protected": false,
+          "journey": "discovery",
+          "unitIndex": 0,
+          "label": "observed obstacle"
+        },
+        {
+          "id": "ledger-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical",
+          "unitIndex": 0,
+          "label": "original plan and date"
+        }
+      ],
+      "changed": [
+        {
+          "id": "harbor-navigation",
+          "fresh": false,
+          "protected": false,
+          "journey": "navigation"
+        },
+        {
+          "id": "lantern-discovery",
+          "fresh": false,
+          "protected": false,
+          "journey": "discovery"
+        },
+        {
+          "id": "lantern-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "lantern-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical"
+        },
+        {
+          "id": "juniper-orientation",
+          "fresh": false,
+          "protected": false,
+          "journey": "orientation"
+        },
+        {
+          "id": "juniper-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical"
+        },
+        {
+          "id": "ridge-navigation",
+          "fresh": false,
+          "protected": false,
+          "journey": "navigation"
+        },
+        {
+          "id": "cedar-orientation",
+          "fresh": false,
+          "protected": false,
+          "journey": "orientation"
+        },
+        {
+          "id": "forum-navigation",
+          "fresh": false,
+          "protected": false,
+          "journey": "navigation"
+        },
+        {
+          "id": "forum-rationale",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "forum-current",
+          "fresh": false,
+          "protected": false,
+          "journey": "current"
+        },
+        {
+          "id": "ledger-historical",
+          "fresh": false,
+          "protected": false,
+          "journey": "historical"
+        },
+        {
+          "id": "meridian-scope",
+          "fresh": false,
+          "protected": false,
+          "journey": "scope"
+        },
+        {
+          "id": "estuary-scope",
+          "fresh": false,
+          "protected": false,
+          "journey": "scope"
+        },
+        {
+          "id": "estuary-ranking",
+          "fresh": false,
+          "protected": false,
+          "journey": "ranking"
+        },
+        {
+          "id": "vellum-scope",
+          "fresh": false,
+          "protected": false,
+          "journey": "scope"
+        },
+        {
+          "id": "vellum-ranking",
+          "fresh": false,
+          "protected": false,
+          "journey": "ranking"
+        },
+        {
+          "id": "bracken-scope",
+          "fresh": false,
+          "protected": false,
+          "journey": "scope"
+        },
+        {
+          "id": "bracken-ranking",
+          "fresh": false,
+          "protected": false,
+          "journey": "ranking"
+        },
+        {
+          "id": "saffron-scope",
+          "fresh": false,
+          "protected": false,
+          "journey": "scope"
+        },
+        {
+          "id": "quartz-scope",
+          "fresh": false,
+          "protected": false,
+          "journey": "scope"
+        },
+        {
+          "id": "quartz-ranking",
+          "fresh": false,
+          "protected": false,
+          "journey": "ranking"
+        },
+        {
+          "id": "wrenfall-damp-packet",
+          "fresh": false,
+          "protected": false,
+          "journey": "multi-source"
+        },
+        {
+          "id": "two-stewards",
+          "fresh": false,
+          "protected": true,
+          "journey": "multi-source"
+        },
+        {
+          "id": "kilnwick-material-reason",
+          "fresh": false,
+          "protected": false,
+          "journey": "rationale"
+        },
+        {
+          "id": "thistledown-late-procedure",
+          "fresh": false,
+          "protected": false,
+          "journey": "multi-source"
+        },
+        {
+          "id": "dunmere-unconstrained-paraphrase",
+          "fresh": true,
+          "protected": false,
+          "journey": "discovery"
+        },
+        {
+          "id": "rookfen-streaming-unknown",
+          "fresh": true,
+          "protected": true,
+          "journey": "limits"
+        }
+      ],
+      "baselineTokens": 494126,
+      "candidateTokens": 495400,
+      "tokenIncreaseFraction": 0.0025782897479589284,
+      "gates": {
+        "freshCompleteCaseGainAtLeastTwo": false,
+        "affectedCompleteCaseGainAtLeastFivePercentagePoints": false,
+        "zeroCompleteCaseLosses": false,
+        "zeroSourceSpecificUnitLosses": false,
+        "zeroProvenanceFailures": true,
+        "zeroProtocolOrMissingPacketFailures": true,
+        "fullInteractionTokensIncreaseAtMostFivePercent": true
+      },
+      "packetQualityAndContextGatesPass": false
+    }
+  },
+  "sourceAdjudication": {
+    "eligibility": {
+      "method": "Parent inspected all three changed fresh recall/expansion texts and canonical required sources; no complete/source-unit losses occurred.",
+      "judgments": [
+        {
+          "id": "ashcombe-lowercase-hyphen",
+          "outcome": "incomplete remains incomplete; one required unit gained",
+          "sourcesInspected": [
+            "decisions/ashcombe/queue.md",
+            "findings/ashcombe/trial.md"
+          ],
+          "reason": "Queue decision visibly limits cards to Saturday assessment and no guaranteed repair. The required October retained-trial/weekday-drop-off qualification from trial.md is absent from all five passages and three chosen reads; no complete-case credit. Festival distractor explicitly identifies its different event scope."
+        },
+        {
+          "id": "ashcombe-warranty-unknown",
+          "outcome": "fresh complete gain verified",
+          "sourcesInspected": [
+            "notes/ashcombe/warranty.md"
+          ],
+          "reason": "Displayed canonical source says no approver is named in these records, poster unsigned, committee decision pending; adjacent text expressly avoids claiming no private conversation occurred. This is a bounded workspace unknown, not proof of universal nonapproval."
+        },
+        {
+          "id": "ashcombe-natural-without",
+          "outcome": "fresh complete gain verified",
+          "sourcesInspected": [
+            "notes/ashcombe/bench-check.md",
+            "decisions/ashcombe/queue.md"
+          ],
+          "reason": "Bench source leaves repair outcome undecided until assessment; queue source reserves a Saturday assessment turn and explicitly does not guarantee repair/admission elsewhere. Both same-source clauses are displayed within fixed reads."
+        }
+      ],
+      "agreementWithMechanicalCoverage": true,
+      "additionalLimits": [
+        "Source judgments assess packet evidence, not autonomous supported-answer behavior.",
+        "Original uppercase NOT backend limitation remains unchanged.",
+        "No candidate/policy/source/rubric/gate tuning follows these outputs."
+      ]
+    },
+    "vectorOnly": {
+      "method": "Parent inspected baseline/candidate selected evidence, fixed first-three reads and canonical required sources.",
+      "judgments": [
+        {
+          "id": "lantern-discovery",
+          "unit": "observed obstacle",
+          "source": "findings/lantern/research.md",
+          "outcome": "source-specific unit and complete-case loss verified",
+          "reason": "Baseline displayed the actual walkthrough claim at research lines10-12. Candidate keeps that file in fifth place but chooses lines18-22 about competing explanation, omitting the observed doorway/panel/objects cause. The first three reads go elsewhere. Brief.md contains a related summary, which is not the required observational source under the frozen rubric. This is packet source-evidence loss, not an independently measured autonomous-answer failure."
+        },
+        {
+          "id": "ledger-historical",
+          "unit": "original plan and date",
+          "source": "decisions/ledger/initial.md",
+          "outcome": "source-specific unit and complete-case loss verified",
+          "reason": "Baseline displays and reads the September4 Ledger success-email-after-upload plan with October8 start. Candidate omits that canonical decision, instead selecting an Orbit plan and Ledger archived announcement; the latter names October8 but not the required notification. Both retained dates are within the query cutoff, so this is loss of required historical evidence rather than a claimed temporal-filter violation."
+        }
+      ],
+      "agreementWithMechanicalCoverage": true,
+      "changedFresh": [
+        {
+          "id": "dunmere-unconstrained-paraphrase",
+          "outcome": "complete remains complete; order change only",
+          "sourcesInspected": [
+            "findings/dunmere/privacy.md",
+            "decisions/dunmere/collection.md"
+          ],
+          "reason": "Both packets display source-specific public means-testing barrier and accepted private collection; Priya/actual-stock condition, pending unfilled requests and no delivery promise remain visible. No new complete-case gain."
+        },
+        {
+          "id": "rookfen-streaming-unknown",
+          "outcome": "complete remains complete; an unrelated fifth passage removed",
+          "sourcesInspected": [
+            "notes/rookfen/premiere.md",
+            "notes/rookfen/remote-demo.md"
+          ],
+          "reason": "Both fixed read sequences retain workspace-bounded missing approver, pending written distributor permission, and clip/private-test-only licence. Technical delivery cannot authorize the feature. No approval inference or new complete-case gain."
+        }
+      ],
+      "unnamedParaphrases": {
+        "dunmere": "complete in baseline and both candidates",
+        "rookfen": "incomplete in baseline and both candidates; required subtitle contrast finding and adopted backing/audio-description boundary absent"
+      }
+    },
+    "protectedAudit": {
+      "unchangedAUnaffected": 165,
+      "unchangedBConstrained": 39,
+      "wireDifferences": [],
+      "freshTemporalSourcesChecked": 318,
+      "temporalViolations": [],
+      "navigationRankRegressions": [],
+      "knownBaselineLimits": [
+        "Uppercase NOT is not a QMD exclusion operator; all arms retain the existing simulation result rather than falsely claiming enforcement.",
+        "Literal-path and quoted full-question controls already fail some baseline retrieval; no improvement is claimed."
+      ]
+    }
+  },
+  "originalPlan": {
+    "plannedCases": 1116,
+    "executedSemanticCases": 744,
+    "optionalCases": 372,
+    "optionalLexicalRuns": [
+      {
+        "name": "lexical-baseline-1",
+        "arm": "baseline",
+        "mode": "lexical",
+        "status": "canceled_after_both_semantic_candidates_rejected",
+        "plannedCases": 186,
+        "retainedPartialPackets": 14,
+        "scoreClaimed": false
+      },
+      {
+        "name": "lexical-eligibility-1",
+        "arm": "eligibility",
+        "mode": "lexical",
+        "status": "canceled_after_both_semantic_candidates_rejected",
+        "plannedCases": 186,
+        "retainedPartialPackets": 0,
+        "scoreClaimed": false
+      }
+    ],
+    "deviation": "Original --lexical plan retained unchanged. Optional lexical/adoption-only runs canceled after both required semantic candidates failed fixed quality/context gates. No lexical/parity/adoption claim.",
+    "runnerExit": 143,
+    "remainingOwnedLiveProcesses": 0
+  },
+  "packetAudit": {
+    "path": "/Users/monkey/dev/jumpyBrain/.local-pack/feedback-semantic-quality-2026-11-03-run3/PACKET-AUDIT.json",
+    "status": "failed",
+    "executedSemanticRuns": "all four passed; zero integrity/read errors",
+    "planWideNonzeroReason": "Optional planned lexical cases canceled/unexecuted; all remain in audit denominator"
+  },
+  "quietOperatingGateExecuted": false,
+  "productionParityExecuted": false,
+  "productionQmdQuerySha256": "83b1573f0dd38988c64ec51fedc15bffaebc905978d130d905c81daa2916caeb",
+  "initialAttempts": [
+    {
+      "directory": ".local-pack/feedback-semantic-quality-2026-11-03",
+      "outcome": "Blocked before execution: independent runtime copies omitted package-lock.json. Preserved, no evidence result claimed."
+    },
+    {
+      "directory": ".local-pack/feedback-semantic-quality-2026-11-03-run2",
+      "outcome": "All six executions failed before packets because emitted whitespace compaction changed instrumentation seams. All 186 cases per run retained uncovered. Snapshots rebuilt with TypeScript before successful semantic run3; candidates/fixtures/policy unchanged."
+    }
+  ],
+  "limits": [
+    "All current cases are now seen; no tuning or new confirmation extension in this investigation.",
+    "Same model-assisted process with separate agents, not independent human utility or autonomous-answer/abstention evidence.",
+    "Original B affected slice excludes discovery; both unnamed paraphrases reported separately, no gain for either.",
+    "Fresh eligible B baseline has only one incomplete case, so the two-gain gate has limited headroom; no general disproof of vector-only retrieval.",
+    "Distinct raw lexical/vector QMD lists unavailable; merged candidate diagnostics retained.",
+    "Operating costs, adoption-only lexical/strict-read-only replication and local/hosted candidate parity not measured; no production candidate adopted.",
+    "Post-run wire/source audit adds integrity verification without changing original quality gates.",
+    "Original frozen policy bytes retained in evidence; link-only archival repair follows evaluation."
+  ],
+  "evidenceArchive": {
+    "path": ".local-pack/feedback-semantic-evidence-20261103.tgz",
+    "sha256": "ecfc076ce681d3e0d5397e67db63d93152d0fc31be6697cd8de9fa426a2fabea",
+    "bytes": 35143898,
+    "modelWeightsIncluded": false
+  }
+}

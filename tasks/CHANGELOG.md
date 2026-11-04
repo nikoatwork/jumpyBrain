@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Independent semantic search decisions
+
+- Separate agents authored fresh cases and frozen candidates; two matching baselines and both semantic comparisons completed. Broader eligibility exceeded the fixed context budget, and vector-only retrieval lost required evidence. Both remain unadopted; the [completed feedback list](done/2026-11-04_tasks-feedback-independent-increments.md) and [source-checked report](../evals/workspace-retrieval/reports/2026-11-03-feedback-semantic.md) retain results, canceled optional checks and limits.
+
 ## 2026-11-03 — Portable semantic setup and bounded indexing
 
 - Added explicit verified local-model setup and actionable readiness while retaining lexical defaults. A bounded Mac ARM64 context pool reduces measured model-active indexing footprint; index deadlines share finite validation and transport headroom. [Setup verification](done/2026-11-03_tasks-portable-semantic-setup.md), [RAM evidence and limits](done/2026-11-03_tasks-desktop-ram-next-improvements.md).

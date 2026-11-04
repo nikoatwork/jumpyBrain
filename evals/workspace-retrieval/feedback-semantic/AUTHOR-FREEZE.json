@@ -1,0 +1,203 @@
+{
+  "schemaVersion": 1,
+  "frozenAt": "2026-11-03T12:02:22.629107+00:00",
+  "status": "inputs_frozen_no_evaluation",
+  "scope": "independent-fictional-fixture-only",
+  "pages": 30,
+  "queries": 18,
+  "sourceSpecificUnits": 28,
+  "files": [
+    {
+      "path": "CONSTRAINTS.json",
+      "bytes": 3192,
+      "sha256": "30e24f452774559a8f249ed3d325ab0e14c466577638dbc174ee8b1a200786fa"
+    },
+    {
+      "path": "PROTECTED-UNITS.json",
+      "bytes": 12634,
+      "sha256": "98e3a776283fa13e3a607457b31568b2f3a2c2105f72786fd65bcdcab6e595fd"
+    },
+    {
+      "path": "PROTOCOL.md",
+      "bytes": 5624,
+      "sha256": "eea9f9733da15e909266351ada80959c6b8f56bb4b4153e72dfb7b8d4fbd1c10"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6627,
+      "sha256": "21ad254893671938acd485769a22836e857424ca47b759744dbb9c52910d4222"
+    },
+    {
+      "path": "build.py",
+      "bytes": 43663,
+      "sha256": "c62a58feac48fff5818e8b24b9be3e207259bb2f728eb081bbd4d650bbdf35f0"
+    },
+    {
+      "path": "corpus/decisions/ashcombe/queue.md",
+      "bytes": 1230,
+      "sha256": "c3c920114de83d5a6be5c1c83c392f35afcb863abe46428881fe5e5f9a868238"
+    },
+    {
+      "path": "corpus/decisions/dunmere/collection.md",
+      "bytes": 1272,
+      "sha256": "89b6543f88d8f645e5cf049673c4a6bbab2d4f337ebbdc1eb55c9e5c61087dab"
+    },
+    {
+      "path": "corpus/decisions/rookfen/projection.md",
+      "bytes": 1180,
+      "sha256": "652a2b97e2690333e1a4092041d93a811239831da3136db57746c389ffd1b5da"
+    },
+    {
+      "path": "corpus/decisions/ternholt/retries.md",
+      "bytes": 1165,
+      "sha256": "55281453fb1466b14efde99bf1d624c53a957a149dd8838172eaa6deaec52109"
+    },
+    {
+      "path": "corpus/findings/ashcombe/queue-audit.md",
+      "bytes": 1159,
+      "sha256": "9d4abc86d755aa9ec24526b07855391f1110631cafd23a20f2f1ada9d2cc8d01"
+    },
+    {
+      "path": "corpus/findings/ashcombe/trial.md",
+      "bytes": 1092,
+      "sha256": "8fd2618d1ba82524046193c74dceb84aec2e634bf7d7142f15ac3a1321017407"
+    },
+    {
+      "path": "corpus/findings/dunmere/privacy.md",
+      "bytes": 1238,
+      "sha256": "3c2c94db3936caf5759c18e14ce7e13e9e21c0e517f7ac0a5d35408fc3b49a4d"
+    },
+    {
+      "path": "corpus/findings/rookfen/subtitle-test.md",
+      "bytes": 1114,
+      "sha256": "99d58e3b9edae72c7bd1070f79f4869b56226dd3beb368941a657334674f108e"
+    },
+    {
+      "path": "corpus/findings/ternholt/TRN-418.md",
+      "bytes": 1175,
+      "sha256": "cb476ae510695f5a59844e610d31140454ab2a5931e21fe1581eacea0bb06e68"
+    },
+    {
+      "path": "corpus/findings/ternholt/TRN-481.md",
+      "bytes": 1176,
+      "sha256": "f156b62fc8ad964b4f25a3d2cbca41361d690ea2894211bac9b8103f47882d60"
+    },
+    {
+      "path": "corpus/findings/ternholt/power-cut.md",
+      "bytes": 1188,
+      "sha256": "ef29bb6b017f6634320252e70d5dcb6e563f79e63825341eafeec49089fd1cc4"
+    },
+    {
+      "path": "corpus/notes/ashcombe/bench-check.md",
+      "bytes": 1120,
+      "sha256": "e200e330adbc4e6ad556d82a89e8dfa308b5a8808cff69c8f280352aca295c5b"
+    },
+    {
+      "path": "corpus/notes/ashcombe/festival.md",
+      "bytes": 1165,
+      "sha256": "a601240736aa62f442eb3495de2482836cf6382bd419285677c6f8e880cc8a2f"
+    },
+    {
+      "path": "corpus/notes/ashcombe/first-plan.md",
+      "bytes": 1140,
+      "sha256": "bd7f629d35c9bb3b5fb959753d3713047bc2cf20c06e214ddcb446e4a891f703"
+    },
+    {
+      "path": "corpus/notes/ashcombe/service.md",
+      "bytes": 1120,
+      "sha256": "fc8112063a4f202a016542af1dd24e9dc97d058a18f078e8604594c129bb8f03"
+    },
+    {
+      "path": "corpus/notes/ashcombe/warranty.md",
+      "bytes": 1077,
+      "sha256": "9bc879c4cf6141668e44192c9f79eda379111b30aa6841ca13ceb9c6399af570"
+    },
+    {
+      "path": "corpus/notes/dunmere/extension.md",
+      "bytes": 1238,
+      "sha256": "1dbce5e52996bc03bb7e29d96a2361da18d93b7286973dde833e392f4f341632"
+    },
+    {
+      "path": "corpus/notes/dunmere/laundry.md",
+      "bytes": 1131,
+      "sha256": "91e071a75f4dd7e2053eb59984ad94d2ebb1d0e6fb553c13eb0fba9eb04cd6c4"
+    },
+    {
+      "path": "corpus/notes/dunmere/old-survey.md",
+      "bytes": 1138,
+      "sha256": "cea31937a3bd7dcb69bc9db7f74ae70ae066e956e3895cad2ccd262f4c696c23"
+    },
+    {
+      "path": "corpus/notes/dunmere/service.md",
+      "bytes": 1172,
+      "sha256": "a9e22e32b2d7e321e077448ad8226a73dceb05e023f3867a31ce2ac09fd6067f"
+    },
+    {
+      "path": "corpus/notes/dunmere/stock.md",
+      "bytes": 1138,
+      "sha256": "2682b859e612d74d8fd58f0b32b65923d394b6779dee7fc04d5f1527163d2288"
+    },
+    {
+      "path": "corpus/notes/rookfen/access-review.md",
+      "bytes": 1178,
+      "sha256": "83a12a76180afdedaf03ab89671b908d96d0b5cbec030a9c12a5ee9736c2b7d1"
+    },
+    {
+      "path": "corpus/notes/rookfen/colour-workshop.md",
+      "bytes": 1168,
+      "sha256": "75b77ad5235a09d41d8cb539ff6fe19d8a7d1d4c9729fe62b262fda38c00ac2c"
+    },
+    {
+      "path": "corpus/notes/rookfen/premiere.md",
+      "bytes": 1110,
+      "sha256": "2243543007c437eabeaf5a862b4e26b24a6aa4d34673320d8cce08493511177c"
+    },
+    {
+      "path": "corpus/notes/rookfen/remote-demo.md",
+      "bytes": 1131,
+      "sha256": "cae67609746e8710c8dc536340e8596de2730ac8c258601e48b433e466231160"
+    },
+    {
+      "path": "corpus/notes/rookfen/sessions.md",
+      "bytes": 1178,
+      "sha256": "7673015fb10109653fd3222822b6515b8339e961de44fb5a9e1a6cb70878d78d"
+    },
+    {
+      "path": "corpus/notes/ternholt/release-checklist.md",
+      "bytes": 1239,
+      "sha256": "ddcd010b3415e220b3de47d7dd5f21bad9f46d96f53b5a0ed5a7a6589af8f598"
+    },
+    {
+      "path": "corpus/notes/ternholt/simulation.md",
+      "bytes": 1144,
+      "sha256": "952c0bf999f6ce1c0ea979cb80cee5d8ccc0f947cebdba55601b1ca6ff06d8f9"
+    },
+    {
+      "path": "corpus/notes/ternholt/spool-flash.md",
+      "bytes": 1233,
+      "sha256": "c0640da74e3106fe649093ceb8be09b24e524ab96f3dc372061ce0dd2b903ea7"
+    },
+    {
+      "path": "corpus/notes/ternholt/spool-flush.md",
+      "bytes": 1285,
+      "sha256": "f029f31165c7eb822fede691d2ebbc12a7431ca984273a505913674f5a7bdb0e"
+    },
+    {
+      "path": "queries.json",
+      "bytes": 6015,
+      "sha256": "158d09048f435368f9bf675428dff5cf65b58886dae339a606d57caaf94ac4d4"
+    },
+    {
+      "path": "rubric.json",
+      "bytes": 18622,
+      "sha256": "5c7a1a90659ea165850b91bfab8b767ab8c545647862f704abb7a958087ec91f"
+    },
+    {
+      "path": "verify.py",
+      "bytes": 3857,
+      "sha256": "e0b17854c8a6edee327867c72400fd6c09a1b38d7bb9e6aa19d7f5d57efa2749"
+    }
+  ],
+  "digestAlgorithm": "SHA-256 of sorted UTF-8 sha256  relative/path\\n lines",
+  "digest": "fc1369a770e06d9d8180a8dcf57d0519311a5422ce02202e2d25350f755ed32b"
+}

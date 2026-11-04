@@ -1,0 +1,63 @@
+{
+  "purpose": "Scoring-only manual controls, separate from indexed corpus and execution policy. Required-span scores alone do not enforce these constraints.",
+  "controls": [
+    {
+      "cases": ["ashcombe-natural-not", "ashcombe-contraction"],
+      "intent": "Ordinary Saturday repair queue, with causal finding and accepted visible replacement.",
+      "misleadingSource": "notes/ashcombe/festival.md",
+      "rejectInference": "The festival loudspeaker arrangement is the ordinary repair-morning policy."
+    },
+    {
+      "cases": ["ashcombe-quoted-phrase"],
+      "exactPhrase": "amber card",
+      "requiredSource": "decisions/ashcombe/queue.md",
+      "rejectInference": "A numbered card guarantees a repair or admission to a separate event."
+    },
+    {
+      "cases": ["ternholt-camelcase", "ternholt-recovery-qualification"],
+      "requiredIdentifier": "spoolFlush",
+      "misleadingSource": "notes/ternholt/spool-flash.md",
+      "rejectInference": "spoolFlash is an interchangeable spelling or a successful lamp test proves batch delivery."
+    },
+    {
+      "cases": ["ternholt-ticket-id"],
+      "requiredIdentifier": "TRN-418",
+      "misleadingSource": "findings/ternholt/TRN-481.md",
+      "rejectInference": "The transposed display ticket supplies the transport fix or its workaround resets the passenger counter."
+    },
+    {
+      "cases": ["ternholt-literal-path", "ternholt-exact-title"],
+      "requiredFile": "notes/ternholt/release-checklist.md",
+      "literalTitle": "Ternholt counter release checklist",
+      "rejectInference": "Any Ternholt note mentioning checks satisfies exact navigation."
+    },
+    {
+      "cases": ["ternholt-minus-exclusion", "ternholt-uppercase-not"],
+      "excludedTerm": "simulation",
+      "forbiddenFile": "notes/ternholt/simulation.md",
+      "requiredSource": "decisions/ternholt/retries.md",
+      "grammarStatus": "Backend syntax is unverified by fixture author; owner must establish it independently before evaluating a narrower rule.",
+      "rejectInference": "The workshop twelve-attempt deletion rule governs the deployed counter."
+    },
+    {
+      "cases": ["ashcombe-historical"],
+      "evidenceTo": "2026-09-30",
+      "requiredSource": "notes/ashcombe/first-plan.md",
+      "rejectInference": "A late edit makes the September plan a newly approved October procedure."
+    },
+    {
+      "cases": ["dunmere-unconstrained-paraphrase", "dunmere-current-proposal"],
+      "misleadingSource": "notes/dunmere/old-survey.md",
+      "rejectInference": "Private appointments guarantee stock or an unapproved home-delivery suggestion supersedes collection."
+    },
+    {
+      "cases": ["rookfen-unconstrained-paraphrase"],
+      "misleadingSource": "notes/rookfen/colour-workshop.md",
+      "rejectInference": "A still-photograph exposure adjustment solves caption contrast or caption backing supplies audio description."
+    },
+    {
+      "cases": ["ashcombe-warranty-unknown", "rookfen-streaming-unknown"],
+      "rejectInference": "An unsigned poster or private short-clip permission proves the broader proposed service was authorized. An absent named approver proves no approval occurred anywhere."
+    }
+  ]
+}

@@ -75,7 +75,7 @@ show static software recovery guidance rather than implying folder corruption.
 - Does not establish the other machine's exact state, Intel/macOS 26, physical
   OS sleep, clean-OS install, arbitrary plugin data, or installed public upgrade.
   The two new single-user draft/conflict reports remain with unit 7 of the
-  [feedback backlog](../todo/tasks-feedback-independent-increments.md).
+  [feedback backlog](2026-11-04_tasks-feedback-independent-increments.md).
 - Logs: `/tmp/jumpybrain-hotfix-{build,desktop-pack,lifecycle,targeted,backend-host,update,packaged-recovery}.log`.
 
 

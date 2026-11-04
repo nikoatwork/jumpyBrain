@@ -1,0 +1,219 @@
+[
+  {
+    "id": "ashcombe-natural-not",
+    "scenario": "ashcombe",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "For Saturday repairs, why does Ashcombe not rely on calling names over the loudspeaker, and what replaced that approach?",
+    "depth": "normal",
+    "protected": false,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ashcombe-contraction",
+    "scenario": "ashcombe",
+    "journey": "rationale",
+    "split": "reserved",
+    "query": "For ordinary repair mornings, why can't Ashcombe simply announce the next person's name and carry on repairing? What should happen instead?",
+    "depth": "normal",
+    "protected": false,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ashcombe-lowercase-hyphen",
+    "scenario": "ashcombe",
+    "journey": "current",
+    "split": "reserved",
+    "query": "What does the walk-in repair arrangement at Ashcombe actually reserve, and is it also a weekday drop-off service?",
+    "depth": "normal",
+    "protected": false,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ashcombe-quoted-phrase",
+    "scenario": "ashcombe",
+    "journey": "scope",
+    "split": "reserved",
+    "query": "Ashcombe \"amber card\" what does this reserve and how is a turn acknowledged?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ternholt-exact-title",
+    "scenario": "ternholt",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "Ternholt counter release checklist",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ashcombe-historical",
+    "scenario": "ashcombe",
+    "journey": "historical",
+    "split": "reserved",
+    "query": "Before October, how did Ashcombe intend to call people forward and when did it intend to open?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-09-30",
+      "order": "chronological"
+    }
+  },
+  {
+    "id": "ashcombe-warranty-unknown",
+    "scenario": "ashcombe",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who approved Ashcombe's thirty-day repair warranty? Does the poster establish approval?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ternholt-camelcase",
+    "scenario": "ternholt",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "What does spoolFlush do in Ternholt, and when may it remove a queued batch?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ternholt-ticket-id",
+    "scenario": "ternholt",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "What caused TRN-418 in Ternholt, and does its accepted fix reset the passenger counter?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ternholt-literal-path",
+    "scenario": "ternholt",
+    "journey": "navigation",
+    "split": "reserved",
+    "query": "notes/ternholt/release-checklist.md",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ternholt-minus-exclusion",
+    "scenario": "ternholt",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Ternholt retry budget -simulation",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ternholt-uppercase-not",
+    "scenario": "ternholt",
+    "journey": "protected",
+    "split": "reserved",
+    "query": "Ternholt retry budget NOT simulation",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "dunmere-unconstrained-paraphrase",
+    "scenario": "dunmere",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "Which service lets families collect school clothes discreetly instead of explaining money troubles to a crowd?",
+    "depth": "normal",
+    "protected": false,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "rookfen-unconstrained-paraphrase",
+    "scenario": "rookfen",
+    "journey": "discovery",
+    "split": "reserved",
+    "query": "Which screening adjustment helps an audience follow speech over bright moving images, and which accessibility need remains unmet?",
+    "depth": "normal",
+    "protected": false,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "dunmere-current-proposal",
+    "scenario": "dunmere",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Has Dunmere agreed to bring garments to people's homes now, and can an outstanding size request be treated as a delivery promise?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "rookfen-streaming-unknown",
+    "scenario": "rookfen",
+    "journey": "limits",
+    "split": "reserved",
+    "query": "Who granted Rookfen streaming rights for the feature premiere, and does the remote clip test establish that permission?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ternholt-recovery-qualification",
+    "scenario": "ternholt",
+    "journey": "multi-source",
+    "split": "reserved",
+    "query": "After a Ternholt power interruption, what survived the tested reboot, what write-stage risk remains unknown, and which operation should retry the recovered batches?",
+    "depth": "normal",
+    "protected": true,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  },
+  {
+    "id": "ashcombe-natural-without",
+    "scenario": "ashcombe",
+    "journey": "current",
+    "split": "reserved",
+    "query": "Can someone at the Ashcombe entrance promise a repair without sending the item to a bench first?",
+    "depth": "normal",
+    "protected": false,
+    "temporal": {
+      "to": "2026-10-31"
+    }
+  }
+]

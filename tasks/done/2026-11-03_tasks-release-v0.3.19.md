@@ -17,7 +17,7 @@ not established. Publication does not install or change existing personal apps.
   backend diagnostic codes and static version-conflict guidance.
 - Read November 2 16:37/17:01 UTC single-user draft/conflict reports in full;
   defer matching-artifact investigation and editor conflict diagnostics to
-  [feedback unit 7](../todo/tasks-feedback-independent-increments.md). Other prior
+  [feedback unit 7](2026-11-04_tasks-feedback-independent-increments.md). Other prior
   triage remains under existing task owners. No private bodies/raw logs in Git,
   no replies, label changes or test feedback submissions.
 - Latest public numeric release v0.3.18, published 2026-11-02T17:01:19Z;
