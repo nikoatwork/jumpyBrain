@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Retrieval option error precedence
+
+- Invalid retrieval depth explains allowed choices before engine work or remote credentials, across rich/compact search and recall. [Regression and valid-path verification](done/2026-11-04_tasks-ux-retrieval-option-errors.md).
+
 ## 2026-11-04 — Confirmed generation outcomes
 
 - Open-note feedback distinguishes confirmed generation finish, explicit stop and interruption with actor-scoped correlation; presence loss/reconnect never fabricates completion. Targeted compaction keeps distribution budgets while a measured 0.27% editor allowance covers the feedback work. [Verification and limits](done/2026-11-04_tasks-ux-generation-feedback.md).

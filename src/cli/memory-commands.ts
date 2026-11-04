@@ -14,6 +14,7 @@ import { rememberFromStdin } from "./memory-write.js";
 import { formatMemoryOverview, overviewOptionsFromArgs } from "./overview.js";
 import { readStdin } from "./stdin.js";
 import { compactOptions, expansionOptions, printCompactRecall, printExpansion } from "./bounded-reads.js";
+import { normalizeRetrievalDepth } from "../core/retrieval-policy/index.js";
 
 export type MemoryCommand =
   | "status"
@@ -36,6 +37,7 @@ export async function runMemoryCommand(
   localMemory: LocalMemoryTransport,
   options: { allowDiscovery?: boolean } = {},
 ): Promise<void> {
+  const retrievalDepth = command === "recall" || command === "search" ? normalizeRetrievalDepth(stringArg(args, "depth", "normal")) : undefined;
   const temporal = command === "recall" || command === "search" ? temporalOptions(args) : undefined;
   const recognition = command === "recall" || command === "search" ? recognitionFromArgs(args) : undefined;
   const compact = command === "recall" || command === "search" ? compactOptions(args) : undefined;
@@ -124,7 +126,7 @@ export async function runMemoryCommand(
   if (command === "search" || command === "recall") {
     const query = stringArg(args, command === "recall" ? "topic" : "query", command === "recall" ? stringArg(args, "query", false) : undefined);
     const limit = numberArg(args, "limit", command === "recall" ? 5 : 10);
-    const depth = stringArg(args, "depth", "normal");
+    const depth = retrievalDepth!;
     if (compact) {
       await printCompactRecall(target, localMemory, query, limit, { ...compact, ...(args["read-only"] ? { readOnly: true } : {}), ...(args["no-refresh"] ? { refresh: false } : {}), ...(temporal ? { temporal } : {}) });
       return;
