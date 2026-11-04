@@ -13,14 +13,20 @@ const repo = fileURLToPath(new URL("../", import.meta.url));
 const cli = path.join(repo, "dist/cli.js");
 async function fixture(t) {
   const temp = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-doctor-followup-"));
-  t.after(async () => { if (existsSync(path.join(root, ".jumpybrain/backend/owner.json"))) await stopRootBackend(root); await rm(temp, { recursive: true, force: true }); });
   const home = path.join(temp, "home"), root = path.join(temp, "project", "memory");
   await mkdir(home);
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(?:JUMPYBRAIN_|QMD_|XDG_|CODEX_|ANTHROPIC_|OPENAI_)/u.test(key)));
   Object.assign(env, { HOME: home, XDG_CONFIG_HOME: path.join(home, "config"), XDG_CACHE_HOME: path.join(home, "cache") });
   const run = (args, extra = {}) => spawnSync(process.execPath, [cli, ...args], { cwd: temp, encoding: "utf8", timeout: 15000, env: { ...env, ...extra.env }, input: extra.input });
   const ok = (args, extra) => { const result = run(args, extra); assert.equal(result.status, 0, result.stderr); return result; };
-  return { temp, root, home, env, run, ok };
+  const f = { temp, root, home, env, run, ok };
+  t.after(async () => {
+    // Some follow-up cases deliberately retarget the fixture to a quoted path.
+    // Stop that actual owned backend before deleting its active log directory.
+    for (const selected of new Set([root, f.root])) if (existsSync(path.join(selected, ".jumpybrain/backend/owner.json"))) await stopRootBackend(selected);
+    await rm(temp, { recursive: true, force: true });
+  });
+  return f;
 }
 async function snapshot(dir) {
   const result = {};

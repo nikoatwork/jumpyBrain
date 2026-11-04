@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { initializeMemoryRoot, saveBoard } from '../dist/runtime/index.js';
 import { startCompanionGateway } from '../integrations/macos-companion/gateway.mjs';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
+import { installCollaborationSmokeTransport } from './collaboration-smoke-transport.mjs';
 const temp=await mkdtemp(path.join(os.tmpdir(),'jb-board-tree-')),root=path.join(temp,'memory');
 const captures=process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR||'/tmp/jumpybrain-board-sidebar-qa',id=n=>'mem_ab000000-0000-4000-8000-'+String(n).padStart(12,'0');
 let gateway,browser;
@@ -24,6 +25,7 @@ try {
   gateway=await startCompanionGateway({runtimeRoot:path.resolve('.'),directory:path.join(temp,'support'),initialRoot:root,port:0,controlKey:'b'.repeat(64),credentials:{get:async()=>null,set:async()=>{},delete:async()=>{}}});
   browser=await launchPlaywrightChromium({chromium:await loadPlaywrightChromium()});
   const context=await browser.newContext({viewport:{width:1280,height:850}}),page=await context.newPage();page.setDefaultTimeout(15000);
+  const liveTransport=await installCollaborationSmokeTransport(page);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/memories/all/documents/'+id(3),route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture temporarily unavailable'}})}));
   await page.goto(gateway.url+'/#companion='+'b'.repeat(64));
@@ -119,13 +121,14 @@ try {
   assert.equal(await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop),treeScroll,'reopening preserves the navigation position');
   assert.equal(await columnArrow.getAttribute('aria-expanded'),'true');
   // A failed save must leave both the draft and the navigation visible.
-  await page.route('**/memories/all/documents/**',route=>route.request().method()==='PUT'?route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:{message:'Fixture save failed'}})}):route.continue());
+  await page.waitForFunction(()=>state.editor?.collaboration?.state.status==='saved');
+  const rejectedTitle=liveTransport.rejectNext('title',{code:'fixture_failed',message:'Fixture save failed'});
   await page.locator('#note-name').fill('Unsaved project draft');await board.locator('[data-sidebar-page="'+id(3)+'"] button').click();
-  await page.waitForFunction(()=>state.editor?.state.saveStatus==='failed');
+  await rejectedTitle.arrived;await page.waitForFunction(()=>state.editor?.state.saveStatus==='failed');
   assert.equal(await page.locator('#app-sidebar').isVisible(),true);assert.equal(new URL(page.url()).searchParams.get('note'),id(1));
   assert.equal(await page.locator('#note-name').inputValue(),'Unsaved project draft');
   assert.equal(await readFile(path.join(root,'notes','1.md'),'utf8'),originals.get(path.join(root,'notes','1.md')),'failed navigation never publishes the draft');
-  await page.unroute('**/memories/all/documents/**');await page.locator('#note-name').fill('Project overview');await page.locator('#note-retry').click();await page.waitForFunction(()=>state.editor?.state.saveStatus==='saved');
+  await page.locator('#note-name').fill('Project overview');await page.locator('#note-recover').click();await page.waitForFunction(()=>!document.getElementById('recovery-publish').disabled);await page.locator('#recovery-publish').click();await page.waitForFunction(()=>state.editor?.collaboration?.state.status==='saved');
   // The explicitly tested title save updates canonical metadata, so reset that byte-preservation baseline.
   originals.set(path.join(root,'notes','1.md'),await readFile(path.join(root,'notes','1.md'),'utf8'));
   await board.locator('[data-sidebar-page="'+id(3)+'"] button').click();await page.waitForFunction(()=>document.documentElement.dataset.sidebarCollapsed==='true');

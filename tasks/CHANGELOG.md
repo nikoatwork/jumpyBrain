@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — Long-lived UX verification
+
+- A frozen-runtime 45-minute coauthoring/search run passed 60 accumulated cycles; uncertain-save peer recovery, nested-board live faults and owned doctor fixture cleanup retain accurate evidence. [Results and limits](done/2026-11-04_tasks-ux-long-stability.md).
+
 ## 2026-11-04 — Honest read-only affordances
 
 - Hosted readers no longer see empty-note writing/formatting invitations; denied creation distinguishes missing write access from missing authentication. [Real-role verification and limits](done/2026-11-04_tasks-ux-readonly-affordances.md).
