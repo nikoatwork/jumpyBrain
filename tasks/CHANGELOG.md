@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-04 — UX verification alignment
+
+- Writing/board probes now wait for live confirmation, fault actual source edits and recover through reviewed publication. Platform expectations and narrow generation-feedback checks are explicit. [Verification and limits](done/2026-11-04_tasks-ux-validation-harness.md).
+
 ## 2026-11-04 — Scoped Escape handling
 
 - A preserved editor selection no longer lets the attribution hint swallow Escape from formatting/search controls; editor dismissal and composition ownership remain intact. [Reproduction and verification](done/2026-11-04_tasks-ux-scoped-escape.md).

@@ -2,6 +2,7 @@
 // separately verifies the native window; this runner covers the document journey.
 import assert from 'node:assert/strict';
 import { checkPageActions } from './page-action-smoke-helpers.mjs';
+import { installCollaborationSmokeTransport } from './collaboration-smoke-transport.mjs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -44,7 +45,7 @@ const prefix = (n, name) => `---\nid: ${id(n)}\ntitle: ${JSON.stringify(name)}\n
 const source = stampMemoryActor(prefix(1, title) + body, { kind: 'agent', name: 'Research assistant' });
 const errors = [], mutations = [];
 let browser, server, gateway;
-const saved = page => page.waitForFunction(() => state.editor?.state.saveStatus === 'saved' && !state.editor.state.dirty && !state.editor.state.saveInFlight);
+const saved = page => page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved' && state.editor?.state.saveStatus === 'saved' && !state.editor.state.dirty && !state.editor.state.saveInFlight);
 try {
   await initializeMemoryRoot(root);
   await mkdir(path.dirname(file), { recursive: true });
@@ -61,6 +62,8 @@ try {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.fixtureClipboard.push(text); } } });
   });
   const page = await context.newPage(); page.setDefaultTimeout(12000);
+  const liveTransport = await installCollaborationSmokeTransport(page);
+  const mutationCount = () => mutations.length + liveTransport.observed.filter(frame => ['edit', 'undo', 'redo', 'title'].includes(frame.method)).length;
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => {
     if (['PUT', 'PATCH', 'DELETE'].includes(request.method()) && /\/documents\//.test(request.url())) mutations.push(request.method());
@@ -68,6 +71,7 @@ try {
   const open = async n => {
     await page.goto(`${server.url}/?note=${id(n)}#apiKey=${key}`);
     await page.locator('#note-editor').waitFor({ state: 'visible' });
+    await saved(page);
   };
   await open(1);
   assert.equal(await page.locator('#note-save-state').textContent(), 'Saved', 'a confirmed loaded baseline is visibly saved');
@@ -92,7 +96,7 @@ try {
   assert.equal(await page.evaluate(() => fixtureEditorRoot === document.getElementById('note-editor')), true);
   assert.equal(await editorMarkdown(page), body);
   assert.equal(await readFile(file, 'utf8'), source);
-  assert.deepEqual(mutations, [], 'opening details never writes canonical Markdown');
+  assert.equal(mutationCount(), 0, 'opening details never writes canonical Markdown');
 
   await page.locator('#note-name').click();
   assert.equal(await page.locator('#page-details').isVisible(), true, 'page card stays available while writing');
@@ -115,7 +119,7 @@ try {
   await page.locator('#toggle-note-format').click();
   assert.deepEqual(await editorSelection(page), selection);
   assert.equal(await page.evaluate(() => fixtureEditorRoot === document.getElementById('note-editor')), true);
-  assert.deepEqual(mutations, [], 'opening Format adds no save');
+  assert.equal(mutationCount(), 0, 'opening Format adds no save');
   await page.getByRole('button', { name: 'Bold', exact: true }).click();
   await saved(page);
   assert.equal(await editorMarkdown(page), body.replace('Build a focused', '**Build** a focused'));
@@ -189,9 +193,11 @@ try {
   await page.evaluate(() => delete document.documentElement.dataset.palette);
   await page.setViewportSize({ width: 1280, height: 900 });
 
-  // Dispatch supported DOM input and the copy click in one task, before the
-  // ordinary 750ms debounce. Copy itself must not initiate a save or transmit.
-  const beforeCopy = mutations.length;
+  // Hold the actual live title/body publication while copying. Timing against
+  // the legacy autosave debounce cannot establish private-draft behavior.
+  await saved(page);
+  const copyTitle = liveTransport.holdNextRequest('title');
+  console.log('workspace: copy private draft');
   await page.evaluate(() => {
     const title = document.getElementById('note-name');
     title.value = 'Unsaved working copy'; title.dispatchEvent(new Event('input', { bubbles: true }));
@@ -201,17 +207,24 @@ try {
   });
   await page.evaluate(() => new Promise(requestAnimationFrame));
   await page.keyboard.insertText(' A draft addition for review.');
+  // The title is first in flight; the body stays private behind it.
+  let copyDeadline;
+  try { await Promise.race([copyTitle.arrived, new Promise((_resolve,reject) => { copyDeadline=setTimeout(() => reject(new Error('Expected live title publication did not arrive')),10000); })]); }
+  finally { clearTimeout(copyDeadline); }
+  const beforeCopy = mutationCount();
   await page.evaluate(() => document.getElementById('copy-note-draft').click());
   await page.waitForFunction(() => fixtureClipboard.length === 1);
   const copied = await page.evaluate(() => ({ text: fixtureClipboard[0], title: state.editor.state.title, body: richEditor.getMarkdown(), dirty: state.editor.state.dirty }));
   assert.equal(copied.dirty, true);
   assert.equal(copied.text, copied.title + '\n\n' + copied.body);
   assert.match(copied.text, /A draft addition for review/);
-  assert.equal(mutations.length, beforeCopy, 'copy adds no explicit save request');
+  assert.equal(mutationCount(), beforeCopy, 'copy adds no explicit save request');
   await page.locator('#toast-message').filter({ hasText: 'Draft copied' }).waitFor();
+  copyTitle.release();
   await page.evaluate(() => state.editor.flush()); await saved(page);
   assert.doesNotMatch(await readFile(file, 'utf8'), /Start writing, or type/);
 
+  console.log('workspace: empty note');
   await open(2);
   await page.locator('#note-editor-hint').waitFor({ state: 'visible' });
   await replaceEditorText(page, 'A first sentence.');
@@ -273,16 +286,19 @@ try {
   await page.locator('#navigate-back').click();
   await page.waitForURL(url => url.searchParams.get('note') === createdId);
   await page.locator('#note-editor').waitFor();
-  const blockSave = route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'unavailable', message: 'Fixture save unavailable' } }) });
-  await page.route('**/documents/' + createdId, route => route.request().method() === 'PUT' ? blockSave(route) : route.continue());
+  console.log('workspace: reviewed save recovery');
+  const failedEdit = liveTransport.rejectNext('edit', { code: 'source_unavailable' });
   await editorEnd(page); await page.keyboard.insertText(' Continued after returning.');
-  await page.locator('#note-retry').waitFor();
+  await failedEdit.arrived;
+  await page.locator('#note-recover').waitFor();
   await page.locator('#home-link').click();
-  await page.waitForFunction(() => !state.editor.state.navigationPending && !document.getElementById('note-retry').hidden);
+  await page.waitForFunction(() => !state.editor.state.navigationPending && !document.getElementById('note-recover').hidden);
   assert.equal(new URL(page.url()).searchParams.get('note'), createdId, 'failed save blocks departure');
   assert.equal(await page.locator('#copy-note-draft').isVisible(), true);
-  await page.unroute('**/documents/' + createdId);
-  await page.locator('#note-retry').click(); await saved(page);
+  await page.locator('#note-recover').click();
+  await page.waitForFunction(() => !document.getElementById('recovery-publish').disabled);
+  assert.match(await page.locator('#recovery-draft').inputValue(), /Continued after returning/);
+  await page.locator('#recovery-publish').click(); await saved(page);
   const created = await readMemoryDocument(root, createdId);
   assert.match(created.content, /## A first thought/);
   assert.match(created.content, /\[\[Coworker review\]\]/);
@@ -318,7 +334,7 @@ try {
   assert.equal(await readonly.locator('#delete-note').isDisabled(), true);
   await readonlyContext.close();
   assert.deepEqual(errors, []);
-  console.log('PASS folding-desk journey: real create/title/body, pointer and keyboard selection formatting/undo, direct reference insertion/follow/Back/search, autosave/reopen, failed-save departure guard/Retry, immutable folding, scoped Escape/focus, read-only, exact draft copy, 1280/1180/900/390/320px light/dark details and 18 expanded palette layouts. Screenshots: ' + output);
+  console.log('PASS folding-desk journey: real create/title/body, pointer and keyboard selection formatting/undo, direct reference insertion/follow/Back/search, autosave/reopen, failed-save departure guard/reviewed publication, immutable folding, scoped Escape/focus, read-only, exact draft copy, 1280/1180/900/390/320px light/dark details and 18 expanded palette layouts. Screenshots: ' + output);
 } finally {
   await browser?.close(); await gateway?.close(); await server?.close(); await rm(temporary, { recursive: true, force: true });
 }
