@@ -326,6 +326,11 @@ Writable, uniquely ID-addressed files can be dragged onto highlighted folders, i
 
 ## Live source editing
 
+Initial live hydration (the temporary revision -1) does not emit “Updated
+elsewhere”; later observed canonical changes retain that feedback. Retained-copy
+notices invite comparison without claiming that text was removed: conservative
+retention can also accompany additions. Review and restore guards are unchanged.
+
 The shipped note surface binds `collaboration-editor` to bounded server-ordered
 source operations. Collapsed deletion of an empty paragraph includes its exact
 source interval only when its captured node is actually removed; trailing blank

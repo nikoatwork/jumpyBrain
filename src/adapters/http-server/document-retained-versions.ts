@@ -95,7 +95,7 @@ export function installRetainedVersions(options: Options) {
     const editor = options.editor(), recovery = editor?.getRetainedRecovery?.(), incomplete = editor?.getRetainedDiscovery?.() === "incomplete";
     banner.hidden = !editor?.state.loaded || editor.state.cancelled || (!recovery && !incomplete);
     banner.style.display = banner.hidden ? "none" : "flex";
-    notice.textContent = incomplete ? "Some retained versions could not be verified. Retained copies remain available to the brain operator." : "External file replaced saved text — review retained version.";
+    notice.textContent = incomplete ? "Some retained versions could not be verified. Retained copies remain available to the brain operator." : "An external edit was retained. Compare versions if needed.";
     review.hidden = !recovery; review.disabled = Boolean(editor?.state.navigationPending) || !editor?.readRetainedVersion;
     if (dialog.open && !valid()) close(true);
     restore.hidden = !writable(); restore.disabled = loading || mutating || !comparisonHash || !copies || !writable();

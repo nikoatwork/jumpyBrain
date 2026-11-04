@@ -1,5 +1,7 @@
 # Changes
 
+- Opening a note avoids a false external-update notice; retained-version guidance invites comparison without implying text was removed.
+
 - Unsuccessful @ page linking dismisses when you resume typing; smaller checkboxes support Tab/Shift+Tab nesting and preserve child tasks.
 
 - Installers now prune superseded owned software automatically, share rollback references, protect live/recovery copies and provide a storage preview with retry guidance.

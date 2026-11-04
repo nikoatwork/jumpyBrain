@@ -150,7 +150,9 @@ export function createCollaborationEditor(options: Options) {
     if(!snapshot.saved||snapshot.conflict){options.onRecovery?.("source_changed");conflict=true;message=snapshot.conflict?.message??"The saved file changed unsafely. The local draft is retained.";persist();notify();return}
     if(baseline&&snapshot.epoch===baseline.epoch&&snapshot.revision===baseline.revision&&snapshot.body===baseline.body&&!own){baseline=snapshot;publishSnapshot(snapshot);notify();return}
     if(conflict){baseline=snapshot;persist();publishSnapshot(snapshot);notify();return}
-    const remote=Boolean(baseline)&&!own&&(snapshot.revision!==baseline?.revision||snapshot.body!==baseline?.body||snapshot.title!==baseline?.title);
+    // Revision -1 is the initial hydration placeholder, not an observed edit
+    // by another writer. Later canonical changes still receive remote feedback.
+    const remote=Boolean(baseline && baseline.revision >= 0)&&!own&&(snapshot.revision!==baseline?.revision||snapshot.body!==baseline?.body||snapshot.title!==baseline?.title);
     let remoteSteps:SourceSplice[][]=[];
     const sourceBase=own?.submitted??pendingBase;
     if(!baseline||baseline.revision<0){
