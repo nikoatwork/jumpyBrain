@@ -68,10 +68,15 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
           if (journal?.phase === 'success' && state.phase === 'updating') state = { ...state, phase: 'success', detail: 'The update was verified before the helper stopped. Installed versions are shown below.' };
           else if (recovery || ['preparing', 'ready', 'updating'].includes(state.phase)) state = { ...state, phase: 'failed', recovery: !!recovery, detail: 'The updater was interrupted. Retry preparation, or Recover if replacement had started. Your previous installation is retained.' };
       }
-      if (!release && state.phase !== 'checking') release = (await readJSON(path.join(directory, 'request.json')).catch(() => null))?.release;
+      // A failed fresh check must not resurrect the last transaction's offer.
+      if (!release && state.phase !== 'checking' && !state.checkFailed) release = (await readJSON(path.join(directory, 'request.json')).catch(() => null))?.release;
     }
     const versions = await installed();
-    const canPrepare = !!release && ['available', 'failed'].includes(state.phase) && !state.recovery;
+    let canPrepare = false;
+    if (release && !state.checkFailed && ['available', 'failed'].includes(state.phase) && !state.recovery) {
+      // Incomplete installation metadata must not break status/recovery access.
+      try { canPrepare = needsUpdate(release.version, versions); } catch { /* Check reports the repair guidance. */ }
+    }
     const working = ['checking', 'preparing', 'updating'].includes(state.phase);
     const actions = [
       ...(!working && state.phase !== 'ready' && !state.recovery ? ['check'] : []),
@@ -207,7 +212,7 @@ export function createDesktopUpdater({ resources, appVersion, home = os.homedir(
           return await launch(false, false);
         }
         if (name === 'prepare' || name === 'app-only') {
-          if (['preparing', 'ready', 'updating'].includes(current.phase)) return current;
+          if (!current.canPrepare) return current;
           return await launch(false, name === 'app-only');
         }
         if (name === 'recover' && current.canRecover) return await launch(true, false);
