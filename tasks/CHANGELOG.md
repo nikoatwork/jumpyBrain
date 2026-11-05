@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Stable related pages
+
+- Related-page recommendations survive typing/deletion and stale refreshes, with ten-second saved-content checks and quieter minute refreshes; verified with real lexical/semantic fixtures and the unchanged local brain. [Verification](done/2026-11-05_tasks-stable-related-pages.md).
+
 ## 2026-11-05 — Empty page names while renaming
 
 - Deleting the final title character keeps the Mac editor usable and preserves the draft until a replacement saves; native keyboard, live-backend and full-suite checks passed. [Verification and desktop smoke limit](done/2026-11-05_tasks-empty-page-title.md).

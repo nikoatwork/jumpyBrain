@@ -15,15 +15,16 @@ const shots = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR || '/tmp/jb-feedback-r
 const key = 'related-pages-disposable-key', controlKey = 'c'.repeat(64);
 const id = n => `mem_a0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const root = path.join(temporary, 'a'), other = path.join(temporary, 'b');
+const indexing = process.env.JUMPYBRAIN_RELATED_MODEL ? { mode: 'semantic', model: process.env.JUMPYBRAIN_RELATED_MODEL } : { mode: 'lexical' };
 const hit = (n, score, title = `Paraphrase ${n}`) => ({ provenance: { metadata: { id: id(n), title } }, scoreBreakdown: { qmdScore: score } });
-const errors = [], mutations = [];
+const errors = [], mutations = [], searches = [];
 let server, otherServer, gateway, browser;
 try {
   await mkdir(shots, { recursive: true });
   for (const [directory, name] of [[root, 'Sleep quality'], [other, 'Garden planning']]) {
     await initializeMemoryRoot(directory);
     for (let n = 1; n <= 8; n++) await writeFile(path.join(directory, 'notes', `${n}.md`), `---\nid: ${id(n)}\ntitle: ${n === 1 ? name : name + ' ' + n}\ntype: note\n---\n${name} improves with consistent habits.\n`);
-    await indexMemory(directory, { indexing: { mode: 'lexical' } });
+    await indexMemory(directory, { indexing });
   }
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
   otherServer = await startJumpyBrainHttpServer({ root: other, apiKeys: [key], port: 0, autoIndex: false });
@@ -34,9 +35,15 @@ try {
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   page.on('pageerror', error => errors.push(error.message));
-  page.on('request', request => { if (['PUT', 'PATCH', 'DELETE'].includes(request.method()) || /\/index$/.test(request.url())) mutations.push(request.method() + ' ' + new URL(request.url()).pathname); });
+  page.on('request', request => { if (new URL(request.url()).pathname === '/memories/all/search') searches.push(request.postDataJSON()); if (['PUT', 'PATCH', 'DELETE'].includes(request.method()) || /\/index$/.test(request.url())) mutations.push(request.method() + ' ' + new URL(request.url()).pathname); });
   const open = async (n = 1) => { await page.goto(`${server.url}/?note=${id(n)}#apiKey=${key}`); await page.locator('#note-editor').waitFor(); };
+  const initialResponse = page.waitForResponse(response => new URL(response.url()).pathname === '/memories/all/search' && response.status() === 200);
   await open();
+  const initialPacket = await (await initialResponse).json();
+  if (indexing.mode === 'semantic') {
+    assert.ok(initialPacket.readiness?.modes.includes('semantic'));
+    assert.ok(!initialPacket.retrieval?.warnings?.some(warning => /semantic_query_failed|query_constraints_lexical_only/.test(warning)), 'real vector branch must run successfully');
+  }
   await page.waitForFunction(() => document.querySelectorAll('#related-pages-list a').length === 5);
   assert.ok((await page.locator('#related-pages-list a').evaluateAll(links => links.map(a => a.href))).every(url => !url.includes('note=' + id(1))));
   for (const theme of ['light', 'dark']) for (const width of [1280, 390, 320]) {
@@ -52,10 +59,10 @@ try {
   let packet = { index: { stale: false }, results: [hit(1, 1), hit(2, .95, '<img src=x>'), hit(2, .95), hit(3, .9), hit(4, .7)] };
   await page.route('**/memories/all/search', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify(packet) }));
   await open();
-  await page.waitForFunction(() => document.querySelectorAll('#related-pages-list a').length === 2);
+  await page.waitForFunction(() => document.querySelectorAll('#related-pages-list a').length === 3);
   assert.equal(await page.locator('#related-pages img').count(), 0);
   assert.equal(await page.locator('#related-pages-list a').first().textContent(), '<img src=x>');
-  for (const value of [{ results: [hit(2, .74)] }, { results: [] }, { index: { stale: true }, results: [hit(2, .99)] }]) {
+  for (const value of [{ results: [] }, { index: { stale: true }, results: [hit(2, .99)] }]) {
     packet = value; await open(); await page.waitForLoadState('networkidle');
     assert.equal(await page.locator('#related-pages').isVisible(), false);
   }
@@ -67,28 +74,37 @@ try {
   const held = new Promise(resolve => { release = resolve; });
   const admitted = new Promise(resolve => { started = resolve; });
   await page.route('**/memories/all/search', async route => { started(); await held; await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ results: [hit(2, .99)] }) }).catch(() => {}); });
-  await open(); await admitted; await page.locator('#home-link').click(); release();
+  await open(); await admitted; await page.setViewportSize({ width: 1280, height: 900 }); await page.locator('#home-link').click(); release();
   await page.waitForLoadState('networkidle'); assert.equal(await page.locator('#related-pages-list a').count(), 0, 'late result cannot revive a departed note');
   await page.unroute('**/memories/all/search');
-  // An actual failed save blocks opening a related page; retry preserves Markdown.
+  // Real live saves/deletions preserve both links and their DOM nodes.
   await open(); await page.locator('#related-pages-list a').first().waitFor();
-  let fail = true;
-  await page.route('**/memories/all/documents/*', route => route.request().method() === 'PUT' && fail
-    ? route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ error: { code: 'forbidden', message: 'Fixture save refused' } }) }) : route.continue());
-  await appendEditorText(page, ' Retained related-page draft.');
-  await page.waitForFunction(() => state.editor.state.saveStatus === 'failed');
+  await page.evaluate(() => { window.relatedAnchor = document.querySelector('#related-pages-list a'); });
+  const baselineRequests = mutations.length, baselineSearches = searches.length;
+  for (let n = 0; n < 3; n++) {
+    await appendEditorText(page, ' Temporary sentence.');
+    await page.waitForFunction(() => state.editor.state.saveStatus === 'saved' && !state.editor.state.dirty);
+    await page.keyboard.press('Backspace');
+    await page.waitForFunction(() => state.editor.state.saveStatus === 'saved' && !state.editor.state.dirty);
+    assert.equal(await page.evaluate(() => window.relatedAnchor === document.querySelector('#related-pages-list a')), true);
+  }
+  assert.equal(mutations.length, baselineRequests, 'live publication does not issue legacy PUT or index requests');
+  assert.equal(searches.length, baselineSearches, 'typing does not search per saved revision');
+  await new Promise(resolve => setTimeout(resolve, 12000));
+  assert.equal(searches.length, baselineSearches + 1, 'changed saved content triggers one ten-second refresh');
+  assert.match(searches.at(-1).query, /temporary sentence/);
+  assert.equal(await page.evaluate(() => window.relatedAnchor === document.querySelector('#related-pages-list a')), true, 'stale-index refresh retains existing anchors');
+  // An unfinished rename exercises the actual save/navigation barrier.
+  await page.locator('#note-name').fill('');
   const target = await page.locator('#related-pages-list a').first().getAttribute('href');
   await page.locator('#related-pages-list a').first().click();
   assert.equal(new URL(page.url()).searchParams.get('note'), id(1));
-  assert.match(await page.locator('#note-editor').textContent(), /Retained related-page draft/);
-  fail = false; await page.locator('#note-retry').click();
+  assert.equal(await page.locator('#note-name').inputValue(), '');
+  await page.locator('#note-name').fill('Sleep quality');
   await page.waitForFunction(() => state.editor.state.saveStatus === 'saved' && !state.editor.state.dirty);
-  assert.equal((await fetch(server.url + '/memories/all/index', { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: '{}' })).status, 200);
-  await open(); await page.locator('#related-pages-list a').first().waitFor();
-  await appendEditorText(page, ' Saved during related navigation.');
   await page.locator('#related-pages-list a').first().click();
   await page.waitForURL(url => url.searchParams.get('note') === new URL(target, server.url).searchParams.get('note'));
-  assert.match(await readFile(path.join(root, 'notes/1.md'), 'utf8'), /Retained related-page draft/);
+  assert.match(await readFile(path.join(root, 'notes/1.md'), 'utf8'), /Temporary sentence/);
   await page.close();
 
   // Two genuinely distinct read-only remote profiles, including same note IDs.
@@ -121,7 +137,7 @@ try {
   assert.equal(await companion.locator('#note-name').getAttribute('readonly') !== null, true, 'discovery works on a read-only brain');
   await context.close();
   assert.deepEqual(errors, []);
-  console.log(`Related pages smoke: PASS (real lexical discovery, 5-link cap, semantic/weak/duplicate/stale/unavailable fixtures, safe titles, both themes at 1280/390/320, delayed navigation, failed-save guard/retry, real brain switch/read-only). Screenshots: ${shots}`);
+  console.log(`Related pages smoke: PASS (real ${indexing.mode} discovery, 5-link cap, semantic/weak/duplicate/stale/unavailable fixtures, safe titles, both themes at 1280/390/320, delayed navigation, live saves/deletions and unfinished-rename navigation guard, real brain switch/read-only). Screenshots: ${shots}`);
 } finally {
   await browser?.close(); await gateway?.close(); await server?.close(); await otherServer?.close(); await rm(temporary, { recursive: true, force: true });
 }

@@ -1,5 +1,7 @@
 # Changes
 
+- Related pages stay visible while typing and deleting; changed saved text refreshes about every ten seconds, with quieter minute-long refreshes when unchanged.
+
 - Clearing a page name while renaming keeps the editor usable; typing a replacement saves normally without needing conflict recovery.
 
 - Narrow note links and resizing leave room for the selected note, using temporary sidebar collapse that preserves the desktop preference.

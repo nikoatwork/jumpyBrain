@@ -1,6 +1,7 @@
 import { isValidMemoryDocumentId } from "../../core/document-id-format.js";
 import { safeReferenceTitle } from "./reference-policy.js";
 import { relatedPageQuery, selectRelatedPages } from "./related-pages.js";
+import { selectGraphSearchResults } from "./graph-search.js";
 import type { MemoryGraphNode, MemoryGraphResult } from "../../types.js";
 
 type Page = { id: string; title: string };
@@ -109,7 +110,7 @@ export function installGraphTopicPreview(options: {
         if (!current(entry) || entry.searchRequest.signal.aborted) return;
         const packet = value as { results?: unknown; index?: { stale?: boolean }; localOnly?: boolean };
         const linked = new Set(entry.pages.map(page => page.id));
-        const related = selectRelatedPages(query, packet?.results, "").filter(page => !linked.has(page.id));
+        const related = selectRelatedPages(query, selectGraphSearchResults(query, packet?.results), "").filter(page => !linked.has(page.id));
         append(get("-results"), related, entry);
         get("-related").hidden = !related.length;
         if (!entry.creationStarted) get("-status").textContent = packet?.index?.stale || packet?.localOnly ? "Search is updating; related results may be incomplete." : related.length ? "" : "No additional related notes found.";
