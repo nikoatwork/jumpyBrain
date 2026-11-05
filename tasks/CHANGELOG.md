@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Four-hour UX improvement loop
+
+- Retained 12 verified UX increments with unchanged experience inputs, completed snapshot-specific long observations, and preserved failed attempts and native-scoring limits. Latest full suite: 1,902 passed, 17 skipped. [Reviewed report](../evals/workspace-experience/reports/2026-11-05-four-hour-loop.md), [completed task](done/2026-11-05_tasks-ux-four-hour-loop.md).
+
 ## 2026-11-05 — Idle uncertain-draft recovery
 
 - A retained human draft survived 132 peer edits and an hour of idle, then passed guarded navigation, exact copy and explicit saved acceptance without replay; the optional runner records exact inputs and runtime hashes. [Evidence and limits](done/2026-11-05_tasks-ux-idle-uncertain-recovery.md).

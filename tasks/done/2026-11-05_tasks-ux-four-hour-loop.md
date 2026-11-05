@@ -8,8 +8,8 @@ Use frozen [experience rubric](../../evals/workspace-experience/rubric.md), [mis
 - [x] Reproduce remaining own-edit external feedback, retained-version repetition and live-connection failure messaging.
 - [x] Iterate on reproduced findings with canonical/draft/navigation/access safeguards.
 - [x] Probe core capture, search/handoff, boards, coauthoring and off-note transitions for further concrete friction.
-- [ ] Run broader checks on the final retained snapshot, record gains/losses and remaining limits.
-- [ ] Archive this list and commit final evidence when the four-hour window completes.
+- [x] Run broader checks on the final retained snapshot, record gains/losses and remaining limits.
+- [x] Archive this list and commit final evidence when the four-hour window completes.
 
 No push, product install, release, VPS deployment or remote-memory writes. Disposable localhost fixtures only. Native Mac tooling is unavailable; native checkpoints remain not observed. Existing UX candidate: [2026-11-04](../../evals/workspace-experience/reports/2026-11-04-feedback-candidate.md).
 
@@ -25,15 +25,15 @@ Hypothesis before editing: title and Undo acknowledgements pass through `accept(
 
 Hypothesis before editing: the shared `showNote` catch treats `/capabilities` 404 as a missing document even after the canonical document loaded. Expected gain: preserve visible saved content, identify editing as unavailable, offer a retry and allow safe clean navigation; actual document 404 must still be a missing-note outcome. Neighbor checks: read-only controls, canonical bytes unchanged, no legacy PUT fallback, reconnect, and matching visible/accessibility status. Offline clean notes must not claim a private draft exists.
 
-Iteration 1 retained: own rename reproduced before the fix; 14 browser checkpoints, 33 focused tests and desktop/mobile external-update neighbors passed. [Archived increment](../done/2026-11-04_tasks-ux-own-edit-feedback.md). No native score assigned.
+Iteration 1 retained: own rename reproduced before the fix; 14 browser checkpoints, 33 focused tests and desktop/mobile external-update neighbors passed. [Archived increment](2026-11-04_tasks-ux-own-edit-feedback.md). No native score assigned.
 
-Iteration 2 retained after one rejected candidate: failed-save state blocked clean Home navigation. Corrected to keep confirmed read status; seven failure/retry/Home/Back scenarios passed with 29 focused tests, fresh-note and 11 retained-version neighbor scenarios. [Archived increment](../done/2026-11-04_tasks-ux-editor-availability.md). This is error honesty/recovery, not a VPS transport repair.
+Iteration 2 retained after one rejected candidate: failed-save state blocked clean Home navigation. Corrected to keep confirmed read status; seven failure/retry/Home/Back scenarios passed with 29 focused tests, fresh-note and 11 retained-version neighbor scenarios. [Archived increment](2026-11-04_tasks-ux-editor-availability.md). This is error honesty/recovery, not a VPS transport repair.
 
 ### Iteration 3: acknowledge a retained comparison without losing access
 
 Hypothesis before editing: “Keep current note” closes the dialog but leaves identical retention guidance active indefinitely. Expected gain: after a verified comparison and explicit Keep current, quiet this exact retained-record notice in the current tab/scope while leaving a Retained versions action. New retained records, failed/stale comparisons and incomplete discovery must not be silently acknowledged. Do not delete records or persist note contents/preferences. Clear bounded acknowledgments on scope change; Escape alone is not a review decision.
 
-Iteration 3 retained: explicit verified Keep current quiets its exact record, retaining comparison access. Ten desktop/mobile acknowledgment scenarios, 11 existing recovery scenarios and four comparison tests passed against a source-matched temporary production build. [Archived increment](../done/2026-11-04_tasks-ux-retained-review.md). Native scoring unobserved; acknowledgments reset on reload.
+Iteration 3 retained: explicit verified Keep current quiets its exact record, retaining comparison access. Ten desktop/mobile acknowledgment scenarios, 11 existing recovery scenarios and four comparison tests passed against a source-matched temporary production build. [Archived increment](2026-11-04_tasks-ux-retained-review.md). Native scoring unobserved; acknowledgments reset on reload.
 
 ### Iteration 4: finish versus interruption
 
@@ -41,7 +41,7 @@ Baseline finding 4: generating presence disappears on both finish and cancel. Ex
 
 Broad-check observation: `node --test` against the built iteration-2 artifact completed 1,909 tests in ~514 seconds: 1,863 passed, 29 failed, 17 skipped. Most failures report the unavailable required QMD 2.8.3 engine; one updater expectation assumes macOS. Two footprint guards failed (editor gzip and package archive). A pristine `6d06cb9` snapshot is being built to establish the pre-loop budget state before accepting any allowance. Full output stays in `/tmp/jumpybrain-ux-full-2026-11-04.log`. The main built artifact was held unchanged during this run; later source-only candidates were tested separately.
 
-Iteration 4 retained: actor/stream-correlated confirmed terminal cues, never completion from presence loss. Six real CLI/browser cases, ten retained-review neighbors, 66 compiled-artifact tests and 17 boundary checks passed. Measured +595 editor gzip bytes with unchanged dependencies; targeted existing whitespace compaction preserves all distribution ceilings. [Archived increment](../done/2026-11-04_tasks-ux-generation-feedback.md).
+Iteration 4 retained: actor/stream-correlated confirmed terminal cues, never completion from presence loss. Six real CLI/browser cases, ten retained-review neighbors, 66 compiled-artifact tests and 17 boundary checks passed. Measured +595 editor gzip bytes with unchanged dependencies; targeted existing whitespace compaction preserves all distribution ceilings. [Archived increment](2026-11-04_tasks-ux-generation-feedback.md).
 
 Engine preparation: existing global QMD is 2.5.3; required 2.8.3 was provisioned from the repo engine lockfile into a temporary validation directory. No global engine/product install or model download. Pinned-engine CLI error suite passed all three cases. One attempt overlapped a clean rebuild and was invalidated by removed dist files; only the subsequent stable-artifact run counts.
 
@@ -49,7 +49,7 @@ Engine preparation: existing global QMD is 2.5.3; required 2.8.3 was provisioned
 
 Broad checks exposed an invalid `--depth sideways` reporting QMD setup failure first when the engine is missing. Expected gain: identify the invalid user option before engine work or remote credential lookup. Protect normal/compact local/remote retrieval and recipe routing. Pre-fix deterministic reproduction reached `localMemory.searchMemory` for invalid input instead of rejecting it; the transport trap failed as expected. This is a validation-order fix, not a retrieval ranking change.
 
-Iteration 5 retained: invalid retrieval depth now names allowed values before engine or remote credential access. The no-transport regression covers eight lanes; six no-engine and 25 pinned-engine neighboring checks passed. [Archived increment](../done/2026-11-04_tasks-ux-retrieval-option-errors.md). No retrieval-policy/ranking or canonical behavior changed.
+Iteration 5 retained: invalid retrieval depth now names allowed values before engine or remote credential access. The no-transport regression covers eight lanes; six no-engine and 25 pinned-engine neighboring checks passed. [Archived increment](2026-11-04_tasks-ux-retrieval-option-errors.md). No retrieval-policy/ranking or canonical behavior changed.
 
 ### Broader mission probes on `c63cbad`
 
@@ -71,11 +71,11 @@ Scoped Escape candidate passed six focused browser cases at 1280/390 and the con
 
 The writing copy probe's clipboard readback passed, but its confirmation was blocked by a persistent warning from `search-maintenance` after Search had closed. Observed state: live saving with no editor error, toast “Search is unavailable. Open search for recovery.” Host auto-index is deliberately disabled in that fixture; unavailable freshness does not prove search itself cannot answer. Expected gain: suspend clears only this surface's warning/indicator, reentry rechecks/reports the state, and wording preserves uncertainty. Protect genuine save errors, stale result visibility, read cancellation, same-state reentry and freshness recovery. Do not alter global notification priority or repair indexes automatically.
 
-Iteration 7 retained: six targeted warning-scope cases and 36 related tests passed. After fixing an invalid dual-hold ordering in the copy test fixture, the full writing journey also passed on the combined candidate. Only the owned hung fixture process was stopped; no shared service was touched. [Archived search increment](../done/2026-11-04_tasks-ux-search-warning-scope.md).
+Iteration 7 retained: six targeted warning-scope cases and 36 related tests passed. After fixing an invalid dual-hold ordering in the copy test fixture, the full writing journey also passed on the combined candidate. Only the owned hung fixture process was stopped; no shared service was touched. [Archived search increment](2026-11-04_tasks-ux-search-warning-scope.md).
 
-Iteration 6 retained: scoped Escape passes six targeted cases, contextual attribution and full writing-workspace neighbors. [Archived increment](../done/2026-11-04_tasks-ux-scoped-escape.md). Native/physical IME scoring not observed.
+Iteration 6 retained: scoped Escape passes six targeted cases, contextual attribution and full writing-workspace neighbors. [Archived increment](2026-11-04_tasks-ux-scoped-escape.md). Native/physical IME scoring not observed.
 
-Harness correction finalized: confirmed live-state waits, actual WS faults, mutation accounting and visible reviewed publication now validate the writing/board journeys. Updater Linux expectation is accurate; generation feedback also fits 320px. [Archived verification correction](../done/2026-11-04_tasks-ux-validation-harness.md). No native score follows from harness repair.
+Harness correction finalized: confirmed live-state waits, actual WS faults, mutation accounting and visible reviewed publication now validate the writing/board journeys. Updater Linux expectation is accurate; generation feedback also fits 320px. [Archived verification correction](2026-11-04_tasks-ux-validation-harness.md). No native score follows from harness repair.
 
 ### Stability and accessibility probes
 
@@ -95,7 +95,7 @@ Iteration 8 default-lease comparison: original build `3b7fa7d720f00267` had no u
 
 Broad-run cleanup diagnosis: the doctor follow-up fixture retargeted `f.root` to its quoted-path test but cleanup still captured the original root, leaving the actual test backend writing logs during deletion. Cleanup now stops both owned fixture roots before removal; all eight doctor follow-up tests passed. This is a fixture-lifetime correction, not a product behavior change.
 
-Iteration 8 retained with an unassisted default-lease gain and no lost protected generation cases. [Archived interruption delivery increment](../done/2026-11-04_tasks-ux-generation-interruption.md). Explicit artifact/package measurements remain within the existing ceilings; the in-progress long soak continues on its frozen earlier runtime.
+Iteration 8 retained with an unassisted default-lease gain and no lost protected generation cases. [Archived interruption delivery increment](2026-11-04_tasks-ux-generation-interruption.md). Explicit artifact/package measurements remain within the existing ceilings; the in-progress long soak continues on its frozen earlier runtime.
 
 ### Iteration 9: read-only note affordances
 
@@ -107,7 +107,7 @@ Iteration 9 retained: actual hosted reader guidance/formatting follows the exist
 note lock, and 403 creation guidance now asks for write access while 401 retains
 key repair. Six real-role browser cases, seven blocked-setup neighbors, the full
 writing journey and 39 focused checks passed; 20 checks were repeated after final
-wording. [Archived increment](../done/2026-11-04_tasks-ux-readonly-affordances.md).
+wording. [Archived increment](2026-11-04_tasks-ux-readonly-affordances.md).
 
 Additional protected-neighbor evidence on `d68bf75`: the production Markdown
 formatting journey passed at 1280/390/320, including actual server acceptance
@@ -159,13 +159,13 @@ The first long stability tranche is complete: 60 cycles over 45 minutes on
 frozen build `3b7fa7d720f00267`, with 40 finishes/20 cancellations, accumulated
 contributions and all scope/search/Back/reconnect checks retained. Nested-board
 live-fault and six uncertain-save-with-peer cases also pass. [Archived evidence
-and fixture corrections](../done/2026-11-04_tasks-ux-long-stability.md).
+and fixture corrections](2026-11-04_tasks-ux-long-stability.md).
 
 Iteration 10 retained after rejecting a writer-recovery regression: manual-copy
 recovery follows explicit note locking rather than operational write readiness.
 Four role/capability cases, full writer publication/workspace, ten retained-review
 checks and 132 focused tests pass, with unchanged package ceilings. [Archived
-comparison, correction and limits](../done/2026-11-04_tasks-ux-reader-recovery.md).
+comparison, correction and limits](2026-11-04_tasks-ux-reader-recovery.md).
 
 Next stability tranche: a new 90-minute frozen-runtime run on the retained
 candidate, keeping 35-second idle intervals, accumulated contributions and
@@ -208,7 +208,7 @@ immutable and cannot establish any subsequent timer correction.
 Iteration 11 retained: the earlier timer failure reproduced, then all 18 peer/
 own-feedback browser checkpoints, 117 focused tests and eight generation
 feedback neighbors passed on `a29d2f6b48755f42`. [Archived timing correction
-and limits](../done/2026-11-04_tasks-ux-peer-notice-timing.md). Final broad checks
+and limits](2026-11-04_tasks-ux-peer-notice-timing.md). Final broad checks
 must cover this later snapshot; earlier frozen results are not relabeled.
 
 ### Iteration 12: narrow note destination space
@@ -227,7 +227,7 @@ existing temporary sidebar dismissal, preserving explicit reopen and desktop
 preference. Two direct-route cases, 114 focused tests, clean writing/board
 journeys and all eight protected-browser suites passed. The extra navigation
 toggle is an explicit tradeoff/fixture action; failed teardown/layout attempts
-remain recorded. [Archived implementation, evidence and limits](../done/2026-11-04_tasks-ux-narrow-note-entry.md).
+remain recorded. [Archived implementation, evidence and limits](2026-11-04_tasks-ux-narrow-note-entry.md).
 
 Final-candidate stability: build a fresh `b775d80` artifact, run its broad pinned-
 engine suite, and observe a separate frozen 60-minute fixture with 35-second idle
@@ -255,7 +255,7 @@ Extended stability tranche completed: the earlier frozen 90-minute build passed
 119 cycles (80 finishes/39 stops), while the latest retained `b775d80` artifact
 passed 81 cycles (54 finishes/27 stops) over a requested hour, actual 60m10s.
 Each retained canonical contribution verifies exactly once, with fixed runtime
-inventories and separate receipt hashes. [Archived verification and limits](../done/2026-11-05_tasks-ux-extended-stability.md). The one-hour private-draft
+inventories and separate receipt hashes. [Archived verification and limits](2026-11-05_tasks-ux-extended-stability.md). The one-hour private-draft
 observation and overall four-hour deadline remain pending.
 
 Reproducibility follow-up: the first frozen run's runtime was reconstructed
@@ -272,5 +272,32 @@ The one-hour private-draft observation completed cleanly: a 390px accepted-body
 lane retained its uncertain source through 132 peer edits and 120 idle checks,
 then passed guarded navigation, exact copy, explicit saved acceptance and reopen
 without replay. Immutable runtime and all canonical contributions verified.
-[Archived inputs, receipt hashes and limits](../done/2026-11-05_tasks-ux-idle-uncertain-recovery.md). All long observations are complete; final readback,
+[Archived inputs, receipt hashes and limits](2026-11-05_tasks-ux-idle-uncertain-recovery.md). All long observations are complete; final readback,
 evidence collation and the requested 01:21:15 UTC finish remain.
+
+Raw evidence collation: 83 static log/audit/signal files are copied
+byte-for-byte into ignored `.local-pack/ux-loop-evidence/2026-11-04-four-hour/`,
+with source paths, byte counts and SHA-256 inventory. Manifest SHA-256
+`b2aef5db9eee97e16f4ed7a0dd5bff92bc02cbff7cc955d5c4c4b405923c765d`. Runtime snapshots and per-run
+inputs/canonical receipts remain in their separate ignored directories. All
+owned journey processes have exited; no failed attempt was overwritten.
+
+## Completed outcome
+
+The requested four-hour window completed; finalized 2026-11-05 01:21:28 UTC.
+Twelve product increments are retained in scoped local commits. Latest product
+source is `b775d80`, build `02721429af82d5af`; full verification passed 1,902
+tests with 17 skips and zero failures. Product source/tests/dependency manifests
+stay unchanged after that green result. The separate 45-minute, 90-minute,
+latest-candidate hour-long and uncertain-draft hour-long observations all passed
+with their individual inputs, runtime hashes and canonical receipts preserved.
+Actual elapsed time at finalization: 14413 seconds; the requested window
+was 14,400 seconds. Finalization is bookkeeping after the deadline, not an
+extended product experiment.
+
+[Reviewed report](../../evals/workspace-experience/reports/2026-11-05-four-hour-loop.md)
+records gained checkpoints, rejected candidates, failed/assisted attempts, the
+narrow-navigation tradeoff, footprint review and exact remaining limits. Native
+Mac scoring and live VPS compatibility remain unobserved/unresolved here; no
+ordinal or composite score is fabricated. All authorized scope is finalized
+locally without push, publication, installation or real shared-memory mutation.

@@ -1,6 +1,6 @@
 # Search warning scope and certainty
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md), authorized 2026-11-04.
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md), authorized 2026-11-04.
 
 - [x] Reproduce an inactive Search warning hiding a successful clipboard confirmation.
 - [x] Separate read cancellation from surface suspension; clear only search's warning/indicator on suspension or scope reset, and report state again on reentry.

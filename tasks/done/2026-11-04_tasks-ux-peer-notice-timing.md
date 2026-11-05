@@ -1,6 +1,6 @@
 # Latest peer notice timing
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md).
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md).
 
 - [x] Reproduce a newer peer notice cleared by the earlier peer edit's timer.
 - [x] Give the note one replaceable timer and cancel it on note disposal.

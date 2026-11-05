@@ -1,6 +1,6 @@
 # Changes
 
-- Narrow note links and resizing leave room for the selected note; the sidebar reopens without changing the desktop preference.
+- Narrow note links and resizing leave room for the selected note, using temporary sidebar collapse that preserves the desktop preference.
 
 - Read-only notes hide writing invitations, including in manual-copy recovery; denied note creation explains when write access is needed.
 

@@ -1,6 +1,6 @@
 # Extended retained-candidate UX stability
 
-Verification tranche of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md).
+Verification tranche of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md).
 
 - [x] Retain the completed 45-minute earlier-artifact result separately.
 - [x] Freeze a new runtime/input receipt for a 90-minute run on the retained candidate; record visible epoch/revision per cycle.

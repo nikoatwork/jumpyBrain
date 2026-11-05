@@ -1,6 +1,6 @@
 # Honest live-editor availability
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md), authorized 2026-11-04.
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md), authorized 2026-11-04.
 
 - [x] Reproduce loaded note being mislabeled unavailable after live capability failure: before fix, availability smoke failed at missing-capabilities with “Connecting…” rather than “Editing unavailable”.
 - [x] Preserve canonical loaded content after capabilities/protocol failure, disable editing, offer “Retry editing” and avoid failed-save/recovery controls when there is no draft.
