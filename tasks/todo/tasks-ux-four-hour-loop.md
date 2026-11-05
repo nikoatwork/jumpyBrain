@@ -257,3 +257,20 @@ passed 81 cycles (54 finishes/27 stops) over a requested hour, actual 60m10s.
 Each retained canonical contribution verifies exactly once, with fixed runtime
 inventories and separate receipt hashes. [Archived verification and limits](../done/2026-11-05_tasks-ux-extended-stability.md). The one-hour private-draft
 observation and overall four-hour deadline remain pending.
+
+Reproducibility follow-up: the first frozen run's runtime was reconstructed
+from `435f9cb` in a separate temporary source copy with the same pinned build
+dependencies. Its build `3b7fa7d720f00267` and full runtime SHA-256
+`6ac010d34ee15a1dfdf4f791e4c57fea2500bc12773d98632643d06bf612978b`
+match the executed bytes exactly. No current-runtime rebuild occurred. All
+three timed-writing snapshots now retain standard `dist/`, exact commit package
+manifests/lockfiles and a checked inventory under ignored
+`.local-pack/ux-soak/runtime-evidence/`; the manifest distinguishes reconstruction
+from direct frozen-run copies. No original receipt/input was replaced.
+
+The one-hour private-draft observation completed cleanly: a 390px accepted-body
+lane retained its uncertain source through 132 peer edits and 120 idle checks,
+then passed guarded navigation, exact copy, explicit saved acceptance and reopen
+without replay. Immutable runtime and all canonical contributions verified.
+[Archived inputs, receipt hashes and limits](../done/2026-11-05_tasks-ux-idle-uncertain-recovery.md). All long observations are complete; final readback,
+evidence collation and the requested 01:21:15 UTC finish remain.
