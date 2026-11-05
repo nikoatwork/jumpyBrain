@@ -2,6 +2,8 @@
 
 ## Responsibilities
 
+- Ordinary successful replies must be JSON objects. Document reads and update/attention receipts validate their consumed fields, bind the requested ID and (for updates) prior hash; board read/save receipts validate board identity, shape and hash. Invalid success is `invalid_response` with an explicitly unconfirmed mutation outcome, never an automatic retry. Additive envelope fields remain supported, and `indexed:false` remains canonical success. This validation does not independently verify a remote content hash against source bytes or validate every legacy endpoint schema. See `test/http-receipt-contracts.test.js` and real-server board/creation tests.
+
 - Remember validates optional `date` with core writing policy before sending, then forwards its exact ISO representation. This adds no retry or extra request; date belongs to the existing creation body/idempotency contract.
 
 - Implement remote memory client calls for status, index, overview/tree data, recall/search, document read/update, remember, wrapup, and read-only stateless dream windows. Preserve legacy dream status/batch lifecycle calls for compatibility.

@@ -1,4 +1,5 @@
 import { memoryTransportDeadlineMs } from "../../core/execution-limits.js";
+import { record, validDocumentRead, validDocumentUpdate, validBoardReceipt } from "./receipts.js";
 import type { Board, BoardRecord, BoardList } from "../../core/boards/model.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
@@ -95,6 +96,12 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
   const apiKey = options.apiKey?.trim();
   if (!apiKey) throw new Error("Remote jumpyBrain API key is required.");
   const fetchImpl = options.fetchImpl ?? fetch;
+  const invalidResponse = () => new RemoteMemoryError(502, "invalid_response",
+    "Remote server returned an invalid response. A mutation outcome is unconfirmed; inspect canonical state before retrying.");
+  function receipt(packet: Record<string, unknown>, valid: boolean): Record<string, unknown> {
+    if (!valid) throw invalidResponse();
+    return packet;
+  }
 
   async function execute<T>(execution: ExecutionOptions, index: boolean, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
     const timeoutMs = execution.timeoutMs ?? memoryTransportDeadlineMs(index ? "index" : "search");
@@ -129,13 +136,14 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     if (init.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
     const response = await fetchImpl(new URL(path, baseUrl), { ...init, headers, signal });
-    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) {
-      const remoteError = payload.error && typeof payload.error === "object" ? payload.error as Record<string, unknown> : undefined;
+      const remoteError = record(payload) && record(payload.error) ? payload.error : undefined;
       const code = typeof remoteError?.code === "string" ? remoteError.code : `http_${response.status}`;
       const message = typeof remoteError?.message === "string" ? remoteError.message : `Remote jumpyBrain request failed with HTTP ${response.status}.`;
       throw new RemoteMemoryError(response.status, code, message);
     }
+    if (!record(payload)) throw invalidResponse();
     return payload;
   }
 
@@ -182,12 +190,12 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     listMemoryAttention: () => request(HTTP_MEMORY_ROUTES.attention) as unknown as Promise<import("../../types.js").MemoryAttentionPacket>,
     patchMemoryDocumentAttention: (id, options) => request(memoryDocumentPath(id), {
       method: "PATCH", headers: { "If-Match": options.ifMatch }, body: JSON.stringify(options.mutation),
-    }) as unknown as Promise<MemoryDocumentUpdateResult>,
+    }).then(packet => receipt(packet, validDocumentUpdate(packet, id, options.ifMatch))) as unknown as Promise<MemoryDocumentUpdateResult>,
     listBoards: () => request(HTTP_MEMORY_ROUTES.boards) as unknown as Promise<BoardList>,
-    readBoard: id => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id)) as unknown as Promise<BoardRecord>,
+    readBoard: id => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id)).then(packet => receipt(packet, validBoardReceipt(packet, id))) as unknown as Promise<BoardRecord>,
     saveBoard: (board, ifMatch) => request(ifMatch === undefined ? HTTP_MEMORY_ROUTES.boards : HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(board.id), {
       method: ifMatch === undefined ? "POST" : "PUT", headers: ifMatch === undefined ? {} : {"If-Match":ifMatch}, body:JSON.stringify(board),
-    }) as unknown as Promise<BoardRecord>,
+    }).then(packet => receipt(packet, validBoardReceipt(packet, board.id))) as unknown as Promise<BoardRecord>,
     deleteBoard: (id, ifMatch) => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id), {method:"DELETE",headers:{"If-Match":ifMatch}}) as Promise<{id:string;deleted:true;notesPreserved:true}>,
     getBoardStatus: (id, limit = 12) => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id) + "/status?limit=" + limit),
     url: baseUrl,
@@ -234,12 +242,12 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     deleteMemoryDocument: (id, options) => request(memoryDocumentPath(id), {
       method: "DELETE", headers: { "If-Match": options.ifMatch }, body: JSON.stringify({ apply: options.apply }),
     }) as Promise<import("../../types.js").MemoryDocumentDeleteResult & Record<string, unknown>>,
-    readMemoryDocument: (id) => request(memoryDocumentPath(id)) as Promise<MemoryDocumentReadResult & Record<string, unknown>>,
+    readMemoryDocument: (id) => request(memoryDocumentPath(id)).then(packet => receipt(packet, validDocumentRead(packet, id))) as Promise<MemoryDocumentReadResult & Record<string, unknown>>,
     updateMemoryDocument: (id, content, updateOptions) => request(memoryDocumentPath(id), {
       method: "PUT",
       headers: { "If-Match": updateOptions.ifMatch },
       body: JSON.stringify({ content, ...(updateOptions.actor ? { actor: updateOptions.actor } : {}) }),
-    }) as Promise<MemoryDocumentUpdateResult & Record<string, unknown>>,
+    }).then(packet => receipt(packet, validDocumentUpdate(packet, id, updateOptions.ifMatch))) as Promise<MemoryDocumentUpdateResult & Record<string, unknown>>,
     checkDreamSources: async (sourceRequest) => {
       try {
         const packet = await request(HTTP_MEMORY_ROUTES.dreamSources, { method: "POST", body: JSON.stringify(sourceRequest) });
