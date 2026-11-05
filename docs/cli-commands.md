@@ -260,8 +260,8 @@ Creation JSON preserves existing fields and adds `saved:true`, canonical `id`/`f
 | `cat memory.md \| jumpybrain remember --target-url <url> --type <type> --title "..." [--tag <tag>] [--date <ISO-date>] [--json]` | Store a new durable memory on a hosted/shared server. Requires `JUMPYBRAIN_API_KEY`. Remote writes mark the server index stale until the next index run. |
 | `cat wrapup.md \| jumpybrain wrapup --root <memory-root> --title "..." [--topic "..."] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup from stdin. If `--topic` is provided, jumpyBrain first recalls related memory and prints it before writing. |
 | `cat wrapup.md \| jumpybrain wrapup --target-url <url> --title "..." [--topic "..."] [--limit <n>] [--tag <tag>] [--json]` | Write an end-of-session wrapup to hosted/shared memory. Requires `JUMPYBRAIN_API_KEY`. |
-| `cat revised.md \| jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> [--json]` | Replace a whole local memory document safely. Get `<contentHash>` from `jumpybrain show`; the update fails if someone changed the document in between. |
-| `cat revised.md \| jumpybrain update --target-url <url> --id <mem_id> --if-match <contentHash> [--json]` | Replace a whole remote memory document safely. Requires `JUMPYBRAIN_API_KEY`. |
+| `cat revised.md \| jumpybrain update --root <memory-root> --id <mem_id> --if-match <contentHash> [--json]` | Intentional whole-note replacement. Get `<contentHash>` from `jumpybrain show`; reject intervening changes. Prefer [collaboration](collaboration.md#streaming-agents) for ongoing concurrent edits. |
+| `cat revised.md \| jumpybrain update --target-url <url> --id <mem_id> --if-match <contentHash> [--json]` | Intentional whole-note replacement on the authorized remote target, guarded by its content hash. Requires `JUMPYBRAIN_API_KEY`. |
 
 Deprecated forms:
 

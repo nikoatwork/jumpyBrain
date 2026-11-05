@@ -40,6 +40,8 @@ jumpybrain run memory:recall --topic "<current task/topic>" --limit 5 --compact
 Answer from sufficient snippets with source citations. Compact is byte-bounded, not always smaller than text. If evidence is incomplete, narrow the query on the same target, then use available compact expansion.id/expansion.expectedContentHash for guarded expansion. Text citations alone are not expansion handles; local file tools may read cited ranges after resolving the source root. Read a whole file only when broader context is needed.
 
 Use explicit, bounded recall only. Remember writes memory; recall reads memory. An explicit remember request authorizes the configured personal local save, including a machine-wide personal installation. Setup alone authorizes no sample write. Shared/global/team/remote writes require explicit destination authorization. Do not silently inject memory or capture spontaneously, and do not memorize secrets, credentials, raw chat noise, or vague status updates. Write a session wrapup via `jumpybrain run memory:wrapup` only when the user has authorized it for that destination.
+
+Authorized human/agent concurrent editing is normal: an active editor needs no extra permission or request to stop typing. Prefer `jumpybrain collaborate open --json` then edit or stream on the same authorized target/note. Before calculating offsets, read `jumpybrain instructions --topic write` for actual read-base epoch/revision, stable client identity and resync. Use show/update only for intentional whole-note replacement guarded by its content hash; never replay uncertain writes.
 ```
 
 The CLI can print a copyable version:
@@ -47,6 +49,10 @@ The CLI can print a copyable version:
 ```bash
 jumpybrain instructions
 ```
+
+These are managed templates and recommended text. They do not override arbitrary
+user-authored AGENTS files. Review contradictory workspace guidance explicitly;
+do not overwrite it or installed personal/global integrations automatically.
 
 ## Product feedback
 
@@ -148,9 +154,41 @@ Use [real Markdown structure](memory-format.md#structure-for-selective-retrieval
 
 External project instructions (for example a benchmark's `brain/recall.md`) should adopt the same snippet-first, conditional-expansion policy and date distinctions. Updating the distributed skill cannot override contradictory external instructions; review those separately.
 
-## Safe document-edit workflow
+## Concurrent document edits
 
-The ID-addressed edit flow is explicit and optimistic-concurrency based for both local roots and hosted/shared memory. Use `show` to fetch exact Markdown plus a content hash, then submit whole revised Markdown through `update` with that hash.
+An authorized agent can edit alongside a person typing in the app. An active
+editor alone requires no new permission or request to stop typing. Keep the
+authorized destination and note fixed; read access or editor activity grants no
+additional write scope. Prefer `collaborate open` and range edits, or a suitable
+stream, over repeated whole-note replacements. See [live editing](collaboration.md#streaming-agents)
+for the complete transport and recovery contract.
+
+```bash
+export JUMPYBRAIN_CLIENT_ID=research-agent
+jumpybrain collaborate open --root <memory-root> --id <mem_id> --json
+# Calculate OFFSET and COUNT in UTF-16 units from exactly that returned body.
+# READ_EPOCH and READ_REVISION must come from the same read.
+printf '%s' '<inserted text>' | jumpybrain collaborate edit --root <memory-root> --id <mem_id> --start <OFFSET> --delete <COUNT> --epoch <READ_EPOCH> --base-revision <READ_REVISION> --json
+jumpybrain collaborate resync --root <memory-root> --id <mem_id> --json
+```
+
+Use zero deletion for insertion. Send only the intended range's replacement text.
+Keep the stable client ID across commands; a display name is not client identity.
+The backend transforms independent changes from the actual read base. A rejected
+overlap or expired base requires resync and reconciliation before computing new
+offsets; never attach a fresh revision to stale offsets. An uncertain write must
+be inspected, never automatically replayed. A positioned stream needs the same
+read-base flags; an unpositioned stream intentionally appends to current saved
+source. For hosted/shared memory, replace `--root` with the same authorized
+`--target-url` and provide `JUMPYBRAIN_API_KEY` externally.
+
+## Intentional whole-note replacement
+
+When the intended operation replaces the whole note, use `show` to fetch exact
+Markdown plus a content hash, then submit whole revised Markdown through `update`
+with that hash. This remains appropriate for a deliberate guarded replacement
+on local or hosted/shared memory. For ongoing concurrent edits, use the range
+workflow above.
 
 1. Run visible recall/search first to find the likely memory and provenance.
 2. Show the exact Markdown document by file-level ID and capture its `Content-Hash`:

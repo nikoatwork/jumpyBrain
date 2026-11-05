@@ -111,6 +111,15 @@ connection's fresh open is discovery/subscription state, never authority to
 relabel stale offsets. Default streaming explicitly appends to current saved
 source. A stream rejects `--delete` rather than ignoring an unsupported range.
 
+Initial instructions, the managed memory skill, recommended AGENTS hint and
+collaboration help normalize authorized human/agent concurrency without a new
+permission round solely because an editor is active. Keep entry guidance lean;
+the write topic supplies actual read-base UTF-16 offsets, stable client identity,
+rejection/resync reconciliation and uncertain-outcome rules. Whole-note
+show/update is guidance for intentional hash-guarded replacement. Tests verify
+emitted CLI text and rendered integration fixtures within existing byte budgets;
+template changes never authorize rewriting arbitrary installed instructions.
+
 `backend list --root <brain> [--root <another>] [--json]` inspects 1..32 explicit
 roots, returning redacted ownership/status, PID liveness and recorded executable.
 It never searches the machine or discovers/retargets brains. Invalid state is

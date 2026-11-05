@@ -51,7 +51,7 @@ The menu shows the selected brain and its connection state. An exclamation icon 
 open "$HOME/Applications/jumpyBrain.app"
 ```
 
-**Editing with AI:** wait for **Saved** before handing work over, then reload the note after external edits. An open editor does not automatically merge file changes. The switch barrier is not a general concurrent-edit merge or durable offline-draft backup.
+**Editing with AI:** authorized agents can edit alongside you through `jumpybrain collaborate open` and source edits/streams on the same brain and note. An active editor needs no extra permission or request to stop typing. Read `jumpybrain instructions --topic write` for actual read-base offsets, stable client identity and resync; see [live editing](../../docs/collaboration.md). Use hash-guarded show/update for intentional whole-note replacement. Raw file writers can still race; preserve drafts on conflicts or uncertain saves.
 
 ## Connections and switching
 

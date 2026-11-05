@@ -78,6 +78,14 @@ test("public installer installs global memory and detected integrations without 
     const skillText = await readFile(codexSkill, "utf8");
     assert.doesNotMatch(skillText, /__JUMPYBRAIN_/);
     assert.match(skillText, new RegExp(escapeRegExp(path.join(installRoot, "memory"))));
+    for (const file of [codexSkill, claudeSkill]) {
+      const rendered = await readFile(file, "utf8");
+      assert.match(rendered, /Authorized concurrent editing is normal/);
+      assert.match(rendered, /active editor needs no extra permission/);
+      assert.match(rendered, /collaborate open/);
+      assert.match(rendered, /actual read-base offsets, stable client identity and resync/);
+      assert.match(rendered, /intentional whole-note replacement/);
+    }
     assert.match(await readFile(piExtension, "utf8"), /"remember"/);
 
     const manifest = JSON.parse(await readFile(path.join(installRoot, "install-manifest.json"), "utf8"));

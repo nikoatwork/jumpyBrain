@@ -5,6 +5,7 @@ import test from 'node:test';
 import { agentInstructions } from '../dist/cli/instructions.js';
 import { parseArgs } from '../dist/cli/args.js';
 import { commandUsage } from '../dist/cli/usage.js';
+import { renderIntegration } from '../integrations/electron/managed-integrations.mjs';
 
 const topics = ['recall', 'expand', 'write', 'maintenance', 'feedback', 'board', 'setup'];
 test('short CLI and installed skill entry points discover every operation topic and retain prerequisites', async () => {
@@ -41,4 +42,32 @@ test('topic and preview flags are discoverable, strict and help stays side-effec
   assert.match(commandUsage(['run', 'memory:process']), /--preview/);
   for (const command of ['instructions', 'agent-hint']) for (const flags of [['--topic'], ['--topic', '--json'], ['--topic', 'recall', '--topic', 'write'], ['--topc', 'write'], ['surprise']]) assert.throws(() => parseArgs([command, ...flags]), /requires a value|repeated|Unknown|Unexpected/);
   assert.throws(() => agentInstructions('typo'), /Unknown instructions topic/);
+});
+
+test('emitted guidance makes authorized concurrent editing normal at every entry point', async () => {
+  const skill = await readFile(new URL('../skills/jumpybrain-memory/SKILL.md', import.meta.url), 'utf8');
+  const docs = await readFile(new URL('../docs/agent-workflows.md', import.meta.url), 'utf8');
+  const hint = docs.split('## Agent MD hint')[1].match(/```text\n([\s\S]*?)```/)[1];
+  // Use the installer's renderer with fictional paths; never modify installed integrations.
+  const rendered = renderIntegration(skill, { memoryRoot: '/fixture/brain', cliPath: '/fixture/bin/jumpybrain', asset: 'skill' });
+  assert.doesNotMatch(rendered, /__JUMPYBRAIN_/);
+  for (const text of [agentInstructions(), agentInstructions('write'), rendered, hint, commandUsage(['collaborate'])]) {
+    assert.match(text, /(?:authorized|authorization)[\s\S]*concurrent/i);
+    assert.match(text, /active editor needs no extra permission/i);
+    assert.match(text, /collaborate open/);
+  }
+  const write = agentInstructions('write');
+  assert.ok(write.indexOf('collaborate open') < write.indexOf('jumpybrain show'), 'prefer source operations before whole-note replacement');
+  assert.match(write, /intentional whole-note replacement/i);
+  assert.match(write, /resync[\s\S]*reconcil/i);
+  assert.match(write, /stable --client-id/);
+  assert.match(write, /rejected overlaps or expired bases require collaborate resync/);
+  for (const command of [[], ['--topic', 'write']]) {
+    const result = spawnSync(process.execPath, ['dist/cli.js', 'instructions', ...command], { encoding: 'utf8', timeout: 5000 });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, agentInstructions(command.length ? 'write' : undefined) + '\n');
+  }
+  const help = spawnSync(process.execPath, ['dist/cli.js', 'collaborate', '--help'], { encoding: 'utf8', timeout: 5000 });
+  assert.equal(help.status, 0, help.stderr);
+  assert.equal(help.stdout.trim(), commandUsage(['collaborate']));
 });

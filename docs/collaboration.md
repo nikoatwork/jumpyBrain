@@ -59,6 +59,12 @@ and native credential storage.
 
 ## Streaming agents
 
+Authorized human/agent concurrent editing is normal. An open or actively edited
+note needs no extra permission or request to stop typing. Reuse the existing
+destination/note authorization and prefer source edits or streams. For
+intentional whole-note replacement, `show` then hash-guarded `update` remains
+appropriate; it rejects intervening canonical changes.
+
 ```sh
 # Use a stable ID for this agent's undo history across invocations.
 export JUMPYBRAIN_CLIENT_ID=research-agent
@@ -88,6 +94,11 @@ is an explicit return to current saved state. `status|cancel|finish --stream-id 
 credential and client ID. Supply `stream --stream-id STREAM_ID` when another
 invocation must control it; stopping a stream retains already committed output.
 Cancellation does not undo another writer or claim that partial output completed.
+
+After a confirmed overlap/expired-base rejection, resync and reconcile the
+requested change against the returned body before calculating fresh offsets.
+Keep the same client identity. Never attach a fresh revision to stale positions
+or automatically replay a write whose outcome is uncertain.
 
 An active stream has a 60-second inactivity lease. The CLI checks its status
 every 15 seconds while waiting for generated input, keeping a connected producer
