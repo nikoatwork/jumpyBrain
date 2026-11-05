@@ -2,9 +2,11 @@
 
 ## Judgment
 
+Follow-up: [contract hardening completed](../../tasks/done/2026-11-05_tasks-architecture-contract-hardening.md) with a [reproduced baseline](baseline-v1.json). The assessment below records the original reviewed snapshot; its verification limits are historical.
+
 Keep the current architecture. This review found two credible structural cleanup candidates, not evidence for a general rewrite: the browser editor's controller composition and the private backend RPC agreement. Harden and reproduce their observable contracts before changing their structure. Strong existing canonical-publication, retrieval, lifecycle and permission tests should be reused.
 
-The immediate deliverable is [one active contract-hardening task list](../../tasks/todo/tasks-architecture-contract-hardening.md). Refactors remain candidates behind its final decision gate. The [interactive architecture map](architecture-map.html) separates clear ownership, contract gaps and mixed responsibilities; these are qualitative review judgments, not quality scores.
+The immediate deliverable is [the contract-hardening task list](../../tasks/done/2026-11-05_tasks-architecture-contract-hardening.md). Refactors remain candidates behind its final decision gate. The [interactive architecture map](architecture-map.html) separates clear ownership, contract gaps and mixed responsibilities; these are qualitative review judgments, not quality scores.
 
 ## Scope and evidence
 

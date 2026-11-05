@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "status": "passed",
+  "date": "2026-11-05",
+  "comparison": "same source in separate checkout; independent disposable fixture roots; exact selected observations and runtime bytes",
+  "inventoryHashEncoding": "SHA-256 of sorted-key compact JSON (Python ensure_ascii default); original manifest pins remain authoritative",
+  "environment": {
+    "node": "v26.7.0",
+    "npm": "11.19.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "browser": "156.0.8078.4",
+    "browserChannel": "chrome-fallback",
+    "qmd": {
+      "version": "deterministic fixtures only"
+    },
+    "semanticModelHash": null
+  },
+  "runs": [
+    {
+      "role": "reference",
+      "evidenceDirectory": ".local-pack/architecture-contracts/reference-3",
+      "manifestSha256": "3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c",
+      "sourceCommit": "a3e5f00eb428f194d59c77f8d18e9ab83350ec88",
+      "contractSha256": "db87218467d4f8556ffc00592b435f9cbaa3105a4e815bdf25cec8960ef35f75",
+      "runtimeInventorySha256": "3d9a04d4c5ddf7f6bf9483a585c65d3d235400f8dee56b3369982df4befe16c1",
+      "assertionInventorySha256": "0892ec86cf34fa8006b9adf153cc3006730dbaa9c6eca437c3f44580ec6558bd",
+      "harnessInventorySha256": "bd89ed3b87da3745424e294442b2aba357358e2c503f1f8df43911df055d0f98",
+      "checks": [
+        {
+          "id": "build",
+          "status": "passed",
+          "durationMs": 2365
+        },
+        {
+          "id": "boundaries",
+          "status": "passed",
+          "durationMs": 18886,
+          "tests": {
+            "tests": 165,
+            "pass": 165,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "id": "editor",
+          "status": "passed",
+          "durationMs": 25519,
+          "checkpoints": [
+            {
+              "id": "source-selection",
+              "value": {
+                "anchor": 81,
+                "focus": 81
+              }
+            },
+            {
+              "id": "own-edit",
+              "value": {
+                "body": "# Live source\n\nKeep **bold** and [[Reference]].  \n\n- [ ] Task\n\n```js\nconsole.log('retained');\n```\n\n| A | B |\n| --- | --- |\n| x | y |\n\nLast paragraph\nHuman zero",
+                "operations": [
+                  {
+                    "start": 149,
+                    "deleteCount": 0,
+                    "insert": "Human zero"
+                  }
+                ],
+                "status": "saved"
+              }
+            },
+            {
+              "id": "own-undo-preserves-peer",
+              "value": {
+                "body": "# Live source\n\nKeep **bold** and [[Reference]].  \n\n- [ ] Task\n\n```js\nconsole.log('retained');\n```\n\n| A | B |\n| --- | --- |\n| x | y |\n\nLast paragraph\nHuman zero concurrent-1",
+                "status": "saved",
+                "dirty": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "uncertain",
+          "status": "passed",
+          "durationMs": 1210,
+          "checkpoints": [
+            {
+              "id": "1280/accepted-body/private",
+              "value": {
+                "draft": "Human baseline 1.\n unique human 1",
+                "title": "Uncertain fixture 1",
+                "saveStatus": "failed",
+                "peerRevision": 2,
+                "peerEdits": 1
+              }
+            },
+            {
+              "id": "1280/accepted-body/reloaded",
+              "value": {
+                "body": "Human baseline 1.\n unique human 1 confirmed peer 1",
+                "title": "Uncertain fixture 1",
+                "status": "saved",
+                "draftRetained": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "retained",
+          "status": "passed",
+          "durationMs": 6495,
+          "checkpoints": [
+            {
+              "id": "retained-restore",
+              "value": {
+                "body": "Observed external replacement.\n",
+                "custom": "protected",
+                "idPreserved": true,
+                "status": "saved",
+                "comparisonClosed": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "credentials",
+          "status": "passed",
+          "durationMs": 2010,
+          "checkpoints": [
+            {
+              "id": "1280/credential-blocked",
+              "value": {
+                "canonical": "---\nid: mem_41330000-1111-4111-8111-111111111111\ntype: note\ntitle: Credential draft fixture\n---\nSaved shared text.\n",
+                "draft": "Saved shared text.\n Private writer draft 1280.",
+                "status": "blocked",
+                "editable": "false"
+              }
+            },
+            {
+              "id": "1280/credential-reopened",
+              "value": {
+                "canonical": "---\nid: mem_41330000-1111-4111-8111-111111111111\ntype: note\ntitle: Credential draft fixture\n---\nSaved shared text.\n",
+                "body": "Saved shared text.\n",
+                "retained": true,
+                "status": "readonly",
+                "mutationCount": 1
+              }
+            },
+            {
+              "id": "390/credential-blocked",
+              "value": {
+                "canonical": "---\nid: mem_41330000-1111-4111-8111-111111111111\ntype: note\ntitle: Credential draft fixture\n---\nSaved shared text.\n",
+                "draft": "Saved shared text.\n Private writer draft 390.",
+                "status": "blocked",
+                "editable": "false"
+              }
+            },
+            {
+              "id": "390/credential-reopened",
+              "value": {
+                "canonical": "---\nid: mem_41330000-1111-4111-8111-111111111111\ntype: note\ntitle: Credential draft fixture\n---\nSaved shared text.\n",
+                "body": "Saved shared text.\n",
+                "retained": true,
+                "status": "readonly",
+                "mutationCount": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "role": "unchanged-candidate",
+      "evidenceDirectory": ".local-pack/architecture-contracts/repeat-2",
+      "manifestSha256": "4a3a852214985346d92a4cb46a9c0a41fbd2751c0a55f5e876a9c9186de199e8",
+      "sourceCommit": "a3e5f00eb428f194d59c77f8d18e9ab83350ec88",
+      "contractSha256": "db87218467d4f8556ffc00592b435f9cbaa3105a4e815bdf25cec8960ef35f75",
+      "runtimeInventorySha256": "3d9a04d4c5ddf7f6bf9483a585c65d3d235400f8dee56b3369982df4befe16c1",
+      "assertionInventorySha256": "0892ec86cf34fa8006b9adf153cc3006730dbaa9c6eca437c3f44580ec6558bd",
+      "harnessInventorySha256": "bd89ed3b87da3745424e294442b2aba357358e2c503f1f8df43911df055d0f98",
+      "checks": [
+        {
+          "id": "build",
+          "status": "passed",
+          "durationMs": 2820
+        },
+        {
+          "id": "boundaries",
+          "status": "passed",
+          "durationMs": 18593,
+          "tests": {
+            "tests": 165,
+            "pass": 165,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "id": "editor",
+          "status": "passed",
+          "durationMs": 25546,
+          "checkpoints": [
+            {
+              "id": "source-selection",
+              "value": {
+                "anchor": 81,
+                "focus": 81
+              }
+            },
+            {
+              "id": "own-edit",
+              "value": {
+                "body": "# Live source\n\nKeep **bold** and [[Reference]].  \n\n- [ ] Task\n\n```js\nconsole.log('retained');\n```\n\n| A | B |\n| --- | --- |\n| x | y |\n\nLast paragraph\nHuman zero",
+                "operations": [
+                  {
+                    "start": 149,
+                    "deleteCount": 0,
+                    "insert": "Human zero"
+                  }
+                ],
+                "status": "saved"
+              }
+            },
+            {
+              "id": "own-undo-preserves-peer",
+              "value": {
+                "body": "# Live source\n\nKeep **bold** and [[Reference]].  \n\n- [ ] Task\n\n```js\nconsole.log('retained');\n```\n\n| A | B |\n| --- | --- |\n| x | y |\n\nLast paragraph\nHuman zero concurrent-1",
+                "status": "saved",
+                "dirty": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "uncertain",
+          "status": "passed",
+          "durationMs": 1210,
+          "checkpoints": [
+            {
+              "id": "1280/accepted-body/private",
+              "value": {
+                "draft": "Human baseline 1.\n unique human 1",
+                "title": "Uncertain fixture 1",
+                "saveStatus": "failed",
+                "peerRevision": 2,
+                "peerEdits": 1
+              }
+            },
+            {
+              "id": "1280/accepted-body/reloaded",
+              "value": {
+                "body": "Human baseline 1.\n unique human 1 confirmed peer 1",
+                "title": "Uncertain fixture 1",
+                "status": "saved",
+                "draftRetained": false
+              }
+            }
+          ]
+        },
+        {
+          "id": "retained",
+          "status": "passed",
+          "durationMs": 6539,
+          "checkpoints": [
+            {
+              "id": "retained-restore",
+              "value": {
+                "body": "Observed external replacement.\n",
+                "custom": "protected",
+                "idPreserved": true,
+                "status": "saved",
+                "comparisonClosed": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "credentials",
+          "status": "passed",
+          "durationMs": 2009,
+          "checkpoints": [
+            {
+              "id": "1280/credential-blocked",
+              "value": {
+                "canonical": "---\nid: mem_41330000-1111-4111-8111-111111111111\ntype: note\ntitle: Credential draft fixture\n---\nSaved shared text.\n",
+                "draft": "Saved shared text.\n Private writer draft 1280.",
+                "status": "blocked",
+                "editable": "false"
+              }
+            },
+            {
+              "id": "1280/credential-reopened",
+              "value": {
+                "canonical": "---\nid: mem_41330000-1111-4111-8111-111111111111\ntype: note\ntitle: Credential draft fixture\n---\nSaved shared text.\n",
+                "body": "Saved shared text.\n",
+                "retained": true,
+                "status": "readonly",
+                "mutationCount": 1
+              }
+            },
+            {
+              "id": "390/credential-blocked",
+              "value": {
+                "canonical": "---\nid: mem_41330000-1111-4111-8111-111111111111\ntype: note\ntitle: Credential draft fixture\n---\nSaved shared text.\n",
+                "draft": "Saved shared text.\n Private writer draft 390.",
+                "status": "blocked",
+                "editable": "false"
+              }
+            },
+            {
+              "id": "390/credential-reopened",
+              "value": {
+                "canonical": "---\nid: mem_41330000-1111-4111-8111-111111111111\ntype: note\ntitle: Credential draft fixture\n---\nSaved shared text.\n",
+                "body": "Saved shared text.\n",
+                "retained": true,
+                "status": "readonly",
+                "mutationCount": 1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "negativeControls": {
+    "executedInBothRuns": [
+      "canonical content changed",
+      "unique draft removed",
+      "incorrect Saved",
+      "scope changed",
+      "checkpoint missing/duplicate/malformed",
+      "frozen assertion weakened/removed",
+      "actual committed fixture regression",
+      "baseline tampering"
+    ],
+    "testOwners": [
+      "test/contract-observations.test.js",
+      "test/multiplayer-verification.test.js",
+      "test/multiplayer-contract-delta.test.js"
+    ]
+  },
+  "limits": [
+    "Selected contracts only; not whole-program equivalence.",
+    "Fake-QMD behavior; no semantic-model quality claim.",
+    "Chromium with recorded fallback channel; not native macOS Keychain/login/signature or public VPS evidence.",
+    "Full artifacts remain local and ignored; a newly reconstructed baseline requires a new reviewed manifest pin.",
+    "A preliminary symlink-dependency comparison passed behavior but changed license/bundle artifacts; the retained comparison uses checkout-local dependency files."
+  ]
+}

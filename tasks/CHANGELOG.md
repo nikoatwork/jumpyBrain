@@ -1,8 +1,12 @@
 # Task Changelog
 
+## 2026-11-05 — Reproducible architecture contracts
+
+- Closed unknown-layer and selected HTTP/live receipt validation gaps; froze 165 focused checks and four browser journeys with ten observed checkpoints. An independent unchanged checkout reproduced the runtime bytes and behavior. Added bounded backend/editor refactor plans. [Completion and evidence](done/2026-11-05_tasks-architecture-contract-hardening.md).
+
 ## 2026-11-05 — Architecture contract assessment
 
-- Three scoped reviews support retaining the layered architecture, with contract hardening before selective editor-session or backend-RPC cleanup. Added an interactive ownership map and one active plan; no runtime refactor or behavioral baseline is claimed. [Evidence and limits](../deep-dives/architecture-contracts/assessment.md), [contract-hardening plan](todo/tasks-architecture-contract-hardening.md).
+- Three scoped reviews support retaining the layered architecture, with contract hardening before selective editor-session or backend-RPC cleanup. Added an interactive ownership map and one active plan; no runtime refactor or behavioral baseline is claimed. [Evidence and limits](../deep-dives/architecture-contracts/assessment.md), [contract-hardening plan](done/2026-11-05_tasks-architecture-contract-hardening.md).
 
 ## 2026-11-05 — Focused test selection
 

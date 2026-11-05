@@ -1,5 +1,7 @@
 # Changes
 
+- Invalid remote document-update and board-save receipts now remain explicitly unconfirmed; live editing rejects invalid supplied protocol, operation and stream fields without replaying writes.
+
 - Failed update checks no longer revive an outdated install offer; retrying discovery restores only an available newer update.
 
 - Ordinary Markdown bullets render emphasis and safe web links; simple relative-link text stays editable without hiding the formatting around it.

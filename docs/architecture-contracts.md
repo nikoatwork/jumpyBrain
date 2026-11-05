@@ -32,6 +32,11 @@ exceeded, diagnose the selected runner rather than silently dropping checks.
 
 Use locked root dependencies, provisioned Playwright and Chromium (or the
 existing Chrome fallback). The profile does not install tools or download models.
+Use checkout-local dependency files (normally `npm ci`), not a symlink to another
+checkout's entire `node_modules`: the current bundler resolves that layout
+differently, including license collection. Behavioral parity alone does not
+establish distribution completeness. The retained unchanged-worktree proof uses
+checkout-local copies of the exact fingerprinted dependencies.
 Tests use disposable roots and fake QMD where needed; real semantic quality,
 native Keychain/login/signing, public VPS operation and physical accessibility
 are not established. Ordinary focused testing remains governed by
@@ -67,6 +72,10 @@ changed checkpoints. Assertion adaptations use the existing reviewed
 `--delta FILE --delta-sha256 DIGEST` workflow with exact old/new hashes and
 scenario mappings. Never change the baseline to bless a candidate. Historical
 M0 and production contract files retain their original selection and pins.
+The legacy `contract-delta.mjs` draft CLI still defaults to the M0 selection;
+prepare this profile's declaration from its frozen inventories using the
+exported `proposeContractDelta` API or explicit reviewed entries. Do not assume
+that running the legacy draft command selects this profile.
 
 ## Stable observations and limits
 
@@ -98,3 +107,8 @@ manifest pins and compact review evidence in the repository. Missing local
 artifacts require reconstructing a reference from its recorded commit and
 rerunning capture; a new capture gets a new explicit pin, never an assumed old
 digest.
+
+The first retained reference and independent-checkout comparison are recorded in
+[baseline v1](../deep-dives/architecture-contracts/baseline-v1.json). Use its
+reference manifest pin, not the comparison run's pin, for the two planned
+refactors. The record separately identifies tools, scenario outcomes and limits.
