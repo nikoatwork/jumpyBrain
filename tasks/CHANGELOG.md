@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Idle uncertain-draft recovery
+
+- A retained human draft survived 132 peer edits and an hour of idle, then passed guarded navigation, exact copy and explicit saved acceptance without replay; the optional runner records exact inputs and runtime hashes. [Evidence and limits](done/2026-11-05_tasks-ux-idle-uncertain-recovery.md).
+
 ## 2026-11-05 — Extended UX stability
 
 - Separate immutable 90-minute and latest-candidate hour-long runs passed 119 and 81 accumulated coauthoring/search cycles; exact runtime/input receipts and canonical contributions are retained. The latest full suite passed 1,902 tests with 17 skips. [Snapshot-specific outcomes and limits](done/2026-11-05_tasks-ux-extended-stability.md).
