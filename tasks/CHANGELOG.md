@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Branch and worktree cleanup
+
+- Removed 25 stale local branches and 17 extra worktrees after integration checks; preserved branch history and dirty validation files in a verified local recovery archive. [Cleanup record](done/2026-11-05_tasks-branch-worktree-cleanup.md).
+
 ## 2026-11-05 — Four-hour UX improvement loop
 
 - Retained 12 verified UX increments with unchanged experience inputs, completed snapshot-specific long observations, and preserved failed attempts and native-scoring limits. Latest full suite: 1,902 passed, 17 skipped. [Reviewed report](../evals/workspace-experience/reports/2026-11-05-four-hour-loop.md), [completed task](done/2026-11-05_tasks-ux-four-hour-loop.md).
