@@ -124,7 +124,7 @@
       ],
       "timeoutMs": 180000,
       "markers": [
-        "\"passed\": true"
+        "\"passed\":true"
       ],
       "observationIds": [
         "1280/accepted-body/private",
