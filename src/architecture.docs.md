@@ -2,6 +2,20 @@
 
 Status: adopted as the source-module documentation convention.
 
+## Find a subsystem
+
+Start here for architecture and technology-stack questions, then follow the owning module docs.
+
+| Question | Current implementation and owning docs |
+| --- | --- |
+| How do live edits, presence and agent updates travel? | **WebSockets** at `/ws`, JSON RPC protocol 2. Node hosts/CLI use **`ws`**; the editor uses the browser's native `WebSocket`. [Protocol and connection lifecycle](adapters/live/live.docs.md), [shared library boundary](adapters/websocket/websocket.docs.md). |
+| Where are the live clients and desktop bridge? | Editor: [collaboration-client.ts](adapters/http-server/collaboration-client.ts), composed through [the browser/editor contract](adapters/http-server/browser.docs.md). CLI: [collaborate.ts](cli/collaborate.ts). Desktop: [live-gateway.mjs](../integrations/macos-companion/live-gateway.mjs), documented in [gateway WebSockets](../integrations/macos-companion/gateway.docs.md#shared-root-owners-and-websockets). |
+| Who decides whether an update is saved? | [Collaboration app](app/collaboration/collaboration.docs.md) publishes canonical Markdown; [core collaboration](core/collaboration/collaboration.docs.md) owns the pure operation model. A connected socket or presence event is not a save receipt or completion signal. |
+| What handles ordinary requests? | [HTTP server](adapters/http-server/http-server.docs.md) and [HTTP client](adapters/http-client/http-client.docs.md); CLI commands compose explicit local/remote transports through [the CLI boundary](cli/cli.docs.md). |
+| Who owns the local process and Mac app? | [Root backend](app/backend-host/backend-host.docs.md), [desktop](../integrations/electron/electron.docs.md), [gateway](../integrations/macos-companion/gateway.docs.md). Local and VPS hosts run the same memory app. |
+| What handles search/indexing? | [Local memory app](app/local-memory/local-memory.docs.md) and [QMD adapter](adapters/qmd/qmd.docs.md); Markdown stays canonical. |
+| Where do we evaluate live-update behavior? | [Experience eval routine](../evals/workspace-experience/RUN.md), [observable states/transitions](../evals/workspace-experience/state-model.md), and [coauthoring/interruption missions](../evals/workspace-experience/journeys/core.md). Functional transport checks live in [collaboration-live.test.js](../test/collaboration-live.test.js) and [companion-live-gateway.test.js](../test/companion-live-gateway.test.js). |
+
 ## Module docs convention
 
 - Put durable, local module knowledge in a co-located `*docs.md` file inside the module directory.

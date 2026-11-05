@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Live-update architecture lookup
+
+- Added a subsystem map and co-located WebSocket connection lifecycle with client, desktop bridge and eval links. [Verification and scope](done/2026-11-05_tasks-live-transport-docs.md).
+
 ## 2026-11-05 — Task checkbox presentation
 
 - Centered task boxes on the first text line and replaced the partial completion underline with 80% label opacity in the shared editor. [Verification and native probe limit](done/2026-11-05_tasks-checkbox-presentation.md).
