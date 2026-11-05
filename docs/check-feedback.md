@@ -34,6 +34,17 @@ Output is JSON with `checkedAt`, the date scope, received messages, attachment m
 
 The command follows up to ten pages of fifty messages by default. If `complete:false`, continue using `--page-token` from `nextPageToken` or increase `--max-pages` (maximum 100). `--limit` changes the page size, up to 100. Use `--before` with an explicit timezone for an upper time bound. AgentMail's `after`/`before` filters use provider timestamp semantics; the output records the supplied UTC bounds. Use `--include-spam` when investigating a missing message; trash and blocked mail are not covered by this command.
 
+## Record processed emails
+
+Use the repository's [feedback email index](../tasks/feedback.md) before repeating triage. It stores one sanitized row per email, with the exact provider message ID in the date link's `message-id:` title, an outcome and links to its owning task/evidence. [Residual follow-ups](../tasks/todo/tasks-feedback-follow-ups.md) owns recent unresolved items; specialist task lists retain their existing scopes.
+
+1. Fetch the live inbox and finish pagination. Compare every returned `id` with the index, including new messages in an existing thread. Dates, unread labels and thread identity alone are not processing markers.
+2. Read and triage missing IDs, creating or reusing an owner. Add their rows only with enough evidence to state the outcome; leave uncertain causes explicit. For known IDs, consult the linked owner rather than rereading/reinvestigating the email unless new evidence warrants it.
+3. Keep review separate from resolution: `open` is reviewed but unresolved; `covered` has implementation/verification evidence; `mixed` retains some open/deferred scope; `deferred` records a deliberate decision. Covered never implies a published or installed fix. Update the row when its owner completes work, preserving the email ID and useful evidence link.
+4. Update the index's successful check time, scope and completeness after reconciliation. Preserve the last complete coverage if the new check fails or pagination remains incomplete, and record that limitation in the current task. Do not copy raw messages, private note contents, attachments or credentials into the index.
+
+A full metadata scan remains the default so delayed messages are not missed; the index avoids repeated body reads and duplicate task creation. This is local Markdown bookkeeping and does not change inbox labels, send replies or upload anything. Release tasks still record their own live-check scope and selected/deferred work, linking the index for per-email outcomes.
+
 ## Reporting
 
 - Verify the requested scope live. State its date/window and any incomplete pagination. An HTTP/authentication failure means feedback is **unverified**, not absent.

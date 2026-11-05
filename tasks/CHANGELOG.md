@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Feedback email tracking
+
+- Indexed reviewed emails by stable message ID and linked covered, open, mixed and deferred outcomes to their task owners; future inbox checks reconcile only unprocessed messages. [Index](feedback.md), [setup record](done/2026-11-05_tasks-feedback-index.md).
+
 ## 2026-11-05 — Live-update architecture lookup
 
 - Added a subsystem map and co-located WebSocket connection lifecycle with client, desktop bridge and eval links. [Verification and scope](done/2026-11-05_tasks-live-transport-docs.md).
