@@ -1,5 +1,7 @@
 # Changes
 
+- Agent guidance now treats authorized concurrent editing as normal, with source-range edits and resync instead of asking the user to stop typing.
+
 - Task checkboxes align with the first text line; checked labels use 80% opacity instead of a partial underline in the Mac and browser editors.
 
 - Search stops hiding externally renamed notes behind an old tab save once the searched index is verified fresh, including after CLI indexing.

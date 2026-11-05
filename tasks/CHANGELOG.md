@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Concurrent-edit agent guidance
+
+- CLI entry/write/help, managed memory skills and recommended agent instructions now prefer authorized live coauthoring with verified read bases and resync; real browser/CLI insertion preserved both authors’ changes. [Verification](done/2026-11-05_tasks-feedback-concurrent-guidance.md).
+
 ## 2026-11-05 — Feedback email tracking
 
 - Indexed reviewed emails by stable message ID and linked covered, open, mixed and deferred outcomes to their task owners; future inbox checks reconcile only unprocessed messages. [Index](feedback.md), [setup record](done/2026-11-05_tasks-feedback-index.md).
