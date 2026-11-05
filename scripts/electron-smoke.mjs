@@ -18,6 +18,7 @@ const root = path.join(temporary, 'memory');
 const support = path.join(temporary, 'support');
 let gateway;
 const feedbackReports = [];
+const titleRenameOnly = process.argv.includes('--title-rename');
 try {
   await mkdir(support, { mode: 0o700 });
   await createServerMemoryRuntime({ root }).initializeMemoryRoot();
@@ -37,7 +38,7 @@ try {
   const screenshot = path.join(repo, '.local-pack/desktop/welcome.png');
   await mkdir(path.dirname(screenshot), { recursive: true });
   const configPath = path.join(temporary, 'fixture.json');
-  await writeFile(configPath, JSON.stringify({ origin: gateway.url, key: controlKey, id, runtimeRoot: repo, setupRoot, existingRoot: root, invalidRoot, screenshot,
+  await writeFile(configPath, JSON.stringify({ origin: gateway.url, key: controlKey, id, titleRenameOnly, runtimeRoot: repo, setupRoot, existingRoot: root, invalidRoot, screenshot,
     userData: path.join(temporary, 'electron'), result: path.join(temporary, 'result.json') }), { mode: 0o600 });
   const env = { ...process.env, JUMPYBRAIN_ELECTRON_SMOKE_FIXTURE: configPath };
   delete env.ELECTRON_RUN_AS_NODE;
@@ -57,11 +58,15 @@ try {
   assert.equal(code, 0, output);
   const result = JSON.parse(await readFile(path.join(temporary, 'result.json'), 'utf8'));
   assert.equal(result.ok, true, result.error);
-  assert.equal(feedbackReports.length, 1);
-  assert.equal(feedbackReports[0].message, 'Electron feedback');
-  assert.ok(JSON.parse(feedbackReports[0].diagnostics).events);
-  assert.ok(!JSON.stringify(feedbackReports).includes(controlKey));
-  assert.match(await readFile(note, 'utf8'), /Saved from Electron/);
+  if (titleRenameOnly) {
+    assert.match(await readFile(note, 'utf8'), /title: "Renamed from Electron"/);
+  } else {
+    assert.equal(feedbackReports.length, 1);
+    assert.equal(feedbackReports[0].message, 'Electron feedback');
+    assert.ok(JSON.parse(feedbackReports[0].diagnostics).events);
+    assert.ok(!JSON.stringify(feedbackReports).includes(controlKey));
+    assert.match(await readFile(note, 'utf8'), /Saved from Electron/);
+  }
   const deadline = Date.now() + 5000;
   while (gateway.coordinator.tabs.size && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 50));
   assert.equal(gateway.coordinator.tabs.size, 0, 'closed Electron window must unregister');

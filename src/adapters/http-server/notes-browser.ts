@@ -1773,7 +1773,8 @@ function syncEditorUi(editorState) {
   const liveFeedback = cleanUnavailable ? "Editing unavailable"
     : editorState.liveStatus === "offline" ? !editorState.dirty ? "Offline · saved note shown" : editorState.durableDraft === false ? "Offline · keep this window open" : "Offline · draft kept on this device"
     : editorState.liveStatus === "connecting" ? "Connecting…" : editorState.liveStatus === "readonly" ? "Read only"
-    : editorState.liveStatus === "conflict" ? "Changes need review" : null;
+    : editorState.liveStatus === "conflict" ? "Changes need review"
+    : editorState.liveStatus === "saving" && editorState.title !== editorState.savedTitle && !editorState.title.trim() ? "Enter a page name to save" : null;
   $("note-save-state").textContent = liveFeedback || feedback;
   $("note-external-state").textContent = editorState.externalStatus === "pending" ? "Changes available"
     : editorState.externalStatus === "updated" ? "Updated elsewhere" : "";

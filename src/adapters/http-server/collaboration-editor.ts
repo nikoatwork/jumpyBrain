@@ -60,6 +60,7 @@ export function createCollaborationEditor(options: Options) {
   let state: CollaborationEditorState = { status: "connecting", dirty: false, canWrite: false, durableDraft: true, recoveryDrafts: [] };
   const bodyDirty = () => !baseline ? dirtyBeforeOpen : Boolean(pendingOperations.length) || body !== baseline.body;
   const titleDirty = () => draftTitle !== undefined && draftTitle !== baseline?.title;
+  const blankTitle = () => titleDirty() && !draftTitle!.trim();
   const dirty = () => bodyDirty() || titleDirty();
   const canWrite = () => principal?.role === "writer" || principal?.role === "owner" || principal?.role === "admin";
   function scope() { return { scope: options.scope, principalId: principal!.id, documentId: options.documentId, clientId }; }
@@ -232,6 +233,9 @@ export function createCollaborationEditor(options: Options) {
     const reviewed = reviewedPublication;
     if (reviewed && (reviewed.contentHash !== baseline.contentHash || reviewed.epoch !== baseline.epoch || reviewed.revision !== baseline.revision || reviewed.body !== body || reviewed.title !== (draftTitle ?? baseline.title))) { reviewedPublication = undefined; conflict = true; message = "The saved note or draft changed after review. Compare the latest versions before publishing."; persist(); notify(); return; }
     if (!bodyDirty() && titleDirty()) {
+      // Clearing a name is ordinary intermediate input, not a canonical title
+      // mutation. Retain it locally until the user supplies a replacement.
+      if (blankTitle()) { notify(); return; }
       recoveredUnconfirmed = undefined;
       titleSubmitted = draftTitle!; reviewedPublication = undefined;
       const before = baseline;
@@ -273,7 +277,7 @@ export function createCollaborationEditor(options: Options) {
     });
     await current.confirmed;
   }
-  function schedule() { if (disposed || reconciling || timer || !dirty() || conflict || uncertain || flight || titlePromise || historyFlight || !opened || client.state !== "ready" || !canWrite()) return; timer = setTimeout(() => { void send(); }, 35); }
+  function schedule() { if (disposed || reconciling || timer || !dirty() || !bodyDirty() && blankTitle() || conflict || uncertain || flight || titlePromise || historyFlight || !opened || client.state !== "ready" || !canWrite()) return; timer = setTimeout(() => { void send(); }, 35); }
   async function open() {
     const session = ++generation; opened = false; openFailure = undefined; notify();
     try {
@@ -449,7 +453,7 @@ export function createCollaborationEditor(options: Options) {
       if (!opened || client.state !== "ready" || conflict || uncertain) return false;
       for (let count = 0; count < 64 && (dirty() || flight || titlePromise || historyFlight); count++) {
         if (!canWrite() || conflict || uncertain || client.state !== "ready") return false;
-        if (flight) await flight.confirmed; else if (titlePromise) await titlePromise; else if (historyFlight) await historyFlight.confirmed; else await send();
+        if (flight) await flight.confirmed; else if (titlePromise) await titlePromise; else if (historyFlight) await historyFlight.confirmed; else if (!bodyDirty() && blankTitle()) return false; else await send();
       }
       return !disposed && !dirty() && !flight && !titlePromise && !historyFlight && !conflict && !uncertain;
     },

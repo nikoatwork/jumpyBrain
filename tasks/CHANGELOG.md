@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Empty page names while renaming
+
+- Deleting the final title character keeps the Mac editor usable and preserves the draft until a replacement saves; native keyboard, live-backend and full-suite checks passed. [Verification and desktop smoke limit](done/2026-11-05_tasks-empty-page-title.md).
+
 ## 2026-11-05 — Branch and worktree cleanup
 
 - Removed 25 stale local branches and 17 extra worktrees after integration checks; preserved branch history and dirty validation files in a verified local recovery archive. [Cleanup record](done/2026-11-05_tasks-branch-worktree-cleanup.md).

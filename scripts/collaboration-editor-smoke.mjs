@@ -153,18 +153,19 @@ try {
     await pages[1].waitForFunction(() => !richEditor.getMarkdown().includes("concurrent-0"));
 
     // Canonical title normalization must acknowledge our own submitted intent,
-    // while rejected empty titles retain a recoverable draft and canonical data.
+    // while empty names remain editable local drafts until replaced.
     const beforeTitleBody = await editorMarkdown(pages[0]);
     assert.equal(await pages[0].evaluate(() => live.setTitle("  Normalized live title  ")), true);
     await pages[1].waitForFunction(() => live.snapshot.title === "Normalized live title");
     assert.equal(await pages[0].evaluate(() => live.title), "Normalized live title");
     assert.equal(await pages[0].evaluate(() => live.setTitle("")), false);
-    assert.equal(await pages[0].evaluate(() => live.state.status), "conflict");
-    assert.equal(await pages[0].evaluate(() => live.title), "", "invalid title input is retained for recovery");
-    assert.equal(await pages[0].evaluate(() => live.snapshot.title), "Normalized live title", "rejection preserves the canonical title");
-    assert.equal(await editorMarkdown(pages[0]), beforeTitleBody, "title rejection preserves the body");
+    assert.equal(await pages[0].evaluate(() => live.state.status), "saving");
+    assert.equal(await pages[0].evaluate(() => live.state.canWrite), true);
+    assert.equal(await pages[0].evaluate(() => live.title), "", "blank title input is retained for replacement");
+    assert.equal(await pages[0].evaluate(() => live.snapshot.title), "Normalized live title", "blank input preserves the canonical title");
+    assert.equal(await editorMarkdown(pages[0]), beforeTitleBody, "blank input preserves the body");
     await pages[0].evaluate(() => live.inputTitle("Recovered valid title"));
-    assert.equal(await pages[0].evaluate(() => live.resolveConflict("draft")), true);
+    assert.equal(await pages[0].evaluate(() => live.flush()), true);
     assert.equal(await pages[0].evaluate(() => live.snapshot.title), "Recovered valid title");
     assert.equal(await editorMarkdown(pages[0]), beforeTitleBody);
     // Real filesystem writes reconcile into both clients without body PUTs.

@@ -23,11 +23,61 @@ async function until(script) {
   while (Date.now() < deadline) { if (await js(script)) return; await pause(40); }
   throw new Error('Timed out: ' + script);
 }
+async function verifyPageRename(existingNote) {
+  // Native Backspace must allow deleting the final title character and typing
+  // a replacement after the autosave interval, without a recovery detour.
+  const beforeRenameBody = await js('richEditor.getMarkdown()');
+  await js('document.getElementById("note-name").focus(); document.getElementById("note-name").select()');
+  await window.webContents.insertText('X');
+  await until('state.editor.collaboration.snapshot.title === "X" && document.getElementById("note-save-state").textContent === "Saved"');
+  const beforeEmptyTitle = await readFile(existingNote, 'utf8');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Backspace' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Backspace' });
+  await until('document.getElementById("note-name").value === ""');
+  await pause(200);
+  assert.equal(await js('state.editor.collaboration.state.canWrite'), true, 'blank title remains editable');
+  assert.equal(await js('document.activeElement.id'), 'note-name', 'deleting the final letter retains title focus');
+  assert.equal(await js('document.getElementById("note-save-state").textContent'), 'Enter a page name to save');
+  assert.equal(await js('state.editor.collaboration.state.status === "conflict"'), false, 'blank input is not a save conflict');
+  assert.equal(await js('state.editor.flush()'), false, 'blank rename cannot silently pass the save barrier');
+  assert.equal(await readFile(existingNote, 'utf8'), beforeEmptyTitle, 'blank input never changes canonical Markdown');
+  await js('document.getElementById("note-name").blur()');
+  await pause(100);
+  assert.equal(await js('document.getElementById("note-name").readOnly'), false);
+  await js('document.getElementById("note-name").focus()');
+  await window.webContents.insertText('   ');
+  await pause(200);
+  assert.equal(await js('state.editor.flush()'), false, 'whitespace is also an unfinished name');
+  assert.equal(await readFile(existingNote, 'utf8'), beforeEmptyTitle);
+  await js('document.getElementById("note-name").select()');
+  window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Backspace' });
+  window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Backspace' });
+  await until('document.getElementById("note-name").value === ""');
+  await window.webContents.insertText('Renamed from Electron');
+  await until('document.getElementById("note-save-state").textContent === "Saved" && state.editor.collaboration.snapshot.title === "Renamed from Electron"');
+  assert.match(await readFile(existingNote, 'utf8'), /title: "Renamed from Electron"/);
+  assert.equal(await js('richEditor.getMarkdown()'), beforeRenameBody, 'renaming preserves the body');
+  checks.push('native final-title Backspace and selection deletion, blank/whitespace autosave/blur barrier, editable replacement and canonical rename');
+}
 async function smoke() {
 try {
   await app.whenReady();
   const diagnostics = await startElectronDiagnostics({ ...config, runtimeRoot: config.runtimeRoot }, { directory: config.userData });
   diagnostics.connect(config);
+  if (config.titleRenameOnly) {
+    const editor = createEditorWindow(config, { diagnostics });
+    window = editor.window; await editor.loaded;
+    window.webContents.setBackgroundThrottling(false);
+    await until(`!!document.querySelector('a[href*="${config.id}"]')`);
+    await js(`document.querySelector('a[href*="${config.id}"]').click()`);
+    await until('state.editor?.collaboration?.state.status === "saved"');
+    await verifyPageRename(path.join(config.existingRoot, 'notes/electron-fixture.md'));
+    window.webContents.reload();
+    await until('state.editor?.collaboration?.state.status === "saved" && document.getElementById("note-name").value === "Renamed from Electron"');
+    checks.push('reloaded canonical replacement title');
+    const closed = new Promise(resolve => window.once('closed', resolve)); window.close(); await closed;
+    await writeFile(config.result, JSON.stringify({ ok: true, checks })); app.exit(0); return;
+  }
   // Exercise the actual packaged page/preload/native boundary with a picker seam.
   console.log('Electron smoke: onboarding start');
   const before = await companionControl(config);
@@ -351,6 +401,8 @@ try {
   assert.equal(await js('document.activeElement.id'), 'toggle-page-details');
   checks.push('folded formatting keyboard/Enter/Escape, direct Link, immutable fold, accessible copy, sticky action card/folded details, saved-version actor/location and focus return');
 
+
+  await verifyPageRename(existingNote);
 
   // A deterministic pending draft exercises the production browser unload veto
   // and the production Electron close handler without altering canonical data.

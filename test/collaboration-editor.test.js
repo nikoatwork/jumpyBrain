@@ -146,6 +146,60 @@ test("clean offline navigation succeeds while a real offline draft stays unpubli
 });
 
 
+test("blank rename drafts stay editable and durable without publishing or blocking body saves", async () => {
+  const previous = globalThis.WebSocket, frames = [];
+  let canonicalTitle = "Existing title", canonicalBody = "Canonical body", revision = 0;
+  const snapshot = () => ({ documentId: "note", epoch: "epoch", revision, prefix: "", file: "notes/note.md", body: canonicalBody, title: canonicalTitle, contentHash: "hash-" + revision, saved: true });
+  class Socket {
+    static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
+    constructor() { queueMicrotask(() => { this.readyState = 1; this.onopen?.(); }); }
+    send(raw) {
+      const frame = JSON.parse(raw); frames.push(frame);
+      queueMicrotask(() => {
+        if (frame.method === "title" && !frame.params.title.trim()) {
+          this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: false, error: { code: "invalid_title", message: "A title is required." } }) }); return;
+        }
+        let operation;
+        if (frame.method === "title" || frame.method === "edit") {
+          const splices = frame.method === "edit" ? frame.params.operations : [];
+          canonicalBody = applySourceSplices(canonicalBody, splices);
+          if (frame.method === "title") canonicalTitle = frame.params.title.trim();
+          revision++; operation = { revision, actor: JSON.stringify(["writer", "writer"]), operationId: frame.params.operationId ?? "title-" + revision, splices };
+        }
+        this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result: frame.method === "hello" ? { protocol: 2, principal: { id: "writer", role: "writer" } } : { ...snapshot(), ...(operation ? { operation } : {}) } }) });
+      });
+    }
+    close() { this.readyState = 3; this.onclose?.({ code: 1000 }); }
+  }
+  globalThis.WebSocket = Socket;
+  const drafts = createCollaborationDraftStore(memoryStorage()), scope = { scope: "blank-rename", principalId: "writer", documentId: "note", clientId: "writer" };
+  let editor, body = canonicalBody;
+  const create = () => createCollaborationEditor({ url: "ws://localhost/ws", ...scope, drafts, editor: { getMarkdown: () => body, applyCollaborativeMarkdown(next) { body = next; return { status: "applied" }; } } });
+  try {
+    editor = create(); editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
+    for (const title of ["", "   "]) {
+      editor.inputTitle(title);
+      await new Promise(resolve => setTimeout(resolve, 100)); // Exceed the real autosave delay.
+      assert.notEqual(editor.state.status, "conflict"); assert.equal(editor.state.canWrite, true);
+      assert.equal(await editor.flush(), false, "a blank pending rename cannot pass the navigation barrier");
+      assert.equal(editor.title, title); assert.equal(editor.state.dirty, true); assert.equal(editor.state.durableDraft, true);
+      assert.equal(drafts.read(scope).value.title, title); assert.equal(editor.snapshot.title, "Existing title");
+      assert.equal(frames.filter(frame => frame.method === "title").length, 0, "blank titles never reach the backend");
+    }
+    inputIntent(editor, "Canonical body plus edit", [{ start: canonicalBody.length, deleteCount: 0, insert: " plus edit" }]);
+    assert.equal(await editor.flush(), false, "the title draft still guards navigation after the body saves");
+    assert.equal(canonicalBody, "Canonical body plus edit"); assert.equal(editor.snapshot.body, canonicalBody);
+    assert.equal(editor.state.canWrite, true); assert.equal(editor.title, "   ");
+    editor.dispose(); editor = create(); editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(editor.title, "   ", "reopening retains the private blank rename"); assert.equal(editor.state.canWrite, true);
+    editor.inputTitle("  Replacement title  "); assert.equal(await editor.flush(), true);
+    assert.equal(editor.title, "Replacement title"); assert.equal(editor.state.status, "saved"); assert.equal(editor.state.dirty, false);
+    assert.equal(drafts.read(scope).value, null); assert.equal(canonicalBody, "Canonical body plus edit");
+    editor.inputTitle(""); assert.equal(await editor.flush(), false);
+    editor.inputTitle("Replacement title"); assert.equal(await editor.flush(), true, "restoring the saved title cancels the draft");
+  } finally { editor?.dispose(); globalThis.WebSocket = previous; }
+});
+
 test("canonical title normalization preserves later local typing and real foreign conflicts", async () => {
   const previous = globalThis.WebSocket, sockets = [], heldTitles = [];
   let canonicalTitle = "Existing title", revision = 0;
@@ -179,11 +233,18 @@ test("canonical title normalization preserves later local typing and real foreig
     assert.equal(editor.title, "Later local title", "an acknowledgement must not replace later local typing");
     receive(sockets[0], { id: heldTitles[0].id, ok: true, result: snapshot() });
     assert.equal(await firstFlush, true); assert.equal(editor.snapshot.title, "Later local title");
+    editor.inputTitle("  Submitted before clearing  "); const clearingFlush = editor.flush();
+    assert.equal(heldTitles.length, 2); editor.inputTitle("");
+    publish(sockets[0], "Submitted before clearing"); await new Promise(resolve => setTimeout(resolve, 0));
+    receive(sockets[0], { id: heldTitles[1].id, ok: true, result: snapshot() });
+    assert.equal(await clearingFlush, false); assert.equal(editor.title, "", "an older title receipt cannot overwrite a later blank draft");
+    assert.equal(editor.state.canWrite, true); assert.notEqual(editor.state.status, "conflict");
+    editor.inputTitle("Later local title"); assert.equal(await editor.flush(), true);
     editor.inputTitle("  My pending title  "); const conflictingFlush = editor.flush();
-    assert.equal(heldTitles.length, 2);
+    assert.equal(heldTitles.length, 3);
     publish(sockets[0], "A different writer's title");await new Promise(resolve=>setTimeout(resolve,0));
     assert.equal(editor.state.status, "conflict"); assert.equal(editor.title, "  My pending title  ");
-    receive(sockets[0], { id: heldTitles[1].id, ok: false, error: { code: "title_conflict", message: "Another writer changed the title." } });
+    receive(sockets[0], { id: heldTitles[2].id, ok: false, error: { code: "title_conflict", message: "Another writer changed the title." } });
     assert.equal(await conflictingFlush, false); assert.equal(editor.snapshot.title, "A different writer's title");
     assert.equal(editor.state.durableDraft, true); assert.equal(body, "Canonical body");
   } finally { editor?.dispose(); globalThis.WebSocket = previous; }

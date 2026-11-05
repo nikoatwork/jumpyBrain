@@ -1,5 +1,7 @@
 # Changes
 
+- Clearing a page name while renaming keeps the editor usable; typing a replacement saves normally without needing conflict recovery.
+
 - Narrow note links and resizing leave room for the selected note, using temporary sidebar collapse that preserves the desktop preference.
 
 - Read-only notes hide writing invitations, including in manual-copy recovery; denied note creation explains when write access is needed.
