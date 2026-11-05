@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Clearer README and current screenshots
+
+- Put installation at the top, cut the README by 58%, refreshed editor/map screenshots, and made verified public-demo upkeep part of every release. [Verification](done/2026-11-05_tasks-readme-refresh.md).
+
 ## 2026-11-05 — Quiet saved agent edits
 
 - Saved external edits need no retained-version acknowledgement; optional history lives under More info, true draft recovery leads with added/removed text and two choices, and ambiguous clean carets retire without a draft conflict. [Verification](done/2026-11-05_tasks-quiet-agent-external-edits.md).

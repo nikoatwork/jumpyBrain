@@ -6,206 +6,117 @@
 
 <p align="center">
   <strong>The open-source, agent-first Notion.</strong><br />
-  A beautiful Markdown workspace where you, your team, and your AI agents think together.<br />
-  Start with a local brain. Add shared brains when you're ready. Make it your own.
+  A calm place for your notes, your team, and your AI agents to think together.
 </p>
 
-<p align="center">
-  <strong><a href="https://demojumpybrain.juttu.co/">Explore the demo</a></strong>
-  ·
-  <a href="#start-your-own-brain">Start your own brain</a>
-  ·
-  <a href="docs/cloud-shared-memory.md">Bring your team</a>
-</p>
-
-<p align="center">
-  MIT licensed · Markdown you own · Local and self-hosted · Beta
-</p>
-
-## Your best thinking shouldn't disappear into a chat
-
-You work something out with an agent. Make a decision with your team. Write down an idea worth keeping. Then a new chat starts, someone needs the backstory, or you switch tools—and you're explaining it all again.
-
-jumpyBrain gives that knowledge a home. A calm place to write, connected notes to explore, and memory your agents can search and build on alongside you. Your notes, decisions, and discoveries stay useful beyond the conversation that created them.
-
-It's for people who think with agents, builders who switch between tools, and teams who want their knowledge to outlast a handoff.
-
-## A beautiful place to think
-
-Open a note and start writing. Format as you go, connect ideas with `[[page references]]`, and let your changes save automatically to Markdown. A quiet editor, light and dark themes, and room for a thought to develop.
-
-<p align="center">
-  <a href="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/docs/assets/jumpybrain-writing.webp">
-    <img src="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/docs/assets/jumpybrain-writing.webp" alt="The jumpyBrain editor with spacious serif typography, a quiet formatting toolbar, and linked notes about engineering culture and product strategy" width="100%" />
-  </a>
-</p>
-
-Your agent works with the same notes. Ask it to capture a decision, find the reasoning behind an old choice, or help turn scattered research into something you can use. The editor reflects external note updates, so you can work alongside your agent.
-
-## Start with your brain. Grow into a shared one.
-
-**Just you.** Choose a folder and keep your thoughts on your own machine. Write in jumpyBrain or open the Markdown in another editor. Add task checkboxes, inline backtick code and fenced code blocks while keeping portable Markdown. Local use needs no account or subscription.
-
-**You and your agents.** Claude Code, Codex, Pi, and other CLI-capable agents can remember and recall from the same brain. Switch tools or start a fresh session with your knowledge still available.
-
-**You and your team.** Self-host a shared brain and connect to it from the editor and CLI. Keep personal notes local while your team's decisions, research, and handoffs have a shared home. A decision captured by one teammate becomes discoverable by another teammate's agent.
-
-On macOS, add named local and remote brains in Settings and switch between them. A remote connection edits the shared brain on its server; personal brains stay separate. [Set up a shared brain →](docs/cloud-shared-memory.md)
-
-## Give your agent the context it needs
-
-Agent memory should help with the task at hand. jumpyBrain is built around finding relevant evidence, keeping context focused, and opening more detail when it's needed.
-
-- **Search for meaning and exact details.** Search titles and text out of the box. Add a local embedding model for semantic retrieval when you want to find related ideas beyond the words you remember.
-- **Choose how much to recall.** Shallow recall favors condensed pages and decisions. Deep recall can surface the original conversations and source evidence.
-- **Follow an answer back to its source.** Results include file and line references. Agents can request a bounded source section when an excerpt needs more context.
-- **Keep context deliberate.** Recall is explicit by default. Compact output offers a size cap, and agents can expand evidence as needed instead of loading the whole brain into every prompt.
-- **Keep history in view.** Date filters and chronological results help agents investigate what was recorded at different times, with sources available to check what changed.
-
-The goal is useful answers with less context and less waiting. We optimize for answer quality, total retrieved tokens, and latency; comparative speed and token savings against Notion MCP still need reproducible benchmarks. See the [retrieval design](docs/technical.md) and [agent workflows](docs/agent-workflows.md).
-
-## See how your knowledge connects
-
-Follow a connection from a decision to the research behind it, or from a meeting to the idea it sparked. The memory map gives you another way into the same notes you and your agents use.
-
-<p align="center">
-  <a href="https://demojumpybrain.juttu.co/graph">
-    <img src="https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/docs/assets/jumpybrain-memory-map.webp" alt="The jumpyBrain memory map with softly shaded colored nodes and connecting strands linking a fictional team's strategy, engineering culture, and weekly reflections" width="100%" />
-  </a>
-</p>
-
-<p align="center"><em>Screenshots use fictional notes. Click the map to explore the public demo.</em></p>
-
-Want help connecting a growing collection? The optional [how-to-dream skill](skills/how-to-dream/SKILL.md) lets an agent turn dated source notes into concise topic pages while preserving the route back to the evidence.
-
-## Open source. Yours to make your own.
-
-Your brain is a folder of readable Markdown. You can inspect it, edit it, back it up, move it, and version it with tools you already use. Search indexes and embeddings are rebuildable.
-
-The app is [MIT licensed](LICENSE). Run it locally, host it on your own infrastructure, change the editor, build an integration, or fork it for your own workflow. Your knowledge stays portable, and you choose the agents that work with it. Add optional palettes and tools with [trusted local extensions](docs/extensions.md), including Candy Pink and a Pomodoro timer.
-
-**Local first, with no jumpyBrain account required.** Local notes and search stay on your computer. Installing the app or CLI does not upload your brain or enable cloud sync. A shared brain is a server you explicitly connect to. Notes recalled into a cloud AI assistant are handled by that assistant; sending feedback and choosing cloud-synced folders are also separate sharing choices. [Privacy FAQ →](docs/faq.md#when-can-data-leave-my-computer)
-
-## Start your own brain
-
-**One brain, two ways to use it:** the app is your writing window; the CLI lets your agents use the same Markdown folder. Use either or both. [Step-by-step installation](docs/install.md) · [Instructions for your agent](docs/install-for-agents.md)
-
-Tell your agent:
-
-> Install jumpyBrain on my machine: https://github.com/nikoatwork/jumpyBrain. Follow docs/install-for-agents.md, reuse my existing brain, and verify local search. On a Mac, include the app and connect it to the same brain.
-
-After setup, restart an assistant that was already open. Ask it to remember one real decision, then ask it to recall that decision in a fresh session. Setup itself does not save an example memory. Adding the Mac app later? Ask: “Add the jumpyBrain Mac app to my existing brain using the same installation guide.”
-
-### On your Mac
-
-Install the CLI, detected agent integrations, and Mac app together:
+Install on macOS or Linux:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash -s -- --with-app --integrations auto --json
-```
-
-Setup verifies the installed CLI, local search and the app's shared brain. Existing profiles are preserved. Restart an assistant that was already open to load its integration.
-
-The Mac beta still builds its native helper locally: macOS 13+, Python 3.9+ and Xcode command-line tools are required. The bootstrap supplies private Node/npm when needed. Missing native requirements are reported before app installation. Public signing/notarization and compiler-free app downloads remain future work. Closing the window keeps the brain live; **Quit jumpyBrain** stops its services. [Desktop guide](integrations/electron/README.md)
-
-### With your agent, on macOS or Linux
-
-Install the CLI and integrations for detected assistants:
-
-```bash
 curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash
 ```
 
-Requires macOS or Linux and a POSIX shell with curl or wget. Setup downloads a verified published release, provisions private Node/npm and pinned search dependencies when needed, creates or reuses your brain, and verifies search. Older releases without installer assets require the explicit source path described in the installation guide until a compatible release is published. Restart an assistant that was already open, then ask:
+This sets up the CLI, local text search, and integrations for detected agents. Want the Mac app too? Add `-s -- --with-app` after `bash`. [Installation guide →](docs/install.md)
 
-> Use jumpyBrain to remember that we chose weekly releases because smaller changes are easier to review.
+<p align="center">
+  <strong><a href="https://demojumpybrain.juttu.co/">Explore the demo</a></strong>
+  · <a href="#start-your-own-brain">Get started</a>
+  · <a href="docs/cloud-shared-memory.md">Bring your team</a><br />
+  MIT licensed · Markdown you own · Local and self-hosted · Beta
+</p>
 
-In a later session, or with another supported agent:
+## Stop explaining everything again
 
-> Use jumpyBrain to recall what we decided about the release process.
+You work something out with an agent. Make a decision with your team. Finally find the answer. Then a new chat starts—and you're back to explaining the whole thing.
 
-[Installation and updates →](docs/install.md) · [Agent workflows →](docs/agent-workflows.md)
+jumpyBrain gives those thoughts a home. Keep your notes, decisions, and research in one place. Your agents can find them when you need them, even after you switch tools or start a fresh session.
 
-### Upgrade with your agent
+Start with one project or a handful of notes. You don't have to move your whole life into it.
 
-During the internal beta, releases may change the CLI, API or integration contracts. Update the app, CLI, backend and agent integrations together. For a shared brain, coordinate the server and all clients before editing resumes.
+## A place you'll want to write
 
-Tell your agent:
+Open a page and start thinking. Your words save automatically to Markdown. Link ideas with `[[page references]]`, add a checklist, or keep it to a few sentences.
 
-> Upgrade my existing jumpyBrain installation using docs/install-for-agents.md and docs/install.md. Inventory my app, CLI, server, agent integrations and actual brain folders first. Save pending edits and back up the brain and configuration without printing credentials. Apply the published release and its documented migration steps, keeping my existing notes and connections. Verify the installed versions, open and search existing notes, and test editing on a disposable copy. Keep the backup and previous software until verification passes; report any unfinished step.
+<p align="center">
+  <a href="docs/assets/jumpybrain-writing.webp">
+    <img src="docs/assets/jumpybrain-writing.webp" alt="jumpyBrain's writing workspace with a fictional team note, linked pages, and the current sidebar" width="100%" />
+  </a>
+</p>
 
-Use the coordinated upgrade helper from the installed runtime folder or a built checkout. Wait for Saved, export any disconnected browser draft, close app windows, and pause agents and direct file writers. Closing a window keeps the shared backend available; the prepare command stops its authenticated owner explicitly. Choose a new private backup directory outside your brain:
+Your agent works with the same notes. Ask it to capture a decision, find an old explanation, or help make sense of scattered research. You can edit together and see saved changes in the editor.
 
-If the installed release predates this helper, prepare the incoming release in a separate folder and run its helper before replacing the installed software. Stop the old server through its existing service manager first.
+The app is your writing window. The CLI is how your agents use that same folder. **One brain, one set of notes.**
 
-```bash
-node scripts/multiplayer-upgrade.mjs --root /absolute/path/to/brain --mode prepare --backup /absolute/path/to/new-backup
-node scripts/multiplayer-upgrade.mjs --root /absolute/path/to/brain --mode prepare --backup /absolute/path/to/new-backup --apply
-jumpybrain update
-node scripts/multiplayer-upgrade.mjs --root /absolute/path/to/brain --mode verify --backup /absolute/path/to/new-backup
+## Pick up where you left off
+
+Use Claude Code today, Codex tomorrow, or Pi on another project. They can all work with the same brain. Other agents can join through the CLI.
+
+Try asking:
+
+> Remember that we chose weekly releases because smaller changes are easier to review.
+
+In a fresh session:
+
+> What did we decide about releases, and why?
+
+Your agent searches for relevant notes instead of loading everything into every chat. Results point back to source files and lines, so you can check the reasoning.
+
+Text search works from the start. Add a local embedding model when you want to search by meaning, too. Agents can ask for a short overview or open more evidence when a question needs it. [See the agent workflows →](docs/agent-workflows.md)
+
+## Find the thread between ideas
+
+A decision connects to some research. A meeting sparks an idea. A week later, that idea turns into a plan.
+
+The memory map lets you follow those links and rediscover notes you'd forgotten to look for.
+
+<p align="center">
+  <a href="https://demojumpybrain.juttu.co/graph">
+    <img src="docs/assets/jumpybrain-memory-map.webp" alt="jumpyBrain's memory map connecting fictional notes about a small team's product, research, and working habits" width="100%" />
+  </a>
+</p>
+
+*Screenshots use fictional notes. [Explore the public demo →](https://demojumpybrain.juttu.co/)*
+
+For a growing collection, the optional [how-to-dream skill](skills/how-to-dream/SKILL.md) helps an agent turn scattered notes into topic pages, with links back to the evidence.
+
+## Your brain. Or your team's.
+
+**Just you?** Keep your brain in a folder on your computer. No jumpyBrain account, subscription, or remote server required. Open the Markdown in another editor whenever you like.
+
+**Working with a team?** Self-host a shared brain. People and agents can write together, and a decision saved by one teammate becomes something another teammate's agent can find.
+
+Keep personal notes local and team notes on your server. The Mac app lets you switch between named brains; connecting to a shared one doesn't sync or merge your personal folder. [Set up a shared brain →](docs/cloud-shared-memory.md)
+
+## Your notes stay yours
+
+Your brain is readable Markdown. Back it up, move it, put it in Git, or take it somewhere else. Search indexes can be rebuilt from your files.
+
+jumpyBrain is [MIT licensed](LICENSE). Change it, build an integration, or make the workspace yours with [optional themes and tools](docs/extensions.md).
+
+Local notes and search stay on your computer. Installing jumpyBrain doesn't upload your brain. If you give notes to a cloud assistant, send feedback, or choose a cloud-synced folder, those are separate sharing choices. [Privacy FAQ →](docs/faq.md#when-can-data-leave-my-computer)
+
+## Start your own brain
+
+Run the command at the top, or ask your agent to handle setup:
+
+> Install jumpyBrain: https://github.com/nikoatwork/jumpyBrain. Follow docs/install-for-agents.md, reuse my existing brain, and verify local search. On a Mac, include the app and connect it to the same brain.
+
+Restart an assistant that was already open so it can load its integration. Then ask it to remember one real decision and recall it in a fresh session. Setup itself doesn't save sample notes.
+
+For the **Mac app + agents**, the full command is:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh | bash -s -- --with-app
 ```
 
-The first command previews the operation. The second backs up canonical files, the unchanged `jumpybrain.json` schema/policy, named access credentials and recovery copies, then verifies the backup. The helper never prints credentials or installs software. Stop any legacy server that predates authenticated root ownership through its existing service manager first; this helper never guesses process identities or kills unrelated processes. Use the [update guide](docs/install.md#update) for the applicable managed Mac pair, CLI-only, source-checkout or VPS deployment steps; update agent integrations and every shared-brain client in the same maintenance window. On Mac, add `--app-runtime /path/to/jumpyBrain.app/Contents/Resources/runtime` to the verification command to require identical app/CLI build fingerprints. Without this option, app parity is explicitly unchecked. A mismatched live backend refuses adoption until stopped and updated.
+The Mac beta needs macOS 13+, Python 3.9+, and Xcode command-line tools. It still builds its native helper locally; signed, compiler-free app downloads are future work. The installer supplies private Node/npm when needed. [Mac app guide →](integrations/electron/README.md)
 
-Before resuming, open and search existing notes and test human/agent editing on a disposable copy. Keep the backup and previous release until these checks pass. `--mode status` inspects ownership/builds; `--mode restore --backup …` previews recovery, and adding `--apply` restores only missing files. Restore refuses changed files or changed/revoked credentials. This release changes the collaboration protocol, not the canonical Markdown or root schema. **Do not delete the entire brain's `.jumpybrain/` directory:** `access.json` and `recovery/` are private durable operational state, alongside disposable indexes. Browser drafts stay in their originating browser and must be saved/exported separately.
+Already installed? Use the [update guide](docs/install.md#update). Beta updates can change how the app, CLI, server, and integrations work together; update them together and keep a backup.
 
-### With your team
-
-Run the same app against a server-local Markdown folder, then connect your team and their agents. Start with the [shared-brain quickstart](docs/cloud-shared-memory.md), or follow the [VPS](docs/vps-deploy.md) or [Coolify](docs/coolify-deploy.md) deployment guide.
-
-### Explore before installing
-
-[Open the public demo](https://demojumpybrain.juttu.co/) to explore the fictional Northbound AI team's notes, decisions, and memory map.
-
-To try agent recall too, this command installs the CLI through the [standard installer](https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh), then recalls a topic from the demo brain:
-
-```bash
-curl -fsSL https://demojumpybrain.juttu.co/try | bash
-```
-
-The sandbox is public, writable, rate-limited, and reset hourly. Use fictional information only.
-
-## A few things you might be wondering
-
-**Are the app and CLI two copies of my notes?**
-
-No. When both point at the same folder, they read and write one set of Markdown files. They have separate program installations, not separate brains. [App and CLI explained →](docs/faq.md#are-the-app-and-cli-two-versions-of-my-brain)
-
-**I already use Notion. Why add this?**
-
-Choose jumpyBrain when you want a focused writing and knowledge workspace that you and your agents can use directly, with portable Markdown and control over where it runs. “Agent-first Notion” describes that experience; jumpyBrain focuses on notes, connections, and recall. Humans and streaming agents can edit notes live together. Databases and a general-purpose project-management suite remain outside its scope.
-
-**Do I have to move everything at once?**
-
-Start with one project, your next decision, or a handful of useful notes. Add a shared brain when your team needs one. Personal and shared brains can coexist.
-
-**Can I use another agent or editor?**
-
-Yes. Current integrations cover Codex, Claude Code, and Pi; other agents can use the CLI. Your files remain Markdown, so you can work with them in another editor too.
-
-**Does remote access sync my local brain?**
-
-Remote access connects to a brain stored on your server. Local and shared brains are separate destinations; offline sync and automatic merging between them aren't provided.
-
-**Will it put all my notes into every prompt?**
-
-Recall is explicit by default. Your agent searches for relevant context and can ask for more evidence. Shared-memory writes require explicit authorization.
-
-**Do I need a cloud service or paid plan?**
-
-Local use needs no jumpyBrain account or subscription. Shared brains run on infrastructure you control, with hosting costs up to you. Semantic retrieval needs a separately provisioned local embedding model; text search works without one.
+Prefer to look around first? The [public demo](https://demojumpybrain.juttu.co/) uses a fictional team's notes. It's public, writable, and resets hourly—use fictional information only.
 
 ## Go deeper
 
-- [Installation and updates](docs/install.md)
-- [Installation and privacy FAQ](docs/faq.md) · [Agent installation instructions](docs/install-for-agents.md)
-- [macOS desktop app](integrations/electron/README.md)
-- [Using jumpyBrain with agents](docs/agent-workflows.md)
-- [Logseq import](docs/logseq-migration.md) · [Obsidian import](docs/obsidian-migration.md)
-- [Optional how-to-dream skill installation](docs/install.md#optional-how-to-dream-skill)
-- [CLI command reference](docs/cli-commands.md)
-- [Shared-brain quickstart](docs/cloud-shared-memory.md) · [Protocol reference](docs/shared-memory-protocol.md)
-- [Memory file format](docs/memory-format.md) · [Technical design](docs/technical.md)
-- [Product vision](docs/product-vision.md) · [Release policy](docs/releases.md)
-
-Live humans and streaming agents share the same local/VPS backend. See [collaboration, access and recovery](docs/collaboration.md) for commands, limits and upgrade details.
+- [Installation and updates](docs/install.md) · [Agent setup](docs/install-for-agents.md) · [FAQ](docs/faq.md)
+- [Shared brains](docs/cloud-shared-memory.md) · [Live collaboration and recovery](docs/collaboration.md)
+- [Import from Obsidian](docs/obsidian-migration.md) · [Import from Logseq](docs/logseq-migration.md)
+- [CLI reference](docs/cli-commands.md) · [Technical design](docs/technical.md) · [Product vision](docs/product-vision.md)
