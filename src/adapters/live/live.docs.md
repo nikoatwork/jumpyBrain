@@ -18,6 +18,17 @@ The shared third-party implementation lives in `../websocket/`; this module owns
 
 Requests are `{id,method,params}`, replies `{id,ok,result}` or `{id,ok:false,error:{code,message}}`. Document events contain `{event:"document",documentId,snapshot}`. See the application collaboration module for snapshot and edit contracts. Closing the adapter terminates its sockets; closing an app window does not stop its host backend.
 
+The browser validates base snapshot fields and any supplied protocol, positional
+operation/splice and stream receipt fields before consuming them. Optional fields
+remain optional; additive envelope fields are compatible. A large insert may omit
+inline text with `snapshotOnly:true`. Stream notices require document/epoch scope,
+saved state and sequenced stream identity. History continuity, actor identity and
+the exact body produced by its operations remain the editor reconciliation
+boundary's checks. `test/live-wire-contracts.test.js` round-trips real app snapshots
+through JSON into the browser validator; the live integration tests own actual
+socket authorization and delivery. This is selective validation, not a complete
+schema for every optional field.
+
 ## Editor connection lifecycle
 
 The existing [editor client supervisor](../http-server/collaboration-client.ts)

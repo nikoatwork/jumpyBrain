@@ -78,7 +78,7 @@ function createSupervisor(options: ClientOptions) {
           else request.reject(new CollaborationError(String(message.error?.code ?? "request_failed"), String(message.error?.message ?? "The backend rejected this request.")));
         } else if (state === "ready" && message.event === "document" && validSnapshot(message.snapshot) && message.documentId === message.snapshot.documentId) {
           for (const listener of listeners) listener.onSnapshot?.(message.snapshot);
-        } else if (state === "ready" && message.event === "stream" && typeof message.documentId === "string" && typeof message.epoch === "string" && typeof message.saved === "boolean") {
+        } else if (state === "ready" && message.event === "stream" && validStreamSnapshot(message)) {
           for (const listener of listeners) listener.onStream?.(message);
         }
       } catch { currentSocket.close(1002); }
@@ -97,8 +97,27 @@ function createSupervisor(options: ClientOptions) {
 }
 export function validSnapshot(value: unknown): value is CollaborationSnapshot {
   if (!value || typeof value !== "object") return false;
-  const snapshot = value as CollaborationSnapshot;
-  return [snapshot.documentId, snapshot.epoch, snapshot.body, snapshot.title, snapshot.contentHash].every((part) => typeof part === "string") && Number.isSafeInteger(snapshot.revision) && snapshot.revision >= 0 && typeof snapshot.saved === "boolean";
+  const snapshot = value as CollaborationSnapshot & { protocol?: unknown };
+  if (![snapshot.documentId, snapshot.epoch, snapshot.body, snapshot.title, snapshot.contentHash].every((part) => typeof part === "string") || !ordinal(snapshot.revision) || typeof snapshot.saved !== "boolean" || snapshot.protocol !== undefined && snapshot.protocol !== 2) return false;
+  const operation = snapshot.operation;
+  if (operation !== undefined && (!operation
+    || !(ordinal(operation.start) && ordinal(operation.deleteCount) || operation.start === undefined && operation.deleteCount === undefined && Array.isArray(operation.splices))
+    || operation.revision !== undefined && !ordinal(operation.revision)
+    || operation.insert !== undefined && typeof operation.insert !== "string"
+    || operation.snapshotOnly !== undefined && typeof operation.snapshotOnly !== "boolean"
+    || operation.splices !== undefined && (!Array.isArray(operation.splices) || !operation.splices.every(splice => splice && ordinal(splice.start) && ordinal(splice.deleteCount) && typeof splice.insert === "string")))) return false;
+  return snapshot.stream === undefined || snapshot.stream === null || validStream(snapshot.stream);
+}
+const ordinal = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
+function validStream(stream: NonNullable<CollaborationSnapshot["stream"]>): boolean {
+  return Boolean(stream) && typeof stream.streamId === "string" && ordinal(stream.sequence) && typeof stream.state === "string"
+    && (stream.actor === undefined || typeof stream.actor === "string") && (stream.reason === undefined || typeof stream.reason === "string");
+}
+export function validStreamSnapshot(value: unknown): value is CollaborationStreamSnapshot {
+  if (!value || typeof value !== "object") return false;
+  const snapshot = value as CollaborationStreamSnapshot;
+  return typeof snapshot.documentId === "string" && typeof snapshot.epoch === "string" && typeof snapshot.saved === "boolean"
+    && snapshot.stream != null && validStream(snapshot.stream);
 }
 // Tabs share one supervisor within an environment/scope; mutations are never
 // replayed by the reconnect layer. Source reconciliation decides publication.
