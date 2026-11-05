@@ -297,6 +297,7 @@ try {
   assert.equal(await page.locator('#copy-note-draft').isVisible(), true);
   await page.locator('#note-recover').click();
   await page.waitForFunction(() => !document.getElementById('recovery-publish').disabled);
+  if(!await page.locator('#recovery-options').evaluate(element=>element.open))await page.locator('#recovery-options > summary').click();
   assert.match(await page.locator('#recovery-draft').inputValue(), /Continued after returning/);
   await page.locator('#recovery-publish').click(); await saved(page);
   const created = await readMemoryDocument(root, createdId);

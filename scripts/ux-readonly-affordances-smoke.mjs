@@ -89,6 +89,7 @@ try {
     });
     await page.locator("#copy-note-draft").click();
     await page.locator("#document-recovery").waitFor();
+    if (!await page.locator("#recovery-options").evaluate(element => element.open)) await page.locator("#recovery-options > summary").click();
     await page
       .locator("#recovery-message")
       .filter({ hasText: "Select and copy" })

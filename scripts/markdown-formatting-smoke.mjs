@@ -93,6 +93,7 @@ try {
     const acceptedDraft = remote.replace('- [ ] Save', '- [x] Save');
     assert.equal(await editorMarkdown(page), acceptedDraft);
     await page.locator('#note-recover').click();
+    if(!await page.locator('#recovery-options').evaluate(element=>element.open))await page.locator('#recovery-options > summary').click();
     await page.waitForFunction(() => document.getElementById('recovery-saved').value.includes('- [x] Save this task'));
     assert.ok((await page.locator('#recovery-draft').inputValue()).includes(acceptedDraft));
     await page.locator('#recovery-reload').click();
@@ -112,6 +113,7 @@ try {
     await page.evaluate(() => richEditor.setReadOnly(false));
     await writeFile(file, prefix + remote + '\nExternal writer');
     await page.locator('#note-recover').click();
+    if(!await page.locator('#recovery-options').evaluate(element=>element.open))await page.locator('#recovery-options > summary').click();
     await page.waitForFunction(() => document.getElementById('recovery-saved').value.endsWith('External writer'));
     assert.equal(await editorMarkdown(page), dirty, 'failed operation retains local source through another writer');
     assert.ok((await readFile(file, 'utf8')).endsWith('External writer'));

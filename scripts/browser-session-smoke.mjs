@@ -60,6 +60,7 @@ try {
   await pages[1].reload();
   await pages[1].waitForFunction(()=>state.editor?.collaboration?.state.status==='saved'&&state.editor.collaboration.state.recoveryDrafts.length>0);
   await pages[1].locator('#note-recover').click();
+  if(!await pages[1].locator('#recovery-options').evaluate(element=>element.open))await pages[1].locator('#recovery-options > summary').click();
   await pages[1].locator('#recovery-versions').selectOption('0');
   assert.match(await pages[1].locator('#recovery-draft').inputValue(),/Private unsent draft/);
   await pages[1].locator('#recovery-publish').click();

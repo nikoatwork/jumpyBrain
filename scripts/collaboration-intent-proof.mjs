@@ -73,14 +73,30 @@ export async function runIntentProof({browser,serverUrl,token,root,bundle,errors
     // A gap with unavailable exact history cannot become a guessed caret or a
     // silently published edit. Retain the private source and require recovery.
     base=await reset('aaaa');await selectEditorText(page,2);wire.rejectNext('history.read',{code:'history_expired',message:'The exact source history expired.'});const missedId=crypto.randomUUID(),missed=wire.holdNextEvent(id,snapshot=>snapshot.operation?.operationId===missedId);changed=await edit(base,[{start:0,deleteCount:0,insert:'a'}],missedId);await receipt(missed.arrived);const latest=await edit(changed,[{start:0,deleteCount:0,insert:'a'}]);await page.waitForFunction(()=>live.state.status==='conflict');missed.release();await page.keyboard.insertText('Private Q');assert.equal(await flush(),false);assert.equal((await readFile(file,'utf8')).endsWith('\n---\n'+latest.body),true);assert.match(await page.evaluate(()=>live.state.message),/history expired/);assert.equal(await page.evaluate(()=>live.resolveConflict('saved')),true);
-    console.log((shipped?'Shipped positional intent: ':'Positional intent: ')+ 'ambiguous raw position and recovery presence');
+    console.log((shipped?'Shipped positional intent: ':'Positional intent: ')+ 'clean ambiguous raw position');
     for(const position of [2,0]){
       base=await reset('aaaa');await selectEditorText(page,position);const beforePresence=wire.observed.length;
       const raw=(await readFile(file,'utf8')).replace(/^(---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$))[\s\S]*$/,'$1'+'aaaaa');await writeFile(file,raw);
-      await page.waitForFunction(()=>live.state.status==='conflict');await page.keyboard.insertText('Private Q');assert.equal(await flush(),false);assert.equal((await readFile(file,'utf8')).replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,''),'aaaaa','unprovable raw-origin caret never publishes its next private keystroke');
+      await page.waitForFunction(()=>live.state.status==='saved'&&live.body==='aaaaa');await canonical('aaaaa');
+      assert.equal(await page.evaluate(()=>richEditor.captureSelection()),null,'an ambiguous saved caret retires without draft recovery');
+      assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#note-editor')),false,'no guessed caret receives the next key');
+      await page.keyboard.insertText('Private Q');assert.equal(await flush(),true);await canonical('aaaaa');
       const revision=await page.evaluate(()=>live.snapshot.revision),deadline=Date.now()+5000;
       while(!wire.observed.slice(beforePresence).some(frame=>frame.method==='presence'&&frame.params.baseRevision===revision)&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,20));
-      const reported=wire.observed.slice(beforePresence).findLast(frame=>frame.method==='presence'&&frame.params.baseRevision===revision);assert.ok(reported,'recovery reports its new read revision');assert.equal(reported.params.selection,undefined,'private old-source coordinates cannot be relabeled as the canonical revision');
+      const reported=wire.observed.slice(beforePresence).findLast(frame=>frame.method==='presence'&&frame.params.baseRevision===revision);assert.ok(reported,'saved source reports its new read revision');assert.equal(reported.params.selection,undefined,'retired old-source coordinates cannot be relabeled as canonical');
+      await selectEditorText(page,5);await page.keyboard.insertText('Q');assert.equal(await flush(),true);await canonical('aaaaaQ');
+    }
+    console.log((shipped?'Shipped positional intent: ':'Positional intent: ')+ 'unpublished ambiguous raw position and recovery presence');
+    for(const position of [2,0]){
+      base=await reset('aaaa');const held=wire.holdNextRequest('edit');await selectEditorText(page,position,position+1);await page.keyboard.press('Backspace');await receipt(held.arrived);assert.equal(await page.evaluate(()=>live.body),'aaa');const beforePresence=wire.observed.length;
+      const raw=(await readFile(file,'utf8')).replace(/^(---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$))[\s\S]*$/,'$1'+'aaaaa');await writeFile(file,raw);
+      // The raw observation retires this deletion's origin while its actual
+      // positional write is still held. It must remain private when released.
+      await read();held.release();await page.waitForFunction(()=>live.state.status==='conflict');const recoveryPresenceStart=wire.observed.length;await page.keyboard.insertText('Private Q');assert.equal(await flush(),false);assert.equal((await readFile(file,'utf8')).replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,''),'aaaaa','a real unpublished edit never overwrites unprovable raw origins');
+      assert.equal(await page.evaluate(()=>live.state.durableDraft),true);
+      const revision=await page.evaluate(()=>live.snapshot.revision),deadline=Date.now()+5000;
+      while(!wire.observed.slice(recoveryPresenceStart).some(frame=>frame.method==='presence'&&frame.params.baseRevision===revision)&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,20));
+      const reported=wire.observed.slice(recoveryPresenceStart).findLast(frame=>frame.method==='presence'&&frame.params.baseRevision===revision);assert.ok(reported,'recovery reports its new read revision');assert.equal(reported.params.selection,undefined,'private old-source coordinates cannot be relabeled as the canonical revision');
       await page.waitForFunction(()=>live.snapshot.presence?.find(peer=>peer.clientId===live.clientId)?.anchor===undefined);assert.equal(await page.evaluate(()=>live.resolveConflict('saved')),true);
     }
     console.log((shipped?'Shipped positional intent: ':'Positional intent: ')+ 'eight labels');

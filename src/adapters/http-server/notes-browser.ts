@@ -230,6 +230,21 @@ ${referencePresentationStyles}
     .document-dialog textarea { width: 100%; min-height: 120px; resize: vertical; background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: var(--space-2); }
     .document-dialog label { display: block; margin-block: var(--space-3); }
     .document-dialog .dialog-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+    .document-dialog .dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+    .document-dialog .dialog-heading h2 { margin-bottom: var(--space-2); }
+    .document-dialog .dialog-heading .icon-button { flex-shrink: 0; }
+    .document-dialog .recovery-options { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--line); }
+    .document-dialog .recovery-options summary { cursor: pointer; color: var(--ink-soft); }
+    .version-changes { display: grid; gap: var(--space-3); max-height: min(44vh, 440px); overflow: auto; }
+    .version-choice-primary { background: var(--control-fill); border-color: var(--line); color: var(--ink); }
+    .version-choice-primary:hover:not(:disabled) { background: var(--control-hover); }
+    .version-change { min-width: 0; }
+    .version-change-label { font-weight: var(--weight-semibold); font-size: var(--text-caption); }
+    .version-changes pre { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+    .version-change-removed, .version-change-added { display: block; text-decoration: none; border-left: 3px solid currentColor; padding: var(--space-2) var(--space-3); }
+    .version-change-removed { color: var(--error-ink); background: var(--error-fill); }
+    .version-change-added { color: var(--ink); background: var(--control-fill); }
+
     #delete-confirm { color: var(--error-ink); }
     #note-save-error { color: var(--error-ink); font-size: var(--text-ui); }
     #note-save-error[data-review="true"] { color: var(--ink-soft); }
@@ -449,13 +464,17 @@ ${noteAttentionMarkup}
 
 export const documentActionsMarkup = String.raw`
 <dialog id="document-recovery" class="document-dialog" aria-labelledby="recovery-title">
-  <h2 id="recovery-title">Recover your draft</h2>
-  <p>Your draft is kept in this tab; copy it before reopening the editor or discarding it.</p>
-  <label id="recovery-versions-label" hidden>Recoverable drafts<select id="recovery-versions"></select></label>
-  <label>Your draft<textarea id="recovery-draft" readonly></textarea></label>
-  <label>Current saved note<textarea id="recovery-saved" readonly></textarea></label>
+  <div class="dialog-heading"><h2 id="recovery-title">Choose your changes</h2><button id="recovery-close" class="quiet-button icon-button" type="button" aria-label="Close" title="Close">${browserIcons.close}</button></div>
+  <p>Choose which changes to keep.</p>
+  <div id="recovery-changes" aria-label="Changes from the saved version to your draft"></div>
   <p id="recovery-message" role="status" aria-live="polite"></p>
-  <div class="dialog-actions"><button id="recovery-copy" class="quiet-button">Copy draft</button><button id="recovery-publish" class="quiet-button" hidden>Publish reviewed draft</button><button id="recovery-reload" class="quiet-button">Discard draft and load saved note</button><button id="recovery-close" class="quiet-button">Keep editing</button></div>
+  <div class="dialog-actions"><button id="recovery-publish" class="button button-primary version-choice-primary" type="button" hidden>Keep my changes</button><button id="recovery-reload" class="quiet-button" type="button">Use saved version</button></div>
+  <details id="recovery-options" class="recovery-options"><summary>More options</summary>
+    <label id="recovery-versions-label" hidden>Recoverable drafts<select id="recovery-versions"></select></label>
+    <label>Your draft<textarea id="recovery-draft" readonly></textarea></label>
+    <label>Current saved note<textarea id="recovery-saved" readonly></textarea></label>
+    <button id="recovery-copy" class="quiet-button" type="button">Copy draft</button>
+  </details>
 </dialog>
 <dialog id="document-delete" class="document-dialog" aria-labelledby="delete-title">
   <h2 id="delete-title">Permanently delete note?</h2>
@@ -1735,7 +1754,6 @@ function syncEditorUi(editorState) {
   if (companionMode && typeof boardsUI !== "undefined") boardsUI.syncNote();
   $("delete-note").hidden = !editorState.loaded;
   $("delete-note").disabled = editorState.navigationPending || companionLocked;
-  $("recovery-reload").disabled = companionLocked || editorState.navigationPending;
   $("note-retry").disabled = editorState.navigationPending;
   $("note-editor").hidden = !editorState.loaded;
   $("note-name").hidden = !editorState.loaded;

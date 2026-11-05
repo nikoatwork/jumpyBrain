@@ -133,9 +133,11 @@ void (async () => {
     assert.equal(bodyOf(await readFile(fixture.root + '/notes/native-input.md', 'utf8')), 'Agent conflicting replacement.\n');
     const reviewAX = await axNode('#note-save-state'); assert.match(reviewAX.name, /^Changes need review: .+/, 'the accessible live status includes both the review state and its reason'); assert.equal(reviewAX.properties.live, 'polite'); evidence.accessibility.reviewStatus = reviewAX;
     await click('#note-recover'); await until(() => js('document.getElementById("document-recovery").open && document.getElementById("recovery-saved").value.includes("Agent conflicting replacement")'));
-    const recoveryAX = await axNode('#document-recovery'); assert.equal(recoveryAX.role, 'dialog'); assert.equal(recoveryAX.name, 'Recover your draft');
+    const recoveryAX = await axNode('#document-recovery'); assert.equal(recoveryAX.role, 'dialog'); assert.equal(recoveryAX.name, 'Choose your changes');
+    assert.equal(await js('document.getElementById("recovery-options").open'), false);
+    await click('#recovery-options > summary');
     for (const [selector, name] of [['#recovery-draft', 'Your draft'], ['#recovery-saved', 'Current saved note']]) { const field = await axNode(selector); assert.equal(field.role, 'textbox'); assert.equal(field.name, name); assert.equal(field.properties.readonly, true); }
-    for (const [selector, name] of [['#recovery-copy', 'Copy draft'], ['#recovery-publish', 'Publish reviewed draft'], ['#recovery-reload', 'Discard draft and load saved note'], ['#recovery-close', 'Keep editing']]) { const control = await axNode(selector); assert.equal(control.role, 'button'); assert.equal(control.name, name); }
+    for (const [selector, name] of [['#recovery-copy', 'Copy draft'], ['#recovery-publish', 'Keep my changes'], ['#recovery-reload', 'Use saved version'], ['#recovery-close', 'Close']]) { const control = await axNode(selector); assert.equal(control.role, 'button'); assert.equal(control.name, name); }
     assert.ok((await js('document.getElementById("recovery-draft").value')).includes('競合'));
     evidence.checks.push('overlapping native IME retains both versions, blocks flush, exposes labeled readonly recovery fields and actions in AX tree');
     await click('#recovery-reload'); await until(() => js('!document.getElementById("document-recovery").open && state.editor.collaboration.state.status === "saved"'));

@@ -52,6 +52,21 @@ async function runInactiveSelectionProof(page) {
       const result=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('aaaaa',{operationSequence:[[{start:0,deleteCount:4,insert:'aaaaa',ambiguous:true}]]}));
       assert.equal(result.status,'recovery');assert.match(result.reason,/raw-file alignment/);assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'aaaa');assert.equal(await page.evaluate(()=>inactiveErrors.length),0,'expected active ambiguity never escapes to a nonthrowing production error handler');
     }
+    for(const offset of [0,2]){
+      await select('aaaa',offset);
+      const result=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('aaaaa',{retireUnprovenSelection:true,operationSequence:[[{start:0,deleteCount:4,insert:'aaaaa',ambiguous:true}]]}));
+      assert.equal(result.status,'applied',result.reason);assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'aaaaa');
+      assert.equal(await page.evaluate(()=>inactiveEditor.captureSelection()),null,'clean ambiguous anchors retire instead of inventing an insertion position');
+      assert.equal(await page.evaluate(()=>document.activeElement.id==='inactive-selection-editor'),false,'fresh input needs a newly selected position');
+      assert.equal(await page.evaluate(()=>{const surface=document.getElementById('inactive-selection-editor'),selection=getSelection();return surface.contains(selection.anchorNode)||surface.contains(selection.focusNode)}),false,'the browser range retires with the Lexical selection');
+    }
+    await select('aaaa',2);
+    await page.locator('#inactive-selection-editor').evaluate(surface=>surface.dispatchEvent(new InputEvent('beforeinput',{bubbles:true,cancelable:true,inputType:'insertText',data:'X'})));
+    const pending=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('aaaaa',{retireUnprovenSelection:true,operationSequence:[[{start:0,deleteCount:4,insert:'aaaaa',ambiguous:true}]]}));
+    assert.equal(pending.status,'recovery','an input range already captured by beforeinput is not a clean caret');assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'aaaa');
+    await select('aaaa',2);
+    const malformed=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('different',{retireUnprovenSelection:true,operationSequence:[[{start:0,deleteCount:4,insert:'aaaaa',ambiguous:true}]]}));
+    assert.equal(malformed.status,'recovery','clean selection retirement never bypasses exact source replay');assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'aaaa');
     await select('Observed external replacement.\n',3);
     await page.evaluate(()=>{document.getElementById('inactive-selection-dialog').showModal();const field=document.getElementById('inactive-comparison-field');field.focus();field.setSelectionRange(1,7)});
     const result=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('Newer human save after comparison.\n',{operationSequence:[[{start:0,deleteCount:27,insert:'Newer human save after compariso',ambiguous:true},{start:28,deleteCount:1,insert:''}],[]]}));

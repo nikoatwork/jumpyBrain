@@ -522,3 +522,46 @@ test("initial live hydration is quiet while later external changes still notify"
     }
   } finally { globalThis.WebSocket = previous; }
 });
+
+test("only a proven clean saved source may retire an ambiguous external selection", async () => {
+  const previous = globalThis.WebSocket;
+  try {
+    for (const mode of ["clean", "title-draft", "unreported-source", "composing", "history-pending"]) {
+      let socket, body = "aaaa", composing = false, revision = 0;
+      const presentations = [], frames = [];
+      const snapshot = () => ({ documentId: "note", epoch: "epoch", revision, body: revision ? "aaaaa" : "aaaa", title: "Title", contentHash: "hash-" + revision, saved: true,
+        ...(revision ? { operation: { revision, actor: "external", operationId: "raw-write", start: 0, deleteCount: 4, splices: [{ start: 0, deleteCount: 4, insert: "aaaaa", ambiguous: true }] } } : {}) });
+      class Socket {
+        static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
+        constructor() { socket = this; queueMicrotask(() => { this.readyState = 1; this.onopen?.(); }); }
+        send(raw) { const frame = JSON.parse(raw); frames.push(frame); if (frame.method === "undo") return; queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result: frame.method === "hello" ? { protocol: 2, principal: { id: "writer", role: "writer" } } : snapshot() }) })); }
+        close() { this.readyState = 3; this.onclose?.({ code: 1000 }); }
+      }
+      globalThis.WebSocket = Socket;
+      const editor = createCollaborationEditor({ url: "ws://localhost/ws", scope: "clean-selection-" + mode, documentId: "note", clientId: "tab", drafts: createCollaborationDraftStore(memoryStorage()), editor: {
+        getMarkdown: () => body, isComposing: () => composing,
+        applyCollaborativeMarkdown(value, presentation) {
+          presentations.push(presentation);
+          if (composing) return { status: "deferred" };
+          if (presentation.operationSequence?.some(operations => operations.some(operation => operation.ambiguous)) && !presentation.retireUnprovenSelection) return { status: "recovery", reason: "The selected raw-file alignment is ambiguous" };
+          body = value; return { status: "applied" };
+        },
+      } });
+      try {
+        editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(editor.state.status, "saved"); presentations.length = 0;
+        if (mode === "title-draft") editor.inputTitle("Private title");
+        if (mode === "unreported-source") body = "Unreported private source";
+        if (mode === "composing") composing = true;
+        if (mode === "history-pending") { void editor.undo(); await new Promise(resolve => setTimeout(resolve, 0)); assert.equal(frames.at(-1).method, "undo"); }
+        revision = 1; socket.onmessage({ data: JSON.stringify({ event: "document", documentId: "note", snapshot: snapshot() }) });
+        await new Promise(resolve => setTimeout(resolve, 0));
+        assert.ok(presentations.length, mode);
+        assert.equal(presentations.at(-1).retireUnprovenSelection, mode === "clean", mode + " eligibility");
+        if (mode === "clean") { assert.equal(body, "aaaaa"); assert.equal(editor.state.status, "saved"); assert.equal(editor.state.dirty, false); assert.equal(await editor.flush(), true); }
+        else if (mode === "composing") { assert.equal(body, "aaaa"); assert.equal(await editor.flush(), false); }
+        else { assert.equal(editor.state.status, "conflict"); assert.equal(await editor.flush(), false); if (mode === "unreported-source") assert.equal(body, "Unreported private source"); }
+      } finally { editor.dispose(); }
+    }
+  } finally { globalThis.WebSocket = previous; }
+});

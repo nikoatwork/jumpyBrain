@@ -91,6 +91,7 @@ try {
       ["edit", "title"].includes(frame.method),
     ).length;
     await page.locator("#note-recover").click();
+    if (!await page.locator("#recovery-options").evaluate(element => element.open)) await page.locator("#recovery-options > summary").click();
     await page.locator("#recovery-saved").filter({ visible: true }).waitFor();
     await page.waitForFunction(() =>
       document

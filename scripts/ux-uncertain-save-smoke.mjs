@@ -273,6 +273,7 @@ try {
         "failed drafts keep the navigation barrier",
       );
       await page.locator("#note-recover").click();
+      if (!await page.locator("#recovery-options").evaluate(element => element.open)) await page.locator("#recovery-options > summary").click();
       await page.waitForFunction(
         (text) =>
           document.querySelector("#recovery-saved").value.includes(text),

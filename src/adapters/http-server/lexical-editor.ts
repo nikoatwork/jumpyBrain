@@ -1126,7 +1126,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     // Remote source changes reconcile only affected subtrees. Unchanged blocks
     // retain their Lexical keys, DOM, reference state and selection identity.
     // No remote state enters the local history stack.
-    applyCollaborativeMarkdown(value: string, presentation: { highlight?: boolean;operationSequence?: readonly (readonly SourceSplice[])[] } = {}): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string } {
+    applyCollaborativeMarkdown(value: string, presentation: { highlight?: boolean;operationSequence?: readonly (readonly SourceSplice[])[];retireUnprovenSelection?: boolean } = {}): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string } {
       if (value === markdown && !presentation.operationSequence?.some(operations=>operations.length)) {
         // A local edit already renders the acknowledged source. Refresh its
         // sidecar without replacing nodes so source cursor projection is exact.
@@ -1163,7 +1163,7 @@ export function createNoteEditor(element: HTMLElement, options: {
           if(!sequence){if(active&&selected)throw new Error("The incoming snapshot has no positional edit history. Review before continuing this selection.");sequence=previous===value?[]:[[{start:0,deleteCount:previous.length,insert:value}]]}
           let verified=previous;for(const operations of sequence)verified=applySourceSplices(verified,operations);
           if(verified!==value)throw new Error("The incoming operations do not reproduce the supplied source. Both versions are retained.");
-          let offsets:number[]|null=null;
+          let offsets:number[]|null=null,retiredSelection=false;
           if(points){
             if(points.some(point=>point===null)){if(active)throw new Error("The active selection could not be mapped exactly; both source versions are retained")}
             else if(presentation.operationSequence){
@@ -1173,10 +1173,16 @@ export function createNoteEditor(element: HTMLElement, options: {
                 let position=offset;
                 for(const operations of sequence!){try{position=transformSourcePosition(position,operations,association)}catch(error){if((error as {code?:string}).code!=="position_deleted")throw error;const removed=operations.find(operation=>operation.start<position&&position<operation.start+operation.deleteCount);if(!removed)throw error;position=transformSourcePosition(removed.start,operations,association)}}
                 return position;
-              })}catch(error){if(active||(error as {code?:string}).code!=="ambiguous_source")throw error}
+              })}catch(error){
+                if((error as {code?:string}).code!=="ambiguous_source")throw error;
+                // Only the collaboration owner can prove the rendered source
+                // is already saved. Never retire a selection mid-beforeinput.
+                if(active&&(!presentation.retireUnprovenSelection||capturedIntent||continuationIntent))throw error;
+                retiredSelection=true;
+              }
             }
           }
-          return {originals,offsets,selected,format:selected?selection.format:0,style:selected?selection.style:""};
+          return {originals,offsets,selected,retiredSelection,format:selected?selection.format:0,style:selected?selection.style:""};
         });
         treeUpdated=true;
         editor.update(() => {
@@ -1267,9 +1273,12 @@ export function createNoteEditor(element: HTMLElement, options: {
           markdown = previous; sourceNewline = previousNewline;
           return { status: "recovery", reason: failure };
         }
-        if(!active&&projected.selected&&!projected.offsets){
+        if(projected.selected&&!projected.offsets&&(!active||projected.retiredSelection)){
           const native=element.ownerDocument.getSelection();
           if(native&&(element.contains(native.anchorNode)||element.contains(native.focusNode)))native.removeAllRanges();
+          // No guessed insertion position: a fresh click establishes the next
+          // editing anchor after an ambiguous clean-source replacement.
+          if(active&&projected.retiredSelection)element.blur();
         }
         markdown = value;
         if (presentation.highlight) {

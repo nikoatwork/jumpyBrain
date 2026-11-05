@@ -130,12 +130,17 @@ An observed replacement that removes saved source retains the previous and
 observed canonical versions under `.jumpybrain/recovery/`; a live snapshot names
 that relative recovery directory. The raw file remains authoritative. Retention
 does not infer whether its writer intended to remove another person's changes.
-The note shows **Review retained version** after an observed destructive
-replacement. Its dialog offers **Show changed passages**, both complete copies,
-copy actions and an explicit reviewed restore for writers. Large comparisons
-show bounded excerpts; restoring always uses the complete selected version and
-rechecks the current saved hash. Readers can compare and copy. Changing brains
-or credentials clears the comparison.
+Saved external edits need no version-review acknowledgement. **More info →
+Earlier versions** offers optional history. It shows added/removed passages with
+**Keep current note** and **Use earlier version**; full copies, copy tools and
+version selection stay under **More options**. A successful choice returns to
+the note. Restoration rechecks the saved hash and preserves any private draft
+first. Readers can see changes and copy, while changing brains or credentials
+clears the comparison.
+
+When an external edit makes only a clean saved note's caret position ambiguous,
+the note still updates; that caret clears and the editor waits for a fresh click.
+Unpublished or unconfirmed edits retain their separate draft-recovery safeguards.
 
 ## Limits and recovery
 

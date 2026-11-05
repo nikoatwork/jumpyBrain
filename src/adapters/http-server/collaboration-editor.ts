@@ -7,7 +7,7 @@ interface EditorBinding {
   getMarkdown(): string;
   isComposing?(): boolean;
   takeCollaborativeIntent?(before:string,after:string): SourceIntent | null;
-  applyCollaborativeMarkdown(value: string, presentation?: { highlight?: boolean; operationSequence?: readonly (readonly SourceSplice[])[] }): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string };
+  applyCollaborativeMarkdown(value: string, presentation?: { highlight?: boolean; operationSequence?: readonly (readonly SourceSplice[])[]; retireUnprovenSelection?: boolean }): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string };
   setCollaborativeNewline?(value: "\n" | "\r\n" | null): void;
   collaborativeSelection?(): { anchor: number; focus: number } | null;
   setCollaborativePresence?(peers: NonNullable<CollaborationSnapshot["presence"]>): void;
@@ -104,8 +104,8 @@ export function createCollaborationEditor(options: Options) {
     const saved = store.save(draftRecord()); durable = saved.value; if (saved.error) message = saved.error;
     return saved.value;
   }
-  function paint(value: string, highlight = false, operationSequence?:readonly (readonly SourceSplice[])[]): boolean {
-    const applied = options.editor.applyCollaborativeMarkdown(value, { highlight, operationSequence });
+  function paint(value: string, highlight = false, operationSequence?:readonly (readonly SourceSplice[])[], retireUnprovenSelection = false): boolean {
+    const applied = options.editor.applyCollaborativeMarkdown(value, { highlight, operationSequence, retireUnprovenSelection });
     if (applied.status === "deferred") return false;
     if (applied.status === "recovery") { options.onRecovery?.("unproven_draft"); conflict = true; message = applied.reason ?? "The editor needs explicit recovery. Both versions are retained."; return false; }
     return true;
@@ -191,7 +191,15 @@ export function createCollaborationEditor(options: Options) {
       for(const operations of remoteSteps){rebasePrivateHistory(canonical,operations);const pair=rebaseSourcePair(canonical,local,operations);canonical=applySourceSplices(canonical,operations);local=pair.local;optimisticSteps.push(pair.remote);merged=applySourceSplices(canonical,local)}
       if(canonical!==snapshot.body)throw new CollaborationError("history_gap","The exact operation history did not reach the saved source.");
     }
-    if(!conflict&&!paint(merged,remote,optimisticSteps)){
+    // A saved source has no private edit to recover merely because an inferred
+    // external splice cannot locate its old caret. Check after history awaits:
+    // a local input may have arrived while the canonical history was read.
+    const retireUnprovenSelection = Boolean(remote && !own && baseline && baseline.revision >= 0
+      && baseline.epoch === snapshot.epoch && !dirty() && !uncertain && !flight
+      && !titlePromise && !historyFlight && !recoveredUnconfirmed && !deferredConfirmation
+      && !reviewedPublication && !options.editor.isComposing?.()
+      && pendingBase === baseline.body && body === baseline.body && options.editor.getMarkdown() === body);
+    if(!conflict&&!paint(merged,remote,optimisticSteps,retireUnprovenSelection)){
       if(!conflict){queued=snapshot;if(own)deferredConfirmation={flight:own,epoch:snapshot.epoch,revision:snapshot.revision};return}
     }
     if(!snapshot.body.includes("\n"))options.editor.setCollaborativeNewline?.(snapshot.prefix?.includes("\r\n")?"\r\n":"\n");

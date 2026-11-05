@@ -196,7 +196,7 @@ try{
  await appendEditorText(page,'Keep this unsaved thought.');await failedEdit.arrived;const draft=await editorMarkdown(page);
  await page.locator('#note-add-to-board').click();await page.waitForFunction(()=>!document.getElementById('note-board-add').disabled);await page.locator('#note-board-add').click();await page.locator('#note-board-dialog').waitFor({state:'hidden'});
  assert.equal(await editorMarkdown(page),draft);assert.equal(await page.evaluate(()=>state.editor.hasPending()),true);
- await page.locator('#note-recover').click();await page.waitForFunction(()=>!document.getElementById('recovery-publish').disabled);assert.match(await page.locator('#recovery-draft').inputValue(),/Keep this unsaved thought/);await page.locator('#recovery-publish').click();await page.waitForFunction(()=>state.editor.collaboration.state.status==='saved');
+ await page.locator('#note-recover').click();await page.waitForFunction(()=>!document.getElementById('recovery-publish').disabled);if(!await page.locator('#recovery-options').evaluate(element=>element.open))await page.locator('#recovery-options > summary').click();assert.match(await page.locator('#recovery-draft').inputValue(),/Keep this unsaved thought/);await page.locator('#recovery-publish').click();await page.waitForFunction(()=>state.editor.collaboration.state.status==='saved');
  await page.waitForFunction(()=>!document.getElementById('new-board').disabled);
  // Generated names are unique, and repeated activation creates only one board.
  const beforeBoards=await page.locator('#sidebar-boards > li').count();

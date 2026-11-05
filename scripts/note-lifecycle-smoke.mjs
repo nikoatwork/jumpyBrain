@@ -60,6 +60,7 @@ try {
   heldReplacement.release();
   await second.getByTestId('graph-note-save-state').filter({hasText:'Changes need review'}).waitFor();
   await second.locator('#note-recover').click();
+  if(!await second.locator('#recovery-options').evaluate(element=>element.open))await second.locator('#recovery-options > summary').click();
   await second.locator('#recovery-saved').filter({visible:true}).waitFor();
   await second.waitForFunction(()=>document.getElementById('recovery-saved').value.includes('Winning edit.'));
   assert.match(await second.locator('#recovery-draft').inputValue(),/Losing draft/);

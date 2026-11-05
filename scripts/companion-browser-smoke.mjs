@@ -535,6 +535,7 @@ try {
   assert.match(await expired.locator("#toast-message").textContent(), /Your session ended; use Recover draft/);
   assert.doesNotMatch(await expired.locator("#toast-message").textContent(), /fenced|cookie/);
   await expired.locator("#companion-recovery").getByRole("button", { name: "Recover draft", exact: true }).click();
+  if (!await expired.locator("#recovery-options").evaluate(element => element.open)) await expired.locator("#recovery-options > summary").click();
   await expired.locator("#recovery-draft").waitFor({ state: "visible" });
   assert.match(await expired.locator("#recovery-draft").inputValue(), /Session expiry disposable unsaved draft/);
   await expired.locator("#recovery-copy").click();

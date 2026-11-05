@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Quiet saved agent edits
+
+- Saved external edits need no retained-version acknowledgement; optional history lives under More info, true draft recovery leads with added/removed text and two choices, and ambiguous clean carets retire without a draft conflict. [Verification](done/2026-11-05_tasks-quiet-agent-external-edits.md).
+
 ## 2026-11-05 — Stable related pages
 
 - Related-page recommendations survive typing/deletion and stale refreshes, with ten-second saved-content checks and quieter minute refreshes; verified with real lexical/semantic fixtures and the unchanged local brain. [Verification](done/2026-11-05_tasks-stable-related-pages.md).

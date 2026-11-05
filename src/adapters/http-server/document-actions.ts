@@ -4,7 +4,9 @@ import { memoryDocumentPath } from "../http-protocol.js";
 import type { MemoryDocumentDeletePreview, MemoryDocumentDeleteResult, MemoryDocumentReadResult } from "../../types.js";
 import type { Toast } from "./browser-toast.js";
 import { installRetainedVersions, type RetainedVersionsEditor } from "./document-retained-versions.js";
+import { renderVersionChanges } from "./document-version-diff.js";
 type Editor = ReturnType<typeof createDocumentEditor> & RetainedVersionsEditor & {
+  state: { liveStatus?: string };
   publishReviewedDraft?(contentHash: string): Promise<boolean>;
   getRecoveryDrafts?(): Array<{clientId: string; updatedAt: number}>;
   recoverDraft?(draft: any): boolean;
@@ -31,18 +33,36 @@ export function installDocumentActions(options: {
   let busy = false, sequence = 0;
   let preview: MemoryDocumentDeletePreview | null = null;
   let bound: Editor | null = null, boundScope = "", comparisonHash = "", selectedRecovery = "";
+  let loadingRecovery = false, comparedSaved = "", comparedDraft = "";
   const valid = (editor: Editor, scope: string) => options.editor() === editor && !editor.state.cancelled && options.scope() === scope;
   const draftText = (editor: Editor) => editor.state.title + "\n\n" + editor.state.draft;
   function refreshRecovery() {
     const publish = $<HTMLButtonElement>("recovery-publish"), editor = bound;
     if (!publish) return;
+    const available = Boolean(editor && valid(editor, boundScope) && options.writable() && options.canPublish(editor));
     publish.hidden = !editor?.publishReviewedDraft || !options.canPublish(editor);
-    publish.disabled = busy || !comparisonHash || !editor || !valid(editor, boundScope) || !options.writable() || !options.canPublish(editor);
+    publish.disabled = busy || loadingRecovery || !comparisonHash || !available;
+    $<HTMLButtonElement>("recovery-reload").disabled = busy || loadingRecovery || !comparisonHash || !editor || !valid(editor, boundScope) || !options.writable() || editor.state.liveStatus === "readonly";
+    $<HTMLButtonElement>("recovery-close").disabled = busy;
+    $<HTMLButtonElement>("recovery-copy").disabled = busy;
+    $<HTMLSelectElement>("recovery-versions").disabled = busy || loadingRecovery;
+    recovery.setAttribute("aria-busy", String(busy || loadingRecovery));
+    if (recovery.open && editor && valid(editor, boundScope)) {
+      const currentDraft = draftText(editor);
+      $<HTMLTextAreaElement>("recovery-draft").value = currentDraft;
+      if (comparisonHash && currentDraft !== comparedDraft) {
+        comparedDraft = currentDraft;
+        renderVersionChanges(doc, $("recovery-changes"), comparedSaved, comparedDraft);
+      }
+    }
   }
   function close() {
     if (busy) return;
     retained.close();
     sequence++; preview = null; bound = null; comparisonHash = ""; selectedRecovery = "";
+    loadingRecovery = false; comparedSaved = comparedDraft = "";
+    $("recovery-changes").replaceChildren();
+    $<HTMLDetailsElement>("recovery-options").open = false;
     recovery.close(); removal.close();
     // Do not retain an old brain's note bodies in hidden dialogs.
     $("recovery-draft").textContent = "";
@@ -64,6 +84,7 @@ export function installDocumentActions(options: {
       if (!recovery.open) await openRecovery();
       if (recovery.open && bound === editor) {
         $("recovery-message").textContent = "Select and copy your draft below; clipboard access is unavailable.";
+        $<HTMLDetailsElement>("recovery-options").open = true;
         $<HTMLTextAreaElement>("recovery-draft").select();
       }
     }
@@ -85,10 +106,10 @@ export function installDocumentActions(options: {
     if (!editor?.state.loaded || busy) return;
     close(); bound = editor; boundScope = options.scope();
     const token = ++sequence;
+    loadingRecovery = true;
     $<HTMLTextAreaElement>("recovery-draft").value = draftText(editor);
     $<HTMLTextAreaElement>("recovery-saved").value = "";
-    $("recovery-message").textContent = "Loading the current saved note for comparison…";
-    $<HTMLButtonElement>("recovery-reload").disabled = !options.writable();
+    $("recovery-message").textContent = "Loading saved changes…";
     const drafts = editor.getRecoveryDrafts?.() ?? [];
     const versions = $<HTMLSelectElement>("recovery-versions");
     if (versions && editor.getRecoveryDrafts) {versions.replaceChildren(); const current = doc.createElement("option"); current.value = ""; current.textContent = "Current draft"; versions.append(current); for (const [index,draft] of drafts.entries()) {const option = doc.createElement("option"); option.value = String(index); option.textContent = new Date(draft.updatedAt).toLocaleString(); versions.append(option);} $("recovery-versions-label").hidden = !drafts.length;}
@@ -97,29 +118,39 @@ export function installDocumentActions(options: {
     try {
       const saved = await options.json(memoryDocumentPath(editor.state.documentId)) as MemoryDocumentReadResult;
       if (token !== sequence || !recovery.open || !valid(editor, boundScope)) return;
-      if (typeof saved.content !== "string" || typeof saved.contentHash !== "string") throw new Error("Invalid note");
-      $<HTMLTextAreaElement>("recovery-saved").value = saved.title + "\n\n" + splitEditableDocument(saved.content).body;
+      if (typeof saved.content !== "string" || typeof saved.contentHash !== "string" || typeof saved.title !== "string") throw new Error("Invalid note");
+      comparedSaved = saved.title + "\n\n" + splitEditableDocument(saved.content).body;
+      $<HTMLTextAreaElement>("recovery-saved").value = comparedSaved;
       comparisonHash = saved.contentHash;
-      refreshRecovery();
-      $("recovery-message").textContent = "Compare the versions. Loading the saved note discards only this tab’s draft and never overwrites the saved version.";
+      comparedDraft = draftText(editor);
+      renderVersionChanges(doc, $("recovery-changes"), comparedSaved, comparedDraft);
+      $("recovery-message").textContent = options.writable() && options.canPublish(editor)
+        ? ""
+        : "You can compare and copy these changes. Choosing a version requires write access.";
     } catch {
-      if (token === sequence && recovery.open) $("recovery-message").textContent = "Could not read the saved note. Copy your draft and reconnect before reloading.";
+      if (token === sequence && recovery.open) $("recovery-message").textContent = "Could not load saved changes. Your draft is kept. More options lets you copy it before reconnecting.";
+    } finally {
+      if (token === sequence) { loadingRecovery = false; refreshRecovery(); }
     }
   }
   async function publishReviewed() {
     const editor = bound, scope = boundScope;
-    if (!editor?.publishReviewedDraft || !comparisonHash || busy || !options.writable() || !options.canPublish(editor) || !valid(editor,scope)) return;
-    busy = true; editor.setNavigationPending(true);
+    if (!editor?.publishReviewedDraft || !comparisonHash || busy || loadingRecovery || !options.writable() || !options.canPublish(editor) || !valid(editor,scope)) return;
+    busy = true; refreshRecovery(); editor.setNavigationPending(true);
+    $("recovery-message").textContent = "Saving your changes…";
     try {
       if (!await editor.publishReviewedDraft(comparisonHash) || !await editor.flush()) throw new Error("Review again");
       busy = false; close();
-    } catch {$("recovery-message").textContent = "The saved version changed or publishing was not confirmed. Your draft is retained. Close and reopen this review before publishing.";}
-    finally {busy = false; editor.setNavigationPending(false);}
+    } catch {
+      comparisonHash = "";
+      $("recovery-message").textContent = "The saved version changed or saving could not be confirmed. Your draft is kept. Close and reopen to compare the latest changes.";
+    }
+    finally {busy = false; if (valid(editor, scope)) editor.setNavigationPending(false); refreshRecovery();}
   }
   async function reload() {
     const editor = bound, scope = boundScope;
-    if (!editor || busy || !options.writable() || !valid(editor, scope)) return;
-    busy = true;
+    if (!editor || busy || loadingRecovery || !comparisonHash || !options.writable() || editor.state.liveStatus === "readonly" || !valid(editor, scope)) return;
+    busy = true; refreshRecovery();
     editor.setNavigationPending(true);
     $("recovery-message").textContent = "Loading the saved note…";
     try {
@@ -131,6 +162,7 @@ export function installDocumentActions(options: {
     } finally {
       busy = false;
       if (valid(editor, scope)) editor.setNavigationPending(false);
+      refreshRecovery();
     }
   }
   const validDeletion = (editor: Editor | null, scope: string) => options.editor() === editor && (!editor || !editor.state.cancelled) && options.scope() === scope;
@@ -198,7 +230,8 @@ export function installDocumentActions(options: {
     if (draft && editor.recoverDraft(draft)) {
       selectedRecovery = value;
       $<HTMLTextAreaElement>("recovery-draft").value = draftText(editor);
-      $("recovery-message").textContent = "The previous draft is preserved. Review this version before publishing.";
+      $("recovery-message").textContent = "Your previous draft is kept. Choose whether to keep this version’s changes.";
+      refreshRecovery();
     } else {
       versions.value = selectedRecovery;
       $("recovery-message").textContent = editor.state.saveError || "The current draft is retained. Copy it before selecting another version.";

@@ -302,11 +302,12 @@ try {
     await popup.evaluate(() => state.editor.inputTitle("Unique current A title"));
     const currentA = await editorMarkdown(popup);
     await popup.locator("#note-recover").click();
-    await popup.waitForFunction(() => document.getElementById("recovery-message").textContent.includes("Could not read the saved note"));
+    await popup.waitForFunction(() => document.getElementById("recovery-message").textContent.includes("Could not load saved changes"));
     await popup.evaluate(() => {
       window.originalDraftSetItem = Storage.prototype.setItem;
       Storage.prototype.setItem = function(key, value) { if (String(key).startsWith("jumpybrain.collaboration.draft.v2:")) throw new DOMException("Fixture quota", "QuotaExceededError"); return originalDraftSetItem.call(this, key, value); };
     });
+    if (!await popup.locator("#recovery-options").evaluate(element => element.open)) await popup.locator("#recovery-options > summary").click();
     await popup.locator("#recovery-versions").selectOption("0");
     assert.equal(await editorMarkdown(popup), currentA, "storage failure leaves the current unique draft visible");
     assert.ok((await popup.locator("#recovery-draft").inputValue()).startsWith("Unique current A title\n\n"));
@@ -320,6 +321,7 @@ try {
     assert.ok(archivedAIndex >= 0, "adopting B durably preserves unique A as a recoverable version");
     assert.equal((await readFile(path.join(root, "notes/live.md"), "utf8")).includes("private reload draft"), false, "selecting a recovery version does not publish it");
     await popup.locator("#recovery-close").click(); await popup.locator("#note-recover").click();
+    if (!await popup.locator("#recovery-options").evaluate(element => element.open)) await popup.locator("#recovery-options > summary").click();
     await popup.locator("#recovery-versions").selectOption(String(archivedAIndex));
     assert.equal(await editorMarkdown(popup), currentA, "the preserved A version remains selectable in the actual recovery UI");
     assert.equal(await popup.evaluate(() => state.editor.collaboration.title), "Unique current A title");

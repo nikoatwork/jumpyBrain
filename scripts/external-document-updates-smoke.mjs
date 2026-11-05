@@ -206,6 +206,7 @@ try {
     assert.doesNotMatch(await page.locator("#note-save-error").innerText(), /hash|stale|412/);
     if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `overlap-review-${width}.png`) });
     await page.locator("#note-recover").click();
+    if (!await page.locator("#recovery-options").evaluate(element => element.open)) await page.locator("#recovery-options > summary").click();
     await page.waitForFunction(() => document.querySelector("#recovery-saved").value.includes("Agent conflicting replacement"));
     assert.ok((await page.locator("#recovery-draft").inputValue()).includes("My conflicting replacement"));
     await page.locator("#recovery-reload").click();
@@ -237,6 +238,7 @@ try {
     heldMissingWrite.release();
     await writeFile(path.join(root, "notes/external.md"), canonicalBeforeDelete);
     await page.locator("#note-recover").click();
+    if (!await page.locator("#recovery-options").evaluate(element => element.open)) await page.locator("#recovery-options > summary").click();
     await page.waitForFunction((body) => document.getElementById("recovery-saved").value.endsWith(body), beforeErrors);
     assert.ok((await page.locator("#recovery-draft").inputValue()).includes("Draft survives missing source"));
     await page.locator("#recovery-publish").click();
