@@ -52,3 +52,12 @@ test('external link grammar accepts labeled HTTP(S) and retains unsafe/ambiguous
   for (const source of ['[Issue](https://example.com/issue/1145)', '[AI\\*\\[test\\]](https://example.com/)', '[**Issue**](https://example.com/a_(b))', '[Issue](https://example.com/a\\(b\\) "Details")', '[café 日本語](HTTP://example.com/?a=1&b=2#part)']) assert.ok(externalLinkMatch(source), source);
   for (const source of ['![image](https://example.com/a.png)', '\\[escaped](https://example.com/)', '[[nested](https://example.com/)]', '[x](javascript:alert(1))', '[x](data:text/html,x)', '[x](file:///tmp/x)', '[x](https://user:secret@example.com)', '[x](/relative)', '[x](https://)', '[x](https://example.com/\u0000)']) assert.equal(externalLinkMatch(source), null, source);
 });
+
+test('ordinary bullets accept basic top-level markers without stealing tasks or containers', async () => {
+  const {bulletMarker,relativeLinkPattern}=await import('../dist/adapters/http-server/editor-markdown.js');
+  for(const marker of ['-','+','*']) assert.deepEqual(bulletMarker(`${marker} **Label** rest`),{marker,label:'**Label** rest'});
+  assert.ok(bulletMarker('- [External](https://example.invalid)'));
+  for(const line of ['  - child',' - shifted','-  padded','-','- ','- - -','* * *','- > quote','- # Heading']) assert.equal(bulletMarker(line),null,line);
+  for(const source of ['[Decision](../decisions/example_note.md)','[Source](./sample.md#section)']) assert.equal(relativeLinkPattern.exec(source)?.[0],source);
+  for(const source of ['![Image](../image.png)','\\[escaped](../sample.md)','[**Rich**](../sample.md)','[x](javascript:alert(1))','[x](file:///tmp/a)','[x](/absolute)','[x](//host/a)','[x](../bad path.md)']) assert.equal(relativeLinkPattern.exec(source),null,source);
+});

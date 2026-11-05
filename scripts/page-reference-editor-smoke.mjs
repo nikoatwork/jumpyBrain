@@ -168,7 +168,7 @@ try {
       await paste(page, " **literal**");
       assert.equal(await editorMarkdown(page), "```md\ncode **literal**\n```");
       assert.equal(await page.locator("#note-editor .editor-bold").count(), 0);
-      await load(page, "- old literal block");
+      await load(page, "> old literal block");
       await selectEditorText(page, 0, 19);
       await paste(page, "## New heading");
       assert.equal(await page.locator("#note-editor h2").innerText(), "New heading");
@@ -301,9 +301,9 @@ try {
       assert.deepEqual(await links(page), ["[[Typed bullet]]", "[[Pasted]]", "[[Another]]"]);
       assert.equal(await editorMarkdown(page), "- Bullet: [[Typed bullet]] [[Pasted]] and [[Another]]");
     });
-    await check("picker insertion and undo/redo in a literal bullet", async (page) => {
+    await check("picker insertion and undo/redo in an ordinary bullet", async (page) => {
       await load(page, "- Pick: ");
-      await selectEditorText(page, 8);
+      await selectEditorText(page, 6);
       const ok = await page.evaluate(() => richEditor.insertReference(richEditor.referenceRange(), "[[Selected_日本語]]"));
       assert.equal(ok, true);
       assert.deepEqual(await links(page), ["[[Selected_日本語]]"]);
@@ -317,19 +317,19 @@ try {
     });
     await check("edit title, invalidate brackets, restore via undo", async (page) => {
       await load(page, "- [[Alpha]] end");
-      await selectEditorText(page, 10); // Before the final closing bracket.
+      await selectEditorText(page, 8); // Before the final closing bracket; bullet prefix is presentation.
       await page.keyboard.press("Backspace");
       assert.equal(await editorMarkdown(page), "- [[Alpha] end");
       assert.deepEqual(await links(page), []);
-      assert.deepEqual(await editorSelection(page), [9, 9]);
+      assert.deepEqual(await editorSelection(page), [7, 7]);
       await undoEditor(page);
       assert.equal(await editorMarkdown(page), "- [[Alpha]] end");
       assert.deepEqual(await links(page), ["[[Alpha]]"]);
-      await selectEditorText(page, 4, 9);
+      await selectEditorText(page, 2, 7);
       await page.keyboard.type("Beta");
       assert.equal(await editorMarkdown(page), "- [[Beta]] end");
       assert.deepEqual(await links(page), ["[[Beta]]"]);
-      await selectEditorText(page, 2);
+      await selectEditorText(page, 0);
       await page.getByRole("link").click();
       assert.deepEqual(await page.evaluate(() => follows), ["Beta"]);
     });

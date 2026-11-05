@@ -173,6 +173,7 @@ ${noteOutlineStyles}
     #note-editor .markdown-literal code, #note-editor .markdown-literal .editor-inline-code, #note-editor .markdown-code-block .editor-inline-code, #note-editor .markdown-reference { font: inherit; background: transparent; padding: 0; border-radius: 0; }
     #note-editor .markdown-code-block { box-sizing: border-box; max-width: 100%; margin: var(--space-2) 0; padding: var(--space-3); overflow-x: auto; white-space: pre; overflow-wrap: normal; border-radius: var(--radius-sm); background: var(--control-fill); font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
     #note-editor .markdown-code-block code { font: inherit; background: transparent; padding: 0; }
+    #note-editor .markdown-bullet { list-style: disc; margin-block: 0; padding-inline-start: 1.25em; }
     #note-editor .markdown-task { --task-checkbox-size: calc(var(--space-6) * .7); display: flex; align-items: flex-start; gap: var(--space-2); }
     .markdown-task > span { min-width: 0; flex: 1; }
     .markdown-task > button { box-sizing: border-box; flex: 0 0 var(--task-checkbox-size); width: var(--task-checkbox-size); height: var(--task-checkbox-size); min-height: 0; display: inline-grid; place-items: center; font: inherit; margin-top: calc((1lh - var(--task-checkbox-size)) / 2); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--space-1); background: var(--surface); color: var(--ink); }

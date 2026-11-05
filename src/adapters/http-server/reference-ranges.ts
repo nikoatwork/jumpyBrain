@@ -25,7 +25,7 @@ function opaqueFence(line: string): boolean {
 // changing a delimiter also invalidates links in untouched later blocks.
 // Fail closed: unmatched backticks suppress the remaining document; unsupported
 // container fences suppress through EOF, even after an apparent closing fence.
-export function referenceRanges(text: string): ReferenceRange[] {
+export function referenceRanges(text: string, listStarts?: ReadonlySet<number>): ReferenceRange[] {
   const ranges: ReferenceRange[] = [];
   let offset = 0;
   let fence: { char: string; length: number } | null = null;
@@ -45,7 +45,7 @@ export function referenceRanges(text: string): ReferenceRange[] {
         continue;
       }
       if (marker) { fence = { char: marker[1][0], length: marker[1].length }; list = false; continue; }
-      const bullet = /^[ \t]*(?:[-+*]|\d+[.)])[ \t]/.test(line);
+      const bullet = listStarts?.has(base) || /^[ \t]*(?:[-+*]|\d+[.)])[ \t]/.test(line);
       const indented = /^(?: {4}|\t)/.test(line);
       if (indented && !(list && bullet)) continue;
       if (line.trim()) list = bullet;

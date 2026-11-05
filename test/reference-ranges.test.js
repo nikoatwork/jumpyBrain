@@ -45,3 +45,11 @@ test("UTF-16 offsets still address the original text", () => {
     assert.equal(source.slice(range.start, range.end), `[[${range.title}]]`);
   }
 });
+
+
+test("rendered list metadata preserves opaque continuation fences without moving UTF-16 positions", () => {
+  const source = "item\n  ~~~\n~~~\n[[Code]]\n~~~";
+  assert.deepEqual(referenceRanges(source, new Set([0])), []);
+  const ordinary = "item [[Visible]]\nnext [[Other]]";
+  assert.deepEqual(referenceRanges(ordinary, new Set([0])).map(range => ordinary.slice(range.start, range.end)), ["[[Visible]]", "[[Other]]"]);
+});

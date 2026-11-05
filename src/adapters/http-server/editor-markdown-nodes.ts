@@ -4,7 +4,7 @@ import { markdownTable } from "./editor-markdown.js";
 type ParagraphJSON = ReturnType<ParagraphNode["exportJSON"]>;
 
 // One task per source line; indentation is presentation/source metadata, not a
-// second list tree. Ordinary/ambiguous lists remain literal Markdown.
+// second list tree. Ambiguous lists remain literal Markdown.
 export class TaskMarkdownNode extends ParagraphNode {
   __checked: boolean;
   __spaces: number;
@@ -132,4 +132,22 @@ export class TableMarkdownNode extends FencedCodeMarkdownNode {
     }
     preview.append(table);
   }
+}
+
+// One ordinary top-level bullet per source line, matching the task source model.
+export class BulletMarkdownNode extends ParagraphNode {
+  __marker: string;
+  static getType() { return "markdown-bullet"; }
+  static clone(node: BulletMarkdownNode) { return new BulletMarkdownNode(node.__marker, node.__key); }
+  constructor(marker = "-", key?: NodeKey) { super(key); this.__marker = marker; }
+  static importJSON(value: ParagraphJSON & { marker?: string }) { return new BulletMarkdownNode(value.marker).updateFromJSON(value); }
+  exportJSON() { return { ...super.exportJSON(), type: "markdown-bullet", marker: this.__marker }; }
+  createDOM() { const row = document.createElement("ul"); row.className = "markdown-bullet"; row.append(document.createElement("li")); return row; }
+  getDOMSlot(element: HTMLElement) { return super.getDOMSlot(element.firstElementChild as HTMLElement); }
+  insertNewAfter() {
+    const next = this.isEmpty() ? $createParagraphNode() : new BulletMarkdownNode(this.getLatest().__marker);
+    if (this.isEmpty()) this.replace(next); else this.insertAfter(next);
+    next.selectStart(); return next;
+  }
+  collapseAtStart() { const next = $createParagraphNode().append(...this.getChildren()); this.replace(next); next.selectStart(); return true; }
 }

@@ -15,8 +15,8 @@ import {
   BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, INLINE_CODE, type Transformer,
 } from "@lexical/markdown";
 
-import { codeFence, exportCodeFence, externalLinkMatch, externalLinkPattern, inlineCodeRanges, markdownTable, taskMarker } from "./editor-markdown.js";
-import { FencedCodeMarkdownNode, TableMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
+import { codeFence, exportCodeFence, externalLinkMatch, externalLinkPattern, inlineCodeRanges, markdownTable, bulletMarker, relativeLinkPattern, taskMarker } from "./editor-markdown.js";
+import { BulletMarkdownNode, FencedCodeMarkdownNode, TableMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
 import { installSlashCommands } from "./editor-slash-commands.js";
 import { installReferencePresentation } from "./editor-reference-presentation.js";
 import { createTaskCompletionFeedback } from "./editor-task-presentation.js";
@@ -116,6 +116,24 @@ const references: Transformer = {
   replace(node, match) { node.replace(new PageReferenceNode(match[0])); },
   export(node) { return node instanceof PageReferenceNode ? node.getTextContent() : null; },
 };
+// Relative Markdown links remain editable source, never clickable local paths.
+class InertLinkNode extends TextNode {
+  static getType() { return "inert-link"; }
+  static clone(node: InertLinkNode) { return new InertLinkNode(node.__text, node.__key); }
+  hasFormat(format: TextFormatType) { return format === "code" || super.hasFormat(format); }
+  static importJSON(value: ReturnType<TextNode["exportJSON"]>) { return new InertLinkNode().updateFromJSON(value); }
+  exportJSON() { return { ...super.exportJSON(), type: "inert-link" }; }
+}
+const relativeLinks: Transformer = {
+  type: "text-match", dependencies: [InertLinkNode], importRegExp: relativeLinkPattern,
+  regExp: new RegExp(relativeLinkPattern.source + "$"), trigger: ")",
+  replace(node, match) { if (!node.hasFormat("code") && !$isLinkNode(node.getParent())) node.replace(new InertLinkNode(match[0]).setFormat(node.getFormat())); },
+  export(node) { return node instanceof InertLinkNode ? node.getTextContent() : null; },
+};
+const bullet: Transformer = {
+  type: "element", dependencies: [BulletMarkdownNode], regExp: /(?!) /, replace() {},
+  export(node, children) { return node instanceof BulletMarkdownNode ? node.__marker + " " + children(node) : null; },
+};
 // Nested contenteditable anchors need an explicit tab stop for native keyboard access.
 class ExternalLinkNode extends LinkNode {
   __destination = "";
@@ -166,7 +184,7 @@ const table: Transformer = {
   type: "element", dependencies: [TableMarkdownNode], regExp: /(?!) /, replace() {},
   export(node) { return node instanceof TableMarkdownNode ? node.getTextContent() : null; },
 };
-const syntax: Transformer[] = [table, fencedCode, task, references, externalLinks, INLINE_CODE, HEADING, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE];
+const syntax: Transformer[] = [table, fencedCode, task, bullet, references, relativeLinks, externalLinks, INLINE_CODE, HEADING, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE];
 // Reference classification and leaf splitting are derived presentation, not a
 // source edit. Compare semantic text runs (including supported formatting), not
 // node classes/boundaries or the internal IS_CODE shortcut-suppression flag.
@@ -176,6 +194,16 @@ function referenceScanText(block: LexicalNode): string {
   if ($isTextNode(block)) return !(block instanceof PageReferenceNode) && !(block.getParent() instanceof LiteralMarkdownNode) && block.hasFormat("code")
     ? "\uFFFC".repeat(block.getTextContentSize()) : block.getTextContent();
   return $isElementNode(block) ? block.getChildren().map(referenceScanText).join("") : block.getTextContent();
+}
+
+// Rendered list prefixes have no text width but still constrain opaque fences.
+function referenceListStarts(blocks: LexicalNode[]) {
+  const starts = new Set<number>(); let offset = 0;
+  for (const block of blocks) {
+    if (block instanceof BulletMarkdownNode || block instanceof TaskMarkdownNode) starts.add(offset);
+    offset += block.getTextContentSize() + 1;
+  }
+  return starts;
 }
 
 function snapshot(node: LexicalNode): string {
@@ -227,7 +255,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   };
   const transformers = [preserve, ...syntax];
   const editor = createEditor({
-    namespace: "jumpyBrain-notes", nodes: [HeadingNode, LiteralMarkdownNode, PageReferenceNode, ExternalLinkNode, TaskMarkdownNode, FencedCodeMarkdownNode, TableMarkdownNode],
+    namespace: "jumpyBrain-notes", nodes: [HeadingNode, LiteralMarkdownNode, PageReferenceNode, InertLinkNode, ExternalLinkNode, TaskMarkdownNode, BulletMarkdownNode, FencedCodeMarkdownNode, TableMarkdownNode],
     theme: { link: "markdown-external-link", text: { bold: "editor-bold", italic: "editor-italic", code: "editor-inline-code" } },
     onError: options.onError,
   });
@@ -269,7 +297,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     }
     const blocks = $getRoot().getChildren();
     const text = blocks.map(referenceScanText).join("\n");
-    const activeRanges = new Set(referenceRanges(text).map((range) => range.start + ":" + range.end));
+    const activeRanges = new Set(referenceRanges(text, referenceListStarts(blocks)).map((range) => range.start + ":" + range.end));
     // Literal export and interactive recognition are separate. Inert references
     // still need exact punctuation preservation when surrounding text is edited.
     const ranges = Array.from(text.matchAll(/\[\[[^\[\]\r\n]+\]\]/g), (match) => ({ start: match.index!, end: match.index! + match[0].length }));
@@ -532,7 +560,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   cleanups.push(editor.registerCommand(FORMAT_TEXT_COMMAND, (format) => {
     if (format !== "bold" && format !== "italic" && format !== "code") return true;
     const selection = $getSelection();
-    return $isRangeSelection(selection) && selection.getNodes().some((node) => node instanceof PageReferenceNode || node instanceof LiteralMarkdownNode || node.getParent() instanceof LiteralMarkdownNode || node instanceof FencedCodeMarkdownNode || node.getParent() instanceof FencedCodeMarkdownNode || (format !== "code" && $isTextNode(node) && node.hasFormat("code")));
+    return $isRangeSelection(selection) && selection.getNodes().some((node) => node instanceof PageReferenceNode || node instanceof InertLinkNode || node instanceof LiteralMarkdownNode || node.getParent() instanceof LiteralMarkdownNode || node instanceof FencedCodeMarkdownNode || node.getParent() instanceof FencedCodeMarkdownNode || (format !== "code" && $isTextNode(node) && node.hasFormat("code")));
   }, COMMAND_PRIORITY_HIGH));
   cleanups.push(editor.registerCommand(PASTE_COMMAND, (event) => {
     if (!event) return false;
@@ -580,9 +608,16 @@ export function createNoteEditor(element: HTMLElement, options: {
     const selection = $getSelection();
     if (!editor.isEditable() || !backward || !$isRangeSelection(selection) || !selection.isCollapsed()) return false;
     const block = selection.anchor.getNode().getTopLevelElement();
-    if (!(block instanceof TaskMarkdownNode) || !block.__spaces) return false;
+    if (!block) return false;
     const atStart = selection.anchor.offset === 0 && (selection.anchor.key === block.getKey() || selection.anchor.getNode().is(block.getFirstDescendant()));
-    if (!atStart || !changeTaskIndent(block, true)) return false;
+    if (block instanceof BulletMarkdownNode && atStart) {
+      const source = projectedBlocks().find(item => item.node.getKey() === block.getKey())!;
+      capturedIntent = { before: markdown, inputType: "bulletExit", ranges: [{ start: source.offset, end: source.offset + 2 }] };
+      const next = $createParagraphNode().append(...block.getChildren()); block.replace(next); next.selectStart();
+      sources.set(next.getKey(), { original: source.raw.slice(2), snapshot: snapshot(next) });
+      $addUpdateTag(HISTORY_PUSH_TAG); return true;
+    }
+    if (!(block instanceof TaskMarkdownNode) || !block.__spaces || !atStart || !changeTaskIndent(block, true)) return false;
     return true;
   }, COMMAND_PRIORITY_HIGH));
 
@@ -592,8 +627,8 @@ export function createNoteEditor(element: HTMLElement, options: {
     const selection = $getSelection();
     if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
     const block = selection.anchor.getNode().getTopLevelElement();
-    if (!(block instanceof TaskMarkdownNode) || !block.isEmpty()) return false;
-    if (block.__spaces) changeTaskIndent(block, true);
+    if (!(block instanceof TaskMarkdownNode || block instanceof BulletMarkdownNode) || !block.isEmpty()) return false;
+    if (block instanceof TaskMarkdownNode && block.__spaces) changeTaskIndent(block, true);
     else {
       const source = projectedBlocks().find(item => item.node.getKey() === block.getKey())!;
       capturedIntent = { before: markdown, inputType: "taskExit", ranges: [{ start: source.offset, end: source.offset + source.raw.length }] };
@@ -757,7 +792,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       // A complete sentinel permits the same context scanner to validate empty
       // and unfinished queries. This is string-only; no editor DOM/model edit.
       const probe = text.slice(0, start) + "[[Candidate]]" + text.slice(end);
-      return referenceRanges(probe).some((match) => match.start === start && match.end === start + 13) ? { ...range, trigger } : null;
+      return referenceRanges(probe, referenceListStarts(blocks)).some((match) => match.start === start && match.end === start + 13) ? { ...range, trigger } : null;
     });
   }
   // Typing [[ (or companion @) is handled by the host’s inline autocomplete installer, never
@@ -880,15 +915,16 @@ export function createNoteEditor(element: HTMLElement, options: {
       }
       const marker = line.match(/^ {0,3}(`{3,}|~{3,})/);
       const checkbox = !fence ? taskMarker(line, previousTask) : null;
-      const content = checkbox ? checkbox.label : line;
+      const ordinary = !fence ? bulletMarker(line) : null;
+      const content = checkbox ? checkbox.label : ordinary ? ordinary.label : line;
       let withoutCode = content;
       for (const range of inlineCodeRanges(content).reverse()) withoutCode = withoutCode.slice(0, range.start) + withoutCode.slice(range.end);
-      let withoutLinks = withoutCode;
+      let withoutLinks = withoutCode.replace(new RegExp(relativeLinkPattern.source, "g"), "");
       for (let parsed = externalLinkMatch(withoutLinks); parsed; parsed = externalLinkMatch(withoutLinks)) {
         withoutLinks = withoutLinks.slice(0, parsed.start) + parsed.label.replace(/\\[\\\[\]*_`~]/g, "") + withoutLinks.slice(parsed.end);
       }
       const withoutReferences = withoutLinks.replace(/\[\[[^\[\]\r\n]+\]\]/g, "");
-      const literal = Boolean(fence || marker || (!checkbox && /^(?: {4}|\t|\s*(?:>|[-+*]\s|\d+[.)]\s|\|))/.test(line))
+      const literal = Boolean(fence || marker || (!checkbox && !ordinary && /^(?: {4}|\t|\s*(?:>|[-+*]\s|\d+[.)]\s|\|))/.test(line))
         || /[\[\]<>`\\~]|^\s*(?:---+|===+|\*\*\*+|___+)\s*$/.test(withoutReferences));
       let node: LexicalNode;
       if (literal) node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
@@ -897,6 +933,7 @@ export function createNoteEditor(element: HTMLElement, options: {
         if ($isElementNode(node) && node.getAllTextNodes().some((text) => !(text instanceof PageReferenceNode) && !$isLinkNode(text.getParent()) && !text.hasFormat("code") && /\*|(?<![\p{L}\p{N}])_|_(?![\p{L}\p{N}])/u.test(text.getTextContent()))) {
           node = new LiteralMarkdownNode().append($createTextNode(line).setFormat("code"));
         } else if (checkbox && $isElementNode(node)) node = new TaskMarkdownNode(checkbox.checked, checkbox.indent).append(...node.getChildren());
+        else if (ordinary && $isElementNode(node)) node = new BulletMarkdownNode(ordinary.marker).append(...node.getChildren());
       }
       previousTask = node instanceof TaskMarkdownNode ? node.__spaces : null;
       nodes.push(node);
@@ -958,6 +995,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     const literal = node instanceof LiteralMarkdownNode || node instanceof FencedCodeMarkdownNode;
     if (node instanceof FencedCodeMarkdownNode && !(node instanceof TableMarkdownNode)) { start = raw.indexOf("\n") + 1; end = Math.max(start, raw.lastIndexOf("\n")); }
     else if (node instanceof TaskMarkdownNode) start = /^( *)- \[[ xX]\] /.exec(raw)?.[0].length ?? 0;
+    else if (node instanceof BulletMarkdownNode) start = 2;
     else if (node instanceof HeadingNode) start = /^#{1,6}\s/.exec(raw)?.[0].length ?? 0;
     const text = node.getTextContent(), formats = new Uint8Array(text.length); let offset = 0;
     const links: Array<{ from: number; to: number }> = [];
@@ -1006,7 +1044,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       offset -= size;
     }
     let dom = editor.getElementByKey(block.getKey());
-    if (dom && block instanceof TaskMarkdownNode) dom = dom.lastElementChild as HTMLElement;
+    if (dom && (block instanceof TaskMarkdownNode || block instanceof BulletMarkdownNode)) dom = dom.lastElementChild as HTMLElement;
     if (dom && block instanceof TableMarkdownNode) dom = dom.lastElementChild?.lastElementChild as HTMLElement;
     return dom && !block.getTextContentSize() ? { node: dom, offset: 0, empty: dom } : null;
   }

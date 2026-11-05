@@ -61,3 +61,17 @@ test('link source maps prove rendered labels and preserve URL syntax outside edi
   verify('[A\\*\\[B](https://example.com)', 'A*[B', new Uint8Array(4), {links:[{from:0,to:4}]}, [[1,0],[3,1],[5,2],[7,4]]);
   verify('[x](https://example.com)', '[x](https://example.com)',new Uint8Array(24).fill(IS_CODE),{literal:true},[[3,3]]);
 });
+
+test('bullet prefix and inert relative syntax retain exact UTF-16 mapping beside rich links', () => {
+  const raw='- **Café 🐐** [Source](../decisions/example_note.md) and [Link](https://example.invalid)';
+  const visible='Café 🐐 [Source](../decisions/example_note.md) and Link';
+  const formats=new Uint8Array(visible.length);formats.fill(IS_BOLD,0,'Café 🐐'.length);
+  const from=visible.lastIndexOf('Link');
+  const map=markdownSourceMap(raw,visible,formats,{start:2,links:[{from,to:from+4}]});
+  assert.ok(map);
+  for(const needle of ['Café','🐐','[Source]','example_note','Link']) {
+    const v=visible.indexOf(needle),s=raw.indexOf(needle);
+    assert.equal(visibleToSource(map,v),s,needle);assert.equal(sourceToVisible(map,s),v,needle);
+  }
+  assert.equal(markdownSourceMap(raw,visible,new Uint8Array(visible.length),{start:2,links:[{from,to:from+4}]}),null,'format disagreement fails closed');
+});

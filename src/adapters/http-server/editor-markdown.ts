@@ -30,6 +30,14 @@ export function inlineCodeRanges(text: string) {
   return ranges;
 }
 
+// Inert source only: no resolution/navigation or canonical link-policy change.
+// Deliberately plain labels and destinations; ambiguous syntax keeps line fallback.
+export const relativeLinkPattern = /(?<![!\\\[])\[[^\[\]\\`*_\r\n]+\]\(\.{1,2}\/[^\s()<>"\\`\[\]]+\)/;
+export function bulletMarker(line: string) {
+  const match = /^([-+*]) (\S.*)$/.exec(line);
+  return match && !/^(?:[-+*](?:\s|$)|>|#{1,6}\s)/.test(match[2]) ? { marker: match[1], label: match[2] } : null;
+}
+
 export function taskMarker(line: string, previousIndent: number | null) {
   const match = line.match(/^( *)- \[([ xX])\] (.*)$/);
   if (!match || match[1].length % 2 || (match[1].length && (previousIndent === null || match[1].length > previousIndent + 2))) return null;
