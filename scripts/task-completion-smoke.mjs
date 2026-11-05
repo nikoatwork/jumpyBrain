@@ -12,20 +12,42 @@ const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-task-completion-')
 const id = 'mem_95000000-0000-4000-8000-000000000001', key = 'disposable-task-completion';
 const nextId = 'mem_95000000-0000-4000-8000-000000000002';
 const prefix = `---\nid: ${id}\ntitle: Small wins, real progress\n---\n`;
-const body = '## Today’s focus\n\n- [x] Gather the important ideas\n- [ ] Finish one meaningful thing\n  - [ ] A nested next step\n- [ ] Leave space for what comes next, including a longer line that wraps comfortably on a narrow writing surface\n';
+const body = '## Today’s focus\n\n- [x] Gather the **important** ideas\n- [ ] Finish one meaningful thing\n  - [ ] A nested next step\n- [ ] Leave space for what comes next, including a longer line that wraps comfortably on a narrow writing surface\n';
 const output = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR || '/tmp/jumpybrain-task-completion-qa';
 let server, browser;
 const errors = [];
 const active = page => page.locator('#note-editor .task-completed');
 const animationNames = page => page.evaluate(() => document.getAnimations().map(a => a.animationName || '').filter(name => name.startsWith('task-quiet-')));
 const settle = page => page.waitForFunction(() => !document.querySelector('#note-editor .task-completed'));
+async function assertPresentation(page) {
+  const rows = await page.locator('#note-editor .markdown-task').evaluateAll(rows => rows.map(row => {
+    const [button, label] = row.children;
+    const box = button.getBoundingClientRect(), text = label.getBoundingClientRect();
+    const style = getComputedStyle(label);
+    return {
+      checked: button.getAttribute('aria-checked') === 'true',
+      centerError: Math.abs(box.top + box.height / 2 - (text.top + parseFloat(style.lineHeight) / 2)),
+      opacity: style.opacity,
+      underline: getComputedStyle(label, '::after').content,
+      decoration: style.textDecorationLine,
+      wraps: text.height > parseFloat(style.lineHeight) * 1.5,
+    };
+  }));
+  for (const row of rows) {
+    assert.ok(row.centerError < .75, `box centers on first text line: ${JSON.stringify(row)}`);
+    assert.equal(row.opacity, row.checked ? '0.8' : '1', 'whole label opacity follows checked state');
+    assert.equal(row.underline, 'none', 'no partial completion underline');
+    assert.equal(row.decoration, 'none');
+  }
+  return rows;
+}
 try {
   await mkdir(path.join(root, 'notes'));
   await writeFile(path.join(root, 'notes/next.md'), `---\nid: ${nextId}\ntitle: Next note\n---\n- [x] Already complete here\n`);
   await mkdir(output, { recursive: true });
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
-  for (const palette of ['ember', 'ocean', 'mono']) for (const scheme of ['light', 'dark']) {
+  for (const palette of ['ember', 'ocean', 'mono', 'pride']) for (const scheme of ['light', 'dark']) {
     const file = path.join(root, 'notes/focus.md');
     await writeFile(file, prefix + body);
     const context = await browser.newContext({ viewport: { width: 1280, height: 850 }, colorScheme: scheme });
@@ -42,6 +64,7 @@ try {
     await checks.nth(3).waitFor();
     assert.equal(await active(page).count(), 0, 'loaded checked tasks do not celebrate');
     assert.deepEqual(await animationNames(page), []);
+    await assertPresentation(page);
     const rect = () => checks.nth(1).evaluate(button => {
       const { x, y, width, height } = button.parentElement.getBoundingClientRect();
       const editor = button.closest('#note-editor').getBoundingClientRect();
@@ -61,6 +84,7 @@ try {
     await page.screenshot({ path: path.join(output, `${palette}-${scheme}-moment.png`) });
     await page.evaluate(() => document.getAnimations().forEach(a => a.finish()));
     await settle(page);
+    await assertPresentation(page);
     assert.deepEqual(await rect(), before, 'completion has no layout shift');
     await page.waitForFunction(() => document.querySelector('#note-save-state').textContent === 'Saved');
     assert.equal((await readFile(file, 'utf8')).replace(/^---\n[\s\S]*?\n---\n/, ''), body.replace('- [ ] Finish', '- [x] Finish'));
@@ -81,6 +105,7 @@ try {
     assert.equal(await checks.nth(1).evaluate(b => getComputedStyle(b).outlineStyle), 'solid');
     await checks.nth(1).press('Enter');
     assert.equal(await active(page).count(), 0, 'uncheck cancels feedback immediately');
+    await assertPresentation(page);
     await checks.nth(1).press('Enter');
     assert.equal(await active(page).count(), 1, 'rapid recheck replays');
     // Inspect the adapter lock atomically: shell save renders own its permissions.
@@ -105,12 +130,18 @@ try {
     assert.deepEqual(await animationNames(page), [], 'Reduced Motion disables all completion animations');
     assert.notEqual(await checks.nth(2).evaluate(b => getComputedStyle(b).backgroundColor), await checks.nth(3).evaluate(b => getComputedStyle(b).backgroundColor));
     await settle(page);
+    // A completed long label must keep its first-line alignment and fade every line.
+    await checks.nth(3).click();
+    await settle(page);
     for (const width of [1280, 390, 320]) {
       await page.setViewportSize({ width, height: 850 });
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+      const rows = await assertPresentation(page);
+      if (width <= 390) assert.ok(rows[3].wraps, 'long completed label wraps in narrow editor');
       await checks.nth(2).scrollIntoViewIfNeeded();
       await page.screenshot({ path: path.join(output, `${palette}-${scheme}-${width}-done.png`) });
     }
+    await checks.nth(3).click();
     await page.setViewportSize({ width: 1280, height: 850 });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await checks.nth(3).click();
@@ -137,10 +168,10 @@ try {
     await page.evaluate(() => richEditor.destroy());
     assert.equal(await active(page).count(), 0, 'destroy clears feedback and timers');
     await context.close();
-    console.log(`PASS ${palette} ${scheme}: completion/history/locks/replacement/motion and 1280/390/320px`);
+    console.log(`PASS ${palette} ${scheme}: alignment/opacity/completion/history/locks/replacement/motion and 1280/390/320px`);
   }
   assert.deepEqual(errors, []);
-  console.log(`Quiet sweep: six theme combinations, zero page errors. Screenshots: ${output}`);
+  console.log(`Task presentation: eight theme combinations, zero page errors. Screenshots: ${output}`);
 } finally {
   await browser?.close();
   await server?.close();

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Task checkbox presentation
+
+- Centered task boxes on the first text line and replaced the partial completion underline with 80% label opacity in the shared editor. [Verification and native probe limit](done/2026-11-05_tasks-checkbox-presentation.md).
+
 ## 2026-11-05 — Exact-title search after external edits
 
 - Fresh search results replace older tab saves even when host indexing bookkeeping lags, preventing externally renamed notes from disappearing. [Verification](done/2026-11-05_tasks-exact-title-app-search.md).

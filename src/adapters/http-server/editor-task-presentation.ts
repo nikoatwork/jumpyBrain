@@ -67,17 +67,9 @@ export const taskCompletionStyles = `
   text-decoration: none;
 }
 
-/* A quiet baseline reads as earned progress without crossing out the writing. */
-#note-editor .markdown-task > button[aria-checked="true"] + span::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  inset-inline-start: 0;
-  bottom: 3px;
-  width: min(100%, 18em);
-  height: 1px;
-  background: color-mix(in srgb, var(--delight-success) 42%, transparent);
-  transform-origin: left center;
+/* Fade the entire label, including inline formatting and wrapped lines. */
+#note-editor .markdown-task > button[aria-checked="true"] + span {
+  opacity: .8;
 }
 
 /* The wash advances beneath the words, then dissolves completely. */
@@ -89,17 +81,13 @@ export const taskCompletionStyles = `
   inset-inline-start: 0;
   top: 3px;
   bottom: 3px;
-  width: min(100%, 18em);
+  width: 100%;
   border-radius: var(--radius-sm);
   background: linear-gradient(90deg,
     color-mix(in srgb, var(--delight-success) 7%, transparent),
     color-mix(in srgb, var(--delight-success) 17%, transparent));
   transform-origin: left center;
   animation: task-quiet-wash 780ms cubic-bezier(.2,.65,.25,1) both;
-}
-
-#note-editor .markdown-task.task-completed > button[aria-checked="true"] + span::after {
-  animation: task-quiet-line 520ms cubic-bezier(.2,.65,.25,1) both;
 }
 
 #note-editor .markdown-task.task-completed > button[aria-checked="true"] {
@@ -118,11 +106,6 @@ export const taskCompletionStyles = `
   100% { transform: scaleX(1); opacity: 0; }
 }
 
-@keyframes task-quiet-line {
-  0% { transform: scaleX(0); }
-  100% { transform: scaleX(1); }
-}
-
 @keyframes task-quiet-settle {
   0% { transform: translateY(1px); }
   65% { transform: translateY(-1px); }
@@ -134,8 +117,7 @@ export const taskCompletionStyles = `
     transition: none;
   }
   #note-editor .markdown-task.task-completed > button,
-  #note-editor .markdown-task.task-completed > button + span::before,
-  #note-editor .markdown-task.task-completed > button + span::after {
+  #note-editor .markdown-task.task-completed > button + span::before {
     animation: none !important;
   }
   #note-editor .markdown-task.task-completed > button + span::before {

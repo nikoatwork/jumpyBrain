@@ -50,7 +50,9 @@ try {
     assert.ok(await page.locator("#note-editor .editor-italic").count());
     assert.equal(await page.locator("#note-editor img, #note-editor script, #note-editor a").count(), 0);
     assert.equal(await editorMarkdown(page), body);
-    await page.locator("#open-search").click();
+    const modifier = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform) ? "Meta" : "Control");
+    await page.keyboard.press(`${modifier}+k`);
+    await page.locator("#note-search-input").waitFor({ state: "visible" });
     await page.keyboard.press("Escape");
     await page.waitForTimeout(900);
     assert.equal(puts.length, 0, "load, selection and blur must not rewrite Markdown");
@@ -84,7 +86,7 @@ try {
     assert.equal(await literal.locator(".editor-bold").count(), 0);
 
     // Create a real note, rename it, and type Markdown shortcuts into the rich surface.
-    await page.locator("#new-note").click();
+    await page.keyboard.press(`${modifier}+Enter`);
     await page.waitForURL((url) => url.searchParams.get("note") !== id);
     await page.locator("#note-editor").waitFor({ state: "visible" });
     await page.locator("#note-name").fill(`WYSIWYG notes · ${width}px`);
