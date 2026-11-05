@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Extended UX stability
+
+- Separate immutable 90-minute and latest-candidate hour-long runs passed 119 and 81 accumulated coauthoring/search cycles; exact runtime/input receipts and canonical contributions are retained. The latest full suite passed 1,902 tests with 17 skips. [Snapshot-specific outcomes and limits](done/2026-11-05_tasks-ux-extended-stability.md).
+
 ## 2026-11-04 — Narrow note destinations
 
 - Direct note links and entering the narrow breakpoint prioritize the selected note with transient sidebar dismissal; explicit reopen and desktop preference remain intact. [Tradeoff, verification and retained failed attempts](done/2026-11-04_tasks-ux-narrow-note-entry.md).

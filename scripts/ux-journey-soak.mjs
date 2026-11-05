@@ -32,7 +32,7 @@ const { values } = parseArgs({
 const duration = Number(values["duration-ms"]),
   idle = Number(values["idle-ms"]);
 assert.ok(
-  Number.isInteger(duration) && duration >= 60000 && duration <= 3600000,
+  Number.isInteger(duration) && duration >= 60000 && duration <= 5400000,
 );
 assert.ok(Number.isInteger(idle) && idle >= 1000 && idle <= 60000);
 const repo = fileURLToPath(new URL("..", import.meta.url));
@@ -403,6 +403,10 @@ try {
       canonicalHash: canonical.contentHash,
       peerHash: peerCanonical.contentHash,
       accumulatedDraftMarkers: allDraftMarkers.length,
+      live: await pages[0].evaluate(() => ({
+        epoch: state.editor.collaboration.snapshot.epoch,
+        revision: state.editor.collaboration.snapshot.revision,
+      })),
       searchDiscovery: true,
       offNoteStable: true,
       backReturned: true,

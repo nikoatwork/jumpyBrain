@@ -6,10 +6,10 @@ Use frozen [experience rubric](../../evals/workspace-experience/rubric.md), [mis
 
 - [x] Confirm clean checkout, read owning docs and freeze deadline/evaluation boundaries.
 - [x] Reproduce remaining own-edit external feedback, retained-version repetition and live-connection failure messaging.
-- [ ] Iterate on reproduced findings with canonical/draft/navigation/access safeguards.
-- [ ] Probe core capture, search/handoff, boards, coauthoring and off-note transitions for further concrete friction.
+- [x] Iterate on reproduced findings with canonical/draft/navigation/access safeguards.
+- [x] Probe core capture, search/handoff, boards, coauthoring and off-note transitions for further concrete friction.
 - [ ] Run broader checks on the final retained snapshot, record gains/losses and remaining limits.
-- [ ] Archive this list and commit final evidence by the deadline.
+- [ ] Archive this list and commit final evidence when the four-hour window completes.
 
 No push, product install, release, VPS deployment or remote-memory writes. Disposable localhost fixtures only. Native Mac tooling is unavailable; native checkpoints remain not observed. Existing UX candidate: [2026-11-04](../../evals/workspace-experience/reports/2026-11-04-feedback-candidate.md).
 
@@ -228,3 +228,32 @@ preference. Two direct-route cases, 114 focused tests, clean writing/board
 journeys and all eight protected-browser suites passed. The extra navigation
 toggle is an explicit tradeoff/fixture action; failed teardown/layout attempts
 remain recorded. [Archived implementation, evidence and limits](../done/2026-11-04_tasks-ux-narrow-note-entry.md).
+
+Final-candidate stability: build a fresh `b775d80` artifact, run its broad pinned-
+engine suite, and observe a separate frozen 60-minute fixture with 35-second idle
+intervals. Keep the in-progress earlier 90-minute artifact untouched. This is
+new validation justified by the subsequent peer-timer and narrow-route changes;
+no repeated broad suite is planned after a green result without another change
+or unresolved failure. Both fixture runs finish before the overall deadline.
+
+Idle private-draft probe: the optional runner can select one explicit lane,
+perform up to 140 actual peer edits and observe its unpublished state for up to
+one hour. A 390px accepted-body pilot passed after 132 peer edits (source
+revision 133) and a short idle, with original draft/copy preserved and explicit
+saved acceptance sending no replay. Its receipt is separate from the planned
+one-hour observation. Defaults retain all six fast cases. Every run checks exact
+compiled runtime hashes and retains its inputs/canonical receipts when requested.
+
+Latest broad result: `b775d80`, build `02721429af82d5af`, 1,919 total /
+1,902 passed / 17 skipped / zero failed in ~634 seconds. Product implementation
+is retained and stable; remaining work is the bounded long observations and
+final evidence/task settlement at the requested deadline. Draft compact report
+is private at `/tmp/jumpybrain-ux-four-hour-report-draft.md` until actual outcomes
+and completion time are filled. Do not call the loop complete before 01:21:15 UTC.
+
+Extended stability tranche completed: the earlier frozen 90-minute build passed
+119 cycles (80 finishes/39 stops), while the latest retained `b775d80` artifact
+passed 81 cycles (54 finishes/27 stops) over a requested hour, actual 60m10s.
+Each retained canonical contribution verifies exactly once, with fixed runtime
+inventories and separate receipt hashes. [Archived verification and limits](../done/2026-11-05_tasks-ux-extended-stability.md). The one-hour private-draft
+observation and overall four-hour deadline remain pending.
