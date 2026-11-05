@@ -2,6 +2,8 @@
 
 Status: completed for the recorded automated scope, 2026-11-02. The shared-backend and live-editing implementation passes the declared maturity gates; deployment and physical-interaction limits remain explicit.
 
+This is the initial rollout's evidence and reproduction record. For subsequent feature work, use [current focused test selection](../../docs/testing.md); the recorded production matrix is not a per-commit requirement.
+
 ## Evidence and acceptance
 
 The original M0 baseline remains immutable. Its manifest SHA-256 is

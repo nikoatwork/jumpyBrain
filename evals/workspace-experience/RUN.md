@@ -1,5 +1,7 @@
 # Run the native workspace experience eval
 
+For routine shared-editor/WebSocket regression checks, use [the focused Chromium scenario guide](../../docs/testing.md#live-editing-and-websocket-scenarios). Invoke this broader native routine when that evidence is needed; it is not a per-commit gate.
+
 This is an explicitly invoked T3 agent routine. Read [protocol.md](protocol.md), [state-model.md](state-model.md), [rubric.md](rubric.md) and the selected [mission cards](journeys/core.md). Use actual native Mac computer use for every human-side action. The helper prepares/records supported CLI activity; it never performs UI work. A headless script, browser tab, direct HTTP call or renderer mutation cannot establish a native Mac pass.
 
 ## Configuration

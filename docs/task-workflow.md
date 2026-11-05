@@ -1,5 +1,7 @@
 # Task completion
 
+For every change, including work from a plain prompt, select and run checks using [the focused testing guide](testing.md) before finalizing. Record commands/results and material limits; task completion alone does not trigger a full suite or eval.
+
 `tasks/todo/` holds active work. Once all required work and checks for a task list are complete, finalize it in the same turn:
 
 1. Record the completed outcome, tested snapshot, verification results and remaining limits. Do not mark required unfinished validation complete merely to archive a list.

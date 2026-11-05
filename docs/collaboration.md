@@ -1,5 +1,7 @@
 # Shared backends and live editing
 
+Developing or fixing this behavior? [Choose the matching editor/WebSocket regression scenario](testing.md#live-editing-and-websocket-scenarios).
+
 The app, CLI and agents share one backend for each brain directory. Markdown is
 the saved document; a WebSocket session holds bounded, rebuildable edit history.
 The local backend starts on demand without opening a window. Closing a window

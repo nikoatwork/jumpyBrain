@@ -32,7 +32,7 @@ Before calling it shipped, verify the public tag, exact release notes, CLI distr
 
 ## Choose extra checks for changed behavior
 
-Start with the smallest relevant check, normally one focused command per changed area. Reuse completed feature evidence when its relevant code is unchanged. Add more only for a concrete unresolved issue, a newly found failure, or an explicit request for broader verification. Packaging a normal release is not by itself a reason to run every installed-updater mode.
+Use [the shared change-to-checks guide](testing.md) for ordinary feature, editor/WebSocket, CLI, retrieval and HTTP checks. Reuse unchanged feature evidence. The additional rows below cover distribution/native release boundaries; select only the affected row. Packaging a normal release does not trigger every updater mode.
 
 | Changed behavior | Targeted check |
 | --- | --- |
@@ -41,16 +41,9 @@ Start with the smallest relevant check, normally one focused command per changed
 | Update dialog/window | `env -u ELECTRON_RUN_AS_NODE integrations/electron/node_modules/.bin/electron integrations/electron/smoke-updater-ui.mjs`. |
 | Installer/bootstrap/private engine | `npm run smoke:install -- --with-app` on macOS (omit `--with-app` for CLI-only). It serves the exact locally packed release through a deterministic fetch fixture, installs a real private QMD, checks nonempty recall, retry preservation, integrations and authenticated installed-app launch. This is not a published-GitHub or clean-OS test. |
 | First-use setup/onboarding | Select `node scripts/onboarding-install-smoke.mjs` with an absolute `JUMPYBRAIN_QMD_BIN`, or `node scripts/desktop-onboarding-smoke.mjs .local-pack/desktop/jumpyBrain.app/Contents/Resources`, according to the changed flow. These use provisioned tools and disposable roots; they are not clean-machine/live-GitHub or authenticated-agent tests. |
-| Editor, references, map or Dream | Select the relevant direct browser script using the existing build: `scripts/markdown-formatting-smoke.mjs`, `lexical-editor-smoke.mjs`, `page-reference-editor-smoke.mjs`, `reference-autocomplete-smoke.mjs`, `page-reference-smoke.mjs`, `graph-editor-smoke.mjs` or `dream-handoff-smoke.mjs`. Do not run the entire group for a small editor change. |
-| Obsidian or Logseq import | `npx --package=playwright node scripts/obsidian-import-smoke.mjs` or `scripts/logseq-import-smoke.mjs`. Set `JUMPYBRAIN_SMOKE_PACKAGE_DIR` for an unpacked distribution when package inclusion is in question. Native Obsidian sample creation is separate manual evidence. |
-| Extension API/runtime or executable activation | Frozen v1 compatibility is already in `npm test`. Select one of `scripts/extensions-smoke.mjs`, `extensions-browser-controller-smoke.mjs` or `extensions-desktop-smoke.mjs` for the changed host/presentation path. Use installed-update success when testing state/compiler migration; preserve the frozen package and user preferences. No v1-baseline rewrite to accommodate a breaking candidate. |
-| Search presentation or dropdowns | Select `scripts/search-recognition-smoke.mjs` or `scripts/dropdown-smoke.mjs`. Reuse unchanged editor/navigation evidence. |
-| Retrieval/index/model behavior | Lexical core checks suffice for unrelated changes. When semantic behavior changes, run `scripts/semantic-index-smoke.mjs` with existing absolute `JUMPYBRAIN_QMD_BIN` and `JUMPYBRAIN_SMOKE_MODEL`. Real model evidence is required for semantic claims; lexical/mocked success does not establish it. |
-| Hosted connections/auth | Select `scripts/companion-gateway-smoke.mjs` or the focused transport tests. Verify the changed permission/offline/draft behavior without automatically repeating every connection fixture. |
 | Dockerfile, container build inputs, runtime dependencies or hosted packaging | `npm run smoke:hosted` with a running Linux Docker daemon. It builds a clean declared-input context, checks private-file exclusion, and verifies real lexical QMD retrieval, scoped access/rotation, graceful replacement persistence and backup/restore on a disposable volume. Record source/image digest and platform. Missing Docker or a failed build leaves this selected gate open; health alone is insufficient. No scale-testing program or production deployment is implied. |
-| Feedback/diagnostics | Select the focused deterministic/browser test with a test receiver. Pack validation checks delivery configuration. A live delivery needs explicit authorization and an API inbox match under [feedback checking](check-feedback.md). |
 
-Browser scripts use `npx --package=playwright node <script>` unless they document another entrypoint. Desktop/semantic/install scripts document their own prerequisites. Existing broader commands remain available; this guide changes release selection, not their assertions or safety guards.
+Browser scripts use `npx --package=playwright node <script>` unless they document another entrypoint. Desktop/semantic/install scripts document their own prerequisites. Feature-specific commands remain in their owning module docs; the selection guide does not change assertions or safety guards.
 
 ## Record and decide
 

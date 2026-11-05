@@ -6,6 +6,8 @@ Status: adopted as the source-module documentation convention.
 
 Start here for architecture and technology-stack questions, then follow the owning module docs.
 
+Before finalizing changes, [choose tests for the affected behavior and boundary](../docs/testing.md). Module check lists are coverage inventories, not unconditional full-suite gates.
+
 | Question | Current implementation and owning docs |
 | --- | --- |
 | How do live edits, presence and agent updates travel? | **WebSockets** at `/ws`, JSON RPC protocol 2. Node hosts/CLI use **`ws`**; the editor uses the browser's native `WebSocket`. [Protocol and connection lifecycle](adapters/live/live.docs.md), [shared library boundary](adapters/websocket/websocket.docs.md). |

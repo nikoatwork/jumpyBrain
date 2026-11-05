@@ -1,5 +1,7 @@
 # Companion control and switching
 
+Select checks using [the testing guide](../../docs/testing.md); [WebSocket/editor scenarios](../../docs/testing.md#live-editing-and-websocket-scenarios) normally use Chromium. Add native checks for native boundary changes.
+
 ## Responsibilities
 
 The native menu-bar button uses bundled `MenuBarBrain.png`, generated from `MenuBarBrain.svg`: the Electron brain contours as a transparent monochrome outline at 18 points. AppKit template rendering adapts it to light/dark menu bars. Health remains explicit in the tooltip and menu status. Minimal/older bundles fall back to system symbols. The native installer copies this resource independently of executable reuse.

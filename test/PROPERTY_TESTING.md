@@ -2,6 +2,8 @@
 
 Property tests run in the normal `npm test` path through Node's built-in test runner. They are for small, pure architecture-edge contracts where generated cases cover more useful edge space than hand-written examples.
 
+For feature work, build once and run only the relevant property-test files with `node --test test/<file>.test.js` under [the focused testing guide](../docs/testing.md). Inclusion in `npm test` does not require running the whole suite for each change.
+
 Rules:
 
 - Use `test/property-helpers.js` for deterministic `fast-check` settings.

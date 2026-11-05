@@ -2,6 +2,8 @@
 
 Follow [the release process](releases.md) and the current [testing guide](release-testing.md). This is a small beta: keep the routine gate proportional and spend additional verification on changed behavior or observed failures.
 
+Ordinary feature work uses [focused test selection](testing.md); release preparation reuses that evidence when the relevant code/inputs are unchanged.
+
 ## Current routine
 
 - Check live feedback with `npm run --silent feedback:inbox` before choosing scope, following [the release inbox review](releases.md#batch-release-routine). Record genuine-feedback triage and any incomplete/unverified check; no separate reminder is needed.

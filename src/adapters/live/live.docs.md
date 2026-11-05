@@ -5,6 +5,8 @@ clients use the shared [`ws` adapter](../websocket/websocket.docs.md); the edito
 uses the browser's native `WebSocket`. Start with the
 [architecture map](../../architecture.docs.md#find-a-subsystem) for adjacent owners.
 
+For transport/editor changes, [select the matching WebSocket failure/recovery checks](../../../docs/testing.md#live-editing-and-websocket-scenarios).
+
 ## Responsibilities
 
 

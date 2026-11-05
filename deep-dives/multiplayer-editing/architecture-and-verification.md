@@ -178,7 +178,7 @@ The first implementation gate is M0 only. M1 algorithm/ownership prototypes must
 
 ## Merge rule and evidence
 
-Every implementation merge requires the protected M0 suite plus the new level's applicable scenarios on the actual proposed integration result. Passing a feature branch before another change lands is insufficient when the affected inputs differ.
+The initial multiplayer rollout required the protected M0 suite plus the new level's applicable scenarios on the actual proposed integration result. This historical rollout gate is not the default for subsequent feature commits; use [current focused test selection](../../docs/testing.md). Passing a feature branch before another change lands is insufficient when the affected inputs differ.
 
 Freeze the behavioral contract, input corpus, expected canonical results, assertion sources, tool versions, and baseline artifact manifest. Classify implementation-shape assertions separately: a reviewed refactor may replace them with equivalent boundary/behavior checks in a new contract version. Preserve the old contract and the explicit coverage mapping; do not make permanent source-file immutability a substitute for semantic parity. Additive candidate tests are allowed. Normalize only declared nondeterminism such as disposable absolute roots and generated IDs mapped consistently. Never normalize content, missing operations, error outcomes, or permission failures away.
 

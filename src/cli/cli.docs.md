@@ -1,5 +1,7 @@
 # CLI module docs
 
+For CLI changes, use [focused test selection](../../docs/testing.md#normal-feature-work). Add browser/native checks only when the shared app contract or host boundary changes.
+
 ## Responsibilities
 
 - `commands.ts` resolves exact `--help`, `-h`, `help <command>` and namespace help from raw argv before argument validation or operation dispatch. Help wins over other flags, including malformed/missing values; unknown command/recipe paths still fail without executing. `usage.ts` owns presentation-only command metadata, namespace children and recipe help (derived from recipe-enabled entries), keeping root help short. Extend the metadata when integrating a command; do not import operation modules into help.

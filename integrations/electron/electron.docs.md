@@ -1,5 +1,7 @@
 # Unified macOS desktop boundary
 
+Use [focused test selection](../../docs/testing.md): shared editor behavior normally uses Chromium; select native smokes when this host boundary changes or a failure is native-only. The inventory below is not a requirement to run all smokes.
+
 ## Responsibilities
 
 - `main.mjs` starts `application.mjs`, which owns one Electron app identity, the tray, window/onboarding, login preference, and explicit quit flow. Last-window closure leaves the host running. Background login does not open an editor. Preserve the existing Electron user-data path/partition and first-run marker.
