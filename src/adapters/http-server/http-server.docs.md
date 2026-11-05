@@ -64,6 +64,23 @@ Authenticated `/memories/all/boards` and per-ID/status routes delegate to `app/s
 
 ## Shared backend and live operations
 
+### Selected host-policy agreement
+
+| Operation | CLI remote policy | Hosted server | Companion |
+| --- | --- | --- | --- |
+| Search/recall/expand, document/board reads | Allowed on a configured read-only target | Authenticated read; observational POSTs retain read authorization | Selected target, session/Origin, tab and generation checks; no write barrier for live reads |
+| Document/attention/board mutation | Configured read-only target denies before credentials/dispatch | Writer/admin plus domain preconditions | Also requires target `allowWrites`; admitted mutation drains before switching |
+| Live history/recovery read | Live open/watch remain observational | Authenticated subscription/document scope | Allowed for read-only profiles; late old-generation reply is fenced |
+| Live `resync` | Mutation command path | App/principal rules | Writer-only: substituted upstream credentials must not reset unsafe sessions for a read-only profile |
+| Unknown live method | No supported command | Rejected | Rejected, never treated as a permissive read |
+| `/_backend/call` | Private root-owner transport only | Operator capability, never public writer privilege | Not in browser route allowlist |
+
+The policy owners stay separate. Existing `remote-access-policy`,
+`collaboration-live`, `companion-live-gateway`, `macos-companion-gateway` and
+`boards` tests exercise this matrix, including observational source-check POSTs,
+stale generations, all-tab acknowledgments and drain. The focused contract
+profile selects these suites; this table does not grant new permissions.
+
 The host composes the collaboration hub and protocol-2 `/ws` adapter using the
 same canonical publication queue as HTTP document writes. Guarded PUT/PATCH/DELETE
 notify live sessions; derived QMD work retains separate admission so inference

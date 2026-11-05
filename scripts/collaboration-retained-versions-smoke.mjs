@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {observeContract} from './contract-observations.mjs';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {mkdtemp,realpath,readFile,writeFile,rm} from 'node:fs/promises';
@@ -53,6 +54,7 @@ try{
   await page.locator('#retained-refresh').click();await page.waitForFunction(()=>!document.querySelector('#retained-restore').disabled);
   await options(page);const reviewed=await page.locator('#retained-version-text').inputValue();await page.locator('#retained-restore').click();await page.waitForFunction(()=>!document.querySelector('#retained-version-review').open&&state.editor.collaboration.state.status==='saved');
   assert.equal('Retained review\n\n'+await currentBody(),reviewed);const restoredMetadata=parseFrontmatter(await readFile(file,'utf8')).frontmatter;assert.equal(restoredMetadata.custom,'protected');assert.equal(restoredMetadata.id,id);pass('writer-restore');
+  observeContract('retained-restore',{body:await currentBody(),custom:restoredMetadata.custom,idPreserved:restoredMetadata.id===id,status:await page.evaluate(()=>state.editor.collaboration.state.status),comparisonClosed:await page.locator('#retained-version-review').evaluate(dialog=>!dialog.open)});
   const readOnly=await openPage(issued[1]);await review(readOnly.page);assert.equal(await readOnly.page.locator('#retained-restore').isHidden(),true);assert.match(await readOnly.page.locator('#retained-version-message').innerText(),/requires write access/);await options(readOnly.page);await readOnly.page.locator('#retained-copy').click();assert.ok((await readOnly.page.evaluate(()=>navigator.clipboard.readText())).includes('Retained review'));pass('reader-readonly');
   await access.revoke(issued[1].credential.id);await readOnly.page.waitForFunction(()=>state.editor.collaboration.state.status==='blocked');await readOnly.page.locator('#retained-refresh').click();await readOnly.page.waitForFunction(()=>/Could not load the earlier text/.test(document.querySelector('#retained-version-message').textContent));assert.equal(await readOnly.page.locator('#retained-restore').isHidden(),true);pass('revocation');
   const unique=await openPage(issued[0]);await review(unique.page);

@@ -89,6 +89,15 @@ Core owns link semantics but not graph presentation. App code assembles document
 
 ## Boundary verification
 
+The source guard requires every scanned file and internal edge to have an
+explicit approved layer. Its scanner covers `src/**/*.ts` and literal static,
+type, re-export and dynamic imports; it is not a proof for computed imports,
+embedded browser scripts or native integration modules. Scanner fixtures and
+unknown-layer negative controls live in `test/source-graph-contracts.test.js`
+and `test/architecture-boundaries.test.js`. Native/host behavior uses focused
+integration tests. The [contract profile](../docs/architecture-contracts.md)
+freezes selected assertions and observable editor states before refactors.
+
 Support diagnostics use a browser-safe event schema and host persistence under `src/adapters/diagnostics/`; `src/app/diagnostics/` composes explicit bounded snapshot sources. HTTP/gateway hosts supply authenticated local scope. Core never imports diagnostics, and no public hosted raw-log transport is introduced.
 
 Deterministic source-boundary and package-entrypoint tests enforce these directions. Pure boundary property tests use fixed `fast-check` settings from `test/property-helpers.js` in normal `npm test`; they must not spawn QMD or depend on paid/model behavior. Integration tests separately verify runtime, canonical publication, and adapter behavior.

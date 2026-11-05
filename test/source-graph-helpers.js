@@ -46,14 +46,14 @@ export function resolveSourceSpecifier(fromFile, specifier) {
     `${base}.ts`,
     path.join(base, "index.ts"),
   ];
-  return candidates.find((candidate) => candidate.startsWith(srcRoot) && existsSync(candidate));
+  return candidates.find((candidate) => candidate.startsWith(srcRoot + path.sep) && existsSync(candidate));
 }
 
 export function unresolvedRelativeTarget(fromFile, specifier) {
   if (!specifier.startsWith(".")) return undefined;
   const withoutJs = specifier.endsWith(".js") ? specifier.slice(0, -3) : specifier;
   const absolute = path.resolve(path.dirname(fromFile), withoutJs);
-  return absolute.startsWith(srcRoot) ? sourceRelative(absolute) : undefined;
+  return absolute.startsWith(srcRoot + path.sep) ? sourceRelative(absolute) : undefined;
 }
 
 export async function importEdgesForFile(file) {

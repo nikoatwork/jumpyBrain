@@ -116,6 +116,21 @@ const approvedLayerImports = new Map([
   ["extension-adapter", new Set(["extension-adapter", "extension-contract"])],
 ]);
 
+function violatesLayerGraph(edge) {
+  if (!edge.target) return false; // External packages are outside this source graph.
+  const from = sourceLayer(edge.from), to = sourceLayer(edge.target);
+  return !from || !to || !approvedLayerImports.get(from)?.has(to);
+}
+
+test("layer guard rejects unknown internal endpoints and classifies every source file", async () => {
+  const files = (await sourceFiles(srcRoot)).map(sourceRelative);
+  assert.deepEqual(files.filter(file => !sourceLayer(file)), [], "new source owners need an explicit layer classification");
+  assert.equal(violatesLayerGraph({from:"src/core/example.ts",target:"src/unclassified/example.ts"}), true);
+  assert.equal(violatesLayerGraph({from:"src/unclassified/example.ts",target:"src/core/example.ts"}), true);
+  assert.equal(violatesLayerGraph({from:"src/core/example.ts",target:"src/core/another.ts"}), false);
+  assert.equal(violatesLayerGraph({from:"src/core/example.ts",target:"src/app/example.ts"}), true);
+});
+
 test("extension SDK is host independent and ordinary runtime/core never load desktop extensions", async () => {
   const contracts = await importsIn("extensions");
   assertNoImportEdges(contracts, edge => !edge.target || sourceLayer(edge.target) !== "extension-contract",
@@ -177,13 +192,7 @@ test("source imports follow the approved CLI/app/core/adapters layer graph", asy
 
   assertNoImportEdges(
     edges,
-    (edge) => {
-      if (!edge.target) return false;
-      const fromLayer = sourceLayer(edge.from);
-      const toLayer = sourceLayer(edge.target);
-      if (!fromLayer || !toLayer) return false;
-      return !approvedLayerImports.get(fromLayer)?.has(toLayer);
-    },
+    violatesLayerGraph,
     "source imports must follow the approved CLI/app/core/adapters layer graph",
   );
 });

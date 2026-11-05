@@ -330,6 +330,29 @@ Writable, uniquely ID-addressed files can be dragged onto highlighted folders, i
 
 ## Live source editing
 
+### Editor session consumer agreement
+
+Before replacing the legacy document-controller composition, preserve these
+observations for document-actions, note-workspace and note-attention consumers:
+
+| Surface | Required behavior |
+| --- | --- |
+| Canonical baseline | Saved body/title/hash and epoch/revision describe acknowledged source; private input never rewrites this baseline prematurely. |
+| Input / private draft | Positional input retains intent and actor-local Undo. Unconfirmed body/title stay visible and durably scoped; storage failure is explicit. |
+| Connectivity / save / completion | Socket readiness is not Saved; Saved is not agent completion. A document event or RPC receipt can confirm a write. |
+| Permission / scope | Reader/blocked states cannot publish; old generation, brain, principal or tab replies cannot adopt/publish another scope's draft. |
+| Flush / navigation barrier | Resolve true only when safe to leave. Pending, uncertain or blank-title drafts retain the barrier; clean offline navigation may succeed. |
+| Recovery / retained versions | Compare/copy is observational. Restoration is explicit and hash/revision guarded. Preserve a unique current draft before adopting another version. |
+| Disposal | Retire listeners/lifetimes and fence late callbacks. Disposal never implies publication or discarding a recoverable draft. |
+
+The [focused contract profile](../../../docs/architecture-contracts.md) reuses
+four Chromium scenario owners and records source selection, actual operations,
+own Undo/peer preservation, private draft/save states, retained restoration and
+credential transitions. These are consumer contracts, not a requirement to
+retain the current `ReturnType<typeof createDocumentEditor>` coupling or patched
+controller methods. The existing source/history tests retain epoch, identity,
+contiguous-history and source-hash assertions beyond the compact checkpoints.
+
 Initial live hydration (the temporary revision -1) does not emit “Updated
 elsewhere”; later observed canonical changes retain that feedback. Complete
 retained copies stay available under More info → Earlier versions without a notice or acknowledgement step: conservative retention can also accompany

@@ -162,7 +162,15 @@ export function assessCheck(check, execution, baselineCheck) {
   }
   const missing = (check.markers ?? []).filter((marker) => !execution.output.includes(marker));
   if (missing.length) return { status: 'failed', reason: 'Required semantic completion markers missing.', missing };
-  return { status: 'passed', ...(observation ? { observation } : {}) };
+  let checkpoints;
+  if (check.observationIds) {
+    try {
+      checkpoints = execution.output.split(/\r?\n/).filter(line => line.startsWith('JUMPYBRAIN_CONTRACT ')).map(line => JSON.parse(line.slice('JUMPYBRAIN_CONTRACT '.length)));
+      if (JSON.stringify(checkpoints.map(item => item.id)) !== JSON.stringify(check.observationIds) || checkpoints.some(item => !Object.hasOwn(item,'value'))) throw new Error('Required observation inventory differs.');
+      if (baselineCheck && JSON.stringify(checkpoints) !== JSON.stringify(baselineCheck.checkpoints)) return {status:'failed',reason:'Stable contract observations differ from baseline.',checkpoints};
+    } catch (error) {return {status:'failed',reason:'Invalid contract observations: '+error.message};}
+  }
+  return { status: 'passed', ...(observation ? { observation } : {}), ...(checkpoints ? {checkpoints} : {}) };
 }
 
 export async function executeCheck(root, check, { environment = process.env, maxBytes = 8 * 1024 * 1024 } = {}) {

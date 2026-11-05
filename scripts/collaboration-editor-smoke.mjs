@@ -12,6 +12,7 @@ import { build } from "esbuild";
 import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { selectEditorText, appendEditorText, editorMarkdown, editorEnd, undoEditor } from "./editor-smoke-helpers.mjs";
+import { observeContract } from "./contract-observations.mjs";
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-production-editor-"));
 const id = "mem_91111111-1111-4111-8111-111111111111", token = "disposable-production-editor-key";
 const original = ["# Live source", "", "Keep **bold** and [[Reference]].  ", "", "- [ ] Task", "", "```js", "console.log('retained');", "```", "", "| A | B |", "| --- | --- |", "| x | y |", "", "Last paragraph", ""].join("\n");
@@ -70,6 +71,7 @@ try {
   });
   await isolated.evaluate(() => new Promise(requestAnimationFrame));
   assert.deepEqual(await isolated.evaluate(() => richEditor.collaborativeSelection()), { anchor: crlf.indexOf("console.log") + 5, focus: crlf.indexOf("console.log") + 5 }, "code source projection accounts for CRLF and its fence");
+  observeContract('source-selection',await isolated.evaluate(()=>richEditor.collaborativeSelection()));
   { const result = await isolated.evaluate((body) => richEditor.applyCollaborativeMarkdown(body,{operationSequence:[ProductionCollaboration.fixtureSplices(richEditor.getMarkdown(),body)]}), "Added paragraph\n" + original); assert.equal(result.status, "applied", result.reason); }
   assert.equal(await isolated.evaluate(() => getSelection().anchorOffset), 5, "newline-style changes retain an unchanged code leaf caret");
   assert.equal(await isolated.evaluate(() => Boolean(getSelection().anchorNode.parentElement.closest('pre'))), true);
@@ -130,6 +132,7 @@ try {
     await appendEditorText(pages[0], "Human zero");
     await pages[0].waitForFunction(() => live.state.status === "saved" && richEditor.getMarkdown().includes("Human zero"));
     await pages[1].waitForFunction(() => richEditor.getMarkdown().includes("Human zero"));
+    observeContract('own-edit', {body:await editorMarkdown(pages[0]),operations:heldTransport.observed.filter(frame=>frame.method==='edit').at(-1).params.operations,status:await pages[0].evaluate(()=>live.state.status)});
     assert.ok((await editorMarkdown(pages[0])).startsWith(original), "append retains all initial source " + await editorMarkdown(pages[0]));
     // Different human edits survive concurrent source operations.
     await Promise.all(pages.map((page, index) => appendEditorText(page, ` concurrent-${index}`)));
@@ -147,6 +150,7 @@ try {
     await pages[0].waitForFunction(() => live.state.status === "saved");
     await pages[1].waitForFunction(() => !richEditor.getMarkdown().includes("concurrent-0"));
     assert.ok((await editorMarkdown(pages[1])).includes("concurrent-1"));
+    observeContract('own-undo-preserves-peer', {body:await editorMarkdown(pages[1]),status:await pages[0].evaluate(()=>live.state.status),dirty:await pages[0].evaluate(()=>live.state.dirty)});
     await pages[0].evaluate(() => live.redo());
     await pages[1].waitForFunction(() => richEditor.getMarkdown().includes("concurrent-0") && richEditor.getMarkdown().includes("concurrent-1"));
     await undoEditor(pages[0]);

@@ -1,4 +1,5 @@
 import { showSidebar } from './editor-smoke-helpers.mjs';
+import {observeContract} from './contract-observations.mjs';
 // Same-origin credential changes must retain private drafts without publishing them.
 import assert from "node:assert/strict";
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
@@ -90,6 +91,7 @@ try {
     const mutationsBeforeReview = transport.observed.filter((frame) =>
       ["edit", "title"].includes(frame.method),
     ).length;
+    observeContract(`${width}/credential-blocked`,{canonical:await readFile(file,'utf8'),draft:await editorMarkdown(page),status:await page.evaluate(()=>state.editor.state.liveStatus),editable:await page.locator('#note-editor').getAttribute('contenteditable')});
     await page.locator("#note-recover").click();
     if (!await page.locator("#recovery-options").evaluate(element => element.open)) await page.locator("#recovery-options > summary").click();
     await page.locator("#recovery-saved").filter({ visible: true }).waitFor();
@@ -137,6 +139,7 @@ try {
       true,
       "the original identity retains its private recovery record",
     );
+    observeContract(`${width}/credential-reopened`,{canonical:await readFile(file,'utf8'),body:await editorMarkdown(page),retained,status:await page.evaluate(()=>state.editor.collaboration.state.status),mutationCount:transport.observed.filter(frame=>['edit','title'].includes(frame.method)).length});
     assert.equal(
       await page.locator("#note-recover").isVisible(),
       false,

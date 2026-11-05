@@ -1,6 +1,6 @@
 # Harden architectural contracts before selective refactors
 
-Status: planned; architecture assessment complete, implementation and behavioral baseline capture not started.
+Status: in progress; boundary fixes and contracts implemented, focused baseline verification pending.
 
 ## Goal
 
@@ -17,25 +17,25 @@ Make important app behavior reproducible across a structural refactor, using exp
 
 ## Tasks
 
-- [ ] 1.0 Agree on a small contract inventory and equivalence rules.
-  - [ ] 1.1 Record producer/consumers, owner, accepted inputs, outputs/errors, preconditions, canonical/derived effects, cancellation/retry rules and existing assertions for the four priority seams. Keep ownership in co-located docs and a small test-selection manifest; do not duplicate product docs into a second spec tree.
-  - [ ] 1.2 Classify expectations as preserve / intentional fix / unresolved. Explicitly decide invalid HTTP 200 handling, live optional fields, unknown backend methods and save-versus-index outcomes. Reproduce suspected defects before treating them as established. Freeze only resolved contracts; put accepted fixes in distinct behavior-change commits with regressions.
-  - [ ] 1.3 Define stable observations and permitted normalization. Preserve canonical bytes, source/operation identity relationships, content-hash validity, ordered retrieval evidence, permission denials, private drafts and meaningful state transitions. Document intentional local/hosted differences instead of requiring identical envelopes.
-  - [ ] 1.4 Select the smallest useful initial tests and four browser journeys from the assessment inventory. Record prerequisites, expected scenario IDs, practical run-time budget and limits. Additional retrieval/processing/native scenarios are triggered only by the selected seam's impact.
+- [x] 1.0 Agree on a small contract inventory and equivalence rules.
+  - [x] 1.1 Record producer/consumers, owner, accepted inputs, outputs/errors, preconditions, canonical/derived effects, cancellation/retry rules and existing assertions for the four priority seams. Keep ownership in co-located docs and a small test-selection manifest; do not duplicate product docs into a second spec tree.
+  - [x] 1.2 Classify expectations as preserve / intentional fix / unresolved. Explicitly decide invalid HTTP 200 handling, live optional fields, unknown backend methods and save-versus-index outcomes. Reproduce suspected defects before treating them as established. Freeze only resolved contracts; put accepted fixes in distinct behavior-change commits with regressions.
+  - [x] 1.3 Define stable observations and permitted normalization. Preserve canonical bytes, source/operation identity relationships, content-hash validity, ordered retrieval evidence, permission denials, private drafts and meaningful state transitions. Document intentional local/hosted differences instead of requiring identical envelopes.
+  - [x] 1.4 Select the smallest useful initial tests and four browser journeys from the assessment inventory. Record prerequisites, expected scenario IDs, practical run-time budget and limits. Additional retrieval/processing/native scenarios are triggered only by the selected seam's impact.
 
-- [ ] 2.0 Close concrete boundary-verification gaps before freezing the reference.
-  - [ ] 2.1 Make architecture classifications complete for the intended source set: unknown internal layers fail. Add meaningful import-scanner fixtures and explicit scope/exceptions. Cover a selected integration boundary only if its refactor needs it; do not claim whole-program import proof.
-  - [ ] 2.2 Specify the private backend operation agreement and add focused caller/dispatcher/publication-hook conformance cases: method/argument/result shape, unknown/malformed operations, stale hash, cancellation and uncertain response. Preserve independent canonical-publication and derived-index admission. Do not consolidate implementation yet.
-  - [ ] 2.3 Add critical HTTP receipt and live producer→consumer conformance cases using real serialized messages: document/board hashes, saved/indexing outcomes, revision/epoch, positional and terminal fields, malformed messages and allowed additive fields. Tighten only agreed validations; keep browser contracts free of app/server imports.
-  - [ ] 2.4 Record and test a compact host-policy matrix for selected operations: CLI remote-write consent, server authentication/role, companion target permission and tab/generation admission. Include observational POSTs, writer-only companion resync, stale scopes and unknown methods. Keep distinct policy owners; do not invent a universal isWrite function.
+- [x] 2.0 Close concrete boundary-verification gaps before freezing the reference.
+  - [x] 2.1 Make architecture classifications complete for the intended source set: unknown internal layers fail. Add meaningful import-scanner fixtures and explicit scope/exceptions. Cover a selected integration boundary only if its refactor needs it; do not claim whole-program import proof.
+  - [x] 2.2 Specify the private backend operation agreement and add focused caller/dispatcher/publication-hook conformance cases: method/argument/result shape, unknown/malformed operations, stale hash, cancellation and uncertain response. Preserve independent canonical-publication and derived-index admission. Do not consolidate implementation yet.
+  - [x] 2.3 Add critical HTTP receipt and live producer→consumer conformance cases using real serialized messages: document/board hashes, saved/indexing outcomes, revision/epoch, positional and terminal fields, malformed messages and allowed additive fields. Tighten only agreed validations; keep browser contracts free of app/server imports.
+  - [x] 2.4 Record and test a compact host-policy matrix for selected operations: CLI remote-write consent, server authentication/role, companion target permission and tab/generation admission. Include observational POSTs, writer-only companion resync, stale scopes and unknown methods. Keep distinct policy owners; do not invent a universal isWrite function.
 
 - [ ] 3.0 Make editor behavior observable independently of its controller structure.
-  - [ ] 3.1 Specify the consumer-facing editor session agreement: canonical baseline, private draft, pending confirmation, permission, recovery, flush/navigation barrier and disposal. Map existing document-actions/workspace/attention consumers without replacing their controller yet.
+  - [x] 3.1 Specify the consumer-facing editor session agreement: canonical baseline, private draft, pending confirmation, permission, recovery, flush/navigation barrier and disposal. Map existing document-actions/workspace/attention consumers without replacing their controller yet.
   - [ ] 3.2 Reuse the current Chromium runners and traffic fault injector for: own edit + peer edit + own Undo; accepted edit with lost reply **and** document-event confirmation; external destructive replacement + retained comparison/restoration; credential/epoch transition with a private draft.
   - [ ] 3.3 Retain compact checkpoints with canonical text/metadata, actual operations and identity relationships, private draft content, save/completion state, scope, selection/focus and recovery actions. Reuse the uncertain-save runner's recording where possible. Assert milestone ordering and bounded completion; avoid full DOM/screenshot snapshots or arbitrary event-order equality.
 
 - [ ] 4.0 Capture and reproduce the selected reference.
-  - [ ] 4.1 Reuse the existing multiplayer capture/verify and contract-delta helpers where they fit. Inspect current API/CLI/probe limitations before adding the smallest focused profile wiring. Preserve historical M0/production contracts. Do not create a second general test framework or make native/Linux/model dependencies mandatory for unrelated checks.
+  - [x] 4.1 Reuse the existing multiplayer capture/verify and contract-delta helpers where they fit. Inspect current API/CLI/probe limitations before adding the smallest focused profile wiring. Preserve historical M0/production contracts. Do not create a second general test framework or make native/Linux/model dependencies mandatory for unrelated checks.
   - [ ] 4.2 Freeze a clean committed reference after accepted fixes. Record source/build identity, selected commands/scenario IDs, assertion/helper/fixture hashes, normalization version, dependencies, runtime/platform, browser and applicable QMD/model identity. Use disposable roots; keep bulky evidence ignored with checksummed references and compact tracked manifests.
   - [ ] 4.3 Execute the unchanged reference twice with independent fixture roots and compare stable observations. Investigate drift; unavailable dependencies, skips, missing scenarios, changed assertions or failed checks cannot count as passing evidence. Keep latency and semantic-quality claims separate from deterministic equivalence.
   - [ ] 4.4 Prove the comparison itself: unchanged candidate passes; controlled negative fixtures fail for changed canonical content, lost private draft/incorrect Saved, and omitted/weakened required assertions. Review normalization so it cannot hide these failures.
@@ -63,3 +63,10 @@ Make important app behavior reproducible across a structural refactor, using exp
 - [Browser ownership](../../src/adapters/http-server/browser.docs.md), [collaboration app](../../src/app/collaboration/collaboration.docs.md), [live protocol](../../src/adapters/live/live.docs.md) — editor/publication boundaries.
 - `scripts/multiplayer-verify.mjs`, `scripts/multiplayer-verification/`, `scripts/ux-uncertain-save-smoke.mjs` — existing evidence machinery; current CLI does not yet expose a lightweight arbitrary profile.
 - [Retrieval evaluation](tasks-workspace-retrieval-evaluation.md) owns ranking/quality experiments; [desktop hygiene](tasks-desktop-runtime-hygiene.md) owns installation/owner issues; [release testing at scale](tasks-release-testing-at-scale.md) remains deferred.
+
+## Execution evidence
+
+- HTTP malformed-success regressions first failed (six cases), then HTTP/client/real-board checks passed 23/23. Intentional fix committed separately as `9aee38f`.
+- Real serialized live protocol rejection first failed. Selective validation preserves batch-only splice compatibility; live wire/editor/real-WS checks passed 33/33. Fix committed separately as `735931b`.
+- Source scanner/unknown-layer checks and real caller/backend conformance pass. The RPC fixture verifies canonical hash against actual published bytes, preserving the existing metadata reserialization rule.
+- Existing verifier plus observation negative controls passed 27/27. Focused profile and owning agreements are documented in [the contract guide](../../docs/architecture-contracts.md). Browser observations and two-run evidence remain pending.

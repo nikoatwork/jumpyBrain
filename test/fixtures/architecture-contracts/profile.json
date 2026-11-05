@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "id": "architecture-contracts-v1",
+  "assertionRoots": [
+    "scripts/architecture-contracts.mjs",
+    "scripts/collaboration-actor-churn-proof.mjs",
+    "scripts/collaboration-cursor-proof.mjs",
+    "scripts/collaboration-editor-smoke.mjs",
+    "scripts/collaboration-intent-proof.mjs",
+    "scripts/collaboration-retained-versions-smoke.mjs",
+    "scripts/collaboration-smoke-transport.mjs",
+    "scripts/contract-observations.mjs",
+    "scripts/editor-smoke-helpers.mjs",
+    "scripts/multiplayer-verification/contract-delta.mjs",
+    "scripts/multiplayer-verify.mjs",
+    "scripts/playwright-runtime.mjs",
+    "scripts/remote-target-origin.mjs",
+    "scripts/ux-credential-draft-smoke.mjs",
+    "scripts/ux-uncertain-save-smoke.mjs",
+    "test/architecture-boundaries.test.js",
+    "test/backend-rpc-contracts.test.js",
+    "test/boards.test.js",
+    "test/collaboration-editor.test.js",
+    "test/collaboration-http-races.test.js",
+    "test/collaboration-live.test.js",
+    "test/companion-live-gateway.test.js",
+    "test/contract-observations.test.js",
+    "test/creation-outcomes.test.js",
+    "test/fake-qmd-helper.js",
+    "test/fixtures/fake-qmd-lifecycle",
+    "test/http-client.test.js",
+    "test/http-receipt-contracts.test.js",
+    "test/live-wire-contracts.test.js",
+    "test/macos-companion-gateway.test.js",
+    "test/multiplayer-contract-delta.test.js",
+    "test/multiplayer-verification.test.js",
+    "test/package-entrypoints.test.js",
+    "test/remote-access-policy.test.js",
+    "test/source-graph-contracts.test.js",
+    "test/source-graph-helpers.js"
+  ],
+  "checks": [
+    {
+      "id": "build",
+      "scenarioIds": [
+        "C0"
+      ],
+      "command": [
+        "node",
+        "--input-type=commonjs",
+        "-e",
+        "require('node:child_process').execFileSync('npm',['run','build'],{stdio:'inherit'}); console.log('CONTRACT_BUILD_OK')"
+      ],
+      "timeoutMs": 120000,
+      "markers": [
+        "CONTRACT_BUILD_OK"
+      ]
+    },
+    {
+      "id": "boundaries",
+      "scenarioIds": [
+        "C1",
+        "C2",
+        "C3",
+        "C4"
+      ],
+      "command": [
+        "node",
+        "--test",
+        "--test-reporter=tap",
+        "--test-concurrency=1",
+        "test/architecture-boundaries.test.js",
+        "test/source-graph-contracts.test.js",
+        "test/package-entrypoints.test.js",
+        "test/backend-rpc-contracts.test.js",
+        "test/http-client.test.js",
+        "test/http-receipt-contracts.test.js",
+        "test/live-wire-contracts.test.js",
+        "test/creation-outcomes.test.js",
+        "test/collaboration-editor.test.js",
+        "test/collaboration-live.test.js",
+        "test/collaboration-http-races.test.js",
+        "test/remote-access-policy.test.js",
+        "test/companion-live-gateway.test.js",
+        "test/macos-companion-gateway.test.js",
+        "test/boards.test.js",
+        "test/contract-observations.test.js",
+        "test/multiplayer-verification.test.js",
+        "test/multiplayer-contract-delta.test.js"
+      ],
+      "timeoutMs": 180000,
+      "tap": true,
+      "requires": "build"
+    },
+    {
+      "id": "editor",
+      "scenarioIds": [
+        "E-editor"
+      ],
+      "command": [
+        "node",
+        "scripts/collaboration-editor-smoke.mjs"
+      ],
+      "timeoutMs": 180000,
+      "markers": [
+        "Production collaboration editor smoke passed:"
+      ],
+      "observationIds": [
+        "source-selection",
+        "own-edit",
+        "own-undo-preserves-peer"
+      ],
+      "requires": "boundaries"
+    },
+    {
+      "id": "uncertain",
+      "scenarioIds": [
+        "E-uncertain"
+      ],
+      "command": [
+        "node",
+        "scripts/ux-uncertain-save-smoke.mjs",
+        "--kind",
+        "accepted-body",
+        "--width",
+        "1280"
+      ],
+      "timeoutMs": 180000,
+      "markers": [
+        "\"passed\": true"
+      ],
+      "observationIds": [
+        "1280/accepted-body/private",
+        "1280/accepted-body/reloaded"
+      ],
+      "requires": "boundaries"
+    },
+    {
+      "id": "retained",
+      "scenarioIds": [
+        "E-retained"
+      ],
+      "command": [
+        "node",
+        "scripts/collaboration-retained-versions-smoke.mjs"
+      ],
+      "timeoutMs": 180000,
+      "markers": [
+        "\"passed\": true"
+      ],
+      "observationIds": [
+        "retained-restore"
+      ],
+      "requires": "boundaries"
+    },
+    {
+      "id": "credentials",
+      "scenarioIds": [
+        "E-credentials"
+      ],
+      "command": [
+        "node",
+        "scripts/ux-credential-draft-smoke.mjs"
+      ],
+      "timeoutMs": 180000,
+      "markers": [
+        "\"passed\":true"
+      ],
+      "observationIds": [
+        "1280/credential-blocked",
+        "1280/credential-reopened",
+        "390/credential-blocked",
+        "390/credential-reopened"
+      ],
+      "requires": "boundaries"
+    }
+  ],
+  "limits": [
+    "Focused contracts, not whole-app equivalence or a release gate.",
+    "Two independent disposable roots; exact selected observations and preserved assertions, not arbitrary concurrent event ordering.",
+    "No semantic model, real deployment, native Keychain/login, power-loss or physical accessibility claim.",
+    "Default four Chromium journeys; reference run-time budget 10 minutes, diagnose before expanding.",
+    "Canonical hashes and ID relationships remain asserted in owning tests; incidental ports, nonces, timestamps are excluded only from selected checkpoint records."
+  ]
+}

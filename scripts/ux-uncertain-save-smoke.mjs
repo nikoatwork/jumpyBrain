@@ -1,4 +1,5 @@
 import { showSidebar } from "./editor-smoke-helpers.mjs";
+import { observeContract } from "./contract-observations.mjs";
 // Lost acknowledgments and concurrent peer edits on disposable hosted notes.
 import assert from "node:assert/strict";
 import {
@@ -264,6 +265,7 @@ try {
         "a failed/uncertain draft stays visible through peer updates",
       );
       assert.equal(await page.locator("#note-name").inputValue(), privateTitle);
+      observeContract(`${width}/${kind}/private`, {draft:await editorMarkdown(page),title:await page.locator('#note-name').inputValue(),saveStatus:await page.evaluate(()=>state.editor.state.saveStatus),peerRevision,peerEdits});
       await showSidebar(page);
       await page.locator("#home-link").click();
       await page.waitForFunction(() => !state.editor.state.navigationPending);
@@ -314,6 +316,7 @@ try {
       await saved(page);
       assert.match(await editorMarkdown(page), new RegExp(peerMarker));
       assert.equal(await readFile(file, "utf8"), afterPeer);
+      observeContract(`${width}/${kind}/reloaded`, {body:await editorMarkdown(page),title:await page.locator('#note-name').inputValue(),status:await page.evaluate(()=>state.editor.collaboration.state.status),draftRetained:await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('jumpybrain.collaboration.draft.v2:')).some(key=>Boolean(JSON.parse(localStorage.getItem(key))?.body)))});
       results.push(
         `${width}/${kind}: uncertain/private draft, peer preservation, guarded navigation, copy and explicit saved acceptance`,
       );
