@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>jumpyBrain architecture and contracts</title>
+<style>
+:root{color-scheme:light dark;--background:light-dark(#fafafa,#161719);--foreground:light-dark(#202426,#e7e9eb);--muted-foreground:light-dark(#596269,#b4bbc0);--card:light-dark(#f0f2f3,#22262a);--border:light-dark(#b7c0c5,#535c64);--primary:light-dark(#294a63,#c0d9eb);--primary-foreground:light-dark(#fff,#17242d);--warning:light-dark(#86520a,#eac27d);--success:light-dark(#226950,#94d4b5);--info:light-dark(#315d85,#a4c7e7);--radius:10px;--font-sans:system-ui,sans-serif;--font-mono:ui-monospace,monospace}
+*{box-sizing:border-box}html,body{margin:0}body{font-family:var(--font-sans);color:var(--foreground)}button{font:inherit;color:inherit}#architecture{display:grid;gap:16px}p{margin:0}.lanes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.lane{display:grid;align-content:start;gap:8px;text-align:center}.label{font-weight:500}.sub,.edge,.legend,.caption{color:var(--muted-foreground)}.sub,.caption{font-size:12px}.edge{font-size:12px;min-height:32px;display:grid;align-content:center;text-align:center}.node{display:grid;gap:5px;align-content:center;width:100%;min-height:82px;padding:12px 8px;border:1px solid var(--border);border-radius:var(--radius);background:transparent;text-align:center}.node[aria-pressed=true]{background:var(--primary);color:var(--primary-foreground);border-color:var(--primary)}.node[aria-pressed=true] .sub,.node[aria-pressed=true] .status{color:inherit}.status{font-size:12px;color:var(--info)}.status.mixed{color:var(--warning)}.status.clear{color:var(--success)}.merge{width:100%;height:26px;display:block}.merge path{stroke:var(--border);stroke-width:1.5;fill:none}.shared{display:grid;gap:7px;text-align:center}.pair{display:grid;grid-template-columns:1.6fr 1fr;gap:16px}.stack{display:grid;gap:8px}.store{padding:9px 0;border-top:2px solid var(--border);text-align:center;font-weight:500}.store .sub{font-weight:400;margin-top:4px}.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px}.legend span{white-space:nowrap}.detail{display:grid;gap:8px;padding:16px;border-radius:var(--radius);background:var(--card)}.detail strong{font-weight:500}.detail p{line-height:1.5}.detail-label{font-size:12px;color:var(--muted-foreground)}code{font-family:var(--font-mono);font-size:12px;overflow-wrap:anywhere}.steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding-top:8px;border-top:1px solid var(--border)}.step{display:grid;gap:5px}.number{color:var(--muted-foreground);font-size:12px}footer{font-size:12px;color:var(--muted-foreground)}@media(max-width:540px){.lanes{grid-template-columns:1fr;gap:16px}.lane{grid-template-columns:1fr;align-items:center;column-gap:10px}.lane>.label{grid-column:1/-1;text-align:left}.lane>.edge{display:grid;min-height:20px}.node{min-height:86px}.merge{display:none}.pair{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}.legend{gap:8px 12px}}
+</style>
+</head>
+<body>
+<main id="architecture" aria-label="jumpyBrain module communication and boundary assessment">
+<div class="legend"><span>○ Clear ownership</span><span>△ Contract gap</span><span>◇ Mixed responsibilities</span></div>
+<div class="lanes" aria-label="Three paths into the same memory app">
+  <div class="lane">
+    <div class="label">Local agent</div>
+    <button type="button" class="node" data-key="runtime" aria-pressed="false"><span>CLI local transport</span><span class="status clear">○ Clear</span></button>
+    <div class="edge">↓ local transport · private HTTP RPC</div>
+    <button type="button" class="node" data-key="rpc" aria-pressed="false"><span>Shared root backend</span><span class="status">△ Operation agreement</span></button>
+  </div>
+  <div class="lane">
+    <div class="label">Remote agent</div>
+    <button type="button" class="node" data-key="http" aria-pressed="false"><span>CLI → HTTP client</span><span class="status">△ Success receipts</span></button>
+    <div class="edge">↓ authenticated HTTP</div>
+    <button type="button" class="node" data-key="server" aria-pressed="false"><span>Routes → server-memory</span><span class="status clear">○ Clear</span></button>
+  </div>
+  <div class="lane">
+    <div class="label">Human / live agent</div>
+    <button type="button" class="node" data-key="editor" aria-pressed="true"><span>Browser editor / Mac host</span><span class="status mixed">◇ Editor composition</span></button>
+    <div class="edge">↓ HTTP + protocol-2 WebSocket</div>
+    <button type="button" class="node" data-key="live" aria-pressed="false"><span>Live adapter → hub</span><span class="status">△ Wire agreement</span></button>
+  </div>
+</div>
+<svg class="merge" viewBox="0 0 600 26" preserveAspectRatio="none" aria-hidden="true"><path d="M100 0V10H300V24M300 0V24M500 0V10H300M295 19L300 24L305 19"/></svg>
+<div class="shared">
+  <button type="button" class="node" data-key="app" aria-pressed="false"><span>Application use cases</span><span class="sub">Writing · local-memory · collaboration · processing · boards</span><span class="status clear">○ Canonical publication and derived work have distinct admission</span></button>
+  <p class="caption">Same app locally or hosted. Public runtime calls app directly; read-only paths may bypass the owner.</p>
+</div>
+<div class="pair">
+  <div class="stack">
+    <div class="edge">↓ domain rules + canonical file operations</div>
+    <button type="button" class="node" data-key="core" aria-pressed="false"><span>Core domain</span><span class="sub">Markdown · metadata · provenance · source operations · boards</span><span class="status clear">○ Clear, guarded dependency direction</span></button>
+    <div class="edge">↓ canonical publication</div>
+    <div class="store">Markdown memory + board JSON<div class="sub">Authoritative content and organization</div></div>
+  </div>
+  <div class="stack">
+    <div class="edge">↓ index / retrieve through adapter barrel</div>
+    <button type="button" class="node" data-key="qmd" aria-pressed="false"><span>QMD adapter</span><span class="sub">Engine · generations · ranking</span><span class="status mixed">◇ Some policy lives here</span></button>
+    <div class="edge">↓ derived publication</div>
+    <div class="store">Index + embeddings<div class="sub">Rebuildable from canonical memory</div></div>
+  </div>
+</div>
+<p class="caption">Private drafts, credentials and recovery records are separate operational state, not disposable derived indexes.</p>
+<section class="detail" aria-live="polite" aria-atomic="true" aria-label="Selected boundary">
+  <div class="detail-label" id="detail-status">Selected boundary · mixed responsibilities</div>
+  <strong id="detail-title">Editor session: best structural pilot</strong>
+  <p id="detail-body">The browser creates the older document controller, disables its autosave, translates live state and replaces controller methods. Protect draft, confirmation, own Undo, recovery and navigation behavior before introducing a small session facade.</p>
+  <div class="detail-label" id="detail-evidence">Evidence: notes-browser.ts:1484, 1608, 1678, 1692–1712</div>
+</section>
+<div class="steps" aria-label="Contract-first decision sequence">
+  <div class="step"><span class="number">01 · Agree</span><span>Preserve / fix / unresolved</span></div>
+  <div class="step"><span class="number">02 · Reproduce</span><span>Same reference, two runs</span></div>
+  <div class="step"><span class="number">03 · Challenge</span><span>Deliberate regressions must fail</span></div>
+  <div class="step"><span class="number">04 · Decide</span><span>One pilot, or no refactor</span></div>
+</div>
+<footer>Source review: b469d5f · 5 Nov 2026 · 18 structural/entrypoint checks passed. Behavioral baseline not yet captured. Select a module for evidence.</footer>
+</main>
+<script>
+(()=>{
+const root=document.getElementById('architecture');
+const details={
+runtime:['clear ownership','Keep the CLI / runtime / app separation','The package exports the local runtime without CLI parsing or server policy. Canonical CLI writes and repairing retrieval join the root owner; strict read-only inspection and direct library operations have distinct paths. Preserve those differences.','architecture-boundaries.test.js; cli-baseline-contracts.test.js'],
+rpc:['contract gap','Backend RPC: make the operation agreement explicit','Method names, positional arguments, result types, admission class and publication-hook details are repeated across caller, dispatcher and HTTP host. Add conformance tests first; a small typed operation table is a credible later cleanup. Derived indexing must keep its independent admission.','local-transport.ts:83,109–115; backend-rpc.ts:15–41; http-server/index.ts:175–180'],
+http:['contract gap','Validate important success receipts','Ordinary HTTP success parsing can return an empty object for invalid JSON; bounded retrieval has stronger validation. Reproduce downstream effects and protect document/board save receipts. Treat malformed success as a defect candidate, not behavior to freeze.','http-client/index.ts:125–142; http-client.test.js; creation-outcomes.test.js'],
+server:['clear ownership','Keep routes thin and policy owners distinct','HTTP routes delegate memory operations to app/server-memory. Server authentication, CLI remote-write consent and companion target/tab admission solve different problems. Document their matrix; do not replace them with one universal write predicate.','server-memory/boards.ts; remote-access-policy.ts; gateway.mjs; live-gateway.mjs'],
+editor:['mixed responsibilities','Editor session: best structural pilot','The browser creates the older document controller, disables its autosave, translates live state and replaces controller methods. Protect draft, confirmation, own Undo, recovery and navigation behavior before introducing a small session facade.','notes-browser.ts:1484,1608,1678,1692–1712; collaboration-editor-smoke.mjs'],
+live:['contract gap','Strong publication model; tighten the wire agreement','The live adapter delegates to the collaboration hub; canonical publication precedes acknowledgment. Snapshot shapes are duplicated and browser validation is partial. Test real producer messages against consumers while preserving optional compatibility fields, scope and operation identity.','app/collaboration/index.ts:65,846,1066; collaboration-client.ts:1,38,98; collaboration-live.test.js'],
+app:['clear ownership','Preserve saved versus indexed outcomes','App workflows compose core rules and approved adapters. A saved note remains saved when indexing is pending or fails. Existing tests protect this, HTTP/live publication races and idempotent replay. Reuse them instead of designing a second orchestration layer.','creation.ts:9–17; creation-outcomes.test.js; collaboration-http-races.test.js'],
+core:['clear ownership; guard gap','Keep core; make guard coverage complete','Core owns canonical semantics and pure source-operation policy without importing app, HTTP or QMD. Existing guards pass, but unclassified endpoints bypass the broad import rule. Fail on unknown internal layers and document scanner limits. Boards and extensions do not need a redesign.','architecture-boundaries.test.js:191–194; source-graph-helpers.js:11–24; boards.test.js'],
+qmd:['mixed policy ownership; defer extraction','Do not rewrite retrieval for symmetry','App code uses the QMD barrel, but some title/date/diversity policy lives inside the adapter. Freeze evidence order, qualifications, citations and warnings before moving pure helpers when useful. Existing retrieval evaluations own semantic-quality claims.','qmd-ranking.ts:7,52; compact-recall.test.js; recall-diversity.test.js']
+};
+const buttons=[...root.querySelectorAll('button[data-key]')];
+for(const button of buttons)button.addEventListener('click',()=>{
+ const d=details[button.dataset.key];
+ for(const other of buttons)other.setAttribute('aria-pressed',String(other===button));
+ root.querySelector('#detail-status').textContent='Selected boundary · '+d[0];
+ root.querySelector('#detail-title').textContent=d[1];
+ root.querySelector('#detail-body').textContent=d[2];
+ root.querySelector('#detail-evidence').textContent='Evidence: '+d[3];
+});
+})();
+</script>
+</body>
+</html>

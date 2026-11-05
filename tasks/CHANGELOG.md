@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Architecture contract assessment
+
+- Three scoped reviews support retaining the layered architecture, with contract hardening before selective editor-session or backend-RPC cleanup. Added an interactive ownership map and one active plan; no runtime refactor or behavioral baseline is claimed. [Evidence and limits](../deep-dives/architecture-contracts/assessment.md), [contract-hardening plan](todo/tasks-architecture-contract-hardening.md).
+
 ## 2026-11-05 — Focused test selection
 
 - Consolidated change-based verification and editor/WebSocket scenario commands, linked agent/task/module entrypoints, and removed duplicate or blanket test instructions. [Verification and limits](done/2026-11-05_tasks-focused-test-guidance.md).
