@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Exact-title search after external edits
+
+- Fresh search results replace older tab saves even when host indexing bookkeeping lags, preventing externally renamed notes from disappearing. [Verification](done/2026-11-05_tasks-exact-title-app-search.md).
+
 ## 2026-11-05 — Clearer README and current screenshots
 
 - Put installation at the top, cut the README by 58%, refreshed editor/map screenshots, and made verified public-demo upkeep part of every release. [Verification](done/2026-11-05_tasks-readme-refresh.md).

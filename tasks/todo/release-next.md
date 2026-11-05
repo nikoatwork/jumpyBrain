@@ -1,5 +1,7 @@
 # Changes
 
+- Search stops hiding externally renamed notes behind an old tab save once the searched index is verified fresh, including after CLI indexing.
+
 - Saved agent edits no longer ask for version review; earlier versions stay under More info. Recovery shows what was added or removed, with two clear choices and full-version tools tucked under More options. A clean note whose old caret cannot follow an external edit loads the saved text and waits for a fresh click, while unsaved drafts keep their recovery safeguards.
 
 - Related pages stay visible while typing and deleting; changed saved text refreshes about every ten seconds, with quieter minute-long refreshes when unchanged.

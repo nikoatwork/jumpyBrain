@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { initializeMemoryRoot, indexMemory, searchMemory } from "../dist/runtime/index.js";
 import { stampMemoryActor } from "../dist/core/contribution.js";
 import { indexServerMemory } from "../dist/app/server-memory/index.js";
@@ -16,6 +18,12 @@ const output = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR || "/tmp/jumpybrain-s
 const actorId = "browser:11111111-1111-4111-8111-111111111111", key = "disposable-search-key";
 const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); yesterday.setHours(16, 42, 0, 0);
 const notes = [], errors = [];
+const exactTitle = "Zephyr", exactId = "mem_98000000-0000-4000-8000-000000000100";
+const execFileAsync = promisify(execFile);
+async function openNoteSearch(page) {
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+k" : "Control+k");
+  await page.locator("#note-search-input").waitFor({ state: "visible" });
+}
 let browser, server;
 try {
   await initializeMemoryRoot(root);
@@ -30,12 +38,22 @@ try {
     await writeFile(path.join(root, file), content);
     notes.push({ id, file, title, content });
   }
+  // A short exact-title note competes with more recent title/body mentions.
+  const exactContent = `---\nid: ${exactId}\ntitle: ${exactTitle}\ntype: note\ncreated_at: 2025-01-01\n---\n# ${exactTitle}\n\n` + Array.from({ length: 12 }, (_, n) => `Profile detail ${n + 1}.`).join("\n") + "\n";
+  await writeFile(path.join(root, "notes/Zephyr.md"), exactContent);
+  for (let n = 1; n <= 8; n++) await writeFile(path.join(root, `pages/zephyr-mention-${n}.md`),
+    `---\nid: mem_98000000-0000-4000-8000-${String(100 + n).padStart(12, "0")}\ntitle: Zephyr project discussion ${n}\ntype: note\ncreated_at: 2026-11-01\n---\n# Zephyr project discussion ${n}\n\nZephyr planning and Zephyr project context.\n`);
   await indexMemory(root, { indexing: { mode: "lexical" } });
   await indexServerMemory({ root });
   const readOnly = await searchMemory(root, "mistral", 24, { recognition: { editor: "human" }, readOnly: true });
   assert.equal(readOnly.retrieval.warnings.includes("read_only_index"), true);
   assert.equal(readOnly.results[0].recognition.editor.id, actorId);
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
+  for (const [command, flags] of [["search", ["--query", "zephyr"]], ["recall", ["--topic", "zephyr", "--depth", "shallow"]]]) {
+    const cli = await execFileAsync(process.execPath, ["dist/cli.js", command, "--root", root, ...flags, "--json"],
+      { env: { ...process.env, JUMPYBRAIN_CLI_CONFIG: path.join(root, "unused-cli-config.json") } });
+    assert.equal(JSON.parse(cli.stdout).results[0].provenance.metadata.id, exactId, `${command} ranks exact title first`);
+  }
   if (process.env.JUMPYBRAIN_SEARCH_QA_SERVE === "1") {
     console.log(JSON.stringify({ url: server.url, key, actorId, root, output }));
     await new Promise(resolve => { process.on("SIGINT", resolve); process.on("SIGTERM", resolve); });
@@ -52,6 +70,57 @@ try {
       if (await page.locator("#recent-connect").isVisible()) {
         await page.locator("#recent-connect").click(); await page.locator("#api-key").fill(key); await page.locator("#connection-submit").click();
       }
+      await page.locator("#home-search").click();
+      await page.locator("#note-search-input").fill("zephyr");
+      await page.waitForFunction(title => document.querySelector("#search-results strong")?.textContent === title, exactTitle);
+      await page.locator("#note-search-input").press("Enter");
+      await page.waitForFunction(title => document.querySelector("#note-name")?.value === title, exactTitle);
+      await openNoteSearch(page);
+      await page.locator("#note-search-input").fill(notes[0].title);
+      await page.waitForFunction(title => document.querySelector("#search-results strong")?.textContent === title, notes[0].title);
+      await page.locator("#note-search-input").press("Enter");
+      await page.waitForFunction(title => document.querySelector("#note-name")?.value === title, notes[0].title);
+      const exactResponse = page.waitForResponse(response => response.url().endsWith("/memories/all/search") && response.request().postDataJSON()?.query === "zephyr");
+      await openNoteSearch(page);
+      await page.locator("#note-search-input").fill("zephyr");
+      assert.equal((await (await exactResponse).json()).results[0].provenance.metadata.id, exactId, "server and CLI agree");
+      await page.waitForFunction(title => document.querySelector("#search-results strong")?.textContent === title, exactTitle);
+      await page.locator("#note-search-input").fill("  ZEPHYR  ");
+      await page.waitForFunction(title => document.querySelector("#search-results strong")?.textContent === title, exactTitle);
+      await page.locator("#note-search-input").press("Enter");
+      await page.waitForFunction(() => !document.querySelector("#note-search").open);
+      await page.waitForFunction(title => document.querySelector("#note-name")?.value === title, exactTitle);
+      assert.equal(await page.locator("#note-name").inputValue(), exactTitle, "exact result opens from another note");
+      assert.equal(await readFile(path.join(root, "notes/Zephyr.md"), "utf8"), exactContent, "search/navigation preserves canonical bytes");
+      if (width === 1280 && theme === "dark") {
+        // Leave a confirmed old version in this tab, then rename through an
+        // external writer while another note is open. Local indexing can be
+        // fresh before server maintenance updates its separate bookkeeping.
+        await replaceEditorText(page, "Confirmed old profile content");
+        await page.waitForFunction(() => document.querySelector("#note-save-state")?.textContent === "Saved");
+        await openNoteSearch(page);
+        await page.locator("#note-search-input").fill(notes[0].title);
+        await page.waitForFunction(title => document.querySelector("#search-results strong")?.textContent === title, notes[0].title);
+        await page.locator("#note-search-input").press("Enter");
+        await page.waitForFunction(title => document.querySelector("#note-name")?.value === title, notes[0].title);
+        const renamed = exactContent.replaceAll(exactTitle, "Cirrus");
+        await writeFile(path.join(root, "notes/Zephyr.md"), renamed);
+        await indexMemory(root);
+        const response = page.waitForResponse(r => r.url().endsWith("/memories/all/search") && r.request().postDataJSON()?.query === "cirrus");
+        await openNoteSearch(page);
+        await page.locator("#note-search-input").fill("cirrus");
+        const packet = await (await response).json();
+        assert.equal(packet.readiness.freshness, "fresh");
+        assert.equal(packet.index.stale, true, "host bookkeeping still awaits maintenance");
+        assert.equal(packet.results[0].provenance.metadata.id, exactId, "server returns renamed exact title first");
+        await page.waitForFunction(() => document.querySelector("#search-results strong")?.textContent === "Cirrus");
+        await page.locator("#note-search-input").press("Enter");
+        await page.waitForFunction(() => document.querySelector("#note-name")?.value === "Cirrus");
+        assert.equal(await readFile(path.join(root, "notes/Zephyr.md"), "utf8"), renamed);
+        await writeFile(path.join(root, "notes/Zephyr.md"), exactContent);
+        await indexServerMemory({ root });
+      }
+      await page.goto(server.url);
       await page.locator("#home-search").click();
       await page.locator("#note-search-input").fill("mistral");
       await page.waitForFunction(() => document.querySelectorAll("#search-results li").length === 24);
@@ -104,7 +173,14 @@ try {
       if (width === 1280 && theme === "dark") {
         await replaceEditorText(page, "Mistral freshly edited personal application note");
         await page.waitForFunction(() => document.querySelector("#note-save-state")?.textContent === "Saved");
-        await page.locator("#open-search").click();
+        // Broad navigation intentionally excludes the open note. Move to a
+        // different page before checking the confirmed-save search projection.
+        await openNoteSearch(page);
+        await page.locator("#note-search-input").fill("zephyr");
+        await page.waitForFunction(title => document.querySelector("#search-results strong")?.textContent === title, exactTitle);
+        await page.locator("#note-search-input").press("Enter");
+        await page.waitForFunction(title => document.querySelector("#note-name")?.value === title, exactTitle);
+        await openNoteSearch(page);
         await page.locator("#note-search-input").fill("freshly edited personal");
         await page.waitForFunction(() => [...document.querySelectorAll(".search-result-preview")].some(node => node.textContent.includes("freshly edited personal")));
         assert.equal(await page.locator("#search-refresh-index").isVisible(), true, "stale saved-note results keep actionable refresh");

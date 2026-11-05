@@ -33,9 +33,10 @@ export function createRecentWriteSearch(options: { scope(): string; fetch(query:
     }
     signal.throwIfAborted();
     if (startedScope !== options.scope()) throw new DOMException("Connection changed", "AbortError");
-    // Once the server verifies a fresh generation, it becomes authoritative
-    // again. Never retire a write that happened after this query started.
-    if (packet.index?.stale === false && packet.readiness?.freshness === "fresh" && revision === startedRevision) {
+    // Canonical readiness verifies this searched generation. The host's separate
+    // indexing bookkeeping can still lag a CLI/local index publication. Never
+    // retire a write that happened after this query started.
+    if (packet.readiness?.freshness === "fresh" && revision === startedRevision) {
       saved.clear(); deleted.clear();
     }
     const local = [...saved.values()].reverse().filter(note => matches(note, query));

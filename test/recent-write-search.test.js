@@ -49,14 +49,47 @@ test('exact indexed title navigation precedes body-only matches in local saves',
 
 
 test('verified fresh generations retire the overlay without losing writes during a query', async () => {
-  let finish;
-  const cache=createRecentWriteSearch({scope:()=> 'a',fetch:()=>new Promise(resolve=>finish=resolve)});
-  cache.remember(note('one','Previous local title'));
-  let pending=cache.search('title',new AbortController().signal);
-  finish({results:[hit('one','New external title')],index:{stale:false},readiness:{freshness:'fresh'}});
-  assert.equal((await pending).results[0].provenance.metadata.title,'New external title');
-  pending=cache.search('Newest local title',new AbortController().signal);
-  cache.remember(note('one','Newest local title'));
-  finish({results:[hit('one','New external title')],index:{stale:false},readiness:{freshness:'fresh'}});
-  assert.equal((await pending).results[0].provenance.metadata.title,'Newest local title');
+  for (const stale of [false, true]) {
+    let finish;
+    const cache=createRecentWriteSearch({scope:()=> 'a',fetch:()=>new Promise(resolve=>finish=resolve)});
+    cache.remember(note('one','Previous local title'));
+    let pending=cache.search('title',new AbortController().signal);
+    finish({results:[hit('one','New external title')],index:{stale},readiness:{freshness:'fresh'}});
+    assert.equal((await pending).results[0].provenance.metadata.title,'New external title');
+    pending=cache.search('Newest local title',new AbortController().signal);
+    cache.remember(note('one','Newest local title'));
+    finish({results:[hit('one','New external title')],index:{stale},readiness:{freshness:'fresh'}});
+    assert.equal((await pending).results[0].provenance.metadata.title,'Newest local title');
+    pending=cache.search('deleted',new AbortController().signal);
+    cache.remove('two');
+    finish({results:[hit('two','Deleted title')],index:{stale},readiness:{freshness:'fresh'}});
+    assert.equal((await pending).results.length,0,'a deletion during the query must also survive');
+  }
+});
+
+test('stale or unknown canonical readiness preserves confirmed saves and deletions', async () => {
+  for (const readiness of [undefined, { freshness: 'stale' }, { freshness: 'unknown' }]) {
+    const cache = createRecentWriteSearch({ scope: () => 'a', fetch: async () => ({
+      results: [hit('one', 'Old title'), hit('deleted', 'Old deleted title')], index: { stale: false }, readiness,
+    }) });
+    cache.remember(note('one', 'Updated title'));
+    cache.remove('deleted');
+    const packet = await cache.search('title', new AbortController().signal);
+    assert.deepEqual(packet.results.map(row => row.provenance.metadata.title), ['Updated title']);
+  }
+});
+
+test('fresh canonical readiness retires old tab titles even when host indexing bookkeeping lags', async () => {
+  for (const cached of ['save', 'deletion']) {
+    const cache = createRecentWriteSearch({ scope: () => 'a', fetch: async () => ({
+      results: [hit('target', 'Nico'), hit('mention', 'Meeting with Nico')],
+      index: { stale: true }, readiness: { freshness: 'fresh' }, recognition: { version: 1 },
+    }) });
+    if (cached === 'save') cache.remember(note('target', 'Old working title', 'Earlier content'));
+    else cache.remove('target'); // An external writer restored it before indexing.
+    const packet = await cache.search('nico', new AbortController().signal, 24, { offset: 0 });
+    assert.equal(packet.results[0].provenance.metadata.id, 'target');
+    assert.equal(packet.results[0].provenance.metadata.title, 'Nico');
+    assert.equal(packet.index.stale, true, 'do not rewrite the host bookkeeping claim');
+  }
 });
