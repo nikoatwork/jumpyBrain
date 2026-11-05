@@ -37,3 +37,9 @@ The installed Mac app/CLI personal-brain check verified the requested fresh Nico
 ## Limits
 
 No release, installation, inbox mutation or shared/remote memory write requested. Only the explicitly authorized personal test note was saved. Unrelated README/release-documentation work landed separately while this task ran and is outside this commit.
+
+## Follow-up: existing pages in the installed app
+
+At the user's request on 2026-11-05, tested existing simple titles in the running local Mac app, from a different saved note, against installed CLI normal-depth searches with limit 24 and `--no-refresh`. Canonical readiness was fresh, lexical only. `mistral`, `Coaching`, `Book`, `Europace` and `bliro_ai` each appeared first in both interfaces. The fresh indexed metadata contains no page titled exactly `Bliro`; searching that word is therefore a broader query. Opening the first Mistral result verified its canonical ID/path and page name. Repeated its search after returning to the other page and after reloading the clean tab; it still appeared first. No missing/lower-ranked exact match was reproduced in these checks.
+
+An interim interpretation of Mistral's accessibility row as a stale longer title was incorrect: inspecting the title/preview boundary showed the title is `mistral`; the following longer phrase belongs to the preview. No additional title-cache defect was established. No memory files were created or edited during this follow-up, and the app was left on the original saved page with search dismissed. The previously committed cache fix was not installed or released by this verification.
