@@ -1,5 +1,7 @@
 # Changes
 
+- Ordinary Markdown bullets render emphasis and safe web links; simple relative-link text stays editable without hiding the formatting around it.
+
 - Agent guidance now treats authorized concurrent editing as normal, with source-range edits and resync instead of asking the user to stop typing.
 
 - Task checkboxes align with the first text line; checked labels use 80% opacity instead of a partial underline in the Mac and browser editors.

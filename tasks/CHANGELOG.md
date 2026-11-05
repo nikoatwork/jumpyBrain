@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Ordinary Markdown bullets
+
+- Top-level bullets render supported formatting/web links, preserve inert relative paths and canonical source through editing/Undo/live updates, with unchanged size caps. [Verification](done/2026-11-05_tasks-feedback-markdown-rendering.md).
+
 ## 2026-11-05 — Concurrent-edit agent guidance
 
 - CLI entry/write/help, managed memory skills and recommended agent instructions now prefer authorized live coauthoring with verified read bases and resync; real browser/CLI insertion preserved both authors’ changes. [Verification](done/2026-11-05_tasks-feedback-concurrent-guidance.md).
