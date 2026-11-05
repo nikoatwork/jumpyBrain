@@ -1,6 +1,6 @@
 # Escape stays with the focused UI
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md), authorized 2026-11-04.
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md), authorized 2026-11-04.
 
 - [x] Reproduce real toolbar failure with preserved editor selection: document-capture attribution handler already prevented Escape before the toolbar could close.
 - [x] Restrict the passive attribution hint's Escape ownership to the editor body and avoid consuming composition Escape.

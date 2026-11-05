@@ -1,6 +1,6 @@
 # UX verification harness alignment
 
-Part of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md). Required to interpret broader checks without inventing product failures or false passes.
+Part of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md). Required to interpret broader checks without inventing product failures or false passes.
 
 - [x] Preserve original workspace premature-Saved and board unfaulted-edit failures in parent notes.
 - [x] Wait for actual live confirmation and inject failure through the existing WS transport fixture; verify recovery through visible review UI.

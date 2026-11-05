@@ -1,6 +1,6 @@
 # Deliver confirmed abandoned generation outcomes
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md), authorized 2026-11-04.
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md), authorized 2026-11-04.
 
 - [x] Reproduce with real CLI, one saved chunk, SIGKILL of only the fixture producer, and the actual 60-second lease. UI had no cue before diagnostic status; status confirmed cancelled/lease_expired and only then caused an assisted cue.
 - [x] Deliver expiry/revocation outcomes through existing scoped subscriptions as small metadata events, with one canonical source observation per batch.

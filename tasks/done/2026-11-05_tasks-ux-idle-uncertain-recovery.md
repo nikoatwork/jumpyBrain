@@ -1,13 +1,13 @@
 # Idle uncertain-draft recovery
 
-Verification tranche of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md).
+Verification tranche of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md).
 
 - [x] Add opt-in bounded idle/peer-edit controls with explicit lane selection and exact runtime/input receipts; keep default six cases.
 - [x] Pilot one accepted-body lane through 132 peer edits and a short idle before actual long observation.
 - [x] Retain one uncertain draft at 390px for one hour after 132 peer edits, then verify guarded Home, exact copy and explicit saved acceptance without replay.
 - [x] Record outcomes/limits, archive and commit.
 
-This supplements the long clean-writing fixtures with private unpublished state.
+This supplements the long clean-writing fixtures with uncertain local editor state.
 No product change is proposed without a failed checkpoint. Compiled runtime
 hashes must remain unchanged; no rebuild during this test. No native/real-user
 timing or actual shared-memory claim.
@@ -51,3 +51,8 @@ installation, index repair or real shared-memory write was needed. This is
 source-informed localhost Chromium evidence; native Mac, physical keyboard/IME
 and human usability scoring remain unobserved. The optional runner is not an
 ordinary npm test, install or release gate.
+
+Scope clarification: the hour-long lane lost acknowledgment of an already
+accepted body write. The separate fast matrix covers rejected, genuinely
+unpublished body text and lost title acknowledgments; those lanes were not
+observed for an hour.

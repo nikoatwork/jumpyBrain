@@ -1,6 +1,6 @@
 # Own-edit external feedback
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md), authorized 2026-11-04.
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md), authorized 2026-11-04.
 
 - [x] Reproduce false own-title notification in the production browser shell before changing source.
 - [x] Classify external feedback using complete validated operation history and scoped actor identity; ignore content-free checkpoints.

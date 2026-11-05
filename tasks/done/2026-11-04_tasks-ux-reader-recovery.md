@@ -1,6 +1,6 @@
 # Read-only manual-copy recovery
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md).
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md).
 
 - [x] Reproduce publication affordance after clipboard denial for a real reader.
 - [x] Follow known live write capability for reviewed-publication controls and submission.

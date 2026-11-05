@@ -1,6 +1,6 @@
 # Narrow note entry space
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md).
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md).
 
 - [x] Reproduce expanded navigation on direct narrow note entry/breakpoint.
 - [x] Reuse transient sidebar dismissal for selected note destinations and narrow breakpoint entry.

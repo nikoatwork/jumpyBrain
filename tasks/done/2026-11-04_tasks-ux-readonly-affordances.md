@@ -1,6 +1,6 @@
 # Read-only note affordances
 
-Increment of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md), authorized 2026-11-04.
+Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md), authorized 2026-11-04.
 
 - [x] Reproduce an actual hosted reader seeing empty-note “Start writing” guidance despite a locked body.
 - [x] Reuse the same note editing lock for guidance/formatting and the editor controls; keep allowed private editing distinct from current network write readiness.

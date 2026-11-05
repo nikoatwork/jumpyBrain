@@ -1,6 +1,6 @@
 # Long-lived UX stability evidence
 
-Verification tranche of the [four-hour UX loop](../todo/tasks-ux-four-hour-loop.md).
+Verification tranche of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md).
 
 - [x] Build an explicit opt-in disposable coauthoring/off-note-search probe with a frozen runtime and retained inputs/canonical receipts.
 - [x] Preserve invalid pilot 1; fix its too-short budget, foreground-search observer effect and provenance field assumption.
