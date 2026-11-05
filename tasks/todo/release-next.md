@@ -1,5 +1,7 @@
 # Changes
 
+- Failed update checks no longer revive an outdated install offer; retrying discovery restores only an available newer update.
+
 - Ordinary Markdown bullets render emphasis and safe web links; simple relative-link text stays editable without hiding the formatting around it.
 
 - Agent guidance now treats authorized concurrent editing as normal, with source-range edits and resync instead of asking the user to stop typing.
@@ -28,7 +30,6 @@
 
 - A connected note quietly distinguishes confirmed generation finish, stop and interruption, without treating lost presence as completion.
 
-- Keeping the current note after comparing retained versions quiets that notice for this tab; earlier versions stay accessible.
 
 - If live editing cannot connect, loaded saved notes stay readable with a clear editing retry; connection status is consistent for screen readers.
 

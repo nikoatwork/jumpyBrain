@@ -20,7 +20,7 @@ try{
   await createServerMemoryRuntime({root}).initializeMemoryRoot();
   const id='mem_a0000000-0000-4000-8000-000000000009';
   const note=path.join(root,'notes/links.md');
-  const source=`---\nid: ${id}\ntype: note\ntitle: External links fixture\n---\nSee [Issue](https://example.com/issue/1145).\n`;
+  const source=`---\nid: ${id}\ntype: note\ntitle: External links fixture\n---\nSee [Issue](https://example.com/issue/1145).\n\n- **Decision** Keep ordinary Markdown.\n- **Evidence** [Earlier](../decisions/example.md) and [Reference](https://example.com/reference).\n`;
   await writeFile(note,source);
   const controlKey=randomBytes(32).toString('hex');
   gateway=await startCompanionGateway({runtimeRoot:repo,directory:support,initialRoot:root,port:0,controlKey,

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-05 — Updater readiness and feedback integration
+
+- Failed update discovery no longer revives stale preparation offers; the combined guidance/Markdown/updater snapshot passed 1,946 tests plus production browser/Mac/update flows under unchanged budgets. [Session verification](done/2026-11-05_tasks-feedback-session.md), [updater evidence](done/2026-11-05_tasks-feedback-updater-readiness.md).
+
 ## 2026-11-05 — Ordinary Markdown bullets
 
 - Top-level bullets render supported formatting/web links, preserve inert relative paths and canonical source through editing/Undo/live updates, with unchanged size caps. [Verification](done/2026-11-05_tasks-feedback-markdown-rendering.md).

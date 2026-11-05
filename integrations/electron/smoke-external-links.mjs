@@ -22,6 +22,12 @@ async function run(){
     await js(`navigation.navigate('/?brain='+encodeURIComponent(companionState.activeId)+'&note='+${JSON.stringify(config.id)})`);
     await until('document.querySelector("#note-editor a.markdown-external-link") && document.querySelector("#note-editor").isContentEditable');
     const before=await js('richEditor.getMarkdown()');
+    assert.equal(await js('document.querySelectorAll("#note-editor .markdown-bullet").length'),2,'ordinary bullets render in the real Mac window');
+    assert.equal(await js('document.querySelectorAll("#note-editor .markdown-bullet .editor-bold").length'),2,'bullet emphasis renders');
+    assert.equal(await js('document.querySelectorAll("#note-editor a.markdown-external-link").length'),2,'safe links render beside inert relative source');
+    assert.equal(await js('document.querySelector("#note-editor").textContent.includes("[Earlier](../decisions/example.md)")'),true);
+    assert.equal(await js('Array.from(document.querySelectorAll("#note-editor a")).some(link=>link.getAttribute("href")?.startsWith("../"))'),false);
+
     const p=await js('(()=>{const r=document.querySelector("#note-editor a.markdown-external-link").getBoundingClientRect();return {x:Math.round(r.x+r.width/2),y:Math.round(r.y+r.height/2)}})()');
     for(const type of ['mouseDown','mouseUp'])window.webContents.sendInputEvent({type,...p,button:'left',clickCount:1});
     const deadline=Date.now()+5000;
@@ -37,7 +43,7 @@ async function run(){
     await new Promise(resolve=>setTimeout(resolve,100));
     assert.equal(opened.length,1,'Frozen sessions cannot activate external links.');
     await writeFile(config.result,JSON.stringify({ok:true}));
-    console.log('PASS real Electron external-link click reaches the system-opener seam once and retains the note');
+    console.log('PASS real Electron renders ordinary Markdown bullets/emphasis and inert relative source; external-link click reaches the system-opener seam once and retains the note');
   }catch(error){await writeFile(config.result,JSON.stringify({ok:false,error:error.message}));process.exitCode=1;}
   finally{window?.destroy();app.exit(process.exitCode||0);}
 }
