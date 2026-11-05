@@ -8,8 +8,8 @@ import {createRequire} from 'node:module';
 import path from 'node:path';
 import os from 'node:os';
 import {fileURLToPath} from 'node:url';
-import {runGate,installedDependencyIdentity,filesBelow} from './multiplayer-verify.mjs';
-import {loadPlaywrightChromium,launchPlaywrightChromium} from './playwright-runtime.mjs';
+import {runGate,installedDependencyIdentity,filesBelow} from '../multiplayer-verify.mjs';
+import {loadPlaywrightChromium,launchPlaywrightChromium} from '../playwright-runtime.mjs';
 
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 export async function focusedEnvironment(root) {
@@ -44,7 +44,7 @@ async function main() {
   if(positionals.length!==1||!['capture','verify'].includes(mode)||!values.out)throw new Error('Use capture --out DIR or verify --baseline DIR --baseline-sha256 SHA --out DIR; optional --root CHECKOUT.');
   if(mode==='capture'&&(values.baseline||values['baseline-sha256']))throw new Error('Capture does not accept a baseline.');
   process.env.JUMPYBRAIN_CONTRACT_OBSERVATIONS='1';
-  const result=await runGate({mode,root:values.root??fileURLToPath(new URL('..',import.meta.url)),out:values.out,baseline:values.baseline,baselineSha256:values['baseline-sha256'],deltaFile:values.delta,deltaSha256:values['delta-sha256'],contractFile:'test/fixtures/architecture-contracts/profile.json',probe:focusedEnvironment});
+  const result=await runGate({mode,root:values.root??fileURLToPath(new URL('../..',import.meta.url)),out:values.out,baseline:values.baseline,baselineSha256:values['baseline-sha256'],deltaFile:values.delta,deltaSha256:values['delta-sha256'],contractFile:'test/fixtures/architecture-contracts/profile.json',probe:focusedEnvironment});
   console.log(JSON.stringify({status:result.status,error:result.error,manifestSha256:result.manifestSha256,checks:result.checks.map(({id,status,reason})=>({id,status,reason}))},null,2));
   process.exitCode=result.status==='passed'?0:1;
 }

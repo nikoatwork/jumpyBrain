@@ -42,14 +42,14 @@ are not established. Ordinary focused testing remains governed by
 Commit source/harness changes before capture. From the reference checkout:
 
 ```sh
-npx --no-install --package=playwright node scripts/architecture-contracts.mjs capture --out .local-pack/architecture-contracts/reference
+npx --no-install --package=playwright node scripts/multiplayer-verification/architecture.mjs capture --out .local-pack/architecture-contracts/reference
 ```
 
 Record the printed manifest SHA-256 independently in the completed task/evidence
 record. Reproduce in an independent run (the scenarios create fresh roots):
 
 ```sh
-npx --no-install --package=playwright node scripts/architecture-contracts.mjs verify --baseline /absolute/reference --baseline-sha256 PINNED_SHA256 --out .local-pack/architecture-contracts/repeat
+npx --no-install --package=playwright node scripts/multiplayer-verification/architecture.mjs verify --baseline /absolute/reference --baseline-sha256 PINNED_SHA256 --out .local-pack/architecture-contracts/repeat
 ```
 
 From a candidate worktree with matching dependencies, use the same verify

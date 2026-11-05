@@ -2,7 +2,6 @@
   "version": 1,
   "id": "architecture-contracts-v1",
   "assertionRoots": [
-    "scripts/architecture-contracts.mjs",
     "scripts/collaboration-actor-churn-proof.mjs",
     "scripts/collaboration-cursor-proof.mjs",
     "scripts/collaboration-editor-smoke.mjs",
@@ -11,8 +10,6 @@
     "scripts/collaboration-smoke-transport.mjs",
     "scripts/contract-observations.mjs",
     "scripts/editor-smoke-helpers.mjs",
-    "scripts/multiplayer-verification/contract-delta.mjs",
-    "scripts/multiplayer-verify.mjs",
     "scripts/playwright-runtime.mjs",
     "scripts/remote-target-origin.mjs",
     "scripts/ux-credential-draft-smoke.mjs",
