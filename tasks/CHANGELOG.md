@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-07 — Embedding dependency pilot
+
+- Completed a local agent retrieval comparison: indexed lexical search was the strongest observed baseline, with no demonstrated optional-vector accuracy gain. Retained lexical default and optional embeddings; broader removal evidence remains open. [Evidence and limitations](done/2026-11-07_tasks-locomo-retrieval-pilot.md).
+
 ## 2026-11-05 — Reproducible architecture contracts
 
 - Closed unknown-layer and selected HTTP/live receipt validation gaps; froze 165 focused checks and four browser journeys with ten observed checkpoints. An independent unchanged checkout reproduced the runtime bytes and behavior. Added bounded backend/editor refactor plans. [Completion and evidence](done/2026-11-05_tasks-architecture-contract-hardening.md).
