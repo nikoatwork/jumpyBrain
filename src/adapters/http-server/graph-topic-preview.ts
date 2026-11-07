@@ -28,7 +28,7 @@ export const graphTopicStyles = `
 
 /** Only explicit edges in the bounded displayed packet establish linked notes. */
 export function graphTopicLinks(node: Pick<MemoryGraphNode, "id">, graph: Pick<MemoryGraphResult, "nodes" | "edges"> | null): Page[] {
-  const neighbors = new Set(graph?.edges.flatMap(edge => edge.target === node.id ? [edge.source] : edge.source === node.id ? [edge.target] : []) ?? []);
+  const neighbors = new Set(graph?.edges.filter(edge => edge.kind !== "semantic-link").flatMap(edge => edge.target === node.id ? [edge.source] : edge.source === node.id ? [edge.target] : []) ?? []);
   const seen = new Set<string>();
   return (graph?.nodes ?? []).flatMap(other => {
     if (!neighbors.has(other.id) || other.nodeKind !== "document" || !isValidMemoryDocumentId(other.documentId) || seen.has(other.documentId)) return [];

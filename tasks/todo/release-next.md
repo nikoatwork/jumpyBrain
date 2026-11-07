@@ -1,5 +1,7 @@
 # Changes
 
+- The graph connects strongly related notes even without written links when local semantic indexing is ready; dashed inferred connections stay distinct from solid explicit links.
+
 - Invalid remote document-update and board-save receipts now remain explicitly unconfirmed; live editing rejects invalid supplied protocol, operation and stream fields without replaying writes.
 
 - Failed update checks no longer revive an outdated install offer; retrying discovery restores only an available newer update.

@@ -201,7 +201,7 @@ export interface MemoryOverviewOptions {
 export interface MemoryGraphOptions {
   focus?: string;
   depth?: number;
-  edgeTypes?: MemoryConnectionEdgeKind[];
+  edgeTypes?: MemoryGraphEdgeKind[];
   tags?: string[];
   type?: string;
   path?: string;
@@ -245,6 +245,7 @@ export interface MemoryOverviewDocumentSummary {
 }
 
 export type MemoryConnectionEdgeKind = "markdown-link" | "wiki-link";
+export type MemoryGraphEdgeKind = MemoryConnectionEdgeKind | "semantic-link";
 
 export interface MemoryConnectionEdge {
   source: string;
@@ -296,7 +297,9 @@ export interface MemoryGraphEdge {
   id: string;
   source: string;
   target: string;
-  kind: MemoryConnectionEdgeKind;
+  kind: MemoryGraphEdgeKind;
+  /** Cosine similarity of document embeddings; not a probability. Semantic links are undirected. */
+  similarity?: number;
   count: number;
   resolved: boolean;
   rawTarget?: string;
@@ -308,6 +311,7 @@ export interface MemoryGraphStats {
   edges: number;
   markdownLinks: number;
   wikiLinks: number;
+  semanticLinks: number;
   unresolvedLinks: number;
   orphans: number;
 }
@@ -321,6 +325,7 @@ export interface MemoryGraphResult {
   edges: MemoryGraphEdge[];
   stats: MemoryGraphStats;
   warnings: string[];
+  semantic?: { state: "ready" | "partial" | "unavailable" | "disabled" | "stale"; comparedDocuments: number; totalDocuments: number };
   /** Explicit response caps; absent for an uncapped view. Meaningful fields are never shortened. */
   truncation?: { nodes: boolean; edges: boolean; bytes: boolean };
   options: Required<Pick<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "limit">> & Omit<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "limit">;

@@ -24,7 +24,7 @@ import { serializeBudgetedPacket, validatePacketMaxBytes } from "../../core/seri
 import type { RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
 import { graphPageHtml } from "./graph-page.js";
 import { brainFaviconSvg } from "./favicon.js";
-import type { DreamWindowRequest, MemoryConnectionEdgeKind } from "../../types.js";
+import type { DreamWindowRequest, MemoryGraphEdgeKind } from "../../types.js";
 
 interface JsonError {
   error: {
@@ -947,8 +947,8 @@ function graphOptionsFromSearchParams(url: URL) {
   const edgeLimit = optionalNonnegativeIntegerSearchParam(url, "edgeLimit");
   if (edgeLimit instanceof Error) return edgeLimit;
   const edgeTypes = stringListSearchParam(url, "edgeTypes") ?? stringListSearchParam(url, "edge-types");
-  const allowedEdgeTypes = new Set(["markdown-link", "wiki-link"]);
-  if (edgeTypes?.some((edgeType) => !allowedEdgeTypes.has(edgeType))) return new Error("edgeTypes may only include markdown-link or wiki-link.");
+  const allowedEdgeTypes = new Set(["markdown-link", "wiki-link", "semantic-link"]);
+  if (edgeTypes?.some((edgeType) => !allowedEdgeTypes.has(edgeType))) return new Error("edgeTypes may only include markdown-link, wiki-link or semantic-link.");
   return {
     focus: stringSearchParam(url, "focus") || undefined,
     query: stringSearchParam(url, "query") || undefined,
@@ -960,7 +960,7 @@ function graphOptionsFromSearchParams(url: URL) {
     type: stringSearchParam(url, "type") || undefined,
     path: stringSearchParam(url, "path") || undefined,
     tags: stringListSearchParam(url, "tags"),
-    edgeTypes: edgeTypes as MemoryConnectionEdgeKind[] | undefined,
+    edgeTypes: edgeTypes as MemoryGraphEdgeKind[] | undefined,
     includeUnresolved: optionalBooleanSearchParam(url, "includeUnresolved") ?? optionalBooleanSearchParam(url, "include-unresolved"),
     includeOrphans: optionalBooleanSearchParam(url, "includeOrphans") ?? optionalBooleanSearchParam(url, "include-orphans"),
     depth,

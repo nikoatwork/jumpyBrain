@@ -1,4 +1,5 @@
 import { collectConnections } from "./connections.js";
+import { semanticGraph } from "./graph-semantic.js";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -10,7 +11,7 @@ import { bucketFor, firstString, stringValue, tagsValue, tryLoadManifest } from 
 import type {
   Frontmatter,
   MarkdownDocument,
-  MemoryConnectionEdgeKind,
+  MemoryGraphEdgeKind,
   MemoryGraphEdge,
   MemoryGraphNode,
   MemoryGraphOptions,
@@ -48,6 +49,16 @@ export async function graphMemory(rootArg: string, options: MemoryGraphOptions =
   const normalizedOptions = normalizeGraphOptions(options);
 
   const built = await buildGraph(documents, indexedFiles, normalizedOptions.includeUnresolved, signal);
+  const fileIds = documents.map(document => document.relativePath).sort();
+  const knownFiles = new Set(fileIds);
+  const focus = normalizedOptions.focus ? resolveFocus(normalizedOptions.focus, built.nodes, knownFiles) : undefined;
+  const prioritizedFiles = [...new Set([...(focus ? [focus] : []), ...(normalizedOptions.seeds ?? []).filter(file => knownFiles.has(file)), ...fileIds])];
+  // Canonical references take precedence, including the reverse direction.
+  const semantic = !normalizedOptions.edgeTypes || normalizedOptions.edgeTypes.includes("semantic-link")
+    ? await semanticGraph(root, manifest, prioritizedFiles, signal) : undefined;
+  const pair = (a: string, b: string) => JSON.stringify([a, b].sort());
+  const explicitPairs = new Set(built.edges.map(edge => pair(edge.source, edge.target)));
+  built.edges.push(...(semantic?.edges ?? []).filter(edge => !explicitPairs.has(pair(edge.source, edge.target))));
   signal?.throwIfAborted();
   const filtered = filterGraph(built.nodes, built.edges, normalizedOptions);
   // Presentation fields cannot affect filtering/order. Read them only for returned documents.
@@ -71,14 +82,15 @@ export async function graphMemory(rootArg: string, options: MemoryGraphOptions =
     nodes: filtered.nodes,
     edges: filtered.edges,
     stats: graphStats(documents.length, filtered.nodes, filtered.edges),
-    warnings: graphWarnings(status.compatible, documents.length, filtered.truncation, normalizedOptions.limit, Boolean(manifest)),
+    warnings: [...graphWarnings(status.compatible, documents.length, filtered.truncation, normalizedOptions.limit, Boolean(manifest)), ...(semantic?.warnings ?? [])],
+    ...(semantic ? { semantic: semantic.semantic } : {}),
     ...(filtered.truncation ? { truncation: filtered.truncation } : {}),
     options: normalizedOptions,
   };
 }
 
 interface NormalizedGraphOptions extends Required<Pick<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "includeSnippets" | "neighborLimit" | "limit">>, Omit<MemoryGraphOptions, "depth" | "includeUnresolved" | "includeOrphans" | "includeSnippets" | "neighborLimit" | "limit"> {
-  edgeTypes?: MemoryConnectionEdgeKind[];
+  edgeTypes?: MemoryGraphEdgeKind[];
   tags?: string[];
 }
 
@@ -143,7 +155,7 @@ function unresolvedNode(rawTarget: string, id: string): MemoryGraphNode {
 }
 
 function filterGraph(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[], options: NormalizedGraphOptions): { nodes: MemoryGraphNode[]; edges: MemoryGraphEdge[]; truncation?: { nodes: boolean; edges: boolean; bytes: boolean } } {
-  const edgeTypes = new Set(options.edgeTypes ?? ["markdown-link", "wiki-link"]);
+  const edgeTypes = new Set(options.edgeTypes ?? ["markdown-link", "wiki-link", "semantic-link"]);
   let nodeIds = new Set(nodes.map((node) => node.id));
   let filteredEdges = edges.filter((edge) => edgeTypes.has(edge.kind));
 
@@ -290,9 +302,9 @@ function applyDegrees(nodes: MemoryGraphNode[], edges: MemoryGraphEdge[]): Memor
     const source = degree.get(edge.source);
     const target = degree.get(edge.target);
     if (source && target) {
-      source.out += edge.count;
+      if (edge.kind !== "semantic-link") source.out += edge.count;
       source.neighbors.add(edge.target);
-      target.in += edge.count;
+      if (edge.kind !== "semantic-link") target.in += edge.count;
       target.neighbors.add(edge.source);
     }
   }
@@ -310,6 +322,7 @@ function graphStats(documentCount: number, nodes: MemoryGraphNode[], edges: Memo
     edges: edges.length,
     markdownLinks: edges.filter((edge) => edge.kind === "markdown-link").length,
     wikiLinks: edges.filter((edge) => edge.kind === "wiki-link").length,
+    semanticLinks: edges.filter((edge) => edge.kind === "semantic-link").length,
     unresolvedLinks: nodes.filter((node) => node.nodeKind === "unresolved").length,
     orphans: documentNodes.filter((node) => node.degree === 0).length,
   };
@@ -353,9 +366,9 @@ function nonnegativeInteger(value: number | undefined, fallback: number): number
   return optionalNonnegativeInteger(value) ?? fallback;
 }
 
-function normalizeEdgeTypes(edgeTypes: MemoryConnectionEdgeKind[] | undefined): MemoryConnectionEdgeKind[] | undefined {
+function normalizeEdgeTypes(edgeTypes: MemoryGraphEdgeKind[] | undefined): MemoryGraphEdgeKind[] | undefined {
   if (!edgeTypes || edgeTypes.length === 0) return undefined;
-  const allowed = new Set<MemoryConnectionEdgeKind>(["markdown-link", "wiki-link"]);
+  const allowed = new Set<MemoryGraphEdgeKind>(["markdown-link", "wiki-link", "semantic-link"]);
   return [...new Set(edgeTypes.filter((edgeType) => allowed.has(edgeType)))];
 }
 
@@ -398,7 +411,7 @@ function unresolvedNodeId(target: string): string {
   return `unresolved:${target.trim().replace(/\s+/g, " ").toLowerCase()}`;
 }
 
-function edgeId(source: string, target: string, kind: MemoryConnectionEdgeKind): string {
+function edgeId(source: string, target: string, kind: MemoryGraphEdgeKind): string {
   return `${kind}:${source}->${target}`;
 }
 

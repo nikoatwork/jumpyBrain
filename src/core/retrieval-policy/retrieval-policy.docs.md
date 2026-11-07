@@ -59,3 +59,7 @@ The app verifies expansion identity and current source bytes; this policy module
 ### Compact temporal additions
 
 Only an explicit temporal request adds the optional packet `temporal` interval/coverage and passage `evidenceDate`/`relationships`. Written `date` remains separate. Relationships contain only source-declared `conflicts_with`/`supersedes` strings or string arrays, never inferred resolution. All additions count toward the same whole-passage UTF-8 budget; oversized declarations omit the passage, not the qualifications. Without a temporal envelope the pure packer strips temporal passage additions, preserving legacy V1 output.
+
+## Semantic connection policy
+
+`semantic-links.ts` normalizes and averages supplied complete document chunks, rejects invalid/oversized vectors and selects unique undirected pairs with cosine >= 0.70 and mutual top-three agreement. Stable path ties and fixed work limits keep selection deterministic and prevent hubs from gaining unbounded inferred degree. Similarity means related subject matter, not agreement, factual support or canonical reference. The adapter supplies complete vectors; the app owns source validity and explicit-link precedence. This initial threshold has fixture evidence for the provisioned EmbeddingGemma model, not universal calibration across custom models or corpora.

@@ -173,3 +173,9 @@ Canonical policy may select `modelId: "sha256:<digest>"`; the adapter resolves i
 Index workers default to two embedding contexts on macOS ARM64 using pinned QMD's supported QMD_EMBED_PARALLELISM. Explicit nonempty overrides remain authoritative; other platforms and search-query pools retain upstream defaults. The same model and complete chunk coverage are required. One frozen 10,000-note pair reduced model-active tracked-process physical footprint, with unchanged finite-deadline completion; see the dated RAM report. This is not a desktop-idle or universal memory budget.
 
 Backend deadline defaults come from pure core execution limits. Existing environment/per-call overrides remain finite; no deadline is widened here.
+
+## Read-only graph vector reuse
+
+`qmd-graph.ts` invokes the isolated `qmd-graph-worker.ts` through bounded execution. The worker checks QMD 2.8.3, the committed semantic generation and complete per-document vector metadata, loads sqlite-vec solely to read existing vector blobs, and applies core's semantic connection policy. It opens an immutable read-only URI and uses the existing lock/pending/WAL and before/after generation gates. It never creates a QMD store, loads a model, runs inference, recovers publication or writes an index. App code owns source freshness, explicit-edge precedence and fallback warnings. No persistent graph cache or additional model dependency is introduced.
+
+Verify with `test/semantic-graph.test.js` and opt-in `scripts/semantic-graph-smoke.mjs` (provisioned absolute QMD/model paths, Playwright Chromium), alongside the semantic index smoke for the existing lifecycle.

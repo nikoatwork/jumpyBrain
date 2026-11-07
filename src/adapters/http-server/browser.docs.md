@@ -534,3 +534,7 @@ failed departure does not dismiss an already opened sidebar.
 resize/toggle/preference continuity and retained failed drafts at 320/390.
 Navigation diagnostics explicitly use `showSidebar` before hidden global tools;
 that assistance is not a discoverability rating.
+
+## Explicit and inferred graph edges
+
+The map uses both authored links and strong semantic connections returned by the app. SVG and dense canvas render inferred connections as dashed lines, including focus highlights; authored links stay solid. The helper explains the distinction without exposing model controls. Both kinds influence layout and neighborhood exploration. Unresolved-topic “Linked notes” lists still admit only authored edges. Readiness/coverage warnings use the existing scoped warning flow. Verify real embeddings plus desktop/narrow navigation with `scripts/semantic-graph-smoke.mjs`; its dense rendering fixture covers canvas dash handling.

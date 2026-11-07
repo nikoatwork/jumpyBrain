@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-07 — Strong semantic graph connections
+
+- The graph now combines explicit note links with bounded, strong inferred connections from existing local embeddings, with distinct rendering and stale-index fallback. [Implementation, verification and limits](done/2026-11-07_tasks-semantic-graph.md).
+
 ## 2026-11-07 — Embedding dependency pilot
 
 - Completed a local agent retrieval comparison: indexed lexical search was the strongest observed baseline, with no demonstrated optional-vector accuracy gain. Retained lexical default and optional embeddings; broader removal evidence remains open. [Evidence and limitations](done/2026-11-07_tasks-locomo-retrieval-pilot.md).

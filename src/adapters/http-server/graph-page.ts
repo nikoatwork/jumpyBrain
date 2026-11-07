@@ -100,6 +100,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .edge, .edge-shadow, .edge-highlight { stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
     .edge { stroke: url(#map-threads); stroke-opacity: .55; transition: stroke-opacity .15s ease; }
     .edge.markdown-link { stroke-opacity: .7; }
+    .edge.semantic-link { stroke-dasharray: 4 5; stroke-opacity: .45; }
     .edge-shadow { stroke: var(--edge-shadow); stroke-opacity: .13; }
     .edge-highlight { stroke: var(--edge-highlight); stroke-opacity: .72; }
     .node { cursor: pointer; }
@@ -194,7 +195,7 @@ ${systemMessageMarkup}
         <button id="zoom-in" class="icon-button" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" fill="none"><path d="M12 7v10m-5-5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </div>
     </div>
-    <p class="helper">Scroll to zoom · Drag to move · Select a note to open</p>
+    <p class="helper">Solid lines: explicit links · Dashed lines: related notes<br>Scroll to zoom · Drag to move · Select a note to open</p>
   </section>
   ${companion ? notesViews.replace('<div class="note-actions">', '<div class="extension-slot" data-extension-slot="note.actions" aria-label="Extension note actions"></div><div class="note-actions">') : notesViews}
   ${companion ? companionMarkup : ""}

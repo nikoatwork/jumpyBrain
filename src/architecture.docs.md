@@ -75,7 +75,7 @@ Graph behavior follows the layer direction:
 
 ```text
 core canonical link extraction, normalization, lookup, and target resolution
-  -> app/local-memory graph assembly and local overview connection summaries
+  -> app/local-memory graph assembly (plus derived QMD semantic connections) and explicit-only local overview summaries
   -> runtime graphMemory public local API
   -> app/server-memory remote-safe graph packet
   -> HTTP server browser shell, full-page WYSIWYG Markdown editor, optional graph, and JSON protocol routes

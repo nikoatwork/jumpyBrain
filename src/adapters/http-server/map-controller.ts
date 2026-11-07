@@ -448,11 +448,12 @@ export function createMapController(options: MapControllerOptions) {
           b = positions.get(edge.target);
         if (!a || !b) continue;
         line.setAttribute("class", "edge " + edge.kind);
+        line.setAttribute("aria-label", edge.kind === "semantic-link" ? "Related notes (inferred)" : "Explicit note link");
         line.setAttribute("x1", String(a.x));
         line.setAttribute("y1", String(a.y));
         line.setAttribute("x2", String(b.x));
         line.setAttribute("y2", String(b.y));
-        line.setAttribute("stroke-width", String(Math.min(1 + edge.count, 4)));
+        line.setAttribute("stroke-width", edge.kind === "semantic-link" ? "1.5" : String(Math.min(1 + edge.count, 4)));
       }
       for (const [id, g] of nodeElements)
         if (!nodes.has(id)) {
@@ -578,23 +579,11 @@ export function createMapController(options: MapControllerOptions) {
       ctx.strokeStyle = color("--edge");
       ctx.globalAlpha = 0.24;
       ctx.lineWidth = 1 / state.scale;
-      ctx.beginPath();
-      for (const edge of current.edges) {
-        const a = positions.get(edge.source),
-          b = positions.get(edge.target);
-        if (a && b) {
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-        }
-      }
-      ctx.stroke();
-      if (active) {
-        ctx.strokeStyle = color("--focus-ring");
-        ctx.globalAlpha = 0.9;
-        ctx.lineWidth = 1.5 / state.scale;
+      for (const semantic of [false, true]) {
+        ctx.setLineDash(semantic ? [4 / state.scale, 5 / state.scale] : []);
         ctx.beginPath();
         for (const edge of current.edges) {
-          if (edge.source !== active && edge.target !== active) continue;
+          if ((edge.kind === "semantic-link") !== semantic) continue;
           const a = positions.get(edge.source),
             b = positions.get(edge.target);
           if (a && b) {
@@ -604,6 +593,27 @@ export function createMapController(options: MapControllerOptions) {
         }
         ctx.stroke();
       }
+      if (active) {
+        ctx.strokeStyle = color("--focus-ring");
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 1.5 / state.scale;
+        for (const semantic of [false, true]) {
+          ctx.setLineDash(semantic ? [4 / state.scale, 5 / state.scale] : []);
+          ctx.beginPath();
+          for (const edge of current.edges) {
+            if ((edge.kind === "semantic-link") !== semantic) continue;
+            if (edge.source !== active && edge.target !== active) continue;
+            const a = positions.get(edge.source),
+              b = positions.get(edge.target);
+            if (a && b) {
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+            }
+          }
+          ctx.stroke();
+        }
+      }
+      ctx.setLineDash([]);
       ctx.globalAlpha = 1;
       for (const tone of GRAPH_NODE_TONES) {
         ctx.fillStyle = color("--node-" + tone);
