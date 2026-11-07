@@ -2,7 +2,7 @@
 
 One row per reviewed email. Work and verification stay in the linked task; this index prevents repeat triage. [Check routine](../docs/check-feedback.md) · [Residual follow-ups](todo/tasks-feedback-follow-ups.md).
 
-Last full live check: **2026-11-05T11:47:38.078Z**; received/non-spam, no date bounds, two pages, **52 scanned / two synthetic tests excluded / 50 genuine messages**, complete. Received dates: October 20–November 5, 2026. Spam, trash and blocked mail are outside scope.
+Last full live check: **2026-11-07T14:33:19.971Z**; received/non-spam, no date bounds, two pages, **53 scanned / two synthetic tests excluded / 51 genuine messages**, complete. Received dates: October 20–November 6, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation found one new message, read in full and assigned below; historical bodies/attachments were not re-audited.
 
 - **open**: reviewed; investigation or reproduction remains.
 - **covered**: linked implementation/verification covers the report scope. This does **not** claim release, installation or proof of every historical event.
@@ -15,6 +15,7 @@ Bootstrap evidence: current inbox metadata plus prior triage/task records; the n
 
 | Received UTC (2026) | Outcome | Sanitized topic | Owner / evidence |
 | --- | --- | --- | --- |
+| [11-06 15:33](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=0de06f50-9b4c-453e-a038-7f670a4293f3 "message-id: <010001a1b17e29cd-84d9c7a5-2ce9-4581-b037-af69c9b207e7-000000@email.amazonses.com>") | open | Evaluate embedding-model value for ordinary PM knowledge work as agent capability improves | [retrieval evaluation](todo/tasks-workspace-retrieval-evaluation.md); prior candidate studies do not resolve this broader question |
 | [11-05 09:20](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=e34678a8-5a2a-4a05-b2a8-fdb0ccb8a72b "message-id: <010001a1ab029948-5194ddf7-946c-41ce-87b3-4cef354dbc85-000000@email.amazonses.com>") | mixed | Exact-title app search fixed; date-label question deferred | [evidence](done/2026-11-05_tasks-exact-title-app-search.md); [follow-ups](todo/tasks-feedback-follow-ups.md) |
 | [11-05 09:00](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=4fa21ff2-0b38-41bd-abcc-90f00e1c642e "message-id: <010001a1aaf03bf5-c9dd7bb6-3f52-4452-9a32-bba25f31ab21-000000@email.amazonses.com>") | covered | Agent-edit review prompts and simpler recovery | [evidence](done/2026-11-05_tasks-quiet-agent-external-edits.md) |
 | [11-05 08:40](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=f5a9885c-11cd-48ce-b491-7272749ebed6 "message-id: <010001a1aade116c-178a4760-33e2-4794-ad7a-b9225533074b-000000@email.amazonses.com>") | covered | Ordinary bullets/inline rendering fixed; relative paths remain inert | [evidence](done/2026-11-05_tasks-feedback-markdown-rendering.md) |
