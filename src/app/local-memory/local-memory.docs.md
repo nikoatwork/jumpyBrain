@@ -78,6 +78,8 @@ The runtime exposes `inspectLocalSearchEngine` through this app seam for bounded
 
 ## Strong semantic graph connections
 
+Quality caveat: the subsequent [local auto-link evaluation](../../../tasks/done/2026-11-07_tasks-semantic-auto-link-evaluation.md) found imported metadata can produce false positives above 0.99 cosine. Mutual neighbor selection controls volume, not semantic correctness. Treat these as inferred suggestions; [input-quality follow-up](../../../tasks/todo/tasks-semantic-link-quality.md) remains open before canonical auto-linking.
+
 `graph-semantic.ts` adds inferred, undirected `semantic-link` edges by default when a published semantic index is fresh. Explicit edges win for the same unordered pair. `degree` includes both kinds; `inDegree`/`outDegree` count authored directed links only. `stats.semanticLinks` counts returned inferred edges. Overview connection summaries remain explicit-only.
 
 The app checks canonical/policy freshness before and after a bounded, immutable QMD vector read, and checks the published generation again. No index repair, model inference, download or canonical write occurs. Missing/lexical/stale/busy/corrupt indexes retain explicit connections and report `semantic.state` plus safe warnings. Cancellation propagates; a ten-second semantic budget falls back to explicit links. These checks detect changes but do not promise a filesystem snapshot.

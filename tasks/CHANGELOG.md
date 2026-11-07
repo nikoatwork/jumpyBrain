@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-07 — Automatic link evaluation
+
+- A read-only real-corpus test found useful semantic connections alongside metadata-driven false positives, including at very high similarity. Recorded the decision against automatic canonical links from similarity alone and opened input-quality follow-up. [Evidence and limits](done/2026-11-07_tasks-semantic-auto-link-evaluation.md).
+
 ## 2026-11-07 — Strong semantic graph connections
 
 - The graph now combines explicit note links with bounded, strong inferred connections from existing local embeddings, with distinct rendering and stale-index fallback. [Implementation, verification and limits](done/2026-11-07_tasks-semantic-graph.md).
