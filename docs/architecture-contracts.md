@@ -9,7 +9,7 @@ it is not a full release gate or a proof of whole-app equivalence.
 | ID | Owner and contract | Classification |
 | --- | --- | --- |
 | C0/C1 | [Layer direction](../src/architecture.docs.md#boundary-verification), complete source classification and scanner scope | Preserve direction; fix silent unknown-layer bypass. |
-| C2 | [Private RPC](../src/app/app.docs.md#private-backend-operation-agreement), positional arguments, owner root, canonical/derived admission, hash guards, cancellation and no replay | Preserve behavior; structural consolidation deferred. |
+| C2 | [Private RPC](../src/app/app.docs.md#private-backend-operation-agreement), positional arguments, owner root, canonical/derived admission, hash guards, cancellation and no replay | Preserve behavior; [typed private consolidation](../tasks/todo/tasks-backend-operation-contract-refactor.md) implements the bounded pilot. |
 | C3 | [HTTP receipts](../src/adapters/http-client/http-client.docs.md), [live wire](../src/adapters/live/live.docs.md), canonical save distinct from index outcome | Intentional fixes: reject invalid successful JSON/critical receipts and malformed supplied live protocol/operation/stream fields. Preserve additive fields and batch/splice compatibility. |
 | C4 | [Host-policy matrix](../src/adapters/http-server/http-server.docs.md#selected-host-policy-agreement) | Preserve distinct CLI/server/companion policies. |
 | E-editor/uncertain/retained/credentials | [Editor session](../src/adapters/http-server/browser.docs.md#editor-session-consumer-agreement) | Preserve canonical effects, private drafts, own Undo, scope and recovery; implementation/controller layout may change. |
@@ -110,5 +110,5 @@ digest.
 
 The first retained reference and independent-checkout comparison are recorded in
 [baseline v1](../deep-dives/architecture-contracts/baseline-v1.json). Use its
-reference manifest pin, not the comparison run's pin, for the two planned
-refactors. The record separately identifies tools, scenario outcomes and limits.
+reference manifest pin, not the comparison run's pin, for the backend pilot and planned editor
+refactor. The record separately identifies tools, scenario outcomes and limits.

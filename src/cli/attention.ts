@@ -1,7 +1,7 @@
 import type { ParsedCliArgs } from './args.js';
 import { commandMemoryTarget } from './memory-target.js';
 import { createLocalMemoryTransport, localBackendCall } from './local-transport.js';
-import { listMemoryAttention, patchMemoryDocumentAttention } from '../runtime/index.js';
+import { listMemoryAttention } from '../runtime/index.js';
 import type { MemoryAttentionAction } from '../core/attention.js';
 
 const oneLine = (value: unknown) => String(value).replace(/[\x00-\x1f\x7f-\x9f]/g, ' ');
@@ -25,7 +25,7 @@ export async function attentionCli(args: ParsedCliArgs): Promise<void> {
     : command === 'snooze' ? { action: 'snooze', until: String(args.until) } : { action: 'settle' };
   const options = { ifMatch: String(args['if-match']), mutation };
   result = target.kind === 'remote' ? await target.memory.patchMemoryDocumentAttention(String(args.id), options)
-    : await localBackendCall<Awaited<ReturnType<typeof patchMemoryDocumentAttention>>>(target.root, 'patchMemoryDocumentAttention', [String(args.id), options]);
+    : await localBackendCall(target.root, 'patchMemoryDocumentAttention', [String(args.id), options]);
   if (args.json) console.log(JSON.stringify(result, null, 2));
   else console.log(`Attention ${command === 'bring-back' ? 'reactivated' : command === 'snooze' ? 'snoozed' : 'settled'}: ${args.id}. Canonical state saved; indexing pending.`);
 }

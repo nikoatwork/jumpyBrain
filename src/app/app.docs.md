@@ -16,7 +16,12 @@
 
 ## Private backend operation agreement
 
-`backend-rpc.ts` dispatches authenticated root-owner calls. The host supplies the
+[`adapters/backend-protocol.ts`](../adapters/backend-protocol.ts) owns all private
+method names, typed positional arguments/results and admission/signal/deadline/guard
+metadata. `backend-rpc.ts` supplies an exhaustive compiler-checked use-case binding;
+its one tuple assertion is the untrusted JSON boundary, not a runtime schema.
+The protocol imports only erased core/domain types, never app implementations.
+The host supplies the
 root and request AbortSignal; neither is selected by serialized caller options.
 The CLI sends JSON arguments without a root and never automatically retries a
 dispatched mutation. A missing reply can follow a successful canonical save.
@@ -26,7 +31,7 @@ This is a private coordinated-version interface, not a new public remote API.
 | --- | --- | --- |
 | `readMemoryDocument` | `[id]` | Exact canonical content and hash; no canonical queue. |
 | `updateMemoryDocument` | `[id, content, {ifMatch or contentHash, ...}]` | Old/new hash, updated metadata, indexed state; canonical queue and live pre-write/publication hooks. |
-| `patchMemoryDocumentAttention` | `[id, {ifMatch, mutation}]` | Same guarded update receipt and canonical hooks. |
+| `patchMemoryDocumentAttention` | `[id, {ifMatch, mutation}]` | Full document packet plus old/new hashes and pending indexing, without an ordinary update timestamp; canonical hooks. |
 | `deleteMemoryDocument` | `[id, {ifMatch, apply:true}]` | Guarded removal; canonical hooks. |
 | `rememberMemory`, `writeSessionWrapup` | `[draft]` | Saved identity independent of indexing; canonical queue. |
 | `saveBoard`, `deleteBoard` | `[board, ifMatch?]`, `[id, ifMatch]` | Canonical JSON hash/publication or removal; canonical queue. |
@@ -34,7 +39,14 @@ This is a private coordinated-version interface, not a new public remote API.
 | `searchMemory`, `compactSearchMemory` | `[query, limit, options?]` | Host signal inserted at options slot 2; no canonical queue. |
 | `overviewMemory`, `processMemory` | `[options]` | Host signal at slot 0; process remains conservatively serialized, including preview. |
 
-Other supported method signatures remain with their use-case types. Unknown
+The protocol table describes every supported signature; app bindings adapt root
+and package-version ownership, migrations and dream object calls. The CLI reads
+index preflight/deadline metadata and omits trailing undefined arguments. The HTTP
+host reads admission and guarded-document preconditions from the same agreement;
+legacy third-slot hash precedence remains compatible even with extra arguments.
+Process stays conservatively canonical, including preview; derived work never
+acquires the typing queue. Adding an operation requires its typed descriptor and
+a matching app binding, rather than separate host/caller method lists. Unknown
 methods fail `method_not_found`; a non-array or more than eight arguments fails
 `invalid_request`. This outer bound is not a complete argument schema: domain
 owners validate their inputs. Pending cancellation before dispatch fails
@@ -43,7 +55,10 @@ identity. Hash failures retain canonical bytes. The current host maps private
 operation errors to HTTP 400 with their domain code; public routes have their own
 status mapping. `test/backend-rpc-contracts.test.js` exercises the real caller and
 owner, and `test/creation-outcomes.test.js` protects save/index/cancellation
-outcomes. A future typed dispatcher must preserve these differences.
+outcomes. `test/backend-operation-agreement.test.js` adds compile-time negative
+controls, all three guarded mutations, option serialization, host signal replacement
+and private HTTP-to-live publication checks. These remain private contracts; the
+public runtime surface does not export the owner protocol.
 
 ## Note attention
 

@@ -12,44 +12,48 @@ import { checkDreamSources } from "./dream/source-check.js";
 
 import { listMemoryAttention, patchMemoryDocumentAttention } from "./attention.js";
 
-const ordinary = {
-  listMemoryAttention, patchMemoryDocumentAttention,
-  memoryRootStatus: memory.memoryStatus, indexMemory: memory.indexMemory,
-  overviewMemory: memory.overviewMemory, searchMemory: memory.searchMemory,
-  compactSearchMemory: memory.compactSearchMemory, expandMemoryDocument: memory.expandMemoryDocument,
-  processMemory, ensureSavedMemoryIndexed, readMemoryDocument: memory.readMemoryDocument,
-  updateMemoryDocument: memory.updateMemoryDocument, previewMemoryDocumentDeletion: memory.previewMemoryDocumentDeletion,
-  deleteMemoryDocument: memory.deleteMemoryDocument, checkDreamSources,
-  rememberMemory: writing.rememberMemory, writeSessionWrapup: writing.writeSessionWrapup,
-  listBoards: boards.listBoards, readBoard: boards.readBoard, saveBoard: boards.saveBoard,
-  deleteBoard: boards.deleteBoard, getBoardStatus: boards.getBoardStatus,
+import { backendHostArgs, isBackendMethod, type BackendArgs, type BackendMethod, type BackendResult } from "../adapters/backend-protocol.js";
+export { backendCallMutates } from "../adapters/backend-protocol.js";
+
+type BackendContext = { root: string; version?: string };
+type BackendHandler<M extends BackendMethod> = (context: BackendContext, ...args: BackendArgs<M>) => Promise<BackendResult<M>>;
+type BackendHandlers = { [M in BackendMethod]: BackendHandler<M> };
+function owned<Args extends unknown[], Result>(useCase: (root: string, ...args: Args) => Promise<Result>) {
+  return (context: BackendContext, ...args: Args) => useCase(context.root, ...args);
+}
+
+// Exhaustive, signature-checked bindings. Policy and argument positions live in the private contract.
+const handlers: BackendHandlers = {
+  listMemoryAttention: owned(listMemoryAttention), patchMemoryDocumentAttention: owned(patchMemoryDocumentAttention),
+  memoryRootStatus: owned(memory.memoryStatus), indexMemory: owned(memory.indexMemory),
+  overviewMemory: owned(memory.overviewMemory), searchMemory: owned(memory.searchMemory),
+  compactSearchMemory: owned(memory.compactSearchMemory), expandMemoryDocument: owned(memory.expandMemoryDocument),
+  processMemory: owned(processMemory), ensureSavedMemoryIndexed: owned(ensureSavedMemoryIndexed),
+  readMemoryDocument: owned(memory.readMemoryDocument), updateMemoryDocument: owned(memory.updateMemoryDocument),
+  previewMemoryDocumentDeletion: owned(memory.previewMemoryDocumentDeletion), deleteMemoryDocument: owned(memory.deleteMemoryDocument),
+  checkDreamSources: owned(checkDreamSources), rememberMemory: owned(writing.rememberMemory), writeSessionWrapup: owned(writing.writeSessionWrapup),
+  listBoards: owned(boards.listBoards), readBoard: owned(boards.readBoard), saveBoard: owned(boards.saveBoard),
+  deleteBoard: owned(boards.deleteBoard), getBoardStatus: owned(boards.getBoardStatus),
+  initializeMemoryRoot: (context, options) => initializeMemoryRoot(context.root, { ...options, packageVersion: context.version }),
+  migrateLogseq: (context, source, options) => migration.migrateLogseq(source, context.root, options),
+  migrateObsidian: (context, source, options) => migration.migrateObsidian(source, context.root, options),
+  getDreamWindow: (context, request) => dream.getDreamWindow({ root: context.root, request }),
+  getDreamStatus: context => dream.getDreamStatus({ root: context.root }),
+  createDreamBatch: (context, request) => dream.createDreamBatch({ root: context.root, request }),
+  getDreamBatch: (context, batchId) => dream.getDreamBatch({ root: context.root, batchId }),
+  completeDreamBatch: (context, request) => dream.completeDreamBatch({ root: context.root, request }),
+  abandonDreamBatch: (context, batchId, summary) => dream.abandonDreamBatch({ root: context.root, batchId, summary }),
 };
-const reads = new Set(["listMemoryAttention", "indexMemory", "ensureSavedMemoryIndexed", "searchMemory", "compactSearchMemory", "memoryRootStatus", "overviewMemory", "readMemoryDocument", "previewMemoryDocumentDeletion", "checkDreamSources", "getDreamWindow", "getDreamStatus", "getDreamBatch", "expandMemoryDocument", "listBoards", "readBoard", "getBoardStatus"]);
-// Derived index work has its own bounded QMD admission; it must not hold the canonical write queue.
-export function backendCallMutates(method: string): boolean { return !reads.has(method); }
 
 export function callBackend(root: string, method: string, args: unknown[], signal?: AbortSignal, version?: string, qmdBinary?: string | null): Promise<unknown> {
   return qmdBinary === undefined ? callBackendInternal(root,method,args,signal,version) : withQmdBinary(qmdBinary, () => callBackendInternal(root,method,args,signal,version));
 }
+function dispatch<M extends BackendMethod>(context: BackendContext, method: M, args: unknown[]): Promise<BackendResult<M>> {
+  // The only untrusted positional boundary: preserve domain validation instead of inventing a schema.
+  return handlers[method](context, ...args as BackendArgs<M>);
+}
 async function callBackendInternal(root: string, method: string, args: unknown[], signal?: AbortSignal, version?: string): Promise<unknown> {
   if (!Array.isArray(args) || args.length > 8) throw Object.assign(new Error("Invalid backend arguments."), { code: "invalid_request" });
-  // JSON has no AbortSignal; only the host's request lifecycle can supply one.
-  const optionsAt: Record<string, number> = { indexMemory: 0, searchMemory: 2, compactSearchMemory: 2, ensureSavedMemoryIndexed: 1, processMemory: 0, overviewMemory: 0 };
-  const index = optionsAt[method];
-  if (index !== undefined) args[index] = { ...(typeof args[index] === "object" && args[index] ? args[index] : {}), signal };
-  if (Object.hasOwn(ordinary, method)) {
-    return (ordinary[method as keyof typeof ordinary] as (...args: any[]) => Promise<unknown>)(root, ...args);
-  }
-  switch (method) {
-    case "initializeMemoryRoot": return initializeMemoryRoot(root, { ...(args[0] as object), packageVersion: version });
-    case "migrateLogseq": return migration.migrateLogseq(args[0] as string, root, args[1] as any);
-    case "migrateObsidian": return migration.migrateObsidian(args[0] as string, root, args[1] as any);
-    case "getDreamWindow": return dream.getDreamWindow({ root, request: args[0] as any });
-    case "getDreamStatus": return dream.getDreamStatus({ root });
-    case "createDreamBatch": return dream.createDreamBatch({ root, request: args[0] as any });
-    case "getDreamBatch": return dream.getDreamBatch({ root, batchId: args[0] as string });
-    case "completeDreamBatch": return dream.completeDreamBatch({ root, request: args[0] as any });
-    case "abandonDreamBatch": return dream.abandonDreamBatch({ root, batchId: args[0] as string, summary: args[1] as string });
-    default: throw Object.assign(new Error("Unknown backend operation."), { code: "method_not_found" });
-  }
+  if (!isBackendMethod(method)) throw Object.assign(new Error("Unknown backend operation."), { code: "method_not_found" });
+  return dispatch({ root, version }, method, backendHostArgs(method, args, signal));
 }

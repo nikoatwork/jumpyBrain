@@ -88,6 +88,11 @@ does not hold the typing queue. Reader/writer/admin authorization applies to
 every protected route. Operator-only `/_backend` readiness, cancellation,
 local RPC, stop and sanitized diagnostics support the private owner descriptor.
 These administrative endpoints never pass through the desktop browser allowlist.
+Private owner calls use `../backend-protocol.ts` for canonical admission and
+guarded-document preconditions, then `app/backend-rpc.ts` for use-case dispatch.
+The host owns cancellation/root authority, queueing and pre-write/publication
+execution; it does not maintain a second operation-name or hash-position list.
+Public routes and their distinct permission/error policies are unchanged.
 
 Hosted `/session` GET establishes a brain-scoped HttpOnly SameSite=Strict24-hour
 cookie from a valid bearer credential; DELETE clears it. Cookie-authenticated

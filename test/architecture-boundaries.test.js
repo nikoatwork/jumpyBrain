@@ -68,6 +68,7 @@ function isStaleArchitecturePath(file) {
 }
 
 function sourceLayer(file) {
+  if (file === "src/adapters/backend-protocol.ts") return "backend-protocol";
   if (file === "src/index.ts") return "package-entrypoint";
   if (file.startsWith("src/extensions/")) return "extension-contract";
   if (file.startsWith("src/app/extensions/")) return "extension-app";
@@ -93,19 +94,20 @@ function sourceLayer(file) {
 }
 
 const approvedLayerImports = new Map([
+  ["backend-protocol", new Set(["core-domain"])],
   ["backend-app", new Set(["backend-app", "backend-adapter"])],
   ["backend-adapter", new Set(["backend-adapter"])],
   ["access-adapter", new Set(["access-adapter"])],
   ["live-adapter", new Set(["websocket-transport", "live-adapter", "app-use-case", "core-domain"])],
   ["websocket-transport", new Set()],
   ["package-entrypoint", new Set(["runtime-app"])],
-  ["cli-boundary", new Set(["websocket-transport", "backend-app", "access-adapter", "cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app", "feedback-adapter"])],
+  ["cli-boundary", new Set(["backend-protocol", "websocket-transport", "backend-app", "access-adapter", "cli-boundary", "runtime-app", "http-client-adapter", "server-boundary", "core-domain", "infrastructure-adapter", "extension-app", "feedback-adapter"])],
   ["http-protocol-adapter", new Set(["http-protocol-adapter"])],
   ["http-client-adapter", new Set(["http-client-adapter", "http-protocol-adapter", "core-domain"])],
   ["server-boundary", new Set(["backend-app", "backend-adapter", "access-adapter", "server-boundary", "app-use-case", "core-domain", "http-server-adapter", "infrastructure-adapter"])],
-  ["http-server-adapter", new Set(["access-adapter", "live-adapter", "http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter", "extension-contract", "feedback-adapter"])],
+  ["http-server-adapter", new Set(["backend-protocol", "access-adapter", "live-adapter", "http-server-adapter", "http-protocol-adapter", "app-use-case", "core-domain", "infrastructure-adapter", "diagnostics-adapter", "extension-contract", "feedback-adapter"])],
   ["runtime-app", new Set(["runtime-app", "app-use-case", "core-domain", "infrastructure-adapter"])],
-  ["app-use-case", new Set(["app-use-case", "core-domain", "qmd-adapter", "diagnostics-adapter"])],
+  ["app-use-case", new Set(["backend-protocol", "app-use-case", "core-domain", "qmd-adapter", "diagnostics-adapter"])],
   ["qmd-adapter", new Set(["qmd-adapter", "core-domain"])],
   ["core-domain", new Set(["core-domain"])],
   ["infrastructure-adapter", new Set(["infrastructure-adapter"])],
@@ -129,6 +131,20 @@ test("layer guard rejects unknown internal endpoints and classifies every source
   assert.equal(violatesLayerGraph({from:"src/unclassified/example.ts",target:"src/core/example.ts"}), true);
   assert.equal(violatesLayerGraph({from:"src/core/example.ts",target:"src/core/another.ts"}), false);
   assert.equal(violatesLayerGraph({from:"src/core/example.ts",target:"src/app/example.ts"}), true);
+});
+
+test("private backend agreement permits only explicit consumers and type-only domain imports", async () => {
+  const file = "src/adapters/backend-protocol.ts";
+  const edges = await importEdgesForFile(path.join(srcRoot, "adapters/backend-protocol.ts"));
+  assertNoImportEdges(edges, edge => sourceLayer(edge.target ?? "") !== "core-domain", "protocol cannot import app implementations or host authority");
+  const source = await readFile(path.join(srcRoot, "adapters/backend-protocol.ts"), "utf8");
+  assert.doesNotMatch(source, /\bimport\s+(?!type\b)/, "domain dependencies must be erased type imports");
+  for (const from of ["src/core/example.ts", "src/adapters/backend-host/example.ts", "src/runtime/index.ts", "src/adapters/http-client/index.ts"]) {
+    assert.equal(violatesLayerGraph({ from, target: file }), true, from);
+  }
+  for (const from of ["src/cli/local-transport.ts", "src/app/backend-rpc.ts", "src/adapters/http-server/index.ts"]) {
+    assert.equal(violatesLayerGraph({ from, target: file }), false, from);
+  }
 });
 
 test("extension SDK is host independent and ordinary runtime/core never load desktop extensions", async () => {

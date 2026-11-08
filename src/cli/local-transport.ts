@@ -1,3 +1,4 @@
+import { backendOperation, type BackendArgs, type BackendMethod, type BackendResult } from "../adapters/backend-protocol.js";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { existsSync } from "node:fs";
@@ -80,16 +81,17 @@ export async function cancelOnCliSignal<T>(signal: AbortSignal | undefined, oper
 }
 
 /** Requests are never retried after dispatch: a lost reply can mean a committed write. */
-export async function localBackendCall<T>(root: string, method: string, args: unknown[], signal?: AbortSignal): Promise<T> {
+export async function localBackendCall<M extends BackendMethod>(root: string, method: M, args: BackendArgs<M>, signal?: AbortSignal): Promise<BackendResult<M>> {
   return cancelOnCliSignal(signal, async signal => {
     if (signal.aborted) throw new Error("Memory operation canceled.");
-    const indexOptionsAt = method === "indexMemory" ? 0 : method === "ensureSavedMemoryIndexed" ? 1 : undefined;
+    const policy = backendOperation(method);
+    const indexOptionsAt = policy?.indexOptionsAt;
     const indexTimeoutMs = indexOptionsAt === undefined ? undefined : runtime.memoryExecutionDeadlineMs("index",
       (args[indexOptionsAt] as IndexMemoryOptions | undefined)?.timeoutMs ?? (process.env.JUMPYBRAIN_INDEX_TIMEOUT_MS === undefined ? undefined : Number(process.env.JUMPYBRAIN_INDEX_TIMEOUT_MS)));
     // Invalid roots/configuration and a bad explicit engine choice must fail
     // without starting a service or manufacturing operational state.
     await runtime.memoryRootStatus(root);
-    if (["indexMemory", "searchMemory", "compactSearchMemory"].includes(method)) {
+    if (policy?.preflightIndex) {
       await runtime.resolveIndexRoot(root);
       const selected = process.env.JUMPYBRAIN_QMD_BIN?.trim();
       if (selected && !existsSync(selected)) throw new Error(`qmd CLI is required. Selected JUMPYBRAIN_QMD_BIN=${JSON.stringify(selected)}. Correct this override or run \`unset JUMPYBRAIN_QMD_BIN\` to use normal resolution, then retry. If still unavailable, install with \`npm install -g @tobilu/qmd@2.8.3\` or set JUMPYBRAIN_QMD_BIN to its CLI.`);
@@ -102,7 +104,7 @@ export async function localBackendCall<T>(root: string, method: string, args: un
     const selectedEngine = runtime.resolveLocalSearchEngineBinary();
     const qmdBinary = path.isAbsolute(selectedEngine) || selectedEngine.includes(path.sep) ? path.resolve(selectedEngine)
       : (process.env.PATH ?? "").split(path.delimiter).map(directory => path.join(directory, selectedEngine)).find(candidate => existsSync(candidate)) ?? selectedEngine;
-    const serialArgs = [...args];
+    const serialArgs: unknown[] = [...args];
     if (indexOptionsAt !== undefined) serialArgs[indexOptionsAt] = { ...(serialArgs[indexOptionsAt] as object), timeoutMs: indexTimeoutMs };
     while (serialArgs.length && serialArgs[serialArgs.length - 1] === undefined) serialArgs.pop();
     if (signal.aborted) cancel();
@@ -112,7 +114,7 @@ export async function localBackendCall<T>(root: string, method: string, args: un
     if (signal.aborted) cancel();
     const packet = await response.json() as any;
     if (!response.ok || packet.error) throw Object.assign(new Error(packet.error?.message ?? "Backend request failed; inspect the canonical state before retrying."), packet.error);
-    return packet.result as T;
+    return packet.result as BackendResult<M>;
     } finally {signal.removeEventListener("abort", cancel);}
   });
 }

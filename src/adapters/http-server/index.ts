@@ -3,7 +3,8 @@ import { realpathSync } from "node:fs";
 import { AccessStore, type Principal } from "../access-control/index.js";
 import { createCollaborationHub } from "../../app/collaboration/index.js";
 import { createLiveServer } from "../live/index.js";
-import { callBackend, backendCallMutates } from "../../app/backend-rpc.js";
+import { callBackend } from "../../app/backend-rpc.js";
+import { backendCallMutates, backendDocumentPrecondition } from "../backend-protocol.js";
 import { packageVersion } from "../package-info/index.js";
 import http, { type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -172,7 +173,8 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
         }
         const operation = async () => {
           if (controller.signal.aborted) throw Object.assign(new Error("Memory operation canceled."),{code:"execution_aborted"});
-          if (method === "updateMemoryDocument" || method === "deleteMemoryDocument" || method === "patchMemoryDocumentAttention") await collaboration.beforeLegacyWrite(String(args[0]), (args[2] as any)?.ifMatch ?? (args[2] as any)?.contentHash ?? (args[1] as any)?.ifMatch);
+          const guard = backendDocumentPrecondition(method, args);
+          if (guard) await collaboration.beforeLegacyWrite(guard.id, guard.ifMatch);
           const result = await callBackend(root, method, args, controller.signal, await packageVersion(), typeof body.qmdBinary === "string" ? body.qmdBinary : body.qmdBinary === null ? null : undefined);
           if (backendCallMutates(method)) { await collaboration.notifyCanonicalWrite(); options.onMemoryWrite?.(); }
           return result;

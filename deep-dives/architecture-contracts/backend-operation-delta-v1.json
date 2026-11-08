@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "status": "reviewed",
+  "baselineSha256": "3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c",
+  "entries": [
+    {
+      "kind": "assertion",
+      "file": "test/architecture-boundaries.test.js",
+      "oldSha256": "c2cbe32f8eb64a60e49feca67d2d2033e8b088c6215567ad545f42fb54c75ef4",
+      "newSha256": "f0fd8e04b12b190f2ff31d6f94b8078b971ba6917362b354edc3f2b36bd07ae3",
+      "reason": "Reviewed the complete original-to-candidate diff: add one exact private-protocol source classification, permit only CLI/app/HTTP-server imports of that layer and core-domain type dependencies from it. Existing layer classifications, forbidden edges, assertions and source scanning stay intact. An additive test rejects app/runtime host imports from the contract, non-type imports and core/runtime/registry/HTTP-client access to the contract. No behavior or checkpoint oracle is relaxed.",
+      "scenarioIds": [
+        "C1",
+        "C2"
+      ],
+      "evidence": [
+        "test/architecture-boundaries.test.js: original assertions preserved; exact-path protocol classification and three consumer edges; new negative edge/type-only controls",
+        "test/backend-rpc-contracts.test.js: unchanged original admission and real caller/owner assertions",
+        "test/backend-operation-agreement.test.js: supplemental type, guarded mutation, cancellation, serialization and private HTTP/live checks"
+      ]
+    }
+  ]
+}

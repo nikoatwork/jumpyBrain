@@ -6,6 +6,8 @@
 - Keep adapter-specific implementation details out of core/domain modules and CLI command parsing.
 - Provide stable seams for backend and host integrations such as QMD indexing/search, HTTP client/server protocol code, logging, and package metadata.
 
+- `backend-protocol.ts` is the private root-owner agreement shared only by CLI, app dispatch and the HTTP host. It declares positional types and admission/signal/deadline/pre-write metadata with erased core type imports. It contains no use-case implementation, authentication, retries, root selection or public API export. See [app agreement](../app/app.docs.md#private-backend-operation-agreement).
+
 ## Non-responsibilities
 
 - Do not own canonical Markdown memory semantics or user-facing CLI command behavior.
