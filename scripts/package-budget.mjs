@@ -1,10 +1,10 @@
-// Decimal bytes, with deliberate headroom over the measured October 2026 package.
+// Decimal bytes, with deliberate headroom over the measured November 2026 package.
 // Change budgets only with a measured explanation in docs/build-footprint.md.
 export const packageBudget = Object.freeze({
-  archiveBytes: 1_450_000,
-  unpackedBytes: 4_600_000,
-  runtimeBytes: 3_100_000,
-  files: 660,
+  archiveBytes: 1_500_000,
+  unpackedBytes: 4_800_000,
+  runtimeBytes: 3_200_000,
+  files: 700,
 });
 
 export function validatePackageBudget(info) {

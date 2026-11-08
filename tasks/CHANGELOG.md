@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-08 — Reviewed distribution limits
+
+- Refreshed distribution ceilings for the current supported package with explicit measured headroom; retained size, file-count and required-resource enforcement. [Decision and checks](done/2026-11-08_tasks-distribution-budget-refresh.md).
+
 ## 2026-11-08 — Explicit editor sessions
 
 - One live publication owner now serves editor actions, navigation and recovery through an explicit session interface, replacing the disabled HTTP controller and mutable state mirror. [Completion and evidence](done/2026-11-08_tasks-editor-session-contract-refactor.md).

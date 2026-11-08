@@ -72,3 +72,8 @@ instead of removing one.
 - Ownership reduction: the default shell creates **one collaboration publication owner**, instead of a live owner plus a disabled HTTP persistence controller. The consumer view reads through to that owner; initial canonical HTTP bytes are released, and consumers no longer read HTTP save timers/in-flight state. The standalone HTTP path and its tests remain available.
 - Owning browser/footprint docs, pending release notes and the structural changelog are updated. Scoped relative links and `git diff --check` are checked before final commit. Finalization changes only task/evidence/owning documentation; tested runtime inputs remain identical.
 - Limits: selected Chromium contracts and fake-QMD fixtures establish neither whole-app/cross-browser equivalence nor native menu/Keychain/login/signing, semantic-model quality, physical accessibility, power-loss or public deployment behavior. Live metadata-only HTTP adoption remains unavailable as before. Full package archive/unpacked/file-count overages predate this task and remain release blockers; this is not a release gate. No push, installation or release is authorized by completion.
+
+## Scoped follow-up
+
+- [Live attention on the open note](../todo/tasks-live-note-attention.md) tracks the preserved HTTP-metadata/live-revision adoption limitation; it is planned separately from this completed refactor.
+- [Reviewed distribution ceiling refresh](2026-11-08_tasks-distribution-budget-refresh.md) records the subsequent user-authorized limit adjustment and passing package gate; the overage measurements above remain historical evidence.

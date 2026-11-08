@@ -14,12 +14,33 @@ checks to its real tarball before recording successful package metadata.
   idle machine, separately from other builds and tests that consume `dist`.
 - `npm audit` and `npm --prefix integrations/electron audit`: both lockfiles.
 
-Budgets in `scripts/package-budget.mjs` are 1.45 MB compressed, 4.6 MB unpacked,
-3.1 MB under `dist/`, and 660 files (decimal units). Existing editor tests retain
+Budgets in `scripts/package-budget.mjs` are 1.5 MB compressed, 4.8 MB unpacked,
+3.2 MB under `dist/`, and 700 files (decimal units). Existing editor tests retain
 223.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
+
+## 2026-11-08 reviewed distribution ceiling refresh
+
+The user explicitly approved resetting the distribution limits after the editor
+session work. Snapshot `42509f5` measured 1,462,963 compressed / 4,625,618
+unpacked / 3,097,281 runtime bytes and 666 packaged files. The compressed,
+unpacked and file-count limits were already exceeded before that refactor;
+its runtime shrank by 715 bytes and it added four compiled/declaration files.
+
+The reviewed limits are **1,500,000 compressed bytes, 4,800,000 unpacked bytes,
+3,200,000 runtime bytes and 700 files**. These rounded ceilings leave modest
+headroom for the supported product and its documentation. They replace the
+historical 1,450,000 / 4,600,000 / 3,100,000 / 660 limits; this is an explicit
+budget decision, not an automatic baseline update. The exact budget assertion,
+required-resource checks and fail-on-overage tests remain enforced. The editor
+and optional extension-renderer gzip limits, dependencies and package contents
+are unchanged by this decision. This does not substitute for release validation.
+
+[Completion and final package measurement](../tasks/done/2026-11-08_tasks-distribution-budget-refresh.md).
+Payload trimming remains under the existing
+[portable installation task](../tasks/todo/tasks-portable-installation-project-integration.md#tasks).
 
 ## 2026-11-08 editor session ownership
 
