@@ -85,7 +85,7 @@ Make important app behavior reproducible across a structural refactor, using exp
 
 ## Refactor decision
 
-**Go for one bounded pilot:** [backend operation contract consolidation](../todo/tasks-backend-operation-contract-refactor.md), recommended first because duplicated method/argument/admission knowledge is concrete and the real caller/owner agreement is now protected. Existing admission, preconditions, cancellation and no-retry behavior are the rollback/reference boundary.
+**Go for one bounded pilot:** [backend operation contract consolidation](2026-11-08_tasks-backend-operation-contract-refactor.md), recommended first because duplicated method/argument/admission knowledge is concrete and the real caller/owner agreement is now protected. Existing admission, preconditions, cancellation and no-retry behavior are the rollback/reference boundary.
 
 Also created [editor-session contract refactor](../todo/tasks-editor-session-contract-refactor.md), with its four Chromium journeys and the same baseline pin. It should remove redundant persistence/state ownership, not introduce another state mirror. Start one pilot at a time. Core/retrieval/desktop rewrites and size-only file splitting remain no-go on current evidence.
 

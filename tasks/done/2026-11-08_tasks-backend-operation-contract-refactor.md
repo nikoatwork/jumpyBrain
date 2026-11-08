@@ -1,6 +1,8 @@
 # Consolidate private backend operation agreements
 
-Status: active; operation inventory complete, implementing the typed private agreement against the original pinned baseline.
+Status: complete — 2026-11-08. All 31 private operations share a typed agreement; the original frozen profile and supplemental checks pass.
+
+Implementation snapshot: `42c56367c1fb4b61b747636032582f08bbdc373f`. [Compact verification record](../../deep-dives/architecture-contracts/backend-operation-v1.json).
 
 ## Goal
 
@@ -26,11 +28,11 @@ Reference source: `a3e5f00eb428f194d59c77f8d18e9ab83350ec88`. Reference evidence
   - [x] 2.1 Route guarded document update/attention/delete through the shared agreement, preserving If-Match/contentHash compatibility, pre-write settlement, notification and domain error codes.
   - [x] 2.2 Verify real caller→owner behavior, stale hash, pre-dispatch cancellation and committed-but-lost reply with the original assertions. Preserve supported trailing optional argument serialization.
   - [x] 2.3 Migrate remaining supported operations only if the same small design removes duplicate assumptions. Retain conservative process admission, derived index deadlines and saved/indexing separation. Do not expand the operation surface.
-- [/] 3.0 Prove the structural benefit and behavioral equivalence.
+- [x] 3.0 Prove the structural benefit and behavioral equivalence.
   - [x] 3.1 Remove obsolete dispatch/position lists; document where each operation's signature and admission are now owned. If duplicated knowledge merely moved, revise or stop the pilot.
-  - [ ] 3.2 Run focused RPC, creation, host-policy and architecture checks after a single build. At integration, verify the full selected contract profile against the original absolute baseline path and pinned digest. Assertion adaptations require reviewed exact deltas; never overwrite the reference.
-  - [ ] 3.3 Record changed ownership, tested commit, before/after duplication, verification and limits. Update relevant co-located docs, release notes if behavior-facing guidance changes, and changelog for the completed structural result.
-  - [ ] 3.4 Archive and commit through [task completion](../../docs/task-workflow.md), preserving unrelated work. No push, installation or release is implied.
+  - [x] 3.2 Run focused RPC, creation, host-policy and architecture checks after a single build. At integration, verify the full selected contract profile against the original absolute baseline path and pinned digest. Assertion adaptations require reviewed exact deltas; never overwrite the reference.
+  - [x] 3.3 Record changed ownership, tested commit, before/after duplication, verification and limits. Update relevant co-located docs, release notes if behavior-facing guidance changes, and changelog for the completed structural result.
+  - [x] 3.4 Archive and commit through [task completion](../../docs/task-workflow.md), preserving unrelated work. No push, installation or release is implied.
 
 ## Acceptance
 
@@ -54,4 +56,16 @@ than the duplicated knowledge it removes.
 - Initial focused selection: 38/38 passed (original RPC, creation outcomes, architecture and package entrypoint checks plus five supplemental tests). Final supplemental selection after adding the private HTTP/live publication case and protocol-layer negative controls: 25/25 passed.
 - The new live fixture initially assumed one maintenance callback per private write. Existing collaboration refresh plus host publication can both notify; corrected the new test to require no additional callback on stale failure and a positive notification on success. No production behavior or frozen assertion changed for this assumption.
 - Before: app maintained a separate 17-name read set, six signal positions, an ordinary dispatch map plus nine special branches; CLI repeated two index deadline positions and three preflight names; host repeated three guarded methods and their hash positions. After: 31 typed descriptors own those policies, one exhaustive app binding adapts use cases, and all three consumers use shared metadata. Domain implementations/validators and local observational transport choices remain their owners. Removed arbitrary result generics in attention/board callers and the signature-erasing dispatch cast; only a documented unknown-JSON-to-tuple assertion remains.
-- Full original profile verification and final archive/commit remain pending. It requires a committed runtime snapshot first; create a scoped implementation checkpoint, then record the pinned comparison and finalize.
+- The gate requires committed runtime inputs. Implementation/tests/owning docs were checkpointed in `42c5636`; finalization records evidence and archives this list in a subsequent scoped commit, with identical runtime and assertion bytes.
+
+## Completed outcome and final verification
+
+- Adopted the full bounded pilot: all 31 existing operations now have typed positional tuples/results and shared metadata in `src/adapters/backend-protocol.ts`. App implementations remain behind exhaustive typed bindings. No new public operation, schema validation, permissions, retry, root-selection or migration behavior was introduced.
+- Final focused command: `node --test test/backend-operation-agreement.test.js test/backend-rpc-contracts.test.js test/creation-outcomes.test.js test/architecture-boundaries.test.js test/package-entrypoints.test.js` — **40/40 passed, zero failed/skipped**, including six supplemental cases. The selected full profile overlaps these checks; counts are not independent coverage.
+- Full integration command: `npx --no-install --package=playwright@1.64.1 node scripts/multiplayer-verification/architecture.mjs verify --baseline "$PWD/.local-pack/architecture-contracts/reference-3" --baseline-sha256 3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c --delta deep-dives/architecture-contracts/backend-operation-delta-v1.json --delta-sha256 aa528140010f583b0a3929be72c2444a4dc068a97b7d5679abfc880ae1ae9c81 --out .local-pack/architecture-contracts/backend-operation-v2` — **passed**. Build, **166/166 selected Node contracts** (original 165 plus an additive boundary test) and all four Chromium journeys passed; all **ten original checkpoints** matched exactly. Total selected execution was about 56 seconds.
+- Reference manifest remains unchanged at `3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c`. Candidate manifest: `60c8e25679bf840ee0eb95f55db6d5b963b41746298b988bc1d050d0fe839a23`. The reviewed delta changes only the architecture test's exact protocol classification/three consumer edges and adds negative controls; every original behavioral assertion, fixture, helper and checkpoint remains unchanged. The complete original-to-candidate assertion diff was inspected before pinning.
+- Initial comparison `backend-operation-v1` was blocked before tests because unversioned npx selected Playwright 1.65.0 / updated Chrome 156.0.8078.80. Reused cached original Playwright 1.64.1 / Chromium 156.0.8078.4 with a pinned package invocation; no downloads, tool-source changes, baseline refresh or relaxed environment checks. Both attempt reports remain local.
+- Build retained the ordinary editor bundle at 676,185 bytes minified / 223,140 gzip, within unchanged limits. All scoped/new relative Markdown targets and `git diff --check` passed. A full changelog scan also found its pre-existing unrelated `todo/tasks-page-reference-manual-qa.md` link missing; left historical unrelated content unchanged. Full evidence remains under ignored `.local-pack/architecture-contracts/backend-operation-v2/`; the compact record and exact assertion delta are tracked.
+- Updated owning architecture/app/adapter/CLI docs and the structural changelog. Pending release notes are unchanged because this refactor changes no user-facing behavior or guidance. Archived the completed list and repaired inbound references.
+
+Limits: selected contract equivalence only, not whole-app equivalence or a release gate. Fake-QMD fixtures do not establish semantic retrieval quality. Chromium does not establish native macOS Keychain/login/signing or public VPS behavior. No installation, version bump, push or release was performed.

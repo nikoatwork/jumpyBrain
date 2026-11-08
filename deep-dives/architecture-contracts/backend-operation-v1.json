@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "status": "passed",
+  "date": "2026-11-08",
+  "implementationCommit": "42c56367c1fb4b61b747636032582f08bbdc373f",
+  "originalBaseline": {
+    "source": "a3e5f00eb428f194d59c77f8d18e9ab83350ec88",
+    "path": ".local-pack/architecture-contracts/reference-3",
+    "manifestSha256": "3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c",
+    "modified": false
+  },
+  "comparison": {
+    "path": ".local-pack/architecture-contracts/backend-operation-v2",
+    "manifestSha256": "60c8e25679bf840ee0eb95f55db6d5b963b41746298b988bc1d050d0fe839a23",
+    "delta": "deep-dives/architecture-contracts/backend-operation-delta-v1.json",
+    "deltaSha256": "aa528140010f583b0a3929be72c2444a4dc068a97b7d5679abfc880ae1ae9c81",
+    "checks": [
+      {
+        "id": "build",
+        "status": "passed",
+        "durationMs": 2366
+      },
+      {
+        "id": "boundaries",
+        "status": "passed",
+        "durationMs": 18557,
+        "observation": {
+          "tests": 166,
+          "pass": 166,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "id": "editor",
+        "status": "passed",
+        "durationMs": 25292,
+        "matchedCheckpointIds": [
+          "source-selection",
+          "own-edit",
+          "own-undo-preserves-peer"
+        ]
+      },
+      {
+        "id": "uncertain",
+        "status": "passed",
+        "durationMs": 1167,
+        "matchedCheckpointIds": [
+          "1280/accepted-body/private",
+          "1280/accepted-body/reloaded"
+        ]
+      },
+      {
+        "id": "retained",
+        "status": "passed",
+        "durationMs": 6261,
+        "matchedCheckpointIds": [
+          "retained-restore"
+        ]
+      },
+      {
+        "id": "credentials",
+        "status": "passed",
+        "durationMs": 1922,
+        "matchedCheckpointIds": [
+          "1280/credential-blocked",
+          "1280/credential-reopened",
+          "390/credential-blocked",
+          "390/credential-reopened"
+        ]
+      }
+    ]
+  },
+  "supplemental": {
+    "command": "node --test test/backend-operation-agreement.test.js test/backend-rpc-contracts.test.js test/creation-outcomes.test.js test/architecture-boundaries.test.js test/package-entrypoints.test.js",
+    "tests": 40,
+    "passed": 40,
+    "failed": 0,
+    "skipped": 0,
+    "log": ".local-pack/backend-operation-focused-final.log"
+  },
+  "environment": {
+    "node": "v26.7.0",
+    "npm": "11.19.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "browser": "156.0.8078.4",
+    "playwright": "1.64.1",
+    "dependenciesMatchOriginal": true
+  },
+  "blockedAttempt": {
+    "path": ".local-pack/architecture-contracts/backend-operation-v1/report.json",
+    "reason": "Unpinned npx selected cached Playwright 1.65.0 and Chrome 156.0.8078.80. No checks ran. Recovered original cached Playwright 1.64.1 and Chromium 156.0.8078.4 using --package=playwright@1.64.1; original baseline and harness unchanged."
+  },
+  "structuralResult": {
+    "operations": 31,
+    "removed": [
+      "Separate 17-method read allowlist",
+      "Six-position dispatcher signal map",
+      "Two-method caller index deadline branch",
+      "Three-method caller preflight list",
+      "Three-method host document guard branch",
+      "Nine-case special dispatch switch",
+      "Caller-selected result generics and signature-erasing dispatch cast"
+    ],
+    "retained": [
+      "Typed exhaustive app use-case bindings",
+      "Single raw JSON-to-tuple boundary assertion",
+      "Domain validation and distinct host permission policies",
+      "Canonical versus derived admission, positional compatibility and no replay"
+    ]
+  },
+  "limits": [
+    "Selected contract equivalence only; not whole-program equivalence or a release gate.",
+    "Fake-QMD fixtures; no real-model retrieval-quality claim.",
+    "Chromium checks do not establish native Keychain/login/signing or public VPS behavior.",
+    "Full logs, runtime snapshots and manifests are local ignored artifacts.",
+    "No public API, wire schema, permissions, retry behavior, version, installation, push or release change."
+  ]
+}
