@@ -1,4 +1,5 @@
 // Browser-safe persistence and Markdown codec. Transport, clocks and selection belong to the host.
+import type { EditorSession } from "./editor-session.js";
 import { mergeDocumentEdits } from "./document-merge.js";
 import type { SearchRecognitionMetadata } from "../../types.js";
 export interface DocumentPayload { content?: string; contentHash?: string; title?: string; file?: string; recognition?: SearchRecognitionMetadata }
@@ -421,7 +422,7 @@ export function createDocumentEditor(options: DocumentEditorOptions) {
     editorState.reconcileToken += 1;
   }
 
-  return { state: editorState, hydrate, input, inputTitle, setEditing, setNavigationPending, startSave, flush, retry, reconcile, acceptExternal, acceptMetadata, clearExternalNotice, hasPending, reloadSaved, cancel };
+  return { kind: "http" as const, state: editorState, hydrate, input, inputTitle, setEditing, setNavigationPending, startSave, flush, retry, reconcile, acceptExternal, acceptMetadata, clearExternalNotice, hasPending, reloadSaved, cancel } satisfies EditorSession & Record<string, unknown>;
 }
 
 export function splitEditableDocument(content: string) {

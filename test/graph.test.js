@@ -681,7 +681,8 @@ test("notes editing stays in the HTTP shell with persistent rich editing and nat
   assert.match(html, /@media \(max-width: 680px\)[\s\S]*#note-editor/);
   assert.match(html, /id="open-connection"[^>]*aria-label="Connect · Connection settings"/);
   assert.match(html, /id="connection" aria-labelledby="connection-title"/);
-  assert.match(script, /persistentEditing: true/);
+  assert.match(script, /JumpyBrainBrowser\.createLiveEditorSession\(/);
+  assert.doesNotMatch(script, /createDocumentEditor\(|attachLiveEditor|editor\.(?:input|flush|cancel)\s*=/);
   assert.doesNotMatch(script, /state\.editor\.setEditing\(false\)/);
   assert.match(html, /Scroll to zoom · Drag to move · Select a note to open/);
 });

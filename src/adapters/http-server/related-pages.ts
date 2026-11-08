@@ -1,6 +1,6 @@
 import { isValidMemoryDocumentId } from "../../core/document-id-format.js";
 import { readablePreview } from "./search-presentation.js";
-import type { createDocumentEditor } from "./document-controller.js";
+import type { EditorSession } from "./editor-session.js";
 
 /** Literal bounded title query retained by the explicit graph topic preview. */
 export function relatedPageQuery(title: string, body: string): string {
@@ -32,7 +32,7 @@ export function selectRelatedPages(query: string, results: unknown, currentId: s
 
 /** Transient read-only discovery; host retains transport, brain fences and navigation. */
 export function installRelatedPages(options: {
-  document: Document; editor(): ReturnType<typeof createDocumentEditor> | null;
+  document: Document; editor(): EditorSession | null;
   scope(): string; enabled(): boolean;
   search(query: string, signal: AbortSignal, limit: number): Promise<unknown>;
   href(id: string): string; navigate(url: string): void;

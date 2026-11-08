@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "status": "passed",
+  "profile": "test/fixtures/architecture-contracts/profile.json",
+  "reference": {
+    "source": "a3e5f00eb428f194d59c77f8d18e9ab83350ec88",
+    "manifestSha256": "3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c"
+  },
+  "candidate": {
+    "source": "bc754a441f5b18240568e1923668ef6b79d4a15a",
+    "tree": "3d4fa10bbf2adb9efbe56aef0d9009a2df07eb95",
+    "manifestSha256": "4ea4699974fc1d61d2f09db2ca79a42e2bc836f01ded61731a3b8d615dd3d691",
+    "evidenceDirectory": ".local-pack/architecture-contracts/editor-session-v2",
+    "dirtyRuntime": [],
+    "build": {
+      "version": "0.3.20",
+      "build": "69191765f4629bd1"
+    }
+  },
+  "checks": [
+    {
+      "id": "build",
+      "status": "passed",
+      "durationMs": 2366
+    },
+    {
+      "id": "boundaries",
+      "status": "passed",
+      "durationMs": 18299,
+      "observation": {
+        "tests": 166,
+        "pass": 166,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "id": "editor",
+      "status": "passed",
+      "durationMs": 24840
+    },
+    {
+      "id": "uncertain",
+      "status": "passed",
+      "durationMs": 1148
+    },
+    {
+      "id": "retained",
+      "status": "passed",
+      "durationMs": 6153
+    },
+    {
+      "id": "credentials",
+      "status": "passed",
+      "durationMs": 1912
+    }
+  ],
+  "totalCheckDurationMs": 54718,
+  "checkpointComparison": {
+    "exactMatch": true,
+    "count": 10,
+    "digestEncoding": "SHA256 of UTF-8 JSON value with sorted keys and compact separators",
+    "checkpoints": [
+      {
+        "check": "editor",
+        "id": "source-selection",
+        "valueSha256": "61abee6a39cf3e9e53cf35b175941e31e8f70a0c7ccae0e20f6a2f5d2c40605e"
+      },
+      {
+        "check": "editor",
+        "id": "own-edit",
+        "valueSha256": "b33efa271e84fbb49d6159c838a5b7dfdd2027bf264be3ad766fb26617feb347"
+      },
+      {
+        "check": "editor",
+        "id": "own-undo-preserves-peer",
+        "valueSha256": "7d72af5406aeb8289d361f5f3628a78c6e788aa235e02b3d617b0fce7a7126ea"
+      },
+      {
+        "check": "uncertain",
+        "id": "1280/accepted-body/private",
+        "valueSha256": "84281bb43f154402ed692acc21932933bf85015a397111e19c5343ade1fc556e"
+      },
+      {
+        "check": "uncertain",
+        "id": "1280/accepted-body/reloaded",
+        "valueSha256": "5bfb353514081e2575d0db74840931b313a46ee6ce53e5ee07692b799f5935d9"
+      },
+      {
+        "check": "retained",
+        "id": "retained-restore",
+        "valueSha256": "885ff6935e105514833d732ecfb2d0f514a271efb08915ad53c69270b8c7f2bd"
+      },
+      {
+        "check": "credentials",
+        "id": "1280/credential-blocked",
+        "valueSha256": "b4d1e45b4c794c35f10e8e11d4fc6dd65b6496ccb86ff904ff5dfde752896c4c"
+      },
+      {
+        "check": "credentials",
+        "id": "1280/credential-reopened",
+        "valueSha256": "a5ad1232c57a34db13f9a1fcb15093473c5dc5473b9236e44c07f6f82092a76f"
+      },
+      {
+        "check": "credentials",
+        "id": "390/credential-blocked",
+        "valueSha256": "2325214c1566bbac384ce2d5bfa47a90b02b3bd025f63f4c8919d0d08e080f86"
+      },
+      {
+        "check": "credentials",
+        "id": "390/credential-reopened",
+        "valueSha256": "a5ad1232c57a34db13f9a1fcb15093473c5dc5473b9236e44c07f6f82092a76f"
+      }
+    ]
+  },
+  "assertions": {
+    "changedFromOriginal": [
+      "test/architecture-boundaries.test.js"
+    ],
+    "reusedReviewedDelta": "backend-operation-delta-v1.json",
+    "deltaSha256": "aa528140010f583b0a3929be72c2444a4dc068a97b7d5679abfc880ae1ae9c81",
+    "editorAssertionsAndHelpersUnchanged": true,
+    "implementationShapeReview": [
+      {
+        "file": "test/graph.test.js",
+        "oldSha256": "b764a9a93537a0518a8fee40851cd2337e0d2d7789476acc59ab3b0c99c184f6",
+        "newSha256": "3ebe3b73bf5bbbcb5b11c419b0910844471f7c938a7e023d965bf0d32a4b90e7",
+        "frozenProfileSelection": false,
+        "review": "Replace only the obsolete persistentEditing implementation-shape assertion with direct live-session construction and absence of patched methods; preserve all original behavioral assertions."
+      },
+      {
+        "file": "test/notes-browser.test.js",
+        "oldSha256": "ad2e4f3c5b176811d7f8b4abe98ca55d686397ad15500c508a4763519c2881dc",
+        "newSha256": "4549c2e132f97d0198dd2d0384e2ed4333760132ce96da74baa43d9b9f78ef6a",
+        "frozenProfileSelection": false,
+        "review": "Adapt only imports/factory fixtures to the new session; original navigation and staged canonical-read assertions remain intact."
+      }
+    ]
+  },
+  "focusedEvidence": {
+    "consumerTestsPassed": 216,
+    "afterDeclarationAndBuildCompactionTestsPassed": 16,
+    "editorAvailabilityChromium": "1280/390px capability failures, saved readability, retry and delayed permissions passed before final scope hardening; final profile verifies integrated runtime",
+    "livingSourcesBrowserTestsPassed": 6
+  },
+  "bundle": {
+    "beforeMinifiedBytes": 676185,
+    "beforeGzipBytes": 223140,
+    "afterMinifiedBytes": 671081,
+    "afterGzipBytes": 221862,
+    "gzipLimit": 223250,
+    "bundledPackages": 15,
+    "comparison": "Ordinary builds with their own source fingerprints; same dependencies, not a fixed-fingerprint microbenchmark."
+  },
+  "distributionProbe": {
+    "before": {
+      "archiveBytes": 1462694,
+      "unpackedBytes": 4626120,
+      "runtimeBytes": 3097996,
+      "files": 662
+    },
+    "candidateBeforeFinalDocs": {
+      "archiveBytes": 1462898,
+      "unpackedBytes": 4625405,
+      "runtimeBytes": 3097281,
+      "files": 666
+    },
+    "outcome": "Runtime passes and shrinks; existing archive/unpacked/file-count overages remain release blockers. Limits unchanged; final documentation changes package totals."
+  },
+  "limits": [
+    "Selected contracts, not whole-app or cross-browser equivalence.",
+    "Disposable Chromium and deterministic QMD fixtures; no semantic-model quality claim.",
+    "No native menu, Keychain, login, signing, power-loss or public deployment proof.",
+    "Live HTTP metadata-only acceptance remains false as before; no revision-aware adoption path added.",
+    "No push, installation or release performed."
+  ]
+}

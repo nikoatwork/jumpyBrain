@@ -1,5 +1,5 @@
 import { metadataDate } from "../../core/canonical/metadata-date.js";
-import type { createDocumentEditor } from "./document-controller.js";
+import type { EditorSession } from "./editor-session.js";
 import type { MemoryActor, SearchRecognitionMetadata } from "../../types.js";
 import { installNoteAttribution } from "./note-attribution.js";
 import { installNoteOutline } from "./note-outline.js";
@@ -17,7 +17,7 @@ export function savedVersionContext(recognition: SearchRecognitionMetadata | und
 
 /** View-only context over the existing editor. Transport and save policy stay with the host. */
 export function installNoteWorkspace(options: {
-  document: Document; editor(): ReturnType<typeof createDocumentEditor> | null;
+  document: Document; editor(): EditorSession | null;
   actor(): MemoryActor; writable(): boolean;
 }) {
   const doc = options.document, win = doc.defaultView!;

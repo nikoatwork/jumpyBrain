@@ -110,5 +110,6 @@ digest.
 
 The first retained reference and independent-checkout comparison are recorded in
 [baseline v1](../deep-dives/architecture-contracts/baseline-v1.json). Use its
-reference manifest pin, not the comparison run's pin, for the backend pilot and planned editor
-refactor. The record separately identifies tools, scenario outcomes and limits.
+reference manifest pin, not the comparison run's pin, for both bounded pilots.
+The [completed editor session pilot](../tasks/done/2026-11-08_tasks-editor-session-contract-refactor.md)
+removes patched controller ownership with [exact checkpoint comparison](../deep-dives/architecture-contracts/editor-session-v1.json). The record separately identifies tools, scenario outcomes and limits.

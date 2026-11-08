@@ -1,5 +1,7 @@
 # Changes
 
+- The editor uses a smaller bundle and one explicit live session for writing, navigation and recovery, preserving private drafts and own Undo.
+
 - The graph adds dashed inferred connections alongside solid explicit links when local semantic indexing is ready. [Imported-note relevance follow-up remains open](tasks-semantic-link-quality.md); the degree cap does not establish connection quality.
 
 - Invalid remote document-update and board-save receipts now remain explicitly unconfirmed; live editing rejects invalid supplied protocol, operation and stream fields without replaying writes.

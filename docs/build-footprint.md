@@ -21,6 +21,26 @@ extension renderer. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
 
+## 2026-11-08 editor session ownership
+
+The direct live-session composition removes the unused HTTP autosave controller
+from the shipped browser exports while retaining its standalone implementation
+and tests. Ordinary builds on the same checkout/dependencies measured 676,185
+minified / 223,140 gzip bytes before this pilot and 671,081 / 221,862 after it
+(15 bundled packages in both). These are actual builds with their own source
+fingerprints, not a controlled fixed-fingerprint bundler benchmark. The existing
+223,250-byte editor gate and all other budgets remain unchanged.
+The new standalone session artifact uses the build's existing whitespace
+compaction, and its declaration references the explicit interface. The tested
+runtime measures 3,097,281 bytes, 715 below the source-matched pre-task runtime.
+An additional full-package probe found inherited archive/unpacked/file-count
+failures: pre-task `d097261` measured 1,462,694 compressed / 4,626,120 unpacked
+bytes and 662 files against limits of 1,450,000 / 4,600,000 / 660. The editor
+pilot does not raise those limits or claim a release-ready package. Its source
+snapshot package measured 1,462,898 / 4,625,405 bytes and 666 files; final owning
+documentation can change those archive/unpacked totals. No release is implied.
+
+
 ## 2026-11-04 checklist authoring and reference dismissal
 
 A matched esbuild comparison with the same fixed build fingerprint, package pins

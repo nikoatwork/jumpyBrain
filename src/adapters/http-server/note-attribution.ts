@@ -1,8 +1,8 @@
-import type { createDocumentEditor } from "./document-controller.js";
+import type { EditorSession } from "./editor-session.js";
 
 /** Selection is a discovery trigger, never evidence of block-level history. */
 export function installNoteAttribution(options: {
-  document: Document; editor(): ReturnType<typeof createDocumentEditor> | null; context(): { editor: string; edited: string };
+  document: Document; editor(): EditorSession | null; context(): { editor: string; edited: string };
 }) {
   const doc = options.document, win = doc.defaultView!, body = doc.getElementById("note-editor")!;
   const hint = doc.getElementById("note-attribution")!;
@@ -20,7 +20,7 @@ export function installNoteAttribution(options: {
     const context = options.context();
     const text = context.editor + " · " + context.edited;
     if (facts.textContent !== text) facts.textContent = text;
-    const detail = state.dirty || state.saveInFlight ? "Whole saved note. Selection may contain unsaved edits; section history is unavailable." : "Whole note; section history is unavailable.";
+    const detail = state.dirty || state.saveStatus === "saving" ? "Whole saved note. Selection may contain unsaved edits; section history is unavailable." : "Whole note; section history is unavailable.";
     if (scope.textContent !== detail) scope.textContent = detail;
     hint.hidden = false;
     const width = hint.getBoundingClientRect().width, height = hint.getBoundingClientRect().height;

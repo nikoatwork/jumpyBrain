@@ -206,7 +206,7 @@ ${folderExplorerMarkup}
 ${lexicalBundle}
 ${companion ? extensionBundle : ""}
 ${sidebarScript}
-const { createDocumentEditor, splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
+const { splitEditableDocument, composeEditableDocument, withEditableTitle, createRecentWriteSearch, installDocumentActions, referenceEligibility, createBrowserSearchRequest, memoryDocumentPath } = JumpyBrainBrowser;
 let browserActor;
 try { browserActor = JumpyBrainBrowser.browserMemoryActor(window.localStorage); } catch { browserActor = { kind: "human" }; }
 const recentWrites = createRecentWriteSearch({

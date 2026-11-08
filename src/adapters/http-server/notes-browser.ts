@@ -1,4 +1,3 @@
-import { collaborationFeedback } from "./collaboration-feedback.js";
 import { folderExplorerToggle } from "./folder-explorer-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
@@ -593,7 +592,7 @@ export const notesViews = String.raw`
   </section>
 `;
 
-export const notesScript = collaborationFeedback.toString() + String.raw`
+export const notesScript = String.raw`
 // Recent notes come from fresh Markdown metadata, not the search index.
 function createRecentNotes(options) {
   let generation = 0;
@@ -1206,12 +1205,8 @@ if (hostedIdentityChannel) hostedIdentityChannel.onmessage = async (event) => {
   credentialRevision++;
   const editor = state.editor;
   if (editor?.hasPending()) {
-    editor.collaboration?.dispose();
-    editor.state.liveStatus = "blocked"; editor.state.liveCanWrite = false;
-    editor.state.saveStatus = "failed"; editor.state.saveErrorCode = "precondition_failed";
-    editor.state.saveError = "Credentials changed in another tab. Copy or recover this private draft before reopening with the new identity.";
-    editor.state.unconfirmedSave = true; editor.state.dirty = true;
-    syncEditorUi(editor.state); return;
+    editor.block("Credentials changed in another tab. Copy or recover this private draft before reopening with the new identity.", true);
+    return;
   }
   editor?.cancel();
   if (hostedPrincipalId) activeApiKey = "browser-session";
@@ -1308,7 +1303,7 @@ const folderExplorer = JumpyBrainBrowser.installFolderExplorer({
       } finally { if (editor === state.editor) editor?.setNavigationPending(false); }
     },
     changed: result => {
-      if (result.id && state.editor?.state.documentId === result.id && result.file) state.editor.state.file = result.file;
+      // The live snapshot supplies the confirmed filename after the move.
       state.graph = null; if (result.id) recentWrites.remove(result.id);
       noteSearch.markStale(); referenceAutocomplete.markStale();
     },
@@ -1481,63 +1476,30 @@ async function showNote(documentId, focusEnd = false) {
     $("note-panel").scrollTop = 0;
     document.title = "Note · jumpyBrain";
     if (!isValidMemoryDocumentId(documentId)) { noteLoadError("This note link has an invalid memory ID. Use Search to find a note."); return; }
-    const editor = createDocumentEditor({
-      generation: token, documentId, debounceMs: 750, persistentEditing: true,
-      setTimer: (callback, delay) => window.setTimeout(callback, delay),
-      clearTimer: (timer) => window.clearTimeout(timer),
-      splitDocument: splitEditableDocument, composeDocument: composeEditableDocument,
-      readDocument: readGraphDocument, writeDocument: writeGraphDocument,
-      canApplyExternal: () => externalUpdates.canApply(),
-      scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
-      onExternalUpdate: (body) => {
-        // Rebase may retain locally entered links. Keep only that existing
-        // intent; never enqueue references supplied by an external snapshot.
-        referenceCreation.rebase(editor.state.savedBody, body);
-        referenceAutocomplete.dismiss();
-        richEditor.setExternalMarkdown(body);
-      },
-      onSaved: (payload) => {
-        extensionUI?.emit({ type: "document.saved", document: { id: documentId, title: editor.state.savedTitle } });
-        sidebarPages.rename({ id: documentId, title: editor.state.savedTitle });
-        sidebarPages.reloadAttention();
-        folderExplorer.rename(documentId, editor.state.savedTitle);
-        recentWrites.remember({ recognition: payload.recognition, id: documentId, title: editor.state.savedTitle, body: editor.state.savedBody, file: String(payload.file || $("note-file").textContent || "") });
-        state.graph = null;
-        noteSearch.markStale(); referenceAutocomplete.markStale();
-        referenceCreation.saved(editor.state.savedBody, editor.state.draft);
-      },
-      isCurrent: (generation, id) => state.noteToken === generation && state.editor === editor && editor.state.documentId === id,
-      onChange: syncEditorUi,
-    });
+    const editor = createNoteSession(token, documentId, focusEnd);
     state.editor = editor;
     try {
       const payload = staged?.id === documentId && staged.revision === credentialRevision
         ? staged.payload : await readGraphDocument(documentId);
       if (token !== state.noteToken || state.editor !== editor) return;
       if (typeof payload?.content !== "string" || typeof payload?.contentHash !== "string") throw new Error("Invalid document response.");
+      editor.hydrate(payload);
+      if (editor.state.cancelled) return;
       $("note-title").textContent = payload.title || payload.file || "Untitled";
       document.title = $("note-title").textContent + " · jumpyBrain";
       $("note-file").textContent = payload.file || "";
       $("note-message").hidden = true;
-      editor.hydrate(payload);
       sidebarPages.visit({ id: documentId, title: payload.title || payload.file || "Untitled" });
       if (focusEnd) recentWrites.remember({ recognition: payload.recognition, id: documentId, title: payload.title || "", body: editor.state.savedBody, file: payload.file || "" });
-      editor.setEditing(true);
-      await attachLiveEditor(editor, documentId, focusEnd);
+      await editor.connect();
+      if (token !== state.noteToken || state.editor !== editor || editor.state.cancelled) return;
       if (!searchDialog.open && !connectionDialog.open) richEditor.focus(focusEnd);
     } catch (error) {
-      if (token !== state.noteToken || state.editor !== editor) return;
+      if (token !== state.noteToken || state.editor !== editor || editor.state.cancelled) return;
       if (editor.state.loaded) {
         // The canonical read succeeded. A missing/incompatible live endpoint
         // says nothing about whether the note exists; retain its saved text.
-        editor.state.liveStatus = "blocked";
-        editor.state.liveCanWrite = false;
-        // No save was attempted. Keep the confirmed read navigable instead of
-        // turning a clean note into a failed-save navigation barrier.
-        editor.state.saveStatus = "saved";
-        editor.state.saveErrorCode = "";
-        editor.state.saveError = "Saved content is shown. Check your connection and app/server versions, then retry editing.";
-        syncEditorUi(editor.state);
+        editor.block("Saved content is shown. Check your connection and app/server versions, then retry editing.");
         return;
       }
       if (Number(error.status) === 404) sidebarPages.remove(documentId);
@@ -1588,8 +1550,7 @@ new ResizeObserver((entries) => {
 }).observe($("note-name"));
 $("note-name").addEventListener("blur", () => state.editor?.flush());
 
-// Preserve the document controller's navigation/action contract while live
-// publication owns the body and its acknowledgement. Legacy autosave never runs.
+// Presence and generation notices present the live session; publication stays in its owner.
 let presenceSignature = "";
 function renderLivePresence(snapshot, status, ownClientId) {
   const root = $("note-presence");
@@ -1604,30 +1565,32 @@ function renderLivePresence(snapshot, status, ownClientId) {
     chip.title = appearance.description; chip.setAttribute("aria-label", appearance.description); root.append(chip);
   }
 }
-async function attachLiveEditor(editor, documentId, focusEnd) {
-  editor.state.autoSaveBlocked = true; editor.state.liveStatus = "connecting"; editor.state.liveHasOpened = false;
-  syncEditorUi(editor.state);
-  const capabilities = await graphJson("/capabilities");
-  if (state.editor !== editor || editor.state.cancelled) return;
-  if (capabilities.protocol !== 2 || typeof capabilities.brainId !== "string") throw new Error("This backend requires a coordinated client upgrade.");
-  const endpoint = new URL("/ws", location.href);
-  endpoint.protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  let cancelled = false, sidebarRefresh = null, generationTimer = null, externalNoticeTimer = null;
+function createNoteSession(token, documentId, focusEnd) {
+  let sidebarRefresh = null, generationTimer = null, historyNoticeSequence = 0;
   const generationFeedback = JumpyBrainBrowser.createGenerationFeedback();
   const clearGeneration = () => {
     clearTimeout(generationTimer); generationTimer = null;
-    $("note-generation-state").textContent = ""; $("note-generation-state").hidden = true;
+    if (state.editor === editor) { $("note-generation-state").textContent = ""; $("note-generation-state").hidden = true; }
   };
-  const originalCancel = editor.cancel;
-  const collaboration = JumpyBrainBrowser.createCollaborationEditor({
-    actor: () => browserActor,
+  let observedHash = "", observedTitle = "";
+  const editor = JumpyBrainBrowser.createLiveEditorSession({
+    generation: token, documentId, editor: richEditor, actor: () => browserActor,
+    isCurrent: () => state.noteToken === token && state.editor === editor,
+    scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) + ":" + companionTabId : "hosted"),
+    connection: async () => {
+      const capabilities = await graphJson("/capabilities");
+      if (capabilities.protocol !== 2 || typeof capabilities.brainId !== "string") throw new Error("This backend requires a coordinated client upgrade.");
+      const endpoint = new URL("/ws", location.href);
+      endpoint.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+      return { url: endpoint.href, token: activeApiKey,
+        scope: location.origin + ":" + capabilities.brainId + ":" + (companionMode ? String(companionState?.activeId || "") : "hosted"),
+        expectedBrainId: capabilities.brainId,
+        connectionContext: () => companionMode ? {tabId: companionTabId, generation: companionState?.generation} : {},
+      };
+    },
+    reopen: async () => { await showNote(documentId); return state.editor !== editor && Boolean(state.editor?.state.loaded); },
     onRecovery: code => feedbackDiagnostics.event("save", {severity:"warn",outcome:"unconfirmed",code}),
-    url: endpoint.href, token: activeApiKey,
-    scope: location.origin + ":" + capabilities.brainId + ":" + (companionMode ? String(companionState?.activeId || "") : "hosted"),
-    documentId, editor: richEditor, expectedBrainId: capabilities.brainId,
-    connectionContext: () => companionMode ? {tabId: companionTabId, generation: companionState?.generation} : {},
-    onStream: (snapshot) => {
-      if (cancelled || state.editor !== editor) return;
+    onStream: snapshot => {
       const notice = generationFeedback.observe(snapshot);
       if (!notice) return;
       clearGeneration();
@@ -1637,81 +1600,36 @@ async function attachLiveEditor(editor, documentId, focusEnd) {
       generationTimer = setTimeout(clearGeneration, 8000);
     },
     onSnapshot: (snapshot, view) => {
-      if (cancelled || state.editor !== editor) return;
-      const current = editor.state;
-      const contentChanged = current.contentHash !== snapshot.contentHash;
-      const titleChanged = current.savedTitle !== snapshot.title;
-      const pendingTitle = current.title !== current.savedTitle;
-      const parts = splitEditableDocument(snapshot.prefix + snapshot.body);
-      current.frontmatterPrefix = parts.frontmatterPrefix; current.newline = parts.newline;
-      current.savedBody = parts.body; current.contentHash = snapshot.contentHash;
-      current.savedTitle = snapshot.title;
-      if (!pendingTitle) current.title = snapshot.title;
-      current.draft = view.body; current.recognition = snapshot.recognition;
-      if (contentChanged) {current.reconcileToken++; current.draftRevision++;}
-      if (view.remote) { current.externalStatus = "updated"; clearTimeout(externalNoticeTimer); externalNoticeTimer = setTimeout(() => {externalNoticeTimer = null; if (state.editor === editor) {current.externalStatus = ""; syncEditorUi(current);}}, 4000);}
+      const contentChanged = observedHash !== snapshot.contentHash;
+      const titleChanged = observedTitle !== snapshot.title;
+      observedHash = snapshot.contentHash; observedTitle = snapshot.title;
       $("note-file").textContent = snapshot.file || "";
-      if (contentChanged) {
+      if (!contentChanged) return;
       sidebarPages.rename({id: documentId, title: snapshot.title});
       if (sidebarRefresh) clearTimeout(sidebarRefresh);
       if (titleChanged) sidebarPages.reloadAttention(documentId);
-      else sidebarRefresh = setTimeout(() => {sidebarRefresh = null; if (!cancelled) sidebarPages.reloadAttention();}, 500);
+      else sidebarRefresh = setTimeout(() => {sidebarRefresh = null; if (state.editor === editor && !editor.state.cancelled) sidebarPages.reloadAttention();}, 500);
       folderExplorer.rename(documentId, snapshot.title);
       recentWrites.remember({recognition: snapshot.recognition, id: documentId, title: snapshot.title, body: snapshot.body, file: snapshot.file});
       state.graph = null; noteSearch.markStale(); referenceAutocomplete.markStale();
       referenceCreation.saved(snapshot.body, view.body);
       extensionUI?.emit({type: "document.saved", document: {id: documentId, title: snapshot.title}});
-      }
     },
-    onState: (live) => {
-      if (cancelled || state.editor !== editor) return;
+    onState: (live, firstOpen) => {
       if (["offline", "connecting", "blocked"].includes(live.status)) { generationFeedback.reset(); clearGeneration(); }
-      const current = editor.state;
-      current.draft = collaboration.body;
-      if (live.historyNotice && current.historyNoticeSequence !== live.historyNotice.sequence) {
-        current.historyNoticeSequence = live.historyNotice.sequence;
-        toast.show("history", live.historyNotice.text);
+      if (live.historyNotice && historyNoticeSequence !== live.historyNotice.sequence) {
+        historyNoticeSequence = live.historyNotice.sequence; toast.show("history", live.historyNotice.text);
       }
-      if (typeof collaboration.title === "string") current.title = collaboration.title;
-      current.dirty = live.dirty || current.title !== current.savedTitle;
-      current.unconfirmedSave = ["offline", "conflict", "blocked"].includes(live.status) && current.dirty;
-      current.saveStatus = live.status === "saved" && !current.dirty ? "saved" : ["conflict", "blocked"].includes(live.status) ? "failed" : "saving";
-      current.saveErrorCode = live.status === "conflict" ? "precondition_failed" : "";
-      current.saveError = collaborationFeedback(live);
-      renderLivePresence(collaboration.snapshot, live.status, collaboration.clientId);
-      current.liveStatus = live.status; current.liveCanWrite = live.canWrite; current.recoveryDrafts = live.recoveryDrafts; current.durableDraft = live.durableDraft;
-      const firstOpen = !current.liveHasOpened && live.canWrite;
-      current.liveHasOpened ||= live.canWrite || live.status === "readonly" || live.status === "saved";
-      current.autoSaveBlocked = true;
-      syncEditorUi(current);
+      renderLivePresence(editor.collaboration?.snapshot, live.status, editor.collaboration?.clientId);
       if (firstOpen && !searchDialog.open && !connectionDialog.open && document.hasFocus()) richEditor.focus(focusEnd);
     },
+    onChange: current => {
+      if (current.loaded && !observedHash) { observedHash = current.contentHash; observedTitle = current.savedTitle; }
+      syncEditorUi(current);
+    },
+    onDispose: () => {if (state.editor === editor) {toast.clear("editor-save"); renderLivePresence(null, "offline");} clearTimeout(sidebarRefresh); generationFeedback.reset(); clearGeneration();},
   });
-  editor.collaboration = collaboration;
-  editor.state.autoSaveBlocked = true;
-  editor.input = (body, intent) => {editor.state.draft = body; editor.state.draftRevision++; collaboration.input(body, intent);};
-  editor.inputTitle = (title) => {editor.state.title = title; collaboration.inputTitle(title); syncEditorUi(editor.state);};
-  editor.flush = async () => collaboration.flush();
-  editor.startSave = editor.flush;
-  editor.retry = () => collaboration.resolveConflict("draft");
-  editor.publishReviewedDraft = (hash) => collaboration.resolveConflict("draft", hash);
-  editor.getRetainedRecovery = () => collaboration.snapshot?.recovery;
-  editor.getRetainedDiscovery = () => collaboration.snapshot?.recoveryDiscovery;
-  editor.readRetainedVersion = (recovery, copy) => collaboration.readRetainedVersion(recovery, copy);
-  editor.restoreRetainedVersion = (version, expectedHash) => collaboration.restoreRetainedVersion(version, expectedHash);
-  editor.getRecoveryDrafts = () => collaboration.state.recoveryDrafts;
-  editor.recoverDraft = (record) => collaboration.recoverDraft(record);
-  editor.hasPending = () => editor.state.dirty || collaboration.state.dirty;
-  editor.reconcile = async () => false;
-  editor.acceptExternal = () => false;
-  editor.reloadSaved = async (allowed = () => true) => {
-    if (!allowed()) return false;
-    if (editor.state.liveStatus === "blocked") {await showNote(documentId); return state.editor !== editor && Boolean(state.editor?.state.loaded);}
-    return collaboration.resolveConflict("saved");
-  };
-  editor.cancel = () => {toast.clear("editor-save"); renderLivePresence(null, "offline"); cancelled = true; clearTimeout(sidebarRefresh); clearTimeout(externalNoticeTimer); generationFeedback.reset(); clearGeneration(); collaboration.dispose(); originalCancel();};
-  collaboration.connect();
-  return collaboration;
+  return editor;
 }
 
 function noteEditingLocked(editorState = {}) {
@@ -1946,7 +1864,7 @@ const externalUpdates = JumpyBrainBrowser.installExternalDocumentUpdates({
   onReadFailure: (details) => feedbackDiagnostics.event("external_refresh", { severity: "warn", outcome: "failed", code: details.timeout ? "timeout" : details.code || "network" }),
   document, editor: () => state.view === "note" ? state.editor : null,
   scope: () => String(credentialRevision) + ":" + (typeof companionMode !== "undefined" && companionMode ? String(companionState?.generation) : ""),
-  enabled: () => !state.editor?.collaboration && Boolean(activeApiKey) && !(typeof companionMode !== "undefined" && companionMode
+  enabled: () => state.editor?.kind === "http" && Boolean(activeApiKey) && !(typeof companionMode !== "undefined" && companionMode
     && (!companionRegistered || companionFrozen || companionSessionFailed)),
   read: readGraphDocument,
   onUpdated: () => {

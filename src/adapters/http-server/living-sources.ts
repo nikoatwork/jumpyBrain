@@ -1,11 +1,11 @@
 import { isValidMemoryDocumentId } from "../../core/document-id-format.js";
 import type { SourceCheckResult } from "../../core/dream/source-references.js";
-import type { createDocumentEditor } from "./document-controller.js";
+import type { EditorSession } from "./editor-session.js";
 import { HTTP_MEMORY_ROUTES } from "../http-protocol.js";
 
 /** Reader-owned transient check state, fenced to the current document, draft and credential scope. */
 export function installLivingSources(options: {
-  document: Document; editor(): ReturnType<typeof createDocumentEditor> | null;
+  document: Document; editor(): EditorSession | null;
   scope(): string; enabled(): boolean; json(url: string, init?: RequestInit): Promise<unknown>;
   navigate(id: string): void;
 }) {
@@ -24,7 +24,7 @@ export function installLivingSources(options: {
       status.textContent = "Source versions have not been checked in this view. Save pending edits before checking.";
     }
     panel.hidden = !next || !/^dream:\s*true\s*$/m.test(state?.frontmatterPrefix || "");
-    button.disabled = busy || !next || Boolean(state?.dirty || state?.saveInFlight || state?.unconfirmedSave);
+    button.disabled = busy || !next || Boolean(state?.dirty || state?.saveStatus === "saving" || state?.unconfirmedSave);
   }
   async function check() {
     sync();

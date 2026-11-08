@@ -11,7 +11,7 @@ const { version } = pkg;
 for (const directory of ["cli", "adapters/backend-host", "app/backend-host", "adapters/qmd", "app/local-memory", "app", "app/collaboration", "adapters/http-server"]) {
   for (const name of await readdir(`dist/${directory}`)) {
     if (!name.endsWith(".js")) continue;
-    if (directory === "adapters/http-server" && !["collaboration-editor.js", "generation-feedback.js", "document-retained-versions.js"].includes(name)) continue;
+    if (directory === "adapters/http-server" && !["collaboration-editor.js", "live-editor-session.js", "generation-feedback.js", "document-retained-versions.js"].includes(name)) continue;
     // The frozen retrieval evaluator instruments these exact emitted seams.
     if (["adapters/qmd/qmd-query.js", "adapters/qmd/qmd-driver.js", "app/local-memory/compact.js"].includes(`${directory}/${name}`)) continue;
     const file = `dist/${directory}/${name}`;

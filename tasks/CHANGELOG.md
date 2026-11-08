@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-08 — Explicit editor sessions
+
+- One live publication owner now serves editor actions, navigation and recovery through an explicit session interface, replacing the disabled HTTP controller and mutable state mirror. [Completion and evidence](done/2026-11-08_tasks-editor-session-contract-refactor.md).
+
 ## 2026-11-08 — Private backend operation agreement
 
 - Consolidated all 31 private operations into one typed signature/policy agreement with exhaustive app bindings; preserved canonical/derived admission and the frozen caller/host/editor behavior. [Completion and evidence](done/2026-11-08_tasks-backend-operation-contract-refactor.md).

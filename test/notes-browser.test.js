@@ -1,3 +1,4 @@
+import { createLiveEditorSession } from "../dist/adapters/http-server/live-editor-session.js";
 import { shellFunctions } from "./browser-shell-helpers.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -602,12 +603,12 @@ test("late document GETs cannot overwrite a new full-page selection", async () =
   const state = { noteToken: 0, editor: null };
   const richEditor = { markdown: "", setMarkdown(value) { this.markdown = value; }, getMarkdown() { return this.markdown; }, focus() {} };
   const context = runtime(["showNote", "isValidMemoryDocumentId", "noteLoadError"], {
-    $, state, richEditor, attachLiveEditor() {}, document: { title: "" }, window: { setTimeout, clearTimeout },
+    $, state, richEditor, document: { title: "" }, window: { setTimeout, clearTimeout },
     stagedReferenceNote: null, credentialRevision: 0, cancelReferenceInteraction() {},
     splitEditableDocument() {}, composeEditableDocument() {}, writeGraphDocument() {}, syncEditorUi() {},
     searchDialog: { open: false }, connectionDialog: { open: false }, dreamDialog: { open: false },
     readGraphDocument(id) { const read = { id, ...deferred() }; reads.push(read); return read.promise; },
-    createDocumentEditor() { return { state: {}, cancel() {}, hydrate(payload) { richEditor.setMarkdown(payload.content); }, setEditing() {} }; },
+    createNoteSession() { return { state: {}, cancel() {}, connect: async () => {}, hydrate(payload) { richEditor.setMarkdown(payload.content); } }; },
   });
   const first = context.showNote(docA);
   const second = context.showNote(docB);
@@ -665,6 +666,15 @@ function referenceHarness({ dirty = true } = {}) {
     noteSearch: { markStale() {}, query() {} },
     referenceAutocomplete: { dismiss() { dismissed++; }, markStale() {} },
     syncEditorUi(editorState) { richEditor.setMarkdown(editorState.draft); },
+    createNoteSession(generation, documentId) {
+      const session = createLiveEditorSession({ generation, documentId, editor: richEditor,
+        isCurrent: () => state.editor === session, scope: () => String(context.credentialRevision),
+        onChange: current => context.syncEditorUi(current),
+        connection: async () => { throw new Error("Live transport unavailable in the navigation fixture"); },
+        reopen: async () => false,
+      });
+      return session;
+    },
     graphJson(url, options) {
       const request = { url, options, ...deferred() }; resolves.push(request); return request.promise;
     },

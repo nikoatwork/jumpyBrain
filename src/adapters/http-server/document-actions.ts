@@ -1,16 +1,11 @@
-import type { createDocumentEditor } from "./document-controller.js";
+import type { EditorSession } from "./editor-session.js";
 import { splitEditableDocument } from "./document-controller.js";
 import { memoryDocumentPath } from "../http-protocol.js";
 import type { MemoryDocumentDeletePreview, MemoryDocumentDeleteResult, MemoryDocumentReadResult } from "../../types.js";
 import type { Toast } from "./browser-toast.js";
-import { installRetainedVersions, type RetainedVersionsEditor } from "./document-retained-versions.js";
+import { installRetainedVersions } from "./document-retained-versions.js";
 import { renderVersionChanges } from "./document-version-diff.js";
-type Editor = ReturnType<typeof createDocumentEditor> & RetainedVersionsEditor & {
-  state: { liveStatus?: string };
-  publishReviewedDraft?(contentHash: string): Promise<boolean>;
-  getRecoveryDrafts?(): Array<{clientId: string; updatedAt: number}>;
-  recoverDraft?(draft: any): boolean;
-};
+type Editor = EditorSession;
 export function installDocumentActions(options: {
   document: Document; editor(): Editor | null; writable(): boolean; canPublish(editor: Editor): boolean; scope(): string;
   filePath(editor: Editor): string | null;
@@ -227,7 +222,7 @@ export function installDocumentActions(options: {
     const versions = $<HTMLSelectElement>("recovery-versions"), value = versions.value;
     if (value === "") { selectedRecovery = ""; return; }
     const draft = editor.getRecoveryDrafts?.()[Number(value)];
-    if (draft && editor.recoverDraft(draft)) {
+    if (draft && editor.recoverDraft?.(draft)) {
       selectedRecovery = value;
       $<HTMLTextAreaElement>("recovery-draft").value = draftText(editor);
       $("recovery-message").textContent = "Your previous draft is kept. Choose whether to keep this version’s changes.";

@@ -1,11 +1,12 @@
 import { parseFrontmatter } from "../../core/frontmatter.js";
 import { attentionTimestamp } from "../../core/attention.js";
 import { memoryDocumentPath } from "../http-protocol.js";
-import { splitEditableDocument, type createDocumentEditor } from "./document-controller.js";
+import type { EditorSession } from "./editor-session.js";
+import { splitEditableDocument } from "./document-controller.js";
 import type { Toast } from "./browser-toast.js";
 import type { AttentionPage } from "./browser-attention.js";
 
-type Editor = ReturnType<typeof createDocumentEditor>;
+type Editor = EditorSession;
 type Action = { action: "settle" | "reactivate" } | { action: "snooze"; until: string };
 type SavedNote = { id: string; title: string; content: string; contentHash: string };
 export function snoozeChoices(now = new Date()) {
