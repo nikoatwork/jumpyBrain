@@ -24,7 +24,7 @@ Make the common recall/write workflow economical to learn while keeping provenan
 - [x] 1.0 Measure and reduce initial guidance cost.
   - [x] 1.1 Freeze installed/generated instruction variants and a few realistic recall/expand/write/dream journeys; measure with a pinned tokenizer when available, including follow-up guidance reads; otherwise record the authorized bounded byte comparison and tokenizer absence.
   - [x] 1.2 Design a short common workflow with discoverable topic-specific guidance. Keep critical safety/identity/date rules at the operation where they matter; avoid hiding prerequisites the agent must know before a write.
-  - [x] 1.3 Verify generated and installed guidance agree, including CLI-only and remote paths. Coordinate managed refresh with [runtime hygiene](../todo/tasks-desktop-runtime-hygiene.md).
+  - [x] 1.3 Verify generated and installed guidance agree, including CLI-only and remote paths. Coordinate managed refresh with [runtime hygiene](2026-11-08_tasks-desktop-runtime-hygiene.md).
 - [x] 2.0 Evaluate output and identity simplification without breaking consumers.
   - [x] 2.1 Inventory text/rich/compact consumers and compare their interaction cost on matched evidence (exact serialized bytes here; tokens unavailable). Prefer shared internal rendering or an additive versioned interface before proposing removal of existing shapes/recipes.
   - [x] 2.2 Reuse explicitly configured host/client identity where available; preserve unknown attribution when evidence is absent. Document actor declaration separately from authenticated access and prevent a default from claiming human authorship.

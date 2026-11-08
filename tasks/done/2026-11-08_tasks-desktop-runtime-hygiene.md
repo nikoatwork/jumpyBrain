@@ -1,6 +1,26 @@
 # Bound desktop update storage and expose runtime ownership
 
-Priority: P1. Status: active; runtime hygiene and signed-resource fixes verified. An inherited Electron Node-mode direct-launch failure is now reproduced/fixed with real packaged launch/Quit/open checks; the reporter's complete macOS 26 launch sequence remains unverified. Reported installation sizes remain observations, not reproduced measurements.
+Priority: P1. Status: completed with explicit platform/reproduction limits, 2026-11-08. Runtime hygiene, signed-resource protection and the inherited Electron Node-mode launch fix are integrated into `master`. The reporter's exact macOS 26 failure remains unverified; closure does not classify it as reproduced or fixed. Reported installation sizes remain observations, separate from measured fixture storage.
+
+## Completion — 2026-11-08
+
+- Finalized at the user's request without a human-review gate. Bounded launch verification and storage/platform accounting close this implementation task; unavailable historical macOS 26 reproduction is explicitly skipped below, not marked passed. Reopen from a matching failing package/environment or new diagnostic evidence if that symptom recurs.
+- Tested source snapshot: `1febba93fc0f56b4c0c1369c01456f995e253986` (`master`), followed by this documentation-only finalization. Original runtime tip `a9c2247` and integrated runtime-generation correction `23de66e` are ancestors of `master`.
+- Current verification and material limits are recorded below. Earlier implementation/parent checkpoints remain historical evidence and are superseded by this completion status.
+- Runtime retention, managed integration refresh, backend inventory and launch behavior were already implemented and released. This closure changes documentation and references; it adds no pending product release note.
+
+### Closure verification and storage limits
+
+- Host: macOS 15.7.7 (24G720), ARM64, Node 26.7.0. `npm run build` passes for version 0.3.20, runtime fingerprint `67b0935a15929f07`.
+- `node --test test/runtime-hygiene.test.js`: **10/10 pass**, including the real moved-runtime backend, authenticated drain, unchanged canonical Markdown, generation races, preserved integration files and expected/failing child shutdown.
+- `python3 -B -m unittest discover -s integrations/electron -p test_update_retention.py`: **5/5 pass**. The corresponding `test_installation_retention.py` run: **19/19 pass**, including repeated cycles, live/recovery protection and conservative foreign/symlink handling.
+- Fresh packaging attempt, `node integrations/electron/install.mjs --output .local-pack/runtime-hygiene-final-2026-11-08`, failed during Electron checksum acquisition (`ERR_HTTP2_STREAM_ERROR` / `NGHTTP2_REFUSED_STREAM`); an independent 15-second endpoint probe timed out. No checksum bypass or fresh-package success is claimed. Launch verification therefore reuses the signed package from the [original launch fix](2026-11-02_tasks-desktop-shell-launch.md), version 0.3.17 / fingerprint `84b47efa01f765db`, rather than certifying a new package from today's source.
+- `node scripts/desktop-launch-smoke.mjs --app .local-pack/desktop-input-fixed/jumpyBrain.app`, with the existing cached Playwright `.bin` prepended to `PATH`: **7/7 pass**. Actual packaged executable ignores inherited Node-mode, clean direct/open launches survive Quit, a temporary LaunchAgent starts, second-instance open registers an editor, open works after service unload, and deep/strict signature verification survives the matrix. Authenticated fixture backend drain and owned app/gateway cleanup pass. An initial invocation stopped after four passing checks because Playwright was absent from module lookup; adding its existing cache location to `PATH` fixed the harness and the complete rerun passed. Final sanitized report is ignored at `.local-pack/desktop-launch-current/report.json`; the initial failed report is retained separately under `.local-pack/`.
+- Repeated source-CLI fixtures: **341,160 → 17,058 logical bytes** after 20 copies with cleanup withheld versus one retained generation; updater/dogfood **343,080 → 17,154**, mixed **342,408 → 17,154**. These repeatable tiny-fixture counts establish bounded retention, not typical installation size or reclaimed free space. The [prior full packaged-storage measurement](2026-11-03_tasks-automatic-installation-pruning.md#completed-result-and-final-verification) separately records 332,718,435 logical bytes of current app/CLI plus 332,830,984 rollback/history bytes; it was not remeasured here.
+- Normal launch uses the installed `Contents/Resources/runtime`; a moved live runtime remains pinned until authenticated drain, while the descriptor may retain its original launch path. Bundle-generation pins/fences remain outside signed resources. No user's installed app, real login preference, historical staging, notes, credentials or drafts were changed.
+- Retention is ownership- and liveness-bounded, not an absolute disk cap: protected rollback/recovery/live/unknown generations can exceed the guidance budget, and unmarked historical trees are not adopted. APFS logical/allocated file counts are not guaranteed reclaimed physical bytes. Reported multi-gigabyte installation sizes remain unverified observations; CLI-only payload work stays with [portable installation](../todo/tasks-portable-installation-project-integration.md).
+- Exact macOS 26 reproduction, Intel/Linux native desktop behavior, physical sleep/IME, public signing/notarization, Keychain continuity and a real public updater were not tested in this closure. Existing [signed-pin](2026-11-02_tasks-signed-bundle-runtime-pins.md), [launch](2026-11-02_tasks-desktop-shell-launch.md) and [pruning](2026-11-03_tasks-automatic-installation-pruning.md) evidence is reused for unaffected implementation; this documentation closure does not rerun the broad suite or release gate.
+- Final documentation checks: `git diff --check` passes; all local targets in the archive resolve, incoming references are repaired, and review of 507 local links across changed files finds no new broken targets. The existing unrelated changelog link to `todo/tasks-page-reference-manual-qa.md` remains broken in the baseline and was left outside this scope. The archived checklist has no pending/partial required items; unavailable historical reproduction is marked skipped.
 
 ## Goal
 
@@ -11,8 +31,8 @@ Stop obsolete update staging and logs from growing indefinitely, keep live daemo
 - [Agent review part 3, 2026-11-02](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=a729c03c-d819-4c5f-ad04-a539473ef8c4) reports gigabytes of old update staging, a live daemon executing inside staging, stale managed skill files, an advertised missing CLI config and normal child shutdowns labeled as failures.
 - [Second-brain setup report](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=53419d9b-2c42-4686-b20d-d226e2f8dc8a) also reports old app copies and an agent-shell launch exiting before useful diagnostics. A reported code-signing line is not an established launch cause.
 - Never prune a running executable, current preparation, required rollback, user data, credentials or drafts. Inventory and dry-run precede deletion; no cleanup of the user's machine is authorized by creation of this plan.
-- [Update speed](../done/2026-11-03_tasks-desktop-update-30-seconds.md) owns prebuilt-helper latency work. [Portable installation](tasks-portable-installation-project-integration.md) owns CLI-only payload measurement and trimming; reuse those owners instead of adding a package split here.
-- Completed follow-up, 2026-11-03: [automatic installation pruning](../done/2026-11-03_tasks-automatic-installation-pruning.md) implements shared rollback references, bounded owned backup/candidate retention and deferred installer cleanup with storage inspection. The [owner-authorized maintenance run](../done/2026-11-03_tasks-workspace-experience-evaluation.md) reclaimed roughly 12 GB while preserving canonical files. The separate historical launch investigation below remains open.
+- [Update speed](2026-11-03_tasks-desktop-update-30-seconds.md) owns prebuilt-helper latency work. [Portable installation](../todo/tasks-portable-installation-project-integration.md) owns CLI-only payload measurement and trimming; reuse those owners instead of adding a package split here.
+- Completed follow-up, 2026-11-03: [automatic installation pruning](2026-11-03_tasks-automatic-installation-pruning.md) implements shared rollback references, bounded owned backup/candidate retention and deferred installer cleanup with storage inspection. The [owner-authorized maintenance run](2026-11-03_tasks-workspace-experience-evaluation.md) reclaimed roughly 12 GB while preserving canonical files. The separate historical launch report remains an explicit unverified limit at closure.
 
 ## Relevant files
 
@@ -30,23 +50,24 @@ Stop obsolete update staging and logs from growing indefinitely, keep live daemo
   - [x] 2.1 Launch/rebind replacement daemons from durable installed paths, or explicitly pin required staging until the daemon drains. Keep unrelated CLI/server backends alive under their existing ownership rules.
   - [x] 2.2 Prune only validated obsolete owned staging after verified success, preserving required rollback. Provide a preview with reclaimable bytes; decide whether an explicit CLI prune operation adds value beyond automatic bounded cleanup.
   - [x] 2.3 Document and enforce log rotation/retention at the existing logging seam; distinguish disposable logs from unique private drafts and operational credentials.
-- [/] 3.0 Make runtime and managed integration state inspectable.
+- [x] 3.0 Make runtime and managed integration state inspectable.
   - [x] 3.1 Add bounded backend enumeration from private owned descriptors, with root, PID/liveness, executable and supported diagnostic fields. Do not infer ownership solely from process names or scan unrelated files.
   - [x] 3.2 Track installed hashes for managed skill files; refresh untouched files through the documented authorized integration-update flow, and report customized/conflicted files without overwriting them. Define migration when no prior hash exists.
   - [x] 3.3 Resolve the missing-config reference by documenting intentional optional absence or creating the minimal file at its proper owner; do not manufacture policy to silence a warning.
-  - [/] 3.4 Distinguish expected shutdown from child failure and add a bounded pre-startup failure breadcrumb where feasible. [Packaged follow-up](../done/2026-11-02_tasks-desktop-shell-launch.md) reproduces/fixes inherited Node-mode exit zero and verifies clean direct/LaunchServices/loaded-unloaded service paths. The report's macOS 26 `open` failures and actual environment remain unverified; no signing attribution.
-- [/] 4.0 Verify and finalize.
+  - [x] 3.4 Distinguish expected shutdown from child failure and add a bounded pre-startup failure breadcrumb where feasible. [Packaged follow-up](2026-11-02_tasks-desktop-shell-launch.md) reproduces/fixes inherited Node-mode exit zero and verifies clean direct/LaunchServices/loaded-unloaded service paths; focused shutdown/breadcrumb regressions pass again at closure.
+  - [~] 3.5 Exact historical macOS 26 failure reproduction unavailable: this host is macOS 15.7.7 ARM64 and the report's failing package/environment is unavailable. Preserve the unverified `open` failure and avoid code-signing attribution; local launch success is not macOS 26 certification.
+- [x] 4.0 Verify and finalize.
   - [x] 4.1 Test successful/repeated/failed/interrupted updates, rollback, a daemon still using staging, foreign/symlink paths and concurrent cleanup. Assert protected data remains byte-identical and no live runtime is removed.
   - [x] 4.2 Test customized/unmodified/missing integration files and normal/failing shutdown diagnostics; run affected installed-update and backend lifecycle checks.
-  - [/] 4.3 Record bounded before/after storage, runtime paths and platform limits; update install/update/module docs and relevant release notes, then archive/commit under [task completion](../../docs/task-workflow.md).
-  - [x] 4.4 Move bundled-runtime pins and retirement fences outside signed resources; verify startup/shutdown, relaunch, moves, live retention and startup/cleanup races. [Focused fix and verification](../done/2026-11-02_tasks-signed-bundle-runtime-pins.md). This separate finding is not proof of the reported launch cause; 3.4/4.3 remain open.
+  - [x] 4.3 Record bounded before/after storage, runtime paths and platform limits; reconcile module/feedback docs, archive and commit under [task completion](../../docs/task-workflow.md). Existing install/storage documentation remains the supported contract; no new product change needs a release note.
+  - [x] 4.4 Move bundled-runtime pins and retirement fences outside signed resources; verify startup/shutdown, relaunch, moves, live retention and startup/cleanup races. [Focused fix and verification](2026-11-02_tasks-signed-bundle-runtime-pins.md). This separate finding is not proof of the reported launch cause.
 
 
 ## Implementation checkpoint — 2026-11-02
 
 ### Parent safety review corrections
 
-Final integration is verified in the [completed integration record](../done/2026-11-02_tasks-feedback-parallel-integration.md): all 1,828 tests passed with real QMD, hosted/gateway/stale-note checks and original package caps passed. Frozen replacement generation is checked before skipping unpinnable runtimes. The agent-shell launch reproduction remains the only required open item here; no personal staging or integration files were modified.
+Final integration is verified in the [completed integration record](2026-11-02_tasks-feedback-parallel-integration.md): all 1,828 tests passed with real QMD, hosted/gateway/stale-note checks and original package caps passed. Frozen replacement generation is checked before skipping unpinnable runtimes. The agent-shell launch reproduction remains the only required open item here; no personal staging or integration files were modified.
 
 Independent review of `a9c2247` reproduced two gaps: a runtime moved after identity/lease capture could pin the replacement pathname, and legacy companion pair replacement bypassed retirement and deleted a live-pinned backup. Both were corrected during parent integration. Runtime identity captures the directory device/inode generation; pinning validates it before/after publication and verifies the created pin's identity, while detached launch carries its expected generation. Disposable regressions reject both a pre-pin replacement and an exchange/rollback during pin publication. Legacy pair replacement now retains live/legacy/uncertain CLI and bundled GUI runtimes, with explicit eligible-dead cleanup coverage. README's Product vision document remains packaged; new runtime-pin/refresh/retention resources are required by the package manifest guard.
 
@@ -144,7 +165,7 @@ workflow and footprint reference docs (18,516 bytes) remain in the repository bu
 leave the installed artifact; runtime assets and install/operator guides remain.
 The feature's retained code cost is reported separately from that document saving.
 
-### Remaining required evidence / why still active
+### Open evidence at the implementation checkpoint (historical)
 
 - **3.4 / 4.3:** The actual reported agent-shell launch input/environment and matching
 failing packaged app are unavailable. Disposable bootstrap/owned-child evidence
@@ -157,8 +178,9 @@ no deletion of those trees is implemented or tested. macOS ARM64 fixture coverag
 does not establish Intel/Linux native desktop or public signing/Keychain continuity.
 - Parent owns combined full-suite/package validation and final footprint decisions;
 feature branches are not rebased onto the concurrently completed guidance lane.
-Do not archive this list or settle its source thread while required launch evidence
-remains missing. The scoped implementation is committed for parent review.
+At that checkpoint the list remained active for matching launch evidence. The
+2026-11-08 completion above supersedes that planning state while preserving the
+unverified historical report as an explicit limit.
 
 
 ### Final footprint checkpoint and integration choices
@@ -187,11 +209,11 @@ headroom but cannot solve the runtime ceiling.
 
 ### Separate signature observation — backend restart verification, 2026-11-02
 
-The [completed restart task](../done/2026-11-02_tasks-backend-restart-recovery.md) initially symlinked a disposable native resource tree to a freshly signed matching runtime. Backend startup added `Contents/Resources/runtime/.backend-pins/<instance>.json` to that input app. Subsequent `/usr/bin/codesign --verify --deep --strict --verbose=4` reported an added sealed resource and failed. The corrected restart harness copies the runtime and passes its independent reconnect/draft checks; that isolated its artifact without repairing installed pin placement. The [subsequent focused fix](../done/2026-11-02_tasks-signed-bundle-runtime-pins.md) completes 4.4 with external generation-bound state and signature/lifetime verification. No historical launch root cause, public-signing behavior or installation repair is claimed.
+The [completed restart task](2026-11-02_tasks-backend-restart-recovery.md) initially symlinked a disposable native resource tree to a freshly signed matching runtime. Backend startup added `Contents/Resources/runtime/.backend-pins/<instance>.json` to that input app. Subsequent `/usr/bin/codesign --verify --deep --strict --verbose=4` reported an added sealed resource and failed. The corrected restart harness copies the runtime and passes its independent reconnect/draft checks; that isolated its artifact without repairing installed pin placement. The [subsequent focused fix](2026-11-02_tasks-signed-bundle-runtime-pins.md) completes 4.4 with external generation-bound state and signature/lifetime verification. No historical launch root cause, public-signing behavior or installation repair is claimed.
 
 ### Packaged shell-launch follow-up — 2026-11-02
 
-The [focused environment fix](../done/2026-11-02_tasks-desktop-shell-launch.md)
+The [focused environment fix](2026-11-02_tasks-desktop-shell-launch.md)
 reproduces exit zero before host startup when the actual packaged executable
 inherits `ELECTRON_RUN_AS_NODE=1`; this agent shell sets that variable. Disabling
 packaged RunAsNode before signing fixes that path. Clean direct launch,
@@ -203,5 +225,5 @@ waiting for actual editor registration and subsequent gateway readiness passes.
 
 This is a proven current-package cause for one reported symptom. The report does
 not state its environment and also reports LaunchServices failure on macOS 26;
-that part did not reproduce on macOS 15.7.7. Retain this broader task for that
-unverified report boundary, with the focused fix committed independently.
+that part did not reproduce on macOS 15.7.7. The finalization above preserves that
+boundary without claiming historical root-cause proof.

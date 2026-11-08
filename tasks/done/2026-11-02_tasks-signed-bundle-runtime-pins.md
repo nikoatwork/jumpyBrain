@@ -1,6 +1,6 @@
 # Preserve signed app resources during backend startup
 
-Priority: P0 follow-up to [desktop runtime hygiene](../todo/tasks-desktop-runtime-hygiene.md), task 4.4. Completed 2026-11-02. Baseline: `2ea52ed`, clean `master`.
+Priority: P0 follow-up to [desktop runtime hygiene](2026-11-08_tasks-desktop-runtime-hygiene.md), task 4.4. Completed 2026-11-02. Baseline: `2ea52ed`, clean `master`.
 
 ## Outcome and scope
 

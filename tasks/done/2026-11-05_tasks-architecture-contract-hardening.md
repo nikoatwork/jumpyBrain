@@ -62,7 +62,7 @@ Make important app behavior reproducible across a structural refactor, using exp
 - `src/adapters/http-client/index.ts`, `src/adapters/live/index.ts`, `src/adapters/http-server/collaboration-client.ts` — wire/receipt agreement.
 - [Browser ownership](../../src/adapters/http-server/browser.docs.md), [collaboration app](../../src/app/collaboration/collaboration.docs.md), [live protocol](../../src/adapters/live/live.docs.md) — editor/publication boundaries.
 - `scripts/multiplayer-verify.mjs`, `scripts/multiplayer-verification/`, `scripts/ux-uncertain-save-smoke.mjs` — existing evidence machinery; current CLI does not yet expose a lightweight arbitrary profile.
-- [Retrieval evaluation](../todo/tasks-workspace-retrieval-evaluation.md) owns ranking/quality experiments; [desktop hygiene](../todo/tasks-desktop-runtime-hygiene.md) owns installation/owner issues; [release testing at scale](../todo/tasks-release-testing-at-scale.md) remains deferred.
+- [Retrieval evaluation](../todo/tasks-workspace-retrieval-evaluation.md) owns ranking/quality experiments; [desktop hygiene](2026-11-08_tasks-desktop-runtime-hygiene.md) owns installation/owner issues; [release testing at scale](../todo/tasks-release-testing-at-scale.md) remains deferred.
 
 ## Execution evidence
 

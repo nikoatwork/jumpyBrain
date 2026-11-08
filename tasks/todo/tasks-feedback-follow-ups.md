@@ -18,7 +18,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 ## Existing owners, without duplicate checklists
 
-- [Runtime hygiene](tasks-desktop-runtime-hygiene.md): matching macOS 26 relaunch evidence remains open despite the separately verified agent-shell launch fix.
+- [Runtime hygiene](../done/2026-11-08_tasks-desktop-runtime-hygiene.md): implementation finalized with packaged launch checks and explicit storage/platform limits. Exact historical macOS 26 failure remains unverified; reopen on a matching failure or new diagnostics.
 - [Hosted build/operations](tasks-hosted-build-and-operations.md): actual systemd-manager validation remains open after container/proxy/restore work.
 - [Portable installation](tasks-portable-installation-project-integration.md): remaining compiler/platform/payload and project-integration work.
 - [Workspace retrieval evaluation](tasks-workspace-retrieval-evaluation.md): broader quality work; prior semantic candidates were rejected, not shipped as ranking fixes.

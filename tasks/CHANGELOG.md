@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-08 — Desktop runtime hygiene finalized
+
+- Closed runtime hygiene with focused lifecycle/retention verification and recorded storage/platform limits; the exact historical macOS 26 failure remains unverified. [Completion and evidence](done/2026-11-08_tasks-desktop-runtime-hygiene.md).
+
 ## 2026-11-07 — Automatic link evaluation
 
 - A read-only real-corpus test found useful semantic connections alongside metadata-driven false positives, including at very high similarity. Recorded the decision against automatic canonical links from similarity alone and opened input-quality follow-up. [Evidence and limits](done/2026-11-07_tasks-semantic-auto-link-evaluation.md).
@@ -225,7 +229,7 @@
 
 ## 2026-11-02 — Runtime ownership and retention
 
-- Added pin-aware forward update retention, unchanged-file integration refresh and explicit backend inventory; corrected expected shutdown classification. [Remaining launch evidence](todo/tasks-desktop-runtime-hygiene.md), [integration and lifetime review](done/2026-11-02_tasks-feedback-parallel-integration.md).
+- Added pin-aware forward update retention, unchanged-file integration refresh and explicit backend inventory; corrected expected shutdown classification. [Remaining launch evidence](done/2026-11-08_tasks-desktop-runtime-hygiene.md), [integration and lifetime review](done/2026-11-02_tasks-feedback-parallel-integration.md).
 
 ## 2026-11-02 — Hosted container packaging
 

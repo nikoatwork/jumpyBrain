@@ -1,6 +1,6 @@
 # Reliable packaged launch from agent shells
 
-Completed 2026-11-02. Baseline `5dc25f3`, initially clean `master`. Follow-up to [runtime hygiene](../todo/tasks-desktop-runtime-hygiene.md), tasks 3.4/4.3, and [existing-note deletion](2026-11-02_tasks-stale-note-editing.md).
+Completed 2026-11-02. Baseline `5dc25f3`, initially clean `master`. Follow-up to [runtime hygiene](2026-11-08_tasks-desktop-runtime-hygiene.md), tasks 3.4/4.3, and [existing-note deletion](2026-11-02_tasks-stale-note-editing.md).
 
 ## Outcome
 
@@ -39,4 +39,4 @@ macOS 15.7.7 ARM64, Node 26.7.0, Python 3.14.7, Electron 44.10.0. Package/runtim
 
 ## Limits
 
-This establishes the inherited Node-mode defect and verifies supported launch/service paths on this Mac. It does not prove that variable caused the reporter's complete macOS 26 `open` sequence; [runtime hygiene](../todo/tasks-desktop-runtime-hygiene.md) retains that boundary. Real OS sleep, physical keyboard/IME, Intel, public signing/notarization and a real published update remain untested here. No user app was installed, no actual login preference changed, no version bumped, no release/push/deployment or support message sent. Build-only fuse changes take effect in newly built packages, not already installed binaries.
+This establishes the inherited Node-mode defect and verifies supported launch/service paths on this Mac. It does not prove that variable caused the reporter's complete macOS 26 `open` sequence; [runtime hygiene](2026-11-08_tasks-desktop-runtime-hygiene.md) was finalized on 2026-11-08 with that explicit unverified limit and a recurrence-based reopening condition. Real OS sleep, physical keyboard/IME, Intel, public signing/notarization and a real published update remain untested here. No user app was installed, no actual login preference changed, no version bumped, no release/push/deployment or support message sent. Build-only fuse changes take effect in newly built packages, not already installed binaries.

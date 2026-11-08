@@ -147,7 +147,10 @@ zero; `--editing` checks ordinary/repeated Backspace, selected text, word/line
 deletion and formatted/repeated words. `--idle` checks canonical bytes and reload after 35-second idle,
 65-second renderer suspension and empty-paragraph deletion. Draining owned
 processes precedes removal of fixture runtime/pin state. Physical sleep/IME,
-macOS 26 and the reporter's unknown selection sequence remain separate evidence.
+macOS 26 and the reporter's unknown selection sequence remain unverified. The
+[runtime-hygiene completion](../../tasks/done/2026-11-08_tasks-desktop-runtime-hygiene.md)
+records the tested platform and closes implementation with those explicit limits;
+reopen the historical launch report from a matching failure or new diagnostics.
 
 ## Runtime retention
 

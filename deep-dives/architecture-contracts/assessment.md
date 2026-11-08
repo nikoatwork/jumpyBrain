@@ -101,7 +101,7 @@ Reuse [`multiplayer-verify.mjs`](../../scripts/multiplayer-verify.mjs), its [del
 | Move pure ranking policy out of QMD | Defer until changed/reused | Frozen deterministic evidence and applicable retrieval-quality gates. |
 | Split hub/routes solely for size; new UI/DI/schema framework; universal transport/write policy; folder reshuffle; desktop rewrite | No-go on current evidence | A concrete future failure or maintenance burden must justify scope. |
 
-Contract hardening should stop when the selected high-risk seams have agreed assertions, repeatable evidence and demonstrated regression detection. Do not require every internal function to become a public stable API. Existing [retrieval evaluation](../../tasks/todo/tasks-workspace-retrieval-evaluation.md), [desktop hygiene](../../tasks/todo/tasks-desktop-runtime-hygiene.md) and deferred [release testing at scale](../../tasks/todo/tasks-release-testing-at-scale.md) retain their scope. This work does not reactivate broad release QA or authorize implementation of all refactor candidates.
+Contract hardening should stop when the selected high-risk seams have agreed assertions, repeatable evidence and demonstrated regression detection. Do not require every internal function to become a public stable API. Existing [retrieval evaluation](../../tasks/todo/tasks-workspace-retrieval-evaluation.md), [desktop hygiene](../../tasks/done/2026-11-08_tasks-desktop-runtime-hygiene.md) and deferred [release testing at scale](../../tasks/todo/tasks-release-testing-at-scale.md) retain their scope. This work does not reactivate broad release QA or authorize implementation of all refactor candidates.
 
 ## Assessment deliverable verification
 
