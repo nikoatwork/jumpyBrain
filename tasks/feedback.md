@@ -2,7 +2,7 @@
 
 One row per reviewed email. Work and verification stay in the linked task; this index prevents repeat triage. [Check routine](../docs/check-feedback.md) · [Residual follow-ups](todo/tasks-feedback-follow-ups.md).
 
-Last full live check: **2026-11-07T14:33:19.971Z**; received/non-spam, no date bounds, two pages, **53 scanned / two synthetic tests excluded / 51 genuine messages**, complete. Received dates: October 20–November 6, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation found one new message, read in full and assigned below; historical bodies/attachments were not re-audited.
+Last full live check: **2026-11-10T08:13:21.462Z**; received/non-spam, no date bounds, two pages, **54 scanned / two synthetic tests excluded / 52 genuine messages**, complete. Received dates: October 20–November 8, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation found one new message, read in full and assigned below; historical bodies/attachments were not re-audited.
 
 - **open**: reviewed; investigation or reproduction remains.
 - **covered**: linked implementation/verification covers the report scope. This does **not** claim release, installation or proof of every historical event.
@@ -15,6 +15,7 @@ Bootstrap evidence: current inbox metadata plus prior triage/task records; the n
 
 | Received UTC (2026) | Outcome | Sanitized topic | Owner / evidence |
 | --- | --- | --- | --- |
+| [11-08 14:00](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=e3311836-7144-4793-b541-e5983b5ff179 "message-id: <010001a1bb75f7bb-33c54375-f1ba-46df-8cd8-e68caceb756b-000000@email.amazonses.com>") | open | Repeated stale-index warnings during Mac search | [follow-ups](todo/tasks-feedback-follow-ups.md) |
 | [11-06 15:33](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=0de06f50-9b4c-453e-a038-7f670a4293f3 "message-id: <010001a1b17e29cd-84d9c7a5-2ce9-4581-b037-af69c9b207e7-000000@email.amazonses.com>") | mixed | Adapted LoCoMo pilot complete; no optional-vector gain demonstrated; broader removal decision remains open | [pilot evidence](done/2026-11-07_tasks-locomo-retrieval-pilot.md); [broader evaluation](todo/tasks-workspace-retrieval-evaluation.md) |
 | [11-05 09:20](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=e34678a8-5a2a-4a05-b2a8-fdb0ccb8a72b "message-id: <010001a1ab029948-5194ddf7-946c-41ce-87b3-4cef354dbc85-000000@email.amazonses.com>") | mixed | Exact-title app search fixed; date-label question deferred | [evidence](done/2026-11-05_tasks-exact-title-app-search.md); [follow-ups](todo/tasks-feedback-follow-ups.md) |
 | [11-05 09:00](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=4fa21ff2-0b38-41bd-abcc-90f00e1c642e "message-id: <010001a1aaf03bf5-c9dd7bb6-3f52-4452-9a32-bba25f31ab21-000000@email.amazonses.com>") | covered | Agent-edit review prompts and simpler recovery | [evidence](done/2026-11-05_tasks-quiet-agent-external-edits.md) |
