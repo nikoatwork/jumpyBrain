@@ -489,12 +489,10 @@ searchMaintenance = JumpyBrainBrowser.installSearchMaintenance({
     control.hidden = status === "ready" || status === "updating";
     control.title = status === "failed" ? "Search could not update. Open search to retry." : "Search may be out of date. Open search for details.";
     control.setAttribute("aria-label", control.title);
-    if (status === "failed" || status === "unavailable") systemMessages.dispatch({ source: "search-maintenance", text: control.title, severity: "warning" });
-    else systemMessages.clear("search-maintenance");
+    // Maintenance is observed quietly; actual query/reindex failures stay inline.
   },
   onInactive: () => {
     $("graph-index-state").hidden = true;
-    systemMessages.clear("search-maintenance");
   },
 });
 $("graph-index-state").addEventListener("click", () => browserCommands.execute("search.open"));

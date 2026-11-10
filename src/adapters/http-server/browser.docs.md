@@ -501,14 +501,19 @@ Stream events are observed before source reconciliation so a held own edit
 receipt cannot erase a terminal transition. Existing generating presence remains
 independent, and focus is never moved by the cue.
 
-Search-maintenance warnings and their recovery indicator belong to active
-Search/graph observation. Suspension or a brain-scope reset clears that source
-without hiding genuine editor errors or claiming the index is ready. Internal
-poll cancellation does not clear/replay notices; resuming a surface reports its
-current state again. Unverified freshness says search **may be out of date**,
-not that all search is unavailable. No index mutation is introduced.
-`scripts/ux-search-warning-scope-smoke.mjs` verifies reentry, copy confirmation
-and save-error priority; cancellation/freshness remain in maintenance unit tests.
+Search maintenance stays quiet during active Search/graph observation, including
+failed or unavailable status checks and repeated Search reentry. It never
+dispatches a system-message toast. The compact graph recovery indicator retains
+an accessible label and tooltip describing uncertain freshness or failed updates;
+stale query results keep the explicit reindex control, and empty stale/local-only
+results retain their scoped explanation. Actual query errors keep inline Retry,
+and explicit reindex failures retain confirmation guidance. Suspension or a
+brain-scope reset hides the indicator without clearing editor errors or claiming
+the index is ready. Host-owned background maintenance and fresh-generation
+adoption remain independent; browser observation starts no index mutation.
+`scripts/ux-search-warning-scope-smoke.mjs` verifies quiet reentry, recovery,
+query failures, copy confirmation and save-error priority; cancellation/freshness
+remain in maintenance unit tests.
 
 The selection-attribution hint owns Escape only when the key originates inside
 the editor and is not part of composition. Preserved editor selection does not

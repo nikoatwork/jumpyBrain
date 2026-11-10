@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-10 — Quiet search freshness
+
+- Removed recurring search-maintenance pop-ups while retaining scoped recovery controls and actionable failures. [Verification and limits](done/2026-11-10_tasks-quiet-search-freshness.md).
+
 ## 2026-11-10 — v0.3.21 beta
 
 - Published editor/recovery, Markdown, search, semantic graph, concurrent-agent guidance and updater fixes; verified all three assets and refreshed the public demo to the exact tagged revision. [Release and checks](done/2026-11-10_tasks-release-v0.3.21.md).
