@@ -2,7 +2,7 @@
 
 One row per reviewed email. Work and verification stay in the linked task; this index prevents repeat triage. [Check routine](../docs/check-feedback.md) · [Residual follow-ups](todo/tasks-feedback-follow-ups.md).
 
-Last full live check: **2026-11-10T08:13:21.462Z**; received/non-spam, no date bounds, two pages, **54 scanned / two synthetic tests excluded / 52 genuine messages**, complete. Received dates: October 20–November 8, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation found one new message, read in full and assigned below; historical bodies/attachments were not re-audited.
+Last full live check: **2026-11-10T09:29:11.052Z**; received/non-spam, no date bounds, two pages, **54 scanned / two synthetic tests excluded / 52 genuine messages**, complete. Received dates: October 20–November 8, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation matched all 52 genuine messages to existing rows; no new messages or outcome changes. Historical bodies/attachments were not re-audited.
 
 - **open**: reviewed; investigation or reproduction remains.
 - **covered**: linked implementation/verification covers the report scope. This does **not** claim release, installation or proof of every historical event.
