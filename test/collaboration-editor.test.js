@@ -418,18 +418,19 @@ test("private Undo and Redo retain their actual ranges across a disjoint peer ed
   }finally{editor?.dispose();globalThis.WebSocket=previous}
 });
 
-test("a new epoch with changed source cannot retarget a clean old caret; identical-source reconnect stays clean",async()=>{
+test("clean changed-epoch reconnect adopts saved source with an explicit selection reset",async()=>{
   const previous=globalThis.WebSocket;
   try{
     for(const changed of[false,true]){
-      let epoch='old-epoch',canonical='aaaa',socket;const frames=[];
+      let epoch='old-epoch',canonical='aaaa',socket;const frames=[],presentations=[];
       class Socket{static CONNECTING=0;static OPEN=1;readyState=0;bufferedAmount=0;constructor(){socket=this;queueMicrotask(()=>{this.readyState=1;this.onopen?.()})}send(raw){const frame=JSON.parse(raw);frames.push(frame);queueMicrotask(()=>this.onmessage?.({data:JSON.stringify({id:frame.id,ok:true,result:frame.method==='hello'?{protocol:2,principal:{id:'writer',role:'writer'}}:{documentId:'note',epoch,revision:0,body:canonical,title:'Title',contentHash:'hash-'+epoch,saved:true}})}))}close(code=1000){this.readyState=3;this.onclose?.({code})}}
       globalThis.WebSocket=Socket;let editor;
       try{
-        let body='aaaa';editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'epoch-source-'+changed,documentId:'note',clientId:'tab',drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=>body,collaborativeSelection:()=>({anchor:2,focus:2}),applyCollaborativeMarkdown(value){body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));assert.equal(editor.state.status,'saved');
+        let body='aaaa';editor=createCollaborationEditor({url:'ws://localhost/ws',scope:'epoch-source-'+changed,documentId:'note',clientId:'tab',drafts:createCollaborationDraftStore(memoryStorage()),editor:{getMarkdown:()=>body,collaborativeSelection:()=>({anchor:4,focus:4}),applyCollaborativeMarkdown(value,presentation){presentations.push(presentation);body=value;return {status:'applied'}}}});editor.connect();await new Promise(resolve=>setTimeout(resolve,0));assert.equal(editor.state.status,'saved');presentations.length=0;
         socket.close(1012);epoch='new-epoch';canonical=changed?'aaaaa':'aaaa';editor.connect();await new Promise(resolve=>setTimeout(resolve,0));
-        if(changed){assert.equal(editor.state.status,'conflict');assert.equal(body,'aaaa','unknown epoch history cannot move the old caret by a fabricated replacement');assert.equal(editor.snapshot.body,'aaaaa');body='aaQaa';inputIntent(editor,body,[{start:2,deleteCount:0,insert:'Q'}]);assert.equal(await editor.flush(),false);assert.equal(frames.filter(frame=>frame.method==='edit').length,0);assert.equal(canonical,'aaaaa');assert.equal(editor.state.durableDraft,true)}
-        else{assert.equal(editor.state.status,'saved');assert.equal(editor.snapshot.epoch,'new-epoch');assert.equal(body,'aaaa');assert.equal(await editor.flush(),true)}
+        assert.equal(editor.state.status,'saved');assert.equal(editor.snapshot.epoch,'new-epoch');assert.equal(body,canonical);assert.equal(await editor.flush(),true);
+        assert.equal(Boolean(presentations.at(-1).resetSelection),changed,'unknown epoch history never projects an old caret through an invented replacement');
+        assert.equal(frames.filter(frame=>['edit','title','resync'].includes(frame.method)).length,0,'clean adoption is observational');
       }finally{editor?.dispose()}
     }
   }finally{globalThis.WebSocket=previous}
@@ -561,6 +562,123 @@ test("only a proven clean saved source may retire an ambiguous external selectio
         if (mode === "clean") { assert.equal(body, "aaaaa"); assert.equal(editor.state.status, "saved"); assert.equal(editor.state.dirty, false); assert.equal(await editor.flush(), true); }
         else if (mode === "composing") { assert.equal(body, "aaaa"); assert.equal(await editor.flush(), false); }
         else { assert.equal(editor.state.status, "conflict"); assert.equal(await editor.flush(), false); if (mode === "unreported-source") assert.equal(body, "Unreported private source"); }
+      } finally { editor.dispose(); }
+    }
+  } finally { globalThis.WebSocket = previous; }
+});
+
+
+test("changed epochs preserve private body/title drafts and unconfirmed receipts", async () => {
+  const previous = globalThis.WebSocket;
+  try {
+    for (const mode of ["body", "title", "uncertain", "unreported"]) {
+      let socket, epoch = "old", canonical = "aaaa", rendered = canonical;
+      const frames = [], drafts = createCollaborationDraftStore(memoryStorage());
+      class Socket {
+        static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
+        constructor() { socket = this; queueMicrotask(() => { this.readyState = 1; this.onopen?.(); }); }
+        send(raw) {
+          const frame = JSON.parse(raw); frames.push(frame);
+          if (frame.method === "edit") { if (mode === "uncertain") queueMicrotask(() => this.close(1012)); return; }
+          queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result: frame.method === "hello" ? { protocol: 2, principal: { id: "writer", role: "writer" } } : { documentId: "note", epoch, revision: 0, body: canonical, title: "Title", contentHash: "hash-" + epoch, saved: true } }) }));
+        }
+        close(code = 1000) { this.readyState = 3; this.onclose?.({ code }); }
+      }
+      globalThis.WebSocket = Socket;
+      const scope = { scope: "epoch-private-" + mode, principalId: "writer", documentId: "note", clientId: "tab" };
+      const editor = createCollaborationEditor({ url: "ws://localhost/ws", ...scope, drafts, editor: { getMarkdown: () => rendered, applyCollaborativeMarkdown(value) { rendered = value; return { status: "applied" }; } } });
+      try {
+        editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
+        if (mode !== "uncertain") socket.close(1012);
+        if (mode === "title") editor.inputTitle("Private title");
+        else if (mode === "unreported") rendered = "Unreported private source";
+        else { rendered = "aaQaa"; inputIntent(editor, rendered, [{ start: 2, deleteCount: 0, insert: "Q" }]); }
+        if (mode === "uncertain") { assert.equal(await editor.flush(), false); assert.equal(editor.state.status, "conflict"); }
+        epoch = "new"; canonical = "aaaaa"; editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(editor.state.status, "conflict", mode); assert.equal(await editor.flush(), false);
+        assert.equal(editor.body, mode === "title" ? "aaaa" : mode === "unreported" ? "Unreported private source" : "aaQaa");
+        assert.equal(editor.title, mode === "title" ? "Private title" : "Title");
+        assert.equal(drafts.read(scope).value.body, editor.body); assert.equal(editor.state.durableDraft, true);
+        assert.equal(frames.filter(frame => ["edit", "title"].includes(frame.method)).length, mode === "uncertain" ? 1 : 0);
+      } finally { editor.dispose(); }
+    }
+  } finally { globalThis.WebSocket = previous; }
+});
+
+test("observational refresh confirms live metadata and refuses intervening private state", async () => {
+  const previous = globalThis.WebSocket;
+  try {
+    for (const mode of ["metadata", "input", "title", "composing", "history", "flight", "dispose", "malformed"]) {
+      let socket, rendered = "aaaa", composing = false, reply, opens = 0;
+      const frames = [], drafts = createCollaborationDraftStore(memoryStorage());
+      const snapshot = revision => ({ documentId: "note", epoch: "epoch", revision, body: "aaaa", title: "Title", prefix: revision ? "---\nattention_at: null\n---\n" : "", contentHash: "hash-" + revision, saved: true,
+        ...(revision ? { operation: { revision, actor: "metadata", operationId: "metadata", start: 0, deleteCount: 0, splices: [] } } : {}) });
+      class Socket {
+        static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
+        constructor() { socket = this; queueMicrotask(() => { this.readyState = 1; this.onopen?.(); }); }
+        send(raw) {
+          const frame = JSON.parse(raw); frames.push(frame);
+          if (["undo", "edit", "title"].includes(frame.method)) return;
+          if (frame.method === "open" && ++opens === 2) { reply = result => this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result }) }); return; }
+          queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result: frame.method === "hello" ? { protocol: 2, principal: { id: "writer", role: "writer" } } : snapshot(0) }) }));
+        }
+        close() { this.readyState = 3; this.onclose?.({ code: 1000 }); }
+      }
+      globalThis.WebSocket = Socket;
+      const scope = { scope: "refresh-" + mode, principalId: "writer", documentId: "note", clientId: "tab" };
+      const editor = createCollaborationEditor({ url: "ws://localhost/ws", ...scope, drafts, editor: { getMarkdown: () => rendered, isComposing: () => composing, applyCollaborativeMarkdown(value) { rendered = value; return { status: "applied" }; } } });
+      try {
+        editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
+        const pending = editor.refresh(); assert.equal(typeof reply, "function");
+        if (["input", "flight"].includes(mode)) { rendered = "aaaaX"; inputIntent(editor, rendered, [{ start: 4, deleteCount: 0, insert: "X" }]); }
+        if (mode === "title") editor.inputTitle("Private title");
+        if (mode === "composing") composing = true;
+        if (mode === "history") void editor.undo();
+        if (mode === "flight") void editor.flush();
+        if (mode === "dispose") editor.dispose();
+        reply(mode === "malformed" ? { ...snapshot(1), revision: "invalid" } : snapshot(1));
+        assert.equal(await pending, mode === "metadata", mode);
+        assert.equal(editor.snapshot.contentHash, mode === "metadata" ? "hash-1" : "hash-0", mode + " acknowledgement");
+        if (["input", "flight"].includes(mode)) { assert.equal(editor.body, "aaaaX"); assert.equal(drafts.read(scope).value.body, "aaaaX"); }
+        if (mode === "title") assert.equal(editor.title, "Private title");
+        assert.equal(frames.filter(frame => ["resync", "edit", "title", "undo", "redo"].includes(frame.method)).length, ["history", "flight"].includes(mode) ? 1 : 0, "refresh itself is observational");
+      } finally { editor.dispose(); }
+    }
+  } finally { globalThis.WebSocket = previous; }
+});
+
+
+test("changed-epoch adoption defers composition and refuses a captured-input selection reset", async () => {
+  const previous = globalThis.WebSocket;
+  try {
+    for (const mode of ["composing", "captured"]) {
+      let socket, epoch = "old", rendered = "aaaa", composing = false, finishComposition;
+      const presentations = [], drafts = createCollaborationDraftStore(memoryStorage());
+      class Socket {
+        static CONNECTING = 0; static OPEN = 1; readyState = 0; bufferedAmount = 0;
+        constructor() { socket = this; queueMicrotask(() => { this.readyState = 1; this.onopen?.(); }); }
+        send(raw) { const frame = JSON.parse(raw); queueMicrotask(() => this.onmessage?.({ data: JSON.stringify({ id: frame.id, ok: true, result: frame.method === "hello" ? { protocol: 2, principal: { id: "writer", role: "writer" } } : { documentId: "note", epoch, revision: 0, body: epoch === "old" ? "aaaa" : "aaaaa", title: "Title", contentHash: epoch, saved: true } }) })); }
+        close(code = 1000) { this.readyState = 3; this.onclose?.({ code }); }
+      }
+      globalThis.WebSocket = Socket;
+      const editor = createCollaborationEditor({ url: "ws://localhost/ws", scope: "epoch-binding-" + mode, documentId: "note", clientId: "tab", drafts, editor: {
+        getMarkdown: () => rendered, isComposing: () => composing,
+        subscribeCompositionEnd(listener) { finishComposition = listener; return () => {}; },
+        applyCollaborativeMarkdown(value, presentation) {
+          presentations.push(presentation);
+          if (mode === "captured" && presentation.resetSelection) return { status: "recovery", reason: "Captured input must remain private" };
+          rendered = value; return { status: "applied" };
+        },
+      } });
+      try {
+        editor.connect(); await new Promise(resolve => setTimeout(resolve, 0)); presentations.length = 0;
+        socket.close(1012); epoch = "new"; composing = mode === "composing"; editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
+        assert.equal(rendered, "aaaa");
+        if (mode === "composing") {
+          assert.equal(presentations.length, 0, "active composition is not painted or moved"); assert.equal(await editor.flush(), false);
+          composing = false; finishComposition(); await new Promise(resolve => setTimeout(resolve, 0));
+          assert.equal(rendered, "aaaaa"); assert.equal(editor.state.status, "saved"); assert.equal(presentations.at(-1).resetSelection, true);
+        } else { assert.equal(editor.state.status, "conflict"); assert.equal(editor.state.durableDraft, true); assert.equal(await editor.flush(), false); }
       } finally { editor.dispose(); }
     }
   } finally { globalThis.WebSocket = previous; }

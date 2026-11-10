@@ -155,7 +155,13 @@ Injected native code dispatches `jumpybrain-system-message` on `document` with d
 
 `note-attention.ts` owns sidebar Snooze/Settle/Bring back actions, temporary Undo and the compact accessible snooze dialog. One/three-hour presets use elapsed time; Tomorrow/next-calendar-week Monday use local 09:00 across DST. Custom dates reject nonexistent/repeated local times and past instants. Persist UTC instants. `note-attention-view.ts` supplies server-rendered markup/styles so they are not duplicated in the browser bundle.
 
-Attention actions share lifecycle busy/open guards with recovery/deletion. Flush the current editor, read the target, then PATCH only explicit action intent with current If-Match. `acceptMetadata` adopts only a matching clean body/title baseline, retaining caret and rich editor DOM; metadata-only writes preserve `updated_at`. Lost/stale responses never trigger an automatic mutation retry. Healthy companion polls cannot release a metadata-action lock; switch acknowledgement waits for the action. Failed content saves retain drafts and block PATCH. Pins remain visible even after settle/snooze.
+Attention actions share lifecycle busy/open guards with recovery/deletion. Flush the current editor, read the target, then PATCH only explicit action intent with current If-Match. Await `acceptMetadata` before and after PATCH: the standalone HTTP editor adopts only a matching clean body/title baseline; the live session confirms the receipt against an observational live `open` and ordinary snapshot acceptance. HTTP bytes never establish a live epoch/revision. An already received matching checkpoint is allowed; stale receipts, private input, uncertain writes, composition, changed scope and lost write permission fail closed. Metadata-only confirmation retains caret/editor DOM and preserves `updated_at`. Lost/stale responses never trigger an automatic mutation retry. Healthy companion polls cannot release a metadata-action lock; switch acknowledgement waits for the action. Failed content saves retain drafts and block PATCH. Pins remain visible even after settle/snooze.
+
+`npx --package=playwright node scripts/single-user-recovery-settlement-smoke.mjs`
+checks active-live-note attention/Undo, both checkpoint/HTTP receipt orders,
+pending and rejected writes, changed-source backend restart, explicit caret reset,
+fresh input/Undo and retained failed drafts at 1280/390px. Session/controller unit
+tests add scope, reader, stale-receipt, title, composition and uncertain-write gates.
 
 The list rechecks on entry, confirmed writes/actions, focus/pageshow and every 15 seconds while visible (or earlier at `nextWakeAt`). Failed reads retry after 30 seconds. Hidden/pagehide pauses timers and aborts reads; scope tokens suppress late results even if abort is ignored. Due refresh updates the sidebar without rewriting Markdown. No scheduling daemon or persisted browser state is required. Browser timers recheck after sleep/focus rather than promising background OS notifications.
 
@@ -352,9 +358,9 @@ The standalone `createDocumentEditor` remains an explicit HTTP-only implementati
 of the same interface, covered by graph, navigation, attention and external-update
 tests. It is no longer exported into the shipped browser bundle. HTTP polling is
 admitted only for `kind: "http"`; the default shell uses `kind: "live"`. As before,
-live metadata-only acceptance returns false: HTTP receipts alone cannot establish
-a live epoch/revision. This refactor does not add an HTTP-to-live metadata adoption
-path. The raw collaboration handle remains available for diagnostic proofs;
+live metadata confirmation awaits a fresh live snapshot: HTTP receipts alone
+cannot establish a live epoch/revision. Confirmation never invokes draft recovery
+or changes source from HTTP bytes. The raw collaboration handle remains available for diagnostic proofs;
 consumer controls depend on the session contract.
 
 Preserve these observations:
@@ -431,6 +437,15 @@ selection projection may then retire the caret; source replay and round-trip
 verification remain strict. The binding clears native/Lexical selection and
 blurs the editor, requiring a fresh click rather than guessing an insertion
 position. Captured input/composition and genuine private drafts remain protected.
+
+A new backend epoch may also load changed saved text when the controller and
+rendered source provably match the acknowledged baseline with no private input,
+pending receipt, composition or recovery uncertainty. Positional history from
+the old epoch cannot locate a caret in the new text: explicit selection reset
+clears Lexical/native selection and blurs the editor before fresh input. Private
+body/title drafts and unknown writes still require review. Observational live
+`refresh()` uses ordinary authenticated `open` plus snapshot/history acceptance;
+it does not resolve conflicts, publish or discard drafts.
 
 Reconciliation retains unaffected Lexical nodes, source
 spellings and mapped selection; IME preedit is deferred. Actor-specific undo/redo

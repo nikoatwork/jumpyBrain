@@ -36,7 +36,9 @@ export interface EditorSession {
   retry(): Promise<boolean>;
   hasPending(): boolean;
   reloadSaved(allowed?: () => boolean): Promise<boolean>;
-  acceptMetadata(payload: DocumentPayload, expectedHash: string): boolean;
+  /** Confirm a clean metadata receipt. Live sessions verify a fresh live snapshot;
+   * the HTTP receipt alone never advances their source or epoch/revision. */
+  acceptMetadata(payload: DocumentPayload, expectedHash: string): boolean | Promise<boolean>;
   cancel(): void;
   publishReviewedDraft?(contentHash: string): Promise<boolean>;
   getRecoveryDrafts?(): CollaborationDraft[];

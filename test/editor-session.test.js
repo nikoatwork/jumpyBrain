@@ -50,6 +50,14 @@ function fixture(t, options = {}) {
     session.input(body, { before, after: body, operations: [{ start: before.length, deleteCount: 0, insert: text }] });
   };
   return { session, frames, sockets, held, drafts, input, get canonical() { return canonical; }, get shown() { return shown; }, get changes() { return changes; }, get disposed() { return disposed; },
+    setHold(method) { options.hold = method; },
+    metadata(prefix = "---\ntitle: Note\nattention_at: null\n---\n") {
+      const revision = canonical.revision + 1;
+      canonical = { ...canonical, prefix, revision, contentHash: "metadata-" + revision,
+        operation: { revision, splices: [], actor: "metadata-writer", operationId: "metadata-" + revision } };
+      return { id: "note", title: canonical.title, content: canonical.prefix + canonical.body, contentHash: canonical.contentHash };
+    },
+    broadcast() { sockets.at(-1).onmessage?.({ data: JSON.stringify({ event: "document", documentId: "note", snapshot: canonical }) }); },
     replaceSurface(value) { shown = value; },
     changeScope() { scope = "other-brain/principal/tab"; }, retire() { current = false; } };
 }
@@ -69,6 +77,68 @@ test("live session reads acknowledged source separately from pending positional 
   assert.equal(h.session.state, view, "consumer view retains its identity across receipts");
   assert.equal(view.savedBody, h.canonical.body); assert.equal(view.contentHash, h.canonical.contentHash); assert.equal(view.saveStatus, "saved");
   assert.equal(h.session.hasPending(), false);
+});
+
+test("live metadata confirmation observes the actual revision without accepting an HTTP-only baseline", async t => {
+  const h = fixture(t); await h.session.connect(); await tick();
+  h.session.setNavigationPending(true);
+  const receipt = h.metadata();
+  assert.equal(h.session.state.contentHash, "hash-0");
+  const confirmed = await h.session.acceptMetadata(receipt, "hash-0");
+  assert.equal(confirmed, true);
+  assert.equal(h.session.state.contentHash, receipt.contentHash);
+  assert.match(h.session.state.frontmatterPrefix, /attention_at: null/);
+  assert.equal(h.session.state.draft, "Saved body");
+  assert.equal(h.shown, "Saved body");
+  assert.equal(h.frames.filter(frame => frame.method === "open").length, 2);
+  assert.equal(h.frames.some(frame => ["edit", "title", "resync"].includes(frame.method)), false);
+});
+
+test("live metadata confirmation allows an already observed matching checkpoint and refuses stale receipts", async t => {
+  const h = fixture(t); await h.session.connect(); await tick();
+  const receipt = h.metadata(); h.broadcast(); await tick();
+  assert.equal(h.session.state.contentHash, receipt.contentHash);
+  assert.equal(await h.session.acceptMetadata(receipt, "hash-0"), true, "WebSocket checkpoint can arrive before the HTTP receipt");
+  const later = h.metadata("---\ntitle: Note\nattention_at: 2027-01-01T00:00:00Z\n---\n");
+  h.broadcast(); await tick();
+  assert.equal(await h.session.acceptMetadata(receipt, "hash-0"), false);
+  assert.equal(h.session.state.contentHash, later.contentHash, "a stale receipt never rewinds the live owner");
+});
+
+test("live metadata confirmation protects private input and scoped authorization across its read", async t => {
+  for (const transition of ["input", "scope", "cancel"]) await t.test(transition, async t => {
+    const h = fixture(t); await h.session.connect(); await tick();
+    const receipt = h.metadata(); h.setHold("open");
+    const confirming = h.session.acceptMetadata(receipt, "hash-0"); await tick();
+    assert.equal(h.held.length, 1);
+    if (transition === "input") h.input(); else if (transition === "scope") h.changeScope(); else h.session.cancel();
+    h.held.shift()();
+    assert.equal(await confirming, false);
+    assert.equal(h.session.state.contentHash, "hash-0", "no HTTP receipt is adopted when its observational read is fenced");
+    assert.equal(h.session.state.draft, transition === "input" ? "Saved body private" : "Saved body");
+  });
+  await t.test("reader", async t => {
+    const h = fixture(t, { role: "reader" }); await h.session.connect(); await tick();
+    const receipt = h.metadata(), before = h.frames.length;
+    assert.equal(await h.session.acceptMetadata(receipt, "hash-0"), false);
+    assert.equal(h.frames.length, before);
+  });
+});
+
+test("live metadata confirmation rejects changed source, identity, hash and pending title before reading", async t => {
+  const h = fixture(t); await h.session.connect(); await tick();
+  const receipt = h.metadata(), before = h.frames.length;
+  for (const [payload, expected] of [
+    [{ ...receipt, id: "another" }, "hash-0"],
+    [{ ...receipt, title: "Changed title" }, "hash-0"],
+    [{ ...receipt, content: receipt.content + "new body" }, "hash-0"],
+    [receipt, "wrong-hash"],
+  ]) assert.equal(await h.session.acceptMetadata(payload, expected), false);
+  h.session.inputTitle("");
+  assert.equal(await h.session.acceptMetadata(receipt, "hash-0"), false);
+  assert.equal(h.frames.length, before);
+  assert.equal(h.session.state.savedTitle, "Note");
+  assert.equal(h.session.state.title, "");
 });
 
 test("blank names and offline private drafts retain barriers; clean offline reads can leave", async t => {

@@ -2,7 +2,7 @@
 import type { EditorSession } from "./editor-session.js";
 import { mergeDocumentEdits } from "./document-merge.js";
 import type { SearchRecognitionMetadata } from "../../types.js";
-export interface DocumentPayload { content?: string; contentHash?: string; title?: string; file?: string; recognition?: SearchRecognitionMetadata }
+export interface DocumentPayload { id?: string; content?: string; contentHash?: string; title?: string; file?: string; recognition?: SearchRecognitionMetadata }
 export interface DocumentWritePayload { newContentHash?: string; file?: string; recognition?: SearchRecognitionMetadata; [key: string]: unknown }
 export interface DocumentEditorState {
   generation: number; documentId: string; contentHash: string; frontmatterPrefix: string;

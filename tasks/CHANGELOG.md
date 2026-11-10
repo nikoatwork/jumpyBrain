@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-10 — Single-user attention and recovery
+
+- Fixed clean active-note attention rejection and unnecessary recovery after changed-source backend restarts, retaining private-draft safeguards. [Verification and historical limits](done/2026-11-10_tasks-single-user-recovery-settlement.md).
+
 ## 2026-11-10 — Quiet search freshness
 
 - Removed recurring search-maintenance pop-ups while retaining scoped recovery controls and actionable failures. [Verification and limits](done/2026-11-10_tasks-quiet-search-freshness.md).

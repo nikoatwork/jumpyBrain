@@ -7,7 +7,7 @@ interface EditorBinding {
   getMarkdown(): string;
   isComposing?(): boolean;
   takeCollaborativeIntent?(before:string,after:string): SourceIntent | null;
-  applyCollaborativeMarkdown(value: string, presentation?: { highlight?: boolean; operationSequence?: readonly (readonly SourceSplice[])[]; retireUnprovenSelection?: boolean }): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string };
+  applyCollaborativeMarkdown(value: string, presentation?: { highlight?: boolean; operationSequence?: readonly (readonly SourceSplice[])[]; retireUnprovenSelection?: boolean; resetSelection?: boolean }): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string };
   setCollaborativeNewline?(value: "\n" | "\r\n" | null): void;
   collaborativeSelection?(): { anchor: number; focus: number } | null;
   setCollaborativePresence?(peers: NonNullable<CollaborationSnapshot["presence"]>): void;
@@ -62,6 +62,9 @@ export function createCollaborationEditor(options: Options) {
   const titleDirty = () => draftTitle !== undefined && draftTitle !== baseline?.title;
   const blankTitle = () => titleDirty() && !draftTitle!.trim();
   const dirty = () => bodyDirty() || titleDirty();
+  const cleanSource = () => Boolean(baseline && baseline.revision >= 0 && !dirty() && !conflict && !uncertain
+    && !flight && !titlePromise && !historyFlight && !recoveredUnconfirmed && !deferredConfirmation && !reviewedPublication
+    && !options.editor.isComposing?.() && pendingBase === baseline.body && body === baseline.body && options.editor.getMarkdown() === body);
   const canWrite = () => principal?.role === "writer" || principal?.role === "owner" || principal?.role === "admin";
   function scope() { return { scope: options.scope, principalId: principal!.id, documentId: options.documentId, clientId }; }
   function projectedPeers() {
@@ -104,8 +107,8 @@ export function createCollaborationEditor(options: Options) {
     const saved = store.save(draftRecord()); durable = saved.value; if (saved.error) message = saved.error;
     return saved.value;
   }
-  function paint(value: string, highlight = false, operationSequence?:readonly (readonly SourceSplice[])[], retireUnprovenSelection = false): boolean {
-    const applied = options.editor.applyCollaborativeMarkdown(value, { highlight, operationSequence, retireUnprovenSelection });
+  function paint(value: string, highlight = false, operationSequence?:readonly (readonly SourceSplice[])[], retireUnprovenSelection = false, resetSelection = false): boolean {
+    const applied = options.editor.applyCollaborativeMarkdown(value, { highlight, operationSequence, retireUnprovenSelection, resetSelection });
     if (applied.status === "deferred") return false;
     if (applied.status === "recovery") { options.onRecovery?.("unproven_draft"); conflict = true; message = applied.reason ?? "The editor needs explicit recovery. Both versions are retained."; return false; }
     return true;
@@ -155,6 +158,8 @@ export function createCollaborationEditor(options: Options) {
     // Revision -1 is the initial hydration placeholder, not an observed edit
     // by another writer. Later canonical changes still receive remote feedback.
     const contentChanged = Boolean(baseline && (snapshot.body !== baseline.body || snapshot.title !== baseline.title));
+    const newEpoch = Boolean(baseline && baseline.revision >= 0 && baseline.epoch !== snapshot.epoch);
+    if (newEpoch && options.editor.isComposing?.()) { queued = snapshot; return; }
     let remote=Boolean(baseline && baseline.revision >= 0)&&!own&&contentChanged;
     let remoteSteps:SourceSplice[][]=[];
     const sourceBase=own?.submitted??pendingBase;
@@ -162,7 +167,9 @@ export function createCollaborationEditor(options: Options) {
       if(pendingOperations.length||dirtyBeforeOpen)throw new CollaborationError("unproven_draft","Review edits made before the canonical document was opened.");
       remoteSteps=body===snapshot.body?[]:[[{start:0,deleteCount:body.length,insert:snapshot.body}]];
     }else if(baseline.epoch!==snapshot.epoch){
-      if(pendingOperations.length||body!==baseline.body||body!==snapshot.body||uncertain)throw new CollaborationError("epoch_changed","The backend restarted or replaced this note. Review the retained draft before publishing.");
+      const rendered = options.editor.getMarkdown();
+      if (rendered !== body) { body = rendered; pendingOperations = []; throw new CollaborationError("unproven_draft", "The visible input is not acknowledged. Review its retained draft before publishing."); }
+      if(!cleanSource())throw new CollaborationError("epoch_changed","The backend restarted or replaced this note. Review the retained draft before publishing.");
       remoteSteps=body===snapshot.body?[]:[[{start:0,deleteCount:body.length,insert:snapshot.body}]];
     }else{
       const history=await canonicalHistory(baseline,snapshot);
@@ -194,12 +201,8 @@ export function createCollaborationEditor(options: Options) {
     // A saved source has no private edit to recover merely because an inferred
     // external splice cannot locate its old caret. Check after history awaits:
     // a local input may have arrived while the canonical history was read.
-    const retireUnprovenSelection = Boolean(remote && !own && baseline && baseline.revision >= 0
-      && baseline.epoch === snapshot.epoch && !dirty() && !uncertain && !flight
-      && !titlePromise && !historyFlight && !recoveredUnconfirmed && !deferredConfirmation
-      && !reviewedPublication && !options.editor.isComposing?.()
-      && pendingBase === baseline.body && body === baseline.body && options.editor.getMarkdown() === body);
-    if(!conflict&&!paint(merged,remote,optimisticSteps,retireUnprovenSelection)){
+    const retireUnprovenSelection = Boolean(remote && !own && cleanSource());
+    if(!conflict&&!paint(merged,remote,optimisticSteps,retireUnprovenSelection,newEpoch && body !== snapshot.body)){
       if(!conflict){queued=snapshot;if(own)deferredConfirmation={flight:own,epoch:snapshot.epoch,revision:snapshot.revision};return}
     }
     if(!snapshot.body.includes("\n"))options.editor.setCollaborativeNewline?.(snapshot.prefix?.includes("\r\n")?"\r\n":"\n");
@@ -466,6 +469,19 @@ export function createCollaborationEditor(options: Options) {
       return !disposed && !dirty() && !flight && !titlePromise && !historyFlight && !conflict && !uncertain;
     },
     async setTitle(title: string): Promise<boolean> { api.inputTitle(title); return api.flush(); },
+    async refresh(): Promise<boolean> {
+      const session = generation, actor = principal?.id;
+      const eligible = () => !disposed && opened && client.state === "ready" && session === generation && principal?.id === actor && !reconciling && cleanSource();
+      if (!eligible()) return false;
+      try {
+        const snapshot: unknown = await client.request("open", { documentId: options.documentId, clientId });
+        // A fresh HTTP metadata receipt cannot bypass input or a mutation that
+        // started while this observational live read was outstanding.
+        if (!eligible() || !validSnapshot(snapshot) || snapshot.documentId !== options.documentId) return false;
+        await accept(snapshot);
+        return eligible() && baseline?.epoch === snapshot.epoch && baseline.revision === snapshot.revision && baseline.contentHash === snapshot.contentHash;
+      } catch { return false; }
+    },
     undo, redo,
     async resolveConflict(choice: "saved" | "draft", expectedHash?: string): Promise<boolean> {
       if (!baseline || flight || titlePromise || historyFlight || disposed) return false;

@@ -173,9 +173,21 @@ export function createLiveEditorSession(options: Options): LiveEditorSession {
       if (state.liveStatus === "blocked") return options.reopen();
       return current() && Boolean(await collaboration?.resolveConflict("saved"));
     },
-    // HTTP metadata receipts do not carry the live epoch/revision. As in the
-    // previous live binding, do not advance live source from an HTTP receipt.
-    acceptMetadata: (_payload: DocumentPayload, _expectedHash: string) => false,
+    async acceptMetadata(payload: DocumentPayload, expectedHash: string) {
+      // A metadata receipt is only a comparison target. The live owner must
+      // observe the canonical epoch/revision before the action can continue.
+      const clean = () => current() && loaded && Boolean(collaboration)
+        && state.liveStatus === "saved" && state.liveCanWrite && !state.dirty
+        && !state.unconfirmedSave && !options.editor.isComposing?.();
+      if (!clean() || typeof payload.content !== "string" || typeof payload.contentHash !== "string"
+        || typeof payload.title !== "string" || payload.id !== options.documentId
+        || (state.contentHash !== expectedHash && state.contentHash !== payload.contentHash)) return false;
+      const received = splitEditableDocument(payload.content);
+      if (received.body !== state.savedBody || payload.title !== state.savedTitle) return false;
+      if (!await collaboration!.refresh()) return false;
+      return Boolean(clean() && state.contentHash === payload.contentHash
+        && state.savedBody === received.body && state.savedTitle === payload.title);
+    },
     cancel() {
       if (cancelled) return;
       cancelled = true; dispose();

@@ -1164,7 +1164,7 @@ export function createNoteEditor(element: HTMLElement, options: {
     // Remote source changes reconcile only affected subtrees. Unchanged blocks
     // retain their Lexical keys, DOM, reference state and selection identity.
     // No remote state enters the local history stack.
-    applyCollaborativeMarkdown(value: string, presentation: { highlight?: boolean;operationSequence?: readonly (readonly SourceSplice[])[];retireUnprovenSelection?: boolean } = {}): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string } {
+    applyCollaborativeMarkdown(value: string, presentation: { highlight?: boolean;operationSequence?: readonly (readonly SourceSplice[])[];retireUnprovenSelection?: boolean;resetSelection?: boolean } = {}): { status: "applied" | "unchanged" | "deferred" | "recovery"; reason?: string } {
       if (value === markdown && !presentation.operationSequence?.some(operations=>operations.length)) {
         // A local edit already renders the acknowledged source. Refresh its
         // sidecar without replacing nodes so source cursor projection is exact.
@@ -1202,7 +1202,10 @@ export function createNoteEditor(element: HTMLElement, options: {
           let verified=previous;for(const operations of sequence)verified=applySourceSplices(verified,operations);
           if(verified!==value)throw new Error("The incoming operations do not reproduce the supplied source. Both versions are retained.");
           let offsets:number[]|null=null,retiredSelection=false;
-          if(points){
+          if(presentation.resetSelection){
+            if(capturedIntent||continuationIntent)throw new Error("Pending input must be preserved before resetting the saved selection");
+            retiredSelection=true;
+          }else if(points){
             if(points.some(point=>point===null)){if(active)throw new Error("The active selection could not be mapped exactly; both source versions are retained")}
             else if(presentation.operationSequence){
               const anchors=points as number[];
@@ -1301,7 +1304,7 @@ export function createNoteEditor(element: HTMLElement, options: {
             });
             nextSelection.format=projected.format;nextSelection.style=projected.style;
             $setSelection(nextSelection); lastSelection = nextSelection.clone();
-          } else if(projected.selected){$setSelection(null);lastSelection=null}
+          } else if(projected.selected||projected.retiredSelection){$setSelection(null);lastSelection=null}
           completionBaseline = referenceText();
         }, { discrete: true, tag: HISTORIC_TAG });
         if (!failure && editor.getEditorState().read(serialize) !== value) failure = "Source round trip did not preserve the incoming document";
@@ -1311,7 +1314,7 @@ export function createNoteEditor(element: HTMLElement, options: {
           markdown = previous; sourceNewline = previousNewline;
           return { status: "recovery", reason: failure };
         }
-        if(projected.selected&&!projected.offsets&&(!active||projected.retiredSelection)){
+        if(projected.retiredSelection||projected.selected&&!projected.offsets&&!active){
           const native=element.ownerDocument.getSelection();
           if(native&&(element.contains(native.anchorNode)||element.contains(native.focusNode)))native.removeAllRanges();
           // No guessed insertion position: a fresh click establishes the next

@@ -84,14 +84,16 @@ export function installNoteAttention(options: {
       const saved = await options.json(memoryDocumentPath(id)) as SavedNote;
       if (!valid()) return;
       if (saved.id !== id || typeof saved.content !== "string" || typeof saved.contentHash !== "string") throw new Error("Could not read the current note.");
-      if (editor?.state.documentId === id && !editor.acceptMetadata(saved, editor.state.contentHash)) throw new Error("This note changed elsewhere. Review its latest changes first.");
+      if (editor?.state.documentId === id && !await editor.acceptMetadata(saved, editor.state.contentHash)) throw new Error("Could not confirm the open note's saved version. Wait for it to reconnect or review its pending changes before trying again.");
+      if (!valid()) return;
       const prior = attentionValue(splitEditableDocument(saved.content).frontmatterPrefix);
       const result = await options.json(memoryDocumentPath(id), {
         method: "PATCH", headers: { "Content-Type": "application/json", "If-Match": saved.contentHash }, body: JSON.stringify(action),
       }) as SavedNote;
       if (!valid()) return;
       if (result.id !== id || typeof result.contentHash !== "string" || typeof result.content !== "string") throw new Error("The attention change could not be confirmed. Reopen the note to check its state.");
-      if (editor?.state.documentId === id && !editor.acceptMetadata(result, saved.contentHash)) throw new Error("The note changed while saving. Reopen it to check its attention state.");
+      if (editor?.state.documentId === id && !await editor.acceptMetadata(result, saved.contentHash)) throw new Error("The note changed while saving. Reopen it to check its attention state.");
+      if (!valid()) return;
       const previous: Action = prior === "settled" ? { action: "settle" } : prior && Date.parse(prior) > Date.now() ? { action: "snooze", until: prior } : { action: "reactivate" };
       const restoreNavigation = !isUndo && action.action === "settle" ? await options.settled?.({ id, title: result.title || saved.title }, focusOrigin) : undefined;
       if (!valid()) return;
