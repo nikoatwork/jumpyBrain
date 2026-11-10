@@ -90,15 +90,20 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@excalidraw/excalidraw": "0.18.1",
     "@lexical/history": "0.51.0",
     "@lexical/link": "0.51.0",
     "@lexical/markdown": "0.51.0",
     "@lexical/rich-text": "0.51.0",
     "@lexical/selection": "0.51.0",
     "@types/node": "^25.9.9",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
     "@types/ws": "8.18.2",
     "fast-check": "^4.10.2",
     "lexical": "0.51.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "typescript": "^6.0.3"
   },
   "dependencies": {

@@ -15,6 +15,7 @@ import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
 import { feedbackMarkup, feedbackStyles } from "./feedback.js";
 import { graphTopicMarkup, graphTopicStyles } from "./graph-topic-preview.js";
+import { drawingIcon, drawingsDialogMarkup, drawingsMarkup, drawingsScript, drawingsStyles } from "./drawings-view.js";
 
 const extensionBundle = readFileSync(new URL("./extensions-bundle.js", import.meta.url), "utf8");
 const lexicalBundle = readFileSync(new URL("./editor-bundle.js", import.meta.url), "utf8");
@@ -133,6 +134,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     ${notesStyles}
     ${folderExplorerStyles}
     ${graphTopicStyles}
+    ${drawingsStyles}
     ${feedbackStyles}
     ${dreamStyles}
     ${companion ? companionStyles : ""}
@@ -198,10 +200,12 @@ ${systemMessageMarkup}
     <p class="helper">Solid lines: explicit links · Dashed lines: related notes<br>Scroll to zoom · Drag to move · Select a note to open</p>
   </section>
   ${companion ? notesViews.replace('<div class="note-actions">', '<div class="extension-slot" data-extension-slot="note.actions" aria-label="Extension note actions"></div><div class="note-actions">') : notesViews}
+  ${drawingsMarkup}
   ${companion ? companionMarkup : ""}
 </main>
 </div>
 ${folderExplorerMarkup}
+${drawingsDialogMarkup}
 <script nonce="${nonce}">
 ${lexicalBundle}
 ${companion ? extensionBundle : ""}
@@ -309,7 +313,9 @@ const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
     state.editor?.input(markdown, intent);
     if (companionMode && state.editor?.state.loaded) referenceCreation.saved(state.editor.state.savedBody, markdown);
   },
-  onCompletedReferences: (titles) => {
+  onCompletedReferences: (allTitles) => {
+    // Drawing mentions must never become created note pages.
+    const titles = allTitles.filter((title) => !drawingsUI.referenceName(title));
     if (companionMode && !companionReadOnly() && state.editor?.state.loaded) {
       referenceCreation.completed(titles, state.editor.state.draft);
       referenceCreation.saved(state.editor.state.savedBody, state.editor.state.draft);
@@ -331,6 +337,7 @@ $("note-editor").addEventListener("blur", () => {
 window.addEventListener("beforeunload", protectPendingEditorUnload);
 
 function protectPendingEditorUnload(event) {
+  if (typeof drawingsUI !== "undefined" && drawingsUI.hasPending()) { event.preventDefault(); event.returnValue = ""; return; }
   if ((!state.editor || !state.editor.hasPending()) && !(typeof companionMode !== "undefined" && companionMode && (noteCapture.hasPending() || referenceCreation.hasPending()))) return;
   event.preventDefault();
   event.returnValue = "";
@@ -442,6 +449,8 @@ async function requestEditorNavigation(action) {
   if (documentActions.isBusy()) return false;
   if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return false;
   referenceAutocomplete.dismiss();
+  // An open drawing saves, or keeps the user here, before any destination applies.
+  if (typeof drawingsUI !== "undefined" && !await drawingsUI.flush()) return false;
   const editor = state.editor;
   if (!editor) {
     await action();
@@ -466,6 +475,25 @@ function isValidMemoryDocumentId(value) {
 
 
 ${dreamScript}
+${drawingsScript}
+const drawingsUI = createDrawingsUI({
+  json: graphJson,
+  scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) + ":" + String(companionState?.activeId) : "hosted"),
+  connected: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
+  readOnly: () => companionMode && companionReadOnly(),
+  scopeUrl: (url) => companionMode ? companionScopeUrl(url) : url,
+  navigate: (destination) => navigation.navigate(destination),
+  replaceUrl: (destination) => {
+    const url = companionMode ? companionScopeUrl(destination) : destination;
+    const index = Number.isSafeInteger(history.state?.jumpyBrainIndex) ? history.state.jumpyBrainIndex : 0;
+    history.replaceState({ jumpyBrainIndex: index }, "", url);
+    navigation.reset({ url, index });
+  },
+  theme: () => document.documentElement.dataset.theme === "dark" ? "dark" : "light",
+  message: (text, error) => toast.dispatch({ source: "drawings", text, severity: error ? "error" : "success", duration: 6_000 }),
+  ready: (ready) => { window.__jumpyBrainDrawingReady = ready; },
+  icon: ${JSON.stringify(drawingIcon)},
+});
 ${notesScript}
 ${documentActionsScript}
 searchMaintenance = JumpyBrainBrowser.installSearchMaintenance({

@@ -1,5 +1,5 @@
 import { build, transform } from "esbuild";
-import { readFile, writeFile, readdir } from "node:fs/promises";
+import { readFile, writeFile, readdir, cp, rm, stat } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
 import { resolveFeedbackUrl } from './feedback-config.mjs';
@@ -48,6 +48,48 @@ const extensionResult = await build({
 });
 const extensionBundle = extensionResult.outputFiles[0].text.replace(/<\/script/gi, "<\\/script");
 await writeFile("dist/adapters/http-server/extensions-bundle.js", extensionBundle);
+// The drawing editor is a separate lazy application: an isolated frame loads it
+// only when a drawing is opened, so the note editor bundle and its gate are unchanged.
+const drawingOut = "dist/adapters/http-server/drawing-app";
+await rm(drawingOut, { recursive: true, force: true });
+const drawingStubs = { name: "drawing-stubs", setup(setup) {
+  // English only, and no Mermaid import: both are large optional downloads.
+  setup.onResolve({ filter: /\/locales\/[^/]+\.js$/ }, (args) => /\/locales\/en-/.test(args.path) ? null : { path: "empty", namespace: "drawing-stub" });
+  setup.onResolve({ filter: /^@excalidraw\/mermaid-to-excalidraw$/ }, () => ({ path: "empty", namespace: "drawing-stub" }));
+  setup.onLoad({ filter: /.*/, namespace: "drawing-stub" }, () => ({ contents: "export default {};", loader: "js" }));
+} };
+const drawingResult = await build({
+  entryPoints: [{ in: "src/adapters/http-server/drawing-frame-entry.ts", out: "drawing" },
+    { in: "src/adapters/http-server/drawing-frame-assets.ts", out: "boot" },
+    { in: "node_modules/@excalidraw/excalidraw/dist/prod/index.css", out: "drawing" }],
+  bundle: true, minify: true, platform: "browser", format: "esm", splitting: true, target: "es2022", conditions: ["production"],
+  outdir: drawingOut, chunkNames: "chunk-[hash]", assetNames: "fonts/[name]-[hash]", loader: { ".woff2": "file" },
+  define: { "process.env.NODE_ENV": '"production"' }, legalComments: "none", metafile: true, plugins: [drawingStubs],
+});
+// Canvas fonts load on demand from this origin. The 12 MB CJK handwriting face is
+// left out; CJK text falls back to system fonts.
+const drawingFonts = "node_modules/@excalidraw/excalidraw/dist/prod/fonts";
+for (const family of await readdir(drawingFonts)) {
+  if (family !== "Xiaolai") await cp(`${drawingFonts}/${family}`, `${drawingOut}/fonts/${family}`, { recursive: true });
+}
+const noticePackages = (inputs) => new Set(Object.keys(inputs).flatMap((file) => {
+  const match = file.match(/^node_modules\/(?:@[^/]+\/[^/]+|[^/]+)/);
+  return match ? [match[0]] : [];
+}));
+const drawingNotices = [];
+for (const folder of [...noticePackages(drawingResult.metafile.inputs)].sort()) {
+  const names = (await readdir(folder)).filter((name) => /^licen[sc]e/i.test(name));
+  const text = names.length ? await readFile(`${folder}/${names[0]}`, "utf8")
+    : `License: ${JSON.parse(await readFile(`${folder}/package.json`, "utf8")).license ?? "see package"}`;
+  drawingNotices.push(`${folder}\n\n${text}`);
+}
+await writeFile(`${drawingOut}/LICENSES.txt`, drawingNotices.join("\n\n---\n\n"));
+let drawingBytes = 0;
+for (const name of await readdir(drawingOut, { recursive: true })) {
+  const info = await stat(`${drawingOut}/${name}`);
+  if (info.isFile()) drawingBytes += info.size;
+}
+const drawingEntry = await readFile(`${drawingOut}/drawing.js`);
 const packages = new Set(Object.keys(result.metafile.inputs).flatMap((file) => {
   const match = file.match(/^node_modules\/(?:@[^/]+\/[^/]+|[^/]+)/);
   return match ? [match[0]] : [];
@@ -55,6 +97,7 @@ const packages = new Set(Object.keys(result.metafile.inputs).flatMap((file) => {
 const notices = await Promise.all([...packages].sort().map(async (folder) => `${folder}\n\n${await readFile(`${folder}/LICENSE`, "utf8")}`));
 await writeFile("dist/adapters/http-server/editor-LICENSES.txt", notices.join("\n\n---\n\n"));
 console.log(`Lexical editor: ${Buffer.byteLength(bundle)} bytes minified, ${gzipSync(bundle).length} bytes gzip (${packages.size} bundled packages).`);
+console.log(`Drawing editor (lazy frame): ${drawingBytes} bytes on disk, entry ${drawingEntry.length} bytes minified, ${gzipSync(drawingEntry).length} bytes gzip.`);
 console.log(`Optional desktop extensions UI: ${Buffer.byteLength(extensionBundle)} bytes minified, ${gzipSync(extensionBundle).length} bytes gzip.`);
 
 // npm omits the root lockfile; carry the exact release dependency graph with built assets.

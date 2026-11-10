@@ -56,6 +56,8 @@ Authenticated `GET /memories/all/files` delegates canonical metadata listing to 
 
 ## Board protocol
 
+Authenticated `/memories/all/drawings` and per-name routes delegate to `app/server-memory/drawings`. POST creates; PUT (scene), PATCH (rename) and DELETE require a SHA-256 If-Match and share the host write queue. Only these routes accept JSON bodies up to 5 MiB; stored scenes are capped at 4 MiB. Reader credentials may list and read. `drawing-assets.ts` serves the public, content-free `/drawing-frame` page and the build-emitted `/drawing-app/*` files with a separate CSP (`script-src 'self'`, same-origin fonts, `frame-ancestors 'self'`); only files present in the build output are addressable. The shell CSP adds `frame-src 'self'` for that frame alone. `test/drawings.test.js` covers routes, limits, statics and the gateway.
+
 Authenticated `/memories/all/boards` and per-ID/status routes delegate to `app/server-memory/boards`. POST creates; PUT/DELETE require a SHA-256 If-Match and share the host write queue. Core enforces strict schema and 64 KiB file size; unexpected I/O errors receive safe generic messages. No index mutation or desktop dependency. See [protocol](../../../docs/shared-memory-protocol.md#boards).
 
 ## Explorer mutation transport

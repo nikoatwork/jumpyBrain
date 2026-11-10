@@ -74,6 +74,8 @@ remote-memory/
   pages/
   boards/
     <uuid>.json          # canonical organization, not derived state
+  drawings/
+    <Name>.excalidraw    # Excalidraw JSON workspace files; never indexed
   .jumpybrain/
     index.json           # published generation manifest
     qmd-cache/qmd/       # transactional QMD SQLite state
@@ -902,6 +904,15 @@ Boards are canonical version-1 JSON files under the server-local memory root, se
 | `/memories/all/boards` | POST | Full Board; create only |
 | `/memories/all/boards/:id` | PUT | Full Board, matching path ID, required `If-Match: sha256:…` |
 | `/memories/all/boards/:id` | DELETE | Required If-Match; returns `{id, deleted:true, notesPreserved:true}` |
+
+| `/memories/all/drawings` | GET | `{drawings:[{name,bytes,updatedAt}], skipped}` from file metadata, newest first |
+| `/memories/all/drawings/:name` | GET | `{name, scene, contentHash, updatedAt}` |
+| `/memories/all/drawings` | POST | `{name, scene?}`; create only, empty scene by default |
+| `/memories/all/drawings/:name` | PUT | `{scene}`, required `If-Match: sha256:…` |
+| `/memories/all/drawings/:name` | PATCH | `{name}` renames; required If-Match; never overwrites |
+| `/memories/all/drawings/:name` | DELETE | Required If-Match; returns `{name, deleted:true, notesPreserved:true}` |
+
+A drawing name is its filename without `.excalidraw`: 1–100 characters, no control characters, `/ \ : [ ] | #`, or leading/trailing dot or space. A scene is standard Excalidraw JSON (`type:"excalidraw"`, `elements`, optional `appState`/`files`), at most 4 MiB stored; these routes accept request bodies up to 5 MiB. Errors use `invalid_drawing` (400), `drawing_missing` (404), `drawing_conflict`/`drawing_busy` (409) and 428 without If-Match. Drawings are not searched, recalled or indexed, and writes do not schedule indexing. `GET /drawing-frame` and `GET /drawing-app/*` are public, content-free editor files.
 
 Board fields are exactly `{schemaVersion:1,id,name,archived,columns:[{name,pages}]}`. ID is a UUID; pages are canonical note IDs. Exactly three ordered columns, 100 boards/root, 100 cards/column, 100-character names and 64 KiB per file. IDs may repeat across boards but not within one. POST/PUT return `{board,contentHash}`. Unknown fields and unsupported versions fail; reads never recreate corrupt data. Layout references can remain missing: deletion of a board/card never deletes notes.
 

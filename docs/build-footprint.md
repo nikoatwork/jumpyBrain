@@ -14,12 +14,51 @@ checks to its real tarball before recording successful package metadata.
   idle machine, separately from other builds and tests that consume `dist`.
 - `npm audit` and `npm --prefix integrations/electron audit`: both lockfiles.
 
-Budgets in `scripts/package-budget.mjs` are 1.5 MB compressed, 4.8 MB unpacked,
-3.2 MB under `dist/`, and 700 files (decimal units). Existing editor tests retain
+Budgets in `scripts/package-budget.mjs` are 3.3 MB compressed, 9.1 MB unpacked,
+7.5 MB under `dist/`, and 780 files (decimal units). Existing editor tests retain
 223.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
-extension renderer. A budget increase needs a measured explanation and review;
+extension renderer; `test/drawings.test.js` holds the lazy drawing editor to
+4.2 MB on disk and a 245 KB gzip entry. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
 normal concurrent test suite to avoid machine-load-dependent failures.
+
+## 2026-11-10 built-in drawing editor
+
+The user chose to build Excalidraw drawing support into the product rather than
+ship it as an optional extension, accepting that CLI-only installations carry
+the editor files. The estimate given before that decision was about 3.5 MB on
+disk; the measured cost is higher and is recorded here so it can be revisited.
+
+| Package metric | Before (`274d48d` plus this task's non-editor source) | With the drawing editor |
+| --- | --- | --- |
+| Compressed archive | 1,478,898 | 3,178,969 |
+| Unpacked | 4,688,406 | 8,768,322 |
+| Runtime under `dist/` | 3,160,069 | 7,238,016 |
+| Files | 684 | 737 |
+
+The editor is 53 files and 3,946,275 bytes in
+`dist/adapters/http-server/drawing-app/`: a 730,415-byte entry (227,665 gzip),
+a 544 KB shared chunk, 145 KB of styles, about 560 KB of Latin canvas and
+interface fonts, license notices, and a 1.83 MB lazily loaded WebAssembly chunk
+that subsets fonts when a drawing is exported as SVG. That last chunk compresses
+poorly and accounts for most of the difference from the estimate. It is kept so
+SVG export stays complete; removing it is the main available saving (about
+1.8 MB on disk, 0.75 MB compressed) if export fidelity is traded away later.
+
+Left out deliberately: the 12 MB CJK handwriting font (CJK text in drawings
+falls back to system fonts), 54 non-English locales (1.7 MB) and the Mermaid
+importer. None of this is loaded until a drawing is opened: the note editor
+bundle, its 223,250-byte gate and the shell's two inline scripts are unchanged
+(674,742 minified / 222,923 gzip; the 59-byte growth is the shared drawing
+route constant). Excalidraw, React and React DOM are exact-pinned development
+dependencies bundled at build time; production dependencies are unchanged.
+
+The reviewed limits are now **3,300,000 compressed bytes, 9,100,000 unpacked
+bytes, 7,500,000 runtime bytes and 780 files**, replacing 1,500,000 /
+4,800,000 / 3,200,000 / 700. This is an explicit decision for this feature,
+not a baseline refresh. The opt-in multiplayer production contract pins the
+previous `scripts/package-budget.mjs` digest and needs a deliberate re-capture
+before that gate is used again.
 
 ## 2026-11-08 reviewed distribution ceiling refresh
 

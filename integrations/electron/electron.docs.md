@@ -106,6 +106,8 @@ The successful setup result carries the page ID and exact profile/destination sc
 
 ## Native board integration check
 
+The window permits exactly one subframe: the gateway's own `/drawing-frame` (no query or fragment), and only while an app page is the main frame. Every other subframe navigation stays prevented, and the frame receives no permissions, preload or Node bridge. After building, `node scripts/drawings-electron-smoke.mjs` launches the production sandboxed window via test-only `smoke-drawings.mjs` with a disposable gateway and brain: it opens a drawing, draws with native mouse input, confirms the canonical file, and checks that same-origin app pages, a query variant and an external site do not load as frames.
+
 After building, `node scripts/boards-desktop-smoke.mjs` launches the production sandboxed window via test-only `smoke-boards.mjs`, with a real CLI, gateway, disposable local/loopback remote roots and isolated Electron data. It exercises CLI creation/add/status/settlement/deletion, native rename/keyboard move/create/restore/confirmed deletion, read-only remote navigation/write controls, and preservation of note bytes. Captures/results go to ignored `.local-pack/boards-native/`. It does not install or modify the user’s app/brain and does not certify a live remote deployment.
 
 ## Combined agent installation

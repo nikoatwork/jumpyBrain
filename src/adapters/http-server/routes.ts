@@ -2,6 +2,8 @@ import type { Principal } from "../access-control/index.js";
 import type { CollaborationHub } from "../../app/collaboration/index.js";
 import { applyServerMemoryFileOperation } from "../../app/server-memory/folder-explorer-operations.js";
 import { listBoards, readBoard, saveBoard, deleteBoard, getBoardStatus, BoardError } from "../../app/server-memory/boards.js";
+import { listDrawings, readDrawing, createDrawing, saveDrawing, renameDrawing, deleteDrawing, DrawingError, DRAWING_MAX_BYTES } from "../../app/server-memory/drawings.js";
+import { drawingStaticResponse, isDrawingStaticPath } from "./drawing-assets.js";
 import { normalizeMemoryActor } from "../../core/contribution.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { checkDreamSources } from "../../app/server-memory/index.js";
@@ -68,7 +70,7 @@ export async function routeRequest(context: { principal?: Principal; collaborati
   const browserShellPath = url.pathname === "/" || url.pathname === "/graph" || url.pathname === "/graph/";
   if (request.method === "GET" && browserShellPath) {
     const nonce = randomBytes(16).toString("base64url");
-    const contentSecurityPolicy = `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+    const contentSecurityPolicy = `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src 'self'; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
     writeHtml(response, 200, graphPageHtml(nonce, url.pathname === "/" ? "home" : "graph"), {
       "content-security-policy": contentSecurityPolicy,
       "x-content-type-options": "nosniff",
@@ -79,6 +81,14 @@ export async function routeRequest(context: { principal?: Principal; collaborati
   if (browserShellPath) {
     const route = url.pathname === "/" ? "/" : "/graph";
     writeJson(response, 405, errorResponse("method_not_allowed", `Use GET for ${route}.`));
+    return;
+  }
+
+  // Public and content-free like the shell: the drawing editor frame and its bundled files.
+  if (isDrawingStaticPath(url.pathname)) {
+    const packet = drawingStaticResponse(request.method, url.pathname, request.headers["if-none-match"]);
+    response.writeHead(packet.status, packet.headers);
+    response.end(packet.body);
     return;
   }
 
@@ -132,6 +142,48 @@ export async function routeRequest(context: { principal?: Principal; collaborati
       const code = known ? error.code : 'board_failed';
       const statusCode = code === 'board_missing' ? 404 : ['board_conflict', 'board_busy'].includes(code) ? 409 : known ? 400 : 500;
       writeJson(response, statusCode, errorResponse(code, known ? error.message : 'Board operation failed. Inspect the board files on the server.')); return;
+    }
+  }
+
+  if (url.pathname === HTTP_MEMORY_ROUTES.drawings || url.pathname.startsWith(HTTP_MEMORY_ROUTES.drawingsPrefix)) {
+    response.setHeader("cache-control", "no-store");
+    try {
+      const raw = url.pathname === HTTP_MEMORY_ROUTES.drawings ? undefined : url.pathname.slice(HTTP_MEMORY_ROUTES.drawingsPrefix.length);
+      if (raw !== undefined && (!raw || raw.includes("/"))) throw new DrawingError("invalid_drawing", "Invalid drawing route.");
+      let name: string | undefined;
+      try { name = raw === undefined ? undefined : decodeURIComponent(raw); } catch { throw new DrawingError("invalid_drawing", "Invalid drawing name encoding."); }
+      const ifMatch = request.headers["if-match"];
+      const body = async () => {
+        // Transport JSON is compact; stored scenes are pretty-printed and capped separately.
+        const parsed = await parseJsonBody(request, { maxBytes: DRAWING_MAX_BYTES + 1024 * 1024 });
+        if (isJsonError(parsed)) { writeJson(response, parsed.statusCode, parsed.body); return undefined; }
+        return parsed;
+      };
+      let result: unknown;
+      if (request.method === "GET") result = name === undefined ? await listDrawings(root) : await readDrawing(root, name);
+      else if (request.method === "POST" && name === undefined) {
+        const packet = await body(); if (!packet) return;
+        if (Object.keys(packet).some(key => !["name", "scene"].includes(key))) throw new DrawingError("invalid_drawing", "Use a name and an optional scene.");
+        result = await enqueueWrite(() => createDrawing(root, packet.name as string, packet.scene === undefined ? undefined : packet.scene));
+      } else if (name !== undefined && ["PUT", "PATCH", "DELETE"].includes(request.method ?? "")) {
+        if (typeof ifMatch !== "string" || !/^sha256:[0-9a-f]{64}$/.test(ifMatch)) {
+          writeJson(response, 428, errorResponse("precondition_required", "Use the prior drawing content hash in If-Match.")); return;
+        }
+        if (request.method === "DELETE") result = await enqueueWrite(() => deleteDrawing(root, name, ifMatch));
+        else {
+          const packet = await body(); if (!packet) return;
+          const field = request.method === "PUT" ? "scene" : "name";
+          if (Object.keys(packet).length !== 1 || !(field in packet)) throw new DrawingError("invalid_drawing", request.method === "PUT" ? "Use a scene." : "Use a new name.");
+          result = request.method === "PUT" ? await enqueueWrite(() => saveDrawing(root, name, packet.scene, ifMatch))
+            : await enqueueWrite(() => renameDrawing(root, name, packet.name as string, ifMatch));
+        }
+      } else { writeJson(response, 405, errorResponse("method_not_allowed", "Unsupported drawing operation.")); return; }
+      writeJson(response, 200, result); return;
+    } catch (error) {
+      const known = error instanceof DrawingError;
+      const code = known ? error.code : "drawing_failed";
+      const statusCode = code === "drawing_missing" ? 404 : ["drawing_conflict", "drawing_busy"].includes(code) ? 409 : known ? 400 : 500;
+      writeJson(response, statusCode, errorResponse(code, known ? error.message : "Drawing operation failed. Inspect the drawing files on the server.")); return;
     }
   }
 
@@ -799,13 +851,13 @@ class JsonBodyError {
   constructor(readonly statusCode: number, readonly body: JsonError) {}
 }
 
-export async function parseJsonBody(request: IncomingMessage, options: { allowEmpty?: boolean } = {}): Promise<Record<string, unknown> | JsonBodyError> {
+export async function parseJsonBody(request: IncomingMessage, options: { allowEmpty?: boolean; maxBytes?: number } = {}): Promise<Record<string, unknown> | JsonBodyError> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += buffer.length;
-    if (size > 1024 * 1024) {
+    if (size > (options.maxBytes ?? 1024 * 1024)) {
       return new JsonBodyError(400, errorResponse("bad_request", "Request body is too large."));
     }
     chunks.push(buffer);

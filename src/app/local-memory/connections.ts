@@ -1,3 +1,4 @@
+import { drawingNameFromReference } from "../../core/drawings/model.js";
 import { readFile } from "node:fs/promises";
 import { buildCanonicalLinkTargetLookup, extractCanonicalLinks, resolveCanonicalLinkTarget } from "../../core/canonical/index.js";
 import type { MarkdownDocument, MemoryConnectionEdge, MemoryConnectionEdgeKind } from "../../types.js";
@@ -19,6 +20,8 @@ export async function collectConnections(documents: MarkdownDocument[], visit?: 
       const target = resolveCanonicalLinkTarget(document.relativePath, reference.target, reference.kind, lookup);
       if (target === document.relativePath) continue;
       if (!target) {
+        // A drawing mention opens drawings/<Name>.excalidraw; it is not a missing note.
+        if (drawingNameFromReference(reference.target)) continue;
         unresolved.push({ source: document.relativePath, target: reference.target, kind: reference.kind });
         continue;
       }

@@ -13,8 +13,11 @@ memory-root/
   decisions/
   preferences/
   pages/              # topical/current-state synthesized memory
+  drawings/           # optional <Name>.excalidraw sketches; workspace files, never indexed
   .jumpybrain/        # derived/rebuildable; do not edit
 ```
+
+Drawings are standard Excalidraw files created in the app or dropped into `drawings/`. They are not memory: search, recall and agents do not read them. Mention one from a note as `[[Name.excalidraw]]` and let the note carry the meaning.
 
 Create this layout with:
 

@@ -1,5 +1,8 @@
 # Task Changelog
 
+## 2026-11-10 — Built-in Excalidraw drawings
+
+- Added canonical `drawings/<Name>.excalidraw` files with hash-checked HTTP routes, an isolated lazy editor frame in the hosted and Mac shells, file-name search and note mentions; raised the reviewed package ceilings for the bundled editor. [Implementation, checks and limits](done/2026-11-10_tasks-excalidraw-drawings.md).
 ## 2026-11-10 — Four UI follow-ups
 
 - Added written/edited labels and related-note hover previews; removed the reference button and simplified deletion confirmation. [Implementation and checks](done/2026-11-10_tasks-four-ui-requests.md).

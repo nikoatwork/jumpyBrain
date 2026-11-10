@@ -85,6 +85,10 @@ Focused coverage: `node --test test/extension-gateway.test.js test/extensions-cl
 
 The internal `readinessOnly` launch option forces an empty extension execution set without writing the persistent disabled marker. Electron forwards it through its private native child environment for staged/installed updater readiness. Actual application launch retains normal activation. `SwitchCoordinator.onTransition` cancels extension observations synchronously when switch/shutdown begins. Observers release their initial validation admission immediately; each actual memory request retains its own admission until transport settles, preserving the canonical save barrier.
 
+## Drawings
+
+The gateway serves `/drawing-frame` and `/drawing-app/*` from the bundled runtime without a session, like the shell, and keeps them out of request diagnostics. Drawing operations proxy the ordinary `/memories/all/drawings` routes to the selected brain: GET is observational; POST/PUT/PATCH/DELETE are writes and require that brain's editing approval. These write routes alone accept bodies up to 5 MiB. Verify with `node --test test/drawings.test.js` and the Mac-shell pass of `scripts/drawings-smoke.mjs`.
+
 ## Canonical brain boards
 
 Board operations proxy the ordinary authenticated `/memories/all/boards` routes to the selected local or remote brain. GET is observational; POST/PUT/DELETE are writes and require the profile's `allowWrites` permission. Existing generation/tab admission, queue draining and save barriers apply. There is no app-support board store, `/companion/collections` route or native CLI capability advertisement. Per-board content hashes protect layout changes. Copying the brain carries its organization; two profiles of the same brain see the same boards. See [agent boards](../../docs/boards.md).

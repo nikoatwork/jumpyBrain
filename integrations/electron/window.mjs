@@ -3,7 +3,7 @@ import { createSystemMessages } from './system-messages.mjs';
 import { BrowserWindow, dialog, Menu, MenuItem, shell } from 'electron';
 import { fileURLToPath } from 'node:url';
 import { mountInlineUpdates, nativeUpdateAction } from './update-inline.mjs';
-import { isAppNavigation, isExternalWebLink, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
+import { isAppNavigation, isDrawingFrameNavigation, isExternalWebLink, isFeedbackMailto, isFeedbackDownload } from './host.mjs';
 import { installBackNavigation } from './back-navigation.mjs';
 
 const editorOrigins = new WeakMap();
@@ -54,7 +54,8 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
   contents.once('destroyed', () => clearInterval(updateTimer));
   const session = contents.session;
   // The UI is served entirely by the installed gateway. It needs no external
-  // network access, Node bridge, preload script, or remote frames. The only
+  // network access, Node bridge, preload script, or remote frames (its one
+  // subframe is the gateway's own drawing editor). The only
   // download is a bounded feedback email draft saved through the native dialog.
   // Preserve the existing Copy draft / Copy prompt actions. Never grant
   // programmatic clipboard reads or permissions to another origin/frame.
@@ -115,6 +116,8 @@ export function createEditorWindow({ origin, key }, { confirmClose, openFeedback
     if (!isAppNavigation(url, origin)) event.preventDefault();
   });
   contents.on('will-frame-navigate', (event) => {
+    // One same-origin subframe is allowed: the drawing editor, opened by an app page.
+    if (!event.isMainFrame && isDrawingFrameNavigation(event.url, origin) && isAppNavigation(contents.getURL(), origin)) return;
     if (!event.isMainFrame || (!isAppNavigation(event.url, origin) && !isFeedbackMailto(event.url) && !(updater && nativeUpdateAction(event.url)))) event.preventDefault();
   });
   contents.on('will-redirect', (event) => event.preventDefault());

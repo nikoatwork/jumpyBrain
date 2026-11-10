@@ -79,6 +79,8 @@ Hosted rich search forwards the same opt-in recognition options to local-memory 
 
 ## Board organization
 
+`drawings.ts` exposes shared app drawing list/read/create/save/rename/delete against the server-local canonical root. Packets carry names, scenes and content hashes, never host paths, and never trigger indexing.
+
 `boards.ts` exposes shared app board CRUD/status against the server-local canonical root. Results contain layout/hashes and root-relative note provenance, never host paths. Protocol hosts own auth, precondition headers and write queuing. Board changes do not alter notes, dirty indexes or schedule indexing. Shared status discovers the corpus once per request, reads bounded evidence with cancellation, and rechecks the board hash.
 
 ## Explorer file operations

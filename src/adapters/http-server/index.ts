@@ -11,6 +11,7 @@ import type { AddressInfo } from "node:net";
 import { HTTP_MEMORY_ROUTES } from "../http-protocol.js";
 import { createFileLogger, type FileLogger } from "../logging/index.js";
 import { createRemoteIndexRunner, startRemoteAutoIndexer, type RemoteAutoIndexer, type RemoteIndexRunner } from "../../app/server-memory/auto-index.js";
+import { isDrawingStaticPath } from "./drawing-assets.js";
 import { RESPONSE_ERROR_CODE, errorResponse, routeRequest, writeJson, parseJsonBody, isJsonError } from "./routes.js";
 import path from "node:path";
 import { createDiagnosticStore, newDiagnosticId, type DiagnosticStore } from "../diagnostics/store.js";
@@ -105,7 +106,7 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
         if (request.headers.origin !== "http://" + request.headers.host && request.headers.origin !== "https://" + request.headers.host) {writeJson(response,403,errorResponse("untrusted_origin","Use the browser session origin."));return;}
         response.setHeader("Set-Cookie",cookieName + "=; Max-Age=0" + cookieAttributes(request)); writeJson(response,200,{signedOut:true});return;
       }
-      const publicPath = ["/", "/graph", "/graph/", "/favicon.svg", HTTP_MEMORY_ROUTES.health].includes(url.pathname);
+      const publicPath = ["/", "/graph", "/graph/", "/favicon.svg", HTTP_MEMORY_ROUTES.health].includes(url.pathname) || isDrawingStaticPath(url.pathname);
       let principal: Principal | undefined;
       if (!publicPath) {
         const header = request.headers.authorization;

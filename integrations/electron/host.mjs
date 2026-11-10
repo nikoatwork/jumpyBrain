@@ -29,6 +29,15 @@ export function isAppNavigation(value, origin) {
   } catch { return false; }
 }
 
+// The only permitted subframe: the gateway's own content-free drawing editor.
+export function isDrawingFrameNavigation(value, origin) {
+  try {
+    const url = new URL(value);
+    return url.origin === origin && !url.username && !url.password
+      && url.pathname === '/drawing-frame' && !url.search && !url.hash;
+  } catch { return false; }
+}
+
 // Read the existing control capability only in the main process. Never log it,
 // accept it on the command line, persist it in Electron storage, or read remote keys.
 export async function readControlKey(directory) {

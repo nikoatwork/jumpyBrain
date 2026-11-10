@@ -123,6 +123,12 @@ CLI extension-management commands use the focused app seam and are loaded only o
 
 The shared browser owns the action dispatcher, named contribution slots and optional nonce-protected extension UI/panel lifetimes. Its executable-extension presentation bundle is embedded only in companion shells; the ordinary editor bundle keeps its existing size gate. Native capabilities, draft protection, canonical concurrency and remote write approval remain with their existing owners. See [the author guide](../docs/extensions.md) and [extension host docs](app/extensions/extensions.docs.md).
 
+## Drawing ownership
+
+`core/drawings` owns `drawings/<Name>.excalidraw`: standard Excalidraw JSON, safe file access and hash-checked publication. `app/drawings` names the use cases; runtime exports the local seam and `app/server-memory/drawings` exposes it to thin authenticated HTTP routes that the Mac gateway proxies under its per-brain write approval. Drawings are workspace files beside canonical Markdown memory: no index, embedding, recall or CLI command reads them, and a note mentions one as `[[Name.excalidraw]]`.
+
+The editor is a separate application. `drawing-frame-entry.ts` bundles Excalidraw and React into `dist/adapters/http-server/drawing-app/`, served as public content-free files with their own CSP and loaded in a same-origin frame only when a drawing opens. The frame holds no credential and makes no memory request; the shell in `drawings-view.ts` owns loading, autosave, conflicts, navigation barriers and brain scoping. The framework-free note editor bundle and its size gate are unchanged. See [core](core/drawings/drawings.docs.md), [browser](adapters/http-server/browser.docs.md#drawings) and [measured footprint](../docs/build-footprint.md#2026-11-10-built-in-drawing-editor).
+
 ## Board ownership
 
 Canonical `core/boards` owns versioned JSON organization at `boards/<UUID>.json`, safe file access and hash-checked publication. `app/boards` composes layout changes and fresh bounded Markdown status evidence; runtime exports the local seam and `app/server-memory/boards` exposes it to thin authenticated HTTP routes. CLI uses ordinary local/remote transports. The Mac renderer proxies the same routes through its selected brain and write permissions. No database, app-support store, CLI-to-native dependency or board indexing is involved.

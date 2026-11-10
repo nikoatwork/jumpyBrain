@@ -10,6 +10,8 @@ import { SwitchCoordinator, ControlError } from './switch-coordinator.mjs';
 import { createExtensionGateway } from './extensions-gateway.mjs';
 
 const MAX_BODY = 1024 * 1024;
+// Matches the server's drawing transport allowance (4 MiB scene plus envelope).
+const DRAWING_MAX_BODY = 5 * 1024 * 1024;
 const MAX_RESPONSE = 16 * 1024 * 1024;
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && Buffer.byteLength(a) === Buffer.byteLength(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const failure = (code, message, status = 400) => { throw new ControlError(code, message, status); };
@@ -123,6 +125,10 @@ function allowedMemoryRoute(method, pathname) {
   if (method === 'POST' && pathname === '/memories/all/boards') return { write: true };
   if (['PUT', 'DELETE'].includes(method) && /^\/memories\/all\/boards\/[0-9a-f-]+$/.test(pathname)) return { write: true };
 
+  // Drawing names are single path segments; the target validates them again.
+  if (method === 'GET' && /^\/memories\/all\/drawings(?:\/[^/]+)?$/.test(pathname)) return { write: false };
+  if (method === 'POST' && pathname === '/memories/all/drawings') return { write: true, maxBody: DRAWING_MAX_BODY };
+  if (['PUT', 'PATCH', 'DELETE'].includes(method) && /^\/memories\/all\/drawings\/[^/]+$/.test(pathname)) return { write: true, maxBody: DRAWING_MAX_BODY };
   if (method === 'GET' && /^\/memories\/all\/(status|recent|attention|overview|tree|files|graph\.json|dream\/window)$/.test(pathname)) return { write: false };
   if (method === 'POST' && /^\/memories\/all\/(search|recall|recall\/compact|expand|resolve-title|dream\/sources\/check)$/.test(pathname)) return { write: false };
   if (method === 'GET' && /^\/memories\/all\/documents\/mem_[0-9a-f-]+$/.test(pathname)) return { write: false };
@@ -141,6 +147,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const store = await ConnectionStore.open({ directory, initialRoot, credentials });
   const coordinator = new SwitchCoordinator({ timeoutMs: switchTimeoutMs });
   const { graphPageHtml } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/graph-page.js')).href);
+  const { drawingStaticResponse, isDrawingStaticPath } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/drawing-assets.js')).href);
   const { brainFaviconSvg } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/favicon.js')).href);
   const { startJumpyBrainHttpServer } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/server/index.js')).href);
   const { createFeedbackForwarder, createFeedbackHandler } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-server/feedback-delivery.js')).href);
@@ -358,9 +365,14 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       if (request.headers.host !== new URL(origin).host) failure('untrusted_origin', 'Untrusted companion host.', 403);
       if (request.method === 'GET' && ['/','/graph','/graph/','/settings','/settings/'].includes(url.pathname)) {
         const nonce = randomBytes(18).toString('base64url');
-        const csp = `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+        const csp = `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; img-src 'self'; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': csp, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Content-Type-Options': 'nosniff' });
         response.end(graphPageHtml(nonce, url.pathname.startsWith('/graph') ? 'graph' : url.pathname.startsWith('/settings') ? 'settings' : 'home', { companion: true })); return;
+      }
+      // Public, content-free drawing editor frame and bundled files, like the shell.
+      if (isDrawingStaticPath(url.pathname)) {
+        const packet = drawingStaticResponse(request.method, url.pathname, request.headers['if-none-match']);
+        response.writeHead(packet.status, packet.headers); response.end(packet.body); return;
       }
       if (request.method === 'GET' && url.pathname === '/favicon.svg') {
         response.writeHead(200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff' }); response.end(brainFaviconSvg); return;
@@ -515,7 +527,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       try {
         const profile = active();
         if (policy.write && !profile?.allowWrites) failure('write_not_authorized', 'This brain is read only. Explicit editing approval is required in Settings.', 403);
-        const body = ['POST','PUT','PATCH','DELETE'].includes(request.method) ? await bytes(request, MAX_BODY) : undefined;
+        const body = ['POST','PUT','PATCH','DELETE'].includes(request.method) ? await bytes(request, policy.maxBody ?? MAX_BODY) : undefined;
         const headers = {};
         for (const name of ['content-type','if-match','idempotency-key']) if (request.headers[name]) headers[name] = request.headers[name];
         headers['X-JumpyBrain-Request'] = requestId;
@@ -539,7 +551,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       const status = error instanceof ControlError ? error.status : extensionError ? (extensionCode === 'extension_permission_denied' ? 403 : extensionCode === 'extension_stale' ? 409 : 400) : error?.code === 'REVISION_CONFLICT' ? 409 : known ? 400 : 500;
       json(response, status, error instanceof ControlError && error.packet ? error.packet : { error: { code: known ? error.code : extensionError ? extensionCode : 'companion_failed', message: known ? error.message : extensionError ? 'Extension operation failed. Check the installed package or reload extensions.' : 'Companion operation failed.' } });
     } finally {
-      if (url.pathname !== '/health' && !['/', '/graph', '/settings', '/favicon.svg', '/companion/diagnostics'].includes(url.pathname)) diagnostics.record({
+      if (url.pathname !== '/health' && !['/', '/graph', '/settings', '/favicon.svg', '/companion/diagnostics'].includes(url.pathname) && !isDrawingStaticPath(url.pathname)) diagnostics.record({
         operation: diagnosticOperation(url.pathname, request.method), request: requestId, status: response.statusCode,
         durationMs: performance.now() - started, outcome: response.statusCode >= 400 ? 'failed' : 'ok',
         severity: response.statusCode >= 400 ? 'warn' : 'info', code: errorCode === 'none' ? statusCode(response.statusCode) : errorCode,

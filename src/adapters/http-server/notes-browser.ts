@@ -1,3 +1,4 @@
+import { drawingsNavigationControl, drawingsSidebarMarkup } from "./drawings-view.js";
 import { folderExplorerToggle } from "./folder-explorer-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
@@ -386,11 +387,13 @@ export const notesMarkup = String.raw`
     <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
     <button id="new-note" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button id="new-board" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New board" title="New board" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16M15 4v7M15 16h6M18 13v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    ${drawingsNavigationControl}
     <button id="open-search" type="button" class="quiet-button nav-item sidebar-icon" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
   </div>
   <div class="nav-library" aria-label="Your pages">
     <div class="sidebar-attention-scroll">
       <div id="board-navigation" hidden><ul id="sidebar-boards" aria-label="Boards"></ul></div>
+      ${drawingsSidebarMarkup}
       <ul id="sidebar-recent" aria-label="Pages"></ul>
       <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
       <button id="sidebar-recent-more" class="quiet-button sidebar-list-more" hidden>Show more</button>
@@ -727,9 +730,10 @@ function createNoteSearch(options) {
       try {
         const payload = await options.fetch(search.query, request.signal);
         if (token !== generation) return;
-        search.results = normalizeNoteResults(payload?.results, options.resultLimit || 12, options.getExcludedDocumentId?.());
+        // File-name matches for drawings lead; they open or insert a mention, never a note ID.
+        search.results = [...(Array.isArray(payload?.drawings) ? payload.drawings : []), ...normalizeNoteResults(payload?.results, options.resultLimit || 12, options.getExcludedDocumentId?.())];
         search.recognition = payload?.recognition;
-        search.selected = search.results.findIndex((result) => result.documentId);
+        search.selected = search.results.findIndex((result) => result.documentId || result.drawing);
         if (requestedWriteRevision === writeRevision && typeof payload?.index?.stale === "boolean") localStale = payload.index.stale;
         search.stale = Boolean(payload?.index?.stale) || localStale;
         search.status = "ready";
@@ -752,7 +756,7 @@ function createNoteSearch(options) {
     else timer = options.setTimer(run, 180);
   }
   function move(delta) {
-    const available = search.results.map((result, index) => result.documentId ? index : -1).filter((index) => index >= 0);
+    const available = search.results.map((result, index) => result.documentId || result.drawing ? index : -1).filter((index) => index >= 0);
     if (!available.length) return;
     const position = available.indexOf(search.selected);
     search.selected = available[(position + delta + available.length) % available.length];
@@ -837,7 +841,15 @@ const noteSearch = createNoteSearch({
   setTimer: (callback, delay) => window.setTimeout(callback, delay),
   clearTimer: (timer) => window.clearTimeout(timer),
   abortController: () => new AbortController(),
-  fetch: (query, signal) => recentWrites.search(query, signal, 24, { offset: 0 }),
+  fetch: async (query, signal) => {
+    const drawings = typeof drawingsUI !== "undefined" ? await drawingsUI.match(query) : [];
+    try { return { ...await recentWrites.search(query, signal, 24, { offset: 0 }), drawings }; }
+    catch (error) {
+      // Drawing names need no index; keep them reachable when note search is unavailable.
+      if (!drawings.length || error?.name === "AbortError") throw error;
+      return { results: [], drawings };
+    }
+  },
   onChange: renderNoteSearch,
 });
 
@@ -898,6 +910,12 @@ async function activatePageReference(title) {
   if (referenceRequest || !origin?.state.loaded || origin.state.navigationPending
       || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
   referenceAutocomplete.dismiss();
+  const drawingReference = typeof drawingsUI !== "undefined" ? drawingsUI.referenceName(title) : null;
+  if (drawingReference) {
+    // A drawing mention opens the drawing; it never resolves or creates a note.
+    if (!await navigation.navigate("/?drawing=" + encodeURIComponent(drawingReference))) referenceMessage("Finish saving this note, then open the drawing again.", true);
+    return;
+  }
   const request = new AbortController();
   referenceRequest = request;
   const current = () => referenceRequest === request && !request.signal.aborted
@@ -1009,11 +1027,12 @@ function renderNoteSearch(search) {
       item.id = "search-result-" + index;
       item.className = "search-result";
       item.setAttribute("role", "option");
-      item.setAttribute("aria-disabled", String(!result.documentId));
+      item.setAttribute("aria-disabled", String(!result.documentId && !result.drawing));
+      if (result.drawing) item.dataset.kind = "drawing";
       const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       for (const [key, value] of Object.entries({ class: "search-result-icon", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) icon.setAttribute(key, value);
       const outline = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      outline.setAttribute("d", "M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8M8 16h6"); icon.append(outline);
+      outline.setAttribute("d", result.drawing ? "M3 12h8v8H3zM13 16a4 4 0 1 0 8 0 4 4 0 0 0-8 0M7 9l5-6 5 6Z" : "M14 3H5v18h14V8l-5-5Zm0 0v5h5M8 12h8M8 16h6"); icon.append(outline);
       const content = document.createElement("div"); content.className = "search-result-content";
       const title = document.createElement("strong"); JumpyBrainBrowser.appendSearchHighlight(title, result.title, search.query);
       title.title = result.title;
@@ -1021,7 +1040,7 @@ function renderNoteSearch(search) {
       JumpyBrainBrowser.appendSearchHighlight(snippet, JumpyBrainBrowser.searchPreview(result.snippet, result.title, search.query, result.recognition?.preview || ""), search.query);
       const file = document.createElement("small"); file.className = "search-result-path"; file.textContent = result.file; file.title = result.file;
       content.append(title, snippet, file);
-      if (!result.documentId) {
+      if (!result.documentId && !result.drawing) {
         const unavailable = document.createElement("small"); unavailable.className = "search-result-unavailable"; unavailable.textContent = "Unavailable: missing memory ID";
         content.append(unavailable);
       }
@@ -1057,9 +1076,9 @@ function renderNoteSearch(search) {
 }
 
 async function chooseSearchResult(result) {
-  if (!result?.documentId || selectingResult) return;
+  if ((!result?.documentId && !result?.drawing) || selectingResult) return;
   if (searchMode === "insert") { insertPageReference(result); return; }
-  const destination = "/?note=" + encodeURIComponent(result.documentId);
+  const destination = result.drawing ? "/?drawing=" + encodeURIComponent(result.drawing) : "/?note=" + encodeURIComponent(result.documentId);
   const url = typeof companionMode !== "undefined" && companionMode ? companionScopeUrl(destination) : destination;
   if (url === shellUrl()) { closeSearch(); return; }
   selectingResult = true;
@@ -1214,6 +1233,8 @@ if (hostedIdentityChannel) hostedIdentityChannel.onmessage = async (event) => {
   if (state.view === "note") await showNote(new URL(location.href).searchParams.get("note"));
   else if (state.view === "home") recentNotes.load();
   else if (state.view === "graph") loadGraph();
+  else if (state.view === "drawing") drawingsUI.show(new URL(location.href).searchParams.get("drawing"));
+  if (typeof drawingsUI !== "undefined") drawingsUI.connectionChanged();
   renderConnection();
 };
 $("connection-form").addEventListener("submit", async (event) => {
@@ -1226,9 +1247,11 @@ $("connection-form").addEventListener("submit", async (event) => {
   if (!changed) {$("connection-message").textContent = "Resolve or recover the pending draft before changing credentials."; return;}
   if (state.view === "home") recentNotes.load();
   if (reopenSearch) openSearch(searchMode, referenceSelection);
+  if (typeof drawingsUI !== "undefined") drawingsUI.connectionChanged();
   if (state.view === "note") {
     await showNote(new URL(location.href).searchParams.get("note"));
   } else if (state.view === "graph") loadGraph();
+  else if (state.view === "drawing") drawingsUI.show(new URL(location.href).searchParams.get("drawing"));
 });
 $("disconnect").addEventListener("click", async () => {
   $("disconnect").disabled = true;
@@ -1372,7 +1395,7 @@ function showPage(url) {
   if (typeof companionMode !== "undefined" && companionMode && !companionRegistered) return;
   if (typeof companionMode !== "undefined" && companionMode) {
     const requested = new URL(url, location.origin);
-    if ((requested.searchParams.has("note") || requested.searchParams.has("board")) && requested.searchParams.get("brain") !== companionState.activeId) {
+    if ((requested.searchParams.has("note") || requested.searchParams.has("board") || requested.searchParams.has("drawing")) && requested.searchParams.get("brain") !== companionState.activeId) {
       companionMessage("This note link belongs to another brain. Open a note from this brain instead.", true);
       url = companionScopeUrl("/");
       history.replaceState({ jumpyBrainIndex: initialEntry.index }, "", url);
@@ -1390,11 +1413,12 @@ function showPage(url) {
   const target = new URL(url, location.origin);
   const documentId = target.searchParams.get("note");
   if (typeof companionMode !== "undefined" && companionMode && state.view === "settings" && !/^\/settings\/?$/.test(target.pathname)) companionClearForm();
-  state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : companionMode && target.searchParams.has("board") ? "board" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
+  state.view = typeof companionMode !== "undefined" && companionMode && /^\/settings\/?$/.test(target.pathname) ? "settings" : companionMode && target.searchParams.has("board") ? "board" : target.searchParams.has("drawing") ? "drawing" : documentId !== null ? "note" : /^\/graph\/?$/.test(target.pathname) ? "graph" : "home";
   if (companionMode) { $("board-navigation").hidden=false; $("new-board").hidden=false; boardsUI.show(state.view === "board" ? target.searchParams.get("board") : null); }
   sidebarPages.select(documentId);
   folderExplorer.select(documentId);
   document.body.dataset.view = state.view;
+  if (typeof drawingsUI !== "undefined") drawingsUI.show(state.view === "drawing" ? target.searchParams.get("drawing") : null);
   if (companionMode) syncSettingsNavigation(url);
   if (typeof searchMaintenance !== "undefined") searchMaintenance?.check();
   if (state.view !== "graph") map.suspend();
@@ -1425,6 +1449,8 @@ function showPage(url) {
     $("companion-heading").focus();
   } else if (state.view === "board") {
     document.title = "Board · jumpyBrain";
+  } else if (state.view === "drawing") {
+    document.title = "Drawing · jumpyBrain";
   } else if (state.view === "graph") {
     if (!map.hasCurrentGraph()) loadGraph(); else queueGraphLayout(0, true);
     $("query").focus({ preventScroll: true });
@@ -1783,11 +1809,11 @@ function insertPageReference(result) {
     renderNoteSearch(noteSearch.state);
     return;
   }
-  const problem = pageReferenceError(result, noteSearch.state.results);
+  const problem = result.drawing ? "" : pageReferenceError(result, noteSearch.state.results);
   if (problem) { noteSearch.state.feedback = problem; renderNoteSearch(noteSearch.state); return; }
   closeSearch();
   editor.focus({ preventScroll: true });
-  const text = "[[" + result.referenceTitle + "]]";
+  const text = "[[" + (result.drawing ? result.drawing + ".excalidraw" : result.referenceTitle) + "]]";
   if (!richEditor.insertReference(range, text)) {
     richEditor.restoreSelection(searchSelection.selection);
     $("capture-message").hidden = false;

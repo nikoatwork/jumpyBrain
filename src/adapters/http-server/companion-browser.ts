@@ -208,7 +208,7 @@ function companionScopeUrl(value) {
   const url = new URL(value, location.origin);
   if (url.origin !== location.origin) throw new Error("Invalid companion navigation.");
   const brain = url.searchParams.get("brain");
-  if ((url.searchParams.has("note") || url.searchParams.has("board")) && brain && brain !== companionState?.activeId) {
+  if ((url.searchParams.has("note") || url.searchParams.has("board") || url.searchParams.has("drawing")) && brain && brain !== companionState?.activeId) {
     throw new Error("This note belongs to another brain.");
   }
   if (companionState?.activeId) url.searchParams.set("brain", companionState.activeId);
@@ -398,7 +398,7 @@ function companionApplyState(next) {
 function companionInitialRoute() {
   companionRendered = true;
   const requested = new URL(location.href);
-  const mismatch = (requested.searchParams.has("note") || requested.searchParams.has("board")) && requested.searchParams.get("brain") !== companionState.activeId;
+  const mismatch = (requested.searchParams.has("note") || requested.searchParams.has("board") || requested.searchParams.has("drawing")) && requested.searchParams.get("brain") !== companionState.activeId;
   const url = mismatch ? companionScopeUrl("/") : companionScopeUrl(shellUrl());
   history.replaceState({ jumpyBrainIndex: 0 }, "", url);
   navigation.reset({ url, index: 0 });
@@ -414,7 +414,9 @@ async function companionBarrier(switchId) {
     if (Date.now() >= deadline) break;
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
-  let ok = !(typeof boardsUI !== "undefined" && boardsUI.pending()) && !documentActions.isBusy() && !creatingNote && !navigation.isBusy() && !companionNoteLoading && !noteCapture.hasPending();
+  // Flush an open drawing against the old brain; an unconfirmed save refuses the switch.
+  const drawingSaved = typeof drawingsUI === "undefined" || await drawingsUI.flush();
+  let ok = drawingSaved && !(typeof boardsUI !== "undefined" && boardsUI.pending()) && !documentActions.isBusy() && !creatingNote && !navigation.isBusy() && !companionNoteLoading && !noteCapture.hasPending();
   if (ok && state.editor) {
     const editor = state.editor;
     editor.setNavigationPending(true);

@@ -16,6 +16,8 @@ export const HTTP_MEMORY_ROUTES = {
   notes: `${MEMORY_PREFIX}/notes`,
   boards: `${MEMORY_PREFIX}/boards`,
   boardsPrefix: `${MEMORY_PREFIX}/boards/`,
+  drawings: `${MEMORY_PREFIX}/drawings`,
+  drawingsPrefix: `${MEMORY_PREFIX}/drawings/`,
   attention: `${MEMORY_PREFIX}/attention`,
   recent: `${MEMORY_PREFIX}/recent`,
   resolveTitle: `${MEMORY_PREFIX}/resolve-title`,
@@ -42,6 +44,10 @@ export function decodeMemoryDocumentPath(pathname: string): string | Error {
   } catch {
     return new Error("Invalid memory document id encoding.");
   }
+}
+
+export function memoryDrawingPath(name: string): string {
+  return `${HTTP_MEMORY_ROUTES.drawingsPrefix}${encodeURIComponent(name)}`;
 }
 
 export function memoryDreamBatchPath(batchId: string): string {
