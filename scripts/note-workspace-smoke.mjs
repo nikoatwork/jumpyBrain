@@ -79,7 +79,7 @@ try {
   assert.equal(await page.locator('#copy-note-file-path').isHidden(), true, 'hosted notes do not claim a local absolute path');
   assert.equal(await page.locator('#note-details-content').isHidden(), true);
   assert.equal(await page.locator('#format-controls').isHidden(), true, 'formatting is folded on note entry');
-  assert.equal(await page.locator('#insert-reference').innerText(), 'Link', 'linking stays directly reachable');
+  assert.equal(await page.locator('#insert-reference').count(), 0, 'reference insertion uses inline completion');
   assert.equal(await page.locator('#delete-note').isVisible(), true);
   assert.equal(await page.locator('#copy-note-draft').getAttribute('aria-label'), 'Copy');
   await page.locator('#note-outline-control').waitFor();
@@ -90,6 +90,8 @@ try {
   assert.equal(headings.length, 8);
   assert.equal(await page.locator('#saved-version-editor').innerText(), 'Agent · Research assistant');
   assert.equal(await page.locator('#note-file').innerText(), location);
+  assert.match(await page.locator('#saved-version-written').innerText(), /2026/);
+  assert.notEqual(await page.locator('#saved-version-written').innerText(), await page.locator('#saved-version-edited').innerText());
   assert.equal(await page.locator('#note-editor-hint').isHidden(), true);
   assert.equal(await page.locator('#saved-version-editor img').count(), 0);
 
@@ -265,9 +267,8 @@ try {
   await saved(page);
   await page.locator('#toggle-note-format').click();
   await editorEnd(page); await page.keyboard.press('End'); await page.keyboard.press('Enter');
-  await page.locator('#insert-reference').click();
-  await page.locator('#note-search-input').fill('Coworker review');
-  await page.locator('#search-results [role=option]').filter({ hasText: 'Coworker review' }).first().click();
+  await page.keyboard.type('[[Coworker');
+  await page.locator('[data-reference-autocomplete] [role=option]').filter({ hasText: 'Coworker review' }).first().click();
   await saved(page);
   assert.match(await editorMarkdown(page), /\[\[Coworker review\]\]/);
   await page.locator('#toggle-page-details').click();

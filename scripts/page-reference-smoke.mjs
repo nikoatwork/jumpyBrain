@@ -383,7 +383,7 @@ async function persistence(page, { mobile }) {
   await saved(page);
   await editorEnd(page);
   const beforePicker = await editorMarkdown(page);
-  await page.locator("#insert-reference").click();
+  await page.evaluate(() => openReferenceSearch());
   await page.locator("#note-search-input").fill("luminous");
   const row = page.locator("#search-results [role=option]").filter({ hasText: target.title }).first();
   await row.waitFor({ state: "visible" });

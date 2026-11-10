@@ -365,7 +365,7 @@ try {
   checks.push('editing and autosave');
   assert.equal(await js('document.getElementById("copy-note-draft").getAttribute("aria-label")'), 'Copy');
   assert.equal(await js('document.getElementById("format-controls").hidden'), true);
-  assert.equal(await js('document.getElementById("insert-reference").textContent.trim()'), 'Link');
+  assert.equal(await js('document.getElementById("insert-reference") === null'), true);
 
   const foldedBytes = await readFile(existingNote, 'utf8');
   await js('document.getElementById("toggle-note-format").focus()');

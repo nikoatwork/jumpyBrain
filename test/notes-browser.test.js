@@ -374,6 +374,7 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   assert.notEqual($("search-results").children[0], row, "a new query's results should replace old rows");
   const known = $("search-results").children[0];
   assert.equal(known.children[2].className, "search-result-age");
+  assert.match(known.children[2].textContent, /^Edited /);
   assert.match(known.children[2].attrs["aria-label"], /Last edited 2026-10-22/);
   assert.doesNotMatch(known.children[2].title, /Declared editor|Created/);
   assert.deepEqual(known.children[1].children.map(child => child.textContent), ["Beta", "new", "notes/beta.md"]);

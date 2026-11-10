@@ -23,7 +23,8 @@ const id = "mem_a0000000-0000-4000-8000-000000000001";
 test("entire inline browser script parses and daily controls are available", () => {
   assert.doesNotThrow(() => new vm.Script(script));
   const html = graphPageHtml("dailytest");
-  for (const control of ["home-new", "new-note", "insert-reference", "capture-message", "reference-help"]) assert.match(html, new RegExp('id="' + control + '"'));
+  assert.doesNotMatch(html, /id="insert-reference"/);
+  for (const control of ["home-new", "new-note", "capture-message", "reference-help"]) assert.match(html, new RegExp('id="' + control + '"'));
 });
 
 test("Cmd/Ctrl+Enter creates notes while browser shortcuts remain untouched", () => {

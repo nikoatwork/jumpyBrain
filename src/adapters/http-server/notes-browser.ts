@@ -250,7 +250,6 @@ ${referencePresentationStyles}
     #note-save-error[data-review="true"] { color: var(--ink-soft); }
     .capture-feedback { margin: 0; padding: 0 var(--space-6); font-size: var(--text-caption); color: var(--ink-soft); }
     .capture-feedback[data-error="true"] { color: var(--error-ink); }
-    #insert-reference { margin: 0; width: auto; font-size: var(--text-ui); }
     button:disabled { cursor: wait; opacity: .65; }
     .save-state { color: var(--ink-soft); font-size: var(--text-caption); white-space: nowrap; }
     .save-state[data-state="failed"], #note-message[data-error="true"] { color: var(--error-ink); }
@@ -260,6 +259,8 @@ ${referencePresentationStyles}
     #related-pages h2 { margin: 0 0 var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-regular); }
     #related-pages-list { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }
     #related-pages-list li { min-width: 0; max-width: 100%; }
+    #related-page-preview { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: min(320px, calc(100vw - 16px)); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink-soft); box-shadow: var(--shadow-lg); font-size: var(--text-ui); pointer-events: none; }
+    #related-page-preview span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; white-space: normal; }
     #related-pages-list a { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .note-frontmatter { margin-top: var(--space-6); color: var(--ink-soft); font-size: var(--text-caption); }
     .note-frontmatter summary { cursor: pointer; width: fit-content; }
@@ -477,11 +478,11 @@ export const documentActionsMarkup = String.raw`
   </details>
 </dialog>
 <dialog id="document-delete" class="document-dialog" aria-labelledby="delete-title">
-  <h2 id="delete-title">Permanently delete note?</h2>
+  <h2 id="delete-title">Delete note?</h2>
   <p id="delete-note-title"></p>
   <p>Deleting this note cannot be undone.</p>
   <p id="delete-message" role="status" aria-live="polite"></p>
-  <div class="dialog-actions"><button id="delete-cancel" class="quiet-button">Cancel</button><button id="delete-confirm" class="quiet-button" disabled>Permanently delete note</button></div>
+  <div class="dialog-actions"><button id="delete-cancel" class="quiet-button">Cancel</button><button id="delete-confirm" class="quiet-button" disabled>Delete</button></div>
 </dialog>
 `;
 
@@ -529,7 +530,6 @@ export const notesViews = String.raw`
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
       <div class="note-tool-row" role="group" aria-label="Writing tools">
         <button id="toggle-note-format" class="quiet-button" type="button" aria-expanded="false" aria-controls="format-controls" hidden><span aria-hidden="true">Aa</span><span>Format</span><svg class="format-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 10 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button id="insert-reference" class="quiet-button" type="button" aria-label="Link · Insert page reference" title="Insert page reference" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Link</span></button>
       </div>
       <div id="format-controls" role="group" aria-label="Text formatting" hidden>
         <div class="format-group" role="group" aria-label="Text styles">
@@ -570,7 +570,7 @@ export const notesViews = String.raw`
       <div id="note-details-content" hidden>
       <section class="saved-version" aria-label="Saved version">
 
-        <dl><dt>Saved note · last editor</dt><dd id="saved-version-editor"></dd><dt>Last edited</dt><dd id="saved-version-edited"></dd><dt>Location</dt><dd id="note-file"></dd></dl>
+        <dl><dt>Saved note · last editor</dt><dd id="saved-version-editor"></dd><dt>Written</dt><dd id="saved-version-written"></dd><dt>Last edited</dt><dd id="saved-version-edited"></dd><dt>Location</dt><dd id="note-file"></dd></dl>
         <p class="context-caption">Editor names are declared by the writing tool.</p>
       </section>
       <details id="living-sources" class="note-frontmatter" hidden>
@@ -1028,7 +1028,7 @@ function renderNoteSearch(search) {
       item.append(icon, content);
       const editContext = JumpyBrainBrowser.resultEditContext(result.recognition);
       if (editContext.label) {
-        const edit = document.createElement("small"); edit.className = "search-result-age"; edit.textContent = editContext.label;
+        const edit = document.createElement("small"); edit.className = "search-result-age"; edit.textContent = "Edited " + editContext.label;
         edit.title = editContext.details; edit.setAttribute("aria-label", editContext.details);
         item.append(edit);
       }
@@ -1322,6 +1322,7 @@ const relatedPages = JumpyBrainBrowser.installRelatedPages({
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : "hosted"),
   enabled: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   search: (query, signal, limit) => recentWrites.search(query, signal, limit),
+  read: (id, signal) => graphJson("/memories/all/documents/" + encodeURIComponent(id), { signal }),
   href: (id) => companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(id)) : "/?note=" + encodeURIComponent(id),
   navigate: (url) => navigation.navigate(url),
 });
@@ -1465,7 +1466,6 @@ async function showNote(documentId, focusEnd = false) {
     $("copy-note-draft").hidden = true;
     $("copy-note-file-path").hidden = true;
     $("delete-note").hidden = true;
-    $("insert-reference").hidden = true;
     $("note-save-state").textContent = "";
     $("note-external-state").textContent = "";
     $("note-load-retry").hidden = true;
@@ -1689,8 +1689,6 @@ function syncEditorUi(editorState) {
   if (editorState.navigationPending || !editorState.loaded) referenceAutocomplete.dismiss();
   richEditor.setReadOnly(editorState.navigationPending || companionLocked);
   for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending || companionLocked;
-  $("insert-reference").hidden = !editorState.loaded;
-  $("insert-reference").disabled = editorState.navigationPending || companionLocked;
   if (editorState.loaded) {
     if (!noteTitleComposing && $("note-name").value !== editorState.title) $("note-name").value = editorState.title;
     sizeNoteName();
@@ -1774,7 +1772,6 @@ function openReferenceSearch() {
   const range = richEditor.referenceRange();
   if (range) openSearch("insert", range);
 }
-$("insert-reference").addEventListener("click", openReferenceSearch);
 $("format-controls").addEventListener("mousedown", (event) => { if (event.target.closest("button")) event.preventDefault(); });
 for (const button of document.querySelectorAll("[data-format]")) button.addEventListener("click", () => richEditor.format(button.dataset.format));
 function insertPageReference(result) {

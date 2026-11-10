@@ -135,7 +135,7 @@ try {
         return { age: age.textContent, ageRight: ageBounds.right, ageCenter: ageBounds.y + ageBounds.height / 2, rowCenter: bounds.y + bounds.height / 2, iconRight: icon.getBoundingClientRect().right, contentLeft: content.getBoundingClientRect().left, rowRight: bounds.right, titleRight: title.getBoundingClientRect().right,
           previewHeight: preview.clientHeight, lineHeight: parseFloat(style.lineHeight), nowrap: style.whiteSpace, ellipsis: style.textOverflow, overflow: row.scrollWidth > row.clientWidth };
       });
-      assert.equal(layout.age, "1d");
+      assert.equal(layout.age, "Edited 1d");
       assert.ok(layout.ageRight > layout.titleRight && layout.rowRight - layout.ageRight <= 13, "edit age stays at the right edge");
       assert.ok(Math.abs(layout.ageCenter - layout.rowCenter) < 1, "edit age is centered in its own column");
       assert.ok(layout.iconRight < layout.contentLeft, "note icon has a separate left column");
@@ -185,7 +185,7 @@ try {
         await page.waitForFunction(() => [...document.querySelectorAll(".search-result-preview")].some(node => node.textContent.includes("freshly edited personal")));
         assert.equal(await page.locator("#search-refresh-index").isVisible(), true, "stale saved-note results keep actionable refresh");
         const savedRow = page.locator("#search-results li").filter({ hasText: "freshly edited personal" });
-        assert.match(await savedRow.locator(".search-result-age").innerText(), /^(?:now|\d+[mh])$/);
+        assert.match(await savedRow.locator(".search-result-age").innerText(), /^Edited (?:now|\d+[mh])$/);
         assert.match(await page.locator("#search-results").innerText(), /freshly edited personal/);
         // Reset the fixture and refresh the index for the next layout.
         await writeFile(path.join(root, notes[0].file), notes[0].content);

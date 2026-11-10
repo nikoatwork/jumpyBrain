@@ -13,7 +13,7 @@ test('saved-version context labels only the exact local human identity as You', 
 });
 
 test('unavailable recognition cannot expose stale editor or date', () => {
-  const unknown = { editor: 'Editor unknown', edited: 'Date unknown' };
+  const unknown = { editor: 'Editor unknown', written: 'Date unknown', edited: 'Date unknown' };
   assert.deepEqual(savedVersionContext(undefined, you), unknown);
   assert.deepEqual(savedVersionContext({ metadataStatus: 'unavailable', editor: { kind: 'agent', name: 'Old name' }, updatedAt: '2026-10-28T12:00:00Z' }, you), unknown);
   assert.deepEqual(savedVersionContext({ metadataStatus: 'current', updatedAt: 'invalid' }, you), unknown);
@@ -34,4 +34,15 @@ test('saved-version dates preserve date-only evidence and reject invalid calenda
   for (const invalid of ['2026-02-30', '2026-02-30T12:00:00Z', '2026-13-01', '2026-10-28T25:00:00Z', 'October 28, 2026', '2026-10-28T12:00:00']) {
     assert.equal(edited(invalid), 'Date unknown', invalid);
   }
+});
+
+
+test('written and edited dates remain separate from each other and evidence dates', () => {
+  const context = savedVersionContext({ metadataStatus: 'current', createdAt: '2026-09-01', updatedAt: '2026-10-28', evidenceDate: '1998-01-01' }, you);
+  assert.equal(context.written, '2026-09-01');
+  assert.equal(context.edited, '2026-10-28');
+  assert.equal(savedVersionContext({ metadataStatus: 'current', createdAt: '2026-09-01' }, you).edited, 'Date unknown');
+  assert.equal(savedVersionContext({ metadataStatus: 'current', updatedAt: '2026-10-28' }, you).written, 'Date unknown');
+  assert.equal(savedVersionContext({ metadataStatus: 'unavailable', createdAt: '2026-09-01' }, you).written, 'Date unknown');
+  assert.equal(savedVersionContext({ metadataStatus: 'current', createdAt: '2026-02-30' }, you).written, 'Date unknown');
 });

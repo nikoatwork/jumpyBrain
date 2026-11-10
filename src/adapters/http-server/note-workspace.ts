@@ -11,8 +11,11 @@ export function savedVersionContext(recognition: SearchRecognitionMetadata | und
   const label = editor?.kind === "human"
     ? actor.id && editor.id === actor.id ? "You" : editor.name ? "Person · " + editor.name : "A person"
     : editor?.kind === "agent" ? editor.name ? "Agent · " + editor.name : "An agent" : "Editor unknown";
-  const date = current ? metadataDate(recognition.updatedAt) : undefined;
-  return { editor: label, edited: date?.length === 10 ? date : date ? new Date(date).toLocaleString(undefined, { timeZoneName: "short" }) : "Date unknown" };
+  const format = (value: unknown) => {
+    const date = current ? metadataDate(value) : undefined;
+    return date?.length === 10 ? date : date ? new Date(date).toLocaleString(undefined, { timeZoneName: "short" }) : "Date unknown";
+  };
+  return { editor: label, written: format(recognition?.createdAt), edited: format(recognition?.updatedAt) };
 }
 
 /** View-only context over the existing editor. Transport and save policy stay with the host. */
@@ -53,6 +56,7 @@ export function installNoteWorkspace(options: {
       key = next;
       $("note-file").textContent = "";
       $("saved-version-editor").textContent = "";
+      $("saved-version-written").textContent = "";
       $("saved-version-edited").textContent = "";
       showFormatting(false, tools.contains(doc.activeElement));
       show(false, panel.contains(doc.activeElement));
@@ -71,6 +75,7 @@ export function installNoteWorkspace(options: {
     if (!loaded) return;
     const context = savedVersionContext(state.recognition, options.actor());
     $("saved-version-editor").textContent = context.editor;
+    $("saved-version-written").textContent = context.written;
     $("saved-version-edited").textContent = context.edited;
     $("note-file").textContent = state.file || "Location unavailable";
   }

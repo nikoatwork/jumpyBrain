@@ -40,8 +40,10 @@ export async function checkPageActions(page, { companion = false } = {}) {
     if (rowWidth !== undefined) assert.ok(before.width < rowWidth - 16, 'Add to board is compact beside the full-width More info disclosure');
     rowWidth = before.width;
     await row.focus();
-    await page.keyboard.press('Tab');
+    // More info can be the final tab stop when no related notes are present.
+    // Start backwards so this checks app focus rather than the browser chrome.
     await page.keyboard.press('Shift+Tab');
+    await page.keyboard.press('Tab');
     assert.equal(await row.evaluate(el => el === document.activeElement), true, 'keyboard returns to the action');
     assert.equal(await row.evaluate(el => getComputedStyle(el).outlineStyle), 'solid', 'keyboard focus stays visible');
   }

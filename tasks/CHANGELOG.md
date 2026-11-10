@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-10 — Four UI follow-ups
+
+- Added written/edited labels and related-note hover previews; removed the reference button and simplified deletion confirmation. [Implementation and checks](done/2026-11-10_tasks-four-ui-requests.md).
+
 ## 2026-11-10 — Single-user attention and recovery
 
 - Fixed clean active-note attention rejection and unnecessary recovery after changed-source backend restarts, retaining private-draft safeguards. [Verification and historical limits](done/2026-11-10_tasks-single-user-recovery-settlement.md).

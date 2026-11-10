@@ -46,13 +46,31 @@ try {
   }
   await page.waitForFunction(() => document.querySelectorAll('#related-pages-list a').length === 5);
   assert.ok((await page.locator('#related-pages-list a').evaluateAll(links => links.map(a => a.href))).every(url => !url.includes('note=' + id(1))));
+  const preview = page.locator('#related-page-preview');
+  const firstLink = page.locator('#related-pages-list a').first();
+  await firstLink.scrollIntoViewIfNeeded();
+  await firstLink.hover();
+  await preview.waitFor({ state: 'visible' });
+  await page.waitForFunction(() => document.querySelector('#related-page-preview').textContent.includes('improves with consistent habits'));
+  assert.equal(await firstLink.getAttribute('aria-describedby'), 'related-page-preview');
+  assert.equal(await preview.locator('img, script, a').count(), 0);
+  await page.keyboard.press('Escape'); await preview.waitFor({ state: 'hidden' });
+  await firstLink.focus(); await preview.waitFor({ state: 'visible' });
+  await page.keyboard.press('Escape'); await preview.waitFor({ state: 'hidden' });
+  await page.locator('#note-name').focus();
   for (const theme of ['light', 'dark']) for (const width of [1280, 390, 320]) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(theme => document.documentElement.dataset.theme = theme, theme);
     await page.locator('#related-pages').scrollIntoViewIfNeeded();
     assert.equal(await page.locator('#related-pages-list a').count(), 5);
     assert.ok(await page.locator('#related-pages').evaluate(el => el.getBoundingClientRect().right <= innerWidth));
+    await page.locator('#related-pages-list a').first().focus();
+    await preview.waitFor({ state: 'visible' });
+    assert.ok(await preview.evaluate(el => { const box = el.getBoundingClientRect(); return box.x >= 0 && box.right <= innerWidth && box.y >= 0 && box.bottom <= innerHeight; }));
+    assert.equal(await preview.locator('span').evaluate(el => getComputedStyle(el).webkitLineClamp), '2');
     await page.screenshot({ path: path.join(shots, `related-${theme}-${width}.png`) });
+    await page.keyboard.press('Escape');
+    await page.locator('#note-name').focus();
   }
   assert.deepEqual(mutations, [], 'automatic discovery never writes or indexes');
   // Edge evidence uses bounded read-response fixtures over the same production UI.
@@ -62,6 +80,34 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('#related-pages-list a').length === 3);
   assert.equal(await page.locator('#related-pages img').count(), 0);
   assert.equal(await page.locator('#related-pages-list a').first().textContent(), '<img src=x>');
+  await page.route('**/memories/all/documents/' + id(3), route => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: id(3), content: '# Preview\n\n**Readable** <img src=x onerror=alert(1)> ' + 'Long plain-text preview. '.repeat(30) }) }));
+  await page.locator('#related-pages-list a').nth(1).focus();
+  await page.waitForFunction(() => document.querySelector('#related-page-preview').textContent.includes('Readable <img'));
+  assert.equal(await preview.locator('img, script').count(), 0, 'body preview is text, never active HTML');
+  assert.ok(await preview.locator('span').evaluate(el => el.getBoundingClientRect().height <= 2 * parseFloat(getComputedStyle(el).lineHeight) + 1));
+  await page.keyboard.press('Escape');
+  await page.unroute('**/memories/all/documents/' + id(3));
+  await page.route('**/memories/all/documents/' + id(2), route => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+  await page.locator('#related-pages-list a').first().focus();
+  await page.waitForFunction(() => document.querySelector('#related-page-preview').textContent === 'Preview unavailable.');
+  await page.keyboard.press('Escape');
+  await page.unroute('**/memories/all/documents/' + id(2));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  let releasePreview;
+  const heldPreview = new Promise(resolve => { releasePreview = resolve; });
+  let previewStarted;
+  const previewAdmitted = new Promise(resolve => { previewStarted = resolve; });
+  await page.route('**/memories/all/documents/' + id(2), async route => {
+    previewStarted(); await heldPreview;
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: id(2), content: 'Late private preview' }) }).catch(() => {});
+  });
+  await page.locator('#note-name').focus();
+  await page.locator('#related-pages-list a').first().focus(); await previewAdmitted;
+  await page.locator('#home-link').click(); releasePreview();
+  await page.waitForLoadState('networkidle');
+  assert.equal(await preview.isVisible(), false);
+  assert.equal(await preview.textContent(), '', 'late preview cannot survive navigation');
+  await page.unroute('**/memories/all/documents/' + id(2));
   for (const value of [{ results: [] }, { index: { stale: true }, results: [hit(2, .99)] }]) {
     packet = value; await open(); await page.waitForLoadState('networkidle');
     assert.equal(await page.locator('#related-pages').isVisible(), false);
@@ -122,10 +168,13 @@ try {
   await context.request.post(gateway.url + '/companion/session', { data: { token: controlKey }, headers: { Origin: gateway.url } });
   const companion = await context.newPage(); companion.on('pageerror', error => errors.push(error.message));
   await companion.goto(`${gateway.url}/?note=${id(1)}&brain=${a.id}`);
-  await companion.locator('#note-editor').waitFor();
+  await companion.locator('#note-editor').waitFor({ state: 'visible' });
   // Earlier human save made A stale; explicit test setup publishes it now.
   assert.equal((await fetch(server.url + '/memories/all/index', { method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' }, body: '{}' })).status, 200);
   await companion.reload(); await companion.locator('#related-pages-list a').first().waitFor();
+  await companion.locator('#related-pages-list a').first().scrollIntoViewIfNeeded();
+  await companion.locator('#related-pages-list a').first().focus();
+  await companion.waitForFunction(() => document.querySelector('#related-page-preview').textContent.includes('Sleep quality'));
   const oldLink = await companion.locator('#related-pages-list a').first().getAttribute('href');
   assert.ok(oldLink.includes('brain=' + a.id), 'links retain their brain identity');
   await companion.locator('select[aria-label="Switch brain"]').selectOption(b.id);
@@ -134,6 +183,10 @@ try {
   await companion.goto(`${gateway.url}/?note=${id(1)}&brain=${b.id}`);
   await companion.locator('#related-pages-list a').first().waitFor();
   assert.ok((await companion.locator('#related-pages-list a').allTextContents()).every(title => title.startsWith('Garden planning')));
+  await companion.locator('#related-pages-list a').first().scrollIntoViewIfNeeded();
+  await companion.locator('#related-pages-list a').first().focus();
+  await companion.waitForFunction(() => document.querySelector('#related-page-preview').textContent.includes('Garden planning'));
+  assert.doesNotMatch(await companion.locator('#related-page-preview').innerText(), /Sleep quality/);
   assert.equal(await companion.locator('#note-name').getAttribute('readonly') !== null, true, 'discovery works on a read-only brain');
   await context.close();
   assert.deepEqual(errors, []);

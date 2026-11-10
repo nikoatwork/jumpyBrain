@@ -170,7 +170,7 @@ try {
     const referenceTitle = "snake_case **literal**";
     await page.route("**/memories/all/search*", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ results: [{ provenance: { file: "notes/preservation.md", metadata: { id, title: referenceTitle } } }], index: { stale: false }, recognition: { version: 1, candidates: 1, metadataUnavailable: 0 } }) }));
     await appendEditorText(page, "\nReference: ");
-    await page.locator("#insert-reference").click();
+    await page.evaluate(() => openReferenceSearch());
     await page.locator("#note-search-input").fill("snake");
     await page.locator("#search-results [role=option]").first().waitFor();
     await page.keyboard.press("Enter");

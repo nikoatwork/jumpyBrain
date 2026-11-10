@@ -88,6 +88,9 @@ try {
   await page.waitForFunction(()=>!document.getElementById('delete-confirm').disabled);
   assert.equal(await page.locator('#delete-references').count(),0);
   assert.match(await page.locator('#document-delete').innerText(),/Deleting this note cannot be undone/);
+  assert.equal(await page.locator('#delete-title').innerText(), 'Delete note?');
+  assert.equal(await page.locator('#delete-confirm').innerText(), 'Delete');
+  assert.equal(await page.locator('#delete-cancel').evaluate(el => document.activeElement === el), true, 'Cancel has initial focus');
   if(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR){await mkdir(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR,'delete-preview.png')});}
   await page.locator('#delete-cancel').click();assert.ok(await readMemoryDocument(root,id));
   await page.locator('#delete-note').click();await page.waitForFunction(()=>!document.getElementById('delete-confirm').disabled);

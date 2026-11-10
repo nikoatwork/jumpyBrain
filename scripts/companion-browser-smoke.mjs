@@ -417,7 +417,7 @@ try {
   await editor.waitForFunction(() => document.getElementById("note-save-state").textContent === "Saved");
   assert.ok(documents.get("a").content.includes("[[Fixture a]]"), "@ selection saves as canonical brackets");
   assert.ok(!documents.get("a").content.includes("@Fix"), "the transient @ query is replaced");
-  assert.match(await editor.locator("#insert-reference").getAttribute("title"), /type @/);
+  assert.equal(await editor.locator("#insert-reference").count(), 0);
   assert.deepEqual(failedSearches, [], "healthy polls must not abort Search or reference queries");
   searchDelay = 0;
 
@@ -442,7 +442,7 @@ try {
   assert.equal(await editor.locator("#note-name").evaluate((element) => element.readOnly), true);
   assert.equal(await editor.locator("#new-note").isDisabled(), true);
   assert.equal(await editor.getByRole("checkbox").isDisabled(), true);
-  assert.equal(await editor.locator("#insert-reference").isDisabled(), true);
+  assert.equal(await editor.locator("#insert-reference").count(), 0);
   assert.equal(await editor.locator(".app-nav").evaluate((element) => element.inert), true);
   await settings.waitForURL("**/settings?brain=b");
   writeDelay = 0;

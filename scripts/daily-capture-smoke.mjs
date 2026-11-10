@@ -194,7 +194,7 @@ async function validateCreation(page, label) {
   await page.reload();
   await opened(page, result.id);
   assert.equal(await editorMarkdown(page), draft, "body survives real PUT and reload");
-  await layout(page, ["#new-note", "#insert-reference", "#open-search", "#open-connection"]);
+  await layout(page, ["#new-note", "#open-search", "#open-connection"]);
   await capture(page, `${label}-editor.png`);
   assert.equal(requests.length, 1);
 }
@@ -206,7 +206,7 @@ async function validateSearchRoundtrip(page) {
   await replaceEditorText(page, body + "[[Luminous Orchard Exact Reference]] tail");
   // Insert from the middle of an existing reference, preserving the suffix and native undo.
   await selectEditorText(page, body.length + 7);
-  await page.locator("#insert-reference").click();
+  await page.evaluate(() => openReferenceSearch());
   await picker(page);
   await searchRealReference(page);
   await page.keyboard.press("Enter");
@@ -319,7 +319,7 @@ async function validateReferences(page, label) {
   await saved(page);
   await editorEnd(page);
   const url = page.url();
-  await page.locator("#insert-reference").click();
+  await page.evaluate(() => openReferenceSearch());
   await picker(page);
   await searchRealReference(page);
   await layout(page, ["#note-search-input", "#close-search"]);
@@ -372,7 +372,7 @@ async function validateReferences(page, label) {
   await nativeUndo(page);
   assert.equal(await editorMarkdown(page), queryTrigger, "undo restores exact pre-insertion query trigger text");
   // Save a final real reference by pointer, then confirm canonical Markdown and reload.
-  await page.locator("#insert-reference").click();
+  await page.evaluate(() => openReferenceSearch());
   await picker(page);
   await searchRealReference(page);
   await page.locator("#search-results [role='option']").filter({ hasText: fixture.title }).first().click();
@@ -401,7 +401,7 @@ async function validateReferenceErrors(page, label) {
   }));
   for (const [index, list] of [["Duplicate Title", "duplicate title"], ["Unsafe [[title]]"], ["Unsafe|alias"], ["Unsafe#heading"], ["Unsafe/path"], ["Unsafe\\path"], ["Unsafe\nline"], [" Trailing space "]].entries()) {
     titles = list;
-    await page.locator("#insert-reference").click();
+    await page.evaluate(() => openReferenceSearch());
     await picker(page);
     await page.locator("#note-search-input").fill(`synthetic-${index}`);
     await page.locator("#search-results [role='option']").first().waitFor({ state: "visible" });
@@ -444,7 +444,7 @@ async function validateDirtyGuard(page, label) {
   assert.equal(await editorMarkdown(page), draft);
   assert.ok(puts >= 1);
   assert.ok(!(await canonical(result.file)).includes("Dirty draft preserved"), "failed PUT did not persist draft");
-  await layout(page, ["#new-note", "#note-retry", "#insert-reference", "#open-connection"]);
+  await layout(page, ["#new-note", "#note-retry", "#open-connection"]);
   await capture(page, `${label}-dirty-save-error.png`);
   await page.unroute(pattern, handler);
   await page.locator("#note-retry").click();

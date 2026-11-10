@@ -325,7 +325,6 @@ const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
     toast.dispatch({ source: "editor-error", text: "Keep this window open and copy your draft before reloading.", severity: "error" });
   },
 });
-if (companionMode) $("insert-reference").title = "Insert page reference (or type @ to search)";
 $("note-editor").addEventListener("blur", () => {
   if (state.editor) state.editor.flush();
 });
