@@ -43,7 +43,9 @@ test("explorer lists all nested canonical files without an index, body disclosur
   assert.deepEqual(Object.keys(packet), ["files"]);
   assert.equal(JSON.stringify(packet).includes(root), false);
   assert.equal(JSON.stringify(packet).includes("Private explorer body"), false);
-  assert.deepEqual(packet.files.find(row => row.file === "notes/projects/deep/1.md"), { id: id(1), file: "notes/projects/deep/1.md", title: "Note 1" });
+  const { updatedAt, ...listed } = packet.files.find(row => row.file === "notes/projects/deep/1.md");
+  assert.deepEqual(listed, { id: id(1), file: "notes/projects/deep/1.md", title: "Note 1" });
+  assert.equal(updatedAt, before.mtime.toISOString(), "undated notes fall back to mtime for edit order");
   assert.equal((await readServerMemoryDocument({ root, id: id(1) })).file, "notes/projects/deep/1.md");
   assert.deepEqual(await readFile(file), bytes);
   assert.equal((await stat(file)).mtimeMs, before.mtimeMs);
@@ -92,9 +94,22 @@ test("explorer HTTP requires authentication, only permits GET and reports safe f
   assert.equal(empty.headers.get("cache-control"), "no-store");
   assert.deepEqual(await empty.json(), { files: [] });
   await note(root, "notes/deep/note.md", { id: id(1), title: "Nested" });
-  assert.deepEqual(await (await fetch(url, { headers })).json(), { files: [{ id: id(1), file: "notes/deep/note.md", title: "Nested" }] });
+  assert.deepEqual((await (await fetch(url, { headers })).json()).files.map(({ updatedAt, ...row }) => row), [{ id: id(1), file: "notes/deep/note.md", title: "Nested" }]);
   await writeFile(path.join(root, "jumpybrain.json"), `private invalid config ${root}`);
   const failed = await fetch(url, { headers });
   assert.equal(failed.status, 500);
   assert.deepEqual(await failed.json(), { error: { code: "files_failed", message: "Remote file listing failed." } });
+});
+
+test("explorer reports declared dates for sorting and never infers creation from the filesystem", async t => {
+  const root = await fixture(t);
+  await note(root, "notes/declared.md", { id: id(1), title: "Declared", created_at: "2026-01-02T03:04:05.000Z", updated_at: "2026-02-03T04:05:06.000Z" });
+  await note(root, "notes/legacy.md", { id: id(2), createdAt: "2025-12-01" });
+  await note(root, "notes/invalid.md", { id: id(3), updated_at: "yesterday", created_at: "2026-13-40" });
+  const files = Object.fromEntries((await listServerMemoryFiles({ root })).files.map(row => [row.file, row]));
+  assert.equal(files["notes/declared.md"].createdAt, "2026-01-02T03:04:05.000Z");
+  assert.equal(files["notes/declared.md"].updatedAt, "2026-02-03T04:05:06.000Z", "declared edit time wins over mtime");
+  assert.deepEqual([files["notes/legacy.md"].createdAt, files["notes/legacy.md"].updatedAt], ["2025-12-01", undefined], "creation-only notes do not borrow mtime");
+  assert.equal(files["notes/invalid.md"].createdAt, undefined);
+  assert.match(files["notes/invalid.md"].updatedAt, /^\d{4}-\d{2}-\d{2}T/, "invalid declared dates fall back to mtime");
 });

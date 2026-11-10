@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { explorerFiles, explorerFolders, buildExplorerTree, explorerRows, revealExplorerFile } from '../dist/adapters/http-server/folder-explorer-model.js';
+import { explorerFiles, explorerFolders, buildExplorerTree, explorerRows, revealExplorerFile, explorerAge, isExplorerSort } from '../dist/adapters/http-server/folder-explorer-model.js';
 const id = n => `mem_a0000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const file = (path, n = 1, title) => ({ file: path, id: id(n), title });
 
@@ -67,4 +67,38 @@ test('explicit empty folders merge with inferred ancestry and remain searchable'
   assert.deepEqual(explorerRows(tree, new Set(['notes'])).map(row => row.node.path), ['notes', 'notes/empty', 'notes/existing', 'pages']);
   assert.deepEqual(explorerRows(tree, new Set(), 'empty').map(row => row.node.path), ['notes', 'notes/empty']);
   assert.deepEqual(explorerFolders({ files: [] }), []);
+});
+
+test('date orders sort notes newest first inside each folder while folders stay alphabetical', () => {
+  const dated = (path, n, updatedAt, createdAt) => ({ ...file(path, n), ...(updatedAt ? { updatedAt } : {}), ...(createdAt ? { createdAt } : {}) });
+  const files = explorerFiles({ files: [
+    dated('notes/a.md', 1, '2026-11-01T10:00:00Z', '2026-01-05T00:00:00Z'),
+    dated('notes/b.md', 2, '2026-11-09T10:00:00Z', '2026-01-01T00:00:00Z'),
+    dated('notes/c.md', 3, undefined, '2026-03-01T00:00:00Z'),
+    dated('notes/d.md', 4),
+    dated('notes/z-folder/x.md', 5, '2026-11-10T00:00:00Z'),
+    dated('notes/e.md', 6, 'not a date', 'also bad'),
+  ] });
+  assert.equal(files.find(item => item.file === 'notes/e.md').updatedAt, undefined, 'invalid packet dates are dropped');
+  const labels = sort => explorerRows(buildExplorerTree(files, ['notes/a-empty'], sort), new Set(['notes'])).map(row => row.label);
+  assert.deepEqual(labels('name'), ['notes', 'a-empty', 'z-folder', 'a', 'b', 'c', 'd', 'e']);
+  // Edited falls back to creation; undated notes keep natural order after dated ones.
+  assert.deepEqual(labels('edited'), ['notes', 'a-empty', 'z-folder', 'b', 'a', 'c', 'd', 'e']);
+  assert.deepEqual(labels('created'), ['notes', 'a-empty', 'z-folder', 'c', 'a', 'b', 'd', 'e']);
+  assert.deepEqual(labels('edited'), labels('edited'), 'deterministic');
+});
+
+test('date captions reuse compact ages and name order has none', () => {
+  const now = new Date('2026-11-10T12:00:00Z');
+  const node = { updatedAt: '2026-11-07T12:00:00Z', createdAt: '2026-11-10T11:30:00Z' };
+  assert.equal(explorerAge(node, 'edited', now).label, '3d');
+  assert.match(explorerAge(node, 'edited', now).details, /^Last edited /);
+  assert.equal(explorerAge(node, 'created', now).label, '30m');
+  assert.match(explorerAge(node, 'created', now).details, /^Created /);
+  assert.deepEqual(explorerAge(node, 'name', now), { label: '', details: '' });
+  assert.deepEqual(explorerAge({}, 'created', now), { label: '', details: 'No creation date' });
+  assert.equal(explorerAge({ createdAt: '2026-11-07T12:00:00Z' }, 'edited', now).label, '3d', 'edit order falls back to creation');
+  assert.equal(isExplorerSort('edited'), true);
+  assert.equal(isExplorerSort('size'), false);
+  assert.equal(isExplorerSort(null), false);
 });

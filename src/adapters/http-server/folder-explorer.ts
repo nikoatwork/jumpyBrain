@@ -1,5 +1,9 @@
 import { installExplorerActions, type ExplorerOperationHost } from "./folder-explorer-actions.js";
-import { buildExplorerTree, explorerFiles, explorerFolders, explorerRows, revealExplorerFile, type ExplorerFile, type ExplorerNode, type ExplorerRow } from "./folder-explorer-model.js";
+import { buildExplorerTree, explorerAge, explorerFiles, explorerFolders, explorerRows, isExplorerSort, revealExplorerFile, type ExplorerFile, type ExplorerNode, type ExplorerRow, type ExplorerSort } from "./folder-explorer-model.js";
+import { prepareDropdown } from "./browser-dropdown.js";
+
+// Device-local presentation preference, like sidebar width; never canonical or brain-scoped.
+const sortKey = "jumpybrain.folderExplorerSort";
 
 /** Scoped panel. The host owns authentication, write admission and guarded navigation. */
 export function installFolderExplorer(options: {
@@ -17,6 +21,10 @@ export function installFolderExplorer(options: {
   const refreshButton = document.getElementById("folder-explorer-refresh") as HTMLButtonElement;
   const closeButton = document.getElementById("folder-explorer-close") as HTMLButtonElement;
   const message = document.getElementById("folder-explorer-message")!;
+  const sortSelect = document.getElementById("folder-explorer-sort") as HTMLSelectElement;
+  let sort: ExplorerSort = "name";
+  try { const saved = window.localStorage.getItem(sortKey); if (isExplorerSort(saved)) sort = saved; } catch { /* Tab-only preference. */ }
+  sortSelect.value = sort; prepareDropdown(sortSelect);
   const narrow = window.matchMedia("(max-width: 680px)");
   const overlay = window.matchMedia("(max-width: 1000px)");
   let scope = options.scope(), selected: string | null = null, opened = false, stopped = false;
@@ -78,7 +86,7 @@ export function installFolderExplorer(options: {
     const priorFocus = treeElement.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.explorerPath : null;
     rows = explorerRows(tree, expanded, search.value, searchCollapsed);
     if (!rows.some(row => row.node.path === focused)) focused = rows.find(row => row.node.id === selected)?.node.path ?? rows[0]?.node.path ?? null;
-    const children: HTMLButtonElement[] = [], currentPaths = new Set<string>();
+    const children: HTMLButtonElement[] = [], currentPaths = new Set<string>(), now = new Date();
     for (const row of rows) {
       const { node } = row;
       currentPaths.add(node.path);
@@ -88,7 +96,8 @@ export function installFolderExplorer(options: {
         button.className = "folder-explorer-row"; button.setAttribute("role", "treeitem");
         const glyph = document.createElement("span"); glyph.className = "folder-explorer-glyph"; glyph.setAttribute("aria-hidden", "true");
         const label = document.createElement("span"); label.className = "folder-explorer-label";
-        button.append(glyph, label); buttons.set(node.path, button);
+        const age = document.createElement("span"); age.className = "folder-explorer-age"; age.setAttribute("aria-hidden", "true");
+        button.append(glyph, label, age); buttons.set(node.path, button);
       }
       button.dataset.explorerPath = node.path;
       button.draggable = node.kind === "file" && Boolean(node.id) && Boolean(options.operations?.writable()) && !actions.isBusy();
@@ -107,9 +116,11 @@ export function installFolderExplorer(options: {
       button.setAttribute("aria-selected", String(active));
       if (active) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current");
       button.style.setProperty("--folder-depth", String(Math.min(row.level - 1, 12)));
-      button.lastElementChild!.textContent = row.label;
-      button.title = node.path + (node.title ? "\n" + node.title : "") + (unavailable ? "\nMissing or ambiguous note ID — cannot open" : "");
-      button.setAttribute("aria-label", row.label + (unavailable ? ", unavailable note ID" : ""));
+      const age = node.kind === "file" ? explorerAge(node, sort, now) : { label: "", details: "" };
+      button.children[1]!.textContent = row.label;
+      button.lastElementChild!.textContent = age.label;
+      button.title = node.path + (node.title ? "\n" + node.title : "") + (age.details ? "\n" + age.details : "") + (unavailable ? "\nMissing or ambiguous note ID — cannot open" : "");
+      button.setAttribute("aria-label", row.label + (age.details ? ", " + age.details.toLocaleLowerCase() : "") + (unavailable ? ", unavailable note ID" : ""));
       button.tabIndex = node.path === focused ? 0 : -1;
       children.push(button);
     }
@@ -132,7 +143,7 @@ export function installFolderExplorer(options: {
     try {
       const packet = await options.fetch(controller.signal);
       if (controller.signal.aborted || token !== revision || origin !== options.scope() || !options.enabled()) return;
-      files = explorerFiles(packet); directories = explorerFolders(packet); tree = buildExplorerTree(files, directories);
+      files = explorerFiles(packet); directories = explorerFolders(packet); tree = buildExplorerTree(files, directories, sort);
       if (reveal) revealSelected();
       loading = false; render();
     } catch {
@@ -163,7 +174,7 @@ export function installFolderExplorer(options: {
     sync();
     const file = files.find(item => item.id === id);
     if (!file || file.title === title) return;
-    file.title = title; tree = buildExplorerTree(files, directories); render();
+    file.title = title; tree = buildExplorerTree(files, directories, sort); render();
   }
   function disclose(row: ExplorerRow, value = !row.expanded) {
     if (search.value.trim()) {
@@ -191,6 +202,12 @@ export function installFolderExplorer(options: {
   closeButton.addEventListener("click", () => close());
   refreshButton.addEventListener("click", () => { void refresh(); });
   search.addEventListener("input", () => { searchCollapsed.clear(); render(); });
+  sortSelect.addEventListener("change", () => {
+    if (!isExplorerSort(sortSelect.value)) { sortSelect.value = sort; return; }
+    sort = sortSelect.value;
+    try { window.localStorage.setItem(sortKey, sort); } catch { /* Tab-only preference. */ }
+    tree = buildExplorerTree(files, directories, sort); render();
+  });
   search.addEventListener("keydown", event => {
     if (event.key === "ArrowDown" && rows.length) { event.preventDefault(); focus(rows[0]!.node.path); }
   });
@@ -229,7 +246,7 @@ export function installFolderExplorer(options: {
       else close();
     }
     if (event.key === "Tab" && narrow.matches) {
-      const controls = [document.getElementById("folder-explorer-new") as HTMLButtonElement, refreshButton, closeButton, search, ...buttons.values()].filter(button => !button.disabled && button.tabIndex >= 0);
+      const controls = [document.getElementById("folder-explorer-new") as HTMLButtonElement, refreshButton, closeButton, search, sortSelect, ...buttons.values()].filter(button => !button.disabled && button.tabIndex >= 0);
       const first = controls[0], last = controls.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }

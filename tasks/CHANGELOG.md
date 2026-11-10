@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-10 — Folder explorer sorting
+
+- The Folders panel sorts notes by name, last edited or created date with compact ages, answering the folder-view feedback; folders stay alphabetical and text filtering is unchanged. [Implementation, checks and limits](done/2026-11-10_tasks-folder-explorer-sorting.md).
+
 ## 2026-11-10 — Seamless live co-editing
 
 - Overlapping live edits now merge instead of forcing review, same-position typing keeps each writer's run whole, renames are last-writer-wins, and shared brains stop re-reading the note per keystroke; verified with two- and three-writer browser runs locally and on the hosted brain. [Findings, checks and limits](done/2026-11-10_tasks-seamless-live-coediting.md).

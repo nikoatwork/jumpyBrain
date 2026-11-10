@@ -368,10 +368,10 @@ Publication uses the same queue, guarded file identities and atomic replacement 
 Authenticated, read-only canonical metadata for the folder explorer:
 
 ```json
-{"files":[{"id":"mem_12345678-1234-4234-8234-123456789abc","file":"notes/projects/architecture.md","title":"Architecture"}]}
+{"files":[{"id":"mem_12345678-1234-4234-8234-123456789abc","file":"notes/projects/architecture.md","title":"Architecture","updatedAt":"2026-11-10T09:00:00.000Z","createdAt":"2026-10-01T08:00:00.000Z"}]}
 ```
 
-Every eligible Markdown file under the editor's canonical memory buckets is listed, including settled and snoozed notes. Paths are root-relative; optional titles come from frontmatter. Missing, invalid or duplicated IDs return `id: null`, preserving the file's presence without suggesting it can be opened. Hidden paths are omitted; hidden duplicate IDs still make visible occurrences unopenable. Indexes and retrieval-only `indexRoot` do not affect the listing. No server root, body, canonical write or index update is included.
+Every eligible Markdown file under the editor's canonical memory buckets is listed, including settled and snoozed notes. Paths are root-relative; optional titles come from frontmatter. Optional presentation-only dates support folder sorting: `createdAt` is valid declared `created_at`/legacy `createdAt` and is never inferred; `updatedAt` is valid declared `updated_at`/`updatedAt`, or file mtime only when the note declares neither date. Neither is evidence time. Older servers omit both; clients then keep name order. Missing, invalid or duplicated IDs return `id: null`, preserving the file's presence without suggesting it can be opened. Hidden paths are omitted; hidden duplicate IDs still make visible occurrences unopenable. Indexes and retrieval-only `indexRoot` do not affect the listing. No server root, body, canonical write or index update is included.
 
 By default directories are inferred from listed Markdown paths. Optional `?includeFolders=1` adds a `folders` array of visible canonical relative directories, including empty and attachment-only directories; hidden/technical directories and symlinks remain excluded. This endpoint has no limit or pagination: scan work and packet count grow with the corpus; the companion gateway retains its existing 16 MiB response cap. Cancellation stops request work. Fresh reads reflect external changes; discovery and subsequent document opening are not atomic. Other methods return 405; failures return a generic `files_failed` error. Responses use `Cache-Control: no-store`.
 

@@ -16,9 +16,9 @@ const key = 'disposable-folder-explorer-key', controlKey = 'f'.repeat(64);
 const id = number => 'mem_fb000000-0000-4000-8000-' + String(number).padStart(12, '0');
 const fixtures = [
   { file: 'notes/projects/alpha/shared.md', title: 'Orchard architecture', id: id(1) },
-  { file: 'notes/projects/beta/shared.md', title: 'Harbour navigation', id: id(2) },
-  { file: 'notes/projects/beta/step2.md', title: 'A second step', id: id(3) },
-  { file: 'notes/projects/beta/step10.md', title: 'A tenth step', id: id(4) },
+  { file: 'notes/projects/beta/shared.md', title: 'Harbour navigation', id: id(2), updated: '2026-01-01T09:00:00.000Z' },
+  { file: 'notes/projects/beta/step2.md', title: 'A second step', id: id(3), updated: '2026-03-01T09:00:00.000Z' },
+  { file: 'notes/projects/beta/step10.md', title: 'A tenth step', id: id(4), updated: '2026-02-01T09:00:00.000Z' },
   { file: 'notes/personal/travel/ideas.md', title: 'Quiet holiday ideas', id: id(5) },
   { file: 'notes/loose.md', title: 'An unfiled note', id: id(6) },
   { file: 'decisions/infrastructure/hosting.md', title: 'A deliberately long hosting decision title that needs to fit inside a narrow explorer', id: id(7) },
@@ -28,7 +28,7 @@ let server, gateway, browser;
 
 async function writeFixture(note) {
   const filename = path.join(root, note.file);
-  const content = `---\nid: ${note.id}\ntitle: ${note.title}\ntype: note\ncustom: preserved\n---\n\nEvidence for ${note.title}.\n`;
+  const content = `---\nid: ${note.id}\ntitle: ${note.title}\ntype: note\ncustom: preserved\n${note.updated ? `updated_at: "${note.updated}"\n` : ''}---\n\nEvidence for ${note.title}.\n`;
   await mkdir(path.dirname(filename), { recursive: true });
   await writeFile(filename, content);
   originals.set(filename, content);
@@ -137,6 +137,27 @@ async function checkSurface(name, url) {
     assert.equal(await beta.getAttribute('aria-expanded'), 'false', 'clearing search restores manual branch state');
     assert.equal(await fileRow(fixtures[1].file).isVisible(), false);
 
+    // Sort applies within folders, keeps folders/disclosure, shows dated captions and persists per device.
+    const sort = page.locator('#folder-explorer-sort');
+    const betaFiles = () => tree.locator('[data-file-path^="notes/projects/beta/"]').evaluateAll(rows => rows.map(row => row.dataset.filePath.split('/').at(-1)));
+    await beta.click();
+    assert.equal(await sort.inputValue(), 'name');
+    assert.deepEqual(await betaFiles(), ['shared.md', 'step2.md', 'step10.md'], 'name order stays natural');
+    assert.equal(await fileRow(fixtures[2].file).locator('.folder-explorer-age').textContent(), '', 'name order has no date captions');
+    await sort.selectOption('edited');
+    assert.deepEqual(await betaFiles(), ['step2.md', 'step10.md', 'shared.md'], 'last-edited order is newest first');
+    assert.match(await fileRow(fixtures[2].file).locator('.folder-explorer-age').textContent(), /^\d+d$/);
+    assert.match(await fileRow(fixtures[2].file).getAttribute('aria-label'), /last edited/);
+    await panel.screenshot({ path: path.join(captures, name + '-sorted-edited.png') });
+    assert.equal(await beta.getAttribute('aria-expanded'), 'true', 'sorting keeps disclosure');
+    await search.fill('step');
+    assert.deepEqual(await betaFiles(), ['step2.md', 'step10.md'], 'search filtering composes with sort order');
+    await search.fill('');
+    assert.equal(await page.evaluate(() => localStorage.getItem('jumpybrain.folderExplorerSort')), 'edited');
+    await sort.selectOption('name');
+    assert.deepEqual(await betaFiles(), ['shared.md', 'step2.md', 'step10.md']);
+    await beta.click();
+
     await beta.focus();
     await beta.press('ArrowRight');
     assert.equal(await beta.getAttribute('aria-expanded'), 'true', 'right arrow expands a folder');
@@ -223,6 +244,8 @@ async function checkSurface(name, url) {
       const searchBox = await search.boundingBox(), closeBox = await page.locator('#folder-explorer-close').boundingBox();
       assert.ok(searchBox.x >= geometry.left && searchBox.x + searchBox.width <= geometry.right + 1, 'search fits panel: ' + JSON.stringify({width, geometry, searchBox}));
       assert.ok(closeBox.x >= 0 && closeBox.x + closeBox.width <= width + 1, 'close remains reachable');
+      const sortBox = await page.locator('#folder-explorer-sort').boundingBox();
+      assert.ok(sortBox.x >= geometry.left && sortBox.x + sortBox.width <= geometry.right + 1 && searchBox.width >= 120, 'sort and search share the row at ' + width);
       await page.screenshot({ path: path.join(captures, name + '-' + width + '-' + theme + '.png') });
     }
 
@@ -271,7 +294,7 @@ async function checkSurface(name, url) {
     assert.equal(await panel.isVisible(), true, 'failed navigation keeps explorer available');
     for (const [filename, content] of originals) assert.equal(await readFile(filename, 'utf8'), content, 'failed guarded navigation preserves canonical bytes');
     assert.deepEqual(errors, [], 'no browser runtime errors');
-    console.log('PASS ' + name + ': lazy metadata, focused search, folder navigation, path/title filtering, duplicate basenames, keyboard, canonical preservation, retry, external refresh, guarded saves and responsive themes.');
+    console.log('PASS ' + name + ': lazy metadata, focused search, folder navigation, path/title filtering, name/date sorting, duplicate basenames, keyboard, canonical preservation, retry, external refresh, guarded saves and responsive themes.');
   } finally {
     await context.close();
   }

@@ -1,8 +1,17 @@
 import { isValidMemoryDocumentId } from "../../core/document-id-format.js";
+import { metadataDate } from "../../core/canonical/metadata-date.js";
+import { resultEditContext } from "./search-presentation.js";
 
-export interface ExplorerFile { id: string | null; file: string; title?: string }
+export interface ExplorerFile { id: string | null; file: string; title?: string; updatedAt?: string; createdAt?: string }
 export interface ExplorerNode {
   kind: "folder" | "file"; path: string; name: string; id: string | null; title: string; children: ExplorerNode[];
+  updatedAt?: string; createdAt?: string;
+}
+/** Folders always stay first and alphabetical; only notes inside each folder follow the chosen order. */
+export type ExplorerSort = "name" | "edited" | "created";
+export const explorerSorts: readonly ExplorerSort[] = ["name", "edited", "created"];
+export function isExplorerSort(value: unknown): value is ExplorerSort {
+  return typeof value === "string" && (explorerSorts as readonly string[]).includes(value);
 }
 export interface ExplorerRow {
   node: ExplorerNode; label: string; level: number; parent: string | null;
@@ -21,8 +30,10 @@ export function explorerFiles(packet: unknown): ExplorerFile[] {
     if (!file.toLowerCase().endsWith(".md") || file.includes("\\") || /[\u0000-\u001f]/.test(file)
       || file.split("/").some(part => !part || part === "." || part === "..") || seen.has(file)) return [];
     seen.add(file);
+    const updatedAt = metadataDate(value.updatedAt), createdAt = metadataDate(value.createdAt);
     return [{ file, id: isValidMemoryDocumentId(value.id) ? value.id : null,
-      ...(typeof value.title === "string" ? { title: value.title } : {}) }];
+      ...(typeof value.title === "string" ? { title: value.title } : {}),
+      ...(updatedAt ? { updatedAt } : {}), ...(createdAt ? { createdAt } : {}) }];
   });
 }
 
@@ -34,7 +45,20 @@ export function explorerFolders(packet: unknown): string[] {
   return [...new Set(folders.filter((value): value is string => typeof value === "string" && !value.includes("\\") && !/[\u0000-\u001f]/.test(value) && !value.split("/").some(part => !part || part.startsWith("."))))];
 }
 
-export function buildExplorerTree(files: ExplorerFile[], directories: string[] = []): ExplorerNode[] {
+/** Timestamp used by a date order; edits fall back to creation like the Pages list. */
+export function explorerSortDate(node: Pick<ExplorerNode, "updatedAt" | "createdAt">, sort: ExplorerSort): string | undefined {
+  return sort === "edited" ? node.updatedAt ?? node.createdAt : sort === "created" ? node.createdAt : undefined;
+}
+
+/** Compact row caption for date orders, reusing the search/sidebar relative-age rules. */
+export function explorerAge(node: Pick<ExplorerNode, "updatedAt" | "createdAt">, sort: ExplorerSort, now = new Date()): { label: string; details: string } {
+  const date = explorerSortDate(node, sort);
+  if (!date) return { label: "", details: sort === "name" ? "" : sort === "created" ? "No creation date" : "No edit date" };
+  const context = resultEditContext({ metadataStatus: "current", updatedAt: date }, now);
+  return { label: context.label, details: sort === "created" ? context.details.replace(/^Last edited/, "Created") : context.details };
+}
+
+export function buildExplorerTree(files: ExplorerFile[], directories: string[] = [], sort: ExplorerSort = "name"): ExplorerNode[] {
   const root: ExplorerNode = { kind: "folder", path: "", name: "", id: null, title: "", children: [] };
   const folders = new Map<string, ExplorerNode>([["", root]]);
   for (const directory of [...directories].sort()) {
@@ -60,10 +84,15 @@ export function buildExplorerTree(files: ExplorerFile[], directories: string[] =
       parent = folder;
     }
     parent.children.push({ kind: "file", path: file.file, name: parts.at(-1)!.replace(/\.md$/i, ""),
-      id: file.id, title: file.title || "", children: [] });
+      id: file.id, title: file.title || "", children: [],
+      ...(file.updatedAt ? { updatedAt: file.updatedAt } : {}), ...(file.createdAt ? { createdAt: file.createdAt } : {}) });
   }
+  // Newest first; undated notes follow dated ones; ties and name order stay natural and deterministic.
+  const time = (node: ExplorerNode) => { const date = explorerSortDate(node, sort); return date ? Date.parse(date) : Number.NEGATIVE_INFINITY; };
   for (const folder of folders.values()) folder.children.sort((a, b) =>
-    Number(b.kind === "folder") - Number(a.kind === "folder") || naturalOrder.compare(a.name, b.name) || a.path.localeCompare(b.path));
+    Number(b.kind === "folder") - Number(a.kind === "folder")
+    || (a.kind === "file" && sort !== "name" ? Math.sign(time(b) - time(a)) || 0 : 0)
+    || naturalOrder.compare(a.name, b.name) || a.path.localeCompare(b.path));
   return root.children;
 }
 

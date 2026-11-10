@@ -1,12 +1,18 @@
 import { listCanonicalMemoryFolders, listCanonicalMemoryMarkdownFiles, readMarkdownDocument, resolveMemoryRoot } from "../../core/canonical/index.js";
 import { isValidMemoryDocumentId } from "../../core/document-id.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
+import { firstAttentionDate } from "../../core/attention.js";
+import { stat } from "node:fs/promises";
 
 export interface MemoryExplorerFile {
   /** Null when an absent, invalid or duplicated canonical ID prevents opening. */
   id: string | null;
   file: string;
   title?: string;
+  /** Declared `updated_at`; filesystem mtime only when no edit/creation date is declared. Presentation-only. */
+  updatedAt?: string;
+  /** Declared `created_at`/legacy `createdAt`; never inferred from the filesystem. */
+  createdAt?: string;
 }
 
 export interface MemoryExplorerPacket { files: MemoryExplorerFile[]; folders?: string[] }
@@ -31,8 +37,13 @@ export async function listServerMemoryFiles(options: { root: string; signal?: Ab
     if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
     // Hidden duplicates still affect editor lookup, but hidden files are not navigation rows.
     if (document.relativePath.split("/").some(part => part.startsWith("."))) continue;
+    const createdAt = firstAttentionDate(metadata.created_at, metadata.createdAt);
+    let updatedAt = firstAttentionDate(metadata.updated_at, metadata.updatedAt);
+    // Plain Markdown dropped into the brain has no declared dates; mtime is its only edit signal.
+    if (!updatedAt && !createdAt) updatedAt = await stat(absolutePath).then(info => info.mtime.toISOString(), () => undefined);
     files.push({ id, file: document.relativePath,
-      ...(typeof metadata.title === "string" ? { title: metadata.title } : {}) });
+      ...(typeof metadata.title === "string" ? { title: metadata.title } : {}),
+      ...(updatedAt ? { updatedAt } : {}), ...(createdAt ? { createdAt } : {}) });
   }
   for (const file of files) if (file.id && counts.get(file.id) !== 1) file.id = null;
   files.sort((a, b) => a.file < b.file ? -1 : a.file > b.file ? 1 : 0);

@@ -9,7 +9,10 @@ export const folderExplorerMarkup = `
     <button id="folder-explorer-refresh" class="quiet-button icon-button" type="button" aria-label="Refresh folders" title="Refresh folders">${browserIcons.refresh}</button>
     <button id="folder-explorer-close" class="quiet-button icon-button" type="button" aria-label="Close folders" title="Close folders (Esc)">${browserIcons.close}</button>
   </div>
-  <div class="folder-explorer-search"><input id="folder-explorer-search" type="search" aria-label="Find notes or folders" placeholder="Find notes or folders…" autocomplete="off" spellcheck="false" /></div>
+  <div class="folder-explorer-search"><input id="folder-explorer-search" type="search" aria-label="Find notes or folders" placeholder="Find notes or folders…" autocomplete="off" spellcheck="false" />
+    <select id="folder-explorer-sort" class="dropdown dropdown--quiet" aria-label="Sort notes" title="Sort notes within each folder">
+      <option value="name">Name</option><option value="edited">Last edited</option><option value="created">Created</option>
+    </select></div>
   <p id="folder-explorer-message" role="status" aria-live="polite"></p>
   <div id="folder-explorer-tree" role="tree" aria-label="Memory folders and notes"></div>
   <div id="folder-explorer-menu" role="menu" aria-label="File actions" hidden></div>
@@ -40,8 +43,11 @@ export const folderExplorerStyles = String.raw`
   .folder-explorer-head { display: flex; align-items: center; gap: var(--space-1); min-height: var(--space-12); padding: var(--space-2) var(--space-3); }
   .folder-explorer-head h2 { flex: 1; margin: 0; font: var(--weight-semibold) var(--text-ui)/var(--leading-ui) var(--font-ui); }
   .folder-explorer-head .icon-button { background: transparent; }
-  .folder-explorer-search { padding: 0 var(--space-3) var(--space-3); }
-  #folder-explorer-search { width: 100%; min-width: 0; font-size: var(--text-ui); }
+  .folder-explorer-search { display: flex; gap: var(--space-2); align-items: center; padding: 0 var(--space-3) var(--space-3); }
+  #folder-explorer-search { flex: 1; width: 100%; min-width: 0; font-size: var(--text-ui); }
+  #folder-explorer-sort { flex: 0 0 auto; width: auto; max-width: 9.5rem; }
+  .folder-explorer-age { flex-shrink: 0; margin-left: auto; padding-left: var(--space-2); color: var(--ink-faint); font-size: var(--text-caption); font-variant-numeric: tabular-nums; font-weight: var(--weight-regular, 400); }
+  .folder-explorer-age:empty { display: none; }
   #folder-explorer-message { margin: 0; padding: 0 var(--space-3) var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); }
   #folder-explorer-message:empty { display: none; }
   #folder-explorer-tree { flex: 1; min-height: 0; overflow: auto; padding: var(--space-1) 0 var(--space-3); }
@@ -68,6 +74,7 @@ export const folderExplorerStyles = String.raw`
     .folder-explorer-head { min-height: var(--space-12); }
     :root[data-native-mac="true"] .folder-explorer-head { padding-left: calc(var(--space-16) + var(--space-3)); }
     #folder-explorer-search { font-size: var(--text-section); }
+    #folder-explorer-sort { min-height: var(--control-touch); }
     .folder-explorer-row, .folder-explorer-head .icon-button { min-height: var(--control-touch); }
     .folder-explorer-head .icon-button { width: var(--control-touch); height: var(--control-touch); }
   }
