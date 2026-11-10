@@ -4,6 +4,10 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 ## Reproduce and investigate
 
+- [ ] **P2 — Nested checkboxes after Obsidian import.** Reproduce with a disposable imported source containing nested checked and unchecked tasks. Establish whether import, canonical Markdown, or the Mac editor loses hierarchy/state; preserve source bytes and avoid treating an unsupported construct as success.
+
+- [ ] **P1 — CLI whole-note updates around an open live editor.** Reproduce the reported hash-guarded append against a remote shared brain with active human presence. Determine why a successful `update` remains stale in the session and is classified as destructive, before deciding whether to route/warn/offer a bounded append operation. Preserve canonical bytes, drafts and revision/hash safeguards; do not auto-retry a potentially committed write.
+
 - [x] **P2 — Repeated stale-index warnings in Mac search.** [Quiet maintenance presentation completed](../done/2026-11-10_tasks-quiet-search-freshness.md): repeated Search use no longer dispatches maintenance toasts; scoped recovery controls and real query/reindex errors remain. Desktop/narrow Chromium and existing automatic-publication checks pass. The November 8 attachment was inspected; historical HTTP 503 causes remain unproven. This source fix was completed after v0.3.21 and is pending release.
 
 - [x] **P1 — CLI-authored Markdown in the Mac editor.** [Completed source and CLI-to-shell verification](../done/2026-11-05_tasks-feedback-markdown-rendering.md). Ordinary top-level bullets now render supported emphasis and safe HTTP(S) links; simple relative links stay editable/inert without making the whole line literal. Canonical CRLF edits/Undo/live caret/reopen pass. Ordinary nested/ordered lists and unsupported syntax retain literal fallback.
