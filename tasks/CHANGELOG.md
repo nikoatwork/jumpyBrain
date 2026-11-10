@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-10 — v0.3.21 beta
+
+- Published editor/recovery, Markdown, search, semantic graph, concurrent-agent guidance and updater fixes; verified all three assets and refreshed the public demo to the exact tagged revision. [Release and checks](done/2026-11-10_tasks-release-v0.3.21.md).
+
 ## 2026-11-08 — Reviewed distribution limits
 
 - Refreshed distribution ceilings for the current supported package with explicit measured headroom; retained size, file-count and required-resource enforcement. [Decision and checks](done/2026-11-08_tasks-distribution-budget-refresh.md).

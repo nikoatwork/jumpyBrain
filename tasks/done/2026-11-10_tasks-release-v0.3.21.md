@@ -1,12 +1,12 @@
 # Release v0.3.21
 
-Status: preparing the next patch from clean master; user explicitly chose publication after automated checks instead of installing a candidate first.
+Status: complete. Published and verified v0.3.21 and refreshed the public demo to the exact release revision. User explicitly chose publication after automated checks instead of installing a candidate first.
 
 ## Scope and evidence
 
 - Runtime source: `21cc44d`; latest published numeric release: v0.3.20 (`6d06cb9`). Local master contains all fetched origin/master history and 37 additional commits; no unrelated uncommitted upstream work. No published release on November 10 Europe/Berlin; latest was November 4.
 - Curated seven public bullets in release-next.md against the complete v0.3.20..HEAD diff. Active live-note attention, semantic-link quality, broader retrieval and installation proposals remain unfinished and are not claimed delivered.
-- Live feedback checked **2026-11-10T08:13:21.462Z**, full available received/non-spam inbox, no date bounds: two pages, complete, 54 scanned, two synthetic tests excluded, 52 genuine reports, October 20–November 8. Exact-ID reconciliation against [feedback index](../feedback.md); one new November 8 stale-warning report read in full and assigned to [follow-ups](tasks-feedback-follow-ups.md). No replies/test sends; attachments and historical bodies not re-audited. Spam/trash/blocked mail excluded.
+- Live feedback checked **2026-11-10T08:13:21.462Z**, full available received/non-spam inbox, no date bounds: two pages, complete, 54 scanned, two synthetic tests excluded, 52 genuine reports, October 20–November 8. Exact-ID reconciliation against [feedback index](../feedback.md); one new November 8 stale-warning report read in full and assigned to [follow-ups](../todo/tasks-feedback-follow-ups.md). No replies/test sends; attachments and historical bodies not re-audited. Spam/trash/blocked mail excluded.
 - Included completed Markdown, agent collaboration, title/search, related-page, updater and recovery fixes. Repeated search warnings, date-label presentation, historical single-user settlement reports, hover snippets, reference-control removal, further deletion-copy changes, semantic-link quality and broader ranking/model decisions remain open/deferred in their existing owners.
 - macOS 15.7.7 ARM64; Node 26.7.0; QMD 2.8.3 (facd35e).
 - `npm run dogfood:status`: no recorded candidate. User explicitly selected **Publish after automated checks** on November 10. No day-long personal-use evidence or installed-app update is claimed.
@@ -16,10 +16,10 @@ Status: preparing the next patch from clean master; user explicitly chose public
 
 - [x] Review history, live feedback and pending notes; record owner decision.
 - [x] Fresh build and desktop package; disposable core note lifecycle.
-- [/] Select any extra checks warranted by changes; dry run and full release.
-- [ ] Verify tag, exact notes, aligned metadata and all three downloaded asset digests.
-- [ ] Refresh public demo to exact published revision; verify landing, note opening, search and graph.
-- [ ] Archive exact notes and QA; reset pending note; archive this task and commit bookkeeping.
+- [x] Select any extra checks warranted by changes; dry run and full release.
+- [x] Verify tag, exact notes, aligned metadata and all three downloaded asset digests.
+- [x] Refresh public demo to exact published revision; verify landing, note opening, search and graph.
+- [x] Archive exact notes and QA; reset pending note; archive this task and commit bookkeeping.
 
 ## Limits
 
@@ -41,3 +41,13 @@ The first full release attempt stopped before commit/tag/push/publication: 1,982
 - Node 26 discovers TypeScript files under test fixtures. The compile-only operation-signature fixture imported runtime `.js` paths from source, so discovery failed before its compiler test. Replaced its runtime import with an erased declared typed binding; the original negative compiler assertions remain active.
 
 Focused correction gate passed **16/16** tests: real local/hosted attention CLI, malformed HTTP receipts, backend operation agreement/compiler checks and direct fixture discovery. Fresh build and refreshed signed desktop outer package passed after the correction. Earlier lifecycle/collaboration/updater UI evidence remains applicable: their editor/server/native inputs are unchanged; the changed remote HTTP attention boundary is exercised by the real-server CLI regression. Full release retry will rerun the mandatory suite and pack final bytes.
+
+## Publication verified
+
+Full retry published v0.3.21 at **2026-11-10T08:21:47Z**, release/tag commit `d4cba370d8b23d5ce18620df5ef0dd5421ade99d`; final runtime source `111269f`. Suite: **1,985 passed / two optional skips / zero failures**, 85.588 seconds. Package/native assets and exact notes verified independently; public notes archived and pending notes reset. [QA/digests](releases/v0.3.21.qa.md). Public demo refresh subsequently passed the checks recorded below.
+
+## Completed public demo upkeep
+
+Live `/version` matches **0.3.21 / d4cba370d8b23d5ce18620df5ef0dd5421ade99d**. Actual Chromium checks passed the calm landing, graph entry, opening the company overview note, funding search results and graph return, with 28 nodes and zero page errors. Browser closed after verification. The demo composition needed its existing prepared landing update plus an absolute engine path and explicit indexing-backend drain before foreground startup; disposable network-isolated startup/graph/reseed checks and all seven composition tests passed before the successful rollout. No core/vendor changes or public sample-note writes.
+
+Package publication and demo upkeep are verified. Exact [shipped notes](releases/v0.3.21.md) and [QA](releases/v0.3.21.qa.md) retained; pending notes reset. Private deployment identifiers, image diagnostics and browser screenshots remain in the private deployment repository. No installation or personal-memory mutation performed.
