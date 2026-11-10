@@ -32,3 +32,12 @@ Fresh `npm run build`, `npm run desktop:pack` and `npx --package=playwright node
 Additional `scripts/collaboration-editor-smoke.mjs` passed real Chromium two-context convergence, own Undo, external writes, agent streams, IME, offline body/title recovery, shipped shell/actor isolation, granular cursor intent and 132 fresh CLI actors. Native inert updater UI smoke passed phases, themes, compact layout, app-only, keyboard details and recovery. Existing packaged updater success/rollback evidence is reused from the completed updater-readiness task: no replacement/transaction/signing code changed there. No extra public install matrix selected.
 
 Editor: 671,081 minified / 221,862 gzip bytes, 15 packages; unchanged editor budget passes. Logs: `/tmp/jumpybrain-v0.3.21-{build,desktop-pack,lifecycle,collaboration,updater-ui}.log`; screenshots `.local-pack/update-ui/`. Demo access and disk headroom verified; deployment follows publication.
+
+## Release-gate corrections
+
+The first full release attempt stopped before commit/tag/push/publication: 1,982 passed, two failed, two optional skips. Version metadata was restored to the committed 0.3.20 before retrying the same next patch.
+
+- Real hosted CLI snooze published canonical state but its valid attention receipt was rejected because the new generic update validator required an ordinary `updatedAt`. Attention has a distinct full-document/hash/pending-index receipt. Added its own validator and accurate transport result type, retaining identity/precondition/hash/indexing checks and no retry; regression covers valid metadata-only success plus malformed evidence. Ordinary body updates still require `updatedAt`.
+- Node 26 discovers TypeScript files under test fixtures. The compile-only operation-signature fixture imported runtime `.js` paths from source, so discovery failed before its compiler test. Replaced its runtime import with an erased declared typed binding; the original negative compiler assertions remain active.
+
+Focused correction gate passed **16/16** tests: real local/hosted attention CLI, malformed HTTP receipts, backend operation agreement/compiler checks and direct fixture discovery. Fresh build and refreshed signed desktop outer package passed after the correction. Earlier lifecycle/collaboration/updater UI evidence remains applicable: their editor/server/native inputs are unchanged; the changed remote HTTP attention boundary is exercised by the real-server CLI regression. Full release retry will rerun the mandatory suite and pack final bytes.

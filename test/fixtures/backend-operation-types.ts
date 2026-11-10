@@ -1,4 +1,5 @@
-import { localBackendCall } from '../../src/cli/local-transport.js';
+// Compile-only binding: Node's test discovery may load this fixture, but must not load source runtime imports.
+declare const localBackendCall: typeof import('../../src/cli/local-transport.js').localBackendCall;
 import type { BackendArgs, BackendResult } from '../../src/adapters/backend-protocol.js';
 
 async function check(root: string) {

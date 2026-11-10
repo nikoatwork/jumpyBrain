@@ -1,5 +1,5 @@
 import { memoryTransportDeadlineMs } from "../../core/execution-limits.js";
-import { record, validDocumentRead, validDocumentUpdate, validBoardReceipt } from "./receipts.js";
+import { record, validDocumentRead, validDocumentUpdate, validAttentionReceipt, validBoardReceipt } from "./receipts.js";
 import type { Board, BoardRecord, BoardList } from "../../core/boards/model.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
 import { resolveTemporalQuery } from "../../core/retrieval-policy/temporal.js";
@@ -54,10 +54,17 @@ export interface RemoteMemoryTransportOptions {
   fetchImpl?: typeof fetch;
 }
 
+export type RemoteMemoryAttentionResult = MemoryDocumentReadResult & {
+  oldContentHash: MemoryDocumentUpdateResult["oldContentHash"];
+  newContentHash: MemoryDocumentUpdateResult["newContentHash"];
+  indexed: false;
+  indexing: { status: "pending" };
+};
+
 export interface RemoteMemoryTransport {
   readonly url: string;
   listMemoryAttention(): Promise<import("../../types.js").MemoryAttentionPacket>;
-  patchMemoryDocumentAttention(id: string, options: { ifMatch: string; mutation: import("../../core/attention.js").MemoryAttentionAction }): Promise<MemoryDocumentUpdateResult>;
+  patchMemoryDocumentAttention(id: string, options: { ifMatch: string; mutation: import("../../core/attention.js").MemoryAttentionAction }): Promise<RemoteMemoryAttentionResult>;
   listBoards(): Promise<BoardList>;
   readBoard(id: string): Promise<BoardRecord>;
   saveBoard(board: Board, ifMatch?: string): Promise<BoardRecord>;
@@ -190,7 +197,7 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     listMemoryAttention: () => request(HTTP_MEMORY_ROUTES.attention) as unknown as Promise<import("../../types.js").MemoryAttentionPacket>,
     patchMemoryDocumentAttention: (id, options) => request(memoryDocumentPath(id), {
       method: "PATCH", headers: { "If-Match": options.ifMatch }, body: JSON.stringify(options.mutation),
-    }).then(packet => receipt(packet, validDocumentUpdate(packet, id, options.ifMatch))) as unknown as Promise<MemoryDocumentUpdateResult>,
+    }).then(packet => receipt(packet, validAttentionReceipt(packet, id, options.ifMatch))) as unknown as Promise<RemoteMemoryAttentionResult>,
     listBoards: () => request(HTTP_MEMORY_ROUTES.boards) as unknown as Promise<BoardList>,
     readBoard: id => request(HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(id)).then(packet => receipt(packet, validBoardReceipt(packet, id))) as unknown as Promise<BoardRecord>,
     saveBoard: (board, ifMatch) => request(ifMatch === undefined ? HTTP_MEMORY_ROUTES.boards : HTTP_MEMORY_ROUTES.boardsPrefix + encodeURIComponent(board.id), {

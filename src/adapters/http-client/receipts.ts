@@ -11,6 +11,11 @@ export function validDocumentUpdate(value: Record<string, unknown>, id: string, 
   return value.id === id && text(value.file) && value.oldContentHash === ifMatch && hash(value.oldContentHash)
     && hash(value.newContentHash) && text(value.updatedAt) && typeof value.indexed === "boolean";
 }
+export function validAttentionReceipt(value: Record<string, unknown>, id: string, ifMatch: string): boolean {
+  return validDocumentRead(value, id) && value.oldContentHash === ifMatch && hash(value.oldContentHash)
+    && hash(value.newContentHash) && value.contentHash === value.newContentHash
+    && value.indexed === false && record(value.indexing) && value.indexing.status === "pending";
+}
 export function validBoardReceipt(value: Record<string, unknown>, id: string): boolean {
   const board = value.board;
   return hash(value.contentHash) && record(board) && board.id === id && board.schemaVersion === 1
