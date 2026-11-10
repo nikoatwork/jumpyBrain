@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-10 — v0.3.22 beta
+
+- Published built-in drawings with the pending search, attention/recovery and UI fixes as an owner-approved second release of the day; verified all three assets and refreshed the public demo to the exact tagged revision. [Release and checks](done/2026-11-10_tasks-release-v0.3.22.md).
+
 ## 2026-11-10 — Built-in Excalidraw drawings
 
 - Added canonical `drawings/<Name>.excalidraw` files with hash-checked HTTP routes, an isolated lazy editor frame in the hosted and Mac shells, file-name search and note mentions; raised the reviewed package ceilings for the bundled editor. [Implementation, checks and limits](done/2026-11-10_tasks-excalidraw-drawings.md).

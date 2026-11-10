@@ -1,6 +1,6 @@
 # Release v0.3.22
 
-Status: in progress. Exceptional second release on 2026-11-10 (Europe/Berlin); the user explicitly overrode the one-release-per-day convention ("cut an exceptional release (2nd of the day)").
+Status: complete. Published and verified v0.3.22 and refreshed the public demo to the exact release revision. Exceptional second release on 2026-11-10 (Europe/Berlin); the user explicitly overrode the one-release-per-day convention ("cut an exceptional release (2nd of the day)").
 
 ## Scope and evidence
 
@@ -15,13 +15,19 @@ Status: in progress. Exceptional second release on 2026-11-10 (Europe/Berlin); t
 - [x] Review history, live feedback and pending notes; record owner override.
 - [x] Fresh build and desktop package; disposable core note lifecycle.
 - [x] Extra checks for the changed desktop host and the new drawing editor.
-- [ ] Dry run and full release.
-- [ ] Verify tag, exact notes, aligned metadata and all three downloaded asset digests.
-- [ ] Refresh public demo to the exact published revision; verify landing, note opening, search and graph.
-- [ ] Archive exact notes and QA; reset pending note; archive this task and commit bookkeeping.
+- [x] Dry run and full release.
+- [x] Verify tag, exact notes, aligned metadata and all three downloaded asset digests.
+- [x] Refresh public demo to the exact published revision; verify landing, note opening, search and graph.
+- [x] Archive exact notes and QA; reset pending note; archive this task and commit bookkeeping.
 
 ## Preparation results
 
 On runtime source `ace92ef`: `npm run build`, `npm run desktop:pack` and `npx --package=playwright node scripts/note-lifecycle-smoke.mjs` passed (capture, immediate search, graph/title navigation, guarded two-tab recovery, 390/320 layouts, deletion cancel/apply, preserved backlinks, index refresh). Because the Electron window policy changed, `npm run smoke:desktop` passed against the fresh package. `node scripts/drawings-electron-smoke.mjs` and `npx --package=playwright node scripts/drawings-smoke.mjs` passed again. Note editor 674,742 minified / 222,922 gzip; drawing editor 3,946,275 bytes on disk. Logs: `/tmp/jumpybrain-v0.3.22-{build,desktop-pack,lifecycle,smoke-desktop,drawings-electron,drawings}.log`.
 
 Not run: `npm run smoke:hosted` (no Docker daemon on this Mac). The container build installs the new build-time dependencies and runs the new build step; the demo deployment is its first real exercise.
+
+## Publication verified
+
+`npm run release` passed 2,007 of 2,009 tests with two optional skips and published [v0.3.22](https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.22) at 2026-11-10T12:30:44Z from `3842ebb`. Notes, tag, aligned versions and all three asset digests are verified; the demo runs the exact revision and its landing, note opening, search and graph pass. Details and limits: [QA record](releases/v0.3.22.qa.md); exact notes: [v0.3.22](releases/v0.3.22.md).
+
+Open after this release: drawings are unavailable on the public demo (its gateway does not allow the drawing routes), and the installation ownership ledger's device-number check needs a code fix.
