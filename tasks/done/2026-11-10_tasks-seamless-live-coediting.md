@@ -1,6 +1,6 @@
 # Seamless live co-editing
 
-Status: complete on branch `live-coediting-seamless`; not merged, pushed or released.
+Status: complete; merged into `master` (fast-forward of `b31d944`); not pushed or released.
 
 ## Request
 
