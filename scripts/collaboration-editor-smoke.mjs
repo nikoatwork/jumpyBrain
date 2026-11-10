@@ -161,7 +161,11 @@ try {
     const beforeTitleBody = await editorMarkdown(pages[0]);
     assert.equal(await pages[0].evaluate(() => live.setTitle("  Normalized live title  ")), true);
     await pages[1].waitForFunction(() => live.snapshot.title === "Normalized live title");
-    assert.equal(await pages[0].evaluate(() => live.title), "Normalized live title");
+    // The saved title is trimmed; whitespace still in the author's field is
+    // not replaced mid-typing (the name field trims when it loses focus).
+    assert.equal(await pages[0].evaluate(() => live.snapshot.title), "Normalized live title");
+    assert.equal(await pages[0].evaluate(() => live.title), "  Normalized live title  ");
+    assert.equal(await pages[0].evaluate(() => live.state.status), "saved");
     assert.equal(await pages[0].evaluate(() => live.setTitle("")), false);
     assert.equal(await pages[0].evaluate(() => live.state.status), "saving");
     assert.equal(await pages[0].evaluate(() => live.state.canWrite), true);

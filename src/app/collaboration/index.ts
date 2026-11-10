@@ -208,6 +208,40 @@ function stampActor(
     name: principal.name,
   };
 }
+/**
+ * A caret stays before text another writer inserts at its position, matching
+ * the editor; a range keeps exactly its selected source. Where an inferred
+ * raw-file change proves only the other side of a caret, that side is used.
+ */
+function projectSelection(
+  model: SourceModel,
+  anchor: number | undefined,
+  focus: number | undefined,
+  revision: number,
+): { anchor?: number; focus?: number } {
+  const collapsed = anchor === focus || anchor === undefined || focus === undefined;
+  const project = (position: number, side: "left" | "right") => {
+    try {
+      return model.transformPosition(position, revision, side);
+    } catch (error) {
+      if (!collapsed || (error as { code?: string }).code !== "ambiguous_source") throw error;
+      return model.transformPosition(position, revision, "right");
+    }
+  };
+  if (collapsed) {
+    const position = anchor ?? focus;
+    if (position === undefined) return {};
+    const projected = project(position, "left");
+    return {
+      ...(anchor !== undefined ? { anchor: projected } : {}),
+      ...(focus !== undefined ? { focus: projected } : {}),
+    };
+  }
+  return {
+    anchor: project(anchor!, anchor! < focus! ? "right" : "left"),
+    focus: project(focus!, anchor! < focus! ? "left" : "right"),
+  };
+}
 export class CollaborationHub {
   readonly root: string;
   readonly maxDocumentBytes: number;
@@ -615,8 +649,9 @@ export class CollaborationHub {
       )
         fail("stale_presence");
       const { anchor, focus } = selection as Record<string, unknown>;
-      value.anchor = session.model.transformPosition(integer(anchor), revision);
-      value.focus = session.model.transformPosition(integer(focus), revision);
+      const projected = projectSelection(session.model, integer(anchor), integer(focus), revision);
+      value.anchor = projected.anchor;
+      value.focus = projected.focus;
       value.epoch = session.model.epoch;
       value.revision = session.model.revision;
       value.selectionRevision = revision;
@@ -653,16 +688,14 @@ export class CollaborationHub {
       }
       try {
         if (value.epoch !== session.model.epoch) fail("epoch_changed");
-        if (value.anchor !== undefined)
-          value.anchor = session.model.transformPosition(
-            value.anchor,
-            value.revision,
-          );
-        if (value.focus !== undefined)
-          value.focus = session.model.transformPosition(
-            value.focus,
-            value.revision,
-          );
+        const projected = projectSelection(
+          session.model,
+          value.anchor,
+          value.focus,
+          value.revision,
+        );
+        if (value.anchor !== undefined) value.anchor = projected.anchor;
+        if (value.focus !== undefined) value.focus = projected.focus;
       } catch {
         delete value.anchor;
         delete value.focus;
@@ -852,6 +885,9 @@ export class CollaborationHub {
           operationId: text(params.operationId),
           epoch: candidate.epoch,
           baseRevision: integer(params.baseRevision),
+          // Live typing merges overlapping edits. A positional writer working
+          // from an older read may ask to reconcile deliberately instead.
+          ...(params.overlap === "reject" ? { rejectOverlap: true } : {}),
         };
         let result;
         if (params.operations !== undefined) {
@@ -911,7 +947,9 @@ export class CollaborationHub {
       } else if (method === "stream.status") {
         stream = candidate.streamStatus(actor, text(params.streamId));
       } else if (method === "title") {
-        if (integer(params.baseRevision) !== session.model.revision)
+        // A rename is independent of body revisions: another writer typing in
+        // the note must not reject it. Concurrent renames are last-writer-wins.
+        if (integer(params.baseRevision) > session.model.revision)
           fail("title_conflict");
         const title = text(params.title, 2000).trim();
         if (!title) fail("invalid_title");

@@ -36,6 +36,7 @@ After building, choose the scenario matching the change:
 | Risk / transition | Runnable entrypoint |
 | --- | --- |
 | Human edit in flight while a peer edits; delayed confirmation; positional intent, caret and own Undo; reconnect | `npx --package=playwright node scripts/collaboration-editor-smoke.mjs` (includes the helper `collaboration-intent-proof.mjs` against isolated and shipped bindings). |
+| Two writers overlap: same position, same deleted text, replacement versus typing inside it, offline overlap, concurrent renames, per-edit request volume | `npx --package=playwright node scripts/collaboration-overlap-smoke.mjs` |
 | Accepted body edit loses confirmation; peer edits arrive; draft recovery/navigation | `npx --package=playwright node scripts/ux-uncertain-save-smoke.mjs --kind accepted-body --width 1280` |
 | Same uncertainty for a title, or a rejected body write | Same runner with `--kind accepted-title` or `--kind rejected-body`. Add `--width 390` for changed narrow controls; omit kind/width to run all six only when shared recovery behavior changes. |
 | Initial live editing fails; saved note stays readable; retry/navigation | `npx --package=playwright node scripts/ux-editor-availability-smoke.mjs` |

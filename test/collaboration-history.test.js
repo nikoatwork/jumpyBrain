@@ -87,7 +87,7 @@ test('ambiguous raw repeated-source insertion invalidates uncertain origins with
   await writeFile(path.join(f.root,'notes','history.md'),`---\nid: ${documentId}\ntype: note\ntitle: History\n---\naaaaa`);await f.hub.observe();
   const current=await f.hub.read(documentId);assert.equal(current.body,'aaaaa');assert.equal(current.epoch,base.epoch);
   assert.equal(current.presence.find(peer=>peer.principalId===writer.id).anchor,undefined);
-  assert.equal(current.presence.find(peer=>peer.principalId===lower.id).anchor,undefined);
+  assert.equal(current.presence.find(peer=>peer.principalId===lower.id).anchor,0,'a caret before the uncertain range stays before it');
   assert.equal(current.presence.find(peer=>peer.principalId===upper.id).anchor,5,'right-associated EOF maps identically across equivalent raw alignments');
   const history=await f.hub.readHistory({documentId,epoch:base.epoch,fromRevision:0},reader),splices=history.operations[0].splices;
   assert.ok(splices.some(splice=>splice.ambiguous===true&&splice.start===0&&splice.deleteCount>=4));assert.equal(replay(base.body,history),'aaaaa');

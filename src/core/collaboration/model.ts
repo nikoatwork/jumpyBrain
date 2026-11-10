@@ -9,6 +9,7 @@ import {
   composeSourceSplices,
   invertSourceSplices,
   rebaseSourceSplices,
+  sourceSplicesOverlap,
   sourceDifference,
   transformSourcePosition,
   validateSourceSplices,
@@ -26,6 +27,8 @@ export interface SourceEdit {
   start: number;
   deleteCount: number;
   insert: string;
+  /** A deliberate stale-read writer asks for rejection instead of a merge. */
+  rejectOverlap?: boolean;
 }
 export interface SourceBatchEdit {
   actor: string;
@@ -33,6 +36,8 @@ export interface SourceBatchEdit {
   epoch: string;
   baseRevision: number;
   operations: SourceSplice[];
+  /** A deliberate stale-read writer asks for rejection instead of a merge. */
+  rejectOverlap?: boolean;
 }
 interface OperationIdentity {
   actor: string;
@@ -275,6 +280,20 @@ export function composeCausalSourceHistory(
   base: string,
   records: readonly SourceHistoryRecord[],
 ): SourceSplice[] {
+  const reduced = reduceCausalSourceHistory(base, records);
+  const operations = composeSourceSplices(base, reduced);
+  let current = base;
+  for (const record of records)
+    current = applySourceSplices(current, record.splices);
+  if (applySourceSplices(base, operations) !== current)
+    fail("provenance_mismatch");
+  return operations;
+}
+/** The sequential transactions a server transform crosses: published records minus proven Undo pairs. */
+export function reduceCausalSourceHistory(
+  base: string,
+  records: readonly SourceHistoryRecord[],
+): SourceSplice[][] {
   if (!isSourceText(base)) fail("invalid_patch");
   if (bytes(base) > 2 * 1024 * 1024 || records.length > 1024)
     fail("provenance_limit");
@@ -342,10 +361,14 @@ export function composeCausalSourceHistory(
       if ((proofWork += amount) > 1_000_000) fail("history_expired");
     },
   );
-  const operations = composeSourceSplices(base, reduced.map(operationSplices));
-  if (applySourceSplices(base, operations) !== current)
-    fail("provenance_mismatch");
-  return operations;
+  return reduced.map((operation) =>
+    operationSplices(operation).map(({ start, deleteCount, insert, ambiguous }) => ({
+      start,
+      deleteCount,
+      insert,
+      ...(ambiguous ? { ambiguous: true as const } : {}),
+    })),
+  );
 }
 interface Receipt {
   signature: string;
@@ -685,6 +708,7 @@ export class SourceModel {
             insert: request.insert,
           },
         ],
+        rejectOverlap: request.rejectOverlap,
       },
       mode,
     );
@@ -770,12 +794,14 @@ export class SourceModel {
     for (const other of this.effectiveHistory(baseRevision, charge)) {
       const splices = operationSplices(other);
       charge(Math.max(1, operations.length * splices.length));
+      if (!mode && request.rejectOverlap && sourceSplicesOverlap(operations, splices))
+        fail(
+          "overlapping_edit",
+          "Both edits change the same source range. Keep the draft and reconcile against the current note.",
+        );
       operations = mode
         ? selectiveRebase(operations, splices)
-        : rebaseSourceSplices(operations, splices).map((operation, index) => ({
-            ...operation,
-            removed: operations[index]!.removed,
-          }));
+        : rebaseSourceSplices(operations, splices);
     }
     const applied = coalesce(
       operations
@@ -795,7 +821,13 @@ export class SourceModel {
     validateSourceSplices(this.body, applied);
     const next = applySourceSplices(this.body, applied);
     if (bytes(next) > this.maxBytes) fail("document_limit");
-    if (!applied.length && !inverseOf) {
+    // An edit whose whole effect another writer already made is still an
+    // acknowledged transaction: its author needs a receipt in history. Only a
+    // request that never asked for a change stays unrecorded.
+    const requested = request.operations.some(
+      (operation) => operation.deleteCount > 0 || operation.insert.length > 0,
+    );
+    if (!applied.length && !inverseOf && !requested) {
       this.receipts.set(key, { signature, revision: this.revision });
       this.retainReceipts();
       return { unchanged: true };
@@ -811,7 +843,7 @@ export class SourceModel {
     this.history.push(operation);
     this.versions.set(this.revision, next);
     this.receipts.set(key, { signature, operation, revision: this.revision });
-    if (!mode) {
+    if (!mode && applied.length) {
       const stack = this.undoStacks.get(actor) ?? [];
       stack.push(operation);
       this.undoStacks.set(actor, stack);

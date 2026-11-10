@@ -1506,7 +1506,7 @@ async function showNote(documentId, focusEnd = false) {
     state.editor = editor;
     try {
       const payload = staged?.id === documentId && staged.revision === credentialRevision
-        ? staged.payload : await readGraphDocument(documentId);
+        ? staged.payload : await graphJsonPatient(documentUrl(documentId), () => token === state.noteToken && state.editor === editor);
       if (token !== state.noteToken || state.editor !== editor) return;
       if (typeof payload?.content !== "string" || typeof payload?.contentHash !== "string") throw new Error("Invalid document response.");
       editor.hydrate(payload);
@@ -1549,7 +1549,7 @@ function sizeNoteName() {
   field.style.height = "auto";
   field.style.height = field.scrollHeight + "px";
 }
-let noteTitleComposing = false;
+let noteTitleComposing = false, noteNameDocument = "";
 $("note-name").addEventListener("compositionstart", () => {noteTitleComposing = true;});
 $("note-name").addEventListener("compositionend", () => {noteTitleComposing = false; if (!(companionMode && companionReadOnly())) state.editor?.inputTitle($("note-name").value.replace(/[\r\n]/g,""));});
 $("note-name").addEventListener("input", (event) => {
@@ -1574,7 +1574,13 @@ new ResizeObserver((entries) => {
   noteNameWidth = width;
   sizeNoteName();
 }).observe($("note-name"));
-$("note-name").addEventListener("blur", () => state.editor?.flush());
+$("note-name").addEventListener("blur", () => {
+  // Whitespace is kept while typing; leaving the field shows the saved spelling.
+  const field = $("note-name"), trimmed = field.value.trim();
+  if (trimmed && trimmed !== field.value && !(typeof companionMode !== "undefined" && companionMode && companionReadOnly())) { field.value = trimmed; state.editor?.inputTitle(trimmed); }
+  state.editor?.flush();
+  if (state.editor?.state.loaded) syncEditorUi(state.editor.state);
+});
 
 // Presence and generation notices present the live session; publication stays in its owner.
 let presenceSignature = "";
@@ -1604,7 +1610,7 @@ function createNoteSession(token, documentId, focusEnd) {
     isCurrent: () => state.noteToken === token && state.editor === editor,
     scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) + ":" + companionTabId : "hosted"),
     connection: async () => {
-      const capabilities = await graphJson("/capabilities");
+      const capabilities = await graphJsonPatient("/capabilities", () => state.noteToken === token && state.editor === editor);
       if (capabilities.protocol !== 2 || typeof capabilities.brainId !== "string") throw new Error("This backend requires a coordinated client upgrade.");
       const endpoint = new URL("/ws", location.href);
       endpoint.protocol = location.protocol === "https:" ? "wss:" : "ws:";
@@ -1631,10 +1637,10 @@ function createNoteSession(token, documentId, focusEnd) {
       observedHash = snapshot.contentHash; observedTitle = snapshot.title;
       $("note-file").textContent = snapshot.file || "";
       if (!contentChanged) return;
-      sidebarPages.rename({id: documentId, title: snapshot.title});
+      sidebarPages.observe({id: documentId, title: snapshot.title}, snapshot.body, snapshot.recognition);
       if (sidebarRefresh) clearTimeout(sidebarRefresh);
       if (titleChanged) sidebarPages.reloadAttention(documentId);
-      else sidebarRefresh = setTimeout(() => {sidebarRefresh = null; if (state.editor === editor && !editor.state.cancelled) sidebarPages.reloadAttention();}, 500);
+      else sidebarRefresh = setTimeout(() => {sidebarRefresh = null; if (state.editor === editor && !editor.state.cancelled) sidebarPages.reloadAttention();}, 1500);
       folderExplorer.rename(documentId, snapshot.title);
       recentWrites.remember({recognition: snapshot.recognition, id: documentId, title: snapshot.title, body: snapshot.body, file: snapshot.file});
       state.graph = null; noteSearch.markStale(); referenceAutocomplete.markStale();
@@ -1716,7 +1722,11 @@ function syncEditorUi(editorState) {
   richEditor.setReadOnly(editorState.navigationPending || companionLocked);
   for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending || companionLocked;
   if (editorState.loaded) {
-    if (!noteTitleComposing && $("note-name").value !== editorState.title) $("note-name").value = editorState.title;
+    // Never replace a name its author is typing. Another writer's rename is
+    // shown once they leave the field; their next keystroke publishes theirs.
+    const typingName = document.activeElement === $("note-name") && noteNameDocument === editorState.documentId && !$("note-name").readOnly;
+    if (!noteTitleComposing && !typingName && $("note-name").value !== editorState.title) $("note-name").value = editorState.title;
+    noteNameDocument = editorState.documentId;
     sizeNoteName();
     $("note-title").textContent = editorState.title || "Untitled";
     document.title = (editorState.title || "Untitled") + " · jumpyBrain";

@@ -1210,9 +1210,16 @@ export function createNoteEditor(element: HTMLElement, options: {
             else if(presentation.operationSequence){
               const anchors=points as number[];
               try{offsets=anchors.map((offset,index)=>{
-                const association=anchors[0]===anchors[1]||offset<anchors[1-index]?"right":"left";
+                // A caret stays before text another writer inserts at its
+                // position, so two people typing at one spot keep separate
+                // runs. Where an inferred raw-file change proves only the
+                // other side (an append at the caret's end of file), use it.
+                const collapsed=anchors[0]===anchors[1],association=!collapsed&&offset<anchors[1-index]?"right":"left";
                 let position=offset;
-                for(const operations of sequence!){try{position=transformSourcePosition(position,operations,association)}catch(error){if((error as {code?:string}).code!=="position_deleted")throw error;const removed=operations.find(operation=>operation.start<position&&position<operation.start+operation.deleteCount);if(!removed)throw error;position=transformSourcePosition(removed.start,operations,association)}}
+                for(const operations of sequence!){
+                  const project=(side:"left"|"right")=>{try{return transformSourcePosition(position,operations,side)}catch(error){if((error as {code?:string}).code!=="position_deleted")throw error;const removed=operations.find(operation=>operation.start<position&&position<operation.start+operation.deleteCount);if(!removed)throw error;return transformSourcePosition(removed.start,operations,side)}};
+                  try{position=project(association)}catch(error){if(!collapsed||(error as {code?:string}).code!=="ambiguous_source")throw error;position=project("right")}
+                }
                 return position;
               })}catch(error){
                 if((error as {code?:string}).code!=="ambiguous_source")throw error;

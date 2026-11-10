@@ -50,7 +50,7 @@ export async function runIntentProof({browser,serverUrl,token,root,bundle,errors
     console.log((shipped?'Shipped positional intent: ':'Positional intent: ')+ 'buffered intent after ACK');
     // Keep an accepted deletion unconfirmed while another actual local input
     // is buffered. Both explicit positions must survive peer rebasing and ACK.
-    base=await reset('aaaa');const ack=wire.holdNextReply('edit');await selectEditorText(page,0,1);await page.keyboard.press('Backspace');await receipt(ack.arrived);await selectEditorText(page,1);await page.keyboard.insertText('Q');await edit(base,[{start:2,deleteCount:0,insert:'X'}]);ack.release();assert.equal(await flush(),true);await canonical('aXQaa');
+    base=await reset('aaaa');const ack=wire.holdNextReply('edit');await selectEditorText(page,0,1);await page.keyboard.press('Backspace');await receipt(ack.arrived);await selectEditorText(page,1);await page.keyboard.insertText('Q');await edit(base,[{start:2,deleteCount:0,insert:'X'}]);ack.release();assert.equal(await flush(),true);await canonical('aQXaa'); // equal-gap tie: the later local publication precedes the peer's
     console.log((shipped?'Shipped positional intent: ':'Positional intent: ')+ 'verified inverse before own ACK');
     // A genuine backend-verified inverse pair can be retired before our held
     // edit arrives. Equal-byte ordinary replacements never get this privilege.
@@ -74,7 +74,14 @@ export async function runIntentProof({browser,serverUrl,token,root,bundle,errors
     // silently published edit. Retain the private source and require recovery.
     base=await reset('aaaa');await selectEditorText(page,2);wire.rejectNext('history.read',{code:'history_expired',message:'The exact source history expired.'});const missedId=crypto.randomUUID(),missed=wire.holdNextEvent(id,snapshot=>snapshot.operation?.operationId===missedId);changed=await edit(base,[{start:0,deleteCount:0,insert:'a'}],missedId);await receipt(missed.arrived);const latest=await edit(changed,[{start:0,deleteCount:0,insert:'a'}]);await page.waitForFunction(()=>live.state.status==='conflict');missed.release();await page.keyboard.insertText('Private Q');assert.equal(await flush(),false);assert.equal((await readFile(file,'utf8')).endsWith('\n---\n'+latest.body),true);assert.match(await page.evaluate(()=>live.state.message),/history expired/);assert.equal(await page.evaluate(()=>live.resolveConflict('saved')),true);
     console.log((shipped?'Shipped positional intent: ':'Positional intent: ')+ 'clean ambiguous raw position');
-    for(const position of [2,0]){
+    // A caret stays before text inserted at its position, so one resting
+    // before the whole uncertain range keeps the same place in every alignment.
+    base=await reset('aaaa');await selectEditorText(page,0);
+    await writeFile(file,(await readFile(file,'utf8')).replace(/^(---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$))[\s\S]*$/,'$1'+'aaaaa'));
+    await page.waitForFunction(()=>live.state.status==='saved'&&live.body==='aaaaa');await canonical('aaaaa');
+    assert.deepEqual(await editorSelection(page),[0,0],'a caret before the uncertain range keeps its proven place');
+    await page.keyboard.insertText('Q');assert.equal(await flush(),true);await canonical('Qaaaaa');
+    for(const position of [2]){
       base=await reset('aaaa');await selectEditorText(page,position);const beforePresence=wire.observed.length;
       const raw=(await readFile(file,'utf8')).replace(/^(---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$))[\s\S]*$/,'$1'+'aaaaa');await writeFile(file,raw);
       await page.waitForFunction(()=>live.state.status==='saved'&&live.body==='aaaaa');await canonical('aaaaa');

@@ -128,7 +128,7 @@ export function installPageNavigation(options: {
   let selected: string | null = null;
   const history = createPageHistory({ scope: options.scope, storage: () => window.localStorage, onChange: render });
   let previewScope: string | null = null;
-  type Preview = { failed?: boolean; previewVersion?: string; preview?: string; title?: string; updatedAt?: string; editor?: MemoryActor; fetchedAt: number; pending?: boolean };
+  type Preview = { live?: boolean; failed?: boolean; previewVersion?: string; preview?: string; title?: string; updatedAt?: string; editor?: MemoryActor; fetchedAt: number; pending?: boolean };
   const previews = new Map<string, Preview>();
   let previewReads = 0, paused = false;
   const previewRequests = new Set<AbortController>();
@@ -178,7 +178,7 @@ export function installPageNavigation(options: {
           return { ...merged, ageLabel: sidebarPageAge(merged, new Date(), source) };
         });
       for (const page of pages) if (options.fetchPreview && previewReads < 4 && !paused && !document.hidden && (!options.attentionScope || options.attentionScope()) && (options.enabled?.() ?? true)
-        && !previews.get(page.id)?.pending && (!previews.get(page.id)?.failed || Date.now() - previews.get(page.id)!.fetchedAt >= 10_000) && (page.sourceVersion ? page.sourceVersion !== previews.get(page.id)?.previewVersion : Date.now() - (previews.get(page.id)?.fetchedAt ?? 0) >= 10_000)) {
+        && !(previews.get(page.id)?.live && page.id === selected) && !previews.get(page.id)?.pending && (!previews.get(page.id)?.failed || Date.now() - previews.get(page.id)!.fetchedAt >= 10_000) && (page.sourceVersion ? page.sourceVersion !== previews.get(page.id)?.previewVersion : Date.now() - (previews.get(page.id)?.fetchedAt ?? 0) >= 10_000)) {
         const pending: Preview = { ...previews.get(page.id), fetchedAt: Date.now(), pending: true }; previews.set(page.id, pending); previewReads++;
         const request = new AbortController(); previewRequests.add(request);
         void options.fetchPreview(page.id, request.signal).then(packet => {
@@ -349,6 +349,13 @@ export function installPageNavigation(options: {
       // Keep it until the next fresh metadata read, including responsive rerenders.
       if (attention) for (const row of [...attention.state.notes, ...attention.state.settled]) if (row.id === page.id) row.title = page.title;
       previews.delete(page.id); history.rename(page); render();
+    },
+    /** The open live note already holds its saved text: show it without one HTTP read per edit. */
+    observe(page: Page, content: string, recognition?: SearchRecognitionMetadata) {
+      if (attention) for (const row of [...attention.state.notes, ...attention.state.settled]) if (row.id === page.id) row.title = page.title;
+      previews.set(page.id, { live: true, title: page.title, preview: readablePreview(content, page.title), fetchedAt: Date.now(),
+        ...(recognition?.updatedAt ? { updatedAt: recognition.updatedAt } : {}), editor: recognition?.metadataStatus === "current" ? recognition.editor : undefined });
+      history.rename(page); render();
     },
     remove(id: string) { history.remove(id); if (attention) void attention.load(); },
     refresh() { render(); if (attention) void attention.load(); },

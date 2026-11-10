@@ -130,13 +130,26 @@ test("external writes and renames reconcile; metadata title updates preserve the
   assert.equal(titled.body, "abc external\n");
   assert.equal(titled.epoch, snapshot.epoch);
   assert.ok(titled.revision > snapshot.revision);
+  // A rename from an older read is last-writer-wins: body edits or another
+  // rename in between never throw a writer into review. Only a revision the
+  // backend has not reached is rejected.
   await assert.rejects(
     hub.dispatch(
       "title",
-      { ...params(snapshot), title: "Stale title" },
+      { ...params(snapshot), baseRevision: titled.revision + 5, title: "Future title" },
       principal,
     ),
     (e) => e.code === "title_conflict",
+  );
+  assert.equal(
+    (
+      await hub.dispatch(
+        "title",
+        { ...params(snapshot), title: "Renamed" },
+        principal,
+      )
+    ).title,
+    "Renamed",
   );
   assert.equal(
     (

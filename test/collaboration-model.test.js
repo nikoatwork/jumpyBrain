@@ -35,7 +35,17 @@ test("source operations preserve structures, merge independent stale edits and p
   assert.match(model.body, /nested/);
   assert.match(model.body, /\| a \| b \|/);
   assert.throws(
-    () => edit(model, "other", "c", 2, 7, "different", 0),
+    () =>
+      model.apply({
+        actor: "other",
+        operationId: "c",
+        epoch: model.epoch,
+        baseRevision: 0,
+        start: 2,
+        deleteCount: 7,
+        insert: "different",
+        rejectOverlap: true,
+      }),
     code("overlapping_edit"),
   );
   assert.throws(
@@ -203,4 +213,46 @@ test("Unicode boundaries, expired history and epoch changes require reconciliati
     difference.insert,
   );
   assert.equal(unicode.body, after);
+});
+
+test("live edits that overlap merge instead of rejecting either writer", () => {
+  // Two people backspace the same characters: removed once, both acknowledged.
+  const shared = new SourceModel("Second paragraph beta.", { epoch: "merge" });
+  edit(shared, "alice", "a1", 17, 5, "");
+  const consumed = edit(shared, "bob", "b1", 19, 3, "", 0);
+  assert.equal(shared.body, "Second paragraph ");
+  assert.equal(consumed.operation.revision, 2, "a fully merged edit still has a receipt in history");
+  assert.deepEqual(consumed.operation.operations, [], "nothing remained for it to change");
+  assert.equal(shared.undoStacks.get("bob"), undefined, "an edit with no effect leaves no dead Undo step");
+  assert.equal(shared.apply({ actor: "bob", operationId: "b1", epoch: shared.epoch, baseRevision: 0, start: 19, deleteCount: 3, insert: "" }).duplicate, true);
+
+  // One person replaces a paragraph while another types inside and beside it.
+  const replaced = new SourceModel("one two three", { epoch: "replace" });
+  edit(replaced, "alice", "a1", 0, 13, "new");
+  edit(replaced, "bob", "inside", 4, 0, "X", 0);
+  edit(replaced, "carol", "after", 13, 0, "!", 0);
+  edit(replaced, "dave", "before", 0, 0, ">", 0);
+  assert.equal(replaced.body, ">Xnew!", "text inside survives before the replacement; boundary text keeps its side");
+
+  // A deletion never consumes text another writer inserted inside its range.
+  const kept = new SourceModel("abcdef", { epoch: "kept" });
+  edit(kept, "alice", "a1", 3, 0, "PEER");
+  edit(kept, "bob", "b1", 1, 4, "", 0);
+  assert.equal(kept.body, "aPEERf");
+  kept.undo("bob", "undo");
+  assert.equal(kept.body, "abcPEERdef", "Undo restores exactly the source its author removed");
+
+  // Both keep typing at one position: each run stays contiguous.
+  const typed = new SourceModel("|", { epoch: "typed" });
+  let alice = 0, bob = 0;
+  for (let index = 0; index < 4; index++) {
+    // Each writer has seen the other's previous character but not the current one.
+    const base = typed.revision;
+    edit(typed, "alice", "a" + index, alice, 0, "A", base);
+    edit(typed, "bob", "b" + index, bob, 0, "B", base);
+    // The later publication precedes an equal-gap one; carets stay before text
+    // another writer inserts at their position.
+    bob += 1; alice = bob + index + 1;
+  }
+  assert.equal(typed.body, "BBBBAAAA|");
 });

@@ -131,6 +131,18 @@ including its title and uncertain publication information. Both versions remain
 available for review. If storage cannot retain the current version, selection
 fails visibly and leaves it in place.
 
+Several people can type in the same note, paragraph and position at once.
+Overlapping live edits merge instead of asking anyone to review: text removed by
+both is removed once, a deletion never takes text someone else just added, and
+typing inside a passage another person replaces is kept in front of the
+replacement. Two people typing at exactly one position each keep an unbroken
+run. Text typed offline exactly at the end of a passage that someone meanwhile
+replaced can land after the first replaced characters; nothing is lost.
+Renaming is last-writer-wins and works while others type; a name you are typing
+is not replaced until you leave the field. Agents using positional
+`collaborate edit` from an earlier read still get an explicit overlap rejection,
+so they can reconcile deliberately.
+
 Direct `.md` writes remain supported. Stable observed changes enter the same
 source model; safe disjoint edits can merge. Overlaps, unstable/partial files,
 invalid identities, unsafe files and deletion retain recovery information and

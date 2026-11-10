@@ -47,12 +47,18 @@ async function runInactiveSelectionProof(page) {
     await page.evaluate(()=>new Promise(requestAnimationFrame));
   };
   try{
-    for(const offset of [0,2]){
+    // A caret stays before text inserted at its position, so one resting
+    // before the whole uncertain range has the same place in every alignment.
+    await select('aaaa',0);
+    const before=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('aaaaa',{operationSequence:[[{start:0,deleteCount:4,insert:'aaaaa',ambiguous:true}]]}));
+    assert.equal(before.status,'applied',before.reason);assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'aaaaa');
+    assert.notEqual(await page.evaluate(()=>inactiveEditor.captureSelection()),null,'a caret before the uncertain range keeps its proven position');
+    for(const offset of [2]){
       await select('aaaa',offset);
       const result=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('aaaaa',{operationSequence:[[{start:0,deleteCount:4,insert:'aaaaa',ambiguous:true}]]}));
       assert.equal(result.status,'recovery');assert.match(result.reason,/raw-file alignment/);assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'aaaa');assert.equal(await page.evaluate(()=>inactiveErrors.length),0,'expected active ambiguity never escapes to a nonthrowing production error handler');
     }
-    for(const offset of [0,2]){
+    for(const offset of [2]){
       await select('aaaa',offset);
       const result=await page.evaluate(()=>inactiveEditor.applyCollaborativeMarkdown('aaaaa',{retireUnprovenSelection:true,operationSequence:[[{start:0,deleteCount:4,insert:'aaaaa',ambiguous:true}]]}));
       assert.equal(result.status,'applied',result.reason);assert.equal(await page.evaluate(()=>inactiveEditor.getMarkdown()),'aaaaa');

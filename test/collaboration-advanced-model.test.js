@@ -147,6 +147,7 @@ test("batch rejection is atomic, batch receipts are canonical, and one undo cove
     () =>
       model.applyBatch({
         ...identity,
+        rejectOverlap: true,
         operations: [
           { start: 0, deleteCount: 5, insert: "ALPHA" },
           { start: 6, deleteCount: 6, insert: "wrong" },

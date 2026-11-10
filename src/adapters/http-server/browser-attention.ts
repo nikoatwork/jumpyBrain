@@ -46,11 +46,20 @@ export function createAttentionList(options: {
       options.onChange(state);
     } catch (error) {
       if (token !== sequence || boundScope !== options.scope()) return;
+      const denied = [401, 403].includes(Number((error as { status?: number })?.status));
+      // A passing failure (a busy proxy, a dropped request) must not blank a
+      // list that is already on screen. Keep it and try again on the normal
+      // recovery interval rather than adding load to a struggling host.
+      if (!denied && state.notes.length + state.settled.length > 0) {
+        state.status = "ready"; state.message = "";
+        options.onChange(state);
+        timer = options.setTimer(() => { timer = null; void load(); }, 30_000);
+        return;
+      }
       state.status = "error";
       state.notes = [];
       state.settled = []; state.total = state.settledTotal = 0;
-      state.message = [401, 403].includes(Number((error as { status?: number })?.status))
-        ? "Connect to see your notes." : "Could not load notes. Retry.";
+      state.message = denied ? "Connect to see your notes." : "Could not load notes. Retry.";
       options.onChange(state);
       timer = options.setTimer(() => { timer = null; void load(); }, 30_000);
     } finally { if (token === sequence) request = null; }

@@ -188,7 +188,7 @@ test("actual repeated-source transactions rebase both branches without retargeti
   assert.equal(transformSourcePosition(1, insertion), 2);
   assert.equal(transformSourcePosition(3, insertion), 4);
 });
-test("same-position paired inserts use canonical remote order and preserve identical payloads", () => {
+test("same-position paired inserts place the later local publication first and preserve identical payloads", () => {
   for (const [left, right] of [
     ["L", "R"],
     ["a", "a"],
@@ -196,11 +196,11 @@ test("same-position paired inserts use canonical remote order and preserve ident
     const local = [{ start: 1, deleteCount: 0, insert: left }],
       remote = [{ start: 1, deleteCount: 0, insert: right }],
       pair = rebaseSourcePair("aa", local, remote);
-    assert.equal(pair.local[0].start, 1 + right.length);
-    assert.equal(pair.remote[0].start, 1);
+    assert.equal(pair.local[0].start, 1);
+    assert.equal(pair.remote[0].start, 1 + left.length);
     assert.equal(
       applySourceSplices(applySourceSplices("aa", local), pair.remote),
-      "a" + right + left + "a",
+      "a" + left + right + "a",
     );
   }
 });
@@ -239,14 +239,18 @@ test("provenance composition has explicit UTF16, source, piece and work bounds",
       ),
     (error) => error.code === "provenance_limit",
   );
-  assert.throws(
-    () =>
-      rebaseSourcePair(
-        "aaaa",
-        [{ start: 0, deleteCount: 2, insert: "L" }],
-        [{ start: 1, deleteCount: 2, insert: "R" }],
-      ),
-    (error) => error.code === "overlapping_edit",
+  const overlap = rebaseSourcePair(
+    "aaaa",
+    [{ start: 0, deleteCount: 2, insert: "L" }],
+    [{ start: 1, deleteCount: 2, insert: "R" }],
+  );
+  assert.equal(
+    applySourceSplices(
+      applySourceSplices("aaaa", [{ start: 1, deleteCount: 2, insert: "R" }]),
+      overlap.local,
+    ),
+    "LRa",
+    "overlapping transactions merge: shared source goes once, both insertions stay",
   );
 });
 test("byte-identical explicit edits remain logical revisions with actual position history", () => {
@@ -312,6 +316,7 @@ test("logical equal-byte replacements still protect their actual source from sta
         start: 0,
         deleteCount: 1,
         insert: "",
+        rejectOverlap: true,
       }),
     (error) => error.code === "overlapping_edit",
   );

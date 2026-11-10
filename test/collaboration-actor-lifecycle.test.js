@@ -98,7 +98,17 @@ test("invalid, overlapping, duplicate and no-op edits do not retire or refresh h
     (error) => error.code === "invalid_base_range",
   );
   assert.throws(
-    () => edit(model, "C", "overlap", "X", 0, 1, 0),
+    () =>
+      model.apply({
+        actor: "C",
+        operationId: "overlap",
+        epoch: model.epoch,
+        baseRevision: 0,
+        start: 0,
+        deleteCount: 1,
+        insert: "X",
+        rejectOverlap: true,
+      }),
     (error) => error.code === "overlapping_edit",
   );
   assert.equal(model.apply(first.request).duplicate, true);

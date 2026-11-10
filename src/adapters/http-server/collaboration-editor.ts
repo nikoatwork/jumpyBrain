@@ -1,4 +1,4 @@
-import {composeCausalSourceHistory} from "../../core/collaboration/model.js";
+import {reduceCausalSourceHistory} from "../../core/collaboration/model.js";
 import { applySourceSplices, composeSourceSplices, rebaseSourcePair, transformSourcePosition, type SourceSplice } from "../../core/collaboration/source.js";
 import { createCollaborationClient, CollaborationError, validSnapshot, type CollaborationPrincipal, type CollaborationSnapshot, type CollaborationHistory, type CollaborationStreamSnapshot } from "./collaboration-client.js";
 import { archiveCollaborationDraft, collaborationClientId, createCollaborationDraftStore, type CollaborationDraft, type CollaborationDraftStore } from "./collaboration-drafts.js";
@@ -59,7 +59,9 @@ export function createCollaborationEditor(options: Options) {
   let historyNotice: CollaborationEditorState["historyNotice"], historyNoticeSequence = 0;
   let state: CollaborationEditorState = { status: "connecting", dirty: false, canWrite: false, durableDraft: true, recoveryDrafts: [] };
   const bodyDirty = () => !baseline ? dirtyBeforeOpen : Boolean(pendingOperations.length) || body !== baseline.body;
-  const titleDirty = () => draftTitle !== undefined && draftTitle !== baseline?.title;
+  // The canonical title is trimmed. Surrounding whitespace still being typed
+  // is not a pending change, and is never replaced by its saved spelling.
+  const titleDirty = () => draftTitle !== undefined && draftTitle !== baseline?.title && draftTitle.trim() !== baseline?.title;
   const blankTitle = () => titleDirty() && !draftTitle!.trim();
   const dirty = () => bodyDirty() || titleDirty();
   const cleanSource = () => Boolean(baseline && baseline.revision >= 0 && !dirty() && !conflict && !uncertain
@@ -183,12 +185,17 @@ export function createCollaborationEditor(options: Options) {
       if(own){
         const index=history.findIndex(operation=>operation.operationId===own.id&&operation.actor===own.actor);
         if(index<0)throw new CollaborationError("history_gap","The source history did not confirm the submitted operation.");
-        const prior=composeCausalSourceHistory(own.before.body,history.slice(0,index));
-        const pair=rebaseSourcePair(own.before.body,own.operations,prior);
-        const ownBase=applySourceSplices(own.before.body,prior),receipt=history[index];
-        if(JSON.stringify(pair.local)!==JSON.stringify(receipt.splices))throw new CollaborationError("intent_mismatch","The acknowledged operation differs from the submitted positional intent. Review its retained draft.");
-        if(applySourceSplices(ownBase,receipt.splices)!==applySourceSplices(own.submitted,pair.remote))throw new CollaborationError("intent_mismatch","The acknowledged source could not be reconciled with its actual operation.");
-        remoteSteps=[pair.remote,...history.slice(index+1).map(operation=>operation.splices)];
+        // Cross the same sequential transactions the server crossed, so a
+        // merged overlapping edit reproduces its acknowledged splices exactly.
+        let ownBase=own.before.body,ownView=own.submitted,submitted:SourceSplice[]=own.operations;const crossed:SourceSplice[][]=[];
+        for(const prior of reduceCausalSourceHistory(own.before.body,history.slice(0,index))){
+          const pair=rebaseSourcePair(ownBase,submitted,prior);
+          ownBase=applySourceSplices(ownBase,prior);ownView=applySourceSplices(ownView,pair.remote);submitted=pair.local;crossed.push(pair.remote);
+        }
+        const receipt=history[index];
+        if(JSON.stringify(submitted)!==JSON.stringify(receipt.splices))throw new CollaborationError("intent_mismatch","The acknowledged operation differs from the submitted positional intent. Review its retained draft.");
+        if(applySourceSplices(ownBase,receipt.splices)!==ownView)throw new CollaborationError("intent_mismatch","The acknowledged source could not be reconciled with its actual operation.");
+        remoteSteps=[...crossed,...history.slice(index+1).map(operation=>operation.splices)];
       }else remoteSteps=history.map(operation=>operation.splices);
     }
     let canonical=sourceBase,local=pendingOperations,merged=body;const optimisticSteps:SourceSplice[][]=[];
@@ -212,11 +219,10 @@ export function createCollaborationEditor(options: Options) {
     // title matching that submitted intent is not a foreign edit. Normalize
     // only the unchanged submitted draft; later local typing stays pending.
     const acceptedSubmittedTitle = titleSubmitted !== undefined && snapshot.title === titleSubmitted.trim();
-    if (acceptedSubmittedTitle && draftTitle === titleSubmitted) draftTitle = snapshot.title;
-    if (draftTitle !== undefined && previousTitle !== undefined && draftTitle !== previousTitle && snapshot.title !== previousTitle && snapshot.title !== draftTitle && !acceptedSubmittedTitle) {
-      conflict = true; message = "Concurrent title edits need review. The local title and saved version are retained.";
-    }
-    if (draftTitle === undefined || draftTitle === previousTitle) draftTitle = snapshot.title;
+    // Renames are last-writer-wins. A pending local name stays visible and is
+    // published next; an untouched name follows another writer's rename.
+    const renamedElsewhere = previousTitle !== undefined && snapshot.title !== previousTitle && !acceptedSubmittedTitle;
+    if (draftTitle === undefined || draftTitle === previousTitle || renamedElsewhere && draftTitle.trim() === previousTitle) draftTitle = snapshot.title;
     baseline = snapshot;
     if (own) deferredConfirmation = undefined;
     persist(); publishSnapshot(snapshot, remote); notify();

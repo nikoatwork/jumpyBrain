@@ -76,51 +76,140 @@ export function applySourceSplices(
   }
   return result;
 }
-/** Transform one transaction across another transaction; insertion ties use server order. */
-export function rebaseSourceSplices(
-  local: readonly SourceSplice[],
+/**
+ * Total, intent-preserving transform of one transaction across another on the
+ * same base. Source removed by both writers is removed once and a deletion
+ * never consumes the other writer's insertion. A replacement stands where its
+ * removed range was: text added before or after that range keeps its side.
+ * Only insertions at one gap, or edits whose ranges overlap, need an order;
+ * the later publication goes "before" the earlier one, so each writer's run
+ * stays contiguous while both keep typing at one position.
+ */
+export function rebaseSourceSplices<
+  T extends SourceSplice & { removed?: string },
+>(
+  local: readonly T[],
   remote: readonly SourceSplice[],
-  insertionOrder: "after" | "before" = "after",
-): SourceSplice[] {
-  return local.map((operation) => {
-    let start = operation.start;
-    for (let index = remote.length - 1; index >= 0; index--) {
-      const other = remote[index]!,
-        end = start + operation.deleteCount,
-        otherEnd = other.start + other.deleteCount;
+  insertionOrder: "after" | "before" = "before",
+): T[] {
+  const others = remote.filter(
+    (other) => other.deleteCount > 0 || other.insert.length > 0,
+  );
+  // A surviving base character moves by every remote splice starting at or before it.
+  const shift = (position: number) => {
+    let delta = 0;
+    for (const other of others) {
+      if (other.start > position) break;
+      delta += other.insert.length - other.deleteCount;
+    }
+    return delta;
+  };
+  // Where this splice's insertion lands among the remote insertions.
+  const anchor = (start: number, end: number) => {
+    let delta = 0,
+      afterOverlap: number | undefined;
+    for (const other of others) {
+      const otherEnd = other.start + other.deleteCount;
+      if (other.start > end) break;
+      const pure = start === end && other.start === otherEnd,
+        precedes =
+          otherEnd < start ||
+          (otherEnd === start && !pure) ||
+          (!(other.start === end && !pure) && insertionOrder === "after");
+      if (!precedes) return other.start + delta;
+      if (otherEnd >= start) afterOverlap = other.start + delta + other.insert.length;
+      delta += other.insert.length - other.deleteCount;
+    }
+    return afterOverlap ?? end + delta;
+  };
+  const result: T[] = [];
+  const push = (source: T, piece: { start: number; deleteCount: number; insert: string; removed?: string }) => {
+    if (!piece.deleteCount && !piece.insert) return;
+    const previous = result.at(-1);
+    if (previous && previous.start + previous.deleteCount === piece.start) {
+      previous.deleteCount += piece.deleteCount;
+      previous.insert += piece.insert;
+      if (piece.removed !== undefined)
+        previous.removed = (previous.removed ?? "") + piece.removed;
+      if (source.ambiguous) previous.ambiguous = true;
+      return;
+    }
+    result.push({
+      start: piece.start,
+      deleteCount: piece.deleteCount,
+      insert: piece.insert,
+      ...(piece.removed !== undefined ? { removed: piece.removed } : {}),
+      ...(source.ambiguous ? { ambiguous: true as const } : {}),
+    } as T);
+  };
+  for (const operation of local) {
+    const end = operation.start + operation.deleteCount;
+    for (const other of others) {
+      const otherEnd = other.start + other.deleteCount;
       if (
         other.ambiguous &&
         other.deleteCount > 0 &&
         (operation.deleteCount === 0
-          ? start >= other.start && start < otherEnd
-          : start < otherEnd && end > other.start)
+          ? operation.start >= other.start && operation.start < otherEnd
+          : operation.start < otherEnd && end > other.start)
       )
         fail(
           "ambiguous_source",
           "An observed raw-file change lost the source identity at this position. Review the retained draft.",
         );
-      if (
-        !other.deleteCount &&
-        !operation.deleteCount &&
-        start === other.start
-      ) {
-        if (insertionOrder === "after") start += other.insert.length;
-        continue;
-      }
-      if (otherEnd <= start) {
-        start += other.insert.length - other.deleteCount;
-        continue;
-      }
-      if (end <= other.start) continue;
-      fail(
-        "overlapping_edit",
-        "Both edits change the same source range. Keep the draft and reconcile against the current note.",
-      );
     }
-    return { ...operation, start };
+    const tracked = operation.removed !== undefined,
+      pieces: { start: number; deleteCount: number; insert: string; removed?: string }[] = [];
+    const remove = (from: number, to: number) =>
+      pieces.push({
+        start: from + shift(from),
+        deleteCount: to - from,
+        insert: "",
+        ...(tracked
+          ? { removed: operation.removed!.slice(from - operation.start, to - operation.start) }
+          : {}),
+      });
+    let cursor = operation.start;
+    for (const other of others) {
+      const otherEnd = other.start + other.deleteCount;
+      if (other.start >= end) break;
+      // Entirely before the remaining range, or a pure insertion on its boundary.
+      if (otherEnd <= cursor && other.start <= cursor) continue;
+      if (other.start > cursor) remove(cursor, other.start);
+      cursor = Math.max(cursor, otherEnd, other.start);
+    }
+    if (cursor < end) remove(cursor, end);
+    if (operation.insert) {
+      const insertion = {
+          start: anchor(operation.start, end),
+          deleteCount: 0,
+          insert: operation.insert,
+          ...(tracked ? { removed: "" } : {}),
+        },
+        index = pieces.findIndex((piece) => piece.start >= insertion.start);
+      pieces.splice(index < 0 ? pieces.length : index, 0, insertion);
+    }
+    for (const piece of pieces) push(operation, piece);
+  }
+  return result;
+}
+/** True when two same-base transactions change the same source range; equal-gap insertions are not overlap. */
+export function sourceSplicesOverlap(
+  local: readonly SourceSplice[],
+  remote: readonly SourceSplice[],
+): boolean {
+  return local.some((operation) => {
+    const end = operation.start + operation.deleteCount;
+    return remote.some((other) => {
+      const otherEnd = other.start + other.deleteCount;
+      if (!other.deleteCount && !other.insert) return false;
+      if (!other.deleteCount && !operation.deleteCount && operation.start === other.start)
+        return false;
+      return !(otherEnd <= operation.start || end <= other.start);
+    });
   });
 }
-/** Both sides retain their actual positions; canonical remote insertions win ties. */
+/** Both sides retain their actual positions; the later local publication precedes canonical ties. */
 export function rebaseSourcePair(
   base: string,
   local: readonly SourceSplice[],
@@ -130,8 +219,8 @@ export function rebaseSourcePair(
   validateSourceSplices(base, remote);
   const localBody = applySourceSplices(base, local),
     remoteBody = applySourceSplices(base, remote),
-    afterRemote = rebaseSourceSplices(local, remote),
-    afterLocal = rebaseSourceSplices(remote, local, "before");
+    afterRemote = rebaseSourceSplices(local, remote, "before"),
+    afterLocal = rebaseSourceSplices(remote, local, "after");
   if (
     applySourceSplices(remoteBody, afterRemote) !==
     applySourceSplices(localBody, afterLocal)

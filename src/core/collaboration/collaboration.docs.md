@@ -2,7 +2,7 @@
 
 ## Responsibilities
 
-Own bounded source-splice rebasing, read revisions/epochs, operation identities, per-actor undo and sequenced streams. Validate UTF-16 boundaries and well-formed text. Independent operations rebase; ambiguous replacements reject rather than guessing. Snapshot history is bounded by both operation count and retained UTF-8 bytes. A fork supports publication transactions without changing the accepted model before disk success.
+Own bounded source-splice rebasing, read revisions/epochs, operation identities, per-actor undo and sequenced streams. Validate UTF-16 boundaries and well-formed text. Independent operations rebase, and overlapping ones merge: `rebaseSourceSplices` is a total transform in which source removed by both writers is removed once, a deletion never consumes another writer's insertion, and a replacement stands where its removed range was (text before or after that range keeps its side; text inside it lands before the replacement). Insertions at one gap put the later publication first, so two writers typing at one position keep contiguous runs. `rejectOverlap` on an edit restores rejection (`overlapping_edit`) for a deliberate stale-read writer. Ambiguous raw-file replacements still reject rather than guess. An edit whose whole effect another writer already made is recorded as an acknowledged empty transaction without an Undo step. Snapshot history is bounded by both operation count and retained UTF-8 bytes. A fork supports publication transactions without changing the accepted model before disk success.
 
 ## Non-responsibilities
 

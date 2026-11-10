@@ -90,6 +90,7 @@ test("visible idle lists refresh without snoozes, recover after errors and isola
   timers.get(nextTimer).callback(); await new Promise(resolve => setImmediate(resolve));
   assert.equal(reads, 2);
   fail = true; await list.load(); assert.equal(timers.get(nextTimer).delay, 30_000);
+  assert.equal(list.state.settled[0].id, id, 'a passing failure keeps the list already on screen'); assert.equal(list.state.status, 'ready');
   fail = false; await list.load(); assert.equal(list.state.status, 'ready');
   enabled = false; list.cancel(); const before = reads; await list.load(); assert.equal(reads, before);
   scope = 'b'; await list.load(); assert.deepEqual(list.state.settled, []);

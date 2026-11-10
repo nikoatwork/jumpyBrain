@@ -14,13 +14,18 @@ test("source differences reconstruct UTF-16 edits without splitting emoji", () =
     assert.ok(!/^[\uDC00-\uDFFF]/.test(before.slice(diff.start + diff.deleteCount)), "end does not bisect surrogate");
   }
 });
-test("explicit positional transactions keep disjoint edits and insertion ties and reject actual overlap", () => {
+test("explicit positional transactions keep disjoint edits and insertion ties and merge actual overlap", () => {
   const merge=(base,local,remote)=>applySourceSplices(applySourceSplices(base,remote),rebaseSourcePair(base,local,remote).local);
   assert.equal(merge("one two",[{start:0,deleteCount:3,insert:"ONE"}],[{start:4,deleteCount:3,insert:"TWO"}]),"ONE TWO");
-  assert.equal(merge("ab",[{start:1,deleteCount:0,insert:"LOCAL"}],[{start:1,deleteCount:0,insert:"REMOTE"}]),"aREMOTELOCALb");
+  assert.equal(merge("ab",[{start:1,deleteCount:0,insert:"LOCAL"}],[{start:1,deleteCount:0,insert:"REMOTE"}]),"aLOCALREMOTEb","the later local publication precedes an equal-gap canonical insertion");
   assert.equal(merge("ab",[{start:1,deleteCount:0,insert:"XX"}],[{start:1,deleteCount:0,insert:"XX"}]),"aXXXXb","identical intentional inserts by different writers both survive");
   assert.equal(merge("alpha\nmiddle\nomega\n",[{start:0,deleteCount:5,insert:"ALPHA"},{start:13,deleteCount:5,insert:"OMEGA"}],[{start:6,deleteCount:6,insert:"MIDDLE"}]),"ALPHA\nMIDDLE\nOMEGA\n","first and last source ranges never claim the unchanged middle");
-  assert.throws(()=>merge("text",[{start:0,deleteCount:4,insert:"draft"}],[{start:0,deleteCount:4,insert:"saved"}]),error=>error.code==="overlapping_edit");
+  assert.equal(merge("text",[{start:0,deleteCount:4,insert:"draft"}],[{start:0,deleteCount:4,insert:"saved"}]),"draftsaved","overlapping replacements remove the shared source once and keep both insertions");
+  assert.equal(merge("one two three",[{start:4,deleteCount:0,insert:"X"}],[{start:0,deleteCount:13,insert:"new"}]),"Xnew","typing inside a range another writer replaced survives before the replacement");
+  assert.equal(merge("foo",[{start:3,deleteCount:0,insert:"X"}],[{start:0,deleteCount:3,insert:"bar"}]),"barX","text typed after a replaced range stays after the replacement");
+  assert.equal(merge("foo",[{start:0,deleteCount:0,insert:"X"}],[{start:0,deleteCount:3,insert:"bar"}]),"Xbar","text typed before a replaced range stays before the replacement");
+  assert.equal(merge("abcdef",[{start:1,deleteCount:4,insert:""}],[{start:3,deleteCount:0,insert:"PEER"}]),"aPEERf","a deletion never consumes another writer's insertion");
+  assert.equal(merge("abcdef",[{start:2,deleteCount:3,insert:""}],[{start:0,deleteCount:4,insert:""}]),"f","source removed by both writers is removed once");
 });
 function inputIntent(editor, value, operations) {editor.input(value,{before:editor.body,after:value,operations})}
 function memoryStorage() {
@@ -193,7 +198,9 @@ test("blank rename drafts stay editable and durable without publishing or blocki
     editor.dispose(); editor = create(); editor.connect(); await new Promise(resolve => setTimeout(resolve, 0));
     assert.equal(editor.title, "   ", "reopening retains the private blank rename"); assert.equal(editor.state.canWrite, true);
     editor.inputTitle("  Replacement title  "); assert.equal(await editor.flush(), true);
-    assert.equal(editor.title, "Replacement title"); assert.equal(editor.state.status, "saved"); assert.equal(editor.state.dirty, false);
+    // Surrounding whitespace still in the field is not a pending change and
+    // is never replaced mid-typing; the saved title is trimmed.
+    assert.equal(editor.title, "  Replacement title  "); assert.equal(editor.snapshot.title, "Replacement title"); assert.equal(editor.state.status, "saved"); assert.equal(editor.state.dirty, false);
     assert.equal(drafts.read(scope).value, null); assert.equal(canonicalBody, "Canonical body plus edit");
     editor.inputTitle(""); assert.equal(await editor.flush(), false);
     editor.inputTitle("Replacement title"); assert.equal(await editor.flush(), true, "restoring the saved title cancels the draft");
@@ -243,7 +250,9 @@ test("canonical title normalization preserves later local typing and real foreig
     editor.inputTitle("  My pending title  "); const conflictingFlush = editor.flush();
     assert.equal(heldTitles.length, 3);
     publish(sockets[0], "A different writer's title");await new Promise(resolve=>setTimeout(resolve,0));
-    assert.equal(editor.state.status, "conflict"); assert.equal(editor.title, "  My pending title  ");
+    // Another writer's rename no longer forces review: the pending local
+    // name stays visible and is published next (last writer wins).
+    assert.notEqual(editor.state.status, "conflict"); assert.equal(editor.title, "  My pending title  ");
     receive(sockets[0], { id: heldTitles[2].id, ok: false, error: { code: "title_conflict", message: "Another writer changed the title." } });
     assert.equal(await conflictingFlush, false); assert.equal(editor.snapshot.title, "A different writer's title");
     assert.equal(editor.state.durableDraft, true); assert.equal(body, "Canonical body");

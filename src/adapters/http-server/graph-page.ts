@@ -398,6 +398,19 @@ async function graphJson(url, options) {
   return payload;
 }
 
+// A busy proxy or a restarting host is a passing condition. For reads that
+// open a note, wait briefly and ask again before reporting it unavailable.
+async function graphJsonPatient(url, stillWanted = () => true) {
+  for (let attempt = 0; ; attempt++) {
+    try { return await graphJson(url); }
+    catch (error) {
+      if (attempt >= 3 || ![429, 502, 503, 504].includes(error?.status) || !stillWanted()) throw error;
+      await new Promise(resolve => setTimeout(resolve, 800 * 2 ** attempt));
+      if (!stillWanted()) throw error;
+    }
+  }
+}
+
 function documentUrl(documentId) {
   return memoryDocumentPath(documentId);
 }

@@ -286,6 +286,8 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
       snapshot = await request("edit", {
         ...version,
         operationId: randomUUID(),
+        // An agent editing from an earlier read reconciles overlap itself.
+        overlap: "reject",
         start: Number(args.start ?? 0),
         deleteCount: Number(args.delete ?? 0),
         insert: new TextDecoder("utf-8", { fatal: true }).decode(

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-10 — Seamless live co-editing
+
+- Overlapping live edits now merge instead of forcing review, same-position typing keeps each writer's run whole, renames are last-writer-wins, and shared brains stop re-reading the note per keystroke; verified with two- and three-writer browser runs locally and on the hosted brain. [Findings, checks and limits](done/2026-11-10_tasks-seamless-live-coediting.md).
+
 ## 2026-11-10 — v0.3.22 beta
 
 - Published built-in drawings with the pending search, attention/recovery and UI fixes as an owner-approved second release of the day; verified all three assets and refreshed the public demo to the exact tagged revision. [Release and checks](done/2026-11-10_tasks-release-v0.3.22.md).
