@@ -26,7 +26,7 @@ npm run release
 
 The full release command already runs **`npm test` and `npm run cli:pack`** against aligned CLI/app versions. Do not run separate full-suite/CLI-pack passes beforehand merely to repeat those same gates. A prior passing implementation suite can support preparation; the release-owned full suite remains mandatory. The script still builds more than once internally; no undocumented lean/thorough flag exists.
 
-The core note smoke checks actual canonical capture, immediate search, graph/title navigation, two-tab stale-save recovery, narrow layouts, deletion cancel/apply, preserved referencing files and index refresh. The deterministic suite covers local/hosted policy, CLI/provenance and the frozen extension contract. Inspect the changed screens using the relevant feature's existing screenshots/checks; do not repeat unrelated theme/device permutations.
+The core note smoke checks actual canonical capture, immediate search, graph/title navigation, a two-tab overlapping edit that merges without review, narrow layouts, deletion cancel/apply, preserved referencing files and index refresh. The deterministic suite covers local/hosted policy, CLI/provenance and the frozen extension contract. Inspect the changed screens using the relevant feature's existing screenshots/checks; do not repeat unrelated theme/device permutations.
 
 Before calling it shipped, verify the public tag, exact release notes, CLI distribution plus both release-native helper assets, aligned package/lockfile versions and all downloaded SHA-256 digests. Git push alone is not publication. Publishing does not update the user's installed app.
 

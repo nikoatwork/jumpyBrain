@@ -58,16 +58,20 @@ try {
   await replaceEditorText(page,'Winning edit.');await page.locator('#note-name').click();
   await page.getByTestId('graph-note-save-state').filter({hasText:'Saved'}).waitFor();
   heldReplacement.release();
-  await second.getByTestId('graph-note-save-state').filter({hasText:'Changes need review'}).waitFor();
-  await second.locator('#note-recover').click();
-  if(!await second.locator('#recovery-options').evaluate(element=>element.open))await second.locator('#recovery-options > summary').click();
-  await second.locator('#recovery-saved').filter({visible:true}).waitFor();
-  await second.waitForFunction(()=>document.getElementById('recovery-saved').value.includes('Winning edit.'));
-  assert.match(await second.locator('#recovery-draft').inputValue(),/Losing draft/);
-  await second.locator('#recovery-reload').click();
-  await second.locator('#document-recovery').waitFor({state:'hidden'});
-  assert.match((await readMemoryDocument(root,id)).content,/Winning edit/);
-  assert.doesNotMatch((await readMemoryDocument(root,id)).content,/Losing draft/);
+  // Overlapping replacements merge live (docs/collaboration.md): both writers converge on one
+  // saved document, neither replacement is lost and nobody is sent to review. Raw-file overwrites
+  // keep the review/recovery path; external-document-updates-smoke covers it.
+  await second.getByTestId('graph-note-save-state').filter({hasText:'Saved'}).waitFor();
+  for(const tab of [page,second])await tab.waitForFunction(()=>state.editor?.collaboration?.state.status==='saved');
+  const merged=(await readMemoryDocument(root,id)).content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,'');
+  assert.match(merged,/Winning edit\./);
+  assert.match(merged,/Losing draft retained for comparison\./);
+  assert.doesNotMatch(merged,/A saved note with/,'the shared original is removed once');
+  for(const tab of [page,second]){
+    await tab.waitForFunction(value=>richEditor.getMarkdown().trim()===value.trim(),merged);
+    assert.equal(await tab.locator('#note-recover').isVisible(),false,'merged edits need no review');
+    assert.equal(await tab.getByTestId('graph-note-save-state').innerText(),'Saved');
+  }
   await second.close();console.log('step: narrow map');
   // Narrow map controls occupy a full usable row; visible featured labels cannot overlap.
   await page.locator('#graph-link').click();
@@ -112,5 +116,5 @@ try {
   const indexed = await searchMemory(root, 'Winning edit', 5, {refresh:false});
   assert.equal(indexed.results.some(hit=>hit.provenance?.metadata?.id===id), false);
   assert.deepEqual(errors,[]);
-  console.log('PASS: real note capture, immediate search, canonical title graph, guarded two-tab recovery, 390/320 layouts, delete cancel/apply, preserved backlinks and index refresh.');
+  console.log('PASS: real note capture, immediate search, canonical title graph, two-tab overlap merge without review, 390/320 layouts, delete cancel/apply, preserved backlinks and index refresh.');
 } finally {await browser?.close();await server?.close();await rm(root,{recursive:true,force:true});}
