@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-11 — v0.3.23 beta
+
+- Published v0.3.23 (folder sorting, merged overlapping live edits, renames during live editing, fewer shared-brain requests) and refreshed the public demo to its exact revision. Release preparation fixed seven master test failures, updated the lifecycle smoke to the merge behavior and raised the editor gzip ceiling to 224,250 with a measured record. [Release task](done/2026-11-11_tasks-release-v0.3.23.md) · [QA](done/releases/v0.3.23.qa.md) · [notes](done/releases/v0.3.23.md).
+
 ## 2026-11-10 — Folder explorer sorting
 
 - The Folders panel sorts notes by name, last edited or created date with compact ages, answering the folder-view feedback; folders stay alphabetical and text filtering is unchanged. [Implementation, checks and limits](done/2026-11-10_tasks-folder-explorer-sorting.md).

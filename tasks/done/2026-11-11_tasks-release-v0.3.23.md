@@ -1,6 +1,6 @@
 # Release v0.3.23
 
-Status: in progress. Patch release requested by the owner on 2026-11-11 ("cut release"); first release of the Europe/Berlin day (v0.3.22 published 2026-11-10T12:30:44Z).
+Status: complete. Published and verified v0.3.23 and refreshed the public demo to the exact release revision. Patch release requested by the owner on 2026-11-11 ("cut release"); first release of the Europe/Berlin day (v0.3.22 published 2026-11-10T12:30:44Z).
 
 ## Scope and evidence
 
@@ -29,7 +29,13 @@ Not run: `npm run smoke:hosted` (no Docker daemon locally), desktop/updater smok
 
 - [x] Review history, live feedback and pending notes.
 - [x] Fresh build and desktop package; disposable core note lifecycle.
-- [ ] Dry run and full release.
-- [ ] Verify tag, exact notes, aligned metadata and all three downloaded asset digests.
-- [ ] Refresh public demo to the exact published revision; verify landing, note opening, search and graph.
-- [ ] Archive exact notes and QA; reset pending note; archive this task and commit bookkeeping.
+- [x] Dry run and full release.
+- [x] Verify tag, exact notes, aligned metadata and all three downloaded asset digests.
+- [x] Refresh public demo to the exact published revision; verify landing, note opening, search and graph.
+- [x] Archive exact notes and QA; reset pending note; archive this task and commit bookkeeping.
+
+## Publication verified
+
+The second `npm run release` passed 2,011 of 2,013 tests with two optional skips and published [v0.3.23](https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.23) at 2026-11-11T07:13:19Z from `304176f`. Notes, tag, aligned versions and all three asset digests are verified; the demo runs the exact revision and its landing, note opening, search and graph checks pass. Details and limits: [QA record](releases/v0.3.23.qa.md); exact notes: [v0.3.23](releases/v0.3.23.md).
+
+Open after this release: the editor has 278 gzip bytes of headroom, so further browser work (including the pending settings-card change) will likely need a footprint review. Drawings remain unavailable on the public demo.
