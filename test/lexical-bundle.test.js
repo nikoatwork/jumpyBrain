@@ -11,7 +11,7 @@ test("editor bundle is self-contained, production-sized, and safe to inline unde
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
   // Measured UX feedback/recovery allowance; see docs/build-footprint.md.
-  assert.ok(gzipSync(bundle).length < 223_250, "review editor weight if the production bundle exceeds 223.25 KB gzip");
+  assert.ok(gzipSync(bundle).length < 224_250, "review editor weight if the production bundle exceeds 224.25 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);

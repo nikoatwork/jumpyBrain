@@ -1506,7 +1506,7 @@ async function showNote(documentId, focusEnd = false) {
     state.editor = editor;
     try {
       const payload = staged?.id === documentId && staged.revision === credentialRevision
-        ? staged.payload : await graphJsonPatient(documentUrl(documentId), () => token === state.noteToken && state.editor === editor);
+        ? staged.payload : await readGraphDocument(documentId, { stillWanted: () => token === state.noteToken && state.editor === editor });
       if (token !== state.noteToken || state.editor !== editor) return;
       if (typeof payload?.content !== "string" || typeof payload?.contentHash !== "string") throw new Error("Invalid document response.");
       editor.hydrate(payload);

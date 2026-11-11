@@ -16,7 +16,7 @@ checks to its real tarball before recording successful package metadata.
 
 Budgets in `scripts/package-budget.mjs` are 3.3 MB compressed, 9.1 MB unpacked,
 7.5 MB under `dist/`, and 780 files (decimal units). Existing editor tests retain
-223.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+224.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer; `test/drawings.test.js` holds the lazy drawing editor to
 4.2 MB on disk and a 245 KB gzip entry. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
@@ -327,3 +327,17 @@ reduces the collaboration app artifact alone from 53,953 to 34,157 bytes (its
 standalone gzip from 10,994 to 8,507). Retained comparison and generation modules
 also shrink. Full package and source-operation/stream checks protect the final
 compiled artifacts; do not widen distribution ceilings to absorb UX work.
+
+## 2026-11-11 live co-editing merge and folder sorting
+
+v0.3.23 release preparation found the editor above its 223,250-byte gate. Matched
+local builds (macOS ARM64, Node 26.7.0, same lockfile) measured 222,922 gzip bytes
+at v0.3.22 (`b31d944^`), 223,450 after the total collaboration transform and the
+client's sequential-transaction crossing (`b31d944`, +528) and 223,969 after the
+folder-explorer sort select, compact ages and device-local preference (`77d1ce8`,
++519). The release candidate measured 223,972 bytes. Both features are deliberate
+browser behavior; the editor still bundles the same 15 packages and no dependency
+or framework was added. The reviewed editor ceiling is 224,250 bytes, leaving 278
+bytes over that candidate. Distribution ceilings are unchanged. Neither feature
+task ran the full suite, so the overrun surfaced only in the release-owned
+`npm test`; run `test/lexical-bundle.test.js` whenever browser code changes.

@@ -415,7 +415,9 @@ function documentUrl(documentId) {
   return memoryDocumentPath(documentId);
 }
 
+// options.stillWanted retries a briefly busy host (429/502/503/504) while the caller still wants the result.
 function readGraphDocument(documentId, options) {
+  if (options?.stillWanted) return graphJsonPatient(documentUrl(documentId), options.stillWanted);
   return graphJson(documentUrl(documentId), options);
 }
 

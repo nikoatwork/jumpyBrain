@@ -531,7 +531,9 @@ for (const kind of ['local', 'remote']) test(`folder explorer reads nested canon
   const response = await f.memory('files', undefined, tab, generation);
   assert.equal(response.status, 200, await response.clone().text());
   const packet = await response.json();
-  assert.deepEqual(packet.files.find(row => row.id === nestedId), { id: nestedId, file: 'notes/projects/deep/note.md', title: 'Nested companion note' });
+  const { updatedAt, ...listed } = packet.files.find(row => row.id === nestedId);
+  assert.deepEqual(listed, { id: nestedId, file: 'notes/projects/deep/note.md', title: 'Nested companion note' });
+  assert.equal(updatedAt, before.mtime.toISOString(), 'undated notes list their mtime for edit order');
   assert.equal(JSON.stringify(packet).includes(root), false);
   assert.equal(JSON.stringify(packet).includes('Private body'), false);
   assert.equal((await f.memory('documents/' + nestedId, undefined, tab, generation)).status, 200);

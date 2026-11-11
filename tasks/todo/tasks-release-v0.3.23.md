@@ -15,6 +15,14 @@ Status: in progress. Patch release requested by the owner on 2026-11-11 ("cut re
 
 On `77d1ce8`: `npm run build` and `npm run desktop:pack` passed. The first `scripts/note-lifecycle-smoke.mjs` run failed at its two-tab conflict step, which waited for **Changes need review** after overlapping replacements. That outcome was intentionally removed by `b31d944` (overlapping live edits merge); the runner was not part of that task's verification. Observed behavior was correct: both tabs and the file converged on `Losing draft retained for comparison.Winning edit.`, both Saved. The step now asserts that merge (both replacements kept, shared original removed once, editors equal to the file, both Saved, no review), and `docs/release-testing.md` describes it. Rerun passed (capture, search, graph/title navigation, overlap merge, 390/320 layouts, deletion cancel/apply, preserved backlinks, index refresh). The review/recovery path for raw-file overwrites stays covered by `scripts/external-document-updates-smoke.mjs`, which passed at 1280 and 390 px. Feature evidence for `collaboration-overlap-smoke` and `folder-explorer-smoke` is reused from their task lists (unchanged inputs). Logs: `/tmp/jumpybrain-v0.3.23-{build,desktop-pack,lifecycle,external-updates}.log`.
 
+The first full `npm run release` stopped at `npm test` before any version commit (2,004 passed, 7 failed, 2 skipped of 2,013). Version metadata was restored. The failures were real on `master`; neither feature task ran the full suite:
+
+- `test/notes-browser.test.js` (3): `b31d944` made `showNote` call the retrying JSON reader directly, bypassing the `readGraphDocument` seam its stale-selection and staged-payload tests drive. The retry now lives in `readGraphDocument(id, { stillWanted })` and `showNote` uses the seam again; retry behavior is unchanged.
+- `test/macos-companion-gateway.test.js` (2): `77d1ce8` intentionally lists an `updatedAt` (file mtime for undated notes). The test now expects it, as `folder-explorer-data.test.js` already did.
+- `test/lexical-bundle.test.js`: editor 223,972 gzip bytes against the 223,250 gate (+528 co-editing, +519 folder sorting, no new dependency). The ceiling is raised to 224,250 with a [measured record](../../docs/build-footprint.md#2026-11-11-live-co-editing-merge-and-folder-sorting), following the 2026-11-04 precedent.
+
+After the fixes: the four affected test files passed (113/113), and the lifecycle smoke and `scripts/collaboration-overlap-smoke.mjs` passed again.
+
 Not run: `npm run smoke:hosted` (no Docker daemon locally), desktop/updater smokes (no host/updater change).
 
 ## Tasks
