@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — v0.3.24 beta and worktree consolidation
+
+- Consolidated outstanding work into master and removed three completed worktrees/five stale branches. Published idle recovery, shared credential storage, note-link editing, the smaller editor, Settings card, access-key controls and drawing mention renames. Verified all three assets and the public demo at the exact release revision. [Task](done/2026-11-12_tasks-release-v0.3.24.md) · [QA](done/releases/v0.3.24.qa.md) · [Notes](done/releases/v0.3.24.md).
+
 ## 2026-11-12 — Settings card
 
 - Finalized the large Settings card with search, Escape dismissal and responsive layout; background navigation stays inert and sidebar collapse is preserved. [Verification and limits](done/2026-11-12_tasks-settings-card.md).

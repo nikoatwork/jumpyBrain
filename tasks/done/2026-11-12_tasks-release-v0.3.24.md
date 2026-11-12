@@ -4,8 +4,8 @@ Requested 2026-11-12 after consolidating worktrees. Latest published release is 
 
 ## Worktree consolidation
 
-- [x] Main checkout already on master; finalize its completed settings change as `0370e612` with [checks](../done/2026-11-12_tasks-settings-card.md).
-- [x] Integrate the missing drawing change from old `dca97c9c` as `9d5bd0ae`, preserving the attribution-cleaned history; [checks and limits](../done/2026-11-10_tasks-drawing-mention-rename.md).
+- [x] Main checkout already on master; finalize its completed settings change as `0370e612` with [checks](2026-11-12_tasks-settings-card.md).
+- [x] Integrate the missing drawing change from old `dca97c9c` as `9d5bd0ae`, preserving the attribution-cleaned history; [checks and limits](2026-11-10_tasks-drawing-mention-rename.md).
 - [x] Verify patch equivalence for updater readiness, Markdown bullets and concurrent guidance (one equivalent commit each), plus all 183 commits unique by ancestry on the old Excalidraw branch. No unique patches remained there.
 - [x] Confirm all three worktrees have no tracked/untracked changes; remove them and their branches. Ignored contents were generated dependencies/build/package fixtures. Remove both redundant feature branches after integration. Only the root worktree and master remain; no stash, unfinished tracked work or local feature branch remains.
 - [x] Read completed source threads; they are settled. Reassert settlement for the integrated drawing source thread.
@@ -14,7 +14,7 @@ Requested 2026-11-12 after consolidating worktrees. Latest published release is 
 
 `npm run --silent feedback:inbox`: checked at **2026-11-12T15:57:13.679Z**, complete received/non-spam history with no date bounds, two pages, **63 scanned, two synthetic tests excluded, 61 genuine messages**. Exact-ID comparison against the feedback index found one new report (November 12 15:42Z), read in full at 15:57:36Z, no attachments. Historical bodies/attachments were not re-audited; spam/trash/blocked mail excluded. No replies or test messages sent.
 
-- New report: unclear remote authentication failure and credential source, with an unverified server-redeploy persistence concern. Added to [feedback follow-ups](tasks-feedback-follow-ups.md); deferred diagnosis, no claim the new access-key UI proves a cause or fixes historical loss.
+- New report: unclear remote authentication failure and credential source, with an unverified server-redeploy persistence concern. Added to [feedback follow-ups](../todo/tasks-feedback-follow-ups.md); deferred diagnosis, no claim the new access-key UI proves a cause or fixes historical loss.
 - Existing covered reports in scope: idle-session fencing, post-update Keychain failures and relative note links.
 - Existing open work remains: nested imported checkboxes, whole-note CLI/live-editor updates, rate-limit clarity, legacy managed installs, broader retrieval evaluation and richer saved views.
 
@@ -29,10 +29,10 @@ Environment: macOS 15.7.7 ARM64, Node 26.7.0, QMD 2.8.3 (`/opt/homebrew/bin/qmd`
 - [x] Targeted current-snapshot `companion-idle-recovery-smoke.mjs` and `companion-env-credentials-smoke.mjs`: passed; same-tab dropped-request recovery and persisted edits, Settings save to 0600 credential file, restart continuity, CLI reuse, old-profile repair and no key in page/support files. Logs `/tmp/jumpybrain-v0.3.24-idle.log` and `/tmp/jumpybrain-v0.3.24-credentials.log`.
 - [x] `npm run smoke:desktop`: passed against the fresh native package (normal, crash and recovery modes; background/tray/reopen, blocked quit, close keeps service, settings and packaged extensions). Log `/tmp/jumpybrain-v0.3.24-native.log`.
 - [x] Review and commit curated seven-bullet release note in `47a6b771`; measured download updated to 184 KB and reconnect wording avoids claiming a physical sleep test.
-- [ ] `npm run release -- --dry-run` then full versioned `npm run release`.
-- [ ] Verify annotated tag, aligned manifests/locks, exact public notes, all three downloaded asset digests.
-- [ ] Pin demo to published tag, push its master, verify live version/revision, landing, note opening, search and graph; push demo bookkeeping too.
-- [ ] Archive exact shipped notes and QA, reset pending notes, finalize this task and commit/push bookkeeping.
+- [x] `npm run release -- --dry-run` and the second full versioned `npm run release`: passed; **2,030 tests passed, two optional skips, zero failures of 2,032**, CLI pack and both native architectures, staged guard, annotated tag and atomic push. Log `/tmp/jumpybrain-v0.3.24-release.log`.
+- [x] Published [v0.3.24](https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.24) at **2026-11-12T16:07:31Z**, tag commit `84768313d70bb07202f3843002706d30e0b94c7a`. All four manifests/locks align; exact notes match; all three downloaded assets match public sizes/SHA-256 and native inner executable digests. Downloaded tarball is byte-identical to local pack. Details in the final QA record.
+- [x] Pin demo to published tag, push its master, verify live version/revision, landing, note opening, search and graph; push demo bookkeeping too.
+- [x] Archive exact shipped notes and QA, reset pending notes, finalize this task and commit/push bookkeeping.
 
 ## Real-use decision and limits
 
@@ -43,3 +43,7 @@ Environment: macOS 15.7.7 ARM64, Node 26.7.0, QMD 2.8.3 (`/opt/homebrew/bin/qmd`
 The first full release attempt stopped at three stale test expectations before packing, tagging or publication. Two sidebar cases expected the old Settings sidebar expansion; updated them to assert the modal preserves collapse and focus. The board CLI test expected the removed `API_KEY is required` error; it now checks `No access key for` and pins an absent `JUMPYBRAIN_ENV_FILE` so operator credentials cannot affect it. Policy-before-input/credential ordering remains asserted. No runtime behavior changed.
 
 `node --test test/browser-sidebar.test.js test/boards-cli.test.js`: **9 passed** on the already-built 0.3.24 snapshot. Retain first-attempt log as `/tmp/jumpybrain-v0.3.24-release-attempt1.log`. Restore only the release script's four version-metadata edits to 0.3.23 before committing this test correction and rerunning the full workflow; no blind second version bump.
+
+## Final outcome
+
+Published release and all three assets verified; public demo runs the exact tag revision and passed landing/note/search/graph checks. Private demo pin and final bookkeeping are both pushed. Exact shipped notes are archived in [v0.3.24.md](releases/v0.3.24.md), detailed verification in [v0.3.24.qa.md](releases/v0.3.24.qa.md); pending notes reset because all seven bullets shipped. This completed task is archived and its scoped release bookkeeping committed/pushed separately. Root and demo remain on master; no extra root worktree or local feature branch remains. Installation is unchanged.

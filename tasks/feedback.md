@@ -2,7 +2,7 @@
 
 One row per reviewed email. Work and verification stay in the linked task; this index prevents repeat triage. [Check routine](../docs/check-feedback.md) · [Residual follow-ups](todo/tasks-feedback-follow-ups.md).
 
-Last full live check: **2026-11-12T15:57:13.679Z**; received/non-spam, no date bounds, two pages, **63 scanned / two synthetic tests excluded / 61 genuine messages**, complete. Received dates: October 20–November 12, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation found one new remote-authentication report, read in full at 15:57:36Z (no attachment); historical bodies/attachments were not re-audited. Release triage: [v0.3.24](todo/tasks-release-v0.3.24.md).
+Last full live check: **2026-11-12T15:57:13.679Z**; received/non-spam, no date bounds, two pages, **63 scanned / two synthetic tests excluded / 61 genuine messages**, complete. Received dates: October 20–November 12, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation found one new remote-authentication report, read in full at 15:57:36Z (no attachment); historical bodies/attachments were not re-audited. Release triage: [v0.3.24](done/2026-11-12_tasks-release-v0.3.24.md).
 
 - **open**: reviewed; investigation or reproduction remains.
 - **covered**: linked implementation/verification covers the report scope. This does **not** claim release, installation or proof of every historical event.
