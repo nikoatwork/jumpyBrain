@@ -137,7 +137,9 @@ export function installAccessKeys(options: {
       if (!Array.isArray(packet?.credentials) || !packet.credentials.every(validCredential)) throw Object.assign(new Error("unsupported"), { code: "not_found" });
       credentials = packet.credentials.slice().sort((left: Credential, right: Credential) => right.createdAt.localeCompare(left.createdAt));
       loadedScope = context.scope;
-      intro.textContent = "Give each person and agent their own key for " + context.address + ". A key works in the app, the browser and the CLI, and you can revoke it at any time."
+      // From the Mac app the keys belong to another machine: say so, or the panel reads as local key storage.
+      intro.textContent = (context.kind === "remote" ? "You are managing the server at " + context.address + " from this device. Its keys are kept on the server, not here, and changes apply there right away. Give each person and agent their own key."
+        : "Give each person and agent their own key for " + context.address + ".") + " A key works in the app, the browser and the CLI, and you can revoke it at any time."
         + (who.id.startsWith("bootstrap:") ? " You are using the server’s setup key: create an admin key for yourself and keep the setup key for recovery." : "");
       if (!context.canChange) say("Editing is turned off for this brain on this device. Allow editing under Brains to create or revoke keys.");
       render();
