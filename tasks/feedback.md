@@ -2,7 +2,7 @@
 
 One row per reviewed email. Work and verification stay in the linked task; this index prevents repeat triage. [Check routine](../docs/check-feedback.md) · [Residual follow-ups](todo/tasks-feedback-follow-ups.md).
 
-Last full live check: **2026-11-12T09:02:14.401Z**; received/non-spam, no date bounds, two pages, **62 scanned / two synthetic tests excluded / 60 genuine messages**, complete. Received dates: October 20–November 12, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation found three new messages (November 11–12), reviewed below; diagnostics attachments not yet downloaded; historical bodies/attachments were not re-audited.
+Last full live check: **2026-11-12T15:57:13.679Z**; received/non-spam, no date bounds, two pages, **63 scanned / two synthetic tests excluded / 61 genuine messages**, complete. Received dates: October 20–November 12, 2026. Spam, trash and blocked mail are outside scope. Exact-ID reconciliation found one new remote-authentication report, read in full at 15:57:36Z (no attachment); historical bodies/attachments were not re-audited. Release triage: [v0.3.24](todo/tasks-release-v0.3.24.md).
 
 - **open**: reviewed; investigation or reproduction remains.
 - **covered**: linked implementation/verification covers the report scope. This does **not** claim release, installation or proof of every historical event.
@@ -15,6 +15,7 @@ Bootstrap evidence: current inbox metadata plus prior triage/task records; the n
 
 | Received UTC (2026) | Outcome | Sanitized topic | Owner / evidence |
 | --- | --- | --- | --- |
+| [11-12 15:42](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=a447fe5d-fcd8-412a-8ee4-0ff5ee132edf "message-id: <010001a1d06cab65-b4b90a92-039d-43ac-a46b-2c5feab25dc5-000000@email.amazonses.com>") | open | Remote authentication errors lack credential-source and recovery guidance; historical server reset/key loss unproven | [follow-up](todo/tasks-feedback-follow-ups.md) |
 | [11-12 08:14](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=bee0edf8-50db-4243-b968-0903aeab6ac8 "message-id: <010001a1ced24037-29f4d150-0cab-4f81-8cf7-f4438d7743d2-000000@email.amazonses.com>") | covered | Local editor fenced after hours idle; dropped requests now reconnect automatically in source; exact sleep cause inferred | [evidence](done/2026-11-12_tasks-idle-session-recovery.md) |
 | [11-11 19:20](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=40a4d331-9fb9-4855-9027-b3b88776b351 "message-id: <010001a1cc0e0611-9953c6e2-1e18-40e2-b16e-91a577ba00fc-000000@email.amazonses.com>") | covered | Remote access keys moved from Keychain to a shared owner-only .env; keys survive updates in source; old connections need one key re-entry | [evidence](done/2026-11-12_tasks-env-file-credentials.md) |
 | [11-11 08:50](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=294aedfe-5b1f-45fd-b3fc-212ae3f2a44f "message-id: <010001a1c9cd79f0-73092e7a-b532-4827-91e2-6c979ab2a8e0-000000@email.amazonses.com>") | covered | Relative .md note links are now clickable in any rendered line in source, shown as label only with the path on hover | [evidence](done/2026-11-12_tasks-relative-note-links.md); [labels](done/2026-11-12_tasks-note-link-labels.md) |

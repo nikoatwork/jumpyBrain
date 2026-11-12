@@ -4,6 +4,8 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 ## Reproduce and investigate
 
+- [ ] **P2 — Remote authentication diagnosis (Nov 12).** Reproduce unknown/revoked/malformed credentials using disposable servers and inspect credential precedence. Explain the selected credential source without exposing the key, give an admin reissue/recovery path, and evaluate a read-only auth/doctor check. Reported server-redeploy key/note loss remains unproven and needs separate persistence evidence. Reviewed for v0.3.24; deferred from its already completed scope.
+
 - [x] **P1 — Local editor fenced after long idle (Nov 12).** [Completed in source](../done/2026-11-12_tasks-idle-session-recovery.md): dropped coordinator requests now reconnect the same tab automatically (backoff, focus/visibility/online) without reload or draft loss; authorization failures keep the hard fence. Real sleep/wake on packaged Electron is untested. Pending release.
 
 - [x] **P1 — Keychain access key lost after every app update (Nov 11).** [Completed in source](../done/2026-11-12_tasks-env-file-credentials.md): keys now live in the owner-only `~/.config/jumpybrain/.env`, shared with the CLI, and survive updates; Keychain code removed. Existing remote connections need their key re-entered once. Not run across a real packaged update. Pending release.
