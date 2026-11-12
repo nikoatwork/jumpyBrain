@@ -54,6 +54,7 @@ for(const remote of [false,true])test(`complete board CLI workflow ${remote?'thr
 test('protected remote board reads work but mutations fail before credentials and input files',async t=>{
   const directory=await mkdtemp(path.join(os.tmpdir(),'jb-board-policy-'));t.after(()=>rm(directory,{recursive:true,force:true}));
   const config=path.join(directory,'policy.json');await writeFile(config,JSON.stringify({schemaVersion:1,remoteTargets:[{origin:'https://example.test',access:'read-only'}]}));
-  await assert.rejects(cli(['create','--target-url','https://example.test','--file','/does/not/exist'],{JUMPYBRAIN_CLI_CONFIG:config,JUMPYBRAIN_API_KEY:''}),error=>/JUMPYBRAIN_REMOTE_TARGET_READ_ONLY/.test(error.stderr)&&!/ENOENT|API_KEY is required/.test(error.stderr));
-  await assert.rejects(cli(['list','--target-url','https://example.test'],{JUMPYBRAIN_CLI_CONFIG:config,JUMPYBRAIN_API_KEY:''}),error=>/API_KEY is required/.test(error.stderr));
+  const env={JUMPYBRAIN_CLI_CONFIG:config,JUMPYBRAIN_API_KEY:'',JUMPYBRAIN_ENV_FILE:path.join(directory,'missing.env')};
+  await assert.rejects(cli(['create','--target-url','https://example.test','--file','/does/not/exist'],env),error=>/JUMPYBRAIN_REMOTE_TARGET_READ_ONLY/.test(error.stderr)&&!/ENOENT|No access key for/.test(error.stderr));
+  await assert.rejects(cli(['list','--target-url','https://example.test'],env),error=>/No access key for/.test(error.stderr));
 });

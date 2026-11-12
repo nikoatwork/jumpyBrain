@@ -37,3 +37,9 @@ Environment: macOS 15.7.7 ARM64, Node 26.7.0, QMD 2.8.3 (`/opt/homebrew/bin/qmd`
 ## Real-use decision and limits
 
 `npm run dogfood:status`: superseded 0.3.21 candidate, recorded pre-cleanup commit `ace92efa`; no current candidate or normal-use evidence for this snapshot. Owner explicitly chose “Publish after automated checks” on 2026-11-12, shortening the normal-use window for this snapshot. No new candidate installation or normal-use claim is implied. No personal notes are used for automated/fault tests. Intel runtime, physical IME/accessibility, real sleep/wake, a real packaged credential migration/update and arbitrary user extensions are untested unless later evidence explicitly records them.
+
+## Release-gate correction
+
+The first full release attempt stopped at three stale test expectations before packing, tagging or publication. Two sidebar cases expected the old Settings sidebar expansion; updated them to assert the modal preserves collapse and focus. The board CLI test expected the removed `API_KEY is required` error; it now checks `No access key for` and pins an absent `JUMPYBRAIN_ENV_FILE` so operator credentials cannot affect it. Policy-before-input/credential ordering remains asserted. No runtime behavior changed.
+
+`node --test test/browser-sidebar.test.js test/boards-cli.test.js`: **9 passed** on the already-built 0.3.24 snapshot. Retain first-attempt log as `/tmp/jumpybrain-v0.3.24-release-attempt1.log`. Restore only the release script's four version-metadata edits to 0.3.23 before committing this test correction and rerunning the full workflow; no blind second version bump.

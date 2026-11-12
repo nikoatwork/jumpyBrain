@@ -57,15 +57,16 @@ test('reload, cross-tab collapse, cleared storage and blocked storage keep the t
   assert.equal(blocked.button.parentElement, blocked.toolbar);
 });
 
-// Settings has its own navigation even when the ordinary sidebar is collapsed.
-test('Settings temporarily expands navigation without changing the stored notes preference', () => {
+// Settings has its own modal navigation and preserves the background sidebar.
+test('Settings preserves sidebar collapse and does not move focus out of the card', () => {
   const h = harness({ stored: 'true' });
   h.document.body.dataset.view = 'settings'; h.sync();
-  assert.equal(h.root.dataset.sidebarCollapsed, 'false');
+  assert.equal(h.root.dataset.sidebarCollapsed, 'true');
   assert.equal(h.values.get('jumpybrain.sidebarCollapsed'), 'true');
-  h.document.activeElement = h.sidebar;
+  const settingsSearch = { id: 'settings-search' };
+  h.document.activeElement = settingsSearch;
   h.storage('true');
-  assert.equal(h.document.activeElement, h.sidebar, 'storage sync must not focus the hidden Settings toggle');
+  assert.equal(h.document.activeElement, settingsSearch, 'storage sync keeps focus in the Settings card');
   h.document.body.dataset.view = 'note'; h.sync();
   assert.equal(h.root.dataset.sidebarCollapsed, 'true');
   assert.equal(h.button.parentElement, h.toolbar);
@@ -79,7 +80,7 @@ test('narrow navigation closes transiently and leaves desktop preference and foc
   h.resize(false);assert.equal(h.root.dataset.sidebarCollapsed,'false');
   h.resize(true);assert.equal(h.root.dataset.sidebarCollapsed,'true');
   h.toggle();assert.equal(h.root.dataset.sidebarCollapsed,'false');assert.equal(h.values.has('jumpybrain.sidebarCollapsed'),false);
-  h.afterNavigate();h.document.body.dataset.view='settings';h.sync();assert.equal(h.root.dataset.sidebarCollapsed,'false');
+  h.afterNavigate();h.document.body.dataset.view='settings';h.sync();assert.equal(h.root.dataset.sidebarCollapsed,'true');
   h.document.body.dataset.view='note';h.sync();assert.equal(h.root.dataset.sidebarCollapsed,'true');
   h.storage('false');assert.equal(h.root.dataset.sidebarCollapsed,'false','explicit cross-tab preference clears automatic dismissal');
   h.resize(false);h.afterNavigate();assert.equal(h.root.dataset.sidebarCollapsed,'false','desktop selection stays expanded');
