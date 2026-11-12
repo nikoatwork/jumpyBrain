@@ -7,8 +7,8 @@ const paletteChoice = (value: string, label: string) => `<label class="appearanc
 
 export const appearanceMarkup = String.raw`
 <div id="appearance-options">
-  <fieldset class="appearance-group"><legend>Color scheme</legend><div class="appearance-grid">${schemeChoice("system", "System")}${schemeChoice("light", "Light")}${schemeChoice("dark", "Dark")}</div></fieldset>
-  <fieldset class="appearance-group"><legend>Theme</legend><div class="appearance-grid">${paletteChoice("ember", "Ember")}${paletteChoice("ocean", "Ocean")}${paletteChoice("mono", "Mono")}${paletteChoice("pride", "Pride")}</div></fieldset>
+  <fieldset class="appearance-group" data-settings-item data-settings-keywords="mode dark light system"><legend>Color scheme</legend><div class="appearance-grid">${schemeChoice("system", "System")}${schemeChoice("light", "Light")}${schemeChoice("dark", "Dark")}</div></fieldset>
+  <fieldset class="appearance-group" data-settings-item data-settings-keywords="palette colour color accent"><legend>Theme</legend><div class="appearance-grid">${paletteChoice("ember", "Ember")}${paletteChoice("ocean", "Ocean")}${paletteChoice("mono", "Mono")}${paletteChoice("pride", "Pride")}</div></fieldset>
 </div>`;
 
 export const appearanceStyles = String.raw`

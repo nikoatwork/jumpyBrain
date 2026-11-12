@@ -3,11 +3,10 @@ import { extensionSettingsMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { appearanceMarkup } from "./browser-appearance.js";
 import { accessKeysMarkup } from "./access-keys-view.js";
-import { settingsStyles, settingsScript } from "./browser-settings.js";
+import { settingsNavigationMarkup, settingsStyles, settingsScript } from "./browser-settings.js";
 
 // Companion-only loopback control UI. No target credential is ever read into this shell.
 export const companionStyles = String.raw`
-  #companion-settings { width: 100%; overflow: auto; padding: var(--space-8) var(--space-6) var(--space-16); }
   .companion-column { max-width: 760px; margin: auto; }
   #companion-settings h2 { font-size: var(--text-section); margin: 0; }
   .settings-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -57,15 +56,22 @@ ${boardsStyles}
 
 export const companionMarkup = String.raw`
 ${boardsMarkup}
-<section id="companion-settings" aria-labelledby="companion-heading" hidden>
+<section id="companion-settings" class="settings-overlay" hidden>
+  <div class="settings-backdrop" data-settings-dismiss aria-hidden="true"></div>
+  <div class="settings-window" role="dialog" aria-modal="true" aria-labelledby="companion-heading">
+  ${settingsNavigationMarkup}
+  <div class="settings-content">
   <div class="companion-column">
     <header class="settings-heading companion-header">
       <h1 id="companion-heading" class="settings-breadcrumb" tabindex="-1"><span>Settings</span><span aria-hidden="true">/</span><span id="settings-section-title">Brains</span></h1>
-      <button id="companion-refresh-index" class="quiet-button note-icon" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
+      <div class="settings-header-actions">
+        <button id="companion-refresh-index" class="quiet-button note-icon" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
+        <a id="settings-back" class="quiet-button note-icon" href="/" aria-label="Close settings" title="Close settings (Esc)" aria-keyshortcuts="Escape">${browserIcons.close}</a>
+      </div>
     </header>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
-    <section class="settings-panel settings-card" data-settings-panel="boards" hidden><div class="settings-row"><h2>Boards</h2><button id="settings-new-board" class="quiet-button">+ New board</button></div><div id="settings-boards-list"></div></section>
-    <section id="settings-panel-brains" class="settings-panel" data-settings-panel="brains" aria-label="Brain connections">
+    <section class="settings-panel settings-card" data-settings-panel="boards" data-settings-keywords="kanban columns cards settle restore rename delete" hidden><div class="settings-row"><h2>Boards</h2><button id="settings-new-board" class="quiet-button">+ New board</button></div><div id="settings-boards-list"></div></section>
+    <section id="settings-panel-brains" class="settings-panel" data-settings-panel="brains" data-settings-keywords="connections connect folder memory server remote local access key keychain editing permissions index refresh switch" aria-label="Brain connections">
     <div class="connections-intro"><h2>Connections</h2><p>Choose the brain you want to work with, or connect another folder or server.</p></div>
     <ul id="companion-profiles" aria-label="Saved brains"></ul>
     <details id="companion-add" class="companion-add">
@@ -95,8 +101,8 @@ ${boardsMarkup}
     </form>
     </details>
     </section>
-    <section id="settings-panel-access" class="settings-panel settings-card" data-settings-panel="access" aria-label="Access keys" hidden>${accessKeysMarkup}</section>
-    <section class="settings-panel settings-card" data-settings-panel="identity" aria-label="Your name" hidden>
+    <section id="settings-panel-access" class="settings-panel settings-card" data-settings-panel="access" data-settings-keywords="api keys tokens credentials team share invite users people agents admin reader writer roles revoke permissions server" aria-label="Access keys" hidden>${accessKeysMarkup}</section>
+    <section class="settings-panel settings-card" data-settings-panel="identity" data-settings-keywords="display name author attribution identity profile agents" aria-label="Your name" hidden>
       <h2>Your name</h2>
       <form id="identity-form">
         <label for="identity-name">Display name</label>
@@ -106,11 +112,13 @@ ${boardsMarkup}
         <p id="identity-message" role="status"></p>
       </form>
     </section>
-    <section id="settings-panel-appearance" class="settings-panel" data-settings-panel="appearance" aria-label="Appearance" hidden>
+    <section id="settings-panel-appearance" class="settings-panel" data-settings-panel="appearance" data-settings-keywords="theme color colour scheme dark light system mode palette" aria-label="Appearance" hidden>
       ${appearanceMarkup}
     </section>
-    <section id="settings-panel-extensions" class="settings-panel settings-card" data-settings-panel="extensions" aria-label="Extensions" hidden>${extensionSettingsMarkup}</section>
-    <p class="app-version" data-app-version></p>
+    <section id="settings-panel-extensions" class="settings-panel settings-card" data-settings-panel="extensions" data-settings-keywords="plugins add-ons reload panels commands" aria-label="Extensions" hidden>${extensionSettingsMarkup}</section>
+    <p id="settings-search-empty" class="settings-search-empty" role="status" hidden></p>
+  </div>
+  </div>
   </div>
 </section>
 `;
@@ -323,7 +331,8 @@ function companionLock(value) {
   if (leavingFrozen && typeof boardsUI !== "undefined") boardsUI.refresh();
   const preparing = companionState?.phase === "preparing" && !companionSessionFailed;
   document.querySelector("main").inert = preparing;
-  document.querySelector(".app-nav").inert = preparing;
+  // The settings card is modal; keep the app behind it inert while it is open.
+  document.querySelector(".app-nav").inert = preparing || state.view === "settings";
   $("graph-header").inert = preparing;
   for (const id of ["new-note", "home-new"]) $(id).disabled = creatingNote || companionReadOnly();
   $("companion-fields").disabled = companionActionBusy || companionFrozen;

@@ -167,7 +167,10 @@ try {
   if (await settings.locator("html").getAttribute("data-theme") !== "dark") await settings.evaluate(() => colorTheme.setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
   assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(28, 27, 25)");
   assert.equal(await settings.locator("#companion-kind").evaluate((el) => getComputedStyle(el).color), "rgb(216, 208, 192)");
+  // Closed <details> content skips rendering, so its colour transition only settles once shown.
+  await settings.evaluate(() => { document.querySelector("#companion-add").open = true; });
   await settings.waitForFunction(() => getComputedStyle(document.querySelector("#companion-name")).backgroundColor === "rgb(28, 27, 25)");
+  await settings.evaluate(() => { document.querySelector("#companion-add").open = false; });
   await settings.evaluate(() => colorTheme.setPreference(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
   assert.equal(await settings.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(230, 218, 196)");
   await settings.evaluate(() => colorTheme.setPreference("system"));
@@ -185,9 +188,23 @@ try {
   await settings.locator(".companion-profile").first().getByRole("button", { name: "Edit", exact: true }).focus();
   await idlePolls(settings);
   assert.equal(await settings.evaluate(() => document.activeElement?.getAttribute("aria-label")), "Edit", "idle polls retain focused row controls");
-  assert.equal(await settings.locator(".nav-library").isVisible(), false);
-  assert.equal(await settings.locator(".nav-tools").isVisible(), false);
+  // Settings is a modal card over the app: the sidebar stays behind it but inert.
+  assert.equal(await settings.locator("#app-sidebar").evaluate(el => el.inert), true);
+  assert.equal(await settings.getByRole("dialog", { name: /Settings/ }).isVisible(), true);
   assert.equal(await settings.locator("#settings-back").isVisible(), true);
+  await settings.keyboard.press(process.platform === "darwin" ? "Meta+f" : "Control+f");
+  assert.equal(await settings.evaluate(() => document.activeElement?.id), "settings-search", "Cmd/Ctrl+F focuses settings search");
+  await settings.keyboard.type("ocean");
+  await settings.locator("#settings-panel-appearance").waitFor({ state: "visible" });
+  assert.equal(await settings.locator("#settings-panel-brains").isHidden(), true);
+  assert.equal(await settings.getByRole("radio", { name: "Ocean", exact: true }).isVisible(), true);
+  assert.equal(await settings.getByRole("radio", { name: "Dark", exact: true }).isVisible(), false, "search narrows to the matching group");
+  await settings.locator("#settings-search").fill("zzzz-no-setting");
+  await settings.locator("#settings-search-empty").waitFor({ state: "visible" });
+  await settings.keyboard.press("Escape");
+  assert.equal(await settings.locator("#settings-search").inputValue(), "", "first Escape clears the search");
+  await settings.locator("#settings-panel-brains").waitFor({ state: "visible" });
+  assert.equal(await settings.locator("#companion-settings").isVisible(), true);
   await settings.locator('[data-settings-section="appearance"]').click();
   await settings.getByRole("radio", { name: "Dark", exact: true }).check();
   assert.equal(await settings.locator("html").getAttribute("data-theme"), "dark");
@@ -224,6 +241,12 @@ try {
   await settings.locator("#extension-reload").waitFor({ state: "visible" });
   await settings.reload();
   await settings.locator("#extension-reload").waitFor({ state: "visible" });
+  await settings.locator("#extension-reload").focus();
+  await settings.keyboard.press("Escape");
+  await settings.locator("#home").waitFor({ state: "visible" });
+  assert.equal(await settings.locator("#companion-settings").isHidden(), true, "Escape closes settings");
+  assert.equal(await settings.locator("#app-sidebar").evaluate(el => el.inert), false);
+  await settings.locator("#open-connection").click();
   await settings.locator("#settings-back").click();
   await settings.locator("#home").waitFor({ state: "visible" });
   await settings.locator("#open-connection").click();

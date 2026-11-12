@@ -8,7 +8,7 @@ const sidebarPreference = (() => {
   try { collapsed = localStorage.getItem(key) === "true"; } catch { /* Tab-only preference. */ }
   function apply() {
     const active = document.activeElement;
-    const expanded = !(collapsed || (compact?.matches && autoCollapsed)) || document.body?.dataset.view === "settings";
+    const expanded = !(collapsed || (compact?.matches && autoCollapsed));
     root.dataset.sidebarCollapsed = String(!expanded);
     const button = document.getElementById("toggle-sidebar");
     if (!button) return;

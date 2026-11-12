@@ -99,7 +99,7 @@ try {
   await list.getByRole('button',{name:/^Delete A long/}).click();await list.getByRole('button',{name:'Delete board',exact:true}).click();
   await list.getByText('Your boards will live here.',{exact:true}).waitFor();
   await page.reload();await list.getByText('Your boards will live here.',{exact:true}).waitFor();
-  assert.equal(await page.locator('#settings-new-board').isEnabled(),true);assert.equal(await readFile(file,'utf8'),original);
+  await page.waitForFunction(()=>!document.getElementById('settings-new-board').disabled,null,{timeout:5000});assert.equal(await readFile(file,'utf8'),original);
   assert.deepEqual(errors,[]);
   console.log('PASS board settings: settled recovery, rename/cancel/validation, conflict retention, toggle, confirmed deletion, note preservation, reload and responsive geometry. Captures: '+captures);
 }finally{await browser?.close();await gateway?.close();await rm(temp,{recursive:true,force:true});}

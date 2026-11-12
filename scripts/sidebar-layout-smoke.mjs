@@ -171,14 +171,29 @@ try {
       assert.deepEqual(await style(), resting, 'icon hover changes glyph color only');
     }
   }
-  // Settings keeps updates reachable when other footer actions are hidden.
+  // Settings opens as a modal card that fits the viewport; the app behind stays inert.
   await page.locator('#open-connection').click();
   await page.locator('#settings-navigation').waitFor({ state: 'visible' });
   for (const width of [1280, 320]) {
     await page.setViewportSize({ width, height: 850 });
-    const update = await page.locator('#desktop-updates').boundingBox();
-    assert.ok(update.x + update.width <= width, 'Settings utilities fit');
+    await page.locator('.settings-window').evaluate(el => Promise.all(el.getAnimations().map(animation => animation.finished)));
+    const card = await page.locator('.settings-window').boundingBox();
+    assert.ok(card.x >= 0 && card.x + card.width <= width && card.y + card.height <= 850, 'Settings card fits');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'no horizontal scroll');
+    assert.equal(await page.locator('#app-sidebar').evaluate(el => el.inert), true, 'background navigation stays inert');
+    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+f' : 'Control+f');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'settings-search');
+    await page.locator('#settings-search').fill('ocean');
+    await page.getByRole('radio', { name: 'Ocean', exact: true }).waitFor({ state: 'visible' });
+    assert.equal(await page.getByRole('radio', { name: 'Dark', exact: true }).isVisible(), false, 'search narrows appearance groups');
+    await page.locator('#settings-search').fill('zzzz-no-setting');
+    await page.locator('#settings-search-empty').waitFor({ state: 'visible' });
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#settings-search').inputValue(), '', 'first Escape clears search');
+    assert.equal(await page.locator('#companion-settings').isVisible(), true, 'clearing search keeps Settings open');
   }
+  await page.keyboard.press('Escape');
+  await page.locator('#companion-settings').waitFor({ state: 'hidden' });
   const touch = await browser.newPage({ viewport: { width: 390, height: 850 }, hasTouch: true, isMobile: true });
   await touch.goto(gateway.url + '/#companion=' + 'b'.repeat(64));
   await touch.locator('#sidebar-recent .sidebar-page').first().waitFor();

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Settings card
+
+- Finalized the large Settings card with search, Escape dismissal and responsive layout; background navigation stays inert and sidebar collapse is preserved. [Verification and limits](done/2026-11-12_tasks-settings-card.md).
+
 ## 2026-11-12 — Access keys in Settings
 
 - Admins create and revoke per-person access keys (reader, writer or admin) for a shared brain from Settings → Access keys, the hosted browser, or `jumpybrain access --target-url`; the desktop gateway forwards the admin routes and a key cannot revoke itself. [Checks and limits](done/2026-11-12_tasks-access-keys-settings.md).
