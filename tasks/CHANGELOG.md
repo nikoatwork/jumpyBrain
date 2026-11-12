@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Clickable relative note links
+
+- Relative `.md` Markdown links (including bare `folder/x.md`) open the resolved note from any rendered line, answering the November 11 link feedback; other relative links stay inert and the source is unchanged. [Checks and limits](done/2026-11-12_tasks-relative-note-links.md).
+
 ## 2026-11-12 — Access keys in a shared .env
 
 - By owner decision, remote access keys moved from macOS Keychain to the owner-only `~/.config/jumpybrain/.env`, shared by the Mac app and CLI, so updates no longer lose them; the Swift host dropped its Keychain code. Existing remote connections need one key re-entry. [Design, checks and limits](done/2026-11-12_tasks-env-file-credentials.md).

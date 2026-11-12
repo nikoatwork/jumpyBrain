@@ -30,9 +30,10 @@ export function inlineCodeRanges(text: string) {
   return ranges;
 }
 
-// Inert source only: no resolution/navigation or canonical link-policy change.
-// Deliberately plain labels and destinations; ambiguous syntax keeps line fallback.
-export const relativeLinkPattern = /(?<![!\\\[])\[[^\[\]\\`*_\r\n]+\]\(\.{1,2}\/[^\s()<>"\\`\[\]]+\)/;
+// Relative links stay literal source. `./`/`../` paths and bare paths ending in
+// `.md` (no scheme/colon) are recognized; `.md` ones become clickable note links
+// (see note-link.ts). Deliberately plain labels; ambiguous syntax keeps line fallback.
+export const relativeLinkPattern = /(?<![!\\\[])\[[^\[\]\\`*_\r\n]+\]\((?:\.{1,2}\/[^\s()<>"\\`\[\]]+|(?![/#])[^\s()<>"\\`\[\]:]+\.[mM][dD](?:#[^\s()<>"\\`\[\]]*)?)\)/;
 export function bulletMarker(line: string) {
   const match = /^([-+*]) (\S.*)$/.exec(line);
   return match && !/^(?:[-+*](?:\s|$)|>|#{1,6}\s)/.test(match[2]) ? { marker: match[1], label: match[2] } : null;

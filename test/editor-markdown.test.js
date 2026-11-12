@@ -61,3 +61,17 @@ test('ordinary bullets accept basic top-level markers without stealing tasks or 
   for(const source of ['[Decision](../decisions/example_note.md)','[Source](./sample.md#section)']) assert.equal(relativeLinkPattern.exec(source)?.[0],source);
   for(const source of ['![Image](../image.png)','\\[escaped](../sample.md)','[**Rich**](../sample.md)','[x](javascript:alert(1))','[x](file:///tmp/a)','[x](/absolute)','[x](//host/a)','[x](../bad path.md)']) assert.equal(relativeLinkPattern.exec(source),null,source);
 });
+
+test('bare .md destinations are note links; only .md relative links are activatable', async () => {
+  const {relativeLinkPattern}=await import('../dist/adapters/http-server/editor-markdown.js');
+  const {noteLinkDestination}=await import('../dist/adapters/http-server/note-link.js');
+  for (const source of ['[ICP segmentation](../pages/2026-09-21-icp-segmentation.md)', '[x](pages/x.md)', '[x](notes/a-b.MD#part)', '[x](./sample.md#section)'])
+    assert.equal(relativeLinkPattern.exec(source)?.[0], source, source);
+  for (const source of ['[x](https://example.com/a.md)', '[x](mailto:a.md)', '[x](/abs/a.md)', '[x](#a.md)', '[x](notes.txt)', '[x](pages/x.md extra)'])
+    assert.equal(relativeLinkPattern.exec(source), null, source);
+  assert.equal(noteLinkDestination('[ICP](../pages/icp.md)'), '../pages/icp.md');
+  assert.equal(noteLinkDestination('[x](pages/x.md#part)'), 'pages/x.md#part');
+  assert.equal(noteLinkDestination('[img](./a.png)'), null, 'other relative files stay inert');
+  assert.equal(noteLinkDestination('[x](/abs/x.md)'), null);
+  assert.equal(noteLinkDestination('[x](https://a.example/x.md)'), null);
+});

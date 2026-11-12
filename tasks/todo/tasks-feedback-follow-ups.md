@@ -8,7 +8,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 - [x] **P1 — Keychain access key lost after every app update (Nov 11).** [Completed in source](../done/2026-11-12_tasks-env-file-credentials.md): keys now live in the owner-only `~/.config/jumpybrain/.env`, shared with the CLI, and survive updates; Keychain code removed. Existing remote connections need their key re-entered once. Not run across a real packaged update. Pending release.
 
-- [ ] **P2 — Relative note links in agent-authored metadata lines (Nov 11).** A `[label](../pages/x.md)` inside a non-list paragraph line (`Date: … · Supersedes: …`) shows as literal text. The November 5 work kept relative links inert, and only in bullet rows. Decide whether to resolve brain-relative `.md` links to note navigation in all lines. At minimum, render them consistently and document what the editor treats as a link for agents (skill/help text).
+- [x] **P2 — Relative note links in agent-authored metadata lines (Nov 11).** [Completed in source](../done/2026-11-12_tasks-relative-note-links.md) (owner chose option 1): `[label](../x.md)` and bare `[label](folder/x.md)` links open the resolved note by click or Tab then Enter in any rendered line; other relative links stay inert. Pending release.
 
 - [ ] **P2 — Nested checkboxes after Obsidian import.** Reproduce with a disposable imported source containing nested checked and unchecked tasks. Establish whether import, canonical Markdown, or the Mac editor loses hierarchy/state; preserve source bytes and avoid treating an unsupported construct as success.
 

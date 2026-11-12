@@ -955,3 +955,26 @@ test("showNote rejects a staged payload for another document or credential revis
     assert.equal(h.context.stagedReferenceNote, null);
   });
 });
+
+test("note links resolve against the linking note's folder and never escape the brain", () => {
+  const c = runtime(["resolveNoteLinkFile", "noteLinkTargetId"]);
+  assert.equal(c.resolveNoteLinkFile("decisions/2026-11-10-icp.md", "../pages/icp%20segmentation.md#why"), "pages/icp segmentation.md");
+  assert.equal(c.resolveNoteLinkFile("decisions/a.md", "./b.md"), "decisions/b.md");
+  assert.equal(c.resolveNoteLinkFile("decisions/a.md", "pages/b.md"), "decisions/pages/b.md", "bare paths are relative to the note, like Markdown");
+  assert.equal(c.resolveNoteLinkFile("top.md", "../outside.md"), null);
+  assert.equal(c.resolveNoteLinkFile("a/b.md", "../../x.md"), null);
+  assert.equal(c.resolveNoteLinkFile("a/b.md", "/etc/x.md"), null);
+  assert.equal(c.resolveNoteLinkFile("a/b.md", "x.txt"), null);
+  assert.equal(c.resolveNoteLinkFile("a/b.md", "%E0%A4%A.md"), null, "malformed escapes are refused");
+  const files = [
+    { id: "mem_a", file: "decisions/2026-11-10-icp.md" },
+    { id: "mem_b", file: "pages/ICP Segmentation.md" },
+    { id: null, file: "pages/duplicate.md" },
+  ];
+  assert.deepEqual({ ...c.noteLinkTargetId(files, "mem_a", "../pages/ICP%20Segmentation.md") }, { status: "found", id: "mem_b" });
+  assert.deepEqual({ ...c.noteLinkTargetId(files, "mem_a", "../pages/icp segmentation.md") }, { status: "found", id: "mem_b" }, "case-insensitive fallback");
+  assert.deepEqual({ ...c.noteLinkTargetId(files, "mem_a", "../pages/missing.md") }, { status: "missing", file: "pages/missing.md" });
+  assert.deepEqual({ ...c.noteLinkTargetId(files, "mem_a", "../pages/duplicate.md") }, { status: "missing", file: "pages/duplicate.md" }, "an unopenable target is not guessed");
+  assert.deepEqual({ ...c.noteLinkTargetId(files, "mem_a", "../../x.md") }, { status: "unresolvable" });
+  assert.deepEqual({ ...c.noteLinkTargetId(files, "mem_unknown", "../pages/x.md") }, { status: "unresolvable" });
+});

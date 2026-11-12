@@ -180,9 +180,11 @@ ${noteOutlineStyles}
     .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 ${taskCompletionStyles}
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
-    .markdown-external-link:hover, .markdown-reference[data-page-reference="true"]:hover { background: var(--hover-fill); }
+    .markdown-external-link:hover, .markdown-reference[data-page-reference="true"]:hover, .markdown-note-link[data-note-link="true"]:hover { background: var(--hover-fill); }
 ${referencePresentationStyles}
-    .markdown-external-link, .markdown-reference[data-page-reference="true"] { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
+    .markdown-external-link, .markdown-reference[data-page-reference="true"], .markdown-note-link[data-note-link="true"] { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
+    /* Note links keep their literal Markdown source but read as a link, not code. */
+    #note-editor .markdown-note-link[data-note-link="true"] { font: inherit; background: none; padding: 0; }
     .markdown-table { margin: var(--space-3) 0; max-width: 100%; }
     .markdown-table-preview { overflow-x: auto; white-space: normal; }
     .markdown-table table { border-collapse: collapse; min-width: 100%; font-size: 1em; }
@@ -965,6 +967,68 @@ async function activatePageReference(title) {
         : "No page has this title. Your draft is retained.")
       : error.outcome === "ambiguous" ? "Several pages share this title. Your draft is retained."
       : "This reference could not be opened. It may have changed or be unavailable. Your draft is retained.", true);
+  } finally {
+    if (referenceRequest === request) referenceRequest = null;
+  }
+}
+
+// [label](../pages/x.md): resolve against this note's folder via the canonical
+// file listing (no title guessing), then open through guarded navigation.
+// No schemes, absolute paths or escaping the brain root.
+function resolveNoteLinkFile(fromFile, destination) {
+  let path = destination.split("#")[0];
+  try { path = decodeURIComponent(path); } catch { return null; }
+  if (!path || path.startsWith("/") || /[\u0000-\u001f\\]/.test(path) || !/\.md$/i.test(path)) return null;
+  const parts = fromFile.split("/").slice(0, -1);
+  for (const part of path.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") { if (!parts.length) return null; parts.pop(); continue; }
+    parts.push(part);
+  }
+  return parts.join("/");
+}
+function noteLinkTargetId(files, currentId, destination) {
+  const current = files.find((entry) => entry.id === currentId);
+  const file = current ? resolveNoteLinkFile(current.file, destination) : null;
+  if (!file) return { status: "unresolvable" };
+  const fold = (value) => value.normalize("NFC").toLowerCase();
+  const target = files.find((entry) => entry.file === file) || files.find((entry) => fold(entry.file) === fold(file));
+  return target?.id ? { status: "found", id: target.id } : { status: "missing", file };
+}
+async function activateNoteLink(destination) {
+  if (typeof companionMode !== "undefined" && companionMode && companionFrozen) return;
+  const origin = state.editor, revision = credentialRevision;
+  if (referenceRequest || !origin?.state.loaded || origin.state.navigationPending
+      || searchDialog.open || connectionDialog.open || dreamDialog.open) return;
+  referenceAutocomplete.dismiss();
+  const request = new AbortController();
+  referenceRequest = request;
+  const current = () => referenceRequest === request && !request.signal.aborted
+    && state.editor === origin && credentialRevision === revision;
+  referenceMessage("Opening linked note…");
+  try {
+    const opened = await navigation.navigate(async () => {
+      if (!current()) throw new Error("cancelled");
+      const packet = await graphJson("/memories/all/files", { signal: request.signal });
+      if (!current()) throw new Error("cancelled");
+      const files = Array.isArray(packet?.files) ? packet.files.filter((entry) => typeof entry?.file === "string") : [];
+      const result = noteLinkTargetId(files, origin.state.documentId, destination);
+      if (result.status !== "found" || !isValidMemoryDocumentId(result.id)) {
+        const error = new Error("note_link_unavailable");
+        error.outcome = result.status; error.file = result.file;
+        throw error;
+      }
+      return "/?note=" + encodeURIComponent(result.id);
+    });
+    if (opened && current()) referenceMessage("");
+    else if (!opened && current()) referenceMessage("Save failed or navigation is busy. Retry saving your current note, then open the link again.", true);
+  } catch (error) {
+    if (!current()) return;
+    referenceMessage(Number(error.status) === 401 || Number(error.status) === 403
+      ? "Connect with an access key to open this link. Your draft is retained."
+      : error.outcome === "missing" ? "No note exists at " + error.file + ". Your draft is retained."
+      : error.outcome === "unresolvable" ? "This link points outside the brain or to an invalid path. Your draft is retained."
+      : "This link could not be opened. Your draft is retained.", true);
   } finally {
     if (referenceRequest === request) referenceRequest = null;
   }

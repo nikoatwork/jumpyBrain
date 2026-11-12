@@ -322,6 +322,7 @@ const richEditor = window.createJumpyBrainNoteEditor($("note-editor"), {
     }
   },
   onActivateReference: (title) => activatePageReference(title),
+  onActivateNoteLink: (destination) => activateNoteLink(destination),
   canActivateReference: () => companionMode && companionRegistered && !companionFrozen && !companionSessionFailed
     && Boolean(state.editor?.state.loaded) && !state.editor.state.navigationPending,
   canActivateExternalLink: () => (!companionMode || companionRegistered && !companionFrozen && !companionSessionFailed)

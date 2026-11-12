@@ -16,6 +16,7 @@ import {
 } from "@lexical/markdown";
 
 import { codeFence, exportCodeFence, externalLinkMatch, externalLinkPattern, inlineCodeRanges, markdownTable, bulletMarker, relativeLinkPattern, taskMarker } from "./editor-markdown.js";
+import { noteLinkDestination } from "./note-link.js";
 import { BulletMarkdownNode, FencedCodeMarkdownNode, TableMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
 import { installSlashCommands } from "./editor-slash-commands.js";
 import { installReferencePresentation } from "./editor-reference-presentation.js";
@@ -116,13 +117,37 @@ const references: Transformer = {
   replace(node, match) { node.replace(new PageReferenceNode(match[0])); },
   export(node) { return node instanceof PageReferenceNode ? node.getTextContent() : null; },
 };
-// Relative Markdown links remain editable source, never clickable local paths.
+// Relative Markdown links remain editable literal source. A `.md` destination is a
+// note link: styled and activated like a page reference, resolved by the host
+// against the linking note's folder. Other relative paths never navigate.
 class InertLinkNode extends TextNode {
   static getType() { return "inert-link"; }
   static clone(node: InertLinkNode) { return new InertLinkNode(node.__text, node.__key); }
   hasFormat(format: TextFormatType) { return format === "code" || super.hasFormat(format); }
   static importJSON(value: ReturnType<TextNode["exportJSON"]>) { return new InertLinkNode().updateFromJSON(value); }
   exportJSON() { return { ...super.exportJSON(), type: "inert-link" }; }
+  createDOM(config: EditorConfig) {
+    const element = super.createDOM(config);
+    this.syncNoteLinkDOM(element);
+    return element;
+  }
+  updateDOM(previous: this, element: HTMLElement, config: EditorConfig) {
+    const replace = super.updateDOM(previous, element, config);
+    this.syncNoteLinkDOM(element);
+    return replace;
+  }
+  syncNoteLinkDOM(element: HTMLElement) {
+    if (noteLinkDestination(this.__text) !== null) {
+      element.classList.add("markdown-note-link");
+      element.setAttribute("role", "link");
+      element.tabIndex = 0;
+      element.dataset.noteLink = "true";
+      element.title = "Open linked note (click or Tab then Enter)";
+    } else {
+      element.classList.remove("markdown-note-link");
+      for (const attribute of ["role", "tabindex", "data-note-link", "title"]) element.removeAttribute(attribute);
+    }
+  }
 }
 const relativeLinks: Transformer = {
   type: "text-match", dependencies: [InertLinkNode], importRegExp: relativeLinkPattern,
@@ -235,6 +260,8 @@ export function createNoteEditor(element: HTMLElement, options: {
   atReferenceTrigger?: boolean;
   // Kept for caller compatibility; explicit picker opening belongs to the host.
   onActivateReference?: (title: string) => void;
+  /** A brain-relative `.md` link destination, unresolved; the host resolves and opens it. */
+  onActivateNoteLink?: (destination: string) => void;
   // A permission-readonly host can explain link outcomes while ordinary
   // navigation/session locks keep reference activation disabled.
   canActivateReference?: () => boolean;
@@ -801,7 +828,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   // Browser event delegation only: the model owns every rendered reference.
   const doc = element.ownerDocument;
   function referenceElement(target: EventTarget | null): HTMLElement | null {
-    const link = target instanceof Element ? target.closest<HTMLElement>("[data-page-reference], a.markdown-external-link") : null;
+    const link = target instanceof Element ? target.closest<HTMLElement>("[data-page-reference], [data-note-link], a.markdown-external-link") : null;
     return link && element.contains(link) ? link : null;
   }
   function hasSelection() {
@@ -825,6 +852,11 @@ export function createNoteEditor(element: HTMLElement, options: {
       return;
     }
     if (!editor.isEditable() && options.canActivateReference?.() !== true) return;
+    const destination = editor.read(() => {
+      const node = $getNearestNodeFromDOMNode(link);
+      return node instanceof InertLinkNode ? noteLinkDestination(node.getTextContent()) : null;
+    });
+    if (destination !== null) { options.onActivateNoteLink?.(destination); return; }
     const title = editor.read(() => {
       const node = $getNearestNodeFromDOMNode(link);
       if (!(node instanceof PageReferenceNode) || !node.__active) return null;
