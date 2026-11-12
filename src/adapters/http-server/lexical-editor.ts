@@ -1,7 +1,7 @@
 // Browser-only adapter. Bundled separately; never imported by the server runtime.
 import {
   $addUpdateTag, $getNodeByKey, $createRangeSelection, $generateNodesFromRawText, $createParagraphNode, $createTextNode, $getRoot, $getSelection, $isElementNode,
-  $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND,
+  $isRangeSelection, $isTextNode, $setSelection, CLEAR_HISTORY_COMMAND, CONTROLLED_TEXT_INSERTION_COMMAND,
   COMMAND_PRIORITY_HIGH, DELETE_CHARACTER_COMMAND, DELETE_WORD_COMMAND, DELETE_LINE_COMMAND, FORMAT_TEXT_COMMAND, HISTORIC_TAG, HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG, IS_BOLD, IS_ITALIC, IS_CODE, INSERT_PARAGRAPH_COMMAND, KEY_ENTER_COMMAND, KEY_TAB_COMMAND, PASTE_COMMAND, REDO_COMMAND, UNDO_COMMAND,
   ParagraphNode, RootNode, TextNode, $getNearestNodeFromDOMNode, createEditor, type EditorConfig, type ElementNode, type LexicalNode, type NodeKey, type RangeSelection, type TextFormatType,
 } from "lexical";
@@ -12,7 +12,7 @@ import { $isLinkNode, LinkNode } from "@lexical/link";
 import {
   $convertToMarkdownString, $generateNodesFromMarkdownString, registerMarkdownShortcuts,
   HEADING, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE,
-  BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, INLINE_CODE, type Transformer,
+  BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, INLINE_CODE, type TextMatchTransformer, type Transformer,
 } from "@lexical/markdown";
 
 import { codeFence, exportCodeFence, externalLinkMatch, externalLinkPattern, inertLinkPattern, inlineCodeRanges, markdownTable, bulletMarker, noteLinkPattern, relativeLinkPattern, taskMarker } from "./editor-markdown.js";
@@ -865,11 +865,11 @@ export function createNoteEditor(element: HTMLElement, options: {
     if (title !== null) options.onActivateReference?.(title);
   }
   let gesture: { link: HTMLElement | null; x: number; y: number; blocked: boolean } | null = null;
-  let tabFocus = false;
+  let tabFocus = false, pressedLink: HTMLElement | null = null;
   let activationFocus: HTMLElement | null = null;
   const pointerDown = (event: PointerEvent) => {
     tabFocus = false; activationFocus = null;
-    gesture = { link: referenceElement(event.target), x: event.clientX, y: event.clientY,
+    gesture = { link: pressedLink = referenceElement(event.target), x: event.clientX, y: event.clientY,
       blocked: event.button !== 0 || event.shiftKey || event.ctrlKey || event.metaKey || event.altKey || hasSelection() };
     // No preventDefault: caret placement and drag selection stay native.
   };
@@ -895,7 +895,7 @@ export function createNoteEditor(element: HTMLElement, options: {
       event.preventDefault(); event.stopImmediatePropagation(); follow(link);
     } else if (!["Shift", "Control", "Meta", "Alt"].includes(event.key)) {
       // Arrow keys/typing return this focus to ordinary editing, including Enter.
-      tabFocus = false; activationFocus = null;
+      tabFocus = false; activationFocus = pressedLink = null;
     }
   };
   const focusReference = (event: FocusEvent) => {
@@ -923,6 +923,57 @@ export function createNoteEditor(element: HTMLElement, options: {
     doc.removeEventListener("keydown", keyboardReference, true);
     element.removeEventListener("focusin", focusReference);
   });
+  // Live preview: the link at or beside the caret shows its exact Markdown as
+  // inert text, so its path is editable in place; leaving it renders the link
+  // again. Both swaps keep the saved Markdown identical and skip undo history.
+  let revealed: NodeKey | null = null, refused: NodeKey | null = null;
+  function $linkPreview(apply: boolean) {
+    const selection = $getSelection(), old = revealed ? $getNodeByKey(revealed) : null;
+    let at: LexicalNode | null = null, focus: LexicalNode | null = null, target: LexicalNode | null = null, offset = 0;
+    if (element.contains(doc.activeElement) && editor.isEditable() && !editor.isComposing() && !pressedLink && !activationFocus && $isRangeSelection(selection)) {
+      at = selection.anchor.getNode(); focus = selection.focus.getNode(); offset = selection.anchor.offset;
+      target = at.getParent() instanceof ExternalLinkNode ? at.getParent() : !$isTextNode(at) || at === old || at !== focus ? null
+        : offset ? offset === at.getTextContentSize() ? at.getNextSibling() : null : at.getPreviousSibling();
+    }
+    if (old instanceof InertLinkNode && old !== at && old !== focus && old !== target) {
+      if (!apply) return true;
+      revealed = null;
+      const text = old.getTextContent(), match = noteLinkPattern.exec(text) ?? externalLinkPattern.exec(text);
+      if (match) {
+        const parts = [text.slice(0, match.index), match[0], text.slice(match.index + match[0].length)].map((part) => $createTextNode(part));
+        old.replace(parts[1]); parts[1].insertBefore(parts[0]); parts[1].insertAfter(parts[2]);
+        const label = ((noteLinkPattern.test(match[0]) ? noteLinks : externalLinks) as TextMatchTransformer).replace!(parts[1], match);
+        const made = [parts[0], label?.getParent() ?? parts[1], parts[2]];
+        if (serialize() !== markdown) { made[1].replace(old); made[0].remove(); made[2].remove(); }
+        else made.forEach((node) => node.getTextContentSize() || node.remove());
+      }
+    }
+    const link = target instanceof ExternalLinkNode && $isRangeSelection(selection) && selection.isCollapsed() ? target : null, label = link?.getFirstChild();
+    if (!link || link.getKey() === refused || link.getChildrenSize() !== 1 || !$isTextNode(label) || label.getFormat()) return false;
+    if (!apply) return true;
+    const size = label.getTextContentSize(), raw = (externalLinks as TextMatchTransformer).export!(link, () => label.getTextContent(), (_, text) => text)!, inert = new InertLinkNode(raw);
+    link.replace(inert);
+    if (serialize() !== markdown) { inert.replace(link); refused = link.getKey(); return false; }
+    revealed = inert.getKey();
+    if (at === label) inert.select(offset = offset && (offset < size ? offset + 1 : raw.length), offset);
+    return false;
+  }
+  const preview = (tag = [HISTORIC_TAG]) => editor.update(() => $linkPreview(true), { tag });
+  cleanups.push(editor.registerUpdateListener(({ editorState }) => { if (!loading && editorState.read(() => $linkPreview(false))) preview(); }));
+  // Leaving the editor renders the link again (activeElement is already outside)
+  // without a DOM selection sync, which would take focus back.
+  const previewBlur = (event: FocusEvent) => { if (!element.contains(event.relatedTarget as Node | null)) preview([HISTORIC_TAG, SKIP_DOM_SELECTION_TAG]); };
+  // Lexical would move the rest of the source after a replaced range into a
+  // plain text node; replace the range within the revealed node instead.
+  cleanups.push(editor.registerCommand(CONTROLLED_TEXT_INSERTION_COMMAND, (text) => {
+    const selection = $getSelection(), node = revealed ? $getNodeByKey(revealed) : null;
+    if (typeof text !== "string" || !$isTextNode(node) || !$isRangeSelection(selection) || selection.isCollapsed() || selection.getNodes().some((other) => other !== node)) return false;
+    const [start, end] = [selection.anchor.offset, selection.focus.offset].sort((a, b) => a - b);
+    node.spliceText(start, end - start, text, true);
+    return true;
+  }, COMMAND_PRIORITY_HIGH));
+  element.addEventListener("focusout", previewBlur);
+  cleanups.push(() => element.removeEventListener("focusout", previewBlur));
 
   // Loading and pasting share the same conservative Markdown grammar.
   function parseMarkdown(value: string): LexicalNode[] {

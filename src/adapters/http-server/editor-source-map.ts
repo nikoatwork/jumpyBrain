@@ -55,9 +55,11 @@ export function markdownSourceMap(raw: string, visible: string, formats: ArrayLi
       if(!emit(position+1,format,true))return null;
       continue;
     }
-    const relative = raw[position] === "[" ? relativeLinkPattern.exec(raw.slice(position, end)) : null;
-    if (relative?.index === 0) {
-      if (!emit(position + relative[0].length, format, true)) return null;
+    // Relative links, and a link revealed at the caret, show their source verbatim.
+    const rest = raw[position] === "[" ? raw.slice(position, end) : "", relative = relativeLinkPattern.exec(rest), web = externalLinkMatch(rest);
+    const verbatim = relative?.index === 0 ? relative[0].length : web?.start === 0 && visible.startsWith(rest.slice(0, web.end), rendered) ? web.end : 0;
+    if (verbatim) {
+      if (!emit(position + verbatim, format, true)) return null;
       continue;
     }
     if (raw.startsWith("[[", position)) {

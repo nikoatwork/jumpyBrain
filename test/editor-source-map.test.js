@@ -87,3 +87,9 @@ test('note link source maps render the label only and keep the path outside edit
   // A later external link must not hide a note link that starts first.
   verify('[a](x.md) [b](https://e.com)', 'a b', new Uint8Array(3), { links: [{ from: 0, to: 1 }, { from: 2, to: 3 }] }, [[1, 0], [11, 2]]);
 });
+test('a link revealed at the caret maps its whole source verbatim, including _ and * in the URL', () => {
+  const raw = 'see [web](https://e.com/a_b*c) and [n](../x_y.md) end';
+  verify(raw, raw, new Uint8Array(raw.length), { links: [] }, [[raw.indexOf('a_b'), raw.indexOf('a_b')], [raw.indexOf(' end'), raw.indexOf(' end')]]);
+  // The hidden form still needs model link evidence.
+  assert.equal(markdownSourceMap(raw, 'see web and n end', new Uint8Array(17)), null);
+});

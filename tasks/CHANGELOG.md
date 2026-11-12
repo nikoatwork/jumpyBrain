@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Edit link paths in place
+
+- The link at the caret shows its exact Markdown, so its path can be edited in place, and it renders as a label again when the caret leaves; swaps never save or add undo steps. Measured editor cost: +814 gzip bytes. [Behaviour, checks and limits](done/2026-11-12_tasks-link-source-editing.md).
+
 ## 2026-11-12 — Editor bundle tree-shakes Lexical
 
 - The editor build resolves Lexical's production files directly, cutting the bundle from 224,239 to 180,765 gzip bytes with no source or dependency change; the gate is lowered to 185,000. [Measured record](../docs/build-footprint.md#2026-11-12-tree-shaken-lexical-in-the-editor-bundle).

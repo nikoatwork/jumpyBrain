@@ -69,16 +69,17 @@ try{
     await saved(page,editedHeading);
     assert.ok((await readFile(file,'utf8')).endsWith(editedHeading),'Editing a formatted label preserves the original parenthesized URL and title bytes.');
     await undoEditor(page);await saved(page,source);
-    // Literal punctuation in a label must remain editable on subsequent input
-    // and render identically after canonical publication/reparse.
+    // The caret inside a link reveals its Markdown source, so typed punctuation
+    // is saved verbatim and stays editable on subsequent input.
     await selectEditorText(page,6);await page.keyboard.insertText('*[');
-    const punctuated=source.replace('AI-1145]', 'AI\\*\\[-1145]');
+    const punctuated=source.replace('AI-1145]', 'AI*[-1145]');
     await saved(page,punctuated);
     await page.keyboard.insertText('Y');
-    const punctuationEdit=source.replace('AI-1145]', 'AI\\*\\[Y-1145]');
+    const punctuationEdit=source.replace('AI-1145]', 'AI*[Y-1145]');
     await saved(page,punctuationEdit);
     await page.reload();await page.waitForFunction(()=>document.querySelector('#note-editor')?.isContentEditable);
-    assert.equal(await links.first().innerText(),'AI*[Y-1145');
+    assert.equal(await links.first().innerText(),'Details','A label no longer valid as a link reopens as literal source.');
+    assert.equal(await editorMarkdown(page),punctuationEdit);
     await replaceEditorText(page,source);await saved(page,source);
     // Selection/copy and a drag never navigate.
     await selectEditorText(page,4,11);

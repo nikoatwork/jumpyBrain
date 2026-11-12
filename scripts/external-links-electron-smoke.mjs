@@ -26,7 +26,7 @@ try{
   gateway=await startCompanionGateway({runtimeRoot:repo,directory:support,initialRoot:root,port:0,controlKey,
     credentials:{get:async()=>null,set:async()=>{},delete:async()=>{},selectFolder:async()=>null}});
   const fixture=path.join(temporary,'fixture.json'),result=path.join(temporary,'result.json');
-  await writeFile(fixture,JSON.stringify({origin:gateway.url,key:controlKey,id,result,userData:path.join(temporary,'electron')}),{mode:0o600});
+  await writeFile(fixture,JSON.stringify({origin:gateway.url,key:controlKey,id,note,result,userData:path.join(temporary,'electron')}),{mode:0o600});
   const entry=path.join(temporary,'app');await mkdir(entry);
   await writeFile(path.join(entry,'package.json'),JSON.stringify({name:'jumpybrain-links-smoke',type:'module',main:path.join(repo,'integrations/electron/smoke-external-links.mjs')}));
   const env={...process.env,JUMPYBRAIN_EXTERNAL_LINK_FIXTURE:fixture};delete env.ELECTRON_RUN_AS_NODE;
@@ -36,6 +36,7 @@ try{
   const code=await new Promise(resolve=>child.on('exit',resolve));clearTimeout(timeout);
   const report=JSON.parse(await readFile(result,'utf8'));
   assert.equal(code,0,report.error);assert.equal(report.ok,true,report.error);
-  assert.equal(await readFile(note,'utf8'),source,'Activation never rewrites canonical Markdown.');
+  const body=text=>text.replace(/^---\n[\s\S]*?\n---\n/,'');
+  assert.equal(body(await readFile(note,'utf8')),body(source),'Activation and preview never rewrite canonical Markdown; the reverted path edit restores the exact body.');
   process.stdout.write(output.split(controlKey).join('[redacted]'));
 }finally{await gateway?.close();await rm(temporary,{recursive:true,force:true});}

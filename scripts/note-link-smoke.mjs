@@ -7,14 +7,14 @@ import path from 'node:path';
 import { initializeMemoryRoot } from '../dist/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
-import { editorMarkdown, selectEditorText } from './editor-smoke-helpers.mjs';
+import { editorMarkdown, editorSelection, selectEditorText } from './editor-smoke-helpers.mjs';
 
 const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-note-links-'));
 const key = 'fictional-note-link-key';
 const ids = { decision: 'mem_a0000000-0000-4000-8000-0000000000d1', page: 'mem_a0000000-0000-4000-8000-0000000000e1', sibling: 'mem_a0000000-0000-4000-8000-0000000000e2' };
 // Shape of the reported agent-written metadata line (fictional names).
 const metadata = 'Date: 2026-11-10 · Decided by: Sam · Supersedes: ICP and "strongest value: no CRM" in product/README.md; Retail vs Großhandel split in [ICP segmentation](../pages/icp-segmentation.md) as a strategy input';
-const body = [metadata, '', 'Also see [sibling](pages/../../pages/sibling.md#notes) and [gone](../pages/missing.md).', '', 'Image stays inert: [diagram](./diagram.png).', ''].join('\n');
+const body = [metadata, '', 'Also see [sibling](pages/../../pages/sibling.md#notes) and [gone](../pages/missing.md).', '', 'Image stays inert: [diagram](./diagram.png).', '', 'Web: [site](https://example.com/a_b).', ''].join('\n');
 const note = (id, title, text) => `---\nid: ${id}\ntype: note\ntitle: ${title}\n---\n${text}`;
 let server, browser;
 try {
@@ -89,14 +89,71 @@ try {
     assert.match(await readFile(decisionFile, 'utf8'), /Image Typed \[Sib\]\(\.\.\/pages\/sibling\.md\) stays inert/);
     await page.locator('#note-editor [data-note-link="true"]', { hasText: 'Sib' }).first().click();
     await page.waitForFunction((id) => new URL(location.href).searchParams.get('note') === id, ids.sibling);
+    // Live preview: the link at the caret shows its exact Markdown; leaving it renders the label again.
+    await writeFile(decisionFile, note(ids.decision, 'ICP decision', body));
     await open(ids.decision);
+    original = await readFile(decisionFile, 'utf8');
+    const text = () => page.locator('#note-editor').textContent();
+    const shows = (fragment, present = true) => page.waitForFunction(([fragment, present]) => document.getElementById('note-editor').textContent.includes(fragment) === present, [fragment, present]);
+    const siblingRaw = '[sibling](pages/../../pages/sibling.md#notes)';
+    await selectEditorText(page, (await text()).indexOf('sibling') + 3);
+    await shows(siblingRaw);
+    assert.equal((await editorSelection(page))[0], (await text()).indexOf(siblingRaw) + 4, 'the caret keeps its place inside the label');
+    assert.equal(await page.locator('#note-editor [data-note-link="true"]').count(), 2, 'only the link at the caret expands');
+    assert.equal(await editorMarkdown(page), body, 'revealing is not an edit');
+    // Edit the path in place, then leave the link.
+    const pathAt = (await text()).indexOf('sibling.md#notes');
+    await selectEditorText(page, pathAt, pathAt + 'sibling'.length);
+    await page.keyboard.insertText('icp-segmentation');
+    await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved');
+    const edited = body.replace('pages/sibling.md#notes', 'pages/icp-segmentation.md#notes');
+    assert.equal((await readFile(decisionFile, 'utf8')).replace(/^---\n[\s\S]*?\n---\n/, ''), edited, 'the path edit saves exactly');
+    await selectEditorText(page, 0);
+    await shows(siblingRaw.replace('sibling.md', 'icp-segmentation.md'), false);
+    const moved = page.locator('#note-editor [data-note-link="true"]', { hasText: 'sibling' });
+    assert.equal(await moved.getAttribute('title'), 'pages/../../pages/icp-segmentation.md#notes', 'the collapsed link carries the new path');
+    assert.equal(await editorMarkdown(page), edited, 'collapsing is not an edit');
+    // Undo reverts the path edit as one step and shows the original link.
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.waitForFunction((body) => richEditor.getMarkdown() === body, body);
+    await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved');
+    assert.equal((await readFile(decisionFile, 'utf8')).replace(/^---\n[\s\S]*?\n---\n/, ''), body, 'undo restores the exact body');
+    await page.keyboard.press('ControlOrMeta+Shift+z');
+    await page.waitForFunction((edited) => richEditor.getMarkdown() === edited, edited);
+    await selectEditorText(page, 0);
+    await shows('[sibling](', false);
+    await page.locator('#note-editor [data-note-link="true"]', { hasText: 'sibling' }).click();
+    await page.waitForFunction((id) => new URL(location.href).searchParams.get('note') === id, ids.page);
+    // Arrow keys: touching a link from outside reveals it; moving away collapses it without writing.
+    await writeFile(decisionFile, note(ids.decision, 'ICP decision', body));
+    await open(ids.decision);
+    original = await readFile(decisionFile, 'utf8');
+    await selectEditorText(page, (await text()).indexOf('gone') + 'gone.'.length);
+    await shows('[gone](', false);
+    await page.keyboard.press('ArrowLeft');
+    await shows('[gone](../pages/missing.md).');
+    await page.keyboard.press('ArrowLeft');
+    assert.equal((await editorSelection(page))[0], (await text()).indexOf('missing.md)') + 'missing.md'.length, 'arrow keys move through the revealed source');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await shows('[gone](', false);
+    // A web link reveals its full URL (with `_`) and keeps its href once collapsed.
+    await selectEditorText(page, (await text()).indexOf('site') + 2);
+    await shows('[site](https://example.com/a_b)');
+    assert.equal(await page.locator('#note-editor a[href]').count(), 0, 'the revealed web link is plain text');
+    await page.locator('#note-name').focus();
+    await shows('[site](', false); // leaving the editor (here for the title field) renders the link again
+    assert.equal(await page.locator('#note-editor a[href="https://example.com/a_b"]').count(), 1);
+    assert.equal(await editorMarkdown(page), body);
+    await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved');
+    assert.equal(await readFile(decisionFile, 'utf8'), original, 'revealing and collapsing never write');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'no horizontal overflow');
     assert.deepEqual(errors, []);
     if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `note-links-${width}.png`) });
     await page.close();
     await writeFile(decisionFile, note(ids.decision, 'ICP decision', body)); // reset the typed link for the next width
   }
-  console.log('note link smoke: PASS (label-only links with path on hover, click/Tab+Enter open resolved notes, missing target reported, inert non-.md, label edits keep exact source, typed links, 1280/390)');
+  console.log('note link smoke: PASS (label-only links with path on hover, click/Tab+Enter open resolved notes, missing target reported, inert non-.md, label edits keep exact source, typed links, in-place path editing with undo, arrow-key, web-link and blur reveal/collapse without writes, 1280/390)');
 } catch (error) {
   console.error('note link smoke: FAIL - ' + (error.stack || error.message));
   process.exitCode = 1;
