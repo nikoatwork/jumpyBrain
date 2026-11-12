@@ -13,11 +13,11 @@ export const settingsNavigationMarkup = String.raw`
   </div>
   <nav id="settings-navigation" aria-label="Settings sections">
     <a class="quiet-button settings-nav-item" href="/settings" data-settings-section="brains">${browserIcons.connect}<span>Brains</span></a>
-    <a class="quiet-button settings-nav-item" href="/settings?section=access" data-settings-section="access">${browserIcons.key}<span>Access keys</span></a>
     <a class="quiet-button settings-nav-item" href="/settings?section=identity" data-settings-section="identity">${browserIcons.connect}<span>Your name</span></a>
     <a class="quiet-button settings-nav-item" href="/settings?section=boards" data-settings-section="boards">${browserIcons.board}<span>Boards</span></a>
     <a class="quiet-button settings-nav-item" href="/settings?section=appearance" data-settings-section="appearance">${browserIcons.appearance}<span>Appearance</span></a>
     <a class="quiet-button settings-nav-item" href="/settings?section=extensions" data-settings-section="extensions">${browserIcons.extensions}<span>Extensions</span></a>
+    <a class="quiet-button settings-nav-item" href="/settings?section=access" data-settings-section="access">${browserIcons.key}<span>Access keys</span></a>
   </nav>
   <p class="app-version settings-version" data-app-version></p>
 </aside>`;

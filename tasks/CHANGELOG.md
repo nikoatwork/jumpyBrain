@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Access keys last in Settings
+
+- Moved Access keys after Extensions in the Settings navigation. Verified with `npm run build`, the rendered navigation order, `scripts/sidebar-layout-smoke.mjs` (including Settings at 1280/320px), and `git diff --check`. Packaged Mac app not checked; no installation or release.
+
 ## 2026-11-12 — v0.3.24 beta and worktree consolidation
 
 - Consolidated outstanding work into master and removed three completed worktrees/five stale branches. Published idle recovery, shared credential storage, note-link editing, the smaller editor, Settings card, access-key controls and drawing mention renames. Verified all three assets and the public demo at the exact release revision. [Task](done/2026-11-12_tasks-release-v0.3.24.md) · [QA](done/releases/v0.3.24.qa.md) · [Notes](done/releases/v0.3.24.md).
