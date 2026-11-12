@@ -1,0 +1,2 @@
+#!/bin/sh
+exec node scripts/commit-msg-guard.mjs "$1"

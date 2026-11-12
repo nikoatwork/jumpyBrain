@@ -9,3 +9,4 @@ if (!existsSync(".git")) {
 execFileSync("git", ["config", "core.hooksPath", ".githooks"], { stdio: "inherit" });
 console.log("Configured git core.hooksPath=.githooks");
 console.log("pre-commit will run: node scripts/precommit-guard.mjs");
+console.log("commit-msg will run: node scripts/commit-msg-guard.mjs (strips AI co-author trailers)");
