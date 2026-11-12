@@ -32,7 +32,9 @@ const buildId = fingerprint.digest("hex").slice(0, 16);
 await writeFile("dist/adapters/diagnostics/build-info.json", JSON.stringify({ version, build: buildId }));
 const result = await build({
   entryPoints: ["src/adapters/http-server/browser-entry.ts"],
-  bundle: true, minify: true, platform: "browser", format: "iife", globalName: "JumpyBrainBrowser", target: "es2022",
+  // "production" resolves Lexical's production files directly. Its default entry
+  // re-exports through a runtime dev/prod switch, which defeats tree shaking.
+  bundle: true, minify: true, platform: "browser", format: "iife", globalName: "JumpyBrainBrowser", target: "es2022", conditions: ["production"],
   define: { "process.env.NODE_ENV": '"production"', __JUMPYBRAIN_VERSION__: JSON.stringify(version), __JUMPYBRAIN_BUILD__: JSON.stringify(buildId) },
   legalComments: "eof", write: false, metafile: true,
 });

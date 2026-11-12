@@ -10,8 +10,8 @@ const bundle = await readFile(new URL("../dist/adapters/http-server/editor-bundl
 test("editor bundle is self-contained, production-sized, and safe to inline under the shell nonce", () => {
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
-  // Measured UX feedback/recovery allowance; see docs/build-footprint.md.
-  assert.ok(gzipSync(bundle).length < 224_250, "review editor weight if the production bundle exceeds 224.25 KB gzip");
+  // Tree-shaken Lexical plus feature headroom; see docs/build-footprint.md.
+  assert.ok(gzipSync(bundle).length < 185_000, "review editor weight if the production bundle exceeds 185 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Editor bundle tree-shakes Lexical
+
+- The editor build resolves Lexical's production files directly, cutting the bundle from 224,239 to 180,765 gzip bytes with no source or dependency change; the gate is lowered to 185,000. [Measured record](../docs/build-footprint.md#2026-11-12-tree-shaken-lexical-in-the-editor-bundle).
+
 ## 2026-11-12 — Note links show their label
 
 - Relative `.md` note links now render as just their underlined label, with the path in the hover tooltip; editing, typing and export keep the exact Markdown. [Checks and limits](done/2026-11-12_tasks-note-link-labels.md).

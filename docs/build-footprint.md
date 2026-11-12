@@ -16,7 +16,7 @@ checks to its real tarball before recording successful package metadata.
 
 Budgets in `scripts/package-budget.mjs` are 3.3 MB compressed, 9.1 MB unpacked,
 7.5 MB under `dist/`, and 780 files (decimal units). Existing editor tests retain
-224.25 KB gzip for the shared editor and 6 KB gzip for the optional desktop
+185 KB gzip for the shared editor and 6 KB gzip for the optional desktop
 extension renderer; `test/drawings.test.js` holds the lazy drawing editor to
 4.2 MB on disk and a 245 KB gzip entry. A budget increase needs a measured explanation and review;
 do not increase it just to make an upgrade pass. Timing ceilings are outside the
@@ -341,3 +341,38 @@ or framework was added. The reviewed editor ceiling is 224,250 bytes, leaving 27
 bytes over that candidate. Distribution ceilings are unchanged. Neither feature
 task ran the full suite, so the overrun surfaced only in the release-owned
 `npm test`; run `test/lexical-bundle.test.js` whenever browser code changes.
+
+## 2026-11-12 tree-shaken Lexical in the editor bundle
+
+The editor had 11 bytes left under its 224,250-byte gate. The cause was
+resolution, not features: Lexical's default package entry re-exports every
+symbol through a runtime development/production switch
+(`const mod = … ? modDev : modProd; export const x = mod.x`), which a bundler
+cannot see through, so every Lexical package was included whole. The editor
+build now resolves the `production` export condition, importing the production
+files directly, as the drawing build already did.
+
+| Editor bundle (`aecb3da4`, macOS ARM64, Node 26.7.0) | Minified | Gzip |
+| --- | --- | --- |
+| Before | 678,655 | 224,239 |
+| With the `production` condition | 549,810 | 180,765 |
+
+That is 43,474 gzip bytes (19.4%) with no source or dependency change. Unused
+package surface is now dropped: `@lexical/a11y` and `@lexical/dragon` leave the
+output entirely, and `@lexical/html`, `@lexical/link`, `@lexical/list`,
+`@lexical/utils`, `@lexical/selection` and `@lexical/code-core` shrink by half
+or more. The licence notice file still lists all 15 resolved packages.
+
+The reviewed editor ceiling is lowered to **185,000 bytes**, leaving 4,235
+bytes for features while keeping the saving from being absorbed unnoticed.
+
+Measured and not adopted: a newer syntax target (0 bytes), dropping `console`
+calls (41), removing the in-bundle Lucide notice (559, needed for the licence)
+and renaming `_`/`__` properties (871–1,511, with a real risk of breaking
+Lexical internals). Remaining weight is Lexical core (181 KB minified, already
+tree-shaken as far as its classes allow), the application's own browser code
+(263 KB minified) and about 13 KB minified of Lexical's extension builder and
+its signals library, which clipboard and HTML support reference at runtime.
+Reducing those means deferring optional surfaces (map, feedback form, retained
+versions) out of the inline script, which is an architecture change rather than
+a build setting.
