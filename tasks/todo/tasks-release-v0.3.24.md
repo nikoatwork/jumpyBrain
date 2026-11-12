@@ -26,8 +26,9 @@ Environment: macOS 15.7.7 ARM64, Node 26.7.0, QMD 2.8.3 (`/opt/homebrew/bin/qmd`
 - [x] Reuse current settings/drawing checks above and prior focused checks for unchanged idle-reconnect/credential/link/access-key implementations.
 - [x] Fresh `npm run desktop:pack`: passed, signed/verified outer app at `.local-pack/desktop/jumpyBrain.app`; disposable output, no installed app replacement. Log `/tmp/jumpybrain-v0.3.24-desktop-pack.log`.
 - [x] `JUMPYBRAIN_QMD_BIN=/opt/homebrew/bin/qmd npx --package=playwright node scripts/note-lifecycle-smoke.mjs`: passed capture, immediate search, canonical title graph, two-tab overlap merge, 390/320px, deletion cancellation/apply, preserved backlinks and index refresh. Log `/tmp/jumpybrain-v0.3.24-lifecycle.log`.
-- [ ] Targeted current-snapshot idle recovery and credential-file gateway/CLI smokes, plus `npm run smoke:desktop` against the fresh native package.
-- [ ] Review and commit curated exact release notes.
+- [x] Targeted current-snapshot `companion-idle-recovery-smoke.mjs` and `companion-env-credentials-smoke.mjs`: passed; same-tab dropped-request recovery and persisted edits, Settings save to 0600 credential file, restart continuity, CLI reuse, old-profile repair and no key in page/support files. Logs `/tmp/jumpybrain-v0.3.24-idle.log` and `/tmp/jumpybrain-v0.3.24-credentials.log`.
+- [x] `npm run smoke:desktop`: passed against the fresh native package (normal, crash and recovery modes; background/tray/reopen, blocked quit, close keeps service, settings and packaged extensions). Log `/tmp/jumpybrain-v0.3.24-native.log`.
+- [x] Review and commit curated seven-bullet release note in `47a6b771`; measured download updated to 184 KB and reconnect wording avoids claiming a physical sleep test.
 - [ ] `npm run release -- --dry-run` then full versioned `npm run release`.
 - [ ] Verify annotated tag, aligned manifests/locks, exact public notes, all three downloaded asset digests.
 - [ ] Pin demo to published tag, push its master, verify live version/revision, landing, note opening, search and graph; push demo bookkeeping too.
