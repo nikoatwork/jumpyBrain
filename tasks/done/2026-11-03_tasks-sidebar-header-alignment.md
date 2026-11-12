@@ -25,7 +25,7 @@ Align the jumpyBrain wordmark and collapse button together at the right of the s
 
 ## Verification
 
-Tested snapshot: `243057e` plus the scoped header change, in a shared working tree with unrelated editor/dependency work in progress.
+Tested snapshot: `28836cd` plus the scoped header change, in a shared working tree with unrelated editor/dependency work in progress.
 
 - `npm run build` — passed.
 - `node --test test/browser-sidebar.test.js test/browser-theme.test.js test/notes-browser.test.js` — 91 passed.

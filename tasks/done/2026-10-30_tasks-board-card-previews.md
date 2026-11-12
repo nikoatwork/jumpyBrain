@@ -16,7 +16,7 @@ Removed the card status dropdown. Cards now show up to three lines of plain-text
 
 ## Verification
 
-Tested on base `07ce556` plus this scoped change:
+Tested on base `eef4805` plus this scoped change:
 
 - `npm run build` — passed.
 - `node --test --test-timeout=15000 --test-reporter=tap test/collections.test.js test/companion-browser.test.js test/search-presentation.test.js` — 23 passed. An earlier unbounded run stalled after a gateway fixture failure; it was stopped, rebuilt and the bounded rerun passed. The real gateway board smoke also passed.

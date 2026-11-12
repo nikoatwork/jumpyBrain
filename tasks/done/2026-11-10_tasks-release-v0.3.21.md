@@ -4,7 +4,7 @@ Status: complete. Published and verified v0.3.21 and refreshed the public demo t
 
 ## Scope and evidence
 
-- Runtime source: `21cc44d`; latest published numeric release: v0.3.20 (`6d06cb9`). Local master contains all fetched origin/master history and 37 additional commits; no unrelated uncommitted upstream work. No published release on November 10 Europe/Berlin; latest was November 4.
+- Runtime source: `31735f5`; latest published numeric release: v0.3.20 (`85512f0`). Local master contains all fetched origin/master history and 37 additional commits; no unrelated uncommitted upstream work. No published release on November 10 Europe/Berlin; latest was November 4.
 - Curated seven public bullets in release-next.md against the complete v0.3.20..HEAD diff. Active live-note attention, semantic-link quality, broader retrieval and installation proposals remain unfinished and are not claimed delivered.
 - Live feedback checked **2026-11-10T08:13:21.462Z**, full available received/non-spam inbox, no date bounds: two pages, complete, 54 scanned, two synthetic tests excluded, 52 genuine reports, October 20–November 8. Exact-ID reconciliation against [feedback index](../feedback.md); one new November 8 stale-warning report read in full and assigned to [follow-ups](../todo/tasks-feedback-follow-ups.md). No replies/test sends; attachments and historical bodies not re-audited. Spam/trash/blocked mail excluded.
 - Included completed Markdown, agent collaboration, title/search, related-page, updater and recovery fixes. Repeated search warnings, date-label presentation, historical single-user settlement reports, hover snippets, reference-control removal, further deletion-copy changes, semantic-link quality and broader ranking/model decisions remain open/deferred in their existing owners.
@@ -27,7 +27,7 @@ No Intel runtime, macOS 26, physical IME/accessibility, live model download, not
 
 ## Preparation results
 
-Fresh `npm run build`, `npm run desktop:pack` and `npx --package=playwright node scripts/note-lifecycle-smoke.mjs` passed on runtime source `21cc44d`. Signed outer app refreshed; verified unchanged native helper reused. Core smoke covered capture, immediate search, graph/title navigation, guarded two-tab recovery, 390/320 layouts, deletion cancel/apply, preserved backlinks and index refresh.
+Fresh `npm run build`, `npm run desktop:pack` and `npx --package=playwright node scripts/note-lifecycle-smoke.mjs` passed on runtime source `31735f5`. Signed outer app refreshed; verified unchanged native helper reused. Core smoke covered capture, immediate search, graph/title navigation, guarded two-tab recovery, 390/320 layouts, deletion cancel/apply, preserved backlinks and index refresh.
 
 Additional `scripts/collaboration-editor-smoke.mjs` passed real Chromium two-context convergence, own Undo, external writes, agent streams, IME, offline body/title recovery, shipped shell/actor isolation, granular cursor intent and 132 fresh CLI actors. Native inert updater UI smoke passed phases, themes, compact layout, app-only, keyboard details and recovery. Existing packaged updater success/rollback evidence is reused from the completed updater-readiness task: no replacement/transaction/signing code changed there. No extra public install matrix selected.
 
@@ -44,10 +44,10 @@ Focused correction gate passed **16/16** tests: real local/hosted attention CLI,
 
 ## Publication verified
 
-Full retry published v0.3.21 at **2026-11-10T08:21:47Z**, release/tag commit `d4cba370d8b23d5ce18620df5ef0dd5421ade99d`; final runtime source `111269f`. Suite: **1,985 passed / two optional skips / zero failures**, 85.588 seconds. Package/native assets and exact notes verified independently; public notes archived and pending notes reset. [QA/digests](releases/v0.3.21.qa.md). Public demo refresh subsequently passed the checks recorded below.
+Full retry published v0.3.21 at **2026-11-10T08:21:47Z**, release/tag commit `9d2acb467b4f54b83440a401dc6c28ea7f13c9ab`; final runtime source `7d03b2f`. Suite: **1,985 passed / two optional skips / zero failures**, 85.588 seconds. Package/native assets and exact notes verified independently; public notes archived and pending notes reset. [QA/digests](releases/v0.3.21.qa.md). Public demo refresh subsequently passed the checks recorded below.
 
 ## Completed public demo upkeep
 
-Live `/version` matches **0.3.21 / d4cba370d8b23d5ce18620df5ef0dd5421ade99d**. Actual Chromium checks passed the calm landing, graph entry, opening the company overview note, funding search results and graph return, with 28 nodes and zero page errors. Browser closed after verification. The demo composition needed its existing prepared landing update plus an absolute engine path and explicit indexing-backend drain before foreground startup; disposable network-isolated startup/graph/reseed checks and all seven composition tests passed before the successful rollout. No core/vendor changes or public sample-note writes.
+Live `/version` matches **0.3.21 / 9d2acb467b4f54b83440a401dc6c28ea7f13c9ab**. Actual Chromium checks passed the calm landing, graph entry, opening the company overview note, funding search results and graph return, with 28 nodes and zero page errors. Browser closed after verification. The demo composition needed its existing prepared landing update plus an absolute engine path and explicit indexing-backend drain before foreground startup; disposable network-isolated startup/graph/reseed checks and all seven composition tests passed before the successful rollout. No core/vendor changes or public sample-note writes.
 
 Package publication and demo upkeep are verified. Exact [shipped notes](releases/v0.3.21.md) and [QA](releases/v0.3.21.qa.md) retained; pending notes reset. Private deployment identifiers, image diagnostics and browser screenshots remain in the private deployment repository. No installation or personal-memory mutation performed.

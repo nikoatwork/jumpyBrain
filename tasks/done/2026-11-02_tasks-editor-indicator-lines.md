@@ -42,7 +42,7 @@ Make the editor's heading indicator lines more compact and make heading levels e
 
 ## Verification
 
-- Tested `80bb7f5` plus this task's scoped implementation and smoke changes on 2026-11-02.
+- Tested `adf1aa6` plus this task's scoped implementation and smoke changes on 2026-11-02.
 - `npm run build`: passed; editor bundle 663,978 bytes minified / 219,790 bytes gzip, within the existing 220 KB gate. The first build found missing installed `ws` dependencies; `npm ci --ignore-scripts` restored the locked dependencies without manifest/lockfile changes, then the build passed.
 - Focused Node suite: 35 passed across architecture boundaries, editor bundle/CSP/size, browser themes and Markdown grammar.
 - `npx --package=playwright node scripts/note-outline-smoke.mjs`: passed real hosted editor pointer/keyboard/scroll navigation, current-section tracking, duplicate headings and H1–H6, code/literal exclusion, safe previews, edit/undo/external refresh, read-only navigation, CRLF/caret preservation, lifecycle, 300 headings, and light/dark layouts at 1440/1280/900/681/390/320px. Added rendered dimension/target checks and resting/hover/focus screenshots. Updated the old LF-only Markdown assertion to require the source fixture's preserved CRLF line endings.

@@ -17,7 +17,7 @@ Completed 2026-10-30. New boards receive a random unused mood/productivity/anima
 
 ## Verification
 
-Tested `2889a43` plus this scoped change:
+Tested `0307299` plus this scoped change:
 
 - `npm run build` passed.
 - `node --test test/board-names.test.js test/companion-browser.test.js`: all 24 tests passed.

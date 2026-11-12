@@ -25,7 +25,7 @@ Use only this prepared checkout and disposable fictional homes/app copies. Prese
 
 ## Initial investigation
 
-Baseline `181e2301207021a79157789482d1cb18c01119f6`. No applicable `AGENTS.md` found in checkout or ancestor directories. Read product vision, task workflow, source architecture, Electron docs, release v0.3.20 record and previous updater records.
+Baseline `0cef4151522972920488aced7c54492ecfe54282`. No applicable `AGENTS.md` found in checkout or ancestor directories. Read product vision, task workflow, source architecture, Electron docs, release v0.3.20 record and previous updater records.
 
 ## Reproduction and retained change
 

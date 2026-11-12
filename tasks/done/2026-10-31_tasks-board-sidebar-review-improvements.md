@@ -34,12 +34,12 @@ Sol’s scroll-continuation suggestion is a screenshot hypothesis; existing over
 
 ## Verification
 
-Required build, behavioral and visual checks are complete; results and limits are recorded below. Base: `53adcea`, clean worktree at start. Prior implementation: [optional board trees](2026-10-31_tasks-board-sidebar-tree.md).
+Required build, behavioral and visual checks are complete; results and limits are recorded below. Base: `553b8ac`, clean worktree at start. Prior implementation: [optional board trees](2026-10-31_tasks-board-sidebar-tree.md).
 
 
 ## Verification evidence — 2026-10-31
 
-- Tested source fingerprint: `bf3bcdb5bb1ee2bf` (`0.3.13`), base `53adcea`. Normal build passes; unchanged editor gzip gate passes at 189,959 bytes (190,000 limit).
+- Tested source fingerprint: `bf3bcdb5bb1ee2bf` (`0.3.13`), base `553b8ac`. Normal build passes; unchanged editor gzip gate passes at 189,959 bytes (190,000 limit).
 - Focused sidebar preference, navigation, bundle and companion checks: 28 passed. New test covers transient narrow dismissal, focus transfer, desktop resizing, Settings, explicit storage changes and reopen.
 - Extended `board-sidebar-smoke.mjs` passes against a real disposable gateway. It verifies loading/missing/temporary-unavailable states, successful retry, real pages literally titled “Page missing” and “Empty column”, rendered action tooltip, Expand/Collapse names, current-page dismissal, failed-save retention and canonical byte preservation, successful narrow navigation, branch/scroll-position preservation, desktop expansion and final-row reachability at 900×480. Existing scope/cross-tab/order/persistence checks also pass.
 - Production `boards-desktop-smoke.mjs` passes both Mac processes: actual narrow selection/reopen, unchanged desktop preference, tree persistence after relaunch, real loopback read-only brain, CLI/UI agreement and canonical preservation. Native minimum window constraints apply; 320px coverage comes from Chromium, not a physically 320px Mac window.

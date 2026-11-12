@@ -1,6 +1,6 @@
 # Seamless live co-editing
 
-Status: complete; merged into `master` (fast-forward of `b31d944`); not pushed or released.
+Status: complete; merged into `master` (fast-forward of `28ebe9a`); not pushed or released.
 
 ## Request
 

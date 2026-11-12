@@ -33,7 +33,7 @@ Keep pinned pages first, current work visible, and settled pages in a collapsed 
 - Production collaborative sidebar and existing sidebar smokes pass; inspected desktop and narrow light/dark screenshots under `/tmp/jumpybrain-collaborative-sidebar-qa`. Settled remains visible beneath the scrolling attention region.
 - Existing attention smoke had outdated copy/delete/link assertions from the prior toolbar redesign; aligned them with the shipped icon-only controls and current accessible labels.
 - Companion scope smoke's old zero-document-read assertion conflicts with the new background sidebar preview refresh. It now checks that a wrong-brain note URL redirects to the active brain's Home without creating an editor; existing registration/generation/write guards remain asserted.
-- Concurrent local dogfooding changes landed separately as `a84ed87`; this task preserves that work.
+- Concurrent local dogfooding changes landed separately as `b6b5948`; this task preserves that work.
 
 ## Remaining limits
 
@@ -63,5 +63,5 @@ Also preserved saved-version recognition in confirmed attention PATCH responses 
 - Final focused suite: **36 passed**; architecture, runtime/document, recognition and external-update regressions: **60 passed**.
 - Production collaborative sidebar, existing sidebar, canonical attention lifecycle and companion browser smoke runners all passed. The latter retains wrong-brain rejection, registration/generation fencing, failed-save barriers, read-only behavior and session recovery.
 - Reviewed the final desktop collapsed shelf and light/dark narrow captures; no horizontal overflow. The attention smoke targets the nonoverlapping upper-left part of rows when revealing hover actions at narrow widths.
-- Final build and tests ran against the shared working snapshot based on `a84ed87` plus this task; a concurrent page-action styling task also edited separate regions of `notes-browser.ts`. Only this task's sidebar hunks are included in its commit; other work stays intact.
+- Final build and tests ran against the shared working snapshot based on `b6b5948` plus this task; a concurrent page-action styling task also edited separate regions of `notes-browser.ts`. Only this task's sidebar hunks are included in its commit; other work stays intact.
 - No installed app, personal memory, remote memory, push or release changed.

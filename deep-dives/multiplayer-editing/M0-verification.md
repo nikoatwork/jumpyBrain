@@ -54,7 +54,7 @@ Frozen implementation-shape assertions are not eternal architecture requirements
 
 ## Execution result
 
-The authoritative capture used committed source be5493ba9a3c5aa796d371043e56d6539d6dabf4, tree 33ee3e60b90eca9d6ee5226a941cd4592b2d971f. It changed no production runtime behavior from the planning seed; the setup commit adds this gate/plan and corrects the explicitly recorded stale smoke assumptions.
+The authoritative capture used committed source 54172b8e1579ab1c8de6f5928cfeefb63922d589, tree 33ee3e60b90eca9d6ee5226a941cd4592b2d971f. It changed no production runtime behavior from the planning seed; the setup commit adds this gate/plan and corrects the explicitly recorded stale smoke assumptions.
 
 - Baseline directory: .local-pack/multiplayer/M0-baseline-accepted-2026-11-01.
 - Independently pinned baseline manifest SHA-256: 739838b444bbe9525c21b895c1ba3ad10c40a3312a6f82789b334c7d3ec0bff2.
@@ -74,7 +74,7 @@ After execution, the parent independently validated both pinned manifests and th
 
 The compact local evidence summary is .local-pack/multiplayer/M0-summary-2026-11-01.json. Full manifests, copied runtime/assertions and logs remain in the two ignored evidence directories. Preserve/export them before removing this worktree; the committed digests alone cannot replace missing artifacts.
 
-Preliminary failures/corrections remain in the task list and ignored diagnostic output rather than being erased from history. The final evidence commit changes documentation only; be5493ba9a3c5aa796d371043e56d6539d6dabf4 is the exact tested implementation snapshot.
+Preliminary failures/corrections remain in the task list and ignored diagnostic output rather than being erased from history. The final evidence commit changes documentation only; 54172b8e1579ab1c8de6f5928cfeefb63922d589 is the exact tested implementation snapshot.
 
 ## Boundaries
 

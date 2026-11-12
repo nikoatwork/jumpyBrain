@@ -24,7 +24,7 @@ Implemented the optional `board` namespace with list/show/status/create/update/d
 
 ## Verification
 
-Tested `4a4f454` plus this scoped implementation:
+Tested `0c74516` plus this scoped implementation:
 
 - `npm run build` passed (TypeScript and editor bundles).
 - Initial focused `node --test test/boards-cli.test.js test/extensions-cli.test.js test/collections.test.js test/architecture-boundaries.test.js test/cli-baseline-contracts.test.js` passed all 33 tests.

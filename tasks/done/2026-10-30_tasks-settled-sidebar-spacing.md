@@ -18,7 +18,7 @@ Presentation only; retain native details/summary semantics, counts and note beha
 
 ## Verification
 
-Tested `7620e9d` plus this scoped presentation change:
+Tested `e5d150b` plus this scoped presentation change:
 
 - `npm run build` passed.
 - `scripts/sidebar-layout-smoke.mjs` passed: 224/280/480px desktop sidebars, short windows, 390/320px narrow layouts, footer alignment and scroll isolation, both schemes and all palettes.

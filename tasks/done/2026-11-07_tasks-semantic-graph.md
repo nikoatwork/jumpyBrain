@@ -20,7 +20,7 @@ Show explicit Markdown links together with strong inferred relationships, so not
 
 ## Verification
 
-Tested the implementation built on `7b0b757`; subsequent changes were documentation and additional smoke assertions, not runtime source.
+Tested the implementation built on `e18671a`; subsequent changes were documentation and additional smoke assertions, not runtime source.
 
 - `npm run build` passed (TypeScript and browser bundles).
 - `node --test test/semantic-graph.test.js test/graph.test.js test/graph-presentation.test.js test/graph-topic-preview.test.js test/architecture-boundaries.test.js` passed: 80/80.

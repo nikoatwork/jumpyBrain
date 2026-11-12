@@ -44,7 +44,7 @@ plus CLI open/edit/resync path. Parent owns shared task/release bookkeeping.
 - Dependencies: checkout-local `npm ci --ignore-scripts` (27 packages, zero
   reported vulnerabilities); no user CLI/app/integration installation.
 - `npm run build` passed. Version 0.3.20, build `aa683a744853dffa`, source base
-  `181e2301207021a79157789482d1cb18c01119f6`; instructions source SHA-256
+  `0cef4151522972920488aced7c54492ecfe54282`; instructions source SHA-256
   `b85322358065258c2728a38f7acec6d75ff2006fd0130971e5a0b826ab5ae461`.
 - `node --test test/instructions-topics.test.js test/collaboration-cli-read-base.test.js`:
   8 passed. CLI instructions/agent-hint topics, actual initial/write stdout and

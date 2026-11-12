@@ -15,7 +15,7 @@ User-authorized scope, 2026-11-10: written versus edited dates, two-line related
 
 ## Verification
 
-Tested on base `1c03261fe127cb987d99e2c7638f79444d0873b8` plus this task's working changes; final source build fingerprint `643a383f67788942` (v0.3.21). Shared-editor checks use disposable Markdown and Chromium.
+Tested on base `524ee962c47c9a0692dabeaff72070e85cdc0fb8` plus this task's working changes; final source build fingerprint `643a383f67788942` (v0.3.21). Shared-editor checks use disposable Markdown and Chromium.
 
 - `npm run build` — passed; editor bundle 674,683 minified / 222,903 gzip bytes, below the existing gate.
 - `node --test test/note-workspace.test.js test/search-recognition.test.js test/related-pages.test.js test/notes-browser.test.js test/daily-notes-browser.test.js test/browser-page-navigation.test.js test/companion-browser.test.js test/lexical-bundle.test.js` — 149 passed.

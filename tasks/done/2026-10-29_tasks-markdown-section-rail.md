@@ -20,7 +20,7 @@ Implemented a T3-inspired floating heading rail in the shared Mac/browser Markdo
 
 ## Verification
 
-- Started from clean `1c99836`; final verification ran over `708eadb` plus this implementation and concurrent onboarding work. Unrelated changes are excluded from this task's commit.
+- Started from clean `1c99836`; final verification ran over `347cf0c` plus this implementation and concurrent onboarding work. Unrelated changes are excluded from this task's commit.
 - `npm run build`: passed; editor bundle 568,735 bytes / 188,296 bytes gzip. Reviewed the roughly 2 KB rail cost and raised the existing gzip review gate to 189 KB; no dependencies added.
 - Focused Node suite: **181 passed**, covering graph/shell, editor workspace, bundle/CSP, architecture boundaries, Markdown, external updates and themes. Corrected the existing design-token test to recognize the sidebar's persisted inline width override, matching its existing node-color exception.
 - `npx --package=playwright node scripts/note-outline-smoke.mjs`: passed pointer/keyboard/scroll tracking; duplicate headings and H1–H6; literal/code exclusion; safe live heading text; editing/undo and external refresh; read-only behavior; exact CRLF bytes and caret preservation; departure cleanup; 300 headings; light/dark and 1440/1280/900/681/390/320px layouts. Screenshots visually inspected under `.local-pack/desktop/note-outline/`.

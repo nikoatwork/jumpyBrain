@@ -1,6 +1,6 @@
 # Release v0.3.18
 
-Status: complete. Published and verified v0.3.18; implementation snapshot `4722c598613d3043b8b562f5578decf7498ac403`.
+Status: complete. Published and verified v0.3.18; implementation snapshot `7fd62c91bbd6f4765c06bcc408c134bad370767a`.
 
 ## Scope and authorization
 
@@ -20,7 +20,7 @@ Status: complete. Published and verified v0.3.18; implementation snapshot `4722c
 ## Candidate and environment
 
 - macOS 15.7.7 (24G720), ARM64; Node v26.7.0; QMD 2.8.3 (`facd35e`), `/opt/homebrew/bin/qmd`; Docker Engine 27.4.0 available.
-- `npm run dogfood:status` reports an obsolete v0.3.13 candidate `820eb944c1720ebd71cf1c29275a192430300ca5`, installed 2026-10-31 19:11:08 UTC, `current:false`. Installation age is not active use evidence. No matching current real-brain test window is verified; the owner explicitly chose automated verification without a new day-long local test window. Publication does not install or replace the owner's app.
+- `npm run dogfood:status` reports an obsolete v0.3.13 candidate `eac1b126ee23da1a0f665a00958b6b5705b76413`, installed 2026-10-31 19:11:08 UTC, `current:false`. Installation age is not active use evidence. No matching current real-brain test window is verified; the owner explicitly chose automated verification without a new day-long local test window. Publication does not install or replace the owner's app.
 - Reused feature-specific evidence: packaged deletion/launch 17 checks and 40-case lifecycle editing matrix from [deletion](2026-11-02_tasks-stale-note-editing.md) and [launch](2026-11-02_tasks-desktop-shell-launch.md); packaged backend replacement 5/5 from [restart recovery](2026-11-02_tasks-backend-restart-recovery.md); signature/lifetime checks from [signed runtime pins](2026-11-02_tasks-signed-bundle-runtime-pins.md). Relevant code is unchanged after those checks except the separately tested daily-date addition. The release-owned full suite validates their integration.
 
 ## Tasks
@@ -41,13 +41,13 @@ No new real-brain use window, Intel/macOS 26, physical keyboard/IME, actual OS s
 
 - `npm run desktop:pack` passed: fresh `.local-pack/desktop/jumpyBrain.app`, native compile, packaged RunAsNode fuse and deep signature verification. The compiler emitted the existing deprecated Keychain API warning; packaging succeeded.
 - `JUMPYBRAIN_QMD_BIN=/opt/homebrew/bin/qmd npx --package=playwright node scripts/note-lifecycle-smoke.mjs` passed: canonical capture, immediate search, title/graph navigation, two-tab stale-save recovery, narrow layouts, guarded deletion, backlink preservation and index refresh.
-- `PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH" npm run smoke:hosted` passed against implementation `4722c59`: Linux ARM64, Node 22.23.4, QMD 2.8.3; input SHA-256 `f6c885636a9f07a9c2e739405839b3333364c63cce8354a39c3f3e7aaf8af166`; image `sha256:459d912156c7d0b5d85932ce0ab672d14490940a475228f1a575e6a3a8bdca8f`. Checks cover clean build context, non-root dependencies/assets, real lexical recall, reader denial, key/cookie revocation, graceful replacement, exact byte persistence, stopped-root backup/loss/restore and changed-access refusal. Disposable resources were removed.
+- `PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH" npm run smoke:hosted` passed against implementation `7fd62c9`: Linux ARM64, Node 22.23.4, QMD 2.8.3; input SHA-256 `f6c885636a9f07a9c2e739405839b3333364c63cce8354a39c3f3e7aaf8af166`; image `sha256:459d912156c7d0b5d85932ce0ab672d14490940a475228f1a575e6a3a8bdca8f`. Checks cover clean build context, non-root dependencies/assets, real lexical recall, reader denial, key/cookie revocation, graceful replacement, exact byte persistence, stopped-root backup/loss/restore and changed-access refusal. Disposable resources were removed.
 - Logs: `/tmp/jumpybrain-v0.3.18-{build,desktop-pack,lifecycle,hosted}.log`. Preparation package retains version 0.3.17; only the full release workflow stamps/validates/publishes 0.3.18. No duplicate pre-release full-suite/CLI-pack run.
 - The owner supplied both explicit decisions before the full release workflow. Publication, verification and notes archival are complete; this record is archived with the final bookkeeping commit.
 
 ## Completed outcome
 
-- Published [v0.3.18](https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.18) at 2026-11-02T17:01:19Z; release commit `09f5112b7be4e3c5371fd6c56977a6a7748fcc07`. The full workflow passed all 1,851 tests with zero failures/skips and validated 291 required distribution resources before atomic branch/tag push and GitHub publication.
+- Published [v0.3.18](https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.18) at 2026-11-02T17:01:19Z; release commit `058586431f16ee1bd789bb01f84b707377bfec77`. The full workflow passed all 1,851 tests with zero failures/skips and validated 291 required distribution resources before atomic branch/tag push and GitHub publication.
 - Verified annotated public tag, exact notes, aligned root/Electron manifests and lockfiles, single uploaded asset and matching local/public/GitHub SHA-256 `sha256:6c076f2ec1efb02d282db51571e858242b388149ce8a1d960d547f3711c87483`. Downloaded isolated CLI reports 0.3.18, compiled build `e300a4bcca2ac05c`.
 - Archived exact notes at [v0.3.18.md](releases/v0.3.18.md) and detailed [QA](releases/v0.3.18.qa.md); reset the pending note to its empty heading because every curated bullet shipped. No deferred release-note bullet was removed.
 - Moved this completed list to `tasks/done/2026-11-02_tasks-release-v0.3.18.md`, repaired relative references, and updated the selective changelog. The containing scoped bookkeeping commit records these changes. Active follow-up tasks and existing installations remain untouched.

@@ -17,7 +17,7 @@ Completed 2026-11-01.
 
 ## Verification
 
-Tested the final source/smoke-script bytes in an isolated temporary snapshot; byte equality with the working implementation was checked before finalization. The snapshot includes the concurrent sidebar presentation integrated as `03cd368`, without changing or staging that task's implementation.
+Tested the final source/smoke-script bytes in an isolated temporary snapshot; byte equality with the working implementation was checked before finalization. The snapshot includes the concurrent sidebar presentation integrated as `f73adc8`, without changing or staging that task's implementation.
 
 - `npm run build` passed; the final editor bundle remains below its existing size gate (582,375 bytes minified, 192,683 bytes gzip).
 - Focused note workspace/browser/companion/board tests passed: 108 tests.

@@ -22,7 +22,7 @@ Keep the Mac page editor usable when deleting the final title character before t
 
 ## Verification
 
-Tested snapshot: base `2182b9d044a2a87e8a25e29f69b413e4e6fcaa30` plus this scoped change. Compiled collaboration editor SHA-256 `eba175f217cefebbc6df253ca70edb5f5086722fbe1a51166d41758a310c5729`; compiled notes shell SHA-256 `942fa02a0e1e896f11ebee6811481d7bd0c71ff9344854c806091db220910526`.
+Tested snapshot: base `49795af177ae7722bc3aa71cd4d8158d9c0549c8` plus this scoped change. Compiled collaboration editor SHA-256 `eba175f217cefebbc6df253ca70edb5f5086722fbe1a51166d41758a310c5729`; compiled notes shell SHA-256 `942fa02a0e1e896f11ebee6811481d7bd0c71ff9344854c806091db220910526`.
 
 - The new empty-title regression failed against the original compiled runtime with unexpected `conflict`, then passed after the fix.
 - `npm run build` and 52 focused editor, feedback, workspace, companion and canonical-write tests passed.

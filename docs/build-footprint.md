@@ -29,7 +29,7 @@ ship it as an optional extension, accepting that CLI-only installations carry
 the editor files. The estimate given before that decision was about 3.5 MB on
 disk; the measured cost is higher and is recorded here so it can be revisited.
 
-| Package metric | Before (`274d48d` plus this task's non-editor source) | With the drawing editor |
+| Package metric | Before (`0ee8752` plus this task's non-editor source) | With the drawing editor |
 | --- | --- | --- |
 | Compressed archive | 1,478,898 | 3,178,969 |
 | Unpacked | 4,688,406 | 8,768,322 |
@@ -63,7 +63,7 @@ before that gate is used again.
 ## 2026-11-08 reviewed distribution ceiling refresh
 
 The user explicitly approved resetting the distribution limits after the editor
-session work. Snapshot `42509f5` measured 1,462,963 compressed / 4,625,618
+session work. Snapshot `c612fef` measured 1,462,963 compressed / 4,625,618
 unpacked / 3,097,281 runtime bytes and 666 packaged files. The compressed,
 unpacked and file-count limits were already exceeded before that refactor;
 its runtime shrank by 715 bytes and it added four compiled/declaration files.
@@ -94,7 +94,7 @@ The new standalone session artifact uses the build's existing whitespace
 compaction, and its declaration references the explicit interface. The tested
 runtime measures 3,097,281 bytes, 715 below the source-matched pre-task runtime.
 An additional full-package probe found inherited archive/unpacked/file-count
-failures: pre-task `d097261` measured 1,462,694 compressed / 4,626,120 unpacked
+failures: pre-task `cd3c0b0` measured 1,462,694 compressed / 4,626,120 unpacked
 bytes and 662 files against limits of 1,450,000 / 4,600,000 / 660. The editor
 pilot does not raise those limits or claim a release-ready package. Its source
 snapshot package measured 1,462,898 / 4,625,405 bytes and 666 files; final owning
@@ -104,7 +104,7 @@ documentation can change those archive/unpacked totals. No release is implied.
 ## 2026-11-04 checklist authoring and reference dismissal
 
 A matched esbuild comparison with the same fixed build fingerprint, package pins
-and production settings measures 221,435 gzip bytes at `5aff399` and 221,976
+and production settings measures 221,435 gzip bytes at `38f8c86` and 221,976
 with nested checklist editing and unsuccessful `@` lookup dismissal: +541 bytes
 (0.24%). The actual production build measures 221,984 gzip bytes. This adds
 subtree-preserving indentation with canonical source ranges and trigger-scoped
@@ -307,7 +307,7 @@ Extend existing emitted-whitespace compaction to QMD, app/local-memory and app-r
 
 ## 2026-11-04 UX feedback loop
 
-A pristine `6d06cb9` build on Linux/Node 22.23.1 measured 222,420 editor gzip
+A pristine `85512f0` build on Linux/Node 22.23.1 measured 222,420 editor gzip
 bytes, already above the prior 222,250-byte guard. Matched production esbuild
 runs with the same fixed build fingerprint measured 222,414 pristine and 223,009
 with origin-aware own-edit feedback, retained-review acknowledgment and scoped
@@ -332,9 +332,9 @@ compiled artifacts; do not widen distribution ceilings to absorb UX work.
 
 v0.3.23 release preparation found the editor above its 223,250-byte gate. Matched
 local builds (macOS ARM64, Node 26.7.0, same lockfile) measured 222,922 gzip bytes
-at v0.3.22 (`b31d944^`), 223,450 after the total collaboration transform and the
-client's sequential-transaction crossing (`b31d944`, +528) and 223,969 after the
-folder-explorer sort select, compact ages and device-local preference (`77d1ce8`,
+at v0.3.22 (`28ebe9a^`), 223,450 after the total collaboration transform and the
+client's sequential-transaction crossing (`28ebe9a`, +528) and 223,969 after the
+folder-explorer sort select, compact ages and device-local preference (`a792ce4`,
 +519). The release candidate measured 223,972 bytes. Both features are deliberate
 browser behavior; the editor still bundles the same 15 packages and no dependency
 or framework was added. The reviewed editor ceiling is 224,250 bytes, leaving 278

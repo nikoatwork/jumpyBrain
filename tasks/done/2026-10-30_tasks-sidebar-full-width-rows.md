@@ -15,11 +15,11 @@ Apply hover/selection across the desktop sidebar entry and truncate title/previe
 
 ## Scope
 
-Follow-up to `3d7eb52`; preserve unrelated board follow-up work. No delegation, push or release.
+Follow-up to `1ab53b0`; preserve unrelated board follow-up work. No delegation, push or release.
 
 ## Verification
 
-Tested `3d7eb52` plus this scoped follow-up:
+Tested `1ab53b0` plus this scoped follow-up:
 
 - `npm run build` passed.
 - `scripts/sidebar-layout-smoke.mjs` passed: desktop rows reach both sidebar edges; title/preview share equal text bounds; age clearance is at least 12px with a 24px right inset. Includes actual outer-edge hover activation, selected/hover/focus surfaces, preserved footer alignment, narrow/touch layout and Settings utilities.

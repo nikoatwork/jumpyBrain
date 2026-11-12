@@ -6,7 +6,7 @@ Completed the requested read-only machine test using a private snapshot of the M
 
 ## Verification and findings
 
-- Source implementation: `2bfda5f`; live corpus 1,665 Markdown documents, about 4 MB, including 1,044 sessions. Live configuration remained lexical. All original content hashes were unchanged during the run.
+- Source implementation: `c077b8d`; live corpus 1,665 Markdown documents, about 4 MB, including 1,044 sessions. Live configuration remained lexical. All original content hashes were unchanged during the run.
 - A separate copy was indexed with locally provisioned QMD 2.8.3 / EmbeddingGemma 300M Q8_0: 2,757 embedding chunks. No paid API, model download, live-note modification or app setting change.
 - Full-corpus exploratory comparison: cosine >= 0.70 alone yielded 64,082 new unordered pairs after excluding existing resolved explicit connections. Mutual top-three agreement reduced this to 634 pairs touching 733 notes, at most three new neighbors each. Inserting both directions would add 1,268 references.
 - The actual implemented graph retains its 1,000-document cap: it compared 1,000/1,665 and returned 372 inferred edges with partial coverage. The full-corpus counts above are an experimental extension, not the current endpoint's output.

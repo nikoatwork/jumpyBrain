@@ -37,7 +37,7 @@ Every supported command should answer help without executing its operation, requ
 
 ## Implementation and safe audit
 
-- Based on `a2a90cf`, retaining package version 0.3.17. The local managed installation identifies itself as 0.3.15, so it is not evidence of the reported 0.3.17 behavior.
+- Based on `a7b5db0`, retaining package version 0.3.17. The local managed installation identifies itself as 0.3.15, so it is not evidence of the reported 0.3.17 behavior.
 - Compared the `v0.3.17` tag and starting-source CLI modules in disposable installation copies: transpiled the selected snapshot's commands/args/usage/board parser into a temporary package and replaced operation seams (including updater, local transport, memory handlers, migration, server and backend commands) with throwing stubs. No real updater, backend, installer or network request ran during help probing. Audited 72 current command/namespace/recipe paths in three help spellings (216 attempts per snapshot); identity is absent from the older tag.
 - In both snapshots, `update --help` and `update -h` reached the updater stub; `help update` printed the root banner. Plain recall/search/process help reached memory dispatch; strict delete/expand/remember/doctor/migration parsers rejected help. Namespace `-h` was inconsistent. An initial plain `search --qurey x` probe reached memory dispatch. These establish dispatch/parser defects, not evidence that an actual installation was modified.
 - `runCli` now intercepts exact help tokens before parsing. Help wins over malformed/missing flags; unknown command, child or recipe paths fail without work. `usage.ts` owns presentation-only metadata, concise root overview, focused namespace children and recipe-derived help. Document-update recipe help excludes installer mode; future commands can add metadata without a dependency on operation code.
@@ -54,7 +54,7 @@ Every supported command should answer help without executing its operation, requ
 - Initial full suite found obsolete help assertions, two incomplete document-mode unit invocations, and a worktree prerequisite missing from desktop compiler tests (`integrations/electron/node_modules/esbuild/package.json`). The help assertions and invocation fixtures were corrected. Provisioned only that worktree's desktop package dependencies with `npm ci --prefix integrations/electron --ignore-scripts`; no Electron binary/app install or host setup ran.
 - Final `npm test` (including build and full deterministic suite): 1,799 tests, 1,798 passed, 0 failed, 1 existing opt-in test skipped. The skip requires `JUMPYBRAIN_TEST_QMD_BIN` pointing to real QMD 2.8.3 for CLI/WAL physical read-only parity; that engine was not provisioned for this lane. No model/browser/host deployment validation is claimed or required for this CLI-only change.
 - Final standalone help/parser check: 9/9 passed; 312 sentinel help cases attempted no side effects. `git diff --check` passed.
-- Tested source snapshot: branch `t3/cli-help-validation`, based on `a2a90cf`, represented by the containing implementation commit; only task/reference finalization followed the passing tests.
+- Tested source snapshot: branch `t3/cli-help-validation`, based on `a7b5db0`, represented by the containing implementation commit; only task/reference finalization followed the passing tests.
 - `npm run guard:staged` and `git diff --cached --check`: passed.
 
 ## Remaining limits and blockers

@@ -23,7 +23,7 @@ Owner requested live feedback review, independent reproduction and a pragmatic p
 
 ## Current evidence
 
-Clean master at `ac94cea`, package v0.3.18. Latest public release v0.3.18 published 2026-11-02T17:01:19Z; none published on November 3 Europe/Berlin. Independent investigations underway using disposable fixtures only.
+Clean master at `5932156`, package v0.3.18. Latest public release v0.3.18 published 2026-11-02T17:01:19Z; none published on November 3 Europe/Berlin. Independent investigations underway using disposable fixtures only.
 
 
 ## Reproduction and result
@@ -55,7 +55,7 @@ show static software recovery guidance rather than implying folder corruption.
 
 ## Verification and remaining limits
 
-- macOS 15.7.7 ARM64, Node 26.7.0; clean intake `ac94cea`.
+- macOS 15.7.7 ARM64, Node 26.7.0; clean intake `5932156`.
 - Build and fresh signed desktop package pass; unchanged verified native helper
   reused. Core note lifecycle passes capture, immediate search, graph/title,
   stale-tab recovery, narrow layout, guarded deletion and index refresh.
@@ -90,7 +90,7 @@ show static software recovery guidance rather than implying folder corruption.
   cleanup drains successfully. Evidence:
   `.local-pack/update-smoke/success/2026-11-03T08-02-04.083Z-3WwXOT`.
 - `git diff --check` passes. Tests use the final source diff built over
-  `ac94cea`; the containing implementation commit identifies that snapshot.
+  `5932156`; the containing implementation commit identifies that snapshot.
 - Archived this completed task; changelog and two pending user-facing release
   bullets updated. Full versioned release suite/publication belongs to the
   release task, rather than an unverified completion claim here.

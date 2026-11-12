@@ -9,7 +9,7 @@ Increment of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md), aut
 - [x] Run normal generation/coauthoring, live/recovery and footprint neighbors.
 - [x] Record limits, archive and commit.
 
-Initial evidence: ignored `.local-pack/ux-soak/abandoned-before-435f9cb.json`; `unassistedCue:false`, saved text retained, canonical stream cancelled/lease_expired, `afterDiagnostic:Generation interrupted`. Do not relabel this attempt. The existing 45-minute soak uses a frozen older artifact and remains an independent stability run, not proof of this fix. Native Mac/public VPS evidence remains unobserved.
+Initial evidence: ignored `.local-pack/ux-soak/abandoned-before-076d616.json`; `unassistedCue:false`, saved text retained, canonical stream cancelled/lease_expired, `afterDiagnostic:Generation interrupted`. Do not relabel this attempt. The existing 45-minute soak uses a frozen older artifact and remains an independent stability run, not proof of this fix. Native Mac/public VPS evidence remains unobserved.
 
 Outcome: keep. Fixed build `101fa59e8c553a2d` passed the real default-lease probe: “Generation interrupted” appeared before diagnosis, then canonical status independently confirmed cancelled/lease_expired. Human baseline and the single acknowledged agent chunk survived, and focus stayed unchanged. Eight normal generation cases passed at 1280/390/320px, including matching stream IDs across actors and no fabricated completion on reconnect. All 72 focused live/recovery/editor/architecture/bundle/package checks passed; the strengthened metadata test also proves a saved stream notice cannot mark a private human draft saved.
 

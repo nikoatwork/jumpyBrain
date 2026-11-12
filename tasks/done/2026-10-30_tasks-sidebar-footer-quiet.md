@@ -12,7 +12,7 @@ Status: completed 2026-10-30.
 
 ## Verification
 
-Tested snapshot: `62b44f3` plus this task's scoped changes.
+Tested snapshot: `7e10f6e` plus this task's scoped changes.
 
 - `npm run build` passed, including the final extension cleanup (189,454-byte gzip editor; 5,669-byte gzip optional extensions UI).
 - `node --test test/browser-theme.test.js test/browser-sidebar.test.js test/desktop-updater.test.js test/desktop-system-messages.test.js`: 45 passed, no failures/skips.

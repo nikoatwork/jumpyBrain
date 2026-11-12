@@ -25,7 +25,7 @@ Put a one-line install command at the top, cut the README by roughly half, and r
 ## Verification and limits
 
 - README: 2,263 to 944 whitespace-delimited words, a 58.3% reduction. Checked all 24 local links/assets and linked section anchors; the top one-line command matches `docs/install.md`.
-- `npm run build` passed. Screenshots use the resulting 0.3.20 workspace build; core HEAD at capture was `ed7ed93`. Later unrelated search edits were not rebuilt into these captures.
+- `npm run build` passed. Screenshots use the resulting 0.3.20 workspace build; core HEAD at capture was `57247e6`. Later unrelated search edits were not rebuilt into these captures.
 - Inspected actual browser captures of the editor and graph at a 1440 × 1100 viewport, then converted to lossless WebP. The disposable lexical-indexed brain has 14 fictional notes and 48 graph connections; no personal memory appears in either image. Browser console diagnostics were empty.
 - The fixture index was confirmed fresh by `doctor --check`; the graph's unverified-freshness notification was dismissed through its normal UI before capture. No rendered app content was fabricated.
 - The separate demo template uses the editor's warm palette, serif headline and workspace wording. Its existing 7 tests passed; desktop, 390px mobile, 320px expanded commands and both native copy actions passed browser checks without horizontal overflow.

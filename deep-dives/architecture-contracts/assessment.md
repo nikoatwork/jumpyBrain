@@ -10,7 +10,7 @@ The immediate deliverable is [the contract-hardening task list](../../tasks/done
 
 ## Scope and evidence
 
-Three read-only sub-agent reviews covered domain/retrieval, collaboration/editor, and CLI/server/desktop boundaries. The primary review checked their conclusions against the architecture rules, selected source, existing baseline machinery and active plans. Source references below describe commit `b469d5fff0f1cd6bef8c74b2049c7dec9f10f15a`. Documentation changes present at the start were finalized independently into that commit during this assessment; they were not modified by this work.
+Three read-only sub-agent reviews covered domain/retrieval, collaboration/editor, and CLI/server/desktop boundaries. The primary review checked their conclusions against the architecture rules, selected source, existing baseline machinery and active plans. Source references below describe commit `cbb4101a45b8fc9c950e24e28830af51e27875fe`. Documentation changes present at the start were finalized independently into that commit during this assessment; they were not modified by this work.
 
 Executed: `node --test test/architecture-boundaries.test.js test/package-entrypoints.test.js` — **18 passed, zero failed/skipped**. These inspect source/manifest boundaries and do not need a `dist/` build. Sub-agents separately reported the same 17 architecture checks passing; those duplicate runs add no distinct behavioral evidence. The behavior tests named below were inspected, not rerun. No current whole-app baseline, defect reproduction, semantic-quality result or native/browser product verification is claimed by this assessment.
 

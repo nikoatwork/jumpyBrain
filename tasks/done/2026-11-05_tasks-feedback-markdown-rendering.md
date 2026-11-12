@@ -32,7 +32,7 @@ Shared feedback/session/follow-up/release/changelog files belong to parent and w
 
 ## Evidence and verification
 
-Tested base `181e2301207021a79157789482d1cb18c01119f6` plus this lane's changes. No AGENTS.md exists in this checkout or ancestors. Product vision, task workflow, source architecture, HTTP/browser owning docs and glossary read. Locked development dependencies installed locally with `npm ci --ignore-scripts`; no user installation.
+Tested base `0cef4151522972920488aced7c54492ecfe54282` plus this lane's changes. No AGENTS.md exists in this checkout or ancestors. Product vision, task workflow, source architecture, HTTP/browser owning docs and glossary read. Locked development dependencies installed locally with `npm ci --ignore-scripts`; no user installation.
 
 - `npm run build`: passes. Final editor is 674,971 bytes minified / 222,776 bytes gzip, below the unchanged 223,250-byte gate (474 bytes remaining). Optional extension UI unchanged at 5,669 gzip.
 - `node --test test/editor-markdown.test.js test/editor-source-map.test.js test/lexical-bundle.test.js test/collaboration-editor.test.js test/reference-ranges.test.js`: 76/76 pass on final source.

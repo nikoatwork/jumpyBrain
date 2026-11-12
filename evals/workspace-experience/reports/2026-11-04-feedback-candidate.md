@@ -1,6 +1,6 @@
 # Feedback candidate from the native UX baseline
 
-Date: 2026-11-04. Candidate based on `6d06cb94eb5fd2df07879323cf35cf0f75db7f14` (v0.3.20), with scoped changes documented in the [completed task](../../../tasks/done/2026-11-04_tasks-ux-feedback-hillclimb.md). Executor: GPT-6.1 Sol, high; same-agent diagnosis and verification, with source exposure. Linux x64, Node 22.23.1. This is a regression-tested candidate, not a new native UX run or scored win.
+Date: 2026-11-04. Candidate based on `85512f0d40410f08dbcec75e824fab6cd82f08a8` (v0.3.20), with scoped changes documented in the [completed task](../../../tasks/done/2026-11-04_tasks-ux-feedback-hillclimb.md). Executor: GPT-6.1 Sol, high; same-agent diagnosis and verification, with source exposure. Linux x64, Node 22.23.1. This is a regression-tested candidate, not a new native UX run or scored win.
 
 The [November 3 baseline](2026-11-03-baseline.md) reported ordinary opens showing “Updated elsewhere” and addition-only updates raising a replacement warning. The proposed effects and protected neighbors were recorded before verification; missions, rubric and historical results remain unchanged.
 

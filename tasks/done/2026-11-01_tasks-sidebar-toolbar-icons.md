@@ -19,7 +19,7 @@ Shared hosted/Mac browser shell. Preserve existing unfinished page-action and co
 
 ## Verification and limits
 
-- Tested snapshot: `36e691416f752edc8ab02603b28a8182859861a4` plus this task and existing concurrent working-tree changes. Staged only toolbar changes from the shared `notes-browser.ts` file.
+- Tested snapshot: `8d43bf8f7776083370d73fcb3e014f4d0c5efb65` plus this task and existing concurrent working-tree changes. Staged only toolbar changes from the shared `notes-browser.ts` file.
 - `npm run build` passed.
 - 91 targeted tests passed (`browser-theme`, `browser-sidebar`, `notes-browser`).
 - Sidebar layout smoke passed: actual companion shell and native update renderer, 12 desktop/narrow light/dark layouts, 8 palette/scheme combinations, square icon targets, transparent inactive states, active Home border, accessible names and keyboard Search opening.

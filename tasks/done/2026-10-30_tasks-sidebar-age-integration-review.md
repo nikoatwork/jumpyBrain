@@ -2,7 +2,7 @@
 
 ## Scope
 
-Review `708eadb` against current `master` (`d612b20` at review start). Preserve the newer compact labels from `3d8b3b0`, full-width row styling, separate age lane and unrelated board work. The original commit is already an ancestor of master; no replay or merge is needed.
+Review `347cf0c` against current `master` (`862b461` at review start). Preserve the newer compact labels from `3d7c27a`, full-width row styling, separate age lane and unrelated board work. The original commit is already an ancestor of master; no replay or merge is needed.
 
 ## Tasks
 
@@ -18,7 +18,7 @@ The renderer merges independently fetched preview metadata over the attention pa
 
 ## Verification
 
-- Tested 2026-10-30 on `d612b20698d36937938396e2183f0a8bdf38c563` plus this fix and the existing uncommitted board/companion changes. Those unrelated changes remain outside this commit.
+- Tested 2026-10-30 on `862b461b5694f555de40fb784250f25a5d9720df` plus this fix and the existing uncommitted board/companion changes. Those unrelated changes remain outside this commit.
 - Initial build and original targeted suites: 35 passed. Both new unit regressions failed against the pre-fix build. The production sidebar regression also failed before the fix (`due 4d` instead of `3d`).
 - Final `npm run build`: passed, editor bundle 189,376 bytes gzip (below the 190 KB gate).
 - `node --test` for browser-page-navigation, browser-sidebar, note-attention-browser, note-attention, search-recognition, notes-browser, companion-browser, lexical-bundle, architecture-boundaries and package-entrypoints: **153 passed, 0 failed**.
@@ -30,6 +30,6 @@ The renderer merges independently fetched preview metadata over the attention pa
 
 ## Outcome and limits
 
-No merge/cherry-pick is necessary: `git merge-base --is-ancestor 708eadb master` passed. Preserve compact labels from `3d8b3b0` and layout from `d612b20`. The only implementation correction separates attention provenance from preview edit timestamps and shares the resulting label between row creation and refresh. Unit coverage includes both newer/older preview revisions, creation-only recency and a real due time matching the preview edit time.
+No merge/cherry-pick is necessary: `git merge-base --is-ancestor 347cf0c master` passed. Preserve compact labels from `3d7c27a` and layout from `862b461`. The only implementation correction separates attention provenance from preview edit timestamps and shares the resulting label between row creation and refresh. Unit coverage includes both newer/older preview revisions, creation-only recency and a real due time matching the preview edit time.
 
 No additional blocking issue found within the reviewed sidebar-age scope. The protocol still infers explicit due overrides from unequal attention/edit timestamps; an explicit override exactly matching the attention packet's own recency is indistinguishable, as before. The installed Mac application was not rebuilt or installed; the complete repository suite and native packaged-app smoke were not run. No push or release. Unrelated board work remains in progress. Thread settlement follows the scoped commit as part of this integration handoff.

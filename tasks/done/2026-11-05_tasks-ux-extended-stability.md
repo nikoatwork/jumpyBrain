@@ -9,7 +9,7 @@ Verification tranche of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-lo
 - [x] Verify same-tab/cross-tab credential changes retain private drafts and never publish them under a new identity.
 - [x] Exercise actual actor-history expiry and the broader production collaboration/recovery journey.
 - [x] Verify a deliberately delayed capabilities handshake stays locked and only opens confirmed live writing.
-- [x] Complete a separate 60-minute frozen run and broad check on the later retained `b775d80` candidate.
+- [x] Complete a separate 60-minute frozen run and broad check on the later retained `d5d2495` candidate.
 - [x] Record exact snapshot, outcomes and limits; archive/commit the completed tranche.
 
 Runner limit extends from 60 to 90 minutes and adds observational epoch/revision
@@ -20,24 +20,24 @@ evidence, not a performance/native score. No real shared memory or installation.
 The new runtime is build `c29c1197b7314d89`, SHA-256
 `f8bf409b5a4ab13fc9f93eaef2871734b2761d674209a0adc7f216a4c225ddfa`;
 runner SHA-256 `d137d37e0a91827d1efd4243bd531869688bdcc214f5e100152ae16e90aa05e5`.
-Receipt `.local-pack/ux-soak/extended-01-409516f/report.json` is in progress.
+Receipt `.local-pack/ux-soak/extended-01-47435cd/report.json` is in progress.
 The two 1280/390 credential-change cases passed: same-tab key changes remain
 guarded; a cross-tab reader login retains and locks the private writer draft,
 allows exact copy/explicit reader reopen, preserves its original recovery record
 and does not publish or adopt it under the reader identity. Log
-`/tmp/jumpybrain-ux-credential-draft-409516f.log`. No product change was justified.
+`/tmp/jumpybrain-ux-credential-draft-47435cd.log`. No product change was justified.
 
 The standalone default CLI actor-churn proof passed: 132 fresh CLI actors,
 bounded retained history, explicit expired Undo with unchanged canonical bytes,
 new human editing, stable recent actor Undo, reader/agent reconnect and actual
-fixture credential revocation. Log `/tmp/jumpybrain-ux-actor-churn-409516f.log`.
+fixture credential revocation. Log `/tmp/jumpybrain-ux-actor-churn-47435cd.log`.
 The larger collaboration/recovery journey remains in progress.
 
 The broader production collaboration journey passed as well, including two-context
 convergence, actor Undo, agent streams, browser composition/range paths, offline
 body/title reload recovery, cloned-tab actor isolation, explicit recovery-version
 selection, title normalization, cursor/source history and changed-source restart
-recovery. Log `/tmp/jumpybrain-ux-collaboration-editor-409516f.log`. Its browser
+recovery. Log `/tmp/jumpybrain-ux-collaboration-editor-47435cd.log`. Its browser
 composition checks are not physical/native IME evidence. No source change was
 justified by these passing checks.
 
@@ -46,23 +46,23 @@ failed-capability/missing-note cases. Body/title and writing guidance remain
 locked before permissions; attempted typing past the legacy debounce interval
 sends no source mutation. On release, confirmed writer input saves once through
 WS with no legacy PUT. Source already sets this lock synchronously, so no product
-change was justified. Log `/tmp/jumpybrain-ux-pending-permissions-409516f.log`.
+change was justified. Log `/tmp/jumpybrain-ux-pending-permissions-47435cd.log`.
 
-The retained `409516f` compiled snapshot passed the full pinned-engine suite:
+The retained `47435cd` compiled snapshot passed the full pinned-engine suite:
 1,918 tests total, 1,901 passed, 17 skipped, zero failed, ~618 seconds. Log
-`/tmp/jumpybrain-ux-full-409516f.log`. No rebuild or source edit overlapped this
+`/tmp/jumpybrain-ux-full-47435cd.log`. No rebuild or source edit overlapped this
 run; later changes are verification scripts/task evidence only. Do not rerun a
 broad suite without a new product change, failure or unresolved concern.
 
 Later retained fixes are separate from the frozen 90-minute artifact: peer
-notice timing `9a37762` and narrow note entry `b775d80`. Their protected browser
+notice timing `941a57c` and narrow note entry `d5d2495`. Their protected browser
 checks passed; startup/credential probes now land with the [narrow-note archive](2026-11-04_tasks-ux-narrow-note-entry.md). A fresh 60-minute latest-
 candidate run and broad compiled suite will cover these later changes. The
 earlier 90-minute result cannot be relabeled as current-candidate evidence.
 
-Later `b775d80` broad verification completed cleanly: 1,919 tests total,
+Later `d5d2495` broad verification completed cleanly: 1,919 tests total,
 1,902 passed, 17 skipped, zero failed, ~634 seconds. Log
-`/tmp/jumpybrain-ux-full-b775d80.log`. Product code/runtime is frozen for the
+`/tmp/jumpybrain-ux-full-d5d2495.log`. Product code/runtime is frozen for the
 remaining long observations unless an actual failure requires a new candidate.
 The latest runner uses build `02721429af82d5af`, runtime SHA-256
 `165376d2525f6f256f8b9e0ef0673368884a16f8956281cfdc0477afb92fc2e8`.
@@ -87,7 +87,7 @@ This is still build `c29c1197b7314d89`; the later retained candidate's separate
 60-minute run remains pending.
 
 Outcome: retained diagnostic evidence, no further product edit justified. The
-latest `b775d80` run completed 81 cycles (54 finished / 27 explicitly cancelled)
+latest `d5d2495` run completed 81 cycles (54 finished / 27 explicitly cancelled)
 on build `02721429af82d5af`, final revision 243 in one epoch. Requested duration
 60 minutes; actual loop 3,610,246ms, including a final cycle crossing the boundary
 by ~10 seconds. Finished 2026-11-05 00:43:28 UTC. No human-performance claim.

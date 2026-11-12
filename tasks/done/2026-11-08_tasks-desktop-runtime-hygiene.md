@@ -5,7 +5,7 @@ Priority: P1. Status: completed with explicit platform/reproduction limits, 2026
 ## Completion — 2026-11-08
 
 - Finalized at the user's request without a human-review gate. Bounded launch verification and storage/platform accounting close this implementation task; unavailable historical macOS 26 reproduction is explicitly skipped below, not marked passed. Reopen from a matching failing package/environment or new diagnostic evidence if that symptom recurs.
-- Tested source snapshot: `1febba93fc0f56b4c0c1369c01456f995e253986` (`master`), followed by this documentation-only finalization. Original runtime tip `a9c2247` and integrated runtime-generation correction `23de66e` are ancestors of `master`.
+- Tested source snapshot: `a82509d406f4243e8444e9593a598fbee1cae33f` (`master`), followed by this documentation-only finalization. Original runtime tip `fa305d1` and integrated runtime-generation correction `9e1c978` are ancestors of `master`.
 - Current verification and material limits are recorded below. Earlier implementation/parent checkpoints remain historical evidence and are superseded by this completion status.
 - Runtime retention, managed integration refresh, backend inventory and launch behavior were already implemented and released. This closure changes documentation and references; it adds no pending product release note.
 
@@ -69,13 +69,13 @@ Stop obsolete update staging and logs from growing indefinitely, keep live daemo
 
 Final integration is verified in the [completed integration record](2026-11-02_tasks-feedback-parallel-integration.md): all 1,828 tests passed with real QMD, hosted/gateway/stale-note checks and original package caps passed. Frozen replacement generation is checked before skipping unpinnable runtimes. The agent-shell launch reproduction remains the only required open item here; no personal staging or integration files were modified.
 
-Independent review of `a9c2247` reproduced two gaps: a runtime moved after identity/lease capture could pin the replacement pathname, and legacy companion pair replacement bypassed retirement and deleted a live-pinned backup. Both were corrected during parent integration. Runtime identity captures the directory device/inode generation; pinning validates it before/after publication and verifies the created pin's identity, while detached launch carries its expected generation. Disposable regressions reject both a pre-pin replacement and an exchange/rollback during pin publication. Legacy pair replacement now retains live/legacy/uncertain CLI and bundled GUI runtimes, with explicit eligible-dead cleanup coverage. README's Product vision document remains packaged; new runtime-pin/refresh/retention resources are required by the package manifest guard.
+Independent review of `fa305d1` reproduced two gaps: a runtime moved after identity/lease capture could pin the replacement pathname, and legacy companion pair replacement bypassed retirement and deleted a live-pinned backup. Both were corrected during parent integration. Runtime identity captures the directory device/inode generation; pinning validates it before/after publication and verifies the created pin's identity, while detached launch carries its expected generation. Disposable regressions reject both a pre-pin replacement and an exchange/rollback during pin publication. Legacy pair replacement now retains live/legacy/uncertain CLI and bundled GUI runtimes, with explicit eligible-dead cleanup coverage. README's Product vision document remains packaged; new runtime-pin/refresh/retention resources are required by the package manifest guard.
 
 Parent build, 26 focused backend/runtime/help/guidance/lint tests and all 66 companion Python update tests passed after the fixes. An old assertion requiring every previous runtime to be deleted was replaced with exact legacy-backup retention/content assertions. Current combined package check passes unchanged ceilings: 1,439,300 archive / 4,567,074 unpacked / 3,067,363 runtime bytes; 632 files. Emitted-whitespace compaction now covers CLI and backend-ownership modules using existing esbuild; source, declarations, identifiers, syntax and legal notices are retained. Full combined/updater/hosted gates follow the final retrieval merge. These results do not reproduce the reported agent-shell launch failure, so this task remains active.
 
-Base: `fc6f859`; branch `t3/desktop-runtime-hygiene`. This lane does not change
+Base: `e7116bb`; branch `t3/desktop-runtime-hygiene`. This lane does not change
 root selection, instruction topic dispatch, skill source content, lint or ranking.
-The parent integrates the independent guidance lane at `3065cb7` and reconciles
+The parent integrates the independent guidance lane at `d42f414` and reconciles
 shared notes/metadata. No installation, service, personal memory or remote source
 was used as a test target; there was no push, release, merge or feedback delivery.
 
@@ -187,7 +187,7 @@ unverified historical report as an explicit limit.
 
 - Branch package: **1,438,997 archive / 4,596,284 unpacked / 3,099,334 dist bytes;
 629 files**. All unchanged ceilings (1,450,000 / 4,600,000 / 3,100,000 / 660)
-pass. Relative to the parent-supplied `fc6f859` baseline: **−89 archive,
+pass. Relative to the parent-supplied `e7116bb` baseline: **−89 archive,
 +4,926 unpacked, +4,556 runtime bytes; +1 file**. Net unpacked includes the
 18,516-byte contributor-doc exclusion; retained additions before that saving are
 23,442 bytes (implementation plus installed owning docs), not a zero-cost feature.
@@ -195,7 +195,7 @@ pass. Relative to the parent-supplied `fc6f859` baseline: **−89 archive,
 the other changed runtime artifacts account for the remaining 1,804 bytes. Public
 CLI inventory/help/strict parsing are an optional separable part; updater/native/
 integration sources contribute unpacked bytes outside `dist`.
-- Guidance lane `3065cb7` reports 3,098,875 runtime bytes. Simple additive runtime
+- Guidance lane `d42f414` reports 3,098,875 runtime bytes. Simple additive runtime
 projection is **3,103,431 bytes**, **3,431 over the cap**. This is an estimate until
 parent builds the merged tree, not combined-gate success. This branch does not
 rebase onto or overwrite that lane and does not relax budgets/assertions.

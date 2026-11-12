@@ -88,7 +88,7 @@ Status: investigated and proposed; implementation is not started by this proposa
 
 ### Confirmed findings
 
-Reviewed the installer, Desktop setup/packaging, release artifact selection, QMD discovery, doctor and existing installation tests at HEAD `97b0eca`, with unrelated folder-explorer work present. This is an inspection of the working checkout, not a clean-release validation.
+Reviewed the installer, Desktop setup/packaging, release artifact selection, QMD discovery, doctor and existing installation tests at HEAD `17cdcef`, with unrelated folder-explorer work present. This is an inspection of the working checkout, not a clean-release validation.
 
 - `scripts/public-install.mjs` installs missing QMD through `npm install -g @tobilu/qmd@2.8.3`; it does not check global-prefix writability. Its dry run can exit successfully while merely printing that command. A root-owned `/usr/local` prefix therefore remains an installation obstacle.
 - The delay is worse for a fresh installation than the feedback describes: runtime publication, shim creation and memory initialization precede QMD setup; the manifest is written afterward. Updates check QMD through `beforePublish`, but still after dependency installation/build. A simulated QMD installation failure left the fresh app/shim present without a manifest, and an identical retry refused the unowned layout.

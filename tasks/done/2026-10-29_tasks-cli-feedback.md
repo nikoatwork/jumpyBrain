@@ -23,7 +23,7 @@ Give agents an explicit CLI feedback path using the existing UI relay, and make 
 
 - Added strict `feedback` with flag/stdin text, network-free preview, JSON receipts and explicit same-report retry IDs. Shared UI/CLI transport preserves installed endpoint configuration and the HTTP host compatibility exports.
 - Added agent guidance to CLI instructions, the distributed skill template and agent workflows. Added live inbox review to versioned release/check-feedback guidance and the ignored local `AGENTS.md` (local rule intentionally not committed).
-- Tested on 2026-10-29 against base `543ba599f6951ab33df0f8652a401087fc6ae8a2` plus this task's working changes. Unrelated page-action/board edits were present and excluded from this commit.
+- Tested on 2026-10-29 against base `20fa33769150a6c2f14bf002eb720aed1ff52492` plus this task's working changes. Unrelated page-action/board edits were present and excluded from this commit.
 - `npm run build`: passed.
 - Focused CLI/delivery/configuration/dialog/diagnostics/inbox/architecture/baseline/onboarding suite: 48 passed.
 - Additional delivery (including bundled-config resolution) and package-manifest suites: 40 passed; eight existing delivery checks overlap the first run.

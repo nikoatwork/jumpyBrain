@@ -7,7 +7,7 @@ Completed 2026-10-30.
 
 ## Verification
 
-Tested `cc21c76` plus this scoped change:
+Tested `c8af60d` plus this scoped change:
 
 - `npm run build` passed.
 - `npx --package=playwright node scripts/sidebar-layout-smoke.mjs` passed: scroll isolation, footer placement, 12 layouts, eight palette/scheme combinations, hover/focus and Settings. A final rebuild restored the unrelated slash-menu scrollbar rule; sidebar CSS was unchanged from the smoke.

@@ -8,7 +8,7 @@ Scope: repository default only; no installed-app update or saved preference migr
 
 ## Outcome and verification
 
-Completed 2026-11-01 on base `553d75e`. New/unconfigured boards now default to hiding sidebar pages. Explicit stored booleans and disclosure state are preserved. Updated user/module docs, pending release notes and existing browser/native smoke scenarios.
+Completed 2026-11-01 on base `f7dc097`. New/unconfigured boards now default to hiding sidebar pages. Explicit stored booleans and disclosure state are preserved. Updated user/module docs, pending release notes and existing browser/native smoke scenarios.
 
 - `npm run build` passed.
 - `npx --package=playwright node scripts/board-sidebar-smoke.mjs` passed on retry, including default-off controls/hidden descendants, explicit opt-in, stored choices on reload, cross-tab updates, storage denial and unchanged canonical files. Initial run timed out waiting for a tooltip while the native smoke also ran; the sequential retry passed.

@@ -1,6 +1,6 @@
 # Reliable packaged launch from agent shells
 
-Completed 2026-11-02. Baseline `5dc25f3`, initially clean `master`. Follow-up to [runtime hygiene](2026-11-08_tasks-desktop-runtime-hygiene.md), tasks 3.4/4.3, and [existing-note deletion](2026-11-02_tasks-stale-note-editing.md).
+Completed 2026-11-02. Baseline `29e10f8`, initially clean `master`. Follow-up to [runtime hygiene](2026-11-08_tasks-desktop-runtime-hygiene.md), tasks 3.4/4.3, and [existing-note deletion](2026-11-02_tasks-stale-note-editing.md).
 
 ## Outcome
 

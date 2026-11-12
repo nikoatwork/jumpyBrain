@@ -11,7 +11,7 @@ Completed 2026-10-30. Column counts are removed; each title now has an adjacent 
 
 ## Verification
 
-Tested `d6a8598` plus this scoped change:
+Tested `f09ce64` plus this scoped change:
 
 - `npm run build` passed.
 - `npx --package=playwright node scripts/boards-smoke.mjs` passed, covering composer entry, inline rename, focus restoration, membership operations, retries and persistence against a disposable gateway.

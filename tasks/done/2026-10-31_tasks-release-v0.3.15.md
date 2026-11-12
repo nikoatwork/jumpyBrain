@@ -9,7 +9,7 @@ Requested 2026-10-31: “push new version. no need to retest”, immediately aft
 
 ## Scope and reused evidence
 
-Implementation `a778d8e`, based on published v0.3.14. Only default-enabled board trees and matching Boards Settings icon are newly shipped. Explicit opt-outs/collapse choices are preserved. Reuse [completed implementation checks](2026-10-31_tasks-board-sidebar-default.md): build, 28 focused tests, populated responsive browser tree smoke, board behavior smoke, native Mac local/read-only remote/relaunch and visual inspection. Prior full suite passed 1,524 tests with one optional skip for v0.3.14; not claimed rerun for v0.3.15. No new installation or physical accessibility check.
+Implementation `f9c9900`, based on published v0.3.14. Only default-enabled board trees and matching Boards Settings icon are newly shipped. Explicit opt-outs/collapse choices are preserved. Reuse [completed implementation checks](2026-10-31_tasks-board-sidebar-default.md): build, 28 focused tests, populated responsive browser tree smoke, board behavior smoke, native Mac local/read-only remote/relaunch and visual inspection. Prior full suite passed 1,524 tests with one optional skip for v0.3.14; not claimed rerun for v0.3.15. No new installation or physical accessibility check.
 
 ## Inbox review
 
@@ -17,4 +17,4 @@ Checked `2026-10-31T20:25:05.879Z`: full received/non-spam inbox, complete one p
 
 ## Outcome
 
-Published and verified at 2026-10-31T20:25:44Z, release commit `f98c366`. Exact notes archived, pending queue cleared. See [QA](releases/v0.3.15.qa.md) and [published notes](releases/v0.3.15.md). No tests rerun; packaging and downloaded artifact verification passed. The recorded dogfood candidate is no longer current across all installed components; no new personal-use claim or installation.
+Published and verified at 2026-10-31T20:25:44Z, release commit `d706b6c`. Exact notes archived, pending queue cleared. See [QA](releases/v0.3.15.qa.md) and [published notes](releases/v0.3.15.md). No tests rerun; packaging and downloaded artifact verification passed. The recorded dogfood candidate is no longer current across all installed components; no new personal-use claim or installation.

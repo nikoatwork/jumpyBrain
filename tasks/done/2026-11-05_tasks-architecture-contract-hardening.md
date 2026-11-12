@@ -9,7 +9,7 @@ Make important app behavior reproducible across a structural refactor, using exp
 ## Evidence and scope
 
 - [Assessment and source evidence](../../deep-dives/architecture-contracts/assessment.md); [interactive module map](../../deep-dives/architecture-contracts/architecture-map.html).
-- Reviewed source: `b469d5fff0f1cd6bef8c74b2049c7dec9f10f15a`. Architecture + package-entrypoint checks passed 18/18. Existing behavioral tests were inspected, not rerun; no whole-app baseline is captured yet.
+- Reviewed source: `cbb4101a45b8fc9c950e24e28830af51e27875fe`. Architecture + package-entrypoint checks passed 18/18. Existing behavioral tests were inspected, not rerun; no whole-app baseline is captured yet.
 - Highest-value seams: private backend RPC, editor-session composition, critical HTTP/live receipts and source-layer guard completeness. These are maintenance/verification findings; no data-loss bug was reproduced by the assessment.
 - Markdown is canonical memory content; boards use canonical JSON. Derived indexes can be rebuilt; credentials, private drafts and unique recovery records are not disposable caches.
 - User requested this first task list before refactors. Source refactors, releases, installation, deployment and personal/shared-memory writes are outside its execution scope. Small contract-validation fixes require explicit recorded behavior decisions within this list; broad source moves wait for a later scoped task.
@@ -66,14 +66,14 @@ Make important app behavior reproducible across a structural refactor, using exp
 
 ## Execution evidence
 
-- HTTP malformed-success regressions first failed (six cases), then HTTP/client/real-board checks passed 23/23. Intentional fix committed separately as `9aee38f`.
-- Real serialized live protocol rejection first failed. Selective validation preserves batch-only splice compatibility; live wire/editor/real-WS checks passed 33/33. Fix committed separately as `735931b`.
+- HTTP malformed-success regressions first failed (six cases), then HTTP/client/real-board checks passed 23/23. Intentional fix committed separately as `335cf7a`.
+- Real serialized live protocol rejection first failed. Selective validation preserves batch-only splice compatibility; live wire/editor/real-WS checks passed 33/33. Fix committed separately as `0633299`.
 - Source scanner/unknown-layer checks and real caller/backend conformance pass. The RPC fixture verifies canonical hash against actual published bytes, preserving the existing metadata reserialization rule.
 - Existing verifier plus observation negative controls passed 27/27. Focused profile and owning agreements are documented in [the contract guide](../../docs/architecture-contracts.md). All selected browser observations and the independent-checkout comparison are now complete; see the retained evidence below.
 
 ## Completion and frozen evidence
 
-- Reference source: `a3e5f00eb428f194d59c77f8d18e9ab83350ec88`; product fixes are isolated in `9aee38f` (HTTP receipts) and `735931b` (live supplied fields). Subsequent finalization changes only documentation/task/evidence records.
+- Reference source: `eb4388eab838a418c16656d16ea5f14fbf6c008f`; product fixes are isolated in `335cf7a` (HTTP receipts) and `0633299` (live supplied fields). Subsequent finalization changes only documentation/task/evidence records.
 - [Compact baseline record](../../deep-dives/architecture-contracts/baseline-v1.json) pins the contract, source, runtime, assertion and harness inventories plus tool environment and actual checkpoints.
 - Reference: `.local-pack/architecture-contracts/reference-3`, manifest SHA-256 `3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c`.
 - Independent unchanged checkout: `.local-pack/architecture-contracts/repeat-2`, manifest SHA-256 `4a3a852214985346d92a4cb46a9c0a41fbd2751c0a55f5e876a9c9186de199e8`. Fresh roots, matching source/tool identities, **identical runtime bytes and ten checkpoint records**. The temporary candidate checkout is disposable; frozen artifacts/logs remain in those evidence directories.

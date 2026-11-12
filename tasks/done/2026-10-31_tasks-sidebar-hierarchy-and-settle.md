@@ -60,7 +60,7 @@ Make the Mac sidebar feel like one clear list of pages, with boards above it and
 
 ## Verification
 
-Tested snapshot: `f214067` plus this task's scoped implementation and test changes. Concurrent remote-connection work is excluded from this task commit, including separate changes to the shared boards/companion source files.
+Tested snapshot: `5306226` plus this task's scoped implementation and test changes. Concurrent remote-connection work is excluded from this task commit, including separate changes to the shared boards/companion source files.
 
 - `npm run build` passed: editor 573,812 bytes minified / **189,959 bytes gzip**, below the unchanged 190,000-byte gate; optional extension UI 5,669 bytes gzip.
 - Focused bundle, attention, page navigation, sidebar and title-resolution tests: **39 passed**.

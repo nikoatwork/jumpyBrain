@@ -16,14 +16,14 @@ User-authorized scope, 2026-11-10: "do it end to end. test ur own work. build it
 
 ## Verification
 
-Tested on base `274d48d` plus this task's working changes, v0.3.21, one final build before the recorded runs.
+Tested on base `0ee8752` plus this task's working changes, v0.3.21, one final build before the recorded runs.
 
 - `npm run build` — passed; note editor 674,742 minified / 222,923 gzip (gate 223,250); drawing editor 3,946,275 bytes on disk, entry 227,665 gzip.
 - `node --test test/drawings.test.js` plus `architecture-boundaries`, `source-graph-contracts`, `package-entrypoints`, `package-footprint`, `lexical-bundle`, `notes-browser`, `companion-browser`, `server-http`, `electron-host`, `electron-live-network`, `electron-history-menu`, `boards`, `graph`, `macos-companion-gateway`, `daily-notes-browser`, `note-workspace`, `http-client` — 269 passed.
 - `npx --package=playwright node scripts/drawings-smoke.mjs` — passed: hosted shell at 1280 px light and 390 px dark (lazy load, create, draw, autosave, no rewrite on open, rename, invalid name, sidebar, copy mention, save-before-leave, frame release, name search without an index, mention opens the drawing and creates no note, conflict with Load newer version and Keep mine, reload, delete, missing drawing, zero external requests); then the Mac shell on a real gateway (save into a local brain, brain-scoped URL, read-only remote brain creates and writes nothing, another brain's link refused).
 - `node scripts/drawings-electron-smoke.mjs` — passed in the real sandboxed Electron window: the drawing frame is the only subframe, has no Node bridge or network, native mouse input draws and saves to the local brain, other frames (app page, query variant, external site) load nothing, leaving releases the frame.
 - `npx --package=playwright node scripts/sidebar-layout-smoke.mjs` and `scripts/lexical-editor-smoke.mjs` — passed.
-- `npx --package=playwright node scripts/sidebar-smoke.mjs` — fails at line 117 (a stubbed document PUT never produces a failed save state). The same failure reproduces on unmodified `274d48d`, so it is not counted as a pass or attributed to this task.
+- `npx --package=playwright node scripts/sidebar-smoke.mjs` — fails at line 117 (a stubbed document PUT never produces a failed save state). The same failure reproduces on unmodified `0ee8752`, so it is not counted as a pass or attributed to this task.
 - `npm run check:package-size` — passed against the raised ceilings. `git diff --check` passed.
 
 The Mac-shell smoke found and fixed one defect during the task: a drawing link from another brain broke the companion session at startup instead of being refused.

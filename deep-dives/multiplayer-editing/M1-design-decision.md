@@ -34,7 +34,7 @@ Core behavior and data preservation remain regression requirements. An intention
 
 [premerge.mjs](../../prototypes/multiplayer/premerge.mjs) requires an already prepared, clean integration commit containing the current target. It runs the independently pinned M0 baseline verification and reviewed M1 design contract, checks exact source/tree identity, then checks that HEAD and target did not move. It produces an attestation for that tree only. It never merges or pushes.
 
-The current master advanced to cd3db8612412bb064df88c003228037e78820002 with file-explorer actions. This worktree does not yet contain it. The actual-target preflight therefore blocks, as intended. Incorporating that work and its new behavioral assertions is required before an integration merge; a passing prototype on this branch does not override it.
+The current master advanced to 7bcbadeb39397e54be7329d5e4ccb8f2013b5627 with file-explorer actions. This worktree does not yet contain it. The actual-target preflight therefore blocks, as intended. Incorporating that work and its new behavioral assertions is required before an integration merge; a passing prototype on this branch does not override it.
 
 Run the fixed gate entrypoint from the reviewed commit and compare the recorded checker/contract hashes before relying on it. A changed checker or contract requires review. This is an explicit local procedure, not installed branch protection; the owner must retain that procedure or configure an external required check before merging architecture changes.
 
@@ -71,7 +71,7 @@ Only an explicitly authorized merge may follow, and only for the exact attested 
 
 ## Recorded design evidence
 
-The clean-source design run used commit 42635cceb4dbcff3b715146595aabace9e333b61, tree 7a2ae5b7c7a160e6e1d49de8022d85c5595e5744. It ran the reviewed contract above and retained 712 input file hashes plus root/isolated dependency identities.
+The clean-source design run used commit d787ce2be10962bc40a7fbee2ecffb1dd56948fd, tree 7a2ae5b7c7a160e6e1d49de8022d85c5595e5744. It ran the reviewed contract above and retained 712 input file hashes plus root/isolated dependency identities.
 
 Evidence directory: .local-pack/multiplayer/M1-design-accepted-2026-11-01. Report SHA-256: e7f2452ff66b54bd16ea256d1a6e6fc2b945b2a249f510ae9dc9637335239a62.
 
@@ -86,4 +86,4 @@ Protected M0 verification passed on the same committed input: all 1,566 tests, z
 
 The parent independently validated that manifest against its recorded digest and original pinned baseline, compared the 438-file runtime map byte-for-byte, and rechecked all 712 M1 inputs plus the original frozen assertions after the rebuild. No product runtime or root dependency manifest changed.
 
-Full artifacts/logs remain ignored locally; preserve them before removing the worktree. Final documentation-only evidence commits do not replace 42635cceb4dbcff3b715146595aabace9e333b61 as the exact tested implementation snapshot. Actual integration into the advanced master remains blocked until its changes and behavior are incorporated.
+Full artifacts/logs remain ignored locally; preserve them before removing the worktree. Final documentation-only evidence commits do not replace d787ce2be10962bc40a7fbee2ecffb1dd56948fd as the exact tested implementation snapshot. Actual integration into the advanced master remains blocked until its changes and behavior are incorporated.

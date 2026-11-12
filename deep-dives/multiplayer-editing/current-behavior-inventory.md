@@ -1,6 +1,6 @@
 # Current behavior to preserve during multiplayer migration
 
-Inspected 2026-11-01 at source baseline `1cc3b4153922935ada80f509cbe3cc227ce4c1ce`. This inventory describes code and existing assertions; it does not report test execution. The parity runner's separate report owns execution results, environment, blocked prerequisites and artifact hashes. Later changes on the integration branch must extend this inventory before they can enter the refactor baseline.
+Inspected 2026-11-01 at source baseline `3a63c37715ca277c546e43c0aaf808ecd5663246`. This inventory describes code and existing assertions; it does not report test execution. The parity runner's separate report owns execution results, environment, blocked prerequisites and artifact hashes. Later changes on the integration branch must extend this inventory before they can enter the refactor baseline.
 
 ## Deployment cases
 

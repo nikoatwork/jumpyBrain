@@ -19,7 +19,7 @@ Direct Markdown writes are a required compatibility case from the user's local a
 
 ## Current behavior to preserve
 
-The planning reference is commit 1cc3b4153922935ada80f509cbe3cc227ce4c1ce. It is a seed for measurement, not a claim that all behavior has passed verification. The [behavior inventory](current-behavior-inventory.md) maps existing contracts to evidence.
+The planning reference is commit 3a63c37715ca277c546e43c0aaf808ecd5663246. It is a seed for measurement, not a claim that all behavior has passed verification. The [behavior inventory](current-behavior-inventory.md) maps existing contracts to evidence.
 
 Today, local CLI calls shared runtime/app operations directly. The desktop renderer uses the browser HTTP API through a local gateway; hosted CLI uses HTTP to the same app on a server-local root. Canonical replacement has hash preconditions and cooperating publication locks.
 

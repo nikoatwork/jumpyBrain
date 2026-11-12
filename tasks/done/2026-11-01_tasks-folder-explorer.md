@@ -24,7 +24,7 @@ Completed: added an index-independent canonical metadata read and a dependency-f
 
 ## Verification and limits
 
-Initial checkout: clean `master` at `97b0ecab5a02bb70f9bf23444fba178860acc442`. Local memory recall returned no matching prior decisions.
+Initial checkout: clean `master` at `17cdcef54c720cfb1a51dbe16aa8815f95658138`. Local memory recall returned no matching prior decisions.
 
 - Final `npm run build` passed.
 - The initial full `npm test` completed 1,538 tests: 1,535 passed, two failed, one skipped. Findings were the missing default indentation token and the editor bundle size review gate. Both are resolved; final focused reruns passed all 213 tests across explorer data/model, graph/editor, companion/gateway, sidebar navigation, architecture, package footprint and bundle safety. The full installer-heavy suite was not repeated after these focused corrections.

@@ -11,7 +11,7 @@ Completed 2026-10-30.
 
 ## Verification
 
-Tested snapshot: `ef3f4a5` plus this task's changes.
+Tested snapshot: `e682819` plus this task's changes.
 
 - `npm run build` passed (189,457-byte gzip editor; 5,669-byte gzip optional extensions UI).
 - `npx --package=playwright node scripts/sidebar-layout-smoke.mjs` passed: real companion shell/native update renderer, no divider, left action spacing, right update alignment, roomy Settled, 12 viewport/sidebar configurations, eight palette/scheme combinations, focus/hover, scroll isolation and Settings.

@@ -19,7 +19,7 @@ Install committed development builds of the Mac app and CLI on this machine agai
 
 Completed 2026-10-29. Added `dogfood:install`, `dogfood:status` and `dogfood:rollback`, plus a flexible real-use guideline in the install/release documentation. No nightly schedule, public version bump, push or release was made. Pending public release notes are unchanged by this maintainer tooling task.
 
-- Installed runtime snapshot: `087bd51901ab4eb27a64ad4fdd3f6bafdf0062ac`, base version 0.3.12; candidate installation verified at 2026-10-29T19:46:06Z. The later tooling/docs commit does not change this runtime snapshot. Unrelated unfinished sidebar work was excluded and preserved.
+- Installed runtime snapshot: `9952f45da9dfd6fac5e3155b0f1b0a1098b88e1f`, base version 0.3.12; candidate installation verified at 2026-10-29T19:46:06Z. The later tooling/docs commit does not change this runtime snapshot. Unrelated unfinished sidebar work was excluded and preserved.
 - macOS 15.7.7 arm64, Node 26.7.0, QMD 2.8.3. Fresh isolated `npm ci`, runtime/editor build, Electron packaging and codesign verification passed.
 - `node --test test/dogfood-local.test.js`: 3 passed (committed snapshot isolation, component mismatch detection, agent Electron environment handling).
 - `python3 -B integrations/electron/test_update_transaction.py`: 6 passed, including interruption recovery, foreign-path rejection, component rollback and preserved policy/data fixtures.

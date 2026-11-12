@@ -4,7 +4,7 @@ Part of the [four-hour UX loop](2026-11-05_tasks-ux-four-hour-loop.md). Required
 
 - [x] Preserve original workspace premature-Saved and board unfaulted-edit failures in parent notes.
 - [x] Wait for actual live confirmation and inject failure through the existing WS transport fixture; verify recovery through visible review UI.
-- [x] Confirm updater's Linux lock expectation also fails at pristine `6d06cb9`; assert the native platform refusal on Linux while retaining lock expectation on macOS.
+- [x] Confirm updater's Linux lock expectation also fails at pristine `85512f0`; assert the native platform refusal on Linux while retaining lock expectation on macOS.
 - [x] Complete writing and board journeys; investigate any actual product findings separately.
 - [x] Record results and limits, archive/commit this test-only correction.
 

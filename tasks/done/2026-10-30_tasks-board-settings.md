@@ -25,7 +25,7 @@ Existing board-card preview edits belong to separate work and must remain intact
 
 ## Verification
 
-Tested the scoped working tree on top of `2391bec` (which finalized the independent board-card preview work):
+Tested the scoped working tree on top of `dc7572a` (which finalized the independent board-card preview work):
 
 - `npm run build` — passed.
 - `node --test test/companion-browser.test.js test/collections.test.js test/browser-page-navigation.test.js test/browser-theme.test.js` — 46 passed.

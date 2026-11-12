@@ -20,7 +20,7 @@ Make first launch welcoming and understandable without technical knowledge: a re
 
 ## Outcome and verification
 
-Completed on 2026-10-29 against parent `708eadb` plus scoped onboarding changes. The shared checkout also contained unrelated heading-rail work; it is excluded from this commit.
+Completed on 2026-10-29 against parent `347cf0c` plus scoped onboarding changes. The shared checkout also contained unrelated heading-rail work; it is excluded from this commit.
 
 - `npm run build` passed.
 - Setup, connection-store, gateway, desktop-message and onboarding-guidance suites: 56 tests passed. After review refinements, the expanded setup suite passed all 8 tests, including a new folder-alias activation regression.

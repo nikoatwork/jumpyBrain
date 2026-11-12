@@ -84,10 +84,10 @@ the separately pinned reviewed delta, while canonical outcomes remain protected.
 ## Final verified implementation
 
 All declared automated M0–M5 gates pass on source HEAD
-`b06e4f9faf02d6cd7a74bbd887525484a6353a73`, tree `d541e295dc3422c7d8c165130ba212b49d451e1e`,
-containing master `cd3db8612412bb064df88c003228037e78820002`. Runtime build:
+`206ddcfd3460a4ee7c429d1379c6427ba194dc2a`, tree `d541e295dc3422c7d8c165130ba212b49d451e1e`,
+containing master `7bcbadeb39397e54be7329d5e4ccb8f2013b5627`. Runtime build:
 `aa16b18047387a08`. The complete report is retained at
-`.local-pack/multiplayer/production-gate-b06e4f9-second/report.json`, SHA-256 `bf4ee28003afe886380a154c3bf13d1e7ccb5417e68a09bdcff8e673ccc0c365`.
+`.local-pack/multiplayer/production-gate-206ddcf-second/report.json`, SHA-256 `bf4ee28003afe886380a154c3bf13d1e7ccb5417e68a09bdcff8e673ccc0c365`.
 Protected M0 candidate manifest SHA-256:
 `858b330d4c8f1fa2e1eae42fc4ed96ec090c59fc4f6046de59f6069056aff7d8`.
 
@@ -142,11 +142,11 @@ or an automatic merge/release.
 
 ## Intermediate accepted integration
 
-HEAD `23261608811bffbfd0e316b3e1d078a3a0a06924` contains master
-`cd3db8612412bb064df88c003228037e78820002`. Its seven-check production gate
+HEAD `4949779fb087334ccbb503219f023a3fc029ca11` contains master
+`7bcbadeb39397e54be7329d5e4ccb8f2013b5627`. Its seven-check production gate
 passed, including the protected 1,654-test suite and all four original browser
 flows with zero failures, cancellations, skips or TODOs. The report is retained
-at `.local-pack/multiplayer/production-gate-2326160-second/report.json`, SHA-256
+at `.local-pack/multiplayer/production-gate-4949779-second/report.json`, SHA-256
 `cb0f88a112283e45a0f5274ad9a04915d2a23dcf86b66ff44a3f55ae33a30cae`.
 Its runtime build is `465d57346ea28739`.
 
@@ -161,7 +161,7 @@ stream-lifecycle, raw-replacement recovery, title normalization and private-draf
 version-retention cases. The final gate requires their regression tests plus
 the composed actor and extracted-package upgrade demonstrations.
 
-The expanded candidate at `eb5c50925d16b3cb23c26e06324b602043f05ab2`
+The expanded candidate at `668bb6054a34e9fc38bd46739cffa2a9c1376191`
 passed 95 tests on each pinned Linux version and all focused recovery preflights.
 Its full macOS suite rejected one import-layer edge (1,672 passes, one failure):
 the CLI used the vendor WebSocket module grouped with live-server policy. That
@@ -193,7 +193,7 @@ discoverable retained raw-file versions. These are required implementation and
 test work; they are not accepted architectural limitations. The final clean
 integration gate and follow-up review must include their counterexamples.
 
-The follow-up review at `12f2a6130658a55486076acefc23dab912c0978b`
+The follow-up review at `8c0ebb944f841fb524243fb5174ec2c8066d669a`
 verified the original read-stamp, fence-selection, undo and presence fixes, but
 reproduced two further positional-intent failures in repeated text: deleting
 the first character of `aaaa` sent offset 3, and an explicit remote insertion
@@ -222,7 +222,7 @@ generation fences, and pass the matching repackaged native proof. Read-only
 client recovery uses a healthy `open` snapshot, never privileged resync, and
 retains the private draft when the source is unsafe.
 
-Clean candidate `d5dba0f19274776de69de188872f61eb959fc7cb` then passed
+Clean candidate `2b7708a2fa516825595c4442855ebe0e182ad853` then passed
 1,773 tests and all four protected M0 browser flows, followed by the production
 editor, Lexical and hosted-session checks. The retained-version UI check failed
 while a comparison dialog was focused: a stale inactive Lexical caret crossed an
@@ -253,7 +253,7 @@ review.
 
 ## Additional actor-lifecycle review
 
-Clean HEAD `01ca65f74c8deaab154ea5d9e4b016a42669ca7f` passed the full
+Clean HEAD `74d40c3a7bfc99d376f51a3ca2fe971276b51cad` passed the full
 1,773-test suite, four protected browser flows and all twelve production checks.
 Its report SHA-256 is
 `4433c15e958b9ce5a1116dfd62b1d2bd71d12dc4d57652e4a2fdd6b29e356f8c`.
@@ -274,7 +274,7 @@ reconnect, leases, revocation and stale connection disposal. The mandatory shipp
 proof holds a browser subscription through 132 actual default CLI processes and
 checks fresh-human publication, history replay/expiry and recent agent Undo.
 Build `fdc67474bfe9d94e` passes 36 focused built tests and actual packaged native
-input/accessibility. The first clean `add84ee` full run stopped at 1,784/1,785 tests because an old
+input/accessibility. The first clean `99e0230` full run stopped at 1,784/1,785 tests because an old
 CLI fixture removed its temporary root before draining the persistent owner
 (`ENOTEMPTY`). It ran no production checks. Failed report SHA-256:
 `9a87506f4fbbda3912c68ba115b74a1afe44587a60f9634b79f3e6a30aa08cf9`.
@@ -346,7 +346,7 @@ coordinated upgrade commands and an instruction an agent can execute.
 
 ## Astra acceptance and native menu correction
 
-Clean `431f05c` passed all 1,785 tests, four protected browser flows and all
+Clean `11f6b5f` passed all 1,785 tests, four protected browser flows and all
 twelve production checks. Report SHA-256:
 `52cf3918f6acd2d05fce76a53dbb00767b2773ebb94971671dc789c1dc762577`.
 Astra high independently verified 265 fresh CLI actors, 1,024 bounded model

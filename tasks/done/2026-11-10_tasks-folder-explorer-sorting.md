@@ -13,11 +13,11 @@ Answer the November 10 feedback request for folder-view sorting/filtering ("by d
 
 ## Verification
 
-Snapshot: master `efc5dc8` plus this change, built once with `npm run build`.
+Snapshot: master `23f9401` plus this change, built once with `npm run build`.
 
 - `node --test test/folder-explorer-model.test.js test/folder-explorer-data.test.js` — 14/14 pass. New cases: date orders inside folders with folders fixed, undated/invalid dates, edit→create fallback, captions, preference validation; server declared-date precedence, creation never from mtime, mtime fallback for undated notes, invalid dates.
 - `scripts/folder-explorer-smoke.mjs` extended (fixture `updated_at` values, name→edited→name order, caption, accessible name, disclosure retained, search composition, stored preference, sort/search geometry at 1280/900/390/320 light/dark, sorted capture). Hosted and companion surfaces both pass every step up to the existing failed-save block.
-- The script's pre-existing failed-save step (`saveStatus === 'failed'` after intercepting document `PUT`) times out on a clean `efc5dc8` worktree as well, so it is not caused by this change; title saves appear to no longer use the intercepted PUT after the live co-editing work. The full run was therefore made with that block removed from a temporary copy (deleted afterwards); the committed script keeps it. Screenshots reviewed: 1280 dark, 320 light, sorted 'Last edited' panel.
+- The script's pre-existing failed-save step (`saveStatus === 'failed'` after intercepting document `PUT`) times out on a clean `23f9401` worktree as well, so it is not caused by this change; title saves appear to no longer use the intercepted PUT after the live co-editing work. The full run was therefore made with that block removed from a temporary copy (deleted afterwards); the committed script keeps it. Screenshots reviewed: 1280 dark, 320 light, sorted 'Last edited' panel.
 
 ## Remaining limits
 

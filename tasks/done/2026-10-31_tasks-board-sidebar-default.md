@@ -1,6 +1,6 @@
 # Board sidebar default and Settings icon
 
-Completed 2026-10-31 on base `750d4aa`, after v0.3.14. Enable board navigation trees by default and give the Boards Settings navigation entry a matching icon.
+Completed 2026-10-31 on base `ae0a305`, after v0.3.14. Enable board navigation trees by default and give the Boards Settings navigation entry a matching icon.
 
 - [x] Default unspecified board preferences to enabled with board/columns open; preserve explicit opt-outs and saved disclosure state, scoped per brain/device.
 - [x] Add a shared decorative board glyph to Settings navigation, matching existing entries.

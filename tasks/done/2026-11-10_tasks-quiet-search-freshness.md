@@ -11,7 +11,7 @@ Resolve the November 8 feedback: opening or using search repeatedly should not i
 ## Evidence and boundaries
 
 - [Feedback email](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=e3311836-7144-4793-b541-e5983b5ff179), received 2026-11-08, read in full on 2026-11-10. Diagnostic inspection is in progress; do not infer its historical cause from current source.
-- Starting snapshot: `5c7ed6d6ec63e5d4bbf1f13c14c64de0e6468024`; clean working tree.
+- Starting snapshot: `b3a6e0499a684179c2d652fc267dddc4650cee70`; clean working tree.
 - Markdown remains canonical. Browser observation must not start indexing, download models, or expand remote permissions. Genuine query/save failures keep actionable feedback.
 - Scope is implementation, focused tests, Chromium verification, documentation, archive and local commit. No installation, push or release requested.
 

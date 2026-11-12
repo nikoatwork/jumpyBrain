@@ -26,7 +26,7 @@ Completed the breaking architecture replacement: one strict `boards/<UUID>.json`
 
 ## Verification
 
-Tested the source tree based on `a6f550b` plus this task's implementation on macOS, 2026-10-30:
+Tested the source tree based on `e163bd3` plus this task's implementation on macOS, 2026-10-30:
 
 - `npm run build` passed (TypeScript and browser bundles).
 - `node --test test/boards.test.js test/boards-cli.test.js test/architecture-boundaries.test.js test/companion-browser.test.js test/remote-access-policy.test.js test/http-client.test.js test/server-http.test.js test/runtime-boundary.test.js test/server-boundary.test.js test/extensions-cli.test.js`: **91 passed**, zero failed/skipped. Includes independent CLI-process conflicts, local/hosted CRUD/status, exact note preservation, schema/link/oversize rejection, stale locks/hashes, authentication and read-only write rejection before credentials/files.

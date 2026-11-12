@@ -19,4 +19,4 @@ Completed 2026-10-29: full-ink semibold titles, muted caption previews and ages,
 - Existing navigation/sidebar/bundle tests: **16 passed**.
 - Production `scripts/sidebar-smoke.mjs`: passed, including compact edit/due labels, persistent pins, guarded navigation, stable row DOM and narrow geometry.
 - Inspected light/dark captures under `/tmp/jumpybrain-sidebar-hierarchy-qa`; browser verification uses disposable Markdown.
-- Tested shared working snapshot based on `4de1bc7`; concurrent page-action styling is excluded from this commit. No installed app or release changed.
+- Tested shared working snapshot based on `a88fa31`; concurrent page-action styling is excluded from this commit. No installed app or release changed.

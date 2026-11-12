@@ -2,7 +2,7 @@
 
 Status: complete — 2026-11-08. All 31 private operations share a typed agreement; the original frozen profile and supplemental checks pass.
 
-Implementation snapshot: `42c56367c1fb4b61b747636032582f08bbdc373f`. [Compact verification record](../../deep-dives/architecture-contracts/backend-operation-v1.json).
+Implementation snapshot: `e5bdb9d817dd79f0ce1b9b872bc778df573236ff`. [Compact verification record](../../deep-dives/architecture-contracts/backend-operation-v1.json).
 
 ## Goal
 
@@ -17,7 +17,7 @@ host. Keep the existing private protocol and all observable behavior unchanged.
 - Canonical publication and derived-index admission are deliberately different. Index/search work must not acquire the typing queue. Host authentication supplies root and cancellation authority; JSON never supplies a live AbortSignal or a new root.
 - This task does not redesign public HTTP, change command output, add automatic retries, change permissions, migrate canonical data or introduce a general service/schema framework.
 
-Reference source: `a3e5f00eb428f194d59c77f8d18e9ab83350ec88`. Reference evidence: `.local-pack/architecture-contracts/reference-3`. Independently recorded manifest pin: `3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c`. The same source passed from a separate checkout with identical runtime bytes and selected observations. Use checkout-local dependency files and the guide's absolute-baseline verify command.
+Reference source: `eb4388eab838a418c16656d16ea5f14fbf6c008f`. Reference evidence: `.local-pack/architecture-contracts/reference-3`. Independently recorded manifest pin: `3ccde0a0c72f5930f2d9e45650e0bbca1c1b510ad080b8bd51dad19f76f2be4c`. The same source passed from a separate checkout with identical runtime bytes and selected observations. Use checkout-local dependency files and the guide's absolute-baseline verify command.
 
 ## Tasks
 
@@ -45,7 +45,7 @@ than the duplicated knowledge it removes.
 
 ## Implementation decisions — 2026-11-08
 
-- Baseline artifact exists at `.local-pack/architecture-contracts/reference-3`; preserve its original manifest pin. Starting repository snapshot: `0550eba`, clean `master`.
+- Baseline artifact exists at `.local-pack/architecture-contracts/reference-3`; preserve its original manifest pin. Starting repository snapshot: `683aa86`, clean `master`.
 - Replace the CLI index-position/preflight branches, app read-set/signal-slot map and host guarded-method/argument branches with one private `adapters/backend-protocol.ts` table. Its type-only imports stay within core/types; domain handlers stay in app. Add an explicit protocol layer with only the three necessary consumer edges, preserving all existing forbidden edges.
 - All existing operations fit the same agreement. Each declares typed positional arguments/results and canonical/read/derived admission; only relevant operations declare signal/deadline/preflight/guard hooks. A compiler-checked exhaustive app binding owns use-case adaptation. Unknown methods retain conservative queue admission and `method_not_found`; domain owners retain validation.
 - Keep existing compatibility details: optional trailing arguments are omitted, legacy document guard precedence is unchanged even for extra arguments, process remains serialized, only host signals/root are authoritative, and dispatch is never retried.
@@ -56,7 +56,7 @@ than the duplicated knowledge it removes.
 - Initial focused selection: 38/38 passed (original RPC, creation outcomes, architecture and package entrypoint checks plus five supplemental tests). Final supplemental selection after adding the private HTTP/live publication case and protocol-layer negative controls: 25/25 passed.
 - The new live fixture initially assumed one maintenance callback per private write. Existing collaboration refresh plus host publication can both notify; corrected the new test to require no additional callback on stale failure and a positive notification on success. No production behavior or frozen assertion changed for this assumption.
 - Before: app maintained a separate 17-name read set, six signal positions, an ordinary dispatch map plus nine special branches; CLI repeated two index deadline positions and three preflight names; host repeated three guarded methods and their hash positions. After: 31 typed descriptors own those policies, one exhaustive app binding adapts use cases, and all three consumers use shared metadata. Domain implementations/validators and local observational transport choices remain their owners. Removed arbitrary result generics in attention/board callers and the signature-erasing dispatch cast; only a documented unknown-JSON-to-tuple assertion remains.
-- The gate requires committed runtime inputs. Implementation/tests/owning docs were checkpointed in `42c5636`; finalization records evidence and archives this list in a subsequent scoped commit, with identical runtime and assertion bytes.
+- The gate requires committed runtime inputs. Implementation/tests/owning docs were checkpointed in `e5bdb9d`; finalization records evidence and archives this list in a subsequent scoped commit, with identical runtime and assertion bytes.
 
 ## Completed outcome and final verification
 

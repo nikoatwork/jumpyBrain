@@ -1,7 +1,7 @@
 # Usability state and sidebar — completed units 5–11
 
 Parent: [independent feedback increments](2026-11-04_tasks-feedback-independent-increments.md).
-Source base: `dcc2d4d367c624eb8d580ff2ffc2828e2eb1da0d` plus the scoped implementation committed with this record. No release, push or personal installation.
+Source base: `a7a734696a004b667e570e350aa001c87c18b011` plus the scoped implementation committed with this record. No release, push or personal installation.
 
 ## Outcome
 

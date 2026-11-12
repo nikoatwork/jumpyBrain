@@ -1,6 +1,6 @@
 # Release v0.3.20
 
-Status: complete. Published and independently verified v0.3.20 from release commit `6d06cb94eb5fd2df07879323cf35cf0f75db7f14`.
+Status: complete. Published and independently verified v0.3.20 from release commit `85512f0d40410f08dbcec75e824fab6cd82f08a8`.
 
 ## Scope and feedback
 
@@ -27,14 +27,14 @@ macOS 15.7.7 ARM64; Node 26.7.0; provisioned QMD 2.8.3 (facd35e). Disposable fix
 
 ## Reused changed-area evidence
 
-- `00df523` editor closeout: final full suite 1,904 passed/two opt-in skips; nested-checklist journeys at 1280/390/320px, reference dismissal/races, canonical save/undo and external-link browser/native opener checks passed. No subsequent runtime changes.
-- `d4c64b3` semantic/native-update closeout: actual provisioned model with blocked network, clone/missing/corrupt/cancellation controls; both helper architectures built/validated; current-worker success/fallback, v0.3.7 migration and relaunch rollback. Final-source packaged preservation trial passed; no ranking adoption. Intel execution and live upstream download remain unverified.
-- `243057e` retention closeout: 20-cycle policy/producer fixtures, 42 Electron and 66 legacy Python checks, and packaged update success with executable/signed shared rollback and maintenance retry passed. Later native-update final-source success also preserved protected bytes. This is no claim of cleanup of historical owner installations.
-- `125e335` usability closeout: actual local/hosted attention/write operations, idle sidebar traffic, and packaged pending-feedback dismissal/text retention passed. Existing bounded recovery diagnostics do not identify old report causes.
+- `6e7b556` editor closeout: final full suite 1,904 passed/two opt-in skips; nested-checklist journeys at 1280/390/320px, reference dismissal/races, canonical save/undo and external-link browser/native opener checks passed. No subsequent runtime changes.
+- `ea37966` semantic/native-update closeout: actual provisioned model with blocked network, clone/missing/corrupt/cancellation controls; both helper architectures built/validated; current-worker success/fallback, v0.3.7 migration and relaunch rollback. Final-source packaged preservation trial passed; no ranking adoption. Intel execution and live upstream download remain unverified.
+- `28836cd` retention closeout: 20-cycle policy/producer fixtures, 42 Electron and 66 legacy Python checks, and packaged update success with executable/signed shared rollback and maintenance retry passed. Later native-update final-source success also preserved protected bytes. This is no claim of cleanup of historical owner installations.
+- `553c6fa` usability closeout: actual local/hosted attention/write operations, idle sidebar traffic, and packaged pending-feedback dismissal/text retention passed. Existing bounded recovery diagnostics do not identify old report causes.
 
 ## Fresh preparation results
 
-- Tested runtime snapshot `00df523`; preparation only curates release notes and adds this record. `npm run build` passed; editor 221,984 gzip bytes. `npm run desktop:pack` built/verified a fresh signed outer app at `.local-pack/desktop/jumpyBrain.app` with a freshly compiled native helper.
+- Tested runtime snapshot `6e7b556`; preparation only curates release notes and adds this record. `npm run build` passed; editor 221,984 gzip bytes. `npm run desktop:pack` built/verified a fresh signed outer app at `.local-pack/desktop/jumpyBrain.app` with a freshly compiled native helper.
 - `npx --package=playwright node scripts/note-lifecycle-smoke.mjs` passed real disposable capture, immediate search, canonical-title graph navigation, guarded two-tab draft recovery, 390/320px layouts, deletion cancel/apply, preserved backlinks and explicit index refresh.
 - Inert real sandboxed updater-window smoke passed all phases, light/dark, compact layout, app-only choice, keyboard disclosure and recovery. It does not verify live GitHub/network state transitions or resolve the historical readiness report.
 - GitHub account has push/release permission; Swift/Python/native build prerequisites pass. Whitespace check passes. Logs: `/tmp/jumpybrain-v0.3.20-{build,desktop-pack,lifecycle,updater-ui}.log`.
@@ -42,7 +42,7 @@ macOS 15.7.7 ARM64; Node 26.7.0; provisioned QMD 2.8.3 (facd35e). Disposable fix
 
 ## Published outcome
 
-- Preparation committed as `cde89de`. Release dry run passed; the full `npm run release` aligned both manifests/lockfiles at 0.3.20, ran the deterministic suite, validated the CLI distribution, built both release-native architectures, committed/tagged and atomically pushed master/tag, then published the GitHub beta release at **2026-11-04T21:09:06Z**.
+- Preparation committed as `df33235`. Release dry run passed; the full `npm run release` aligned both manifests/lockfiles at 0.3.20, ran the deterministic suite, validated the CLI distribution, built both release-native architectures, committed/tagged and atomically pushed master/tag, then published the GitHub beta release at **2026-11-04T21:09:06Z**.
 - Versioned suite: **1,906 total, 1,904 passed, two optional skips, zero failures**, 88.876 seconds. Distribution: 305 required paths; 644 files; 1,445,906 packed / 4,595,148 unpacked / 3,082,718 runtime bytes. Existing size gates passed.
 - Verified the public annotated tag and remote peeled commit, exact published notes, all four version metadata files in the tag/current checkout and the three shipped manifests/lockfiles in the tarball (npm excludes the root package-lock). Downloaded all three assets from public release URLs and matched local bytes, declared size and GitHub SHA-256; decoded native executables also match their inner hashes and declared Mach-O architectures.
 - Published [v0.3.20](https://github.com/nikoatwork/jumpyBrain/releases/tag/v0.3.20). Exact shipped notes: [v0.3.20.md](releases/v0.3.20.md); verification/digests: [v0.3.20.qa.md](releases/v0.3.20.qa.md). Pending notes reset; deferred work was not described as shipped. No installation or personal-memory mutation.

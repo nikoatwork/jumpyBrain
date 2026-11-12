@@ -42,7 +42,7 @@ Concurrent disposable/personal packaging exposed Electron packager’s shared-te
 
 ## Completed outcome
 
-Implemented and verified on the combined snapshot based on `2a319fe` (including the owner's committed folder explorer). Final implementation verification:
+Implemented and verified on the combined snapshot based on `66e5003` (including the owner's committed folder explorer). Final implementation verification:
 
 - `npm test` before integration: 1,534 passed, one existing skip; final integrated build plus `node --test`: 1,546 passed, one existing skip, zero failures.
 - Native Python installer suite: 11 passed. Focused doctor/recovery suite: 16 passed.

@@ -2,7 +2,7 @@
 
 Completed: unsuccessful `@` linking dismisses when writing resumes; 30% smaller checkboxes retain a forgiving pointer target and support nested authoring with canonical save/undo. External Markdown links were already fixed and passed browser/native verification. Three subagents implemented and reviewed independent areas.
 
-Tested source baseline: `5aff399`, product version 0.3.19; final runtime fingerprint `3e82659d56f4bddf`. Scoped implementation, regression fixtures, documentation and this archive are finalized together.
+Tested source baseline: `38f8c86`, product version 0.3.19; final runtime fingerprint `3e82659d56f4bddf`. Scoped implementation, regression fixtures, documentation and this archive are finalized together.
 
 ## Tasks
 
@@ -21,7 +21,7 @@ Tested source baseline: `5aff399`, product version 0.3.19; final runtime fingerp
 
 ## Verification
 
-- External links: 14 grammar/source-map/native tests, production browser journeys at 1280/390px and real Electron external-opener smoke passed against the baseline build. Existing runtime fix is already committed in `dcc2d4d` and awaiting release. The smoke now waits for live Saved hydration before asserting exact CRLF source; all preservation assertions remain intact.
+- External links: 14 grammar/source-map/native tests, production browser journeys at 1280/390px and real Electron external-opener smoke passed against the baseline build. Existing runtime fix is already committed in `a7a7346` and awaiting release. The smoke now waits for live Saved hydration before asserting exact CRLF source; all preservation assertions remain intact.
 - Full suite on the first integrated build: 1,906 tests, 1,904 passed, zero failures, two skips (88.4 seconds).
 - Reference autocomplete and page-reference editor regressions passed at 1280/390px, including failed/stale/auth lookups, continued typing, new triggers, delayed responses, paste and synthetic composition.
 - Lexical preservation/security passed at 1280/390px; canonical formatting/save/refresh/failure/conflict passed at 1280/390/320px.

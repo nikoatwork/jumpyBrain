@@ -8,7 +8,7 @@ Restore coherent sidebar sections, consistent row hover/focus spacing, and one h
 
 ## Evidence and scope
 
-- Installed snapshot: `3fc9d2d`. The committed markup closes `.nav-library` before Attention and opens `.nav-preferences` inside the Attention scroll region, interleaving page lists, board navigation and footer controls.
+- Installed snapshot: `b314ef0`. The committed markup closes `.nav-library` before Attention and opens `.nav-preferences` inside the Attention scroll region, interleaving page lists, board navigation and footer controls.
 - A pre-existing unstaged change in `notes-browser.ts` already repairs those container boundaries. Retain and finish that directly relevant fix; leave the unrelated board follow-up task untouched.
 - No delegation. Preserve existing pins, attention semantics, navigation guards and update/connection behavior.
 
@@ -21,7 +21,7 @@ Restore coherent sidebar sections, consistent row hover/focus spacing, and one h
 
 ## Verification
 
-Tested `3fc9d2d` plus this scoped change:
+Tested `b314ef0` plus this scoped change:
 
 - `npm run build` passed.
 - `node --test test/browser-sidebar.test.js test/browser-page-navigation.test.js test/browser-theme.test.js`: 24 passed.

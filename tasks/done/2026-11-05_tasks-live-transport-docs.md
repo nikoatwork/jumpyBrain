@@ -22,4 +22,4 @@ Documentation only. No runtime, eval inputs, scoring, dependency or release chan
 
 ## Verification
 
-Tested snapshot: `f3ffb46a231a515582d4020bb152b4f81d77ba5f` plus the scoped documentation changes. Checked all 41 relative links/anchors in the two edited docs and matched all five documented connection states against the source declaration. `git diff --check` passed. Runtime tests were unnecessary for this documentation-only change. Pending release notes are unchanged because product behavior is unchanged.
+Tested snapshot: `5039619cf9b9e9c30309ea21781e93e7ecc22b19` plus the scoped documentation changes. Checked all 41 relative links/anchors in the two edited docs and matched all five documented connection states against the source declaration. `git diff --check` passed. Runtime tests were unnecessary for this documentation-only change. Pending release notes are unchanged because product behavior is unchanged.

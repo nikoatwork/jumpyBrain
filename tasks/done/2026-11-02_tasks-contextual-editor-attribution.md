@@ -42,7 +42,7 @@ Keep the note sidebar focused on navigation. Make it easy to discover who last e
 
 ## Verification
 
-Tested the scoped working tree based on `3c4348c`, with no dependency or version changes.
+Tested the scoped working tree based on `323cc45`, with no dependency or version changes.
 
 - `npm run build` — passed; browser bundle 219,938 bytes gzip, within the unchanged 220,000-byte gate. Removed unused actor icon code; no new dependency.
 - `node --test` — 1,791 passed, one skipped, zero failures (1,792 total). The earlier full attempt exposed the bundle ceiling and one uninstall failure; after removing unused glyph code, the final full run passed. The uninstall case also passed in isolation.

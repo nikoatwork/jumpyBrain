@@ -10,7 +10,7 @@ Make personal boards fast to start and populate: sensible default names, optiona
 
 ## Review basis — 2026-10-29
 
-Three independent Mistral Large 4 code reviews covered smart defaults, search/creation, and interaction reliability. They inspected `4de1bc7` plus concurrent working-tree styling; the parent verified the key behavior again at `543ba59` plus the current working tree. This was source review, not a new browser or native test run. No implementation changes were made for this review.
+Three independent Mistral Large 4 code reviews covered smart defaults, search/creation, and interaction reliability. They inspected `a88fa31` plus concurrent working-tree styling; the parent verified the key behavior again at `20fa337` plus the current working tree. This was source review, not a new browser or native test run. No implementation changes were made for this review.
 
 Confirmed evidence in `src/adapters/http-server/boards-view.ts`:
 
@@ -42,7 +42,7 @@ The reviewers agree on the main changes. Their P0 labels describe UX priority, n
 
 ## Verification
 
-Tested the scoped implementation on base `d612b20` on 2026-10-30. Concurrent sidebar-age work then landed separately as `342fd32`; rebuilt the combined tree and reran focused integration tests before this commit. That work and its release-note edit remain outside this task's commit.
+Tested the scoped implementation on base `862b461` on 2026-10-30. Concurrent sidebar-age work then landed separately as `b802259`; rebuilt the combined tree and reran focused integration tests before this commit. That work and its release-note edit remain outside this task's commit.
 
 - `npm run build` — passed; ordinary editor gzip remains about 189 KB.
 - Initial full `node --test` — 1,499 passed, one skipped and one obsolete theme assertion failed. Corrected that fixture to verify the existing shared quiet-fill variable. The skipped provisioned-QMD 2.8.3 compatibility test requires `JUMPYBRAIN_TEST_QMD_BIN` and is outside this UI change.

@@ -15,7 +15,7 @@ timing or actual shared-memory claim.
 Pilot selection: 390px accepted-body, 132 actual peer edits, 1,000ms idle.
 Passed at visible source revision 133, with retained private source, guarded
 Home, exact clipboard copy, explicit saved acceptance and no canonical replay.
-Receipt `.local-pack/ux-soak/uncertain-pilot-01-b775d80/report.json`; all inputs
+Receipt `.local-pack/ux-soak/uncertain-pilot-01-d5d2495/report.json`; all inputs
 and canonical fixture copies retained. The short pilot is not the one-hour
 result. The default six-lane behavior is being rechecked after the opt-in
 controls, and broad runtime tests finish before the long observation starts.
@@ -26,7 +26,7 @@ This input-validation guard is the only post-pilot runner difference; both
 executed input copies are retained separately. The current product snapshot
 passed 1,902 tests, 17 skipped, zero failures (1,919 total) before this observation.
 
-Outcome: passed, build `02721429af82d5af`, retained product `b775d80`.
+Outcome: passed, build `02721429af82d5af`, retained product `d5d2495`.
 The explicit 390px accepted-body lane completed 132 peer edits (revision 133),
 then a requested one-hour idle with 120 periodic observations. Private editor
 source/title and failed-save state stayed retained; canonical peer text remained
@@ -37,7 +37,7 @@ passed. The process completed cleanly at 2026-11-05 00:56:47 UTC.
 The complete runtime inventory matches its initial hash
 `165376d2525f6f256f8b9e0ef0673368884a16f8956281cfdc0477afb92fc2e8`.
 Retained inputs, report and canonical Markdown are under ignored
-`.local-pack/ux-soak/uncertain-idle-01-b775d80/`. Independent final Markdown
+`.local-pack/ux-soak/uncertain-idle-01-d5d2495/`. Independent final Markdown
 readback confirms the accepted human contribution and all 132 peer contributions
 exactly once. This hour spans a UTC date boundary without a read-side canonical
 mutation; it is not a general temporal-retrieval or native-client claim.

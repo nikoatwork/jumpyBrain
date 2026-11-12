@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Commit attribution cleanup
+
+- Rewrote history from 2026-10-29 to remove AI-tool co-author trailers (Claude, Mistral Vibe) at the owner's request; trees, authors and dates are unchanged. Force-pushed master and moved tags v0.3.13–v0.3.23 (release assets unchanged). Commit IDs cited in Markdown docs were remapped; code and JSON evidence files keep pre-rewrite IDs. A versioned `commit-msg` hook now strips such trailers.
+
 ## 2026-11-11 — v0.3.23 beta
 
 - Published v0.3.23 (folder sorting, merged overlapping live edits, renames during live editing, fewer shared-brain requests) and refreshed the public demo to its exact revision. Release preparation fixed seven master test failures, updated the lifecycle smoke to the merge behavior and raised the editor gzip ceiling to 224,250 with a measured record. [Release task](done/2026-11-11_tasks-release-v0.3.23.md) · [QA](done/releases/v0.3.23.qa.md) · [notes](done/releases/v0.3.23.md).

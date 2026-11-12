@@ -23,7 +23,7 @@ Every saved content hash previously cleared the footer and reissued a search. St
 
 ## Verification
 
-Tested source: base `88ef6cd298d7e6789f54cd40c0a33c335046118c` plus this scoped increment. Final compiled related-pages SHA-256 `83648782891a66d82726cd26b3475a4e0b63d0c9cee5ac310d484fb2909862ab`; graph-topic-preview `bbe8ba893463ad5d4cc773b11eef378d39865be36a4aaff216c1d9283cc0d21d`.
+Tested source: base `a396f24a94201964c39251c38948030680af4935` plus this scoped increment. Final compiled related-pages SHA-256 `83648782891a66d82726cd26b3475a4e0b63d0c9cee5ac310d484fb2909862ab`; graph-topic-preview `bbe8ba893463ad5d4cc773b11eef378d39865be36a4aaff216c1d9283cc0d21d`.
 
 - `npm run build`: passed. Final shared editor bundle 674,239 minified / 222,955 gzip bytes.
 - Focused related-page, recent-write, graph-topic and architecture checks: **38 passed**. Includes paced/coalesced saved queries, score-independent rank ordering, Markdown query handling, stale/error retention, same-note races, brain/note/session fences, BFCache, hidden-tab pause and stable anchors.

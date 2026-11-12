@@ -21,7 +21,7 @@ Preserve paths of imported Markdown, including vault-root notes. Empty folders, 
 
 ## Verification
 
-Tested snapshot: `cb09f3974bb800a78fa3eb28e4aef73bf36afb6c` plus this task's CLI wording, documentation and test changes; starting working tree was clean.
+Tested snapshot: `ba020794a0ed29e8404b400d45a4eee25c88cccd` plus this task's CLI wording, documentation and test changes; starting working tree was clean.
 
 - `npm run build` passed.
 - `node --test test/obsidian-migration.test.js test/logseq-migration-cli.test.js test/logseq-migration-policy.test.js test/logseq-migration-safety.test.js` passed: 49 tests, zero failures or skips.

@@ -23,7 +23,7 @@ Fix the fresh daily-note deletion failure and replace technical live-editor erro
 
 ## Verification
 
-Tested snapshot: `master` based on `16abb48` plus this task's scoped source, tests and docs; package version remains 0.3.17.
+Tested snapshot: `master` based on `460e2f5` plus this task's scoped source, tests and docs; package version remains 0.3.17.
 
 - `npm run build` — passed. Editor bundle: 219,948 gzip bytes, within the unchanged 220,000-byte gate.
 - `node --test` — 1,792 passed, one skipped, zero failures (1,793 total).

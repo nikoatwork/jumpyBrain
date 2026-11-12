@@ -42,7 +42,7 @@ Implement the 2026-11-03 frontend feedback requesting labeled external Markdown 
 
 ## Final verification
 
-- Tested working tree based on `ba4ae625e70d985ae8823274ed311cbf63de8c2e`, product version 0.3.19, compiled source/editor fingerprint `9b56ff0e33724df6`. Scoped implementation, tests and documentation are included together in the completion commit.
+- Tested working tree based on `29fd9e9892095f9aa53ae864bd56c2f666ef3666`, product version 0.3.19, compiled source/editor fingerprint `9b56ff0e33724df6`. Scoped implementation, tests and documentation are included together in the completion commit.
 - Final `npm test`: 1,877 tests, **1,875 passed, 0 failed, 2 skipped**, 85.810 seconds. The backend-host focused rerun also passed all seven tests; no backend changes were necessary for the observed transient post-stop assertion.
 - On that final build, external-link production-shell journeys at 1280/390px and the real Electron gateway/window test passed again. Production page-reference editor, canonical formatting/save/refresh/failure/conflict at 1280/390/320px and Lexical preservation/security at 1280/390px all passed again.
 - Build, source-boundary/package/size checks in the suite, JavaScript syntax checks and `git diff --check` passed. Introduced Markdown links, staged whitespace and the repository private-data guard also passed.

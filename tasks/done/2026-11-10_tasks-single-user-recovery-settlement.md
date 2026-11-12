@@ -10,7 +10,7 @@ Investigate the two November 2 reports of unexpected recovery/settlement prompts
 
 ## Evidence and boundaries
 
-- Starting snapshot: `6f41ac11b1dfc46c1066f028fbefa74c1c5f12f9`; clean working tree.
+- Starting snapshot: `71745589ac9381c9ff80e3f5a5b968326332b61a`; clean working tree.
 - [Settlement report, November 2 16:37 UTC](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=86d7e133-0af0-4f00-b2f3-b90ff6430366) and [recovery report, 17:01 UTC](https://console.agentmail.to/dashboard/inboxes/jumpybrain%40agentmail.to?thread=39ed96b3-95a6-4c4a-bc1e-cbeb432ee7f9).
 - [Prior review](../done/2026-11-03_tasks-usability-state-and-sidebar.md) could not establish historical causes from bounded diagnostics. [Clean saved-update fixes](../done/2026-11-05_tasks-quiet-agent-external-edits.md) address distinct reproduced paths.
 - Canonical Markdown, actual live epoch/revision, pending-write uncertainty, durable private drafts, protected metadata and scoped authorization remain authoritative. No guessed merge, automatic draft discard or HTTP receipt masquerading as a live snapshot.
@@ -60,7 +60,7 @@ Investigate the two November 2 reports of unexpected recovery/settlement prompts
 - Initial smoke attempts exposed fixture-only issues: keyboard focus needed to reveal the row action, and canonical YAML quoting required semantic metadata comparison. Corrected fixture assertions while retaining exact snapshot/canonical byte checks; no production workaround.
 - `npx --package=playwright node scripts/simple-recovery-smoke.mjs`: 10 checkpoint groups passed at 1280/390px, including genuine private review, both choices, stale comparison protection, busy save, failed reads, full-copy fallback and reader restrictions.
 - `npx --package=playwright node scripts/stale-note-editing-smoke.mjs`: all 40 input scenarios passed across idle (including actual 35-second input idle), reconnect, identical-source restart and disjoint external append. Exact operations, canonical persistence/reload, selective Undo/Redo and original caret positions remain correct. Separate held overlapping raw edit retained exact canonical bytes and durable private input; continued conflict typing sent no guessed replacement and preserved the first recovery reason.
-- `git diff --check`, script syntax and updated local Markdown references passed. Tested snapshot is starting `6f41ac1` plus this task's scoped production changes; no production source changed after the successful build. The primary agent implemented session/attention integration and ran build, 52 focused tests and both existing Chromium regressions; workers implemented/retested collaboration changes and the new end-to-end regression. Independent diagnostic/source reviews found no blocking issue. No broad suite/eval was justified by this bounded change.
+- `git diff --check`, script syntax and updated local Markdown references passed. Tested snapshot is starting `7174558` plus this task's scoped production changes; no production source changed after the successful build. The primary agent implemented session/attention integration and ran build, 52 focused tests and both existing Chromium regressions; workers implemented/retested collaboration changes and the new end-to-end regression. Independent diagnostic/source reviews found no blocking issue. No broad suite/eval was justified by this bounded change.
 
 ## Remaining limits
 

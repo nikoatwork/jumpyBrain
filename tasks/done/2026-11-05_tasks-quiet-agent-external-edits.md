@@ -29,7 +29,7 @@ Source: [November 5 report](https://console.agentmail.to/dashboard/inboxes/jumpy
 
 ## Final verification
 
-Tested production source: base `cb3efe8` plus this scoped change; final build `8789151cf555c385`. No runtime source changed after this build.
+Tested production source: base `f37af63` plus this scoped change; final build `8789151cf555c385`. No runtime source changed after this build.
 
 - `npm run build`: passed; editor **672,561 minified / 222,243 gzip bytes**, below unchanged 223,250-byte cap.
 - Final `node --test`: **1,926 total, 1,924 passed, two optional skips, zero failures** (88.0 seconds). Includes six shared-summary regressions and clean-source eligibility safeguards.

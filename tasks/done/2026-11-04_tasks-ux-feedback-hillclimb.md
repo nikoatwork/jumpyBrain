@@ -14,7 +14,7 @@ Reference: [native baseline](../../evals/workspace-experience/reports/2026-11-03
 
 ## Outcome and verification
 
-Completed the bounded local candidate on base `6d06cb94eb5fd2df07879323cf35cf0f75db7f14`; editor build `361bfe1ebcfdd20a`. Build, 89 focused tests, 11 real-browser retained-version scenarios and external-update browser journeys at 1280/390px passed. The new hydration regression failed against the pre-fix expression and passed with the fix. `git diff --check` passed. Chromium was initially absent; transient Playwright/browser tooling was prepared outside tracked dependencies and both smokes then passed.
+Completed the bounded local candidate on base `85512f0d40410f08dbcec75e824fab6cd82f08a8`; editor build `361bfe1ebcfdd20a`. Build, 89 focused tests, 11 real-browser retained-version scenarios and external-update browser journeys at 1280/390px passed. The new hydration regression failed against the pre-fix expression and passed with the fix. `git diff --check` passed. Chromium was initially absent; transient Playwright/browser tooling was prepared outside tracked dependencies and both smokes then passed.
 
 [Candidate evidence and remaining limits](../../evals/workspace-experience/reports/2026-11-04-feedback-candidate.md). No native ratings assigned; a fresh Mac rerun remains required for a scored hill-climb. Own-edit feedback beyond initial hydration, persistent retained-record acknowledgment, hosted live transport and finish/cancel cues are not resolved by this increment.
 

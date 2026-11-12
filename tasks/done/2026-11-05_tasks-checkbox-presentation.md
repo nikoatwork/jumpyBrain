@@ -28,7 +28,7 @@ Center task checkboxes on the first text line in the shared Mac/browser editor a
 
 ## Verification
 
-Tested snapshot: base `a9f8cd242bfd0176ca7eef94abf6ccdd07d16036` plus this scoped change. Compiled notes shell SHA-256 `1e2b930c7cfbd87f469d6b68e6c4aecce31e1e99035293584dfda36453287770`; task presentation SHA-256 `6a520b78386a95b545e75ee99655d63512947f89528994c9690aa15cf6fd691a`.
+Tested snapshot: base `b47cd0dd3e3d2edc0fb57e3f9c11c23a0fca27bd` plus this scoped change. Compiled notes shell SHA-256 `1e2b930c7cfbd87f469d6b68e6c4aecce31e1e99035293584dfda36453287770`; task presentation SHA-256 `6a520b78386a95b545e75ee99655d63512947f89528994c9690aa15cf6fd691a`.
 
 - `npm run build` passed.
 - `node --test test/editor-markdown.test.js test/editor-source-map.test.js test/graph.test.js`: 54 passed, none skipped or failed.

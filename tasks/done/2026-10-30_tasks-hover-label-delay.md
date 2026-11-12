@@ -19,7 +19,7 @@ Shared control-label presenter used by Mac and hosted mode. Existing subtle hove
 
 ## Verification and limits
 
-- Tested baseline `5973dc1ea511629920f0a07ec0e1b8c72eefce2a` plus this task's changes.
+- Tested baseline `be8a628f0b508202217ec3cff100bc2e7c8c72ca` plus this task's changes.
 - Production build passed; editor bundle is 189,455 bytes gzip with no new dependency.
 - All 86 focused browser/theme tests passed.
 - Feedback integration smoke passed: brief hover, delayed reveal, pending cancellation on leave/press/click/Escape/scroll/blur/resize/action change/removal, immediate focus, disabled controls, dynamic native update labels, unchanged polling and BFCache restoration.

@@ -53,7 +53,7 @@ Let an agent register/list an existing local brain for the Mac app without hand-
 
 ## Final outcome and verification — 2026-11-02
 
-Tested snapshot: base `fc6f859` plus this task's scoped implementation in `t3/connections-targeting`, Node 26.7.0 on macOS arm64. No rebase or adoption of the independent guidance/lint lane at `3065cb7`; parent must preserve its instructions topic flags/process preview and resolve shared metadata additively.
+Tested snapshot: base `e7116bb` plus this task's scoped implementation in `t3/connections-targeting`, Node 26.7.0 on macOS arm64. No rebase or adoption of the independent guidance/lint lane at `d42f414`; parent must preserve its instructions topic flags/process preview and resolve shared metadata additively.
 
 - `npm run build`: passed. Editor 665,016 minified bytes / 219,947 gzip; optional desktop UI 15,513 / 5,669. No semantic-model setup changed.
 - Final `node --test`: **1,806 passed, 0 failed, 1 existing opt-in real-QMD skip** (1,807 total, 82.2 s). First-run failures were corrected/rechecked, not skipped or weakened. New target `source` fields required updating the existing exact-shape assertion; doctor validation remains strict through the shared token parser.
@@ -63,11 +63,11 @@ Tested snapshot: base `fc6f859` plus this task's scoped implementation in `t3/co
 
 ### Retained cost and integration decision
 
-Against supplied `fc6f859` measurements, this increment retains **+2,126 archive / +8,431 unpacked / +5,040 dist bytes / +2 files**. Doctor's duplicate argument parser was consolidated into the existing strict parser; selector-array fallback and duplicate target object construction were removed; CLI reference duplication/presentation prose was tightened. No ceiling, assertion, public command, runtime asset or credential policy was removed to obtain the result.
+Against supplied `e7116bb` measurements, this increment retains **+2,126 archive / +8,431 unpacked / +5,040 dist bytes / +2 files**. Doctor's duplicate argument parser was consolidated into the existing strict parser; selector-array fallback and duplicate target object construction were removed; CLI reference duplication/presentation prose was tightened. No ceiling, assertion, public command, runtime asset or credential policy was removed to obtain the result.
 
 Exact per-file emitted JS deltas (TypeScript transpilation confirmed byte-identical to the tested build): targets +1,697; doctor +180; memory-commands +197; memory-target −26; commands +443; companion +27; usage +717; args −271; new connections +1,816. The new connections declaration adds 124 bytes; other declaration additions account for the remaining 136 bytes. Native gateway/store control is packaged outside `dist` and included in the unpacked measurement.
 
-Parent reported independent `3065cb7` at 3,098,875 runtime bytes, with 1,125 headroom. Adding this lane's retained delta arithmetically projects **3,103,915 runtime bytes (3,915 over cap)**, before actual merge interactions. This is not a combined build result. Parent owns final package/complexity review: consolidate shared help/parser representation across both lanes, or explicitly defer a capability. The connections module alone is 1,940 bytes including declarations, so removing only that module cannot cover the projected overage and would also require removing its dispatch/help/control wiring. This branch keeps the complete, independently passing capability for concrete review; budgets remain unchanged.
+Parent reported independent `d42f414` at 3,098,875 runtime bytes, with 1,125 headroom. Adding this lane's retained delta arithmetically projects **3,103,915 runtime bytes (3,915 over cap)**, before actual merge interactions. This is not a combined build result. Parent owns final package/complexity review: consolidate shared help/parser representation across both lanes, or explicitly defer a capability. The connections module alone is 1,940 bytes including declarations, so removing only that module cannot cover the projected overage and would also require removing its dispatch/help/control wiring. This branch keeps the complete, independently passing capability for concrete review; budgets remain unchanged.
 
 ### Remaining limits
 
