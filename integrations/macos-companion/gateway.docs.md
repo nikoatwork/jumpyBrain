@@ -51,6 +51,8 @@ The route allowlist includes document DELETE as a write, forwarding its bounded 
 
 GET `/memories/all/attention` is observational. Document PATCH is a write with its bounded JSON body and If-Match forwarded under the same generation/tab admission, drain and target-specific `allowWrites` policy as PUT/DELETE. Remote read-only profiles can discover attention but cannot settle, snooze or reactivate.
 
+`GET /access` forwards as a read; `POST /access` and `DELETE /access/:id` are writes under the same session/Origin, generation/tab and `allowWrites` admission. The upstream server enforces the admin role. No other administrative route is forwarded.
+
 POST `/memories/all/ensure-title` is a write, including requests that might reuse an existing page. Its bounded JSON title request uses the same session/Origin checks, generation/tab admission, request drain and target-specific `allowWrites` policy as note creation. POST `/memories/all/resolve-title` remains observational, so read-only profiles can still resolve existing references without permission to create missing pages. The target app owns canonical title lookup and find-or-create publication.
 
 ## Folder explorer

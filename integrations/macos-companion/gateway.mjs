@@ -128,6 +128,11 @@ export async function appCredentials(runtimeRoot, native, options = {}) {
 
 function allowedMemoryRoute(method, pathname) {
   if (method === 'GET' && pathname === '/capabilities') return { write: false };
+  // Key management for the active brain. The server requires an admin key; issuing and
+  // revoking also need this device's editing approval for that brain.
+  if (method === 'GET' && pathname === '/access') return { write: false };
+  if (method === 'POST' && pathname === '/access') return { write: true };
+  if (method === 'DELETE' && /^\/access\/[0-9a-f-]{36}$/.test(pathname)) return { write: true };
   if (method === 'POST' && pathname === '/memories/all/files/operations') return { write: true };
   if (method === 'GET' && /^\/memories\/all\/boards(?:\/[0-9a-f-]+(?:\/status)?)?$/.test(pathname)) return { write: false };
   if (method === 'POST' && pathname === '/memories/all/boards') return { write: true };

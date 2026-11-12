@@ -10,6 +10,7 @@ import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
 import { sidebarBootstrap, sidebarScript } from "./browser-sidebar.js";
 import { settingsNavigationMarkup } from "./browser-settings.js";
 import { MEMORY_DOCUMENT_ID_PATTERN } from "../../core/document-id.js";
+import { accessKeysDialogMarkup, accessKeysStyles } from "./access-keys-view.js";
 import { documentActionsMarkup, documentActionsScript, notesMarkup, notesScript, notesStyles, notesViews } from "./notes-browser.js";
 import { dreamMarkup, dreamScript, dreamStyles } from "./dream-handoff.js";
 import { companionMarkup, companionPrelude, companionScript, companionStyles } from "./companion-browser.js";
@@ -137,6 +138,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     ${drawingsStyles}
     ${feedbackStyles}
     ${dreamStyles}
+    ${accessKeysStyles}
     ${companion ? companionStyles : ""}
     ${dropdownStyles}
   </style>
@@ -148,6 +150,7 @@ ${graphTopicMarkup(browserIcons.close)}
 ${companion ? extensionPanelMarkup : ""}
 ${dreamMarkup}
 ${feedbackMarkup}
+${companion ? "" : accessKeysDialogMarkup}
 ${systemMessageMarkup}
 <header id="graph-header">
   <div class="toolbar" aria-label="Map controls">
@@ -512,6 +515,28 @@ const drawingsUI = createDrawingsUI({
 });
 ${notesScript}
 ${documentActionsScript}
+const accessKeys = JumpyBrainBrowser.installAccessKeys({
+  document, request: graphJson,
+  context: () => {
+    if (companionMode) {
+      const profile = companionState?.profiles?.find((item) => item.id === companionState.activeId);
+      const usable = Boolean(profile) && companionRegistered && !companionFrozen && !companionSessionFailed;
+      return { kind: !usable ? "none" : profile.kind === "local" ? "local" : "remote", address: profile?.url || "",
+        canChange: profile?.allowWrites === true, scope: JSON.stringify([companionState?.generation, companionState?.activeId]) };
+    }
+    return { kind: connectionStatus === "connected" ? "hosted" : "none", address: location.origin, canChange: true, scope: String(credentialRevision) };
+  },
+  confirm: (text) => confirm(text),
+  copy: (text) => navigator.clipboard.writeText(text),
+});
+if (!companionMode) {
+  const accessKeysDialog = $("access-keys-dialog");
+  // A newly created secret is dropped as soon as the dialog closes.
+  const closeAccessKeys = () => { accessKeysDialog.close(); accessKeys.reset(); };
+  $("open-access-keys").addEventListener("click", () => { closeConnection(); accessKeysDialog.showModal(); void accessKeys.refresh(true); });
+  $("access-keys-close").addEventListener("click", closeAccessKeys);
+  accessKeysDialog.addEventListener("cancel", (event) => { event.preventDefault(); closeAccessKeys(); });
+}
 searchMaintenance = JumpyBrainBrowser.installSearchMaintenance({
   document, window,
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) : ""),

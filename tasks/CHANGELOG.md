@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Access keys in Settings
+
+- Admins create and revoke per-person access keys (reader, writer or admin) for a shared brain from Settings → Access keys, the hosted browser, or `jumpybrain access --target-url`; the desktop gateway forwards the admin routes and a key cannot revoke itself. [Checks and limits](done/2026-11-12_tasks-access-keys-settings.md).
+
 ## 2026-11-12 — Edit link paths in place
 
 - The link at the caret shows its exact Markdown, so its path can be edited in place, and it renders as a label again when the caret leaves; swaps never save or add undo steps. Measured editor cost: +814 gzip bytes. [Behaviour, checks and limits](done/2026-11-12_tasks-link-source-editing.md).

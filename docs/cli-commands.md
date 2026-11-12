@@ -405,7 +405,8 @@ With owner `Alex`, `--actor agent --actor-name Codex` records `Alex · Codex`. `
 ## Shared backends and collaborative agents
 
 See [collaboration](collaboration.md) for `backend start|status|stop`, `access
-issue|list|revoke`, and `collaborate open|watch|edit|stream|undo|resync`. These share
+issue|list|revoke` (on the server with `--root`, or remotely with an admin key
+and `--target-url`), and `collaborate open|watch|edit|stream|undo|resync`. These share
 one root owner with the app and foreground server. Streaming stdin publishes
 bounded UTF-8 chunks before EOF; a stable `--client-id` or JUMPYBRAIN_CLIENT_ID
 keeps agent undo scoped across invocations. Existing one-shot commands retain

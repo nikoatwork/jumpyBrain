@@ -113,8 +113,9 @@ JUMPYBRAIN_QMD_BIN=/opt/jumpybrain/current/scripts/engine/node_modules/.bin/qmd
 Do not commit this file or put API keys in `jumpybrain.json`. Systemd reads this
 root-only file before changing user. It is not a shell script: do not use command
 substitution or trailing inline comments in values. Supply a long random key
-from your secret store. Give collaborators [named reader/writer
-credentials](collaboration.md#separate-access), and follow the [rotation and
+from your secret store. This is the setup key: connect with it once, then give
+yourself and each collaborator a [named key from Settings → Access keys, the
+browser or the CLI](collaboration.md#separate-access), and follow the [rotation and
 writer-drain procedure](cloud-shared-memory.md#rotate-and-revoke-deliberately).
 
 ## 4. Install a systemd service

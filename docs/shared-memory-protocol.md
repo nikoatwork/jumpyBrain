@@ -805,6 +805,17 @@ Successful response:
 }
 ```
 
+### `GET /access`, `POST /access`, `DELETE /access/:id`
+
+Admin-only access-key management for this brain; any other role receives **403
+`admin_required`**. Responses use `Cache-Control: no-store`.
+
+- `GET /access` returns `{ "credentials": [{ "id", "name", "role", "createdAt", "revokedAt"? }] }`, including revoked keys. It never returns a secret or hash.
+- `POST /access` accepts only `{ "name", "role"? }`: a trimmed name of 1–100 characters without control characters, and `reader`, `writer` (default) or `admin`. It returns **201** `{ "credential", "token" }`; the token is the only copy of the secret. Invalid input returns **400 `invalid_credential`**; a full store returns **409 `credential_limit`**. There is no idempotency key: after an unconfirmed response, list the keys and revoke an unwanted one.
+- `DELETE /access/:id` returns `{ "revoked": true }`, or `{ "revoked": false }` for an unknown or already revoked ID. Revoking the credential that authorizes the request returns **409 `cannot_revoke_current`**. Bootstrap keys have no ID and are rotated through server configuration.
+
+The CLI, the hosted browser dialog and the Mac app's Settings panel use these routes; see [Separate access](collaboration.md#separate-access).
+
 ## Error codes
 
 | HTTP | Code | Meaning |

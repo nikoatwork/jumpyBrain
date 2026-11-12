@@ -47,6 +47,8 @@ async function dispatchCli(args: ReturnType<typeof parseArgs>): Promise<void> {
 
   if (command === "backend" || command === "access") {
     const { backendCli, accessCli } = await import("./backend-commands.js");
+    // A device-local read-only origin still blocks remote key issuance and revocation.
+    if (command === "access") await enforceRemoteAccessPolicy(args);
     await (command === "backend" ? backendCli : accessCli)(args); return;
   }
   if (command === "collaborate") {

@@ -111,3 +111,7 @@ The collaboration facade preserves a unique private draft before adopting a revi
 ## Participant label placement
 
 `collaboration-labels.ts` places up to 64 peer labels independently from their caret/selection marks. It searches bounded nearby rows/columns within each clipped scroll viewport, prevents label intersections, and collapses overflow to an explicit participant count when physical space is insufficient. Source coordinates and actual caret marks never move to make room for labels. The shared participant list retains names independently of the overlay.
+
+## Access-key routes
+
+Admin-only `GET/POST /access` and `DELETE /access/:id` are thin decoders over `../access-control/`. POST accepts only `name` and `role` (writer default; admin allowed by owner decision 2026-11-12) and maps store validation to `invalid_credential`/`credential_limit`; other store failures use the generic handler. DELETE returns `{ revoked }` and refuses the credential authorizing the request (`cannot_revoke_current`, 409 rather than 403 so browser connection state is not reset). Listing never includes secrets. `test/access-keys.test.js` covers the routes, the remote client and CLI.

@@ -235,6 +235,34 @@ test('remote profile keys stay out of state/file/browser, read-only writes block
   assert.equal(f.gateway.store.snapshot().activeId, remote.id);
 });
 
+test('access keys for the active remote brain forward under editing approval and stay unreachable otherwise', async t => {
+  const f = await fixture(t);
+  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key' });
+  const remote = saved.profiles.find(profile => profile.kind === 'remote');
+  assert.equal((await f.native('/companion/switch', { id: remote.id })).status, 200);
+  let generation = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'keys-tab', generation });
+  const scoped = () => ({ 'X-Companion-Generation': String(generation), 'X-Companion-Tab': 'keys-tab' });
+  const listed = await f.browser('/access', undefined, scoped(), 'GET');
+  assert.equal(listed.status, 200); assert.deepEqual(await listed.json(), { credentials: [] });
+  const denied = await f.browser('/access', { name: 'Alice', role: 'writer' }, scoped());
+  assert.equal(denied.status, 403); assert.equal((await denied.json()).error.code, 'write_not_authorized');
+  f.gateway.coordinator.unregister('keys-tab', generation);
+  await f.save({ id: remote.id, name: 'Remote', kind: 'remote', url: f.remote.url, allowWrites: true });
+  generation = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'keys-tab', generation });
+  assert.equal((await f.browser('/access', { name: 'Alice', role: 'writer' }, { ...scoped(), Origin: 'https://evil.invalid' })).status, 403);
+  const issued = await f.browser('/access', { name: 'Alice', role: 'admin' }, scoped());
+  assert.equal(issued.status, 201, await issued.clone().text());
+  const packet = await issued.json(); assert.equal(packet.credential.role, 'admin'); assert.match(packet.token, /^jb_/);
+  assert.ok(!JSON.stringify(await (await f.native('/companion/state')).json()).includes(packet.token));
+  const revoked = await f.browser('/access/' + packet.credential.id, undefined, scoped(), 'DELETE');
+  assert.deepEqual([revoked.status, await revoked.json()], [200, { revoked: true }]);
+  for (const [method, route] of [['PUT', '/access'], ['DELETE', '/access'], ['GET', '/access/' + packet.credential.id], ['POST', '/_backend/call']])
+    assert.equal((await f.browser(route, method === 'GET' ? undefined : {}, scoped(), method)).status, 404, method + ' ' + route);
+  f.gateway.coordinator.unregister('keys-tab', generation);
+});
+
 test('page find-or-create requires remote write approval while title lookup remains read-only', async t => {
   const forwarded = [];
   const f = await fixture(t, { fetchImpl: async (url, options) => {

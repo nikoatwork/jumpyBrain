@@ -366,6 +366,10 @@ or more. The licence notice file still lists all 15 resolved packages.
 The reviewed editor ceiling is lowered to **185,000 bytes**, leaving 4,235
 bytes for features while keeping the saving from being absorbed unnoticed.
 
+The access-key controller (2026-11-12) adds 2,688 gzip bytes (183,453 total),
+leaving 1,547 under the ceiling. Its markup and styles are server-rendered from
+a separate module so the bundle does not carry them a second time.
+
 Measured and not adopted: a newer syntax target (0 bytes), dropping `console`
 calls (41), removing the in-bundle Lucide notice (559, needed for the licence)
 and renaming `_`/`__` properties (871–1,511, with a real risk of breaking

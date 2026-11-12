@@ -31,18 +31,30 @@ export async function backendCli(args: ParsedCliArgs): Promise<void> {
 }
 export async function accessCli(args: ParsedCliArgs): Promise<void> {
   const operation = args._[1];
-  validate(args, ["root", "json", ...(operation === "issue" ? ["name", "role"] : operation === "revoke" ? ["id"] : [])]);
-  const store = createAccessStore(stringArg(args, "root"));
+  validate(args, ["root", "target-url", "remote-url", "json", ...(operation === "issue" ? ["name", "role"] : operation === "revoke" ? ["id"] : [])]);
+  const selectors = ["root", "target-url", "remote-url"].filter(flag => args[flag] !== undefined);
+  if (selectors.length !== 1) throw new Error("access needs exactly one of --root <directory> (on the server) or --target-url <url> (with an admin key).");
+  const role = operation === "issue" ? stringArg(args, "role", "writer") : undefined;
+  if (role !== undefined && !["reader", "writer", "admin"].includes(role)) throw new Error("--role must be reader, writer or admin.");
+  const usage = "Usage: jumpybrain access <issue|list|revoke> (--root <directory> | --target-url <url>) [--name <name> --role reader|writer|admin | --id <credential-id>] [--json]";
+  const local = selectors[0] === "root" ? createAccessStore(stringArg(args, "root")) : undefined;
   try {
     let result: unknown;
-    if (operation === "list") result = { credentials: await store.list() };
-    else if (operation === "revoke") result = { revoked: await store.revoke(stringArg(args, "id")) };
-    else if (operation === "issue") {
-      const role = stringArg(args, "role", "writer");
-      if (!["reader", "writer", "admin"].includes(role)) throw new Error("--role must be reader, writer or admin.");
+    if (local) {
+      if (operation === "list") result = { credentials: await local.list() };
+      else if (operation === "revoke") result = { revoked: await local.revoke(stringArg(args, "id")) };
       // This authorized issuance command is the only output that contains a secret.
-      result = await store.issue({ name: stringArg(args, "name"), role: role as AccessRole });
-    } else throw new Error("Usage: jumpybrain access <issue|list|revoke> --root <directory> [--name <name> --role reader|writer|admin | --id <credential-id>] [--json]");
+      else if (operation === "issue") result = await local.issue({ name: stringArg(args, "name"), role: role as AccessRole });
+      else throw new Error(usage);
+    } else {
+      if (!["list", "revoke", "issue"].includes(operation ?? "")) throw new Error(usage);
+      const url = stringArg(args, selectors[0]!);
+      const [{ createRemoteAccessClient }, { remoteApiKey }] = await Promise.all([import("../adapters/http-client/access.js"), import("./memory-target.js")]);
+      const remote = createRemoteAccessClient({ url, apiKey: await remoteApiKey(url) });
+      if (operation === "list") result = await remote.list();
+      else if (operation === "revoke") result = await remote.revoke(stringArg(args, "id"));
+      else result = await remote.issue({ name: stringArg(args, "name"), role: role as AccessRole });
+    }
     console.log(JSON.stringify(result, null, args.json ? undefined : 2));
-  } finally { store.close(); }
+  } finally { local?.close(); }
 }

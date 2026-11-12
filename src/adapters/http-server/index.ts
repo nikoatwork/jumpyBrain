@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { AccessStore, type Principal } from "../access-control/index.js";
+import { AccessError, AccessStore, type AccessRole, type Principal } from "../access-control/index.js";
 import { createCollaborationHub } from "../../app/collaboration/index.js";
 import { createLiveServer } from "../live/index.js";
 import { callBackend } from "../../app/backend-rpc.js";
@@ -154,11 +154,20 @@ export function createJumpyBrainHttpServer(options: JumpyBrainHttpServerOptions)
       if (url.pathname === "/access" && request.method === "POST") {
         const body = await parseJsonBody(request);
         if (isJsonError(body)) {writeJson(response, body.statusCode, body.body); return;}
-        try { writeJson(response, 201, await access.issue(body as any)); }
-        catch { writeJson(response, 400, errorResponse("invalid_credential", "Use a name and reader or writer role.")); } return;
+        const keys = Object.keys(body);
+        if (keys.some(key => key !== "name" && key !== "role")) {writeJson(response, 400, errorResponse("invalid_credential", "Use a name and reader, writer or admin role.")); return;}
+        try { writeJson(response, 201, await access.issue({name: body.name as string, role: (body.role ?? "writer") as AccessRole})); }
+        catch (error) {
+          if (!(error instanceof AccessError) || !["invalid_credential", "credential_limit"].includes(error.code)) throw error;
+          if (error.code === "credential_limit") writeJson(response, 409, errorResponse("credential_limit", "This brain has reached its access key limit."));
+          else writeJson(response, 400, errorResponse("invalid_credential", "Use a name and reader, writer or admin role."));
+        } return;
       }
       if (/^\/access\/[a-f0-9-]{36}$/.test(url.pathname) && request.method === "DELETE") {
-        writeJson(response, 200, await access.revoke(url.pathname.slice(8))); return;
+        const id = url.pathname.slice(8);
+        // Revoking the key that authorizes this request would lock the caller out mid-task.
+        if (principal?.id === id) {writeJson(response, 409, errorResponse("cannot_revoke_current", "This key is in use for this request. Sign in with another admin key to revoke it.")); return;}
+        writeJson(response, 200, {revoked: await access.revoke(id)}); return;
       }
       if (url.pathname === "/_backend/call" && request.method === "POST") {
         const body = await parseJsonBody(request);

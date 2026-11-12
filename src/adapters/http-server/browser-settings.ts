@@ -6,6 +6,7 @@ export const settingsNavigationMarkup = String.raw`
 <div id="settings-navigation" aria-label="Settings sections" hidden>
   <p class="settings-nav-label">Settings</p>
   <a class="quiet-button nav-item" href="/settings" data-settings-section="brains">${browserIcons.connect}<span>Brains</span></a>
+  <a class="quiet-button nav-item" href="/settings?section=access" data-settings-section="access">${browserIcons.key}<span>Access keys</span></a>
   <a class="quiet-button nav-item" href="/settings?section=identity" data-settings-section="identity">${browserIcons.connect}<span>Your name</span></a>
   <a class="quiet-button nav-item" href="/settings?section=boards" data-settings-section="boards">${browserIcons.board}<span>Boards</span></a>
   <a class="quiet-button nav-item" href="/settings?section=appearance" data-settings-section="appearance">${browserIcons.appearance}<span>Appearance</span></a>
@@ -75,7 +76,8 @@ function syncSettingsNavigation(url) {
   const target = new URL(url, location.origin);
   const settings = state.view === "settings";
   const requested = target.searchParams.get("section");
-  const section = ["appearance", "extensions", "boards", "identity"].includes(requested) ? requested : "brains";
+  const section = ["appearance", "extensions", "boards", "identity", "access"].includes(requested) ? requested : "brains";
+  const previousSection = document.body.dataset.settingsPage;
   if (settings && document.body.dataset.settingsPage === "brains" && section !== "brains") companionClearForm();
   if (settings && !document.body.dataset.settingsPage) settingsReturnUrl = settingsLastAppUrl;
   if (!settings) settingsLastAppUrl = target.pathname + target.search;
@@ -89,9 +91,12 @@ function syncSettingsNavigation(url) {
     if (current) link.setAttribute("aria-current", "page"); else link.removeAttribute("aria-current");
   }
   for (const panel of document.querySelectorAll("[data-settings-panel]")) panel.hidden = panel.dataset.settingsPanel !== section;
-  $("settings-section-title").textContent = section === "identity" ? "Your name" : section === "boards" ? "Boards" : section === "brains" ? "Brains" : section === "appearance" ? "Appearance" : "Extensions";
+  $("settings-section-title").textContent = section === "access" ? "Access keys" : section === "identity" ? "Your name" : section === "boards" ? "Boards" : section === "brains" ? "Brains" : section === "appearance" ? "Appearance" : "Extensions";
   $("companion-refresh-index").hidden = section !== "brains";
   sidebarPreference.sync();
+  // Opening the section loads a fresh list; leaving it drops any newly shown secret.
+  if (settings && section === "access") { if (previousSection !== "access") void accessKeys.refresh(true); }
+  else if (previousSection === "access") accessKeys.reset();
 }
 for (const link of document.querySelectorAll("[data-settings-section], #settings-back")) {
   link.addEventListener("click", (event) => {

@@ -459,6 +459,7 @@ ${noteAttentionMarkup}
     <div class="connection-actions">
       <button id="connection-submit" class="button button-primary" type="submit">Connect</button>
       <button id="disconnect" class="quiet-button" type="button" hidden>Disconnect</button>
+      <button id="open-access-keys" class="quiet-button" type="button" aria-haspopup="dialog" hidden>Access keys</button>
       <button id="close-connection" class="quiet-button" type="button">Cancel</button>
     </div>
     <p class="app-version" data-app-version></p>
@@ -1207,6 +1208,7 @@ function renderConnection() {
   $("connection-title").textContent = connected ? "Connection settings" : "Connect to your memory";
   $("connection-submit").textContent = connected ? "Update key" : "Connect";
   $("disconnect").hidden = !activeApiKey;
+  $("open-access-keys").hidden = !connected;
   $("connection-message").textContent = connected ? "Connected to this server."
     : connectionStatus === "checking" ? "Checking your connection…"
     : connectionStatus === "unavailable" ? "Could not reach the server. Retry connecting."

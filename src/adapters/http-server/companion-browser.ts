@@ -2,6 +2,7 @@ import { boardsStyles, boardsMarkup, boardsScript } from './boards-view.js';
 import { extensionSettingsMarkup } from "./extensions-view.js";
 import { browserIcons } from "./browser-icons.js";
 import { appearanceMarkup } from "./browser-appearance.js";
+import { accessKeysMarkup } from "./access-keys-view.js";
 import { settingsStyles, settingsScript } from "./browser-settings.js";
 
 // Companion-only loopback control UI. No target credential is ever read into this shell.
@@ -94,6 +95,7 @@ ${boardsMarkup}
     </form>
     </details>
     </section>
+    <section id="settings-panel-access" class="settings-panel settings-card" data-settings-panel="access" aria-label="Access keys" hidden>${accessKeysMarkup}</section>
     <section class="settings-panel settings-card" data-settings-panel="identity" aria-label="Your name" hidden>
       <h2>Your name</h2>
       <form id="identity-form">
@@ -654,6 +656,8 @@ async function companionRefreshIndex() {
 }
 function renderCompanionSettings() {
   renderCompanionIndex();
+  // Loads once the session is usable; a loaded or failed scope is not refetched by polling.
+  if (state.view === "settings" && document.body.dataset.settingsPage === "access") void accessKeys.refresh();
   renderCompanionConnection();
   if (!companionState) return;
   const list = $("companion-profiles");

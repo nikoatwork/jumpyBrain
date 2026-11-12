@@ -103,7 +103,10 @@ Engine selection is resolved in the caller and scoped per backend operation,
 without mutating process-global environment.
 
 `backend`, `access` and `collaborate` expose owner lifecycle, independently
-revocable roles and streaming source operations. Agent chunks are decoded
+revocable roles and streaming source operations. `access` takes exactly one of
+`--root` (host store) or `--target-url`/`--remote-url` (admin HTTP client, key
+from the usual remote-key resolution); a device read-only origin allows only
+`access list`. Agent chunks are decoded
 incrementally, bounded and sent with backpressure; no mutation is replayed on
 connection loss. See [collaboration commands](../../docs/collaboration.md).
 

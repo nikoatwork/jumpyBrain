@@ -35,7 +35,24 @@ share the same root lease; a local CLI can join a compatible foreground host.
 
 ## Separate access
 
-The machine operator issues and revokes credentials:
+Give each person and agent their own access key. An admin manages keys in three
+equivalent places, all backed by the same server state:
+
+- **Mac app:** connect to the shared brain with an admin key and open Settings →
+  Access keys. Creating and revoking keys also needs editing allowed for that
+  brain under Brains.
+- **Browser:** open the server address, connect with an admin key, then choose
+  Connection settings → Access keys.
+- **CLI:** on the server with `--root`, or from any machine with an admin key and
+  `--target-url` (the key comes from `JUMPYBRAIN_API_KEY` or the saved
+  connection).
+
+A new key is shown once. **Copy invite** copies the address, the key and how to
+connect, ready to send over a private channel. A key cannot revoke itself, so
+an admin replacing their own key connects with the new one first. A brain that
+is a folder on your own Mac needs no access keys.
+
+On the server:
 
 ```sh
 jumpybrain access issue --root /srv/brain --name Alice --role writer --json
@@ -45,12 +62,26 @@ jumpybrain access list --root /srv/brain --json
 jumpybrain access revoke --root /srv/brain --id CREDENTIAL_ID --json
 ```
 
+From another machine, where `client-key` stands for your admin key:
+
+```sh
+JUMPYBRAIN_API_KEY=client-key jumpybrain access issue --target-url https://memory.example.com --name Alice --role writer --json
+jumpybrain access list --target-url https://memory.example.com --json
+jumpybrain access revoke --target-url https://memory.example.com --id CREDENTIAL_ID --json
+```
+
+Roles: a **reader** searches and reads; a **writer** also creates and edits; an
+**admin** also manages keys and backend maintenance, so give that role only to
+people who run the brain.
+
 Issuance prints a secret once. Give each person and agent their own credential.
 Readers cannot publish documents or streams. Revocation is checked on every
 request/frame and while a socket is idle. There are no per-note permissions.
 Configured bootstrap keys and private local-owner credentials are administrative
 capabilities, including local backend RPC; distribute reader/writer credentials
-to ordinary collaborators instead.
+to ordinary collaborators instead. Bootstrap keys are set in the server
+environment, never appear in the key list and cannot be revoked there: keep one
+for recovery and use a named admin key day to day.
 
 Hosted browser authentication uses a brain-scoped HttpOnly, SameSite=Strict cookie
 with a 24-hour lifetime. The key is removed from the URL after entry and is not

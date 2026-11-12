@@ -30,6 +30,7 @@ export { createBrowserCommands } from "./browser-commands.js";
 
 export { searchPreview, readablePreview, appendSearchHighlight, resultEditContext, browserMemoryActor } from "./search-presentation.js";
 export { installNoteFind } from "./note-find.js";
+export { installAccessKeys } from "./access-keys.js";
 export { installControlLabels } from "./browser-control-labels.js";
 
 export { createPageNavigation } from "./workspace-navigation.js";

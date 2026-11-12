@@ -11,3 +11,7 @@ An exclusive hard link publishes an already complete lock candidate, so a killed
 ## Non-responsibilities
 
 No HTTP routing, CLI parsing, per-note ACLs, canonical memory writes or verified author attribution. Local filesystem ownership remains more powerful than protocol roles. This operational state must survive index/cache rebuilds and upgrades.
+
+## Management surfaces
+
+The same store is reached by `jumpybrain access --root` on the host, and by admin principals through the HTTP `/access` routes used by `access --target-url`, the hosted browser dialog and desktop Settings. No surface records last use or expiry.

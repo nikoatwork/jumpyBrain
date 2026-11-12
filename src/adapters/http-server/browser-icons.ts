@@ -38,6 +38,7 @@ export const browserIcons = /* @__PURE__ */ (() => ({
   close: icon('<path d="m6 6 12 12M18 6 6 18"/>'),
   edit: icon('<path d="m4 16 12-12 4 4L8 20H4v-4ZM14 6l4 4"/>'),
   check: icon('<path d="m5 12 4 4L19 6"/>'),
+  key: icon('<circle cx="8" cy="15.5" r="4"/><path d="m11 12.5 8.5-8.5M16.5 7l2.5 2.5M13.5 10l2 2"/>'),
   connect: icon('<path d="M7 3v5m10-5v5M5 8h14v3a7 7 0 0 1-14 0V8Zm7 10v4"/>'),
   remove: icon('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7"/>'),
   dream: icon('<path d="M20 14A8 8 0 0 1 10 4a8 8 0 1 0 10 10Z"/><path d="M18 3v4m-2-2h4"/>'),

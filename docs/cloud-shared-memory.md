@@ -36,8 +36,8 @@ export JUMPYBRAIN_API_KEY="$JUMPYBRAIN_SERVER_API_KEYS"
 ```
 
 These configured bootstrap keys are **administrator** capabilities. Keep them
-with the operator. Use the existing [named reader/writer issuance and revocation
-commands](collaboration.md#separate-access) for each person and agent; a reader
+with the operator. Create a [named key in Settings → Access keys, the browser
+or the CLI](collaboration.md#separate-access) for each person and agent; a reader
 cannot write, while a writer can publish to this brain. There are no per-note
 ACLs. Issuance returns a secret once: redirect it into a new private file with
 `umask 077` or capture it in an approved secret manager, then deliver it through
