@@ -23,4 +23,4 @@ Snapshot: branch `feat/note-link-labels` from `3a6c7d66`; `npm run build` with a
 
 - Electron is Chromium, but the tooltip was only checked as the `title` attribute in Chromium, not visually in the packaged Mac app.
 - The editor bundle has 12 bytes of gzip headroom. The next editor feature needs a measured budget review per `docs/build-footprint.md`.
-- As with web links, the hidden `](path)` can't be edited in place. Change the path by editing the Markdown source (the CLI or another editor), or delete and retype the link.
+- As with web links, the hidden `](path)` can't be edited in place. Change the path by editing the Markdown source (the CLI or another editor), or delete and retype the link. Follow-up: [edit link paths in place](../todo/tasks-link-source-editing.md).
