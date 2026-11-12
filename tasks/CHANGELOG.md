@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Note links show their label
+
+- Relative `.md` note links now render as just their underlined label, with the path in the hover tooltip; editing, typing and export keep the exact Markdown. [Checks and limits](done/2026-11-12_tasks-note-link-labels.md).
+
 ## 2026-11-12 — Clickable relative note links
 
 - Relative `.md` Markdown links (including bare `folder/x.md`) open the resolved note from any rendered line, answering the November 11 link feedback; other relative links stay inert and the source is unchanged. [Checks and limits](done/2026-11-12_tasks-relative-note-links.md).

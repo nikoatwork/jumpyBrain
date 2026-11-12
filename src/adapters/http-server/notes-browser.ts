@@ -180,11 +180,9 @@ ${noteOutlineStyles}
     .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 ${taskCompletionStyles}
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
-    .markdown-external-link:hover, .markdown-reference[data-page-reference="true"]:hover, .markdown-note-link[data-note-link="true"]:hover { background: var(--hover-fill); }
+    .markdown-external-link:hover, .markdown-reference[data-page-reference="true"]:hover { background: var(--hover-fill); }
 ${referencePresentationStyles}
-    .markdown-external-link, .markdown-reference[data-page-reference="true"], .markdown-note-link[data-note-link="true"] { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
-    /* Note links keep their literal Markdown source but read as a link, not code. */
-    #note-editor .markdown-note-link[data-note-link="true"] { font: inherit; background: none; padding: 0; }
+    .markdown-external-link, .markdown-reference[data-page-reference="true"] { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: .15em; }
     .markdown-table { margin: var(--space-3) 0; max-width: 100%; }
     .markdown-table-preview { overflow-x: auto; white-space: normal; }
     .markdown-table table { border-collapse: collapse; min-width: 100%; font-size: 1em; }

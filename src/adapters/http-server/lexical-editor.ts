@@ -15,8 +15,7 @@ import {
   BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, INLINE_CODE, type Transformer,
 } from "@lexical/markdown";
 
-import { codeFence, exportCodeFence, externalLinkMatch, externalLinkPattern, inlineCodeRanges, markdownTable, bulletMarker, relativeLinkPattern, taskMarker } from "./editor-markdown.js";
-import { noteLinkDestination } from "./note-link.js";
+import { codeFence, exportCodeFence, externalLinkMatch, externalLinkPattern, inertLinkPattern, inlineCodeRanges, markdownTable, bulletMarker, noteLinkPattern, relativeLinkPattern, taskMarker } from "./editor-markdown.js";
 import { BulletMarkdownNode, FencedCodeMarkdownNode, TableMarkdownNode, TaskMarkdownNode } from "./editor-markdown-nodes.js";
 import { installSlashCommands } from "./editor-slash-commands.js";
 import { installReferencePresentation } from "./editor-reference-presentation.js";
@@ -117,41 +116,17 @@ const references: Transformer = {
   replace(node, match) { node.replace(new PageReferenceNode(match[0])); },
   export(node) { return node instanceof PageReferenceNode ? node.getTextContent() : null; },
 };
-// Relative Markdown links remain editable literal source. A `.md` destination is a
-// note link: styled and activated like a page reference, resolved by the host
-// against the linking note's folder. Other relative paths never navigate.
+// Non-note relative links (images, other files) remain editable source, never clickable.
 class InertLinkNode extends TextNode {
   static getType() { return "inert-link"; }
   static clone(node: InertLinkNode) { return new InertLinkNode(node.__text, node.__key); }
   hasFormat(format: TextFormatType) { return format === "code" || super.hasFormat(format); }
   static importJSON(value: ReturnType<TextNode["exportJSON"]>) { return new InertLinkNode().updateFromJSON(value); }
   exportJSON() { return { ...super.exportJSON(), type: "inert-link" }; }
-  createDOM(config: EditorConfig) {
-    const element = super.createDOM(config);
-    this.syncNoteLinkDOM(element);
-    return element;
-  }
-  updateDOM(previous: this, element: HTMLElement, config: EditorConfig) {
-    const replace = super.updateDOM(previous, element, config);
-    this.syncNoteLinkDOM(element);
-    return replace;
-  }
-  syncNoteLinkDOM(element: HTMLElement) {
-    if (noteLinkDestination(this.__text) !== null) {
-      element.classList.add("markdown-note-link");
-      element.setAttribute("role", "link");
-      element.tabIndex = 0;
-      element.dataset.noteLink = "true";
-      element.title = "Open linked note (click or Tab then Enter)";
-    } else {
-      element.classList.remove("markdown-note-link");
-      for (const attribute of ["role", "tabindex", "data-note-link", "title"]) element.removeAttribute(attribute);
-    }
-  }
 }
 const relativeLinks: Transformer = {
-  type: "text-match", dependencies: [InertLinkNode], importRegExp: relativeLinkPattern,
-  regExp: new RegExp(relativeLinkPattern.source + "$"), trigger: ")",
+  type: "text-match", dependencies: [InertLinkNode], importRegExp: inertLinkPattern,
+  regExp: new RegExp(inertLinkPattern.source + "$"), trigger: ")",
   replace(node, match) { if (!node.hasFormat("code") && !$isLinkNode(node.getParent())) node.replace(new InertLinkNode(match[0]).setFormat(node.getFormat())); },
   export(node) { return node instanceof InertLinkNode ? node.getTextContent() : null; },
 };
@@ -174,8 +149,33 @@ class ExternalLinkNode extends LinkNode {
     return node;
   }
   exportJSON() { return { ...super.exportJSON(), type: "external-link", destination: this.__destination }; }
-  createDOM(config: EditorConfig) { const anchor = super.createDOM(config); anchor.tabIndex = 0; return anchor; }
+  createDOM(config: EditorConfig) {
+    const anchor = super.createDOM(config);
+    anchor.tabIndex = 0;
+    // Note link `[label](../pages/x.md)`: no href (never browser navigation); the
+    // path shows on hover and the host resolves it against the note's folder.
+    // Note destinations never contain ":"; every external URL has a scheme.
+    if (!this.__url.includes(":")) {
+      anchor.removeAttribute("href");
+      anchor.setAttribute("role", "link");
+      anchor.dataset.noteLink = "true";
+      anchor.title = this.__url;
+    }
+    return anchor;
+  }
 }
+// Exported by externalLinks' generic `[label](url)` branch, which is exact here.
+const noteLinks: Transformer = {
+  type: "text-match", dependencies: [ExternalLinkNode], importRegExp: noteLinkPattern,
+  regExp: new RegExp(noteLinkPattern.source + "$"), trigger: ")",
+  replace(node, match) {
+    if ($isLinkNode(node.getParent()) || node.hasFormat("code")) return;
+    const label = $createTextNode(match[1]).setFormat(node.getFormat());
+    node.replace(new ExternalLinkNode(match[2]).append(label));
+    return label;
+  },
+  export: () => null,
+};
 const externalLinks: Transformer = {
   type: "text-match", dependencies: [ExternalLinkNode], importRegExp: externalLinkPattern,
   regExp: new RegExp(externalLinkPattern.source + "$", "i"), trigger: ")",
@@ -209,7 +209,7 @@ const table: Transformer = {
   type: "element", dependencies: [TableMarkdownNode], regExp: /(?!) /, replace() {},
   export(node) { return node instanceof TableMarkdownNode ? node.getTextContent() : null; },
 };
-const syntax: Transformer[] = [table, fencedCode, task, bullet, references, relativeLinks, externalLinks, INLINE_CODE, HEADING, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE];
+const syntax: Transformer[] = [table, fencedCode, task, bullet, references, noteLinks, relativeLinks, externalLinks, INLINE_CODE, HEADING, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, ITALIC_STAR, ITALIC_UNDERSCORE];
 // Reference classification and leaf splitting are derived presentation, not a
 // source edit. Compare semantic text runs (including supported formatting), not
 // node classes/boundaries or the internal IS_CODE shortcut-suppression flag.
@@ -828,7 +828,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   // Browser event delegation only: the model owns every rendered reference.
   const doc = element.ownerDocument;
   function referenceElement(target: EventTarget | null): HTMLElement | null {
-    const link = target instanceof Element ? target.closest<HTMLElement>("[data-page-reference], [data-note-link], a.markdown-external-link") : null;
+    const link = target instanceof Element ? target.closest<HTMLElement>("[data-page-reference], a.markdown-external-link") : null;
     return link && element.contains(link) ? link : null;
   }
   function hasSelection() {
@@ -841,22 +841,21 @@ export function createNoteEditor(element: HTMLElement, options: {
   }
   function follow(link: HTMLElement) {
     if (hasSelection()) return;
-    const external = editor.read(() => {
+    const [external, note] = editor.read(() => {
       let node = $getNearestNodeFromDOMNode(link);
       if ($isTextNode(node)) node = node.getParent();
-      return $isLinkNode(node) ? node.getURL() : null;
+      return $isLinkNode(node) ? [node.getURL(), !node.getURL().includes(":")] : [null, false];
     });
+    if (note) {
+      if (editor.isEditable() || options.canActivateReference?.() === true) options.onActivateNoteLink?.(external!);
+      return;
+    }
     if (external !== null) {
       if ((editor.isEditable() || options.canActivateExternalLink?.() === true)
           && externalLinkMatch(`[link](${external.replace(/([\\()])/g, "\\$1")})`)) doc.defaultView?.open(external, "_blank", "noopener,noreferrer");
       return;
     }
     if (!editor.isEditable() && options.canActivateReference?.() !== true) return;
-    const destination = editor.read(() => {
-      const node = $getNearestNodeFromDOMNode(link);
-      return node instanceof InertLinkNode ? noteLinkDestination(node.getTextContent()) : null;
-    });
-    if (destination !== null) { options.onActivateNoteLink?.(destination); return; }
     const title = editor.read(() => {
       const node = $getNearestNodeFromDOMNode(link);
       if (!(node instanceof PageReferenceNode) || !node.__active) return null;

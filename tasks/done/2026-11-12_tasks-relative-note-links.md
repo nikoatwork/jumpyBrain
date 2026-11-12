@@ -31,6 +31,6 @@ Snapshot: branch `feat/relative-note-links` from `cd2491eb`; `npm run build` wit
 
 ## Limits
 
-- The full `[label](path)` source stays visible, as `[[Title]]` references do; there's no label-only rendering.
+- Superseded the same day: [label-only rendering](2026-11-12_tasks-note-link-labels.md) now shows just the label, with the path on hover.
 - Each activation reads the full canonical file listing (one request, which reads note metadata server-side); fine for normal brains and unmeasured for very large ones.
 - Absolute (`/x.md`) and root-relative links are not supported. The graph, backlinks and search don't resolve these links, which is unchanged. No packaged Mac app, Safari/Firefox, or assistive-technology run.

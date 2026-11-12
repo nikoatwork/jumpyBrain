@@ -38,8 +38,11 @@ try {
     };
     await open(ids.decision);
     const links = page.locator('#note-editor [data-note-link="true"]');
-    assert.deepEqual(await links.allTextContents(), ['[ICP segmentation](../pages/icp-segmentation.md)', '[sibling](pages/../../pages/sibling.md#notes)', '[gone](../pages/missing.md)']);
-    assert.equal(await page.locator('#note-editor .inert-link, #note-editor code').filter({ hasText: 'diagram.png' }).count() + await page.locator('#note-editor').filter({ hasText: '[diagram](./diagram.png)' }).count() > 0, true);
+    assert.deepEqual(await links.allTextContents(), ['ICP segmentation', 'sibling', 'gone'], 'note links show their label only');
+    assert.deepEqual(await links.evaluateAll((items) => items.map((item) => item.title)), ['../pages/icp-segmentation.md', 'pages/../../pages/sibling.md#notes', '../pages/missing.md'], 'the path shows on hover');
+    assert.equal(await links.evaluateAll((items) => items.every((item) => !item.hasAttribute('href'))), true, 'no browser navigation target');
+    assert.doesNotMatch(await page.locator('#note-editor').textContent(), /\]\(\.\.\/pages/, 'note-link paths are hidden');
+    assert.match(await page.locator('#note-editor').textContent(), /\[diagram\]\(\.\/diagram\.png\)/, 'non-.md relative links stay literal');
     assert.equal(await page.locator('#note-editor [data-note-link]').filter({ hasText: 'diagram' }).count(), 0, 'non-.md relative links stay inert');
     assert.equal(await page.locator('#note-editor .markdown-literal').filter({ hasText: 'Supersedes' }).count(), 0, 'the reported metadata line renders, not raw fallback');
     assert.equal(await links.first().getAttribute('role'), 'link');
@@ -62,7 +65,7 @@ try {
     let focused = false;
     for (let i = 0; i < 6 && !focused; i++) {
       await page.keyboard.press('Tab');
-      focused = await page.evaluate(() => document.activeElement?.textContent === '[sibling](pages/../../pages/sibling.md#notes)');
+      focused = await page.evaluate(() => document.activeElement?.textContent === 'sibling');
     }
     assert.ok(focused, 'Tab reaches the note link');
     await page.keyboard.press('Enter');
@@ -70,19 +73,30 @@ try {
     // Editing inside a link still edits its literal source.
     await open(ids.decision);
     const visible = await page.locator('#note-editor').textContent();
-    await selectEditorText(page, visible.indexOf('segmentation]') + 'segment'.length);
+    await selectEditorText(page, visible.indexOf('ICP segmentation') + 'ICP segment'.length);
     await page.keyboard.insertText('X');
     await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved');
     assert.match(await readFile(decisionFile, 'utf8'), /\[ICP segmentXation\]\(\.\.\/pages\/icp-segmentation\.md\)/);
     await page.keyboard.press('Backspace');
     await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved');
-    assert.equal((await readFile(decisionFile, 'utf8')).replace(/^---\n[\s\S]*?\n---\n/, ''), body, 'undo restores the exact body (edit metadata may be added)');
+    assert.equal((await readFile(decisionFile, 'utf8')).replace(/^---\n[\s\S]*?\n---\n/, ''), body, 'Backspace restores the exact body (edit metadata may be added)');
+    // Typing a complete note link turns it into a label-only link on the closing parenthesis.
+    const end = (await page.locator('#note-editor').textContent()).indexOf('Image stays inert') + 'Image '.length;
+    await selectEditorText(page, end);
+    await page.keyboard.type('Typed [Sib](../pages/sibling.md) ');
+    await page.locator('#note-editor [data-note-link="true"]', { hasText: 'Sib' }).first().waitFor();
+    await page.waitForFunction(() => state.editor?.collaboration?.state.status === 'saved');
+    assert.match(await readFile(decisionFile, 'utf8'), /Image Typed \[Sib\]\(\.\.\/pages\/sibling\.md\) stays inert/);
+    await page.locator('#note-editor [data-note-link="true"]', { hasText: 'Sib' }).first().click();
+    await page.waitForFunction((id) => new URL(location.href).searchParams.get('note') === id, ids.sibling);
+    await open(ids.decision);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'no horizontal overflow');
     assert.deepEqual(errors, []);
     if (process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR, `note-links-${width}.png`) });
     await page.close();
+    await writeFile(decisionFile, note(ids.decision, 'ICP decision', body)); // reset the typed link for the next width
   }
-  console.log('note link smoke: PASS (metadata-line link renders, click/Tab+Enter open resolved notes, missing target reported, inert non-.md, source edits/undo, 1280/390)');
+  console.log('note link smoke: PASS (label-only links with path on hover, click/Tab+Enter open resolved notes, missing target reported, inert non-.md, label edits keep exact source, typed links, 1280/390)');
 } catch (error) {
   console.error('note link smoke: FAIL - ' + (error.stack || error.message));
   process.exitCode = 1;

@@ -52,14 +52,16 @@ try {
     await page.goto(`${server.url}/?note=${id}#apiKey=${key}`);await saved(page);
     assert.equal(await page.locator('#note-editor .markdown-bullet').count(),5);
     assert.equal(await page.locator('#note-editor .markdown-bullet .editor-bold').count(),3);
-    assert.equal(await page.locator('#note-editor a').count(),2);
+    assert.equal(await page.locator('#note-editor a[href]').count(),2);
     assert.equal(await page.locator('#note-editor .markdown-task').count(),1);
     assert.equal(await page.locator('#note-editor img, #note-editor script').count(),0);
     for(const line of body.split('\n').filter(line=>/nested|ordered|ambiguous|Unsafe|Image|HTML|Unclosed|^- - -$/.test(line))) {
       assert.ok((await page.locator('#note-editor .markdown-literal').allTextContents()).includes(line),line);
     }
-    assert.deepEqual(await page.locator('#note-editor a').evaluateAll(links=>links.map(link=>({protocol:new URL(link.href).protocol,rel:link.rel}))),Array(2).fill({protocol:'https:',rel:'noopener noreferrer'}));
-    assert.ok((await page.locator('#note-editor').textContent()).includes('[Decision](../decisions/example_note.md)'));
+    assert.deepEqual(await page.locator('#note-editor a[href]').evaluateAll(links=>links.map(link=>({protocol:new URL(link.href).protocol,rel:link.rel}))),Array(2).fill({protocol:'https:',rel:'noopener noreferrer'}));
+    // Relative .md links render as their label (path on hover), not literal source.
+    assert.deepEqual(await page.locator('#note-editor [data-note-link="true"]').evaluateAll(links=>links.map(link=>[link.textContent,link.title,link.hasAttribute('href')])),[['Decision','../decisions/example_note.md',false]]);
+    assert.ok(!(await page.locator('#note-editor').textContent()).includes('](../decisions/example_note.md)'));
     assert.equal(await editorMarkdown(page),initial);
     assert.equal(await readFile(file,'utf8'),original,'hydration must not write canonical bytes');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
@@ -71,7 +73,7 @@ try {
     await insertAt(page,'Refer','X');expected=initial.replace('**Reference**','**ReferXence**');
     assert.equal(await editorMarkdown(page),expected);assert.equal(withoutFrontmatter(await readFile(file,'utf8')),expected);
     await undoEditor(page);await saved(page);assert.equal(await editorMarkdown(page),initial);
-    await insertAt(page,'example_','test_');expected=initial.replace('example_note.md','example_test_note.md');
+    await insertAt(page,'Read Deci','X');expected=initial.replace('[Decision](../','[DeciXsion](../');
     assert.equal(await editorMarkdown(page),expected);assert.equal(withoutFrontmatter(await readFile(file,'utf8')),expected);
     await undoEditor(page);await saved(page);assert.equal(await editorMarkdown(page),initial);
     // Keep a live caret inside bold while a real CLI update hydrates an earlier paragraph.

@@ -75,3 +75,15 @@ test('bullet prefix and inert relative syntax retain exact UTF-16 mapping beside
   }
   assert.equal(markdownSourceMap(raw,visible,new Uint8Array(visible.length),{start:2,links:[{from,to:from+4}]}),null,'format disagreement fails closed');
 });
+
+test('note link source maps render the label only and keep the path outside edit ranges', () => {
+  const raw = 'split in [ICP segmentation](../pages/icp_seg.md#why) and [web](https://example.com) end';
+  const visible = 'split in ICP segmentation and web end';
+  const formats = new Uint8Array(visible.length);
+  const map = verify(raw, visible, formats, { links: [{ from: 9, to: 25 }, { from: 30, to: 33 }] },
+    [[10, 9], [26, 25], [raw.indexOf(' and'), 25], [raw.indexOf(' end'), 33]]);
+  assert.equal(visibleToSource(map, 13), 14, 'an edit inside the label maps inside the label, never into the path');
+  assert.equal(markdownSourceMap(raw, visible, formats), null, 'hidden note-link syntax requires model link evidence');
+  // A later external link must not hide a note link that starts first.
+  verify('[a](x.md) [b](https://e.com)', 'a b', new Uint8Array(3), { links: [{ from: 0, to: 1 }, { from: 2, to: 3 }] }, [[1, 0], [11, 2]]);
+});

@@ -30,10 +30,21 @@ export function inlineCodeRanges(text: string) {
   return ranges;
 }
 
-// Relative links stay literal source. `./`/`../` paths and bare paths ending in
-// `.md` (no scheme/colon) are recognized; `.md` ones become clickable note links
-// (see note-link.ts). Deliberately plain labels; ambiguous syntax keeps line fallback.
-export const relativeLinkPattern = /(?<![!\\\[])\[[^\[\]\\`*_\r\n]+\]\((?:\.{1,2}\/[^\s()<>"\\`\[\]]+|(?![/#])[^\s()<>"\\`\[\]:]+\.[mM][dD](?:#[^\s()<>"\\`\[\]]*)?)\)/;
+// Relative links. A `.md` destination (optional `./`/`../`, no scheme/colon, not
+// `/`/`#` first) is a note link: rendered as its label, opened by the host after
+// resolving against the linking note's folder. Other `./`/`../` links stay literal,
+// inert source. Deliberately plain labels; ambiguous syntax keeps line fallback.
+const LABEL = String.raw`\[([^\[\]\\\`*_\r\n]+)\]`;
+const NOTE = String.raw`(?:\.{1,2}\/)?(?![/#])[^\s()<>"\\\`\[\]:]+\.[mM][dD](?:#[^\s()<>"\\\`\[\]]*)?`;
+const RELATIVE = String.raw`\.{1,2}\/[^\s()<>"\\\`\[\]]+`;
+const BEFORE = String.raw`(?<![!\\\[])`;
+export const noteLinkPattern = new RegExp(`${BEFORE}${LABEL}\\((${NOTE})\\)`);
+export const inertLinkPattern = new RegExp(`${BEFORE}${LABEL}\\((?!${NOTE}\\))${RELATIVE}\\)`);
+export const relativeLinkPattern = new RegExp(`${BEFORE}${LABEL}\\((?:${NOTE}|${RELATIVE})\\)`);
+export function noteLinkMatch(text: string) {
+  const match = noteLinkPattern.exec(text);
+  return match ? { label: match[1], url: match[2], start: match.index, end: match.index + match[0].length } : null;
+}
 export function bulletMarker(line: string) {
   const match = /^([-+*]) (\S.*)$/.exec(line);
   return match && !/^(?:[-+*](?:\s|$)|>|#{1,6}\s)/.test(match[2]) ? { marker: match[1], label: match[2] } : null;

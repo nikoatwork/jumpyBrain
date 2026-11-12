@@ -1,5 +1,5 @@
 import { IS_BOLD, IS_CODE, IS_ITALIC } from "lexical";
-import { externalLinkMatch, relativeLinkPattern } from "./editor-markdown.js";
+import { externalLinkMatch, noteLinkMatch, relativeLinkPattern } from "./editor-markdown.js";
 
 /** Exact UTF-16 correspondence between editable presentation and Markdown.
  * Structural prefixes/fences are outside this map. Formatting delimiters have
@@ -40,7 +40,9 @@ export function markdownSourceMap(raw: string, visible: string, formats: ArrayLi
       gap(position, linkEnd.end); position = linkEnd.end; linkEnd = null; continue;
     }
     if (!linkEnd && raw[position] === "[" && options.links?.some(link => link.from === rendered)) {
-      const parsed = externalLinkMatch(raw.slice(position, end));
+      // Either link kind must start exactly here; a later match of one kind must not hide the other.
+      const rest = raw.slice(position, end), external = externalLinkMatch(rest);
+      const parsed: { label: string; start: number; end: number } | null = external?.start === 0 ? external : noteLinkMatch(rest);
       const link = options.links.find(link => link.from === rendered);
       if (!parsed || parsed.start !== 0 || !link) return null;
       linkEnd = { labelEnd: position + 1 + parsed.label.length, end: position + parsed.end, visibleEnd: link.to, format };
