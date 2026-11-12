@@ -48,6 +48,8 @@ test("clean restart reconnect reloads before registration; dirty reconnect never
       companionStarting: false, companionRegistered: true, companionToken: null,
       companionState: { generation: 1, activeId: "old" }, companionStopped: false,
       companionSessionFailed: true, companionPollTimer: null, companionPolling: false,
+      companionRecoveryTimer: null, companionRecoveryDelay: 0, companionAutoRecovery: false,
+      companionRecoverable: () => true, companionSessionText: () => "", companionScheduleRecovery() {}, clearTimeout() {},
       state: { view: "home", editor: { hasPending: () => pending } },
       noteCapture: { hasPending: () => false },
       $: () => ({}), companionMessage() {}, companionLock() {},
@@ -248,10 +250,11 @@ function interactionHarness() {
     return elements.get(id);
   };
   const calls = { references: 0, search: 0, dream: 0, sync: 0, boards: 0, boardRefreshes: 0, barriers: [], replacements: [] };
-  const context = runtime(["companionLock", "companionApplyState", "companionFence", "companionReadOnly", "companionScopeUrl"], {
+  const context = runtime(["companionLock", "companionApplyState", "companionFence", "companionReadOnly", "companionScopeUrl", "companionRecoverable", "companionSessionText", "companionScheduleRecovery"], {
     URL, location: { origin: "http://127.0.0.1:1234", replace: (url) => calls.replacements.push(url) },
     companionState: { profiles: [], generation: 1, phase: "idle", activeId: "a", active: { allowWrites: true } },
     companionFrozen: false, companionSessionFailed: false, companionRegistered: true,
+    companionAutoRecovery: false, companionRecoveryTimer: null, companionRecoveryDelay: 0,
     browserActor: { kind: "human", id: "browser:fixture" }, identityNameDirty: false,
     companionRendered: true, companionStopped: false, companionActionBusy: false,
     companionAcknowledged: new Set(), creatingNote: false,
@@ -334,7 +337,7 @@ test("generation changes cancel interactions before reloading without adopting t
 test("polling has no overlapping async requests and reschedules only after settlement", async () => {
   const result = deferred(); const timers = []; let calls = 0;
   const context = runtime(["companionPoll"], {
-    companionStopped: false, companionPolling: false, companionRegistered: true,
+    companionStopped: false, companionPolling: false, companionRegistered: true, companionSessionFailed: false,
     companionState: { generation: 1 }, companionTabId: "tab", companionPollTimer: null,
     companionControl: () => { calls++; return result.promise; }, companionApplyState() {}, companionFence() {},
     setTimeout: (run, delay) => { timers.push({ run, delay }); return 1; },
@@ -343,6 +346,82 @@ test("polling has no overlapping async requests and reschedules only after settl
   assert.equal(calls, 1); assert.equal(timers.length, 0);
   result.resolve({}); await first;
   assert.equal(timers.length, 1); assert.equal(timers[0].delay, 750);
+});
+
+test("a dropped poll reconnects automatically; only an authorization rejection ends the session", async () => {
+  for (const [failure, recoverable] of [[new TypeError("Failed to fetch"), true], [Object.assign(new Error("HTTP 503"), { status: 503 }), true], [Object.assign(new Error("unauthorized"), { status: 401 }), false]]) {
+    const { context } = interactionHarness();
+    const timers = [], messages = [], starts = [];
+    Object.assign(context, {
+      companionTabId: "tab", companionPolling: false, companionPollTimer: null,
+      companionControl: async () => { throw failure; },
+      setTimeout: (run, delay) => { timers.push({ run, delay }); return timers.length; }, clearTimeout() {},
+      companionMessage: (text, error) => messages.push({ text, error }),
+      startCompanion: (automatic) => starts.push(automatic), companionStarting: false,
+    });
+    vm.runInContext(shellFunctions(script, ["companionPoll"], context), context);
+    await context.companionPoll();
+    assert.equal(context.companionSessionFailed, true);
+    assert.equal(context.companionFrozen, true, "a lost coordinator response never unfreezes optimistically");
+    assert.equal(timers.filter(timer => timer.delay === 750).length, 0, "a failed session stops the stale poll loop");
+    assert.equal(messages.at(-1).error, !recoverable);
+    assert.match(messages.at(-1).text, recoverable ? /Reconnecting/ : /session ended/);
+    assert.equal(timers.length, recoverable ? 1 : 0);
+    if (recoverable) { assert.equal(timers[0].delay, 1000); timers[0].run(); assert.deepEqual(starts, [true]); }
+  }
+});
+
+test("automatic recovery re-registers the same tab, unfreezes and resumes polling; repeated drops back off", async () => {
+  let reachable = false;
+  const routes = [], timers = [], messages = [];
+  const reconnect = { hidden: false, disabled: false };
+  const context = runtime(["startCompanion", "companionRecoverable", "companionSessionText", "companionScheduleRecovery"], {
+    companionStarting: false, companionRegistered: true, companionToken: null,
+    companionState: { generation: 1, activeId: "a" }, companionStopped: false,
+    companionSessionFailed: true, companionAutoRecovery: true, companionRecoveryTimer: 1, companionRecoveryDelay: 1000,
+    companionPollTimer: null, companionPolling: false, location: { pathname: "/" },
+    state: { view: "note", editor: { hasPending: () => true } }, noteCapture: { hasPending: () => false },
+    companionTabId: "tab", $: () => reconnect, companionLock() {}, renderCompanionConnection() {}, renderCompanionSettings() {},
+    companionMessage: (text, error) => messages.push({ text, error }), companionResolveReady() {},
+    companionApplyState(next) { context.companionState = next; },
+    companionPoll() { routes.push("poll-loop"); },
+    companionControl: async (route) => {
+      if (!reachable) throw new TypeError("Failed to fetch");
+      routes.push(route); return { generation: 1, activeId: "a" };
+    },
+    setTimeout: (run, delay) => { timers.push({ run, delay }); return timers.length; }, clearTimeout() {},
+  });
+  await context.startCompanion(true);
+  assert.equal(context.companionSessionFailed, true);
+  assert.equal(timers.at(-1).delay, 2000, "unreachable retries back off");
+  assert.match(messages.at(-1).text, /Reconnecting/);
+  reachable = true;
+  await context.startCompanion(true);
+  assert.deepEqual(routes, ["state", "register", "poll-loop"]);
+  assert.equal(context.companionSessionFailed, false, "a pending draft stays in its editor; the same generation re-registers");
+  assert.equal(context.companionAutoRecovery, false);
+  assert.equal(context.companionRecoveryDelay, 0);
+  assert.equal(reconnect.hidden, true);
+});
+
+test("a restart while a draft is pending is reported and never retried automatically", async () => {
+  const timers = [], messages = [];
+  const context = runtime(["startCompanion", "companionRecoverable", "companionSessionText", "companionScheduleRecovery"], {
+    companionStarting: false, companionRegistered: true, companionToken: null,
+    companionState: { generation: 1, activeId: "a" }, companionStopped: false,
+    companionSessionFailed: true, companionAutoRecovery: true, companionRecoveryTimer: null, companionRecoveryDelay: 0,
+    companionPollTimer: null, companionPolling: false, location: { pathname: "/" },
+    state: { view: "note", editor: { hasPending: () => true } }, noteCapture: { hasPending: () => false },
+    $: () => ({}), companionLock() {}, renderCompanionConnection() {}, renderCompanionSettings() {},
+    companionMessage: (text, error) => messages.push({ text, error }),
+    companionControl: async () => ({ generation: 2, activeId: "b" }),
+    setTimeout: (run, delay) => { timers.push({ run, delay }); return 1; }, clearTimeout() {},
+  });
+  await context.startCompanion(true);
+  assert.equal(context.companionAutoRecovery, false);
+  assert.equal(timers.length, 0);
+  assert.match(messages.at(-1).text, /^The companion restarted while this tab held an unsaved draft/);
+  assert.equal(messages.at(-1).error, true);
 });
 
 test("generation change reloads to target-scoped home/settings before replacing old state", () => {

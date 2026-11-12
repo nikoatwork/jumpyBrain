@@ -126,6 +126,9 @@ let companionToken = new URLSearchParams(location.hash.replace(/^#/, "")).get("c
 if (location.hash) history.replaceState(history.state, "", location.pathname + location.search);
 try { localStorage.removeItem("jumpybrain.graph.apiKey"); } catch { /* Forget legacy local-server browser credentials; never persist the control token. */ }
 let companionPollTimer = null;
+let companionRecoveryTimer = null;
+let companionRecoveryDelay = 0;
+let companionAutoRecovery = false;
 let companionPolling = false;
 let companionStopped = false;
 let companionStarting = false;
@@ -355,13 +358,32 @@ async function companionControl(route, body, options = {}) {
   if (!packet && ["state", "register", "poll", "test", "select-folder"].includes(route)) throw new Error("Invalid companion response.");
   return packet || {};
 }
-function companionFence() {
+function companionSessionText(recoverable) {
+  return recoverable ? "Reconnecting to the app… Editing resumes automatically; any draft is kept."
+    : "Your session ended; use Recover draft to copy your work before reopening the editor from the app menu.";
+}
+// A dropped request (sleep/wake, suspended network, restarting host) or a
+// server error is not an authoritative rejection: the coordinator can still
+// accept this tab. Missing/invalid browser authorization cannot self-heal.
+function companionRecoverable(error) {
+  return Boolean(error) && ![401, 403].includes(error.status);
+}
+function companionScheduleRecovery(immediate = false) {
+  clearTimeout(companionRecoveryTimer);
+  if (!companionSessionFailed || !companionAutoRecovery || companionStopped) return;
+  companionRecoveryDelay = immediate ? 0 : Math.min(30000, Math.max(1000, companionRecoveryDelay * 2));
+  companionRecoveryTimer = setTimeout(() => { if (companionSessionFailed && !companionStarting) startCompanion(true); }, companionRecoveryDelay);
+}
+function companionFence(error) {
+  const recoverable = companionRecoverable(error);
+  companionAutoRecovery = recoverable;
   companionSessionFailed = true;
   companionLock(true);
-  companionMessage("Your session ended; use Recover draft to copy your work before reopening the editor from the app menu.", true);
+  companionMessage(companionSessionText(recoverable), !recoverable);
   $("companion-reconnect").hidden = false;
   renderCompanionConnection();
   renderCompanionSettings();
+  if (recoverable) companionScheduleRecovery();
 }
 function companionApplyState(next) {
   if (!next || !Array.isArray(next.profiles) || !Number.isSafeInteger(next.generation)
@@ -435,18 +457,21 @@ async function companionPoll() {
   try {
     const next = await companionControl("poll", { tabId: companionTabId, generation: companionState.generation });
     companionApplyState(next);
-  } catch {
-    companionFence(); // No optimistic unfreeze on a lost coordinator response.
+  } catch (error) {
+    // No optimistic unfreeze on a lost coordinator response: stay frozen until
+    // a fresh state/register round trip re-establishes this tab.
+    companionFence(error);
   } finally {
     companionPolling = false;
-    if (!companionStopped) companionPollTimer = setTimeout(companionPoll, 750);
+    if (!companionStopped && !companionSessionFailed) companionPollTimer = setTimeout(companionPoll, 750);
   }
 }
-async function startCompanion() {
+async function startCompanion(automatic = false) {
   if (companionStarting) return;
   companionStarting = true;
+  clearTimeout(companionRecoveryTimer);
   $("companion-reconnect").disabled = true;
-  companionMessage("Connecting to the companion session…");
+  if (!automatic) companionMessage("Connecting to the companion session…");
   if (!companionRegistered && /^\/settings\/?$/.test(location.pathname)) {
     state.view = "settings";
     document.body.dataset.view = "settings";
@@ -477,6 +502,8 @@ async function startCompanion() {
     const registered = await companionControl("register", { tabId: companionTabId, generation: snapshot.generation });
     companionRegistered = true;
     companionSessionFailed = false;
+    companionAutoRecovery = false;
+    companionRecoveryDelay = 0;
     companionMessage("");
     companionApplyState(registered);
     companionResolveReady();
@@ -485,13 +512,17 @@ async function startCompanion() {
       clearTimeout(companionPollTimer);
       companionPoll();
     }
-  } catch {
+  } catch (error) {
     companionSessionFailed = true;
     companionLock(true);
     renderCompanionConnection();
     renderCompanionSettings();
-    companionMessage("Your session ended; use Recover draft to copy your work before reopening the editor from the app menu.", true);
+    const restartedWithDraft = !error?.status && /^The companion restarted/.test(error?.message || "");
+    const recoverable = companionRegistered && !restartedWithDraft && companionRecoverable(error);
+    companionAutoRecovery = recoverable;
+    companionMessage(restartedWithDraft ? error.message : companionSessionText(recoverable), !recoverable);
     $("companion-reconnect").hidden = false;
+    if (recoverable) companionScheduleRecovery();
     // Settings remain available even without a target/session; no initial memory request.
     if (!state.editor) {
       state.view = "settings";
@@ -754,12 +785,21 @@ $("companion-form").addEventListener("submit", (event) => {
   });
 });
 $("companion-refresh-index").addEventListener("click", companionRefreshIndex);
-$("companion-reconnect").addEventListener("click", startCompanion);
+$("companion-reconnect").addEventListener("click", () => startCompanion());
+// Wake, refocus or regained network retries a recoverable session at once
+// instead of waiting for the backoff timer.
+function companionResumeNow() {
+  if (companionSessionFailed && companionAutoRecovery && !companionStarting && document.visibilityState === "visible") companionScheduleRecovery(true);
+}
+document.addEventListener("visibilitychange", companionResumeNow);
+window.addEventListener("focus", companionResumeNow);
+window.addEventListener("online", companionResumeNow);
 window.addEventListener("pagehide", () => {
   $("companion-key").value = "";
   companionToken = null;
   companionStopped = true;
   clearTimeout(companionPollTimer);
+  clearTimeout(companionRecoveryTimer);
   if (companionRegistered) companionControl("unregister", {
     tabId: companionTabId, generation: companionState.generation,
   }, { keepalive: true }).catch(() => {});

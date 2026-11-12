@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Idle session recovery
+
+- A dropped coordinator request (e.g. laptop sleep) now freezes the Mac editor tab and reconnects it automatically instead of ending the session; authorization failures keep the hard fence. Answers the November 12 feedback; real sleep/wake on packaged Electron untested. [Evidence and limits](done/2026-11-12_tasks-idle-session-recovery.md).
+
 ## 2026-11-12 — Commit attribution cleanup
 
 - Rewrote history from 2026-10-29 to remove AI-tool co-author trailers (Claude, Mistral Vibe) at the owner's request; trees, authors and dates are unchanged. Force-pushed master and moved tags v0.3.13–v0.3.23 (release assets unchanged). Commit IDs cited in Markdown docs were remapped; code and JSON evidence files keep pre-rewrite IDs. A versioned `commit-msg` hook now strips such trailers.
