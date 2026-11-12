@@ -1,5 +1,5 @@
 // Disposable control-plane fixture + production nonce shell/Lexical. No native app,
-// Keychain, user folders, real remote targets, or installed companion are touched.
+// key files, user folders, real remote targets, or installed companion are touched.
 // npm run build && npx --package=playwright node scripts/companion-browser-smoke.mjs
 import assert from "node:assert/strict";
 import { createServer } from "node:http";

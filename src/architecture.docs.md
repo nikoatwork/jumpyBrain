@@ -113,7 +113,7 @@ For browser changes, follow the [HTTP adapter map](adapters/http-server/http-ser
 
 ## Mac app ownership
 
-The unified Electron bundle owns the desktop window, menu bar, login preference, and lifecycle. An internal Swift helper owns Keychain/folder capabilities and a child gateway over the bundled copy of this same runtime. Closing the window keeps the service available; explicit quit uses the all-tab save barrier before stopping owned children. Parent watchdogs prevent orphan services. CLI-only installation and separately hosted servers remain independent. See [the desktop boundary](../integrations/electron/electron.docs.md).
+The unified Electron bundle owns the desktop window, menu bar, login preference, and lifecycle. An internal Swift helper owns the native folder picker; remote access keys live in the shared `~/.config/jumpybrain/.env` ([credentials](adapters/credentials/credentials.docs.md)) and a child gateway over the bundled copy of this same runtime. Closing the window keeps the service available; explicit quit uses the all-tab save barrier before stopping owned children. Parent watchdogs prevent orphan services. CLI-only installation and separately hosted servers remain independent. See [the desktop boundary](../integrations/electron/electron.docs.md).
 
 ## Executable extension ownership
 

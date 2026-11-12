@@ -19,7 +19,7 @@ test('shared shell may render connection state before the companion notice is co
   assert.doesNotThrow(() => vm.runInContext('renderCompanionAccess(); const companionAccessNotice = {};', c));
 });
 
-test('Keychain repair and rejected keys take priority over the separate read-only setting', () => {
+test('Access key repair and rejected keys take priority over the separate read-only setting', () => {
   const c = runtime(['companionHealthText', 'companionHealthLabel', 'companionConnectionNotice']);
   for (const code of ['credential_unavailable', 'authentication_failed']) {
     assert.doesNotMatch(c.companionHealthLabel(code), /_/);
@@ -28,8 +28,8 @@ test('Keychain repair and rejected keys take priority over the separate read-onl
     assert.match(notice.text, /key/);
     assert.doesNotMatch(notice.text, /Editing is off/);
   }
-  assert.match(c.companionConnectionNotice(remote, 'credential_unavailable').text, /macOS Keychain/);
-  assert.match(c.companionConnectionNotice(remote, 'credential_unavailable').text, /app update/);
+  assert.match(c.companionConnectionNotice(remote, 'credential_unavailable').text, /\.config\/jumpybrain\/\.env/);
+  assert.doesNotMatch(c.companionConnectionNotice(remote, 'credential_unavailable').text, /Keychain/);
   assert.equal(c.companionHealthLabel('unknown_internal_code'), 'Connection unavailable');
 });
 

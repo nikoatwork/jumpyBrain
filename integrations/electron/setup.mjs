@@ -73,7 +73,7 @@ export async function activateRemoteBrain(connection, input, { control = compani
   const { health } = await control(connection, 'test', { id: profile.id });
   if (health !== 'connected') throw new Error(health === 'authentication_failed'
     ? 'That access key didn’t work. Check it and try again.'
-    : health === 'credential_unavailable' ? 'Allow jumpyBrain to use your Mac’s Keychain, then try again.'
+    : health === 'credential_unavailable' ? 'jumpyBrain couldn’t save the key in ~/.config/jumpybrain/.env. Check that the file is yours and private (chmod 600), then try again.'
       : 'We couldn’t reach that brain. Check the server address and your connection, then try again.');
   return state.activeId === profile.id ? state : control(connection, 'switch', { id: profile.id });
 }

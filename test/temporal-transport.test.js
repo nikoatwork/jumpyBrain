@@ -85,7 +85,7 @@ test("temporal CLI strictly rejects malformed, repeated and unknown flags before
     ["--order", "chronological", "--json=false"], ["--to", "2025-01-01T12:00:00"], ["--order", "chronological", "--limit=NaN"]]) {
     for (const command of [["search"], ["run", "memory:recall"]]) {
       await assert.rejects(execute(process.execPath, [cli, ...command, "--query", "calibration", "--target-url", "https://memory.invalid", ...flags],
-        { env: { ...process.env, JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_CLI_CONFIG: "/tmp/nonexistent-temporal-policy" } }), error => {
+        { env: { ...process.env, JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env", JUMPYBRAIN_CLI_CONFIG: "/tmp/nonexistent-temporal-policy" } }), error => {
           assert.equal(error.stdout, "");
           assert.doesNotMatch(error.stderr, /API_KEY is required|fetch failed/);
           return true;

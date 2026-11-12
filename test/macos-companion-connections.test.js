@@ -229,7 +229,7 @@ test("immutable opaque credentials rotate only after commit and never appear in 
   assert.equal((await lstat(f.filename)).mode & 0o777, 0o600);
 });
 
-test("Keychain denial, missing items, missing adapters, and partial set failures use static safe errors", async (t) => {
+test("Credential store denial, missing items, missing adapters, and partial set failures use static safe errors", async (t) => {
   const f = await fixture(t);
   const before = f.store.snapshot();
   const bytes = await readFile(f.filename);

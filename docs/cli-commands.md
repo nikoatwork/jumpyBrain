@@ -141,7 +141,7 @@ jumpybrain connections select --id <local-profile-id> --revision 1
 jumpybrain connections remove --id <inactive-local-profile-id> --revision 2
 ```
 
-Use listed revisions; refresh and retry deliberately after conflicts. Selection requires saved drafts; active removal is refused. Add canonicalizes an existing root without initialization/indexing; removal preserves notes. First registration becomes app-active through the barrier. Selection affects only the app; CLI operations use their own selectors. Remote profiles stay in Settings: named lookup would require a new CLI/Keychain credential contract.
+Use listed revisions; refresh and retry deliberately after conflicts. Selection requires saved drafts; active removal is refused. Add canonicalizes an existing root without initialization/indexing; removal preserves notes. First registration becomes app-active through the barrier. Selection affects only the app; CLI operations use their own selectors. Remote profiles stay in Settings; their keys are shared with the CLI through `~/.config/jumpybrain/.env`, matched by `--target-url`.
 
 ## Obsidian import (local only)
 

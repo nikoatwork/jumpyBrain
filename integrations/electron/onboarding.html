@@ -46,7 +46,7 @@
         <input id="remote-url" type="url" placeholder="https://brain.example.com" required maxlength="2048" autocomplete="off" spellcheck="false" aria-describedby="remote-help" />
         <label for="remote-key">Access key</label>
         <input id="remote-key" type="password" required maxlength="4096" autocomplete="off" spellcheck="false" aria-describedby="remote-help" />
-        <p class="detail" id="remote-help">Ask the person who set up your brain for these details. Your key is stored securely in your Mac’s Keychain.</p>
+        <p class="detail" id="remote-help">Ask the person who set up your brain for these details. Your key is saved in ~/.config/jumpybrain/.env, readable only by you, so the jumpyBrain CLI can use it too.</p>
         <button id="connect" class="primary" type="submit">Connect <span aria-hidden="true">→</span></button>
       </form>
       <p class="detail">New connections open for viewing. You can enable editing later in Settings. Your local notes stay where they are.</p>

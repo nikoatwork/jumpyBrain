@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """Disposable macOS native connection regressions; no app install or login changes.
 
-Compile a COPY of Companion.swift, replacing only its top-level app entrypoint
-and Keychain service with a UUID test namespace. Production bridge, credential,
-and menu methods remain intact. A cold Swift module cache can take minutes.
-Default coverage uses temporary items in the current user's default Keychain;
-it never locks/unlocks it or allows authentication prompts. --skip-keychain is
-available for locked/headless environments (and explicitly reports the omission).
+Compile a COPY of Companion.swift, replacing only its top-level app entrypoint.
+Production bridge and menu methods remain intact. A cold Swift module cache can
+take minutes. Remote access keys live in the runtime's ~/.config/jumpybrain/.env
+(see test/env-file-credentials.test.js); the native host must hold no Keychain code
+and must reject the removed get/set/delete bridge operations.
 """
 import argparse
 import json
@@ -19,21 +18,10 @@ import subprocess
 import sys
 import tempfile
 import time
-import uuid
 
 HERE = Path(__file__).resolve().parent
 
 HARNESS = r'''
-extension NativeBridge {
-    static func fixtureCleanup() -> Bool {
-        SecKeychainSetUserInteractionAllowed(false)
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                                   kSecAttrService as String: service]
-        let status = SecItemDelete(query as CFDictionary)
-        return status == errSecSuccess || status == errSecItemNotFound
-    }
-}
-
 extension Companion {
     func fixtureMenu(_ directory: String) {
         config = Configuration(node: "/unused", qmd: "/unused", memoryRoot: directory,
@@ -120,7 +108,7 @@ extension Companion {
                 controls(true, false, true, true)
                 check(connectionState?.active?.kind == "remote" && connectionState?.active?.root == nil,
                       "offline does not select a local fallback")
-                check(statusLine.title.contains(health == "credential_unavailable" ? "Keychain unavailable" : "Offline"),
+                check(statusLine.title.contains(health == "credential_unavailable" ? "Access key unavailable" : "Offline"),
                       "offline/credential status")
             }
         }
@@ -197,9 +185,7 @@ extension Companion {
 
 signal(SIGPIPE, SIG_IGN)
 let mode = CommandLine.arguments[1]
-if mode == "--cleanup" {
-    exit(NativeBridge.fixtureCleanup() ? 0 : 1)
-} else if mode == "--menu" {
+if mode == "--menu" {
     let application = NSApplication.shared
     application.setActivationPolicy(.accessory)
     let fixture = Companion()
@@ -213,15 +199,16 @@ if mode == "--cleanup" {
 '''
 
 
-def build(directory, service):
+def build(directory):
     source = (HERE / "Companion.swift").read_text()
     for obsolete in ("profilesItem", "switchBrain", "switchInFlight", "indexItem", "indexer", "refreshIndex",
                      '"/companion/switch"', '"/memories/all/index"', '"X-Companion-Generation"'):
         assert obsolete not in source, "Obsolete native action/state remains: " + obsolete
+    for keychain in ("import Security", "import LocalAuthentication", "SecItem", "SecKeychain", "kSecClass", "LAContext"):
+        assert keychain not in source, "Keychain code must not return to the native host: " + keychain
     entry = "let app = NSApplication.shared\n"
-    namespace = 'private static let service = "local.jumpybrain.companion.connections"'
-    assert source.count(entry) == 1 and source.count(namespace) == 1, "Production anchors changed; review extraction"
-    source = source.split(entry)[0].replace(namespace, 'private static let service = ' + json.dumps(service)) + HARNESS
+    assert source.count(entry) == 1, "Production anchors changed; review extraction"
+    source = source.split(entry)[0] + HARNESS
     swift = directory / "Fixture.swift"
     swift.write_text(source)
     compiler = Path(subprocess.check_output(["xcrun", "--find", "swiftc"], text=True).strip())
@@ -240,7 +227,7 @@ def build(directory, service):
     print("Compiling disposable native fixture (cold Swift cache can take minutes)...", flush=True)
     subprocess.run([str(compiler), "-swift-version", "5", "-O", "-sdk", sdk,
         "-target", platform.machine() + "-apple-macos13.0", "-module-cache-path", str(directory / "cache"),
-        *options, "-framework", "AppKit", "-framework", "Security", "-framework", "LocalAuthentication",
+        *options, "-framework", "AppKit",
         str(swift), "-o", str(binary)], check=True, timeout=600)
     subprocess.run(["codesign", "--force", "--sign", "-", str(binary)], check=True, capture_output=True)
     return binary
@@ -281,46 +268,9 @@ class RPC:
             stream.close()
 
 
-def crud(binary):
-    rpc = RPC(binary)
-    reference = "fixture-" + uuid.uuid4().hex
-    try:
-        def call(identifier, operation, **fields):
-            rpc.send(dict(id=identifier, operation=operation, reference=reference, **fields))
-            reply = rpc.receive()
-            assert reply.get("id") == identifier, "RPC correlation failed"
-            assert "error" not in reply, "Keychain unavailable: use an unlocked default Keychain or explicitly --skip-keychain"
-            return reply["result"]
-        # Exercise real incremental framing, without completing the first write.
-        fragment = json.dumps(dict(id="fragmented", operation="get", reference=reference)).encode() + b"\n"
-        rpc.process.stdin.write(fragment[:11])
-        rpc.process.stdin.flush()
-        time.sleep(0.03)
-        rpc.process.stdin.write(fragment[11:])
-        rpc.process.stdin.flush()
-        assert rpc.receive() == {"id": "fragmented", "result": None}
-        assert call("missing", "get") is None
-        assert call(1, "set", key="temporary-fixture-key-α") is None
-        assert call("read", "get") == "temporary-fixture-key-α"
-        assert call(2, "set", key="updated-fixture-key") is None
-        assert call("updated", "get") == "updated-fixture-key"
-        assert call("delete", "delete") is None
-        assert call("deleted", "get") is None
-        assert call("idempotent", "delete") is None
-        for i, fields in enumerate(({"reference": ""}, {"reference": "bad\nreference"},
-                                    {"reference": "r" * 257}, {"key": ""}, {"key": "k" * 8193})):
-            rpc.send(dict(id="invalid-" + str(i), operation="set", reference=reference,
-                          key="fixture-only") | fields)
-            assert rpc.receive() == {"id": "invalid-" + str(i), "error": "credential_unavailable"}
-        assert call("still-open", "get") is None
-    finally:
-        rpc.close()
-    print("PASS Keychain: missing, create, read, update, delete, idempotent delete, invalid input")
-
-
 def malformed(binary):
     def frame(**fields):
-        return json.dumps(dict(id="a", operation="get", reference="fixture-only") | fields).encode() + b"\n"
+        return json.dumps(dict(id="a", operation="select-folder") | fields).encode() + b"\n"
     cases = {
         "invalid JSON": b"not-json-fixture-secret\n",
         "non-object": b"[]\n",
@@ -330,7 +280,10 @@ def malformed(binary):
         "fractional id": frame(id=1.5),
         "unsafe integer": frame(id=9007199254740992),
         "unknown operation": frame(operation="invalid"),
-        "overlong frame": b'{"id":"a","operation":"get","reference":"' + b"r" * 16400 + b'"}\n',
+        "removed Keychain get": frame(operation="get", reference="fixture-only"),
+        "removed Keychain set": frame(operation="set", reference="fixture-only", key="fixture-secret"),
+        "removed Keychain delete": frame(operation="delete", reference="fixture-only"),
+        "overlong frame": b'{"id":"a","operation":"select-folder","pad":"' + b"r" * 16400 + b'"}\n',
         "bounded unfinished input": b"x" * 32769,
         "duplicate pending id": frame() + frame(),
         "pending-work limit": b"".join(frame(id=str(i)) for i in range(33)),
@@ -362,34 +315,20 @@ def malformed(binary):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--skip-keychain", action="store_true")
     parser.add_argument("--skip-menu", action="store_true", help="No Aqua GUI session; report menu coverage skipped")
     args = parser.parse_args()
     if sys.platform != "darwin" or not shutil.which("xcrun"):
         parser.error("Requires macOS 13+ and Xcode command-line tools")
-    service = "local.jumpybrain.native-test." + uuid.uuid4().hex
     with tempfile.TemporaryDirectory(prefix="jumpybrain-native-connections-") as scratch:
         directory = Path(scratch)
-        binary = build(directory, service)
-        try:
-            malformed(binary)
-            if args.skip_keychain:
-                print("SKIP Keychain CRUD (explicit --skip-keychain)")
-            else:
-                crud(binary)
-            if args.skip_menu:
-                print("SKIP menu state (explicit --skip-menu)")
-            else:
-                subprocess.run([str(binary), "--menu", str(directory)], check=True, timeout=30)
-            assert not (directory / "never-created.plist").exists(), "Fixture changed login state"
-        finally:
-            # Same signed executable performs service-scoped deletion, even on assertion failure.
-            # Never enumerate/delete production items or change Keychain lock/default settings.
-            result = None if args.skip_keychain else subprocess.run(
-                [str(binary), "--cleanup"], timeout=15, capture_output=True)
-            if result is not None and result.returncode:
-                raise RuntimeError("Fixture Keychain cleanup failed. Remove ONLY test service " + service)
-    print("PASS disposable native regressions; temporary build and Keychain items removed")
+        binary = build(directory)
+        malformed(binary)
+        if args.skip_menu:
+            print("SKIP menu state (explicit --skip-menu)")
+        else:
+            subprocess.run([str(binary), "--menu", str(directory)], check=True, timeout=30)
+        assert not (directory / "never-created.plist").exists(), "Fixture changed login state"
+    print("PASS disposable native regressions; temporary build removed")
 
 
 if __name__ == "__main__":

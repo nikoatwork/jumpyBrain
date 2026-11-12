@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-12 — Access keys in a shared .env
+
+- By owner decision, remote access keys moved from macOS Keychain to the owner-only `~/.config/jumpybrain/.env`, shared by the Mac app and CLI, so updates no longer lose them; the Swift host dropped its Keychain code. Existing remote connections need one key re-entry. [Design, checks and limits](done/2026-11-12_tasks-env-file-credentials.md).
+
 ## 2026-11-12 — Idle session recovery
 
 - A dropped coordinator request (e.g. laptop sleep) now freezes the Mac editor tab and reconnects it automatically instead of ending the session; authorization failures keep the hard fence. Answers the November 12 feedback; real sleep/wake on packaged Electron untested. [Evidence and limits](done/2026-11-12_tasks-idle-session-recovery.md).

@@ -94,7 +94,7 @@ test("CLI target selection preserves local roots and recognizes remote placehold
 });
 
 test("CLI remote target requires API key before local root handling", () => {
-  const result = runCliFailure(["status", "--target-url", "https://brain.example"], { env: { JUMPYBRAIN_API_KEY: "" } });
+  const result = runCliFailure(["status", "--target-url", "https://brain.example"], { env: { JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env" } });
   assert.match(result.stderr, /JUMPYBRAIN_API_KEY/);
   assert.doesNotMatch(result.stderr, /--root is required/);
 });
@@ -112,7 +112,7 @@ test("CLI dream deprecates every batch flag without touching legacy state or rea
     ]) {
       for (const target of [["--root", tempRoot], ["--target-url", "https://dream-test.invalid"]]) {
         const failure = runCliFailure(["dream", ...target, ...flags], {
-          env: { JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_CLI_CONFIG: path.join(tempRoot, "no-policy.json") },
+          env: { JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env", JUMPYBRAIN_CLI_CONFIG: path.join(tempRoot, "no-policy.json") },
         });
         assert.match(failure.stderr, new RegExp(`dream ${flags[0]} is deprecated`));
         assert.match(failure.stderr, /stateless UTC windows/);

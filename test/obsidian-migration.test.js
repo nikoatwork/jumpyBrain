@@ -254,7 +254,7 @@ test("Obsidian canonical scanners, ID/title reads, index inputs and Dream use st
 
 const cli = path.resolve("dist/cli.js");
 function invoke(args, ok = true, env = {}) {
-  const result = spawnSync(process.execPath, [cli, ...args], { encoding: "utf8", timeout: 15000, env: { ...process.env, JUMPYBRAIN_QMD_BIN: "/nonexistent/no-index", JUMPYBRAIN_API_KEY: "", ...env } });
+  const result = spawnSync(process.execPath, [cli, ...args], { encoding: "utf8", timeout: 15000, env: { ...process.env, JUMPYBRAIN_QMD_BIN: "/nonexistent/no-index", JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env", ...env } });
   assert.equal(result.status === 0, ok, result.stdout + result.stderr);
   assert.doesNotMatch(result.stdout + result.stderr, /Synthetic private body/);
   return result;

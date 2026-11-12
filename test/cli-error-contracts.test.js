@@ -35,7 +35,7 @@ function runCliFailure(args, options = {}) {
 test("CLI root and remote target failures name the actionable flag or fallback", () => {
   assert.match(runCliFailure(["status"]).stderr, /--root is required/);
 
-  const remote = runCliFailure(["status", "--target-url", "https://brain.example"], { env: { JUMPYBRAIN_API_KEY: "" } });
+  const remote = runCliFailure(["status", "--target-url", "https://brain.example"], { env: { JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env" } });
   assert.match(remote.stderr, /JUMPYBRAIN_API_KEY/);
   assert.doesNotMatch(remote.stderr, /--root is required/);
 });

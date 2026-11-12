@@ -174,7 +174,7 @@ else {
       polling = true;
       try {
         const state = await desktopControl(host.connection, 'state', undefined, { timeoutMs: 2500 });
-        status = `${String(state.active?.name || 'Choose a brain').replace(/[\r\n]/g, ' ').slice(0, 128)} · ${state.health === 'connected' ? 'Connected' : state.health === 'credential_unavailable' ? 'Keychain unavailable' : 'Offline'}`;
+        status = `${String(state.active?.name || 'Choose a brain').replace(/[\r\n]/g, ' ').slice(0, 128)} · ${state.health === 'connected' ? 'Connected' : state.health === 'credential_unavailable' ? 'Access key unavailable' : 'Offline'}`;
       } catch { status = 'Local service unavailable'; }
       finally { polling = false; void refreshTray(); }
     }, 3000);

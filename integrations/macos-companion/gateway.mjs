@@ -103,7 +103,7 @@ export function nativeCredentials(input = process.stdin, output = process.stdout
       catch { close(); return; }
       if (!object(packet) || !pending.has(packet.id)) { close(); return; }
       const entry = pending.get(packet.id); pending.delete(packet.id); clearTimeout(entry.timer);
-      if (packet.error || (packet.result !== null && typeof packet.result !== 'string')) entry.reject(new ControlError('credential_unavailable', 'Keychain or native capability is unavailable. Re-enter the key if necessary.', 503));
+      if (packet.error || (packet.result !== null && typeof packet.result !== 'string')) entry.reject(new ControlError('credential_unavailable', 'Native capability unavailable.', 503));
       else entry.resolve(packet.result);
     }
   };
@@ -115,7 +115,15 @@ export function nativeCredentials(input = process.stdin, output = process.stdout
     pending.set(id, { resolve, reject, timer });
     output.write(JSON.stringify({ id, operation, ...fields }) + '\n');
   });
-  return { setDiagnosticReporter(reporter) { diagnosticReporter = reporter; }, get: (reference) => call('get', { reference }), set: (reference, key) => call('set', { reference, key }), delete: (reference) => call('delete', { reference }), selectFolder: () => call('select-folder'), close: () => { close(false); input.off('data', consume); input.pause(); } };
+  return { setDiagnosticReporter(reporter) { diagnosticReporter = reporter; }, selectFolder: () => call('select-folder'), close: () => { close(false); input.off('data', consume); input.pause(); } };
+}
+
+// Access keys live in the shared owner-only .env file (see
+// src/adapters/credentials/env-file.ts); the native bridge only selects folders.
+export async function appCredentials(runtimeRoot, native, options = {}) {
+  const { createEnvFileCredentials } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/credentials/env-file.js')).href);
+  const file = createEnvFileCredentials(options);
+  return { setDiagnosticReporter: (reporter) => native.setDiagnosticReporter?.(reporter), get: file.get, set: file.set, delete: file.delete, selectFolder: () => native.selectFolder(), close: () => native.close() };
 }
 
 function allowedMemoryRoute(method, pathname) {
@@ -199,8 +207,9 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
     if (profile.kind === 'remote') {
       let key;
       try { key = await credentials.get(profile.credentialRef); }
-      catch { failure('credential_unavailable', 'Keychain unavailable. Re-enter this connection’s key in Settings if access changed after an update.', 503); }
-      if (typeof key !== 'string' || !key.trim()) failure('credential_unavailable', 'The Keychain credential is missing. Re-enter the key in Settings.', 503);
+      // File errors name the key file and a fix (e.g. chmod 600), never a key value.
+      catch (error) { failure('credential_unavailable', error?.name === 'CredentialFileError' ? error.message : 'The access key file is unavailable. Re-enter this connection’s key in Settings.', 503); }
+      if (typeof key !== 'string' || !key.trim()) failure('credential_unavailable', 'This connection has no saved access key. Re-enter the key in Settings.', 503);
       return { url: profile.url, key };
     }
     // Remember the selected directory generation across reconnects. Replacing a
@@ -605,7 +614,8 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
 const entryPath = process.argv[1] ? await realpath(process.argv[1]).catch(() => path.resolve(process.argv[1])) : null;
 if (entryPath && import.meta.url === pathToFileURL(entryPath).href) {
   const [runtimeRoot, directory, initialRoot, port] = process.argv.slice(2);
-  const credentials = nativeCredentials();
+  const native = nativeCredentials();
+  const credentials = await appCredentials(runtimeRoot, native);
   const parentPID = process.ppid;
   let gateway;
   const stop = async () => {

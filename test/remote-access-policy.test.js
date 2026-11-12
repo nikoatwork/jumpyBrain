@@ -72,11 +72,11 @@ test("missing policy is writable by default while malformed existing policy fail
 
     const result = runCli(["status", "--target-url", "https://memory.example"], {
       JUMPYBRAIN_CLI_CONFIG: configPath,
-      JUMPYBRAIN_API_KEY: "",
+      JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env",
     });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /Invalid jumpyBrain CLI policy config/);
-    assert.doesNotMatch(result.stderr, /JUMPYBRAIN_API_KEY is required/);
+    assert.doesNotMatch(result.stderr, /No access key for/);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -91,7 +91,7 @@ test("read-only target command matrix allows retrieval and blocks mutations befo
       schemaVersion: 1,
       remoteTargets: [{ origin: "HTTPS://MEMORY.EXAMPLE:443", access: "read-only" }],
     }), "utf8");
-    const env = { JUMPYBRAIN_CLI_CONFIG: configPath, JUMPYBRAIN_API_KEY: "" };
+    const env = { JUMPYBRAIN_CLI_CONFIG: configPath, JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env" };
     const reads = [
       ["status"], ["tree"], ["overview"], ["search", "--query", "x"], ["recall", "--topic", "x"],
       ["show", "--id", "mem_test"], ["dream"], ["dream", "--from", "2022-04-22", "--days", "2"],
@@ -103,7 +103,7 @@ test("read-only target command matrix allows retrieval and blocks mutations befo
       const result = runCli([...args, "--target-url", target], env);
       assert.notEqual(result.status, 0, args.join(" "));
       assert.doesNotMatch(result.stderr, policyError, args.join(" "));
-      assert.match(result.stderr, /JUMPYBRAIN_API_KEY is required/, args.join(" "));
+      assert.match(result.stderr, /No access key for/, args.join(" "));
     }
 
     for (const flag of ["--status", "--summary"]) {
@@ -111,7 +111,7 @@ test("read-only target command matrix allows retrieval and blocks mutations befo
       assert.notEqual(result.status, 0);
       assert.doesNotMatch(result.stderr, policyError);
       assert.match(result.stderr, new RegExp(`${flag} is deprecated`));
-      assert.doesNotMatch(result.stderr, /JUMPYBRAIN_API_KEY is required/);
+      assert.doesNotMatch(result.stderr, /No access key for/);
     }
 
     const mutations = [
@@ -127,12 +127,12 @@ test("read-only target command matrix allows retrieval and blocks mutations befo
       const result = runCli([...args, "--remote-url", target], env, "stdin must not be consumed");
       assert.notEqual(result.status, 0, args.join(" "));
       assert.match(result.stderr, policyError, args.join(" "));
-      assert.doesNotMatch(result.stderr, /JUMPYBRAIN_API_KEY is required|ENOENT|missing\.json/, args.join(" "));
+      assert.doesNotMatch(result.stderr, /No access key for|ENOENT|missing\.json/, args.join(" "));
     }
 
     const unlisted = runCli(["remember", "--target-url", "https://other.example"], env, "body");
     assert.doesNotMatch(unlisted.stderr, policyError);
-    assert.match(unlisted.stderr, /JUMPYBRAIN_API_KEY is required/);
+    assert.match(unlisted.stderr, /No access key for/);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }

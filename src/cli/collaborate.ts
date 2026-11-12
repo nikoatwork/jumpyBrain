@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { WebSocket } from "../adapters/websocket/index.js";
 import { ensureRootBackend } from "../app/backend-host/index.js";
 import { resolveCliTarget } from "./targets.js";
+import { remoteApiKey } from "./memory-target.js";
 import { createLocalMemoryTransport } from "./local-transport.js";
 import type { ParsedCliArgs } from "./args.js";
 
@@ -96,8 +97,7 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     credential = backend.token;
   } else {
     url = target.url;
-    credential = process.env.JUMPYBRAIN_API_KEY?.trim() ?? "";
-    if (!credential) throw new Error("JUMPYBRAIN_API_KEY is required.");
+    credential = await remoteApiKey(url);
   }
   const endpoint = new URL("/ws", url);
   endpoint.protocol = endpoint.protocol === "https:" ? "wss:" : "ws:";

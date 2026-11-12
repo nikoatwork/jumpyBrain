@@ -14,7 +14,7 @@ export function boardUsage(): string {
     '  jumpybrain board delete --board <board> --if-match <contentHash>',
     '',
     'All commands require --root <memory-root> or --target-url <url> and accept --json.',
-    'Local boards work without the Mac app. Remote credentials use JUMPYBRAIN_API_KEY.',
+    'Local boards work without the Mac app. Remote credentials use JUMPYBRAIN_API_KEY or ~/.config/jumpybrain/.env.',
     'status reads up to 12 cards; --limit 1..50 increases evidence coverage. Missing/omitted evidence is explicit.',
     'show returns layout and content hash without reading notes. list includes settled boards.',
     'add places or moves an existing note; remove/delete preserve Markdown notes.',

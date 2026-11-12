@@ -23,7 +23,7 @@ const messages = {
   INVALID_STATE: "Connections data is invalid. Restore a valid private backup; it was not replaced.",
   UNSAFE_STORAGE: "Connections storage must be private, owned, and free of symbolic or hard links.",
   PERSISTENCE_FAILED: "Could not persist connections. No connection change was committed.",
-  CREDENTIALS_UNAVAILABLE: "Credential storage is unavailable or access was denied.",
+  CREDENTIALS_UNAVAILABLE: "The access key file (~/.config/jumpybrain/.env) could not be read or written. Check that it is yours and private (chmod 600).",
   MISSING_CREDENTIAL: "The remote credential is missing. Enter its API key again.",
 };
 class ConnectionError extends Error {
@@ -314,7 +314,7 @@ export class ConnectionStore {
           if (request.key !== undefined) {
             const adapter = this.#credentialAdapter();
             newReference = `jumpybrain-companion:${randomUUID()}`;
-            try { await adapter.set(newReference, request.key); }
+            try { await adapter.set(newReference, request.key, { url: profile.url }); }
             catch { fail("CREDENTIALS_UNAVAILABLE"); }
             profile.credentialRef = newReference;
           } else {

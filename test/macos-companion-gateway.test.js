@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { hashMemoryDocumentContent } from '../dist/core/canonical/markdown-store.js';
 import test from 'node:test';
-import { mkdtemp, mkdir, readFile, writeFile, rm, realpath, symlink, stat } from 'node:fs/promises';
+import { chmod, lstat, mkdtemp, mkdir, readdir, readFile, writeFile, rm, realpath, symlink, stat } from 'node:fs/promises';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer as createHttpsServer } from 'node:https';
 import os from 'node:os';
@@ -9,7 +9,7 @@ import path from 'node:path';
 import { createServer, request as httpRequest } from 'node:http';
 import { PassThrough } from 'node:stream';
 import { gzipSync } from 'node:zlib';
-import { startCompanionGateway, nativeCredentials } from '../integrations/macos-companion/gateway.mjs';
+import { startCompanionGateway, nativeCredentials, appCredentials } from '../integrations/macos-companion/gateway.mjs';
 import { SwitchCoordinator } from '../integrations/macos-companion/switch-coordinator.mjs';
 import { createServerMemoryRuntime, startJumpyBrainHttpServer } from '../dist/server/index.js';
 
@@ -123,7 +123,7 @@ test('support diagnostics distinguish forwarding timeouts and rejected switches 
   const input = new PassThrough(), output = new PassThrough(), codes = [];
   const native = nativeCredentials(input, output, { timeoutMs: 20 });
   native.setDiagnosticReporter((event) => codes.push(event.code));
-  const pending = native.get('private-reference'); input.write('malformed private frame\n');
+  const pending = native.selectFolder(); input.write('malformed private frame\n');
   await assert.rejects(pending); assert.deepEqual(codes, ['bridge_lost']); native.close();
 });
 
@@ -331,7 +331,7 @@ test('gateway switch timeout retains active brain and shutdown drains requests',
   assert.equal(f.gateway.state().activeId, initial.activeId); assert.equal(f.gateway.state().generation, initial.generation);
 });
 
-test('gateway never follows redirects or exposes target credentials; missing Keychain stays offline', async (t) => {
+test('gateway never follows redirects or exposes target credentials; a missing access key stays offline', async (t) => {
   const f = await fixture(t);
   let received = 0;
   const redirect = createServer((request, response) => { received++; response.writeHead(302, { Location: 'http://127.0.0.1:1/' }); response.end(); });
@@ -393,18 +393,20 @@ test('standalone gateway starts through an entrypoint symlink and shuts down its
   await assert.rejects(fetch('http://127.0.0.1:' + port + '/health'));
 });
 
-test('native pipe RPC correlates responses without credentials in errors and fails closed on unknown frames', async () => {
+test('native pipe RPC only selects folders, correlates responses and fails closed on unknown frames', async () => {
   const input = new PassThrough(), output = new PassThrough();
-  const credentials = nativeCredentials(input, output, { timeoutMs: 40 });
+  const native = nativeCredentials(input, output, { timeoutMs: 40 });
+  assert.equal(native.get, undefined, 'access keys never cross the native bridge');
+  assert.equal(native.set, undefined); assert.equal(native.delete, undefined);
   let frame;
   output.once('data', (chunk) => { frame = JSON.parse(chunk); });
-  const result = credentials.get('opaque-reference');
-  assert.equal(frame.operation, 'get');
-  input.write(JSON.stringify({ id: frame.id, result: 'test-private-key' }) + '\n');
-  assert.equal(await result, 'test-private-key');
-  const denied = credentials.get('another'); input.write('{"id":"unknown","result":"secret"}\n');
+  const result = native.selectFolder();
+  assert.equal(frame.operation, 'select-folder');
+  input.write(JSON.stringify({ id: frame.id, result: '/private/chosen' }) + '\n');
+  assert.equal(await result, '/private/chosen');
+  const denied = native.selectFolder(); input.write('{"id":"unknown","result":"secret"}\n');
   await assert.rejects(denied, (error) => !error.message.includes('secret') && error.code === 'credential_unavailable');
-  credentials.close();
+  native.close();
 });
 
 
@@ -656,4 +658,38 @@ test('update readiness authenticates the gateway without launching a staging bac
   const state = await f.native('/companion/state'); assert.equal(state.status, 200);
   const packet = await state.json(); assert.equal(packet.hostInstance, 'fixture-readiness'); assert.equal(packet.health, 'offline');
   const memory = await f.native('/memories/all/status', undefined, { 'X-Companion-Generation': String(f.gateway.coordinator.generation) }); assert.equal(memory.status, 503);
+});
+
+test('app credentials keep remote keys in the shared .env file across a gateway restart; an insecure file is refused without leaking the key', async (t) => {
+  const keyDirectory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'jb-env-credentials-')));
+  t.after(() => rm(keyDirectory, { recursive: true, force: true }));
+  const file = path.join(keyDirectory, 'jumpybrain', '.env');
+  const nativeSide = { selectFolder: async () => '/chosen', close() {}, setDiagnosticReporter() {} };
+  const credentials = await appCredentials(runtimeRoot, nativeSide, { file });
+  assert.equal(await credentials.selectFolder(), '/chosen', 'folder selection still uses the native bridge');
+  const f = await fixture(t, { credentials });
+  const url = f.remote.url ?? ('http://127.0.0.1:' + f.remote.server.address().port);
+  const saved = await f.save({ name: 'VPS brain', kind: 'remote', url, key: 'remote-test-key' });
+  const target = saved.profiles.find((profile) => profile.name === 'VPS brain');
+  const text = await readFile(file, 'utf8');
+  assert.match(text, /^JUMPYBRAIN_KEY_[0-9A-F_]+=remote-test-key$/m);
+  assert.match(text, new RegExp('^JUMPYBRAIN_URL_[0-9A-F_]+=' + url.replace(/[.:/]/g, '\\$&') + '$', 'm'));
+  assert.equal((await lstat(file)).mode & 0o777, 0o600);
+  for (const name of await readdir(f.directory)) {
+    const entry = path.join(f.directory, name);
+    if ((await lstat(entry)).isFile()) assert.doesNotMatch(await readFile(entry, 'utf8'), /remote-test-key/, 'support files never hold the key');
+  }
+  await f.native('/companion/switch', { id: target.id });
+  let generation = f.gateway.coordinator.generation; await f.browser('/companion/register', { tabId: 'tab-a', generation });
+  assert.equal((await f.memory('recent')).status, 200, 'the gateway authenticates with the key read from the file');
+  // Same file, fresh adapter: what an app update does. The Keychain version lost the key here.
+  const reread = await appCredentials(runtimeRoot, nativeSide, { file });
+  const suffix = /^JUMPYBRAIN_KEY_([0-9A-F_]+)=/m.exec(await readFile(file, 'utf8'))[1];
+  assert.equal(await reread.get('jumpybrain-companion:' + suffix.toLowerCase().replace(/_/g, '-')), 'remote-test-key');
+  await chmod(file, 0o644);
+  generation = f.gateway.coordinator.generation;
+  const refused = await f.memory('recent', undefined, 'tab-a', generation);
+  assert.equal(refused.status, 503);
+  const body = await refused.text();
+  assert.match(body, /credential_unavailable/); assert.match(body, /chmod 600/); assert.doesNotMatch(body, /remote-test-key/);
 });

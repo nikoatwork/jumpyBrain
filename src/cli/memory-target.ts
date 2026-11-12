@@ -2,6 +2,7 @@ import { createRemoteMemoryTransport, type RemoteMemoryTransport } from "../adap
 import type { ParsedCliArgs } from "./args.js";
 import type { LocalMemoryTransport, SearchResult } from "./local-transport.js";
 import { resolveCliTarget } from "./targets.js";
+import { DEFAULT_ENV_FILE_DISPLAY, remoteKeyForUrl } from "../adapters/credentials/env-file.js";
 
 export type CommandMemoryTarget =
   | { kind: "local"; root: string; source?: string }
@@ -13,14 +14,14 @@ export async function commandMemoryTarget(
   options: { allowDiscovery?: boolean } = {},
 ): Promise<CommandMemoryTarget> {
   const target = resolveCliTarget(args, { allowDiscovery: options.allowDiscovery });
-  if (target.kind === "remote") return { ...target, memory: createRemoteMemoryTransport({ url: target.url, apiKey: remoteApiKey() }) };
+  if (target.kind === "remote") return { ...target, memory: createRemoteMemoryTransport({ url: target.url, apiKey: await remoteApiKey(target.url) }) };
   const root = target.root ?? await localMemory.findMemoryRoot();
   return { ...target, root };
 }
 
-function remoteApiKey(): string {
-  const apiKey = process.env.JUMPYBRAIN_API_KEY?.trim();
-  if (!apiKey) throw new Error("JUMPYBRAIN_API_KEY is required for remote jumpyBrain targets.");
+export async function remoteApiKey(url: string): Promise<string> {
+  const apiKey = await remoteKeyForUrl(url);
+  if (!apiKey) throw new Error(`No access key for ${url}. Set JUMPYBRAIN_API_KEY, or save this connection in the jumpyBrain app (keys are shared via ${DEFAULT_ENV_FILE_DISPLAY}).`);
   return apiKey;
 }
 

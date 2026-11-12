@@ -9,7 +9,7 @@ interface CommandHelp {
   recipeHelp?: { summary: string; syntax: string; details?: string[]; target?: boolean };
 }
 
-const targetHelp = 'Target: --root <memory-root> OR --target-url <url> (--remote-url alias). Defaults: JUMPYBRAIN_MEMORY_ROOT, then owning install manifest. Use one selector; remote key: JUMPYBRAIN_API_KEY.';
+const targetHelp = 'Target: --root <memory-root> OR --target-url <url> (--remote-url alias). Defaults: JUMPYBRAIN_MEMORY_ROOT, then owning install manifest. Use one selector; remote key: JUMPYBRAIN_API_KEY, else the key the app saved for that URL in ~/.config/jumpybrain/.env.';
 const actorHelp = 'Writer: --actor human|agent|unknown [--actor-id <id>] [--actor-name <name>]. Omitted edits remain unknown.';
 const readHelp = [
   '--limit <positive integer> (recall: 5, search: 10); --depth shallow|normal|deep (normal).',

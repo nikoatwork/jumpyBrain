@@ -80,7 +80,7 @@ ${boardsMarkup}
         <div id="companion-remote-fields" hidden>
           <label>Memory server URL<input id="companion-url" type="url" disabled placeholder="https://memory.example.com" autocomplete="off" /></label>
           <label>Access key<input id="companion-key" type="password" disabled autocomplete="new-password" aria-describedby="companion-key-help" /></label>
-          <p id="companion-key-help">Saved securely in macOS Keychain.</p>
+          <p id="companion-key-help">Saved in ~/.config/jumpybrain/.env (private to you) and shared with the jumpyBrain CLI.</p>
           <label><input id="companion-writes" type="checkbox" aria-describedby="companion-writes-help" /> Allow editing on this remote brain</label>
           <p id="companion-writes-help">Off by default: you can browse and search. Enable to create, edit and delete notes, and refresh search from this app. Your server access key must also permit these changes.</p>
         </div>
@@ -238,7 +238,7 @@ function companionConnectionNotice(profile, health) {
     action: "Connection settings", field: profile.kind === "remote" ? "companion-url" : "companion-root",
   };
   if (profile.kind === "remote" && value === "credential_unavailable") return {
-    text: "The app cannot read the saved access key for “" + profile.name + "” from macOS Keychain. This can happen after an app update. Re-enter the key in this connection’s settings.",
+    text: "The app has no readable access key for “" + profile.name + "”. Re-enter the key in this connection’s settings. If you edited ~/.config/jumpybrain/.env by hand, keep it private to you (chmod 600).",
     action: "Re-enter access key", field: "companion-key",
   };
   if (profile.kind === "remote" && value === "authentication_failed") return {
@@ -549,9 +549,9 @@ function companionFormKind() {
   const profile = companionState?.profiles.find(item => item.id === companionEditId);
   const health = profile?.id === companionState?.activeId ? companionState.health : companionHealth.get(profile?.id);
   const repair = ["credential_unavailable", "authentication_failed"].includes(companionHealthText(health));
-  $("companion-key-help").textContent = !companionEditId ? "Saved securely in macOS Keychain."
-    : repair ? "Enter the current server access key to repair this connection. It will be saved securely in macOS Keychain."
-    : "Saved securely in macOS Keychain. Leave blank to keep the saved key.";
+  $("companion-key-help").textContent = !companionEditId ? "Saved in ~/.config/jumpybrain/.env (private to you) and shared with the jumpyBrain CLI."
+    : repair ? "Enter the current server access key to repair this connection. It will be saved in ~/.config/jumpybrain/.env."
+    : "Saved in ~/.config/jumpybrain/.env. Leave blank to keep the saved key.";
   companionFormError("");
 }
 function companionFormError(message) {
@@ -560,7 +560,7 @@ function companionFormError(message) {
 }
 function companionSaveError(error) {
   if (["CREDENTIALS_UNAVAILABLE", "MISSING_CREDENTIAL", "credential_unavailable"].includes(error?.code)) {
-    return "macOS Keychain could not read or save this connection’s access key. Re-enter the current server key and save again. If that still fails, check that your login keychain is unlocked. Your connection has not changed.";
+    return "jumpyBrain could not read or save this connection’s access key in ~/.config/jumpybrain/.env. Re-enter the current server key and save again. If that still fails, check that the file belongs to you and is private (chmod 600). Your connection has not changed.";
   }
   return error?.message || "Could not save this connection. Check the details and try again.";
 }
@@ -769,7 +769,7 @@ $("companion-form").addEventListener("submit", (event) => {
       profile.url = $("companion-url").value.trim();
       profile.allowWrites = $("companion-writes").checked === true;
       const key = $("companion-key").value;
-      if (key) profile.key = key; // Blank edits preserve Keychain, never echo a key back.
+      if (key) profile.key = key; // Blank edits keep the saved key; never echo a key back.
     }
     const previousIds = new Set(companionState.profiles.map(item => item.id));
     try {

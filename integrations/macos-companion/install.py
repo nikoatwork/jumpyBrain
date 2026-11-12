@@ -210,7 +210,7 @@ def build_app(runtime, build, config, previous_app=None, *, reuse_artifact=False
             print("Using a build-local overlay for duplicate CLT SwiftBridging maps.")
         sdk = subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
         options = ["-swift-version", "5", "-O", "-sdk", sdk, "-target", f"{target_architecture}-apple-macos13.0",
-                   "-framework", "AppKit", "-framework", "Security", "-framework", "LocalAuthentication"]
+                   "-framework", "AppKit"]
         # Make compiler inputs explicit rather than trusting arbitrary shell flags.
         environment = {"PATH": f"{compiler.parent}:/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "C",
                        "HOME": str(build), "TMPDIR": str(build)}
@@ -388,7 +388,7 @@ def main():
                 else:
                     if os.path.lexists(app):
                         raise SafetyError("An app appeared during build; refusing replacement")
-                    # Private loopback CONTROL token only; remote keys live in Keychain.
+                    # Private loopback CONTROL token only; remote keys live in ~/.config/jumpybrain/.env.
                     key_file = support / "api-key"
                     if not os.path.lexists(key_file):
                         fd = os.open(key_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)

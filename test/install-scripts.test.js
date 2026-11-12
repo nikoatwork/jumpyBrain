@@ -151,10 +151,10 @@ test("public installer manages reversible per-target read-only policy and custom
     await writeFile(explicitOverride, JSON.stringify({ schemaVersion: 1, remoteTargets: [] }), "utf8");
     const overridden = spawnSync(installedCli, ["status", "--target-url", "https://memory.example"], {
       encoding: "utf8",
-      env: { ...process.env, HOME: home, JUMPYBRAIN_CLI_CONFIG: explicitOverride, JUMPYBRAIN_API_KEY: "" },
+      env: { ...process.env, HOME: home, JUMPYBRAIN_CLI_CONFIG: explicitOverride, JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env" },
     });
     assert.notEqual(overridden.status, 0);
-    assert.match(overridden.stderr, /JUMPYBRAIN_API_KEY is required/);
+    assert.match(overridden.stderr, /No access key for/);
     assert.doesNotMatch(overridden.stderr, /JUMPYBRAIN_REMOTE_TARGET_READ_ONLY/);
 
     runNode(installScript, [...baseArgs, "--allow-write-target", "https://memory.example/another-path"], { env: { HOME: home } });

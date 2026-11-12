@@ -18,7 +18,7 @@ const body = "- SYNTHETIC_BODY_NOT_FOR_STDOUT\r\n\tproperty:: value\r\n\t- TODO 
 function invoke(args, { ok = true, env = {} } = {}) {
   const result = spawnSync(process.execPath, [cli, ...args], {
     encoding: "utf8",
-    env: { ...process.env, JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_QMD_BIN: "/nonexistent/migration-must-not-index", ...env },
+    env: { ...process.env, JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env", JUMPYBRAIN_QMD_BIN: "/nonexistent/migration-must-not-index", ...env },
     timeout: 15000,
   });
   if (ok) assert.equal(result.status, 0, result.stderr || result.stdout);

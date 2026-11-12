@@ -1,7 +1,5 @@
 import AppKit
 import Darwin
-import Security
-import LocalAuthentication
 
 // Native lifecycle and capabilities only; memory and connection policy live in the runtime.
 struct Configuration: Decodable {
@@ -16,13 +14,13 @@ struct Configuration: Decodable {
     let revision: String
 }
 
-// Anonymous child pipes are the only credential transport. Never echo a request or
-// Security error: even malformed frames may contain a key. No plaintext fallback.
+// Anonymous child pipes carry native capabilities (folder selection). Remote access
+// keys live in the runtime's owner-only ~/.config/jumpybrain/.env, never here.
+// Never echo a request: a malformed frame is still treated as private.
 final class NativeBridge {
     private let reader: FileHandle
     private let writer: FileHandle
     private let io = DispatchQueue(label: "local.jumpybrain.companion.rpc")
-    private let credentials = DispatchQueue(label: "local.jumpybrain.companion.keychain")
     private var readSource: DispatchSourceRead?
     private var writeSource: DispatchSourceWrite?
     private var input = Data()
@@ -32,7 +30,6 @@ final class NativeBridge {
     private var writeSuspended = false
     private var panel: NSOpenPanel? // main-thread only
     private let failed: () -> Void
-    private static let service = "local.jumpybrain.companion.connections"
 
     init(reader: FileHandle, writer: FileHandle, failed: @escaping () -> Void) {
         self.reader = reader
@@ -101,26 +98,11 @@ final class NativeBridge {
                       let id = object["id"],
                       let token = Self.idToken(id), !pending.contains(token), pending.count < 32,
                       let operation = object["operation"] as? String,
-                      ["get", "set", "delete", "select-folder"].contains(operation) else {
+                      operation == "select-folder" else {
                     protocolFailure(); return
                 }
                 pending.insert(token)
-                if operation == "select-folder" {
-                    DispatchQueue.main.async { [weak self] in self?.selectFolder(id, token) }
-                } else {
-                    guard let reference = object["reference"] as? String,
-                          !reference.isEmpty, reference.utf8.count <= 256,
-                          !reference.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
-                          operation != "set" || ((object["key"] as? String).map { !$0.isEmpty && $0.utf8.count <= 8192 } == true) else {
-                        reply(id, token, result: nil, unavailable: true); continue
-                    }
-                    let key = object["key"] as? String
-                    credentials.async { [weak self] in
-                        guard let self = self, self.io.sync(execute: { !self.closed }) else { return }
-                        let response = Self.credential(operation, reference, key)
-                        self.io.async { self.reply(id, token, result: response.0, unavailable: response.1) }
-                    }
-                }
+                DispatchQueue.main.async { [weak self] in self?.selectFolder(id, token) }
             }
         }
     }
@@ -133,9 +115,9 @@ final class NativeBridge {
         return nil
     }
 
-    private func reply(_ id: Any, _ token: String, result: String?, unavailable: Bool = false) {
+    private func reply(_ id: Any, _ token: String, result: String?) {
         guard !closed, pending.remove(token) != nil else { return }
-        let object: [String: Any] = unavailable ? ["id": id, "error": "credential_unavailable"] : ["id": id, "result": result as Any? ?? NSNull()]
+        let object: [String: Any] = ["id": id, "result": result as Any? ?? NSNull()]
         guard var data = try? JSONSerialization.data(withJSONObject: object), data.count <= 65536,
               output.count + data.count + 1 <= 262144 else { protocolFailure(); return }
         data.append(10)
@@ -189,43 +171,6 @@ final class NativeBridge {
             let selected = path
             self.io.async { self.reply(id, token, result: selected) }
         }
-    }
-
-    private static func credential(_ operation: String, _ reference: String, _ key: String?) -> (String?, Bool) {
-        // Use the default Keychain; locked/denied access is an explicit failure,
-        // never a prompt at login, a different store, or a plaintext fallback.
-        // The default macOS Keychain may use legacy ACLs, which do not honor
-        // LAContext alone. Disable Security-agent interaction process-wide too:
-        // an ad-hoc rebuild must return unavailable, not wait on a hidden prompt.
-        guard SecKeychainSetUserInteractionAllowed(false) == errSecSuccess else { return (nil, true) }
-        let context = LAContext()
-        context.interactionNotAllowed = true
-        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service, kSecAttrAccount as String: reference,
-            kSecUseAuthenticationContext as String: context]
-        if operation == "get" {
-            var lookup = query
-            lookup[kSecReturnData as String] = true
-            lookup[kSecMatchLimit as String] = kSecMatchLimitOne
-            var item: CFTypeRef?
-            let status = SecItemCopyMatching(lookup as CFDictionary, &item)
-            if status == errSecItemNotFound { return (nil, false) }
-            guard status == errSecSuccess, let data = item as? Data, data.count <= 8192,
-                  let value = String(data: data, encoding: .utf8), !value.isEmpty else { return (nil, true) }
-            return (value, false)
-        }
-        if operation == "delete" {
-            let status = SecItemDelete(query as CFDictionary)
-            return (nil, status != errSecSuccess && status != errSecItemNotFound)
-        }
-        guard let data = key?.data(using: .utf8) else { return (nil, true) }
-        let status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        if status == errSecItemNotFound {
-            var addition = query
-            addition[kSecValueData as String] = data
-            return (nil, SecItemAdd(addition as CFDictionary, nil) != errSecSuccess)
-        }
-        return (nil, status != errSecSuccess)
     }
 }
 
@@ -635,7 +580,7 @@ final class Companion: NSObject, NSApplicationDelegate {
 
     private func present(_ state: CompanionState) {
         connectionState = state
-        let suffix = state.health == "connected" ? "Connected" : state.health == "credential_unavailable" ? "Keychain unavailable" : "Offline"
+        let suffix = state.health == "connected" ? "Connected" : state.health == "credential_unavailable" ? "Access key unavailable" : "Offline"
         // Profile names are untrusted display text, not log messages.
         let label = state.active?.name.replacingOccurrences(of: "\n", with: " ") ?? "Selected brain"
         let text = "\(label) · \(suffix)" + (state.phase == "preparing" ? " · Switching…" : "")

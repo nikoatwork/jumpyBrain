@@ -359,7 +359,7 @@ try {
     await switchUI("Smoke remote", r.id);
     assert.equal(gateway.state().health, "credential_unavailable");
     assert.equal(JSON.parse(await readFile(path.join(directory, "connections.json"), "utf8")).activeId, r.id);
-    // Restore only the fake credential map; do not touch native Keychain.
+    // Restore only the fake credential map; never touch a real key file.
     keys.set(gateway.store.get(r.id).credentialRef, repairedKey);
     await switchUI("Smoke local B", b.id);
     await remote.close(); remote = null;

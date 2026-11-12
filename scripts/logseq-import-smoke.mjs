@@ -22,7 +22,7 @@ let server, browser;
 function cli(args, ok = true) {
   const result = spawnSync(process.execPath, [path.join(packageRoot, "dist/cli.js"), ...args], {
     encoding: "utf8", timeout: 120000,
-    env: { ...process.env, JUMPYBRAIN_CLI_CONFIG: path.join(base, "cli-policy.json"), JUMPYBRAIN_API_KEY: "" },
+    env: { ...process.env, JUMPYBRAIN_CLI_CONFIG: path.join(base, "cli-policy.json"), JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env" },
   });
   assert.equal(result.status === 0, ok, result.stderr || result.stdout);
   return ok ? JSON.parse(result.stdout) : result;

@@ -92,9 +92,9 @@ test("bounded flags fail clearly before credentials and never silently discard b
     ["expand", "--id", id, "--if-match", "sha256:" + "a".repeat(64), "--section-line", "8", "--end-line", "9"],
     ["expand", "--id", id, "--if-match", "sha256:" + "a".repeat(64), "--strat-line", "9"],
   ]) {
-    await assert.rejects(run([...args, "--target-url", "https://memory.invalid"], { JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_CLI_CONFIG: "/tmp/nonexistent-bounded-policy" }), error => {
+    await assert.rejects(run([...args, "--target-url", "https://memory.invalid"], { JUMPYBRAIN_API_KEY: "", JUMPYBRAIN_ENV_FILE: "/nonexistent/jumpybrain-test.env", JUMPYBRAIN_CLI_CONFIG: "/tmp/nonexistent-bounded-policy" }), error => {
       assert.equal(error.stdout, "");
-      assert.doesNotMatch(error.stderr, /JUMPYBRAIN_API_KEY is required|fetch failed/);
+      assert.doesNotMatch(error.stderr, /No access key for|fetch failed/);
       return true;
     });
   }

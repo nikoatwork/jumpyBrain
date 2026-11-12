@@ -136,7 +136,7 @@ def prepare(bundle, home, source=SOURCE):
     for name in ('gateway.mjs', 'extensions-gateway.mjs', 'live-gateway.mjs', 'connections.mjs', 'switch-coordinator.mjs'):
         shutil.copy2(source / 'integrations/macos-companion' / name, native / name)
     # Configuration.json is sealed into the native helper's ad-hoc signature.
-    # A random packaging directory changes its cdhash (and therefore its Keychain
+    # A random packaging directory changes its cdhash (and therefore its code
     # identity) even when the helper code and all other resources are unchanged.
     # Use the stable installed location here. --desktop-host still resolves the
     # actual enclosing app at launch, including staged readiness/relocated apps.

@@ -183,7 +183,7 @@ For intentional CLI-only version changes, pass `--ref <ref>` or set `JUMPYBRAIN_
 
 ## Uninstall
 
-The unified Mac app has its own bundled runtime and can remain installed when removing the CLI. To remove it, disable **Start at Login**, quit, and move `~/Applications/jumpyBrain.app` to Trash. Its connections/support directory, Keychain items, and Markdown remain. An older standalone companion still depends on the managed CLI runtime and must be [removed first](../integrations/macos-companion/README.md#remove).
+The unified Mac app has its own bundled runtime and can remain installed when removing the CLI. To remove it, disable **Start at Login**, quit, and move `~/Applications/jumpyBrain.app` to Trash. Its connections/support directory, `~/.config/jumpybrain/.env` access keys, and Markdown remain. An older standalone companion still depends on the managed CLI runtime and must be [removed first](../integrations/macos-companion/README.md#remove).
 
 Uninstall requires a valid, supported `install-manifest.json` whose recorded install root and owned paths match the selected root. It fails closed before deleting anything when that ownership proof is missing, malformed, unsupported, or inconsistent. A valid uninstall removes only the recorded app, shim, CLI policy config, manifest, and integration files. It preserves Markdown memory by default.
 
@@ -274,7 +274,7 @@ For dogfooding in another repo, maintainer local tarball workflows are documente
 jumpyBrain is structured around three paths while keeping one memory system:
 
 1. **Local runtime install:** current installer path; CLI and runtime run on the same machine as a local Markdown memory root.
-2. **Hosted client use:** install the CLI and point it at a deployed jumpyBrain server with `--target-url` plus `JUMPYBRAIN_API_KEY`.
+2. **Hosted client use:** install the CLI and point it at a deployed jumpyBrain server with `--target-url` plus `JUMPYBRAIN_API_KEY` (or the key the Mac app saved for that address in `~/.config/jumpybrain/.env`).
 3. **Server deploy:** self-host the runtime on a VPS/server against a server-local Markdown memory root. See [`vps-deploy.md`](vps-deploy.md) or [`coolify-deploy.md`](coolify-deploy.md).
 
 Vercel is not a supported production target for the memory server because the current server needs durable local filesystem state; see [`vercel-deploy.md`](vercel-deploy.md).

@@ -49,6 +49,8 @@ For the default CLI installation:
 
 The installer also verifies or installs QMD, the local search dependency, through npm's global package location. Desktop setup adds `~/Applications/jumpyBrain.app` and app settings under `~/Library/Application Support/`. It downloads build dependencies and needs the [documented Mac prerequisites](install.md#macos-desktop-app-beta).
 
+Access keys for remote (shared/VPS) brains are saved in `~/.config/jumpybrain/.env`, a plain-text file only your user account can read (`chmod 600`). The Mac app and the CLI share it, so a key entered in the app also works for `jumpybrain --target-url` with the same address, and app updates keep it. jumpyBrain refuses the file if other users can read it. Anything running as your user can read it too, so treat it like an SSH key. `JUMPYBRAIN_API_KEY` in the environment still takes priority.
+
 “Global” installation means across projects for this user on this computer. It does **not** mean global/team/cloud memory. “CLI policy: not configured” means no optional remote write restrictions have been recorded, not that a remote connection exists.
 
 ## Do I need both? Do I need a GitHub account?
