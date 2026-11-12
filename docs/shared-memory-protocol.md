@@ -920,7 +920,7 @@ Boards are canonical version-1 JSON files under the server-local memory root, se
 | `/memories/all/drawings/:name` | GET | `{name, scene, contentHash, updatedAt}` |
 | `/memories/all/drawings` | POST | `{name, scene?}`; create only, empty scene by default |
 | `/memories/all/drawings/:name` | PUT | `{scene}`, required `If-Match: sha256:…` |
-| `/memories/all/drawings/:name` | PATCH | `{name}` renames; required If-Match; never overwrites |
+| `/memories/all/drawings/:name` | PATCH | `{name}` renames; required If-Match; never overwrites. Also rewrites `[[Old.excalidraw]]` mentions in notes and returns the drawing plus `mentions:{updated:[{id,title}], failed:[{id,title,code}]}` |
 | `/memories/all/drawings/:name` | DELETE | Required If-Match; returns `{name, deleted:true, notesPreserved:true}` |
 
 A drawing name is its filename without `.excalidraw`: 1–100 characters, no control characters, `/ \ : [ ] | #`, or leading/trailing dot or space. A scene is standard Excalidraw JSON (`type:"excalidraw"`, `elements`, optional `appState`/`files`), at most 4 MiB stored; these routes accept request bodies up to 5 MiB. Errors use `invalid_drawing` (400), `drawing_missing` (404), `drawing_conflict`/`drawing_busy` (409) and 428 without If-Match. Drawings are not searched, recalled or indexed, and writes do not schedule indexing. `GET /drawing-frame` and `GET /drawing-app/*` are public, content-free editor files.

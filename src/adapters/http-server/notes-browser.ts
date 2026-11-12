@@ -861,7 +861,16 @@ const noteFind = JumpyBrainBrowser.installNoteFind({
 });
 const referenceAutocomplete = window.installReferenceAutocomplete($("note-editor"), richEditor, {
   createSearch: createNoteSearch,
-  fetch: searchMemoryNotes,
+  // Drawing file names join the inline [[ / @ picker like Cmd/Ctrl+K; they need no index.
+  fetch: async (query, signal) => {
+    const drawings = typeof drawingsUI !== "undefined" ? await drawingsUI.match(query) : [];
+    signal.throwIfAborted();
+    try { return { ...await searchMemoryNotes(query, signal), drawings }; }
+    catch (error) {
+      if (!drawings.length || error?.name === "AbortError") throw error;
+      return { results: [], drawings };
+    }
+  },
   getSession: () => state.noteToken + ":" + credentialRevision,
   isEnabled: () => !(typeof companionMode !== "undefined" && companionMode && companionReadOnly()) && state.view === "note" && state.editor?.state.loaded && !state.editor.state.navigationPending
     && !searchDialog.open && !connectionDialog.open && !dreamDialog.open && !feedback.isOpen() && !documentActions.isOpen(),

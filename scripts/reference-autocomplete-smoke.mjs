@@ -22,6 +22,7 @@ const server = createServer((req, res) => {
     <script src="/editor.js"></script><script>
       ${controllers}
       var changes=[], follows=[], errors=[], requests=[], held=[], session=0, mode="ready", transportStale=false;
+      var fixtureDrawings = [];
       var fixtureResults = ["Alpha", "Beta"].map((title,i) => ({provenance:{file:"notes/"+i+".md", metadata:{id:"mem_90000000-0000-4000-8000-"+String(i+1).padStart(12,"0"),title}},snippet:"Fixture result"}));
       var richEditor = window.createJumpyBrainNoteEditor(document.querySelector('#note-editor'), {
         atReferenceTrigger: ${req.url === "/?at=1"},
@@ -34,7 +35,7 @@ const server = createServer((req, res) => {
           if(mode === "hold") return new Promise(resolve => held.push(resolve));
           if(mode === "auth") throw Object.assign(new Error("auth"),{status:401});
           if(mode === "error") throw Object.assign(new Error("unavailable"),{status:500});
-          return {results:fixtureResults,index:{stale:transportStale}};
+          return {results:fixtureResults,drawings:fixtureDrawings,index:{stale:transportStale}};
         }
       });
     </script>`);
@@ -337,6 +338,16 @@ try {
         await visible(page); await bounded(page);
       } finally { await session.detach(); }
     });
+    for (const trigger of ["[[", "@"]) await check(`drawing names are offered by ${trigger} and insert a drawing mention`, async (page) => {
+      await page.evaluate(() => { fixtureDrawings = [{ documentId: null, drawing: "System map", file: "drawings/System map.excalidraw", title: "System map", referenceTitle: null, snippet: "Drawing" }]; });
+      await load(page, "See "); await appendEditorText(page, trigger + "sys"); await ready(page, "sys");
+      const options = await page.locator('[data-reference-autocomplete] [role=option]').allInnerTexts();
+      assert.match(options[0], /^System map/, "drawing file names lead the suggestions");
+      assert.equal(await page.locator('[data-reference-autocomplete] [role=option]').first().getAttribute("aria-disabled"), "false");
+      await page.keyboard.press("Enter");
+      assert.equal(await editorMarkdown(page), "See [[System map.excalidraw]]");
+      await page.evaluate(() => { fixtureDrawings = []; });
+    }, trigger === "@");
     await check("code/escape contexts remain inert; destroy removes popup", async (page) => {
       for (const source of ["\\[[alp", "![[alp", "`[[alp`", "```\n[[alp\n```", "    [[alp",
         "`first\n[[alp\nlast`", "``first\n` [[alp\nlast``", "> ```\n> [[alp\n> ```",

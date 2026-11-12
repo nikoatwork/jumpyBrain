@@ -5,7 +5,11 @@ import { searchPreview } from "./search-presentation.js";
 import { referenceEligibility } from "./reference-policy.js";
 
 type Bridge = Pick<ReturnType<typeof createNoteEditor>, "autocompleteRange" | "subscribeReferenceContext" | "captureSelection" | "getMarkdown" | "insertReference" | "restoreSelection">;
-type Result = { documentId: string | null; title: string; referenceTitle: string | null; snippet?: string };
+type Result = { documentId: string | null; title: string; referenceTitle: string | null; snippet?: string; drawing?: string };
+const DRAWING_EXTENSION = ".excalidraw";
+/** A drawing result is a file name, never a note ID; it inserts `[[Name.excalidraw]]`. */
+const referenceText = (result: Result) => result.drawing ? result.drawing + DRAWING_EXTENSION : result.referenceTitle;
+const choosable = (result: Result | undefined) => Boolean(result?.documentId || result?.drawing);
 type SearchState = { query: string; status: string; results: Result[]; selected: number; stale: boolean; message: string };
 type Search = {
   state: SearchState;
@@ -152,26 +156,27 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
     popup.style.top = Math.max(y + 8, Math.min(top, y + height - box.height - 8)) + "px";
   }
   function sameResult(left: Result | undefined, right: Result | undefined) {
-    return Boolean(left && right && left.documentId === right.documentId && left.title === right.title && left.referenceTitle === right.referenceTitle);
+    return Boolean(left && right && left.documentId === right.documentId && left.title === right.title && left.referenceTitle === right.referenceTitle && left.drawing === right.drawing);
   }
   function problem(result: Result) {
+    if (result.drawing) return "";
     const reason = referenceEligibility(result, search.state.results);
     if (reason === "visible_duplicate") return "Several results share this title. Choose another title.";
     return reason ? "No safe exact page title. Choose another note." : "";
   }
   function render() {
     const state = search.state;
-    const key = JSON.stringify(state.results.map((result) => [result.documentId, result.title, result.referenceTitle, result.snippet]));
+    const key = JSON.stringify(state.results.map((result) => [result.documentId, result.title, result.referenceTitle, result.snippet, result.drawing]));
     // Freshness/selection refreshes must never detach a pointer's click target.
     // Defer even a changed result set until release; acceptance checks its identity.
     if (key !== renderedKey && !gesture && !pendingTap) {
       const previousRows = new Map(renderedResults.map((result, index) => [
-        JSON.stringify([result.documentId, result.title, result.referenceTitle]), list.children[index] as HTMLElement,
+        JSON.stringify([result.documentId, result.title, result.referenceTitle, result.drawing]), list.children[index] as HTMLElement,
       ]));
       renderedKey = key;
       renderedResults = state.results.map((result) => ({ ...result }));
       list.replaceChildren(...renderedResults.map((result, index) => {
-        const row = previousRows.get(JSON.stringify([result.documentId, result.title, result.referenceTitle])) || doc.createElement("div");
+        const row = previousRows.get(JSON.stringify([result.documentId, result.title, result.referenceTitle, result.drawing])) || doc.createElement("div");
         row.id = id + "-option-" + index;
         row.dataset.index = String(index);
         row.setAttribute("role", "option");
@@ -250,7 +255,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
       bridge.restoreSelection(next.caret);
       const revalidated = live();
       if (!revalidated || revalidated.key !== expected || !Object.is(options.getSession?.(), oldSession)) { hide(); return; }
-      if (!bridge.insertReference(revalidated.range, "[[" + result.referenceTitle + "]]")) {
+      if (!bridge.insertReference(revalidated.range, "[[" + referenceText(result) + "]]")) {
         throw new Error("Reference insertion rejected: editor changed.");
       }
       hide(); schedule();
@@ -280,7 +285,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
     refresh();
     if (!active || popup.hidden) return;
     if (key.key === "Escape") { key.preventDefault(); key.stopImmediatePropagation(); dismiss(); }
-    else if (["ArrowDown", "ArrowUp", "Enter"].includes(key.key) && search.state.results.some((result) => result.documentId)) {
+    else if (["ArrowDown", "ArrowUp", "Enter"].includes(key.key) && search.state.results.some(choosable)) {
       key.preventDefault(); key.stopImmediatePropagation();
       if (key.key === "Enter") choose(search.state.selected);
       else { search.move(key.key === "ArrowDown" ? 1 : -1); revealSelected(); }

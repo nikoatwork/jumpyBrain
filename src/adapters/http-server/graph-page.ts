@@ -510,6 +510,8 @@ const drawingsUI = createDrawingsUI({
   theme: () => document.documentElement.dataset.theme === "dark" ? "dark" : "light",
   message: (text, error) => toast.dispatch({ source: "drawings", text, severity: error ? "error" : "success", duration: 6_000 }),
   ready: (ready) => { window.__jumpyBrainDrawingReady = ready; },
+  // Rewritten mentions change notes: drop cached graph/search results like a created reference target.
+  notesChanged: () => referenceTargetCreated(),
   icon: ${JSON.stringify(drawingIcon)},
 });
 ${notesScript}

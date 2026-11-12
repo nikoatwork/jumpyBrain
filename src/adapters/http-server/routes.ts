@@ -2,7 +2,7 @@ import type { Principal } from "../access-control/index.js";
 import type { CollaborationHub } from "../../app/collaboration/index.js";
 import { applyServerMemoryFileOperation } from "../../app/server-memory/folder-explorer-operations.js";
 import { listBoards, readBoard, saveBoard, deleteBoard, getBoardStatus, BoardError } from "../../app/server-memory/boards.js";
-import { listDrawings, readDrawing, createDrawing, saveDrawing, renameDrawing, deleteDrawing, DrawingError, DRAWING_MAX_BYTES } from "../../app/server-memory/drawings.js";
+import { listDrawings, readDrawing, createDrawing, saveDrawing, renameServerMemoryDrawing, deleteDrawing, DrawingError, DRAWING_MAX_BYTES } from "../../app/server-memory/drawings.js";
 import { drawingStaticResponse, isDrawingStaticPath } from "./drawing-assets.js";
 import { normalizeMemoryActor } from "../../core/contribution.js";
 import { normalizeRecognitionOptions } from "../../core/search-recognition.js";
@@ -175,7 +175,14 @@ export async function routeRequest(context: { principal?: Principal; collaborati
           const field = request.method === "PUT" ? "scene" : "name";
           if (Object.keys(packet).length !== 1 || !(field in packet)) throw new DrawingError("invalid_drawing", request.method === "PUT" ? "Use a scene." : "Use a new name.");
           result = request.method === "PUT" ? await enqueueWrite(() => saveDrawing(root, name, packet.scene, ifMatch))
-            : await enqueueWrite(() => renameDrawing(root, name, packet.name as string, ifMatch));
+            : await enqueueWrite(async () => {
+              // Mentions in notes follow the rename through the same live-editing guard as document writes.
+              const renamed = await renameServerMemoryDrawing({ root, name, nextName: packet.name as string, ifMatch,
+                beforeNoteWrite: async id => { await context.collaboration?.beforeLegacyWrite(id); },
+                afterNoteWrite: async id => { await context.collaboration?.notifyCanonicalWrite(id); } });
+              if (renamed.mentions.updated.length) context.onMemoryWrite?.();
+              return renamed;
+            });
         }
       } else { writeJson(response, 405, errorResponse("method_not_allowed", "Unsupported drawing operation.")); return; }
       writeJson(response, 200, result); return;

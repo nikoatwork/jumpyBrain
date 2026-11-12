@@ -360,7 +360,17 @@ function createDrawingsUI(host) {
         session.name = record.name; session.hash = record.contentHash;
         nameInput.value = record.name;
         host.replaceUrl("/?drawing=" + encodeURIComponent(record.name));
-        host.message("Renamed. Update notes that mention the old name.", false);
+        // An older server renames the file only and reports no mentions.
+        if (!record.mentions) { host.message("Renamed. Update notes that mention the old name.", false); return; }
+        const mentions = record.mentions;
+        const updated = Array.isArray(mentions.updated) ? mentions.updated.length : 0, failed = Array.isArray(mentions.failed) ? mentions.failed : [];
+        if (updated && host.notesChanged) host.notesChanged();
+        const plural = (count) => count === 1 ? "1 note" : count + " notes";
+        if (failed.length) {
+          const named = failed.map((note) => note.title).filter(Boolean).slice(0, 3).join(", ");
+          host.message("Renamed" + (updated ? " and updated " + plural(updated) : "") + ". " + plural(failed.length) + " still mention the old name"
+            + (named ? " (" + named + ")" : "") + ". Update them by hand.", true);
+        } else host.message(updated ? "Renamed. Updated mentions in " + plural(updated) + "." : "Renamed.", false);
       } catch (error) {
         if (current !== session) return;
         nameInput.value = session.name;

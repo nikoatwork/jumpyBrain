@@ -7,3 +7,4 @@
 - The editor downloads about a fifth less code (roughly 181 KB instead of 224 KB compressed), so notes open a little faster on slow connections.
 - Settings now opens as a large card over the app instead of taking over the sidebar. Press Esc (or click outside) to close it, and Cmd+F to search all settings.
 - Shared brains: admins can now create and revoke access keys for teammates and agents in Settings → Access keys, in the browser under Connection settings, or with `jumpybrain access … --target-url`. Each new key is shown once with a ready-to-send invite. Brains on your own Mac still need no keys.
+- Renaming a drawing now updates `[[Name.excalidraw]]` mentions in your notes, and drawing names show up when you type `[[` (or `@` on the Mac) in a note.

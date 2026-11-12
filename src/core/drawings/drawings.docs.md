@@ -6,6 +6,8 @@ Own `drawings/<Name>.excalidraw` persistence at the canonical memory root, indep
 
 Listing reads file metadata only and counts unsupported entries as `skipped` without repairing or removing them. Reads refuse links and nonregular or oversized files and never create directories. Writes share an exclusive `drawings/.write.lock`; a lock whose recorded process no longer exists on this machine is replaced so an autosaving editor is not blocked by a crash. Save, rename and delete require the hash of the prior exact file bytes; creation refuses an existing name. Publication fsyncs a private temporary file and atomically renames it. Rename never overwrites another drawing; a case-only rename addresses the same file on case-insensitive volumes.
 
+`mentions.ts` owns the pure mention rewrite used on rename: it replaces exact-name `[[Name.excalidraw]]` targets (including `![[…]]`, `#heading` and `|alias` forms, any extension case) in the note body and preserves every other byte. Frontmatter, fenced code, inline code spans, escaped openers and other names, including case variants, stay literal.
+
 ## Non-responsibilities
 
 No indexing, search, note-content writes, rendering or Markdown conversion. Drawings are human workspace files beside canonical Markdown memory, not recallable memory: agents read meaning from the notes that mention them. No merge of concurrent edits and no hostile-filesystem guarantee: external writers that ignore the lock can still race publication, and are detected only by the next hash-checked write.

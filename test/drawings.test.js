@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { initializeMemoryRoot, graphMemory, listDrawings, readDrawing, createDrawing, saveDrawing, renameDrawing, deleteDrawing,
-  isDrawingName, drawingNameFromReference } from '../dist/runtime/index.js';
+  isDrawingName, drawingNameFromReference, rewriteDrawingMentions, renameDrawingAndMentions } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { graphPageHtml } from '../dist/adapters/http-server/graph-page.js';
 import { drawingStaticResponse, DRAWING_FRAME_CSP } from '../dist/adapters/http-server/drawing-assets.js';
@@ -128,6 +128,53 @@ test('a drawing mention is not an unresolved note in the graph', async t => {
   assert.deepEqual(graph.nodes.filter(node => node.nodeKind === 'unresolved').map(node => node.id), ['unresolved:missing page']);
 });
 
+test('drawing mention rewrites touch only exact body mentions outside code', () => {
+  const source = [
+    '---', 'id: mem_00000000-0000-4000-8000-0000000000b1', 'related: "[[Plan.excalidraw]]"', '---', '',
+    'See [[Plan.excalidraw]], [[ Plan.excalidraw |the plan]], [[Plan.Excalidraw#top]] and ![[Plan.excalidraw]].',
+    'Not [[Plan 2.excalidraw]], [[plan.excalidraw]], [[Plan]], \\[[Plan.excalidraw]] or `[[Plan.excalidraw]]`.',
+    '``a `[[Plan.excalidraw]]` b`` then [[Plan.excalidraw]]',
+    '```md', '[[Plan.excalidraw]]', '```', '~~~~', '[[Plan.excalidraw]]', '~~~', 'still fenced [[Plan.excalidraw]]', '~~~~', 'After [[Plan.excalidraw]]',
+  ].join('\r\n');
+  const { content, count } = rewriteDrawingMentions(source, 'Plan', 'Roadmap v2');
+  assert.equal(count, 6);
+  assert.equal(content, [
+    '---', 'id: mem_00000000-0000-4000-8000-0000000000b1', 'related: "[[Plan.excalidraw]]"', '---', '',
+    'See [[Roadmap v2.excalidraw]], [[ Roadmap v2.excalidraw |the plan]], [[Roadmap v2.Excalidraw#top]] and ![[Roadmap v2.excalidraw]].',
+    'Not [[Plan 2.excalidraw]], [[plan.excalidraw]], [[Plan]], \\[[Plan.excalidraw]] or `[[Plan.excalidraw]]`.',
+    '``a `[[Plan.excalidraw]]` b`` then [[Roadmap v2.excalidraw]]',
+    '```md', '[[Plan.excalidraw]]', '```', '~~~~', '[[Plan.excalidraw]]', '~~~', 'still fenced [[Plan.excalidraw]]', '~~~~', 'After [[Roadmap v2.excalidraw]]',
+  ].join('\r\n'), 'line endings, frontmatter and code are preserved');
+  assert.deepEqual(rewriteDrawingMentions('No mention', 'Plan', 'Other'), { content: 'No mention', count: 0 });
+  assert.equal(rewriteDrawingMentions('[[Plan.excalidraw]]', 'Plan', 'bad|name').count, 0, 'an unsafe target is never written');
+  // An unclosed backtick is literal text, not a code span.
+  assert.equal(rewriteDrawingMentions('a ` b [[Plan.excalidraw]]', 'Plan', 'X').content, 'a ` b [[X.excalidraw]]');
+});
+
+test('renaming a drawing updates note mentions and reports notes it could not update', async t => {
+  const root = await fixture(t);
+  await mkdir(path.join(root, 'notes'), { recursive: true });
+  const ids = { a: 'mem_00000000-0000-4000-8000-0000000000c1', b: 'mem_00000000-0000-4000-8000-0000000000c2', c: 'mem_00000000-0000-4000-8000-0000000000c3' };
+  const note = (id, title, body) => `---\nid: ${id}\ntype: note\ntitle: ${title}\n---\n\n${body}\n`;
+  await writeFile(path.join(root, 'notes/a.md'), note(ids.a, 'Alpha', 'Sketch: [[Plan.excalidraw]]'));
+  await writeFile(path.join(root, 'notes/b.md'), note(ids.b, 'Beta', 'Also [[Plan.excalidraw|plan]]'));
+  await writeFile(path.join(root, 'notes/c.md'), note(ids.c, 'Gamma', 'Unrelated [[Other.excalidraw]]'));
+  const untouched = await readFile(path.join(root, 'notes/c.md'), 'utf8');
+  const created = await createDrawing(root, 'Plan');
+  const seen = [];
+  const result = await renameDrawingAndMentions({ root, name: 'Plan', nextName: 'Roadmap', ifMatch: created.contentHash,
+    beforeNoteWrite: async id => { seen.push(id); if (id === ids.b) throw Object.assign(new Error('busy'), { code: 'live_edits_pending' }); } });
+  assert.equal(result.name, 'Roadmap');
+  assert.deepEqual(seen, [ids.a, ids.b], 'only notes that mention the drawing are visited');
+  assert.deepEqual(result.mentions, { updated: [{ id: ids.a, title: 'Alpha' }], failed: [{ id: ids.b, title: 'Beta', code: 'live_edits_pending' }] });
+  assert.match(await readFile(path.join(root, 'notes/a.md'), 'utf8'), /Sketch: \[\[Roadmap\.excalidraw\]\]/);
+  assert.match(await readFile(path.join(root, 'notes/b.md'), 'utf8'), /Also \[\[Plan\.excalidraw\|plan\]\]/, 'a refused note keeps its text');
+  assert.equal(await readFile(path.join(root, 'notes/c.md'), 'utf8'), untouched);
+  // Renaming back without hooks rewrites the note mentions again.
+  const back = await renameDrawingAndMentions({ root, name: 'Roadmap', nextName: 'Plan', ifMatch: result.contentHash });
+  assert.deepEqual(back.mentions, { updated: [{ id: ids.a, title: 'Alpha' }], failed: [] });
+});
+
 test('HTTP drawing routes authenticate, require prior hashes and keep readers read-only', async t => {
   const root = await fixture(t);
   const server = await startJumpyBrainHttpServer({ root, apiKeys: ['fixture'], port: 0, host: '127.0.0.1', autoIndex: false });
@@ -165,8 +212,12 @@ test('HTTP drawing routes authenticate, require prior hashes and keep readers re
   assert.equal((await asReader(route, 'PUT', { scene: scene() }, { 'If-Match': large.body.contentHash })).status, 403);
   assert.equal((await asReader(route, 'DELETE', undefined, { 'If-Match': large.body.contentHash })).status, 403);
 
+  await mkdir(path.join(root, 'notes'), { recursive: true });
+  await writeFile(path.join(root, 'notes/m.md'), '---\nid: mem_00000000-0000-4000-8000-0000000000d1\ntype: note\ntitle: Mentions\n---\n\nOpen [[System map.excalidraw]].\n');
   const renamed = await json(await request(route, 'PATCH', { name: 'Roadmap' }, { 'If-Match': large.body.contentHash }));
   assert.equal(renamed.body.name, 'Roadmap');
+  assert.deepEqual(renamed.body.mentions, { updated: [{ id: 'mem_00000000-0000-4000-8000-0000000000d1', title: 'Mentions' }], failed: [] });
+  assert.match(await readFile(path.join(root, 'notes/m.md'), 'utf8'), /Open \[\[Roadmap\.excalidraw\]\]\./);
   assert.equal((await request(route)).status, 404);
   assert.equal((await request('/memories/all/drawings/a/b')).status, 400);
   assert.equal((await request('/memories/all/drawings/%E0%A4%A')).status, 400);

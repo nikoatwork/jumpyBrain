@@ -48,6 +48,10 @@
 
 - Overlapping live edits now merge instead of forcing review, same-position typing keeps each writer's run whole, renames are last-writer-wins, and shared brains stop re-reading the note per keystroke; verified with two- and three-writer browser runs locally and on the hosted brain. [Findings, checks and limits](done/2026-11-10_tasks-seamless-live-coediting.md).
 
+## 2026-11-10 — Drawing mentions follow renames
+
+- Drawing renames rewrite note mentions server-side under the live-editing guard and report notes they could not update; the inline `[[`/`@` picker offers drawing names. [Implementation, checks and limits](done/2026-11-10_tasks-drawing-mention-rename.md).
+
 ## 2026-11-10 — v0.3.22 beta
 
 - Published built-in drawings with the pending search, attention/recovery and UI fixes as an owner-approved second release of the day; verified all three assets and refreshed the public demo to the exact tagged revision. [Release and checks](done/2026-11-10_tasks-release-v0.3.22.md).

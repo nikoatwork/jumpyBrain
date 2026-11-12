@@ -38,7 +38,7 @@ The Mac-shell smoke found and fixed one defect during the task: a drawing link f
 
 - No CLI or remote-client commands for drawings; agents on the same machine can write files into `drawings/`, hosted agents cannot yet.
 - No content search, indexing, embedding in notes, thumbnails, live multiplayer or merge; concurrent edits resolve by an explicit choice.
-- Existing mentions are not updated on rename, and there is no inline `[[` autocomplete for drawings (the search picker and Copy mention insert them).
+- Existing mentions are not updated on rename, and there is no inline `[[` autocomplete for drawings (the search picker and Copy mention insert them). Both addressed later the same day in [drawing mentions follow renames](2026-11-10_tasks-drawing-mention-rename.md).
 - English interface only; CJK handwriting font and Mermaid import are not shipped.
 - Not exercised: touch/stylus, Safari/Firefox, OS clipboard image paste, export output, very large scenes, assistive technology in the canvas, an installed or packaged Mac app, a hosted container deployment.
 - The opt-in multiplayer production contract pins the previous `scripts/package-budget.mjs` digest and was not re-captured.

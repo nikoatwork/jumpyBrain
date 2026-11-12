@@ -53,12 +53,14 @@ async function saved(page) {
 
 try {
   await mkdir(path.join(root, "notes"));
-  await writeFile(path.join(root, "notes/mention.md"), `---\nid: ${noteId}\ntype: note\ntitle: Mention fixture\n---\n\nSee [[System map.excalidraw]] for the picture.\n`);
+  const mentionFixture = `---\nid: ${noteId}\ntype: note\ntitle: Mention fixture\n---\n\nSee [[System map.excalidraw]] for the picture.\n`;
+  await writeFile(path.join(root, "notes/mention.md"), mentionFixture);
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
 
   for (const width of [1280, 390]) {
     await rm(path.join(root, "drawings"), { recursive: true, force: true });
+    await writeFile(path.join(root, "notes/mention.md"), mentionFixture);
     const context = await browser.newContext({ viewport: { width, height: 860 }, colorScheme: width === 390 ? "dark" : "light" });
     await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: server.url });
     const page = await context.newPage();
@@ -136,6 +138,27 @@ try {
     await ready(page);
     assert.equal(new URL(page.url()).searchParams.get("drawing"), "System map");
     assert.deepEqual(await readdir(path.join(root, "notes")), ["mention.md"], "a drawing mention creates no note");
+
+    // Renaming rewrites mentions in notes and says so; renaming back restores them.
+    for (const [from, to] of [["System map", "System sketch"], ["System sketch", "System map"]]) {
+      await page.locator("#drawing-name").fill(to);
+      await page.locator("#drawing-name").press("Enter");
+      await page.locator("#toast-message").filter({ hasText: "Renamed. Updated mentions in 1 note." }).waitFor();
+      await waitFor(async () => (await readFile(path.join(root, "notes/mention.md"), "utf8")).includes(`See [[${to}.excalidraw]] for`), "note mention follows the rename");
+      assert.equal((await readFile(path.join(root, "notes/mention.md"), "utf8")).includes(`[[${from}.excalidraw]]`), false);
+    }
+
+    // The inline [[ picker offers drawing names and inserts a drawing mention.
+    await page.goto(`${server.url}/?note=${noteId}#apiKey=${key}`);
+    await page.locator("#note-editor", { hasText: "System map.excalidraw" }).waitFor();
+    await page.locator("#note-editor").click();
+    await page.keyboard.press(`${modifier}+End`);
+    await page.keyboard.type(" [[system");
+    await page.locator('[data-reference-autocomplete] [role=option]', { hasText: "System map" }).first().waitFor({ state: "visible" });
+    await page.keyboard.press("Enter");
+    await waitFor(async () => (await readFile(path.join(root, "notes/mention.md"), "utf8")).split("[[System map.excalidraw]]").length === 3, "picker inserted a drawing mention");
+    await page.goto(`${server.url}/?drawing=${encodeURIComponent("System map")}#apiKey=${key}`);
+    await ready(page);
 
     // A newer version on disk is never overwritten silently.
     const newer = await scene("System map");
@@ -217,6 +240,20 @@ try {
       assert.equal(stored.elements.filter((item) => item.type === "rectangle").length, 1, "the Mac shell saves into the selected local brain");
       if (screenshots) await page.screenshot({ path: path.join(screenshots, "drawing-companion.png") });
 
+      // On the Mac, @ offers drawing names too and inserts the same mention.
+      const localNote = "mem_90000000-0000-4000-8000-0000000000d2", localNoteFile = path.join(local, "notes", "at.md");
+      await writeFile(localNoteFile, `---\nid: ${localNote}\ntype: note\ntitle: At fixture\n---\n\nSketch:\n`);
+      await page.goto(gateway.url + "/?brain=" + localId + "&note=" + localNote);
+      await idle();
+      await page.locator("#note-editor", { hasText: "Sketch:" }).waitFor();
+      await page.locator('#note-editor[contenteditable="true"]').waitFor({ state: "visible" });
+      await page.locator("#note-editor").click();
+      await page.keyboard.press((await page.evaluate(() => /Mac/.test(navigator.platform))) ? "Meta+End" : "Control+End");
+      await page.keyboard.type(" @untitled");
+      await page.locator('[data-reference-autocomplete] [role=option]', { hasText: "Untitled drawing" }).first().waitFor({ state: "visible" });
+      await page.keyboard.press("Enter");
+      await waitFor(async () => (await readFile(localNoteFile, "utf8")).includes("[[Untitled drawing.excalidraw]]"), "@ inserted a drawing mention in the local brain");
+
       // A remote brain without editing approval opens drawings view-only and saves nothing.
       const control = (route, body) => fetch(gateway.url + route, { method: "POST", headers: { Authorization: "Bearer " + controlKey, "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const added = await (await control("/companion/profiles", { revision: gateway.state().revision, profile: { name: "Shared", kind: "remote", url: server.url, key, allowWrites: false } })).json();
@@ -247,7 +284,10 @@ try {
       assert.deepEqual(outside, [], "the Mac shell requests nothing outside its gateway");
     } catch (error) {
       if (screenshots) await page.screenshot({ path: path.join(screenshots, "drawing-companion-failure.png") }).catch(() => {});
-      console.error({ errors, outside, url: page.url(), state: await page.locator("#drawing-state").textContent().catch(() => null) });
+      console.error({ errors, outside, url: page.url(), state: await page.locator("#drawing-state").textContent().catch(() => null),
+        editor: await page.evaluate(() => ({ markdown: richEditor.getMarkdown(), range: richEditor.autocompleteRange(),
+          focused: document.activeElement?.id, text: document.getSelection()?.anchorNode?.textContent,
+          offset: document.getSelection()?.anchorOffset, popup: document.querySelector('[data-reference-autocomplete]')?.textContent })).catch(() => null) });
       throw error;
     }
     await context.close();
