@@ -69,6 +69,22 @@ test("synthesis uses structural excerpts, retains qualifications, preserves meta
   assert.equal(await readFile(path.join(root, "pages/quartz-ledger.md"), "utf8"), content);
 }));
 
+test("new maps do not repeat their title as an H1, and legacy maps with it are not rewritten", () => fixture(async (root) => {
+  const first = await synthesize(root);
+  const file = path.join(root, first.files[0]);
+  const created = parseFrontmatter(await readFile(file, "utf8"));
+  assert.equal(created.frontmatter.title, "quartz ledger");
+  assert.doesNotMatch(created.body, /^# /m, "the topic title is frontmatter only");
+  assert.match(created.body.trimStart(), /^This is a deterministic extractive source map/);
+  // A map written before this rule opened with `# <topic>`; an unchanged rerun must not touch it.
+  const legacy = (await readFile(file, "utf8")).replace("---\n\nThis is a deterministic", "---\n\n# quartz ledger\n\nThis is a deterministic");
+  assert.match(parseFrontmatter(legacy).body, /^\s*# quartz ledger\n/);
+  await writeFile(file, legacy);
+  const rerun = await synthesize(root, { ifMatch: hashMemoryDocumentContent(legacy) });
+  assert.equal(rerun.applied, false);
+  assert.equal(await readFile(file, "utf8"), legacy);
+}));
+
 test("generated source links round-trip punctuation in canonical filenames", () => fixture(async (root, write) => {
   await write("notes/quartz (trial).md", "# Quartz ledger trial\n\nQuartz ledger trial retries use a durable key.");
   const result = await synthesize(root);

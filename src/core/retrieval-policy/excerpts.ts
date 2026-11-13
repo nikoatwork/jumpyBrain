@@ -13,6 +13,9 @@ export interface ExcerptOptions {
   lineEnd: number;
   terms?: Array<{ text: string; weight: number }>;
   maxChars?: number;
+  /** Frontmatter title. When the body has no leading heading it counts as one
+   * mention, so title words weigh the same as when a title H1 was in the body. */
+  title?: string;
 }
 
 const DEFAULT_MAX_CHARS = 1000;
@@ -35,14 +38,16 @@ export function selectEvidenceExcerpt(lines: string[], options: ExcerptOptions):
     const normalized = searchableLine(line);
     return needles.map((needle) => Boolean(needle && normalized.includes(` ${needle} `)));
   });
+  const firstBodyLine = lines.findIndex((line, index) => index >= body && line.trim());
+  const mainHeading = structure.headings.has(firstBodyLine) ? firstBodyLine : -1;
+  const titleText = mainHeading < 0 && options.title ? searchableLine(options.title) : "";
   const terms = inputTerms.map((term, index) => ({ ...term,
     // Repeated topic/title mentions must not drown out rarer requested details.
-    weight: term.weight / Math.sqrt(Math.max(1, matches.filter((row) => row[index]).length)),
+    weight: term.weight / Math.sqrt(Math.max(1, matches.filter((row) => row[index]).length
+      + (needles[index] && titleText.includes(` ${needles[index]} `) ? 1 : 0))),
   }));
   let center = start;
   let best = -1;
-  const firstBodyLine = lines.findIndex((line, index) => index >= body && line.trim());
-  const mainHeading = structure.headings.has(firstBodyLine) ? firstBodyLine : -1;
   const titleLines = new Set(mainHeading < 0 ? [] : [mainHeading]);
   if (mainHeading >= 0 && /^ {0,3}(?:=+|-+)\s*$/u.test(lines[mainHeading + 1] ?? "")) titleLines.add(mainHeading + 1);
   const hasAlternative = lines.slice(start, end + 1).some((line, offset) => line.trim() && !titleLines.has(start + offset));

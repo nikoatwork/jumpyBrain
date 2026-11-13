@@ -16,7 +16,7 @@ async function disposableRoot(t) {
 }
 
 for (const body of ["", " \n\t "]) {
-  test(`remote note accepts ${body ? "whitespace-only" : "empty"} body with heading and metadata`, async (t) => {
+  test(`remote note accepts ${body ? "whitespace-only" : "empty"} body with metadata and no title heading`, async (t) => {
     const root = await disposableRoot(t);
     const title = "2026-07-16 14:35";
     const before = Date.now();
@@ -28,7 +28,7 @@ for (const body of ["", " \n\t "]) {
     assert.equal(result.title, title);
     assert.match(result.file, /^notes\/.+\.md$/);
     assert.equal(isValidMemoryDocumentId(result.id), true);
-    assert.equal(parsed.body.trim(), `# ${title}`);
+    assert.equal(parsed.body, "", "blank capture stores no body; the title is frontmatter only");
     assert.deepEqual(parsed.frontmatter, {
       id: result.id,
       type: "note",
@@ -57,7 +57,7 @@ test("repeated blank remote notes with the same title create distinct documents"
     const parsed = parseFrontmatter(await readFile(path.join(root, result.file), "utf8"));
     assert.equal(isValidMemoryDocumentId(result.id), true);
     assert.equal(parsed.frontmatter.id, result.id);
-    assert.equal(parsed.body.trim(), `# ${draft.title}`);
+    assert.equal(parsed.body, "");
   }
 });
 

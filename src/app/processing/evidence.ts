@@ -35,6 +35,7 @@ export function sourceExcerpt(source: SourceDocument, topic: string) {
   return selectEvidenceExcerpt(lines, {
     bodyStartLine, lineStart: bodyStartLine, lineEnd: lines.length,
     terms: terms.map(text => ({ text, weight: 1 })), maxChars: 1000,
+    title: typeof source.frontmatter.title === "string" ? source.frontmatter.title : undefined,
   });
 }
 

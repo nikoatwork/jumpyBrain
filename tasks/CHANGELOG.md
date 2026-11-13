@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-13 — No title heading in agent-written notes
+
+- New notes from `remember`, `wrapup` and remote/hosted writers no longer get a `# <title>` H1; an agent body that repeats the title as its first H1 has it dropped (one pure core rule). Reference pages and blank notes are frontmatter only; new synthesis maps drop the topic H1. Excerpt selection counts the frontmatter title for heading-less bodies. Resaving was ruled out as a cause; existing files are untouched. [Findings, checks and limits](done/2026-11-13_tasks-duplicate-title-heading.md).
+
 ## 2026-11-13 — Diagnosable remote authentication failures
 
 - When a remote server rejects the access key (HTTP 401 or 403), the CLI now names the key's source and a fingerprint (length and last four characters), never the key. It also lists keys it found but did not use, the key order (environment, then the app key for that URL, then the `.env` default) and how to recover. `status --target-url` shows which key was accepted. `collaborate` reports a rejected key the same way, and keys with smart quotes are refused before sending. Server-redeploy key loss remains unproven. [Verification and limits](done/2026-11-13_tasks-remote-auth-diagnostics.md).

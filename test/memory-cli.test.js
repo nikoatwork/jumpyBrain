@@ -1069,7 +1069,8 @@ test("CLI remember writes editable Markdown memory and updates the index", async
     assert.match(markdown, /type: "decision"/);
     assert.match(markdown, /source: "jumpybrain-remember"/);
     assert.match(markdown, /tags: \["qmd"\]/);
-    assert.match(markdown, /# Use QMD first/);
+    assert.match(markdown, /title: "Use QMD first"/);
+    assert.doesNotMatch(markdown, /^# /m, "the title lives in frontmatter, not a body H1");
     assert.match(markdown, /Markdown remains canonical/);
     assert.equal(existsSync(path.join(tempRoot, ".jumpybrain", "index.json")), true);
   } finally {
@@ -1128,7 +1129,7 @@ test("CLI wrapup writes one editable session file with strict sections", async (
     assert.match(payload.file, /^sessions\/\d{4}-\d{2}-\d{2}-boundary-refactor-wrapup/);
     assert.equal(payload.validation.valid, true);
     assert.equal(payload.relatedMemory.skipped, true);
-    assert.match(payload.body, /^# Boundary refactor wrapup/);
+    assert.match(payload.body, /^## Findings/, "no title H1 before the strict sections");
     assert.match(payload.body, /## Findings/);
     assert.match(payload.body, /## Open Questions/);
 
@@ -1137,7 +1138,8 @@ test("CLI wrapup writes one editable session file with strict sections", async (
     assert.match(markdown, /source: "jumpybrain-wrapup"/);
     assert.match(markdown, /confidence: "agent-drafted"/);
     assert.match(markdown, /review: "user-review-recommended"/);
-    assert.match(markdown, /# Boundary refactor wrapup/);
+    assert.match(markdown, /title: "Boundary refactor wrapup"/);
+    assert.doesNotMatch(markdown, /^# /m);
     assert.match(markdown, /## Conflicts \/ Corrections/);
   } finally {
     await stopRootBackend(tempRoot);
