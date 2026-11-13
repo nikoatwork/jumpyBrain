@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-13 — Task checkbox rendering
+
+- Task rows keep their checkbox when the label has unsupported syntax: only the label stays as editable literal source. `*`/`+` tasks, tasks under a bullet, and Obsidian tab or four-space nesting now render. Toggles change only the checkbox byte, including Undo and an uppercase `X`. Verified with focused editor tests, the new `scripts/task-checkbox-smoke.mjs` and the existing task/bullet/link smokes at 1280/390px. The editor stays under its gzip ceiling. [Task](done/2026-11-13_tasks-checkbox-rendering.md).
+
 ## 2026-11-13 — Browse drawings before creating
 
 - Drawings now opens a collapsed sidebar browser with a separate creation action, making existing sketches discoverable without accidental files. [Task](done/2026-11-13_tasks-drawings-browser-navigation.md).

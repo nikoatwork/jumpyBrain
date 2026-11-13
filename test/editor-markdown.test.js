@@ -2,13 +2,23 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { codeFence, exportCodeFence, inlineCodeRanges, markdownTable, taskMarker } from '../dist/adapters/http-server/editor-markdown.js';
 
-test('task recognition accepts explicit dash nesting and refuses ambiguous lists/indentation', () => {
-  assert.deepEqual(taskMarker('- [X] café 日本語', null), { indent: 0, checked: true, label: 'café 日本語' });
+test('task recognition accepts explicit nesting units and refuses ambiguous lists/indentation', async () => {
+  const { taskUnit } = await import('../dist/adapters/http-server/editor-markdown.js');
+  assert.deepEqual(taskMarker('- [X] café 日本語', null), { indent: 0, checked: true, label: 'café 日本語', marker: '  -X' });
+  assert.deepEqual(taskMarker('* [ ] Start in "Open (PM to plan): Vicky …"', null), { indent: 0, checked: false, label: 'Start in "Open (PM to plan): Vicky …"', marker: '  *x' });
+  assert.equal(taskMarker('+ [x] plus', null)?.marker, '  +x');
   assert.equal(taskMarker('  - [ ] child', 0)?.indent, 2);
   assert.equal(taskMarker('    - [ ] grandchild', 2)?.indent, 4);
   assert.equal(taskMarker('        - [ ] deeper child', 6)?.indent, 8);
-  for (const line of ['+ [ ] task', '1. [x] task', '- [y] task', '- [ ]', '\t- [ ] task', ' - [ ] task', '    - [ ] code']) assert.equal(taskMarker(line, null), null, line);
+  for (const line of ['1. [x] task', '- [y] task', '- [ ]', '\t- [ ] task', ' - [ ] task', '    - [ ] code']) assert.equal(taskMarker(line, null), null, line);
   assert.equal(taskMarker('      - [ ] skipped level', 0), null);
+  // Obsidian-style tabs and four-space levels use the note's own unit.
+  assert.deepEqual(taskMarker('\t\t- [x] tab grandchild', 2, '\t'), { indent: 4, checked: true, label: 'tab grandchild', marker: '\t-x' });
+  assert.equal(taskMarker('    - [ ] four child', 0, '    ')?.indent, 2);
+  for (const [line, unit] of [['  - [ ] two in tab note', '\t'], ['\t  - [ ] mixed', '\t'], ['      - [ ] six', '    '], ['\t- [ ] orphan', '\t']]) assert.equal(taskMarker(line, line.includes('orphan') ? null : 0, unit), null, line);
+  assert.equal(taskUnit('- [ ] a\n\t- [ ] b'), '\t');
+  assert.equal(taskUnit('- [ ] a\n    - [ ] b\n  - [ ] c'), '    ');
+  assert.equal(taskUnit('- [ ] a\n- [ ] b'), undefined);
 });
 
 test('code fence recognition is closed, column-zero and deliberately bounded', () => {

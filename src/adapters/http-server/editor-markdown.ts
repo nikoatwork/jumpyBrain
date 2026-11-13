@@ -50,11 +50,15 @@ export function bulletMarker(line: string) {
   return match && !/^(?:[-+*](?:\s|$)|>|#{1,6}\s)/.test(match[2]) ? { marker: match[1], label: match[2] } : null;
 }
 
-export function taskMarker(line: string, previousIndent: number | null) {
-  const match = line.match(/^( *)- \[([ xX])\] (.*)$/);
-  if (!match || match[1].length % 2 || (match[1].length && (previousIndent === null || match[1].length > previousIndent + 2))) return null;
-  return { indent: match[1].length, checked: match[2] !== " ", label: match[3] };
+// `unit` is the note's one-level nesting indentation (two spaces, a tab, ...).
+// `indent` is two columns per level; `marker` keeps unit, bullet and `x`/`X`.
+export function taskMarker(line: string, previousIndent: number | null, unit = "  ") {
+  const match = /^([ \t]*)([-+*]) \[([ xX])\] (.*)$/.exec(line), level = match ? match[1].length / unit.length : 0;
+  if (!match || unit.repeat(level) !== match[1] || (level && (previousIndent === null || level * 2 > previousIndent + 2))) return null;
+  return { indent: level * 2, checked: match[3] !== " ", label: match[4], marker: unit + match[2] + (match[3] === "X" ? "X" : "x") };
 }
+// A note's nesting unit: the indentation of its first one-level nested task.
+export const taskUnit = (value: string) => /^(\t| {2,4})[-+*] \[[ xX]\] /m.exec(value)?.[1];
 
 // Only closed, column-zero backtick fences with a simple language token become
 // code blocks. Tilde, container, indented, attributes and unclosed forms stay literal.
