@@ -3,7 +3,7 @@ import { chmod, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink,
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { createEnvFileCredentials, credentialsEnvFile, keyVariable, parseEnv, readCredentialsFile, remoteKeyForUrl, urlVariable }
+import { createEnvFileCredentials, credentialsEnvFile, keyFingerprint, keyVariable, parseEnv, readCredentialsFile, remoteKeyCandidates, remoteKeyForUrl, resolveRemoteKey, urlVariable }
   from "../dist/adapters/credentials/env-file.js";
 import { ConnectionStore } from "../integrations/macos-companion/connections.mjs";
 
@@ -82,6 +82,38 @@ test("CLI key resolution: environment, then the app key saved for that exact URL
   assert.equal(await remoteKeyForUrl("https://brain.example", { file, env: {} }), "app-key", "a matching connection beats the default");
   await chmod(file, 0o640);
   await assert.rejects(remoteKeyForUrl("https://brain.example", { file, env: {} }), /chmod 600/);
+});
+
+test("key resolution names its source; diagnostics list every candidate in order and never throw", async (t) => {
+  const { file } = await scratch(t);
+  const store = createEnvFileCredentials({ file });
+  await store.set(ref(1), "app-key-0123456789abcd", { url: "https://brain.example" });
+  await writeFile(file, (await readFile(file, "utf8")) + "JUMPYBRAIN_API_KEY=file-default\n", { mode: 0o600 });
+  const display = file.replace(os.homedir(), "~");
+  assert.deepEqual(await resolveRemoteKey("https://brain.example", { file, env: { JUMPYBRAIN_API_KEY: "env-key" } }),
+    { source: "environment", key: "env-key", variable: "JUMPYBRAIN_API_KEY" });
+  assert.deepEqual(await resolveRemoteKey("https://brain.example", { file, env: {} }),
+    { source: "app-connection", key: "app-key-0123456789abcd", variable: keyVariable(ref(1)), file: display });
+  assert.deepEqual(await resolveRemoteKey("https://other.example", { file, env: {} }),
+    { source: "env-file", key: "file-default", variable: "JUMPYBRAIN_API_KEY", file: display });
+
+  const all = await remoteKeyCandidates("https://brain.example", { file, env: { JUMPYBRAIN_API_KEY: "env-key" } });
+  assert.deepEqual(all.keys.map((key) => key.source), ["environment", "app-connection", "env-file"]);
+  assert.equal(all.fileProblem, undefined);
+  await chmod(file, 0o644);
+  // With the environment set the CLI never reads the file, so an insecure file does not block it...
+  assert.equal((await resolveRemoteKey("https://brain.example", { file, env: { JUMPYBRAIN_API_KEY: "env-key" } })).key, "env-key");
+  // ...and diagnostics report the file problem instead of throwing, without any key value.
+  const insecure = await remoteKeyCandidates("https://brain.example", { file, env: { JUMPYBRAIN_API_KEY: "env-key" } });
+  assert.deepEqual(insecure.keys.map((key) => key.source), ["environment"]);
+  assert.match(insecure.fileProblem, /chmod 600/);
+  assert.doesNotMatch(insecure.fileProblem, /app-key|file-default/);
+});
+
+test("key fingerprints show length, and the last four characters only for long keys", () => {
+  assert.deepEqual(keyFingerprint("jb_FAKEabcdefghijklmnopqrstuvwxyz0123456789wXyZ"), { length: 47, last4: "wXyZ" });
+  assert.deepEqual(keyFingerprint("0123456789abcdef"), { length: 16, last4: "cdef" });
+  assert.deepEqual(keyFingerprint("short-fake-key"), { length: 14 });
 });
 
 test("connection store saves, rotates and removes remote keys in the real .env file; profile JSON never holds a key", async (t) => {

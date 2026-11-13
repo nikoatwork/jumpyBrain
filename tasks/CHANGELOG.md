@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-13 — Diagnosable remote authentication failures
+
+- When a remote server rejects the access key (HTTP 401 or 403), the CLI now names the key's source and a fingerprint (length and last four characters), never the key. It also lists keys it found but did not use, the key order (environment, then the app key for that URL, then the `.env` default) and how to recover. `status --target-url` shows which key was accepted. `collaborate` reports a rejected key the same way, and keys with smart quotes are refused before sending. Server-redeploy key loss remains unproven. [Verification and limits](done/2026-11-13_tasks-remote-auth-diagnostics.md).
+
 ## 2026-11-12 — Access keys last in Settings
 
 - Moved Access keys after Extensions in the Settings navigation. Verified with `npm run build`, the rendered navigation order, `scripts/sidebar-layout-smoke.mjs` (including Settings at 1280/320px), and `git diff --check`. Packaged Mac app not checked; no installation or release.

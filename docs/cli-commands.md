@@ -20,13 +20,25 @@ Most memory commands work against either a local Markdown memory root or a hoste
 | `--target-url <url>` | Use a remote jumpyBrain server instead of local files. |
 | `--remote-url <url>` | Alias for `--target-url <url>`. |
 | `JUMPYBRAIN_MEMORY_ROOT` | Configured local CLI default, below explicit selectors. |
-| `JUMPYBRAIN_API_KEY` | API key required when using `--target-url` or `--remote-url`. |
+| `JUMPYBRAIN_API_KEY` | Access key for `--target-url` / `--remote-url`. Overrides the key the Mac app saved for that URL; see [remote access keys](#remote-access-keys). |
 | `JUMPYBRAIN_CLI_CONFIG` | Optional path to device-local CLI policy; defaults to `~/.jumpybrain/cli-config.json`. |
 | `--json` | Print machine-readable JSON when the command supports it. |
 
 Use one explicit root/URL selector; combinations fail. Otherwise use nonempty `JUMPYBRAIN_MEMORY_ROOT`, then `memoryRoot` in the owning managed `app/../install-manifest.json`. Malformed defaults fail unless explicitly overridden. Cwd manifests and app-active profiles never select CLI defaults; remote-only manifests supply no root.
 
-With no configured destination, direct memory commands require `--root`; doctor alone inspects `~/.jumpybrain/memory`. `run memory:*` retains legacy ancestor/child-`memory` marker discovery as its last fallback. Discovery grants no approval; trusted project selection remains future work. `status --json` adds `target: {kind, source, root|url}`; doctor adds `memoryRoot.source`: `flag`, `environment`, `install-manifest`, `recipe-discovery` or `personal-fallback`. `init` still requires an explicit root; server/install commands retain their own configuration.
+With no configured destination, direct memory commands require `--root`; doctor alone inspects `~/.jumpybrain/memory`. `run memory:*` retains legacy ancestor/child-`memory` marker discovery as its last fallback. Discovery grants no approval; trusted project selection remains future work. `status --json` adds `target: {kind, source, root|url}` (remote targets add `credential`, below); doctor adds `memoryRoot.source`: `flag`, `environment`, `install-manifest`, `recipe-discovery` or `personal-fallback`. `init` still requires an explicit root; server/install commands retain their own configuration.
+
+### Remote access keys
+
+For a remote target the CLI uses the first key it finds:
+
+1. `JUMPYBRAIN_API_KEY` in the environment (including one exported from a shell profile such as `~/.zshenv`).
+2. The key the Mac app saved for the same URL (`JUMPYBRAIN_KEY_<ref>` in `~/.config/jumpybrain/.env`). The origin and path must match, so `localhost` and `127.0.0.1` are different URLs.
+3. `JUMPYBRAIN_API_KEY` written in `~/.config/jumpybrain/.env`.
+
+There is no per-target CLI configuration. `jumpybrain status --target-url <url>` is the read-only check: it prints `Access key: <source> (<length> chars, ends …<last 4>), accepted`, and `--json` adds `target.credential: {source, variable, file?, length, last4?}`. The last four characters are shown only for keys of 16+ characters, and the key itself is never printed.
+
+When the server rejects the key (HTTP 401: unknown, mistyped or revoked), or refuses the command for that key's role (HTTP 403 `read_only` / `admin_required`), the error names the key used and its fingerprint, lists other keys the CLI found but did not use, repeats this order and says how to recover. Live `collaborate` reports a rejected key the same way. A key containing smart quotes or line breaks is refused before sending. Recovery: ask the server admin for a key (`jumpybrain access issue` on the server, or **Access keys** in the app), then replace or unset the stale `JUMPYBRAIN_API_KEY` export, or re-enter the key for that connection in the app.
 
 ### Protected remote targets
 
@@ -99,7 +111,7 @@ Extension management is desktop-local and accepts `--directory <extensions-direc
 | --- | --- |
 | `jumpybrain init --root <memory-root> [--force] [--json]` | Create or refresh a local memory root with `jumpybrain.json`, standard memory folders, and ignored derived state. |
 | `jumpybrain status --root <memory-root> [--json]` | Check whether a local memory root is initialized, compatible, and ready to use. |
-| `jumpybrain status --target-url <url> [--json]` | Check whether a remote jumpyBrain server memory target is ready to use. Requires `JUMPYBRAIN_API_KEY`. |
+| `jumpybrain status --target-url <url> [--json]` | Check whether a remote jumpyBrain server memory target is ready to use, and which [access key](#remote-access-keys) it accepted (source and fingerprint, never the key). |
 | `jumpybrain index --root <memory-root> [--rebuild] [--semantic-model <absolute-local-gguf> \| --lexical] [--json]` | Update derived search state incrementally; persist explicit policy or request a rebuild. |
 | `jumpybrain index --target-url <url> [--rebuild] [--json]` | Update server-derived search state using its persisted policy. Requires `JUMPYBRAIN_API_KEY`; model/policy flags are server-local only. |
 | `jumpybrain tree --root <memory-root> [--connections] [--show-files] [--limit <n>] [--json]` | Show a map of a local memory root: buckets, document counts, tags, index freshness, and optionally file lists and Markdown/wiki-link connections. It does not print full memory bodies. |

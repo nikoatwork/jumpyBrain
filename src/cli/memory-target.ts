@@ -2,11 +2,15 @@ import { createRemoteMemoryTransport, type RemoteMemoryTransport } from "../adap
 import type { ParsedCliArgs } from "./args.js";
 import type { LocalMemoryTransport, SearchResult } from "./local-transport.js";
 import { resolveCliTarget } from "./targets.js";
-import { DEFAULT_ENV_FILE_DISPLAY, remoteKeyForUrl } from "../adapters/credentials/env-file.js";
+import { describeRemoteKey, remoteCredential, remoteKeySummary } from "./remote-credentials.js";
 
 export type CommandMemoryTarget =
   | { kind: "local"; root: string; source?: string }
-  | { kind: "remote"; url: string; source?: string; memory: RemoteMemoryTransport };
+  | {
+    kind: "remote"; url: string; source?: string; memory: RemoteMemoryTransport;
+    /** Where the key came from, with a non-secret fingerprint; never the key. */
+    credential: { summary: ReturnType<typeof remoteKeySummary>; description: string };
+  };
 
 export async function commandMemoryTarget(
   args: ParsedCliArgs,
@@ -14,15 +18,20 @@ export async function commandMemoryTarget(
   options: { allowDiscovery?: boolean } = {},
 ): Promise<CommandMemoryTarget> {
   const target = resolveCliTarget(args, { allowDiscovery: options.allowDiscovery });
-  if (target.kind === "remote") return { ...target, memory: createRemoteMemoryTransport({ url: target.url, apiKey: await remoteApiKey(target.url) }) };
+  if (target.kind === "remote") {
+    const key = await remoteCredential(target.url);
+    return {
+      ...target,
+      memory: createRemoteMemoryTransport({ url: target.url, apiKey: key.key }),
+      credential: { summary: remoteKeySummary(key), description: describeRemoteKey(key) },
+    };
+  }
   const root = target.root ?? await localMemory.findMemoryRoot();
   return { ...target, root };
 }
 
 export async function remoteApiKey(url: string): Promise<string> {
-  const apiKey = await remoteKeyForUrl(url);
-  if (!apiKey) throw new Error(`No access key for ${url}. Set JUMPYBRAIN_API_KEY, or save this connection in the jumpyBrain app (keys are shared via ${DEFAULT_ENV_FILE_DISPLAY}).`);
-  return apiKey;
+  return (await remoteCredential(url)).key;
 }
 
 export async function recallRelatedMemory(

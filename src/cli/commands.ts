@@ -8,6 +8,7 @@ import { runMemoryCommand, type MemoryCommand } from "./memory-commands.js";
 import { migrateCli } from "./migrate.js";
 import { runRecipe } from "./recipes.js";
 import { enforceRemoteAccessPolicy } from "./remote-access-policy.js";
+import { remoteAuthFailure } from "./remote-credentials.js";
 import { serveCli } from "./serve.js";
 import { memoryRootInspectionMessage, requireLocalRoot, resolveCliTarget } from "./targets.js";
 import { updateCli } from "./update.js";
@@ -24,6 +25,13 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const args = parseArgs(argv);
   try { await dispatchCli(args); }
   catch (error) {
+    const status = (error as { status?: unknown } | undefined)?.status;
+    if (status === 401 || status === 403) {
+      let url: string | undefined;
+      try { const target = resolveCliTarget(args, { allowDiscovery: true }); if (target.kind === "remote") url = target.url; } catch {}
+      const explained = url ? await remoteAuthFailure(error, url) : undefined;
+      if (explained) throw explained;
+    }
     let root;
     if (isMemoryCommand(args._[0]!) || args._[0] === "run") {
       try { const target = resolveCliTarget(args); if (target.kind === "local") root = target.root; } catch {}
