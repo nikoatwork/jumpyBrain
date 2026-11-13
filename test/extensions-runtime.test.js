@@ -367,14 +367,22 @@ test("explicit and marker safe mode tolerate damaged registries without preparat
   await assert.rejects(setExtensionEnabled({ ...f, id: 'fixture', enabled: false }), /unreadable/);
 });
 
-test("one notification has one total deadline across all observers and cancels retained contexts", async t => {
+for (const eventType of ['scope.changed', 'document.saved']) test(`one notification has one total deadline across all observers and cancels retained contexts (${eventType})`, async t => {
   const f = await fixture(t, { main: `export default api => {
     const p=globalThis[Symbol.for('jumpybrain.extension.test')]; p.calls=0;
     for(let i=0;i<5;i++) api.on('scope.changed', (_,ctx)=>{p.calls++;p.context=ctx;return new Promise(()=>{})});
+    api.on('document.saved', ()=>{p.savedCalls=(p.savedCalls||0)+1});
   };` });
-  await installExtension(f); const host = await f.host(); const started = Date.now();
-  await host.emit({ type: 'scope.changed' }, context());
+  await installExtension(f); const host = await f.host();
+  // A timer may wake just before the wall-clock deadline. It must still end
+  // this notification rather than admit another observer with the remainder.
+  const realSetTimeout = globalThis.setTimeout;
+  t.mock.method(globalThis, 'setTimeout', (callback, milliseconds, ...args) =>
+    realSetTimeout(callback, milliseconds >= 2900 && milliseconds <= 3000 ? milliseconds - 25 : milliseconds, ...args));
+  const started = Date.now();
+  await host.emit({ type: eventType }, context());
   assert.ok(Date.now() - started < 5500); assert.equal(probe().calls, 1);
+  assert.equal(probe().savedCalls, undefined);
   assert.equal(probe().context.signal.aborted, true);
   await host.emit({ type: 'scope.changed' }, context()); assert.equal(probe().calls, 1);
 });

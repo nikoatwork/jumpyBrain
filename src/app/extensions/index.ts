@@ -47,6 +47,7 @@ const eventNames: ExtensionEventName[] = ["document.changed", "document.saved", 
 const themeTokens: ReadonlySet<string> = new Set(EXTENSION_THEME_ROLES);
 const clone = <T>(value: T): T => structuredClone(value);
 const stale = () => new ExtensionPackageError("Extension activation or invocation is no longer current.", { code: "extension_stale" });
+class ExtensionTimeoutError extends ExtensionPackageError {}
 
 /** A bounded wait contains async failures, but cannot preempt trusted synchronous Node code. */
 async function bounded<T>(work: Promise<T>, signal: AbortSignal, milliseconds: number): Promise<T> {
@@ -57,7 +58,7 @@ async function bounded<T>(work: Promise<T>, signal: AbortSignal, milliseconds: n
       abort = () => reject(stale());
       if (signal.aborted) { reject(stale()); return; }
       signal.addEventListener("abort", abort, { once: true });
-      timer = setTimeout(() => reject(new ExtensionPackageError("Extension operation timed out.")), milliseconds);
+      timer = setTimeout(() => reject(new ExtensionTimeoutError("Extension operation timed out.")), milliseconds);
     })]);
   } finally { clearTimeout(timer); if (abort) signal.removeEventListener("abort", abort); }
 }
@@ -290,29 +291,31 @@ export async function createExtensionHost({ directory, safeMode: explicitSafeMod
     pending.add(controller);
     return { context: wrapped, check, close() { controller.abort(); pending.delete(controller); } };
   }
-  async function notify(event: ExtensionEvent, context: ExtensionContext, deadline = Date.now() + 3000): Promise<void> {
+  async function notify(event: ExtensionEvent, context: ExtensionContext, budget = { deadline: Date.now() + 3000, expired: false }): Promise<void> {
     live();
     if (!event || !eventNames.includes(event.type)) throw new ExtensionPackageError("Unknown extension event.");
     const controller = new AbortController();
     observations.add(controller);
     context = { ...context, signal: AbortSignal.any([context.signal, controller.signal]) };
+    const deadline = budget.deadline;
     try {
       const transitioned = observeScope(context);
-      if (transitioned && event.type !== "scope.changed") await notify({ type: "scope.changed" }, context, deadline);
+      if (transitioned && event.type !== "scope.changed") await notify({ type: "scope.changed" }, context, budget);
       if (event.type === "scope.changed") {
         if (notifiedGeneration === context.scope.generation) return;
         notifiedGeneration = context.scope.generation;
       }
       const observed = jsonValue(event) as unknown as ExtensionEvent;
       handlers: for (const activation of active.values()) for (const handler of [...(activation.events.get(event.type) ?? [])]) {
-        if (context.signal.aborted || Date.now() >= deadline) break handlers;
+        if (budget.expired || context.signal.aborted || Date.now() >= deadline) break handlers;
         const invocation = scoped(activation, context, true);
         try { await bounded(Promise.resolve().then(() => { invocation.check(); return handler(clone(observed), invocation.context); }), invocation.context.signal, Math.max(1, deadline - Date.now())); invocation.check(); }
-        catch {
+        catch (error) {
           if (!invocation.context.signal.aborted) {
             const message = "Extension event handler failed; reload the package if it persists.";
             if (activation.error !== message) { activation.error = message; changed(); }
           }
+          if (error instanceof ExtensionTimeoutError) { budget.expired = true; break handlers; }
         }
         finally { invocation.close(); }
       }

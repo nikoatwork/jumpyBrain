@@ -4,7 +4,7 @@ Requested 2026-11-13: cut the next patch beta from clean master. Implementation 
 
 ## Scope and feedback
 
-- Ship the six pending user-facing notes: Settings navigation/key wording, drawing browser, broader exact-byte task checkboxes, remote CLI key diagnostics, and heading-free new agent notes. No deferred pending-note bullets.
+- Ship the original six user-facing notes: Settings navigation/key wording, drawing browser, broader exact-byte task checkboxes, remote CLI key diagnostics, and heading-free new agent notes. Release-gate investigation additionally fixes extension event delivery after timeout. No deferred pending-note bullets.
 - Live feedback check at **2026-11-13T18:54:25.270Z**: full received/non-spam inbox, no date bounds, two pages, 66 scanned, two synthetic tests excluded, 64 genuine messages, complete. All exact message IDs already indexed; no new bodies or attachments needed. No messages sent. [Per-email outcomes](../feedback.md).
 - Included recent feedback fixes: duplicate title heading, checkbox rendering and diagnostic remote authentication errors. Historical server-redeploy key/note loss remains unproven. Existing open/mixed/deferred feedback stays with its owners, including whole-note CLI update visibility, rate-limit clarity, legacy managed upgrades and broader retrieval evaluation.
 - `dogfood:status` reports the old `ace92efa` candidate superseded, not installed. It supplies no current real-use evidence. Proceeding on the explicit release request with the automated beta gate; no current-candidate normal-use claim and no personal app replacement.
@@ -33,6 +33,12 @@ Environment: macOS 15.7.7 ARM64, Node 26.7.0. QMD 2.8.3.
 - The backend slow-drain case independently reproduced `backend_not_ready` instead of `backend_stop_pending`: its 150 ms total discovery/drain allowance expired before reaching the intended drain boundary. Increased only that fixture deadline to 2 seconds; the owner never releases its lease and every stop/spawn/identity assertion remains.
 - Presence and stream lease tests now control `Date.now`, explicitly advancing it past the lease after reconnect/anchor assertions. Real WebSocket transport and observer scheduling remain exercised; the stream cleanup wait uses monotonic real time. No production runtime changes or removed assertions.
 - Focused rerun of the three previously failing cases passed (3/3), including the slow-drain safety and lease expiry assertions. Log: `/tmp/jumpybrain-v0.3.25-timing-focused.log`. The full versioned release gate must still pass.
+
+- Second full release gate completed: **2,041 passed, two failed, two optional skips of 2,045**. The original three timing cases passed. No commit/tag/publication occurred. Log: `/tmp/jumpybrain-v0.3.25-release-attempt2.log`. Restored only version metadata before correction.
+- Extension notification failure was **real**, not just a flaky test: a timer waking slightly before its wall-clock deadline let a second observer start (`2 !== 1`). A deterministic early-timer regression reproduced this on the unchanged runtime (`/tmp/jumpybrain-v0.3.25-extension-negative.log`). The host now marks the shared notification budget expired on timeout, including nested scope delivery, and admits no later handler. Existing timeout, cancellation, retained-context and observer-count assertions remain; regression covers direct scope notification and nested scope before document notification. Public API and generic error policy are unchanged.
+- The frontmatter property test expected two body newlines for empty input, contradicting the new documented frontmatter-only blank-note behavior. Updated that expectation while retaining all generated metadata/body/line assertions.
+
+- Final build plus `node --test test/extensions-runtime.test.js test/markdown-properties.test.js test/title-heading.test.js test/architecture-boundaries.test.js`: **51 passed, zero failures**. Early-timer direct/nested regressions both pass. Log: `/tmp/jumpybrain-v0.3.25-recovery-focused.log`. Browser lifecycle evidence remains applicable: no browser, memory lifecycle, CLI or canonical-writing implementation changed during gate recovery. Fresh outer Mac package rebuilt for the corrected extension host.
 
 ## Limits
 

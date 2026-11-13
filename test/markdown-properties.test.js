@@ -18,7 +18,7 @@ const frontmatterObject = fc.dictionary(safeFrontmatterKey, frontmatterValue, { 
 const markdownBody = fc.string({ maxLength: 300 });
 
 function expectedRenderedBody(body) {
-  return `\n${body.trimEnd()}\n`;
+  return body.trimEnd() ? `\n${body.trimEnd()}\n` : "";
 }
 
 test("rendered supported frontmatter parses back with current coercions", () => {
