@@ -8,6 +8,7 @@ import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
 import { startCompanionGateway } from "../integrations/macos-companion/gateway.mjs";
+const { createDrawing } = await import(new URL("../dist/runtime/index.js", import.meta.url).href);
 const { startJumpyBrainHttpServer } = await import(new URL("../dist/server/index.js", import.meta.url).href);
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-drawings-smoke-"));
@@ -52,11 +53,53 @@ async function saved(page) {
 }
 
 try {
+  if (screenshots) await mkdir(screenshots, { recursive: true });
   await mkdir(path.join(root, "notes"));
   const mentionFixture = `---\nid: ${noteId}\ntype: note\ntitle: Mention fixture\n---\n\nSee [[System map.excalidraw]] for the picture.\n`;
   await writeFile(path.join(root, "notes/mention.md"), mentionFixture);
   server = await startJumpyBrainHttpServer({ root, apiKeys: [key], port: 0, autoIndex: false });
   browser = await launchPlaywrightChromium({ chromium: await loadPlaywrightChromium() });
+  {
+    const { drawingsScript, drawingsSidebarMarkup, drawingsNavigationControl, drawingsMarkup, drawingsDialogMarkup } = await import("../dist/adapters/http-server/drawings-view.js");
+    const proof = await browser.newPage();
+    await proof.setContent(drawingsNavigationControl + drawingsSidebarMarkup + drawingsMarkup + drawingsDialogMarkup);
+    await proof.addScriptTag({ content: drawingsScript });
+    await proof.evaluate(() => {
+      window.fixtureScope = "old"; window.fixtureConnected = true; window.fixtureRole = "writer"; window.listReplies = [];
+      window.ui = createDrawingsUI({ scope: () => fixtureScope, connected: () => fixtureConnected, readOnly: () => false,
+        json: route => route === "/capabilities" ? Promise.resolve({ principal: { role: fixtureRole } }) : new Promise(resolve => listReplies.push(resolve)),
+        scopeUrl: url => url, icon: "", revealSidebar() {}, ready() {}, theme: () => "light" });
+      document.getElementById("open-drawings").click();
+    });
+    await proof.locator("#drawings-list-state", { hasText: "Loading drawings" }).waitFor();
+    await proof.evaluate(() => { fixtureScope = "new"; ui.connectionChanged(); });
+    assert.equal(await proof.locator("#drawings-list").isHidden(), true, "scope changes start collapsed");
+    await proof.evaluate(async () => { listReplies[1]({ drawings: [{ name: "New brain" }] }); await Promise.resolve(); });
+    await proof.locator("#sidebar-drawings a", { hasText: "New brain" }).waitFor({ state: "attached" });
+    await proof.evaluate(async () => { listReplies[0]({ drawings: [{ name: "Old brain" }] }); await Promise.resolve(); });
+    assert.equal(await proof.locator("#sidebar-drawings").textContent(), "New brain", "late old responses never replace current rows");
+    await proof.evaluate(() => { document.getElementById("open-drawings").click(); document.getElementById("drawings-disclosure").click(); ui.refreshList(true); });
+    await proof.evaluate(async () => { listReplies[2]({ drawings: [{ name: "Refreshed" }] }); await Promise.resolve(); });
+    await proof.locator("#sidebar-drawings a", { hasText: "Refreshed" }).waitFor({ state: "attached" });
+    assert.equal(await proof.locator("#drawings-list").isHidden(), true, "refresh does not reopen a collapsed section");
+    await proof.evaluate(() => { fixtureConnected = false; ui.connectionChanged(); document.getElementById("open-drawings").click(); });
+    await proof.locator("#drawings-list-state", { hasText: "Connect to browse" }).waitFor();
+    assert.equal(await proof.locator("#new-drawing").isDisabled(), true);
+    assert.equal(await proof.locator("#sidebar-drawings a").count(), 0);
+    await proof.evaluate(() => { fixtureConnected = true; fixtureRole = "reader"; ui.connectionChanged(); });
+    await proof.evaluate(async () => { listReplies[3]({ drawings: [{ name: "Readable" }] }); await Promise.resolve(); });
+    await proof.locator("#sidebar-drawings a", { hasText: "Readable" }).waitFor();
+    assert.equal(await proof.locator("#new-drawing").isDisabled(), true, "hosted reader capability disables creation");
+    await proof.locator("#drawing-create-reason", { hasText: "read only" }).waitFor();
+    await proof.evaluate(() => { ui.refreshList(true); fixtureRole = "writer"; ui.connectionChanged(); });
+    await proof.evaluate(async () => { listReplies[5]({ drawings: [{ name: "Current credential" }] }); await Promise.resolve(); });
+    await proof.locator("#sidebar-drawings a", { hasText: "Current credential" }).waitFor();
+    await proof.evaluate(async () => { listReplies[4]({ drawings: [{ name: "Stale credential" }] }); await Promise.resolve(); });
+    assert.equal(await proof.locator("#sidebar-drawings").textContent(), "Current credential", "same-scope invalidation also fences late responses");
+    assert.equal(await proof.locator("#new-drawing").isEnabled(), true, "a stale reader response cannot change current permissions");
+    await proof.close();
+    console.log("drawing navigation scope/loading/disconnection/reader proof passed");
+  }
 
   for (const width of [1280, 390]) {
     await rm(path.join(root, "drawings"), { recursive: true, force: true });
@@ -78,11 +121,64 @@ try {
     await page.goto(`${server.url}/#apiKey=${key}`);
     await page.locator("#home-new").waitFor({ state: "visible" });
     assert.equal(assets.length, 0, "home does not load the drawing editor");
-    if (width === 390 && await page.locator("#new-drawing").isHidden()) await page.locator("#toggle-sidebar").click();
+    if (await page.locator("#open-drawings").isHidden()) await page.locator("#toggle-sidebar").click();
+    assert.equal(await page.locator("#drawings-list").isHidden(), true, "fresh sessions keep drawings collapsed");
+    let creates = 0;
+    page.on("request", request => { if (request.method() === "POST" && new URL(request.url()).pathname === "/memories/all/drawings") creates++; });
+    await page.locator("#open-drawings").click();
+    await page.locator("#drawings-list-state", { hasText: "No drawings yet" }).waitFor();
+    await page.locator("#open-drawings").click();
+    assert.equal(await exists(path.join(root, "drawings")), false, "browsing an empty brain creates no directory");
+    assert.equal(creates, 0);
+    assert.equal(assets.length, 0, "browsing never loads Excalidraw");
+    assert.equal(await page.locator("#drawings-disclosure").evaluate(node => node === document.activeElement), true);
+    await page.locator("#drawings-disclosure").press("Enter");
+    assert.equal(await page.locator("#drawings-list").isHidden(), true);
+    await page.locator("#drawings-disclosure").press("Space");
+    await page.locator("#drawings-list").waitFor({ state: "visible" });
 
-    // Create, draw and autosave.
-    await page.locator("#new-drawing").click();
+    // Failed listings are not an empty collection; Retry recovers.
+    const listing = "**/memories/all/drawings";
+    await page.route(listing, route => route.fulfill({ status: 503, contentType: "application/json", body: '{"error":{"code":"unavailable"}}' }));
+    await page.evaluate(() => drawingsUI.refreshList(true));
+    await page.locator("#drawings-list-state", { hasText: "Could not load drawings" }).waitFor();
+    await page.unroute(listing);
+    await page.locator("#drawings-list-retry").click();
+    await page.locator("#drawings-list-state", { hasText: "No drawings yet" }).waitFor();
+
+    for (let i = 1; i <= 7; i++) await createDrawing(root, "Existing " + i);
+    await page.evaluate(() => drawingsUI.refreshList(true));
+    assert.equal(await page.locator("#sidebar-drawings a").count(), 5);
+    for (const scheme of ["light", "dark"]) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.waitForFunction(expected => document.documentElement.dataset.theme === expected, scheme);
+      for (const selector of ["#drawings-disclosure", "#new-drawing", "#sidebar-drawings a"]) {
+        for (const control of await page.locator(selector).all()) {
+          const box = await control.boundingBox();
+          assert.ok(box && box.x >= 0 && box.x + box.width <= width, selector + " fits the viewport in " + scheme);
+        }
+      }
+      const action = await page.locator("#new-drawing").boundingBox(), scroll = await page.locator(".sidebar-attention-scroll").boundingBox();
+      assert.ok(action.y >= scroll.y && action.y + action.height <= scroll.y + scroll.height, "create action stays visible above the list");
+      if (screenshots) await page.screenshot({ path: path.join(screenshots, `drawings-browser-${width}-${scheme}.png`) });
+    }
+    await page.emulateMedia({ colorScheme: width === 390 ? "dark" : "light" });
+    await page.locator("#sidebar-drawings-more").click();
+    assert.equal(await page.locator("#sidebar-drawings a").count(), 7);
+    const existing = await readFile(drawingFile("Existing 1"), "utf8");
+    await page.locator("#sidebar-drawings a", { hasText: "Existing 1" }).click();
     await ready(page);
+    assert.equal(await readFile(drawingFile("Existing 1"), "utf8"), existing, "opening existing drawings never writes them");
+    assert.equal(creates, 0);
+    await page.locator("#notes-link").click();
+    await page.locator("#home-new").waitFor();
+
+    // Create is separate and repeated activation cannot create duplicate files.
+    await page.route(listing, async route => { await new Promise(resolve => setTimeout(resolve, 200)); await route.continue(); });
+    await page.locator("#new-drawing").evaluate(button => { button.click(); button.click(); });
+    await ready(page);
+    await page.unroute(listing);
+    assert.equal(creates, 1, "only the explicit creation action writes, once");
     assert.equal(new URL(page.url()).searchParams.get("drawing"), "Untitled drawing");
     assert.equal(await page.locator("#drawing-name").inputValue(), "Untitled drawing");
     assert.deepEqual((await scene("Untitled drawing")).elements, []);
@@ -160,6 +256,28 @@ try {
     await page.goto(`${server.url}/?drawing=${encodeURIComponent("System map")}#apiKey=${key}`);
     await ready(page);
 
+    // An unopened item beyond the preview is revealed by a direct link.
+    await page.goto(`${server.url}/?drawing=Existing%201#apiKey=${key}`);
+    await ready(page);
+    if (await page.locator("#open-drawings").isHidden()) await page.locator("#toggle-sidebar").click();
+    await page.locator('#sidebar-drawings a[aria-current="page"]', { hasText: "Existing 1" }).waitFor({ state: "visible" });
+    await page.goto(`${server.url}/?drawing=System%20map#apiKey=${key}`);
+    await ready(page);
+
+    // Browsing stays usable with unsaved work; selecting another drawing is guarded.
+    await page.route("**/memories/all/drawings/System%20map", route => route.request().method() === "PUT"
+      ? route.fulfill({ status: 503, contentType: "application/json", body: '{"error":{"code":"unavailable"}}' }) : route.continue());
+    await drawRectangle(page, 0.45, 0.65);
+    if (await page.locator("#open-drawings").isHidden()) await page.locator("#toggle-sidebar").click();
+    await page.locator("#open-drawings").click();
+    await page.locator("#sidebar-drawings a", { hasText: "Existing 7" }).click();
+    await page.locator("#drawing-retry").waitFor({ state: "visible" });
+    assert.equal(new URL(page.url()).searchParams.get("drawing"), "System map", "failed save blocks navigation");
+    assert.equal(await page.evaluate(() => drawingsUI.hasPending()), true);
+    await page.unroute("**/memories/all/drawings/System%20map");
+    await page.locator("#drawing-retry").click();
+    await saved(page);
+
     // A newer version on disk is never overwritten silently.
     const newer = await scene("System map");
     newer.elements = newer.elements.slice(0, 1);
@@ -197,8 +315,8 @@ try {
 
     assert.deepEqual(external, [], "the app and drawing editor request nothing outside this server");
     // This fixture has no search index: note search fails while drawing names still match.
-    assert.deepEqual(errors.filter((text) => !/status of (404|409|500)/.test(text)), [], "no page errors");
-    assert.deepEqual(failures.filter((entry) => !/^(404|409) \/memories\/all\/drawings\//.test(entry) && entry !== "500 /memories/all/search"), [],
+    assert.deepEqual(errors.filter((text) => !/status of (404|409|500|503)/.test(text)), [], "no page errors");
+    assert.deepEqual(failures.filter((entry) => !/^(404|409|503) \/memories\/all\/drawings(?:\/|$)/.test(entry) && entry !== "500 /memories/all/search"), [],
       "only the expected conflict, missing-drawing and unindexed note-search responses fail");
     } catch (error) {
       if (screenshots) await page.screenshot({ path: path.join(screenshots, `drawing-failure-${width}.png`) }).catch(() => {});
@@ -230,6 +348,9 @@ try {
     try {
       await page.goto(gateway.url + "/#companion=" + controlKey);
       await idle();
+      await page.locator("#open-drawings").click();
+      await page.locator("#drawings-list-state", { hasText: "No drawings yet" }).waitFor();
+      assert.equal(await exists(path.join(local, "drawings")), false);
       await page.locator("#new-drawing").click();
       await ready(page);
       const localId = gateway.state().activeId;
@@ -271,9 +392,12 @@ try {
       await page.waitForFunction(() => document.getElementById("drawing-state").textContent === "Read only");
       assert.equal(await page.locator("#drawing-delete").isDisabled(), true);
       assert.equal(await page.locator("#drawing-name").evaluate((input) => input.readOnly), true);
-      assert.equal(await page.locator("#new-drawing").isEnabled(), true);
-      await page.locator("#new-drawing").click();
-      await page.waitForTimeout(800);
+      assert.equal(await page.locator("#drawings-list").isHidden(), false);
+      await page.locator("#drawings-disclosure").click();
+      await page.locator("#open-drawings").click();
+      assert.equal(await page.locator("#new-drawing").isDisabled(), true);
+      await page.locator("#drawing-create-reason", { hasText: "read only" }).waitFor();
+      assert.equal(await page.locator("#sidebar-drawings").textContent().then(text => text.includes("Untitled drawing")), false, "old brain rows never leak into the new brain");
       assert.equal(new URL(page.url()).searchParams.get("drawing"), "Shared sketch", "a read-only brain creates nothing");
       assert.equal(await readFile(drawingFile("Shared sketch"), "utf8"), before, "a read-only brain is never rewritten");
       // The old brain's drawing link is refused on the new brain.

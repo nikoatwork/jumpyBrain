@@ -245,7 +245,9 @@ test('the drawing editor is a public, content-free frame served apart from the n
   const html = await shell.text();
   assert.doesNotMatch(html, /excalidraw@|roughjs|react-dom/i, 'the shell never embeds the drawing editor');
   assert.equal((html.match(/<script\b/g) || []).length, 2);
-  assert.match(html, /id="new-drawing"/);
+  assert.match(html, /id="open-drawings"[^>]*aria-label="Drawings"/);
+  assert.match(html, /id="drawings-list" hidden/);
+  assert.match(html, /id="new-drawing"[^>]*aria-label="New drawing"/);
   assert.match(html, /id="drawing-view"[^>]*hidden/);
   assert.equal(graphPageHtml('n', 'home', { companion: true }).includes('id="new-drawing"'), true, 'the Mac shell offers drawings too');
 
