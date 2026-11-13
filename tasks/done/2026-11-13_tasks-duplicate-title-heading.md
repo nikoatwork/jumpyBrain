@@ -64,5 +64,5 @@ Tested snapshot: `71cf236c` plus the second-pass change, built with `npm run bui
 
 ## Hand-off (coordinator)
 
-- `tasks/feedback.md` rows for 11-13 08:20 and 11-12 19:30 still link `todo/tasks-duplicate-title-heading.md`; repoint them to `done/2026-11-13_tasks-duplicate-title-heading.md` and mark them covered.
+- Done by the coordinator: `tasks/feedback.md` rows for 11-13 08:20 and 11-12 19:30 now point here and are marked covered; release note added to `tasks/todo/release-next.md`.
 - Pending release note suggestion: "Notes written by agents no longer repeat their title as a heading at the top of the body; the title appears once."
