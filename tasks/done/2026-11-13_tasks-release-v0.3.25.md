@@ -1,5 +1,7 @@
 # Release v0.3.25
 
+Completed 2026-11-13: published and verified v0.3.25 beta, refreshed the public demo to the exact tag, and archived shipped notes/QA.
+
 Requested 2026-11-13: cut the next patch beta from clean master. Implementation snapshot `53ced7fe`; local master contains origin/master (15 commits ahead before preparation). Latest public release is v0.3.24, published November 12; no release published November 13 in Europe/Berlin.
 
 ## Scope and feedback
@@ -13,10 +15,10 @@ Requested 2026-11-13: cut the next patch beta from clean master. Implementation 
 
 - [x] Check published release cadence, fetch origin/master and tags, inspect snapshot and reconcile live feedback.
 - [x] Prepare build, fresh desktop package and Chromium core note lifecycle; reuse unchanged feature-specific evidence.
-- [/] Commit preparation and run release dry run, then full `npm run release`.
-- [ ] Verify exact public notes, annotated tag, aligned component versions and all three asset digests.
-- [ ] Refresh public demo to the exact published tag and verify version, landing, note opening, search and graph.
-- [ ] Archive exact shipped notes and QA, reset pending notes, finalize task/changelog and push bookkeeping.
+- [x] Commit preparation and run release dry run, then full `npm run release`.
+- [x] Verify exact public notes, annotated tag, aligned component versions and all three asset digests.
+- [x] Refresh public demo to the exact published tag and verify version, landing, note opening, search and graph.
+- [x] Archive exact shipped notes and QA, reset pending notes, finalize task/changelog and push bookkeeping.
 
 ## Verification
 
@@ -25,7 +27,7 @@ Environment: macOS 15.7.7 ARM64, Node 26.7.0. QMD 2.8.3.
 - `npm run build`: passed; editor 184,683 gzip bytes, below the unchanged 185,000 ceiling.
 - `npm run desktop:pack`: passed fresh signed/verified outer package, reused native executable with verified unchanged build inputs. Log: `/tmp/jumpybrain-v0.3.25-desktop-pack.log`.
 - `npx --package=playwright node scripts/note-lifecycle-smoke.mjs`: passed capture, immediate search, canonical title graph, two-tab overlap merge without review, 390/320 layouts, delete cancel/apply, preserved backlinks and index refresh. Real lexical QMD, disposable brain. Log: `/tmp/jumpybrain-v0.3.25-lifecycle.log`.
-- Reused feature evidence: [drawing browser](../done/2026-11-13_tasks-drawings-browser-navigation.md), [checkbox rendering](../done/2026-11-13_tasks-checkbox-rendering.md), [remote auth](../done/2026-11-13_tasks-remote-auth-diagnostics.md), [title heading](../done/2026-11-13_tasks-duplicate-title-heading.md). Those implementations are unchanged in this release snapshot. Known baseline-only browser runner failures remain documented in the checkbox task; not counted as passes.
+- Reused feature evidence: [drawing browser](2026-11-13_tasks-drawings-browser-navigation.md), [checkbox rendering](2026-11-13_tasks-checkbox-rendering.md), [remote auth](2026-11-13_tasks-remote-auth-diagnostics.md), [title heading](2026-11-13_tasks-duplicate-title-heading.md). Those implementations are unchanged in this release snapshot. Known baseline-only browser runner failures remain documented in the checkbox task; not counted as passes.
 
 ## Release gate recovery
 
@@ -43,3 +45,9 @@ Environment: macOS 15.7.7 ARM64, Node 26.7.0. QMD 2.8.3.
 ## Limits
 
 No current-candidate real-use window, installed app update, Intel execution, physical IME/accessibility, or broad updater/retrieval evaluation. Additional limits and publication/demo evidence will be recorded in the release QA before completion.
+
+## Publication
+
+Published v0.3.25 at **2026-11-13T20:18:22Z**, annotated tag `6755714475263129b9e1f00e701b5b8064513614`. Final full suite: **2,044 pass / zero fail / two optional skips**. All public assets, notes and component versions verified. [Exact notes](releases/v0.3.25.md) and [QA](releases/v0.3.25.qa.md). Public demo rollout and all required live flows verified at **2026-11-13T20:22:29.849Z**. Exact version/revision, landing, note opening, 28-node graph, 13 search results and zero page errors; deployment bookkeeping pushed. Pending notes reset to an empty heading.
+
+Finalization: scoped notes, QA, archived task, feedback index and changelog retained in Git. No glossary changes. Publication and demo verification are complete; listed real-use/native limits remain explicit.

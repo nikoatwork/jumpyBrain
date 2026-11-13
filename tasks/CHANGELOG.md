@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-13 — v0.3.25 beta
+
+- Published Settings/drawing navigation improvements, broader exact-byte task checkboxes, remote key diagnostics and heading-free new agent notes; release testing also found and fixed extension notifications starting a later handler after timeout. Full gate passed (2,044 tests, two optional skips), all three public assets verified, and the public demo matches the exact release revision. [Task](done/2026-11-13_tasks-release-v0.3.25.md) · [QA](done/releases/v0.3.25.qa.md) · [Notes](done/releases/v0.3.25.md).
+
 ## 2026-11-13 — No title heading in agent-written notes
 
 - New notes from `remember`, `wrapup` and remote/hosted writers no longer get a `# <title>` H1; an agent body that repeats the title as its first H1 has it dropped (one pure core rule). Reference pages and blank notes are frontmatter only; new synthesis maps drop the topic H1. Excerpt selection counts the frontmatter title for heading-less bodies. Resaving was ruled out as a cause; existing files are untouched. [Findings, checks and limits](done/2026-11-13_tasks-duplicate-title-heading.md).
