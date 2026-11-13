@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-13 — Task checkbox rendering
+
+- Task rows keep their checkbox when the label has unsupported syntax: only the label stays as editable literal source. `*`/`+` tasks, tasks under a bullet, and Obsidian tab or four-space nesting now render. Toggles change only the checkbox byte, including Undo and an uppercase `X`. Verified with focused editor tests, the new `scripts/task-checkbox-smoke.mjs` and the existing task/bullet/link smokes at 1280/390px. The editor stays under its gzip ceiling. [Task](done/2026-11-13_tasks-checkbox-rendering.md).
+
 ## 2026-11-12 — Access keys last in Settings
 
 - Moved Access keys after Extensions in the Settings navigation. Verified with `npm run build`, the rendered navigation order, `scripts/sidebar-layout-smoke.mjs` (including Settings at 1280/320px), and `git diff --check`. Packaged Mac app not checked; no installation or release.

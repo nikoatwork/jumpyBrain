@@ -3,21 +3,54 @@ import { markdownTable } from "./editor-markdown.js";
 
 type ParagraphJSON = ReturnType<ParagraphNode["exportJSON"]>;
 
+// Unsupported blocks are ordinary editable text, never HTML or silently discarded nodes.
+export class LiteralMarkdownNode extends ParagraphNode {
+  static getType() { return "literal-markdown"; }
+  static clone(node: LiteralMarkdownNode) { return new LiteralMarkdownNode(node.__key); }
+  constructor(key?: NodeKey) { super(key); }
+  static importJSON(value: ParagraphJSON) {
+    return new LiteralMarkdownNode().updateFromJSON(value);
+  }
+  exportJSON() { return { ...super.exportJSON(), type: "literal-markdown" }; }
+  insertNewAfter() {
+    const next = new LiteralMarkdownNode();
+    this.insertAfter(next);
+    next.selectStart();
+    return next;
+  }
+  createDOM() {
+    const element = document.createElement("p");
+    element.className = "markdown-literal";
+    element.title = "Markdown kept as literal text";
+    return element;
+  }
+}
+
 // One task per source line; indentation is presentation/source metadata, not a
-// second list tree. Ambiguous lists remain literal Markdown.
+// second list tree. Ambiguous lists remain literal Markdown. `marker` holds the
+// note's nesting unit, bullet and checked spelling (`  -x`, `\t*X`). A literal
+// task keeps its whole label as editable source text, like a literal line.
 export class TaskMarkdownNode extends ParagraphNode {
   __checked: boolean;
   __spaces: number;
+  __marker: string;
+  __literal: boolean;
   static getType() { return "markdown-task"; }
-  static clone(node: TaskMarkdownNode) { return new TaskMarkdownNode(node.__checked, node.__spaces, node.__key); }
-  constructor(checked = false, spaces = 0, key?: NodeKey) { super(key); this.__checked = checked; this.__spaces = spaces; }
-  static importJSON(value: ParagraphJSON & { checked?: boolean; spaces?: number }) {
-    return new TaskMarkdownNode(value.checked, value.spaces).updateFromJSON(value);
+  static clone(node: TaskMarkdownNode) { return new TaskMarkdownNode(node.__checked, node.__spaces, node.__marker, node.__literal, node.__key); }
+  constructor(checked = false, spaces = 0, marker = "  -x", literal = false, key?: NodeKey) {
+    super(key); this.__checked = checked; this.__spaces = spaces; this.__marker = marker; this.__literal = literal;
   }
-  exportJSON() { return { ...super.exportJSON(), type: "markdown-task", checked: this.__checked, spaces: this.__spaces }; }
+  static importJSON(value: ParagraphJSON & { checked?: boolean; spaces?: number; marker?: string; literal?: boolean }) {
+    return new TaskMarkdownNode(value.checked, value.spaces, value.marker, value.literal).updateFromJSON(value);
+  }
+  exportJSON() { return { ...super.exportJSON(), type: "markdown-task", checked: this.__checked, spaces: this.__spaces, marker: this.__marker, literal: this.__literal }; }
+  // Canonical row prefix, e.g. `\t\t* [X] `.
+  prefix() {
+    const { __marker: marker, __spaces: spaces, __checked: checked } = this.getLatest();
+    return marker.slice(0, -2).repeat(spaces / 2) + marker.at(-2) + " [" + (checked ? marker.at(-1) : " ") + "] ";
+  }
   createDOM() {
     const row = document.createElement("p");
-    row.className = "markdown-task";
     const check = document.createElement("button");
     check.type = "button";
     check.contentEditable = "false";
@@ -31,6 +64,7 @@ export class TaskMarkdownNode extends ParagraphNode {
   getDOMSlot(element: HTMLElement) { return super.getDOMSlot(element.lastElementChild as HTMLElement); }
   updateDOM(_previous: this, element: HTMLElement) { this.syncDOM(element); return false; }
   syncDOM(element: HTMLElement) {
+    element.className = this.__literal ? "markdown-task markdown-literal" : "markdown-task";
     element.style.paddingInlineStart = `${this.__spaces}ch`;
     const check = element.firstElementChild!;
     check.setAttribute("aria-checked", String(this.__checked));
@@ -56,11 +90,12 @@ export class TaskMarkdownNode extends ParagraphNode {
     if (this.isEmpty()) {
       const paragraph = $createParagraphNode(); this.replace(paragraph); paragraph.selectStart(); return paragraph;
     }
-    const next = new TaskMarkdownNode(false, this.getLatest().__spaces);
+    const { __spaces, __marker, __literal } = this.getLatest(), next = new TaskMarkdownNode(false, __spaces, __marker, __literal);
     this.insertAfter(next); next.selectStart(); return next;
   }
+  // A literal label stays literal source rather than becoming inline code.
   collapseAtStart() {
-    const paragraph = $createParagraphNode().append(...this.getChildren());
+    const paragraph = (this.getLatest().__literal ? new LiteralMarkdownNode() : $createParagraphNode()).append(...this.getChildren());
     this.replace(paragraph); paragraph.selectStart(); return true;
   }
 }
