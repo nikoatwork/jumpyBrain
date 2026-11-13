@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-13 — Diagnosable remote authentication failures
+
+- When a remote server rejects the access key (HTTP 401 or 403), the CLI now names the key's source and a fingerprint (length and last four characters), never the key. It also lists keys it found but did not use, the key order (environment, then the app key for that URL, then the `.env` default) and how to recover. `status --target-url` shows which key was accepted. `collaborate` reports a rejected key the same way, and keys with smart quotes are refused before sending. Server-redeploy key loss remains unproven. [Verification and limits](done/2026-11-13_tasks-remote-auth-diagnostics.md).
+
 ## 2026-11-13 — Task checkbox rendering
 
 - Task rows keep their checkbox when the label has unsupported syntax: only the label stays as editable literal source. `*`/`+` tasks, tasks under a bullet, and Obsidian tab or four-space nesting now render. Toggles change only the checkbox byte, including Undo and an uppercase `X`. Verified with focused editor tests, the new `scripts/task-checkbox-smoke.mjs` and the existing task/bullet/link smokes at 1280/390px. The editor stays under its gzip ceiling. [Task](done/2026-11-13_tasks-checkbox-rendering.md).

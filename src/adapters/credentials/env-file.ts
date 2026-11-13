@@ -33,6 +33,9 @@ function displayPath(file: string, home = os.homedir()): string {
     : file.startsWith(home + path.sep) ? "~" + file.slice(home.length) : file;
 }
 
+/** The key file the CLI reads, as shown to users (home as `~`). */
+export const credentialsEnvFileDisplay = (options: EnvFileOptions = {}) => displayPath(credentialsEnvFile(options), options.home);
+
 /** `jumpybrain-companion:<uuid>` → `<UUID_WITH_UNDERSCORES>` (env names cannot hold `-` or `:`). */
 export function referenceSuffix(reference: string): string {
   const match = REFERENCE.exec(reference);
@@ -171,20 +174,73 @@ const sameDestination = (left: string, right: string) => {
   } catch { return false; }
 };
 
+/** Where the CLI found a remote key, in precedence order. */
+export type RemoteKeySource = "environment" | "app-connection" | "env-file";
+export interface RemoteKey {
+  source: RemoteKeySource;
+  /** The secret. Callers must never print it; use `keyFingerprint`. */
+  key: string;
+  /** Variable that held the key (the app's is `JUMPYBRAIN_KEY_<REF>`). */
+  variable: string;
+  /** Key file as shown to users (home as `~`); absent for the environment. */
+  file?: string;
+}
+
+function fileKeys(values: Map<string, string>, url: string, file: string): RemoteKey[] {
+  const keys: RemoteKey[] = [];
+  for (const [name, value] of values) {
+    if (!name.startsWith("JUMPYBRAIN_URL_") || !sameDestination(value, url)) continue;
+    const variable = "JUMPYBRAIN_KEY_" + name.slice("JUMPYBRAIN_URL_".length);
+    const key = values.get(variable)?.trim();
+    if (key) { keys.push({ source: "app-connection", key, variable, file: displayPath(file) }); break; }
+  }
+  const fallback = values.get("JUMPYBRAIN_API_KEY")?.trim();
+  if (fallback) keys.push({ source: "env-file", key: fallback, variable: "JUMPYBRAIN_API_KEY", file: displayPath(file) });
+  return keys;
+}
+
 /**
  * CLI remote key: JUMPYBRAIN_API_KEY from the process environment, then the
  * key the app saved for this exact URL, then JUMPYBRAIN_API_KEY in the file.
+ * The file is not read when the environment supplies a key.
  */
-export async function remoteKeyForUrl(url: string, options: EnvFileOptions = {}): Promise<string | null> {
+export async function resolveRemoteKey(url: string, options: EnvFileOptions = {}): Promise<RemoteKey | null> {
   const env = options.env ?? process.env;
   const direct = env.JUMPYBRAIN_API_KEY?.trim();
-  if (direct) return direct;
-  const values = await readCredentialsFile(credentialsEnvFile(options));
-  if (!values) return null;
-  for (const [name, value] of values) {
-    if (!name.startsWith("JUMPYBRAIN_URL_") || !sameDestination(value, url)) continue;
-    const key = values.get("JUMPYBRAIN_KEY_" + name.slice("JUMPYBRAIN_URL_".length))?.trim();
-    if (key) return key;
+  if (direct) return { source: "environment", key: direct, variable: "JUMPYBRAIN_API_KEY" };
+  const file = credentialsEnvFile(options);
+  const values = await readCredentialsFile(file);
+  return values ? fileKeys(values, url, file)[0] ?? null : null;
+}
+
+export async function remoteKeyForUrl(url: string, options: EnvFileOptions = {}): Promise<string | null> {
+  return (await resolveRemoteKey(url, options))?.key ?? null;
+}
+
+/**
+ * Every key the CLI could use for `url`, in precedence order, for diagnostics
+ * after a rejection. Never throws: an unreadable or insecure file is reported
+ * as `fileProblem` (its message names the file, never a key).
+ */
+export async function remoteKeyCandidates(url: string, options: EnvFileOptions = {}): Promise<{ keys: RemoteKey[]; fileProblem?: string }> {
+  const env = options.env ?? process.env;
+  const keys: RemoteKey[] = [];
+  const direct = env.JUMPYBRAIN_API_KEY?.trim();
+  if (direct) keys.push({ source: "environment", key: direct, variable: "JUMPYBRAIN_API_KEY" });
+  const file = credentialsEnvFile(options);
+  try {
+    const values = await readCredentialsFile(file);
+    if (values) keys.push(...fileKeys(values, url, file));
+    return { keys };
+  } catch (error) {
+    return { keys, fileProblem: error instanceof CredentialFileError ? error.message : `Cannot read ${displayPath(file)}.` };
   }
-  return values.get("JUMPYBRAIN_API_KEY")?.trim() || null;
+}
+
+/**
+ * A non-secret way to tell keys apart: the length, plus the last four
+ * characters only when the key is long enough (16+) that they reveal little.
+ */
+export function keyFingerprint(key: string): { length: number; last4?: string } {
+  return key.length >= 16 ? { length: key.length, last4: key.slice(-4) } : { length: key.length };
 }

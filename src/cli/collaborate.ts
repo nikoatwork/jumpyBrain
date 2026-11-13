@@ -111,6 +111,7 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
     }
   >();
   let watch = false,
+    authenticated = false,
     clientId = "",
     stoppingError: Error | undefined,
     finishing = false;
@@ -163,13 +164,18 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
           );
     } else if (watch && packet.event === "document") print(packet.snapshot);
   });
-  socket.addEventListener("close", () => {
+  socket.addEventListener("close", (event) => {
+    // The server closes with 1008 instead of answering hello for an unknown or
+    // revoked key; report it like an HTTP 401 so the CLI can explain the key.
+    const rejected = !authenticated && event.code === 1008;
     for (const waiter of pending.values()) {
       clearTimeout(waiter.timer);
       waiter.reject(
-        new Error(
-          "Connection lost. A dispatched operation may have committed; inspect the note before retrying.",
-        ),
+        rejected
+          ? Object.assign(new Error("Invalid API key."), { status: 401, code: "invalid_api_key" })
+          : new Error(
+              "Connection lost. A dispatched operation may have committed; inspect the note before retrying.",
+            ),
       );
     }
     pending.clear();
@@ -235,6 +241,7 @@ export async function collaborateCli(args: ParsedCliArgs): Promise<void> {
       );
     });
     await request("hello", { token: credential, protocol: 2 });
+    authenticated = true;
     clientId =
       typeof args["client-id"] === "string"
         ? args["client-id"]

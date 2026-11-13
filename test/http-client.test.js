@@ -123,6 +123,29 @@ test("remote HTTP client maps document precondition errors", async () => {
   );
 });
 
+test("remote HTTP client keeps auth status and code for CLI key diagnostics, never the key", async () => {
+  const { createRemoteMemoryTransport, RemoteMemoryError } = await loadClientModule();
+  const apiKey = "jb_FAKEdiagnosticKEY000000000000000000000000wXyZ";
+  for (const [status, payload, code] of [
+    [401, { error: { code: "invalid_api_key", message: "Invalid API key." } }, "invalid_api_key"],
+    [403, { error: { code: "read_only", message: "This credential grants reader access." } }, "read_only"],
+    [401, null, "http_401"], // e.g. a reverse proxy answering without a JSON body
+  ]) {
+    const transport = createRemoteMemoryTransport({
+      url: "https://memory.example/", apiKey,
+      fetchImpl: async () => payload ? jsonResponse(payload, status) : new Response("Unauthorized", { status }),
+    });
+    for (const call of [() => transport.memoryRootStatus(), () => transport.compactSearchMemory("topic", 3)]) {
+      await assert.rejects(call, (error) => {
+        assert.equal(error instanceof RemoteMemoryError, true);
+        assert.deepEqual([error.status, error.code], [status, code]);
+        assert.equal(error.message.includes(apiKey) || error.message.includes("wXyZ"), false);
+        return true;
+      });
+    }
+  }
+});
+
 test("remote HTTP client uses documented dream routes and JSON bodies", async () => {
   const { createRemoteMemoryTransport } = await loadClientModule();
   const calls = [];

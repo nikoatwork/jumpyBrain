@@ -126,16 +126,13 @@ jumpybrain status --target-url https://memory.example.com
 jumpybrain recall --target-url https://memory.example.com --topic "current project decisions" --limit 5
 ```
 
-`--target-url` and `--remote-url` are equivalent. API keys currently come only from `JUMPYBRAIN_API_KEY` in the CLI environment; there is no local-config fallback.
+`--target-url` and `--remote-url` are equivalent. The CLI uses `JUMPYBRAIN_API_KEY` from the environment first, then the key the Mac app saved for the same URL in `~/.config/jumpybrain/.env`, then `JUMPYBRAIN_API_KEY` written in that file ([details](cli-commands.md#remote-access-keys)). A shell/agent host can inject an issued key from its secret manager into `JUMPYBRAIN_API_KEY`.
 
 An installer-created CLI can mark a remote origin read-only in device-local `cli-config.json`. That is accidental-write protection, not server authorization. Enforce access at the server or reverse proxy.
 
-The Mac app has its existing native credential storage; that does not supply a
-CLI environment automatically. A shell/agent host can inject an issued key from
-its secret manager into `JUMPYBRAIN_API_KEY`. A new cross-platform CLI credential
-store is deferred: it needs a separate decision about provider integration and
-unattended access, and is not required to build or operate this image. Brain
-target routing and credential storage are separate concerns.
+### When the server rejects the key
+
+`status --target-url` prints which key it used (`Access key: JUMPYBRAIN_API_KEY from the environment (46 chars, ends …x9Qz), accepted`). On HTTP 401 every remote command names that source and fingerprint, lists other keys it found but did not use, and gives the recovery steps; keys themselves are never printed. A common cause is an old `export JUMPYBRAIN_API_KEY=...` in `~/.zshenv` or `~/.zshrc` that silently overrides the key saved in the app. To recover, have an admin issue a replacement (see [Rotate and revoke](#rotate-and-revoke-deliberately)), then update or unset that export, or re-enter the key in the app, and re-run `status`. The server's answer does not distinguish a mistyped key from a revoked one or one issued by a different server.
 
 ## 6. Verify the deployment
 
