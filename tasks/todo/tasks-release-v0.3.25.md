@@ -27,6 +27,13 @@ Environment: macOS 15.7.7 ARM64, Node 26.7.0. QMD 2.8.3.
 - `npx --package=playwright node scripts/note-lifecycle-smoke.mjs`: passed capture, immediate search, canonical title graph, two-tab overlap merge without review, 390/320 layouts, delete cancel/apply, preserved backlinks and index refresh. Real lexical QMD, disposable brain. Log: `/tmp/jumpybrain-v0.3.25-lifecycle.log`.
 - Reused feature evidence: [drawing browser](../done/2026-11-13_tasks-drawings-browser-navigation.md), [checkbox rendering](../done/2026-11-13_tasks-checkbox-rendering.md), [remote auth](../done/2026-11-13_tasks-remote-auth-diagnostics.md), [title heading](../done/2026-11-13_tasks-duplicate-title-heading.md). Those implementations are unchanged in this release snapshot. Known baseline-only browser runner failures remain documented in the checkbox task; not counted as passes.
 
+## Release gate recovery
+
+- First full run was interrupted during the test suite when the conversation was steered; it recorded three timing failures before interruption, with no release commit, tag, push or publication. Log: `/tmp/jumpybrain-v0.3.25-release.log`. Restored only its four version-metadata edits before restarting.
+- The backend slow-drain case independently reproduced `backend_not_ready` instead of `backend_stop_pending`: its 150 ms total discovery/drain allowance expired before reaching the intended drain boundary. Increased only that fixture deadline to 2 seconds; the owner never releases its lease and every stop/spawn/identity assertion remains.
+- Presence and stream lease tests now control `Date.now`, explicitly advancing it past the lease after reconnect/anchor assertions. Real WebSocket transport and observer scheduling remain exercised; the stream cleanup wait uses monotonic real time. No production runtime changes or removed assertions.
+- Focused rerun of the three previously failing cases passed (3/3), including the slow-drain safety and lease expiry assertions. Log: `/tmp/jumpybrain-v0.3.25-timing-focused.log`. The full versioned release gate must still pass.
+
 ## Limits
 
 No current-candidate real-use window, installed app update, Intel execution, physical IME/accessibility, or broad updater/retrieval evaluation. Additional limits and publication/demo evidence will be recorded in the release QA before completion.

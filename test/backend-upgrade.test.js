@@ -176,7 +176,9 @@ async function slowOwner(f, onStop = () => {}) {
 
 test('slow authenticated drain times out without spawning a competing owner or forcing a kill', { timeout: 10000 }, async t => {
   const f = await fixture(t), old = await slowOwner(f); let spawns = 0;
-  await assert.rejects(ensureRootBackend(old.root, { upgradeOlder: true, timeoutMs: 150, spawn: async () => { spawns++; } }), { code: 'backend_stop_pending' });
+  // Leave time for authenticated discovery under the full suite's I/O load;
+  // the fixture never releases its lease, so drain must still time out.
+  await assert.rejects(ensureRootBackend(old.root, { upgradeOlder: true, timeoutMs: 2000, spawn: async () => { spawns++; } }), { code: 'backend_stop_pending' });
   assert.equal(old.stops(), 1); assert.equal(spawns, 0);
   assert.equal((await readBackendDescriptor(old.root)).instanceId, old.descriptor.instanceId);
   assert.equal(await verifyBackendReady(old.descriptor), true);

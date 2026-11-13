@@ -53,6 +53,8 @@ test("presence follows canonical inserts, rebases delayed packets, rejects epoch
 });
 test("deleted interior anchors clear; active agent exposes insertion point; presence lease and revocation remove ghosts",async(t)=>{
   const {hub}=await fixture(t,{presenceLeaseMs:150});
+  let now=Date.now();
+  t.mock.method(Date,"now",()=>now);
   let s=await hub.open(documentId,alice,{clientId:"tab"});
   await hub.dispatch("presence",{...params(s),selection:{anchor:4,focus:4}},alice);
   s=await hub.dispatch("edit",{...params(s,"bob"),operationId:"delete-region",start:2,deleteCount:4,insert:""},bob);
@@ -64,7 +66,7 @@ test("deleted interior anchors clear; active agent exposes insertion point; pres
   assert.equal(s.presence.find(p=>p.clientId==="agent").anchor,5);
   await hub.revokePrincipal(bob.id);
   assert.equal((await hub.read(documentId)).presence.some(p=>p.principalId===bob.id),false);
-  await new Promise(r=>setTimeout(r,180));
+  now+=180;
   await hub.observe();
   assert.equal((await hub.read(documentId)).presence.length,0);
 });

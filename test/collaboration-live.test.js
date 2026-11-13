@@ -329,6 +329,9 @@ test(
       {},
       { observeIntervalMs: 5, streamLeaseMs: 180 },
     );
+    // Reconnect latency must not consume the inactivity lease being tested.
+    let now = Date.now();
+    t.mock.method(Date, "now", () => now);
     let agent = await client();
     const base = openParams("agent"),
       snapshot = (await agent.rpc("open", base)).result;
@@ -375,9 +378,10 @@ test(
     const human = await client("reader");
     await human.rpc("open", openParams("human"));
     agent.ws.terminate();
-    const end = Date.now() + 2000;
+    now += 181;
+    const end = performance.now() + 2000;
     while (hub.resourceUsage().streams) {
-      assert.ok(Date.now() < end);
+      assert.ok(performance.now() < end);
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     agent = await client();
