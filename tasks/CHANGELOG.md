@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-13 — Browse drawings before creating
+
+- Drawings now opens a collapsed sidebar browser with a separate creation action, making existing sketches discoverable without accidental files. [Task](done/2026-11-13_tasks-drawings-browser-navigation.md).
+
 ## 2026-11-12 — Access keys last in Settings
 
 - Moved Access keys after Extensions in the Settings navigation. Verified with `npm run build`, the rendered navigation order, `scripts/sidebar-layout-smoke.mjs` (including Settings at 1280/320px), and `git diff --check`. Packaged Mac app not checked; no installation or release.

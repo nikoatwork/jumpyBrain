@@ -20,8 +20,16 @@ export const drawingsStyles = String.raw`
 #drawing-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
 #drawing-empty { margin: var(--space-8) auto; max-width: 420px; text-align: center; color: var(--ink-soft); }
 #drawing-empty[hidden] { display: none; }
-#sidebar-drawings { margin-bottom: var(--space-3); }
+#drawing-navigation { margin-bottom: var(--space-3); }
+#drawing-navigation [hidden] { display: none; }
+#drawings-disclosure { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; color: var(--ink-soft); }
+#drawings-disclosure::before { content: ''; width: var(--space-1); height: var(--space-1); border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); flex: none; }
+#drawings-disclosure[aria-expanded="true"]::before { transform: rotate(45deg); }
+#drawings-list-state, #drawing-create-reason { margin: var(--space-1) var(--space-3); color: var(--ink-faint); font-size: var(--text-caption); }
+#sidebar-drawings { margin-bottom: var(--space-1); }
+@media(max-width:680px) { #sidebar-drawings { display: block; overflow: visible; } }
 #sidebar-drawings:empty { margin: 0; }
+#sidebar-drawings .sidebar-page { max-width: none; }
 #sidebar-drawings .sidebar-page-link { display: flex; gap: var(--space-2); white-space: nowrap; }
 #sidebar-drawings .sidebar-page-link svg { flex: none; width: var(--icon-size); height: var(--icon-size); color: var(--ink-faint); }
 #sidebar-drawings .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; }
@@ -29,8 +37,18 @@ export const drawingsStyles = String.raw`
 .search-result[data-kind="drawing"] .search-result-preview { color: var(--ink-faint); }
 `;
 
-export const drawingsNavigationControl = `<button id="new-drawing" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New drawing" title="New drawing">${drawingIcon}</button>`;
-export const drawingsSidebarMarkup = `<div id="drawing-navigation" hidden><ul id="sidebar-drawings" aria-label="Drawings"></ul><button id="sidebar-drawings-more" class="quiet-button sidebar-list-more" hidden>Show all drawings</button></div>`;
+export const drawingsNavigationControl = `<button id="open-drawings" type="button" class="quiet-button nav-item sidebar-icon" aria-label="Drawings" title="Drawings" aria-expanded="false" aria-controls="drawings-list">${drawingIcon}</button>`;
+export const drawingsSidebarMarkup = `<div id="drawing-navigation">
+  <button id="drawings-disclosure" type="button" class="quiet-button nav-item" aria-expanded="false" aria-controls="drawings-list">Drawings</button>
+  <div id="drawings-list" hidden>
+    <button id="new-drawing" type="button" class="quiet-button nav-item" aria-label="New drawing" aria-describedby="drawing-create-reason">${browserIcons.plus}New drawing</button>
+    <p id="drawing-create-reason" hidden></p>
+    <p id="drawings-list-state" role="status" aria-live="polite"></p>
+    <button id="drawings-list-retry" type="button" class="quiet-button sidebar-list-more" hidden>Retry</button>
+    <ul id="sidebar-drawings" aria-label="Drawings"></ul>
+    <button id="sidebar-drawings-more" type="button" class="quiet-button sidebar-list-more" hidden>Show all drawings</button>
+  </div>
+</div>`;
 
 export const drawingsMarkup = `
   <section id="drawing-view" aria-label="Drawing" hidden>
@@ -70,7 +88,18 @@ function createDrawingsUI(host) {
   const view = element("drawing-view"), stage = element("drawing-stage"), nameInput = element("drawing-name"), stateLabel = element("drawing-state");
   const notice = element("drawing-notice"), noticeText = element("drawing-notice-text"), empty = element("drawing-empty");
   const deleteDialog = element("drawing-delete-dialog");
-  let list = [], listScope = null, listAt = 0, listRequest = null, showAll = false;
+  let list = [], listScope = null, listAt = 0, listRequest = null, listStatus = "idle", listVersion = 0, creating = false, reader = false;
+  const disclosures = new Map();
+  let disclosure = { expanded: false, showAll: false }, renderedRows = "";
+  function syncScope() {
+    const scope = host.scope();
+    if (scope !== listScope) {
+      listScope = scope; list = []; reader = false; listAt = 0; listRequest = null; listStatus = "idle"; listVersion++;
+      if (!disclosures.has(scope)) disclosures.set(scope, { expanded: false, showAll: false });
+      disclosure = disclosures.get(scope);
+    }
+    return scope;
+  }
   let token = 0, current = null, frame = null, frameReady = null, saveTimer = null, saving = null;
 
   function referenceName(target) {
@@ -85,7 +114,8 @@ function createDrawingsUI(host) {
     for (const id of ["drawing-retry", "drawing-reload", "drawing-overwrite"]) element(id).hidden = !(actions || []).includes(id);
   }
   function setEmpty(text) { empty.textContent = text || ""; empty.hidden = !text; if (frame) frame.hidden = Boolean(text); }
-  function writable() { return Boolean(current) && !current.readOnly && !host.readOnly(); }
+  function readOnly() { return reader || host.readOnly(); }
+  function writable() { return Boolean(current) && !current.readOnly && !readOnly(); }
   function syncControls() {
     const open = Boolean(current);
     nameInput.readOnly = !open || !writable();
@@ -95,9 +125,25 @@ function createDrawingsUI(host) {
 
   // ---- sidebar list -------------------------------------------------------
   function renderList() {
-    const container = element("drawing-navigation"), items = element("sidebar-drawings"), more = element("sidebar-drawings-more");
-    container.hidden = !host.connected();
-    const visible = showAll ? list : list.slice(0, 5);
+    syncScope();
+    const items = element("sidebar-drawings"), more = element("sidebar-drawings-more"), connected = host.connected();
+    element("drawings-list").hidden = !disclosure.expanded;
+    for (const id of ["open-drawings", "drawings-disclosure"]) element(id).setAttribute("aria-expanded", String(disclosure.expanded));
+    const status = !connected ? "Connect to browse drawings." : listStatus === "loading" ? "Loading drawings…"
+      : listStatus === "error" ? "Could not load drawings." : listStatus === "ready" && !list.length ? "No drawings yet" : "";
+    element("drawings-list-state").textContent = status;
+    element("drawings-list-state").hidden = !status;
+    element("drawings-list-retry").hidden = !connected || listStatus !== "error";
+    const reason = !connected ? "Connect to create a drawing." : readOnly() ? "This connection is read only." : "";
+    element("new-drawing").disabled = Boolean(reason) || creating || listStatus === "loading";
+    element("drawing-create-reason").textContent = reason;
+    element("drawing-create-reason").hidden = !reason;
+    const visible = connected ? (disclosure.showAll ? list : list.slice(0, 5)) : [];
+    more.hidden = !connected || list.length <= 5;
+    more.textContent = disclosure.showAll ? "Show fewer drawings" : "Show all drawings (" + list.length + ")";
+    const rows = JSON.stringify([listScope, visible.map(item => item.name), current?.name]);
+    if (rows === renderedRows) return;
+    renderedRows = rows;
     items.replaceChildren(...visible.map((drawing) => {
       const row = document.createElement("li"); row.className = "sidebar-page";
       const link = document.createElement("a"); link.className = "sidebar-page-link"; link.href = href(drawing.name); link.title = drawing.name;
@@ -111,27 +157,43 @@ function createDrawingsUI(host) {
       });
       row.append(link); return row;
     }));
-    more.hidden = list.length <= 5;
-    more.textContent = showAll ? "Show fewer drawings" : "Show all drawings (" + list.length + ")";
+  }
+  function revealActive() {
+    if (current && list.findIndex(item => item.name === current.name) >= 5) disclosure.showAll = true;
+  }
+  function browse() {
+    syncScope(); disclosure.expanded = true;
+    host.revealSidebar();
+    renderList();
+    element("drawings-disclosure").focus();
+    element("drawings-disclosure").scrollIntoView({ block: "nearest" });
+    refreshList(false);
   }
   async function refreshList(force) {
-    const scope = host.scope();
-    if (!host.connected()) { list = []; listScope = null; renderList(); return list; }
-    if (!force && listScope === scope && Date.now() - listAt < 5000) return list;
-    if (listRequest && listRequest.scope === scope) return listRequest.promise;
-    const promise = (async () => {
+    const scope = syncScope(), version = listVersion;
+    if (!host.connected()) { list = []; listAt = 0; listStatus = "idle"; renderList(); return list; }
+    if (!force && listStatus === "ready" && Date.now() - listAt < 5000) return list;
+    if (listRequest) return listRequest.promise;
+    listStatus = "loading"; renderList();
+    const request = { promise: null };
+    request.promise = (async () => {
       try {
-        const packet = await host.json(route);
-        if (host.scope() !== scope) return list;
+        const [packet, capabilities] = await Promise.all([host.json(route), host.json("/capabilities").catch(() => null)]);
+        if (host.scope() !== scope || version !== listVersion || !host.connected()) return [];
         list = Array.isArray(packet && packet.drawings) ? packet.drawings.filter((item) => item && validName(item.name)) : [];
-        listScope = scope; listAt = Date.now();
-      } catch { if (listScope !== scope) list = []; }
-      finally { if (listRequest && listRequest.promise === promise) listRequest = null; }
-      renderList();
-      return list;
+        reader = capabilities?.principal?.role === "reader";
+        listAt = Date.now(); listStatus = "ready"; revealActive(); syncControls();
+        const api = frameApi(); if (api && current?.opened) api.setReadOnly(!writable());
+      } catch {
+        if (host.scope() !== scope || version !== listVersion) return [];
+        listStatus = "error";
+      } finally {
+        if (listRequest === request) { listRequest = null; renderList(); }
+      }
+      return host.scope() === scope && version === listVersion ? list : [];
     })();
-    listRequest = { scope, promise };
-    return promise;
+    listRequest = request;
+    return request.promise;
   }
   /** File-name matches for the shared search dialog; never throws. */
   async function match(query) {
@@ -283,6 +345,7 @@ function createDrawingsUI(host) {
     view.hidden = false;
     const session = { name, hash: null, pending: null, failed: false, conflict: false, readOnly: false, opened: false, renaming: null, token };
     current = session;
+    syncScope(); disclosure.expanded = true; revealActive();
     nameInput.value = name;
     syncControls(); renderList(); refreshList(false);
     if (!validName(name)) { setState(""); setEmpty("This drawing link is not valid."); return; }
@@ -319,11 +382,15 @@ function createDrawingsUI(host) {
 
   // ---- create / rename / delete -------------------------------------------
   async function create() {
+    if (creating) return;
     if (!host.connected()) { host.message("Connect before creating a drawing.", true); return; }
-    if (host.readOnly()) { host.message("This brain is read only.", true); return; }
+    if (readOnly()) { host.message("This brain is read only.", true); return; }
+    const scope = host.scope();
+    creating = true; renderList();
     try {
       await host.navigate(async () => {
         const names = new Set((await refreshList(true)).map((drawing) => drawing.name.toLocaleLowerCase()));
+        if (host.scope() !== scope || !host.connected() || readOnly()) throw new Error("Connection changed.");
         let number = 1, name = "Untitled drawing";
         for (let attempt = 0; attempt < 20; attempt++) {
           while (names.has(name.toLocaleLowerCase())) name = "Untitled drawing " + (++number);
@@ -340,7 +407,7 @@ function createDrawingsUI(host) {
       });
     } catch (error) {
       host.message(Number(error && error.status) === 403 ? "This connection cannot create drawings." : "Could not create a drawing. Check the connection and try again.", true);
-    }
+    } finally { creating = false; renderList(); }
   }
   function rename() {
     const session = current, next = nameInput.value.trim();
@@ -419,15 +486,21 @@ function createDrawingsUI(host) {
   });
   element("drawing-delete-cancel").addEventListener("click", () => deleteDialog.close());
   element("drawing-delete-confirm").addEventListener("click", remove);
+  element("open-drawings").addEventListener("click", browse);
+  element("drawings-disclosure").addEventListener("click", () => {
+    syncScope(); disclosure.expanded = !disclosure.expanded; renderList();
+    if (disclosure.expanded) refreshList(false);
+  });
+  element("drawings-list-retry").addEventListener("click", () => refreshList(true));
   element("new-drawing").addEventListener("click", create);
-  element("sidebar-drawings-more").addEventListener("click", () => { showAll = !showAll; renderList(); });
+  element("sidebar-drawings-more").addEventListener("click", () => { disclosure.showAll = !disclosure.showAll; renderList(); });
   window.addEventListener("focus", refreshOpen);
   document.addEventListener("visibilitychange", refreshOpen);
   new MutationObserver(() => { const api = frameApi(); if (api && current && current.opened) api.setTheme(host.theme()); })
     .observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 
   return { show, flush, hasPending, refreshList, match, referenceName, create,
-    connectionChanged() { listScope = null; refreshList(true); if (current) { const api = frameApi(); if (api && current.opened) api.setReadOnly(!writable()); syncControls(); } },
+    connectionChanged() { listVersion++; listRequest = null; listAt = 0; refreshList(true); if (current) { const api = frameApi(); if (api && current.opened) api.setReadOnly(!writable()); syncControls(); } },
     current: () => current ? current.name : null };
 }
 `;

@@ -21,6 +21,8 @@ async function run() {
     window.webContents.setBackgroundThrottling(false);
     await until('typeof companionRegistered!=="undefined" && companionRegistered && !companionFrozen', 'companion registration');
     assert.equal(window.webContents.mainFrame.frames.length, 0, 'the app starts without subframes');
+    await js('document.getElementById("open-drawings").click(); true');
+    await until('!document.getElementById("new-drawing").disabled', 'drawing collection loaded');
     await js('document.getElementById("new-drawing").click(); true');
     await until('window.__jumpyBrainDrawingReady === true', 'drawing editor frame');
     assert.equal(await js('new URL(location.href).searchParams.get("drawing")'), 'Untitled drawing');

@@ -496,6 +496,7 @@ ${dreamScript}
 ${drawingsScript}
 const drawingsUI = createDrawingsUI({
   json: graphJson,
+  revealSidebar: () => { if (document.documentElement.dataset.sidebarCollapsed === "true") sidebarPreference.toggle(); },
   scope: () => String(credentialRevision) + ":" + (companionMode ? String(companionState?.generation) + ":" + String(companionState?.activeId) : "hosted"),
   connected: () => Boolean(activeApiKey) && (!companionMode || (companionRegistered && !companionFrozen && !companionSessionFailed)),
   readOnly: () => companionMode && companionReadOnly(),
