@@ -31,7 +31,7 @@ export async function snippetFromOriginalBody(document: IndexedDocument, query: 
   const { lines, truncated } = source ?? await boundedOriginalLines(document.absolutePath);
   const bodyIndex = Math.max(0, document.bodyStartLine - 1);
   if (bodyIndex >= lines.length) return { lineStart: document.bodyStartLine, lineEnd: document.bodyStartLine, snippet: "" };
-  return selectCanonicalExcerpt(lines, truncated, document.bodyStartLine, document.bodyStartLine, lines.length, query);
+  return selectCanonicalExcerpt(lines, truncated, document.bodyStartLine, document.bodyStartLine, lines.length, query, documentTitle(document));
 }
 
 export async function neighborSnippetFromOriginal(document: IndexedDocument, lineStart: number, lineEnd: number | undefined, query = "", source?: CanonicalPrefix): Promise<SnippetRepair> {
@@ -39,11 +39,15 @@ export async function neighborSnippetFromOriginal(document: IndexedDocument, lin
   if (lineStart > lines.length || (truncated && (lineEnd ?? lineStart) > lines.length)) {
     return { lineStart, lineEnd: lineEnd ?? lineStart, snippet: "" };
   }
-  return selectCanonicalExcerpt(lines, truncated, document.bodyStartLine, lineStart, lineEnd ?? lineStart, query);
+  return selectCanonicalExcerpt(lines, truncated, document.bodyStartLine, lineStart, lineEnd ?? lineStart, query, documentTitle(document));
 }
 
-function selectCanonicalExcerpt(lines: string[], truncated: boolean, bodyStartLine: number, lineStart: number, lineEnd: number, query: string): SnippetRepair {
-  const options = { bodyStartLine, lineStart, lineEnd, terms: excerptTerms(query) };
+function documentTitle(document: IndexedDocument): string | undefined {
+  return typeof document.frontmatter.title === "string" ? document.frontmatter.title : undefined;
+}
+
+function selectCanonicalExcerpt(lines: string[], truncated: boolean, bodyStartLine: number, lineStart: number, lineEnd: number, query: string, title?: string): SnippetRepair {
+  const options = { bodyStartLine, lineStart, lineEnd, terms: excerptTerms(query), title };
   const result = selectEvidenceExcerpt(lines, options);
   // A prefix's final section is not necessarily the canonical section's end.
   if (truncated && result.lineEnd >= lines.length) {

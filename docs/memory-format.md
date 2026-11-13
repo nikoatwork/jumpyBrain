@@ -46,10 +46,10 @@ confidence: "user-reviewed"
 tags: ["memory", "qmd"]
 ---
 
-# QMD should be the first index primitive
-
 Durable memory text here.
 ```
+
+The frontmatter `title` is the document title; the editor shows it as the page heading. Writers do not add a `# <title>` H1 to new bodies, and drop one an agent repeats at the top of its body. Older files that still start with a title H1 stay as they are.
 
 Useful `type` values: `note`, `session`, `finding`, `decision`, `preference`, `page`. `note` remains a memory type; the CLI write command is `remember`.
 

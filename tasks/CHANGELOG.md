@@ -1,8 +1,8 @@
 # Task Changelog
 
-## 2026-11-13 — No repeated title heading from agent bodies
+## 2026-11-13 — No title heading in agent-written notes
 
-- Local and remote note/wrapup creation no longer prepends `# <title>` when the agent body already opens with the same H1 (one pure core rule; existing files untouched). Resaving was ruled out as a cause. Limit: the editor still shows the title field above the writer's title H1 for every agent note; removing that needs a format or editor decision. [Findings, checks and limits](done/2026-11-13_tasks-duplicate-title-heading.md).
+- New notes from `remember`, `wrapup` and remote/hosted writers no longer get a `# <title>` H1; an agent body that repeats the title as its first H1 has it dropped (one pure core rule). Reference pages and blank notes are frontmatter only; new synthesis maps drop the topic H1. Excerpt selection counts the frontmatter title for heading-less bodies. Resaving was ruled out as a cause; existing files are untouched. [Findings, checks and limits](done/2026-11-13_tasks-duplicate-title-heading.md).
 
 ## 2026-11-12 — Access keys last in Settings
 

@@ -2,7 +2,7 @@ import { stampMemoryActor } from "../../core/contribution.js";
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
-import { bodyWithTitleHeading, generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, normalizeEvidenceDate, renderMarkdownDocument, slug, validateWrapupBody, VALID_MEMORY_TYPES, wrapupValidationMessage } from "../../core/writing/index.js";
+import { bodyWithoutTitleHeading, generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, normalizeEvidenceDate, renderMarkdownDocument, slug, validateWrapupBody, VALID_MEMORY_TYPES, wrapupValidationMessage } from "../../core/writing/index.js";
 import type { MemoryNoteDraft, MemoryNoteType, MemoryWriteResult, WrapupWriteResult } from "../../types.js";
 import { pendingCreationIndex } from "./creation-outcome.js";
 import { writeUniqueMarkdownFile } from "./filesystem.js";
@@ -40,7 +40,7 @@ export async function rememberMemory(rootArg: string, options: MemoryNoteDraft):
     ["confidence", options.dream === true ? MEMORY_CONFIDENCE.agentDrafted : MEMORY_CONFIDENCE.userReviewed],
     ["review", options.dream === true ? MEMORY_REVIEW.userReviewRecommended : undefined],
     ["tags", options.tags ?? []],
-  ], bodyWithTitleHeading(title, body)), options.actor, true);
+  ], bodyWithoutTitleHeading(title, body)), options.actor, true);
 
   const writtenAbsolute = await writeUniqueMarkdownFile(dir, `${now.slice(0, 10)}-${slug(title, "untitled")}`, markdown);
   return { id, file: normalizeRelative(root, writtenAbsolute), ...pendingCreationIndex() };
@@ -59,7 +59,7 @@ export async function writeSessionWrapup(rootArg: string, draft: WrapupDraft): P
   const id = generateMemoryDocumentId();
   const now = new Date().toISOString();
   const dir = path.join(root, "sessions");
-  const storedBody = `${bodyWithTitleHeading(title, sourceBody)}\n`;
+  const storedBody = `${bodyWithoutTitleHeading(title, sourceBody)}\n`;
   const markdown = stampMemoryActor(renderMarkdownDocument([
     ["id", id],
     ["type", "session"],

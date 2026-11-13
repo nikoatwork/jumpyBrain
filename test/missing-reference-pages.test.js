@@ -53,7 +53,7 @@ test("missing title publishes a normal blank page preserving the literal title, 
   assert.equal(page.frontmatter.source, "jumpybrain-remote");
   assert.ok(page.frontmatter.created_at);
   assert.equal(page.frontmatter.created_at, page.frontmatter.updated_at);
-  assert.equal(page.content.split("---\n").at(-1).trim(), `# ${title}`);
+  assert.equal(page.content.split("---\n").at(-1), "", "a blank page body ends at the frontmatter fence; the title is not repeated as an H1");
   assert.deepEqual(await ensureServerMemoryTitle({ root, title: 'ＣＡＦÉ "DESIGN": 你好' }), { status: "found", id: result.id, created: false });
   const edited = await updateServerMemoryDocument({ root, id: result.id, ifMatch: page.contentHash, content: `${page.content}\nFirst thought.\n` });
   assert.equal((await readServerMemoryDocument({ root, id: result.id })).contentHash, edited.newContentHash);

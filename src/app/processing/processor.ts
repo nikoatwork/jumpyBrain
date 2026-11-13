@@ -7,7 +7,7 @@ import { metadataDate } from "../../core/canonical/metadata-date.js";
 import { assertCompatibleMemoryRoot, DERIVED_DIR } from "../../core/memory-root/index.js";
 import type { Frontmatter, ProcessMemoryOptions, ProcessMemoryResult, ProcessMode, ProcessingLintScope } from "../../types.js";
 import { searchQmdIndex } from "../../adapters/qmd/index.js";
-import { renderMarkdownDocument, slug } from "../../core/writing/markdown-file.js";
+import { bodyWithoutTitleHeading, opensWithTitleHeading, renderMarkdownDocument, slug } from "../../core/writing/markdown-file.js";
 import { generateMemoryDocumentId, isValidMemoryDocumentId, MEMORY_CONFIDENCE } from "../../core/writing/metadata.js";
 import { writeUniqueMarkdownFile } from "../writing/filesystem.js";
 import { updateMemoryDocument } from "../local-memory/index.js";
@@ -68,7 +68,12 @@ async function synthesizeMemory(root: string, options: ProcessMemoryOptions): Pr
   const sources = await expandSourcesWithQmd(root, eligible, direct, { topic, limit });
   const excerpts = sources.flatMap(source => { const excerpt = sourceExcerpt(source, topic); return excerpt ? [{ source, excerpt }] : []; });
   if (!excerpts.length) throw new Error(`No source passages found for topic ${JSON.stringify(topic)} within the requested bounds.`);
-  const body = renderPageBody(topic, excerpts);
+  const generated = renderPageBody(topic, excerpts);
+  // New pages carry the topic as frontmatter title, so drop the repeated H1. Existing pages that
+  // still open with it keep it, so an unchanged source map is not rewritten just to remove it.
+  const pageTitle = existing ? existing.frontmatter.title : topic;
+  const body = existing && opensWithTitleHeading(topic, existing.body) ? generated
+    : typeof pageTitle === "string" ? bodyWithoutTitleHeading(pageTitle, generated) : generated;
   await assertSafeDestination(root, pageFile);
   const latest = await readExistingPage(pageFile);
   if (latest?.content !== existing?.content) throw new Error("Synthesis destination changed after preflight; retry without concurrent writers.");
