@@ -4,7 +4,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 ## Reproduce and investigate
 
-- [ ] **P2 — Remote authentication diagnosis (Nov 12).** Reproduce unknown/revoked/malformed credentials using disposable servers and inspect credential precedence. Explain the selected credential source without exposing the key, give an admin reissue/recovery path, and evaluate a read-only auth/doctor check. Reported server-redeploy key/note loss remains unproven and needs separate persistence evidence. Reviewed for v0.3.24; deferred from its already completed scope.
+- [ ] **P2 — Remote authentication diagnosis (Nov 12).** Reproduce unknown/revoked/malformed credentials using disposable servers and inspect credential precedence. Explain the selected credential source without exposing the key, give an admin reissue/recovery path, and evaluate a read-only auth/doctor check. Reported server-redeploy key/note loss remains unproven and needs separate persistence evidence. Reviewed for v0.3.24; deferred from its already completed scope. Now owned by [remote auth diagnostics](tasks-remote-auth-diagnostics.md).
 
 - [x] **P1 — Local editor fenced after long idle (Nov 12).** [Completed in source](../done/2026-11-12_tasks-idle-session-recovery.md): dropped coordinator requests now reconnect the same tab automatically (backoff, focus/visibility/online) without reload or draft loss; authorization failures keep the hard fence. Real sleep/wake on packaged Electron is untested. Released in v0.3.24.
 
@@ -12,7 +12,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 - [x] **P2 — Relative note links in agent-authored metadata lines (Nov 11).** [Completed in source](../done/2026-11-12_tasks-relative-note-links.md) (owner chose option 1): `[label](../x.md)` and bare `[label](folder/x.md)` links open the resolved note by click or Tab then Enter in any rendered line; other relative links stay inert. Released in v0.3.24.
 
-- [ ] **P2 — Nested checkboxes after Obsidian import.** Reproduce with a disposable imported source containing nested checked and unchecked tasks. Establish whether import, canonical Markdown, or the Mac editor loses hierarchy/state; preserve source bytes and avoid treating an unsupported construct as success.
+- [ ] **P2 — Nested checkboxes after Obsidian import.** Reproduce with a disposable imported source containing nested checked and unchecked tasks. Establish whether import, canonical Markdown, or the Mac editor loses hierarchy/state; preserve source bytes and avoid treating an unsupported construct as success. Now owned by [checkbox rendering](tasks-checkbox-rendering.md).
 
 - [ ] **P1 — CLI whole-note updates around an open live editor.** Reproduce the reported hash-guarded append against a remote shared brain with active human presence. Determine why a successful `update` remains stale in the session and is classified as destructive, before deciding whether to route/warn/offer a bounded append operation. Preserve canonical bytes, drafts and revision/hash safeguards; do not auto-retry a potentially committed write.
 
