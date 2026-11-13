@@ -2,7 +2,7 @@ import { stampMemoryActor } from "../../core/contribution.js";
 import path from "node:path";
 import { normalizeRelative, resolveMemoryRoot } from "../../core/canonical/markdown-store.js";
 import { assertCompatibleMemoryRoot } from "../../core/memory-root/index.js";
-import { generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, normalizeEvidenceDate, renderMarkdownDocument, slug, validateWrapupBody, type WrapupValidation } from "../../core/writing/index.js";
+import { bodyWithTitleHeading, generateMemoryDocumentId, MEMORY_CONFIDENCE, MEMORY_REVIEW, normalizeDreamMarker, normalizeEvidenceDate, renderMarkdownDocument, slug, validateWrapupBody, type WrapupValidation } from "../../core/writing/index.js";
 import type { MemoryNoteDraft, MemoryNoteType, MemoryWriteResult } from "../../types.js";
 import { pendingCreationIndex } from "./creation-outcome.js";
 import { writeUniqueMarkdownFile } from "./filesystem.js";
@@ -53,7 +53,7 @@ export async function writeRemoteMemoryNote(rootArg: string, draft: RemoteMemory
     ["confidence", draft.dream === true ? MEMORY_CONFIDENCE.agentDrafted : MEMORY_CONFIDENCE.userReviewed],
     ["review", draft.dream === true ? MEMORY_REVIEW.userReviewRecommended : undefined],
     ["tags", draft.tags ?? []],
-  ], [`# ${options.heading ?? title}`, "", body].join("\n")), draft.actor, true);
+  ], bodyWithTitleHeading(options.heading ?? title, body)), draft.actor, true);
 
   const dir = path.join(root, directoryForType(type));
   const writtenAbsolute = await writeUniqueMarkdownFile(dir, remoteBaseName(now, title, id), markdown);
@@ -72,7 +72,7 @@ export async function writeRemoteSessionWrapup(rootArg: string, draft: RemoteWra
 
   const id = generateMemoryDocumentId();
   const now = new Date().toISOString();
-  const storedBody = [`# ${title}`, "", sourceBody, ""].join("\n");
+  const storedBody = `${bodyWithTitleHeading(title, sourceBody)}\n`;
   const markdown = stampMemoryActor(renderMarkdownDocument([
     ["id", id],
     ["type", "session"],

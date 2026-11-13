@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-13 — No repeated title heading from agent bodies
+
+- Local and remote note/wrapup creation no longer prepends `# <title>` when the agent body already opens with the same H1 (one pure core rule; existing files untouched). Resaving was ruled out as a cause. Limit: the editor still shows the title field above the writer's title H1 for every agent note; removing that needs a format or editor decision. [Findings, checks and limits](done/2026-11-13_tasks-duplicate-title-heading.md).
+
 ## 2026-11-12 — Access keys last in Settings
 
 - Moved Access keys after Extensions in the Settings navigation. Verified with `npm run build`, the rendered navigation order, `scripts/sidebar-layout-smoke.mjs` (including Settings at 1280/320px), and `git diff --check`. Packaged Mac app not checked; no installation or release.
