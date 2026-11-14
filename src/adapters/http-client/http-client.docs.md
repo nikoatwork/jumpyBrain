@@ -33,6 +33,12 @@ V1 packet/nested schemas reject unknown fields, including server-root/envelope f
 
 Bounded-read error bodies have a separate fixed **8192-byte** stream cap, with cancellation on overflow and strict UTF-8/JSON parsing. Preserve HTTP status and short token-shaped error codes, but never echo remote messages/details. Known expansion errors receive static actionable guidance; malformed/oversized errors use static HTTP errors. Unsupported-status upgrade guidance still applies, except a well-formed expansion `missing_id` 404. These error limits do not redefine legacy rich endpoint behavior.
 
+## Admission refusals
+
+`admission.ts` classifies refusals once for ordinary and bounded requests. A valid remote code `execution_overloaded` stays `execution_overloaded` on any status; otherwise 429 becomes `rate_limited` and a 503 without a valid code becomes `service_unavailable`. Other codes (for example `read_only_busy` on 503) keep existing handling. Messages are static, so a proxy page or remote message never reaches the caller; 429/503 bodies on ordinary routes use the same 8192-byte capped decoder as bounded reads.
+
+`RemoteMemoryError.retryAfterSeconds` is set only from a single `Retry-After` value: delta-seconds or an IMF-fixdate HTTP-date (compared with an injectable clock; a past date gives 0). Other date forms, negative, fractional, repeated or over-one-day values give no delay. The client never invents a delay, waits or retries: each public operation still makes one attempt (read-only preflight included), and a refused write remains possibly uncertain behind an unknown intermediary. Tests: `test/admission-errors.test.js`.
+
 ## Strict read-only retrieval
 
 Rich/compact request `readOnly:true` first GETs observational status and requires `readOnlyRetrieval: "lexical-immutable-v1"` before any query request, within the same transport deadline/signal. Older servers fail with upgrade guidance without sending an ignored flag to write-capable legacy reads. Responses must acknowledge `read_only_index` in retrieval warnings; otherwise fail with no ordinary/full-document fallback. Static read-only failure guidance asks authorized maintenance to recover/checkpoint/rebuild, never a hidden client mutation. This mode is lexical-only; semantic omission is explicit.

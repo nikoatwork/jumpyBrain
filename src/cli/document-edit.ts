@@ -71,10 +71,10 @@ function writeHumanDocumentUpdate(result: MemoryDocumentUpdateResult): void {
 
 function rewriteUpdatePreconditionError(error: unknown, id: string): Error {
   if (hasEditCode(error) && error.code === "precondition_required") {
-    return new Error("jumpybrain update requires --if-match <contentHash> from `jumpybrain show`. Re-run `jumpybrain show` before retrying.");
+    return new Error("jumpybrain update requires --if-match <contentHash> from `jumpybrain show`. Re-run `jumpybrain show` before retrying.", { cause: error });
   }
   if (hasEditCode(error) && error.code === "precondition_failed") {
-    return new Error(`Document content hash is stale for ${id}. Re-run \`jumpybrain show --id ${id}\` and retry with the new Content-Hash.`);
+    return new Error(`Document content hash is stale for ${id}. Re-run \`jumpybrain show --id ${id}\` and retry with the new Content-Hash.`, { cause: error });
   }
   return error instanceof Error ? error : new Error(String(error));
 }

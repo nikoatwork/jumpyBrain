@@ -8,7 +8,7 @@ This page lists the user-facing `jumpybrain` CLI commands and explains what each
 
 Exact `--help`/`-h` tokens take precedence over all other flags, even invalid or missing values. For example, `update --install-root --help` prints help and performs no update. Help runs before target selection, configuration/secret reads, stdin, backend startup, indexing or networking. Unknown command/subcommand/recipe paths still fail with an actionable help error. `--help=value` is not a help request.
 
-Ordinary recall/search and their recipes reject unknown/repeated flags, missing values, valued booleans and unexpected positional arguments, using the same strict parser as compact reads. A typo such as `recall --qurey text` fails before backend work. Other operational command families also reject these token errors; intentionally repeatable `--tag` and server `--api-key` values remain supported. `process --apply` retains explicit true/false spellings. Argument failures print to stderr and exit 1; successful command output formats are unchanged.
+Ordinary recall/search and their recipes reject unknown/repeated flags, missing values, valued booleans and unexpected positional arguments, using the same strict parser as compact reads. A typo such as `recall --qurey text` fails before backend work. Other operational command families also reject these token errors; intentionally repeatable `--tag` and server `--api-key` values remain supported. `process --apply` retains explicit true/false spellings. Argument failures print to stderr and exit 1, even with `--json`; successful command output formats are unchanged. Later failures follow [failure output](#failure-output-and-json-errors).
 
 ## Targets and common flags
 
@@ -281,6 +281,25 @@ Deprecated forms:
 | --- | --- |
 | `jumpybrain note ...` | `jumpybrain remember ...` |
 | `jumpybrain run memory:note ...` | `jumpybrain run memory:remember ...` |
+
+## Failure output and JSON errors
+
+A failing command exits 1. Plain output prints the explanation to stderr and nothing to stdout.
+
+With `--json`, a memory command (`status`, `index`, `tree`/`overview`, `search`, `recall`, `show`, `expand`, `update`, `delete`, `remember`, `wrapup`, `process`), a `run memory:*` recipe or a `board` command that was parsed successfully prints exactly one object to stdout instead and nothing to stderr:
+
+```json
+{ "error": { "code": "rate_limited", "message": "…", "status": 429, "retryAfterSeconds": 60 } }
+```
+
+- `code`: a short machine-readable code such as `rate_limited`, `execution_overloaded`, `service_unavailable`, `invalid_api_key`, `precondition_failed` or `missing_id`; `command_failed` when a local failure has no specific code.
+- `message`: the same human explanation plain mode prints, including access-key and stale-hash recovery steps.
+- `status`: present for remote HTTP failures (and the client's own 499 cancellation / 504 deadline).
+- `retryAfterSeconds`: present only when the response carried a valid `Retry-After` of at most one day. It is guidance, not a guarantee.
+
+Argument/token errors detected before parsing completes (for example `--json=yes` or an unknown flag) stay plain stderr. Other commands keep their documented output; `feedback --json` keeps its `{accepted:false,id,error}` result. `--compact`/`expand` without `--json` print failures as plain stderr with empty stdout, so stdout only ever holds a valid packet; add `--json` to receive the error object instead. Successful output is unchanged in every mode.
+
+Admission refusals use fixed messages: no proxy page, server path, credential or remote message text is shown. `rate_limited` (HTTP 429) is a request-rate refusal by the deployment or its proxy, whose limits jumpyBrain does not know. `execution_overloaded` is the brain's search/index capacity, not a quota. `service_unavailable` is a 503 without a jumpyBrain code. The CLI makes **one attempt per command and never retries automatically**, for reads or writes. A refusal from an intermediary does not prove a write was not applied: check with `show`/`recall` before repeating it. See [proxy rate limits](vps-deploy.md#request-rate-limits-belong-to-your-proxy).
 
 ## Retrieval execution limits
 

@@ -13,7 +13,7 @@ const run = (args, input = '', env = {}) => new Promise((resolve, reject) => {
   let stdout = '', stderr = '';
   child.stdout.on('data', b => stdout += b); child.stderr.on('data', b => stderr += b);
   child.on('error', reject); child.on('close', code => {
-    if (code) reject(new Error(stderr)); else { try { resolve(JSON.parse(stdout)); } catch (e) { reject(e); } }
+    if (code) reject(new Error(stderr || stdout)); else { try { resolve(JSON.parse(stdout)); } catch (e) { reject(e); } }
   }); child.stdin.end(input);
 });
 const results = [];

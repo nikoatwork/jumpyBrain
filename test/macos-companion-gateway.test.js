@@ -721,3 +721,37 @@ test('app credentials keep remote keys in the shared .env file across a gateway 
   const body = await refused.text();
   assert.match(body, /credential_unavailable/); assert.match(body, /chmod 600/); assert.doesNotMatch(body, /remote-test-key/);
 });
+
+test('memory forwarding keeps only a validated Retry-After hint from refused upstream responses', async t => {
+  const upstream = [];
+  let reply;
+  const f = await fixture(t, { fetchImpl: async (url, options) => {
+    if (url.endsWith('/memories/all/resolve-title')) { upstream.push(options.method); return reply(); }
+    return fetch(url, options);
+  } });
+  const saved = await f.save({ name: 'Remote', kind: 'remote', url: f.remote.url, key: 'remote-test-key' });
+  assert.equal((await f.native('/companion/switch', { id: saved.profiles.find(p => p.kind === 'remote').id })).status, 200);
+  const generation = f.gateway.coordinator.generation;
+  await f.browser('/companion/register', { tabId: 'admission-tab', generation });
+  const soon = new Date(Date.now() + 120_000).toUTCString();
+  const sentinels = { 'Set-Cookie': 'upstream=secret', 'WWW-Authenticate': 'Bearer realm="upstream"', Location: 'https://evil.invalid/', 'X-Upstream-Secret': 'secret' };
+  for (const [status, retryAfter, expected, contentType, body] of [
+    [429, '60', '60', 'text/html', '<html>Too Many Requests</html>'],
+    [429, 'Sat, 14 Nov 2099 12:00:00 GMT', null, 'text/html', ''],
+    [503, soon, soon, 'application/json', JSON.stringify({ error: { code: 'execution_overloaded', message: 'Memory execution queue is full; retry shortly.' } })],
+    [503, '-5', null, 'application/json', JSON.stringify({ error: { code: 'execution_overloaded', message: 'busy' } })],
+    [503, '30, 60', null, 'text/plain', 'busy'],
+    [503, undefined, null, 'text/plain', 'busy'],
+    [200, '30', null, 'application/json', JSON.stringify({ status: 'missing' })],
+  ]) {
+    reply = () => new Response(body, { status, headers: { 'Content-Type': contentType, ...sentinels, ...(retryAfter === undefined ? {} : { 'Retry-After': retryAfter }) } });
+    const before = upstream.length;
+    const response = await f.memory('resolve-title', { title: 'Anything' }, 'admission-tab', generation);
+    assert.equal(response.status, status);
+    assert.equal(response.headers.get('retry-after'), expected, `${status} ${retryAfter}`);
+    for (const name of Object.keys(sentinels)) assert.equal(response.headers.get(name), null, name);
+    assert.equal(await response.text(), body, 'status and body are forwarded unchanged');
+    assert.equal(upstream.length - before, 1, 'the gateway never retries a refused request');
+  }
+  f.gateway.coordinator.unregister('admission-tab', generation);
+});

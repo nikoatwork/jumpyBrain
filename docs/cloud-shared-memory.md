@@ -134,6 +134,12 @@ An installer-created CLI can mark a remote origin read-only in device-local `cli
 
 `status --target-url` prints which key it used (`Access key: JUMPYBRAIN_API_KEY from the environment (46 chars, ends …x9Qz), accepted`). On HTTP 401 every remote command names that source and fingerprint, lists other keys it found but did not use, and gives the recovery steps; keys themselves are never printed. A common cause is an old `export JUMPYBRAIN_API_KEY=...` in `~/.zshenv` or `~/.zshrc` that silently overrides the key saved in the app. To recover, have an admin issue a replacement (see [Rotate and revoke](#rotate-and-revoke-deliberately)), then update or unset that export, or re-enter the key in the app, and re-run `status`. The server's answer does not distinguish a mistyped key from a revoked one or one issued by a different server.
 
+### When the server or its proxy refuses requests
+
+`rate_limited` (HTTP 429) means the shared brain or a proxy in front of it refused the request because too many arrived; that deployment sets the limit, and people/agents behind one network address may share it. `execution_overloaded` means the brain's search/index queue was full. `service_unavailable` is a 503 without a jumpyBrain explanation. The CLI shows a wait time only when the response supplied a valid `Retry-After`, makes one attempt and never retries automatically. Wait, then repeat a read; before repeating a write, check the note with `show` or `recall`, because a refusal from an intermediary does not prove the write was never applied. Operators: see [proxy rate limits](vps-deploy.md#request-rate-limits-belong-to-your-proxy).
+
+A saved note can report `indexed: false`. That is a confirmed save; hosted maintenance indexes it shortly afterwards, so do not resend the write or add extra index calls.
+
 ## 6. Verify the deployment
 
 ```bash

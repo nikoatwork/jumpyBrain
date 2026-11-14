@@ -13,8 +13,11 @@ async function fixture(t) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !/^(JUMPYBRAIN_|QMD_|XDG_)/.test(name)));
   env.HOME = temp;
   const cli = (...args) => exec(process.execPath, [path.join(repo, 'dist/cli.js'), ...args], { env, cwd: temp, timeout: 10000 }).then(r => JSON.parse(r.stdout));
+  // A parsed --json memory command reports failure as one error object on stdout.
+  const failure = (...args) => exec(process.execPath, [path.join(repo, 'dist/cli.js'), ...args], { env, cwd: temp, timeout: 10000 })
+    .then(() => assert.fail('CLI unexpectedly succeeded'), error => { assert.equal(error.code, 1); assert.equal(error.stderr, ''); return JSON.parse(error.stdout).error; });
   t.after(() => rm(temp, { recursive: true, force: true }));
-  return { temp, env, cli };
+  return { temp, env, cli, failure };
 }
 
 test('explicit selectors override environment, malformed selectors fail and empty configured root never falls back', () => {
@@ -73,14 +76,14 @@ test('doctor/status/recipes agree on explicit and configured roots; fallback and
   f.env.JUMPYBRAIN_MEMORY_ROOT = path.join(f.temp, 'absent');
   const missing = await f.cli('doctor', '--json');
   assert.match(missing.memoryRoot.message, /Initialize this same root/);
-  await assert.rejects(f.cli('status', '--json'), /Initialize this same root/);
+  assert.match((await f.failure('status', '--json')).message, /Initialize this same root/);
   f.env.JUMPYBRAIN_MEMORY_ROOT = '';
   await assert.rejects(f.cli('doctor', '--json'), /non-empty path/);
   delete f.env.JUMPYBRAIN_MEMORY_ROOT;
   const fallback = await f.cli('doctor', '--json');
   assert.equal(fallback.memoryRoot.source, 'personal-fallback');
   assert.equal(fallback.memoryRoot.root, path.join(f.temp, '.jumpybrain/memory'));
-  await assert.rejects(f.cli('status', '--json'), /--root is required/);
-  await assert.rejects(f.cli('run', 'memory:status', '--json'), /read or parse jumpybrain.json|Failed to read/);
+  assert.match((await f.failure('status', '--json')).message, /--root is required/);
+  assert.match((await f.failure('run', 'memory:status', '--json')).message, /read or parse jumpybrain.json|Failed to read/);
   assert.equal(await readFile(path.join(f.temp, 'jumpybrain.json'), 'utf8'), '{broken repo configuration');
 });

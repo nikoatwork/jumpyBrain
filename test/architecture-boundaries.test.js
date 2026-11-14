@@ -249,7 +249,7 @@ test("CLI entrypoint stays a small shim over command modules", async () => {
   }
 
   const entrypoint = await readFile(path.join(srcRoot, "cli.ts"), "utf8");
-  assert.match(entrypoint, /import \{ runCli \} from "\.\/cli\/index\.js";/, "CLI binary source should delegate to the CLI module barrel");
+  assert.match(entrypoint, /import \{ main \} from "\.\/cli\/index\.js";/, "CLI binary source should delegate to the CLI module barrel, including failure presentation");
   assert.equal(entrypoint.split("\n").filter((line) => line.trim()).length <= 8, true, "src/cli.ts should remain a small executable shim");
 });
 

@@ -170,6 +170,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
   const feedback = createFeedbackHandler(feedbackSender ?? createFeedbackForwarder());
   const { createDiagnosticStore, newDiagnosticId, readNativeDiagnosticSnapshot } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/store.js')).href);
   const { diagnosticId, diagnosticOperation, diagnosticCode, statusCode, sanitizeDiagnosticEvent } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/events.js')).href);
+  const { validRetryAfterHeader } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/http-client/admission.js')).href);
   const { collectSupportDiagnostics } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/app/diagnostics/index.js')).href);
   const { readDiagnosticBuildInfo } = await import(pathToFileURL(path.join(runtimeRoot, 'dist/adapters/diagnostics/build-info.js')).href);
   const runtimeInfo = readDiagnosticBuildInfo();
@@ -283,9 +284,11 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
       if (controller.signal.aborted) failure('target_timeout', 'Brain request timed out.', 504);
       if (!destinationCurrent(dest)) failure('backend_replaced', 'The backend changed during this request. Retry after reviewing any unconfirmed write.', 409);
       // Do not send upstream cookies, authentication challenges, or redirects to the shell.
+      // Only a validated Retry-After hint is carried beyond status, body and content type.
       diagnostics.record({ operation: diagnosticOperation(route, options.method), request: diagnosticRequest, status: response.status, durationMs: performance.now() - started,
         severity: response.ok ? 'info' : 'warn', outcome: response.ok ? 'ok' : 'failed', code: statusCode(response.status) });
-      return { status: response.status, body, contentType: response.headers.get('content-type') || 'application/json' };
+      const retryAfter = response.ok ? undefined : validRetryAfterHeader(response.headers.get('retry-after'));
+      return { status: response.status, body, contentType: response.headers.get('content-type') || 'application/json', ...(retryAfter ? { retryAfter } : {}) };
     } catch (error) {
       // Never replay a request with an ambiguous outcome, including mutations.
       if (!(error instanceof ControlError) && !controller.signal.aborted) invalidateDestination(dest);
@@ -547,7 +550,7 @@ export async function startCompanionGateway({ runtimeRoot, directory, initialRoo
         headers['X-JumpyBrain-Request'] = requestId;
         const packet = await targetFetch(profile, url.pathname + url.search, { method: request.method, headers, body }, url.pathname.endsWith('/index') ? indexTransportDeadline : targetTimeoutMs);
         // Response payloads preserve existing protocol; only static gateway failures are generated here.
-        response.writeHead(packet.status, { 'Content-Type': packet.contentType.startsWith('application/json') ? 'application/json; charset=utf-8' : 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+        response.writeHead(packet.status, { 'Content-Type': packet.contentType.startsWith('application/json') ? 'application/json; charset=utf-8' : 'application/octet-stream', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...(packet.retryAfter ? { 'Retry-After': packet.retryAfter } : {}) });
         response.end(packet.body);
       } finally { finish(); }
     } catch (error) {

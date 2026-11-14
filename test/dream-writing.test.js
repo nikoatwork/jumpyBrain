@@ -91,7 +91,9 @@ test("CLI dream page create/update retains identity, rejects stale hashes and re
   assert.equal(updated.indexed, false);
   assert.equal(updated.index.stale, true);
   assert.equal((await manifest()).documents.find((entry) => entry.relativePath === created.file).frontmatter.updated_at, indexedBefore.frontmatter.updated_at);
-  assert.match(run(["update", "--id", created.id, "--if-match", shown.contentHash], "Stale overwrite", false).stderr, /content hash is stale/);
+  const stale = JSON.parse(run(["update", "--id", created.id, "--if-match", shown.contentHash], "Stale overwrite", false).stdout).error;
+  assert.equal(stale.code, "precondition_failed");
+  assert.match(stale.message, /content hash is stale/);
   const after = json(["show", "--id", created.id]);
   assert.equal(after.frontmatter.dream, true);
   assert.equal(after.frontmatter.id, created.id);

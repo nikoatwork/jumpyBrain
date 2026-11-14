@@ -164,14 +164,25 @@ function relativePath(value: unknown): boolean {
     && !value.split("/").some(part => part === ".." || part === "." || !part);
 }
 
-/** Error bodies have a separate, fixed cap, independent of the requested evidence budget. */
-export async function readBoundedErrorCode(response: Response): Promise<string | undefined> {
+/** Fixed cap for decoded error bodies, independent of any requested evidence budget. */
+export const MAX_ERROR_BODY_BYTES = 8192;
+
+/**
+ * Reads a capped `{ error: { code, message } }` body. Oversized, non-UTF-8,
+ * non-JSON (for example proxy HTML) or malformed bodies yield no fields.
+ * Callers decide whether the message may be shown.
+ */
+export async function readBoundedErrorPayload(response: Response): Promise<{ code?: string; message?: string }> {
   try {
-    const payload: unknown = JSON.parse(await readBoundedResponse(response, 8192, () => new Error("Invalid error response.")));
-    if (!record(payload) || !record(payload.error) || typeof payload.error.message !== "string") return undefined;
+    const payload: unknown = JSON.parse(await readBoundedResponse(response, MAX_ERROR_BODY_BYTES, () => new Error("Invalid error response.")));
+    if (!record(payload) || !record(payload.error) || typeof payload.error.message !== "string") return {};
     const code = payload.error.code;
-    return typeof code === "string" && /^[a-z][a-z0-9_]{0,63}$/u.test(code) ? code : undefined;
-  } catch { return undefined; }
+    return { message: payload.error.message, ...(typeof code === "string" && /^[a-z][a-z0-9_]{0,63}$/u.test(code) ? { code } : {}) };
+  } catch { return {}; }
+}
+
+export async function readBoundedErrorCode(response: Response): Promise<string | undefined> {
+  return (await readBoundedErrorPayload(response)).code;
 }
 
 /** Never surface server-controlled messages, even when a small error body is well-formed. */

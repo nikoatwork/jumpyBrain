@@ -11,7 +11,8 @@ import { HTTP_MEMORY_ROUTES, memoryDocumentPath, memoryDreamBatchAbandonPath, me
 import { packetFits, validatePacketMaxBytes } from "../../core/serialized-budget.js";
 import type { CompactRecallOptions, CompactRecallPacket } from "../../core/retrieval-policy/compact.js";
 import type { ExpansionOptions, ExpansionResult } from "../../core/canonical/expansion.js";
-import { boundedErrorMessage, readBoundedErrorCode, readBoundedResponse, validBoundedPacket } from "./bounded-response.js";
+import { boundedErrorMessage, readBoundedErrorCode, readBoundedErrorPayload, readBoundedResponse, validBoundedPacket } from "./bounded-response.js";
+import { admissionFailure, type AdmissionFailure } from "./admission.js";
 import type {
   DreamAbandonResult,
   DreamBatch,
@@ -92,10 +93,17 @@ export interface RemoteMemoryTransport {
 }
 
 export class RemoteMemoryError extends Error {
-  constructor(readonly status: number, readonly code: string, message: string) {
+  /** Whole seconds from a validated Retry-After header; absent when the response gave no usable hint. */
+  declare readonly retryAfterSeconds?: number;
+  constructor(readonly status: number, readonly code: string, message: string, details: { retryAfterSeconds?: number } = {}) {
     super(message);
     this.name = "RemoteMemoryError";
+    if (details.retryAfterSeconds !== undefined) Object.defineProperty(this, "retryAfterSeconds", { value: details.retryAfterSeconds, enumerable: true });
   }
+}
+
+function admissionError(status: number, admission: AdmissionFailure): RemoteMemoryError {
+  return new RemoteMemoryError(status, admission.code, admission.message, admission);
 }
 
 export function createRemoteMemoryTransport(options: RemoteMemoryTransportOptions): RemoteMemoryTransport {
@@ -143,13 +151,17 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
     if (init.body !== undefined && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
     const response = await fetchImpl(new URL(path, baseUrl), { ...init, headers, signal });
-    const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) {
-      const remoteError = record(payload) && record(payload.error) ? payload.error : undefined;
-      const code = typeof remoteError?.code === "string" ? remoteError.code : `http_${response.status}`;
-      const message = typeof remoteError?.message === "string" ? remoteError.message : `Remote jumpyBrain request failed with HTTP ${response.status}.`;
-      throw new RemoteMemoryError(response.status, code, message);
+      // Admission statuses may come from a proxy (often HTML), so their bodies use the capped decoder.
+      const remoteError = response.status === 429 || response.status === 503
+        ? await readBoundedErrorPayload(response)
+        : errorFields(await response.json().catch(() => null));
+      const admission = admissionFailure(response.status, remoteError.code, response.headers);
+      if (admission) throw admissionError(response.status, admission);
+      throw new RemoteMemoryError(response.status, remoteError.code ?? `http_${response.status}`,
+        remoteError.message ?? `Remote jumpyBrain request failed with HTTP ${response.status}.`);
     }
+    const payload: unknown = await response.json().catch(() => null);
     if (!record(payload)) throw invalidResponse();
     return payload;
   }
@@ -174,6 +186,8 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
         throw new RemoteMemoryError(response.status, "unsupported_bounded_read",
           `Remote server does not support bounded ${kind}. Upgrade the server; no full-document fallback was attempted.`);
       }
+      const admission = admissionFailure(response.status, code === `http_${response.status}` ? undefined : code, response.headers);
+      if (admission) throw admissionError(response.status, admission);
       throw new RemoteMemoryError(response.status, code, boundedErrorMessage(code, response.status));
     }
     const text = await readBoundedResponse(response, maxBytes, unsupported);
@@ -308,6 +322,14 @@ export function createRemoteMemoryTransport(options: RemoteMemoryTransportOption
       headers: { "Idempotency-Key": randomUUID() },
       body: JSON.stringify(draft),
     }) as Promise<RemoteWrapupWriteResult & Record<string, unknown>>,
+  };
+}
+
+function errorFields(payload: unknown): { code?: string; message?: string } {
+  const remoteError = record(payload) && record(payload.error) ? payload.error : undefined;
+  return {
+    ...(typeof remoteError?.code === "string" ? { code: remoteError.code } : {}),
+    ...(typeof remoteError?.message === "string" ? { message: remoteError.message } : {}),
   };
 }
 

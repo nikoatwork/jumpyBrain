@@ -2,7 +2,7 @@
 
 Priority: P1 for container build; P2 for operator documentation and credential ergonomics. Status: packaging implemented and Linux ARM64 image/operations fixtures passed on 2026-11-02; active pending actual systemd-manager validation of the documented unit's sandbox, boot/restart and resource enforcement. No deployment or image publication performed.
 
-The November 10 shared-brain rate-limit and JSON-error report is owned by [the focused admission/error plan](tasks-shared-brain-admission-errors.md). Its implementation and verification checklist lives there; this list retains deployment and systemd gates.
+The November 10 shared-brain rate-limit and JSON-error report was completed by [the focused admission/error task](../done/2026-11-14_tasks-shared-brain-admission-errors.md), which also documents proxy rate-limit ownership and `limit_req_status 429`; this list retains deployment and systemd gates.
 
 ## Goal
 

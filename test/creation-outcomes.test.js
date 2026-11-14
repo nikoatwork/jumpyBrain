@@ -103,15 +103,15 @@ test("a fresh unrelated indexRoot never falsely reports the saved memory indexed
 test("publication and validation errors still fail creation without a partial-success packet", async t => {
   const f = await fixture(t);
   const args = [cli, "remember", "--root", f.root, "--title", "Not saved", "--json"];
+  // --json failures are one error object on stdout, never a partial-success packet.
+  const failure = result => { assert.equal(result.status, 1); assert.equal(result.stderr, ""); return JSON.parse(result.stdout).error; };
   let result = await child(args, { env: f.env, input: "  " });
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /body is empty/);
-  assert.equal(result.stdout, "");
+  assert.match(failure(result).message, /body is empty/);
   await writeFile(path.join(f.root, "notes"), "not a directory");
   result = await child(args, { env: f.env, input: "Must not publish." });
-  assert.notEqual(result.status, 0);
-  assert.match(result.stderr, /Unsafe Markdown destination/);
-  assert.equal(result.stdout, "");
+  const unsafe = failure(result);
+  assert.match(unsafe.message, /Unsafe Markdown destination/);
+  assert.equal("indexing" in unsafe || "id" in unsafe, false);
   assert.equal(existsSync(path.join(f.root, ".jumpybrain/index.json")), false);
 });
 

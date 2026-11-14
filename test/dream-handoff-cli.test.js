@@ -246,7 +246,9 @@ else { console.error('Unexpected QMD operation: ' + args[0]); process.exit(1); }
     assert.notEqual(updated.newContentHash, shown.contentHash);
     const accepted = await readFile(path.join(root, created.file), "utf8");
     await writeFile(path.join(scratch, "revised.md"), revised.replace("pending further evidence", "STALE OVERWRITE"));
-    assert.match((await run("update", { success: false })).stderr, /content hash is stale/i);
+    const stale = JSON.parse((await run("update", { success: false })).stdout).error;
+    assert.equal(stale.code, "precondition_failed");
+    assert.match(stale.message, /content hash is stale/i);
     assert.equal(await readFile(path.join(root, created.file), "utf8"), accepted);
 
     const indexedResult = await json("index");
@@ -270,9 +272,13 @@ else { console.error('Unexpected QMD operation: ' + args[0]); process.exit(1); }
     assert.equal(preserved.length, before.length + 1);
 
     // Missing prerequisites/denied auth must fail, never silently use local memory.
-    assert.match((await run("status", { success: false, apiKey: "" })).stderr, /JUMPYBRAIN_API_KEY/);
+    // --json memory commands fail with one error object on stdout; dream keeps plain stderr.
+    const jsonFailure = (result) => { assert.equal(result.stderr, ""); return JSON.parse(result.stdout).error; };
+    assert.match(jsonFailure(await run("status", { success: false, apiKey: "" })).message, /JUMPYBRAIN_API_KEY/);
     assert.match((await run("dream", { success: false, apiKey: "wrong-synthetic-key" })).stderr, /invalid.*api.*key|unauthorized|401/i);
-    assert.match((await run("remember", { success: false, apiKey: "wrong-synthetic-key" })).stderr, /invalid.*api.*key|unauthorized|401/i);
+    const denied = jsonFailure(await run("remember", { success: false, apiKey: "wrong-synthetic-key" }));
+    assert.equal(denied.status, 401);
+    assert.match(denied.message, /invalid.*api.*key|unauthorized|401/i);
     assert.deepEqual(await canonicalSnapshot(root), preserved);
     assert.deepEqual((await readdir(scratch)).sort(), ["body.md", "revised.md"], "no fallback local memory or exported evidence packets");
     const calls = (await readFile(callsFile, "utf8")).trim().split("\n").map(JSON.parse);

@@ -121,6 +121,8 @@ Rules:
 
 Index/search/recall/compact recall share bounded async backend admission: one active operation per root, two process-wide, sixteen queued. Queue saturation/cross-process busy returns **503 `execution_overloaded`**, total deadline exhaustion **504 `execution_timeout`**, connected cancellation **499 `execution_aborted`**. Failed backend operations remain errors, not empty results; independently successful query branches may retain the existing labeled fallback. Disconnect/shutdown cancels owned work; an individual joined index caller does not cancel peers. Interrupted jobs leave readiness/remote freshness stale. No query bodies, credentials, stderr or server paths appear in these diagnostics.
 
+Execution admission is capacity protection, not a request quota: the server enforces no requests-per-minute limit. A reverse proxy may add its own rate limit (often 429, or nginx's default 503), which never reaches jumpyBrain. Clients classify a 429 as `rate_limited`, a code-less 503 as `service_unavailable` and keep `execution_overloaded` distinct on any status, using static messages and an optional validated `Retry-After` delay; see [HTTP client admission](../src/adapters/http-client/http-client.docs.md#admission-refusals). Clients make one attempt per operation and do not retry automatically.
+
 Deadlines are server-local configuration, not request JSON fields: search/compact 60 seconds, index 600 seconds by default; query commands additionally 30 seconds. Body/header receipt has a separate 30-second Node timeout. See [QMD execution](../src/adapters/qmd/qmd.docs.md#bounded-execution) for admission, capture caps, shutdown/process-group portability and non-preemptible input-work limits; [HTTP-client](../src/adapters/http-client/http-client.docs.md) owns the separate transport deadline.
 
 Request disconnects (unfinished response close/body abort) propagate cancellation through app operations. Server close cancels its request scopes and shared index runner, drains handlers including disconnected sockets, waits for owned child/index work, and destroys incomplete request streams. It does not cancel unrelated local operations; disconnected sockets receive no attempted error packet.
@@ -839,13 +841,19 @@ The CLI, the hosted browser dialog and the Mac app's Settings panel use these ro
 | 422 | `invalid_utf8` | Exact expansion is unavailable for invalid UTF-8 source. |
 | 422 | `validation_failed` | Valid JSON but invalid memory draft/wrapup/document content. |
 | 428 | `precondition_required` | Update omitted `If-Match`, or expansion omitted `expectedContentHash`. |
+| 499 | `execution_aborted` | The connected caller canceled the backend operation. |
 | 500 | `index_failed` | Server-side index update/rebuild failed. |
 | 500 | `overview_failed` | Server-side overview/tree generation failed. |
 | 500 | `search_failed` | Server-side search/recall failed. |
 | 500 | `server_misconfigured` | Server root/API key/QMD configuration is invalid. |
 | 500 | `update_failed` | Server-side document replacement failed after validation/precondition checks. |
+| 503 | `execution_overloaded` | Search/index execution queue is full (capacity, not a request quota). Also used with 429 when private cancellation admission is full. |
+| 503 | `read_only_busy`, `read_only_changed` | Strict read-only retrieval found active writers or a changed index generation. |
+| 504 | `execution_timeout` | Server-local backend deadline was exhausted. |
 
 Never include API keys or memory body content in error messages or logs.
+
+A reverse proxy in front of the server may also answer 429/503 without a jumpyBrain body. Those statuses are proxy policy, not entries in this table; see [proxy rate limits](vps-deploy.md#request-rate-limits-belong-to-your-proxy).
 
 ## Deployment notes
 

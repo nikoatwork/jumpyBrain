@@ -186,6 +186,7 @@ server {
 
   location / {
     limit_req zone=jumpybrain burst=20 nodelay;
+    limit_req_status 429;
     proxy_pass http://127.0.0.1:3787;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
@@ -232,6 +233,12 @@ Add `--rebuild` for explicit vector regeneration; routine and automatic runs reu
 Search/index children are asynchronous, with one active operation per root, two process-wide and sixteen queued; saturation returns 503, deadline exhaustion 504. Default search/compact deadline is 60 seconds (30 seconds per query command), index 600 seconds. Optional `JUMPYBRAIN_SEARCH_TIMEOUT_MS` / `JUMPYBRAIN_INDEX_TIMEOUT_MS` are positive integer milliseconds. Keep reverse-proxy/client timeouts consistent with long indexing; remote CLI defaults to 610 seconds/index and 70 seconds/read. For example, nginx's default read timeout can expire before a healthy long index; set `proxy_read_timeout 610s;` when accepting the default index deadline.
 
 An invocation may contain a QMD wrapper plus worker and semantic model memory. Neither the concurrency bound nor laptop lexical results establish a minimum VPS RAM/CPU size. Size against your actual model/corpus/concurrent workload, retain OS/service resource limits, and monitor safe overload/readiness. Health remains serviceable during subprocess waits, but unbounded canonical input scans, synchronous parsing and OS-uninterruptible work are not an SLA. One server process per local filesystem/root remains required. See [execution contract](technical.md#bounded-retrieval-execution) for cancellation, output caps and tested-platform limits. This is backend admission, not a replacement for reverse-proxy IP rate limits.
+
+### Request-rate limits belong to your proxy
+
+jumpyBrain has no per-minute request quota of its own. The `limit_req` numbers above are an example, not a product default or a recommendation for your traffic. Every CLI command, agent and open editor window sends requests, and nginx keys this example by client IP address, so people and agents behind one shared NAT, VPN or office network share one budget. Size `rate`/`burst` for that combined traffic, or key on something narrower if your proxy can do so safely.
+
+Keep `limit_req_status 429;`: nginx otherwise refuses with **503**, which clients cannot tell apart from an unavailable service. The CLI reports a 429 as `rate_limited` and a code-less 503 as `service_unavailable`, includes a delay only when the response carries a valid `Retry-After` header, and never retries automatically ([CLI errors](cli-commands.md#failure-output-and-json-errors)). To see which limit refused a request, check the proxy's error log (nginx logs `limiting requests, excess: … by zone "jumpybrain", client: …`) and its access log status codes. A refusal there never reached jumpyBrain, so the server log has no matching entry. Backend **503 `execution_overloaded`** is different: the shared search/index queue described above is full.
 
 ## 8. Logs
 

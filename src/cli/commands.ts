@@ -1,6 +1,7 @@
 import { packageVersion } from "../adapters/package-info/index.js";
 import { parseArgs, stringArg } from "./args.js";
 import { doctorReport, formatDoctorReport } from "./doctor.js";
+import { presentCliFailure } from "./errors.js";
 import { dreamCli } from "./dream.js";
 import { agentInstructions } from "./instructions.js";
 import { createLocalMemoryTransport } from "./local-transport.js";
@@ -15,6 +16,28 @@ import { updateCli } from "./update.js";
 import { helpForArgv, usage } from "./usage.js";
 
 const localMemory = createLocalMemoryTransport();
+
+/** Executable entry: runs the CLI and presents any failure once, then sets exit status 1. */
+export async function main(argv = process.argv.slice(2)): Promise<void> {
+  try { await runCli(argv); }
+  catch (error) { presentCliFailure(error, jsonFailureRequested(argv)); }
+}
+
+/**
+ * Failures are JSON only for a successfully parsed `--json` memory command,
+ * memory recipe or board command. Parse/help failures and other commands stay plain text.
+ */
+function jsonFailureRequested(argv: string[]): boolean {
+  let args: ReturnType<typeof parseArgs>;
+  try {
+    if (helpForArgv(argv) !== undefined) return false;
+    args = parseArgs(argv);
+  } catch { return false; }
+  const command = args._[0];
+  if (args.json !== true || !command) return false;
+  if (command === "update") return looksLikeMemoryDocumentUpdate(args);
+  return command === "run" || command === "board" || isMemoryCommand(command);
+}
 
 export async function runCli(argv = process.argv.slice(2)): Promise<void> {
   const help = helpForArgv(argv);
@@ -37,7 +60,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
       try { const target = resolveCliTarget(args); if (target.kind === "local") root = target.root; } catch {}
     }
     const message = root ? memoryRootInspectionMessage(error, root) : undefined;
-    if (message) throw new Error(message);
+    if (message) throw new Error(message, { cause: error });
     throw error;
   }
 }

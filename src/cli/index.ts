@@ -1,1 +1,1 @@
-export { runCli } from "./commands.js";
+export { main, runCli } from "./commands.js";
