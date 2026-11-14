@@ -500,13 +500,20 @@ test("all browser views share Ember surfaces and semantic controls", () => {
     const rule = css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
     assert.match(rule, /background: var\(--surface\)/, selector);
   }
-  for (const selector of [".button-primary", ".quiet-button", ".icon-button", "#home-new"]) {
-    const rule = css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
-    if (selector === ".quiet-button") {
-      assert.match(rule, /--quiet-fill: var\(--control-fill\)/);
-      assert.match(rule, /background: var\(--quiet-fill\)/);
-    } else assert.match(rule, /background: var\(--control-fill\)/, selector);
+  // Shared button primitive: one base rule paints every variant from --btn-* variables; variants only retune them.
+  const ruleFor = (selector) => css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
+  const base = ruleFor(".button, .quiet-button, .icon-button");
+  assert.match(base, /--btn-fill: var\(--control-fill\)/);
+  assert.match(base, /--btn-bg: var\(--btn-fill\)/);
+  assert.match(base, /background: var\(--btn-bg\)/);
+  assert.match(base, /border: 0 solid transparent/, "variants never change button geometry");
+  for (const [selector, fill] of [[".button-primary", "var\\(--control-fill\\)"], [".quiet-button--plain", "transparent"], [".icon-button", "transparent"], [".icon-button--framed", "var\\(--control-fill\\)"]]) {
+    assert.match(ruleFor(selector), new RegExp(`--btn-fill: ${fill}`), selector);
+    assert.doesNotMatch(ruleFor(selector), /(?:^|[{;]\s*)background:/, `${selector} retunes variables instead of painting`);
   }
+  assert.match(css, /:is\(\.button, \.quiet-button, \.icon-button\):hover:not\(:disabled, \[aria-disabled="true"\]\) \{ --btn-bg: var\(--btn-fill-hover\)/);
+  assert.doesNotMatch(css, /button:disabled \{ cursor: wait/, "disabled is not busy");
+  assert.match(ruleFor("#home-new"), /background: var\(--control-fill\)/);
   const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]));
   defined.add("--node-fill"); // Per-node inline override with a CSS fallback.
   defined.add("--sidebar-width"); // Persisted inline resize override with a CSS fallback.

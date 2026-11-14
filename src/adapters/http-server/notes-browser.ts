@@ -105,13 +105,9 @@ ${noteOutlineStyles}
     .document-status { display: flex; flex-wrap: wrap; min-width: 0; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 48px; padding: var(--space-2) var(--space-4); }
     body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
-    .quiet-button { --quiet-fill: var(--control-fill); --quiet-hover: var(--control-hover); border: 0; border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); background: var(--quiet-fill); color: var(--ink-soft); text-decoration: none; font: inherit; font-size: var(--text-ui); line-height: var(--leading-ui); min-height: var(--control-height); cursor: pointer; }
-    .quiet-button--plain { --quiet-fill: transparent; --quiet-hover: var(--hover-fill); }
-    .quiet-button:not(:where(.note-icon, .icon-button, .attention-icon, .sidebar-icon, #toggle-sidebar, [aria-current="page"])):hover:not(:disabled) { background: var(--quiet-hover); color: var(--ink); }
-    .quiet-button:is(.note-icon, .icon-button, .attention-icon, .sidebar-icon, #toggle-sidebar):hover:not(:disabled) { color: var(--ink); }
     .action-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); width: 100%; padding: var(--space-2) var(--space-3); text-align: left; }
     .action-row svg { width: var(--icon-size); height: var(--icon-size); }
-    .quiet-button.attention-icon { flex: 0 0 auto; min-height: var(--control-compact); padding: 0; }
+    .quiet-button.attention-icon { flex: 0 0 auto; min-height: var(--control-compact); padding: 0; --btn-fill-hover: var(--btn-fill); }
     .home { width: 100%; overflow: auto; padding: clamp(var(--space-8), 8vh, 80px) var(--space-6) var(--space-12); text-align: center; }
     .home-actions { width: min(100%, 560px); margin: 0 auto; text-align: left; }
     .home-actions h1 { margin: 0 0 var(--space-6); font-size: var(--text-display); line-height: var(--leading-heading); font-weight: var(--weight-semibold); letter-spacing: -.035em; }
@@ -136,14 +132,14 @@ ${noteOutlineStyles}
     .home-action kbd { flex-shrink: 0; padding: var(--space-1) var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: var(--text-caption); font-weight: var(--weight-regular); color: inherit; }
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
     main, body[data-view="graph"] main { flex: 1; height: auto; min-height: 0; }
-    #note-panel { --writing-font: var(--font-writing); width: 100%; min-width: 0; overflow: auto; scrollbar-gutter: stable; scrollbar-color: var(--line-strong) transparent; scroll-padding-block: var(--space-8); }
+    #note-panel { width: 100%; min-width: 0; overflow: auto; scrollbar-gutter: stable; scrollbar-color: var(--line-strong) transparent; scroll-padding-block: var(--space-8); }
     #note-layout { width: 100%; min-width: 0; }
     .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(var(--space-8), 5vh, var(--space-12)) var(--space-10) max(160px, 30vh); }
-    #note-title { margin: 0 0 var(--space-6); color: var(--ink); font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
-    #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 var(--space-6); padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 500 clamp(30px, 4vw, 40px)/1.25 var(--writing-font); letter-spacing: -.025em; overflow-wrap: anywhere; }
+    #note-title { margin: 0 0 var(--space-6); color: var(--ink); font: 500 clamp(30px, 4vw, 40px)/1.25 var(--font-writing); letter-spacing: -.025em; overflow-wrap: anywhere; }
+    #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 var(--space-6); padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 500 clamp(30px, 4vw, 40px)/1.25 var(--font-writing); letter-spacing: -.025em; overflow-wrap: anywhere; }
     .note-writing { position: relative; }
-    #note-editor-hint { position: absolute; top: var(--space-2); left: 0; right: 0; margin: 0; pointer-events: none; color: var(--ink-soft); font: 19px/1.8 var(--writing-font); }
-    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: var(--space-2) 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--writing-font); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #note-editor-hint { position: absolute; top: var(--space-2); left: 0; right: 0; margin: 0; pointer-events: none; color: var(--ink-soft); font: 19px/1.8 var(--font-writing); }
+    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: var(--space-2) 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--font-writing); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
     /* Each block is a source line; intentional blank lines supply paragraph spacing. */
     #note-editor p { margin: 0; min-height: 1.8em; }
     #note-editor > * { scroll-margin-block: var(--space-8); }
@@ -220,7 +216,7 @@ ${referencePresentationStyles}
     #format-controls [data-format="paragraph"] { width: auto; min-width: var(--control-compact); padding-inline: var(--space-2); }
     #format-controls button:hover:not(:disabled), #format-controls button:focus-visible { background: var(--hover-fill); color: var(--ink); }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
-    .note-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); }
+    .note-icon { --btn-fill-hover: var(--btn-fill); display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); }
     .note-icon svg { width: var(--icon-size); height: var(--icon-size); }
     .note-icon[hidden] { display: none; }
     .app-version { margin: var(--space-6) 0 0; padding-top: var(--space-4); border-top: 1px solid var(--line); color: var(--ink-soft); font-size: var(--text-caption); }
@@ -251,7 +247,6 @@ ${referencePresentationStyles}
     #note-save-error[data-review="true"] { color: var(--ink-soft); }
     .capture-feedback { margin: 0; padding: 0 var(--space-6); font-size: var(--text-caption); color: var(--ink-soft); }
     .capture-feedback[data-error="true"] { color: var(--error-ink); }
-    button:disabled { cursor: wait; opacity: .65; }
     .save-state { color: var(--ink-soft); font-size: var(--text-caption); white-space: nowrap; }
     .save-state[data-state="failed"], #note-message[data-error="true"] { color: var(--error-ink); }
     #note-message { color: var(--ink-soft); white-space: pre-wrap; }

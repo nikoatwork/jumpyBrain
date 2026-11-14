@@ -19,7 +19,7 @@ export function createBoardName(existing: readonly string[], random = Math.rando
 
 export const boardsStyles = String.raw`
 ${boardSettingsStyles}
-#board-title button,.board-composer button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
+#board-title button,.board-composer button,.board-column-header button,.board-card > button,.board-add,.board-card-actions button {--btn-fill:transparent;--btn-fill-hover:var(--hover-fill)}
 .board-card > button {color:var(--ink);font-weight:var(--weight-regular);padding:0;min-height:var(--control-height);align-self:start}
 .board-card-actions .note-icon {width:var(--control-compact);height:var(--control-compact);min-height:var(--control-compact);padding:var(--space-1);flex:none}
 ${boardsSidebarStyles}

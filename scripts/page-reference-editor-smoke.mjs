@@ -19,7 +19,7 @@ const server = createServer((req, res) => {
   }
   res.writeHead(200, { "Content-Type": "text/html" });
   res.end(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Isolated production reference editor</title>
-    <style>body{font:16px/1.8 system-ui;margin:20px;--writing-font:system-ui}#note-editor{white-space:pre-wrap;overflow-wrap:anywhere;min-height:200px}p{margin:0;min-height:1.8em}.editor-bold{font-weight:bold}.editor-italic{font-style:italic}[role=link]:focus-visible{outline:2px solid blue}${referencePresentationStyles}</style>
+    <style>body{font:16px/1.8 system-ui;margin:20px;--font-writing:system-ui}#note-editor{white-space:pre-wrap;overflow-wrap:anywhere;min-height:200px}p{margin:0;min-height:1.8em}.editor-bold{font-weight:bold}.editor-italic{font-style:italic}[role=link]:focus-visible{outline:2px solid blue}${referencePresentationStyles}</style>
     <button id="before">Before editor</button><div id="note-editor" role="textbox" aria-label="Markdown" aria-multiline="true"></div><button id="after">After editor</button>
     <script src="/editor.js"></script>
     <script>

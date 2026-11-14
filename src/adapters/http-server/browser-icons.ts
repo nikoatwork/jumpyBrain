@@ -2,7 +2,7 @@
 const icon = (body: string): string => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 /*!
- * Lucide pin and refresh-cw shapes: https://lucide.dev (ISC License).
+ * Lucide pin, refresh-cw, chevron-right, chevron-down, chevrons-up-down and x shapes: https://lucide.dev (ISC License).
  * Copyright (c) 2026 Lucide Icons and Contributors
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,7 +18,15 @@ const icon = (body: string): string => `<svg viewBox="0 0 24 24" fill="none" str
 // Mirrored in the separately serialized native update control.
 const refreshIconPath = 'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M8 16H3v5';
 
-export const browserPinIcon = icon('<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>');
+export const browserPinIcon = /* @__PURE__ */ icon('<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>');
+
+// Separately exported glyphs are plain literals so bundles that need only one of them
+// (tree rows, dropdown triggers) tree-shake the rest. Same 24px/1.6 stroke as icon().
+// Disclosure chevron: points right when closed; `.disclosure-chevron` rotates it down when open.
+export const browserChevronIcon = '<svg class="disclosure-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>';
+// Dropdown trigger glyphs injected by prepareDropdown; the switcher variant uses up/down chevrons.
+export const browserChevronDownIcon = '<svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+export const browserChevronsUpDownIcon = '<svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>';
 
 // Keep server-only glyph construction out of bundles that need only the pin.
 export const browserIcons = /* @__PURE__ */ (() => ({
@@ -35,7 +43,10 @@ export const browserIcons = /* @__PURE__ */ (() => ({
   settings: icon('<path d="m9 3-.6 2.4-2 .9L4 5.6 2.5 8.2 4.3 10v2l-1.8 1.8L4 16.4l2.4-.7 2 .9L9 19h3l.6-2.4 2-.9 2.4.7 1.5-2.6L16.7 12v-2l1.8-1.8L17 5.6l-2.4.7-2-.9L12 3H9Z" transform="translate(1.5 1)"/><circle cx="12" cy="12" r="3"/>'),
   feedback: icon('<path d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-6 4V6a2 2 0 0 1 2-2Z"/><path d="M7 9h10M7 13h7"/>'),
   refresh: icon(`<path d="${refreshIconPath}"/>`),
-  close: icon('<path d="m6 6 12 12M18 6 6 18"/>'),
+  close: icon('<path d="M18 6 6 18M6 6l12 12"/>'),
+  chevronRight: icon('<path d="m9 18 6-6-6-6"/>'),
+  chevronDown: icon('<path d="m6 9 6 6 6-6"/>'),
+  chevronsUpDown: icon('<path d="m7 15 5 5 5-5M7 9l5-5 5 5"/>'),
   edit: icon('<path d="m4 16 12-12 4 4L8 20H4v-4ZM14 6l4 4"/>'),
   check: icon('<path d="m5 12 4 4L19 6"/>'),
   key: icon('<circle cx="8" cy="15.5" r="4"/><path d="m11 12.5 8.5-8.5M16.5 7l2.5 2.5M13.5 10l2 2"/>'),

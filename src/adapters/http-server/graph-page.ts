@@ -1,9 +1,12 @@
 import { folderExplorerMarkup, folderExplorerStyles } from "./folder-explorer-view.js";
 import { systemMessageMarkup, systemMessageStyles } from "./browser-system-messages.js";
 import { extensionStyles, extensionPanelMarkup } from "./extensions-view.js";
-import { browserIcons } from "./browser-icons.js";
+import { browserChevronDownIcon, browserChevronsUpDownIcon, browserIcons } from "./browser-icons.js";
 import { designSystemStyles } from "./browser-design-system.js";
-import { dropdownStyles } from "./browser-dropdown.js";
+import { buttonStyles } from "./browser-button.js";
+import { listStyles } from "./browser-list.js";
+import { componentStyles } from "./browser-components.js";
+import { dropdownGlyphsMarkup, dropdownStyles } from "./browser-dropdown.js";
 import { GRAPH_NODE_TONES } from "./map-controller.js";
 import { readFileSync } from "node:fs";
 import { themeBootstrap, themeScript, themeStyles } from "./browser-theme.js";
@@ -37,17 +40,20 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
   <style nonce="${nonce}">
     ${designSystemStyles}
     ${themeStyles}
+    ${buttonStyles}
+    ${listStyles}
+    ${componentStyles}
     ${systemMessageStyles}
     ${companion ? extensionStyles : ""}
     * { box-sizing: border-box; }
     html, body { height: 100%; }
     body { margin: 0; overflow: hidden; font: var(--text-body)/var(--leading-ui) var(--font-ui); background: var(--surface); color: var(--ink); -webkit-font-smoothing: antialiased; }
-    button, input, textarea, select { font: inherit; }
+    :where(button, input, textarea, select) { font: inherit; }
     strong, b { font-weight: var(--weight-semibold); }
     button { cursor: pointer; }
     :is(button, a, summary) { transition: color .12s ease; }
     :is(button, a, summary) svg { display: block; flex-shrink: 0; }
-    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-offset); }
     [hidden] { display: none !important; }
 
     /* Quiet map chrome shares the home screen's foundation. */
@@ -56,11 +62,7 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .map-heading { flex: 1 0 220px; }
     .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: var(--space-2) var(--space-6); background: var(--surface); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; pointer-events: none; }
 
-    /* Reusable controls and toolbar groups. */
-    input { font-size: var(--text-ui); height: var(--control-height); padding: 0 var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease, background .15s ease; }
-    input::placeholder { color: var(--ink-faint); opacity: 1; }
-    input:hover:not(:disabled):not(:focus) { border-color: var(--hover-line); }
-    input:focus { border-color: var(--focus-ring); }
+    /* Toolbar groups; text fields and buttons are shared primitives (browser-components.ts, browser-button.ts). */
     .toolbar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-6); }
     #query { width: 230px; min-width: 0; background: transparent; border-color: var(--line); }
     #graph-filters { position: relative; }
@@ -73,12 +75,6 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     #focus { display: block; width: 100%; margin-top: var(--space-1); }
     .map-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
     .map-options p { margin: 0; color: var(--ink-faint); font-size: var(--text-caption); }
-    .button { height: var(--control-height); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding: 0 var(--space-4); border: 1px solid transparent; border-radius: var(--radius-sm); font-weight: var(--weight-semibold); font-size: var(--text-ui); transition: background .15s ease, border-color .15s ease; }
-    .button-primary { background: var(--control-fill); border-color: var(--line); color: var(--ink); box-shadow: none; }
-    .button-primary:hover:not(:disabled) { background: var(--control-hover); }
-    .button svg, .icon-button svg { width: var(--icon-size); height: var(--icon-size); }
-    .icon-button { flex: 0 0 auto; min-width: var(--control-compact); min-height: var(--control-compact); width: var(--control-compact); height: var(--control-compact); display: inline-grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--control-fill); color: var(--ink-soft); }
-    .icon-button:hover:not(:disabled) { color: var(--ink); }
 
     main { display: flex; min-height: 0; }
     #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--surface); }
@@ -151,6 +147,7 @@ ${dreamMarkup}
 ${feedbackMarkup}
 ${companion ? "" : accessKeysDialogMarkup}
 ${systemMessageMarkup}
+${dropdownGlyphsMarkup(browserChevronDownIcon, browserChevronsUpDownIcon)}
 <header id="graph-header">
   <div class="toolbar" aria-label="Map controls">
     <div class="map-heading">
@@ -194,9 +191,9 @@ ${systemMessageMarkup}
         <strong id="graph-edge-count" data-testid="graph-edge-count">0</strong> connections
       </span>
       <div class="canvas-tools" aria-label="Graph view controls">
-        <button id="zoom-out" class="icon-button" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-        <button id="reset-view" class="icon-button" aria-label="Reset view" title="Reset view"><svg viewBox="0 0 24 24" fill="none"><path d="M5 9V5h4M19 9V5h-4M5 15v4h4M19 15v4h-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-        <button id="zoom-in" class="icon-button" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" fill="none"><path d="M12 7v10m-5-5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        <button id="zoom-out" class="icon-button icon-button--framed" aria-label="Zoom out" title="Zoom out"><svg viewBox="0 0 24 24" fill="none"><path d="M7 12h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+        <button id="reset-view" class="icon-button icon-button--framed" aria-label="Reset view" title="Reset view"><svg viewBox="0 0 24 24" fill="none"><path d="M5 9V5h4M19 9V5h-4M5 15v4h4M19 15v4h-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button id="zoom-in" class="icon-button icon-button--framed" aria-label="Zoom in" title="Zoom in"><svg viewBox="0 0 24 24" fill="none"><path d="M12 7v10m-5-5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
       </div>
     </div>
     <p class="helper">Solid lines: explicit links · Dashed lines: related notes<br>Scroll to zoom · Drag to move · Select a note to open</p>

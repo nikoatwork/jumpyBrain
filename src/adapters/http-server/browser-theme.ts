@@ -37,7 +37,10 @@ const darkColors = String.raw`
       --node-shade: #151412;
       --backdrop: rgba(0, 0, 0, .55);
       --shadow-sm: 0 1px 3px rgba(0, 0, 0, .2);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, .32);
       --shadow-lg: 0 16px 48px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .2);
+      --find-fill: #d2a02955;
+      --find-fill-current: #da8b19aa;
 `;
 
 export const themeStyles = String.raw`
@@ -75,7 +78,10 @@ export const themeStyles = String.raw`
       --node-shade: #282418;
       --backdrop: rgba(40, 36, 24, .24);
       --shadow-sm: 0 1px 3px rgba(40, 36, 24, .08);
+      --shadow-md: 0 4px 16px rgba(40, 36, 24, .12);
       --shadow-lg: 0 16px 48px rgba(40, 36, 24, .16), 0 2px 8px rgba(40, 36, 24, .08);
+      --find-fill: #d2a02955;
+      --find-fill-current: #da8b19aa;
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) { ${darkColors} }

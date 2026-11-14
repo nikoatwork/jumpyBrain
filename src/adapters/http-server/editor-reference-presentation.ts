@@ -5,7 +5,7 @@ const fonts = new WeakMap<Document, Promise<void>>();
 
 export const referencePresentationStyles = `
   #note-editor.reference-markers-ready > :not([data-reference-editing]) .markdown-reference[data-page-reference="true"] {
-    font-family: "jumpybrain-reference-markers", var(--writing-font, var(--font-writing, serif));
+    font-family: "jumpybrain-reference-markers", var(--font-writing, serif);
   }
 `;
 

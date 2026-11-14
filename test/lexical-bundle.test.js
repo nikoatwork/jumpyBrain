@@ -11,7 +11,8 @@ test("editor bundle is self-contained, production-sized, and safe to inline unde
   assert.doesNotThrow(() => new vm.Script(bundle));
   assert.doesNotMatch(bundle, /<\/script/i);
   // Tree-shaken Lexical plus feature headroom; see docs/build-footprint.md.
-  assert.ok(gzipSync(bundle).length < 185_000, "review editor weight if the production bundle exceeds 185 KB gzip");
+  // Reviewed 2026-11-14: +0.5 KB for the shared createButton/setDisclosure/dropdown-glyph helpers that replace per-view factories.
+  assert.ok(gzipSync(bundle).length < 186_000, "review editor weight if the production bundle exceeds 186 KB gzip");
   const html = graphPageHtml("lexicalbundle");
   assert.ok(html.includes(bundle));
   assert.equal((html.match(/<script\b/g) || []).length, 2);

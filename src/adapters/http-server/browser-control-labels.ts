@@ -1,8 +1,9 @@
 // One top-layer label for existing titled controls, including disabled buttons.
 // Delegation also covers host/extension controls added after shell startup.
+// Styled by the shared .popover--tooltip primitive (browser-components.ts).
 export function installControlLabels(doc: Document) {
   const label = doc.createElement("div");
-  label.id = "control-label"; label.setAttribute("role", "tooltip");
+  label.id = "control-label"; label.className = "popover popover--tooltip"; label.setAttribute("role", "tooltip");
   if (typeof label.showPopover !== "function") return;
   label.setAttribute("popover", "manual"); doc.body.append(label);
   let active: HTMLElement | null = null, title = "", described = "", accessible = "";

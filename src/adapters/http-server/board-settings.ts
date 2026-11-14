@@ -4,7 +4,7 @@ export const boardSettingsStyles = String.raw`
 #settings-boards-list {margin-top:var(--space-3)}
 .board-settings-row {display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;min-height:var(--space-12);padding:var(--space-2) 0;border-bottom:1px solid var(--line)}
 .board-settings-row:last-child {border-bottom:0}
-.board-settings-name {flex:1;min-width:0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;--quiet-fill:transparent;--quiet-hover:var(--hover-fill)}
+.board-settings-name {flex:1;min-width:0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;--btn-fill:transparent;--btn-fill-hover:var(--hover-fill)}
 .board-settings-status {color:var(--ink-faint);font-size:var(--text-caption)}
 .board-settings-actions {display:flex;gap:var(--space-1);flex:none}
 .board-settings-actions .note-icon {width:var(--control-compact);height:var(--control-compact);min-height:var(--control-compact);padding:var(--space-1);flex:none}

@@ -3,7 +3,8 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { dropdownStyles, prepareDropdown } from '../dist/adapters/http-server/browser-dropdown.js';
+import { dropdownGlyphsMarkup, dropdownStyles, prepareDropdown } from '../dist/adapters/http-server/browser-dropdown.js';
+import { browserChevronDownIcon, browserChevronsUpDownIcon } from '../dist/adapters/http-server/browser-icons.js';
 import { designSystemStyles } from '../dist/adapters/http-server/browser-design-system.js';
 import { themeStyles } from '../dist/adapters/http-server/browser-theme.js';
 import { extensionStyles, extensionSettingsMarkup } from '../dist/adapters/http-server/extensions-view.js';
@@ -23,8 +24,9 @@ main { max-width: 520px; margin: auto; } label.field { display: grid; gap: 8px; 
 ${extensionSettingsMarkup}
 <form><label class="field">Connection type<select id="kind" class="dropdown" required><option value="local">Local folder</option><option value="remote">Remote server</option><option disabled value="unavailable">Unavailable</option></select></label>
 <fieldset disabled><label class="field">Disabled<select id="disabled" class="dropdown"><option>Cannot change</option></select></label></fieldset></form>
-<div class="sidebar"><select id="brain" class="dropdown dropdown--quiet" aria-label="Switch brain"><option>Local brain</option><option>Team brain with a very long descriptive name that should fit the sidebar</option></select></div>
+<div class="sidebar"><select id="brain" class="dropdown dropdown--switcher" aria-label="Switch brain"><option>Local brain</option><option>Team brain with a very long descriptive name that should fit the sidebar</option></select></div>
 <button id="after">After dropdowns</button></main>
+${dropdownGlyphsMarkup(browserChevronDownIcon, browserChevronsUpDownIcon)}
 <select id="edge" class="dropdown" aria-label="Edge dropdown"><option>First</option><option>Second</option><option>Third</option></select></html>`;
 const browser = await launchPlaywrightChromium();
 const page = await browser.newPage();
@@ -38,7 +40,10 @@ try {
     document.querySelectorAll('select').forEach(select => { prepare(select); prepare(select); });
   }, prepareDropdown.toString());
   assert.equal(await page.evaluate(() => CSS.supports('appearance', 'base-select')), true, 'test browser must exercise styled pickers');
-  assert.equal(await page.evaluate(() => [...document.querySelectorAll('select')].every(select => select.querySelectorAll('button').length === 1)), true, 'preparation is idempotent');
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll('select')].every(select => select.querySelectorAll('button').length === 1 && select.querySelectorAll('.dropdown-chevron').length === 1)), true, 'preparation is idempotent');
+  // The shared chevron replaces the UA triangle; the switcher uses chevrons-up-down.
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('select')].map(select => [select.id, select.querySelector('.dropdown-chevron path').getAttribute('d'), getComputedStyle(select, '::picker-icon').display])),
+    [['extension-theme', 'm6 9 6 6 6-6', 'none'], ['kind', 'm6 9 6 6 6-6', 'none'], ['disabled', 'm6 9 6 6 6-6', 'none'], ['brain', 'm7 15 5 5 5-5M7 9l5-5 5 5', 'none'], ['edge', 'm6 9 6 6 6-6', 'none']]);
   await page.evaluate(() => {
     const palette = document.getElementById('extension-theme');
     palette.closest('label').hidden = false;
@@ -75,17 +80,18 @@ try {
         const layout = await select.evaluate(el => {
           const control = el.getBoundingClientRect();
           const selected = el.querySelector('selectedcontent').getBoundingClientRect();
-          const icon = getComputedStyle(el, '::picker-icon');
+          const icon = el.querySelector('.dropdown-chevron').getBoundingClientRect();
           const picker = getComputedStyle(el, '::picker(select)');
           const options = [...el.options].map(option => {
             const rect = option.getBoundingClientRect();
             return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
           });
-          return { control: { left: control.left, right: control.right, width: control.width }, picker: { width: parseFloat(picker.width), background: picker.backgroundColor }, options, parentWidth: el.parentElement.clientWidth, selectedWidth: selected.width, iconWidth: parseFloat(icon.width), height: innerHeight, width: innerWidth, surface: getComputedStyle(document.body).backgroundColor };
+          return { control: { left: control.left, right: control.right, width: control.width }, picker: { width: parseFloat(picker.width), background: picker.backgroundColor }, options, parentWidth: el.parentElement.clientWidth, selectedWidth: selected.width, iconWidth: icon.width, iconInside: icon.right <= control.right && icon.left >= selected.right, height: innerHeight, width: innerWidth, surface: getComputedStyle(document.body).backgroundColor };
         });
         assert.ok(Math.abs(layout.picker.width - layout.control.width) <= 1, `${id}/${width}: picker follows trigger width`);
         assert.equal(layout.picker.background, layout.surface, `${id}: picker uses active theme`);
         assert.ok(layout.selectedWidth + layout.iconWidth < layout.control.width, `${id}: label reserves room for the arrow`);
+        assert.ok(layout.iconInside && layout.iconWidth === 16, `${id}: shared 16px chevron trails the label inside the trigger`);
         assert.ok(layout.control.width <= layout.parentWidth, `${id}/${width}: trigger fits parent`);
         for (const option of layout.options) {
           assert.ok(option.left >= 0 && option.right <= width + 1, `${id}/${width}: menu option fits viewport`);
