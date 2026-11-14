@@ -2,7 +2,7 @@
 
 ## Completion Summary
 
-Hardened managed installer reruns so recorded refs and strict manifest ownership remain authoritative, narrowed the README demo-host guard to exact approved URL occurrences, and kept the live demo auth redesign in its existing task. Validation passed with 175 tests. The previously published credential remains active at the deployment boundary, so revocation and verification were consolidated into `tasks/todo/tasks-public-sandbox-hardening.md` rather than duplicating that work here.
+Hardened managed installer reruns so recorded refs and strict manifest ownership remain authoritative, narrowed the README demo-host guard to exact approved URL occurrences, and kept the live demo auth redesign in its existing task. Validation passed with 175 tests. The previously published credential remains active at the deployment boundary, so revocation and verification were consolidated into `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md` rather than duplicating that work here.
 
 ## Goal
 
@@ -12,7 +12,7 @@ Close the installer ownership/ref safety gaps and remove the public demo credent
 
 - Review target: `HEAD` (`Harden installer reruns and refresh demo docs`).
 - Do not change memory, configuration, indexes, or integrations during managed reruns.
-- `tasks/todo/tasks-public-sandbox-hardening.md` already plans anonymous, rate-limited demo access; reuse that work rather than creating a second demo-auth design.
+- `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md` already plans anonymous, rate-limited demo access; reuse that work rather than creating a second demo-auth design.
 - The working tree already contains unrelated, unstaged README changes that remove the embedded key. Preserve and coordinate with those changes during execution.
 - Do not update `tasks/CHANGELOG.md` until this followup is completed/archived.
 
@@ -25,7 +25,7 @@ Close the installer ownership/ref safety gaps and remove the public demo credent
 - `docs/install.md` - Documents recorded-ref preservation and intentional overrides.
 - `test/install-scripts.test.js` - Covers pinned reruns, invalid manifests, and failed-update preservation.
 - `test/precommit-guard.test.js` - Covers mixed allowed/disallowed URLs on one README line.
-- `tasks/todo/tasks-public-sandbox-hardening.md` - Owns the remaining live credential rotation after no-auth demo mode ships.
+- `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md` - Owns the remaining live credential rotation after no-auth demo mode ships.
 - `tasks/CHANGELOG.md` - Records the completed repository hardening in one concise entry.
 
 ## Tasks
@@ -47,8 +47,8 @@ Close the installer ownership/ref safety gaps and remove the public demo credent
   - [x] 3.3 Keep the implementation data-driven and small; avoid adding another path/host-specific branching layer.
 
 - [x] 4.0 Remove the published writable bearer credential from repository surfaces
-  - [x] 4.1 Confirm the current README links and examples do not embed a bearer key; coordinate server/CLI behavior with `tasks-public-sandbox-hardening.md` rather than duplicating that implementation here.
-  - [~] 4.2 Rotate/revoke the previously published credential after the no-key route is live. Consolidated into `tasks/todo/tasks-public-sandbox-hardening.md` item 6.4 because the live key still authenticates and deployment changes belong to that existing task.
+  - [x] 4.1 Confirm the current README links and examples do not embed a bearer key; coordinate server/CLI behavior with `2026-11-14_tasks-public-sandbox-hardening.md` rather than duplicating that implementation here.
+  - [~] 4.2 Rotate/revoke the previously published credential after the no-key route is live. Consolidated into `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md` item 6.4 because the live key still authenticates and deployment changes belong to that existing task.
   - [x] 4.3 Keep the warning that the demo is public, disposable, rate-limited, and unsuitable for private information.
 
 - [x] 5.0 Validate the followup

@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-14 — Public sandbox hardening closed (docs only)
+
+- Closed the July plan with an 80/20 audit. The demo gateway already rate-limits per client (429 + `Retry-After`), allowlists the published key's routes, caps bodies and resets hourly. Proxy limits and the CLI's 429 explanation also already exist, so the in-process limiter, no-auth mode, counters and CLI aliases were dropped. Added a short [public writable sandbox](../docs/vps-deploy.md#public-writable-sandbox) posture to the VPS docs. The audit found that bootstrap keys are admin, so the demo's published key relies only on its gateway allowlist; that follow-up belongs to the demo repo. [Audit, outcome and limits](done/2026-11-14_tasks-public-sandbox-hardening.md).
+
 ## 2026-11-14 — Sidebar spacing and typography
 
 - Widened the default sidebar to 320px, increased entry spacing and separated title/preview/age type roles while retaining custom widths. [Verification and limits](done/2026-11-14_tasks-sidebar-spacing.md).

@@ -98,7 +98,7 @@ No existing note was changed or deleted, and server/proxy configuration was unto
 
 ## Ownership and verification limits
 
-This list owns the focused CLI/transport admission-error contract formerly routed to [hosted operations](../todo/tasks-hosted-build-and-operations.md). That list retains systemd/deployment verification; [public sandbox hardening](../todo/tasks-public-sandbox-hardening.md) retains anonymous-demo abuse/reseed policy. [Feedback follow-ups](../todo/tasks-feedback-follow-ups.md) remains the summary index. Do not duplicate their implementation checklists.
+This list owns the focused CLI/transport admission-error contract formerly routed to [hosted operations](../todo/tasks-hosted-build-and-operations.md). That list retains systemd/deployment verification; [public sandbox hardening](2026-11-14_tasks-public-sandbox-hardening.md) retains anonymous-demo abuse/reseed policy. [Feedback follow-ups](../todo/tasks-feedback-follow-ups.md) remains the summary index. Do not duplicate their implementation checklists.
 
 Planning verification: read the full report; inspected current source/docs and prior coediting/release evidence; reused the other investigation's successful `npm run build` at the stated HEAD; ran two injected-fetch 429 probes and one disposable loopback CLI probe. These establish current error-presentation gaps, not the historical deployment's rate policy. No production configuration, personal brain, inbox labels or remote memory was changed. Implementation tests and native forwarding verification remain pending.
 

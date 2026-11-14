@@ -50,7 +50,7 @@ The graph is a useful entry point because users are already considering connecti
 
 **Concurrent edits.** `graph-page.ts:562–581` retries a 412 once using last-write-wins. A stale browser draft in another tab can overwrite an agent update. The graph entrypoint benefits from existing guarded navigation out of the editor, but does not solve cross-tab concurrency. Advise against concurrent edits to affected dream pages and reopen/refetch after external work. No new lock or conflict-editor redesign is promised.
 
-**Demo access.** Existing memory routes authenticate. The public sandbox plan keeps Dream authenticated or disabled (`tasks/todo/tasks-public-sandbox-hardening.md`). A visible graph does not prove write capability. The new handoff must not weaken these restrictions or bypass protected-target guards.
+**Demo access.** Existing memory routes authenticate. The public sandbox plan keeps Dream authenticated or disabled (`tasks/done/2026-11-14_tasks-public-sandbox-hardening.md`). A visible graph does not prove write capability. The new handoff must not weaken these restrictions or bypass protected-target guards.
 
 **UI coordination.** `tasks/done/2026-09-30_tasks-memory-map-ux-refresh.md` records the completed toolbar/map cleanup. The handoff adds one restrained action without restoring clutter or duplicating navigation.
 

@@ -240,6 +240,15 @@ jumpyBrain has no per-minute request quota of its own. The `limit_req` numbers a
 
 Keep `limit_req_status 429;`: nginx otherwise refuses with **503**, which clients cannot tell apart from an unavailable service. The CLI reports a 429 as `rate_limited` and a code-less 503 as `service_unavailable`, includes a delay only when the response carries a valid `Retry-After` header, and never retries automatically ([CLI errors](cli-commands.md#failure-output-and-json-errors)). To see which limit refused a request, check the proxy's error log (nginx logs `limiting requests, excess: … by zone "jumpybrain", client: …`) and its access log status codes. A refusal there never reached jumpyBrain, so the server log has no matching entry. Backend **503 `execution_overloaded`** is different: the shared search/index queue described above is full.
 
+### Public writable sandbox
+
+jumpyBrain has no anonymous mode: every memory route needs a key. A public demo publishes one disposable key and puts the safety controls in front of the server:
+
+- **Dedicated root.** Use a disposable root containing only fictional seed Markdown, never a private brain.
+- **Least-privilege key.** Keys in `JUMPYBRAIN_SERVER_API_KEYS` act as **admin**, so publishing one makes the proxy the only boundary. Prefer a published `writer` key from `jumpybrain access issue --role writer` ([roles](collaboration.md#separate-access)), and keep an admin key private. Issued keys live in `.jumpybrain/access.json` under the root, so a reset must keep that file or the published key changes.
+- **Proxy allowlist.** Writers can still edit and delete notes. Allow the public key only the routes you mean to offer, for example status, overview, tree, graph, document `GET`, recent, search, recall/expand and note creation. Reject everything else, including document `PUT`/`DELETE`, files, boards, drawings, index, wrapups and `dream/*`. Add a per-IP rate limit with `limit_req_status 429` and a small request-body cap.
+- **Scheduled reset.** Replace the root's Markdown with the seed copy and rebuild the index. A reset removes junk notes and returns derived state to a known point. It does not bound traffic between resets, and logs under the root are deleted with it unless you copy them out first. Rate limits slow floods but cannot stop low-volume spam. Rotate the public key if abuse continues between resets.
+
 ## 8. Logs
 
 Server logs are written under the memory root at `.jumpybrain/logs/server-YYYY-MM-DD.log`. Inspect them over SSH:

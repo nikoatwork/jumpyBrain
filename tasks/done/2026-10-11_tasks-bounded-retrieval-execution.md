@@ -44,7 +44,7 @@ Removed both blocking retrieval/index runners; consolidated capture/deadlines/te
 - Approved for planning on 2026-10-10. Direction: [product vision](../../docs/product-vision.md); evidence: [retrieval review](../../deep-dives/retrieval-product-review/findings.md#4-bound-backend-latency-before-adding-smarter-ranking).
 - Coordinate the subprocess seam early with [ticket 1](../done/2026-10-10_tasks-semantic-index-reliability.md); integrate against its indexing isolation and failure/readiness contracts. Quality comparisons use [ticket 2](../done/2026-10-11_tasks-budgeted-recall-and-expansion.md)'s output accounting when available.
 - Baseline search ran up to eight lexical calls, one structured query, and two dream supplements synchronously without timeouts. Those counts are preserved under the bounded async runner.
-- This ticket owns execution/admission control and per-request read reuse. It does not duplicate public-demo IP rate limits in [sandbox hardening](../todo/tasks-public-sandbox-hardening.md).
+- This ticket owns execution/admission control and per-request read reuse. It does not duplicate public-demo IP rate limits in [sandbox hardening](2026-11-14_tasks-public-sandbox-hardening.md).
 - Keep existing max fusion and relevance policy as the baseline. Retrieval depth describes evidence shape, not compute spend. No new broker, daemon, mandatory reranker, or external cache.
 - Reuse ticket 2's external versioned judged suite and interaction accounting, adding resource measurements instead of another quality harness. Freeze suite/configuration versions and adoption thresholds before final comparisons.
 

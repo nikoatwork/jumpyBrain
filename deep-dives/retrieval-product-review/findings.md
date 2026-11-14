@@ -113,7 +113,7 @@ For semantic search, configure embedding generation on the **server**, not merel
 - Auto-index checks stale state every five minutes, not immediate read-after-write search. Manual remote index is available with authorization. `/health` proves liveness, not retrieval readiness.
 - Lean companion extension: explicit local/remote mode, opening the existing remote editor; never start/stop a local server for a remote target or silently fall back to another brain. Add remote credentials only if native authenticated actions are needed, using secure storage. Do not build offline sync as part of this feature.
 
-Evidence: [companion](../../integrations/macos-companion/README.md), `Companion.swift:47,166–197,274–299`, [Dockerfile](../../Dockerfile), [package build](../../package.json), `src/adapters/http-server/graph-page.ts:527–557`, [operator limits](../../docs/cloud-shared-memory.md), [active public-sandbox hardening](../../tasks/todo/tasks-public-sandbox-hardening.md).
+Evidence: [companion](../../integrations/macos-companion/README.md), `Companion.swift:47,166–197,274–299`, [Dockerfile](../../Dockerfile), [package build](../../package.json), `src/adapters/http-server/graph-page.ts:527–557`, [operator limits](../../docs/cloud-shared-memory.md), [public-sandbox hardening](../../tasks/done/2026-11-14_tasks-public-sandbox-hardening.md).
 
 ## External sources and limits
 

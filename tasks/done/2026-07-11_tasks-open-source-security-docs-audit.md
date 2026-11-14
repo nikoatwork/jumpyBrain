@@ -20,7 +20,7 @@ Remove the release-blocking security risk and correct documentation that current
 
 ## Relevant Files
 
-- `tasks/todo/tasks-public-sandbox-hardening.md` - Contains the currently deferred credential-revocation item; de-duplicate it after immediate rotation.
+- `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md` - Contains the currently deferred credential-revocation item; de-duplicate it after immediate rotation.
 - `scripts/public-uninstall.mjs` - Currently infers ownership and deletes app/bin paths when no installer manifest exists.
 - `test/install-scripts.test.js` - Installer/uninstaller safety coverage.
 - `docs/install.md` - Install prerequisites, custom-root update/uninstall, and ownership claims.
@@ -40,7 +40,7 @@ Remove the release-blocking security risk and correct documentation that current
 - [x] 1.0 Revoke the exposed demo credential immediately
   - [x] 1.1 Rotate/revoke the bearer credential published in README history by commit `0528678`; create any replacement only in deployment-secret storage, never Git or shell examples.
   - [x] 1.2 Verify the historical credential now returns `401` on an authenticated endpoint while the intended deployment authentication still works. Historical and bogus credentials both returned `401`; after the validation deployment, the machine-configured global remote passed authenticated CLI status/tree/recall with an initialized 20-document index.
-  - [x] 1.3 Remove or mark complete the deferred duplicate at `tasks/todo/tasks-public-sandbox-hardening.md` task 6.4 so the active task lists retain one source of truth.
+  - [x] 1.3 Remove or mark complete the deferred duplicate at `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md` task 6.4 so the active task lists retain one source of truth.
   - [x] 1.4 Before rewriting history, create an offline backup, inventory all remote branches/tags, and coordinate the destructive force-push so contributors know existing clones and commit/PR links will be invalidated. A verified permission-restricted offline bundle is stored outside the repository; the user explicitly approved the destructive rewrite after deployment validation.
   - [x] 1.5 Build a new orphan public branch containing one reviewed clean snapshot of the intended tracked files; exclude local config, memory, indexes, logs, generated artifacts, and credentials.
   - [x] 1.6 Replace the remote default branch with the clean snapshot and remove every obsolete remote branch and tag that still retains the old object graph.

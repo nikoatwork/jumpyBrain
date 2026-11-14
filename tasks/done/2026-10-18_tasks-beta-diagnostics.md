@@ -71,7 +71,7 @@ Make a beta feedback report useful for diagnosing failed saves, search/index fai
 - `integrations/macos-companion/{gateway.mjs,gateway.docs.md,Companion.swift,switch-coordinator.mjs}` — local host, RPC and process/switch lifecycle.
 - `integrations/electron/{host.mjs,window.mjs,main.mjs,electron.docs.md}` — isolated desktop wrapper and current download restrictions.
 - `test/{logging,feedback,companion-browser,electron-host}.test.js`, `scripts/{feedback,electron}-smoke.mjs` — existing verification to extend.
-- `docs/coolify-deploy.md` and `tasks/todo/tasks-public-sandbox-hardening.md` — hosted-log boundary and related rate-limit logging plans; coordinate rather than duplicate.
+- `docs/coolify-deploy.md` and `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md` — hosted-log boundary and related rate-limit logging plans; coordinate rather than duplicate.
 
 ## Completion criteria
 

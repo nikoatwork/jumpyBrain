@@ -53,7 +53,7 @@ The following recommendations were adopted during implementation without expandi
 - WYSIWYG, slash commands, draggable blocks, databases, comments, collaboration, or a formatting toolbar.
 - New canonical storage, path-based document reads, or a new write endpoint.
 - Offline draft persistence, conflict/merge redesign, automatic per-keystroke indexing, or a new search engine.
-- Public-demo auth/rate limiting/reseeding; those remain in `tasks/todo/tasks-public-sandbox-hardening.md`.
+- Public-demo auth/rate limiting/reseeding; those remain in `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md`.
 
 ## Relevant Files
 

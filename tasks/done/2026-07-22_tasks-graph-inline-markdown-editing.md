@@ -19,7 +19,7 @@ Make notes easy to edit directly from the `/graph` slide-in sidebar. A user sele
 - The leading frontmatter block stays collapsed/read-only. The editor changes only the body and reconstructs the whole document for the existing PUT contract.
 - Autosave after 750 ms of typing inactivity and on blur. Show explicit `Saving…`, `Saved`, and `Save failed` states.
 - Product decision for V1 is last-write-wins. On `412 precondition_failed`, fetch the latest document/hash, preserve its current frontmatter, reapply the local body draft, and retry once. Mark this path clearly in code as temporary conflict-resolution debt; future work should add visible conflict/merge UX rather than silently overwriting.
-- The public demo is intentionally a resettable writable sandbox. Enable editing for anyone with demo access. The editor can work with the demo's current accepted credentials, but unauthenticated public editing depends on `tasks/todo/tasks-public-sandbox-hardening.md`; do not duplicate that task's auth, rate-limit, reseeding, or deployment scope here.
+- The public demo is intentionally a resettable writable sandbox. Enable editing for anyone with demo access. The editor can work with the demo's current accepted credentials, but unauthenticated public editing depends on `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md`; do not duplicate that task's auth, rate-limit, reseeding, or deployment scope here.
 - All currently accepted API keys have the same server privileges. Read/write roles and browser capability discovery remain out of scope.
 - Unresolved nodes, missing/invalid document IDs, failed document reads, and noncanonical graph nodes remain non-editable.
 
@@ -49,7 +49,7 @@ Make notes easy to edit directly from the `/graph` slide-in sidebar. A user sele
 - `scripts/playwright-runtime.mjs` - Shared local/npx Playwright runtime resolver used by graph smokes.
 - `docs/shared-memory-protocol.md` - Durable graph editor behavior, conflict policy, and smoke instructions.
 - `package.json` - Disposable editor smoke command.
-- `tasks/todo/tasks-public-sandbox-hardening.md` - Public writable-demo rate limiting and reseeding coordination.
+- `tasks/done/2026-11-14_tasks-public-sandbox-hardening.md` - Public writable-demo rate limiting and reseeding coordination.
 - `tasks/done/2026-07-04-tasks-memory-document-editing.md` - Original document-editing contract and deferred browser UI.
 - `tasks/done/2026-07-09_tasks-graph-note-slidein.md` - Existing sidebar reader decisions and behavior.
 

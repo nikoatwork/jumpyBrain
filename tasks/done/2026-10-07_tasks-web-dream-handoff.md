@@ -36,7 +36,7 @@ Add **Consolidate notes (Dream)…** to the memory-map toolbar. It prepares a se
 
 - [Feasibility findings](../../deep-dives/web-dream-handoff/feasibility.md) — evidence and rejected alternatives; this task list owns implementation scope.
 - [Memory map UX refresh](../done/2026-09-30_tasks-memory-map-ux-refresh.md) — completed toolbar cleanup (landed in `7cb03a7` before implementation). Add one quiet action to that design; do not restore removed controls or duplicate navigation.
-- [Public sandbox hardening](../todo/tasks-public-sandbox-hardening.md) — Dream restrictions must not be relaxed for this feature.
+- [Public sandbox hardening](2026-11-14_tasks-public-sandbox-hardening.md) — Dream restrictions must not be relaxed for this feature.
 - `src/architecture.docs.md`, `src/adapters/http-server/http-server.docs.md` — ownership and dependency rules.
 - `src/adapters/http-server/graph-page.ts` — graph toolbar, browser assembly, transport, shared save controller.
 - `src/adapters/http-server/notes-browser.ts` — existing dialog, navigation, focus, keyboard-shortcut and history patterns.
