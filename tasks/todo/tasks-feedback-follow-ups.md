@@ -40,6 +40,6 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 - [Hosted build/operations](tasks-hosted-build-and-operations.md): actual systemd-manager validation remains open after container/proxy/restore work.
 - [Portable installation](tasks-portable-installation-project-integration.md): remaining compiler/platform/payload and project-integration work.
 - [Workspace retrieval evaluation](tasks-workspace-retrieval-evaluation.md): broader quality work; prior semantic candidates were rejected, not shipped as ranking fixes.
-- [Properties and saved views](tasks-properties-and-saved-views.md): deferred richer metadata/view proposals. Wider workflow/product ideas retain the [completed discovery decisions](../done/2026-11-02_tasks-feedback-product-discovery.md).
+- [Properties and saved views](../done/2026-11-14_tasks-properties-and-saved-views.md): dropped 2026-11-14; boards cover the need. Wider workflow/product ideas retain the [completed discovery decisions](../done/2026-11-02_tasks-feedback-product-discovery.md).
 
 No raw private messages or attachments are stored here. Priorities are triage judgments, not confirmed causes or release promises. Finish each retained fix under [task workflow](../../docs/task-workflow.md), then update its email-index outcome and owner link.

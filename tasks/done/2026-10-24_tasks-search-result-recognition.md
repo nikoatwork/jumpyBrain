@@ -10,7 +10,7 @@ Help a person recognize a specific note without opening several lookalikes: “I
 - Start with global search and the explicit page-reference modal, which share result rendering. Reuse display helpers in inline reference suggestions where space permits; keep that picker compact.
 - Preserve shared retrieval/ranking, keyboard navigation, draft-safe opening, reference eligibility, read-only access and brain isolation. This is not a new search engine.
 - Markdown stays canonical. Index/cache metadata must be rebuildable. No note writes or indexing just to display a result.
-- Related [properties and saved views](../todo/tasks-properties-and-saved-views.md) may supply reusable controls later. Search recognition must not depend on building that entire system; protected attribution is not an ordinary editable custom property.
+- Related [properties and saved views](2026-11-14_tasks-properties-and-saved-views.md) may supply reusable controls later. Search recognition must not depend on building that entire system; protected attribution is not an ordinary editable custom property.
 
 ## What helps me choose
 

@@ -1,5 +1,7 @@
 # Properties and saved views over Markdown notes
 
+Status: dropped on 2026-11-14 at the owner's request, not implemented. Personal boards (`2026-10-29_tasks-personal-boards.md` and the board follow-ups) cover the organize-notes-into-views need well enough; no properties/query/saved-view system is planned. Reopen with a new list if a concrete need appears that boards cannot meet.
+
 ## Goal
 
 Let people and agents organize the same Markdown notes into useful lists and tables: an open-decision register, a research reading list, or a project's related notes. Build a small reusable property/query/view system, with local and hosted behavior sharing the same app operations.

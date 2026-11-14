@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-14 — Properties and saved views dropped
+
+- Dropped the unstarted properties/saved-views plan at the owner's request: personal boards already cover organizing notes into views. Archived unimplemented as [`done/2026-11-14_tasks-properties-and-saved-views.md`](done/2026-11-14_tasks-properties-and-saved-views.md) and repaired inbound links.
+
 ## 2026-11-14 — Sidebar request reduction
 
 - Opening a shared-brain window reads the attention list once instead of three times, and sidebar previews arrive in that response (capped at 160 characters) instead of one whole-note read per row: 17 requests down to 7 per window locally, 32 down to 14 for two windows on the shared test brain. Idle polling and typing traffic are unchanged; older servers keep the per-row fallback.

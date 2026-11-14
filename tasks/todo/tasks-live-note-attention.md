@@ -14,7 +14,7 @@ Keep one authoritative collaboration source revision and existing permissions.
 - HTTP document receipts identify content hashes but do not establish live epoch/revision. Do not fix this by accepting arbitrary receipts, copying a second mutable baseline, inventing revision numbers, or discarding/reopening the editor.
 - Reuse the existing collaboration publication queue, live snapshot/history and hash guards. Choose the smallest revision-aware reconciliation or publication path after tracing the current HTTP/live race; a new metadata wire method is not assumed necessary.
 - Keep attention semantics in core/app, and routes/presentation thin. Preserve protected frontmatter, exact body bytes, edit provenance/date policy, permissions, no automatic mutation replay, and reader/blocked/offline safeguards.
-- Scope is existing attention controls and the shared session contract. General custom properties/saved views stay in [their existing list](tasks-properties-and-saved-views.md). Do not introduce a framework or generic event bus.
+- Scope is existing attention controls and the shared session contract. General custom properties/saved views were [dropped in favor of boards](../done/2026-11-14_tasks-properties-and-saved-views.md). Do not introduce a framework or generic event bus.
 
 ## Tasks
 
