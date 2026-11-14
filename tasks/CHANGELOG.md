@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-14 — Sidebar spacing and typography
+
+- Widened the default sidebar to 320px, increased entry spacing and separated title/preview/age type roles while retaining custom widths. [Verification and limits](done/2026-11-14_tasks-sidebar-spacing.md).
+
 ## 2026-11-14 — Properties and saved views dropped
 
 - Dropped the unstarted properties/saved-views plan at the owner's request: personal boards already cover organizing notes into views. Deleted the unimplemented list and unlinked its inbound references.
