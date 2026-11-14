@@ -18,8 +18,7 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/instal
 This sets up the CLI, local text search, and integrations for detected agents. Want the Mac app too? Add `-s -- --with-app` after `bash`. [Installation guide →](docs/install.md)
 
 <p align="center">
-  <strong><a href="https://demojumpybrain.juttu.co/">Explore the demo</a></strong>
-  · <a href="#start-your-own-brain">Get started</a>
+  <strong><a href="#start-your-own-brain">Get started</a></strong>
   · <a href="docs/cloud-shared-memory.md">Bring your team</a><br />
   MIT licensed · Markdown you own · Local and self-hosted · Beta
 </p>
@@ -69,12 +68,10 @@ A decision connects to some research. A meeting sparks an idea. A week later, th
 The memory map lets you follow those links and rediscover notes you'd forgotten to look for.
 
 <p align="center">
-  <a href="https://demojumpybrain.juttu.co/graph">
-    <img src="docs/assets/jumpybrain-memory-map.webp" alt="jumpyBrain's memory map connecting fictional notes about a small team's product, research, and working habits" width="100%" />
-  </a>
+  <img src="docs/assets/jumpybrain-memory-map.webp" alt="jumpyBrain's memory map connecting fictional notes about a small team's product, research, and working habits" width="100%" />
 </p>
 
-*Screenshots use fictional notes. [Explore the public demo →](https://demojumpybrain.juttu.co/)*
+*Screenshots use fictional notes.*
 
 For a growing collection, the optional [how-to-dream skill](skills/how-to-dream/SKILL.md) helps an agent turn scattered notes into topic pages, with links back to the evidence.
 
@@ -111,8 +108,6 @@ curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/instal
 The Mac beta needs macOS 13+, Python 3.9+, and Xcode command-line tools. It still builds its native helper locally; signed, compiler-free app downloads are future work. The installer supplies private Node/npm when needed. [Mac app guide →](integrations/electron/README.md)
 
 Already installed? Use the [update guide](docs/install.md#update). Beta updates can change how the app, CLI, server, and integrations work together; update them together and keep a backup.
-
-Prefer to look around first? The [public demo](https://demojumpybrain.juttu.co/) uses a fictional team's notes. It's public, writable, and resets hourly—use fictional information only.
 
 ## Go deeper
 

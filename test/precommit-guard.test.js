@@ -36,16 +36,14 @@ test("precommit guard flags likely secrets and personal deployment URLs", () => 
   assert.match(findings[2].reason, /private key/);
 });
 
-test("precommit guard allows only the intentional public demo host in the README", () => {
-  assert.deepEqual(scanText("README.md", "https://demojumpybrain.juttu.co/graph"), []);
-
+test("precommit guard blocks the retired demo host in the README and docs", () => {
+  const readmeFindings = scanText("README.md", "https://demojumpybrain.juttu.co/graph");
   const docsFindings = scanText("docs/deploy.md", "https://demojumpybrain.juttu.co/graph");
   const otherHostFindings = scanText("README.md", "https://coolify.juttu.co/project/example");
-  const mixedLineFindings = scanText("README.md", "Demo: https://demojumpybrain.juttu.co/graph; admin: https://coolify.juttu.co/project/example");
 
+  assert.match(readmeFindings[0].reason, /personal Coolify/);
   assert.match(docsFindings[0].reason, /personal Coolify/);
   assert.match(otherHostFindings[0].reason, /personal Coolify/);
-  assert.match(mixedLineFindings[0].reason, /personal Coolify/);
 });
 
 test('precommit guard allows the public support endpoint only in package metadata', () => {

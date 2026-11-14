@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-14 — Public demo retired
+
+- The public writable demo was taken offline and deleted from its host at the owner's request. The README no longer links to it, the release workflow no longer refreshes a demo, and the pre-commit guard now blocks the demo host in the README. The feedback relay keeps its `/support/feedback` route on the same hostname, so in-app feedback from installed versions still works.
+
 ## 2026-11-14 — Public sandbox hardening closed (docs only)
 
 - Closed the July plan with an 80/20 audit. The demo gateway already rate-limits per client (429 + `Retry-After`), allowlists the published key's routes, caps bodies and resets hourly. Proxy limits and the CLI's 429 explanation also already exist, so the in-process limiter, no-auth mode, counters and CLI aliases were dropped. Added a short [public writable sandbox](../docs/vps-deploy.md#public-writable-sandbox) posture to the VPS docs. The audit found that bootstrap keys are admin, so the demo's published key relies only on its gateway allowlist; that follow-up belongs to the demo repo. [Audit, outcome and limits](done/2026-11-14_tasks-public-sandbox-hardening.md).

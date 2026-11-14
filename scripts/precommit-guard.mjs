@@ -26,11 +26,6 @@ const CONTENT_SCAN_EXEMPT_PATHS = new Set([
 
 const CONTENT_PATTERN_ALLOWANCES = [
   {
-    file: "README.md",
-    patternName: "personal Coolify/domain URL",
-    text: "https://demojumpybrain.juttu.co",
-  },
-  {
     file: "package.json",
     patternName: "personal Coolify/domain URL",
     text: "https://demojumpybrain.juttu.co/support/feedback",
