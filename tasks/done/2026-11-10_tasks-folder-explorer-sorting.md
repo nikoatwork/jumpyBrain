@@ -22,7 +22,7 @@ Snapshot: master `23f9401` plus this change, built once with `npm run build`.
 ## Remaining limits
 
 - A note edited while the panel is open keeps its cached date/position until the next explicit open or Refresh (existing no-rescan rule for autosaves).
-- No date-range or property filters; those belong to [properties and saved views](2026-11-14_tasks-properties-and-saved-views.md). Folders are not ordered by their newest descendant.
+- No date-range or property filters; those belong to properties and saved views. Folders are not ordered by their newest descendant.
 - Each row grows by up to two ISO dates; the companion gateway's existing 16 MiB response cap still applies to very large brains.
 - Native Mac app (Electron) not separately exercised; the shared panel was verified in Chromium through the real companion gateway.
 - The existing failed-save smoke block needs repair independently of this change.

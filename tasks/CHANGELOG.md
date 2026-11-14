@@ -2,7 +2,7 @@
 
 ## 2026-11-14 — Properties and saved views dropped
 
-- Dropped the unstarted properties/saved-views plan at the owner's request: personal boards already cover organizing notes into views. Archived unimplemented as [`done/2026-11-14_tasks-properties-and-saved-views.md`](done/2026-11-14_tasks-properties-and-saved-views.md) and repaired inbound links.
+- Dropped the unstarted properties/saved-views plan at the owner's request: personal boards already cover organizing notes into views. Archived unimplemented as `done/2026-11-14_tasks-properties-and-saved-views.md` and repaired inbound links.
 
 ## 2026-11-14 — Sidebar request reduction
 
