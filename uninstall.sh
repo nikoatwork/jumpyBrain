@@ -3,7 +3,6 @@ set -eu
 
 REF="${JUMPYBRAIN_INSTALL_REF:-master}"
 RAW_BASE="${JUMPYBRAIN_RAW_BASE:-https://raw.githubusercontent.com/nikoatwork/jumpyBrain/${REF}}"
-SCRIPT_URL="$RAW_BASE/scripts/public-uninstall.mjs"
 
 if ! command -v node >/dev/null 2>&1; then
   echo "Node is required to run the jumpyBrain uninstaller." >&2
@@ -20,13 +19,17 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-if command -v curl >/dev/null 2>&1; then
-  curl -fsSL "$SCRIPT_URL" -o "$TMP_DIR/public-uninstall.mjs"
-elif command -v wget >/dev/null 2>&1; then
-  wget -qO "$TMP_DIR/public-uninstall.mjs" "$SCRIPT_URL"
-else
-  echo "curl or wget is required to download the jumpyBrain uninstaller." >&2
-  exit 1
-fi
+mkdir -p "$TMP_DIR/scripts"
+# The uninstaller shares the installer's manifest compatibility boundary.
+for FILE in public-uninstall.mjs install-compatibility.mjs; do
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL "$RAW_BASE/scripts/$FILE" -o "$TMP_DIR/scripts/$FILE"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO "$TMP_DIR/scripts/$FILE" "$RAW_BASE/scripts/$FILE"
+  else
+    echo "curl or wget is required to download the jumpyBrain uninstaller." >&2
+    exit 1
+  fi
+done
 
-node "$TMP_DIR/public-uninstall.mjs" "$@"
+node "$TMP_DIR/scripts/public-uninstall.mjs" "$@"

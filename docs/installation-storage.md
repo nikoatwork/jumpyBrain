@@ -101,7 +101,7 @@ coordinate cooperating local installers, not malicious code running as the user.
 
 Use **Recover previous installation** for an interrupted GUI update and
 `npm run dogfood:rollback` for the current dogfood candidate. Source CLI rollback
-receipts include the old runtime and manifest; desktop receipts identify the
+receipts include the old runtime and manifest (also for an explicit `--source release` migration of an older managed CLI); desktop receipts identify the
 verified tar archive of previous app/login files. Inspect those exact paths before
 manual recovery, stop the app normally and preserve current user settings. This
 command does not perform a new automatic cross-installer restore or restore notes.

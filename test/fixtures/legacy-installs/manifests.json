@@ -1,0 +1,25 @@
+{
+  "_comment": "Sanitized synthetic install-manifest shapes recovered from public-install.mjs history (2026-07 to 2026-11). ${installRoot} is replaced by the disposable test root. Supported: legacy-unconfigured, legacy-configured, current. pre-settings (June 2026, no integrationMode/source) is intentionally unsupported.",
+  "legacy-unconfigured": {
+    "version": 1, "installer": "jumpybrain-installer",
+    "createdAt": "2026-07-11T00:00:00.000Z", "updatedAt": "2026-07-11T00:00:00.000Z", "installedVersion": "0.2.0",
+    "source": "https://github.com/nikoatwork/jumpyBrain.git", "ref": null, "scope": "global",
+    "installRoot": "${installRoot}", "appDir": "${installRoot}/app", "binDir": "${installRoot}/bin", "cliPath": "${installRoot}/bin/jumpybrain",
+    "memoryRoot": "${memoryRoot}", "integrationMode": "auto", "integrations": [], "installerOptions": { "skipBuild": false, "skipQmdInstall": false, "skipInitialIndex": false },
+    "files": ["${installRoot}/bin/jumpybrain"]
+  },
+  "legacy-configured": {
+    "version": 1, "installer": "jumpybrain-installer",
+    "createdAt": "2026-10-16T00:00:00.000Z", "updatedAt": "2026-10-16T00:00:00.000Z", "installedVersion": "0.3.1",
+    "source": "https://github.com/nikoatwork/jumpyBrain.git", "ref": null, "scope": "global",
+    "installRoot": "${installRoot}", "appDir": "${installRoot}/app", "binDir": "${installRoot}/bin", "cliPath": "${installRoot}/bin/jumpybrain",
+    "cliConfigPath": "${installRoot}/cli-config.json",
+    "memoryRoot": "${memoryRoot}", "integrationMode": "auto", "integrations": [], "installerOptions": { "skipBuild": false, "skipQmdInstall": false, "skipInitialIndex": false },
+    "files": ["${installRoot}/bin/jumpybrain"]
+  },
+  "pre-settings": {
+    "version": 1, "installer": "jumpybrain-installer", "createdAt": "2026-06-26T00:00:00.000Z", "scope": "global",
+    "installRoot": "${installRoot}", "appDir": "${installRoot}/app", "binDir": "${installRoot}/bin", "cliPath": "${installRoot}/bin/jumpybrain",
+    "memoryRoot": "${memoryRoot}", "integrations": [], "files": ["${installRoot}/bin/jumpybrain"]
+  }
+}

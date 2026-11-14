@@ -47,41 +47,51 @@ export async function atomicJSON(file, value) {
   await writeFile(temporary, JSON.stringify(value, null, 2) + '\n', { mode: 0o600 });
   await rename(temporary, file);
 }
-export async function selectEngine({ installRoot, appDir, skipInstall, dryRun, remoteOnly, previous }) {
-  if (remoteOnly) return null;
+export async function selectEngine(options) { return (await selectEngineWithSource(options)).bin; }
+// Precedence: explicit override, compatible recorded engine, this installation's
+// owned matching private engine, then PATH; otherwise provision the private engine.
+// An incompatible explicit or recorded choice fails visibly instead of being skipped.
+export async function selectEngineWithSource({ installRoot, appDir, skipInstall, dryRun, remoteOnly, previous }) {
+  if (remoteOnly) return { bin: null, source: 'remote-only' };
   const explicit = process.env.JUMPYBRAIN_QMD_BIN?.trim();
   // The app directory is replaceable. A legacy package-local engine must not
   // become the recorded engine for its replacement.
   const insideApp = value => value && path.isAbsolute(value) && (value === appDir || value.startsWith(appDir + path.sep));
   if (insideApp(explicit)) throw new Error('JUMPYBRAIN_QMD_BIN must be outside the replaceable application directory.');
-  const candidates = explicit ? [explicit] : [insideApp(previous) ? null : previous, 'qmd'].filter(Boolean);
-  for (const bin of candidates) {
-    if (checkQmdInstallation(bin)) {
-      const absolute = path.isAbsolute(bin) ? bin : (process.env.PATH || '').split(path.delimiter).map(p => path.join(p, bin)).find(existsSync);
-      const resolved = await realpath(absolute);
-      if (insideApp(resolved)) {
-        if (explicit) throw new Error('JUMPYBRAIN_QMD_BIN resolves inside the replaceable application directory.');
-        continue;
-      }
-      return resolved;
-    }
-    if (explicit || bin === previous) {
-      if (skipInstall) return null;
-      throw new Error('Selected QMD is incompatible; correct JUMPYBRAIN_QMD_BIN or repair the recorded engine. CLI and SDK @tobilu/qmd@2.8.3 are required together.');
-    }
-  }
-  if (skipInstall) return null;
   const recipe = fileURLToPath(new URL('./engine/', import.meta.url));
   const lock = await readFile(path.join(recipe, 'package-lock.json'));
   const id = createHash('sha256').update(lock).digest('hex').slice(0, 12);
   const base = path.join(installRoot, 'engines');
   const target = path.join(base, `qmd-${QMD_VERSION}-${process.platform}-${process.arch}-node${process.versions.modules}-${id}`);
   const bin = path.join(target, 'node_modules/.bin/qmd');
+  const ownedEngines = async () => {
+    try { return (await lstat(base)).isDirectory() && JSON.parse(await readFile(path.join(base, 'owner.json'), 'utf8'))?.installer === 'jumpybrain-installer'; }
+    catch { return false; }
+  };
+  const candidates = explicit ? [[explicit, 'explicit']]
+    : [[insideApp(previous) ? null : previous, 'recorded'], [existsSync(target) && await ownedEngines() ? bin : null, 'private'], ['qmd', 'path']].filter(([value]) => value);
+  for (const [candidate, source] of candidates) {
+    if (checkQmdInstallation(candidate)) {
+      if (source === 'private') return { bin, source };
+      const absolute = path.isAbsolute(candidate) ? candidate : (process.env.PATH || '').split(path.delimiter).map(p => path.join(p, candidate)).find(existsSync);
+      const resolved = await realpath(absolute);
+      if (insideApp(resolved)) {
+        if (explicit) throw new Error('JUMPYBRAIN_QMD_BIN resolves inside the replaceable application directory.');
+        continue;
+      }
+      return { bin: resolved, source };
+    }
+    if (source === 'explicit' || source === 'recorded') {
+      if (skipInstall) return { bin: null, source: 'skipped' };
+      throw new Error(`Selected QMD is incompatible (${source === 'explicit' ? 'JUMPYBRAIN_QMD_BIN' : 'recorded engine'}: ${candidate}); correct JUMPYBRAIN_QMD_BIN or repair the recorded engine. CLI and SDK @tobilu/qmd@${QMD_VERSION} are required together.`);
+    }
+  }
+  if (skipInstall) return { bin: null, source: 'skipped' };
   if (existsSync(target)) {
-    if (checkQmdInstallation(bin)) return bin;
+    if (checkQmdInstallation(bin)) return { bin, source: 'private' };
     throw new Error(`Recorded engine directory is incomplete: ${target}. Preserve it outside the install root before retrying.`);
   }
-  if (dryRun) return bin;
+  if (dryRun) return { bin, source: 'private-new' };
   if (existsSync(base)) {
     if (!(await lstat(base)).isDirectory()) throw new Error('Private engine root must be an ordinary directory.');
     const marker = JSON.parse(await readFile(path.join(base, 'owner.json'), 'utf8').catch(() => 'null'));
@@ -96,7 +106,7 @@ export async function selectEngine({ installRoot, appDir, skipInstall, dryRun, r
     run('npm', ['ci', '--no-audit', '--no-fund'], { cwd: stage, env: { ...process.env, NODE_LLAMA_CPP_SKIP_DOWNLOAD: 'true' } });
     if (!checkQmdInstallation(path.join(stage, 'node_modules/.bin/qmd'))) throw new Error('The private QMD installation failed CLI/SDK validation.');
     await rename(stage, target);
-    return bin;
+    return { bin, source: 'private-new' };
   } finally { await rm(stage, { recursive: true, force: true }); }
 }
 

@@ -59,7 +59,8 @@
     "dogfood:status": "node scripts/dogfood-local.mjs status",
     "dogfood:rollback": "node scripts/dogfood-local.mjs rollback",
     "storage": "node scripts/installation-storage.mjs",
-    "smoke:install": "npm run cli:pack && node scripts/agent-install-smoke.mjs"
+    "smoke:install": "npm run cli:pack && node scripts/agent-install-smoke.mjs",
+    "smoke:install:legacy": "npm run cli:pack && node scripts/legacy-migration-smoke.mjs"
   },
   "files": [
     "dist",
@@ -78,6 +79,7 @@
     "extensions.d.ts",
     "examples/extensions",
     "scripts/install-support.mjs",
+    "scripts/install-compatibility.mjs",
     "scripts/installation-storage.mjs",
     "scripts/engine",
     "scripts/setup-desktop.mjs",

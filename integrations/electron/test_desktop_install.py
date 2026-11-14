@@ -173,4 +173,20 @@ class InstallerLockHandoffTests(unittest.TestCase):
             self.assertEqual(config['qmd'], manifest['qmd'])
             self.assertEqual(config['port'], 43210)
 
+    def test_managed_setup_uses_only_the_recorded_engine_and_rejects_disagreeing_override(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary)
+            manifest = dict(node='/private/runtime/bin/node', qmd='/private/engine/bin/qmd', memoryRoot=str(home / 'brain'))
+            with patch.object(installer, 'validate_manifest', return_value=manifest), patch.object(installer.shutil, 'which', return_value='/usr/local/bin/qmd'):
+                with patch.dict(os.environ, {'JUMPYBRAIN_MANAGED_DESKTOP_SETUP': '1', 'JUMPYBRAIN_QMD_BIN': manifest['qmd']}):
+                    self.assertEqual(installer.configuration(home)['qmd'], manifest['qmd'])
+                with patch.dict(os.environ, {'JUMPYBRAIN_MANAGED_DESKTOP_SETUP': '1', 'JUMPYBRAIN_QMD_BIN': '/usr/local/bin/qmd'}):
+                    with self.assertRaisesRegex(installer.SafetyError, 'differs from the engine recorded'):
+                        installer.configuration(home)
+            legacy = dict(memoryRoot=str(home / 'brain'))
+            with patch.object(installer, 'validate_manifest', return_value=legacy), patch.object(installer.shutil, 'which', return_value='/usr/local/bin/qmd'):
+                with patch.dict(os.environ, {'JUMPYBRAIN_MANAGED_DESKTOP_SETUP': '1'}):
+                    with self.assertRaisesRegex(installer.SafetyError, 'records no Node/engine'):
+                        installer.configuration(home)
+
 if __name__ == '__main__': unittest.main()

@@ -4,9 +4,7 @@ import { existsSync } from "node:fs";
 import { readFile, rm, lstat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-
-const INSTALLER_NAME = "jumpybrain-installer";
-const MANIFEST_VERSION = 1;
+import { classifyManifest, INSTALLER_NAME } from "./install-compatibility.mjs";
 
 async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
@@ -43,11 +41,15 @@ async function main(argv = process.argv.slice(2)) {
   if (manifest.cliConfigPath) {
     if (await removePath(manifest.cliConfigPath, { dryRun: options.dryRun })) removed.push(manifest.cliConfigPath);
     else missing.push(manifest.cliConfigPath);
+  } else if (existsSync(path.join(installRoot, "cli-config.json"))) {
+    // Older manifests never recorded the config; an absent field grants no deletion authority.
+    preserved.push(path.join(installRoot, "cli-config.json"));
   }
 
   for (const file of manifest.files ?? []) {
-    if (file !== manifest.cliPath && existsSync(file) && manifest.integrationHashes) {
-      const expected = manifest.integrationHashes[file];
+    if (file !== manifest.cliPath && existsSync(file)) {
+      // Without a recorded hash (including older manifests without hashes), a file may be customized.
+      const expected = manifest.integrationHashes?.[file];
       if (!expected || createHash('sha256').update(await readFile(file)).digest('hex') !== expected) { preserved.push(file); continue; }
     }
     if (await removePath(file, { dryRun: options.dryRun })) removed.push(file);
@@ -146,26 +148,10 @@ async function readManifest(manifestPath, { installRoot, home }) {
     throw new Error(`Refusing to uninstall: ${manifestPath} is not valid JSON.`, { cause: error });
   }
 
-  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest) || manifest.installer !== INSTALLER_NAME) {
-    throw new Error(`Refusing to uninstall: ${manifestPath} is not a ${INSTALLER_NAME} manifest.`);
-  }
-  if (manifest.version !== MANIFEST_VERSION) {
-    throw new Error(`Refusing to uninstall: manifest version ${JSON.stringify(manifest.version)} is unsupported.`);
-  }
-
-  const expected = {
-    installRoot,
-    appDir: path.join(installRoot, "app"),
-    binDir: path.join(installRoot, "bin"),
-    cliPath: path.join(installRoot, "bin", process.platform === "win32" ? "jumpybrain.cmd" : "jumpybrain"),
-    cliConfigPath: path.join(installRoot, "cli-config.json"),
-  };
-  for (const key of Object.keys(expected)) {
-    if (typeof manifest[key] !== "string" || path.resolve(manifest[key]) !== expected[key]) {
-      throw new Error(`Refusing to uninstall: manifest ${key} does not match ${expected[key]}.`);
-    }
-  }
-  if (!isInside(manifest.appDir, installRoot) || !isInside(manifest.binDir, installRoot) || !isInside(manifest.cliConfigPath, installRoot)) {
+  // Same ownership boundary as the installer and Desktop setup (shared classifier).
+  // Scope/integration mode grant no deletion authority, so removal does not require them.
+  const { expected } = classifyManifest(manifest, installRoot, { settings: false, refuse: message => `Refusing to uninstall: ${message}` });
+  if (!isInside(manifest.appDir, installRoot) || !isInside(manifest.binDir, installRoot) || (manifest.cliConfigPath !== undefined && !isInside(manifest.cliConfigPath, installRoot))) {
     throw new Error("Refusing to uninstall: installer-owned app, bin, and CLI config paths must stay inside the selected install root.");
   }
   if (typeof manifest.memoryRoot !== "string" || !path.isAbsolute(manifest.memoryRoot)) {

@@ -10,7 +10,8 @@ import { fileURLToPath } from "node:url";
 import { normalizeRemoteTargetOrigin } from "./remote-target-origin.mjs";
 import { companionUpdatePlan, checkCompanionUpdate, commitCompanionUpdate } from "./macos-companion.mjs";
 import { checkQmdInstallation, QMD_PACKAGE } from "./qmd-install-check.mjs";
-import { atomicJSON, cliShim, preflight, selectEngine, discoverRelease, installRelease } from "./install-support.mjs";
+import { atomicJSON, cliShim, preflight, selectEngineWithSource, discoverRelease, installRelease } from "./install-support.mjs";
+import { classifyManifest, classifyVerification, DEFAULT_REPO, incompatibleRuntimeError, INSTALLER_NAME, MANIFEST_VERSION, migrationBlockers, migrationCommand, runtimeCapabilities, sourcePolicy } from "./install-compatibility.mjs";
 import { softwareStorage, finishSoftware, maintainSoftware } from './installation-storage.mjs';
 
 const installerToken = randomUUID();
@@ -23,9 +24,6 @@ let resultReport = { schemaVersion: 1, state: "blocked", checks: {}, remainingAc
 const jsonOutput = process.argv.includes("--json");
 if (jsonOutput) console.log = (...args) => console.error(...args);
 
-const DEFAULT_REPO = "https://github.com/nikoatwork/jumpyBrain.git";
-const MANIFEST_VERSION = 1;
-const INSTALLER_NAME = "jumpybrain-installer";
 
 async function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
@@ -67,6 +65,10 @@ async function installManaged({ options, home, cwd, installRoot }) {
   const manifestPath = path.join(installRoot, "install-manifest.json");
   const previousManifest = await readInstallManifest(manifestPath, { installRoot, appDir, binDir, cliPath, cliConfigPath });
   assertNoUnmanagedInstall(previousManifest, { installRoot, appDir, binDir, cliPath });
+  if (options.source === "release" && options.ref) throw new Error("--ref selects a Git revision and cannot be combined with --source release.");
+  const previousPolicy = previousManifest ? sourcePolicy(previousManifest) : null;
+  // Converting source policy is explicit: an ordinary rerun keeps the recorded source/ref.
+  const migratingToRelease = Boolean(previousManifest && previousManifest.state !== "installing" && options.source === "release" && previousPolicy.kind !== "release");
   const scope = previousManifest?.scope ?? options.scope;
   const memoryRoot = path.resolve(expandHome(
     previousManifest?.memoryRoot ?? options.memoryRoot ?? (scope === "project" ? path.join(cwd, "memory") : path.join(installRoot, "memory")),
@@ -76,13 +78,14 @@ async function installManaged({ options, home, cwd, installRoot }) {
     ? (previousManifest?.distribution === "release" ? DEFAULT_REPO : previousManifest?.source ?? DEFAULT_REPO)
     : (previousManifest?.distribution === "release" ? "release" : previousManifest?.source))
     ?? process.env.JUMPYBRAIN_INSTALL_SOURCE ?? "release";
-  const ref = options.ref ?? previousManifest?.ref ?? undefined;
+  const ref = source === "release" ? undefined : options.ref ?? previousManifest?.ref ?? undefined;
   const integrations = previousManifest?.integrationMode ?? options.integrations;
   const manifestSource = source === "release" ? DEFAULT_REPO : await normalizeInstallSource(source);
   const remoteOnly = options.remoteOnly || previousManifest?.remoteOnly === true;
   options.remoteOnly = remoteOnly;
   if (existsSync(path.join(home, "Applications/jumpyBrain.app")) && previousManifest?.desktopPort && options.appPort && options.appPort !== previousManifest.desktopPort) throw new Error("The existing app port is preserved. Do not change it during setup.");
-  for (const key of ["skipBuild", "skipQmdInstall", "skipInitialIndex"]) options[key] ||= Boolean(previousManifest?.installerOptions?.[key]);
+  // A source build option never applies to a release runtime, whose dependencies are always installed from its lockfile.
+  for (const key of ["skipBuild", "skipQmdInstall", "skipInitialIndex"]) if (!(migratingToRelease && key === "skipBuild")) options[key] ||= Boolean(previousManifest?.installerOptions?.[key]);
   if (remoteOnly && (integrations !== "none" || options.withApp)) throw new Error("--remote-only requires --integrations none and cannot include --with-app.");
   const physicalMemory = await physicalPath(memoryRoot);
   for (const directory of [appDir, binDir, path.join(installRoot, "engines")]) {
@@ -90,19 +93,47 @@ async function installManaged({ options, home, cwd, installRoot }) {
     if (physicalMemory === protectedDir || physicalMemory.startsWith(protectedDir + path.sep) || protectedDir.startsWith(physicalMemory + path.sep)) throw new Error("Memory must not overlap replaceable program or engine directories.");
   }
   resultReport = { ...resultReport, dryRun: options.dryRun, installRoot, cliPath, memoryRoot: remoteOnly ? null : memoryRoot, source, remoteOnly, integrations: [], skippedIntegrations: [] };
+  const reuseCandidate = Boolean(options.withApp && previousManifest && previousManifest.state !== "installing" && !options.source && !options.ref);
+  if (previousManifest) {
+    const { shape, omitted } = previousManifest[manifestClassification];
+    const capability = runtimeCapabilities(appDir, { desktop: reuseCandidate });
+    resultReport.compatibility = { manifestShape: shape, omittedFields: omitted, installedVersion: capability.version, sourcePolicy: previousPolicy.kind,
+      action: previousManifest.state === "installing" ? "resume-install" : reuseCandidate ? "reuse" : migratingToRelease ? "migrate-to-release" : "update", blockers: [] };
+    // Read-only gates run before preflight, locks, engine selection or any write.
+    if (reuseCandidate && !capability.compatible) {
+      const error = incompatibleRuntimeError({ installedVersion: capability.version, required: capability.missing, withApp: true, policy: previousPolicy });
+      Object.assign(resultReport.compatibility, { blockers: [error.message], nextCommand: error.compatibility.nextCommand });
+      error.blockers = [error.message];
+      throw error;
+    }
+    if (migratingToRelease) {
+      const blockers = migrationBlockers({ paths: { installRoot, appDir, binDir, cliPath, cliConfigPath }, currentShims: [currentShimPattern({ appDir, cliConfigPath, qmd: false }), currentShimPattern({ appDir, cliConfigPath, qmd: true })] });
+      resultReport.compatibility.blockers = blockers;
+      resultReport.policyChange = { from: previousPolicy, to: { kind: "release", source: "release", ref: null } };
+      if (blockers.length) {
+        const error = new Error("Release migration needs:\n" + blockers.map(item => "- " + item).join("\n") + "\nNothing was changed.");
+        error.blockers = blockers;
+        throw error;
+      }
+      log(`Migrating the ${previousPolicy.kind} source policy (${previousPolicy.source}${previousPolicy.ref ? `@${previousPolicy.ref}` : ""}) to verified releases. The previous runtime and manifest stay in place until the candidate is verified.`);
+    }
+  }
   await preflight({ options, installRoot, memoryRoot, source, home });
   if (!options.dryRun) {
     unlock = await lockInstallation(installRoot);
     const lockedManifest = await readInstallManifest(manifestPath, { installRoot, appDir, binDir, cliPath, cliConfigPath });
     if (JSON.stringify(lockedManifest) !== JSON.stringify(previousManifest)) throw new Error("Installation changed while waiting for its lock. Rerun the same command.");
   }
-  selectedQmd = await selectEngine({ installRoot, appDir, skipInstall: options.skipQmdInstall, dryRun: options.dryRun, remoteOnly, previous: previousManifest?.qmd });
+  const engine = await selectEngineWithSource({ installRoot, appDir, skipInstall: options.skipQmdInstall, dryRun: options.dryRun, remoteOnly, previous: previousManifest?.qmd });
+  selectedQmd = engine.bin;
   resultReport.engine = selectedQmd;
+  resultReport.engineSource = engine.source;
   if (selectedQmd) log(`${options.dryRun && !existsSync(selectedQmd) ? "Would install private" : "Selected"} QMD CLI + SDK: ${selectedQmd}`);
   else if (!remoteOnly) log("Search dependency unavailable; skipping install and initial index as requested.");
-  options.reuseApp = Boolean(options.withApp && previousManifest?.state !== "installing" && previousManifest && !options.source && !options.ref);
+  options.reuseApp = reuseCandidate;
   if (source === "release") selectedRelease = options.reuseApp ? previousManifest.release : await discoverRelease();
   resultReport.release = selectedRelease || null;
+  if (resultReport.compatibility) resultReport.compatibility.candidateVersion = options.reuseApp ? resultReport.compatibility.installedVersion : selectedRelease?.version ?? null;
   resultReport.state = options.dryRun ? "planned" : "failed";
 
   const summary = {
@@ -189,7 +220,7 @@ async function installManaged({ options, home, cwd, installRoot }) {
 
   if (!options.dryRun) {
     manifest.installedVersion = await readInstalledVersion(appDir);
-    await verifyInstallation({ options, cliPath, memoryRoot });
+    await verifyInstallation({ options, cliPath, memoryRoot, runtime: { role: "installed", version: manifest.installedVersion } });
     if (options.withApp) await setupDesktop({ appDir, installRoot, home, memoryRoot, options });
     manifest.state = "ready";
     await atomicJSON(manifestPath, manifest);
@@ -268,23 +299,28 @@ async function updateExistingInstall({
     return;
   }
 
-  if (!options.reuseApp) await installApp({ source, ref, appDir, skipBuild: options.skipBuild, companion,
-    beforePublish: async stagingDir => {
-      const candidate = path.join(stagingDir, 'verify-cli');
-      await writeFile(candidate, cliShim({ appDir: stagingDir, cliConfigPath, qmd: selectedQmd }), { mode: 0o755 });
-      try { await verifyInstallation({ options: { ...options, readOnly: true }, cliPath: candidate, memoryRoot }); }
-      finally { await rm(candidate, { force: true }); }
-    },
-  });
+  const verifyRuntime = async (runtimeDir, role) => {
+    // Never leave probe files in a live runtime; a staged runtime is invocation-owned.
+    const candidate = runtimeDir === appDir ? path.join(installRoot, `.verify-cli-${process.pid}`) : path.join(runtimeDir, 'verify-cli');
+    await writeFile(candidate, cliShim({ appDir: runtimeDir, cliConfigPath, qmd: selectedQmd }), { mode: 0o755 });
+    try { await verifyInstallation({ options: { ...options, readOnly: true }, cliPath: candidate, memoryRoot, runtime: { role, version: await readInstalledVersion(runtimeDir), beforeChanges: true } }); }
+    finally { await rm(candidate, { force: true }); }
+  };
+  // A reused runtime must prove the current readiness contract before its shim/manifest change.
+  if (options.reuseApp) await verifyRuntime(appDir, "installed");
+  else await installApp({ source, ref, appDir, skipBuild: options.skipBuild, companion, beforePublish: stagingDir => verifyRuntime(stagingDir, "candidate") });
   await mkdir(binDir, { recursive: true });
   await writeCliShim({ cliPath, appDir, cliConfigPath });
   await writeRemoteAccessPolicy(policyPlan);
 
   const now = new Date().toISOString();
+  // A legacy manifest without cliConfigPath never proved ownership of an existing config file.
+  const ownsConfig = previousManifest.cliConfigPath !== undefined || policyPlan.write || !existsSync(cliConfigPath);
   const manifest = {
     ...previousManifest,
     version: MANIFEST_VERSION,
     installer: INSTALLER_NAME,
+    state: previousManifest.state ?? "ready",
     createdAt: previousManifest.createdAt ?? now,
     updatedAt: now,
     installedVersion: await readInstalledVersion(appDir),
@@ -298,11 +334,13 @@ async function updateExistingInstall({
     appDir,
     binDir,
     cliPath,
-    cliConfigPath,
+    cliConfigPath: ownsConfig ? cliConfigPath : undefined,
     memoryRoot,
     integrationMode: integrations,
+    ...(resultReport.policyChange ? { installerOptions: { ...previousManifest.installerOptions, skipBuild: Boolean(options.skipBuild) } } : {}),
   };
-  await verifyInstallation({ options: { ...options, readOnly: true }, cliPath, memoryRoot });
+  if (!ownsConfig) log(`Existing ${cliConfigPath} predates recorded ownership; it is used but will not be removed by uninstall.`);
+  await verifyInstallation({ options: { ...options, readOnly: true }, cliPath, memoryRoot, runtime: { role: "installed", version: manifest.installedVersion } });
   if (options.withApp) { await atomicJSON(manifestPath, manifest); await setupDesktop({ appDir, installRoot, home, memoryRoot, options }); }
   const refreshed = await refreshManagedIntegrations(manifest, { home });
   manifest.integrationHashes = refreshed.hashes;
@@ -492,6 +530,16 @@ async function installApp({ source, ref, appDir, skipBuild, companion, beforePub
   }
 }
 
+// The current shim form with any recorded Node/engine path. A failed later step can
+// leave this shim beside an older manifest, so a retry must still recognize it.
+function currentShimPattern({ appDir, cliConfigPath, qmd }) {
+  const node = "/\u0000dir/\u0000node", engine = "/\u0000qmd", quoted = String.raw`'(?:[^']|'\\'')*'`;
+  const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let source = escape(cliShim({ appDir, cliConfigPath, node, qmd: qmd ? engine : undefined }));
+  for (const value of [node, path.dirname(node), engine]) source = source.replaceAll(escape(`'${value}'`), quoted);
+  return new RegExp(`^${source}$`);
+}
+
 async function writeCliShim({ cliPath, appDir, cliConfigPath }) {
   const temporary = `${cliPath}.tmp-${process.pid}`;
   try {
@@ -587,7 +635,7 @@ async function indexMemoryRoot({ cliPath, memoryRoot }) {
 }
 
 
-async function verifyInstallation({ options, cliPath, memoryRoot }) {
+async function verifyInstallation({ options, cliPath, memoryRoot, runtime = { role: "installed", version: null } }) {
   if (options.remoteOnly) {
     run(cliPath, ["--version"], {});
     resultReport.checks.cli = true;
@@ -597,24 +645,53 @@ async function verifyInstallation({ options, cliPath, memoryRoot }) {
     resultReport.remainingActions.push("Local recall was not verified; run doctor --check and recall after preparing the engine/index.");
     return;
   }
-  verificationCommand(cliPath, ["doctor", "--root", memoryRoot, "--check", "--json"]);
+  const doctor = verificationCommand(cliPath, ["doctor", "--root", memoryRoot, "--check", "--json"], runtime);
   resultReport.checks.doctor = true;
-  verificationCommand(cliPath, ["recall", "--root", memoryRoot, "--topic", "installation check", "--limit", "1", "--json", ...(options.readOnly ? ["--read-only"] : [])]);
+  // A brain never indexed in the current format (older installs, skipped or failed
+  // indexing) cannot pass read-only recall. Nothing derived is written before
+  // publication; afterwards an ordinary recall repairs the rebuildable index
+  // (without persisting index policy into jumpybrain.json) and must report complete.
+  let readOnly = options.readOnly;
+  if (readOnly && doctor.memoryRoot?.readiness?.freshness === "missing") {
+    if (runtime.beforeChanges) {
+      resultReport.indexPending = true;
+      log("No published index exists yet; recall is verified after the installed runtime builds it.");
+      return;
+    }
+    readOnly = false;
+    resultReport.indexBuilt = true;
+  }
+  verificationCommand(cliPath, ["recall", "--root", memoryRoot, "--topic", "installation check", "--limit", "1", "--json", ...(readOnly ? ["--read-only"] : [])], runtime);
   resultReport.checks.recall = true;
 }
-function verificationCommand(cliPath, args) {
+function verificationCommand(cliPath, args, runtime) {
   const checked = spawnSync(cliPath, args, { env: { ...process.env, HOME: installationHome, ...(selectedQmd ? { JUMPYBRAIN_QMD_BIN: selectedQmd } : {}) }, encoding: "utf8", timeout: 90000, maxBuffer: 2 * 1024 * 1024 });
-  if (checked.error || checked.status !== 0) {
+  const result = classifyVerification(args[0], checked, { readOnly: args.includes("--read-only") });
+  if (result.outcome !== "ready") {
     resultReport.checks[args[0]] = false;
-    throw new Error(`Installed ${args[0]} verification failed (${checked.error?.code || checked.status}). Run ${shellQuote(cliPath)} ${args[0]} --root ${shellQuote(resultReport.memoryRoot)} to inspect readiness. ${(checked.stderr || "").slice(-1000)}`);
+    const subject = `${runtime.role} runtime ${runtime.version || "(unknown version)"}`;
+    const inspect = `${shellQuote(resultReport.cliPath)} doctor --root ${shellQuote(resultReport.memoryRoot)}`;
+    const failure = { check: args[0], outcome: result.outcome, runtime: runtime.role, version: runtime.version || null, engine: selectedQmd || null, engineSource: resultReport.engineSource || null, changed: !runtime.beforeChanges };
+    const note = runtime.beforeChanges ? "Nothing was replaced." : "The previous runtime is retained for recovery; rerun the same command after correcting this.";
+    let message;
+    if (result.outcome === "incompatible_output") {
+      failure.required = args[0] === "doctor" ? "doctor --check --json reporting ok" : "recall --json reporting retrieval status";
+      failure.nextCommand = runtime.role === "installed" ? migrationCommand({ withApp: Boolean(resultReport.compatibility?.action === "reuse") }) : "Select a newer --ref/--source or use --source release.";
+      message = `The ${subject} cannot report current ${args[0]} readiness (${result.detail}). This is a version incompatibility, not a search failure. ${note} Next: ${failure.nextCommand}`;
+    } else if (result.outcome === "not_ready") {
+      const failing = args[0] === "doctor" ? ["cli", "node", "qmd", "memoryRoot"].filter(key => result.packet[key]?.ok === false).concat(result.packet.retrievalProbe?.status === "failed" ? ["retrievalProbe"] : []) : [`retrieval ${result.packet.retrieval.status}`];
+      Object.assign(failure, { failing, nextCommand: inspect });
+      message = `The ${subject} reported ${args[0]} not ready${failing.length ? ` (${failing.join(", ")})` : ""}. ${note} Run ${inspect} to inspect readiness.`;
+    } else {
+      failure.nextCommand = inspect;
+      message = `The ${subject} could not complete ${args[0]} (${result.detail}); it may have failed or predate this check. ${note} Run ${inspect} to inspect it.`;
+    }
+    resultReport.failure = failure;
+    throw new Error(`${message} ${(checked.stderr || "").slice(-1000)}`.trim());
   }
-  const packet = JSON.parse(checked.stdout);
-  const readOnlyReady = args.includes('--read-only') && packet.readiness?.freshness === 'fresh'
-    && packet.retrieval?.status === 'partial' && packet.retrieval.warnings?.length > 0
-    && packet.retrieval.warnings.every(warning => ['read_only_index', 'read_only_lexical_fallback'].includes(warning));
-  if (args[0] === "doctor" ? packet.ok !== true : packet.retrieval?.status !== "complete" && !readOnlyReady) throw new Error(`Installed ${args[0]} did not report complete readiness.`);
-  if (readOnlyReady) resultReport.recallMode = 'verified-read-only-lexical';
+  if (result.readOnlyLexical) resultReport.recallMode = 'verified-read-only-lexical';
   log(`Verified installed ${args[0]}; note contents are omitted from setup output.`);
+  return result.packet;
 }
 async function setupDesktop({ appDir, installRoot, home, memoryRoot, options }) {
   run(process.execPath, [path.join(fileURLToPath(new URL('.', import.meta.url)), "setup-desktop.mjs"), "--prepared", appDir, "--home", home, ...(options.reuseApp ? ["--reuse"] : [])], { env: { JUMPYBRAIN_INSTALLER_LOCK_TOKEN: installerToken } });
@@ -691,6 +768,7 @@ function printSummary(summary) {
   console.log(`export PATH=${shellQuote(summary.binDir)}:"$PATH"`);
 }
 
+const manifestClassification = Symbol("manifestClassification");
 async function readInstallManifest(filePath, expectedPaths) {
   if (!existsSync(filePath)) return null;
   let manifest;
@@ -699,32 +777,9 @@ async function readInstallManifest(filePath, expectedPaths) {
   } catch (error) {
     throw new Error(`Cannot safely update the existing install: ${filePath} is not valid JSON. Refusing to overwrite it.`, { cause: error });
   }
-  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest) || manifest.installer !== INSTALLER_NAME) {
-    throw new Error(`Cannot safely update the existing install: ${filePath} is not a ${INSTALLER_NAME} manifest. Refusing to overwrite it.`);
-  }
-
-  if (manifest.version !== MANIFEST_VERSION) {
-    throw new Error(`Cannot safely update the existing install: manifest version ${JSON.stringify(manifest.version)} is unsupported. Refusing to overwrite it.`);
-  }
-
-  for (const key of ["installRoot", "appDir", "binDir", "cliPath"]) {
-    if (typeof manifest[key] !== "string" || manifest[key].length === 0) {
-      throw new Error(`Cannot safely update the existing install: manifest ${key} must be a non-empty path. Refusing to overwrite it.`);
-    }
-    if (path.resolve(manifest[key]) !== expectedPaths[key]) {
-      throw new Error(`Cannot safely update the existing install: manifest ${key} does not match ${expectedPaths[key]}. Refusing to overwrite it.`);
-    }
-  }
-  if (manifest.cliConfigPath !== undefined && (typeof manifest.cliConfigPath !== "string" || path.resolve(manifest.cliConfigPath) !== expectedPaths.cliConfigPath)) {
-    throw new Error(`Cannot safely update the existing install: manifest cliConfigPath does not match ${expectedPaths.cliConfigPath}. Refusing to overwrite it.`);
-  }
-
-  if (!["global", "project"].includes(manifest.scope)) {
-    throw new Error(`Cannot safely update the existing install: manifest scope ${JSON.stringify(manifest.scope)} is unsupported. Refusing to overwrite it.`);
-  }
-  if (!["auto", "all", "none"].includes(manifest.integrationMode)) {
-    throw new Error(`Cannot safely update the existing install: manifest integrationMode ${JSON.stringify(manifest.integrationMode)} is unsupported. Refusing to overwrite it.`);
-  }
+  // Shared with Desktop setup and uninstall: only demonstrated installer shapes are accepted.
+  const classification = classifyManifest(manifest, expectedPaths.installRoot);
+  Object.defineProperty(manifest, manifestClassification, { value: classification, enumerable: false });
   return manifest;
 }
 

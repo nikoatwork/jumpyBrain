@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-14 — Legacy managed installation upgrades
+
+- Older installer-owned CLIs now have one migration route: `--source release` (plus `--with-app` for the matching Mac app) stages, digest-verifies and checks the release against the existing brain before replacing software, keeps the brain bytes, settings, credentials, profiles and customized integrations, and retains the previous runtime. A plain `--with-app` rerun refuses an incompatible older CLI before any change, with version, missing capability and command. One shared classifier covers installer, Desktop setup and uninstall; absent legacy fields never widen deletion. Installer, verification and Mac app use one engine. The end-to-end run found and fixed never-indexed brains being unable to migrate. [Outcome, checks and limits](done/2026-11-14_tasks-legacy-managed-upgrade.md).
+
 ## 2026-11-13 — v0.3.25 beta
 
 - Published Settings/drawing navigation improvements, broader exact-byte task checkboxes, remote key diagnostics and heading-free new agent notes; release testing also found and fixed extension notifications starting a later handler after timeout. Full gate passed (2,044 tests, two optional skips), all three public assets verified, and the public demo matches the exact release revision. [Task](done/2026-11-13_tasks-release-v0.3.25.md) · [QA](done/releases/v0.3.25.qa.md) · [Notes](done/releases/v0.3.25.md).
