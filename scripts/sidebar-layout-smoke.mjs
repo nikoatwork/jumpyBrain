@@ -29,6 +29,19 @@ try {
   await page.goto(gateway.url + '/#companion=' + 'b'.repeat(64));
   await page.locator('#new-board').waitFor({ state: 'visible' });
   await page.locator('#sidebar-recent .sidebar-page').first().waitFor();
+  assert.equal((await page.locator('#app-sidebar').boundingBox()).width, 320, 'fresh desktop defaults to the wider sidebar');
+  const handle = page.locator('#sidebar-resize');
+  const grip = await handle.boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + 200);
+  await page.mouse.down(); await page.mouse.move(280, grip.y + 200); await page.mouse.up();
+  await page.reload();
+  await page.locator('#sidebar-recent .sidebar-page').first().waitFor();
+  assert.equal((await page.locator('#app-sidebar').boundingBox()).width, 280, 'existing custom widths survive reload');
+  await handle.focus(); await page.keyboard.press('ArrowRight');
+  assert.equal((await page.locator('#app-sidebar').boundingBox()).width, 296, 'keyboard resizing remains available');
+  await handle.dblclick(); await page.reload();
+  await page.locator('#sidebar-recent .sidebar-page').first().waitFor();
+  assert.equal((await page.locator('#app-sidebar').boundingBox()).width, 320, 'double-click resets and persists the wider default');
   await page.evaluate(mountInlineUpdates);
   await page.evaluate(() => document.dispatchEvent(new CustomEvent('jumpybrain-update-state', { detail: { phase: 'current', actions: ['check'] } })));
   assert.equal(await page.locator('#color-theme').count(), 0);
@@ -57,7 +70,7 @@ try {
   async function checkLayout(width, height, sidebarWidth) {
     await page.setViewportSize({ width, height });
     if (width > 680) {
-      await page.locator('#sidebar-resize').evaluate((el, value) => el.dispatchEvent(value === 280
+      await page.locator('#sidebar-resize').evaluate((el, value) => el.dispatchEvent(value === 320
         ? new MouseEvent('dblclick', { bubbles: true })
         : new KeyboardEvent('keydown', { key: value === 224 ? 'Home' : 'End', bubbles: true })), sidebarWidth);
       assert.equal((await page.locator('#app-sidebar').boundingBox()).width, sidebarWidth, 'exercise the actual requested sidebar width');
@@ -114,7 +127,7 @@ try {
     assert.equal((await page.locator('#graph-link').boundingBox()).y, before, 'scrolling notes never moves the footer');
     await page.locator('.sidebar-attention-scroll').evaluate(el => { el.scrollTop = 0; });
   }
-  for (const [width, height, sidebarWidth] of [[1280, 850, 224], [1280, 850, 280], [1280, 850, 480], [900, 480, 224], [390, 850, 280], [320, 650, 280]]) {
+  for (const [width, height, sidebarWidth] of [[1280, 850, 224], [1280, 850, 320], [1280, 850, 480], [900, 480, 224], [390, 850, 320], [320, 650, 320]]) {
     for (const theme of ['light', 'dark']) {
       await page.evaluate(theme => { colorTheme.setPreference(theme); colorTheme.setPalette('ocean'); }, theme);
       await checkLayout(width, height, sidebarWidth);
@@ -139,7 +152,7 @@ try {
       await page.screenshot({ path: path.join(captures, `sidebar-${width}-${height}-${sidebarWidth}-${theme}.png`) });
     }
   }
-  await checkLayout(1280, 850, 280);
+  await checkLayout(1280, 850, 320);
   // Hover/focus must keep row bounds, action targets and selection stable.
   await page.locator('#sidebar-recent .is-pinned .sidebar-page-link').click({ position: { x: 8, y: 8 } });
   await page.locator('#note-editor').waitFor({ state: 'visible' });

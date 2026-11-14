@@ -87,13 +87,13 @@ try {
   assert.equal(await board.locator('.board-nav-column').count(),0,'collapsed descendants are not rendered');await page.reload();await arrow.waitFor();assert.equal(await arrow.getAttribute('aria-expanded'),'false');
   await arrow.click();await columnArrow.click();await page.reload();await columnArrow.waitFor();assert.equal(await columnArrow.getAttribute('aria-expanded'),'false');
   await columnArrow.click();await member.filter({hasText:'Project overview'}).waitFor();
-  for(const [width,height,sidebarWidth] of [[1280,850,224],[1280,850,280],[1440,900,480],[900,480,224],[390,850,280],[320,650,280]])for(const theme of ['light','dark']){
+  for(const [width,height,sidebarWidth] of [[1280,850,224],[1280,850,320],[1440,900,480],[900,480,224],[390,850,320],[320,650,320]])for(const theme of ['light','dark']){
     await page.setViewportSize({width,height});
     await page.evaluate(()=>new Promise(requestAnimationFrame));
     // Layout inspection deliberately opens navigation after note-first narrow entry.
     if(width<=680&&await page.locator('#app-sidebar').isHidden())await page.locator('#toggle-sidebar').click();
     await page.evaluate(theme=>colorTheme.setPreference(theme),theme);
-    if(width>680)await page.locator('#sidebar-resize').evaluate((el,width)=>el.dispatchEvent(width===280?new MouseEvent('dblclick',{bubbles:true}):new KeyboardEvent('keydown',{key:width===224?'Home':'End',bubbles:true})),sidebarWidth);
+    if(width>680)await page.locator('#sidebar-resize').evaluate((el,width)=>el.dispatchEvent(width===320?new MouseEvent('dblclick',{bubbles:true}):new KeyboardEvent('keydown',{key:width===224?'Home':'End',bubbles:true})),sidebarWidth);
     await page.locator('.sidebar-attention-scroll').evaluate(el=>el.scrollTop=0);await page.mouse.move(width-5,5);await page.evaluate(()=>document.activeElement.blur());
     const geometry=await page.evaluate(()=>{
       const box=el=>{const r=el.getBoundingClientRect();return {x:r.x,right:r.right,y:r.y,bottom:r.bottom,width:r.width};};

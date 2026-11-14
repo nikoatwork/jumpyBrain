@@ -61,7 +61,7 @@ document.getElementById("toggle-sidebar").addEventListener("click", () => sideba
   if (!handle?.addEventListener) return;
   const root = document.documentElement;
   const key = "jumpybrain.sidebarWidth";
-  let width = 280;
+  let width = 320;
   try { const saved = Number(localStorage.getItem(key)); if (saved >= 224) width = saved; } catch {}
   const maximum = () => Math.max(224, Math.min(480, window.innerWidth * .4));
   function apply(persist = false) {
@@ -86,7 +86,7 @@ document.getElementById("toggle-sidebar").addEventListener("click", () => sideba
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault(); width = event.key === "Home" ? 224 : event.key === "End" ? maximum() : width + (event.key === "ArrowRight" ? 16 : -16); apply(true);
   });
-  handle.addEventListener("dblclick", () => { width = 280; apply(true); });
+  handle.addEventListener("dblclick", () => { width = 320; apply(true); });
   window.addEventListener("resize", () => apply());
   apply();
 })();

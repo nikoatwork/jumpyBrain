@@ -21,7 +21,7 @@ ${noteOutlineStyles}
     ::highlight(note-find-current) { background: #da8b19aa; color: inherit; }
     body { display: flex; height: 100dvh; }
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-    .app-nav { width: clamp(224px, var(--sidebar-width, 280px), 40vw); position: relative; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
+    .app-nav { width: clamp(224px, var(--sidebar-width, 320px), 40vw); position: relative; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
     .app-nav, .app-nav :is(.nav-library, .sidebar-attention-scroll, .sidebar-settled, ul) { scrollbar-width: none; }
     .app-nav::-webkit-scrollbar, .app-nav :is(.nav-library, .sidebar-attention-scroll, .sidebar-settled, ul)::-webkit-scrollbar { display: none; }
     :root[data-sidebar-collapsed="true"] .app-nav { display: none; }
@@ -68,7 +68,7 @@ ${noteOutlineStyles}
     #sidebar-settled-count { margin-left: auto; font-variant-numeric: tabular-nums; }
     .sidebar-list-more { margin: var(--space-1) var(--space-6); font-size: var(--text-caption); }
     .nav-library ul { list-style: none; margin: 0; padding: 0; }
-    .nav-library ul:not(:empty) + ul, .sidebar-page + .sidebar-page { margin-top: var(--space-1); }
+    .nav-library ul:not(:empty) + ul, .sidebar-page + .sidebar-page { margin-top: var(--space-2); }
     .sidebar-empty { margin: var(--space-1) var(--space-6); font-size: var(--text-caption); line-height: 1.5; color: var(--ink-faint); }
     .sidebar-page { display: flex; align-items: center; min-width: 0; padding-inline: var(--space-3); }
     .sidebar-page:hover, .sidebar-page:focus-within { background: var(--hover-fill); }
@@ -78,10 +78,10 @@ ${noteOutlineStyles}
     .sidebar-page-link[aria-current="page"] { color: var(--ink); background: transparent; }
     .sidebar-page-link:focus-visible, .sidebar-page-pin:focus-visible { outline-offset: -2px; }
     .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 var(--control-compact); width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); border: 0; border-radius: var(--radius-sm); color: var(--ink-soft); background: transparent; opacity: 0; }
-    .sidebar-page-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(var(--space-8), max-content); gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-3); }
-    .sidebar-page-title { grid-column: 1; grid-row: 1; color: var(--ink); font-weight: var(--weight-semibold); }
-    .sidebar-page-preview { grid-row: 2; grid-column: 1; color: var(--ink-faint); font-size: var(--text-caption); }
-    .sidebar-page-age { grid-column: 2; grid-row: 1; justify-self: end; text-align: right; font-size: var(--text-caption); color: var(--ink-faint); }
+    .sidebar-page-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(var(--space-8), max-content); gap: var(--space-2) var(--space-3); padding: var(--space-3); }
+    .sidebar-page-title { grid-column: 1; grid-row: 1; color: var(--ink); font-size: var(--text-body); font-weight: var(--weight-semibold); }
+    .sidebar-page-preview { grid-row: 2; grid-column: 1; color: var(--ink-soft); font-size: var(--text-ui); }
+    .sidebar-page-age { grid-column: 2; grid-row: 1; align-self: center; justify-self: end; text-align: right; font-size: var(--text-caption); font-variant-numeric: tabular-nums; color: var(--ink-faint); }
     .sidebar-page { position: relative; }
     .sidebar-page .sidebar-page-actions { position: absolute; right: var(--space-4); top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none; border-radius: var(--radius-sm); }
     .sidebar-page:hover .sidebar-page-actions, .sidebar-page:focus-within .sidebar-page-actions { opacity: 1; pointer-events: auto; }
@@ -95,7 +95,7 @@ ${noteOutlineStyles}
     @media (hover: none) { .sidebar-page .sidebar-page-actions { position: static; transform: none; opacity: 1; pointer-events: auto; } }
     @media (max-width: 680px) { #sidebar-resize { display: none; } }
     .sidebar-page-pin[aria-pressed="true"] svg path:last-child, .sidebar-page-pin-mark svg path:last-child { fill: currentColor; }
-    .sidebar-page-pin-mark { position: absolute; left: var(--space-1); top: var(--space-3); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
+    .sidebar-page-pin-mark { position: absolute; left: var(--space-1); top: calc(var(--space-3) + var(--space-1)); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
     .sidebar-page-pin-mark svg { width: 12px; height: 12px; }
     .sidebar-page[data-settling] { pointer-events: none; overflow: hidden; }
     .sidebar-page-pin svg { width: 16px; height: 16px; }
@@ -381,7 +381,7 @@ export const notesMarkup = String.raw`
   <strong>Saved note · last editor</strong><span id="note-attribution-facts"></span><span id="note-attribution-scope"></span>
 </aside>
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
-  <div id="sidebar-resize" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-valuemin="224" aria-valuemax="480" aria-valuenow="280"></div>
+  <div id="sidebar-resize" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-valuemin="224" aria-valuemax="480" aria-valuenow="320"></div>
   <div class="nav-brand"><button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>
   <div class="nav-tools" role="group" aria-label="Note actions">
     <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
