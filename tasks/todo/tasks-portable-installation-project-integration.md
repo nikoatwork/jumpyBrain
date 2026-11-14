@@ -4,6 +4,8 @@
 
 Make jumpyBrain a reproducible, version-pinnable CLI that works in consumer projects and selects the intended memory without integration-specific workarounds. Minimize installed cost while keeping local and shared-server use first-class.
 
+The November 10 legacy managed git-source upgrade report is owned by [the focused migration plan](tasks-legacy-managed-upgrade.md). That list owns the compatibility repair; this list retains broader distribution, platform, footprint and project-integration work.
+
 ## Notes
 
 - Client feedback coverage: 4 (dependency installation), 5 (project-local QMD), 6 (footprint/audit), 9 (project root/write policy).

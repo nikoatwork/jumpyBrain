@@ -14,7 +14,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 
 - [x] **P2 — Nested checkboxes after Obsidian import.** [Completed in source](../done/2026-11-13_tasks-checkbox-rendering.md): import already preserved bytes; the editor now renders tab/four-space nested task lists with exact toggles. One indentation unit per note; ordered `1. [ ]` stays literal. Pending release.
 
-- [ ] **P1 — CLI whole-note updates around an open live editor.** Reproduce the reported hash-guarded append against a remote shared brain with active human presence. Determine why a successful `update` remains stale in the session and is classified as destructive, before deciding whether to route/warn/offer a bounded append operation. Preserve canonical bytes, drafts and revision/hash safeguards; do not auto-retry a potentially committed write.
+- **P1 — CLI whole-note updates around an open live editor (Nov 10).** [Focused investigation and implementation plan](tasks-cli-live-note-updates.md) owns the remaining work; its checklist is canonical. Preserve canonical bytes, drafts and revision/hash safeguards; do not auto-retry a potentially committed write.
 
 - [x] **P2 — Repeated stale-index warnings in Mac search.** [Quiet maintenance presentation completed](../done/2026-11-10_tasks-quiet-search-freshness.md): repeated Search use no longer dispatches maintenance toasts; scoped recovery controls and real query/reindex errors remain. Desktop/narrow Chromium and existing automatic-publication checks pass. The November 8 attachment was inspected; historical HTTP 503 causes remain unproven. This source fix was completed after v0.3.21 and is pending release.
 
@@ -31,6 +31,9 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 - [x] **P2 — Further simplify deletion confirmation.** [Implemented in source](../done/2026-11-10_tasks-four-ui-requests.md): Delete note?, note title, one irreversible-removal warning and Cancel/Delete actions. Guarded preview/hash/save checks remain. Source change pending release.
 
 ## Existing owners, without duplicate checklists
+
+- [Shared-brain admission and errors](tasks-shared-brain-admission-errors.md): focused Nov 10 rate-limit/JSON-error investigation and implementation plan; hosted deployment gates remain separate.
+- [Legacy managed upgrades](tasks-legacy-managed-upgrade.md): focused Nov 10 upgrade/migration plan; broader distribution and project integration remain separate.
 
 - [Runtime hygiene](../done/2026-11-08_tasks-desktop-runtime-hygiene.md): implementation finalized with packaged launch checks and explicit storage/platform limits. Exact historical macOS 26 failure remains unverified; reopen on a matching failure or new diagnostics.
 - [Hosted build/operations](tasks-hosted-build-and-operations.md): actual systemd-manager validation remains open after container/proxy/restore work.

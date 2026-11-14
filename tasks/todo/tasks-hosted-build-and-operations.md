@@ -2,6 +2,8 @@
 
 Priority: P1 for container build; P2 for operator documentation and credential ergonomics. Status: packaging implemented and Linux ARM64 image/operations fixtures passed on 2026-11-02; active pending actual systemd-manager validation of the documented unit's sandbox, boot/restart and resource enforcement. No deployment or image publication performed.
 
+The November 10 shared-brain rate-limit and JSON-error report is owned by [the focused admission/error plan](tasks-shared-brain-admission-errors.md). Its implementation and verification checklist lives there; this list retains deployment and systemd gates.
+
 ## Goal
 
 Make the documented Docker deployment build from a clean context and give operators accurate, tested instructions for credentials, writer migration and recovery.
