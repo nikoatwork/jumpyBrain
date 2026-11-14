@@ -32,6 +32,7 @@ export const requiredLocalPackFiles = Object.freeze([
   "package/integrations/macos-companion/native_artifacts.py",
   ...moduleFiles("core", "execution-limits"),
   "package/scripts/install-support.mjs",
+  "package/scripts/install-compatibility.mjs",
   "package/scripts/installation-storage.mjs",
   "package/scripts/bootstrap-node.sh",
   "package/scripts/engine/package.json",

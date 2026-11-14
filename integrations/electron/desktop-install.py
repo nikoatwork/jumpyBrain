@@ -63,8 +63,15 @@ def configuration(home):
         result = dict(node=manifest.get('node') or shutil.which('node'), qmd=manifest.get('qmd') or shutil.which('qmd'), memoryRoot=manifest['memoryRoot'],
                       supportDirectory=str(home / 'Library/Application Support/jumpyBrain Companion'), port=manifest.get('desktopPort', 3787))
     if os.environ.get('JUMPYBRAIN_MANAGED_DESKTOP_SETUP') == '1':
+        # Managed setup uses exactly the CLI's recorded engine; it never falls back
+        # to a previous app configuration or PATH, and an explicit override must agree.
         manifest = validate_manifest(root)
-        result.update(node=manifest.get('node') or result.get('node'), qmd=manifest.get('qmd') or result.get('qmd'))
+        if not isinstance(manifest.get('node'), str) or not isinstance(manifest.get('qmd'), str):
+            raise SafetyError('The managed CLI records no Node/engine selection; rerun the installer before Desktop setup.')
+        explicit = os.environ.get('JUMPYBRAIN_QMD_BIN', '').strip()
+        if explicit and os.path.realpath(explicit) != os.path.realpath(manifest['qmd']):
+            raise SafetyError('JUMPYBRAIN_QMD_BIN differs from the engine recorded for the CLI; rerun the installer with that override.')
+        result.update(node=manifest['node'], qmd=manifest['qmd'])
     for name in ('node', 'qmd', 'memoryRoot', 'supportDirectory'):
         if not isinstance(result.get(name), str) or not Path(result[name]).is_absolute():
             raise SafetyError(f'Missing or invalid {name}; repair the installation first.')

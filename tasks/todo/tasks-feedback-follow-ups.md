@@ -33,7 +33,7 @@ Canonical owner for the residual email items below. [Email index](../feedback.md
 ## Existing owners, without duplicate checklists
 
 - [x] [Shared-brain admission and errors](../done/2026-11-14_tasks-shared-brain-admission-errors.md): completed in source. 429/503 refusals are explained consistently with an optional validated delay, `--json` memory/recipe/board failures print one JSON error object, the companion forwards a valid `Retry-After`, and nothing retries automatically. The historical deployment policy remains unverified. Pending release.
-- [Legacy managed upgrades](tasks-legacy-managed-upgrade.md): focused Nov 10 upgrade/migration plan; broader distribution and project integration remain separate.
+- [Legacy managed upgrades](../done/2026-11-14_tasks-legacy-managed-upgrade.md): Nov 10 upgrade/migration implemented and verified 2026-11-14; broader distribution and project integration remain separate.
 
 - [Runtime hygiene](../done/2026-11-08_tasks-desktop-runtime-hygiene.md): implementation finalized with packaged launch checks and explicit storage/platform limits. Exact historical macOS 26 failure remains unverified; reopen on a matching failure or new diagnostics.
 - [Hosted build/operations](tasks-hosted-build-and-operations.md): actual systemd-manager validation remains open after container/proxy/restore work.

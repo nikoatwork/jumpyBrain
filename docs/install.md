@@ -177,6 +177,25 @@ With the Mac app running (including window-closed/menu-bar mode), the CLI prepar
 
 CLI-only installations retain their recorded distribution policy: new release-based installs select a verified published release, while older/source installs preserve their source/ref. They remain CLI-only. The CLI detects custom install locations; use `--install-root <path>` to select another. A paired Mac installation with a custom/pinned/unowned CLI or explicit source/ref override stops with guidance; use the app’s explicit **Update app only** exception to preserve that policy, or keep developer CLI work in a separate CLI-only installation. Rerunning the public installer remains the source-based installer workflow; use `jumpybrain update` for coordinated unified Mac updates.
 
+### Migrate an older managed CLI
+
+A CLI installed by an earlier version of the installer (for example a default-branch source install from before release-based installs) keeps its source/ref on ordinary reruns. Adding the Mac app to it with a plain `--with-app` rerun is refused when that CLI cannot support the app: the result names the installed version, the missing capability and the migration command. Nothing is changed. Migrate it deliberately to the verified release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nikoatwork/jumpyBrain/master/install.sh \
+  | bash -s -- --source release --with-app --json
+```
+
+Omit `--with-app` for a CLI-only migration, and add `--dry-run` first to see the plan (`compatibility` and `policyChange` in the JSON result). Quit the Mac app and any `jumpybrain serve` process before migrating.
+
+- **Preserved:** the configured brain folder and its exact Markdown bytes, `cli-config.json`, `~/.config/jumpybrain/.env` access keys, app profiles and customized agent integrations. Notes are never copied, moved or re-initialized; an independent backup of the brain folder is optional, not part of migration.
+- **Checked before replacing anything:** a supported installer manifest, an unmodified installer shim, and no local or untracked changes in an installed Git checkout. The release is downloaded, digest-verified and staged; its doctor/recall must pass against your brain before it replaces the old runtime. A brain that was never indexed in the current format gets its derived, rebuildable index from the new runtime's first ordinary recall right after publication (without changing `jumpybrain.json`), and that recall must pass. Installed Git history is never reset or merged, so a rewritten upstream history does not matter.
+- **Failures:** before publication nothing is replaced. If a later step fails (final check or the Mac app step), the new CLI is active, the old runtime and manifest stay under `~/.jumpybrain/app.previous-*` for recovery, and rerunning the same command completes the migration without repeating note operations. After a CLI migration whose app step failed, a plain `--with-app` rerun reuses the migrated CLI.
+- **Policy:** `--source release` deliberately replaces a recorded pin or custom source and reports the change. To keep a custom/pinned source instead, pass it explicitly (`--source <recorded-source> --ref <ref>`). `--ref` cannot be combined with `--source release`. Afterwards ordinary reruns and `jumpybrain update` follow the release policy.
+- **Unsupported:** manifests from before the June–July 2026 integration-mode format, unowned or customized layouts, custom install roots with `--with-app`, and Linux app builds. These stop with an explanation instead of being adopted.
+
+The installer, verification and Mac app use one search engine: `JUMPYBRAIN_QMD_BIN` when set, otherwise the engine recorded for the CLI, otherwise this installation's private engine, and only then a compatible `qmd` on `PATH`. An incompatible explicit choice fails visibly; an older `qmd` on `PATH` is ignored. `npm run desktop:setup` uses the CLI's recorded engine and refuses an older CLI that has none, pointing to the migration command above.
+
 **Older standalone companion installs:** their CLI updater retains legacy shared-runtime support. Migrate to the unified Mac app with `npm run desktop:setup` after quitting the old apps; see the [migration guide](../integrations/electron/README.md#migration-from-the-two-app-beta).
 
 For intentional CLI-only version changes, pass `--ref <ref>` or set `JUMPYBRAIN_INSTALL_REF`. The bootstrap resolves `master` to one installer commit independently; `JUMPYBRAIN_INSTALLER_REF` explicitly overrides its revision. Source/development checkouts instead use `git pull && npm install && npm run build`.
@@ -186,6 +205,8 @@ For intentional CLI-only version changes, pass `--ref <ref>` or set `JUMPYBRAIN_
 The unified Mac app has its own bundled runtime and can remain installed when removing the CLI. To remove it, disable **Start at Login**, quit, and move `~/Applications/jumpyBrain.app` to Trash. Its connections/support directory, `~/.config/jumpybrain/.env` access keys, and Markdown remain. An older standalone companion still depends on the managed CLI runtime and must be [removed first](../integrations/macos-companion/README.md#remove).
 
 Uninstall requires a valid, supported `install-manifest.json` whose recorded install root and owned paths match the selected root. It fails closed before deleting anything when that ownership proof is missing, malformed, unsupported, or inconsistent. A valid uninstall removes only the recorded app, shim, CLI policy config, manifest, and integration files. It preserves Markdown memory by default.
+
+Manifests from older installers that never recorded the CLI policy config or integration hashes grant no extra deletion authority: uninstall leaves that config and those integration files in place and lists them as preserved.
 
 An uninstall dry run labels removals and optional memory deletion as planned, reports that no changes were made, and leaves the installation and notes in place.
 

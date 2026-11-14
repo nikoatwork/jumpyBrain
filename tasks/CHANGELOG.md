@@ -1,5 +1,9 @@
 # Task Changelog
 
+## 2026-11-14 — Legacy managed installation upgrades
+
+- Older installer-owned CLIs now have one migration route: `--source release` (plus `--with-app` for the matching Mac app) stages, digest-verifies and checks the release against the existing brain before replacing software, keeps the brain bytes, settings, credentials, profiles and customized integrations, and retains the previous runtime. A plain `--with-app` rerun refuses an incompatible older CLI before any change, with version, missing capability and command. One shared classifier covers installer, Desktop setup and uninstall; absent legacy fields never widen deletion. Installer, verification and Mac app use one engine. The end-to-end run found and fixed never-indexed brains being unable to migrate. [Outcome, checks and limits](done/2026-11-14_tasks-legacy-managed-upgrade.md).
+
 ## 2026-11-14 — Shared-brain admission errors
 
 - HTTP 429/503 refusals from a shared brain or its proxy now get a static explanation (`rate_limited`, `execution_overloaded` or `service_unavailable`) and an optional validated `Retry-After` delay, with one attempt and no automatic retry. A parsed `--json` memory, `run memory:*` or `board` command now fails with one `{error:{code,message,status?,retryAfterSeconds?}}` object on stdout; plain failures stay on stderr. The companion forwards only a valid `Retry-After`. Docs separate backend capacity from operator-owned proxy limits and add `limit_req_status 429` to the nginx example. Also verified live against the shared test brain's real Traefik 429 (`Retry-After: 1`) for CLI reads, a refused write and the companion gateway. The November 10 deployment's actual policy remains unverified. [Verification and limits](done/2026-11-14_tasks-shared-brain-admission-errors.md).
