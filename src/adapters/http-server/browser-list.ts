@@ -3,22 +3,24 @@ import { media } from "./browser-design-system.js";
 // Shared row, list and disclosure primitives (docs/design-system.md#primitives).
 // .list-row slots: .list-row-lead, .list-row-label, .list-row-meta, .row-actions; composite rows put one
 // .list-row-target inside. Variants: --edge (square, full pane width), --compact (32px), --shelf (48px),
-// --page (two lines + age lane). Indent with style="--row-depth: n".
+// --page (two lines + age lane; the grid lives on its .list-row-target). Indent with style="--row-depth: n".
 export const listStyles = /* @__PURE__ */ (() => String.raw`
     .list-reset { margin: 0; padding: 0; list-style: none; }
-    .list-row { --row-fill: transparent; --row-depth: 0; --row-action-count: 3; position: relative; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: var(--row-height); margin: 0; padding: var(--space-1) var(--row-inset) var(--space-1) calc(var(--row-inset) + var(--row-depth) * var(--row-indent)); border: 0; border-radius: var(--radius-sm); background: var(--row-fill); color: var(--ink-soft); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; text-decoration: none; cursor: pointer; }
+    .list-row { --row-fill: transparent; --row-depth: 0; --row-action-count: 3; --row-action-size: var(--control-compact); position: relative; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); min-width: 0; min-height: var(--row-height); margin: 0; padding: var(--space-1) var(--row-inset) var(--space-1) calc(var(--row-inset) + var(--row-depth) * var(--row-indent)); border: 0; border-radius: var(--radius-sm); background: var(--row-fill); color: var(--ink-soft); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; text-decoration: none; cursor: pointer; }
     button.list-row { width: 100%; }
     .list-row--edge { border-radius: 0; }
     .list-row--compact { --row-height: var(--control-compact); }
     .list-row--shelf { --row-height: var(--header-height); padding-block: var(--space-3); padding-inline: var(--space-5) var(--space-6); font-size: var(--text-body); }
-    .list-row--page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(var(--space-8), max-content); gap: var(--space-2) var(--row-meta-gap); padding: var(--space-3); }
+    .list-row--page { padding-block: 0; }
+    .list-row--page > .list-row-target { display: grid; grid-template-columns: minmax(0, 1fr) minmax(var(--space-8), max-content); gap: var(--space-2) var(--row-meta-gap); align-items: center; min-height: var(--row-height); padding: var(--space-3); }
     .list-row:where(:hover, :focus-within):not(:disabled, [aria-disabled="true"]) { --row-fill: var(--hover-fill); color: var(--ink); }
     .list-row[aria-selected="true"] { --row-fill: var(--surface-hover); color: var(--ink); }
     .list-row:is([aria-current="page"], [aria-current="true"], :has(> .list-row-target[aria-current="page"])) { --row-fill: var(--control-fill); color: var(--ink); }
     .list-row:is(:disabled, [aria-disabled="true"]) { color: var(--ink-faint); cursor: default; }
-    .list-row:focus-visible, .list-row .list-row-target:focus-visible, .list-row .row-action:focus-visible { outline-offset: var(--focus-offset-inset); }
+    .list-row:focus-visible, .list-row .list-row-target:focus-visible, .list-row .row-actions > :focus-visible { outline-offset: var(--focus-offset-inset); }
     .list-row-target { flex: 1; min-width: 0; color: inherit; text-decoration: none; }
     .list-row-target[aria-current] { background: transparent; }
+    button.list-row-target { margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; font: inherit; text-align: left; }
     .list-row-lead { flex: none; display: grid; place-items: center; width: var(--icon-size); height: var(--icon-size); color: var(--ink-faint); }
     .list-row-lead svg { width: var(--icon-size); height: var(--icon-size); }
     .list-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -43,7 +45,8 @@ export const listStyles = /* @__PURE__ */ (() => String.raw`
     .disclosure-trigger[aria-expanded="true"] > .disclosure-chevron, details[open] > summary.disclosure-trigger > .disclosure-chevron { transform: rotate(90deg); }
     .disclosure-trigger--inline { display: inline-flex; align-items: center; gap: var(--space-1); width: fit-content; color: var(--ink-soft); }
     @media ${media.hover} {
-      .list-row:has(.row-actions--overlay):is(:hover, :focus-within) { padding-right: calc(var(--row-action-count) * var(--control-compact) + var(--space-2)); }
+      .list-row:has(.row-actions--overlay):is(:hover, :focus-within) { padding-right: calc(var(--row-action-count) * var(--row-action-size) + var(--space-2)); }
+      .list-row--page:has(.row-actions--overlay):is(:hover, :focus-within) :is(.list-row-title, .list-row-preview) { grid-column: 1 / -1; }
       .list-row--page:has(.row-actions--overlay):is(:hover, :focus-within) .list-row-meta { visibility: hidden; }
     }
     @media ${media.touch} {
@@ -52,6 +55,7 @@ export const listStyles = /* @__PURE__ */ (() => String.raw`
     }
     @media ${media.narrow}, ${media.coarse} {
       .list-row:not(.list-row--shelf) { --row-height: var(--control-touch); }
+      .list-row { --row-action-size: var(--control-touch); }
       .list-row--edge { border-radius: var(--radius-sm); }
     }
     @media ${media.reducedMotion} {

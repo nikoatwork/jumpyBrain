@@ -30,6 +30,36 @@ const allowlist = [
   { file: "notes-browser.ts", rules: ["duration", "easing"], text: /(?:^|[\s,])4s\b/, reason: "external-change fade (R6 named exception)" },
 ];
 
+// Primitive classes whose look lives only in the primitive modules (docs/design-system.md#primitives).
+// Feature rules whose selector names one of them may set layout and the --btn-*/--row-*/--card-*
+// tuning variables, but not these look properties.
+const primitiveModules = new Set(["browser-button.ts", "browser-list.ts", "browser-components.ts", "browser-dropdown.ts", "browser-design-system.ts", "browser-theme.ts", "browser-palettes.ts"]);
+const primitiveClass = /\.(?:button|button-primary|quiet-button|icon-button|list-row|menu-item|card|popover|dropdown|status-dot|callout)(?:--[\w-]+)?(?![\w-])/;
+const lookProperty = /^(?:background|background-color|border|border-color|box-shadow|border-radius|color|padding)$/;
+// Legitimate feature-owned looks on a primitive. `selector` matches the innermost rule prelude.
+const primitiveAllowlist = [];
+// Subject compounds of a selector list (the part after the last top-level combinator), with
+// :has()/:not()/:where() arguments removed so `.row:has(.icon-button)` does not count as an icon button.
+function subjectCompounds(selector) {
+  const subjects = [];
+  let depth = 0, start = 0, compound = 0;
+  for (let i = 0; i <= selector.length; i++) {
+    const ch = selector[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    else if (depth === 0 && /[\s>+~]/.test(ch ?? "")) compound = i + 1;
+    if (i === selector.length || (depth === 0 && ch === ",")) {
+      subjects.push(selector.slice(Math.max(start, compound), i).trim());
+      start = compound = i + 1;
+    }
+  }
+  return subjects.map((subject) => {
+    let previous;
+    do { previous = subject; subject = subject.replace(/:(?:has|not|where)\([^()]*\)/g, ""); } while (subject !== previous);
+    return subject;
+  });
+}
+
 // Custom properties assigned at runtime in a way the declaration scan cannot see (it already
 // counts `--x:` declarations, inline style attributes and setProperty calls). Entries must stay
 // necessary: the test fails when one is unused or already found by the scan.
@@ -88,6 +118,19 @@ function styleRegions(text) {
     const body = match[1] === "`" ? blankTemplate(text, start, "`").body : text.slice(start, skipString(text, start - 1));
     regions.push({ name: "cssText", offset: start, css: `style.cssText{${body}}`, shift: -"style.cssText{".length });
   }
+  // Inline style attributes and JS-set style properties are scanned like stylesheets.
+  const inline = (css, offset) => regions.push({ name: "inline", offset, css: `inline{${css}}`, shift: -7 });
+  for (const m of text.matchAll(/\bstyle\s*=\s*(["'`])([\s\S]*?)\1/g)) inline(m[2], m.index);
+  const literal = (m, property, tail) => {
+    const start = m.index + m[0].length, end = skipString(text, start - 1);
+    if (!tail.test(text.slice(end + 1))) return;
+    const value = text[start - 1] === "`" ? blankTemplate(text, start, "`").body : text.slice(start, end);
+    inline(`${property}:${value}`, m.index);
+  };
+  for (const m of text.matchAll(/\.style\.([\w]+)\s*=\s*(["'`])/g)) {
+    if (m[1] !== "cssText") literal(m, m[1].replace(/[A-Z]/g, (c) => "-" + c.toLowerCase()), /^\s*[;,)]/);
+  }
+  for (const m of text.matchAll(/\.style\.setProperty\(\s*(["'`])([\w-]+)\1\s*,\s*(["'`])/g)) literal(m, m[2], /^\s*[,)]/);
   return regions;
 }
 
@@ -121,7 +164,10 @@ function violations(property, value) {
   const found = [];
   const custom = property.startsWith("--");
   if (/#[0-9a-f]{3,8}\b/i.test(value) || /\b(?:rgba?|hsla?|oklch|oklab|lab|lch|hwb)\(/i.test(value) || /(?<![\w-])(?:white|black)(?![\w-])/i.test(value)) found.push("color-literal");
-  if (custom) return found;
+  if (custom) {
+    if (pxNumbers(stripVars(value)).some((n) => Math.abs(n) > 1)) found.push("spacing");
+    return found;
+  }
   const bare = stripVars(value);
   const shorthand = property === "font";
   if ((property === "font-size" || shorthand) && /(?<![\w.-])\d*\.?\d+(?:px|rem)\b/.test(bare)) found.push("font-size");
@@ -141,7 +187,7 @@ function violations(property, value) {
 const lineOf = (text, offset) => text.slice(0, offset).split("\n").length;
 
 async function scan() {
-  const hits = [], used = [], declared = new Set(), allowlistUsed = new Set();
+  const hits = [], used = [], declared = new Set(), allowlistUsed = new Set(), redeclared = [];
   for (const absolute of await sourceFilesFor(httpServerDir)) {
     const name = path.basename(absolute);
     const text = await readFile(absolute, "utf8");
@@ -161,6 +207,11 @@ async function scan() {
         const colon = item.text.indexOf(":");
         const property = item.text.slice(0, colon).trim().toLowerCase(), value = item.text.slice(colon + 1).trim();
         if (!/^-{0,2}[a-z][a-z0-9-]*$/.test(property)) continue;
+        if (!primitiveModules.has(name) && lookProperty.test(property) && subjectCompounds(item.selector).some((subject) => primitiveClass.test(subject))) {
+          const allowed = primitiveAllowlist.find((entry) => entry.file === name && entry.selector.test(item.selector) && (!entry.property || entry.property.test(property)));
+          if (allowed) allowlistUsed.add(allowed);
+          else redeclared.push(`${name}:${lineOf(text, item.offset)} ${item.selector} { ${item.text} }`);
+        }
         for (const rule of violations(property, value)) {
           const allowed = allowlist.find((entry) => entry.file === name && entry.rules.includes(rule)
             && (!entry.selector || entry.selector.test(item.selector)) && (!entry.text || entry.text.test(item.text)));
@@ -170,7 +221,7 @@ async function scan() {
       }
     }
   }
-  return { hits, used, declared, allowlistUsed };
+  return { hits, used, declared, allowlistUsed, redeclared };
 }
 
 const scanned = scan();
@@ -198,9 +249,14 @@ test("style templates only add raw values through the ratcheted baseline", async
   assert.deepEqual(problems, [], problems.join("\n"));
 });
 
+test("feature styles do not re-declare the look of a primitive", async () => {
+  const { redeclared } = await scanned;
+  assert.deepEqual(redeclared, [], `compose a primitive modifier (or tune --btn-*/--row-*/--card-*) instead of re-declaring its look; add a reasoned primitiveAllowlist entry only for a permanent exception:\n${redeclared.join("\n")}`);
+});
+
 test("every allowlist exception still matches a declaration", async () => {
   const { allowlistUsed } = await scanned;
-  const stale = allowlist.filter((entry) => !allowlistUsed.has(entry)).map((entry) => `${entry.file}: ${entry.reason}`);
+  const stale = [...allowlist, ...primitiveAllowlist].filter((entry) => !allowlistUsed.has(entry)).map((entry) => `${entry.file}: ${entry.reason}`);
   assert.deepEqual(stale, [], "remove stale allowlist entries");
 });
 

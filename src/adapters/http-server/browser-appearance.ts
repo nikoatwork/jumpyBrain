@@ -3,8 +3,8 @@ import { builtInPalettes } from "./browser-palettes.js";
 import { media } from "./browser-design-system.js";
 
 const miniature = (mode: string) => `<span class="appearance-mini mini-${mode}"><span class="mini-sidebar"><i></i><i></i><i></i></span><span class="mini-content"><i></i><i></i><i></i><b></b></span></span>`;
-const schemeChoice = (value: string, label: string) => `<label class="appearance-choice card card--compact"><input type="radio" name="color-scheme" value="${value}" ${value === "system" ? "checked" : ""}/><span class="scheme-preview" aria-hidden="true">${value === "system" ? miniature("light") + miniature("dark") : miniature(value)}</span><span class="appearance-choice-name">${label}<span class="appearance-check" aria-hidden="true">${browserIcons.check}</span></span></label>`;
-const paletteChoice = (value: string, label: string) => `<label class="appearance-choice card card--compact palette-choice"><input type="radio" name="color-palette" value="${value}" ${value === "ember" ? "checked" : ""}/><span class="palette-preview palette-${value}" aria-hidden="true"><i></i><i></i></span><span class="appearance-choice-name">${label}<span class="appearance-check" aria-hidden="true">${browserIcons.check}</span></span></label>`;
+const schemeChoice = (value: string, label: string) => `<label class="appearance-choice card card--compact card--interactive"><input type="radio" name="color-scheme" value="${value}" ${value === "system" ? "checked" : ""}/><span class="scheme-preview" aria-hidden="true">${value === "system" ? miniature("light") + miniature("dark") : miniature(value)}</span><span class="appearance-choice-name">${label}<span class="appearance-check" aria-hidden="true">${browserIcons.check}</span></span></label>`;
+const paletteChoice = (value: string, label: string) => `<label class="appearance-choice card card--compact card--interactive palette-choice"><input type="radio" name="color-palette" value="${value}" ${value === "ember" ? "checked" : ""}/><span class="palette-preview palette-${value}" aria-hidden="true"><i></i><i></i></span><span class="appearance-choice-name">${label}<span class="appearance-check" aria-hidden="true">${browserIcons.check}</span></span></label>`;
 
 export const appearanceMarkup = String.raw`
 <div id="appearance-options">
@@ -21,10 +21,7 @@ export const appearanceStyles = String.raw`
   .appearance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
   .appearance-grid--palette { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   /* Radio card: .card surface; the checked radio is the card's one selected state. */
-  .appearance-choice { position: relative; display: flex; flex-direction: column; gap: var(--space-3); cursor: pointer; }
-  .appearance-choice:hover { background: var(--hover-fill); }
-  .appearance-choice:has(input:checked) { border-color: var(--accent); box-shadow: var(--ring-selected); }
-  .appearance-choice:has(input:focus-visible) { outline: var(--focus-outline); outline-offset: var(--focus-offset); }
+  .appearance-choice { position: relative; display: flex; flex-direction: column; gap: var(--space-3); }
   .appearance-choice input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; margin: 0; }
   .appearance-choice-name { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); padding: 0 var(--space-1) var(--space-1); color: var(--ink); font-size: var(--text-ui); }
   .appearance-check { display: flex; visibility: hidden; color: var(--accent); }

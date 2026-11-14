@@ -27,14 +27,18 @@ export const componentStyles = /* @__PURE__ */ (() => String.raw`
     .card--compact { --card-pad: var(--space-2); }
     .card--roomy { --card-pad: var(--space-5); }
     .card--raised { box-shadow: var(--shadow-sm); }
-    .card:is([aria-pressed="true"], [aria-current]:not([aria-current="false"]), .is-selected) { border-color: var(--accent); box-shadow: var(--ring-selected); }
+    .card:is([aria-pressed="true"], [aria-current]:not([aria-current="false"]), .is-selected), .card--interactive:has(> input:checked) { border-color: var(--accent); box-shadow: var(--ring-selected); }
+    /* Choice cards (a <label> wrapping a visually hidden radio/checkbox): pointer, hover wash, focus ring from the input. */
+    .card--interactive { cursor: pointer; }
+    .card--interactive:hover { background: var(--hover-fill); }
+    .card--interactive:has(> input:focus-visible) { outline: var(--focus-outline); outline-offset: var(--focus-offset); }
 
     .popover { --popover-width: var(--width-popover); position: fixed; inset: auto; z-index: var(--z-popover); box-sizing: border-box; max-width: min(var(--popover-width), calc(100vw - var(--space-4))); margin: 0; padding: var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-md); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); overflow-wrap: anywhere; }
     .popover--tooltip { --popover-width: var(--width-tooltip); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); font-size: var(--text-caption); pointer-events: none; }
     .popover--caption { color: var(--ink-soft); font-size: var(--text-caption); }
     .popover--menu { padding: var(--space-1); overflow: auto; overscroll-behavior: contain; }
     .menu-item { box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--control-compact); margin: 0; padding: var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; cursor: pointer; }
-    .menu-item:hover:not(:disabled, [aria-disabled="true"]) { background: var(--hover-fill); }
+    .menu-item:where(:hover):not(:disabled, [aria-disabled="true"]) { background: var(--hover-fill); }
     .menu-item:is([aria-selected="true"], [aria-current="true"]) { background: var(--surface-hover); }
     .menu-item:is(:disabled, [aria-disabled="true"]) { color: var(--ink-faint); cursor: default; }
     .menu-item:focus-visible { outline-offset: var(--focus-offset-inset); }
@@ -86,10 +90,10 @@ export const componentStyles = /* @__PURE__ */ (() => String.raw`
     .empty-state--pending { font-style: italic; }
 
     @media ${media.narrow} {
-      ${textFields} { height: var(--control-touch); }
       .card--roomy { --card-pad: var(--space-4); }
     }
     @media ${media.narrow}, ${media.coarse} {
+      ${textFields} { height: var(--control-touch); }
       .menu-item, .chip { min-height: var(--control-touch); }
     }
 `)();

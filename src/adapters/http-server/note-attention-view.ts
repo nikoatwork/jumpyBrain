@@ -1,4 +1,3 @@
-import { media } from "./browser-design-system.js";
 import { browserIcons } from "./browser-icons.js";
 
 // Server-rendered presentation only; keep duplicate markup/styles out of the browser bundle.
@@ -14,13 +13,6 @@ export const noteAttentionMarkup = String.raw`
   </form>
 </dialog>`;
 export const noteAttentionStyles = String.raw`
-    .sidebar-page-action svg { width: var(--icon-size); height: var(--icon-size); }
-    .sidebar-page-actions { display: flex; align-items: center; flex: 0 0 auto; }
-    .sidebar-page-action { display: none; place-items: center; width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); color: var(--ink-soft); background: transparent; border: 0; border-radius: var(--radius-sm); }
-    .sidebar-page:hover .sidebar-page-action, .sidebar-page:focus-within .sidebar-page-action { display: grid; }
-    .sidebar-page-action:hover:not(:disabled) { color: var(--ink); }
-    .sidebar-page-action:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-offset-inset); }
-    @media ${media.touch} { .sidebar-page-action { display: grid; } }
     #note-snooze { width: min(var(--width-popover), calc(100vw - var(--space-6))); }
     #note-snooze::backdrop { background: transparent; }
     .snooze-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding-left: var(--space-2); }

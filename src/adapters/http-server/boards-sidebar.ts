@@ -9,7 +9,7 @@ export const boardsSidebarStyles = String.raw`
 #sidebar-boards:empty {margin:0}
 #sidebar-boards .board-nav-item {min-width:0}
 #sidebar-boards .board-nav-row {padding-block:0}
-#sidebar-boards .board-nav-row > .list-row-target {align-self:stretch;display:block;min-height:var(--row-height);margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;font:inherit;line-height:var(--row-height);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+#sidebar-boards .board-nav-row > .list-row-target {align-self:stretch;display:block;min-height:var(--row-height);line-height:var(--row-height);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Without a tree disclosure the board title lines up with the page titles below. */
 #sidebar-boards .board-nav-head:has(> .board-nav-disclosure[hidden]) {padding-left:calc(var(--row-inset) + var(--space-3))}
 #sidebar-boards :is(.board-nav-page,.board-nav-empty) {padding-left:calc(var(--row-inset) + var(--row-depth) * var(--row-indent) + var(--board-lane) + var(--space-2))}

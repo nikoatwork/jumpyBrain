@@ -1,7 +1,6 @@
 // One browser bundle; pure controllers also remain directly importable in tests.
 import "./lexical-editor.js";
 export { prepareDropdown } from "./browser-dropdown.js";
-export { createButton } from "./browser-button.js";
 export { setDisclosure } from "./browser-list.js";
 export { splitEditableDocument, composeEditableDocument, withEditableTitle } from "./document-controller.js";
 export { createMapController } from "./map-controller.js";

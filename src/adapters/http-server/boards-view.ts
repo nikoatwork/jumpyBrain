@@ -39,7 +39,7 @@ ${boardsSidebarStyles}
 .board-composer-status {margin-top:var(--space-2)}
 .board-composer-close {display:grid;margin-left:auto}
 .board-card {--card-pad:var(--space-3);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:var(--space-2);margin-bottom:var(--space-2)}
-.board-card > button {--btn-ink:var(--ink);display:block;width:100%;min-width:0;min-height:var(--control-height);padding:0;align-self:start;text-align:left;overflow-wrap:anywhere}
+.board-card > button {--btn-ink:var(--ink);display:block;width:100%;min-width:0;min-height:var(--btn-size);padding:0;align-self:start;text-align:left;overflow-wrap:anywhere}
 .board-card-title {display:block}
 .board-card-preview {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;margin-top:var(--space-1);color:var(--ink-faint);font-size:var(--text-caption);line-height:var(--leading-ui)}
 .board-card-actions {flex-direction:column;gap:var(--space-1);align-self:start;pointer-events:none}
@@ -92,7 +92,7 @@ const boardsUI = (() => {
     const retained=new Set();
     for(const board of boards){
       let entry=Array.from(host.children).find(el=>el.dataset.boardId===board.id);
-      if(!entry){entry=button('',()=>navigation.navigate('/?board='+board.id),'','plain');entry.dataset.boardId=board.id;host.append(entry);}
+      if(!entry){entry=button('',()=>navigation.navigate('/?board='+board.id),'','plain');entry.classList.add('chip');entry.dataset.boardId=board.id;host.append(entry);}
       const name=board.name+(board.archived?' · Settled':'');
       if(entry.textContent!==name)entry.textContent=name;entry.title='Open board: '+name;entry.setAttribute('aria-label','Open board: '+name);
       entry.disabled=companionFrozen||!scope();retained.add(entry);

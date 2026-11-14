@@ -204,13 +204,13 @@ export function installPageNavigation(options: {
       if (signature !== signatures.get(section)) {
         signatures.set(section, signature); list.replaceChildren();
         for (const page of pages) {
-          const row = document.createElement("li"); row.className = "sidebar-page";
+          const row = document.createElement("li"); row.className = "sidebar-page list-row list-row--edge list-row--page";
           const link = document.createElement("a");
-          link.className = "sidebar-page-link"; link.dataset.pageLink = page.id;
+          link.className = "sidebar-page-link list-row-target"; link.dataset.pageLink = page.id;
           const title = document.createElement("span");
-          title.className = "sidebar-page-title";
-          const preview = document.createElement("span"); preview.className = "sidebar-page-preview";
-          const age = document.createElement("span"); age.className = "sidebar-page-age";
+          title.className = "sidebar-page-title list-row-title";
+          const preview = document.createElement("span"); preview.className = "sidebar-page-preview list-row-preview";
+          const age = document.createElement("span"); age.className = "sidebar-page-age list-row-meta";
           const pinMark = document.createElement("span"); pinMark.className = "sidebar-page-pin-mark";
           pinMark.innerHTML = browserPinIcon; pinMark.setAttribute("role", "img"); pinMark.setAttribute("aria-label", "Pinned");
           link.append(pinMark, title, preview, age);
@@ -219,15 +219,15 @@ export function installPageNavigation(options: {
             event.preventDefault(); options.navigate(link.getAttribute("href")!);
           });
           const pin = document.createElement("button");
-          pin.type = "button"; pin.className = "sidebar-page-pin"; pin.dataset.pagePin = page.id;
+          pin.type = "button"; pin.className = "icon-button icon-button--glyph-toggle sidebar-page-pin"; pin.dataset.pagePin = page.id;
           pin.innerHTML = browserPinIcon;
           pin.addEventListener("click", () => history.toggle({ ...page, ...previews.get(page.id) }));
-          const actions = document.createElement("span"); actions.className = "sidebar-page-actions";
+          const actions = document.createElement("span"); actions.className = "sidebar-page-actions row-actions row-actions--overlay";
           actions.append(pin);
           if (attention && options.onAction) {
             for (const action of (section === "settled" ? ["reactivate"] : ["snooze", "settle"]) as ("snooze" | "settle" | "reactivate")[]) {
               const button = document.createElement("button");
-              button.type = "button"; button.className = "sidebar-page-action"; button.dataset.attentionAction = action;
+              button.type = "button"; button.className = "icon-button sidebar-page-action"; button.dataset.attentionAction = action;
               button.dataset.pageAction = page.id + ":" + action;
               button.innerHTML = action === "reactivate" ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 10h10a6 6 0 0 1 0 12M4 10l6-6M4 10l6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>' : action === "snooze"
                 ? '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'

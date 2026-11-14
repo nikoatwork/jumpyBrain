@@ -92,7 +92,7 @@ export const dropdownStyles = /* @__PURE__ */ (() => `
     .dropdown option::checkmark { color: var(--accent); }
     .dropdown option:disabled { color: var(--ink-faint); cursor: not-allowed; }
   }
-  @media ${media.narrow} {
+  @media ${media.narrow}, ${media.coarse} {
     .dropdown, .dropdown--quiet { min-height: var(--control-touch); }
     :root { --switcher-height: var(--control-touch); }
     .dropdown option { min-height: var(--control-touch); }

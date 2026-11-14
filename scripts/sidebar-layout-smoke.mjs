@@ -177,6 +177,7 @@ try {
     await row.locator('.sidebar-page-actions').evaluate(el => new Promise(resolve => { const done = () => getComputedStyle(el).opacity === '1' ? resolve() : requestAnimationFrame(done); done(); }));
     assert.equal(await row.locator('.sidebar-page-actions').evaluate(el => getComputedStyle(el).opacity), '1', 'keyboard focus reveals row actions');
     assert.equal(await row.locator('[data-page-pin]').evaluate(el => getComputedStyle(el).outlineStyle), 'solid', 'keyboard focus is visible');
+    assert.deepEqual(await row.locator('[data-page-pin]').evaluate(el => { const s = getComputedStyle(el); return [el.getAttribute('aria-pressed'), s.backgroundColor, s.boxShadow.startsWith('rgba(0, 0, 0, 0)')]; }), ['true', 'rgba(0, 0, 0, 0)', true], 'a pressed pin shows its filled glyph, not the shared on-state fill/ring');
     for (const selector of ['#graph-link', '#open-connection', '#open-feedback']) {
       await page.mouse.move(700, 50);
       const control = page.locator(selector);
