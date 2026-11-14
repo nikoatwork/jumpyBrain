@@ -18,6 +18,7 @@ export {
   parseFrontmatter,
   readCanonicalMemoryDocumentById,
   readMarkdownDocument,
+  readMarkdownPrefix,
   readCanonicalMarkdownSnapshot,
   readCanonicalMarkdownIndexInput,
   discoverMarkdownIndexInputs,

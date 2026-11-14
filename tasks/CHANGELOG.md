@@ -1,5 +1,10 @@
 # Task Changelog
 
+## 2026-11-14 — Sidebar request reduction
+
+- Opening a shared-brain window reads the attention list once instead of three times, and sidebar previews arrive in that response (capped at 160 characters) instead of one whole-note read per row: 17 requests down to 7 per window locally, 32 down to 14 for two windows on the shared test brain. Idle polling and typing traffic are unchanged; older servers keep the per-row fallback.
+- Archived the completed task list as `tasks/done/2026-11-14_tasks-sidebar-request-reduction.md`.
+
 ## 2026-11-14 — Legacy managed installation upgrades
 
 - Older installer-owned CLIs now have one migration route: `--source release` (plus `--with-app` for the matching Mac app) stages, digest-verifies and checks the release against the existing brain before replacing software, keeps the brain bytes, settings, credentials, profiles and customized integrations, and retains the previous runtime. A plain `--with-app` rerun refuses an incompatible older CLI before any change, with version, missing capability and command. One shared classifier covers installer, Desktop setup and uninstall; absent legacy fields never widen deletion. Installer, verification and Mac app use one engine. The end-to-end run found and fixed never-indexed brains being unable to migrate. [Outcome, checks and limits](done/2026-11-14_tasks-legacy-managed-upgrade.md).

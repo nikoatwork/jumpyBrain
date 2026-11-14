@@ -1,8 +1,9 @@
 import { firstAttentionDate, resolveMemoryAttention, validateMemoryAttentionAction } from "../core/attention.js";
-import { listCanonicalMemoryMarkdownFiles, MemoryDocumentLookupError, patchCanonicalMemoryDocumentAttention, readCanonicalMarkdownSnapshot, readMarkdownDocument, resolveMemoryRoot } from "../core/canonical/index.js";
+import { listCanonicalMemoryMarkdownFiles, MemoryDocumentLookupError, patchCanonicalMemoryDocumentAttention, readCanonicalMarkdownSnapshot, readMarkdownDocument, readMarkdownPrefix, resolveMemoryRoot } from "../core/canonical/index.js";
 import { attributionHash, normalizeMemoryActor } from "../core/contribution.js";
 import { isValidMemoryDocumentId } from "../core/document-id.js";
 import { assertCompatibleMemoryRoot } from "../core/memory-root/index.js";
+import { readablePreview } from "../core/readable-preview.js";
 import { createHash } from "node:crypto";
 import { lstat } from "node:fs/promises";
 
@@ -43,13 +44,37 @@ async function sourceVersion(file: string): Promise<string | undefined> {
   } catch { return undefined; }
 }
 
-/** Fresh corpus scan; settled fingerprints require bodies. Bounds output, not input work. */
-export async function listMemoryAttention(rootArg: string, options: { now?: number } = {}): Promise<MemoryAttentionPacket> {
+export const ATTENTION_PREVIEW_CHARACTERS = 160;
+const PREVIEW_SOURCE_BYTES = 16384;
+/** Bounded, disposable display-text cache keyed by the note's stat-derived source version.
+ * A changed, unstable or unreadable file is reread; nothing here is canonical. */
+export function createAttentionPreviewReader(readPrefix = readMarkdownPrefix, capacity = 1024) {
+  const cache = new Map<string, { version: string; preview: string }>();
+  return async (file: string, title: string, version: string | undefined) => {
+    const cached = cache.get(file);
+    if (version && cached?.version === version) { cache.delete(file); cache.set(file, cached); return cached.preview; }
+    cache.delete(file);
+    try {
+      const preview = readablePreview(await readPrefix(file, PREVIEW_SOURCE_BYTES), title, ATTENTION_PREVIEW_CHARACTERS);
+      if (version && await sourceVersion(file) === version) {
+        cache.set(file, { version, preview });
+        if (cache.size > capacity) cache.delete(cache.keys().next().value!);
+      }
+      return preview;
+    } catch { return ""; }
+  };
+}
+const attentionPreview = createAttentionPreviewReader();
+
+/** Fresh corpus scan; settled fingerprints require bodies. Bounds output, not input work.
+ * `previews` adds capped display text for the emitted notes only (at most 200 bounded prefix reads
+ * on a cold cache, none while files are unchanged). */
+export async function listMemoryAttention(rootArg: string, options: { now?: number; previews?: boolean } = {}): Promise<MemoryAttentionPacket> {
   const root = await resolveMemoryRoot(rootArg);
   await assertCompatibleMemoryRoot(root);
   const now = options.now ?? Date.now();
   const counts = new Map<string, number>();
-  const candidates: { note: MemoryAttentionNote; state: ReturnType<typeof resolveMemoryAttention> }[] = [];
+  const candidates: { absolutePath: string; note: MemoryAttentionNote; state: ReturnType<typeof resolveMemoryAttention> }[] = [];
   for (const file of await listCanonicalMemoryMarkdownFiles(root)) {
     const beforeVersion = await sourceVersion(file);
     let document = await readMarkdownDocument(root, file).catch((error: NodeJS.ErrnoException) => {
@@ -76,7 +101,7 @@ export async function listMemoryAttention(rootArg: string, options: { now?: numb
     const updatedAt = firstAttentionDate(metadata.updated_at, metadata.updatedAt);
     const createdAt = firstAttentionDate(metadata.created_at, metadata.createdAt);
     const state = resolveMemoryAttention(metadata, now, revision);
-    candidates.push({ note: { id: metadata.id, title: typeof metadata.title === "string" ? metadata.title : "", file: document.relativePath,
+    candidates.push({ absolutePath: file, note: { id: metadata.id, title: typeof metadata.title === "string" ? metadata.title : "", file: document.relativePath,
       ...(version ? { sourceVersion: version } : {}), ...(creator ? { creator } : {}), ...(updatedAt ? { updatedAt } : {}), ...(createdAt ? { createdAt } : {}),
       ...(state.attentionAt ? { attentionAt: state.attentionAt } : {}) }, state });
   }
@@ -94,8 +119,14 @@ export async function listMemoryAttention(rootArg: string, options: { now?: numb
     return right - left || (a.note.file < b.note.file ? -1 : a.note.file > b.note.file ? 1 : 0);
   });
   const warnings = active.slice(0, 100).filter(({ state }) => state.invalid).map(({ note }) => ({ code: "invalid_attention_at" as const, id: note.id }));
-  return { notes: active.slice(0, 100).map(({ note }) => note),
-    settled: settled.slice(0, 100).map(({ note }) => note), total: active.length, settledTotal: settled.length,
+  const emit = async (rows: typeof candidates) => {
+    const notes: MemoryAttentionNote[] = [];
+    for (const { note, absolutePath } of rows.slice(0, 100)) notes.push(options.previews
+      ? { ...note, preview: await attentionPreview(absolutePath, note.title, note.sourceVersion) } : note);
+    return notes;
+  };
+  return { notes: await emit(active),
+    settled: await emit(settled), total: active.length, settledTotal: settled.length,
     ...(nextWakeAt ? { nextWakeAt } : {}), ...(warnings.length ? { warnings } : {}) };
 }
 

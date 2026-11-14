@@ -43,6 +43,7 @@ test('local and hosted CLI attention share canonical state, stale guards and act
     const remote = ['--target-url', server.url], env = { JUMPYBRAIN_API_KEY: 'fixture-key' };
     const listed = await cli(['list', ...remote], env);
     assert.deepEqual(listed.notes, (await listMemoryAttention(root)).notes);
+    assert.equal(JSON.stringify(listed).includes('Keep my body'), false, 'hosted sidebar preview text stays out of CLI output');
     note = await readMemoryDocument(root, saved.id);
     await cli(['snooze', ...remote, '--id', saved.id, '--if-match', note.contentHash, '--until', '2099-01-01T12:00:00Z'], env);
     assert.equal((await listMemoryAttention(root)).notes.length, 0);

@@ -10,7 +10,10 @@ export async function attentionCli(args: ParsedCliArgs): Promise<void> {
   const target = await commandMemoryTarget(args, createLocalMemoryTransport());
   let result;
   if (command === 'list') {
-    const packet = target.kind === 'remote' ? await target.memory.listMemoryAttention() : await listMemoryAttention(target.root);
+    const listed = target.kind === 'remote' ? await target.memory.listMemoryAttention() : await listMemoryAttention(target.root);
+    // The hosted packet carries sidebar display text; agents expand a note explicitly instead.
+    const lean = (notes: typeof listed.notes) => notes.map(({ preview: _preview, ...note }) => note);
+    const packet = { ...listed, notes: lean(listed.notes), settled: lean(listed.settled ?? []) };
     result = { ...packet, omittedNotes: Math.max(0, packet.total - packet.notes.length),
       omittedSettled: Math.max(0, packet.settledTotal - packet.settled.length),
       interpretation: 'Attention is resurfacing state, not read or approval status. Missing creator declarations are unknown.' };

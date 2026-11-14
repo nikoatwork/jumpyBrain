@@ -12,6 +12,7 @@
 - Keep Markdown memory files canonical and treat indexes, caches, and SQLite/QMD state as rebuildable derived data.
 - Provide the import surface that application/runtime code can depend on without choosing a retrieval backend.
 
+- `readable-preview.ts` owns the conservative Markdown-to-plain-text display rule shared by browser previews and the hosted attention packet, so both produce the same line. `canonical/readMarkdownPrefix` is its bounded, no-follow leading read; neither is an editing baseline.
 - `attention.ts` owns explicit `attention_at` policy: absent follows valid edit/creation recency, timezone-explicit timestamp snoozes until due, and bare YAML `null` settles. Quoted `"null"` remains a string and invalid overrides fall back to normal recency with a safe list warning. It also validates strict settle/snooze/reactivate intent and patches only header lines.
 - Frontmatter scalar values support explicit bare `null`; existing string/date/ID/array consumers retain their type guards and nullish fallbacks. Changed body/title merges remove an existing null `attention_at` and its `attention_settled_hash`; snoozes survive edits and explicit snooze values remain editable. Exact no-op saves stay settled. New settlement fingerprints let discovery detect direct edits; legacy null-only notes have no prior revision to compare. Reactivation removes both fields through the guarded attention operation.
 

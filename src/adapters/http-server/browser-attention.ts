@@ -4,7 +4,12 @@ export interface AttentionPage { id: string; title: string; sourceVersion?: stri
 export interface AttentionPacket { notes: AttentionPage[]; settled?: AttentionPage[]; total?: number; settledTotal?: number; nextWakeAt?: string }
 export interface AttentionListState { status: "idle" | "loading" | "ready" | "error"; notes: AttentionPage[]; settled: AttentionPage[]; total: number; settledTotal: number; message: string }
 
-/** Scoped, read-only list with one refresh/wake timer; no canonical writes. */
+/** Scoped, read-only list with one refresh/wake timer; no canonical writes.
+ * Reload triggers arrive in bursts (window setup, focus, navigation, saves). A started request has
+ * usually reached the proxy even when aborted, so same-scope callers share the pending request
+ * instead of replacing it. `load()` only needs a current list: it joins a pending request or one
+ * that landed within the last second. `load({ fresh: true })` follows a known change: it starts at
+ * once when idle, or runs once more after the pending request, whose snapshot may predate it. */
 export function createAttentionList(options: {
   scope(): string | null; enabled(): boolean; now(): number;
   fetch(signal: AbortSignal): Promise<unknown>;
@@ -13,14 +18,19 @@ export function createAttentionList(options: {
 }) {
   const state: AttentionListState = { status: "idle", notes: [], settled: [], total: 0, settledTotal: 0, message: "" };
   let scope: string | null = null, sequence = 0, request: AbortController | null = null, timer: number | null = null;
+  let again = false, loadedAt = Number.NEGATIVE_INFINITY;
   function cancel() {
-    sequence++; request?.abort(); request = null;
+    sequence++; request?.abort(); request = null; again = false;
     if (timer !== null) options.clearTimer(timer);
     timer = null;
   }
-  async function load() {
-    cancel();
+  async function load({ fresh = false }: { fresh?: boolean } = {}) {
     const nextScope = options.scope();
+    if (nextScope && nextScope === scope && options.enabled()) {
+      if (request) { again ||= fresh; return; }
+      if (!fresh && timer !== null && state.status === "ready" && options.now() - loadedAt < 1000) return;
+    }
+    cancel();
     if (scope !== nextScope) { scope = nextScope; state.notes = []; state.settled = []; state.total = state.settledTotal = 0; }
     if (!scope) { state.status = "idle"; state.message = ""; options.onChange(state); return; }
     if (!options.enabled()) { options.onChange(state); return; }
@@ -40,7 +50,8 @@ export function createAttentionList(options: {
       state.settled = pages(Array.isArray(packet.settled) ? packet.settled : []);
       state.total = Number.isSafeInteger(packet.total) ? Math.max(state.notes.length, packet.total!) : state.notes.length;
       state.settledTotal = Number.isSafeInteger(packet.settledTotal) ? Math.max(state.settled.length, packet.settledTotal!) : state.settled.length;
-      state.status = "ready"; state.message = "";
+      state.status = "ready"; state.message = ""; loadedAt = options.now();
+      if (again) { request = null; options.onChange(state); void load({ fresh: true }); return; }
       const wake = typeof packet.nextWakeAt === "string" ? Date.parse(packet.nextWakeAt) : NaN;
       timer = options.setTimer(() => { timer = null; void load(); }, Number.isFinite(wake) ? Math.min(15_000, Math.max(100, wake - options.now() + 25)) : 15_000);
       options.onChange(state);

@@ -128,7 +128,8 @@ export function installPageNavigation(options: {
   let selected: string | null = null;
   const history = createPageHistory({ scope: options.scope, storage: () => window.localStorage, onChange: render });
   let previewScope: string | null = null;
-  type Preview = { live?: boolean; failed?: boolean; previewVersion?: string; preview?: string; title?: string; updatedAt?: string; editor?: MemoryActor; fetchedAt: number; pending?: boolean };
+  // `staleVersion` is the attention row version a live observation is known to be newer than.
+  type Preview = { live?: boolean; staleVersion?: string; failed?: boolean; previewVersion?: string; preview?: string; title?: string; updatedAt?: string; editor?: MemoryActor; fetchedAt: number; pending?: boolean };
   const previews = new Map<string, Preview>();
   let previewReads = 0, paused = false;
   const previewRequests = new Set<AbortController>();
@@ -152,6 +153,15 @@ export function installPageNavigation(options: {
     if (scope !== previewScope) { cancelPreviews(); previews.clear(); signatures.clear(); previewScope = scope; revealId = undefined; recentLimit = 8; settledLimit = 10; settledShelf.open = false; }
     const snapshot = { ...history.snapshot(), settled: [] as Page[] };
     const allNotes = [...(attention?.state.notes || []), ...(attention?.state.settled || [])];
+    // A current server sends capped preview text with every attention row, so rows need no
+    // whole-note read. Only an older server (no preview field) falls back to per-row reads.
+    const attentionPreviews = allNotes.some(note => typeof note.preview === "string");
+    for (const note of allNotes) {
+      const cached = previews.get(note.id);
+      if (typeof note.preview !== "string" || !cached || cached.pending) continue;
+      // Keep the open note's live text, and a just-left note's until the list has caught up with it.
+      if (!(cached.live && (note.id === selected || (note.sourceVersion !== undefined && note.sourceVersion === cached.staleVersion)))) previews.delete(note.id);
+    }
     if (attention) snapshot.settled = attention.state.settled
       .filter(page => !snapshot.pinned.some(pin => pin.id === page.id)).map(page => ({ ...page, title: page.title || page.file || "Untitled" }));
     if (attention) snapshot.recent = attention.state.notes
@@ -177,7 +187,7 @@ export function installPageNavigation(options: {
           const merged = { ...source, ...previews.get(page.id) };
           return { ...merged, ageLabel: sidebarPageAge(merged, new Date(), source) };
         });
-      for (const page of pages) if (options.fetchPreview && previewReads < 4 && !paused && !document.hidden && (!options.attentionScope || options.attentionScope()) && (options.enabled?.() ?? true)
+      for (const page of pages) if (options.fetchPreview && !attentionPreviews && previewReads < 4 && !paused && !document.hidden && (!options.attentionScope || options.attentionScope()) && (options.enabled?.() ?? true)
         && !(previews.get(page.id)?.live && page.id === selected) && !previews.get(page.id)?.pending && (!previews.get(page.id)?.failed || Date.now() - previews.get(page.id)!.fetchedAt >= 10_000) && (page.sourceVersion ? page.sourceVersion !== previews.get(page.id)?.previewVersion : Date.now() - (previews.get(page.id)?.fetchedAt ?? 0) >= 10_000)) {
         const pending: Preview = { ...previews.get(page.id), fetchedAt: Date.now(), pending: true }; previews.set(page.id, pending); previewReads++;
         const request = new AbortController(); previewRequests.add(request);
@@ -269,7 +279,7 @@ export function installPageNavigation(options: {
             empty.textContent = message;
             if (attention.state.status === "error") {
               const retry = document.createElement("button"); retry.className = "quiet-button"; retry.type = "button"; retry.textContent = "Retry";
-              retry.addEventListener("click", () => void attention.load()); empty.append(retry);
+              retry.addEventListener("click", () => void attention.load({ fresh: true })); empty.append(retry);
             }
           }
         }
@@ -292,7 +302,8 @@ export function installPageNavigation(options: {
   window.addEventListener("storage", (event) => history.storageChanged(event));
   if (attention) {
     const resume = () => { paused = false; void attention.load(); };
-    window.addEventListener("focus", resume); window.addEventListener("pageshow", resume);
+    // The first pageshow belongs to the load that already started a read; only a restored page resumes.
+    window.addEventListener("focus", resume); window.addEventListener("pageshow", event => { if ((event as PageTransitionEvent).persisted) resume(); });
     window.addEventListener("pagehide", () => { paused = true; cancelPreviews(); previews.clear(); attention.cancel(); });
     document.addEventListener("visibilitychange", () => { if (document.hidden) attention.cancel(); else resume(); });
     void attention.load();
@@ -353,13 +364,15 @@ export function installPageNavigation(options: {
     /** The open live note already holds its saved text: show it without one HTTP read per edit. */
     observe(page: Page, content: string, recognition?: SearchRecognitionMetadata) {
       if (attention) for (const row of [...attention.state.notes, ...attention.state.settled]) if (row.id === page.id) row.title = page.title;
-      previews.set(page.id, { live: true, title: page.title, preview: readablePreview(content, page.title), fetchedAt: Date.now(),
+      const listed = attention ? [...attention.state.notes, ...attention.state.settled].find(row => row.id === page.id) : undefined;
+      previews.set(page.id, { live: true, staleVersion: listed?.sourceVersion, title: page.title, preview: readablePreview(content, page.title), fetchedAt: Date.now(),
         ...(recognition?.updatedAt ? { updatedAt: recognition.updatedAt } : {}), editor: recognition?.metadataStatus === "current" ? recognition.editor : undefined });
       history.rename(page); render();
     },
-    remove(id: string) { history.remove(id); if (attention) void attention.load(); },
+    remove(id: string) { history.remove(id); if (attention) void attention.load({ fresh: true }); },
     refresh() { render(); if (attention) void attention.load(); },
-    reloadAttention(id?: string) { revealId = id; if (attention) void attention.load(); },
+    /** After a known change (save, rename, creation, settle): never satisfied by an older snapshot. */
+    reloadAttention(id?: string) { revealId = id; if (attention) void attention.load({ fresh: true }); },
     sync: render,
   };
 }

@@ -128,6 +128,24 @@ async function readMarkdownMetadata(file: string, signal?: AbortSignal, maxSourc
   } finally { await handle.close(); }
 }
 
+/** Bounded leading text for derived display only; never an editing baseline. */
+export async function readMarkdownPrefix(file: string, maxBytes: number, signal?: AbortSignal): Promise<string> {
+  const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    if (!(await handle.stat()).isFile()) return "";
+    const buffer = Buffer.allocUnsafe(maxBytes);
+    let length = 0;
+    while (length < maxBytes) {
+      signal?.throwIfAborted();
+      const { bytesRead } = await handle.read(buffer, length, maxBytes - length, length);
+      if (!bytesRead) break;
+      length += bytesRead;
+    }
+    // A streaming decode drops a multi-byte character cut by the byte bound.
+    return new TextDecoder("utf-8").decode(buffer.subarray(0, length), { stream: true });
+  } finally { await handle.close(); }
+}
+
 export interface CanonicalMarkdownIndexInput {
   absolutePath: string;
   /** Excluded names require exact migration-envelope eligibility at snapshot time. */

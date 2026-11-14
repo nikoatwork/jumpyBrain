@@ -69,11 +69,13 @@ try {
   assert.match(await recentAges.nth(1).getAttribute("title"), /^Last edited /);
   assert.equal(await recentTitles.nth(2).innerText(), titles[9]);
   assert.equal(await page.locator("#sidebar-recent img").count(), 0);
-  // Attention and preview fetches can observe different revisions. A stale list
-  // must not turn an ordinary edit into a snooze when the preview arrives.
+  // Against an older server (no attention previews), attention and preview fetches can
+  // observe different revisions. A stale list must not turn an ordinary edit into a
+  // snooze when the preview arrives. Current servers send both in one snapshot.
   await page.route("**/memories/all/attention", async route => {
     const response = await route.fetch();
     const packet = await response.json();
+    for (const row of [...packet.notes, ...(packet.settled ?? [])]) delete row.preview;
     const note = packet.notes.find(note => note.id === ids[11]);
     note.updatedAt = note.attentionAt = new Date(Date.now() - 4 * 86400000).toISOString();
     await route.fulfill({ response, json: packet });

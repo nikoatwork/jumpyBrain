@@ -13,7 +13,7 @@ test("confirmed settlement fences stale reads and projects the row into Settled 
   });
   const initial = list.load();
   reads[0].resolve({ notes: [{ id, title: "Before" }], total: 120, settledTotal: 7 }); await initial;
-  const stale = list.load();
+  const stale = list.load({ fresh: true });
   list.settle({ id, title: "Confirmed" });
   assert.equal(reads[1].signal.aborted, true);
   reads[1].resolve({ notes: [{ id, title: "Stale" }] }); await stale;
@@ -31,11 +31,14 @@ test("attention reads discard superseded and different-brain responses even if a
     fetch: signal => new Promise((resolve, reject) => reads.push({ signal, resolve, reject })),
     setTimer: (callback, delay) => { timers.push({ callback, delay }); return timers.length; }, clearTimer() {}, onChange() {},
   });
-  const first = list.load(), second = list.load();
-  assert.equal(reads[0].signal.aborted, true);
-  reads[0].resolve({ notes: [{ id, title: "Stale" }] }); await first;
-  assert.equal(list.state.notes.length, 0);
-  reads[1].resolve({ notes: [{ id, title: "Current" }, { id, title: "Duplicate" }], nextWakeAt: new Date(3000).toISOString() }); await second;
+  const first = list.load(), second = list.load(), changed = list.load({ fresh: true });
+  assert.equal(reads.length, 1, "same-scope reloads share the pending request");
+  assert.equal(reads[0].signal.aborted, false);
+  reads[0].resolve({ notes: [{ id, title: "Stale" }] }); await Promise.all([first, second, changed]);
+  assert.equal(reads.length, 2, "a known change reads once more after the pending snapshot");
+  assert.equal(timers.length, 0);
+  reads[1].resolve({ notes: [{ id, title: "Current" }, { id, title: "Duplicate" }], nextWakeAt: new Date(3000).toISOString() });
+  await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(list.state.notes.map(x => x.title), ["Current"]);
   assert.equal(timers[0].delay, 2025);
   timers[0].callback();
@@ -56,8 +59,41 @@ test("hidden/canceled attention reads cannot rearm timers; errors are retryable 
   });
   await list.load(); assert.equal(list.state.status, "idle");
   enabled = true; await list.load(); assert.equal(list.state.notes.length, 100); assert.equal(timers[0], 15_000);
-  fail = true; await list.load(); assert.equal(list.state.status, "error"); assert.equal(list.state.notes.length, 0); assert.match(list.state.message, /Connect/);
+  fail = true; await list.load({ fresh: true }); assert.equal(list.state.status, "error"); assert.equal(list.state.notes.length, 0); assert.match(list.state.message, /Connect/);
   fail = false; await list.load(); assert.equal(list.state.status, "ready");
+});
+
+test("load-time reload bursts cost one attention read; scope changes still cancel and refetch", async () => {
+  let scope = "a", now = 0; const reads = [], timers = new Map(); let nextTimer = 0;
+  const list = createAttentionList({ scope: () => scope, enabled: () => true, now: () => now,
+    fetch: signal => new Promise(resolve => reads.push({ signal, resolve })),
+    setTimer: (callback, delay) => { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
+    clearTimer: timer => timers.delete(timer), onChange() {},
+  });
+  // Window setup, the first pageshow/focus and the route's selection all ask within milliseconds.
+  const setup = list.load(), focus = list.load(), select = list.load();
+  assert.equal(reads.length, 1);
+  reads[0].resolve({ notes: [{ id, title: "Listed", preview: "Body text" }] }); await Promise.all([setup, focus, select]);
+  assert.equal(list.state.notes[0].preview, "Body text");
+  // A fast server may answer before the last trigger: the just-landed list still satisfies it.
+  now = 400; await list.load();
+  assert.equal(reads.length, 1); assert.equal(timers.size, 1, "the scheduled 15-second refresh is untouched");
+  assert.equal([...timers.values()][0].delay, 15_000);
+  // A known change is never satisfied by the earlier snapshot, and starts at once when idle.
+  const saved = list.load({ fresh: true });
+  assert.equal(reads.length, 2); assert.equal(reads[0].signal.aborted, false);
+  reads[1].resolve({ notes: [{ id, title: "Renamed" }] }); await saved;
+  assert.equal(list.state.notes[0].title, "Renamed");
+  now = 1500; const later = list.load();
+  assert.equal(reads.length, 3, "an older list is refreshed by ordinary triggers");
+  scope = "b"; const switched = list.load();
+  assert.equal(reads[2].signal.aborted, true); assert.equal(reads.length, 4);
+  assert.deepEqual(list.state.notes, []);
+  reads[2].resolve({ notes: [{ id, title: "Brain A" }] }); await later;
+  assert.deepEqual(list.state.notes, []);
+  reads[3].resolve({ notes: [{ id, title: "Brain B" }] }); await switched;
+  assert.equal(list.state.notes[0].title, "Brain B");
+  list.cancel();
 });
 
 test("snooze presets use the next local calendar morning/Monday across DST", () => {
@@ -89,9 +125,9 @@ test("visible idle lists refresh without snoozes, recover after errors and isola
   assert.equal(list.state.settled[0].id, id); assert.equal(list.state.settledTotal, 120);
   timers.get(nextTimer).callback(); await new Promise(resolve => setImmediate(resolve));
   assert.equal(reads, 2);
-  fail = true; await list.load(); assert.equal(timers.get(nextTimer).delay, 30_000);
+  fail = true; await list.load({ fresh: true }); assert.equal(timers.get(nextTimer).delay, 30_000);
   assert.equal(list.state.settled[0].id, id, 'a passing failure keeps the list already on screen'); assert.equal(list.state.status, 'ready');
-  fail = false; await list.load(); assert.equal(list.state.status, 'ready');
+  fail = false; await list.load({ fresh: true }); assert.equal(list.state.status, 'ready'); assert.equal(timers.get(nextTimer).delay, 15_000);
   enabled = false; list.cancel(); const before = reads; await list.load(); assert.equal(reads, before);
   scope = 'b'; await list.load(); assert.deepEqual(list.state.settled, []);
   scope = null; await list.load(); assert.equal(list.state.status, 'idle');

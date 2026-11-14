@@ -62,7 +62,7 @@ public runtime surface does not export the owner protocol.
 
 ## Note attention
 
-`attention.ts` owns shared bounded canonical list and hash-guarded attention mutations. Local runtime and hosted facades reuse it; server bookkeeping stays in server-memory. Valid creator declarations remain distinct from unknown provenance. This does not track reading or approval.
+`attention.ts` owns shared bounded canonical list and hash-guarded attention mutations, plus the opt-in capped display previews the hosted sidebar uses. Local runtime and hosted facades reuse it; server bookkeeping stays in server-memory. Valid creator declarations remain distinct from unknown provenance. This does not track reading or approval.
 
 Attention metadata carries an optional opaque SHA-256 stat-generation token, accepted only when pre/post-read device/inode/size/nanosecond times agree. It is a preview invalidation hint, never a canonical content hash or snapshot guarantee; missing/unstable versions force ordinary refresh.
 

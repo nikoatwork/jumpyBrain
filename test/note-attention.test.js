@@ -9,6 +9,8 @@ import { mergeMemoryDocumentUpdate } from '../dist/core/document-update.js';
 import { resolveMemoryAttention, validateMemoryAttentionAction } from '../dist/core/attention.js';
 import { patchCanonicalMemoryDocumentAttention, readCanonicalMarkdownSnapshot, readCanonicalMemoryDocumentById, replaceCanonicalMemoryDocumentById } from '../dist/core/canonical/index.js';
 import { createSettledRevisionReader } from '../dist/app/server-memory/attention.js';
+import { ATTENTION_PREVIEW_CHARACTERS, createAttentionPreviewReader, listMemoryAttention } from '../dist/app/attention.js';
+import { readablePreview } from '../dist/adapters/http-server/search-presentation.js';
 import { attentionServerMemory, patchServerMemoryAttention, recentServerMemory } from '../dist/app/server-memory/index.js';
 import { routeRequest } from '../dist/adapters/http-server/routes.js';
 import { currentMemoryEditor, stampMemoryActor } from '../dist/core/contribution.js';
@@ -71,11 +73,49 @@ test('attention filters before cap, excludes duplicate and hidden IDs, wakes exa
   assert.deepEqual(packet.notes.map(n=>n.id),[20,10,9,8,7,6,5,4,3,2,1].map(id));
   assert.equal(packet.nextWakeAt,'2026-10-22T12:01:00Z');
   assert.equal((await attentionServerMemory({root,now:now+60000})).notes[0].id,id(22));
-  assert.equal(JSON.stringify(packet).includes('Private body'),false);
+  assert.equal(JSON.stringify(await listMemoryAttention(root,{now})).includes('Private body'),false,'the local/CLI packet carries no body text');
+  for (const n of [...packet.notes,...packet.settled]) assert.equal(n.preview,'Private body exact bytes');
+  assert.equal(JSON.stringify(packet).includes('retain header comment'),false);
   assert.equal(JSON.stringify(packet).includes(root),false);
   for (const n of packet.notes) assert.equal((await readCanonicalMemoryDocumentById(root,n.id)).file,n.file);
   assert.equal((await readdir(root)).includes('.jumpybrain'),false);
   assert.equal((await recentServerMemory({root})).notes.some(n=>n.id===id(21)),true,'Home recency remains independent of settled state');
+});
+
+test('attention previews are bounded display text matching the browser rule, never frontmatter or whole bodies', async t => {
+  const root = await fixture(t);
+  const long = '# Long note\n\n' + '**Bold** [link](https://example.test/x) and `code`. '.repeat(40) + '\nTAIL-MARKER\n';
+  await note(root,'notes/long.md',{id:id(1),title:'Long note',updated_at:'2026-10-03',api_token:'frontmatter-secret'},long);
+  await note(root,'notes/empty.md',{id:id(2),title:'Empty',updated_at:'2026-10-02'},'');
+  await note(root,'notes/settled.md',{id:id(3),title:'Shelf',updated_at:'2026-10-01',attention_at:null},'Parked text.\n');
+  await note(root,'notes/.hidden.md',{id:id(4),updated_at:'2099-01-01'},'Hidden text.\n');
+  await note(root,'notes/twin.md',{id:id(5),updated_at:'2099-01-01'},'Twin text.\n');
+  await note(root,'pages/twin.md',{id:id(5),updated_at:'2099-01-01'},'Twin text.\n');
+  await note(root,'notes/wide.md',{id:id(6),title:'Wide',updated_at:'2026-09-01'},'é'.repeat(20000));
+  const packet = await attentionServerMemory({root});
+  const [first,empty,wide] = packet.notes;
+  assert.deepEqual(packet.notes.map(n=>n.id),[id(1),id(2),id(6)]);
+  assert.equal(first.preview.length,ATTENTION_PREVIEW_CHARACTERS);
+  assert.match(first.preview,/^Bold link and code\. .*…$/);
+  assert.equal(first.preview,readablePreview(long,'Long note',ATTENTION_PREVIEW_CHARACTERS),'server and browser share one preview rule');
+  assert.equal(empty.preview,'');
+  assert.equal(wide.preview,'é'.repeat(ATTENTION_PREVIEW_CHARACTERS-1)+'…','a byte-bounded read never leaks a split character');
+  assert.equal(packet.settled[0].preview,'Parked text.');
+  const serialized = JSON.stringify(packet);
+  for (const leak of ['frontmatter-secret','TAIL-MARKER','Hidden text','Twin text','retain header comment']) assert.equal(serialized.includes(leak),false,leak);
+  assert.ok(serialized.length < 2500);
+  // Display text follows the file: an edit is visible on the next read, an unchanged file is not reread.
+  let reads = 0;
+  const preview = createAttentionPreviewReader(async () => { reads++; return 'Body ' + reads; });
+  const file = path.join(root,'notes/empty.md');
+  assert.equal(await preview(file,'Empty','v1'),'Body 1');
+  assert.equal(await preview(file,'Empty','v1'),'Body 2','a version that changed during the read is not cached');
+  assert.equal(await preview(file,'Empty',undefined),'Body 3','an unstable file is always reread');
+  assert.equal(reads,3);
+  await writeFile(file,(await readFile(file,'utf8'))+'Now with text.\n');
+  const edited = (await attentionServerMemory({root})).notes.find(n=>n.id===id(2));
+  assert.equal(edited.preview,'Now with text.');
+  assert.equal((await attentionServerMemory({root})).notes.find(n=>n.id===id(2)).preview,'Now with text.');
 });
 
 test('invalid external metadata falls back with a safe warning and undated ties remain stable', async t => {

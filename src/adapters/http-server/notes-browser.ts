@@ -1706,7 +1706,8 @@ function createNoteSession(token, documentId, focusEnd) {
     },
     onSnapshot: (snapshot, view) => {
       const contentChanged = observedHash !== snapshot.contentHash;
-      const titleChanged = observedTitle !== snapshot.title;
+      // Without an earlier observation there is no rename to reveal; the debounced refresh covers it.
+      const titleChanged = observedHash !== "" && observedTitle !== snapshot.title;
       observedHash = snapshot.contentHash; observedTitle = snapshot.title;
       $("note-file").textContent = snapshot.file || "";
       if (!contentChanged) return;

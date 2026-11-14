@@ -8,7 +8,7 @@ export interface RemoteMemoryAttentionPacket extends MemoryAttentionPacket {
 }
 
 export async function attentionServerMemory(options: { root: string; now?: number }): Promise<RemoteMemoryAttentionPacket> {
-  return { ...await listMemoryAttention(options.root, options), memory: "all", target: "remote", root: "remote:all" };
+  return { ...await listMemoryAttention(options.root, { ...options, previews: true }), memory: "all", target: "remote", root: "remote:all" };
 }
 export async function patchServerMemoryAttention(options: { root: string; id: string; ifMatch: string; mutation: unknown; now?: number }) {
   const packet = await patchMemoryDocumentAttention(options.root, options.id, options);
