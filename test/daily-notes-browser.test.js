@@ -57,7 +57,7 @@ test("Cmd/Ctrl+Enter creates notes while browser shortcuts remain untouched", ()
   handleNoteShortcut({ key: "Enter", ...untouched });
   assert.equal(opened, 2); assert.equal(created, 2, "repeat/composition/dialogs never create extra notes");
   const html = graphPageHtml("dailytest");
-  assert.match(html, /class="new-shortcut"/);
+  assert.match(html, /class="kbd new-shortcut"/);
   assert.match(script, /\["new-note", "home-new"\].*addEventListener\("click"/);
 });
 

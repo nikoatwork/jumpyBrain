@@ -1,14 +1,15 @@
 import { browserIcons } from "./browser-icons.js";
 import { builtInPalettes } from "./browser-palettes.js";
+import { media } from "./browser-design-system.js";
 
 const miniature = (mode: string) => `<span class="appearance-mini mini-${mode}"><span class="mini-sidebar"><i></i><i></i><i></i></span><span class="mini-content"><i></i><i></i><i></i><b></b></span></span>`;
-const schemeChoice = (value: string, label: string) => `<label class="appearance-choice"><input type="radio" name="color-scheme" value="${value}" ${value === "system" ? "checked" : ""}/><span class="scheme-preview" aria-hidden="true">${value === "system" ? miniature("light") + miniature("dark") : miniature(value)}</span><span class="appearance-choice-name">${label}<span class="appearance-check" aria-hidden="true">${browserIcons.check}</span></span></label>`;
-const paletteChoice = (value: string, label: string) => `<label class="appearance-choice palette-choice"><input type="radio" name="color-palette" value="${value}" ${value === "ember" ? "checked" : ""}/><span class="palette-preview palette-${value}" aria-hidden="true"><i></i><i></i></span><span class="appearance-choice-name">${label}<span class="appearance-check" aria-hidden="true">${browserIcons.check}</span></span></label>`;
+const schemeChoice = (value: string, label: string) => `<label class="appearance-choice card card--compact"><input type="radio" name="color-scheme" value="${value}" ${value === "system" ? "checked" : ""}/><span class="scheme-preview" aria-hidden="true">${value === "system" ? miniature("light") + miniature("dark") : miniature(value)}</span><span class="appearance-choice-name">${label}<span class="appearance-check" aria-hidden="true">${browserIcons.check}</span></span></label>`;
+const paletteChoice = (value: string, label: string) => `<label class="appearance-choice card card--compact palette-choice"><input type="radio" name="color-palette" value="${value}" ${value === "ember" ? "checked" : ""}/><span class="palette-preview palette-${value}" aria-hidden="true"><i></i><i></i></span><span class="appearance-choice-name">${label}<span class="appearance-check" aria-hidden="true">${browserIcons.check}</span></span></label>`;
 
 export const appearanceMarkup = String.raw`
 <div id="appearance-options">
   <fieldset class="appearance-group" data-settings-item data-settings-keywords="mode dark light system"><legend>Color scheme</legend><div class="appearance-grid">${schemeChoice("system", "System")}${schemeChoice("light", "Light")}${schemeChoice("dark", "Dark")}</div></fieldset>
-  <fieldset class="appearance-group" data-settings-item data-settings-keywords="palette colour color accent"><legend>Theme</legend><div class="appearance-grid">${paletteChoice("ember", "Ember")}${paletteChoice("ocean", "Ocean")}${paletteChoice("mono", "Mono")}${paletteChoice("pride", "Pride")}</div></fieldset>
+  <fieldset class="appearance-group" data-settings-item data-settings-keywords="palette colour color accent"><legend>Theme</legend><div class="appearance-grid appearance-grid--palette">${paletteChoice("ember", "Ember")}${paletteChoice("ocean", "Ocean")}${paletteChoice("mono", "Mono")}${paletteChoice("pride", "Pride")}</div></fieldset>
 </div>`;
 
 export const appearanceStyles = String.raw`
@@ -18,14 +19,16 @@ export const appearanceStyles = String.raw`
   .appearance-group:last-child { margin-bottom: 0; }
   .appearance-group legend { padding: 0; margin-bottom: var(--space-3); font-size: var(--text-body); color: var(--ink-soft); }
   .appearance-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
-  .appearance-choice { position: relative; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-md); cursor: pointer; background: var(--surface); }
+  .appearance-grid--palette { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* Radio card: .card surface; the checked radio is the card's one selected state. */
+  .appearance-choice { position: relative; display: flex; flex-direction: column; gap: var(--space-3); cursor: pointer; }
   .appearance-choice:hover { background: var(--hover-fill); }
-  .appearance-choice:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  .appearance-choice:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 3px; }
+  .appearance-choice:has(input:checked) { border-color: var(--accent); box-shadow: var(--ring-selected); }
+  .appearance-choice:has(input:focus-visible) { outline: var(--focus-outline); outline-offset: var(--focus-offset); }
   .appearance-choice input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; margin: 0; }
   .appearance-choice-name { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); padding: 0 var(--space-1) var(--space-1); color: var(--ink); font-size: var(--text-ui); }
   .appearance-check { display: flex; visibility: hidden; color: var(--accent); }
-  .appearance-check svg { width: 16px; height: 16px; }
+  .appearance-check svg { width: var(--icon-size); height: var(--icon-size); }
   .appearance-choice:has(input:checked) .appearance-check { visibility: visible; }
   .scheme-preview { position: relative; display: block; aspect-ratio: 1.65; overflow: hidden; border-radius: var(--radius-sm); border: 1px solid var(--line); }
   .appearance-mini { position: absolute; inset: 0; display: flex; background: var(--mini-bg); }
@@ -50,11 +53,14 @@ export const appearanceStyles = String.raw`
   .palette-pride i:last-child { background: linear-gradient(150deg, #674554, #645044, #5b583f, #405c4e, #435570, #5b456e); }
   .palette-mono i:first-child { background: radial-gradient(circle at 30% 25%, #ffffff, #e5e5e5 42%, #a8a8a8); }
   .palette-mono i:last-child { background: radial-gradient(circle at 30% 25%, #686868, #292929 48%, #080808); }
-  @media (max-width: 480px) {
+  @media ${media.narrow} {
+    .appearance-grid--palette { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media ${media.compact} {
     .appearance-grid { gap: var(--space-2); }
-    .appearance-choice { gap: var(--space-2); padding: var(--space-1); }
+    .appearance-choice { --card-pad: var(--space-1); gap: var(--space-2); }
     .appearance-choice-name { padding-inline: 0; gap: 0; }
-    .appearance-check svg { width: 12px; height: 12px; }
+    .appearance-check svg { width: var(--icon-size-sm); height: var(--icon-size-sm); }
     .palette-preview { gap: var(--space-2); padding-block: var(--space-4); }
   }
 `;

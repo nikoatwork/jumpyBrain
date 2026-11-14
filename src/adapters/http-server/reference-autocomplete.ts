@@ -3,6 +3,7 @@
 import type { createNoteEditor } from "./lexical-editor.js";
 import { searchPreview } from "./search-presentation.js";
 import { referenceEligibility } from "./reference-policy.js";
+import { viewportMargin } from "./browser-design-system.js";
 
 type Bridge = Pick<ReturnType<typeof createNoteEditor>, "autocompleteRange" | "subscribeReferenceContext" | "captureSelection" | "getMarkdown" | "insertReference" | "restoreSelection">;
 type Result = { documentId: string | null; title: string; referenceTitle: string | null; snippet?: string; drawing?: string };
@@ -41,7 +42,10 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   const id = "reference-autocomplete-" + ++nextId;
   const popup = doc.createElement("div"), list = doc.createElement("div"), status = doc.createElement("div");
   popup.dataset.referenceAutocomplete = "true";
-  popup.style.cssText = "position:fixed;z-index:10000;box-sizing:border-box;width:320px;max-height:240px;overflow:auto;background:var(--surface,white);color:var(--ink,#222);border:1px solid var(--line,#aaa);border-radius:6px;padding:6px;box-shadow:var(--shadow-lg,0 4px 16px #0002);touch-action:pan-y;overscroll-behavior:contain;user-select:none;-webkit-user-select:none";
+  // Surface/rows use the shared .popover--menu/.menu-item look (layer and width: referencePresentationStyles).
+  // Positioning, scrolling and gesture behaviour stay inline so the controller works on any host page.
+  popup.className = "popover popover--menu";
+  popup.style.cssText = "position:fixed;box-sizing:border-box;max-height:240px;overflow:auto;touch-action:pan-y;overscroll-behavior:contain;user-select:none;-webkit-user-select:none";
   list.id = id;
   list.setAttribute("role", "listbox");
   list.setAttribute("aria-label", "Page references");
@@ -49,7 +53,7 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
   status.setAttribute("aria-atomic", "true");
-  status.style.cssText = "padding:4px 7px;font-size:12px;line-height:18px;overflow-wrap:anywhere";
+  status.className = "status-text status-text--caption";
   popup.append(status, list);
   popup.hidden = true;
   doc.body.append(popup);
@@ -148,12 +152,12 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
         popup.hidden = true; return;
       }
     }
-    popup.style.maxWidth = Math.max(0, width - 16) + "px";
-    popup.style.maxHeight = Math.max(0, Math.min(240, height - 16)) + "px";
+    popup.style.maxWidth = Math.max(0, width - 2 * viewportMargin) + "px";
+    popup.style.maxHeight = Math.max(0, Math.min(240, height - 2 * viewportMargin)) + "px";
     const box = popup.getBoundingClientRect();
-    const top = rect.bottom + 4 + box.height <= y + height - 8 ? rect.bottom + 4 : rect.top - box.height - 4;
-    popup.style.left = Math.max(x + 8, Math.min(rect.left, x + width - box.width - 8)) + "px";
-    popup.style.top = Math.max(y + 8, Math.min(top, y + height - box.height - 8)) + "px";
+    const top = rect.bottom + 4 + box.height <= y + height - viewportMargin ? rect.bottom + 4 : rect.top - box.height - 4;
+    popup.style.left = Math.max(x + viewportMargin, Math.min(rect.left, x + width - box.width - viewportMargin)) + "px";
+    popup.style.top = Math.max(y + viewportMargin, Math.min(top, y + height - box.height - viewportMargin)) + "px";
   }
   function sameResult(left: Result | undefined, right: Result | undefined) {
     return Boolean(left && right && left.documentId === right.documentId && left.title === right.title && left.referenceTitle === right.referenceTitle && left.drawing === right.drawing);
@@ -185,9 +189,9 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
         if (row.dataset.preview !== text) {
           row.dataset.preview = text; row.replaceChildren();
           const title = doc.createElement("div"); title.textContent = result.title; row.append(title);
-          if (preview) { const context = doc.createElement("small"); context.textContent = preview; context.style.cssText = "display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-soft)"; row.append(context); }
+          if (preview) { const context = doc.createElement("small"); context.textContent = preview; row.append(context); }
         }
-        row.style.cssText = "padding:7px;cursor:pointer;overflow-wrap:anywhere";
+        row.className = "menu-item";
         return row;
       }));
     }
@@ -199,7 +203,6 @@ export function installReferenceAutocomplete(element: HTMLElement, bridge: Bridg
       row.setAttribute("aria-selected", String(selected));
       row.setAttribute("aria-disabled", String(Boolean(error)));
       row.setAttribute("aria-label", result.title + (error ? ". " + error : ""));
-      row.style.background = selected ? "var(--surface-hover,#eee)" : "";
       if (selected) selectedId = row.id;
     });
     const message = feedback || (state.results.length ? "" :

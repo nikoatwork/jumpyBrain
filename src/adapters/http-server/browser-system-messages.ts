@@ -1,3 +1,4 @@
+import { browserIcons } from "./browser-icons.js";
 export type MessageSeverity = "info" | "success" | "warning" | "error";
 export interface SystemMessage {
   source: string;
@@ -12,16 +13,18 @@ export interface SystemMessage {
 }
 export type SystemMessages = ReturnType<typeof installSystemMessages>;
 
+// The toast is a .popover surface (browser-components.ts) anchored inside the workspace; this owns placement only.
 export const systemMessageStyles = String.raw`
   .app-workspace { position: relative; }
-  #app-toast { position: absolute; z-index: 100; left: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2); width: max-content; max-width: min(360px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: auto; padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: var(--text-ui)/var(--leading-ui) var(--font-ui); }
+  #app-toast { position: absolute; z-index: var(--z-toast); left: var(--space-4); bottom: var(--space-4); display: flex; align-items: center; gap: var(--space-2); width: max-content; max-width: min(var(--width-toast), calc(100% - var(--viewport-gutter))); max-height: calc(100% - var(--viewport-gutter)); overflow: auto; padding: var(--space-2) var(--space-3); }
   #app-toast[hidden] { display: none; }
   #toast-message { min-width: 0; overflow-wrap: anywhere; white-space: pre-line; }
   #app-toast[data-error="true"] #toast-message { color: var(--error-ink); }
   #app-toast[data-severity="warning"] { border-color: var(--accent); }
   #toast-action, #toast-close { flex-shrink: 0; }
 `;
-export const systemMessageMarkup = String.raw`<div id="app-toast" hidden><span id="toast-message" role="status" aria-live="polite" aria-atomic="true"></span><button id="toast-action" class="quiet-button" type="button" hidden></button><button id="toast-close" class="quiet-button note-icon" type="button" aria-label="Dismiss notification" title="Dismiss notification"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button></div>`;
+// Pure IIFE keeps the server-only markup (and the icon set it uses) out of the browser bundle.
+export const systemMessageMarkup = /* @__PURE__ */ (() => String.raw`<div id="app-toast" class="popover" hidden><span id="toast-message" role="status" aria-live="polite" aria-atomic="true"></span><button id="toast-action" class="quiet-button button--sm" type="button" hidden></button><button id="toast-close" class="icon-button" type="button" aria-label="Dismiss notification" title="Dismiss notification">${browserIcons.close}</button></div>`)();
 
 /** One tab-local owner. Producers never manipulate the notification DOM. */
 export function installSystemMessages(document: Document, scope: () => string) {

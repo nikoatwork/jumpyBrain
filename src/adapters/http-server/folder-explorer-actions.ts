@@ -1,5 +1,7 @@
 import { memoryDocumentPath, HTTP_MEMORY_ROUTES } from "../http-protocol.js";
 import type { ExplorerNode } from "./folder-explorer-model.js";
+import { prepareDropdown } from "./browser-dropdown.js";
+import { viewportMargin } from "./browser-design-system.js";
 
 export interface ExplorerOperationHost {
   writable(): boolean;
@@ -68,6 +70,7 @@ export function installExplorerActions(options: {
         option.selected = folder === node.path.slice(0, node.path.lastIndexOf("/"));
         return option;
       }));
+      prepareDropdown(destination);
     }
     dialog.showModal();
     if (action === "move") destination.focus();
@@ -133,14 +136,14 @@ export function installExplorerActions(options: {
     }
     if (!entries.length || !host) return;
     menu.replaceChildren(...entries.map(entry => {
-      const button = document.createElement("button"); button.type = "button"; button.setAttribute("role", "menuitem");
+      const button = document.createElement("button"); button.type = "button"; button.className = "menu-item"; button.setAttribute("role", "menuitem");
       button.textContent = entry.label; button.disabled = Boolean(entry.disabled);
       button.addEventListener("click", () => { hideMenu(); if (menuScope === options.scope() && options.enabled()) entry.run(); }); return button;
     }));
     menu.hidden = false; menu.style.left = "0px"; menu.style.top = "0px";
     const size = menu.getBoundingClientRect();
-    menu.style.left = Math.max(8, Math.min(x, window.innerWidth - size.width - 8)) + "px";
-    menu.style.top = Math.max(8, Math.min(y, window.innerHeight - size.height - 8)) + "px";
+    menu.style.left = Math.max(viewportMargin, Math.min(x, window.innerWidth - size.width - viewportMargin)) + "px";
+    menu.style.top = Math.max(viewportMargin, Math.min(y, window.innerHeight - size.height - viewportMargin)) + "px";
     menu.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
   }
   tree.addEventListener("contextmenu", event => {

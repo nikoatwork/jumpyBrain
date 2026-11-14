@@ -22,7 +22,7 @@ let nextId = 0;
 export function installSlashCommands(editor: LexicalEditor, element: HTMLElement, format: (kind: string) => void, beforeAccept?: () => void) {
   const doc = element.ownerDocument, win = doc.defaultView!;
   const popup = doc.createElement("div"), id = "editor-slash-" + ++nextId;
-  popup.id = id; popup.className = "editor-slash-menu";
+  popup.id = id; popup.className = "editor-slash-menu popover popover--menu";
   popup.setAttribute("role", "listbox"); popup.setAttribute("aria-label", "Formatting commands");
   popup.hidden = true; doc.body.append(popup);
   let selected = 0, signature = "", suppressed = "", composing = false, frame = 0;
@@ -56,7 +56,7 @@ export function installSlashCommands(editor: LexicalEditor, element: HTMLElement
     signature = live.signature; current = live;
     popup.replaceChildren(...choices.map((command, index) => {
       const row = doc.createElement("div");
-      row.id = id + "-" + index; row.dataset.index = String(index);
+      row.id = id + "-" + index; row.className = "menu-item"; row.dataset.index = String(index);
       row.dataset.kind = command.kind;
       row.setAttribute("role", "option"); row.setAttribute("aria-selected", String(index === selected));
       row.setAttribute("aria-label", command.label);

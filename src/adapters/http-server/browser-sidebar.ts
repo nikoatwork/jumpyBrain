@@ -1,9 +1,11 @@
 // Presentation preference only: independent of document, credentials and brain selection.
+import { media } from "./browser-design-system.js";
+
 export const sidebarBootstrap = String.raw`
 const sidebarPreference = (() => {
   const key = "jumpybrain.sidebarCollapsed";
   const root = document.documentElement;
-  const compact = window.matchMedia?.("(max-width: 680px)");
+  const compact = window.matchMedia?.("${media.narrow}");
   let collapsed = false, autoCollapsed = false;
   try { collapsed = localStorage.getItem(key) === "true"; } catch { /* Tab-only preference. */ }
   function apply() {

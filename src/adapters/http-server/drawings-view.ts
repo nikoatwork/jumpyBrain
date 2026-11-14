@@ -1,52 +1,40 @@
 // Shared hosted/companion presentation over canonical drawings/<Name>.excalidraw files.
 // The Excalidraw editor runs in an isolated same-origin frame; this shell owns
 // authentication, hash-checked saving, navigation guards and the sidebar list.
-import { browserIcons } from "./browser-icons.js";
+import { media } from "./browser-design-system.js";
+import { browserChevronIcon, browserIcons } from "./browser-icons.js";
 
 export const drawingIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="12" width="8" height="8" rx="1.5"/><circle cx="17" cy="16" r="4"/><path d="m7 9 5-6 5 6Z"/></svg>';
 const trashIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></svg>';
 
 export const drawingsStyles = String.raw`
 #drawing-view { flex: 1; min-width: 0; min-height: 0; width: 100%; display: flex; flex-direction: column; }
-#drawing-view[hidden] { display: none; }
 .drawing-header { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); flex: none; }
 #drawing-name { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: var(--weight-semibold) var(--text-ui)/var(--leading-ui) var(--font-ui); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); }
 #drawing-name:hover:not(:read-only), #drawing-name:focus { background: var(--hover-fill); }
 #drawing-state { flex: none; color: var(--ink-faint); font-size: var(--text-caption); white-space: nowrap; }
-#drawing-state[data-tone="error"] { color: var(--error-ink); }
-.drawing-notice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--line); font-size: var(--text-caption); color: var(--ink-soft); flex: none; }
-.drawing-notice[hidden] { display: none; }
+#drawing-state[data-error="true"] { color: var(--error-ink); }
+.drawing-notice { flex: none; }
 #drawing-stage { flex: 1; min-height: 0; position: relative; }
 #drawing-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
-#drawing-empty { margin: var(--space-8) auto; max-width: 420px; text-align: center; color: var(--ink-soft); }
-#drawing-empty[hidden] { display: none; }
 #drawing-navigation { margin-bottom: var(--space-3); }
-#drawing-navigation [hidden] { display: none; }
-#drawings-disclosure { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; color: var(--ink-soft); }
-#drawings-disclosure::before { content: ''; width: var(--space-1); height: var(--space-1); border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); flex: none; }
-#drawings-disclosure[aria-expanded="true"]::before { transform: rotate(45deg); }
-#drawings-list-state, #drawing-create-reason { margin: var(--space-1) var(--space-3); color: var(--ink-faint); font-size: var(--text-caption); }
 #sidebar-drawings { margin-bottom: var(--space-1); }
-@media(max-width:680px) { #sidebar-drawings { display: block; overflow: visible; } }
 #sidebar-drawings:empty { margin: 0; }
-#sidebar-drawings .sidebar-page { max-width: none; }
-#sidebar-drawings .sidebar-page-link { display: flex; gap: var(--space-2); white-space: nowrap; }
-#sidebar-drawings .sidebar-page-link svg { flex: none; width: var(--icon-size); height: var(--icon-size); color: var(--ink-faint); }
-#sidebar-drawings .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; }
 #sidebar-drawings-more { margin-bottom: var(--space-3); }
+@media ${media.narrow} { #sidebar-drawings { display: block; overflow: visible; } }
 .search-result[data-kind="drawing"] .search-result-preview { color: var(--ink-faint); }
 `;
 
-export const drawingsNavigationControl = `<button id="open-drawings" type="button" class="quiet-button nav-item sidebar-icon" aria-label="Drawings" title="Drawings" aria-expanded="false" aria-controls="drawings-list">${drawingIcon}</button>`;
+export const drawingsNavigationControl = `<button id="open-drawings" type="button" class="icon-button sidebar-icon" aria-label="Drawings" title="Drawings" aria-expanded="false" aria-controls="drawings-list">${drawingIcon}</button>`;
 export const drawingsSidebarMarkup = `<div id="drawing-navigation">
-  <button id="drawings-disclosure" type="button" class="quiet-button nav-item" aria-expanded="false" aria-controls="drawings-list">Drawings</button>
+  <button id="drawings-disclosure" type="button" class="list-row list-row--edge list-row--shelf disclosure-trigger" aria-expanded="false" aria-controls="drawings-list"><span class="list-row-label">Drawings</span>${browserChevronIcon}</button>
   <div id="drawings-list" hidden>
-    <button id="new-drawing" type="button" class="quiet-button nav-item" aria-label="New drawing" aria-describedby="drawing-create-reason">${browserIcons.plus}New drawing</button>
-    <p id="drawing-create-reason" hidden></p>
-    <p id="drawings-list-state" role="status" aria-live="polite"></p>
-    <button id="drawings-list-retry" type="button" class="quiet-button sidebar-list-more" hidden>Retry</button>
-    <ul id="sidebar-drawings" aria-label="Drawings"></ul>
-    <button id="sidebar-drawings-more" type="button" class="quiet-button sidebar-list-more" hidden>Show all drawings</button>
+    <button id="new-drawing" type="button" class="list-row list-row--edge" aria-label="New drawing" aria-describedby="drawing-create-reason"><span class="list-row-lead">${browserIcons.plus}</span><span class="list-row-label">New drawing</span></button>
+    <p id="drawing-create-reason" class="list-status" hidden></p>
+    <p id="drawings-list-state" class="list-status" role="status" aria-live="polite"></p>
+    <button id="drawings-list-retry" type="button" class="quiet-button quiet-button--plain list-more" hidden>Retry</button>
+    <ul id="sidebar-drawings" class="list-reset" aria-label="Drawings"></ul>
+    <button id="sidebar-drawings-more" type="button" class="quiet-button quiet-button--plain list-more" hidden>Show all drawings</button>
   </div>
 </div>`;
 
@@ -55,25 +43,25 @@ export const drawingsMarkup = `
     <div class="drawing-header">
       <input id="drawing-name" aria-label="Drawing name" maxlength="100" autocomplete="off" spellcheck="false" />
       <span id="drawing-state" role="status" aria-live="polite"></span>
-      <button id="drawing-copy-mention" type="button" class="quiet-button note-icon" aria-label="Copy mention" title="Copy a mention to paste into a note">${browserIcons.link}</button>
-      <button id="drawing-delete" type="button" class="quiet-button note-icon" aria-label="Delete drawing" title="Delete drawing">${trashIcon}</button>
+      <button id="drawing-copy-mention" type="button" class="icon-button" aria-label="Copy mention" title="Copy a mention to paste into a note">${browserIcons.link}</button>
+      <button id="drawing-delete" type="button" class="icon-button" aria-label="Delete drawing" title="Delete drawing">${trashIcon}</button>
     </div>
-    <div id="drawing-notice" class="drawing-notice" role="alert" hidden>
+    <div id="drawing-notice" class="drawing-notice callout callout--strip" role="alert" hidden>
       <span id="drawing-notice-text"></span>
       <button id="drawing-retry" type="button" class="quiet-button" hidden>Retry</button>
       <button id="drawing-reload" type="button" class="quiet-button" hidden>Load newer version</button>
       <button id="drawing-overwrite" type="button" class="quiet-button" hidden>Keep mine</button>
     </div>
-    <div id="drawing-stage"><p id="drawing-empty" hidden></p></div>
+    <div id="drawing-stage"><p id="drawing-empty" class="empty-state" hidden></p></div>
   </section>`;
 
 export const drawingsDialogMarkup = `
-<dialog id="drawing-delete-dialog" class="document-dialog" aria-labelledby="drawing-delete-title">
-  <h2 id="drawing-delete-title">Delete drawing?</h2>
+<dialog id="drawing-delete-dialog" class="document-dialog dialog--sm" aria-labelledby="drawing-delete-title">
+  <h2 id="drawing-delete-title" class="dialog-title">Delete drawing?</h2>
   <p id="drawing-delete-name"></p>
   <p>Deleting this drawing cannot be undone. Notes that mention it are kept.</p>
   <p id="drawing-delete-message" role="status" aria-live="polite"></p>
-  <div class="dialog-actions"><button id="drawing-delete-cancel" type="button" class="quiet-button">Cancel</button><button id="drawing-delete-confirm" type="button" class="quiet-button">Delete</button></div>
+  <div class="dialog-actions"><button id="drawing-delete-cancel" type="button" class="quiet-button">Cancel</button><button id="drawing-delete-confirm" type="button" class="button button-primary button--danger">Delete</button></div>
 </dialog>`;
 
 /** Browser script; composed into the shell after its transport and navigation exist. */
@@ -107,7 +95,7 @@ function createDrawingsUI(host) {
     const name = target.slice(0, -extension.length);
     return validName(name) ? name : null;
   }
-  function setState(text, tone) { stateLabel.textContent = text; if (tone) stateLabel.dataset.tone = tone; else delete stateLabel.dataset.tone; }
+  function setState(text, tone) { stateLabel.textContent = text; if (tone === "error") stateLabel.dataset.error = "true"; else delete stateLabel.dataset.error; }
   function setNotice(text, actions) {
     noticeText.textContent = text || "";
     notice.hidden = !text;
@@ -145,11 +133,11 @@ function createDrawingsUI(host) {
     if (rows === renderedRows) return;
     renderedRows = rows;
     items.replaceChildren(...visible.map((drawing) => {
-      const row = document.createElement("li"); row.className = "sidebar-page";
-      const link = document.createElement("a"); link.className = "sidebar-page-link"; link.href = href(drawing.name); link.title = drawing.name;
+      const row = document.createElement("li");
+      const link = document.createElement("a"); link.className = "list-row list-row--edge"; link.href = href(drawing.name); link.title = drawing.name;
       if (current && current.name === drawing.name) link.setAttribute("aria-current", "page");
-      const glyph = document.createElement("span"); glyph.innerHTML = host.icon; glyph.style.display = "contents";
-      const label = document.createElement("span"); label.textContent = drawing.name;
+      const glyph = document.createElement("span"); glyph.className = "list-row-lead"; glyph.innerHTML = host.icon;
+      const label = document.createElement("span"); label.className = "list-row-label"; label.textContent = drawing.name;
       link.append(glyph, label);
       link.addEventListener("click", (event) => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

@@ -1,34 +1,25 @@
+import { media } from "./browser-design-system.js";
+import { browserChevronIcon, browserIcons } from "./browser-icons.js";
+
 // Companion-only presentation over canonical boards. Preferences never write to a brain.
+// Rows are .list-row--edge primitives indented by --row-depth (board 0, column 1, page 2); leaf rows
+// reserve the disclosure lane (the 32/40px icon-button width) so each level's label sits strictly further right.
 export const boardsSidebarStyles = String.raw`
-#sidebar-boards {margin-bottom:var(--space-3)}
+#sidebar-boards {--board-lane:var(--control-compact);margin-bottom:var(--space-3)}
 #sidebar-boards:empty {margin:0}
 #sidebar-boards .board-nav-item {min-width:0}
-#sidebar-boards .sidebar-page {margin-top:0;max-width:none}
-#sidebar-boards .sidebar-page > button {background:transparent}
-#sidebar-boards .sidebar-page-link {display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
-#sidebar-boards .board-nav-settle {opacity:0}
-#sidebar-boards .sidebar-page:is(:hover,:focus-within) .board-nav-settle {opacity:1}
-#sidebar-boards .board-nav-disclosure {display:grid;place-items:center;flex:0 0 var(--control-compact);width:var(--control-compact);min-height:var(--control-height);padding:0;color:var(--ink-soft)}
-.board-nav-disclosure::before {content:'';width:var(--space-1);height:var(--space-1);border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg)}
-.board-nav-disclosure[aria-expanded=true]::before {transform:rotate(45deg)}
-#sidebar-boards .board-nav-head:has(.board-nav-disclosure:not([hidden])) .sidebar-page-link {padding-left:0}
-#sidebar-boards .board-nav-column > .sidebar-page {padding-left:var(--space-8)}
-#sidebar-boards .board-nav-column > .sidebar-page button {font-weight:var(--weight-regular)}
-#sidebar-boards .board-nav-column > .sidebar-page .sidebar-page-link {padding-left:0}
-#sidebar-boards .board-nav-page {padding-left:calc(var(--space-8) + var(--control-compact) + var(--space-5))}
-#sidebar-boards .board-nav-page .sidebar-page-link {padding-left:0}
-.board-nav-empty {padding:var(--space-1) var(--space-3) var(--space-2) calc(var(--space-8) + var(--control-compact) + var(--space-5));color:var(--ink-faint);font-size:var(--text-caption)}
-#sidebar-boards .board-nav-empty,#sidebar-boards .board-nav-page[data-page-state] .sidebar-page-link {font-style:italic;color:var(--ink-faint)}
-#sidebar-boards [hidden] {display:none}
-@media(hover:none){#sidebar-boards .board-nav-settle{opacity:1}}
-@media(max-width:680px){
-  #sidebar-boards,#sidebar-boards ul{display:block;overflow:visible}
-  #sidebar-boards {--control-compact:var(--control-touch);--control-height:var(--control-touch)}
-  #sidebar-boards .sidebar-page{padding-right:var(--space-3);border-radius:0}
-}
+#sidebar-boards .board-nav-row {padding-block:0}
+#sidebar-boards .board-nav-row > .list-row-target {align-self:stretch;display:block;min-height:var(--row-height);margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;font:inherit;line-height:var(--row-height);text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+/* Without a tree disclosure the board title lines up with the page titles below. */
+#sidebar-boards .board-nav-head:has(> .board-nav-disclosure[hidden]) {padding-left:calc(var(--row-inset) + var(--space-3))}
+#sidebar-boards :is(.board-nav-page,.board-nav-empty) {padding-left:calc(var(--row-inset) + var(--row-depth) * var(--row-indent) + var(--board-lane) + var(--space-2))}
+#sidebar-boards .board-nav-page[data-page-state] > .sidebar-page-link {font-style:italic;color:var(--ink-faint)}
+@media ${media.narrow}, ${media.coarse} {#sidebar-boards {--board-lane:var(--control-touch)}}
+@media ${media.narrow} {#sidebar-boards,#sidebar-boards ul{display:block;overflow:visible}}
 `;
 
 export const boardsSidebarScript = String.raw`
+const boardTreeGlyphs={chevron:${JSON.stringify(browserChevronIcon)},check:${JSON.stringify(browserIcons.check)}};
 function createBoardsSidebar({host,scope,boards,names,pageStates,selected,disabled,readOnly,navigate,settle,changed}) {
   const prefix='jumpybrain.boardNavigation.v1:',sessions=new Map();
   let key='',prefs={};
@@ -57,9 +48,11 @@ function createBoardsSidebar({host,scope,boards,names,pageStates,selected,disabl
     persist();
   }
   function visiblePageIds(){return boards().filter(b=>!b.archived&&enabled(b.id)&&preference(b.id).open).flatMap(b=>b.columns.flatMap((c,i)=>preference(b.id).closed.includes(i)?[]:c.pages));}
-  function control(label,run,classes){const b=document.createElement('button');b.type='button';b.className='quiet-button '+classes;b.onclick=run;b.textContent=label;return b;}
+  function control(label,run,classes){const b=document.createElement('button');b.type='button';b.className=classes;b.onclick=run;b.textContent=label;return b;}
+  function disclosureButton(run){const b=control('',run,'icon-button disclosure-trigger board-nav-disclosure board-nav-target');b.innerHTML=boardTreeGlyphs.chevron;return b;}
+  function treeRow(tag,depth,classes){const el=document.createElement(tag);el.className='board-nav-row list-row list-row--edge'+(classes?' '+classes:'');el.style.setProperty('--row-depth',String(depth));return el;}
   function label(el,text){el.textContent=text;el.title=text;el.setAttribute('aria-label',text);}
-  function disclosure(el,text,open,group){el.title=(open?'Collapse ':'Expand ')+text;el.setAttribute('aria-label',el.title);el.setAttribute('aria-expanded',String(open));el.setAttribute('aria-controls',group.id);group.hidden=!open;}
+  function disclosure(el,text,open,group){JumpyBrainBrowser.setDisclosure(el,open,{label:text,controls:group});}
   function reconcile(parent,items,make,update,fallback){
     const keys=new Set(items.map(x=>x.key));
     for(const el of [...parent.children])if(!keys.has(el.dataset.key)){if(el.contains(document.activeElement))fallback?.focus();el.remove();}
@@ -71,33 +64,33 @@ function createBoardsSidebar({host,scope,boards,names,pageStates,selected,disabl
     sync();
     reconcile(host,boards().filter(b=>!b.archived).map(b=>({...b,key:b.id})),b=>{
       const li=document.createElement('li');li.className='board-nav-item';li.dataset.sidebarBoard=b.id;
-      const head=document.createElement('div');head.className='sidebar-page board-nav-head';
-      const expand=control('',()=>toggle(b.id),'board-nav-disclosure board-nav-target');
-      const link=control('',()=>navigate('/?board='+b.id),'sidebar-page-link board-nav-target');
-      const park=control('✓',()=>settle(b.id),'note-icon board-nav-settle');park.title='Settle board';
+      const head=treeRow('div',0,'board-nav-head');
+      const expand=disclosureButton(()=>toggle(b.id));
+      const link=control('',()=>navigate('/?board='+b.id),'sidebar-page-link list-row-target board-nav-target');
+      const park=control('',()=>settle(b.id),'icon-button board-nav-settle');park.innerHTML=boardTreeGlyphs.check;park.title='Settle board';
+      const actions=document.createElement('span');actions.className='row-actions';actions.append(park);
       const group=document.createElement('ul');group.id='board-tree-'+b.id;
-      head.append(expand,link,park);li.append(head,group);return li;
+      head.append(expand,link,actions);li.append(head,group);return li;
     },(li,b)=>{
-      const [head,group]=li.children,[expand,link,park]=head.children,p=preference(b.id),on=!!p?.enabled,active=document.activeElement;
+      const [head,group]=li.children,[expand,link,actions]=head.children,park=actions.firstElementChild,p=preference(b.id),on=!!p?.enabled,active=document.activeElement;
       label(link,b.name);link.title='Open board: '+b.name;link.setAttribute('aria-label',link.title);link.toggleAttribute('aria-current',false);if(selected().board===b.id)link.setAttribute('aria-current','page');
       park.setAttribute('aria-label','Settle '+b.name);park.disabled=disabled()||readOnly();
       expand.hidden=!on;disclosure(expand,b.name,on&&p.open,group);group.setAttribute('aria-label',b.name+' columns');
       if((expand.hidden&&active===expand)||(group.hidden&&group.contains(active)))link.focus();
       reconcile(group,on&&p.open?b.columns.map((c,i)=>({...c,key:String(i),index:i})):[],c=>{
         const li=document.createElement('li');li.className='board-nav-column';
-        const row=document.createElement('div');row.className='sidebar-page';
-        const expand=control('',()=>toggle(b.id,c.index),'board-nav-disclosure board-nav-target');
-        const name=control('',()=>toggle(b.id,c.index),'sidebar-page-link board-nav-target');
+        const head=treeRow('div',1);
+        const expand=disclosureButton(()=>toggle(b.id,c.index));
+        const name=control('',()=>toggle(b.id,c.index),'sidebar-page-link list-row-target board-nav-target');
         const pages=document.createElement('ul');pages.id='board-tree-'+b.id+'-'+c.index;
-        row.append(expand,name);li.append(row,pages);return li;
+        head.append(expand,name);li.append(head,pages);return li;
       },(col,c)=>{
-        const [row,pages]=col.children,[arrow,name]=row.children,open=!p.closed.includes(c.index),active=document.activeElement;
+        const [head,pages]=col.children,[arrow,name]=head.children,open=!p.closed.includes(c.index),active=document.activeElement;
         label(name,c.name);disclosure(arrow,c.name,open,pages);name.title=arrow.title;name.setAttribute('aria-label',name.title);name.setAttribute('aria-expanded',String(open));name.setAttribute('aria-controls',pages.id);
         pages.setAttribute('aria-label',c.name+' pages');if(!open&&pages.contains(active))arrow.focus();
         reconcile(pages,!open?[]:c.pages.length?c.pages.map(id=>({key:id})): [{key:'empty'}],page=>{
-          const li=document.createElement('li');
-          if(page.key==='empty'){li.className='board-nav-empty';li.textContent='Empty column';}
-          else {li.className='sidebar-page board-nav-page';li.dataset.sidebarPage=page.key;li.append(control('',()=>navigate('/?note='+page.key),'sidebar-page-link board-nav-target'));}
+          if(page.key==='empty'){const li=document.createElement('li');li.className='board-nav-empty list-status';li.style.setProperty('--row-depth','2');li.textContent='Empty column';return li;}
+          const li=treeRow('li',2,'board-nav-page');li.dataset.sidebarPage=page.key;li.append(control('',()=>navigate('/?note='+page.key),'sidebar-page-link list-row-target board-nav-target'));
           return li;
         },(li,page)=>{
           if(page.key==='empty')return;
@@ -117,13 +110,13 @@ function createBoardsSidebar({host,scope,boards,names,pageStates,selected,disabl
     const items=[...host.querySelectorAll('.board-nav-target')].filter(b=>!b.disabled&&b.getClientRects().length),index=items.indexOf(target);
     let next;
     if(event.key==='ArrowRight'){
-      const arrow=target.closest('.sidebar-page')?.querySelector('.board-nav-disclosure:not([hidden])');
+      const arrow=target.closest('.board-nav-row')?.querySelector('.board-nav-disclosure:not([hidden])');
       if(arrow?.getAttribute('aria-expanded')==='false')arrow.click();
       else next=arrow?document.getElementById(arrow.getAttribute('aria-controls'))?.querySelector('.board-nav-target'):null;
     }else if(event.key==='ArrowLeft'){
-      const arrow=target.closest('.sidebar-page')?.querySelector('.board-nav-disclosure:not([hidden])');
+      const arrow=target.closest('.board-nav-row')?.querySelector('.board-nav-disclosure:not([hidden])');
       if(arrow?.getAttribute('aria-expanded')==='true')arrow.click();
-      else next=target.closest('ul')?.parentElement.querySelector(':scope > .sidebar-page .board-nav-disclosure');
+      else next=target.closest('ul')?.parentElement.querySelector(':scope > .board-nav-row .board-nav-disclosure');
     }else next=items[event.key==='Home'?0:event.key==='End'?items.length-1:Math.max(0,Math.min(items.length-1,index+(event.key==='ArrowDown'?1:-1)))];
     event.preventDefault();next?.focus();
   });

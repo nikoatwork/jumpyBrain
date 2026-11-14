@@ -7,6 +7,11 @@ export const referencePresentationStyles = `
   #note-editor.reference-markers-ready > :not([data-reference-editing]) .markdown-reference[data-page-reference="true"] {
     font-family: "jumpybrain-reference-markers", var(--font-writing, serif);
   }
+  /* Reference autocomplete (reference-autocomplete.ts): a .popover--menu of .menu-item options. */
+  [data-reference-autocomplete] { width: var(--width-popover); z-index: var(--z-menu); }
+  [data-reference-autocomplete] > .status-text { margin: 0; padding: var(--space-1) var(--space-2); }
+  [data-reference-autocomplete] .menu-item { flex-direction: column; align-items: stretch; gap: 0; overflow-wrap: anywhere; }
+  [data-reference-autocomplete] .menu-item small { overflow: hidden; color: var(--ink-soft); font-size: var(--text-caption); text-overflow: ellipsis; white-space: nowrap; }
 `;
 
 // Keep one literal text leaf for Lexical, native copy, caret offsets and IME.

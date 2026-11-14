@@ -1,3 +1,8 @@
+import { motion, viewportMargin } from "./browser-design-system.js";
+
+/** Gap between a control and its label, in px. */
+const labelGap = 6;
+
 // One top-layer label for existing titled controls, including disabled buttons.
 // Delegation also covers host/extension controls added after shell startup.
 // Styled by the shared .popover--tooltip primitive (browser-components.ts).
@@ -35,14 +40,14 @@ export function installControlLabels(doc: Document) {
     control.removeAttribute("title");
     label.textContent = text;
     if (immediate) reveal();
-    else hoverTimer = doc.defaultView!.setTimeout(reveal, 350);
+    else hoverTimer = doc.defaultView!.setTimeout(reveal, motion.tooltipDelay);
   }
   function position() {
     if (!active) return;
     const box = active.getBoundingClientRect(), size = label.getBoundingClientRect();
     const win = doc.defaultView!;
-    label.style.left = Math.max(8, Math.min(box.x + box.width / 2 - size.width / 2, win.innerWidth - size.width - 8)) + "px";
-    label.style.top = Math.max(8, box.bottom + size.height + 12 < win.innerHeight ? box.bottom + 6 : box.top - size.height - 6) + "px";
+    label.style.left = Math.max(viewportMargin, Math.min(box.x + box.width / 2 - size.width / 2, win.innerWidth - size.width - viewportMargin)) + "px";
+    label.style.top = Math.max(viewportMargin, box.bottom + size.height + 2 * labelGap < win.innerHeight ? box.bottom + labelGap : box.top - size.height - labelGap) + "px";
   }
   new MutationObserver(() => {
     if (!active) return;

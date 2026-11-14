@@ -122,18 +122,21 @@ export async function validateDreamHandoff({ browser, url, apiKey, screenshotDir
       await assertLayout(page);
 
       // Explicit forward/backward boundary wraps, including topic and readonly preview.
-      await page.keyboard.press("Tab");
-      await assertFocus(page, "dream-close");
+      // Dialog actions read Close (secondary) then Copy prompt (primary, last), so Copy is the forward boundary.
       await page.keyboard.press("Tab");
       await assertFocus(page, "dream-topic");
       await page.keyboard.press("Tab");
       await assertFocus(page, "dream-preview");
+      await page.keyboard.press("Tab");
+      await assertFocus(page, "dream-close");
+      await page.keyboard.press("Shift+Tab");
+      await assertFocus(page, "dream-preview");
       await page.keyboard.press("Shift+Tab");
       await assertFocus(page, "dream-topic");
       await page.keyboard.press("Shift+Tab");
-      await assertFocus(page, "dream-close");
-      await page.keyboard.press("Shift+Tab");
       await assertFocus(page, "dream-copy");
+      await page.keyboard.press("Shift+Tab");
+      await assertFocus(page, "dream-close");
       await page.keyboard.press("Shift+Tab");
       await assertFocus(page, "dream-preview");
       const graphUrl = page.url();

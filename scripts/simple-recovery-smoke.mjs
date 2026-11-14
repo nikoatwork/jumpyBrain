@@ -34,7 +34,7 @@ try{
     const context=await browser.newContext({viewport:{width,height:900},permissions:['clipboard-read','clipboard-write']}),page=await context.newPage();page.setDefaultTimeout(12000);page.on('pageerror',error=>errors.push(error.message));
     const wire=await installCollaborationSmokeTransport(page);await page.goto(`${server.url}/?note=${id}#apiKey=${writer.token}`);await saved(page);
     await failEdit(page,wire,'Monday','Tuesday');await review(page);
-    assert.deepEqual(await page.locator('#document-recovery > .dialog-actions button:visible').allTextContents(),['Keep my changes','Use saved version']);
+    assert.deepEqual(await page.locator('#document-recovery > .dialog-actions button:visible').allTextContents(),['Use saved version','Keep my changes']);
     assert.equal(await page.locator('#recovery-close').getAttribute('aria-label'),'Close');
     assert.equal(await page.locator('#recovery-options').evaluate(element=>element.open),false);assert.equal(await page.locator('#recovery-draft').isVisible(),false);
     assert.match(await page.locator('#recovery-changes').innerText(),/Removed/);assert.match(await page.locator('#recovery-changes').innerText(),/Added/);

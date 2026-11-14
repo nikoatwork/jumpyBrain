@@ -1,19 +1,17 @@
 import { browserIcons } from "./browser-icons.js";
+import { media } from "./browser-design-system.js";
 
+// Layout only: name/actions use the button primitive (icon on-state for Settle), the preference uses .check.
 export const boardSettingsStyles = String.raw`
 #settings-boards-list {margin-top:var(--space-3)}
-.board-settings-row {display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;min-height:var(--space-12);padding:var(--space-2) 0;border-bottom:1px solid var(--line)}
+.board-settings-row {display:flex;align-items:center;gap:var(--space-2);flex-wrap:wrap;min-height:var(--header-height);padding:var(--space-2) 0;border-bottom:1px solid var(--line)}
 .board-settings-row:last-child {border-bottom:0}
-.board-settings-name {flex:1;min-width:0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;--btn-fill:transparent;--btn-fill-hover:var(--hover-fill)}
-.board-settings-status {color:var(--ink-faint);font-size:var(--text-caption)}
+.board-settings-name {display:block;flex:1;min-width:0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .board-settings-actions {display:flex;gap:var(--space-1);flex:none}
-.board-settings-actions .note-icon {width:var(--control-compact);height:var(--control-compact);min-height:var(--control-compact);padding:var(--space-1);flex:none}
-.board-settings-actions [aria-pressed=true] {color:var(--accent);background:var(--surface-hover);box-shadow:inset 0 0 0 1px var(--accent)}
 .board-settings-row input:not([type=checkbox]) {flex:1;min-width:0;width:0;font-size:var(--text-body)}
-.board-settings-sidebar {display:flex;align-items:center;gap:var(--space-2);flex-basis:100%;font-size:var(--text-caption);color:var(--ink-soft);min-height:var(--control-compact)}
-.board-settings-sidebar input {width:16px;height:16px;flex:none;margin:0;accent-color:var(--accent)}
+.board-settings-sidebar {flex-basis:100%;min-height:var(--control-compact);color:var(--ink-soft);font-size:var(--text-caption)}
 .board-settings-confirm {flex:1;min-width:0;margin:0;font-size:var(--text-caption);overflow-wrap:anywhere}
-@media(max-width:680px){.board-settings-row{--control-compact:var(--control-touch);flex-wrap:wrap;padding:var(--space-1) 0}.board-settings-status{display:none}.board-settings-confirm{flex-basis:100%}}
+@media ${media.narrow}{.board-settings-row{padding:var(--space-1) 0}.board-settings-status{display:none}.board-settings-confirm{flex-basis:100%}.board-settings-sidebar{min-height:var(--control-touch)}}
 `;
 
 // Brain organization: writes use per-board hashes, scope guards and the selected brain's write permission.
@@ -21,8 +19,8 @@ export const boardSettingsScript = String.raw`
 function createBoardSettings({getBoards,disabled,readOnly=()=>false,scope,change,open,sidebar}) {
   const list=$('settings-boards-list');
   let edit=null;
-  const action=(label,run,icon)=>{
-    const el=document.createElement('button');el.type='button';el.className=icon?'quiet-button note-icon':'quiet-button';
+  const action=(label,run,icon,className)=>{
+    const el=document.createElement('button');el.type='button';el.className=className||(icon?'icon-button':'quiet-button');
     el.setAttribute('aria-label',label);el.title=label;el.onclick=run;
     if(icon)el.innerHTML=icon;else el.textContent=label;
     return el;
@@ -72,14 +70,14 @@ function createBoardSettings({getBoards,disabled,readOnly=()=>false,scope,change
           actions.append(action('Save board name',save,${JSON.stringify(browserIcons.check)}),action('Cancel rename',cancel,${JSON.stringify(browserIcons.close)}));row.append(input,actions);
         }else if(mode==='delete'){
           const message=document.createElement('p');message.className='board-settings-confirm';message.textContent='Delete “'+b.name+'”? Notes are kept.';
-          actions.append(action('Cancel',cancel),action('Delete board',save));row.append(message,actions);
+          actions.append(action('Cancel',cancel),action('Delete board',save,null,'button button-primary button--danger'));row.append(message,actions);
           row.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();cancel();}};
         }else{
           row.onkeydown=null;
-          const name=action(b.name,()=>open(b.id));name.classList.add('board-settings-name');
-          const status=document.createElement('span');status.className='board-settings-status';
-          actions.append(action('Rename '+b.name,()=>start(getBoards().find(x=>x.id===b.id),'rename'),${JSON.stringify(browserIcons.edit)}),action('Settle '+b.name,()=>toggle(b.id),${JSON.stringify(browserIcons.check)}),action('Delete '+b.name,()=>start(getBoards().find(x=>x.id===b.id),'delete'),${JSON.stringify(browserIcons.remove)}));
-          const preference=document.createElement('label');preference.className='board-settings-sidebar';
+          const name=action(b.name,()=>open(b.id),null,'quiet-button quiet-button--plain board-settings-name');
+          const status=document.createElement('span');status.className='list-meta board-settings-status';
+          actions.append(action('Rename '+b.name,()=>start(getBoards().find(x=>x.id===b.id),'rename'),${JSON.stringify(browserIcons.edit)}),action('Settle '+b.name,()=>toggle(b.id),${JSON.stringify(browserIcons.check)}),action('Delete '+b.name,()=>start(getBoards().find(x=>x.id===b.id),'delete'),${JSON.stringify(browserIcons.remove)},'icon-button button--danger'));
+          const preference=document.createElement('label');preference.className='check board-settings-sidebar';
           const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.onchange=()=>sidebar.setEnabled(b.id,checkbox.checked);
           preference.append(checkbox,document.createTextNode('Show pages in sidebar'));preference.title='Personal to this device and brain';
           row.append(name,status,actions,preference);

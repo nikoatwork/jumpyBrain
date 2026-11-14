@@ -2,7 +2,7 @@
 const icon = (body: string): string => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 /*!
- * Lucide pin, refresh-cw, chevron-right, chevron-down, chevrons-up-down and x shapes: https://lucide.dev (ISC License).
+ * Lucide pin, refresh-cw, chevron-right, chevron-down, chevrons-up-down, arrow-up and x shapes: https://lucide.dev (ISC License).
  * Copyright (c) 2026 Lucide Icons and Contributors
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -47,6 +47,7 @@ export const browserIcons = /* @__PURE__ */ (() => ({
   chevronRight: icon('<path d="m9 18 6-6-6-6"/>'),
   chevronDown: icon('<path d="m6 9 6 6 6-6"/>'),
   chevronsUpDown: icon('<path d="m7 15 5 5 5-5M7 9l5-5 5 5"/>'),
+  arrowUp: icon('<path d="m5 12 7-7 7 7M12 19V5"/>'),
   edit: icon('<path d="m4 16 12-12 4 4L8 20H4v-4ZM14 6l4 4"/>'),
   check: icon('<path d="m5 12 4 4L19 6"/>'),
   key: icon('<circle cx="8" cy="15.5" r="4"/><path d="m11 12.5 8.5-8.5M16.5 7l2.5 2.5M13.5 10l2 2"/>'),

@@ -58,7 +58,7 @@ try {
 
   await page.locator('#notes-link').click();
   await page.locator('#notes-link[aria-current="page"]').waitFor();
-  assert.notEqual(await page.locator('#notes-link').evaluate(el => getComputedStyle(el).borderColor), 'rgba(0, 0, 0, 0)', 'active Home has a visible border');
+  assert.ok(!/^(none|rgba\(0, 0, 0, 0\))/.test(await page.locator('#notes-link').evaluate(el => getComputedStyle(el).boxShadow)), 'active Home shows the shared on-state ring');
   await page.locator('#open-search').focus();
   await page.keyboard.press('Enter');
   await page.locator('#note-search[open]').waitFor();
@@ -174,6 +174,7 @@ try {
     assert.ok(actions.y >= before.y && actions.y + actions.height <= before.y + before.height, 'actions stay inside their row');
     await row.locator('a').focus(); await page.keyboard.press('Tab');
     assert.equal(await row.locator('[data-page-pin]').evaluate(el => document.activeElement === el), true, 'Tab reaches the first row action');
+    await row.locator('.sidebar-page-actions').evaluate(el => new Promise(resolve => { const done = () => getComputedStyle(el).opacity === '1' ? resolve() : requestAnimationFrame(done); done(); }));
     assert.equal(await row.locator('.sidebar-page-actions').evaluate(el => getComputedStyle(el).opacity), '1', 'keyboard focus reveals row actions');
     assert.equal(await row.locator('[data-page-pin]').evaluate(el => getComputedStyle(el).outlineStyle), 'solid', 'keyboard focus is visible');
     for (const selector of ['#graph-link', '#open-connection', '#open-feedback']) {

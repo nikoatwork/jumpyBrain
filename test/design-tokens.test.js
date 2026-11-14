@@ -16,29 +16,8 @@ import { sourceFilesFor } from "./source-graph-helpers.js";
 
 // Remaining drift per file and rule. Migrations lower these; the test fails if a count rises or falls.
 const baseline = {
-  "access-keys-view.ts": { "spacing": 1, "media": 1 },
-  "board-settings.ts": { "media": 1 },
-  "boards-sidebar.ts": { "media": 1 },
-  "boards-view.ts": { "color-literal": 1, "font-weight": 2, "line-height": 2, "spacing": 11, "radius": 1, "shadow": 1, "media": 1 },
-  "browser-appearance.ts": { "color-literal": 6, "media": 1 },
-  "browser-page-navigation.ts": { "media": 1 },
-  "browser-settings.ts": { "line-height": 1, "spacing": 1, "z-index": 1, "opacity": 1, "duration": 3, "media": 1 },
-  "browser-sidebar.ts": { "media": 1 },
-  "browser-system-messages.ts": { "z-index": 1 },
-  "companion-browser.ts": { "font-size": 1, "spacing": 1, "media": 4 },
-  "document-retained-versions.ts": { "spacing": 2 },
-  "drawings-view.ts": { "media": 1 },
-  "dream-handoff.ts": { "line-height": 1 },
-  "editor-task-presentation.ts": { "spacing": 4, "opacity": 1, "duration": 2, "easing": 2 },
-  "feedback.ts": { "line-height": 1 },
-  "folder-explorer-view.ts": { "spacing": 4, "radius": 1, "z-index": 3, "opacity": 1, "media": 3 },
-  "folder-explorer.ts": { "media": 2 },
-  "graph-page.ts": { "tracking": 1, "spacing": 14, "z-index": 1, "duration": 1, "easing": 1, "media": 2 },
-  "lexical-editor.ts": { "spacing": 1, "radius": 1, "z-index": 1 },
-  "note-outline-view.ts": { "radius": 1, "opacity": 2, "duration": 1, "easing": 1, "media": 1 },
-  "note-outline.ts": { "media": 1 },
-  "notes-browser.ts": { "color-literal": 3, "font-size": 10, "font-weight": 7, "line-height": 11, "tracking": 5, "spacing": 10, "radius": 2, "shadow": 1, "z-index": 2, "media": 5 },
-  "reference-autocomplete.ts": { "color-literal": 4, "font-size": 1, "line-height": 1, "spacing": 3, "radius": 1, "z-index": 1 },
+  "browser-appearance.ts": { "color-literal": 6 },
+  "notes-browser.ts": { "spacing": 2 },
 };
 
 // Permanent exceptions. `selector` matches the innermost rule prelude; `text` matches the declaration.
@@ -46,13 +25,15 @@ const allowlist = [
   { file: "graph-page.ts", rules: ["duration"], selector: /^\*, \*::before, \*::after$/, reason: "global Reduced Motion kill switch" },
   { file: "graph-page.ts", rules: ["opacity", "duration", "easing", "font-size", "font-weight", "tracking"], selector: /^(?:\.node|\.edge|\.match-context|#graph\[|\.graph-title)/, reason: "graph canvas geometry (out of scope, R9)" },
   { file: "browser-appearance.ts", rules: ["color-literal", "radius", "opacity", "shadow"], selector: /\.(?:mini-|appearance-mini|palette-(?:preview|ember|ocean|pride|mono))/, reason: "scaled appearance miniatures and palette swatches (R9)" },
-  { file: "lexical-editor.ts", rules: ["color-literal", "font-size"], selector: /^style\.cssText$/, text: /^(?:color:white|font:10px system-ui)$/, reason: "collaborator identity label ink/size on hashed identity colours (R9)" },
+  { file: "lexical-editor.ts", rules: ["color-literal"], selector: /^style\.cssText$/, text: /^color:white$/, reason: "collaborator identity label ink on hashed identity colours (R9)" },
   { file: "editor-task-presentation.ts", rules: ["duration", "easing"], text: /780ms/, reason: "task Quiet sweep choreography (R6 named exception)" },
   { file: "notes-browser.ts", rules: ["duration", "easing"], text: /(?:^|[\s,])4s\b/, reason: "external-change fade (R6 named exception)" },
 ];
 
-// Custom properties assigned by scripts or inline style attributes at runtime.
-const runtimeVariables = new Set(["--sidebar-width", "--folder-depth", "--participant-color", "--node-fill", "--row-depth"]);
+// Custom properties assigned at runtime in a way the declaration scan cannot see (it already
+// counts `--x:` declarations, inline style attributes and setProperty calls). Entries must stay
+// necessary: the test fails when one is unused or already found by the scan.
+const runtimeVariables = new Set([]);
 
 const httpServerDir = "adapters/http-server";
 const tokenSources = new Set(["browser-theme.ts", "browser-palettes.ts"]);
@@ -230,6 +211,8 @@ test("every var(--token) used by browser styles is defined", async () => {
     ...Object.values(builtInPalettes).flatMap((modes) => Object.values(modes).flatMap((tokens) => Object.keys(tokens).map((key) => `--${key}`)))]);
   const missing = used.filter((use) => !defined.has(use.variable)).map((use) => `${use.file}:${use.line} ${use.variable}`);
   assert.deepEqual(missing, [], `undefined custom properties:\n${missing.join("\n")}`);
+  const stale = [...runtimeVariables].filter((variable) => declared.has(variable) || !used.some((use) => use.variable === variable));
+  assert.deepEqual(stale, [], "runtime variable allowlist entries must be used and not otherwise declared");
 });
 
 test("design tokens and their script mirrors stay in sync", () => {

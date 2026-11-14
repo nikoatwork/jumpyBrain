@@ -5,6 +5,7 @@ import { createAttentionList, type AttentionPage } from "./browser-attention.js"
 import { readablePreview, resultEditContext } from "./search-presentation.js";
 import type { MemoryActor, SearchRecognitionMetadata } from "../../types.js";
 import { browserPinIcon } from "./browser-icons.js";
+import { media, motion } from "./browser-design-system.js";
 
 type Page = { id: string; title: string; preview?: string; updatedAt?: string; editor?: MemoryActor };
 type History = { pinned: Page[]; recent: Page[] };
@@ -327,14 +328,14 @@ export function installPageNavigation(options: {
       if (pin) history.toggle(pin);
       if (row) {
         row.dataset.settling = "true";
-        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && row.animate) {
-          const horizontal = window.matchMedia("(max-width: 680px)").matches;
+        if (!window.matchMedia(media.reducedMotion).matches && row.animate) {
+          const horizontal = window.matchMedia(media.narrow).matches;
           const size = horizontal ? "width" : "height";
           const extent = row.getBoundingClientRect()[size];
           transition.animation = row.animate([
             { opacity: 1, transform: "translateX(0)", [size]: extent + "px" },
             { opacity: 0, transform: "translateX(18px)", [size]: "0px", marginTop: "0px" },
-          ], { duration: 240, easing: "ease-out", fill: "forwards" });
+          ], { duration: motion.slow, easing: window.getComputedStyle(document.documentElement).getPropertyValue("--ease").trim() || "ease-out", fill: "forwards" });
           await transition.animation.finished.catch(() => {});
         }
       }

@@ -1045,7 +1045,7 @@ export function createNoteEditor(element: HTMLElement, options: {
   const cursorLayer = element.ownerDocument.createElement("div");
   cursorLayer.dataset.collaborationCursors = "true";
   cursorLayer.setAttribute("aria-hidden", "true");
-  cursorLayer.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:12;overflow:hidden";
+  cursorLayer.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:var(--z-overlay);overflow:hidden";
   element.ownerDocument.body.append(cursorLayer);
   // The exporter reads only its container's children. This readonly view
   // exports one attached block without moving nodes or mutating the document.
@@ -1173,7 +1173,7 @@ export function createNoteEditor(element: HTMLElement, options: {
           if (caret && caret.left >= bounds.left && caret.left < bounds.right && caret.bottom > bounds.top && caret.top < bounds.bottom) {
             const label = element.ownerDocument.createElement("span"); label.textContent = appearance.label + " · " + appearance.activity;
             label.dataset.collaborationLabel = "true"; label.dataset.collaborationKind = peer.kind;
-            label.style.cssText = `position:absolute;left:${caret.left}px;top:${Math.max(bounds.top, caret.top - 16)}px;max-width:${Math.min(180,bounds.right-bounds.left)}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:10px system-ui;background:${appearance.color};color:white;padding:1px 3px;border-radius:3px;box-sizing:border-box`;
+            label.style.cssText = `position:absolute;left:${caret.left}px;top:${Math.max(bounds.top, caret.top - 16)}px;max-width:${Math.min(180,bounds.right-bounds.left)}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:var(--text-caption)/1 var(--font-ui);background:${appearance.color};color:white;padding:1px var(--space-1);border-radius:var(--radius-xs);box-sizing:border-box`;
             cursorLayer.append(label);labels.push({element:label,bounds}); label.style.left = Math.max(bounds.left, Math.min(caret.left, bounds.right - label.getBoundingClientRect().width)) + "px";
           }
         } catch { /* Invalidated coordinates remain awareness-only until refreshed. */ }

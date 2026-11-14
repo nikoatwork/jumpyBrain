@@ -14,15 +14,14 @@ export function mountInlineUpdates() {
   const style = document.createElement('style');
   style.nonce = document.querySelector('style[nonce]')?.nonce || '';
   style.textContent = `
-    #desktop-updates { position: relative; flex: 0 0 auto; width: var(--control-compact, 32px); height: var(--control-compact, 32px); min-height: var(--control-compact, 32px); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-    #desktop-updates[data-quiet=true] { background: transparent; border-color: transparent; color: var(--ink-faint); box-shadow: none; }
-    #desktop-updates[data-quiet=true]:hover:not(:disabled), #desktop-updates[data-quiet=true]:focus-visible { color: var(--ink); }
-    #desktop-updates svg { width: var(--icon-size, 16px); height: var(--icon-size, 16px); }
-    #desktop-updates[data-attention=true] { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent) 10%, var(--control-fill)); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 24%, transparent); }
+    /* Ghost .icon-button from the page's button primitive (size, ink-soft -> ink, touch growth); states move --btn-* only. */
+    #desktop-updates { position: relative; }
+    #desktop-updates:not([data-attention=true]) { box-shadow: none; }
+    #desktop-updates[data-attention=true] { --btn-ink: var(--accent); --btn-ink-hover: var(--accent); --btn-fill: color-mix(in srgb, var(--accent) 10%, var(--control-fill)); --btn-fill-hover: var(--btn-fill); --btn-ring: color-mix(in srgb, var(--accent) 45%, var(--line)); box-shadow: inset 0 0 0 1px var(--btn-ring), 0 0 10px color-mix(in srgb, var(--accent) 24%, transparent); }
+    #desktop-updates[data-error=true] { --btn-ink: var(--error-ink); --btn-ink-hover: var(--error-ink); }
     @property --desktop-update-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
     /* Move the highlight inside a fixed border mask; rotating the outline would swing its corners outside the button. */
-    #desktop-updates[data-attention=true]::after { content: ''; position: absolute; inset: -1px; box-sizing: border-box; padding: 1.5px; border-radius: inherit; background: conic-gradient(from var(--desktop-update-angle), transparent 0deg 235deg, color-mix(in srgb, var(--accent) 45%, transparent) 285deg, var(--accent) 330deg, transparent 360deg); mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 65%, transparent)); pointer-events: none; animation: desktop-update-border 2.8s linear infinite; }
-    #desktop-updates[data-error=true] { color: var(--error-ink); }
+    #desktop-updates[data-attention=true]::after { content: ''; position: absolute; inset: 0; box-sizing: border-box; padding: 1.5px; border-radius: inherit; background: conic-gradient(from var(--desktop-update-angle), transparent 0deg 235deg, color-mix(in srgb, var(--accent) 45%, transparent) 285deg, var(--accent) 330deg, transparent 360deg); mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); mask-composite: exclude; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 65%, transparent)); pointer-events: none; animation: desktop-update-border 2.8s linear infinite; }
     #desktop-updates[data-working=true] svg { animation: desktop-update-spin 1.2s linear infinite; }
     @keyframes desktop-update-spin { to { transform: rotate(360deg); } }
     @keyframes desktop-update-border { to { --desktop-update-angle: 360deg; } }

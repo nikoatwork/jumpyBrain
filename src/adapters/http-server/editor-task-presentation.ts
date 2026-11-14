@@ -34,14 +34,14 @@ export const taskCompletionStyles = `
 
 #note-editor .markdown-task > button {
   position: relative;
-  transition: background-color 140ms ease, border-color 140ms ease;
+  transition: background-color var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease);
 }
 
 /* Keep a forgiving pointer target around the smaller visible box. */
 #note-editor .markdown-task > button::before {
   content: "";
   position: absolute;
-  inset: -4px;
+  inset: calc(-1 * var(--space-1));
 }
 
 #note-editor .markdown-task > button[aria-checked="true"] {
@@ -54,7 +54,7 @@ export const taskCompletionStyles = `
   content: "";
   width: 7px;
   height: 4px;
-  margin-top: -2px;
+  margin-top: calc(-1 * var(--space-0-5));
   border: solid currentColor;
   border-width: 0 0 2px 2px;
   transform: rotate(-45deg);
@@ -69,18 +69,18 @@ export const taskCompletionStyles = `
 
 /* Fade the entire label, including inline formatting and wrapped lines. */
 #note-editor .markdown-task > button[aria-checked="true"] + span {
-  opacity: .8;
+  opacity: var(--opacity-done);
 }
 
-/* The wash advances beneath the words, then dissolves completely. */
+/* The wash advances beneath the words, then dissolves completely (780ms: named motion exception). */
 #note-editor .markdown-task.task-completed > button[aria-checked="true"] + span::before {
   content: "";
   position: absolute;
   pointer-events: none;
   z-index: -1;
   inset-inline-start: 0;
-  top: 3px;
-  bottom: 3px;
+  top: calc(var(--space-0-5) * 1.5);
+  bottom: calc(var(--space-0-5) * 1.5);
   width: 100%;
   border-radius: var(--radius-sm);
   background: linear-gradient(90deg,
@@ -91,12 +91,12 @@ export const taskCompletionStyles = `
 }
 
 #note-editor .markdown-task.task-completed > button[aria-checked="true"] {
-  animation: task-quiet-settle 300ms ease-out both;
+  animation: task-quiet-settle var(--duration-slow) var(--ease) both;
 }
 
 #note-editor .markdown-task > button:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 3px;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
 }
 
 @keyframes task-quiet-wash {

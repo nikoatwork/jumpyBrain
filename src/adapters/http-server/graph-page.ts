@@ -2,7 +2,7 @@ import { folderExplorerMarkup, folderExplorerStyles } from "./folder-explorer-vi
 import { systemMessageMarkup, systemMessageStyles } from "./browser-system-messages.js";
 import { extensionStyles, extensionPanelMarkup } from "./extensions-view.js";
 import { browserChevronDownIcon, browserChevronsUpDownIcon, browserIcons } from "./browser-icons.js";
-import { designSystemStyles } from "./browser-design-system.js";
+import { designSystemStyles, media } from "./browser-design-system.js";
 import { buttonStyles } from "./browser-button.js";
 import { listStyles } from "./browser-list.js";
 import { componentStyles } from "./browser-components.js";
@@ -51,30 +51,24 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     :where(button, input, textarea, select) { font: inherit; }
     strong, b { font-weight: var(--weight-semibold); }
     button { cursor: pointer; }
-    :is(button, a, summary) { transition: color .12s ease; }
+    :is(button, a, summary) { transition: color var(--duration-fast) var(--ease); }
     :is(button, a, summary) svg { display: block; flex-shrink: 0; }
     button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-offset); }
     [hidden] { display: none !important; }
 
     /* Quiet map chrome shares the home screen's foundation. */
-    h1, dialog h2 { margin: 0; color: var(--ink); font-size: var(--text-heading); line-height: var(--leading-heading); letter-spacing: -.025em; font-weight: var(--weight-semibold); }
-    #graph-header { position: relative; z-index: 10; background: var(--surface); }
+    h1, dialog h2 { margin: 0; color: var(--ink); font-size: var(--text-heading); line-height: var(--leading-heading); letter-spacing: var(--tracking-tight); font-weight: var(--weight-semibold); }
+    #graph-header { position: relative; z-index: var(--z-sticky); background: var(--surface); }
     .map-heading { flex: 1 0 220px; }
     .graph-feedback { position: absolute; top: 100%; left: 0; right: 0; margin: 0; padding: var(--space-2) var(--space-6); background: var(--surface); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; pointer-events: none; }
+    .graph-error { margin: 0; padding: 0 var(--space-6) var(--space-3); }
 
-    /* Toolbar groups; text fields and buttons are shared primitives (browser-components.ts, browser-button.ts). */
+    /* Toolbar layout only: fields, icon buttons and the filter popover are shared primitives. */
     .toolbar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-5) var(--space-6); }
-    #query { width: 230px; min-width: 0; background: transparent; border-color: var(--line); }
+    #query { width: 230px; min-width: 0; }
     #graph-filters { position: relative; }
-    #graph-filters summary { cursor: pointer; list-style: none; }
-    #graph-filters summary::-webkit-details-marker { display: none; }
-    #graph-filters[open] summary { background: var(--surface-hover); }
-    .map-options { position: absolute; z-index: 1; right: 0; top: calc(100% + 8px); width: min(300px, calc(100vw - 32px)); padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-lg); }
-    .map-options label { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); }
-    .map-options .focus-field { display: block; }
-    #focus { display: block; width: 100%; margin-top: var(--space-1); }
-    .map-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
-    .map-options p { margin: 0; color: var(--ink-faint); font-size: var(--text-caption); }
+    .map-options { position: absolute; right: 0; top: calc(100% + var(--space-2)); display: grid; gap: var(--space-3); width: min(var(--popover-width), calc(100vw - var(--viewport-gutter))); }
+    .map-options > * { margin: 0; }
 
     main { display: flex; min-height: 0; }
     #graph-wrap { flex: 1 1 auto; min-width: 0; position: relative; overflow: hidden; background: var(--surface); }
@@ -85,13 +79,12 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     #graph[aria-busy="true"] .graph-title { opacity: .55; }
     #graph { position: relative; display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
     #graph:active { cursor: grabbing; }
-    .canvas-bottom { position: absolute; z-index: 2; left: 24px; right: 24px; bottom: 18px; display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); pointer-events: none; }
+    .canvas-bottom { position: absolute; z-index: 2; left: var(--space-6); right: var(--space-6); bottom: var(--space-5); display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); pointer-events: none; }
     .stats { color: var(--ink-soft); font-size: var(--text-caption); background: transparent; }
     .stats strong { font-weight: var(--weight-regular); font-variant-numeric: tabular-nums; }
     .canvas-tools { display: flex; gap: var(--space-1); background: var(--surface); pointer-events: auto; }
-    .helper { position: absolute; right: 24px; bottom: 62px; margin: 0; color: var(--ink-faint); font-size: var(--text-caption); pointer-events: none; }
-    .error { margin: 0; padding: 0 var(--space-6) var(--space-3); color: var(--error-ink); font-size: var(--text-ui); overflow-wrap: anywhere; }
-    #graph-empty { position: absolute; top: 40%; left: 24px; right: 24px; text-align: center; color: var(--ink-soft); pointer-events: none; }
+    .helper { position: absolute; right: var(--space-6); bottom: calc(var(--space-5) + var(--control-touch) + var(--space-1)); margin: 0; color: var(--ink-faint); font-size: var(--text-caption); pointer-events: none; }
+    #graph-empty { position: absolute; top: 40%; left: var(--space-6); right: var(--space-6); margin: 0 auto; pointer-events: none; }
     .sr-status { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
     .edge, .edge-shadow, .edge-highlight { stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
@@ -111,20 +104,20 @@ export function graphPageHtml(nonce: string, view: "home" | "graph" | "settings"
     .node:hover .node-halo, .node:focus-visible .node-halo, .node.selected .node-halo { opacity: 1; }
     .node.selected text { fill: var(--ink); font-weight: var(--weight-semibold); }
 
-    @media (max-width: 680px) {
+    @media ${media.narrow} {
       .toolbar { padding: var(--space-3) var(--space-4); gap: var(--space-1); }
       .map-heading { flex-basis: 100%; margin-bottom: var(--space-2); }
       #query { flex: 1 0 100%; width: 100%; order: 1; }
       #graph-filters { position: static; }
-      .map-options { right: 16px; top: calc(100% - 4px); }
-      .canvas-bottom { left: 16px; right: 16px; }
-      .helper { left: 16px; right: auto; font-size: var(--text-caption); }
-      .graph-feedback, .error { padding-inline: var(--space-4); }
+      .map-options { right: var(--space-4); top: calc(100% - var(--space-1)); }
+      .canvas-bottom { left: var(--space-4); right: var(--space-4); }
+      .helper { left: var(--space-4); right: auto; }
+      .graph-feedback, .graph-error { padding-inline: var(--space-4); }
     }
-    @media (max-width: 680px) and (max-height: 680px) {
-      .map-options { top: auto; bottom: calc(100% - 4px); }
+    @media ${media.shortNarrow} {
+      .map-options { top: auto; bottom: calc(100% - var(--space-1)); }
     }
-    @media (prefers-reduced-motion: reduce) {
+    @media ${media.reducedMotion} {
       *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
     }
     ${notesStyles}
@@ -153,24 +146,24 @@ ${dropdownGlyphsMarkup(browserChevronDownIcon, browserChevronsUpDownIcon)}
     <div class="map-heading">
       <h1>Memory map</h1>
     </div>
-    <button id="open-dream" class="quiet-button note-icon" type="button" aria-label="Consolidate notes (Dream)" title="Consolidate notes (Dream)" aria-haspopup="dialog" aria-controls="dream-handoff">${browserIcons.dream}</button>
+    <button id="open-dream" class="icon-button" type="button" aria-label="Consolidate notes (Dream)" title="Consolidate notes (Dream)" aria-haspopup="dialog" aria-controls="dream-handoff">${browserIcons.dream}</button>
     <input id="query" data-testid="graph-query" aria-label="Search notes on the map" placeholder="Search notes…" />
     <details id="graph-filters">
-      <summary class="quiet-button note-icon" aria-label="Filters" title="Filters">${browserIcons.filters}</summary>
-      <div class="map-options">
-        <label class="focus-field">Show connections around<input id="focus" data-testid="graph-focus" placeholder="Note title or file" /></label>
-        <label><input id="include-orphans" data-testid="graph-include-orphans" type="checkbox" checked />Notes without connections</label>
-        <label><input id="include-unresolved" data-testid="graph-include-unresolved" type="checkbox" checked />Links to missing notes</label>
-        <p>Dashed dots are links to notes that don't exist yet.</p>
+      <summary class="icon-button button--toggle" aria-label="Filters" title="Filters">${browserIcons.filters}</summary>
+      <div class="map-options popover">
+        <label class="field"><span class="field-label">Show connections around</span><input id="focus" data-testid="graph-focus" placeholder="Note title or file" /></label>
+        <label class="check"><input id="include-orphans" data-testid="graph-include-orphans" type="checkbox" checked />Notes without connections</label>
+        <label class="check"><input id="include-unresolved" data-testid="graph-include-unresolved" type="checkbox" checked />Links to missing notes</label>
+        <p class="field-help">Dashed dots are links to notes that don't exist yet.</p>
       </div>
     </details>
-    <button id="graph-index-state" class="icon-button" aria-label="Search maintenance" hidden>↻</button>
-    <button id="reload" data-testid="graph-reload" class="quiet-button note-icon" aria-label="Refresh notes and connections" title="Refresh notes and connections">${browserIcons.refresh}</button>
+    <button id="graph-index-state" class="icon-button" type="button" aria-label="Search maintenance" hidden>${browserIcons.refresh}</button>
+    <button id="reload" data-testid="graph-reload" class="icon-button" type="button" aria-label="Refresh notes and connections" title="Refresh notes and connections">${browserIcons.refresh}</button>
   </div>
 
   <p id="status" data-testid="graph-status" class="graph-feedback" role="status" hidden></p>
   <p id="ready" data-testid="graph-ready" class="sr-status" aria-live="polite" hidden>Map loaded.</p>
-  <p id="error" data-testid="graph-error" class="error" role="alert" hidden></p>
+  <p id="error" data-testid="graph-error" class="graph-error status-text" data-error="true" role="alert" hidden></p>
 </header>
 <main>
   <section id="graph-wrap" aria-label="Memory map">
@@ -184,7 +177,7 @@ ${dropdownGlyphsMarkup(browserChevronDownIcon, browserChevronsUpDownIcon)}
       </defs>
       <g id="viewport"></g>
     </svg>
-    <p id="graph-empty" role="status" hidden></p>
+    <p id="graph-empty" class="empty-state" role="status" hidden></p>
     <div class="canvas-bottom">
       <span class="stats" data-testid="graph-stats" aria-label="Shown on this map">
         <strong id="graph-node-count" data-testid="graph-node-count">0</strong> notes ·

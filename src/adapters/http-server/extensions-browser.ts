@@ -3,6 +3,8 @@ import type { Dispose, ExtensionCommandResult, ExtensionDescriptor, ExtensionDoc
 import type { createBrowserCommands } from "./browser-commands.js";
 import { prepareDropdown } from "./browser-dropdown.js";
 
+// The disclosure chevron is cloned from the server-rendered #extension-disclosure-glyph template
+// so this optional bundle carries no glyph data or icon license notice.
 const preferenceKey = "jumpybrain.extensions.v1";
 const tokens: ReadonlySet<string> = new Set(EXTENSION_THEME_ROLES);
 interface Preferences { version: 1; order: string[]; shortcuts: Record<string, string>; slots: Record<string, string>; theme: string; }
@@ -243,8 +245,8 @@ export function installExtensionsBrowser(options: Options) {
       return result;
     } finally { for (const item of abortSignals) item.removeEventListener("abort", abort); }
   }
-  function button(text: string, run: () => unknown, parent: HTMLElement) {
-    const item = doc.createElement("button"); item.type = "button"; item.className = "quiet-button"; item.textContent = text;
+  function button(text: string, run: () => unknown, parent: HTMLElement, className = "quiet-button") {
+    const item = doc.createElement("button"); item.type = "button"; item.className = className; item.textContent = text;
     item.addEventListener("click", () => {
       if (item.disabled) return;
       item.disabled = true; item.setAttribute("aria-busy", "true");
@@ -274,11 +276,13 @@ export function installExtensionsBrowser(options: Options) {
     commandDisposers.clear();
     for (const descriptor of snapshot?.extensions || []) {
       const row = doc.createElement("details"); row.className = "extension-item"; row.dataset.extensionId = descriptor.id; row.open = opened.has(descriptor.id);
-      const summary = doc.createElement("summary"); summary.textContent = descriptor.name + " · " + (descriptor.error ? "Error" : descriptor.status); row.append(summary);
-      if (descriptor.error) { const error = doc.createElement("p"); error.textContent = descriptor.error; row.append(error); }
+      const summary = doc.createElement("summary"); summary.className = "disclosure-trigger disclosure-trigger--inline";
+      const summaryText = doc.createElement("span"); summaryText.textContent = descriptor.name + " · " + (descriptor.error ? "Error" : descriptor.status);
+      summary.append(summaryText); const chevron = doc.querySelector<HTMLTemplateElement>("#extension-disclosure-glyph")?.content.firstElementChild; if (chevron) summary.append(chevron.cloneNode(true)); row.append(summary);
+      if (descriptor.error) { const error = doc.createElement("p"); error.className = "status-text status-text--caption"; error.dataset.error = "true"; error.textContent = descriptor.error; row.append(error); }
       const actions = doc.createElement("div"); actions.className = "companion-actions"; row.append(actions);
       button(descriptor.enabled ? "Disable" : "Enable", () => manage(descriptor.enabled ? "disable" : "enable", descriptor.id), actions);
-      button("Remove", () => manage("remove", descriptor.id), actions);
+      button("Remove", () => manage("remove", descriptor.id), actions, "quiet-button button--danger");
       const a = activations.get(descriptor.id);
       if (a) for (const theme of descriptor.themes) {
         const option = doc.createElement("option"); option.value = descriptor.id + ":" + theme.id; option.textContent = descriptor.name + " · " + theme.name; themeSelect.append(option);

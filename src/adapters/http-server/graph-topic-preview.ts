@@ -5,25 +5,22 @@ import { selectGraphSearchResults } from "./graph-search.js";
 import type { MemoryGraphNode, MemoryGraphResult } from "../../types.js";
 
 type Page = { id: string; title: string };
-export const graphTopicMarkup = (closeIcon: string) => `<dialog id="graph-topic" aria-labelledby="graph-topic-title">
-  <div class="dialog-heading"><h2 id="graph-topic-title"></h2><button id="graph-topic-close" class="icon-button" type="button" aria-label="Close topic preview" title="Close topic preview">${closeIcon}</button></div>
+// Dialog, list-row, status and button looks come from the shared primitives; this owns layout only.
+export const graphTopicMarkup = (closeIcon: string) => `<dialog id="graph-topic" class="dialog--md" aria-labelledby="graph-topic-title">
+  <div class="dialog-heading"><h2 id="graph-topic-title"></h2><button id="graph-topic-close" class="icon-button dialog-close" type="button" aria-label="Close topic preview" title="Close topic preview">${closeIcon}</button></div>
   <p class="graph-topic-description">This topic has no saved page yet. Explore the notes connected to it.</p>
-  <h3>Linked notes on this map</h3><ul id="graph-topic-links"></ul><p id="graph-topic-empty">No openable linked notes on this map.</p>
-  <section id="graph-topic-related" hidden><h3>Related notes</h3><ul id="graph-topic-results"></ul></section>
-  <p id="graph-topic-status" role="status" aria-live="polite"></p>
-  <button id="graph-topic-create" class="button" type="button" hidden>Create page</button>
+  <h3 class="list-section-label list-section-label--flush">Linked notes on this map</h3><ul id="graph-topic-links" class="list-reset"></ul><p id="graph-topic-empty" class="empty-state empty-state--inline">No openable linked notes on this map.</p>
+  <section id="graph-topic-related" hidden><h3 class="list-section-label list-section-label--flush">Related notes</h3><ul id="graph-topic-results" class="list-reset"></ul></section>
+  <p id="graph-topic-status" class="status-text" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button id="graph-topic-create" class="button button-primary" type="button" hidden>Create page</button></div>
 </dialog>`;
 export const graphTopicStyles = `
-  #graph-topic { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: var(--space-6); overflow: auto; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); }
-  #graph-topic::backdrop { background: var(--backdrop); }
-  #graph-topic .dialog-heading { display: flex; align-items: start; gap: var(--space-3); justify-content: space-between; }
-  #graph-topic h2 { overflow-wrap: anywhere; min-width: 0; }
-  #graph-topic-close { flex: none; }
-  #graph-topic h3 { margin: var(--space-5) 0 var(--space-2); font-size: var(--text-caption); font-weight: var(--weight-regular); color: var(--ink-soft); }
-  #graph-topic p { font-size: var(--text-ui); color: var(--ink-soft); overflow-wrap: anywhere; }
-  #graph-topic ul { list-style: none; padding: 0; margin: 0; }
-  #graph-topic a { display: block; padding: var(--space-2) 0; color: var(--ink); overflow-wrap: anywhere; }
-  #graph-topic-status:empty { display: none; }
+  .graph-topic-description { margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
+  #graph-topic h3 { margin-top: var(--space-5); }
+  #graph-topic ul { margin-inline: calc(-1 * var(--row-inset)); }
+  #graph-topic .list-row { overflow-wrap: anywhere; }
+  #graph-topic-status:empty { margin: 0; }
+  #graph-topic .dialog-actions:has(> [hidden]:only-child) { display: none; }
 `;
 
 /** Only explicit edges in the bounded displayed packet establish linked notes. */
@@ -54,7 +51,7 @@ export function installGraphTopicPreview(options: {
   function append(list: HTMLElement, pages: Page[], entry: NonNullable<typeof active>) {
     for (const page of pages) {
       const item = options.document.createElement("li"), link = options.document.createElement("a");
-      link.href = options.href(page.id); link.textContent = page.title || "Untitled";
+      link.className = "list-row"; link.href = options.href(page.id); link.textContent = page.title || "Untitled";
       link.addEventListener("click", event => {
         if (!current(entry) || entry.busy) { event.preventDefault(); return; }
         if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

@@ -1,5 +1,6 @@
 import { isValidMemoryDocumentId } from "../../core/document-id-format.js";
 import { readablePreview } from "./search-presentation.js";
+import { viewportMargin } from "./browser-design-system.js";
 import type { EditorSession } from "./editor-session.js";
 
 /** Literal bounded title query retained by the explicit graph topic preview. */
@@ -66,7 +67,7 @@ export function installRelatedPages(options: {
     for (const page of pages) {
       const item = options.document.createElement("li");
       const link = options.document.createElement("a");
-      link.className = "quiet-button"; link.href = options.href(page.id);
+      link.className = "quiet-button chip chip--truncate"; link.href = options.href(page.id);
       link.textContent = page.title || "Untitled";
       preview?.bind(link, page);
       link.addEventListener("click", event => {
@@ -145,7 +146,7 @@ export function installRelatedPages(options: {
 function installRelatedPagePreview(doc: Document, read: (id: string, signal: AbortSignal) => Promise<unknown>, identity: () => string) {
   const win = doc.defaultView!;
   const tooltip = doc.createElement("div"), text = doc.createElement("span");
-  tooltip.hidden = true; tooltip.id = "related-page-preview"; tooltip.setAttribute("role", "tooltip");
+  tooltip.hidden = true; tooltip.id = "related-page-preview"; tooltip.className = "popover popover--caption"; tooltip.setAttribute("role", "tooltip");
   tooltip.setAttribute("popover", "manual"); tooltip.append(text); doc.body.append(tooltip);
   const cache = new Map<string, { text: string; at: number }>();
   let active: HTMLAnchorElement | null = null, request: AbortController | null = null;
@@ -159,8 +160,8 @@ function installRelatedPagePreview(doc: Document, read: (id: string, signal: Abo
   function position() {
     if (!active) return;
     const box = active.getBoundingClientRect(), size = tooltip.getBoundingClientRect();
-    tooltip.style.left = Math.max(8, Math.min(box.x, win.innerWidth - size.width - 8)) + "px";
-    tooltip.style.top = Math.max(8, Math.min(win.innerHeight - size.height - 8, box.bottom + size.height + 12 < win.innerHeight ? box.bottom + 6 : box.top - size.height - 6)) + "px";
+    tooltip.style.left = Math.max(viewportMargin, Math.min(box.x, win.innerWidth - size.width - viewportMargin)) + "px";
+    tooltip.style.top = Math.max(viewportMargin, Math.min(win.innerHeight - size.height - viewportMargin, box.bottom + size.height + 12 < win.innerHeight ? box.bottom + 6 : box.top - size.height - 6)) + "px";
   }
   function show(link: HTMLAnchorElement, page: { id: string; title: string }, immediate: boolean) {
     if (active === link && !immediate) return;

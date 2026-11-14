@@ -1,9 +1,13 @@
 import { installExplorerActions, type ExplorerOperationHost } from "./folder-explorer-actions.js";
 import { buildExplorerTree, explorerAge, explorerFiles, explorerFolders, explorerRows, isExplorerSort, revealExplorerFile, type ExplorerFile, type ExplorerNode, type ExplorerRow, type ExplorerSort } from "./folder-explorer-model.js";
 import { prepareDropdown } from "./browser-dropdown.js";
+import { media } from "./browser-design-system.js";
+import { browserChevronIcon } from "./browser-icons.js";
 
 // Device-local presentation preference, like sidebar width; never canonical or brain-scoped.
 const sortKey = "jumpybrain.folderExplorerSort";
+// Leading row glyphs: the shared disclosure chevron for folders, a faint document outline for files.
+const fileGlyph = '<span class="list-row-lead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></svg></span>';
 
 /** Scoped panel. The host owns authentication, write admission and guarded navigation. */
 export function installFolderExplorer(options: {
@@ -25,8 +29,11 @@ export function installFolderExplorer(options: {
   let sort: ExplorerSort = "name";
   try { const saved = window.localStorage.getItem(sortKey); if (isExplorerSort(saved)) sort = saved; } catch { /* Tab-only preference. */ }
   sortSelect.value = sort; prepareDropdown(sortSelect);
-  const narrow = window.matchMedia("(max-width: 680px)");
-  const overlay = window.matchMedia("(max-width: 1000px)");
+  const narrow = window.matchMedia(media.narrow);
+  // Narrow or overlay widths: the explorer covers the note, so a chosen note dismisses it.
+  const overlay = window.matchMedia(`${media.narrow}, ${media.explorerOverlay}`);
+  const glyphs = document.createElement("template"); glyphs.innerHTML = browserChevronIcon + fileGlyph;
+  const glyph = (kind: "folder" | "file") => glyphs.content.children[kind === "folder" ? 0 : 1]!.cloneNode(true) as Element;
   let scope = options.scope(), selected: string | null = null, opened = false, stopped = false;
   let directories: string[] = [];
   let files: ExplorerFile[] = [], tree: ExplorerNode[] = [], rows: ExplorerRow[] = [];
@@ -93,12 +100,15 @@ export function installFolderExplorer(options: {
       let button = buttons.get(node.path);
       if (!button) {
         button = document.createElement("button"); button.type = "button";
-        button.className = "folder-explorer-row"; button.setAttribute("role", "treeitem");
-        const glyph = document.createElement("span"); glyph.className = "folder-explorer-glyph"; glyph.setAttribute("aria-hidden", "true");
-        const label = document.createElement("span"); label.className = "folder-explorer-label";
-        const age = document.createElement("span"); age.className = "folder-explorer-age"; age.setAttribute("aria-hidden", "true");
-        button.append(glyph, label, age); buttons.set(node.path, button);
+        button.className = "folder-explorer-row list-row list-row--edge list-row--compact"; button.setAttribute("role", "treeitem");
+        const label = document.createElement("span"); label.className = "folder-explorer-label list-row-label";
+        const age = document.createElement("span"); age.className = "folder-explorer-age list-row-meta"; age.setAttribute("aria-hidden", "true");
+        button.append(glyph(node.kind), label, age); buttons.set(node.path, button);
       }
+      // Folders are disclosure triggers (chevron rotates with aria-expanded); files lead with a document glyph.
+      const folder = node.kind === "folder";
+      button.classList.toggle("disclosure-trigger", folder);
+      if (button.firstElementChild!.classList.contains("disclosure-chevron") !== folder) button.firstElementChild!.replaceWith(glyph(node.kind));
       button.dataset.explorerPath = node.path;
       button.draggable = node.kind === "file" && Boolean(node.id) && Boolean(options.operations?.writable()) && !actions.isBusy();
       if (node.kind === "folder") {
@@ -115,7 +125,7 @@ export function installFolderExplorer(options: {
       const active = node.kind === "file" && Boolean(node.id) && node.id === selected;
       button.setAttribute("aria-selected", String(active));
       if (active) button.setAttribute("aria-current", "page"); else button.removeAttribute("aria-current");
-      button.style.setProperty("--folder-depth", String(Math.min(row.level - 1, 12)));
+      button.style.setProperty("--row-depth", String(Math.min(row.level - 1, 12)));
       const age = node.kind === "file" ? explorerAge(node, sort, now) : { label: "", details: "" };
       button.children[1]!.textContent = row.label;
       button.lastElementChild!.textContent = age.label;

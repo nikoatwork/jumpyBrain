@@ -1,6 +1,7 @@
 import { drawingsNavigationControl, drawingsSidebarMarkup } from "./drawings-view.js";
 import { folderExplorerToggle } from "./folder-explorer-view.js";
-import { browserIcons } from "./browser-icons.js";
+import { browserChevronIcon, browserIcons } from "./browser-icons.js";
+import { media } from "./browser-design-system.js";
 import { noteAttentionMarkup, noteAttentionStyles } from "./note-attention-view.js";
 import { referencePresentationStyles } from "./editor-reference-presentation.js";
 import { taskCompletionStyles } from "./editor-task-presentation.js";
@@ -8,37 +9,34 @@ import { noteOutlineMarkup, noteOutlineStyles } from "./note-outline-view.js";
 
 // Adapter-owned browser presentation, composed into the nonce-protected shell.
 // String.raw keeps shell JavaScript readable; the Lexical surface is bundled separately.
+// Looks come from the shared primitives (browser-button/-list/-components.ts); rules here own layout.
 export const notesStyles = String.raw`
 ${noteAttentionStyles}
 ${noteOutlineStyles}
-    #note-find { position: sticky; top: 8px; z-index: 3; display: flex; align-items: center; gap: 8px;
-      padding: 6px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); }
-    #note-find[hidden] { display: none; }
+    #note-find { position: sticky; top: var(--space-2); z-index: 3; display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); }
     #note-find-input { min-width: 0; width: 100%; flex: 1; }
-    #note-find-count { font: var(--text-caption)/1.5 var(--font-ui); white-space: nowrap; }
-    #note-find button { flex-shrink: 0; padding: 0; }
-    ::highlight(note-find) { background: #d2a02955; color: inherit; }
-    ::highlight(note-find-current) { background: #da8b19aa; color: inherit; }
+    #note-find-count { font: var(--text-caption)/var(--leading-ui) var(--font-ui); white-space: nowrap; }
+    #note-find-previous svg { transform: rotate(180deg); }
+    ::highlight(note-find) { background: var(--find-fill); color: inherit; }
+    ::highlight(note-find-current) { background: var(--find-fill-current); color: inherit; }
     body { display: flex; height: 100dvh; }
     .app-workspace { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
-    .app-nav { width: clamp(224px, var(--sidebar-width, 320px), 40vw); position: relative; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
+    .app-nav { width: clamp(var(--sidebar-min-width), var(--sidebar-width, 320px), 40vw); position: relative; flex: 0 0 auto; display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 1px solid var(--line); overflow: auto; }
     .app-nav, .app-nav :is(.nav-library, .sidebar-attention-scroll, .sidebar-settled, ul) { scrollbar-width: none; }
     .app-nav::-webkit-scrollbar, .app-nav :is(.nav-library, .sidebar-attention-scroll, .sidebar-settled, ul)::-webkit-scrollbar { display: none; }
     :root[data-sidebar-collapsed="true"] .app-nav { display: none; }
     .workspace-history { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); margin: var(--space-2) var(--space-3); }
-    .workspace-history .icon-button { background: transparent; }
     .workspace-toolbar > #toggle-sidebar + .workspace-history { margin-left: 0; }
-    .workspace-toolbar { display: flex; align-items: center; flex: 0 0 auto; min-height: 48px; }
-    #toggle-sidebar { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); margin: 0; padding: var(--space-1); background: transparent; }
-    #toggle-sidebar svg { width: 20px; height: 20px; }
+    .workspace-toolbar { display: flex; align-items: center; flex: 0 0 auto; min-height: var(--header-height); }
+    #toggle-sidebar svg { width: var(--icon-size-lg); height: var(--icon-size-lg); }
     .workspace-toolbar > #toggle-sidebar { margin: var(--space-2) var(--space-3); }
-    .nav-brand { display: grid; grid-template-columns: minmax(0, 1fr) var(--control-compact) minmax(0, max-content); grid-template-rows: var(--space-12); align-items: center; min-width: 0; min-height: var(--space-12); column-gap: var(--space-1); }
+    .nav-brand { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, max-content); grid-template-rows: var(--header-height); align-items: center; min-width: 0; min-height: var(--header-height); column-gap: var(--space-1); }
     .nav-brand > #toggle-sidebar { grid-column: 2; }
     .nav-brand > .home-link { grid-column: 3; }
-    .app-nav .home-link { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--weight-regular) var(--text-body)/var(--leading-ui) var(--font-writing); letter-spacing: -.035em; padding: var(--space-2) var(--space-1); background: transparent; color: var(--ink); }
+    .app-nav .home-link { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--weight-regular) var(--text-body)/var(--leading-ui) var(--font-writing); letter-spacing: var(--tracking-brand); padding: var(--space-2) var(--space-1); color: var(--ink); }
     .home-link .brand-jumpy { font-style: italic; }
     .home-link strong { font-weight: var(--weight-semibold); }
-    :root[data-native-mac="true"] .nav-brand { grid-template-columns: minmax(calc(var(--space-16) + var(--space-3)), 1fr) var(--control-compact) minmax(0, max-content); column-gap: 0; }
+    :root[data-native-mac="true"] .nav-brand { grid-template-columns: minmax(calc(var(--space-16) + var(--space-3)), 1fr) auto minmax(0, max-content); column-gap: 0; }
     :root[data-native-mac="true"][data-sidebar-collapsed="true"] .workspace-toolbar { padding-left: calc(var(--space-16) + var(--space-3)); }
     :root[data-native-mac="true"] :is(.nav-brand, .workspace-toolbar) { -webkit-app-region: drag; user-select: none; }
     :root[data-native-mac="true"] :is(a, button, input, select, textarea, [role="button"], [role="tooltip"], [popover], #companion-active) { -webkit-app-region: no-drag; }
@@ -46,134 +44,108 @@ ${noteOutlineStyles}
     .nav-tools { display: flex; align-items: center; gap: var(--space-1); }
     .nav-utilities { justify-self: end; display: flex; align-items: center; gap: var(--space-2); }
     .nav-footer { display: flex; flex-direction: column; gap: var(--space-2); flex-shrink: 0; }
-    .nav-preferences { --control-height: var(--control-compact); display: grid; grid-template-columns: repeat(3, var(--control-compact)) minmax(0, 1fr); align-items: center; gap: var(--space-2); margin-top: 0; flex-shrink: 0; }
-    .app-nav .nav-item { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-height); padding: var(--space-1) var(--space-3); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); text-align: left; background: transparent; }
-    .nav-item svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
-    .app-nav .nav-item:not(.sidebar-icon, [aria-current="page"]):hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
-    .app-nav [aria-current="page"] { background: var(--control-fill); color: var(--ink); }
-    .app-nav .nav-tools .sidebar-icon { border: 1px solid transparent; background: transparent; }
-    .app-nav .nav-tools .sidebar-icon[aria-current="page"] { border-color: var(--line); background: var(--control-fill); }
-    .app-nav .sidebar-icon { flex-shrink: 0; justify-content: center; width: var(--control-height); min-width: var(--control-height); height: var(--control-height); padding: 0; }
+    .nav-preferences { display: grid; grid-template-columns: repeat(3, auto) minmax(0, 1fr); align-items: center; gap: var(--space-2); margin-top: 0; flex-shrink: 0; }
     .nav-library { display: flex; flex-direction: column; flex: 1; min-height: 0; margin-inline: calc(-1 * var(--space-3)); overflow: hidden; }
     .nav-library > * { flex-shrink: 0; }
     .sidebar-attention-scroll { flex: 1 1 0; min-height: 0; overflow: auto; }
-    .sidebar-section-heading, .sidebar-settled summary { margin: var(--space-2) var(--space-6); color: var(--ink-soft); font: var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); }
     .sidebar-settled { margin-top: auto; max-height: 40%; overflow: auto; padding-top: var(--space-1); }
-    .sidebar-settled summary { display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; margin: 0; min-height: var(--space-12); padding: var(--space-3) var(--space-6) var(--space-3) var(--space-5); color: var(--ink-faint); font-size: var(--text-body); }
-    .sidebar-settled summary::-webkit-details-marker { display: none; }
-    .sidebar-settled summary::after { content: ""; flex: 0 0 var(--space-1); width: var(--space-1); height: var(--space-1); border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); }
-    .sidebar-settled[open] summary::after { transform: rotate(45deg); }
-    .sidebar-settled summary:hover { background: var(--hover-fill); color: var(--ink); }
-    .sidebar-settled summary:focus-visible { outline-offset: -2px; }
-    #sidebar-settled-count { margin-left: auto; font-variant-numeric: tabular-nums; }
-    .sidebar-list-more { margin: var(--space-1) var(--space-6); font-size: var(--text-caption); }
     .nav-library ul { list-style: none; margin: 0; padding: 0; }
     .nav-library ul:not(:empty) + ul, .sidebar-page + .sidebar-page { margin-top: var(--space-2); }
-    .sidebar-empty { margin: var(--space-1) var(--space-6); font-size: var(--text-caption); line-height: 1.5; color: var(--ink-faint); }
-    .sidebar-page { display: flex; align-items: center; min-width: 0; padding-inline: var(--space-3); }
-    .sidebar-page:hover, .sidebar-page:focus-within { background: var(--hover-fill); }
+    .sidebar-empty { padding-inline: var(--space-6); }
+    .sidebar-empty:empty { display: none; }
+    /* Sidebar page rows (built by browser-page-navigation.ts): full-bleed surface on the li, one link target, age lane. */
+    .sidebar-page { position: relative; display: flex; align-items: center; min-width: 0; padding-inline: var(--row-inset); }
+    .sidebar-page:is(:hover, :focus-within) { background: var(--hover-fill); }
     .sidebar-page:has([aria-current="page"]) { background: var(--control-fill); }
-    .sidebar-page-link { display: flex; align-items: center; flex: 1; min-width: 0; min-height: var(--control-height); padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3); color: var(--ink-soft); text-decoration: none; font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); border-radius: var(--radius-sm); }
+    .sidebar-page-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(var(--space-8), max-content); gap: var(--space-2) var(--row-meta-gap); align-items: center; flex: 1; min-width: 0; min-height: var(--control-height); padding: var(--space-3); color: var(--ink-soft); text-decoration: none; font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); }
     .sidebar-page-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sidebar-page-link[aria-current="page"] { color: var(--ink); background: transparent; }
-    .sidebar-page-link:focus-visible, .sidebar-page-pin:focus-visible { outline-offset: -2px; }
-    .sidebar-page-pin { display: grid; place-items: center; flex: 0 0 var(--control-compact); width: var(--control-compact); height: var(--control-compact); padding: var(--space-1); border: 0; border-radius: var(--radius-sm); color: var(--ink-soft); background: transparent; opacity: 0; }
-    .sidebar-page-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(var(--space-8), max-content); gap: var(--space-2) var(--space-3); padding: var(--space-3); }
+    .sidebar-page-link:focus-visible, .sidebar-page-pin:focus-visible { outline-offset: var(--focus-offset-inset); }
     .sidebar-page-title { grid-column: 1; grid-row: 1; color: var(--ink); font-size: var(--text-body); font-weight: var(--weight-semibold); }
     .sidebar-page-preview { grid-row: 2; grid-column: 1; color: var(--ink-soft); font-size: var(--text-ui); }
     .sidebar-page-age { grid-column: 2; grid-row: 1; align-self: center; justify-self: end; text-align: right; font-size: var(--text-caption); font-variant-numeric: tabular-nums; color: var(--ink-faint); }
-    .sidebar-page { position: relative; }
-    .sidebar-page .sidebar-page-actions { position: absolute; right: var(--space-4); top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none; border-radius: var(--radius-sm); }
-    .sidebar-page:hover .sidebar-page-actions, .sidebar-page:focus-within .sidebar-page-actions { opacity: 1; pointer-events: auto; }
-    @media (hover: hover) {
+    /* One reveal mechanism for row actions: the container fades in on row hover/focus-within; always shown on touch. */
+    .sidebar-page .sidebar-page-actions { position: absolute; right: var(--space-4); top: 50%; transform: translateY(-50%); opacity: 0; pointer-events: none; }
+    .sidebar-page:is(:hover, :focus-within) .sidebar-page-actions { opacity: 1; pointer-events: auto; }
+    .sidebar-page-pin { display: grid; place-items: center; flex: none; width: var(--control-compact); height: var(--control-compact); padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--ink-soft); }
+    .sidebar-page-pin svg { width: var(--icon-size); height: var(--icon-size); }
+    .sidebar-page-pin:hover:not(:disabled) { color: var(--ink); }
+    .sidebar-page-pin[aria-pressed="true"] svg path:last-child, .sidebar-page-pin-mark svg path:last-child { fill: currentColor; }
+    .sidebar-page-pin-mark { position: absolute; left: var(--space-1); top: calc(var(--space-3) + var(--space-1)); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
+    .sidebar-page-pin-mark svg { width: var(--icon-size-sm); height: var(--icon-size-sm); }
+    .sidebar-page[data-settling] { pointer-events: none; overflow: hidden; }
+    @media ${media.hover} {
       .sidebar-page:has(.sidebar-page-actions):is(:hover, :focus-within) .sidebar-page-link { padding-right: calc(3 * var(--control-compact) + var(--space-2)); }
       .sidebar-page:has(.sidebar-page-actions):is(:hover, :focus-within) :is(.sidebar-page-title, .sidebar-page-preview) { grid-column: 1 / -1; }
       .sidebar-page:has(.sidebar-page-actions):is(:hover, :focus-within) .sidebar-page-age { visibility: hidden; }
     }
+    @media ${media.touch} { .sidebar-page .sidebar-page-actions { position: static; transform: none; opacity: 1; pointer-events: auto; } }
     #sidebar-resize { position: absolute; z-index: 1; right: 0; top: 0; bottom: 0; width: 5px; cursor: col-resize; touch-action: none; -webkit-app-region: no-drag; }
     #sidebar-resize:hover, #sidebar-resize:focus-visible { background: var(--line-strong); }
-    @media (hover: none) { .sidebar-page .sidebar-page-actions { position: static; transform: none; opacity: 1; pointer-events: auto; } }
-    @media (max-width: 680px) { #sidebar-resize { display: none; } }
-    .sidebar-page-pin[aria-pressed="true"] svg path:last-child, .sidebar-page-pin-mark svg path:last-child { fill: currentColor; }
-    .sidebar-page-pin-mark { position: absolute; left: var(--space-1); top: calc(var(--space-3) + var(--space-1)); display: flex; align-items: center; justify-content: center; color: var(--ink-faint); }
-    .sidebar-page-pin-mark svg { width: 12px; height: 12px; }
-    .sidebar-page[data-settling] { pointer-events: none; overflow: hidden; }
-    .sidebar-page-pin svg { width: 16px; height: 16px; }
-    .sidebar-page:hover .sidebar-page-pin, .sidebar-page:focus-within .sidebar-page-pin { opacity: 1; }
-    .sidebar-page-pin:hover:not(:disabled) { color: var(--ink); }
-    @media (hover: none) { .sidebar-page-pin { opacity: 1; } }
-    .document-status { display: flex; flex-wrap: wrap; min-width: 0; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: 48px; padding: var(--space-2) var(--space-4); }
+    @media ${media.narrow} { #sidebar-resize { display: none; } }
+    .document-status { display: flex; flex-wrap: wrap; min-width: 0; flex: 1; align-items: center; justify-content: flex-end; gap: var(--space-2); min-height: var(--header-height); padding: var(--space-2) var(--space-4); }
     body:not([data-view="note"]) .document-status { display: none; }
     #graph-header { flex: 0 0 auto; }
-    .action-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); width: 100%; padding: var(--space-2) var(--space-3); text-align: left; }
-    .action-row svg { width: var(--icon-size); height: var(--icon-size); }
-    .quiet-button.attention-icon { flex: 0 0 auto; min-height: var(--control-compact); padding: 0; --btn-fill-hover: var(--btn-fill); }
-    .home { width: 100%; overflow: auto; padding: clamp(var(--space-8), 8vh, 80px) var(--space-6) var(--space-12); text-align: center; }
-    .home-actions { width: min(100%, 560px); margin: 0 auto; text-align: left; }
-    .home-actions h1 { margin: 0 0 var(--space-6); font-size: var(--text-display); line-height: var(--leading-heading); font-weight: var(--weight-semibold); letter-spacing: -.035em; }
-    .home-action { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 56px; padding: var(--space-3) var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); text-align: left; font-size: var(--text-body); }
+    .home { width: 100%; overflow: auto; padding: clamp(var(--space-8), 8vh, calc(var(--space-16) + var(--space-4))) var(--space-6) var(--space-12); text-align: center; }
+    .home-actions { width: min(100%, var(--measure-narrow)); margin: 0 auto; text-align: left; }
+    .home-actions h1 { margin: 0 0 var(--space-6); font-size: var(--text-display); line-height: var(--leading-heading); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-brand); }
+    /* Home actions: primary (#home-new) and plain (#home-search) buttons laid out as 56px cards. */
+    .home-action { --btn-ring: var(--line); justify-content: flex-start; gap: var(--space-3); width: 100%; min-height: 56px; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); text-align: left; font-size: var(--text-body); }
+    .home-action > svg { width: var(--icon-size-lg); height: var(--icon-size-lg); }
     .home-action-label { flex: 1; }
-    .home-action-icon { width: 20px; height: 20px; flex: 0 0 auto; }
-    #home-new { background: var(--control-fill); color: var(--ink); font-weight: var(--weight-semibold); }
-    #home-new:hover:not(:disabled) { background: var(--control-hover); }
-    #home-search { margin-top: var(--space-3); background: transparent; color: var(--ink-soft); }
-    #home-search:hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
-    .recent-notes { width: min(100%, 560px); margin: var(--space-10) auto 0; text-align: left; }
+    .home-action > .kbd { flex-shrink: 0; }
+    #home-search { margin-top: var(--space-3); }
+    .recent-notes { width: min(100%, var(--measure-narrow)); margin: var(--space-10) auto 0; text-align: left; }
     .recent-heading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-1); }
     .recent-heading h2 { margin: 0; font-size: var(--text-ui); font-weight: var(--weight-semibold); }
     .recent-description, #recent-message { color: var(--ink-soft); font-size: var(--text-caption); }
     .recent-description { margin: 0 0 var(--space-1); }
-    #recent-list { list-style: none; margin: 0; padding: 0; }
-    .recent-link { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) var(--space-3); margin-inline: calc(-1 * var(--space-3)); border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; }
-    .recent-link:hover { background: var(--hover-fill); }
-    .recent-link span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .recent-link .recent-date { flex-shrink: 0; color: var(--ink-soft); font-size: var(--text-caption); }
+    .recent-link { margin-inline: calc(-1 * var(--row-inset)); }
     kbd { font: inherit; color: var(--ink); }
-    .home-action kbd { flex-shrink: 0; padding: var(--space-1) var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: var(--text-caption); font-weight: var(--weight-regular); color: inherit; }
     body:not([data-view="graph"]) #graph-header, body:not([data-view="graph"]) #graph-wrap { display: none; }
     main, body[data-view="graph"] main { flex: 1; height: auto; min-height: 0; }
     #note-panel { width: 100%; min-width: 0; overflow: auto; scrollbar-gutter: stable; scrollbar-color: var(--line-strong) transparent; scroll-padding-block: var(--space-8); }
     #note-layout { width: 100%; min-width: 0; }
-    .note-column { width: min(100%, 760px); margin: 0 auto; padding: clamp(var(--space-8), 5vh, var(--space-12)) var(--space-10) max(160px, 30vh); }
-    #note-title { margin: 0 0 var(--space-6); color: var(--ink); font: 500 clamp(30px, 4vw, 40px)/1.25 var(--font-writing); letter-spacing: -.025em; overflow-wrap: anywhere; }
-    #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 var(--space-6); padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 500 clamp(30px, 4vw, 40px)/1.25 var(--font-writing); letter-spacing: -.025em; overflow-wrap: anywhere; }
+    .note-column { width: min(100%, var(--measure)); margin: 0 auto; padding: clamp(var(--space-8), 5vh, var(--space-12)) var(--space-10) max(160px, 30vh); }
+    /* Writing surface: content typography (--writing-* tokens), not the interface scale. */
+    #note-title { margin: 0 0 var(--space-6); color: var(--ink); font: var(--weight-writing-title) var(--writing-title)/var(--leading-heading) var(--font-writing); letter-spacing: var(--tracking-tight); overflow-wrap: anywhere; }
+    #note-name { display: block; width: 100%; height: auto; min-height: 1.25em; resize: none; overflow: hidden; margin: 0 0 var(--space-6); padding: 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: var(--weight-writing-title) var(--writing-title)/var(--leading-heading) var(--font-writing); letter-spacing: var(--tracking-tight); overflow-wrap: anywhere; }
     .note-writing { position: relative; }
-    #note-editor-hint { position: absolute; top: var(--space-2); left: 0; right: 0; margin: 0; pointer-events: none; color: var(--ink-soft); font: 19px/1.8 var(--font-writing); }
-    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: var(--space-2) 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: 19px/1.8 var(--font-writing); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #note-editor-hint { position: absolute; top: var(--space-2); left: 0; right: 0; margin: 0; pointer-events: none; color: var(--ink-soft); font: var(--writing-text)/var(--writing-leading) var(--font-writing); }
+    #note-editor { display: block; width: 100%; min-height: 55vh; resize: none; overflow: hidden; padding: var(--space-2) 0; border: 0; border-radius: 0; background: var(--surface); color: var(--ink); box-shadow: none; font: var(--writing-text)/var(--writing-leading) var(--font-writing); caret-color: var(--accent); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; }
     /* Each block is a source line; intentional blank lines supply paragraph spacing. */
     #note-editor p { margin: 0; min-height: 1.8em; }
     #note-editor > * { scroll-margin-block: var(--space-8); }
-    #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .6em 0 .25em; line-height: 1.35; font-weight: var(--weight-semibold); letter-spacing: -.02em; }
+    #note-editor h1, #note-editor h2, #note-editor h3, #note-editor h4, #note-editor h5, #note-editor h6 { margin: .6em 0 .25em; line-height: var(--writing-heading-leading); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-tight); }
     #note-editor > :first-child { margin-top: 0; }
     #living-sources { overflow-wrap: anywhere; font-size: var(--text-ui); margin-top: var(--space-5); }
     #living-sources li { margin-block: var(--space-2); }
-    #note-editor h1 { font-size: 32px; }
-    #note-editor h2 { font-size: 27px; }
-    #note-editor h3 { font-size: 23px; }
-    #note-editor h4, #note-editor h5, #note-editor h6 { font-size: 20px; }
+    #note-editor h1 { font-size: var(--writing-h1); }
+    #note-editor h2 { font-size: var(--writing-h2); }
+    #note-editor h3 { font-size: var(--writing-h3); }
+    #note-editor h4, #note-editor h5, #note-editor h6 { font-size: var(--writing-h4); }
     .editor-bold, #note-editor strong, #note-editor b { font-weight: var(--weight-writing-bold); }
     .editor-italic { font-style: italic; }
-    #note-editor > .external-change { border-radius: 3px; animation: external-change-fade 4s ease-out forwards; }
+    #note-editor > .external-change { border-radius: var(--radius-xs); animation: external-change-fade 4s ease-out forwards; }
     @keyframes external-change-fade {
-      0%, 25% { background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
+      0%, 25% { background-color: var(--accent-wash); }
       100% { background-color: transparent; }
     }
-    @media (prefers-reduced-motion: reduce) {
-      #note-editor > .external-change { animation: none; background-color: color-mix(in srgb, var(--accent) 12%, transparent); }
+    @media ${media.reducedMotion} {
+      #note-editor > .external-change { animation: none; background-color: var(--accent-wash); }
     }
     #note-presence { display: flex; gap: var(--space-2); flex-wrap: wrap; max-width: 100%; }
-    #note-presence[hidden] { display: none; }
-    .note-participant { --participant-color: var(--ink-soft); border-left: 3px solid var(--participant-color); padding-left: var(--space-2); overflow: hidden; text-overflow: ellipsis; max-width: 240px; white-space: nowrap; color: var(--ink-soft); font-size: var(--text-caption); }
+    .note-participant { --participant-color: var(--ink-soft); border-left: var(--border-accent) solid var(--participant-color); padding-left: var(--space-2); overflow: hidden; text-overflow: ellipsis; max-width: 240px; white-space: nowrap; color: var(--ink-soft); font-size: var(--text-caption); }
     #note-external-state { color: var(--ink-soft); font-size: var(--text-caption); }
-    #note-editor .editor-inline-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; background: var(--control-fill); border-radius: var(--radius-sm); padding: 0 var(--space-1); }
+    #note-editor .editor-inline-code { font-family: var(--font-mono); font-size: .85em; background: var(--control-fill); border-radius: var(--radius-sm); padding: 0 var(--space-1); }
     #note-editor .markdown-literal code, #note-editor .markdown-literal .editor-inline-code, #note-editor .markdown-code-block .editor-inline-code, #note-editor .markdown-reference { font: inherit; background: transparent; padding: 0; border-radius: 0; }
-    #note-editor .markdown-code-block { box-sizing: border-box; max-width: 100%; margin: var(--space-2) 0; padding: var(--space-3); overflow-x: auto; white-space: pre; overflow-wrap: normal; border-radius: var(--radius-sm); background: var(--control-fill); font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    #note-editor .markdown-code-block { box-sizing: border-box; max-width: 100%; margin: var(--space-2) 0; padding: var(--space-3); overflow-x: auto; white-space: pre; overflow-wrap: normal; border-radius: var(--radius-sm); background: var(--control-fill); font: var(--text-body)/var(--leading-code) var(--font-mono); }
     #note-editor .markdown-code-block code { font: inherit; background: transparent; padding: 0; }
     #note-editor .markdown-bullet { list-style: disc; margin-block: 0; padding-inline-start: 1.25em; }
     #note-editor .markdown-task { --task-checkbox-size: calc(var(--space-6) * .7); display: flex; align-items: flex-start; gap: var(--space-2); }
     .markdown-task > span { min-width: 0; flex: 1; }
-    .markdown-task > button { box-sizing: border-box; flex: 0 0 var(--task-checkbox-size); width: var(--task-checkbox-size); height: var(--task-checkbox-size); min-height: 0; display: inline-grid; place-items: center; font: inherit; margin-top: calc((1lh - var(--task-checkbox-size)) / 2); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--space-1); background: var(--surface); color: var(--ink); }
-    .markdown-task > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+    .markdown-task > button { box-sizing: border-box; flex: 0 0 var(--task-checkbox-size); width: var(--task-checkbox-size); height: var(--task-checkbox-size); min-height: 0; display: inline-grid; place-items: center; font: inherit; margin-top: calc((1lh - var(--task-checkbox-size)) / 2); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-xs); background: var(--surface); color: var(--ink); }
+    .markdown-task > button:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-offset); }
 ${taskCompletionStyles}
     .markdown-literal code, .markdown-reference { font: inherit; background: transparent; }
     .markdown-external-link:hover, .markdown-reference[data-page-reference="true"]:hover { background: var(--hover-fill); }
@@ -184,227 +156,159 @@ ${referencePresentationStyles}
     .markdown-table table { border-collapse: collapse; min-width: 100%; font-size: 1em; }
     .markdown-table th, .markdown-table td { padding: var(--space-2) var(--space-3); border: 1px solid var(--line-strong); min-width: 8ch; vertical-align: top; overflow-wrap: normal; word-break: normal; }
     .markdown-table th { background: var(--control-fill); font-weight: var(--weight-writing-bold); }
-    .markdown-table summary { width: fit-content; cursor: pointer; color: var(--ink-soft); font: var(--text-caption)/1.5 var(--font-ui); padding-block: var(--space-1); }
-    .editor-slash-menu { user-select: none; touch-action: pan-y; position: fixed; z-index: 10000; box-sizing: border-box; width: 224px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; padding: var(--space-1); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font: 400 var(--text-ui)/1.25 var(--font-ui); }
-    .editor-slash-menu [role="option"] { box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-compact); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); cursor: pointer; }
-    .editor-slash-menu [role="option"]:hover { background: var(--hover-fill); }
-    .editor-slash-menu [aria-selected="true"] { background: var(--surface-hover); }
-    .editor-slash-glyph { display: grid; place-items: center; flex: 0 0 var(--space-6); height: var(--space-6); color: var(--ink-soft); font: 500 var(--text-ui)/1 var(--font-ui); }
-    .editor-slash-menu [data-kind="bold"] { font-weight: 700; }
+    .markdown-table summary { width: fit-content; cursor: pointer; color: var(--ink-soft); font: var(--text-caption)/var(--leading-ui) var(--font-ui); padding-block: var(--space-1); }
+    /* Slash menu (built by editor-slash-commands.ts): .popover.popover--menu surface with .menu-item rows; this rule only places and sizes it. */
+    .editor-slash-menu { user-select: none; touch-action: pan-y; z-index: var(--z-menu); width: 224px; scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+    .editor-slash-glyph { display: grid; place-items: center; flex: 0 0 var(--space-6); height: var(--space-6); color: var(--ink-soft); font: var(--weight-regular) var(--text-ui)/1 var(--font-ui); }
+    .editor-slash-menu [data-kind="bold"] { font-weight: var(--weight-writing-bold); }
     .editor-slash-menu [data-kind="italic"] { font-style: italic; }
-    .editor-slash-menu [data-kind="bold"] .editor-slash-glyph { font-weight: 700; }
+    .editor-slash-menu [data-kind="bold"] .editor-slash-glyph { font-weight: var(--weight-writing-bold); }
     .editor-slash-menu [data-kind="italic"] .editor-slash-glyph { font-family: var(--font-writing); font-style: italic; }
-    .editor-slash-menu [data-kind="h1"] .editor-slash-label, .editor-slash-menu [data-kind="h2"] .editor-slash-label, .editor-slash-menu [data-kind="h3"] .editor-slash-label { font-weight: 600; }
+    .editor-slash-menu [data-kind="h1"] .editor-slash-label, .editor-slash-menu [data-kind="h2"] .editor-slash-label, .editor-slash-menu [data-kind="h3"] .editor-slash-label { font-weight: var(--weight-semibold); }
     .editor-slash-menu [data-kind="code"], .editor-slash-menu [data-kind="code-block"] { font-family: var(--font-mono); }
     .editor-slash-menu [data-kind="code"] .editor-slash-glyph, .editor-slash-menu [data-kind="code-block"] .editor-slash-glyph { font-family: var(--font-mono); font-size: var(--text-caption); }
-    @media (max-width: 680px), (pointer: coarse) { .editor-slash-menu [role="option"] { min-height: var(--control-touch); } }
-    .markdown-external-link:focus-visible, .markdown-reference:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    #reference-creation-status { color: var(--error-ink); font-size: var(--text-ui); }
+    .markdown-external-link:focus-visible, .markdown-reference:focus-visible { outline: var(--focus-outline); outline-offset: var(--focus-offset); }
     .markdown-literal::selection { background: var(--surface-hover); }
     .note-tool-row { display: flex; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-6); }
     .note-tool-row:has(#toggle-note-format[aria-expanded="true"]) { margin-bottom: var(--space-2); }
-    .note-tool-row .quiet-button { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-compact); padding: var(--space-1) var(--space-2); background: transparent; color: var(--ink-soft); }
-    .note-tool-row .quiet-button:hover:not(:disabled) { background: var(--hover-fill); color: var(--ink); }
-    #toggle-note-format[aria-expanded="true"] { background: var(--control-fill); color: var(--ink); }
-    .note-tool-row svg { width: var(--icon-size); height: var(--icon-size); }
-    #toggle-note-format[aria-expanded="true"] .format-chevron { transform: rotate(180deg); }
-    #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; margin: 0 0 var(--space-6); padding-block: var(--space-2); border-block: 1px solid var(--line); }
-    #format-controls[hidden], .note-tool-row > [hidden] { display: none; }
     .note-tool-row:not(:has(button:not([hidden]))) { display: none; }
+    #format-controls { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; margin: 0 0 var(--space-6); padding-block: var(--space-2); border-block: 1px solid var(--line); }
     .format-group { display: flex; flex: 0 0 auto; align-items: center; gap: var(--space-1); }
-    #format-controls button { display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); background: transparent; font-size: var(--text-ui); }
-    #format-controls [data-format="paragraph"] { width: auto; min-width: var(--control-compact); padding-inline: var(--space-2); }
-    #format-controls button:hover:not(:disabled), #format-controls button:focus-visible { background: var(--hover-fill); color: var(--ink); }
+    .format-group > .button--sm { min-width: var(--btn-size); }
     #note-editor:focus, #note-editor:focus-visible, #note-name:focus, #note-name:focus-visible { outline: none; border: 0; box-shadow: none; }
-    .note-icon { --btn-fill-hover: var(--btn-fill); display: inline-grid; place-items: center; flex: 0 0 auto; width: var(--control-compact); height: var(--control-compact); min-height: var(--control-compact); padding: var(--space-1); }
-    .note-icon svg { width: var(--icon-size); height: var(--icon-size); }
-    .note-icon[hidden] { display: none; }
     .app-version { margin: var(--space-6) 0 0; padding-top: var(--space-4); border-top: 1px solid var(--line); color: var(--ink-soft); font-size: var(--text-caption); }
     .note-actions:empty { display: none; }
     .note-actions { font-size: var(--text-caption); align-items: center; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
-    .document-dialog { padding: var(--space-6); }
-    .document-dialog h2 { margin-top: 0; }
-    .document-dialog textarea { width: 100%; min-height: 120px; resize: vertical; background: var(--surface); color: var(--ink); border: 1px solid var(--line); padding: var(--space-2); }
+    /* Shared dialog layout hooks (dialog surface, heading and actions come from the dialog primitive). */
     .document-dialog label { display: block; margin-block: var(--space-3); }
-    .document-dialog .dialog-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
-    .document-dialog .dialog-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
-    .document-dialog .dialog-heading h2 { margin-bottom: var(--space-2); }
-    .document-dialog .dialog-heading .icon-button { flex-shrink: 0; }
-    .document-dialog .recovery-options { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--line); }
-    .document-dialog .recovery-options summary { cursor: pointer; color: var(--ink-soft); }
+    .document-dialog textarea { width: 100%; min-height: 120px; }
+    .recovery-options { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--line); }
     .version-changes { display: grid; gap: var(--space-3); max-height: min(44vh, 440px); overflow: auto; }
-    .version-choice-primary { background: var(--control-fill); border-color: var(--line); color: var(--ink); }
-    .version-choice-primary:hover:not(:disabled) { background: var(--control-hover); }
     .version-change { min-width: 0; }
     .version-change-label { font-weight: var(--weight-semibold); font-size: var(--text-caption); }
     .version-changes pre { margin: var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
-    .version-change-removed, .version-change-added { display: block; text-decoration: none; border-left: 3px solid currentColor; padding: var(--space-2) var(--space-3); }
+    .version-change-removed, .version-change-added { display: block; text-decoration: none; border-left: var(--border-accent) solid currentColor; padding: var(--space-2) var(--space-3); }
     .version-change-removed { color: var(--error-ink); background: var(--error-fill); }
     .version-change-added { color: var(--ink); background: var(--control-fill); }
 
-    #delete-confirm { color: var(--error-ink); }
-    #note-save-error { color: var(--error-ink); font-size: var(--text-ui); }
-    #note-save-error[data-review="true"] { color: var(--ink-soft); }
-    .capture-feedback { margin: 0; padding: 0 var(--space-6); font-size: var(--text-caption); color: var(--ink-soft); }
-    .capture-feedback[data-error="true"] { color: var(--error-ink); }
-    .save-state { color: var(--ink-soft); font-size: var(--text-caption); white-space: nowrap; }
-    .save-state[data-state="failed"], #note-message[data-error="true"] { color: var(--error-ink); }
-    #note-message { color: var(--ink-soft); white-space: pre-wrap; }
+    .capture-feedback { margin: 0; padding: 0 var(--space-6); }
+    .save-state { margin: 0; white-space: nowrap; }
+    #note-message { white-space: pre-wrap; }
     #note-file { overflow-wrap: anywhere; }
     #related-pages { margin-top: var(--space-8); font-size: var(--text-ui); }
-    #related-pages h2 { margin: 0 0 var(--space-3); color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-regular); }
-    #related-pages-list { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }
-    #related-pages-list li { min-width: 0; max-width: 100%; }
-    #related-page-preview { position: fixed; inset: auto; margin: 0; box-sizing: border-box; width: min(320px, calc(100vw - 16px)); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink-soft); box-shadow: var(--shadow-lg); font-size: var(--text-ui); pointer-events: none; }
+    #related-page-preview { --popover-width: var(--width-popover); position: fixed; inset: auto; margin: 0; width: min(var(--popover-width), calc(100vw - var(--space-4))); pointer-events: none; }
     #related-page-preview span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; white-space: normal; }
-    #related-pages-list a { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .note-frontmatter { margin-top: var(--space-6); color: var(--ink-soft); font-size: var(--text-caption); }
-    .note-frontmatter summary { cursor: pointer; width: fit-content; }
     .note-frontmatter pre { font-size: var(--text-caption); white-space: pre-wrap; overflow-wrap: anywhere; }
 
-    .document-copy, .document-delete-action { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); }
-    :is(.document-copy, .document-delete-action) svg { width: var(--icon-size); height: var(--icon-size); flex-shrink: 0; }
     #note-layout { display: flex; flex-direction: column; }
-    #note-attribution { position: fixed; z-index: 30; max-width: min(300px, calc(100vw - 16px)); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink-soft); box-shadow: 0 4px 16px #0002; font: var(--text-caption)/1.5 var(--font-ui); overflow-wrap: anywhere; pointer-events: none; }
-    #note-attribution[hidden] { display: none; }
+    #note-attribution { --popover-width: var(--width-tooltip); z-index: var(--z-panel); pointer-events: none; }
     #note-attribution > * { display: block; }
     #note-attribution strong { color: var(--ink); font-weight: var(--weight-semibold); }
-    #page-details { order: -1; align-self: flex-end; width: min(224px, calc(100% - var(--space-8))); margin: var(--space-4) var(--space-4) 0; padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); font: var(--text-ui)/var(--leading-ui) var(--font-ui); color: var(--ink-soft); min-width: 0; }
-    #page-details[hidden], #note-details-content[hidden] { display: none; }
+    #page-details { order: -1; align-self: flex-end; width: min(var(--card-width), calc(100% - var(--space-8))); margin: var(--space-4) var(--space-4) 0; font: var(--text-ui)/var(--leading-ui) var(--font-ui); color: var(--ink-soft); }
     .page-card-heading, .page-card-actions { display: flex; align-items: center; gap: var(--space-2); }
     .page-card-heading { justify-content: space-between; padding-inline: var(--space-3); }
-    .page-card-heading h2 { margin: 0; color: var(--ink-soft); font-size: var(--text-caption); font-weight: var(--weight-regular); }
-    .page-card-actions button { background: transparent; }
-    #note-add-to-board { display: inline-flex; align-items: center; gap: var(--space-2); width: fit-content; margin-top: var(--space-1); border: 0; }
-    #note-add-to-board[hidden], #note-board-memberships[hidden] { display: none; }
-    #note-add-to-board svg { width: var(--icon-size); height: var(--icon-size); flex: none; }
-    #note-board-memberships { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--space-3); }
-    #note-board-memberships button { min-width: 0; max-width: 100%; height: auto; text-align: left; overflow-wrap: anywhere; white-space: normal; font-size: var(--text-caption); }
-    @media (max-width: 680px) { #note-add-to-board, #note-board-memberships button { min-height: var(--control-touch); } }
+    .page-card-heading > h2 { margin: 0; }
+    #note-add-to-board { width: fit-content; margin-top: var(--space-1); }
+    #note-board-memberships { padding: var(--space-1) var(--space-3); }
     .page-card-facts { margin-top: var(--space-1); padding-top: var(--space-1); border-top: 1px solid var(--line); }
     #note-details-content { padding: 0 var(--space-3) var(--space-2); }
-    .page-facts-toggle[aria-expanded="true"] .details-chevron { transform: rotate(180deg); }
-    @media (min-width: 1180px) {
-      #note-layout { display: grid; grid-template-columns: minmax(0, 1fr) 224px; gap: var(--space-4); padding-right: var(--space-4); align-items: start; }
-      #page-details { order: 0; position: sticky; top: var(--space-8); align-self: start; width: 100%; max-height: calc(100dvh - 112px); overflow: auto; margin: var(--space-8) 0 0; }
+    @media ${media.wide} {
+      #note-layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--card-width); gap: var(--space-4); padding-right: var(--space-4); align-items: start; }
+      #page-details { order: 0; position: sticky; top: var(--space-8); align-self: start; width: 100%; max-height: calc(100dvh - var(--space-16) - var(--space-12)); overflow: auto; margin: var(--space-8) 0 0; }
       #note-layout .note-column { min-width: 0; }
     }
     .saved-version dl { margin: 0; font-size: var(--text-caption); }
     .saved-version dt { margin-top: var(--space-3); color: var(--ink-soft); }
     .saved-version dd { margin: var(--space-1) 0 0; color: var(--ink); overflow-wrap: anywhere; }
     .context-caption { margin: var(--space-3) 0 0; font-size: var(--text-caption); }
-    .document-delete-action { background: transparent; }
-    dialog { width: min(600px, calc(100vw - 32px)); max-height: min(650px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }
-    dialog::backdrop { background: var(--backdrop); }
-    .search-result mark { color: inherit; background: color-mix(in srgb, var(--accent) 18%, transparent); }
-    #note-search { width: min(760px, calc(100vw - 32px)); max-height: min(740px, calc(100dvh - 64px)); margin-top: min(12vh, 100px); }
-    #note-search[open] { display: flex; flex-direction: column; }
-    #note-search > .dialog-head, #note-search > .search-footer { flex-shrink: 0; }
-    .dialog-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); border-bottom: 1px solid var(--line); }
-    #note-search > .dialog-head { border-bottom: 0; }
-    .search-input-icon { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink-soft); }
-    .search-input-icon svg { display: block; width: 100%; height: 100%; }
-    #note-search-input { width: 100%; min-width: 0; border: 0; box-shadow: none; background: transparent; font-size: var(--text-section); }
-    #note-search-input:focus-visible { outline: 1px solid color-mix(in srgb, var(--focus-ring) 45%, var(--line-strong)); outline-offset: 0; }
+    .search-result mark { color: inherit; background: var(--accent-wash-strong); }
+    #note-search { max-height: min(740px, calc(100dvh - var(--space-16))); margin-top: min(12vh, calc(var(--space-16) + var(--space-8))); }
+    #note-search > :is(.dialog-head, .search-footer) { flex: none; }
+    .dialog-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-4); }
+    .search-input-icon { display: grid; flex: none; width: var(--icon-size-lg); height: var(--icon-size-lg); color: var(--ink-soft); }
+    .search-input-icon svg { width: 100%; height: 100%; }
+    #note-search-input { width: 100%; min-width: 0; }
     #search-results { list-style: none; padding: var(--space-1); margin: 0; max-height: 55dvh; min-height: 0; flex: 1 1 auto; overflow: auto; }
     #search-results:empty { display: none; }
     #search-results:not(:empty) { border-top: 1px solid var(--line); }
-    .search-result { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-3); border-radius: var(--radius-sm); cursor: pointer; }
-    .search-result[aria-selected="true"] { background: var(--surface-hover); }
-    .search-result[aria-disabled="true"] { cursor: default; color: var(--ink-soft); }
-    .search-result-icon { width: 20px; height: 20px; align-self: start; margin-top: var(--space-0-5); color: var(--ink-soft); }
+    /* Search results are .list-row options (hover wash, aria-selected keyboard fill) laid out as a grid. */
+    .search-result { display: grid; grid-template-columns: var(--icon-size-lg) minmax(0, 1fr) auto; column-gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-3); }
+    .search-result-icon { width: var(--icon-size-lg); height: var(--icon-size-lg); align-self: start; margin-top: var(--space-0-5); color: var(--ink-soft); }
     .search-result-content { min-width: 0; }
     .search-result strong { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-section); font-weight: var(--weight-regular); }
+    .search-result:not([aria-disabled="true"]) strong { color: var(--ink); }
     .search-result-preview { display: block; margin-top: var(--space-1); font-size: var(--text-ui); color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .search-result small { color: var(--ink-soft); font-size: var(--text-caption); }
-    .search-result-age { grid-column: 3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .search-result :is(.search-result-path, .search-result-unavailable) { color: var(--ink-soft); font-size: var(--text-caption); }
+    .search-result-age { grid-column: 3; padding-left: 0; }
     .search-result-path { display: block; margin-top: var(--space-1); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .search-result-unavailable { display: block; margin-top: var(--space-1); }
     .search-footer { border-top: 1px solid var(--line); background: var(--control-fill); padding: var(--space-3) var(--space-4); font-size: var(--text-caption); color: var(--ink-soft); }
     .search-footer:not(:has(p:not([hidden]):not(:empty), button:not([hidden]))) { display: none; }
     .search-footer p { margin: 0; }
-    #connection { padding: var(--space-6); }
-    #connection h2 { margin: 0 0 var(--space-2); font-size: var(--text-heading); }
-    #connection p { color: var(--ink-soft); }
-    #connection label { display: block; margin: var(--space-5) 0 var(--space-2); }
     #open-connection { position: relative; }
-    .connection-dot { display: inline-block; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: var(--ink-faint); }
-    #open-connection .connection-dot { position: absolute; top: 5px; right: 5px; }
-    [data-state="connected"] > .connection-dot { background: var(--status-connected); }
-    [data-state="checking"] > .connection-dot { background: var(--ink-faint); }
-    [data-state="disconnected"] > .connection-dot, [data-state="unavailable"] > .connection-dot { background: var(--error-ink); }
-    .connection-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-5); }
-    #api-key { width: 100%; display: block; margin-top: var(--space-2); font-size: var(--text-section); }
-    @media (max-width: 680px) {
+    #open-connection .connection-dot { position: absolute; top: var(--space-1); right: var(--space-1); }
+    @media ${media.narrow} {
       body { flex-direction: column; }
       .app-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: var(--space-3) var(--space-4); padding: 0 var(--space-3) var(--space-3); border-right: 0; border-bottom: 1px solid var(--line); overflow: visible; }
       .nav-brand { grid-column: 1 / -1; }
-      .workspace-toolbar { min-height: 40px; }
-      .workspace-history { --control-compact: var(--control-touch); }
+      .workspace-toolbar { min-height: var(--control-touch); }
       .nav-tools { grid-row: 2; grid-column: 1 / -1; flex-direction: row; align-items: center; gap: var(--space-1); }
       .nav-library { grid-row: 3; grid-column: 1 / -1; min-height: 0; max-height: 320px; margin-inline: 0; }
-      .sidebar-section-heading { margin-inline: var(--space-3); }
-      .sidebar-settled summary { padding-inline: var(--space-3); }
-      .sidebar-list-more { margin-inline: var(--space-3); }
+      .sidebar-settled > summary { padding-inline: var(--space-3); }
       .sidebar-attention-scroll { flex-basis: auto; min-height: 120px; }
       .nav-library ul { display: flex; gap: var(--space-1); min-width: 0; overflow-x: auto; }
       .sidebar-page { flex: 0 0 auto; max-width: 190px; padding-inline: 0; border-radius: var(--radius-sm); }
       .sidebar-page .sidebar-page-actions { right: var(--space-1); }
       .sidebar-page + .sidebar-page { margin-top: 0; }
       .sidebar-page-link { min-height: var(--control-height); grid-template-columns: var(--icon-size) minmax(0, 1fr) auto; column-gap: var(--space-2); padding-inline: var(--space-2); }
-      .sidebar-empty { margin: var(--space-1); }
+      .sidebar-empty { padding-inline: var(--space-1); }
       .nav-footer { grid-row: 4; grid-column: 1 / -1; }
-      .nav-preferences { --control-compact: var(--control-touch); }
-      .app-nav .nav-item { padding: var(--space-2); min-height: var(--control-touch); gap: var(--space-2); }
-      .app-nav .sidebar-icon { width: var(--control-touch); min-width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); }
-      .nav-item svg { width: 16px; height: 16px; }
       .document-status { padding-inline: var(--space-4); flex-wrap: wrap; }
       .note-column { padding: var(--space-8) var(--space-6) max(120px, 25vh); }
-      #note-editor, #note-editor-hint { font-size: 18px; }
       .workspace-toolbar { flex-wrap: wrap; }
       .document-status { flex: 1 1 200px; }
-      #page-details { --control-compact: var(--control-touch); --control-height: var(--control-touch); }
-      #format-controls { --control-compact: var(--control-touch); margin-bottom: var(--space-5); }
-      .note-tool-row { --control-compact: var(--control-touch); }
-      .save-state { font-size: var(--text-caption); }
-      #note-search { margin-top: var(--space-4); max-height: calc(100dvh - 32px); }
+      #format-controls { margin-bottom: var(--space-5); }
+      #note-search { margin-top: var(--space-4); max-height: calc(100dvh - var(--space-8)); }
     }
 `;
 
+const copyIcon = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg>';
+
 export const notesMarkup = String.raw`
-<aside id="note-attribution" aria-label="Saved note attribution" aria-live="polite" hidden>
+<aside id="note-attribution" class="popover popover--caption" aria-label="Saved note attribution" aria-live="polite" hidden>
   <strong>Saved note · last editor</strong><span id="note-attribution-facts"></span><span id="note-attribution-scope"></span>
 </aside>
 <nav id="app-sidebar" class="app-nav" aria-label="Main navigation">
   <div id="sidebar-resize" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-valuemin="224" aria-valuemax="480" aria-valuenow="320"></div>
-  <div class="nav-brand"><button id="toggle-sidebar" class="quiet-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button home-link" href="/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>
+  <div class="nav-brand"><button id="toggle-sidebar" class="icon-button" type="button" aria-controls="app-sidebar" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16" stroke="currentColor" stroke-width="1.6"/></svg></button><a id="home-link" class="quiet-button quiet-button--plain home-link" href="/" aria-label="Home" title="Home"><span class="brand-jumpy">jumpy</span><strong>Brain</strong></a></div>
   <div class="nav-tools" role="group" aria-label="Note actions">
-    <a id="notes-link" class="quiet-button nav-item sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
-    <button id="new-note" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <button id="new-board" type="button" class="quiet-button nav-item sidebar-icon" aria-label="New board" title="New board" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16M15 4v7M15 16h6M18 13v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    <a id="notes-link" class="icon-button sidebar-icon" href="/" aria-label="Home" title="Home">${browserIcons.home}</a>
+    <button id="new-note" type="button" class="icon-button sidebar-icon" aria-label="New note" title="New note"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-9M10 14l1-4 8-8 3 3-8 8-4 1Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button id="new-board" type="button" class="icon-button sidebar-icon" aria-label="New board" title="New board" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M9 4v16M15 4v7M15 16h6M18 13v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
     ${drawingsNavigationControl}
-    <button id="open-search" type="button" class="quiet-button nav-item sidebar-icon" aria-label="Search notes" title="Search notes"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.6"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    <button id="open-search" type="button" class="icon-button sidebar-icon" aria-label="Search notes" title="Search notes">${browserIcons.search}</button>
   </div>
   <div class="nav-library" aria-label="Your pages">
     <div class="sidebar-attention-scroll">
       <div id="board-navigation" hidden><ul id="sidebar-boards" aria-label="Boards"></ul></div>
       ${drawingsSidebarMarkup}
       <ul id="sidebar-recent" aria-label="Pages"></ul>
-      <p id="sidebar-recent-empty" class="sidebar-empty" role="status"></p>
-      <button id="sidebar-recent-more" class="quiet-button sidebar-list-more" hidden>Show more</button>
+      <p id="sidebar-recent-empty" class="list-status sidebar-empty" role="status"></p>
+      <button id="sidebar-recent-more" class="quiet-button quiet-button--plain list-more" hidden>Show more</button>
     </div>
     <details id="sidebar-settled-section" class="sidebar-settled">
-      <summary>Settled <span id="sidebar-settled-count">0</span></summary>
+      <summary class="list-row list-row--edge list-row--shelf disclosure-trigger"><span class="list-row-label">Settled</span> <span id="sidebar-settled-count" class="list-meta">0</span>${browserChevronIcon}</summary>
       <ul id="sidebar-settled" aria-label="Settled pages"></ul>
-      <p id="sidebar-settled-empty" class="sidebar-empty">No settled pages</p>
-      <button id="sidebar-settled-more" class="quiet-button sidebar-list-more" hidden>Show more</button>
+      <p id="sidebar-settled-empty" class="list-status sidebar-empty">No settled pages</p>
+      <button id="sidebar-settled-more" class="quiet-button quiet-button--plain list-more" hidden>Show more</button>
     </details>
   </div>
   <div class="nav-footer">
   <div class="nav-preferences">
-    <a id="graph-link" class="quiet-button nav-item sidebar-icon" href="/graph" aria-label="Graph" title="Graph">${browserIcons.graph}</a>
-    <button id="open-connection" class="quiet-button nav-item sidebar-icon" aria-label="Connect · Connection settings" title="Connection settings" aria-haspopup="dialog">${browserIcons.settings}<span class="connection-dot" aria-hidden="true"></span></button>
-    <button id="open-feedback" class="quiet-button nav-item sidebar-icon" aria-label="Feedback" title="Feedback" aria-haspopup="dialog" aria-controls="feedback-dialog">${browserIcons.feedback}</button>
+    <a id="graph-link" class="icon-button sidebar-icon" href="/graph" aria-label="Graph" title="Graph">${browserIcons.graph}</a>
+    <button id="open-connection" class="icon-button sidebar-icon" aria-label="Connect · Connection settings" title="Connection settings" aria-haspopup="dialog">${browserIcons.settings}<span class="status-dot connection-dot" aria-hidden="true"></span></button>
+    <button id="open-feedback" class="icon-button sidebar-icon" aria-label="Feedback" title="Feedback" aria-haspopup="dialog" aria-controls="feedback-dialog">${browserIcons.feedback}</button>
     <div class="nav-utilities" role="group" aria-label="App utilities"></div>
   </div>
   </div>
@@ -412,13 +316,13 @@ export const notesMarkup = String.raw`
 <div class="app-workspace">
 <div class="workspace-toolbar">
 <div class="workspace-history" role="group" aria-label="Navigation history">
-  <button id="navigate-back" class="quiet-button icon-button" type="button" aria-label="Back" title="Back" disabled>${browserIcons.back}</button>
-  <button id="navigate-forward" class="quiet-button icon-button" type="button" aria-label="Forward" title="Forward" disabled>${browserIcons.forward}</button>
+  <button id="navigate-back" class="icon-button" type="button" aria-label="Back" title="Back" disabled>${browserIcons.back}</button>
+  <button id="navigate-forward" class="icon-button" type="button" aria-label="Forward" title="Forward" disabled>${browserIcons.forward}</button>
 </div>
 <div class="document-status" role="group" aria-label="Save status">
-  <span id="note-save-state" data-testid="graph-note-save-state" class="save-state" role="status" aria-live="polite" hidden></span>
+  <span id="note-save-state" data-testid="graph-note-save-state" class="status-text status-text--caption save-state" role="status" aria-live="polite" hidden></span>
   <span id="note-presence" aria-live="polite"></span>
-  <span id="note-generation-state" class="save-state" role="status" aria-live="polite" hidden></span>
+  <span id="note-generation-state" class="status-text status-text--caption save-state" role="status" aria-live="polite" hidden></span>
   <span id="note-external-state" role="status" aria-live="polite" hidden></span>
   <button id="note-retry" data-testid="graph-note-retry" class="quiet-button" hidden>Retry save</button>
   <button id="note-recover" class="quiet-button" hidden>Recover draft</button>
@@ -427,13 +331,13 @@ export const notesMarkup = String.raw`
 ${folderExplorerToggle}
 </div>
 ${noteAttentionMarkup}
-<p id="capture-message" class="capture-feedback" role="status" aria-live="polite" hidden></p>
-<dialog id="note-search" aria-label="Search notes">
+<p id="capture-message" class="status-text status-text--caption capture-feedback" role="status" aria-live="polite" hidden></p>
+<dialog id="note-search" aria-label="Search notes" class="dialog--lg dialog--sections">
   <div class="dialog-head">
     <span class="search-input-icon" aria-hidden="true">${browserIcons.search}</span>
-    <input id="note-search-input" aria-label="Search titles and contents" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="search-results" autocomplete="off" placeholder="Search your memory…" />
-    <button id="search-refresh-index" type="button" class="quiet-button note-icon" aria-label="Reindex memory" title="Reindex memory" hidden>${browserIcons.refresh}</button>
-    <button id="close-search" class="quiet-button note-icon" aria-label="Close search" title="Close search (Esc)">${browserIcons.close}</button>
+    <input id="note-search-input" class="input--bare input--entry" aria-label="Search titles and contents" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="search-results" autocomplete="off" placeholder="Search your memory…" />
+    <button id="search-refresh-index" type="button" class="icon-button" aria-label="Reindex memory" title="Reindex memory" hidden>${browserIcons.refresh}</button>
+    <button id="close-search" class="icon-button" aria-label="Close search" title="Close search (Esc)">${browserIcons.close}</button>
   </div>
   <ul id="search-results" role="listbox" aria-label="Matching notes"></ul>
   <div class="search-footer">
@@ -446,16 +350,16 @@ ${noteAttentionMarkup}
 </dialog>
 <dialog id="connection" aria-labelledby="connection-title">
   <form id="connection-form">
-    <h2 id="connection-title">Connect to your memory</h2>
-    <p>Use the access key for this server. It stays in this browser; only enter it on a server you trust.</p>
-    <label>Access key<input id="api-key" data-testid="api-key" type="password" autocomplete="off" /></label>
-    <button id="toggle-api-key" class="quiet-button" type="button" aria-controls="api-key" aria-pressed="false">Show key</button>
-    <p id="connection-message" role="status" aria-live="polite"></p>
-    <div class="connection-actions">
-      <button id="connection-submit" class="button button-primary" type="submit">Connect</button>
-      <button id="disconnect" class="quiet-button" type="button" hidden>Disconnect</button>
+    <div class="dialog-heading"><h2 id="connection-title">Connect to your memory</h2></div>
+    <p class="field-help">Use the access key for this server. It stays in this browser; only enter it on a server you trust.</p>
+    <label class="field"><span class="field-label">Access key</span><input id="api-key" class="input--entry" data-testid="api-key" type="password" autocomplete="off" /></label>
+    <button id="toggle-api-key" class="quiet-button" type="button" aria-controls="api-key">Show key</button>
+    <p id="connection-message" class="status-text" role="status" aria-live="polite"></p>
+    <div class="dialog-actions">
       <button id="open-access-keys" class="quiet-button" type="button" aria-haspopup="dialog" hidden>Access keys</button>
+      <button id="disconnect" class="quiet-button" type="button" hidden>Disconnect</button>
       <button id="close-connection" class="quiet-button" type="button">Cancel</button>
+      <button id="connection-submit" class="button button-primary" type="submit">Connect</button>
     </div>
     <p class="app-version" data-app-version></p>
   </form>
@@ -464,13 +368,13 @@ ${noteAttentionMarkup}
 
 export const documentActionsMarkup = String.raw`
 <dialog id="document-recovery" class="document-dialog" aria-labelledby="recovery-title">
-  <div class="dialog-heading"><h2 id="recovery-title">Choose your changes</h2><button id="recovery-close" class="quiet-button icon-button" type="button" aria-label="Close" title="Close">${browserIcons.close}</button></div>
+  <div class="dialog-heading"><h2 id="recovery-title">Choose your changes</h2><button id="recovery-close" class="icon-button dialog-close" type="button" aria-label="Close" title="Close">${browserIcons.close}</button></div>
   <p>Choose which changes to keep.</p>
   <div id="recovery-changes" aria-label="Changes from the saved version to your draft"></div>
-  <p id="recovery-message" role="status" aria-live="polite"></p>
-  <div class="dialog-actions"><button id="recovery-publish" class="button button-primary version-choice-primary" type="button" hidden>Keep my changes</button><button id="recovery-reload" class="quiet-button" type="button">Use saved version</button></div>
-  <details id="recovery-options" class="recovery-options"><summary>More options</summary>
-    <label id="recovery-versions-label" hidden>Recoverable drafts<select id="recovery-versions"></select></label>
+  <p id="recovery-message" class="status-text" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button id="recovery-reload" class="quiet-button" type="button">Use saved version</button><button id="recovery-publish" class="button button-primary" type="button" hidden>Keep my changes</button></div>
+  <details id="recovery-options" class="recovery-options"><summary class="disclosure-trigger disclosure-trigger--inline"><span>More options</span>${browserChevronIcon}</summary>
+    <label id="recovery-versions-label" hidden>Recoverable drafts<select id="recovery-versions" class="dropdown"></select></label>
     <label>Your draft<textarea id="recovery-draft" readonly></textarea></label>
     <label>Current saved note<textarea id="recovery-saved" readonly></textarea></label>
     <button id="recovery-copy" class="quiet-button" type="button">Copy draft</button>
@@ -480,8 +384,8 @@ export const documentActionsMarkup = String.raw`
   <h2 id="delete-title">Delete note?</h2>
   <p id="delete-note-title"></p>
   <p>Deleting this note cannot be undone.</p>
-  <p id="delete-message" role="status" aria-live="polite"></p>
-  <div class="dialog-actions"><button id="delete-cancel" class="quiet-button">Cancel</button><button id="delete-confirm" class="quiet-button" disabled>Delete</button></div>
+  <p id="delete-message" class="status-text" role="status" aria-live="polite"></p>
+  <div class="dialog-actions"><button id="delete-cancel" class="quiet-button">Cancel</button><button id="delete-confirm" class="button button-primary button--danger" disabled>Delete</button></div>
 </dialog>
 `;
 
@@ -489,18 +393,18 @@ export const notesViews = String.raw`
   <section id="home" class="home" aria-label="Your jumpyBrain">
     <div class="home-actions">
       <h1>What's on your mind?</h1>
-      <button id="home-new" class="home-action" aria-label="New note">
-        <svg class="home-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        <span class="home-action-label">New note</span><kbd class="new-shortcut" aria-hidden="true"></kbd>
+      <button id="home-new" class="button button-primary home-action" aria-label="New note">
+        ${browserIcons.plus}
+        <span class="home-action-label">New note</span><kbd class="kbd new-shortcut" aria-hidden="true"></kbd>
       </button>
-      <button id="home-search" class="home-action" aria-label="Search notes">
-        <svg class="home-action-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.7"/><path d="m16 16 4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        <span class="home-action-label">Search your memory</span><kbd class="shortcut" aria-hidden="true"></kbd>
+      <button id="home-search" class="quiet-button quiet-button--plain home-action" aria-label="Search notes">
+        ${browserIcons.search}
+        <span class="home-action-label">Search your memory</span><kbd class="kbd shortcut" aria-hidden="true"></kbd>
       </button>
     </div>
     <section class="recent-notes" aria-labelledby="recent-title">
-      <div class="recent-heading"><h2 id="recent-title">Recent activity</h2><button id="recent-refresh" class="quiet-button note-icon" aria-label="Refresh recent activity" title="Refresh recent activity">${browserIcons.refresh}</button></div>
-      <ul id="recent-list" aria-label="Recent activity"></ul>
+      <div class="recent-heading"><h2 id="recent-title">Recent activity</h2><button id="recent-refresh" class="icon-button" aria-label="Refresh recent activity" title="Refresh recent activity">${browserIcons.refresh}</button></div>
+      <ul id="recent-list" class="list-reset" aria-label="Recent activity"></ul>
       <p id="recent-message" role="status" aria-live="polite"></p>
       <button id="recent-retry" class="quiet-button" hidden>Retry</button>
       <button id="recent-connect" class="quiet-button" hidden>Connect</button>
@@ -512,39 +416,39 @@ export const notesViews = String.raw`
     <div class="note-column">
       <h1 id="note-title" data-testid="graph-note-title" tabindex="-1"></h1>
       <textarea id="note-name" aria-label="Page name" aria-describedby="note-save-error" aria-multiline="false" rows="1" autocomplete="off" hidden></textarea>
-      <p id="note-save-error" role="status" aria-live="polite" hidden></p>
+      <p id="note-save-error" class="status-text" role="status" aria-live="polite" hidden></p>
       <div class="note-actions"></div>
-      <div id="note-find" role="search" aria-label="Find in note" hidden>
+      <div id="note-find" class="card card--compact" role="search" aria-label="Find in note" hidden>
         <input id="note-find-input" type="search" aria-label="Find in note" placeholder="Find in note…" autocomplete="off" />
         <span id="note-find-count" role="status" aria-live="polite"></span>
-        <button id="note-find-previous" type="button" class="quiet-button note-icon" aria-label="Previous match" title="Previous match (Shift+Enter)">↑</button>
-        <button id="note-find-next" type="button" class="quiet-button note-icon" aria-label="Next match" title="Next match (Enter)">↓</button>
-        <button id="note-find-close" type="button" class="quiet-button note-icon" aria-label="Close find" title="Close find (Esc)">${browserIcons.close}</button>
+        <button id="note-find-previous" type="button" class="icon-button" aria-label="Previous match" title="Previous match (Shift+Enter)">${browserIcons.chevronDown}</button>
+        <button id="note-find-next" type="button" class="icon-button" aria-label="Next match" title="Next match (Enter)">${browserIcons.chevronDown}</button>
+        <button id="note-find-close" type="button" class="icon-button" aria-label="Close find" title="Close find (Esc)">${browserIcons.close}</button>
       </div>
-      <div id="reference-creation-status" hidden>
+      <div id="reference-creation-status" class="callout callout--error" hidden>
         <p role="status" aria-live="polite">A linked page could not be created. Your source note is retained. Retry page creation before leaving this note.</p>
         <button id="reference-creation-retry" class="quiet-button">Retry page creation</button>
       </div>
-      <p id="note-message" role="status" hidden></p>
+      <p id="note-message" class="status-text" role="status" hidden></p>
       <button id="note-load-retry" class="quiet-button" hidden>Retry loading</button>
       <div class="note-tool-row" role="group" aria-label="Writing tools">
-        <button id="toggle-note-format" class="quiet-button" type="button" aria-expanded="false" aria-controls="format-controls" hidden><span aria-hidden="true">Aa</span><span>Format</span><svg class="format-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m7 10 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button id="toggle-note-format" class="quiet-button quiet-button--plain button--sm button--toggle disclosure-trigger" type="button" aria-expanded="false" aria-controls="format-controls" hidden><span aria-hidden="true">Aa</span><span>Format</span>${browserChevronIcon}</button>
       </div>
       <div id="format-controls" role="group" aria-label="Text formatting" hidden>
         <div class="format-group" role="group" aria-label="Text styles">
-          <button class="quiet-button" data-format="paragraph" aria-label="Normal text" title="Normal text">Text</button>
-          <button class="quiet-button" data-format="h1" aria-label="Heading" title="Heading">H1</button>
-          <button class="quiet-button" data-format="h2" aria-label="Subheading" title="Subheading">H2</button>
-          <button class="quiet-button" data-format="h3" aria-label="Small heading" title="Small heading">H3</button>
+          <button class="quiet-button quiet-button--plain button--sm" data-format="paragraph" aria-label="Normal text" title="Normal text">Text</button>
+          <button class="quiet-button quiet-button--plain button--sm" data-format="h1" aria-label="Heading" title="Heading">H1</button>
+          <button class="quiet-button quiet-button--plain button--sm" data-format="h2" aria-label="Subheading" title="Subheading">H2</button>
+          <button class="quiet-button quiet-button--plain button--sm" data-format="h3" aria-label="Small heading" title="Small heading">H3</button>
         </div>
         <div class="format-group" role="group" aria-label="Inline formatting">
-          <button class="quiet-button" data-format="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
-          <button class="quiet-button" data-format="italic" aria-label="Italic" title="Italic"><em>I</em></button>
-          <button class="quiet-button" data-format="code" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
+          <button class="icon-button" data-format="bold" aria-label="Bold" title="Bold"><strong>B</strong></button>
+          <button class="icon-button" data-format="italic" aria-label="Italic" title="Italic"><em>I</em></button>
+          <button class="icon-button" data-format="code" aria-label="Inline code" title="Inline code">&lt;/&gt;</button>
         </div>
         <div class="format-group" role="group" aria-label="Insert blocks">
-          <button class="quiet-button" data-format="task" aria-label="Task checkbox" title="Task checkbox">☑</button>
-          <button class="quiet-button" data-format="code-block" aria-label="Code block" title="Code block">{ }</button>
+          <button class="icon-button" data-format="task" aria-label="Task checkbox" title="Task checkbox">☑</button>
+          <button class="icon-button" data-format="code-block" aria-label="Code block" title="Code block">{ }</button>
         </div>
       </div>
       <div class="note-writing">
@@ -552,20 +456,20 @@ export const notesViews = String.raw`
       <div id="note-editor" data-testid="graph-note-editor" role="textbox" aria-multiline="true" aria-label="Markdown note body" spellcheck="true" hidden></div>
       </div>
       <nav id="related-pages" aria-label="Related pages" hidden>
-        <h2>Related pages</h2><ul id="related-pages-list"></ul>
+        <h2 class="list-section-label list-section-label--flush">Related pages</h2><ul id="related-pages-list" class="chip-list"></ul>
       </nav>
     </div>
 
-    <aside id="page-details" aria-label="Page actions and details" hidden>
-      <div class="page-card-heading"><h2>Page</h2><div class="page-card-actions" role="group" aria-label="Page actions">
-  <button id="copy-note-draft" class="quiet-button note-icon document-copy" type="button" aria-label="Copy" title="Copy" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="1.6"/></svg></button>
-  <button id="copy-note-file-path" class="quiet-button note-icon document-copy" type="button" aria-label="Copy file path" title="Copy file path" hidden>${browserIcons.link}</button>
-  <button id="delete-note" class="quiet-button note-icon document-delete-action" type="button" aria-label="Delete note" title="Delete note…" hidden><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7m4-7v7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <aside id="page-details" class="card card--compact" aria-label="Page actions and details" hidden>
+      <div class="page-card-heading"><h2 class="list-section-label list-section-label--flush">Page</h2><div class="page-card-actions" role="group" aria-label="Page actions">
+  <button id="copy-note-draft" class="icon-button" type="button" aria-label="Copy" title="Copy" hidden>${copyIcon}</button>
+  <button id="copy-note-file-path" class="icon-button" type="button" aria-label="Copy file path" title="Copy file path" hidden>${browserIcons.link}</button>
+  <button id="delete-note" class="icon-button" type="button" aria-label="Delete note" title="Delete note…" hidden>${browserIcons.remove}</button>
       </div></div>
-      <div id="note-board-memberships" role="group" aria-label="Boards containing this page" hidden></div>
+      <div id="note-board-memberships" class="chip-list" role="group" aria-label="Boards containing this page" hidden></div>
       <button id="note-add-to-board" class="quiet-button quiet-button--plain" type="button" aria-haspopup="dialog" aria-controls="note-board-dialog" hidden>${browserIcons.plus}<span>Add to board</span></button>
       <div class="page-card-facts">
-      <button id="toggle-page-details" class="quiet-button quiet-button--plain action-row page-facts-toggle" type="button" aria-expanded="false" aria-controls="note-details-content"><span>More info</span><svg class="details-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m8 10 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button id="toggle-page-details" class="list-row disclosure-trigger page-facts-toggle" type="button" aria-expanded="false" aria-controls="note-details-content"><span class="list-row-label">More info</span>${browserChevronIcon}</button>
       <div id="note-details-content" hidden>
       <section class="saved-version" aria-label="Saved version">
 
@@ -573,14 +477,14 @@ export const notesViews = String.raw`
         <p class="context-caption">Editor names are declared by the writing tool.</p>
       </section>
       <details id="living-sources" class="note-frontmatter" hidden>
-        <summary>Sources · version checks</summary>
+        <summary class="disclosure-trigger disclosure-trigger--inline"><span>Sources · version checks</span>${browserChevronIcon}</summary>
         <p>Follow evidence beside each claim. Latest substantive change and open questions remain in the page above.</p>
         <button id="check-living-sources" class="quiet-button" type="button">Check source versions</button>
         <p id="living-sources-status" role="status" aria-live="polite"></p>
         <ul id="living-sources-list"></ul>
       </details>
       <details id="note-metadata" class="note-frontmatter" hidden>
-        <summary>Markdown metadata</summary>
+        <summary class="disclosure-trigger disclosure-trigger--inline"><span>Markdown metadata</span>${browserChevronIcon}</summary>
         <pre id="note-frontmatter"></pre>
       </details>
 
@@ -628,16 +532,16 @@ function renderRecentNotes(recent) {
   for (const note of recent.notes) {
     const item = document.createElement("li");
     const link = document.createElement("a");
-    link.className = "recent-link";
+    link.className = "list-row recent-link";
     link.href = typeof companionMode !== "undefined" && companionMode ? companionScopeUrl("/?note=" + encodeURIComponent(note.id)) : "/?note=" + encodeURIComponent(note.id);
-    const title = document.createElement("span");
+    const title = document.createElement("span"); title.className = "list-row-label";
     title.textContent = note.title || note.file || "Untitled";
     link.title = title.textContent + (note.file ? " · " + note.file : "");
     link.append(title);
     const date = note.updatedAt || note.createdAt;
     const dated = date && Number.isFinite(Date.parse(date));
     const time = document.createElement(dated ? "time" : "span");
-    time.className = "recent-date";
+    time.className = "list-row-meta recent-date";
     if (dated) {
       time.dateTime = date;
       // Date-only metadata must not shift a day in the browser's timezone.
@@ -1092,7 +996,7 @@ function renderNoteSearch(search) {
     search.results.forEach((result, index) => {
       const item = document.createElement("li");
       item.id = "search-result-" + index;
-      item.className = "search-result";
+      item.className = "list-row search-result";
       item.setAttribute("role", "option");
       item.setAttribute("aria-disabled", String(!result.documentId && !result.drawing));
       if (result.drawing) item.dataset.kind = "drawing";
@@ -1114,7 +1018,7 @@ function renderNoteSearch(search) {
       item.append(icon, content);
       const editContext = JumpyBrainBrowser.resultEditContext(result.recognition);
       if (editContext.label) {
-        const edit = document.createElement("small"); edit.className = "search-result-age"; edit.textContent = "Edited " + editContext.label;
+        const edit = document.createElement("small"); edit.className = "search-result-age list-meta"; edit.textContent = "Edited " + editContext.label;
         edit.title = editContext.details; edit.setAttribute("aria-label", editContext.details);
         item.append(edit);
       }
@@ -1217,11 +1121,11 @@ function renderConnection() {
     : connectionStatus === "checking" ? "Checking your connection…"
     : connectionStatus === "unavailable" ? "Could not reach the server. Retry connecting."
     : activeApiKey ? "The access key was not accepted. Update it to reconnect." : "Not connected.";
+  $("connection-message").dataset.error = String(connectionStatus === "unavailable" || (!connected && connectionStatus !== "checking" && Boolean(activeApiKey)));
 }
 function maskApiKey() {
   apiKeyInput.type = "password";
   $("toggle-api-key").textContent = "Show key";
-  $("toggle-api-key").setAttribute("aria-pressed", "false");
 }
 function openConnection(fromSearch) {
   if (typeof companionMode !== "undefined" && companionMode) {
@@ -1254,7 +1158,6 @@ $("toggle-api-key").addEventListener("click", () => {
   const reveal = apiKeyInput.type === "password";
   apiKeyInput.type = reveal ? "text" : "password";
   $("toggle-api-key").textContent = reveal ? "Hide key" : "Show key";
-  $("toggle-api-key").setAttribute("aria-pressed", String(reveal));
 });
 async function setConnectionKey(key) {
   if (typeof companionMode !== "undefined" && companionMode) return;
@@ -1312,7 +1215,7 @@ $("connection-form").addEventListener("submit", async (event) => {
     state.editor?.cancel();
     await setConnectionKey(key);
   });
-  if (!changed) {$("connection-message").textContent = "Resolve or recover the pending draft before changing credentials."; return;}
+  if (!changed) {$("connection-message").textContent = "Resolve or recover the pending draft before changing credentials."; $("connection-message").dataset.error = "true"; return;}
   if (state.view === "home") recentNotes.load();
   if (reopenSearch) openSearch(searchMode, referenceSelection);
   if (typeof drawingsUI !== "undefined") drawingsUI.connectionChanged();
@@ -1334,7 +1237,7 @@ $("disconnect").addEventListener("click", async () => {
       $("viewport").replaceChildren();
       return "/";
     });
-    if (!disconnected) $("connection-message").textContent = "Could not disconnect. Save your pending note and try again.";
+    if (!disconnected) { $("connection-message").textContent = "Could not disconnect. Save your pending note and try again."; $("connection-message").dataset.error = "true"; }
   } finally { $("disconnect").disabled = false; }
 });
 renderConnection();
@@ -1786,7 +1689,7 @@ function syncEditorUi(editorState) {
   }
   $("note-save-error").hidden = Boolean(editorState.liveStatus) || editorState.saveStatus !== "failed" && editorState.durableDraft !== false;
   $("note-save-error").textContent = editorState.saveError || "";
-  $("note-save-error").dataset.review = String(needsReview);
+  $("note-save-error").dataset.error = String(!needsReview);
   if (editorState.navigationPending || !editorState.loaded) referenceAutocomplete.dismiss();
   richEditor.setReadOnly(editorState.navigationPending || companionLocked);
   for (const button of $("format-controls").querySelectorAll("button")) button.disabled = editorState.navigationPending || companionLocked;
@@ -1819,6 +1722,7 @@ function syncEditorUi(editorState) {
   $("note-external-state").textContent = editorState.externalStatus === "pending" ? "Changes available"
     : editorState.externalStatus === "updated" ? "Updated elsewhere" : "";
   $("note-save-state").dataset.state = needsReview ? "review" : editorState.saveStatus;
+  $("note-save-state").dataset.error = String(!needsReview && editorState.saveStatus === "failed");
   $("note-save-state").title = editorState.saveError || "";
   $("note-save-state").setAttribute("aria-label", (liveFeedback || feedback) + (editorState.saveError ? ": " + editorState.saveError : ""));
 }

@@ -5,6 +5,7 @@ import type { EditorSession } from "./editor-session.js";
 import { splitEditableDocument } from "./document-controller.js";
 import type { Toast } from "./browser-toast.js";
 import type { AttentionPage } from "./browser-attention.js";
+import { viewportMargin } from "./browser-design-system.js";
 
 type Editor = EditorSession;
 type Action = { action: "settle" | "reactivate" } | { action: "snooze"; until: string };
@@ -119,7 +120,8 @@ export function installNoteAttention(options: {
     $("snooze-options").hidden = false; $("snooze-custom").hidden = true;
     const list = $("snooze-options");
     for (const choice of [...snoozeChoices(), { label: "Custom…", at: null }]) {
-      const button = doc.createElement("button"); button.type = "button"; button.className = "quiet-button"; button.setAttribute("role", "menuitem");
+      if (!choice.at) { const separator = doc.createElement("div"); separator.className = "menu-separator"; separator.setAttribute("role", "separator"); list.append(separator); }
+      const button = doc.createElement("button"); button.type = "button"; button.className = "menu-item"; button.setAttribute("role", "menuitem");
       const label = doc.createElement("span"); label.textContent = choice.label; button.append(label);
       if (choice.at) { const time = doc.createElement("time"); time.dateTime = choice.at.toISOString(); time.textContent = choice.at.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + (choice.label === "Next week" ? " · Mon" : ""); button.append(time); }
       button.addEventListener("click", () => {
@@ -131,8 +133,8 @@ export function installNoteAttention(options: {
     }
     dialog.showModal();
     const rect = anchor.getBoundingClientRect(), width = dialog.offsetWidth, height = dialog.offsetHeight;
-    dialog.style.left = Math.max(12, Math.min(rect.left, win.innerWidth - width - 12)) + "px";
-    dialog.style.top = Math.max(12, Math.min(rect.bottom + 6, win.innerHeight - height - 12)) + "px";
+    dialog.style.left = Math.max(viewportMargin, Math.min(rect.left, win.innerWidth - width - viewportMargin)) + "px";
+    dialog.style.top = Math.max(viewportMargin, Math.min(rect.bottom + 6, win.innerHeight - height - viewportMargin)) + "px";
     list.querySelector<HTMLButtonElement>("button")?.focus();
   }
   $("snooze-options").addEventListener("keydown", event => {

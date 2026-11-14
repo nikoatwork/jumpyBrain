@@ -8,7 +8,7 @@ import { builtInPalettes } from "../dist/adapters/http-server/browser-palettes.j
 import { initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
-import { appendEditorText, editorMarkdown, editorSelection } from "./editor-smoke-helpers.mjs";
+import { appendEditorText, editorMarkdown, editorSelection, showSidebar } from "./editor-smoke-helpers.mjs";
 
 const id = "mem_a0000000-0000-4000-8000-000000000001";
 const apiKey = "disposable-theme-smoke-key";
@@ -46,12 +46,18 @@ async function assertPalette(page, theme) {
   assert.equal(await page.locator("#sidebar-pinned-empty").count(), 0, "Pinned has no helper text");
   for (const [selector, name] of [["#new-note", "New note"], ["#open-search", "Search notes"]]) {
     assert.equal(await page.locator(selector).getAttribute("aria-label"), name);
-    assert.equal(await page.locator(selector).innerText(), "", "toolbar actions show icons only");
-    assert.equal(await page.locator(selector + " svg").count(), 1);
+    assert.equal(await page.locator(selector + " svg").count(), 1, "toolbar actions show icons only");
   }
-  const create = await page.locator("#new-note").boundingBox(), search = await page.locator("#open-search").boundingBox();
-  assert.equal(create.y, search.y, "Search and New note occupy one row");
-  assert.ok(create.x + create.width <= search.x, "Search follows compose without overlap");
+  // Narrow note/map navigation auto-collapses the sidebar (browser-sidebar.ts afterNavigate); geometry only exists while it is shown.
+  if (await page.locator("#app-sidebar").isVisible()) {
+    for (const selector of ["#new-note", "#open-search"]) assert.equal(await page.locator(selector).innerText(), "", "toolbar actions show icons only");
+    const create = await page.locator("#new-note").boundingBox(), search = await page.locator("#open-search").boundingBox();
+    assert.equal(create.y, search.y, "Search and New note occupy one row");
+    assert.ok(create.x + create.width <= search.x, "Search follows compose without overlap");
+  } else {
+    assert.ok(page.viewportSize().width <= 680, "only narrow layouts auto-collapse the sidebar");
+    assert.equal(await page.locator("html").getAttribute("data-sidebar-collapsed"), "true");
+  }
   assert.equal(await page.locator("#color-theme").count(), 0);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "navigation fits viewport");
 }
@@ -144,6 +150,7 @@ try {
       await assertPalette(page, scheme);
       await page.locator("#note-panel").evaluate(el => { el.scrollTop = 0; });
       await capture(page, `${paletteName}-${scheme}-${width}-note`);
+      await showSidebar(page);
       await page.locator("#open-search").click();
       await page.locator("#note-search-input").fill("calm");
       await page.locator("#search-results [role=option]").first().waitFor({ timeout: 6000 }).catch(async error => {
@@ -152,10 +159,12 @@ try {
       });
       await capture(page, `${paletteName}-${scheme}-${width}-search`);
       await page.locator("#close-search").click();
+      await showSidebar(page);
       await page.locator("#open-feedback").click();
       await page.locator("#feedback-message").fill("A quiet place for a clearer thought.");
       await capture(page, `${paletteName}-${scheme}-${width}-feedback`);
       await page.locator("#feedback-message").press("Escape");
+      await showSidebar(page);
       await page.locator("#graph-link").click();
       await page.waitForFunction(() => window.__jumpyBrainGraphReady === true);
       await assertPalette(page, scheme);

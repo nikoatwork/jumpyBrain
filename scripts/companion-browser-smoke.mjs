@@ -256,7 +256,7 @@ try {
     for (const width of [1280, 390, 320]) {
       await settings.setViewportSize({ width, height: 900 });
       const layout = await settings.locator("#companion-settings").evaluate((el) => {
-        const controls = [...el.querySelectorAll(".note-icon")].filter(item => item.checkVisibility());
+        const controls = [...el.querySelectorAll(".icon-button")].filter(item => item.checkVisibility());
         return { fits: el.scrollWidth <= el.clientWidth && document.documentElement.scrollWidth <= innerWidth, controls: controls.map(item => {
           const box = item.getBoundingClientRect();
           return { width: box.width, height: box.height, text: item.textContent.trim(), label: item.getAttribute("aria-label"), fits: box.left >= 0 && box.right <= innerWidth };
@@ -328,13 +328,27 @@ try {
       // Exercise the native header inset without touching an installed app.
       await editor.evaluate(() => { document.documentElement.dataset.nativeMac = "true"; });
       const layout = await editor.evaluate(() => {
-        const brain = document.getElementById("companion-active").getBoundingClientRect();
+        const wrapper = document.getElementById("companion-active");
+        const brain = wrapper.getBoundingClientRect();
+        const select = document.getElementById("companion-brain-switch");
+        const row = select.getBoundingClientRect();
+        const dot = wrapper.querySelector(":scope > .status-dot").getBoundingClientRect();
         const icons = document.getElementById("graph-link").getBoundingClientRect();
         const brand = document.getElementById("home-link");
-        return { brainBottom: brain.bottom, iconsTop: icons.top, iconsBottom: icons.bottom,
+        return { brainBottom: brain.bottom, iconsTop: icons.top, iconsBottom: icons.bottom, iconsLeft: icons.left,
+          rowLeft: row.left, rowHeight: row.height, wrapperTitle: wrapper.hasAttribute("title"),
+          dotInside: dot.left >= row.left && dot.right <= row.right && dot.top >= row.top && dot.bottom <= row.bottom,
+          dotTarget: document.elementFromPoint(dot.left + dot.width / 2, dot.top + dot.height / 2) === select,
+          chevron: select.querySelector(".dropdown-chevron path")?.getAttribute("d"),
           brandFits: brand.scrollWidth <= brand.clientWidth, overflow: document.documentElement.scrollWidth > innerWidth };
       });
       assert.ok(layout.brainBottom <= layout.iconsTop, "brain switcher sits above the footer icons");
+      // One full-row switcher: the dot overlays the select, so its hover wash and pointer target cover the dot.
+      assert.equal(layout.rowHeight, width <= 680 ? 40 : 36, "switcher row is 36px (40px narrow)");
+      assert.equal(layout.dotInside && layout.dotTarget, true, "status dot sits inside the switcher's hover target");
+      assert.ok(Math.abs(layout.rowLeft - layout.iconsLeft) <= 0.5, "switcher row aligns with the footer icons");
+      assert.equal(layout.wrapperTitle, false, "one tooltip source: no native title on the wrapper");
+      assert.equal(layout.chevron, "m7 15 5 5 5-5M7 9l5-5 5 5", "switcher uses the shared chevrons-up-down glyph");
       assert.ok(layout.iconsBottom <= 850, "footer remains within the viewport");
       assert.equal(layout.brandFits, true, "wordmark fits beside native traffic-light inset");
       assert.equal(layout.overflow, false, "brain footer fits narrow layouts");

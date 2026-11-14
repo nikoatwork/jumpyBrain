@@ -11,6 +11,8 @@ import { startCompanionGateway } from '../integrations/macos-companion/gateway.m
 import { loadPlaywrightChromium,launchPlaywrightChromium } from './playwright-runtime.mjs';
 const repo=fileURLToPath(new URL('..',import.meta.url)),temp=await mkdtemp(path.join(os.tmpdir(),'jb-boards-ui-')),root=path.join(temp,'memory with spaces ü'),support=path.join(temp,'support');
 let gateway,browser,remote;const keys=new Map();
+// Row actions fade with the shared .row-actions transition; read opacity once it has finished.
+const settled=locator=>locator.evaluate(el=>Promise.all(el.getAnimations().map(animation=>animation.finished)));
 try{
  await initializeMemoryRoot(root);
  const existingId='mem_12345678-1234-1234-1234-123456789012', original='---\nid: '+existingId+'\ntitle: Launch checklist\ntype: note\n---\n\n# Launch checklist\n\nKeep the **release** small.\n\nReview the [launch notes](https://example.invalid) with the team. Confirm the rollout plan, check the remaining tasks, and record the final decisions so everyone can follow the next steps with confidence.\n';
@@ -106,7 +108,7 @@ try{
  assert.equal(await page.getByRole('option',{name:'Launch checklist · Added',exact:true}).isDisabled(),true);
  for(const [width,theme] of [[1280,'light'],[1280,'dark'],[390,'light'],[390,'dark']]){
    await page.setViewportSize({width,height:900});await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
-   const card=page.locator('.board-card').filter({hasText:'Launch checklist'});await card.hover();
+   const card=page.locator('.board-card').filter({hasText:'Launch checklist'});await card.hover();await settled(card.locator('.board-card-actions'));
    const geometry=await card.evaluate(el=>{const content=el.querySelector(':scope > button').getBoundingClientRect(),actions=el.querySelector('.board-card-actions').getBoundingClientRect(),preview=el.querySelector('.board-card-preview');return {contentRight:content.right,actionsLeft:actions.left,actionsRight:actions.right,cardRight:el.getBoundingClientRect().right,previewHeight:preview.getBoundingClientRect().height,lineHeight:parseFloat(getComputedStyle(preview).lineHeight),opacity:getComputedStyle(el.querySelector('.board-card-actions')).opacity,icons:[...el.querySelectorAll('.board-card-actions button')].every(b=>b.querySelector('svg')&&!b.textContent.trim())};});
    assert.ok(geometry.actionsLeft>=geometry.contentRight&&geometry.actionsRight<geometry.cardRight,'actions stay in the right lane without covering content');
    assert.ok(geometry.previewHeight<=geometry.lineHeight*3+1&&geometry.previewHeight>=geometry.lineHeight*2,'preview occupies two or three lines');
@@ -119,9 +121,9 @@ try{
  await boardLink.hover();
  assert.deepEqual(await boardLink.evaluate(el => { const s=getComputedStyle(el); return [s.whiteSpace,s.backgroundColor]; }), ['nowrap','rgba(0, 0, 0, 0)'], 'board labels stay single-line and share the row hover surface');
  await page.setViewportSize({width:1280,height:900});
- await page.locator('#board-title').hover();
+ await page.locator('#board-title').hover();await settled(page.locator('.board-card-actions').first());
  assert.equal(await page.locator('.board-card-actions').first().evaluate(el=>getComputedStyle(el).opacity),'0');
- await page.locator('.board-card-actions button').first().focus();
+ await page.locator('.board-card-actions button').first().focus();await settled(page.locator('.board-card-actions').first());
  assert.equal(await page.locator('.board-card-actions').first().evaluate(el=>getComputedStyle(el).opacity),'1','keyboard focus reveals icons');
  const cardId=await page.locator('.board-column').nth(1).locator('.board-card').getAttribute('data-board-page');
  await page.locator('.board-column').nth(1).locator('.board-card > button').click();await page.locator('#note-editor').waitFor({state:'visible'});

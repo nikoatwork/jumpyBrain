@@ -48,8 +48,9 @@ try {
     assert.ok(parseFloat(outline.radius) > 0 && parseFloat(outline.radius) < outline.buttonWidth / 2, 'utility buttons retain their rounded-square shape');
     assert.equal(outline.width, outline.buttonWidth, 'outline width matches the stationary button border');
     assert.equal(outline.height, outline.buttonHeight, 'outline height matches the stationary button border');
-    assert.equal(outline.left, -outline.borderLeft);
-    assert.equal(outline.top, -outline.borderTop);
+    // Ghost icon buttons have a 0px border, so the outline sits on the button edge (avoid 0 vs -0).
+    assert.equal(outline.left + outline.borderLeft, 0, 'outline starts at the button border edge');
+    assert.equal(outline.top + outline.borderTop, 0, 'outline starts at the button border edge');
     assert.ok(outline.mask.includes('exclude'), 'the animated gradient is cut out of the glyph area');
     assert.equal(outline.padding, '1.5px', 'highlight stays in a thin perimeter band');
     assert.equal(outline.pointerEvents, 'none', 'outline never intercepts clicks');

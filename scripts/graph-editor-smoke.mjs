@@ -443,13 +443,25 @@ async function assertSharedPalette(page) {
   for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "#note-editor", "#note-name", "#note-search", "#connection", "#dream-handoff", "#dream-preview"]) {
     assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(230, 218, 196)", `${selector} uses the shared Ember Light surface`);
   }
-  for (const selector of ["#home-new", "#new-note", "#zoom-in", "#connection-submit", "#dream-copy"]) {
+  for (const selector of ["#home-new", "#zoom-in", "#connection-submit", "#dream-copy"]) {
     assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(216, 204, 176)", `${selector} uses the shared Ember Light control fill`);
+  }
+  // Icon buttons (sidebar tools, map actions) are ghost at rest: no fill until hovered or on.
+  for (const selector of ["#new-note", "#open-dream", "#reload", "#graph-filters summary"]) {
+    assert.equal(await page.locator(selector).evaluate((el) => getComputedStyle(el).backgroundColor), "rgba(0, 0, 0, 0)", `${selector} is a ghost icon button`);
   }
   await page.locator("#home-new").focus();
   assert.equal(await page.locator("#home-new").evaluate((el) => getComputedStyle(el).outlineStyle), "solid", "keyboard focus stays visible");
+  // Filled controls hover to --control-hover (quieter than the --surface-hover on-state).
+  const controlHover = await page.evaluate(() => {
+    const probe = document.body.appendChild(document.createElement("div"));
+    probe.style.background = "var(--control-hover)";
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  });
   await page.locator("#home-new").hover();
-  await page.waitForFunction(() => getComputedStyle(document.querySelector("#home-new")).backgroundColor === "rgb(206, 194, 168)");
+  await page.waitForFunction((expected) => getComputedStyle(document.querySelector("#home-new")).backgroundColor === expected, controlHover);
   await page.mouse.move(0, 0);
   await page.locator("#home-new").evaluate((el) => el.blur());
 }

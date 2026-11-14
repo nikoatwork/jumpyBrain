@@ -1,4 +1,5 @@
 // Browser support evidence: schema construction, never arbitrary console/log capture.
+import { browserIcons } from "./browser-icons.js";
 import { createDiagnosticBuffer, diagnosticOperation, diagnosticCode, diagnosticId, statusCode, diagnosticErrorKind, supportReport, type DiagnosticSnapshot } from "../diagnostics/events.js";
 declare const __JUMPYBRAIN_VERSION__: string;
 declare const __JUMPYBRAIN_BUILD__: string;
@@ -148,9 +149,12 @@ export function installFeedback(options: {
         options.onSubmitted?.(pending.id);
       }
     } catch (error) {
-      if (dialog.open && token === openSequence) status.textContent = (error as { code?: string })?.code === "feedback_unavailable"
-        ? "Feedback is temporarily unavailable. Your message is still here."
-        : "Couldn’t confirm delivery. Your message is still here. Try again.";
+      if (dialog.open && token === openSequence) {
+        status.dataset.error = "true";
+        status.textContent = (error as { code?: string })?.code === "feedback_unavailable"
+          ? "Feedback is temporarily unavailable. Your message is still here."
+          : "Couldn’t confirm delivery. Your message is still here. Try again.";
+      }
     } finally {
       window.clearTimeout(timer); sending = false; update();
     }
@@ -192,37 +196,29 @@ export function installFeedback(options: {
   return { close, isOpen: () => dialog.open };
 }
 
-export const feedbackMarkup = String.raw`
-<dialog id="feedback-dialog" class="document-dialog" aria-labelledby="feedback-title">
-  <button id="feedback-close" class="icon-button" type="button" aria-label="Close feedback"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-  <h2 id="feedback-title">Feedback</h2>
+// Pure IIFE keeps the server-only markup (and the icon set it uses) out of the browser bundle.
+export const feedbackMarkup = /* @__PURE__ */ (() => String.raw`
+<dialog id="feedback-dialog" class="dialog--sm" aria-labelledby="feedback-title">
+  <div class="dialog-heading"><h2 id="feedback-title">Feedback</h2><button id="feedback-close" class="icon-button dialog-close" type="button" aria-label="Close feedback" title="Close feedback">${browserIcons.close}</button></div>
   <textarea id="feedback-message" aria-label="Your feedback" maxlength="4000" placeholder="What could be better?"></textarea>
   <div class="feedback-options">
-    <label class="feedback-check"><input id="feedback-include-logs" type="checkbox" checked /> Include logs</label>
+    <label class="check"><input id="feedback-include-logs" type="checkbox" checked /> Include logs</label>
     <span class="feedback-info">
-      <button class="icon-button" type="button" aria-label="About diagnostic logs" aria-describedby="feedback-logs-info"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v6M12 7v.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
-      <span id="feedback-logs-info" role="tooltip">App version and recent errors help us troubleshoot. No note content, searches, passwords or raw logs.</span>
+      <button class="icon-button" type="button" aria-label="About diagnostic logs" aria-describedby="feedback-logs-info"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v6M12 7v.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+      <span id="feedback-logs-info" class="popover popover--tooltip" role="tooltip">App version and recent errors help us troubleshoot. No note content, searches, passwords or raw logs.</span>
     </span>
   </div>
   <div class="dialog-actions">
     <button id="feedback-send" class="button button-primary" type="button">Send feedback</button>
   </div>
-  <p id="feedback-status" role="status" aria-live="polite" hidden></p>
-</dialog>`;
+  <p id="feedback-status" class="status-text" role="status" aria-live="polite" hidden></p>
+</dialog>`)();
 
+// Layout only: dialog, field, check, tooltip, button and status looks are shared primitives.
 export const feedbackStyles = String.raw`
-  #feedback-dialog p { color: var(--ink-soft); font-size: var(--text-body); overflow-wrap: anywhere; }
-  #feedback-dialog { position: relative; width: min(440px, calc(100vw - var(--space-8))); }
-  #feedback-title { margin: 0 var(--space-10) var(--space-5) 0; }
-  #feedback-close { position: absolute; top: var(--space-4); right: var(--space-4); border-color: transparent; background: transparent; }
-  #feedback-message { min-height: 140px; margin: 0 0 var(--space-3); resize: vertical; }
+  #feedback-message { display: block; width: 100%; min-height: calc(var(--control-height) * 4); margin: 0 0 var(--space-3); }
   #feedback-dialog .feedback-options { display: flex; align-items: center; gap: var(--space-1); }
-  #feedback-dialog .feedback-check { display: flex; align-items: center; gap: var(--space-2); }
-  #feedback-include-logs { width: 16px; height: 16px; accent-color: var(--accent); }
   #feedback-dialog .feedback-info { position: relative; display: inline-flex; }
-  #feedback-dialog .feedback-info button { border-color: transparent; background: transparent; }
-  #feedback-logs-info { visibility: hidden; position: absolute; z-index: 1; bottom: calc(100% + var(--space-1)); left: 50%; transform: translateX(-50%); width: min(240px, calc(100vw - var(--space-16))); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink-soft); font-size: var(--text-caption); line-height: 1.5; box-shadow: var(--shadow-sm); pointer-events: none; }
+  #feedback-logs-info { visibility: hidden; position: absolute; bottom: calc(100% + var(--space-1)); left: 50%; transform: translateX(-50%); width: min(var(--card-width), calc(100vw - var(--space-16))); }
   #feedback-dialog .feedback-info:hover #feedback-logs-info, #feedback-dialog .feedback-info:focus-within #feedback-logs-info { visibility: visible; }
-  #feedback-dialog .dialog-actions { justify-content: flex-end; margin-top: var(--space-4); }
-  #feedback-status { margin: var(--space-3) 0 0; }
 `;

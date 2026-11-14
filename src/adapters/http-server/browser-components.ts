@@ -44,8 +44,8 @@ export const componentStyles = /* @__PURE__ */ (() => String.raw`
     ${textFields} { height: var(--control-height); padding: 0 var(--space-3); }
     textarea { min-height: calc(var(--control-height) * 3); padding: var(--space-2) var(--space-3); resize: vertical; }
     input::placeholder, textarea::placeholder { color: var(--ink-faint); opacity: 1; }
-    ${textFields}:hover:not(:disabled):not(:focus), textarea:hover:not(:disabled):not(:focus) { border-color: var(--hover-line); }
-    ${textFields}:focus, textarea:focus { border-color: var(--focus-ring); }
+    :is(${textFields}, textarea):not(.input--bare):hover:not(:disabled):not(:focus) { border-color: var(--hover-line); }
+    :is(${textFields}, textarea):not(.input--bare):focus { border-color: var(--focus-ring); }
     input:where([type="checkbox"], [type="radio"]) { accent-color: var(--accent); }
     .input--entry { font-size: var(--text-section); }
     .input--mono { font: var(--text-caption)/var(--leading-code) var(--font-mono); }

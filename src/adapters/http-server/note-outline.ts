@@ -1,3 +1,5 @@
+import { media } from "./browser-design-system.js";
+
 /** Disposable presentation over rendered headings. Never changes the editor DOM or selection. */
 export function installNoteOutline(options: { document: Document; available(): boolean }) {
   const doc = options.document, win = doc.defaultView!;
@@ -10,8 +12,8 @@ export function installNoteOutline(options: { document: Document; available(): b
   const excerpt = doc.getElementById("note-outline-excerpt")!;
   let headings: HTMLElement[] = [], ticks: HTMLElement[] = [];
   let selected = -1, current = 0, frame = 0, stopped = false, dirty = true;
-  const compact = win.matchMedia("(max-width: 680px)");
-  const reduced = win.matchMedia("(prefers-reduced-motion: reduce)");
+  const compact = win.matchMedia(media.narrow);
+  const reduced = win.matchMedia(media.reducedMotion);
   const label = (heading: HTMLElement) => heading.textContent?.trim() || "Untitled section";
 
   function dismiss() { selected = -1; preview.hidden = true; paint(); }

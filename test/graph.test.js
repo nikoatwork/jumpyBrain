@@ -496,10 +496,14 @@ test("all browser views share Ember surfaces and semantic controls", () => {
   assert.match(css, /--control-fill: #d8ccb0;/);
   assert.match(css, /--surface-hover: #cec2a8;/);
   assert.doesNotMatch(css, /--(?:cream|forest|sage|gold|clay|white)\b/);
-  for (const selector of ["body", "#graph-header", "#graph-wrap", ".map-options", "dialog", "#note-name", "#note-editor", "#dream-preview"]) {
+  for (const selector of ["body", "#graph-header", "#graph-wrap", "dialog", ".popover", "#note-name", "#note-editor"]) {
     const rule = css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
     assert.match(rule, /background: var\(--surface\)/, selector);
   }
+  // Filter panel and Dream prompt compose the shared popover and text-field primitives instead of painting surfaces.
+  assert.match(html, /<div class="map-options popover">/);
+  assert.match(css, /, textarea \{[^\n]*background: var\(--surface\)/, "shared text fields paint the surface");
+  assert.match(html, /<textarea id="dream-preview" readonly[^>]*class="input--mono"/);
   // Shared button primitive: one base rule paints every variant from --btn-* variables; variants only retune them.
   const ruleFor = (selector) => css.split("\n").find((line) => line.trimStart().startsWith(selector + " {"));
   const base = ruleFor(".button, .quiet-button, .icon-button");
@@ -513,7 +517,7 @@ test("all browser views share Ember surfaces and semantic controls", () => {
   }
   assert.match(css, /:is\(\.button, \.quiet-button, \.icon-button\):hover:not\(:disabled, \[aria-disabled="true"\]\) \{ --btn-bg: var\(--btn-fill-hover\)/);
   assert.doesNotMatch(css, /button:disabled \{ cursor: wait/, "disabled is not busy");
-  assert.match(ruleFor("#home-new"), /background: var\(--control-fill\)/);
+  assert.match(html, /id="home-new" class="button button-primary home-action"/, "Home's primary action composes the shared button primitive");
   const defined = new Set([...css.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1]));
   defined.add("--node-fill"); // Per-node inline override with a CSS fallback.
   defined.add("--sidebar-width"); // Persisted inline resize override with a CSS fallback.

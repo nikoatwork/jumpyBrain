@@ -66,9 +66,9 @@ export function installAccessKeys(options: {
 
   const say = (text: string, error = false) => { message.textContent = text; message.dataset.error = String(error); message.hidden = !text; };
   const date = (value: string) => { const time = Date.parse(value); return Number.isFinite(time) ? new Date(time).toLocaleDateString(undefined, { dateStyle: "medium" }) : "unknown date"; };
-  function badge(text: string) { const item = document.createElement("span"); item.className = "access-key-badge"; item.textContent = text; return item; }
+  function badge(text: string) { const item = document.createElement("span"); item.className = "badge access-key-badge"; item.textContent = text; return item; }
   function row(credential: Credential, canChange: boolean) {
-    const item = document.createElement("li"); item.className = "access-key"; item.dataset.credentialId = credential.id;
+    const item = document.createElement("li"); item.className = "access-key card"; item.dataset.credentialId = credential.id;
     const text = document.createElement("div"), title = document.createElement("strong"), detail = document.createElement("p");
     title.append(credential.name, badge(ROLE_LABEL[credential.role]));
     const current = credential.id === principal?.id;
@@ -76,7 +76,7 @@ export function installAccessKeys(options: {
     detail.textContent = credential.revokedAt ? "Revoked " + date(credential.revokedAt) + " · created " + date(credential.createdAt) : "Created " + date(credential.createdAt);
     text.append(title, detail); item.append(text);
     if (!credential.revokedAt) {
-      const button = document.createElement("button"); button.type = "button"; button.className = "quiet-button"; button.textContent = "Revoke";
+      const button = document.createElement("button"); button.type = "button"; button.className = "quiet-button button--danger"; button.textContent = "Revoke";
       button.setAttribute("aria-label", "Revoke key " + credential.name);
       button.disabled = busy || current || !canChange;
       if (current) button.title = "You are using this key. Connect with another admin key to revoke it.";
@@ -101,7 +101,7 @@ export function installAccessKeys(options: {
     list.replaceChildren(...active.map(item => row(item, context.canChange)));
     if (admin && !active.length) { const empty = document.createElement("li"); empty.className = "access-key-empty"; empty.textContent = "No keys yet. Create one for each person and agent."; list.append(empty); }
     revoked.hidden = !admin || !old.length;
-    element("access-keys-revoked-summary").textContent = "Revoked keys (" + old.length + ")";
+    element("access-keys-revoked-label").textContent = "Revoked keys (" + old.length + ")";
     revokedList.replaceChildren(...old.map(item => row(item, false)));
   }
   function reset() {

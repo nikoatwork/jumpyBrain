@@ -30,9 +30,11 @@ export const listStyles = /* @__PURE__ */ (() => String.raw`
     .list-section-label--flush { padding-inline: 0; }
     .list-status { margin: 0; padding: var(--space-1) var(--row-inset) var(--space-2) calc(var(--row-inset) + var(--row-depth, 0) * var(--row-indent)); color: var(--ink-faint); font: italic var(--weight-regular) var(--text-caption)/var(--leading-ui) var(--font-ui); }
     .list-more { margin: var(--space-1) var(--row-inset); font-size: var(--text-caption); }
-    .row-actions { display: flex; flex: none; align-items: center; opacity: 0; pointer-events: none; transition: opacity var(--duration-fast) var(--ease); }
+    /* Inline actions stay clickable while faded (they own their lane); overlay actions sit over the
+       label/meta, so they ignore the pointer until the row is hovered or focused. */
+    .row-actions { display: flex; flex: none; align-items: center; opacity: 0; transition: opacity var(--duration-fast) var(--ease); }
     .list-row:is(:hover, :focus-within) .row-actions, .row-actions--always { opacity: 1; pointer-events: auto; }
-    .row-actions--overlay { position: absolute; right: var(--space-4); top: 50%; transform: translateY(-50%); }
+    .row-actions--overlay { position: absolute; right: var(--space-4); top: 50%; transform: translateY(-50%); pointer-events: none; }
     .disclosure-trigger { cursor: pointer; }
     summary.disclosure-trigger { list-style: none; }
     summary.disclosure-trigger::-webkit-details-marker { display: none; }
@@ -49,7 +51,7 @@ export const listStyles = /* @__PURE__ */ (() => String.raw`
       .row-actions--overlay { position: static; transform: none; }
     }
     @media ${media.narrow}, ${media.coarse} {
-      .list-row { --row-height: var(--control-touch); }
+      .list-row:not(.list-row--shelf) { --row-height: var(--control-touch); }
       .list-row--edge { border-radius: var(--radius-sm); }
     }
     @media ${media.reducedMotion} {

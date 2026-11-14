@@ -5,6 +5,7 @@ import type { MemoryDocumentDeletePreview, MemoryDocumentDeleteResult, MemoryDoc
 import type { Toast } from "./browser-toast.js";
 import { installRetainedVersions } from "./document-retained-versions.js";
 import { renderVersionChanges } from "./document-version-diff.js";
+import { prepareDropdown } from "./browser-dropdown.js";
 type Editor = EditorSession;
 export function installDocumentActions(options: {
   document: Document; editor(): Editor | null; writable(): boolean; canPublish(editor: Editor): boolean; scope(): string;
@@ -107,7 +108,7 @@ export function installDocumentActions(options: {
     $("recovery-message").textContent = "Loading saved changes…";
     const drafts = editor.getRecoveryDrafts?.() ?? [];
     const versions = $<HTMLSelectElement>("recovery-versions");
-    if (versions && editor.getRecoveryDrafts) {versions.replaceChildren(); const current = doc.createElement("option"); current.value = ""; current.textContent = "Current draft"; versions.append(current); for (const [index,draft] of drafts.entries()) {const option = doc.createElement("option"); option.value = String(index); option.textContent = new Date(draft.updatedAt).toLocaleString(); versions.append(option);} $("recovery-versions-label").hidden = !drafts.length;}
+    if (versions && editor.getRecoveryDrafts) {versions.replaceChildren(); const current = doc.createElement("option"); current.value = ""; current.textContent = "Current draft"; versions.append(current); for (const [index,draft] of drafts.entries()) {const option = doc.createElement("option"); option.value = String(index); option.textContent = new Date(draft.updatedAt).toLocaleString(); versions.append(option);} prepareDropdown(versions); $("recovery-versions-label").hidden = !drafts.length;}
     refreshRecovery();
     recovery.showModal();
     try {

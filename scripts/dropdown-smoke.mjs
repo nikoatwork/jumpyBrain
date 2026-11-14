@@ -86,13 +86,18 @@ try {
             const rect = option.getBoundingClientRect();
             return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
           });
-          return { control: { left: control.left, right: control.right, width: control.width }, picker: { width: parseFloat(picker.width), background: picker.backgroundColor }, options, parentWidth: el.parentElement.clientWidth, selectedWidth: selected.width, iconWidth: icon.width, iconInside: icon.right <= control.right && icon.left >= selected.right, height: innerHeight, width: innerWidth, surface: getComputedStyle(document.body).backgroundColor };
+          return { control: { left: control.left, right: control.right, width: control.width, height: control.height }, background: getComputedStyle(el).backgroundColor, picker: { width: parseFloat(picker.width), background: picker.backgroundColor }, options, parentWidth: el.parentElement.clientWidth, selectedWidth: selected.width, iconWidth: icon.width, iconInside: icon.right <= control.right && icon.left >= selected.right, height: innerHeight, width: innerWidth, surface: getComputedStyle(document.body).backgroundColor };
         });
         assert.ok(Math.abs(layout.picker.width - layout.control.width) <= 1, `${id}/${width}: picker follows trigger width`);
         assert.equal(layout.picker.background, layout.surface, `${id}: picker uses active theme`);
         assert.ok(layout.selectedWidth + layout.iconWidth < layout.control.width, `${id}: label reserves room for the arrow`);
         assert.ok(layout.iconInside && layout.iconWidth === 16, `${id}: shared 16px chevron trails the label inside the trigger`);
         assert.ok(layout.control.width <= layout.parentWidth, `${id}/${width}: trigger fits parent`);
+        if (id === 'brain') {
+          // Full-row switcher: 36px (40px narrow) and one wash for the whole row while open/hovered.
+          assert.equal(layout.control.height, width <= 680 ? 40 : 36, `brain/${width}: switcher row height`);
+          assert.notEqual(layout.background, 'rgba(0, 0, 0, 0)', 'open switcher shows the hover wash');
+        }
         for (const option of layout.options) {
           assert.ok(option.left >= 0 && option.right <= width + 1, `${id}/${width}: menu option fits viewport`);
           assert.ok(option.right - option.left <= layout.control.width, `${id}: long option fits menu`);

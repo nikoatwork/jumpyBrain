@@ -98,7 +98,7 @@ test("connection settings mask keys, discard canceled edits, and remove persiste
   context.closeConnection();
   assert.equal(context.apiKeyInput.value, "saved-key");
   assert.equal(context.apiKeyInput.type, "password");
-  assert.equal($("toggle-api-key")["aria-pressed"], "false");
+  assert.equal($("toggle-api-key").textContent, "Show key", "closing masks the key again");
   await context.setConnectionKey("");
   assert.equal(context.activeApiKey, "");
   assert.equal(context.apiKeyInput.value, "");
@@ -145,10 +145,9 @@ test("recent notes cancel stale loads and recover from auth, network, and malfor
 test("home puts a prominent capture action before secondary search", () => {
   const html = graphPageHtml("testnonce");
   assert.ok(html.indexOf('id="home-new"') < html.indexOf('id="home-search"'));
-  assert.match(html, /id="home-new" class="home-action" aria-label="New note"/);
-  assert.match(html, /#home-new \{ background: var\(--control-fill\);[^}]+color: var\(--ink\)/);
-  assert.match(html, /#home-search \{[^}]+background: transparent/);
-  assert.match(html, /class="new-shortcut" aria-hidden="true"/);
+  assert.match(html, /id="home-new" class="button button-primary home-action" aria-label="New note"/, "capture uses the primary button");
+  assert.match(html, /id="home-search" class="quiet-button quiet-button--plain home-action"/, "search stays a plain secondary action");
+  assert.match(html, /class="kbd new-shortcut" aria-hidden="true"/);
   assert.match(html, /setAttribute\("aria-keyshortcuts"/);
 });
 
@@ -374,7 +373,7 @@ test("result rendering uses text nodes for untrusted titles, excerpts, and paths
   renderNoteSearch(search);
   assert.notEqual($("search-results").children[0], row, "a new query's results should replace old rows");
   const known = $("search-results").children[0];
-  assert.equal(known.children[2].className, "search-result-age");
+  assert.equal(known.children[2].className, "search-result-age list-meta");
   assert.match(known.children[2].textContent, /^Edited /);
   assert.match(known.children[2].attrs["aria-label"], /Last edited 2026-10-22/);
   assert.doesNotMatch(known.children[2].title, /Declared editor|Created/);

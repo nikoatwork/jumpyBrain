@@ -4,16 +4,17 @@ import { browserIcons } from "./browser-icons.js";
 import { appearanceMarkup } from "./browser-appearance.js";
 import { accessKeysMarkup } from "./access-keys-view.js";
 import { settingsNavigationMarkup, settingsStyles, settingsScript } from "./browser-settings.js";
+import { media } from "./browser-design-system.js";
 
 // Companion-only loopback control UI. No target credential is ever read into this shell.
 export const companionStyles = String.raw`
-  .companion-column { max-width: 760px; margin: auto; }
+  .companion-column { max-width: var(--measure); margin: auto; }
   #companion-settings h2 { font-size: var(--text-section); margin: 0; }
   .settings-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
   .companion-header { margin-bottom: var(--space-8); }
   .companion-header h1 { margin: 0; }
   #companion-profiles { list-style: none; padding: 0; margin: var(--space-5) 0 0; display: grid; gap: var(--space-3); }
-  .companion-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-4); align-items: center; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: var(--space-5); }
+  .companion-profile { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--space-4); align-items: center; }
   .companion-profile p { grid-column: 1; margin: var(--space-1) 0 0; font-size: var(--text-caption); color: var(--ink-soft); display: flex; gap: var(--space-2); }
   .companion-path { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .companion-profile-status { flex-shrink: 0; max-width: 50%; overflow-wrap: anywhere; }
@@ -21,35 +22,24 @@ export const companionStyles = String.raw`
   .companion-profile strong { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-body); overflow-wrap: anywhere; }
   .companion-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
   #companion-fields { border: 0; padding: 0; margin: 0; }
-  #companion-form label { display: block; margin: var(--space-4) 0; }
-  #companion-form input:not([type=checkbox]), #companion-form select { width: 100%; margin-top: var(--space-1); }
-  #companion-form input:not([type=checkbox]) { display: block; }
-  #companion-form input[type=checkbox] { height: auto; }
-  #companion-form-error { color: var(--error-ink); }
-  #companion-active { display: grid; min-width: 0; grid-template-columns: 6px minmax(0, 1fr); align-items: center; column-gap: var(--space-2); padding: var(--space-2) var(--space-1); color: var(--ink-soft); font-size: var(--text-caption); overflow-wrap: anywhere; }
-  #companion-active > .connection-dot { grid-column: 1; grid-row: 1; }
-  #companion-active > :not(.connection-dot) { grid-column: 2; }
-  @media (max-width: 680px) { #companion-active { padding-inline: 0; font-size: var(--text-caption); } }
+  /* Footer brain switcher: one full-row target. The status dot overlays the select's leading
+     padding (--switcher-lead) and ignores the pointer, so a single hover wash covers dot, label and chevron. */
+  #companion-active { --switcher-lead: calc(var(--space-2) + var(--dot-size) + var(--space-2)); position: relative; display: grid; grid-template-columns: minmax(0, 1fr); row-gap: var(--space-1); min-width: 0; color: var(--ink-soft); font: var(--weight-regular) var(--text-ui)/var(--leading-ui) var(--font-ui); }
+  #companion-active > .status-dot { position: absolute; z-index: 1; left: var(--space-2); top: calc((var(--switcher-height) - var(--dot-size)) / 2); pointer-events: none; }
+  #companion-active > .brain-name { display: block; min-width: 0; height: var(--switcher-height); padding: 0 var(--space-3) 0 var(--switcher-lead); overflow: hidden; line-height: var(--switcher-height); white-space: nowrap; text-overflow: ellipsis; cursor: default; }
+  #companion-active > .brain-health { margin: 0; padding-inline-start: var(--switcher-lead); }
+  #companion-active > :is(.brain-name, .brain-health) { border-inline-start: 1px solid transparent; } /* matches the select's hairline so text aligns */
+  #companion-active > [hidden] { display: none; }
   #settings-panel-brains { position: relative; }
   .connections-intro { padding-right: var(--space-12); }
   .connections-intro p { margin: var(--space-2) 0 0; color: var(--ink-soft); font-size: var(--text-ui); }
-  .companion-profile[aria-current="true"] { border-color: var(--ink-faint); }
-  .companion-profile-badge { font-size: var(--text-caption); font-weight: var(--weight-regular); color: var(--ink-soft); border-radius: var(--radius-sm); background: var(--surface-hover); padding: 2px var(--space-2); white-space: nowrap; }
-  .companion-add > summary { position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center; width: var(--control-compact); height: var(--control-compact); padding: 0; color: var(--ink-soft); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; font-size: 0; list-style: none; }
-  .companion-add > summary::-webkit-details-marker { display: none; }
-  .companion-add > summary::after { content: "+"; font-size: 22px; line-height: 1; font-weight: var(--weight-regular); color: inherit; }
-  .companion-add > summary:hover { color: var(--ink); }
-  #companion-form { margin-top: var(--space-4); padding: var(--space-5); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+  .companion-add > summary { position: absolute; top: 0; right: 0; }
+  #companion-form { margin-top: var(--space-4); }
   #companion-form h3 { margin: 0; font-size: var(--text-body); }
-  #companion-form label { font-size: var(--text-ui); }
-  #companion-form .companion-actions { margin-top: var(--space-5); }
-  #companion-form p { color: var(--ink-soft); font-size: var(--text-caption); }
-  .companion-access-notice { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-4) var(--space-6) 0; padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); font-size: var(--text-ui); }
+  .companion-access-notice { margin: var(--space-4) var(--space-6) 0; }
   .companion-access-notice[hidden] { display: none; }
-  .companion-access-notice p { flex: 1 1 240px; margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
-  @media (max-width: 680px) { .companion-access-notice { margin-inline: var(--space-4); } }
-  @media (max-width: 680px) { #companion-settings .note-icon, .companion-add > summary { width: var(--control-touch); height: var(--control-touch); min-height: var(--control-touch); } }
-  @media (max-width: 480px) { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
+  @media ${media.narrow} { .companion-access-notice { margin-inline: var(--space-4); } }
+  @media ${media.compact} { .companion-profile { grid-template-columns: minmax(0, 1fr); } .companion-profile > .companion-actions { grid-column: 1; grid-row: 3; margin-top: var(--space-2); } }
 ${settingsStyles}
 ${boardsStyles}
 `;
@@ -65,58 +55,57 @@ ${boardsMarkup}
     <header class="settings-heading companion-header">
       <h1 id="companion-heading" class="settings-breadcrumb" tabindex="-1"><span>Settings</span><span aria-hidden="true">/</span><span id="settings-section-title">Brains</span></h1>
       <div class="settings-header-actions">
-        <button id="companion-refresh-index" class="quiet-button note-icon" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
-        <a id="settings-back" class="quiet-button note-icon" href="/" aria-label="Close settings" title="Close settings (Esc)" aria-keyshortcuts="Escape">${browserIcons.close}</a>
+        <button id="companion-refresh-index" class="icon-button" type="button" aria-label="Refresh search index" title="Refresh search index" disabled>${browserIcons.refresh}</button>
+        <a id="settings-back" class="icon-button" href="/" aria-label="Close settings" title="Close settings (Esc)" aria-keyshortcuts="Escape">${browserIcons.close}</a>
       </div>
     </header>
     <button id="companion-reconnect" class="quiet-button" type="button" hidden>Retry companion session</button>
-    <section class="settings-panel settings-card" data-settings-panel="boards" data-settings-keywords="kanban columns cards settle restore rename delete" hidden><div class="settings-row"><h2>Boards</h2><button id="settings-new-board" class="quiet-button">+ New board</button></div><div id="settings-boards-list"></div></section>
+    <section class="settings-panel card card--roomy" data-settings-panel="boards" data-settings-keywords="kanban columns cards settle restore rename delete" hidden><div class="settings-row"><h2>Boards</h2><button id="settings-new-board" class="quiet-button" type="button">${browserIcons.plus}<span>New board</span></button></div><div id="settings-boards-list"></div></section>
     <section id="settings-panel-brains" class="settings-panel" data-settings-panel="brains" data-settings-keywords="connections connect folder memory server remote local access key keychain editing permissions index refresh switch" aria-label="Brain connections">
     <div class="connections-intro"><h2>Connections</h2><p>Choose the brain you want to work with, or connect another folder or server.</p></div>
     <ul id="companion-profiles" aria-label="Saved brains"></ul>
     <details id="companion-add" class="companion-add">
-    <summary id="companion-form-heading" title="Add connection">Add connection</summary>
-    <form id="companion-form">
+    <summary id="companion-form-heading" class="icon-button button--toggle" title="Add connection" aria-label="Add connection">${browserIcons.plus}</summary>
+    <form id="companion-form" class="card card--roomy">
       <fieldset id="companion-fields">
         <h3 id="companion-editor-heading">Add connection</h3>
-        <label>Type<select id="companion-kind" class="dropdown"><option value="local">Local folder</option><option value="remote">Remote server</option></select></label>
+        <div class="field"><label class="field-label" for="companion-kind">Type</label><select id="companion-kind" class="dropdown"><option value="local">Local folder</option><option value="remote">Remote server</option></select></div>
         <div id="companion-local-fields">
-          <label>Existing memory folder<input id="companion-root" required autocomplete="off" placeholder="/path/to/brain" /></label>
+          <div class="field"><label class="field-label" for="companion-root">Existing memory folder</label><input id="companion-root" required autocomplete="off" placeholder="/path/to/brain" /></div>
           <button id="companion-folder" class="quiet-button" type="button">Choose folder…</button>
         </div>
         <div id="companion-remote-fields" hidden>
-          <label>Memory server URL<input id="companion-url" type="url" disabled placeholder="https://memory.example.com" autocomplete="off" /></label>
-          <label>Access key<input id="companion-key" type="password" disabled autocomplete="new-password" aria-describedby="companion-key-help" /></label>
-          <p id="companion-key-help">Saved in ~/.config/jumpybrain/.env (private to you) and shared with the jumpyBrain CLI.</p>
-          <label><input id="companion-writes" type="checkbox" aria-describedby="companion-writes-help" /> Allow editing on this remote brain</label>
-          <p id="companion-writes-help">Off by default: you can browse and search. Enable to create, edit and delete notes, and refresh search from this app. Your server access key must also permit these changes.</p>
+          <div class="field"><label class="field-label" for="companion-url">Memory server URL</label><input id="companion-url" type="url" disabled placeholder="https://memory.example.com" autocomplete="off" /></div>
+          <div class="field"><label class="field-label" for="companion-key">Access key</label><input id="companion-key" type="password" disabled autocomplete="new-password" aria-describedby="companion-key-help" />
+          <p id="companion-key-help" class="field-help">Saved in ~/.config/jumpybrain/.env (private to you) and shared with the jumpyBrain CLI.</p></div>
+          <div class="field"><label class="check"><input id="companion-writes" type="checkbox" aria-describedby="companion-writes-help" /> Allow editing on this remote brain</label>
+          <p id="companion-writes-help" class="field-help">Off by default: you can browse and search. Enable to create, edit and delete notes, and refresh search from this app. Your server access key must also permit these changes.</p></div>
         </div>
-        <label>Name <span class="muted">(optional)</span><input id="companion-name" maxlength="120" autocomplete="off" placeholder="Use the folder or server name" /></label>
-        <p id="companion-form-error" role="alert" tabindex="-1" hidden></p>
-        <div class="companion-actions">
-          <button class="button button-primary" type="submit">Save connection</button>
+        <div class="field"><label class="field-label" for="companion-name">Name (optional)</label><input id="companion-name" maxlength="120" autocomplete="off" placeholder="Use the folder or server name" /></div>
+        <p id="companion-form-error" class="status-text" data-error="true" role="alert" tabindex="-1" hidden></p>
+        <div class="companion-actions dialog-actions">
           <button id="companion-cancel" class="quiet-button" type="button">Cancel</button>
+          <button class="button button-primary" type="submit">Save connection</button>
         </div>
       </fieldset>
     </form>
     </details>
     </section>
-    <section id="settings-panel-access" class="settings-panel settings-card" data-settings-panel="access" data-settings-keywords="api keys tokens credentials team share invite users people agents admin reader writer roles revoke permissions server" aria-label="Access keys" hidden>${accessKeysMarkup}</section>
-    <section class="settings-panel settings-card" data-settings-panel="identity" data-settings-keywords="display name author attribution identity profile agents" aria-label="Your name" hidden>
+    <section id="settings-panel-access" class="settings-panel card card--roomy" data-settings-panel="access" data-settings-keywords="api keys tokens credentials team share invite users people agents admin reader writer roles revoke permissions server" aria-label="Access keys" hidden>${accessKeysMarkup}</section>
+    <section class="settings-panel card card--roomy" data-settings-panel="identity" data-settings-keywords="display name author attribution identity profile agents" aria-label="Your name" hidden>
       <h2>Your name</h2>
       <form id="identity-form">
-        <label for="identity-name">Display name</label>
-        <input id="identity-name" maxlength="48" autocomplete="name" aria-describedby="identity-help" />
-        <p id="identity-help">Used for future edits from this Mac. Agents using the CLI on this Mac add your name to their client label, for example Alex · Codex. Existing edits keep their recorded names.</p>
+        <div class="field"><label class="field-label" for="identity-name">Display name</label><input id="identity-name" maxlength="48" autocomplete="name" aria-describedby="identity-help" />
+        <p id="identity-help" class="field-help">Used for future edits from this Mac. Agents using the CLI on this Mac add your name to their client label, for example Alex · Codex. Existing edits keep their recorded names.</p></div>
         <button class="button button-primary" type="submit">Save name</button>
-        <p id="identity-message" role="status"></p>
+        <p id="identity-message" class="status-text" role="status"></p>
       </form>
     </section>
     <section id="settings-panel-appearance" class="settings-panel" data-settings-panel="appearance" data-settings-keywords="theme color colour scheme dark light system mode palette" aria-label="Appearance" hidden>
       ${appearanceMarkup}
     </section>
-    <section id="settings-panel-extensions" class="settings-panel settings-card" data-settings-panel="extensions" data-settings-keywords="plugins add-ons reload panels commands" aria-label="Extensions" hidden>${extensionSettingsMarkup}</section>
-    <p id="settings-search-empty" class="settings-search-empty" role="status" hidden></p>
+    <section id="settings-panel-extensions" class="settings-panel card card--roomy" data-settings-panel="extensions" data-settings-keywords="plugins add-ons reload panels commands" aria-label="Extensions" hidden>${extensionSettingsMarkup}</section>
+    <p id="settings-search-empty" class="empty-state" role="status" hidden></p>
   </div>
   </div>
   </div>
@@ -169,7 +158,7 @@ sessionCopy.addEventListener("click", () => documentActions.openRecovery());
 companionRecovery.append(sessionRetry, sessionCopy);
 document.querySelector(".app-workspace").prepend(companionRecovery);
 const companionAccessNotice = document.createElement("div");
-companionAccessNotice.id = "companion-access-notice"; companionAccessNotice.className = "companion-access-notice"; companionAccessNotice.hidden = true;
+companionAccessNotice.id = "companion-access-notice"; companionAccessNotice.className = "companion-access-notice callout"; companionAccessNotice.hidden = true;
 const companionAccessText = document.createElement("p");
 companionAccessText.setAttribute("role", "status"); companionAccessText.setAttribute("aria-live", "polite");
 const companionAccessAction = document.createElement("button");
@@ -183,12 +172,15 @@ companionAccessAction.addEventListener("click", () => {
 const companionActiveLabel = document.createElement("div");
 companionActiveLabel.id = "companion-active";
 companionActiveLabel.setAttribute("role", "group");
-const companionActiveDot = document.createElement("span"); companionActiveDot.className = "connection-dot"; companionActiveDot.setAttribute("aria-hidden", "true");
-const companionActiveName = document.createElement("span");
+// The dot is a decorative overlay; the name (one brain) or the select (two or more) owns the row and its tooltip.
+const companionActiveDot = document.createElement("span"); companionActiveDot.className = "status-dot"; companionActiveDot.setAttribute("aria-hidden", "true");
+const companionActiveName = document.createElement("span"); companionActiveName.className = "brain-name";
 const companionBrainSelect = document.createElement("select");
-companionBrainSelect.id = "companion-brain-switch"; companionBrainSelect.className = "dropdown dropdown--quiet";
+companionBrainSelect.id = "companion-brain-switch"; companionBrainSelect.className = "dropdown dropdown--switcher";
 companionBrainSelect.setAttribute("aria-label", "Switch brain"); companionBrainSelect.title = "Switch brain"; companionBrainSelect.hidden = true;
 const companionActiveHealth = document.createElement("span");
+companionActiveHealth.id = "companion-active-health"; companionActiveHealth.className = "brain-health status-text status-text--caption";
+companionBrainSelect.setAttribute("aria-describedby", companionActiveHealth.id);
 companionActiveLabel.append(companionActiveDot, companionActiveName, companionBrainSelect, companionActiveHealth);
 companionBrainSelect.addEventListener("change", () => {
   const id = companionBrainSelect.value;
@@ -307,7 +299,9 @@ function renderCompanionConnection() {
     companionActiveHealth.hidden = !companionActiveHealth.textContent;
     status.dataset.state = displayState;
     status.setAttribute("aria-label", label);
-    status.title = label;
+    // One tooltip source per row; only write on change so an open control label is not churned by polls.
+    const tooltipTarget = profiles.length > 1 ? companionBrainSelect : companionActiveName;
+    if (tooltipTarget.dataset.tooltip !== label) { tooltipTarget.dataset.tooltip = label; tooltipTarget.title = label; }
   }
   renderCompanionAccess();
 }
@@ -410,7 +404,7 @@ function companionApplyState(next) {
   const wasPreparing = companionState?.phase === "preparing";
   companionState = next;
   const identity = next.identity;
-  if (identity?.unavailable) $("identity-message").textContent = "Could not read your saved name. Save it again here.";
+  if (identity?.unavailable) { $("identity-message").textContent = "Could not read your saved name. Save it again here."; $("identity-message").dataset.error = "true"; }
   browserActor = { kind: "human", ...(browserActor.id ? { id: browserActor.id } : {}), ...(identity?.name ? { name: identity.name } : {}) };
   if (document.activeElement !== $("identity-name") && !identityNameDirty) $("identity-name").value = identity?.name || "";
   renderCompanionConnection();
@@ -677,21 +671,21 @@ function renderCompanionSettings() {
   list.dataset.signature = signature;
   list.replaceChildren();
   for (const profile of companionState.profiles) {
-    const row = document.createElement("li"); row.className = "companion-profile"; row.dataset.profileId = profile.id;
+    const row = document.createElement("li"); row.className = "companion-profile card card--roomy"; row.dataset.profileId = profile.id;
     const name = document.createElement("strong");
     name.textContent = profile.name;
     const isActive = profile.id === companionState.activeId;
     if (isActive) row.setAttribute("aria-current", "true");
     const health = isActive ? companionSessionFailed ? "session unavailable" : companionHealthText(companionState.health)
       : companionHealthText(companionHealth.get(profile.id));
-    const status = document.createElement("span"); status.className = "connection-dot";
+    const status = document.createElement("span"); status.className = "status-dot";
     status.setAttribute("role", "img");
     status.setAttribute("aria-label", (isActive ? "Active brain · " : "") + companionHealthLabel(health));
     status.title = status.getAttribute("aria-label");
     name.dataset.state = health === "connected" ? "connected"
       : ["Not tested", "unknown", "checking", "starting"].includes(health) ? "checking" : "unavailable";
     name.prepend(status);
-    const badge = document.createElement("span"); badge.className = "companion-profile-badge";
+    const badge = document.createElement("span"); badge.className = "badge";
     badge.textContent = (profile.kind === "local" ? "Local" : "Remote") + (isActive ? " · Active" : "");
     name.append(badge);
     const detail = document.createElement("p");
@@ -706,9 +700,9 @@ function renderCompanionSettings() {
       caption.textContent = statusText; detail.append(caption);
     }
     const actions = document.createElement("div"); actions.className = "companion-actions";
-    const button = (label, glyph, action, disabled = false) => {
+    const button = (label, glyph, action, disabled = false, danger = false) => {
       const control = document.createElement("button"); control.type = "button";
-      control.className = "quiet-button note-icon"; control.innerHTML = glyph;
+      control.className = danger ? "icon-button button--danger" : "icon-button"; control.innerHTML = glyph;
       control.setAttribute("aria-label", label); control.title = label;
       control.disabled = disabled || companionActionBusy || companionFrozen || companionSessionFailed;
       control.addEventListener("click", action); actions.append(control);
@@ -725,7 +719,7 @@ function renderCompanionSettings() {
       if (!confirm("Remove connection “" + profile.name + "”? Memory files and server authorization are not deleted.")) return;
       companionApplyState(await companionControl("remove", { id: profile.id, revision: companionState.revision }));
       companionClearForm(); companionMessage("Connection removed. Memory was not deleted.");
-    }), isActive);
+    }), isActive, true);
     if (isActive) actions.lastElementChild.title = "Switch to another brain before removing this connection.";
     row.append(name, detail, actions); list.append(row);
   }

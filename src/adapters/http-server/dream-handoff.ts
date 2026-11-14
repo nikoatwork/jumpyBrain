@@ -68,47 +68,43 @@ Do not index for a no-op. If a write/index fails, report it honestly, including 
   return { target, from, to, prompt };
 }
 
+// Layout only: the sectioned dialog, card, fields, buttons and status text are shared primitives.
 export const dreamStyles = String.raw`
-    #dream-handoff { width: min(680px, calc(100vw - 32px)); max-height: min(760px, calc(100dvh - 32px)); padding: 0; overflow: hidden; }
-    #dream-handoff[open] { display: flex; flex-direction: column; }
-    .dream-title { flex-shrink: 0; padding: var(--space-5) var(--space-6) 0; }
-    #dream-handoff h2 { margin: 0; font-size: var(--text-heading); }
-    #dream-handoff p { margin: var(--space-3) 0; }
-    .dream-content { min-height: 0; overflow: auto; padding: 0 var(--space-6) var(--space-3); }
-    .dream-footer { flex-shrink: 0; padding: var(--space-4) var(--space-6); border-top: 1px solid var(--line); }
-    .dream-scope { padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
-    .dream-scope p { margin: var(--space-1) 0 !important; }
-    .dream-help { color: var(--ink-soft); font-size: var(--text-caption); }
-    #dream-preview { display: block; width: 100%; min-height: 160px; height: 22dvh; margin-top: var(--space-2); padding: var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); resize: vertical; font: var(--text-caption)/1.6 var(--font-mono); }
-    .dream-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-    #dream-feedback { font-size: var(--text-ui); margin-bottom: 0 !important; }
-    #dream-feedback:empty { display: none; }
-    #dream-feedback[data-error="true"] { color: var(--error-ink); }
+    #dream-content { display: grid; gap: var(--space-3); padding-bottom: var(--space-3); overflow-wrap: anywhere; }
+    #dream-content > * { margin: 0; }
+    .dream-scope { display: grid; gap: var(--space-1); }
+    .dream-scope > p { margin: 0; }
+    #dream-preview { display: block; height: 22dvh; min-height: calc(var(--control-height) * 4); }
+    #dream-feedback:empty { margin: 0; }
 `;
 
 export const dreamMarkup = String.raw`
-<dialog id="dream-handoff" aria-labelledby="dream-heading" aria-describedby="dream-explanation dream-authorization">
-  <div class="dream-title"><h2 id="dream-heading">Dreaming: consolidate notes</h2></div>
-  <div class="dream-content" id="dream-content">
+<dialog id="dream-handoff" aria-labelledby="dream-heading" aria-describedby="dream-explanation dream-authorization" class="dialog--lg dialog--sections">
+  <div class="dialog-heading"><h2 id="dream-heading">Dreaming: consolidate notes</h2></div>
+  <div class="dialog-body" id="dream-content">
   <p id="dream-explanation">Dreaming connects scattered notes into concise topic pages. Paste this prompt into your agent to create or update dream pages. Source notes stay unchanged.</p>
-  <div class="dream-scope">
+  <div class="dream-scope card">
     <p><strong>Memory:</strong> <span id="dream-target"></span></p>
     <p><strong>Evidence window:</strong> <span id="dream-window"></span></p>
   </div>
   <p id="dream-authorization">Submitting this prompt authorizes dream-page changes and indexing on this memory.</p>
-  <p class="dream-help">Uses the date window across this memory, not just visible notes or map filters. Nothing runs here; your agent uses its own model/account and separately configured memory access.</p>
-  <label for="dream-topic">Topic or canonical page ID (optional for general dreaming)</label>
-  <input id="dream-topic" type="text" maxlength="200" autocomplete="off" placeholder="Release plan">
-  <label for="dream-preview">Prompt to paste into your agent</label>
-  <textarea id="dream-preview" readonly spellcheck="false" aria-describedby="dream-feedback"></textarea>
-  <p class="dream-help">Avoid editing affected dream pages in another tab while your agent works. Refresh the map or reopen pages afterward.</p>
+  <p class="field-help">Uses the date window across this memory, not just visible notes or map filters. Nothing runs here; your agent uses its own model/account and separately configured memory access.</p>
+  <div class="field">
+    <label class="field-label" for="dream-topic">Topic or canonical page ID (optional for general dreaming)</label>
+    <input id="dream-topic" type="text" maxlength="200" autocomplete="off" placeholder="Release plan">
   </div>
-  <div class="dream-footer">
-  <div class="dream-actions">
-    <button id="dream-copy" class="button button-primary" type="button">Copy prompt</button>
+  <div class="field">
+    <label class="field-label" for="dream-preview">Prompt to paste into your agent</label>
+    <textarea id="dream-preview" readonly spellcheck="false" aria-describedby="dream-feedback" class="input--mono"></textarea>
+  </div>
+  <p class="field-help">Avoid editing affected dream pages in another tab while your agent works. Refresh the map or reopen pages afterward.</p>
+  </div>
+  <div class="dialog-footer">
+  <div class="dialog-actions">
     <button id="dream-close" class="quiet-button" type="button">Close</button>
+    <button id="dream-copy" class="button button-primary" type="button">Copy prompt</button>
   </div>
-  <p id="dream-feedback" role="status" aria-live="polite"></p>
+  <p id="dream-feedback" class="status-text" role="status" aria-live="polite"></p>
   </div>
 </dialog>
 `;
@@ -178,8 +174,9 @@ $("dream-topic").addEventListener("input", () => {
     const handoff = createDreamHandoff($("dream-target").textContent, dreamPreparedAt, $("dream-topic").value);
     $("dream-preview").value = handoff.prompt;
     $("dream-feedback").textContent = "";
+    $("dream-feedback").dataset.error = "false";
     $("dream-copy").disabled = false;
-  } catch (error) { $("dream-copy").disabled = true; $("dream-feedback").textContent = error.message; }
+  } catch (error) { $("dream-copy").disabled = true; $("dream-feedback").dataset.error = "true"; $("dream-feedback").textContent = error.message; }
 });
 $("open-dream").addEventListener("click", openDreamHandoff);
 $("dream-close").addEventListener("click", () => closeDreamHandoff());
