@@ -1,12 +1,13 @@
 // Production shell, disposable Markdown; no installed app or personal brain.
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { initializeMemoryRoot } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
 import { appendEditorText, editorMarkdown } from './editor-smoke-helpers.mjs';
+import { installCollaborationSmokeTransport } from './collaboration-smoke-transport.mjs';
 
 const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-workspace-history-'));
 const captures = '/tmp/jumpybrain-workspace-history-qa';
@@ -23,6 +24,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 850 } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
+  // Editor saves publish over the live WebSocket; inject failures there.
+  const liveTransport = await installCollaborationSmokeTransport(page);
   await page.goto(`${server.url}/#apiKey=${key}`);
   const back = page.locator('#navigate-back'), forward = page.locator('#navigate-forward');
   assert.equal(await back.isDisabled(), true);
@@ -42,20 +45,25 @@ try {
   await page.locator('#note-editor').waitFor();
   assert.equal(page.url(), noteUrl);
 
-  // A failed save keeps both the draft and the graph destination for explicit retry.
-  await page.route('**/memories/all/documents/*', route => route.request().method() === 'PUT'
-    ? route.fulfill({ status: 500, json: { error: { message: 'Fixture failure' } } }) : route.continue());
+  // A failed save keeps both the draft and the graph destination for explicit review.
+  // Rejected live publication is recovered through Review changes -> Keep my changes.
+  const noteFile = path.join(root, `notes/fixture-${ids.indexOf(new URL(noteUrl).searchParams.get('note'))}.md`);
+  const failedEdit = liveTransport.rejectNext('edit', { code: 'source_unavailable', message: 'Fixture failure' });
   await appendEditorText(page, ' History draft.');
-  await page.locator('#note-retry').waitFor();
+  await failedEdit.arrived;
+  await page.locator('#note-recover').waitFor();
   const draft = await editorMarkdown(page);
   await back.click();
   await page.waitForFunction(() => !navigation.isBusy());
-  assert.equal(page.url(), noteUrl);
+  assert.equal(page.url(), noteUrl, 'failed save blocks Back');
   assert.equal(await editorMarkdown(page), draft);
-  assert.equal(await back.isEnabled(), true);
-  await page.unroute('**/memories/all/documents/*');
-  await page.locator('#note-retry').click();
+  assert.equal(await back.isEnabled(), true, 'graph destination stays reachable');
+  assert.doesNotMatch(await readFile(noteFile, 'utf8'), /History draft/);
+  await page.locator('#note-recover').click();
+  await page.waitForFunction(() => document.getElementById('document-recovery').open && !document.getElementById('recovery-publish').disabled);
+  await page.locator('#recovery-publish').click();
   await page.waitForFunction(() => document.querySelector('#note-save-state').textContent === 'Saved');
+  assert.match(await readFile(noteFile, 'utf8'), /History draft\./);
   await back.click();
   await page.waitForFunction(() => state.view === 'graph' && !navigation.isBusy());
 
