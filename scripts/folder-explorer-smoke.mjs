@@ -7,6 +7,7 @@ import { initializeMemoryRoot } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { startCompanionGateway } from '../integrations/macos-companion/gateway.mjs';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
+import { installCollaborationSmokeTransport } from './collaboration-smoke-transport.mjs';
 import { folderExplorerMarkup } from '../dist/adapters/http-server/folder-explorer-view.js';
 
 const temp = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-folders-'));
@@ -75,6 +76,7 @@ async function checkSurface(name, url) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 850 }, reducedMotion: 'reduce' });
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
+  const liveTransport = await installCollaborationSmokeTransport(page);
   const errors = [], writes = [], reads = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('request', request => {
@@ -280,15 +282,15 @@ async function checkSurface(name, url) {
     // A failed save must retain the old note and draft when the explorer asks to navigate.
     await page.setViewportSize({ width: 1280, height: 850 });
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    await page.route('**/memories/all/documents/**', route => route.request().method() === 'PUT'
-      ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Fixture save failed' } }) })
-      : route.continue());
+    // Titles publish over the live WebSocket; fail that RPC rather than the retired document PUT.
+    const failedTitle = liveTransport.rejectNext('title', { code: 'fixture_failed', message: 'Fixture save failed' });
     await page.locator('#folder-explorer-close').click();
     await page.locator('#note-name').fill('Unsaved explorer draft');
     await open();
     await search.fill('Orchard architecture');
     await fileRow(fixtures[0].file).click();
     await page.waitForFunction(() => state.editor?.state.saveStatus === 'failed');
+    assert.equal(failedTitle.used, true, 'the injected title publication failure was exercised');
     assert.equal(new URL(page.url()).searchParams.get('note'), id(2), 'failed save prevents explorer navigation');
     assert.equal(await page.locator('#note-name').inputValue(), 'Unsaved explorer draft');
     assert.equal(await panel.isVisible(), true, 'failed navigation keeps explorer available');

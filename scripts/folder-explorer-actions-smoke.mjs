@@ -109,7 +109,8 @@ async function check(name, url, number) {
     await page.locator('#folder-explorer-save').click(); await dialog.waitFor({ state: 'hidden' });
     const saved = await readFile(path.join(root, base, 'alpha/renamed.md'), 'utf8');
     assert.ok(saved.includes('Edited before rename ' + name)); assert.match(saved, /custom:\s*"?keep/);
-    assert.equal(await page.evaluate(() => state.editor.state.file), base + '/alpha/renamed.md');
+    // The live document snapshot confirms the new filename after the file operation.
+    await page.waitForFunction(expected => state.editor?.state.file === expected, base + '/alpha/renamed.md');
     await assert.rejects(readFile(path.join(root, base, 'alpha/original.md')));
 
     await show(base + '/alpha/renamed.md');

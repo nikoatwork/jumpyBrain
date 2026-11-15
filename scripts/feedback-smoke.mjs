@@ -6,7 +6,7 @@ import path from 'node:path';
 import { initializeMemoryRoot } from '../dist/runtime/index.js';
 import { startJumpyBrainHttpServer } from '../dist/server/index.js';
 import { loadPlaywrightChromium, launchPlaywrightChromium } from './playwright-runtime.mjs';
-import { appendEditorText } from './editor-smoke-helpers.mjs';
+import { appendEditorText, showSidebar } from './editor-smoke-helpers.mjs';
 
 const root = await mkdtemp(path.join(os.tmpdir(), 'jumpybrain-feedback-'));
 const key = 'disposable-secret-feedback-key';
@@ -29,6 +29,8 @@ try {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(`${server.url}/?note=${id}#apiKey=${key}`);
     await page.locator('#note-editor').filter({ hasText: 'Private note body.' }).waitFor();
+    // Narrow note entry collapses navigation; Feedback lives in the sidebar footer.
+    await showSidebar(page);
     await page.locator('#open-feedback').click();
     assert.equal(await page.locator('#feedback-dialog').evaluate((el) => el.open), true);
     assert.equal(await page.locator('#feedback-include-logs').isChecked(), true);

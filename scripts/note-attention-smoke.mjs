@@ -7,7 +7,8 @@ import path from "node:path";
 import { initializeMemoryRoot } from "../dist/runtime/index.js";
 import { startJumpyBrainHttpServer } from "../dist/server/index.js";
 import { loadPlaywrightChromium, launchPlaywrightChromium } from "./playwright-runtime.mjs";
-import { appendEditorText, editorMarkdown, editorSelection, selectEditorText } from "./editor-smoke-helpers.mjs";
+import { appendEditorText, editorMarkdown, editorSelection, selectEditorText, showSidebar } from "./editor-smoke-helpers.mjs";
+import { installCollaborationSmokeTransport } from "./collaboration-smoke-transport.mjs";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-attention-"));
 const screenshots = process.env.JUMPYBRAIN_SMOKE_SCREENSHOT_DIR || "/tmp/jumpybrain-attention-qa";
@@ -75,6 +76,7 @@ try {
   page.setDefaultTimeout(15_000);
   page.on("pageerror", error => errors.push(error.message));
   page.on("request", request => { if (request.method() === "PATCH") patches.push({ url: request.url(), body: request.postDataJSON() }); });
+  const liveTransport = await installCollaborationSmokeTransport(page);
   await page.goto(`${server.url}/?note=${ids[0]}#apiKey=${key}`);
   await page.locator("#note-editor").waitFor();
   await row(ids[0]).waitFor();
@@ -191,19 +193,20 @@ try {
   await page.reload(); await page.locator("#note-editor").waitFor();
 
   // Failed content publication blocks the metadata mutation and retains the draft.
-  await page.route("**/memories/all/documents/**", async route => {
-    if (route.request().method() === "PUT") await route.fulfill({ status: 500, contentType: "application/json", body: '{"error":{"message":"Disposable save failure"}}' });
-    else await route.continue();
-  });
+  // The editor publishes over the live WebSocket, so fail that edit RPC rather than HTTP.
+  const failedEdit = liveTransport.rejectNext("edit", { code: "fixture_failed", message: "Disposable save failure" });
   await appendEditorText(page, " Keep this unsaved draft.");
+  await failedEdit.arrived;
   const draft = await editorMarkdown(page), beforeFailed = patches.length;
   await sidebarAction("settle");
   await page.waitForFunction(() => !state.editor?.state.navigationPending && state.editor.state.saveStatus === "failed");
   assert.equal(patches.length, beforeFailed, "failed save prevents attention PATCH");
   assert.equal(await editorMarkdown(page), draft);
   assert.equal(Object.hasOwn((await json(documentPath(ids[0]))).frontmatter, "attention_at"), false);
-  await page.unroute("**/memories/all/documents/**");
-  await page.locator("#note-retry").click(); await saved();
+  // A rejected live edit is reviewed, not blindly retried: keep the retained draft.
+  await page.locator("#note-recover").click();
+  await page.waitForFunction(() => !document.getElementById("recovery-publish").disabled);
+  await page.locator("#recovery-publish").click(); await saved();
   await page.waitForFunction(() => document.querySelector("#app-toast").hidden);
   await sidebarAction("settle"); await settled();
   assert.equal(await editorMarkdown(page), draft, "recovered attention mutation retains the saved draft");
@@ -238,6 +241,8 @@ try {
       await page.evaluate(() => toast.show("layout", "Snoozed until 24/10/2026, 09:00. Pinned pages stay visible.", { action: { label: "Undo", run() {} } }));
       await assertFits(`${theme} ${width}`);
       await page.screenshot({ path: path.join(screenshots, `attention-${theme}-${width}.png`), fullPage: true });
+      // Narrow note views collapse navigation; row actions are reached by revealing it.
+      await showSidebar(page);
       await sidebarAction("snooze");
       await assertFits(`${theme} ${width} presets`);
       await page.screenshot({ path: path.join(screenshots, `snooze-${theme}-${width}.png`), fullPage: true });
