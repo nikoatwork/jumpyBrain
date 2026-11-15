@@ -9,6 +9,7 @@ import {
   loadPlaywrightChromium,
   launchPlaywrightChromium,
 } from "./playwright-runtime.mjs";
+import { showSidebar } from "./editor-smoke-helpers.mjs";
 const root = await mkdtemp(path.join(os.tmpdir(), "jumpybrain-topic-"));
 let browser, server;
 const id = (i) =>
@@ -70,6 +71,9 @@ try {
       (await page.locator("#viewport").locator("*").count()) < 1500,
       "dense view keeps DOM bounded",
     );
+    // Lexical brains disclose missing related-note links in a persistent, dismissible
+    // warning that can sit over narrow map controls; it returns when a new graph reports it.
+    await dismissLexicalNotice(page);
     // Controlled semantic packet through the production browser search/graph seams.
     const semanticHandler = async route => {
       const request = route.request().postDataJSON();
@@ -132,6 +136,7 @@ try {
         );
       assert.ok(labels.some((n) => n.title === "Health and sleep"));
       assert.ok(labels.every((n) => n.font === "12px"));
+      await dismissLexicalNotice(page, { optional: true });
       await page.locator("#zoom-in").click();
       await page.waitForFunction(() =>
         [...document.querySelectorAll(".graph-title")].every(
@@ -156,10 +161,12 @@ try {
         camera,
         "manual camera survives query changes",
       );
+      await dismissLexicalNotice(page, { optional: true });
       await page.locator("#reset-view").click();
     }
     await query.fill("Health and sleep");
     await ready(page);
+    await dismissLexicalNotice(page, { optional: true });
     await page.locator('.graph-title[aria-label="Health and sleep"]').click();
     await page.waitForURL((u) => u.searchParams.get("note") === id(0));
     await page.locator("#note-editor").waitFor({ state: "visible" });
@@ -215,6 +222,9 @@ try {
     await page.locator("#graph").dispatchEvent("pointerdown", { pointerId: 78, button: 2, clientX: 100, clientY: 100 });
     await page.locator("#graph").dispatchEvent("pointerup", { pointerId: 78, button: 2, clientX: 100, clientY: 100 });
     assert.equal(page.url(), url, "right clicks cannot activate a graph target");
+    await dismissLexicalNotice(page, { optional: true });
+    // Narrow note entry dismissed the sidebar; reopening it is an explicit toggle.
+    await showSidebar(page);
     await page.locator("#home-link").click();
     await page.waitForURL(
       (u) => u.pathname === "/" && !u.searchParams.has("note"),
@@ -237,6 +247,17 @@ try {
   if (browser) await browser.close();
   if (server) await server.close();
   await rm(root, { recursive: true, force: true });
+}
+async function dismissLexicalNotice(page, { optional = false } = {}) {
+  const toast = page.locator('#app-toast[data-source="graph-warnings"]');
+  if (optional && !(await toast.isVisible())) return;
+  await toast.waitFor({ state: "visible" });
+  assert.match(
+    await toast.innerText(),
+    /Related-note connections are unavailable until semantic indexing is set up\. Explicit links are shown\./,
+  );
+  await page.locator("#toast-close").click();
+  await toast.waitFor({ state: "hidden" });
 }
 async function ready(page) {
   await page.locator("#ready").waitFor({ state: "visible" });
